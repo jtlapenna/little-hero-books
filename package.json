@@ -8,11 +8,12 @@
     "dev": "cd renderer && npm run dev",
     "dev:amazon": "cd amazon && npm run dev",
     "dev:llm": "cd llm && npm run dev",
-    "dev:all": "concurrently \"npm run dev\" \"npm run dev:amazon\" \"npm run dev:llm\"",
+    "dev:templates": "cd templates && npm run dev",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:amazon\" \"npm run dev:llm\" \"npm run dev:templates\"",
     "build": "cd renderer && npm run build",
     "test": "cd renderer && npm test",
     "start": "cd renderer && npm start",
-    "install-deps": "cd renderer && npm install && npx playwright install && cd ../amazon && npm install && cd ../llm && npm install",
+    "install-deps": "cd renderer && npm install && npx playwright install && cd ../amazon && npm install && cd ../llm && npm install && cd ../templates && npm install",
     "test:amazon": "curl http://localhost:4000/health",
     "test:renderer": "curl http://localhost:8787/health"
   },
@@ -39,5 +40,8 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
   }
 }

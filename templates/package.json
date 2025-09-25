@@ -1,0 +1,18 @@
+{
+  "name": "little-hero-books-story-templates",
+  "version": "1.0.0",
+  "description": "Template-based story generation for Little Hero Books",
+  "type": "module",
+  "scripts": {
+    "test": "node story-template.js",
+    "dev": "node story-template.js"
+  },
+  "keywords": [
+    "story-templates",
+    "personalization",
+    "childrens-books",
+    "template-system"
+  ],
+  "author": "Little Hero Books",
+  "license": "MIT"
+}

@@ -41,7 +41,7 @@ app.get("/health", (_, res) => {
   });
 });
 
-// Render endpoint
+// Render endpoint - n8n compatible
 app.post("/render", async (req, res) => {
   const startTime = Date.now();
   const orderId = req.body?.orderId || 'unknown';
@@ -52,13 +52,20 @@ app.post("/render", async (req, res) => {
     const out = await renderBook(req.body);
     const duration = Date.now() - startTime;
     
-    log('info', `Render completed for order: ${orderId}`, {
-      duration: `${duration}ms`,
+    // n8n expects specific response format
+    const response = {
+      orderId: out.orderId,
       bookPdfUrl: out.bookPdfUrl,
-      coverPdfUrl: out.coverPdfUrl
-    });
+      coverPdfUrl: out.coverPdfUrl,
+      thumbUrl: out.thumbUrl || null, // For future image thumbnails
+      status: 'completed',
+      duration: `${duration}ms`,
+      timestamp: new Date().toISOString()
+    };
     
-    res.json(out);
+    log('info', `Render completed for order: ${orderId}`, response);
+    
+    res.json(response);
   } catch (e: any) {
     const duration = Date.now() - startTime;
     

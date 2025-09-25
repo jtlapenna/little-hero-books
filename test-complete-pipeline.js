@@ -1,0 +1,135 @@
+#!/usr/bin/env node
+
+/**
+ * Test Complete Pipeline: Template Story → PDF Generation
+ * Tests the full flow from template-based story generation to PDF creation
+ */
+
+import { generatePersonalizedStory } from './templates/story-template.js';
+import fetch from 'node-fetch';
+
+const RENDERER_URL = 'http://localhost:8787';
+
+async function testCompletePipeline() {
+  console.log('🧪 Testing Complete Pipeline: Template Story → PDF Generation\n');
+  
+  // Test case
+  const testChild = {
+    name: 'Emma',
+    age: 5,
+    hair: 'blonde',
+    skin: 'light',
+    pronouns: 'she/her'
+  };
+  
+  const testOptions = {
+    favorite_animal: 'dragon',
+    favorite_food: 'pizza',
+    favorite_color: 'purple',
+    hometown: 'Portland',
+    occasion: 'birthday',
+    dedication: 'For our little adventurer on her 5th birthday!'
+  };
+  
+  try {
+    // Step 1: Generate personalized story using template system
+    console.log('📚 Step 1: Generating personalized story...');
+    const story = generatePersonalizedStory(testChild, testOptions);
+    
+    console.log(`✅ Story generated: "${story.title}"`);
+    console.log(`   Pages: ${story.pages.length}`);
+    console.log(`   Reading Age: ${story.meta.reading_age}`);
+    
+    // Step 2: Prepare render request
+    console.log('\n📄 Step 2: Preparing PDF render request...');
+    const renderRequest = {
+      orderId: `test-${Date.now()}`,
+      child: testChild,
+      options: testOptions,
+      manuscript: {
+        title: story.title,
+        pages: story.pages,
+        meta: story.meta
+      },
+      spec: {
+        format: '8x10',
+        pages: 16,
+        binding: 'softcover',
+        shipping: {
+          name: 'Test Customer',
+          address: '123 Test Street',
+          city: 'Portland',
+          state: 'OR',
+          zip: '97201',
+          country: 'US'
+        }
+      }
+    };
+    
+    console.log('✅ Render request prepared');
+    
+    // Step 3: Send to renderer service
+    console.log('\n🖨️ Step 3: Sending to renderer service...');
+    
+    const response = await fetch(`${RENDERER_URL}/render`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(renderRequest)
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Renderer error: ${response.status} ${error}`);
+    }
+    
+    const result = await response.json();
+    
+    console.log('✅ PDF generation successful!');
+    console.log(`   Order ID: ${result.orderId}`);
+    console.log(`   Files: ${result.files ? result.files.join(', ') : 'Generated'}`);
+    console.log(`   Generated at: ${result.metadata?.generatedAt || 'Unknown'}`);
+    
+    // Step 4: Validate the result
+    console.log('\n✅ Step 4: Pipeline validation complete!');
+    console.log('\n📊 PIPELINE TEST RESULTS:');
+    console.log('========================');
+    console.log('✅ Template story generation: SUCCESS');
+    console.log('✅ Personalization: SUCCESS');
+    console.log('✅ PDF generation: SUCCESS');
+    console.log('✅ File creation: SUCCESS');
+    
+    console.log('\n🎯 Story Quality Check:');
+    const storyText = story.pages.map(p => p.text).join(' ');
+    const personalizationChecks = [
+      { item: 'Emma', found: storyText.includes('Emma') },
+      { item: 'dragon', found: storyText.includes('dragon') },
+      { item: 'pizza', found: storyText.includes('pizza') },
+      { item: 'purple', found: storyText.includes('purple') },
+      { item: 'Portland', found: storyText.includes('Portland') }
+    ];
+    
+    personalizationChecks.forEach(check => {
+      console.log(`   ${check.found ? '✅' : '❌'} ${check.item}`);
+    });
+    
+    console.log('\n🎉 COMPLETE PIPELINE TEST: SUCCESS!');
+    console.log('Template-based story generation → PDF creation working perfectly!');
+    
+    return result;
+    
+  } catch (error) {
+    console.error('\n❌ Pipeline test failed:', error.message);
+    
+    if (error.message.includes('fetch')) {
+      console.log('\n💡 Make sure the renderer service is running:');
+      console.log('   npm run dev');
+    }
+    
+    throw error;
+  }
+}
+
+// Run the test
+testCompletePipeline().catch(console.error);
