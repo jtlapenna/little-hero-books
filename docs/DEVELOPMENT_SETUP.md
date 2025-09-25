@@ -42,8 +42,11 @@ Amazon Custom Order → n8n Workflow → Template System → Renderer → POD �
    R2_PUBLIC_URL=https://pub-your-id.r2.dev
 
    # POD Provider (when ready)
+   POD_PROVIDER=lulu                    # or 'onpress'
    POD_API_KEY=your_pod_api_key
-   POD_API_URL=https://api.podprovider.com
+   POD_CONTACT_EMAIL=ops@littleherobooks.com
+   LULU_API_URL=https://api.lulu.com/v1
+   ONPRESS_API_URL=https://api.onpress.com/v1
 
    # Amazon (when ready)
    AMZ_SELLER_ID=your_seller_id

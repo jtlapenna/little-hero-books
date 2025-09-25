@@ -1,0 +1,24 @@
+{
+  "name": "little-hero-books-pod-service",
+  "version": "1.0.0",
+  "description": "Print-on-demand service integration for Little Hero Books",
+  "type": "module",
+  "main": "pod-service.js",
+  "scripts": {
+    "test": "node pod-service.js",
+    "dev": "node --watch pod-service.js"
+  },
+  "dependencies": {
+    "axios": "^1.12.2",
+    "zod": "^3.22.0"
+  },
+  "keywords": [
+    "pod",
+    "print-on-demand",
+    "lulu",
+    "book-printing",
+    "personalized-books"
+  ],
+  "author": "Little Hero Books",
+  "license": "MIT"
+}
