@@ -96,11 +96,12 @@
 - **Result**: Complete printing and shipping automation
 - **Why First**: Validates the complete production pipeline
 
-### Option B: Customer Website
+### Option B: Customer Website (Future - Post-MVP)
 - **Cost**: Free hosting (Vercel, Netlify)
 - **Time**: 4-6 hours
 - **Action**: Build interactive personalization interface
 - **Result**: Direct customer experience and order processing
+- **Note**: This comes later for scaling, not for MVP
 
 ### Option C: n8n Workflow Setup
 - **Cost**: Free tier or $10/month self-hosted
@@ -117,9 +118,9 @@
 ## 📊 Technical Architecture Status
 
 ```
-Current: ✅ Renderer ✅ Template System ✅ Amazon Middleware ✅ Asset Management
-Next:    🔧 POD 🔧 Website 🔧 n8n 🔧 Testing
-Future:  🔧 Amazon Integration (when ready for $40/month)
+Current: ✅ Renderer ✅ Template System ✅ Amazon Middleware ✅ Asset Management ✅ POD Integration
+Next:    🔧 n8n Workflows 🔧 End-to-End Testing 🔧 Handoff Preparation
+Future:  🔧 Amazon Integration (when ready for $40/month) 🔧 Customer Website (Post-MVP scaling)
 ```
 
 ### Service Status:
@@ -127,8 +128,8 @@ Future:  🔧 Amazon Integration (when ready for $40/month)
 - **Amazon Middleware**: Running on port 4000 ✅
 - **Template System**: Ready and tested ✅
 - **Asset Management**: Ready and tested ✅
-- **POD Integration**: Ready to build 🔧
-- **Customer Website**: Ready to build 🔧
+- **POD Integration**: Complete and ready ✅
+- **Customer Website**: Future (Post-MVP scaling) 🔧
 - **n8n Workflows**: Ready to configure 🔧
 
 ## 💰 Cost Analysis
