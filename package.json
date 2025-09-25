@@ -1,0 +1,36 @@
+{
+  "name": "little-hero-books",
+  "version": "0.1.0",
+  "description": "Personalized children's books where every child is the hero of their own magical adventure story",
+  "private": true,
+  "scripts": {
+    "setup": "node scripts/setup-env.js",
+    "dev": "cd renderer && npm run dev",
+    "build": "cd renderer && npm run build",
+    "test": "cd renderer && npm test",
+    "start": "cd renderer && npm start",
+    "test-renderer": "node test-renderer.js",
+    "install-deps": "cd renderer && npm install && npx playwright install"
+  },
+  "keywords": [
+    "personalized-books",
+    "childrens-books",
+    "ai-generated-content",
+    "print-on-demand",
+    "amazon-custom",
+    "n8n-automation",
+    "typescript",
+    "nodejs",
+    "pdf-generation",
+    "storytelling"
+  ],
+  "author": "Little Hero Books",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/amoeboar/little-hero-books.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
