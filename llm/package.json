@@ -1,0 +1,24 @@
+{
+  "name": "little-hero-books-story-generator",
+  "version": "1.0.0",
+  "description": "AI story generation for Little Hero Books using OpenAI or Anthropic",
+  "type": "module",
+  "scripts": {
+    "dev": "node story-generator.js",
+    "test": "node story-generator.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": [
+    "ai",
+    "story-generation",
+    "openai",
+    "anthropic",
+    "childrens-books",
+    "personalization"
+  ],
+  "author": "Little Hero Books",
+  "license": "MIT"
+}
