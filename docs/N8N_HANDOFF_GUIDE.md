@@ -13,6 +13,7 @@ All core components are built and tested. The system is ready for n8n workflow o
 - **Status**: Complete and tested
 - **Function**: `generatePersonalizedStory(childData, options)`
 - **Output**: 14-page personalized story with placeholders replaced
+- **Note**: Consistent quality, no API costs, instant generation
 
 ### **2. Renderer Service** ✅
 - **Location**: `renderer/` directory
@@ -34,10 +35,11 @@ All core components are built and tested. The system is ready for n8n workflow o
 - **Status**: Complete
 - **Function**: `validateOrder(order)` - Validates order data structure
 
-### **5. Image Template System** ✅
-- **Location**: `templates/image-templates.js`
+### **5. Asset Management System** ✅
+- **Location**: `assets/asset-manager.js`
 - **Status**: Complete
-- **Function**: `generateAllImageTemplates(personalization)` - Generates image templates
+- **Function**: `generateBookAssets(personalization)` - Generates complete asset configuration
+- **Features**: Prefab backgrounds, character overlays, magical elements
 
 ---
 
@@ -71,16 +73,14 @@ All core components are built and tested. The system is ready for n8n workflow o
    - **Purpose**: Ensure data integrity
 
 5. **Generate Personalized Story**
-   - **Node**: HTTP Request
-   - **URL**: `http://localhost:3000/generate-story` (if using separate service)
-   - **OR**: **Node**: Code
-   - **Script**: Use `generatePersonalizedStory()` from `templates/story-template.js`
-   - **Purpose**: Create personalized story
-
-6. **Generate Image Templates**
    - **Node**: Code
-   - **Script**: Use `generateAllImageTemplates()` from `templates/image-templates.js`
-   - **Purpose**: Create image templates for each page
+   - **Script**: Use `generatePersonalizedStory()` from `templates/story-template.js`
+   - **Purpose**: Create personalized story from template
+
+6. **Generate Asset Configuration**
+   - **Node**: Code
+   - **Script**: Use `generateBookAssets()` from `assets/asset-manager.js`
+   - **Purpose**: Create asset configuration for each page
 
 7. **Call Renderer Service**
    - **Node**: HTTP Request

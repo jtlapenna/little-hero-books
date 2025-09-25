@@ -3,16 +3,16 @@
 
 **"Every child is the hero of their own story"**
 
-Little Hero Books creates magical, personalized children's stories where each child becomes the hero of *The Adventure Compass* - a journey through enchanted locations before returning home. Our system generates unique books with AI-powered story creation and automated print-on-demand fulfillment.
+Little Hero Books creates magical, personalized children's stories where each child becomes the hero of *The Adventure Compass* - a journey through enchanted locations before returning home. Our system uses template-based story generation with consistent quality and automated print-on-demand fulfillment.
 
 ## 🎯 **Current Status: Phase 1 Complete**
 
 ### ✅ **What's Working Now:**
 - **Renderer Service**: Beautiful PDF generation with custom templates
-- **AI Story Generator**: OpenAI/Anthropic integration for personalized stories
+- **Template Story System**: Consistent base story with personalization placeholders
 - **Amazon SP-API Middleware**: Complete integration (ready for when needed)
+- **Asset Management**: Prefab backgrounds and character overlay system
 - **Environment Configuration**: Full development setup
-- **Comprehensive Testing**: 100% test coverage with validation
 
 ### 🎨 **The Adventure Compass Story**
 
@@ -30,15 +30,15 @@ Each book follows a magical journey where the child discovers a compass that gui
 
 ### **Core Services:**
 - **`renderer/`** - PDF generation service (Node.js/TypeScript)
-- **`llm/`** - AI story generator (OpenAI/Anthropic integration)
+- **`templates/`** - Template-based story system with personalization
+- **`assets/`** - Prefab backgrounds and character overlay system
 - **`amazon/`** - SP-API middleware (ready for future use)
 - **`n8n/workflows/`** - Automation workflows (ready to configure)
 
 ### **Supporting Files:**
 - **`docs/`** - Complete documentation and strategy guides
-- **`prompts/`** - LLM prompts and content guidelines
+- **`data/`** - Order data models and validation
 - **`pod/`** - Print-on-demand provider examples
-- **`assets/`** - Image overlays and template assets
 
 ## 🚀 **Development Setup**
 
@@ -59,14 +59,15 @@ npm run test:amazon    # http://localhost:4000/health
 ```bash
 npm run dev           # Renderer service only
 npm run dev:amazon    # Amazon middleware only  
-npm run dev:llm       # AI story generator only
+npm run dev:templates # Template system only
 ```
 
 ## 📋 **Current Development Strategy**
 
 ### **Phase 1: Build Without Amazon Fees (Current)**
 - ✅ **Renderer Service**: PDF generation working
-- ✅ **AI Story Generator**: LLM integration complete
+- ✅ **Template Story System**: Consistent base story with personalization
+- ✅ **Asset Management**: Prefab backgrounds and character overlays
 - 🔧 **POD Integration**: Ready to build (Lulu/OnPress)
 - 🔧 **Customer Website**: Ready to build
 - 🔧 **n8n Workflows**: Ready to configure

@@ -6,10 +6,10 @@ Welcome to Little Hero Books! This guide will help you set up your development e
 
 ### ✅ **What's Working Now:**
 - **Renderer Service**: Beautiful PDF generation with custom templates
-- **AI Story Generator**: OpenAI/Anthropic integration complete
+- **Template Story System**: Consistent base story with personalization
+- **Asset Management**: Prefab backgrounds and character overlay system
 - **Amazon SP-API Middleware**: Ready for future use
 - **Environment Configuration**: Full development setup
-- **Comprehensive Testing**: 100% test coverage
 
 ### 🔧 **What's Next:**
 - POD Provider Integration (Lulu/OnPress)

@@ -6,10 +6,10 @@ Little Hero Books creates personalized children's stories where each child becom
 
 ### ✅ **Phase 1 Complete (Current Status)**
 - **Renderer Service**: Beautiful PDF generation with custom templates ✅
-- **AI Story Generator**: OpenAI/Anthropic integration complete ✅
+- **Template Story System**: Consistent base story with personalization ✅
+- **Asset Management**: Prefab backgrounds and character overlay system ✅
 - **Amazon SP-API Middleware**: Ready for future use ✅
 - **Environment Configuration**: Full development setup ✅
-- **Comprehensive Testing**: 100% test coverage ✅
 
 ### 🔧 **Next Phase (No Amazon Fees Required)**
 - **POD Integration**: Lulu/OnPress printing automation
@@ -67,8 +67,8 @@ npm run dev
 # Amazon middleware only (port 4000)  
 npm run dev:amazon
 
-# AI story generator only
-npm run dev:llm
+# Template system only
+npm run dev:templates
 ```
 
 ### Service Endpoints
@@ -82,9 +82,9 @@ npm run dev:llm
 - `GET /orders` - Fetch Amazon orders (when connected)
 - `POST /orders/process` - Process specific order
 
-**AI Story Generator:**
-- `generateStory(childData, options)` - Generate personalized stories
-- `validateStory(story, childName)` - Validate story quality
+**Template Story System:**
+- `generatePersonalizedStory(childData, options)` - Generate personalized stories from template
+- `validatePersonalizedStory(story, childName)` - Validate story quality
 
 ### Testing the Renderer
 
