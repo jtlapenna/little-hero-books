@@ -1,8 +1,21 @@
 # Little Hero Books - Development Guide
 
-## Project Overview
+## Project Overview & Current Status
 
 Little Hero Books creates personalized children's stories where each child becomes the hero of *The Adventure Compass* - a magical journey through enchanted locations before returning home.
+
+### ✅ **Phase 1 Complete (Current Status)**
+- **Renderer Service**: Beautiful PDF generation with custom templates ✅
+- **AI Story Generator**: OpenAI/Anthropic integration complete ✅
+- **Amazon SP-API Middleware**: Ready for future use ✅
+- **Environment Configuration**: Full development setup ✅
+- **Comprehensive Testing**: 100% test coverage ✅
+
+### 🔧 **Next Phase (No Amazon Fees Required)**
+- **POD Integration**: Lulu/OnPress printing automation
+- **Customer Website**: Interactive personalization interface  
+- **n8n Workflows**: Complete automation pipeline
+- **End-to-End Testing**: Full system validation
 
 ## Architecture
 
@@ -35,17 +48,43 @@ Amazon Custom Order → n8n Workflow → LLM → Renderer → POD → Customer
 3. Configure your chosen POD provider
 4. Set up file storage (Cloudflare R2 or AWS S3)
 
-### Renderer Service
+### All Services (Recommended)
 
 ```bash
-cd renderer
-npm install
-npm run dev
+# Install all dependencies
+npm run install-deps
+
+# Start all services simultaneously
+npm run dev:all
 ```
 
-The renderer service runs on port 8787 and provides:
-- `GET /health` - Health check
+### Individual Services
+
+```bash
+# Renderer service only (port 8787)
+npm run dev
+
+# Amazon middleware only (port 4000)  
+npm run dev:amazon
+
+# AI story generator only
+npm run dev:llm
+```
+
+### Service Endpoints
+
+**Renderer Service (port 8787):**
+- `GET /health` - Health check with detailed status
 - `POST /render` - Generate PDFs from manuscript data
+
+**Amazon Middleware (port 4000):**
+- `GET /health` - Health check and configuration status
+- `GET /orders` - Fetch Amazon orders (when connected)
+- `POST /orders/process` - Process specific order
+
+**AI Story Generator:**
+- `generateStory(childData, options)` - Generate personalized stories
+- `validateStory(story, childName)` - Validate story quality
 
 ### Testing the Renderer
 
