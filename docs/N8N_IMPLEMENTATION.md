@@ -1,28 +1,26 @@
-# n8n Workflow Implementation Handoff Guide
+# Little Hero Books - n8n Workflow Implementation Guide
 
-## 🎯 **Project Status: Ready for n8n Implementation**
+## 🎯 Project Status: Ready for n8n Implementation
 
 All core components are built and tested. The system is ready for n8n workflow orchestration.
 
----
+## ✅ Completed Components
 
-## ✅ **Completed Components**
-
-### **1. Template-Based Story System** ✅
+### 1. Template-Based Story System ✅
 - **Location**: `templates/story-template.js`
 - **Status**: Complete and tested
 - **Function**: `generatePersonalizedStory(childData, options)`
 - **Output**: 14-page personalized story with placeholders replaced
 - **Note**: Consistent quality, no API costs, instant generation
 
-### **2. Renderer Service** ✅
+### 2. Renderer Service ✅
 - **Location**: `renderer/` directory
 - **Status**: Complete and n8n-compatible
 - **Endpoint**: `POST /render`
 - **Input**: Order data with manuscript
 - **Output**: `{orderId, bookPdfUrl, coverPdfUrl, thumbUrl, status, duration, timestamp}`
 
-### **3. Amazon SP-API Middleware** ✅
+### 3. Amazon SP-API Middleware ✅
 - **Location**: `amazon/` directory
 - **Status**: Complete and ready
 - **Endpoints**: 
@@ -30,25 +28,23 @@ All core components are built and tested. The system is ready for n8n workflow o
   - `GET /orders` - Fetch Amazon orders
   - `POST /orders/process` - Process specific order
 
-### **4. Data Model** ✅
+### 4. Data Model ✅
 - **Location**: `data/order-model.js`
 - **Status**: Complete
 - **Function**: `validateOrder(order)` - Validates order data structure
 
-### **5. Asset Management System** ✅
+### 5. Asset Management System ✅
 - **Location**: `assets/asset-manager.js`
 - **Status**: Complete
 - **Function**: `generateBookAssets(personalization)` - Generates complete asset configuration
 - **Features**: Prefab backgrounds, character overlays, magical elements
 
----
+## 🔧 n8n Workflow Implementation Requirements
 
-## 🔧 **n8n Workflow Implementation Requirements**
+### Flow A: Order Intake & Job Creation
 
-### **Flow A: Order Intake & Job Creation**
-
-#### **Trigger**: Cron (5-10 minute intervals)
-#### **Steps**:
+#### Trigger: Cron (5-10 minute intervals)
+#### Steps:
 
 1. **Get Amazon Orders**
    - **Node**: HTTP Request
@@ -105,10 +101,10 @@ All core components are built and tested. The system is ready for n8n workflow o
     - **Node**: Slack/Email
     - **Purpose**: Notify team of successful order processing
 
-### **Flow B: Tracking & Shipment Confirmation**
+### Flow B: Tracking & Shipment Confirmation
 
-#### **Trigger**: Cron (30-60 minute intervals)
-#### **Steps**:
+#### Trigger: Cron (30-60 minute intervals)
+#### Steps:
 
 1. **Fetch In-Flight Jobs**
    - **Node**: Database Query
@@ -137,10 +133,10 @@ All core components are built and tested. The system is ready for n8n workflow o
    - **Node**: Slack/Email
    - **Purpose**: Notify team of shipment confirmation
 
-### **Flow C: Exception Handling**
+### Flow C: Exception Handling
 
-#### **Trigger**: On Error (Global)
-#### **Steps**:
+#### Trigger: On Error (Global)
+#### Steps:
 
 1. **Log Error**
    - **Node**: Code
@@ -158,11 +154,9 @@ All core components are built and tested. The system is ready for n8n workflow o
    - **Node**: Slack
    - **Purpose**: Notify operations team
 
----
+## 📊 Required Environment Variables
 
-## 📊 **Required Environment Variables**
-
-### **Amazon SP-API**
+### Amazon SP-API
 ```bash
 AMAZON_ACCESS_KEY=your_access_key
 AMAZON_SECRET_KEY=your_secret_key
@@ -172,31 +166,29 @@ AMAZON_CLIENT_SECRET=your_client_secret
 AMAZON_MARKETPLACE_ID=ATVPDKIKX0DER
 ```
 
-### **POD Provider**
+### POD Provider
 ```bash
 POD_API_KEY=your_pod_api_key
 POD_API_URL=https://api.podprovider.com
 POD_WEBHOOK_SECRET=your_webhook_secret
 ```
 
-### **Storage**
+### Storage
 ```bash
 STORAGE_BUCKET=little-hero-books-storage
 STORAGE_ACCESS_KEY=your_storage_key
 STORAGE_SECRET_KEY=your_storage_secret
 ```
 
-### **Notifications**
+### Notifications
 ```bash
 SLACK_WEBHOOK_URL=your_slack_webhook
 EMAIL_SERVICE_API_KEY=your_email_api_key
 ```
 
----
+## 🧪 Testing Checklist
 
-## 🧪 **Testing Checklist**
-
-### **Before n8n Implementation**:
+### Before n8n Implementation:
 - [ ] Renderer service running and responding
 - [ ] Amazon middleware running and responding
 - [ ] Template system generating stories correctly
@@ -204,7 +196,7 @@ EMAIL_SERVICE_API_KEY=your_email_api_key
 - [ ] Data model validation working
 - [ ] All environment variables configured
 
-### **After n8n Implementation**:
+### After n8n Implementation:
 - [ ] Flow A processes test order successfully
 - [ ] Flow B tracks and confirms shipment
 - [ ] Flow C handles errors gracefully
@@ -212,9 +204,7 @@ EMAIL_SERVICE_API_KEY=your_email_api_key
 - [ ] Order data persisted correctly
 - [ ] End-to-end test with real Amazon order
 
----
-
-## 📁 **File Structure for n8n**
+## 📁 File Structure for n8n
 
 ```
 little-hero-books/
@@ -242,53 +232,49 @@ little-hero-books/
     └── (complete middleware)
 ```
 
----
+## 🚀 Implementation Steps
 
-## 🚀 **Implementation Steps**
-
-### **Step 1: Set Up n8n Environment**
+### Step 1: Set Up n8n Environment
 1. Install n8n (cloud or self-hosted)
 2. Configure credentials for all services
 3. Set up webhook endpoints
 4. Configure environment variables
 
-### **Step 2: Import Workflow Templates**
+### Step 2: Import Workflow Templates
 1. Create Flow A (Order Intake)
 2. Create Flow B (Tracking)
 3. Create Flow C (Exceptions)
 4. Configure triggers and schedules
 
-### **Step 3: Test Individual Components**
+### Step 3: Test Individual Components
 1. Test Amazon SP-API connection
 2. Test renderer service
 3. Test POD provider connection
 4. Test notification systems
 
-### **Step 4: End-to-End Testing**
+### Step 4: End-to-End Testing
 1. Create test Amazon order
 2. Run Flow A manually
 3. Verify PDF generation
 4. Verify POD submission
 5. Test tracking and confirmation
 
-### **Step 5: Go Live**
+### Step 5: Go Live
 1. Enable cron triggers
 2. Monitor workflow execution
 3. Set up alerts and monitoring
 4. Document any issues
 
----
+## 📞 Support & Resources
 
-## 📞 **Support & Resources**
-
-### **Key Files for Reference**:
+### Key Files for Reference:
 - `templates/story-template.js` - Story generation
 - `templates/image-templates.js` - Image templates
 - `data/order-model.js` - Data validation
 - `renderer/src/index.ts` - PDF generation
 - `amazon/sp-api-middleware.js` - Amazon integration
 
-### **Testing Commands**:
+### Testing Commands:
 ```bash
 # Test renderer
 curl http://localhost:8787/health
@@ -298,34 +284,29 @@ curl http://localhost:4000/health
 
 # Test story generation
 node templates/story-template.js
-
-# Test complete pipeline
-node test-complete-pipeline.js
 ```
 
-### **Monitoring**:
+### Monitoring:
 - n8n execution logs
 - Service health endpoints
 - Error notifications
 - Order tracking database
 
----
+## 🎯 Success Criteria
 
-## 🎯 **Success Criteria**
-
-### **Flow A Success**:
+### Flow A Success:
 - Orders processed within 30 minutes
 - PDFs generated successfully
 - POD orders submitted correctly
 - Notifications sent
 
-### **Flow B Success**:
+### Flow B Success:
 - Tracking information retrieved
 - Amazon shipments confirmed
 - Status updates sent
 - Customer notifications triggered
 
-### **Flow C Success**:
+### Flow C Success:
 - Errors caught and logged
 - Retries attempted
 - Failed orders queued for review
