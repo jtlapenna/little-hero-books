@@ -4,7 +4,7 @@
 
 ## 🎯 Project Vision
 
-Little Hero Books creates personalized children's stories where each child becomes the hero of *The Adventure Compass* - a magical journey through enchanted locations before returning home. Using template-based story generation and automated print-on-demand fulfillment, we create unique keepsake books that families will treasure forever.
+Little Hero Books creates personalized children's stories where each child becomes the hero of *The Adventure Compass* - a magical journey through enchanted locations before returning home. Using template-based story generation with **prefab-only assembly** (zero AI art generation) and automated print-on-demand fulfillment, we create unique keepsake books that families will treasure forever.
 
 ## 📚 The Adventure Compass Story
 
@@ -27,9 +27,20 @@ Customer → Amazon Custom → n8n Workflow → Template System → Renderer →
 - **Amazon Custom Listing** - Collects personalization data
 - **n8n Automation** - Orchestrates the entire pipeline  
 - **Template Story System** - Consistent base story with personalization
-- **Renderer Service** - Creates print-ready PDFs
-- **Asset Management** - Prefab backgrounds and character overlays
+- **Renderer Service** - Assembles prefab components into print-ready PDFs
+- **Asset Management** - Prefab backgrounds, character overlays, and animals (no AI generation)
 - **POD Provider** - Handles printing and shipping
+
+## 🎨 **Prefab-Only Assembly System**
+
+**IMPORTANT**: MVP uses **zero AI art generation** at runtime. Everything is built from pre-made components:
+
+- **Backgrounds**: Fixed set of prefab scenes (bedroom, forest, picnic, etc.)
+- **Character Overlays**: Modular PNG layers (skin, hair, clothes) pre-composed per order
+- **Animals/Accents**: Pre-made "stickers" (fox, rabbit, etc.) placed by rules
+- **Story Text**: Template-generated text dropped into reserved boxes
+
+The renderer **assembles existing components** and **inserts text** - no new art creation.
 
 ### Technology Stack
 - **Backend**: Node.js/TypeScript, Express
@@ -46,7 +57,7 @@ Customer → Amazon Custom → n8n Workflow → Template System → Renderer →
 - **Binding**: Softcover (MVP), Hardcover (future)
 - **Age Range**: 3-7 years old
 - **Word Count**: ~600-800 words total
-- **Art Style**: Watercolor illustrations with character overlays
+- **Art Style**: Prefab watercolor illustrations with character overlays (no AI generation)
 - **Trim**: 8x10 with 0.125" bleed
 - **Color**: CMYK for print compatibility
 

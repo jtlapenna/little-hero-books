@@ -44,16 +44,17 @@
   - Health monitoring
 - **Note**: Ready for use when Amazon storefront is set up
 
-### 4. Asset Management System - Image Templates ✅
+### 4. Asset Management System - Prefab Components ✅
 - **Status**: Complete and ready
 - **Location**: `assets/` directory
 - **Features**:
-  - Prefab backgrounds for all 14 pages + cover + dedication + keepsake
-  - Character overlay system (hair/skin/poses)
-  - Animal companion overlays
-  - Magical elements with color variations
-  - Food-shaped elements for sky scenes
-  - Scene-specific elements
+  - **Prefab backgrounds** for all 14 pages + cover + dedication + keepsake
+  - **Character overlay system** (hair/skin/poses) - modular PNG layers
+  - **Animal companion overlays** - pre-made "stickers" (fox, rabbit, etc.)
+  - **Magical elements** with color variations
+  - **Food-shaped elements** for sky scenes
+  - **Scene-specific elements**
+- **Important**: Zero AI art generation - purely assembly of pre-made components
 
 ### 5. Environment & Configuration ✅
 - **Status**: Complete

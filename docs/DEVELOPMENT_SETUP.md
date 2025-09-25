@@ -167,7 +167,14 @@ npm run dev:templates
 
 ### Asset Mapping Process (n8n → Renderer)
 
-The system maps personalization inputs to prefab overlays and fixed backgrounds per page, producing page payloads with asset paths and coordinates.
+**IMPORTANT**: This is a **prefab-only system** with **zero AI art generation** at runtime. The system maps personalization inputs to pre-made components that are simply layered and compiled:
+
+- **Backgrounds**: Fixed set of prefab scenes (bedroom, forest, picnic, etc.)
+- **Character Overlays**: Modular PNG layers (skin tone, hair style/color, clothes, accessories) pre-composed into single PNG per order
+- **Animals/Accents**: Small prefab "stickers" (fox, rabbit, etc.), pre-made and placed according to page rules
+- **Story Text**: Generated from templates + customer inputs, dropped into reserved text boxes
+
+The renderer then takes these pieces and composes each page into print-spec output, but it does **not create new art**—just arranges existing components and inserts text.
 
 #### Normalized Order JSON (Example)
 ```json
@@ -217,9 +224,11 @@ The system maps personalization inputs to prefab overlays and fixed backgrounds 
 
 #### What the renderer does (in order):
 1. **Load a page template** (background + layout rules)
-2. **Layer overlays** (skin, hair, clothes, animal) at fixed coordinates
-3. **Typeset text** into the reserved text box
+2. **Layer prefab overlays** (skin, hair, clothes, animal) at fixed coordinates
+3. **Insert story text** into the reserved text box
 4. **Export a print-ready page** (raster or vector), then **bind all pages into `book.pdf` + `cover.pdf`**
+
+**No AI art generation** - purely assembly of pre-made components.
 
 ### Recommended Approach: HTML/CSS → PDF (Puppeteer/Playwright + Paged.js)
 
