@@ -1,0 +1,62 @@
+# Little Hero Books - Cursor Development Rules
+
+## Project Overview
+This is Little Hero Books, a personalized children's book service that generates custom stories through Amazon Custom listings and automated print-on-demand fulfillment.
+
+## Brand Guidelines
+- Company Name: Little Hero Books
+- Tagline: "Every child is the hero of their own story"
+- Target Age: 3-7 years old
+- Story Theme: The Adventure Compass (magical journey through enchanted locations)
+
+## Code Standards
+- Use TypeScript for all new code
+- Follow strict typing (no `any` types unless absolutely necessary)
+- Prefer async/await over promises
+- Use Zod for schema validation
+- Keep functions small and focused
+- Add comprehensive error handling
+
+## File Structure Rules
+- Keep renderer minimal; prefer HTML→PDF with fixed template
+- Do NOT add new dependencies without discussion
+- All code changes should include a brief design note in PR description
+- Use TypeScript strict mode in /renderer
+- n8n workflows should avoid credentials hardcoding; use env vars on n8n host
+
+## MVP Constraints
+- Single SKU: 8×10 softcover, 16 pages (14 interior + covers)
+- No live preview in v1 (strict template only)
+- Manual override path for failures (Notion/Sheet task list)
+- Ship only to U.S. at first
+- Use prefab art library with character overlays only
+
+## Content Guidelines
+- Stories must be age-appropriate (3-7 years)
+- Warm, rhythmic, simple language
+- Present tense, 2-4 sentences per page
+- Max 60 words per page
+- Include child's name naturally throughout
+- Avoid fear, peril, or licensed content
+- Ensure cultural sensitivity and inclusivity
+
+## Technical Architecture
+- Amazon Custom → n8n → LLM → Renderer → POD
+- Use environment variables for all configuration
+- Implement proper error handling and alerting
+- Store order data for tracking and analytics
+- Use signed URLs for file storage
+
+## Testing Requirements
+- Test with various name lengths and special characters
+- Verify PDF output quality and print specifications
+- Test POD integration with actual providers
+- Validate Amazon SP-API integration
+- Test error handling and recovery flows
+
+## Deployment Notes
+- Deploy renderer as containerized service
+- Use Cloudflare R2 or AWS S3 for file storage
+- Host n8n on cloud or VPS with proper credentials
+- Monitor all API calls and file generation
+- Set up alerts for failed orders or system errors

@@ -1,0 +1,25 @@
+
+### Lulu Create Order (HTTPie/curl-like example)
+POST {{POD_BASE_URL}}/orders
+Content-Type: application/json
+X-Api-Key: {{POD_API_KEY}}
+
+{
+  "contact_email": "ops@yourbrand.com",
+  "shipping_address": {
+    "name": "{{shipping_name}}",
+    "address1": "{{address1}}",
+    "city": "{{city}}",
+    "state": "{{state}}",
+    "zip": "{{zip}}",
+    "country": "US"
+  },
+  "items": [{
+    "title": "Personalized Book - {{child_name}}",
+    "print_file_url": "{{bookPdfUrl}}",
+    "cover_file_url": "{{coverPdfUrl}}",
+    "sku": "PB-8x10-16p-SC",
+    "quantity": 1
+  }],
+  "shipping_method": "ECONOMY"
+}

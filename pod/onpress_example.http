@@ -1,0 +1,11 @@
+
+### OnPress Create Order (HTTPie/curl-like example)
+POST {{POD_BASE_URL}}/orders
+Content-Type: application/json
+Authorization: Bearer {{POD_API_KEY}}
+
+{
+  "recipient": { "name": "{{shipping_name}}", "address1": "{{address1}}", "city": "{{city}}", "state": "{{state}}", "postal_code": "{{zip}}", "country": "US" },
+  "items": [{ "sku": "PB-8x10-16p-SC", "qty": 1, "files": { "interior": "{{bookPdfUrl}}", "cover": "{{coverPdfUrl}}" } }],
+  "service": "ECONOMY"
+}

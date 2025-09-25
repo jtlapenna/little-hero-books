@@ -1,0 +1,60 @@
+{
+  "name": "POD \u2192 Tracking \u2192 Amazon Confirm (Flow B)",
+  "nodes": [
+    {
+      "id": "cron",
+      "type": "cron",
+      "params": {
+        "schedule": "*/45 * * * *"
+      }
+    },
+    {
+      "id": "query_open",
+      "type": "googleSheets",
+      "params": {
+        "action": "readRows",
+        "notes": "Find orders with status=submitted/in_production"
+      }
+    },
+    {
+      "id": "pod_status",
+      "type": "httpRequest",
+      "params": {
+        "url": "{{ $env.POD_BASE_URL }}/orders/{{ $json.podOrderId }}",
+        "method": "GET"
+      }
+    },
+    {
+      "id": "if_tracking",
+      "type": "if",
+      "params": {
+        "condition": "{{$json.trackingNumber}} != null"
+      }
+    },
+    {
+      "id": "confirm_amz",
+      "type": "httpRequest",
+      "params": {
+        "url": "https://sellingpartnerapi-na.amazon.com/orders/v0/orders/{{ $json.orderId }}/shipmentConfirmation",
+        "method": "POST"
+      }
+    },
+    {
+      "id": "update_row",
+      "type": "googleSheets",
+      "params": {
+        "action": "updateRow",
+        "notes": "Set status=shipped, store tracking"
+      }
+    },
+    {
+      "id": "notify",
+      "type": "httpRequest",
+      "params": {
+        "url": "{{ $env.ALERT_WEBHOOK }}",
+        "method": "POST",
+        "notes": "Optional Slack: shipped notice"
+      }
+    }
+  ]
+}

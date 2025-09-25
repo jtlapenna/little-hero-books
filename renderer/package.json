@@ -1,0 +1,22 @@
+
+{
+  "name": "little-hero-books-renderer",
+  "version": "0.1.0",
+  "description": "PDF renderer service for Little Hero Books personalized children's stories",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc -p .",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "zod": "^3.23.8",
+    "playwright": "^1.47.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.1",
+    "typescript": "^5.5.4"
+  }
+}

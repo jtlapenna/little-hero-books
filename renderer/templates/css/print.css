@@ -1,0 +1,9 @@
+
+@page { size: 8in 10in; margin: 0; }
+body { font-family: Georgia, 'Times New Roman', serif; color: #222; }
+.cover, .page { width: 8in; height: 10in; box-sizing: border-box; padding: 0.75in; }
+.header { font-size: 32px; font-weight: bold; margin-bottom: 0.25in; }
+.sub { font-size: 18px; margin-bottom: 0.5in; }
+.text { font-size: 16px; line-height: 1.35; }
+.art { width: 100%; height: 60%; background: #f2f2f2; border: 2px dashed #ccc; margin-bottom: 0.35in; }
+.footer { position: absolute; bottom: 0.5in; font-size: 12px; width: calc(100% - 1.5in); color: #666; }

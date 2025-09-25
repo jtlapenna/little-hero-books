@@ -1,0 +1,1 @@
+Place character overlay PNGs (hair/skin/eyes/clothes) here. Use transparent backgrounds and consistent alignment.
