@@ -2,6 +2,7 @@
 import express from "express";
 import { renderBook } from "./render.js";
 import { config } from "dotenv";
+import { uploadToStorage } from "./storage.js";
 
 // Load environment variables from parent directory
 config({ path: '../.env' });
@@ -41,7 +42,7 @@ app.get("/health", (_, res) => {
   });
 });
 
-// Render endpoint - n8n compatible
+// Render endpoint - n8n compatible with R2/S3 storage
 app.post("/render", async (req, res) => {
   const startTime = Date.now();
   const orderId = req.body?.orderId || 'unknown';
@@ -49,15 +50,34 @@ app.post("/render", async (req, res) => {
   log('info', `Starting render for order: ${orderId}`);
   
   try {
-    const out = await renderBook(req.body);
+    // Validate input format matches spec: { spec, manuscript, assets, child, options }
+    const { spec, manuscript, assets, child, options } = req.body;
+    
+    if (!manuscript || !child) {
+      throw new Error('Missing required fields: manuscript and child are required');
+    }
+    
+    const renderData = {
+      orderId,
+      spec: spec || { format: '8x10', pages: 16, binding: 'softcover' },
+      manuscript,
+      assets: assets || {}, // Prefab backgrounds and overlays
+      child,
+      options: options || {}
+    };
+    
+    const out = await renderBook(renderData);
     const duration = Date.now() - startTime;
     
-    // n8n expects specific response format
+    // Upload to R2/S3 storage and generate signed URLs
+    const storageUrls = await uploadToStorage(orderId, out);
+    
+    // n8n expects specific response format with signed URLs
     const response = {
       orderId: out.orderId,
-      bookPdfUrl: out.bookPdfUrl,
-      coverPdfUrl: out.coverPdfUrl,
-      thumbUrl: out.thumbUrl || null, // For future image thumbnails
+      bookPdfUrl: storageUrls.bookPdfUrl,
+      coverPdfUrl: storageUrls.coverPdfUrl,
+      thumbUrl: storageUrls.thumbUrl || null,
       status: 'completed',
       duration: `${duration}ms`,
       timestamp: new Date().toISOString()
