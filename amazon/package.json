@@ -1,0 +1,25 @@
+{
+  "name": "little-hero-books-amazon-middleware",
+  "version": "1.0.0",
+  "description": "Amazon SP-API middleware for Little Hero Books order processing",
+  "type": "module",
+  "scripts": {
+    "dev": "node sp-api-middleware.js",
+    "start": "node sp-api-middleware.js",
+    "test": "curl http://localhost:4000/health"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": [
+    "amazon",
+    "sp-api",
+    "middleware",
+    "little-hero-books",
+    "order-processing"
+  ],
+  "author": "Little Hero Books",
+  "license": "MIT"
+}
