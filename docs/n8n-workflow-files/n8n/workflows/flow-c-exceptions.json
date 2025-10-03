@@ -1,0 +1,711 @@
+{
+  "name": "Flow C: Exception Handling & Error Recovery",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "value": "0 */15 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger-errors",
+      "name": "Cron Trigger (15 min)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": "failed_orders",
+        "where": {
+          "conditions": [
+            {
+              "column": "status",
+              "operator": "equal",
+              "value": "failed"
+            },
+            {
+              "column": "retry_count",
+              "operator": "lt",
+              "value": 3
+            },
+            {
+              "column": "next_retry_at",
+              "operator": "lte",
+              "value": "{{ new Date().toISOString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-failed-orders",
+      "name": "Fetch Failed Orders",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-failed-orders",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-failed-orders",
+      "name": "Check Failed Orders",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-failed-orders",
+      "name": "Split Failed Orders",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze error type and determine retry strategy\nconst failedOrder = $input.first().json;\n\n// Parse error details\nconst errorDetails = {\n  orderId: failedOrder.orderId,\n  errorType: failedOrder.error_type,\n  errorMessage: failedOrder.error_message,\n  retryCount: failedOrder.retry_count || 0,\n  lastAttempt: failedOrder.last_attempt_at,\n  originalData: failedOrder.original_data\n};\n\n// Determine if error is retryable\nconst retryableErrors = [\n  'timeout',\n  'network_error',\n  'rate_limit',\n  'server_error',\n  'service_unavailable',\n  'temporary_failure'\n];\n\nconst nonRetryableErrors = [\n  'validation_error',\n  'invalid_data',\n  'authentication_error',\n  'permission_denied',\n  'not_found',\n  'malformed_request'\n];\n\nconst isRetryable = retryableErrors.some(errType => \n  errorDetails.errorType?.toLowerCase().includes(errType) ||\n  errorDetails.errorMessage?.toLowerCase().includes(errType)\n);\n\nconst isNonRetryable = nonRetryableErrors.some(errType => \n  errorDetails.errorType?.toLowerCase().includes(errType) ||\n  errorDetails.errorMessage?.toLowerCase().includes(errType)\n);\n\n// Calculate retry delay (exponential backoff)\nconst baseDelay = 5; // minutes\nconst maxDelay = 60; // minutes\nconst retryDelay = Math.min(baseDelay * Math.pow(2, errorDetails.retryCount), maxDelay);\n\n// Determine next action\nlet nextAction = 'retry';\nif (isNonRetryable) {\n  nextAction = 'dead_letter';\n} else if (errorDetails.retryCount >= 3) {\n  nextAction = 'dead_letter';\n} else if (!isRetryable) {\n  nextAction = 'manual_review';\n}\n\n// Calculate next retry time\nconst nextRetryAt = new Date(Date.now() + retryDelay * 60 * 1000).toISOString();\n\nreturn {\n  ...errorDetails,\n  isRetryable: isRetryable,\n  isNonRetryable: isNonRetryable,\n  nextAction: nextAction,\n  retryDelay: retryDelay,\n  nextRetryAt: nextRetryAt,\n  maxRetries: 3\n};"
+      },
+      "id": "analyze-error-type",
+      "name": "Analyze Error Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "action-retry",
+              "leftValue": "={{ $json.nextAction }}",
+              "rightValue": "retry",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-retry-action",
+      "name": "Check Retry Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "action-dead-letter",
+              "leftValue": "={{ $json.nextAction }}",
+              "rightValue": "dead_letter",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-dead-letter-action",
+      "name": "Check Dead Letter Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "action-manual-review",
+              "leftValue": "={{ $json.nextAction }}",
+              "rightValue": "manual_review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-manual-review-action",
+      "name": "Check Manual Review Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retry the failed order based on original error location\nconst orderData = $input.first().json;\nconst originalData = JSON.parse(orderData.originalData || '{}');\n\n// Determine which service to retry based on error type\nlet retryEndpoint = '';\nlet retryPayload = {};\n\nif (orderData.errorType.includes('renderer')) {\n  retryEndpoint = 'http://localhost:8787/render';\n  retryPayload = {\n    orderId: orderData.orderId,\n    spec: originalData.spec || { trim: '8x10', bleed: '0.125in', pages: 16, color: 'CMYK', binding: 'softcover' },\n    manuscript: originalData.manuscript,\n    child: originalData.child,\n    options: originalData.options,\n    shipping: originalData.shipping,\n    assets: originalData.assets\n  };\n} else if (orderData.errorType.includes('pod')) {\n  retryEndpoint = 'https://api.lulu.com/v1/print-jobs';\n  retryPayload = {\n    contact_email: 'ops@littleherobooks.com',\n    line_items: originalData.line_items,\n    shipping_address: originalData.shipping_address\n  };\n} else if (orderData.errorType.includes('amazon')) {\n  retryEndpoint = `http://localhost:4000/orders/${orderData.orderId}/confirm-shipment`;\n  retryPayload = originalData.tracking_data || {};\n}\n\nreturn {\n  ...orderData,\n  retryEndpoint: retryEndpoint,\n  retryPayload: retryPayload,\n  retryAttempt: (orderData.retryCount || 0) + 1\n};"
+      },
+      "id": "prepare-retry",
+      "name": "Prepare Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.retryEndpoint }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "payload",
+              "value": "={{ $json.retryPayload }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "execute-retry",
+      "name": "Execute Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1780,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "retry-success",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-retry-success",
+      "name": "Check Retry Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "failed_orders",
+        "updateKey": "orderId",
+        "columns": "status, retry_count, last_attempt_at, resolved_at, updatedAt",
+        "values": "'resolved', {{ $json.retryAttempt }}, {{ new Date().toISOString() }}, {{ new Date().toISOString() }}, {{ new Date().toISOString() }}",
+        "where": {
+          "conditions": [
+            {
+              "column": "orderId",
+              "operator": "equal",
+              "value": "={{ $json.orderId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "mark-retry-success",
+      "name": "Mark Retry Success",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2220,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "✅ Order Retry Successful\\n\\nOrder ID: {{ $json.orderId }}\\nRetry Attempt: {{ $json.retryAttempt }}\\nStatus: Resolved\\n\\nThe order has been successfully processed after retry."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-retry-success-notification",
+      "name": "Send Retry Success Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2440,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "failed_orders",
+        "updateKey": "orderId",
+        "columns": "retry_count, last_attempt_at, next_retry_at, updatedAt",
+        "values": "{{ $json.retryAttempt }}, {{ new Date().toISOString() }}, {{ $json.nextRetryAt }}, {{ new Date().toISOString() }}",
+        "where": {
+          "conditions": [
+            {
+              "column": "orderId",
+              "operator": "equal",
+              "value": "={{ $json.orderId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-retry-attempt",
+      "name": "Update Retry Attempt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "🔄 Order Retry Scheduled\\n\\nOrder ID: {{ $json.orderId }}\\nRetry Attempt: {{ $json.retryAttempt }}\\nNext Retry: {{ $json.nextRetryAt }}\\nError: {{ $json.errorMessage }}\\n\\nWill retry automatically in {{ $json.retryDelay }} minutes."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-retry-scheduled-notification",
+      "name": "Send Retry Scheduled Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "failed_orders",
+        "updateKey": "orderId",
+        "columns": "status, updatedAt",
+        "values": "'dead_letter', {{ new Date().toISOString() }}",
+        "where": {
+          "conditions": [
+            {
+              "column": "orderId",
+              "operator": "equal",
+              "value": "={{ $json.orderId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "move-to-dead-letter",
+      "name": "Move to Dead Letter",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1560,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "💀 Order Moved to Dead Letter\\n\\nOrder ID: {{ $json.orderId }}\\nError Type: {{ $json.errorType }}\\nError Message: {{ $json.errorMessage }}\\nRetry Count: {{ $json.retryCount }}\\n\\nThis order requires manual intervention. Please review and process manually."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-dead-letter-notification",
+      "name": "Send Dead Letter Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1780,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "failed_orders",
+        "updateKey": "orderId",
+        "columns": "status, updatedAt",
+        "values": "'manual_review', {{ new Date().toISOString() }}",
+        "where": {
+          "conditions": [
+            {
+              "column": "orderId",
+              "operator": "equal",
+              "value": "={{ $json.orderId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "move-to-manual-review",
+      "name": "Move to Manual Review",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1560,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "👀 Order Needs Manual Review\\n\\nOrder ID: {{ $json.orderId }}\\nError Type: {{ $json.errorType }}\\nError Message: {{ $json.errorMessage }}\\n\\nThis order requires manual review. Please investigate and process manually."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-manual-review-notification",
+      "name": "Send Manual Review Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1780,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "ℹ️ No Failed Orders to Process\\n\\nChecked for failed orders requiring retry. No orders found."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-no-failed-orders-notification",
+      "name": "Send No Failed Orders Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Cron Trigger (15 min)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Failed Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Failed Orders": {
+      "main": [
+        [
+          {
+            "node": "Check Failed Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Failed Orders": {
+      "main": [
+        [
+          {
+            "node": "Split Failed Orders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send No Failed Orders Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Failed Orders": {
+      "main": [
+        [
+          {
+            "node": "Analyze Error Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Error Type": {
+      "main": [
+        [
+          {
+            "node": "Check Retry Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Retry Action": {
+      "main": [
+        [
+          {
+            "node": "Prepare Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Dead Letter Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Dead Letter Action": {
+      "main": [
+        [
+          {
+            "node": "Move to Dead Letter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Manual Review Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Manual Review Action": {
+      "main": [
+        [
+          {
+            "node": "Move to Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Retry": {
+      "main": [
+        [
+          {
+            "node": "Execute Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Retry": {
+      "main": [
+        [
+          {
+            "node": "Check Retry Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Retry Success": {
+      "main": [
+        [
+          {
+            "node": "Mark Retry Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Retry Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Retry Success": {
+      "main": [
+        [
+          {
+            "node": "Send Retry Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Retry Attempt": {
+      "main": [
+        [
+          {
+            "node": "Send Retry Scheduled Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Dead Letter": {
+      "main": [
+        [
+          {
+            "node": "Send Dead Letter Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Send Manual Review Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-27T00:00:00.000Z",
+  "versionId": "1"
+}

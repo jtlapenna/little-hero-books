@@ -1,0 +1,500 @@
+{
+  "name": "Flow A: Order Intake & Job Creation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "value": "*/10 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Cron Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:4000/orders",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "get-amazon-orders",
+      "name": "Get Amazon Orders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-orders",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-orders-exist",
+      "name": "Check Orders Exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-orders",
+      "name": "Split Orders",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:4000/orders/{{ $json.orderId }}/items",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "get-order-items",
+      "name": "Get Order Items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and normalize order data\nconst orderData = $input.first().json;\n\n// Basic validation\nif (!orderData.orderId) {\n  throw new Error('Missing orderId');\n}\n\nif (!orderData.items || !Array.isArray(orderData.items)) {\n  throw new Error('Missing or invalid items array');\n}\n\n// Extract customization data from Amazon Custom fields\nconst customizationData = orderData.items[0]?.customizationData || {};\n\n// Normalize child data\nconst childData = {\n  name: customizationData.child_name || 'Adventure Hero',\n  age: parseInt(customizationData.child_age) || 5,\n  hair: customizationData.hair_color || 'brown',\n  skin: customizationData.skin_tone || 'medium',\n  pronouns: customizationData.pronouns || 'they/them'\n};\n\n// Normalize options\nconst options = {\n  favorite_animal: customizationData.favorite_animal || 'fox',\n  favorite_food: customizationData.favorite_food || 'pizza',\n  favorite_color: customizationData.favorite_color || 'blue',\n  hometown: customizationData.hometown || 'Adventure City',\n  occasion: customizationData.occasion || 'general',\n  dedication: customizationData.dedication || `Dear ${childData.name}, you are the hero of this story!`\n};\n\n// Normalize shipping data\nconst shipping = {\n  name: orderData.shippingAddress?.name || 'Customer',\n  address1: orderData.shippingAddress?.addressLine1 || '',\n  address2: orderData.shippingAddress?.addressLine2 || '',\n  city: orderData.shippingAddress?.city || '',\n  state: orderData.shippingAddress?.stateOrRegion || '',\n  zip: orderData.shippingAddress?.postalCode || '',\n  country: orderData.shippingAddress?.countryCode || 'US',\n  phone: orderData.shippingAddress?.phone || '',\n  email: orderData.buyerInfo?.buyerEmail || ''\n};\n\n// Validate required fields\nif (!childData.name || childData.name.length > 20) {\n  throw new Error('Invalid child name: must be 1-20 characters');\n}\n\nif (childData.age < 0 || childData.age > 10) {\n  throw new Error('Invalid child age: must be 0-10 years');\n}\n\nif (!shipping.address1 || !shipping.city || !shipping.state || !shipping.zip) {\n  throw new Error('Incomplete shipping address');\n}\n\n// Return normalized data\nreturn {\n  orderId: orderData.orderId,\n  amazonOrderId: orderData.amazonOrderId,\n  child: childData,\n  options: options,\n  shipping: shipping,\n  orderDate: orderData.purchaseDate,\n  status: 'pending_processing'\n};"
+      },
+      "id": "validate-normalize-order",
+      "name": "Validate & Normalize Order",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate personalized story using template system\nconst { child, options } = $input.first().json;\n\n// Adventure Compass Story Template\nconst ADVENTURE_COMPASS_TEMPLATE = {\n  title: \"{{CHILD_NAME}} and the Adventure Compass\",\n  pages: [\n    {\n      id: \"p1\",\n      text: \"On a sunny morning in {{HOMETOWN}}, {{CHILD_NAME}} discovers a magical compass hidden under a {{FAVORITE_COLOR}} flower. The compass glows with {{FAVORITE_COLOR}} light and seems to whisper, 'Adventure awaits!' {{CHILD_NAME}} feels excitement bubbling in their heart.\",\n      illustration_prompt: \"watercolor style, warm lighting, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin finding a magical compass under a {{FAVORITE_COLOR}} flower in {{HOMETOWN}}, {{FAVORITE_COLOR}} magical glow\"\n    },\n    {\n      id: \"p2\",\n      text: \"{{CHILD_NAME}} picks up the compass and it begins to spin! It points toward an enchanted forest path. 'Come with me, {{CHILD_NAME}}!' says a friendly {{FAVORITE_ANIMAL}} who appears beside them. Together, they step into the magical woods.\",\n      illustration_prompt: \"watercolor style, enchanted forest path, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin holding compass, friendly {{FAVORITE_ANIMAL}} companion, {{FAVORITE_COLOR}} magical elements\"\n    },\n    {\n      id: \"p3\",\n      text: \"In the enchanted forest, {{CHILD_NAME}} and their {{FAVORITE_ANIMAL}} friend meet talking trees and dancing butterflies. The compass glows brighter, showing them the way forward. 'This is amazing!' {{CHILD_NAME}} says with wonder.\",\n      illustration_prompt: \"watercolor style, enchanted forest scene, talking trees, dancing butterflies, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin, {{FAVORITE_ANIMAL}} companion, {{FAVORITE_COLOR}} magical glow\"\n    },\n    {\n      id: \"p4\",\n      text: \"The compass leads {{CHILD_NAME}} to a tall mountain where clouds shaped like {{FAVORITE_FOOD}} float in the sky. Their {{FAVORITE_ANIMAL}} friend helps them climb higher and higher. 'We can do this together!' {{CHILD_NAME}} says bravely.\",\n      illustration_prompt: \"watercolor style, tall mountain with clouds shaped like {{FAVORITE_FOOD}}, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin climbing with {{FAVORITE_ANIMAL}} companion, {{FAVORITE_COLOR}} sky\"\n    },\n    {\n      id: \"p5\",\n      text: \"At the mountain's peak, {{CHILD_NAME}} discovers a sparkling sky where they can fly among the {{FAVORITE_FOOD}}-shaped clouds. The compass guides them through the sky, and {{CHILD_NAME}} feels like they're soaring with the birds.\",\n      illustration_prompt: \"watercolor style, sky scene with {{FAVORITE_FOOD}}-shaped clouds, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin flying with compass, {{FAVORITE_ANIMAL}} companion, {{FAVORITE_COLOR}} magical sky\"\n    },\n    {\n      id: \"p6\",\n      text: \"The compass leads {{CHILD_NAME}} down to a magical sea where dolphins jump and play. The water sparkles with {{FAVORITE_COLOR}} light, and {{CHILD_NAME}}'s {{FAVORITE_ANIMAL}} friend swims alongside them. 'This is the most beautiful place!' {{CHILD_NAME}} says.\",\n      illustration_prompt: \"watercolor style, magical sea with dolphins, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin swimming, {{FAVORITE_ANIMAL}} companion, {{FAVORITE_COLOR}} sparkling water\"\n    },\n    {\n      id: \"p7\",\n      text: \"In the magical sea, {{CHILD_NAME}} meets a wise sea turtle who tells them about the Rainbow Garden. 'Only the bravest adventurers can find it,' the turtle says. {{CHILD_NAME}} feels ready for this challenge.\",\n      illustration_prompt: \"watercolor style, underwater scene with wise sea turtle, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin listening, {{FAVORITE_ANIMAL}} companion, {{FAVORITE_COLOR}} underwater glow\"\n    },\n    {\n      id: \"p8\",\n      text: \"The compass guides {{CHILD_NAME}} to the Rainbow Garden, where flowers bloom in every color of the rainbow. {{CHILD_NAME}}'s {{FAVORITE_COLOR}} flower is the most beautiful of all. 'I've never seen anything so magical!' {{CHILD_NAME}} exclaims.\",\n      illustration_prompt: \"watercolor style, rainbow garden with colorful flowers, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin admiring {{FAVORITE_COLOR}} flower, {{FAVORITE_ANIMAL}} companion, rainbow lighting\"\n    },\n    {\n      id: \"p9\",\n      text: \"In the Rainbow Garden, {{CHILD_NAME}} meets the Garden Guardian, who tells them they are a true hero. 'You've shown courage, kindness, and wonder on your journey,' the guardian says. {{CHILD_NAME}} feels proud and special.\",\n      illustration_prompt: \"watercolor style, rainbow garden with Garden Guardian, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin meeting guardian, {{FAVORITE_ANIMAL}} companion, {{FAVORITE_COLOR}} magical aura\"\n    },\n    {\n      id: \"p10\",\n      text: \"The Garden Guardian gives {{CHILD_NAME}} a special gift: a {{FAVORITE_COLOR}} star that will always remind them of their adventure. 'You are the hero of your own story,' the guardian says. {{CHILD_NAME}} holds the star close to their heart.\",\n      illustration_prompt: \"watercolor style, rainbow garden, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin receiving {{FAVORITE_COLOR}} star, {{FAVORITE_ANIMAL}} companion, magical gift scene\"\n    },\n    {\n      id: \"p11\",\n      text: \"The compass begins to glow and points back toward {{HOMETOWN}}. 'It's time to go home,' {{CHILD_NAME}} says to their {{FAVORITE_ANIMAL}} friend. Together, they follow the compass back through the magical places they've visited.\",\n      illustration_prompt: \"watercolor style, compass pointing homeward, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin with {{FAVORITE_ANIMAL}} companion, {{FAVORITE_COLOR}} compass glow, journey home\"\n    },\n    {\n      id: \"p12\",\n      text: \"Back in {{HOMETOWN}}, {{CHILD_NAME}} finds themselves in their own backyard, but everything feels different now. They know they've been on a real adventure. The compass has become a special keepsake, and {{CHILD_NAME}} feels brave and magical.\",\n      illustration_prompt: \"watercolor style, backyard in {{HOMETOWN}}, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin holding compass, {{FAVORITE_ANIMAL}} companion, {{FAVORITE_COLOR}} magical glow, homecoming scene\"\n    },\n    {\n      id: \"p13\",\n      text: \"That night, {{CHILD_NAME}} tells their family about the amazing adventure with the magical compass. 'I'm a real hero!' {{CHILD_NAME}} says proudly. The {{FAVORITE_COLOR}} star from the Rainbow Garden glows softly on their nightstand.\",\n      illustration_prompt: \"watercolor style, bedroom scene, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin telling family about adventure, {{FAVORITE_COLOR}} star glowing on nightstand, warm family scene\"\n    },\n    {\n      id: \"p14\",\n      text: \"As {{CHILD_NAME}} falls asleep, they dream of new adventures waiting to be discovered. The compass taught them that they are brave, kind, and special. Every child is the hero of their own story, and {{CHILD_NAME}}'s story is just beginning.\",\n      illustration_prompt: \"watercolor style, peaceful sleeping scene, child with {{HAIR_COLOR}} hair and {{SKIN_TONE}} skin dreaming, {{FAVORITE_COLOR}} star and compass nearby, dreamy magical atmosphere\"\n    }\n  ],\n  meta: {\n    reading_age: \"3-7\",\n    theme: \"adventure-compass\",\n    version: \"1.0\"\n  }\n};\n\n// Personalization data\nconst personalization = {\n  CHILD_NAME: child.name,\n  CHILD_AGE: child.age.toString(),\n  HAIR_COLOR: child.hair,\n  SKIN_TONE: child.skin,\n  PRONOUNS: child.pronouns,\n  FAVORITE_ANIMAL: options.favorite_animal,\n  FAVORITE_FOOD: options.favorite_food,\n  FAVORITE_COLOR: options.favorite_color,\n  HOMETOWN: options.hometown,\n  OCCASION: options.occasion\n};\n\n// Replace placeholders in text\nfunction replacePlaceholders(text, personalization) {\n  let result = text;\n  for (const [key, value] of Object.entries(personalization)) {\n    const placeholder = `{{${key}}}`;\n    result = result.replace(new RegExp(placeholder, 'g'), value);\n  }\n  return result;\n}\n\n// Generate personalized story\nconst personalizedStory = {\n  title: replacePlaceholders(ADVENTURE_COMPASS_TEMPLATE.title, personalization),\n  pages: ADVENTURE_COMPASS_TEMPLATE.pages.map(page => ({\n    id: page.id,\n    text: replacePlaceholders(page.text, personalization),\n    illustration_prompt: replacePlaceholders(page.illustration_prompt, personalization)\n  })),\n  meta: {\n    ...ADVENTURE_COMPASS_TEMPLATE.meta,\n    personalization_used: Object.keys(personalization),\n    generated_at: new Date().toISOString()\n  }\n};\n\n// Return the complete order data with manuscript\nreturn {\n  ...$input.first().json,\n  manuscript: personalizedStory,\n  status: 'story_generated'\n};"
+      },
+      "id": "generate-personalized-story",
+      "name": "Generate Personalized Story",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate asset configuration for the book\nconst { child, options } = $input.first().json;\n\n// Asset library structure (simplified for n8n)\nconst ASSET_LIBRARY = {\n  backgrounds: {\n    'compass-discovery': 'backgrounds/compass-discovery.jpg',\n    'enchanted-forest': 'backgrounds/enchanted-forest.jpg',\n    'talking-trees': 'backgrounds/talking-trees.jpg',\n    'tall-mountain': 'backgrounds/tall-mountain.jpg',\n    'sky-flying': 'backgrounds/sky-flying.jpg',\n    'magical-sea': 'backgrounds/magical-sea.jpg',\n    'underwater-scene': 'backgrounds/underwater-scene.jpg',\n    'rainbow-garden': 'backgrounds/rainbow-garden.jpg',\n    'journey-home': 'backgrounds/journey-home.jpg',\n    'hometown-backyard': 'backgrounds/hometown-backyard.jpg',\n    'bedroom-scene': 'backgrounds/bedroom-scene.jpg',\n    'peaceful-sleeping': 'backgrounds/peaceful-sleeping.jpg',\n    'adventure-compass-cover': 'backgrounds/adventure-compass-cover.jpg',\n    'dedication-page': 'backgrounds/dedication-page.jpg',\n    'keepsake-page': 'backgrounds/keepsake-page.jpg'\n  },\n  characterOverlays: {\n    hair: {\n      'blonde': 'overlays/characters/hair-blonde.png',\n      'brown': 'overlays/characters/hair-brown.png',\n      'black': 'overlays/characters/hair-black.png',\n      'red': 'overlays/characters/hair-red.png',\n      'gray': 'overlays/characters/hair-gray.png'\n    },\n    skin: {\n      'light': 'overlays/characters/skin-light.png',\n      'medium': 'overlays/characters/skin-medium.png',\n      'dark': 'overlays/characters/skin-dark.png'\n    },\n    poses: {\n      'discovering': 'overlays/characters/pose-discovering.png',\n      'exploring': 'overlays/characters/pose-exploring.png',\n      'climbing': 'overlays/characters/pose-climbing.png',\n      'flying': 'overlays/characters/pose-flying.png',\n      'swimming': 'overlays/characters/pose-swimming.png',\n      'listening': 'overlays/characters/pose-listening.png',\n      'admiring': 'overlays/characters/pose-admiring.png',\n      'receiving': 'overlays/characters/pose-receiving.png',\n      'journeying': 'overlays/characters/pose-journeying.png',\n      'returning': 'overlays/characters/pose-returning.png',\n      'telling': 'overlays/characters/pose-telling.png',\n      'sleeping': 'overlays/characters/pose-sleeping.png'\n    }\n  },\n  animalCompanions: {\n    'dragon': 'overlays/companions/dragon.png',\n    'fox': 'overlays/companions/fox.png',\n    'elephant': 'overlays/companions/elephant.png',\n    'butterfly': 'overlays/companions/butterfly.png',\n    'bear': 'overlays/companions/bear.png',\n    'rabbit': 'overlays/companions/rabbit.png',\n    'owl': 'overlays/companions/owl.png',\n    'turtle': 'overlays/companions/turtle.png'\n  },\n  magicalElements: {\n    'compass': {\n      'blue': 'overlays/magical/compass-blue.png',\n      'purple': 'overlays/magical/compass-purple.png',\n      'red': 'overlays/magical/compass-red.png',\n      'green': 'overlays/magical/compass-green.png',\n      'yellow': 'overlays/magical/compass-yellow.png',\n      'pink': 'overlays/magical/compass-pink.png'\n    },\n    'flowers': {\n      'blue': 'overlays/magical/flowers-blue.png',\n      'purple': 'overlays/magical/flowers-purple.png',\n      'red': 'overlays/magical/flowers-red.png',\n      'green': 'overlays/magical/flowers-green.png',\n      'yellow': 'overlays/magical/flowers-yellow.png',\n      'pink': 'overlays/magical/flowers-pink.png'\n    },\n    'glow': {\n      'blue': 'overlays/magical/glow-blue.png',\n      'purple': 'overlays/magical/glow-purple.png',\n      'red': 'overlays/magical/glow-red.png',\n      'green': 'overlays/magical/glow-green.png',\n      'yellow': 'overlays/magical/glow-yellow.png',\n      'pink': 'overlays/magical/glow-pink.png'\n    }\n  },\n  foodElements: {\n    'pizza': 'overlays/food/pizza-shaped-clouds.png',\n    'pancakes': 'overlays/food/pancakes-shaped-clouds.png',\n    'strawberries': 'overlays/food/strawberries-shaped-clouds.png',\n    'cookies': 'overlays/food/cookies-shaped-clouds.png',\n    'cupcakes': 'overlays/food/cupcakes-shaped-clouds.png',\n    'apples': 'overlays/food/apples-shaped-clouds.png'\n  }\n};\n\n// Generate asset configuration for each page\nfunction generatePageAssets(pageId, personalization) {\n  const assets = {\n    background: null,\n    overlays: []\n  };\n  \n  // Get background for page\n  const backgroundMap = {\n    'p1': 'compass-discovery',\n    'p2': 'enchanted-forest',\n    'p3': 'talking-trees',\n    'p4': 'tall-mountain',\n    'p5': 'sky-flying',\n    'p6': 'magical-sea',\n    'p7': 'underwater-scene',\n    'p8': 'rainbow-garden',\n    'p9': 'rainbow-garden',\n    'p10': 'rainbow-garden',\n    'p11': 'journey-home',\n    'p12': 'hometown-backyard',\n    'p13': 'bedroom-scene',\n    'p14': 'peaceful-sleeping'\n  };\n  \n  const bgKey = backgroundMap[pageId];\n  if (bgKey && ASSET_LIBRARY.backgrounds[bgKey]) {\n    assets.background = ASSET_LIBRARY.backgrounds[bgKey];\n  }\n  \n  // Add character overlay\n  const poseMap = {\n    'p1': 'discovering',\n    'p2': 'exploring',\n    'p3': 'exploring',\n    'p4': 'climbing',\n    'p5': 'flying',\n    'p6': 'swimming',\n    'p7': 'listening',\n    'p8': 'admiring',\n    'p9': 'listening',\n    'p10': 'receiving',\n    'p11': 'journeying',\n    'p12': 'returning',\n    'p13': 'telling',\n    'p14': 'sleeping'\n  };\n  \n  const pose = poseMap[pageId] || 'exploring';\n  const characterFile = `overlays/characters/child-${personalization.hair}-${personalization.skin}-${pose}.png`;\n  assets.overlays.push({\n    type: 'character',\n    file: characterFile,\n    layer: 1\n  });\n  \n  // Add animal companion\n  if (personalization.favorite_animal && ASSET_LIBRARY.animalCompanions[personalization.favorite_animal]) {\n    assets.overlays.push({\n      type: 'companion',\n      file: ASSET_LIBRARY.animalCompanions[personalization.favorite_animal],\n      layer: 2\n    });\n  }\n  \n  // Add magical elements\n  if (['p1', 'p2', 'p4', 'p5', 'p11', 'p12'].includes(pageId)) {\n    assets.overlays.push({\n      type: 'magical',\n      file: ASSET_LIBRARY.magicalElements.compass[personalization.favorite_color],\n      layer: 3\n    });\n  }\n  \n  if (['p1', 'p8', 'p10'].includes(pageId)) {\n    assets.overlays.push({\n      type: 'magical',\n      file: ASSET_LIBRARY.magicalElements.flowers[personalization.favorite_color],\n      layer: 4\n    });\n  }\n  \n  if (['p4', 'p5'].includes(pageId) && personalization.favorite_food) {\n    const foodFile = ASSET_LIBRARY.foodElements[personalization.favorite_food];\n    if (foodFile) {\n      assets.overlays.push({\n        type: 'magical',\n        file: foodFile,\n        layer: 3\n      });\n    }\n  }\n  \n  return assets;\n}\n\n// Generate complete asset configuration\nconst personalization = {\n  hair: child.hair,\n  skin: child.skin,\n  favorite_animal: options.favorite_animal,\n  favorite_food: options.favorite_food,\n  favorite_color: options.favorite_color\n};\n\nconst bookAssets = {\n  cover: generatePageAssets('cover', personalization),\n  dedication: generatePageAssets('dedication', personalization),\n  keepsake: generatePageAssets('keepsake', personalization),\n  pages: {}\n};\n\n// Generate assets for all 14 story pages\nfor (let i = 1; i <= 14; i++) {\n  const pageId = `p${i}`;\n  bookAssets.pages[pageId] = generatePageAssets(pageId, personalization);\n}\n\n// Return the complete order data with assets\nreturn {\n  ...$input.first().json,\n  assets: bookAssets,\n  status: 'assets_generated'\n};"
+      },
+      "id": "generate-asset-configuration",
+      "name": "Generate Asset Configuration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8787/render",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "orderId",
+              "value": "={{ $json.orderId }}"
+            },
+            {
+              "name": "spec",
+              "value": "={{ { trim: \"8x10\", bleed: \"0.125in\", pages: 16, color: \"CMYK\", binding: \"softcover\" } }}"
+            },
+            {
+              "name": "manuscript",
+              "value": "={{ $json.manuscript }}"
+            },
+            {
+              "name": "child",
+              "value": "={{ $json.child }}"
+            },
+            {
+              "name": "options",
+              "value": "={{ $json.options }}"
+            },
+            {
+              "name": "shipping",
+              "value": "={{ $json.shipping }}"
+            },
+            {
+              "name": "assets",
+              "value": "={{ $json.assets }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "call-renderer-service",
+      "name": "Call Renderer Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "renderer-success",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-renderer-success",
+      "name": "Check Renderer Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.lulu.com/v1/print-jobs",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contact_email",
+              "value": "ops@littleherobooks.com"
+            },
+            {
+              "name": "line_items",
+              "value": "=[{\"external_id\": \"{{ $json.orderId }}\", \"printable_normalization\": {\"cover\": \"{{ $json.coverPdfUrl }}\", \"interior\": \"{{ $json.bookPdfUrl }}\"}, \"pod_package_id\": \"{{ $vars.POD_PACKAGE_ID }}\"}]"
+            },
+            {
+              "name": "shipping_address",
+              "value": "={{ $json.shipping }}"
+            }
+          ]
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "luluApi",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "submit-to-pod-provider",
+      "name": "Submit to POD Provider",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2440,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "orders",
+        "columns": "orderId, amazonOrderId, childName, status, podOrderId, bookPdfUrl, coverPdfUrl, createdAt, updatedAt",
+        "values": "={{ $json.orderId }}, {{ $json.amazonOrderId }}, {{ $json.child.name }}, 'submitted', {{ $json.id }}, {{ $json.bookPdfUrl }}, {{ $json.coverPdfUrl }}, {{ new Date().toISOString() }}, {{ new Date().toISOString() }}"
+      },
+      "id": "persist-order-data",
+      "name": "Persist Order Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2660,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "✅ Order Processed Successfully\\n\\nOrder ID: {{ $json.orderId }}\\nChild: {{ $json.child.name }}\\nPOD Order ID: {{ $json.id }}\\nStatus: {{ $json.status }}\\n\\nBook PDF: {{ $json.bookPdfUrl }}\\nCover PDF: {{ $json.coverPdfUrl }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-success-notification",
+      "name": "Send Success Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2880,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "❌ Order Processing Failed\\n\\nOrder ID: {{ $json.orderId }}\\nChild: {{ $json.child.name }}\\nError: {{ $json.error }}\\n\\nPlease check the logs and retry manually."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-error-notification",
+      "name": "Send Error Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "ℹ️ No New Orders\\n\\nChecked for new Amazon Custom orders. No unshipped orders found."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-no-orders-notification",
+      "name": "Send No Orders Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Amazon Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Amazon Orders": {
+      "main": [
+        [
+          {
+            "node": "Check Orders Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Orders Exist": {
+      "main": [
+        [
+          {
+            "node": "Split Orders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send No Orders Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Orders": {
+      "main": [
+        [
+          {
+            "node": "Get Order Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Order Items": {
+      "main": [
+        [
+          {
+            "node": "Validate & Normalize Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Normalize Order": {
+      "main": [
+        [
+          {
+            "node": "Generate Personalized Story",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Personalized Story": {
+      "main": [
+        [
+          {
+            "node": "Generate Asset Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Asset Configuration": {
+      "main": [
+        [
+          {
+            "node": "Call Renderer Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Renderer Service": {
+      "main": [
+        [
+          {
+            "node": "Check Renderer Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Renderer Success": {
+      "main": [
+        [
+          {
+            "node": "Submit to POD Provider",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit to POD Provider": {
+      "main": [
+        [
+          {
+            "node": "Persist Order Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Order Data": {
+      "main": [
+        [
+          {
+            "node": "Send Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-27T00:00:00.000Z",
+  "versionId": "1"
+}

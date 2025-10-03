@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Image Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .character-test {
+            border: 2px solid #007bff;
+            padding: 10px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        
+        .character-test img {
+            max-width: 200px;
+            height: auto;
+            border: 1px solid #ddd;
+        }
+        
+        .debug-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Character Image Test</h1>
+    
+    <div class="test-container">
+        <h2>Test 1: Direct Image Load</h2>
+        <div class="character-test">
+            <img src="./assets/overlays/characters/pose01.png" 
+                 alt="Character Test" 
+                 onload="console.log('✅ Character image loaded successfully')"
+                 onerror="console.log('❌ Character image failed to load:', this.src)" />
+        </div>
+        <div class="debug-info">
+            Path: ./assets/overlays/characters/pose01.png<br>
+            Check browser console for load status
+        </div>
+    </div>
+    
+    <div class="test-container">
+        <h2>Test 2: Character in Page Context</h2>
+        <div class="character-test">
+            <div style="position: relative; width: 400px; height: 300px; background: #e9ecef; border: 1px solid #ccc;">
+                <img src="./assets/overlays/characters/pose01.png" 
+                     alt="Character" 
+                     style="position: absolute; right: 10px; top: 10px; width: 150px; height: auto;"
+                     onload="console.log('✅ Character in context loaded')"
+                     onerror="console.log('❌ Character in context failed')" />
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-container">
+        <h2>File System Check</h2>
+        <div class="debug-info">
+            Expected file location: /Users/jeff/Projects/little-hero-books/renderer-mock/assets/overlays/characters/pose01.png<br>
+            If image doesn't load, check that the file exists at this path.
+        </div>
+    </div>
+    
+    <script>
+        console.log('Character test page loaded');
+        console.log('Current directory:', window.location.href);
+    </script>
+</body>
+</html>

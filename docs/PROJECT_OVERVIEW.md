@@ -6,16 +6,6 @@
 
 Little Hero Books creates personalized children's stories where each child becomes the hero of *The Adventure Compass* - a magical journey through enchanted locations before returning home. Using template-based story generation with **prefab-only assembly** (zero AI art generation) and automated print-on-demand fulfillment, we create unique keepsake books that families will treasure forever.
 
-## 📚 The Adventure Compass Story
-
-Each book follows a magical journey where a child discovers a glowing compass that guides them through:
-1. **Enchanted Forest** - Meeting friendly creatures
-2. **Mystical Mountain** - Climbing with their animal companion  
-3. **Sparkling Sea** - Exploring underwater wonders
-4. **Cloudy Sky** - Flying among food-shaped clouds
-5. **Return Home** - Safe journey back with keepsake memories
-
-**Personalization includes**: Child's name, appearance, favorite animal/food/color, hometown, and custom dedication message.
 
 ## 🏗️ Technical Architecture
 
@@ -36,16 +26,26 @@ Customer → Amazon Custom → n8n Workflow → Template System → Renderer →
 **IMPORTANT**: MVP uses **zero AI art generation** at runtime. Everything is built from pre-made components:
 
 - **Backgrounds**: Fixed set of prefab scenes (bedroom, forest, picnic, etc.)
-- **Character Overlays**: Modular PNG layers (skin, hair, clothes) pre-composed per order
+- **Character Overlays**: Modular PNG layers (skin, hair, clothes) **pre-generated** and stored as asset library
 - **Animals/Accents**: Pre-made "stickers" (fox, rabbit, etc.) placed by rules
 - **Story Text**: Template-generated text dropped into reserved boxes
 
 The renderer **assembles existing components** and **inserts text** - no new art creation.
 
+### **Pre-Generation Strategy**
+All character assets are generated **before orders** using ComfyUI + Photoshop batch processing:
+- **Base Characters**: 4 skin tones × 7 poses = 28 base assets
+- **Hair Overlays**: 28 base × 7 hairstyles × 5 colors = 980 hair assets  
+- **Eye Overlays**: 28 base × 4 eye colors = 112 eye assets
+- **Animal Companions**: 7 poses × 3-4 animals = 21-28 animal assets
+
+This ensures fast order processing, consistent quality, and reliable production.
+
 ### Technology Stack
 - **Backend**: Node.js/TypeScript, Express
 - **PDF Generation**: Playwright (HTML → PDF)
 - **Automation**: n8n workflows
+- **Asset Generation**: ComfyUI + Photoshop batch processing
 - **File Storage**: Cloudflare R2 or AWS S3
 - **Validation**: Zod schemas
 - **Print Integration**: Lulu/OnPress APIs
@@ -104,25 +104,34 @@ The renderer **assembles existing components** and **inserts text** - no new art
 - ✅ Environment configuration and testing
 - ✅ Comprehensive validation and error handling
 
-### 🔧 **Phase 2: POD Integration (CURRENT - No Amazon Fees)**
+### 🔧 **Phase 2: Asset Pre-Generation (CURRENT)**
+- 🔧 Finalize ComfyUI workflow for character generation
+- 🔧 Generate all base character assets (28 assets)
+- 🔧 Generate all hair overlay assets (980 assets)
+- 🔧 Generate all eye color overlays (112 assets)
+- 🔧 Generate all animal companion assets (21-28 assets)
+- 🔧 Photoshop batch processing and quality control
+- 🔧 Deploy organized asset library
+
+### 🔧 **Phase 3: POD Integration (NEXT - No Amazon Fees)**
 - 🔧 Choose POD provider (Lulu recommended)
 - 🔧 Set up printing API integration
 - 🔧 Test actual book printing and quality
 - 🔧 Shipping and tracking integration
 
-### 🔧 **Phase 3: Customer Experience (NEXT - No Amazon Fees)**
+### 🔧 **Phase 4: Customer Experience (NEXT - No Amazon Fees)**
 - 🔧 Build customer website with personalization
 - 🔧 Real-time story preview functionality
 - 🔧 Direct order processing system
 - 🔧 Customer account management
 
-### 🔧 **Phase 4: Automation (NEXT - No Amazon Fees)**
+### 🔧 **Phase 5: Automation (NEXT - No Amazon Fees)**
 - 🔧 Configure n8n workflows
 - 🔧 End-to-end automation pipeline
 - 🔧 Error handling and retry logic
 - 🔧 Customer notifications
 
-### 🔧 **Phase 5: Amazon Integration (FUTURE - When Ready for $40/month)**
+### 🔧 **Phase 6: Amazon Integration (FUTURE - When Ready for $40/month)**
 - 🔧 Set up Amazon Custom listing
 - 🔧 Connect to existing SP-API middleware
 - 🔧 Order processing integration

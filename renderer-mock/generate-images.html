@@ -1,0 +1,60 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Test Images</title>
+</head>
+<body>
+    <canvas id="canvas" width="3375" height="2625" style="border: 1px solid #ccc;"></canvas>
+    <div id="downloads"></div>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const downloads = document.getElementById('downloads');
+        
+        const pages = [{"filename":"page01_bedroom","description":"Bedroom Scene","color":[135,206,235]},{"filename":"page02_bedroom_night","description":"Bedroom Night","color":[25,25,112]},{"filename":"page03_forest","description":"Forest Path","color":[34,139,34]},{"filename":"page04_mountain","description":"Mountain View","color":[139,137,137]},{"filename":"page05_sky","description":"Sky Scene","color":[135,206,235]},{"filename":"page06_sea","description":"Ocean Scene","color":[0,191,255]},{"filename":"page07_picnic","description":"Picnic Area","color":[255,228,196]},{"filename":"page08_cave","description":"Cave Entrance","color":[105,105,105]},{"filename":"page09_garden","description":"Garden Scene","color":[144,238,144]},{"filename":"page10_town","description":"Town Square","color":[255,218,185]},{"filename":"page11_bedroom_return","description":"Bedroom Return","color":[135,206,235]},{"filename":"page12_compass_glow","description":"Compass Glow","color":[255,215,0]},{"filename":"page13_keepsake_frame","description":"Keepsake Frame","color":[255,228,196]},{"filename":"page14_dedication_frame","description":"Dedication Frame","color":[255,228,196]}];
+        
+        pages.forEach((page, index) => {
+            // Clear canvas
+            ctx.clearRect(0, 0, 3375, 2625);
+            
+            // Fill with background color
+            ctx.fillStyle = `rgb(${page.color[0]}, ${page.color[1]}, ${page.color[2]})`;
+            ctx.fillRect(0, 0, 3375, 2625);
+            
+            // Add text
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 120px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const text = `${page.filename}\n${page.description}\n11.25" × 8.75" @ 300 DPI\n(11" × 8.25" trim)`;
+            const lines = text.split('\n');
+            const lineHeight = 140;
+            const startY = 1312.5 - (lines.length * lineHeight) / 2;
+            
+            lines.forEach((line, i) => {
+                ctx.fillText(line, 1687.5, startY + (i * lineHeight));
+            });
+            
+            // Convert to blob and download
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${page.filename}.png`;
+                a.textContent = `Download ${page.filename}.png`;
+                a.style.display = 'block';
+                a.style.margin = '10px';
+                downloads.appendChild(a);
+                
+                // Auto-click after a short delay
+                setTimeout(() => a.click(), index * 100);
+            }, 'image/png');
+        });
+        
+        console.log('All images generated! Check the downloads folder.');
+    </script>
+</body>
+</html>

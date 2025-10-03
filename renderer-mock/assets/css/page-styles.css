@@ -1,0 +1,125 @@
+/* Little Hero Books - Standardized Page Styles */
+
+@font-face {
+    font-family: 'CustomFont';
+    src: url('../fonts/custom-font.ttf') format('truetype');
+}
+
+@page {
+    size: 11.25in 8.75in;
+    margin: 0;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'CustomFont', 'Arial', sans-serif;
+    width: 11.25in;
+    height: 8.75in;
+    position: relative;
+    overflow: hidden;
+}
+
+.page {
+    width: 11.25in;
+    height: 8.75in;
+    position: relative;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* LOCKED-IN TEXT BOX SPECIFICATIONS */
+.text-box {
+    position: absolute;
+    left: 50%;
+    bottom: 3%;
+    width: 65%;
+    transform: translateX(-50%);
+    height: auto;
+    background-image: url('../overlays/text-boxes/standard-box.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    padding: 40px 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* LOCKED-IN TEXT SPECIFICATIONS */
+.text-content {
+    font-size: 20px;           /* LOCKED */
+    line-height: 1.4;
+    letter-spacing: 1.5px;     /* LOCKED */
+    color: #312116;            /* LOCKED */
+    text-align: center;        /* LOCKED */
+    font-weight: 400;
+}
+
+/* CHARACTER POSITIONING (adjustable per page) */
+.character {
+    position: absolute;
+    width: 250px;
+    height: auto;
+}
+
+.character img {
+    width: 100%;
+    height: auto;
+}
+
+/* Character position classes */
+.character.right {
+    right: 8%;
+    top: 25%;
+}
+
+.character.left {
+    left: 8%;
+    top: 25%;
+}
+
+.character.center {
+    left: 50%;
+    top: 25%;
+    transform: translateX(-50%);
+}
+
+/* Debug info */
+.debug-info {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: monospace;
+    max-width: 300px;
+    z-index: 1000;
+}
+
+.debug-info h4 {
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.debug-info ul {
+    margin-left: 15px;
+}
+
+.debug-info li {
+    margin-bottom: 3px;
+}
+
+/* Print styles */
+@media print {
+    .debug-info {
+        display: none;
+    }
+}

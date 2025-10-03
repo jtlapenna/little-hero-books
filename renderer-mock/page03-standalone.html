@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page 03 - Forest Scene Test</title>
+    <style>
+        @font-face {
+            font-family: 'CustomFont';
+            src: url('./assets/fonts/custom-font.ttf') format('truetype');
+        }
+        
+        @page {
+            size: 11.25in 8.75in;
+            margin: 0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'CustomFont', 'Arial', sans-serif;
+            width: 11.25in;
+            height: 8.75in;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .page {
+            width: 11.25in;
+            height: 8.75in;
+            position: relative;
+            background-image: url('./assets/backgrounds/page03_forest.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        .text-box {
+            position: absolute;
+            left: 50%;
+            bottom: 3%;
+            width: 65%;
+            transform: translateX(-50%);
+            height: auto;
+            background-image: url('./assets/overlays/text-boxes/standard-box.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            padding: 40px 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .text-content {
+            font-size: 20px;
+            line-height: 1.4;
+            letter-spacing: 1.5px;
+            color: #312116;
+            text-align: center;
+            font-weight: 400;
+        }
+        
+        .character {
+            position: absolute;
+            right: 8%;
+            top: 25%;
+            width: 250px;
+            height: auto;
+        }
+        
+        .character img {
+            width: 100%;
+            height: auto;
+        }
+        
+        
+        .specs {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: monospace;
+            max-width: 200px;
+            z-index: 1000;
+        }
+        
+        .specs h4 {
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .specs ul {
+            margin-left: 15px;
+        }
+        
+        .specs li {
+            margin-bottom: 3px;
+        }
+        
+        /* Print styles */
+        @media print {
+            .specs {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="specs">
+        <h4>🔒 Locked Specs</h4>
+        <ul>
+            <li>Font: 20px</li>
+            <li>Spacing: 1.5px</li>
+            <li>Color: #312116</li>
+            <li>Text: 2 lines only</li>
+            <li>Box: 65% width</li>
+            <li>Position: Bottom 3%</li>
+        </ul>
+    </div>
+    
+    <div class="page">
+        <div class="text-box">
+            <div class="text-content">
+                The compass led Emma through a magical forest.<br>
+                Tall trees whispered secrets in the wind.
+            </div>
+        </div>
+        
+        <div class="character">
+            <img src="./assets/overlays/characters/pose02.png" alt="Character" onerror="this.style.display='none'" />
+        </div>
+    </div>
+    
+</body>
+</html>

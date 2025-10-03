@@ -1,0 +1,62 @@
+{
+  "name": "Simple HTML-Based Book Renderer",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Simple HTML-based book generation\nconst baseLocal = 'http://localhost:8787/assets/backgrounds';\nconst overlayBase = 'http://localhost:8787/assets/overlays/characters';\n\n// Mock customer data\nconst childData = {\n  name: 'Emma',\n  age: 5,\n  hair: 'brown',\n  skin: 'medium',\n  favorite_color: 'blue',\n  favorite_animal: 'fox',\n  hometown: 'Adventure City'\n};\n\n// Story content with precise positioning\nconst storyContent = [\n  {\n    background: `${baseLocal}/page01_dedication.png`,\n    text: {\n      content: `Tonight, ${childData.name} snuggled under their blanket.\\nThe stars outside the window sparkled and whispered,\\n\"An adventure is waiting just for you.\"`,\n      position: 'left',\n      align: 'left'\n    }\n  },\n  {\n    background: `${baseLocal}/page02_bedroom.png`,\n    text: {\n      content: `On the bedside table, a little compass began to glow.\\nIt shimmered in ${childData.favorite_color} light.\\n\"Follow me,\" it seemed to say.`,\n      position: 'left',\n      align: 'left'\n    },\n    character: {\n      image: `${overlayBase}/pose01.png`,\n      position: 'right'\n    }\n  },\n  {\n    background: `${baseLocal}/page03_forest.png`,\n    text: {\n      content: `The compass led into the forest.\\nFireflies flickered between the trees,\\nand there stood a friendly ${childData.favorite_animal},\\nready to join the journey.`,\n      position: 'left',\n      align: 'left'\n    },\n    character: {\n      image: `${overlayBase}/pose01.png`,\n      position: 'right'\n    }\n  },\n  {\n    background: `${baseLocal}/page04_mountain.png`,\n    text: {\n      content: `Together, ${childData.name} and ${childData.favorite_animal} climbed the rocky hill.\\nThe wind whooshed, the compass shone bright,\\nand they laughed as they reached the top.`,\n      position: 'left',\n      align: 'left'\n    },\n    character: {\n      image: `${overlayBase}/pose01.png`,\n      position: 'right'\n    }\n  },\n  {\n    background: `${baseLocal}/page05_sky.png`,\n    text: {\n      content: `A bridge of stars stretched across the night sky.\\nHand in paw, they tiptoed across,\\nthe stars twinkling with every step.`,\n      position: 'left',\n      align: 'left'\n    }\n  },\n  {\n    background: `${baseLocal}/page06_sea.png`,\n    text: {\n      content: `At the sea, waves sang a lullaby.\\nThe compass floated like a tiny boat,\\nand ${childData.favorite_animal} barked with joy\\nas they crossed together.`,\n      position: 'left',\n      align: 'left'\n    }\n  },\n  {\n    background: `${baseLocal}/page07_lunch.png`,\n    text: {\n      content: `A meadow full of flowers appeared.\\nOn a blanket was a plate of cookies.\\n${childData.name} shared bites with ${childData.favorite_animal},\\nand both felt happy and full.`,\n      position: 'left',\n      align: 'left'\n    }\n  },\n  {\n    background: `${baseLocal}/page08_cave.png`,\n    text: {\n      content: `Inside a glittering cave, crystals glowed.\\nThe compass light danced on the walls,\\nwhile ${childData.favorite_animal} chased the rainbow colors.`,\n      position: 'left',\n      align: 'left'\n    }\n  },\n  {\n    background: `${baseLocal}/page09_garden.png`,\n    text: {\n      content: `In the secret garden, blossoms whispered,\\n\"Make a wish.\"\\n${childData.name} and ${childData.favorite_animal} closed their eyes,\\nholding the compass tight together.`,\n      position: 'left',\n      align: 'left'\n    }\n  },\n  {\n    background: `${baseLocal}/page10_town.png`,\n    text: {\n      content: `Lanterns floated above the little town.\\nEveryone waved as they passed,\\nand ${childData.favorite_animal} wagged back proudly.`,\n      position: 'left',\n      align: 'left'\n    }\n  },\n  {\n    background: `${baseLocal}/page11_bedroom-return.png`,\n    text: {\n      content: `The compass began to glow softer and softer.\\nIt led them gently back to the bedroom,\\nwhere dreams were waiting.`,\n      position: 'left',\n      align: 'left'\n    }\n  },\n  {\n    background: `${baseLocal}/page12_compass.png`,\n    text: {\n      content: `On the table, the compass stayed.\\n${childData.name} and ${childData.favorite_animal} knew\\nit would always guide them to more adventures.`,\n      position: 'center',\n      align: 'center'\n    }\n  },\n  {\n    background: `${baseLocal}/page13_dedication.png`,\n    text: {\n      content: `This book was made for ${childData.name},\\nwith love from Mom and Dad.`,\n      position: 'center',\n      align: 'center'\n    }\n  },\n  {\n    background: `${baseLocal}/page14_dedication2.png`,\n    text: {\n      content: `Every night holds a new adventure.\\nClose your eyes, hold your compass,\\nand dream with your friend ${childData.favorite_animal} by your side.`,\n      position: 'center',\n      align: 'center'\n    }\n  }\n];\n\nreturn [{\n  renderPayload: {\n    orderId: `TEST-N8N-${Date.now()}`,\n    pages: storyContent,\n    cover: {\n      front_background: `${baseLocal}/page01_dedication.png`,\n      title: `${childData.name} and the Adventure Compass`,\n      subtitle: 'A Personalized Story'\n    }\n  }\n}];"
+      },
+      "id": "order-simulation",
+      "name": "Order Simulation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8787/render",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "call-renderer",
+      "name": "Call Renderer Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process renderer response\nconst response = $input.first().json;\n\nif (response.success) {\n  return [{\n    json: {\n      success: true,\n      orderId: response.orderId,\n      bookUrl: response.bookUrl,\n      coverUrl: response.coverUrl,\n      message: 'Book rendered successfully!'\n    }\n  }];\n} else {\n  throw new Error(`Render failed: ${response.error}`);\n}"
+      },
+      "id": "process-response",
+      "name": "Process Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Order Simulation": {
+      "main": [
+        [
+          {
+            "node": "Call Renderer Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Renderer Service": {
+      "main": [
+        [
+          {
+            "node": "Process Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

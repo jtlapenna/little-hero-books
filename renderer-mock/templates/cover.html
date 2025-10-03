@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <style>
+        @page {
+            size: 11.25in 8.75in;
+            margin: 0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            width: 11.25in;
+            height: 8.75in;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .page {
+            width: 11.25in;
+            height: 8.75in;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        .title-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 60px;
+            border-radius: 80px;
+            text-align: center;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            max-width: 80%;
+        }
+        
+        .title {
+            font-size: 72px;
+            font-weight: bold;
+            color: #232323;
+            line-height: 1.2;
+            margin-bottom: 20px;
+        }
+        
+        .subtitle {
+            font-size: 36px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        /* Print styles */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page" style="background-image: url('{{backgroundImage}}');">
+        <div class="title-box">
+            <h1 class="title">{{title}}</h1>
+            <p class="subtitle">{{subtitle}}</p>
+        </div>
+    </div>
+</body>
+</html>

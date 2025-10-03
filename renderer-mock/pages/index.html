@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Little Hero Books - Page Development</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .page-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .page-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .page-card h3 {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .page-card a {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        
+        .page-card a:hover {
+            background: #0056b3;
+        }
+        
+        .status {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .ready { color: #28a745; }
+        .in-progress { color: #ffc107; }
+        .pending { color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Little Hero Books - Page Development</h1>
+        
+        <div class="page-grid">
+            <div class="page-card">
+                <h3>Page 01 - Dedication</h3>
+                <a href="page01-test.html">View Page</a>
+                <div class="status pending">Pending</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Page 02 - Bedroom Scene</h3>
+                <a href="page02-test.html">View Page</a>
+                <div class="status ready">Ready for Testing</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Page 03 - Forest</h3>
+                <a href="page03-test.html">View Page</a>
+                <div class="status ready">Ready for Testing</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Page 04 - Mountain</h3>
+                <a href="page04-test.html">View Page</a>
+                <div class="status ready">Ready for Testing</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Page 05 - Sky</h3>
+                <a href="page05-test.html">View Page</a>
+                <div class="status ready">Ready for Testing</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Page 06 - Sea</h3>
+                <a href="page06-test.html">View Page</a>
+                <div class="status ready">Ready for Testing</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Page 07 - Lunch</h3>
+                <a href="page07-test.html">View Page</a>
+                <div class="status ready">Ready for Testing</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Page 08 - Cave</h3>
+                <a href="page08-test.html">View Page</a>
+                <div class="status ready">Ready for Testing</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Page 09 - Garden</h3>
+                <a href="page09-test.html">View Page</a>
+                <div class="status ready">Ready for Testing</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Page 10 - Town</h3>
+                <a href="page10-test.html">View Page</a>
+                <div class="status ready">Ready for Testing</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Page 11 - Bedroom Return</h3>
+                <a href="page11-test.html">View Page</a>
+                <div class="status ready">Ready for Testing</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Page 12 - Compass</h3>
+                <a href="page12-test.html">View Page</a>
+                <div class="status ready">Ready for Testing</div>
+            </div>
+            
+            <div class="page-card">
+                <h3>Cover Page</h3>
+                <a href="cover-test.html">View Page</a>
+                <div class="status pending">Pending</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 40px; padding: 20px; background: white; border-radius: 8px;">
+            <h3>📋 Development Notes</h3>
+            <ul>
+                <li>Each page uses the actual background images and assets</li>
+                <li>Custom font (custom-font.ttf) is loaded and applied</li>
+                <li>Text boxes use the standard-box.png overlay</li>
+                <li>Character overlays positioned using CSS</li>
+                <li>Page size: 11.25" × 8.75" (300 DPI for print)</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

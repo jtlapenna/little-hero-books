@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page 02 - Bedroom Scene Test</title>
+    <style>
+        @font-face {
+            font-family: 'CustomFont';
+            src: url('../assets/fonts/custom-font.ttf') format('truetype');
+        }
+        
+        @page {
+            size: 11.25in 8.75in;
+            margin: 0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'CustomFont', 'Arial', sans-serif;
+            width: 11.25in;
+            height: 8.75in;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .page {
+            width: 11.25in;
+            height: 8.75in;
+            position: relative;
+            background-image: url('../assets/backgrounds/page02_bedroom.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        .text-box {
+            position: absolute;
+            left: 50%;
+            bottom: 3%;
+            width: 65%;
+            transform: translateX(-50%);
+            height: auto;
+            background-image: url('../assets/overlays/text-boxes/standard-box.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            padding: 40px 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .text-content {
+            font-size: 20px;
+            line-height: 1.4;
+            letter-spacing: 1.5px;
+            color: #312116;
+            text-align: center;
+            font-weight: 400;
+        }
+        
+        .character {
+            position: absolute;
+            right: 8%;
+            top: 25%;
+            width: 250px;
+            height: auto;
+        }
+        
+        .character img {
+            width: 100%;
+            height: auto;
+        }
+        
+        
+        /* Print styles */
+        @media print {
+            /* No debug elements to hide */
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="page">
+        <div class="text-box">
+            <div class="text-content">
+                On the bedside table, a little compass began to glow.<br>
+                It shimmered in blue light.
+            </div>
+        </div>
+        
+        <div class="character">
+            <img src="../assets/overlays/characters/pose01.png" alt="Character" />
+        </div>
+    </div>
+</body>
+</html>

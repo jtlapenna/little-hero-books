@@ -1,0 +1,529 @@
+{
+  "name": "Flow B: Tracking & Shipment Confirmation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "value": "0 */30 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger-tracking",
+      "name": "Cron Trigger (30 min)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": "orders",
+        "where": {
+          "conditions": [
+            {
+              "column": "status",
+              "operator": "in",
+              "value": "submitted,in_production"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-inflight-jobs",
+      "name": "Fetch In-Flight Jobs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-inflight-orders",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-inflight-orders",
+      "name": "Check In-Flight Orders",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-inflight-orders",
+      "name": "Split In-Flight Orders",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.lulu.com/v1/print-jobs/{{ $json.podOrderId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "luluApi",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "check-pod-status",
+      "name": "Check POD Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-tracking",
+              "leftValue": "={{ $json.tracking_number }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "id": "status-shipped",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "shipped",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-tracking-available",
+      "name": "Check Tracking Available",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:4000/orders/{{ $json.orderId }}/confirm-shipment",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "trackingNumber",
+              "value": "={{ $json.tracking_number }}"
+            },
+            {
+              "name": "carrier",
+              "value": "={{ $json.carrier || 'UPS' }}"
+            },
+            {
+              "name": "trackingUrl",
+              "value": "={{ $json.tracking_url || '' }}"
+            },
+            {
+              "name": "estimatedDelivery",
+              "value": "={{ $json.estimated_delivery || '' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "confirm-shipment-amazon",
+      "name": "Confirm Shipment with Amazon",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1560,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "orders",
+        "updateKey": "orderId",
+        "columns": "status, trackingNumber, carrier, trackingUrl, estimatedDelivery, shippedAt, updatedAt",
+        "values": "'shipped', {{ $json.tracking_number }}, {{ $json.carrier || 'UPS' }}, {{ $json.tracking_url || '' }}, {{ $json.estimated_delivery || '' }}, {{ new Date().toISOString() }}, {{ new Date().toISOString() }}",
+        "where": {
+          "conditions": [
+            {
+              "column": "orderId",
+              "operator": "equal",
+              "value": "={{ $json.orderId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-order-status",
+      "name": "Update Order Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1780,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "🚚 Order Shipped Successfully\\n\\nOrder ID: {{ $json.orderId }}\\nChild: {{ $json.childName }}\\nPOD Order ID: {{ $json.podOrderId }}\\nTracking: {{ $json.tracking_number }}\\nCarrier: {{ $json.carrier || 'UPS' }}\\n\\nTracking URL: {{ $json.tracking_url || 'N/A' }}\\nEstimated Delivery: {{ $json.estimated_delivery || 'N/A' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-shipment-notification",
+      "name": "Send Shipment Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "ℹ️ No In-Flight Orders\\n\\nChecked for orders in 'submitted' or 'in_production' status. No orders found to track."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-no-inflight-notification",
+      "name": "Send No In-Flight Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "⏳ Order Still Processing\\n\\nOrder ID: {{ $json.orderId }}\\nChild: {{ $json.childName }}\\nPOD Order ID: {{ $json.podOrderId }}\\nStatus: {{ $json.status }}\\n\\nNo tracking information available yet. Will check again in 30 minutes."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-still-processing-notification",
+      "name": "Send Still Processing Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle POD API errors and retries\nconst error = $input.first().json;\n\n// Log the error details\nconsole.log('POD Status Check Error:', error);\n\n// Determine if this is a retryable error\nconst retryableErrors = [\n  'timeout',\n  'network',\n  'rate_limit',\n  'server_error'\n];\n\nconst isRetryable = retryableErrors.some(errType => \n  error.message?.toLowerCase().includes(errType)\n);\n\n// Return error information for handling\nreturn {\n  error: error.message || 'Unknown error',\n  isRetryable: isRetryable,\n  orderId: error.orderId || 'unknown',\n  podOrderId: error.podOrderId || 'unknown',\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "handle-pod-error",
+      "name": "Handle POD Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-retryable",
+              "leftValue": "={{ $json.isRetryable }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-retryable-error",
+      "name": "Check Retryable Error",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "minutes"
+      },
+      "id": "wait-before-retry",
+      "name": "Wait Before Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "❌ POD Tracking Error\\n\\nOrder ID: {{ $json.orderId }}\\nPOD Order ID: {{ $json.podOrderId }}\\nError: {{ $json.error }}\\nRetryable: {{ $json.isRetryable ? 'Yes' : 'No' }}\\n\\nPlease check the POD provider and retry manually if needed."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-error-notification",
+      "name": "Send Error Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1780,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Cron Trigger (30 min)": {
+      "main": [
+        [
+          {
+            "node": "Fetch In-Flight Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch In-Flight Jobs": {
+      "main": [
+        [
+          {
+            "node": "Check In-Flight Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check In-Flight Orders": {
+      "main": [
+        [
+          {
+            "node": "Split In-Flight Orders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send No In-Flight Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In-Flight Orders": {
+      "main": [
+        [
+          {
+            "node": "Check POD Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check POD Status": {
+      "main": [
+        [
+          {
+            "node": "Check Tracking Available",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle POD Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Tracking Available": {
+      "main": [
+        [
+          {
+            "node": "Confirm Shipment with Amazon",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Still Processing Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Shipment with Amazon": {
+      "main": [
+        [
+          {
+            "node": "Update Order Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order Status": {
+      "main": [
+        [
+          {
+            "node": "Send Shipment Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle POD Error": {
+      "main": [
+        [
+          {
+            "node": "Check Retryable Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Retryable Error": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Retry": {
+      "main": [
+        [
+          {
+            "node": "Check POD Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-27T00:00:00.000Z",
+  "versionId": "1"
+}

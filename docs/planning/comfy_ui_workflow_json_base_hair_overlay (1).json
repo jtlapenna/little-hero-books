@@ -1,0 +1,482 @@
+{
+  "workflow_name": "Dreamtime_CharacterAssets_MVP",
+  "notes": "Three subflows: (A) Base character (body+head, no hair) with pose control; (B) Hair overlay inpainting on fixed head mask; (C) Eye-color overlay (iris only, transparent). Optional (D) Batch iterator stub using a Python node to iterate over skin tones / hairstyles / colors. Replace all PATH_* placeholders and install any needed custom nodes.",
+  "groups": [
+    {"title": "A) Base Character (Body+Head, No Hair)", "node_ids": [10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,41]},
+    {"title": "B) Hair Overlay (Transparent Inpaint)", "node_ids": [30,31,32,33,34,35,36,37,38,39,40,41,42,43,44]},
+    {"title": "C) Clothing Overlay (Transparent Garment)", "node_ids": [80,81,82,83,84,85,86,87,88,89,90,91,92,93,94]},
+    {"title": "C) Eye-Color Overlay (Transparent Iris)", "node_ids": [50,51,52,53,54,55,56,57,58,59,60,61,62]},
+    {"title": "D) Batch Iterator (Example)", "node_ids": [70,71,72,73,74]}
+  ],
+  "nodes": [
+    {
+      "id": 10,
+      "type": "LoadImage",
+      "title": "Load Pose Image",
+      "widgets_values": ["PATH_POSE_IMAGE/pose_pose01.png", true]
+    },
+    {
+      "id": 11,
+      "type": "OpenPosePreprocessor",
+      "title": "OpenPose Preprocessor",
+      "widgets_values": ["FULL"]
+    },
+    {
+      "id": 12,
+      "type": "LoadImage",
+      "title": "(Optional) Face/Head Mask",
+      "widgets_values": ["PATH_MASKS/pose01_head_mask.png", true]
+    },
+    {
+      "id": 13,
+      "type": "ControlNetLoader",
+      "title": "ControlNet (OpenPose)",
+      "widgets_values": ["PATH_MODELS/ControlNet/openpose_fp16.safetensors"]
+    },
+    {
+      "id": 14,
+      "type": "CheckpointLoaderSimple",
+      "title": "Checkpoint (Storybook Model / SDXL)",
+      "widgets_values": ["PATH_MODELS/Checkpoints/storybook_sdxl.safetensors", "PATH_MODELS/VAEs/sdxl_vae.safetensors"]
+    },
+    {
+      "id": 15,
+      "type": "LoraLoader",
+      "title": "LoRA (Character Consistency)",
+      "widgets_values": ["PATH_MODELS/Loras/character_consistency.safetensors", 0.8]
+    },
+    {
+      "id": 16,
+      "type": "LoraLoader",
+      "title": "LoRA (Art Style)",
+      "widgets_values": ["PATH_MODELS/Loras/watercolor_style.safetensors", 0.6]
+    },
+    {
+      "id": 17,
+      "type": "LoadTextualInversion",
+      "title": "Embedding (Watercolor Style)",
+      "widgets_values": ["watercolor_childrens_book", 0.7]
+    },
+    {
+      "id": 18,
+      "type": "LoadTextualInversion",
+      "title": "Embedding (Storybook Style)",
+      "widgets_values": ["storybook_illustration", 0.5]
+    },
+    {
+      "id": 19,
+      "type": "CLIPTextEncode",
+      "title": "Positive Prompt (Base)",
+      "widgets_values": [
+        "watercolor storybook child, flat retro shapes, soft textured paper, gentle outlines, [SKIN_TONE], no hair, head visible, consistent proportions, character consistency, clean silhouette"
+      ]
+    },
+    {
+      "id": 20,
+      "type": "CLIPTextEncode",
+      "title": "Negative Prompt (Base)",
+      "widgets_values": [
+        "extra limbs, hat, helmet, wig, stray hair, heavy shadows, photorealistic, noise, deformed hands"
+      ]
+    },
+    {
+      "id": 21,
+      "type": "ApplyControlNet",
+      "title": "Apply ControlNet (Pose)",
+      "widgets_values": [0.9, 0.0]
+    },
+    {
+      "id": 22,
+      "type": "EmptyLatentImage",
+      "title": "Empty Latent (Fixed Canvas)",
+      "widgets_values": [1024, 1024, 1]
+    },
+    {
+      "id": 23,
+      "type": "KSampler",
+      "title": "KSampler (txt2img)",
+      "widgets_values": [123456, 25, 7.0, "dpmpp_2m_karras", "normal", 1.0]
+    },
+    {
+      "id": 24,
+      "type": "VAEDecode",
+      "title": "VAE Decode → Base Image"
+    },
+    {
+      "id": 41,
+      "type": "SaveImage",
+      "title": "Save Base Image (A)",
+      "widgets_values": ["PATH_OUTPUT/base/child_base_pose01_[SKIN_TONE].png"]
+    },
+
+    {
+      "id": 30,
+      "type": "LoadImage",
+      "title": "Load Base Head (from A)",
+      "widgets_values": ["PATH_OUTPUT/base/child_base_pose01_skin-medium.png", true]
+    },
+    {
+      "id": 31,
+      "type": "LoadImage",
+      "title": "Load Hair Mask (Head Region)",
+      "widgets_values": ["PATH_MASKS/pose01_hair_mask.png", true]
+    },
+    {
+      "id": 32,
+      "type": "CLIPTextEncode",
+      "title": "Positive Prompt (Hair)",
+      "widgets_values": [
+        "[HAIRSTYLE] hairstyle, storybook watercolor, tidy edges, color: [HAIR_COLOR]; overlay only; do not alter face"
+      ]
+    },
+    {
+      "id": 33,
+      "type": "CLIPTextEncode",
+      "title": "Negative Prompt (Hair)",
+      "widgets_values": [
+        "change eyes, change skin, change mouth, hat, helmet, covering eyes, stray mask edges, bangs over eyes"
+      ]
+    },
+    {
+      "id": 34,
+      "type": "CheckpointLoaderSimple",
+      "title": "Checkpoint (same as A)",
+      "widgets_values": ["PATH_MODELS/Checkpoints/storybook_sdxl.safetensors", "PATH_MODELS/VAEs/sdxl_vae.safetensors"]
+    },
+    {
+      "id": 35,
+      "type": "LoraLoader",
+      "title": "LoRA (Character Consistency)",
+      "widgets_values": ["PATH_MODELS/Loras/character_consistency.safetensors", 0.8]
+    },
+    {
+      "id": 36,
+      "type": "LoraLoader",
+      "title": "LoRA (Art Style)",
+      "widgets_values": ["PATH_MODELS/Loras/watercolor_style.safetensors", 0.6]
+    },
+    {
+      "id": 37,
+      "type": "LoadTextualInversion",
+      "title": "Embedding (Watercolor Style)",
+      "widgets_values": ["watercolor_childrens_book", 0.7]
+    },
+    {
+      "id": 38,
+      "type": "LoadTextualInversion",
+      "title": "Embedding (Storybook Style)",
+      "widgets_values": ["storybook_illustration", 0.5]
+    },
+    {
+      "id": 39,
+      "type": "VAEEncode",
+      "title": "VAE Encode Base Head"
+    },
+    {
+      "id": 40,
+      "type": "KSampler",
+      "title": "KSampler (Inpaint Masked)",
+      "widgets_values": [223344, 20, 6.0, "dpmpp_2m_karras", "inpaint", 0.55]
+    },
+    {
+      "id": 41,
+      "type": "VAEDecode",
+      "title": "VAE Decode → Head with Hair"
+    },
+    {
+      "id": 42,
+      "type": "ImageCompositeMasked",
+      "title": "Extract Hair Overlay (Mask to Alpha)",
+      "widgets_values": ["alpha_from_mask"]
+    },
+    {
+      "id": 43,
+      "type": "SaveImage",
+      "title": "Save Hair Overlay (PNG w/ Alpha)",
+      "widgets_values": ["PATH_OUTPUT/hair/hair_pose01_[HAIRSTYLE]_[HAIR_COLOR].png"]
+    },
+    {
+      "id": 44,
+      "type": "SaveImage",
+      "title": "(Optional) Save Full Head (for QA)",
+      "widgets_values": ["PATH_OUTPUT/hairQA/head_pose01_[HAIRSTYLE]_[HAIR_COLOR].png"]
+    },
+
+    {
+      "id": 80,
+      "type": "LoadImage",
+      "title": "Load Base Body (from A)",
+      "widgets_values": ["PATH_OUTPUT/base/child_base_pose01_skin-medium.png", true]
+    },
+    {
+      "id": 81,
+      "type": "LoadImage",
+      "title": "Load Clothing Mask (Torso/Body Region)",
+      "widgets_values": ["PATH_MASKS/pose01_clothing_mask.png", true]
+    },
+    {
+      "id": 82,
+      "type": "CLIPTextEncode",
+      "title": "Positive Prompt (Clothes)",
+      "widgets_values": [
+        "storybook watercolor clothing overlay, neat edges, [OUTFIT_DESC]; overlay only; do not alter skin, head, or background"
+      ]
+    },
+    {
+      "id": 83,
+      "type": "CLIPTextEncode",
+      "title": "Negative Prompt (Clothes)",
+      "widgets_values": [
+        "change skin, change head, change hair, hats, helmets, stray mask edges, heavy shadows"
+      ]
+    },
+    {
+      "id": 84,
+      "type": "CheckpointLoaderSimple",
+      "title": "Checkpoint (same as A)",
+      "widgets_values": ["PATH_MODELS/Checkpoints/storybook_sdxl.safetensors", "PATH_MODELS/VAEs/sdxl_vae.safetensors"]
+    },
+    {
+      "id": 85,
+      "type": "LoraLoader",
+      "title": "LoRA (Character Consistency)",
+      "widgets_values": ["PATH_MODELS/Loras/character_consistency.safetensors", 0.8]
+    },
+    {
+      "id": 86,
+      "type": "LoraLoader",
+      "title": "LoRA (Art Style)",
+      "widgets_values": ["PATH_MODELS/Loras/watercolor_style.safetensors", 0.6]
+    },
+    {
+      "id": 87,
+      "type": "LoadTextualInversion",
+      "title": "Embedding (Watercolor Style)",
+      "widgets_values": ["watercolor_childrens_book", 0.7]
+    },
+    {
+      "id": 88,
+      "type": "LoadTextualInversion",
+      "title": "Embedding (Storybook Style)",
+      "widgets_values": ["storybook_illustration", 0.5]
+    },
+    {
+      "id": 89,
+      "type": "VAEEncode",
+      "title": "VAE Encode Base Body"
+    },
+    {
+      "id": 90,
+      "type": "KSampler",
+      "title": "KSampler (Inpaint Masked - Clothes)",
+      "widgets_values": [445566, 20, 6.0, "dpmpp_2m_karras", "inpaint", 0.55]
+    },
+    {
+      "id": 91,
+      "type": "VAEDecode",
+      "title": "VAE Decode → Body with Clothes"
+    },
+    {
+      "id": 92,
+      "type": "ImageCompositeMasked",
+      "title": "Extract Clothing Overlay (Mask to Alpha)",
+      "widgets_values": ["alpha_from_mask"]
+    },
+    {
+      "id": 93,
+      "type": "SaveImage",
+      "title": "Save Clothing Overlay (PNG w/ Alpha)",
+      "widgets_values": ["PATH_OUTPUT/clothes/clothes_pose01_[OUTFIT_ID].png"]
+    },
+    {
+      "id": 94,
+      "type": "SaveImage",
+      "title": "(Optional) Save Full Body (for QA)",
+      "widgets_values": ["PATH_OUTPUT/clothesQA/body_pose01_[OUTFIT_ID].png"]
+    },
+
+    {
+      "id": 50,
+      "type": "LoadImage",
+      "title": "Load Base Head (from A) for Eyes",
+      "widgets_values": ["PATH_OUTPUT/base/child_base_pose01_skin-medium.png", true]
+    },
+    {
+      "id": 51,
+      "type": "LoadImage",
+      "title": "Load Iris Mask (L+R)",
+      "widgets_values": ["PATH_MASKS/pose01_iris_mask.png", true]
+    },
+    {
+      "id": 52,
+      "type": "CLIPTextEncode",
+      "title": "Positive Prompt (Eyes)",
+      "widgets_values": [
+        "iris color: [EYE_COLOR], subtle natural tint, preserve shape and highlights, do not alter eyelids"
+      ]
+    },
+    {
+      "id": 53,
+      "type": "CLIPTextEncode",
+      "title": "Negative Prompt (Eyes)",
+      "widgets_values": [
+        "change skin, change mouth, heavy eyeliner, exaggerated glow, lens flare"
+      ]
+    },
+    {
+      "id": 54,
+      "type": "CheckpointLoaderSimple",
+      "title": "Checkpoint (same as A)",
+      "widgets_values": ["PATH_MODELS/Checkpoints/storybook_sdxl.safetensors", "PATH_MODELS/VAEs/sdxl_vae.safetensors"]
+    },
+    {
+      "id": 55,
+      "type": "LoraLoader",
+      "title": "LoRA (Character Consistency)",
+      "widgets_values": ["PATH_MODELS/Loras/character_consistency.safetensors", 0.8]
+    },
+    {
+      "id": 56,
+      "type": "LoraLoader",
+      "title": "LoRA (Art Style)",
+      "widgets_values": ["PATH_MODELS/Loras/watercolor_style.safetensors", 0.6]
+    },
+    {
+      "id": 57,
+      "type": "LoadTextualInversion",
+      "title": "Embedding (Watercolor Style)",
+      "widgets_values": ["watercolor_childrens_book", 0.7]
+    },
+    {
+      "id": 58,
+      "type": "LoadTextualInversion",
+      "title": "Embedding (Storybook Style)",
+      "widgets_values": ["storybook_illustration", 0.5]
+    },
+    {
+      "id": 59,
+      "type": "VAEEncode",
+      "title": "VAE Encode Head (Eyes)"
+    },
+    {
+      "id": 60,
+      "type": "KSampler",
+      "title": "KSampler (Inpaint: Iris Only)",
+      "widgets_values": [334455, 16, 5.5, "dpmpp_2m_karras", "inpaint", 0.45]
+    },
+    {
+      "id": 61,
+      "type": "VAEDecode",
+      "title": "VAE Decode → Eyes Overlay"
+    },
+    {
+      "id": 62,
+      "type": "SaveImage",
+      "title": "Save Eyes Overlay (PNG w/ Alpha)",
+      "widgets_values": ["PATH_OUTPUT/eyes/eyes_pose01_[EYE_COLOR].png"]
+    },
+
+    {
+      "id": 70,
+      "type": "LoadText",
+      "title": "Batch JSON (Params)",
+      "widgets_values": [
+        "{\n  \"skin_tones\": [\"light\", \"medium\", \"brown\", \"dark\"],\n  \"hairstyles\": [\"short_straight\", \"medium_straight\", \"short_curly\", \"medium_curly\", \"afro\", \"ponytail\", \"pom_poms\"],\n  \"hair_colors\": [\"black\", \"dark_brown\", \"light_brown\", \"blonde\", \"red\"],\n  \"eye_colors\": [\"brown\", \"hazel\", \"green\", \"blue\"]\n}"
+      ]
+    },
+    {
+      "id": 71,
+      "type": "PyScript",
+      "title": "Parse Params (Custom Node)",
+      "widgets_values": [
+        "# expects JSON text on input 0, outputs lists to downstream switchers\nimport json\nparams = json.loads(inputs[0])\nskin = params['skin_tones']\nhstyles = params['hairstyles']\nhcols = params['hair_colors']\neyes = params['eye_colors']\n# You can iterate externally (n8n) or drive indexers here\noutputs = [str(len(skin)), str(len(hstyles)), str(len(hcols)), str(len(eyes))]"
+      ]
+    },
+    {
+      "id": 72,
+      "type": "Note",
+      "title": "Batch Iteration Guidance",
+      "widgets_values": [
+        "Batching in vanilla ComfyUI requires Scheduler/Queue or custom nodes.\nRecommended: trigger per-combo via n8n (HTTP/CLI) passing [SKIN_TONE], [HAIRSTYLE], [HAIR_COLOR], [EYE_COLOR] into prompt strings and file paths.\nAlternatively install ComfyUI-Manager extensions that add Loop/List nodes."
+      ]
+    },
+    {
+      "id": 73,
+      "type": "Note",
+      "title": "Filename Pattern",
+      "widgets_values": [
+        "child_base_pose01_[SKIN_TONE].png\nhair_pose01_[HAIRSTYLE]_[HAIR_COLOR].png\neyes_pose01_[EYE_COLOR].png"
+      ]
+    },
+    {
+      "id": 74,
+      "type": "Note",
+      "title": "Mask Files",
+      "widgets_values": [
+        "Provide masks in /masks: pose01_head_mask.png, pose01_hair_mask.png, pose01_iris_mask.png.\nAll canvases 1024×1024; align to the same head box."
+      ]
+    }
+  ],
+  "links": [
+    [1001, 10, 0, 11, 0, "IMAGE"],
+    [1002, 11, 0, 13, 0, "IMAGE"],
+    [1003, 14, 0, 15, 0, "MODEL"],
+    [1004, 15, 0, 16, 0, "MODEL"],
+    [1005, 16, 0, 23, 0, "MODEL"],
+    [1006, 14, 1, 19, 0, "CLIP"],
+    [1007, 14, 1, 20, 0, "CLIP"],
+    [1008, 19, 0, 21, 0, "CONDITIONING"],
+    [1009, 13, 0, 21, 1, "CONTROL_NET"],
+    [1010, 21, 0, 23, 1, "CONDITIONING"],
+    [1011, 20, 0, 23, 2, "CONDITIONING"],
+    [1012, 22, 0, 23, 3, "LATENT"],
+    [1013, 14, 2, 24, 0, "VAE"],
+    [1014, 23, 0, 24, 1, "LATENT"],
+    [1015, 24, 0, 41, 0, "IMAGE"],
+
+    [2001, 30, 0, 39, 0, "IMAGE"],
+    [2002, 34, 2, 39, 1, "VAE"],
+    [2003, 39, 0, 40, 0, "LATENT"],
+    [2004, 31, 0, 40, 1, "MASK"],
+    [2005, 34, 0, 35, 0, "MODEL"],
+    [2006, 35, 0, 36, 0, "MODEL"],
+    [2007, 36, 0, 40, 2, "MODEL"],
+    [2008, 32, 0, 40, 3, "CONDITIONING"],
+    [2009, 33, 0, 40, 4, "CONDITIONING"],
+    [2010, 40, 0, 41, 0, "LATENT"],
+    [2011, 34, 2, 41, 1, "VAE"],
+    [2012, 41, 0, 42, 0, "IMAGE"],
+    [2013, 31, 0, 42, 1, "MASK"],
+    [2014, 42, 0, 43, 0, "IMAGE"],
+    [2015, 41, 0, 44, 0, "IMAGE"],
+
+    [4001, 80, 0, 89, 0, "IMAGE"],
+    [4002, 84, 2, 89, 1, "VAE"],
+    [4003, 89, 0, 90, 0, "LATENT"],
+    [4004, 81, 0, 90, 1, "MASK"],
+    [4005, 84, 0, 85, 0, "MODEL"],
+    [4006, 85, 0, 86, 0, "MODEL"],
+    [4007, 86, 0, 90, 2, "MODEL"],
+    [4008, 82, 0, 90, 3, "CONDITIONING"],
+    [4009, 83, 0, 90, 4, "CONDITIONING"],
+    [4010, 90, 0, 91, 0, "LATENT"],
+    [4011, 84, 2, 91, 1, "VAE"],
+    [4012, 91, 0, 92, 0, "IMAGE"],
+    [4013, 81, 0, 92, 1, "MASK"],
+    [4014, 92, 0, 93, 0, "IMAGE"],
+    [4015, 91, 0, 94, 0, "IMAGE"],
+
+    [3001, 50, 0, 59, 0, "IMAGE"],
+    [3002, 54, 2, 59, 1, "VAE"],
+    [3003, 59, 0, 60, 0, "LATENT"],
+    [3004, 51, 0, 60, 1, "MASK"],
+    [3005, 54, 0, 55, 0, "MODEL"],
+    [3006, 55, 0, 56, 0, "MODEL"],
+    [3007, 56, 0, 60, 2, "MODEL"],
+    [3008, 52, 0, 60, 3, "CONDITIONING"],
+    [3009, 53, 0, 60, 4, "CONDITIONING"],
+    [3010, 60, 0, 61, 0, "LATENT"],
+    [3011, 54, 2, 61, 1, "VAE"],
+    [3012, 61, 0, 62, 0, "IMAGE"]
+  ]
+}

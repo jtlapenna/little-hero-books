@@ -1,0 +1,31 @@
+# Supabase Database Configuration for Little Hero Books
+# Copy this file to .env and update with your actual Supabase project values
+
+# Supabase Database Connection
+DB_HOST=db.your-project-ref.supabase.co
+DB_PORT=5432
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASSWORD=your-generated-password
+DB_SSL=true
+
+# n8n Database Credentials (same as above for n8n workflows)
+N8N_DB_HOST=db.your-project-ref.supabase.co
+N8N_DB_PORT=5432
+N8N_DB_NAME=postgres
+N8N_DB_USER=postgres
+N8N_DB_PASSWORD=your-generated-password
+N8N_DB_SSL=true
+
+# Supabase Project Details (for future features)
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Database Pool Settings (for production)
+DB_POOL_MIN=2
+DB_POOL_MAX=10
+DB_POOL_IDLE_TIMEOUT=30000
+
+# Optional: Database URL (alternative to individual settings)
+# DATABASE_URL=postgresql://postgres:your-password@db.your-project-ref.supabase.co:5432/postgres?sslmode=require

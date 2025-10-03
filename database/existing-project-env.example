@@ -1,0 +1,34 @@
+# Little Hero Books Database Configuration for Existing Supabase Project
+# Copy this file to .env and update with your existing Supabase project values
+
+# Existing Supabase Project Database Connection
+DB_HOST=db.your-existing-project-ref.supabase.co
+DB_PORT=5432
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASSWORD=your-existing-password
+DB_SSL=true
+
+# n8n Database Credentials (same as above for n8n workflows)
+N8N_DB_HOST=db.your-existing-project-ref.supabase.co
+N8N_DB_PORT=5432
+N8N_DB_NAME=postgres
+N8N_DB_USER=postgres
+N8N_DB_PASSWORD=your-existing-password
+N8N_DB_SSL=true
+
+# Schema Configuration
+DB_SCHEMA=little_hero_books
+
+# Existing Supabase Project Details (for future features)
+SUPABASE_URL=https://your-existing-project-ref.supabase.co
+SUPABASE_ANON_KEY=your-existing-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-existing-service-role-key
+
+# Database Pool Settings (for production)
+DB_POOL_MIN=2
+DB_POOL_MAX=10
+DB_POOL_IDLE_TIMEOUT=30000
+
+# Optional: Database URL with schema (alternative to individual settings)
+# DATABASE_URL=postgresql://postgres:your-password@db.your-existing-project-ref.supabase.co:5432/postgres?sslmode=require&search_path=little_hero_books

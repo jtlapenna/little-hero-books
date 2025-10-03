@@ -1,0 +1,644 @@
+{
+  "name": "Flow 0 - ComfyUI Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "comfyui-generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "comfyui-generate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "asset-type-check",
+              "leftValue": "={{ $json.asset_type }}",
+              "rightValue": "base_character",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "asset-type-router",
+      "name": "Asset Type Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "asset-type-check",
+              "leftValue": "={{ $json.asset_type }}",
+              "rightValue": "hair_overlay",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "hair-overlay-router",
+      "name": "Hair Overlay Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "asset-type-check",
+              "leftValue": "={{ $json.asset_type }}",
+              "rightValue": "eye_overlay",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "eye-overlay-router",
+      "name": "Eye Overlay Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare ComfyUI workflow for base character generation\nconst workflow = {\n  \"workflow_name\": \"Dreamtime_CharacterAssets_MVP\",\n  \"nodes\": [\n    {\n      \"id\": 10,\n      \"type\": \"LoadImage\",\n      \"title\": \"Load Pose Image\",\n      \"widgets_values\": [`pose_${$json.pose_id}.png`, true]\n    },\n    {\n      \"id\": 19,\n      \"type\": \"CLIPTextEncode\",\n      \"title\": \"Positive Prompt (Base)\",\n      \"widgets_values\": [\n        `watercolor storybook child, flat retro shapes, soft textured paper, gentle outlines, ${$json.skin_tone}, no hair, head visible, consistent proportions, character consistency, clean silhouette`\n      ]\n    },\n    {\n      \"id\": 41,\n      \"type\": \"SaveImage\",\n      \"title\": \"Save Base Image (A)\",\n      \"widgets_values\": [`child_base_${$json.pose_id}_${$json.skin_tone}.png`]\n    }\n  ],\n  \"links\": [\n    [1001, 10, 0, 11, 0, \"IMAGE\"],\n    [1008, 19, 0, 21, 0, \"CONDITIONING\"],\n    [1015, 24, 0, 41, 0, \"IMAGE\"]\n  ]\n};\n\nreturn {\n  json: {\n    workflow: workflow,\n    asset_type: $json.asset_type,\n    pose_id: $json.pose_id,\n    skin_tone: $json.skin_tone,\n    output_filename: `child_base_${$json.pose_id}_${$json.skin_tone}.png`\n  }\n};"
+      },
+      "id": "prepare-base-workflow",
+      "name": "Prepare Base Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare ComfyUI workflow for hair overlay generation\nconst workflow = {\n  \"workflow_name\": \"Dreamtime_CharacterAssets_MVP\",\n  \"nodes\": [\n    {\n      \"id\": 30,\n      \"type\": \"LoadImage\",\n      \"title\": \"Load Base Head (from A)\",\n      \"widgets_values\": [`child_base_${$json.pose_id}_${$json.skin_tone}.png`, true]\n    },\n    {\n      \"id\": 32,\n      \"type\": \"CLIPTextEncode\",\n      \"title\": \"Positive Prompt (Hair)\",\n      \"widgets_values\": [\n        `${$json.hairstyle} hairstyle, storybook watercolor, tidy edges, color: ${$json.hair_color}; overlay only; do not alter face`\n      ]\n    },\n    {\n      \"id\": 43,\n      \"type\": \"SaveImage\",\n      \"title\": \"Save Hair Overlay (PNG w/ Alpha)\",\n      \"widgets_values\": [`hair_${$json.pose_id}_${$json.hairstyle}_${$json.hair_color}.png`]\n    }\n  ],\n  \"links\": [\n    [2001, 30, 0, 39, 0, \"IMAGE\"],\n    [2008, 32, 0, 40, 3, \"CONDITIONING\"],\n    [2014, 42, 0, 43, 0, \"IMAGE\"]\n  ]\n};\n\nreturn {\n  json: {\n    workflow: workflow,\n    asset_type: $json.asset_type,\n    pose_id: $json.pose_id,\n    skin_tone: $json.skin_tone,\n    hairstyle: $json.hairstyle,\n    hair_color: $json.hair_color,\n    output_filename: `hair_${$json.pose_id}_${$json.hairstyle}_${$json.hair_color}.png`\n  }\n};"
+      },
+      "id": "prepare-hair-workflow",
+      "name": "Prepare Hair Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare ComfyUI workflow for eye overlay generation\nconst workflow = {\n  \"workflow_name\": \"Dreamtime_CharacterAssets_MVP\",\n  \"nodes\": [\n    {\n      \"id\": 50,\n      \"type\": \"LoadImage\",\n      \"title\": \"Load Base Head (from A) for Eyes\",\n      \"widgets_values\": [`child_base_${$json.pose_id}_${$json.skin_tone}.png`, true]\n    },\n    {\n      \"id\": 52,\n      \"type\": \"CLIPTextEncode\",\n      \"title\": \"Positive Prompt (Eyes)\",\n      \"widgets_values\": [\n        `iris color: ${$json.eye_color}, subtle natural tint, preserve shape and highlights, do not alter eyelids`\n      ]\n    },\n    {\n      \"id\": 62,\n      \"type\": \"SaveImage\",\n      \"title\": \"Save Eyes Overlay (PNG w/ Alpha)\",\n      \"widgets_values\": [`eyes_${$json.pose_id}_${$json.eye_color}.png`]\n    }\n  ],\n  \"links\": [\n    [3001, 50, 0, 59, 0, \"IMAGE\"],\n    [3008, 52, 0, 60, 3, \"CONDITIONING\"],\n    [3012, 61, 0, 62, 0, \"IMAGE\"]\n  ]\n};\n\nreturn {\n  json: {\n    workflow: workflow,\n    asset_type: $json.asset_type,\n    pose_id: $json.pose_id,\n    skin_tone: $json.skin_tone,\n    eye_color: $json.eye_color,\n    output_filename: `eyes_${$json.pose_id}_${$json.eye_color}.png`\n  }\n};"
+      },
+      "id": "prepare-eye-workflow",
+      "name": "Prepare Eye Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.COMFYUI_BASE_URL }}/prompt",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ JSON.stringify($json.workflow) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "comfyui-api-call",
+      "name": "ComfyUI API Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "comfyui-auth",
+          "name": "ComfyUI Authentication"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "success-check",
+              "leftValue": "={{ $json.prompt_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "success-check",
+      "name": "Success Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.COMFYUI_BASE_URL }}/history/{{ $json.prompt_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "check-generation-status",
+      "name": "Check Generation Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "comfyui-auth",
+          "name": "ComfyUI Authentication"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if generation is complete\nconst history = $json;\nconst promptId = $('ComfyUI API Call').item.json.prompt_id;\n\nif (history[promptId] && history[promptId].status) {\n  const status = history[promptId].status;\n  \n  if (status.status_str === 'success') {\n    // Get the output image filename\n    const outputs = status.outputs;\n    let imageFilename = null;\n    \n    // Find the SaveImage node output\n    for (const nodeId in outputs) {\n      const nodeOutput = outputs[nodeId];\n      if (nodeOutput.images && nodeOutput.images.length > 0) {\n        imageFilename = nodeOutput.images[0].filename;\n        break;\n      }\n    }\n    \n    return {\n      json: {\n        status: 'completed',\n        prompt_id: promptId,\n        image_filename: imageFilename,\n        asset_type: $('ComfyUI API Call').item.json.asset_type,\n        output_filename: $('ComfyUI API Call').item.json.output_filename\n      }\n    };\n  } else if (status.status_str === 'error') {\n    return {\n      json: {\n        status: 'error',\n        prompt_id: promptId,\n        error: status.status_str,\n        asset_type: $('ComfyUI API Call').item.json.asset_type\n      }\n    };\n  } else {\n    return {\n      json: {\n        status: 'running',\n        prompt_id: promptId,\n        asset_type: $('ComfyUI API Call').item.json.asset_type\n      }\n    };\n  }\n} else {\n  return {\n    json: {\n      status: 'not_found',\n      prompt_id: promptId,\n      asset_type: $('ComfyUI API Call').item.json.asset_type\n    }\n  };\n}"
+      },
+      "id": "parse-status",
+      "name": "Parse Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "status-check",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "generation-complete-check",
+      "name": "Generation Complete Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "wait-before-retry",
+      "name": "Wait Before Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2220, 100]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.COMFYUI_BASE_URL }}/view/{{ $json.image_filename }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-generated-image",
+      "name": "Download Generated Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "comfyui-auth",
+          "name": "ComfyUI Authentication"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.CLOUDFLARE_R2_BUCKET_URL }}/assets/{{ $json.asset_type }}/{{ $json.output_filename }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "image/png"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "value": "={{ $binary.data }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "upload-to-cloudflare",
+      "name": "Upload to Cloudflare R2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cloudflare-r2-auth",
+          "name": "Cloudflare R2 Authentication"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare success response\nreturn {\n  json: {\n    success: true,\n    asset_type: $json.asset_type,\n    output_filename: $json.output_filename,\n    cloudflare_url: `{{ $env.CLOUDFLARE_R2_BUCKET_URL }}/assets/${$json.asset_type}/${$json.output_filename}`,\n    prompt_id: $json.prompt_id,\n    generated_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "prepare-success-response",
+      "name": "Prepare Success Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare error response\nreturn {\n  json: {\n    success: false,\n    error: 'Generation failed or timed out',\n    asset_type: $json.asset_type,\n    prompt_id: $json.prompt_id,\n    failed_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "prepare-error-response",
+      "name": "Prepare Error Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2880, 300]
+    },
+    {
+      "parameters": {
+        "maxRetries": 3,
+        "retryDelay": 30
+      },
+      "id": "retry-on-failure",
+      "name": "Retry on Failure",
+      "type": "n8n-nodes-base.retryOnFail",
+      "typeVersion": 1,
+      "position": [2000, 100]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Asset Type Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asset Type Router": {
+      "main": [
+        [
+          {
+            "node": "Hair Overlay Router",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Base Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hair Overlay Router": {
+      "main": [
+        [
+          {
+            "node": "Eye Overlay Router",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Hair Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Eye Overlay Router": {
+      "main": [
+        [
+          {
+            "node": "Prepare Eye Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Base Workflow": {
+      "main": [
+        [
+          {
+            "node": "ComfyUI API Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Hair Workflow": {
+      "main": [
+        [
+          {
+            "node": "ComfyUI API Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Eye Workflow": {
+      "main": [
+        [
+          {
+            "node": "ComfyUI API Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ComfyUI API Call": {
+      "main": [
+        [
+          {
+            "node": "Success Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Check": {
+      "main": [
+        [
+          {
+            "node": "Check Generation Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Generation Status": {
+      "main": [
+        [
+          {
+            "node": "Parse Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Status": {
+      "main": [
+        [
+          {
+            "node": "Generation Complete Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generation Complete Check": {
+      "main": [
+        [
+          {
+            "node": "Download Generated Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait Before Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Retry": {
+      "main": [
+        [
+          {
+            "node": "Retry on Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry on Failure": {
+      "main": [
+        [
+          {
+            "node": "Check Generation Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Generated Image": {
+      "main": [
+        [
+          {
+            "node": "Upload to Cloudflare R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Cloudflare R2": {
+      "main": [
+        [
+          {
+            "node": "Prepare Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Success Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Error Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "comfyui-processing",
+      "name": "ComfyUI Processing"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}

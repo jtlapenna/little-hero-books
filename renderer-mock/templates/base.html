@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <style>
+        @page {
+            size: 11.25in 8.75in;
+            margin: 0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            width: 11.25in;
+            height: 8.75in;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .page {
+            width: 11.25in;
+            height: 8.75in;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        .text-box {
+            position: absolute;
+            background: rgba(237, 233, 193, 0.8);
+            border-radius: 50px;
+            padding: 40px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 65%;
+        }
+        
+        .text-box.left {
+            left: 5%;
+            bottom: 15%;
+        }
+        
+        .text-box.center {
+            left: 50%;
+            bottom: 15%;
+            transform: translateX(-50%);
+        }
+        
+        .text-box.right {
+            right: 5%;
+            bottom: 15%;
+        }
+        
+        .text-content {
+            font-size: 35px;
+            line-height: 1.4;
+            color: #232323;
+            text-align: left;
+        }
+        
+        .text-content.center {
+            text-align: center;
+        }
+        
+        .character-overlay {
+            position: absolute;
+            z-index: 100;
+        }
+        
+        .character-overlay.right {
+            right: 5%;
+            top: 20%;
+            width: 300px;
+            height: auto;
+        }
+        
+        .character-overlay.left {
+            left: 5%;
+            top: 20%;
+            width: 300px;
+            height: auto;
+        }
+        
+        .character-overlay.center {
+            left: 50%;
+            top: 20%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: auto;
+        }
+        
+        /* Print styles */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page" style="background-image: url('{{backgroundImage}}');">
+        {{#if text}}
+        <div class="text-box {{text.position}}">
+            <div class="text-content {{text.align}}">{{text.content}}</div>
+        </div>
+        {{/if}}
+        
+        {{#if character}}
+        <img src="{{character.image}}" alt="Character" class="character-overlay {{character.position}}">
+        {{/if}}
+    </div>
+</body>
+</html>

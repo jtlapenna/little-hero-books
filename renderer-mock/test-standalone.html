@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Little Hero Books - Test Page</title>
+    <style>
+        @page {
+            size: 11.25in 8.75in;
+            margin: 0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            width: 11.25in;
+            height: 8.75in;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #87CEEB, #98FB98);
+        }
+        
+        .page {
+            width: 11.25in;
+            height: 8.75in;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .text-box {
+            background: rgba(237, 233, 193, 0.9);
+            border-radius: 50px;
+            padding: 40px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 65%;
+            text-align: center;
+        }
+        
+        .text-content {
+            font-size: 35px;
+            line-height: 1.4;
+            color: #232323;
+        }
+        
+        .character {
+            position: absolute;
+            right: 5%;
+            top: 20%;
+            width: 200px;
+            height: 200px;
+            background: #ff6b6b;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .instructions {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            max-width: 300px;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h3>🎨 Test Page Preview</h3>
+        <ul>
+            <li>This shows the exact layout</li>
+            <li>Text box with rounded corners</li>
+            <li>Character positioned on right</li>
+            <li>Perfect for PDF generation</li>
+        </ul>
+    </div>
+    
+    <div class="page">
+        <div class="text-box">
+            <div class="text-content">
+                Tonight, Emma snuggled under their blanket.<br>
+                The stars outside the window sparkled and whispered,<br>
+                "An adventure is waiting just for you."
+            </div>
+        </div>
+        <div class="character">Character</div>
+    </div>
+</body>
+</html>
