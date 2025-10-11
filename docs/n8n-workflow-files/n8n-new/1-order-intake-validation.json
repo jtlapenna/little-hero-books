@@ -1,0 +1,321 @@
+{
+  "name": "1. Order Intake & Validation",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Cron Trigger (10 min)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2",
+      "name": "Get Amazon Orders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://sellingpartnerapi-na.amazon.com/orders/v0/orders",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "amazonSpApi",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "MarketplaceIds",
+                "value": "ATVPDKIKX0DER"
+              },
+              {
+                "name": "CreatedAfter",
+                "value": "={{ $now.minus({ hours: 1 }).toISO() }}"
+              },
+              {
+                "name": "OrderStatuses",
+                "value": "Unshipped"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "3",
+      "name": "Parse Amazon Orders",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "parameters": {
+        "functionCode": "// Parse Amazon SP-API response and extract order data\nconst orders = $input.first().json.payload.Orders || [];\nconst processedOrders = [];\n\nfor (const order of orders) {\n  try {\n    // Extract basic order info\n    const orderData = {\n      amazonOrderId: order.AmazonOrderId,\n      orderStatus: order.OrderStatus,\n      purchaseDate: order.PurchaseDate,\n      orderTotal: order.OrderTotal?.Amount || '0.00',\n      currency: order.OrderTotal?.CurrencyCode || 'USD',\n      marketplaceId: order.MarketplaceId,\n      shippingAddress: order.ShippingAddress,\n      customerEmail: order.BuyerEmail || 'N/A',\n      customerName: order.BuyerName || 'N/A'\n    };\n    \n    processedOrders.push(orderData);\n  } catch (error) {\n    console.log(`Error processing order: ${error.message}`);\n  }\n}\n\nreturn processedOrders.map(order => ({ json: order }));"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Get Order Items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://sellingpartnerapi-na.amazon.com/orders/v0/orders/{{ $json.amazonOrderId }}/orderItems",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "amazonSpApi"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Extract Character Specs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "parameters": {
+        "functionCode": "// Extract character specifications from order items\nconst orderItems = $input.first().json.payload.OrderItems || [];\nconst orderData = $('Parse Amazon Orders').first().json;\n\n// Look for our custom product (assuming it has specific ASIN or SKU)\nconst customProduct = orderItems.find(item => \n  item.ASIN === 'B0XXXXXXX' || // Replace with actual ASIN\n  item.SellerSKU?.includes('LITTLE_HERO_BOOK')\n);\n\nif (!customProduct) {\n  return []; // Skip if not our product\n}\n\n// Extract customization data from product title or attributes\nconst productTitle = customProduct.Title || '';\nconst customizationData = {\n  // Parse customization from product title or use defaults\n  childName: extractFromTitle(productTitle, 'child_name') || 'Adventure Hero',\n  skinTone: extractFromTitle(productTitle, 'skin_tone') || 'medium',\n  hairColor: extractFromTitle(productTitle, 'hair_color') || 'brown',\n  hairStyle: extractFromTitle(productTitle, 'hair_style') || 'short/straight',\n  age: extractFromTitle(productTitle, 'age') || '5',\n  pronouns: extractFromTitle(productTitle, 'pronouns') || 'they/them',\n  favoriteColor: extractFromTitle(productTitle, 'favorite_color') || 'blue',\n  animalGuide: extractFromTitle(productTitle, 'animal_guide') || 'dog',\n  clothingStyle: extractFromTitle(productTitle, 'clothing_style') || 't-shirt and shorts'\n};\n\n// Combine order data with character specs\nconst completeOrderData = {\n  ...orderData,\n  characterSpecs: customizationData,\n  productInfo: {\n    asin: customProduct.ASIN,\n    sku: customProduct.SellerSKU,\n    title: customProduct.Title,\n    quantity: customProduct.QuantityOrdered\n  },\n  status: 'pending_validation',\n  createdAt: new Date().toISOString()\n};\n\nreturn [{ json: completeOrderData }];\n\n// Helper function to extract data from product title\nfunction extractFromTitle(title, key) {\n  const patterns = {\n    child_name: /child[\\s_-]?name[\\s_-]?([a-zA-Z]+)/i,\n    skin_tone: /skin[\\s_-]?tone[\\s_-]?([a-zA-Z]+)/i,\n    hair_color: /hair[\\s_-]?color[\\s_-]?([a-zA-Z]+)/i,\n    hair_style: /hair[\\s_-]?style[\\s_-]?([a-zA-Z]+)/i,\n    age: /age[\\s_-]?([0-9]+)/i,\n    pronouns: /pronouns[\\s_-]?([a-zA-Z/]+)/i,\n    favorite_color: /favorite[\\s_-]?color[\\s_-]?([a-zA-Z]+)/i,\n    animal_guide: /animal[\\s_-]?guide[\\s_-]?([a-zA-Z]+)/i,\n    clothing_style: /clothing[\\s_-]?style[\\s_-]?([a-zA-Z\\s]+)/i\n  };\n  \n  const match = title.match(patterns[key]);\n  return match ? match[1] : null;\n}"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Validate Order Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "parameters": {
+        "functionCode": "// Validate order data and character specifications\nconst orderData = $input.first().json;\n\nconst validationErrors = [];\n\n// Validate required fields\nif (!orderData.amazonOrderId) {\n  validationErrors.push('Missing Amazon Order ID');\n}\n\nif (!orderData.customerEmail || orderData.customerEmail === 'N/A') {\n  validationErrors.push('Missing customer email');\n}\n\nif (!orderData.shippingAddress) {\n  validationErrors.push('Missing shipping address');\n}\n\n// Validate character specifications\nconst charSpecs = orderData.characterSpecs;\nif (!charSpecs) {\n  validationErrors.push('Missing character specifications');\n} else {\n  if (!charSpecs.childName || charSpecs.childName.length < 2) {\n    validationErrors.push('Invalid child name');\n  }\n  \n  const validSkinTones = ['light', 'medium', 'dark', 'tan', 'olive'];\n  if (!validSkinTones.includes(charSpecs.skinTone)) {\n    validationErrors.push('Invalid skin tone');\n  }\n  \n  const validHairColors = ['black', 'brown', 'blonde', 'red', 'auburn'];\n  if (!validHairColors.includes(charSpecs.hairColor)) {\n    validationErrors.push('Invalid hair color');\n  }\n  \n  const validHairStyles = ['short/straight', 'short/curly', 'medium/straight', 'medium/curly', 'pony-tail', 'pom-pom', 'afro'];\n  if (!validHairStyles.includes(charSpecs.hairStyle)) {\n    validationErrors.push('Invalid hair style');\n  }\n  \n  const age = parseInt(charSpecs.age);\n  if (isNaN(age) || age < 3 || age > 7) {\n    validationErrors.push('Invalid age (must be 3-7)');\n  }\n  \n  const validColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'brown', 'black', 'white'];\n  if (!validColors.includes(charSpecs.favoriteColor)) {\n    validationErrors.push('Invalid favorite color');\n  }\n  \n  const validAnimalGuides = ['dog', 'cat', 't-rex', 'unicorn', 'tiger', 'lion', 'owl'];\n  if (!validAnimalGuides.includes(charSpecs.animalGuide)) {\n    validationErrors.push('Invalid animal guide');\n  }\n  \n  const validClothingStyles = ['t-shirt and shorts', 'dress'];\n  if (!validClothingStyles.includes(charSpecs.clothingStyle)) {\n    validationErrors.push('Invalid clothing style');\n  }\n}\n\n// Set validation status\nif (validationErrors.length === 0) {\n  orderData.status = 'validated';\n  orderData.validationErrors = [];\n} else {\n  orderData.status = 'validation_failed';\n  orderData.validationErrors = validationErrors;\n}\n\norderData.validatedAt = new Date().toISOString();\n\nreturn [{ json: orderData }];"
+      }
+    },
+    {
+      "id": "7",
+      "name": "Check Validation Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1560, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "validated",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "8",
+      "name": "Queue for Processing",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1780, 200],
+      "parameters": {
+        "functionCode": "// Add order to processing queue\nconst orderData = $input.first().json;\n\n// Generate unique processing ID\nconst processingId = `order_${orderData.amazonOrderId}_${Date.now()}`;\n\n// Add to queue with processing metadata\nconst queuedOrder = {\n  ...orderData,\n  processingId: processingId,\n  status: 'queued_for_processing',\n  queuedAt: new Date().toISOString(),\n  priority: 'normal', // Could be 'high' for VIP customers\n  estimatedProcessingTime: '30-45 minutes'\n};\n\n// In a real implementation, this would add to a database queue\n// For now, we'll just log and pass the data\nconsole.log(`Order queued for processing: ${processingId}`);\n\nreturn [{ json: queuedOrder }];"
+      }
+    },
+    {
+      "id": "9",
+      "name": "Send Validation Error",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1780, 400],
+      "parameters": {
+        "functionCode": "// Handle validation errors\nconst orderData = $input.first().json;\n\nconst errorData = {\n  ...orderData,\n  status: 'validation_failed',\n  errorType: 'validation_error',\n  errorMessage: orderData.validationErrors.join(', '),\n  requiresManualReview: true,\n  failedAt: new Date().toISOString()\n};\n\n// Log error for manual review\nconsole.log(`Validation failed for order ${orderData.amazonOrderId}:`, orderData.validationErrors);\n\nreturn [{ json: errorData }];"
+      }
+    },
+    {
+      "id": "10",
+      "name": "Send Confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2000, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sendgridApi",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "personalizations",
+              "value": "=[{\"to\":[{\"email\":\"{{ $json.customerEmail }}\"}],\"subject\":\"Your Little Hero Book Order Confirmation\"}]"
+            },
+            {
+              "name": "from",
+              "value": "={\"email\":\"orders@littleherobooks.com\"}"
+            },
+            {
+              "name": "content",
+              "value": "=[{\"type\":\"text/html\",\"value\":\"<h2>Order Confirmed!</h2><p>Hi {{ $json.characterSpecs.childName }}'s family!</p><p>We've received your order for a personalized Little Hero Book and are excited to create your custom story!</p><p><strong>Order Details:</strong></p><ul><li>Order ID: {{ $json.amazonOrderId }}</li><li>Character: {{ $json.characterSpecs.childName }}</li><li>Skin Tone: {{ $json.characterSpecs.skinTone }}</li><li>Hair: {{ $json.characterSpecs.hairColor }} {{ $json.characterSpecs.hairStyle }}</li><li>Favorite Color: {{ $json.characterSpecs.favoriteColor }}</li><li>Animal Guide: {{ $json.characterSpecs.animalGuide }}</li></ul><p>Your book will be ready in 30-45 minutes and will ship within 3-5 business days.</p><p>Thank you for choosing Little Hero Books!</p>\"}]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "11",
+      "name": "Log Order Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2000, 400],
+      "parameters": {
+        "functionCode": "// Log order data for monitoring and debugging\nconst orderData = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '1-order-intake-validation',\n  orderId: orderData.amazonOrderId,\n  status: orderData.status,\n  processingId: orderData.processingId,\n  customerEmail: orderData.customerEmail,\n  characterSpecs: orderData.characterSpecs,\n  validationErrors: orderData.validationErrors || [],\n  errorType: orderData.errorType || null\n};\n\n// In production, this would write to a proper logging system\nconsole.log('Order processed:', JSON.stringify(logEntry, null, 2));\n\nreturn [{ json: logEntry }];"
+      }
+    }
+  ],
+  "connections": {
+    "Cron Trigger (10 min)": {
+      "main": [
+        [
+          {
+            "node": "Get Amazon Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Amazon Orders": {
+      "main": [
+        [
+          {
+            "node": "Parse Amazon Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Amazon Orders": {
+      "main": [
+        [
+          {
+            "node": "Get Order Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Order Items": {
+      "main": [
+        [
+          {
+            "node": "Extract Character Specs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Character Specs": {
+      "main": [
+        [
+          {
+            "node": "Validate Order Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Order Data": {
+      "main": [
+        [
+          {
+            "node": "Check Validation Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Validation Status": {
+      "main": [
+        [
+          {
+            "node": "Queue for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue for Processing": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Validation Error": {
+      "main": [
+        [
+          {
+            "node": "Log Order Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Log Order Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

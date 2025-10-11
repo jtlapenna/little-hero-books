@@ -1,0 +1,370 @@
+{
+  "name": "4. Print & Fulfillment",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Get Order Ready for Printing",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {
+        "functionCode": "// Get order ready for print and fulfillment\n// In production, this would query orders with status 'book_assembly_completed'\n// For now, we'll simulate getting an order from the previous workflow\n\nconst orderData = $input.first().json;\n\n// Check if order is ready for printing\nif (orderData.status !== 'book_assembly_completed') {\n  return []; // Skip if not ready\n}\n\n// Update order status to printing\nconst printingOrder = {\n  ...orderData,\n  status: 'print_submission_in_progress',\n  printSubmissionStartedAt: new Date().toISOString(),\n  printJobId: null,\n  printStatus: 'pending'\n};\n\nconsole.log(`Starting print submission for order: ${orderData.amazonOrderId}`);\nreturn [{ json: printingOrder }];"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Validate Print Requirements",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "parameters": {
+        "functionCode": "// Validate print requirements before submission\nconst orderData = $input.first().json;\n\n// Validate print requirements\nconst printValidation = {\n  hasFinalBook: !!orderData.finalBookUrl,\n  hasShippingAddress: !!(orderData.shippingAddress && orderData.city && orderData.state && orderData.zipCode),\n  hasCustomerInfo: !!(orderData.customerName && orderData.customerEmail),\n  hasOrderId: !!orderData.amazonOrderId,\n  bookSize: '8x10', // Fixed size for V1\n  pageCount: 12, // Fixed page count for V1\n  printQuality: 'standard' // Fixed quality for V1\n};\n\nconst validationScore = Object.values(printValidation).filter(Boolean).length;\nconst isValidForPrinting = validationScore >= 4; // At least 4 out of 5 requirements\n\nconst validatedOrder = {\n  ...orderData,\n  printValidation: printValidation,\n  validationScore: validationScore,\n  isValidForPrinting: isValidForPrinting,\n  validatedAt: new Date().toISOString()\n};\n\nif (!isValidForPrinting) {\n  console.log(`Print validation failed for order: ${orderData.amazonOrderId}`);\n  return [];\n}\n\nconsole.log(`Print validation passed for order: ${orderData.amazonOrderId}`);\nreturn [{ json: validatedOrder }];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Submit to Lulu Print-on-Demand",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.lulu.com/v1/print-jobs",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "luluApi",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "line_items",
+              "value": "=[{\n  \"external_id\": \"{{ $json.amazonOrderId }}\",\n  \"printable_normalization\": {\n    \"cover\": \"{{ $json.finalBookUrl }}\",\n    \"interior\": \"{{ $json.finalBookUrl }}\"\n  },\n  \"quantity\": 1,\n  \"pod_package_id\": \"{{ $json.podPackageId || 'softcover-8x10' }}\"\n}]"
+            },
+            {
+              "name": "contact_email",
+              "value": "={{ $json.customerEmail }}"
+            },
+            {
+              "name": "shipping_address",
+              "value": "={\n  \"name\": \"{{ $json.customerName }}\",\n  \"street1\": \"{{ $json.shippingAddress }}\",\n  \"city\": \"{{ $json.city }}\",\n  \"state\": \"{{ $json.state }}\",\n  \"postal_code\": \"{{ $json.zipCode }}\",\n  \"country\": \"US\"\n}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "4",
+      "name": "Process Lulu Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "parameters": {
+        "functionCode": "// Process Lulu API response and extract print job details\nconst luluResponse = $input.first().json;\nconst orderData = $('Validate Print Requirements').first().json;\n\n// Extract print job information from Lulu response\nconst printJobInfo = {\n  printJobId: luluResponse.id || luluResponse.print_job_id,\n  status: luluResponse.status || 'submitted',\n  estimatedCompletion: luluResponse.estimated_completion || null,\n  trackingNumber: luluResponse.tracking_number || null,\n  cost: luluResponse.cost || null,\n  luluOrderId: luluResponse.lulu_order_id || null\n};\n\nconst orderWithPrintJob = {\n  ...orderData,\n  printJobInfo: printJobInfo,\n  printStatus: printJobInfo.status,\n  printJobSubmittedAt: new Date().toISOString()\n};\n\nconsole.log(`Print job submitted to Lulu: ${printJobInfo.printJobId}`);\nreturn [{ json: orderWithPrintJob }];"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Update Order Status",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "parameters": {
+        "functionCode": "// Update order status to reflect print submission\nconst orderData = $input.first().json;\n\nconst updatedOrder = {\n  ...orderData,\n  status: 'print_submitted',\n  printJobId: orderData.printJobInfo.printJobId,\n  printStatus: orderData.printJobInfo.status,\n  updatedAt: new Date().toISOString()\n};\n\nconsole.log(`Order status updated to print_submitted: ${orderData.amazonOrderId}`);\nreturn [{ json: updatedOrder }];"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Monitor Print Progress",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "parameters": {
+        "functionCode": "// Monitor print progress (this would typically be a separate scheduled workflow)\nconst orderData = $input.first().json;\n\n// In production, this would query Lulu API for current status\n// For now, we'll simulate the monitoring process\nconst monitoringResult = {\n  ...orderData,\n  lastCheckedAt: new Date().toISOString(),\n  monitoringStatus: 'active'\n};\n\nconsole.log(`Monitoring print progress for job: ${orderData.printJobId}`);\nreturn [{ json: monitoringResult }];"
+      }
+    },
+    {
+      "id": "7",
+      "name": "Check Print Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1560, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.lulu.com/v1/print-jobs/{{ $json.printJobId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "luluApi",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "8",
+      "name": "Process Print Status Update",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1780, 300],
+      "parameters": {
+        "functionCode": "// Process print status update from Lulu\nconst statusResponse = $input.first().json;\nconst orderData = $('Monitor Print Progress').first().json;\n\n// Extract updated status information\nconst statusUpdate = {\n  printStatus: statusResponse.status,\n  trackingNumber: statusResponse.tracking_number,\n  estimatedDelivery: statusResponse.estimated_delivery,\n  actualCost: statusResponse.actual_cost,\n  completedAt: statusResponse.completed_at,\n  shippedAt: statusResponse.shipped_at\n};\n\nconst updatedOrder = {\n  ...orderData,\n  printStatus: statusUpdate.printStatus,\n  trackingNumber: statusUpdate.trackingNumber,\n  estimatedDelivery: statusUpdate.estimatedDelivery,\n  actualCost: statusUpdate.actualCost,\n  lastStatusUpdate: new Date().toISOString()\n};\n\n// Update order status based on print status\nif (statusUpdate.printStatus === 'completed') {\n  updatedOrder.status = 'print_completed';\n  updatedOrder.printCompletedAt = statusUpdate.completedAt;\n} else if (statusUpdate.printStatus === 'shipped') {\n  updatedOrder.status = 'shipped';\n  updatedOrder.shippedAt = statusUpdate.shippedAt;\n}\n\nconsole.log(`Print status updated: ${statusUpdate.printStatus} for job: ${orderData.printJobId}`);\nreturn [{ json: updatedOrder }];"
+      }
+    },
+    {
+      "id": "9",
+      "name": "Get Tracking Information",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2000, 300],
+      "parameters": {
+        "functionCode": "// Get tracking information for shipped orders\nconst orderData = $input.first().json;\n\nif (orderData.status !== 'shipped' || !orderData.trackingNumber) {\n  return [{ json: orderData }]; // No tracking info available yet\n}\n\n// In production, this would query the shipping carrier's API\n// For now, we'll simulate tracking information\nconst trackingInfo = {\n  trackingNumber: orderData.trackingNumber,\n  carrier: 'USPS', // Default carrier for Lulu\n  estimatedDelivery: orderData.estimatedDelivery,\n  currentStatus: 'In Transit',\n  lastUpdate: new Date().toISOString(),\n  trackingUrl: `https://tools.usps.com/go/TrackConfirmAction?qtc_tLabels1=${orderData.trackingNumber}`\n};\n\nconst orderWithTracking = {\n  ...orderData,\n  trackingInfo: trackingInfo,\n  trackingRetrievedAt: new Date().toISOString()\n};\n\nconsole.log(`Tracking information retrieved for order: ${orderData.amazonOrderId}`);\nreturn [{ json: orderOrderWithTracking }];"
+      }
+    },
+    {
+      "id": "10",
+      "name": "Confirm Shipment with Amazon",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2220, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://sellingpartnerapi-na.amazon.com/orders/v0/orders/{{ $json.amazonOrderId }}/shipmentConfirmation",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "amazonSpApi",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "packageDetail",
+              "value": "={\n  \"packageReferenceId\": \"{{ $json.printJobId }}\",\n  \"carrierCode\": \"{{ $json.trackingInfo.carrier }}\",\n  \"trackingNumber\": \"{{ $json.trackingNumber }}\",\n  \"shipDate\": \"{{ $json.shippedAt }}\"\n}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "11",
+      "name": "Send Customer Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2440, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sendgridApi",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "personalizations",
+              "value": "=[{\n  \"to\": [{\"email\": \"{{ $json.customerEmail }}\"}],\n  \"subject\": \"Your Little Hero Book is on its way!\"\n}]"
+            },
+            {
+              "name": "from",
+              "value": "={\n  \"email\": \"orders@littleherobooks.com\",\n  \"name\": \"Little Hero Books\"\n}"
+            },
+            {
+              "name": "content",
+              "value": "=[{\n  \"type\": \"text/html\",\n  \"value\": \"<h2>Your Little Hero Book is on its way!</h2><p>Hi {{ $json.customerName }},</p><p>Great news! Your personalized Little Hero Book has been printed and is now on its way to you.</p><p><strong>Tracking Number:</strong> {{ $json.trackingNumber }}</p><p><strong>Estimated Delivery:</strong> {{ $json.estimatedDelivery }}</p><p>You can track your package here: <a href='{{ $json.trackingInfo.trackingUrl }}'>Track Package</a></p><p>Thank you for choosing Little Hero Books!</p>\"\n}]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "12",
+      "name": "Update Final Order Status",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2660, 300],
+      "parameters": {
+        "functionCode": "// Update final order status to completed\nconst orderData = $input.first().json;\n\nconst completedOrder = {\n  ...orderData,\n  status: 'fulfillment_completed',\n  fulfillmentCompletedAt: new Date().toISOString(),\n  totalFulfillmentTime: new Date(orderData.fulfillmentCompletedAt) - new Date(orderData.printSubmissionStartedAt),\n  finalStatus: 'delivered'\n};\n\nconsole.log(`Fulfillment completed for order: ${orderData.amazonOrderId}`);\nreturn [{ json: completedOrder }];"
+      }
+    },
+    {
+      "id": "13",
+      "name": "Log Fulfillment Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2660, 500],
+      "parameters": {
+        "functionCode": "// Log fulfillment results for monitoring\nconst orderData = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '4-print-fulfillment',\n  orderId: orderData.amazonOrderId,\n  status: orderData.status,\n  printJobId: orderData.printJobId,\n  printStatus: orderData.printStatus,\n  trackingNumber: orderData.trackingNumber,\n  estimatedDelivery: orderData.estimatedDelivery,\n  actualCost: orderData.actualCost,\n  fulfillmentTime: orderData.totalFulfillmentTime || 'N/A',\n  customerEmail: orderData.customerEmail,\n  notificationSent: orderData.notificationSent || false\n};\n\n// In production, this would write to a proper logging system\nconsole.log('Print & Fulfillment Results:', JSON.stringify(logEntry, null, 2));\n\nreturn [{ json: logEntry }];"
+      }
+    }
+  ],
+  "connections": {
+    "Get Order Ready for Printing": {
+      "main": [
+        [
+          {
+            "node": "Validate Print Requirements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Print Requirements": {
+      "main": [
+        [
+          {
+            "node": "Submit to Lulu Print-on-Demand",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit to Lulu Print-on-Demand": {
+      "main": [
+        [
+          {
+            "node": "Process Lulu Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Lulu Response": {
+      "main": [
+        [
+          {
+            "node": "Update Order Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order Status": {
+      "main": [
+        [
+          {
+            "node": "Monitor Print Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monitor Print Progress": {
+      "main": [
+        [
+          {
+            "node": "Check Print Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Print Status": {
+      "main": [
+        [
+          {
+            "node": "Process Print Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Print Status Update": {
+      "main": [
+        [
+          {
+            "node": "Get Tracking Information",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Tracking Information": {
+      "main": [
+        [
+          {
+            "node": "Confirm Shipment with Amazon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Shipment with Amazon": {
+      "main": [
+        [
+          {
+            "node": "Send Customer Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Customer Notification": {
+      "main": [
+        [
+          {
+            "node": "Update Final Order Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Final Order Status": {
+      "main": [
+        [
+          {
+            "node": "Log Fulfillment Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

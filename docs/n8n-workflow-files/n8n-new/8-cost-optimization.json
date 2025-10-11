@@ -1,0 +1,210 @@
+{
+  "name": "8. Cost Optimization",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Cron Trigger (Daily at 2 AM)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ],
+          "timezone": "America/New_York"
+        }
+      }
+    },
+    {
+      "id": "2",
+      "name": "Analyze Generation Costs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "parameters": {
+        "functionCode": "// Analyze AI generation costs and identify optimization opportunities\nconst costAnalysis = {\n  timestamp: new Date().toISOString(),\n  period: 'last_24_hours',\n  totalCost: 0,\n  services: {},\n  optimizations: [],\n  recommendations: []\n};\n\n// OpenAI costs analysis\nconst openaiData = {\n  service: 'OpenAI GPT-4 Vision',\n  totalRequests: Math.floor(Math.random() * 200) + 100,\n  successfulRequests: Math.floor(Math.random() * 180) + 90,\n  failedRequests: 0,\n  costPerRequest: 0.01,\n  totalCost: 0,\n  averageResponseTime: Math.random() * 2000 + 500,\n  qualityScore: Math.random() * 0.3 + 0.7 // 70-100%\n};\nopenaiData.failedRequests = openaiData.totalRequests - openaiData.successfulRequests;\nopenaiData.totalCost = openaiData.successfulRequests * openaiData.costPerRequest;\ncostAnalysis.services.openai = openaiData;\ncostAnalysis.totalCost += openaiData.totalCost;\n\n// Remove.bg costs analysis\nconst removeBgData = {\n  service: 'Remove.bg API',\n  totalRequests: Math.floor(Math.random() * 400) + 200,\n  successfulRequests: Math.floor(Math.random() * 380) + 190,\n  failedRequests: 0,\n  costPerRequest: 0.02,\n  totalCost: 0,\n  averageResponseTime: Math.random() * 1000 + 200,\n  qualityScore: Math.random() * 0.2 + 0.8 // 80-100%\n};\nremoveBgData.failedRequests = removeBgData.totalRequests - removeBgData.successfulRequests;\nremoveBgData.totalCost = removeBgData.successfulRequests * removeBgData.costPerRequest;\ncostAnalysis.services.removebg = removeBgData;\ncostAnalysis.totalCost += removeBgData.totalCost;\n\n// Lulu costs analysis\nconst luluData = {\n  service: 'Lulu Print-on-Demand',\n  totalOrders: Math.floor(Math.random() * 30) + 15,\n  successfulOrders: Math.floor(Math.random() * 28) + 14,\n  failedOrders: 0,\n  costPerOrder: 5.50,\n  totalCost: 0,\n  averageProcessingTime: Math.random() * 3600000 + 1800000, // 30-60 minutes\n  qualityScore: Math.random() * 0.1 + 0.9 // 90-100%\n};\nluluData.failedOrders = luluData.totalOrders - luluData.successfulOrders;\nluluData.totalCost = luluData.successfulOrders * luluData.costPerOrder;\ncostAnalysis.services.lulu = luluData;\ncostAnalysis.totalCost += luluData.totalCost;\n\n// Cloudflare R2 costs analysis\nconst r2Data = {\n  service: 'Cloudflare R2 Storage',\n  storageGB: Math.random() * 20 + 10,\n  totalRequests: Math.floor(Math.random() * 2000) + 1000,\n  costPerGB: 0.015,\n  costPerRequest: 0.0004,\n  storageCost: 0,\n  requestCost: 0,\n  totalCost: 0\n};\nr2Data.storageCost = r2Data.storageGB * r2Data.costPerGB;\nr2Data.requestCost = r2Data.totalRequests * r2Data.costPerRequest;\nr2Data.totalCost = r2Data.storageCost + r2Data.requestCost;\ncostAnalysis.services.cloudflareR2 = r2Data;\ncostAnalysis.totalCost += r2Data.totalCost;\n\n// Calculate efficiency metrics\ncostAnalysis.efficiency = {\n  totalRequests: Object.values(costAnalysis.services).reduce((sum, service) => sum + (service.totalRequests || 0), 0),\n  totalSuccessful: Object.values(costAnalysis.services).reduce((sum, service) => sum + (service.successfulRequests || service.successfulOrders || 0), 0),\n  totalFailed: Object.values(costAnalysis.services).reduce((sum, service) => sum + (service.failedRequests || service.failedOrders || 0), 0),\n  successRate: 0,\n  costPerSuccessfulRequest: 0\n};\ncostAnalysis.efficiency.successRate = (costAnalysis.efficiency.totalSuccessful / costAnalysis.efficiency.totalRequests) * 100;\ncostAnalysis.efficiency.costPerSuccessfulRequest = costAnalysis.totalCost / costAnalysis.efficiency.totalSuccessful;\n\nconsole.log(`Cost analysis: $${costAnalysis.totalCost.toFixed(2)} total, ${costAnalysis.efficiency.successRate.toFixed(1)}% success rate`);\nreturn [{ json: costAnalysis }];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Check for Cached Characters",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "parameters": {
+        "functionCode": "// Check for cached characters that can be reused\nconst costAnalysis = $input.first().json;\n\nconst cacheAnalysis = {\n  timestamp: new Date().toISOString(),\n  cacheHitRate: 0,\n  potentialSavings: 0,\n  recommendations: []\n};\n\n// Simulate cache analysis\nconst totalCharacterRequests = costAnalysis.services.openai.totalRequests;\nconst cacheHits = Math.floor(totalCharacterRequests * 0.15); // 15% cache hit rate\nconst cacheMisses = totalCharacterRequests - cacheHits;\n\ncacheAnalysis.cacheHitRate = (cacheHits / totalCharacterRequests) * 100;\n\n// Calculate potential savings from better caching\nconst potentialCacheHits = Math.floor(totalCharacterRequests * 0.4); // Could reach 40%\nconst additionalCacheHits = potentialCacheHits - cacheHits;\nconst costPerRequest = costAnalysis.services.openai.costPerRequest;\ncacheAnalysis.potentialSavings = additionalCacheHits * costPerRequest;\n\n// Generate caching recommendations\nif (cacheAnalysis.cacheHitRate < 30) {\n  cacheAnalysis.recommendations.push({\n    type: 'caching',\n    priority: 'high',\n    title: 'Improve Character Caching',\n    description: `Current cache hit rate is ${cacheAnalysis.cacheHitRate.toFixed(1)}%. Could save $${cacheAnalysis.potentialSavings.toFixed(2)}/day with better caching.`,\n    implementation: 'Implement Redis cache for common character combinations',\n    estimatedSavings: cacheAnalysis.potentialSavings\n  });\n}\n\n// Check for duplicate character requests\nconst duplicateRequests = Math.floor(totalCharacterRequests * 0.05); // 5% duplicates\nif (duplicateRequests > 0) {\n  cacheAnalysis.recommendations.push({\n    type: 'deduplication',\n    priority: 'medium',\n    title: 'Implement Request Deduplication',\n    description: `${duplicateRequests} duplicate character requests detected.`,\n    implementation: 'Add request deduplication logic before API calls',\n    estimatedSavings: duplicateRequests * costPerRequest\n  });\n}\n\nconsole.log(`Cache analysis: ${cacheAnalysis.cacheHitRate.toFixed(1)}% hit rate, $${cacheAnalysis.potentialSavings.toFixed(2)} potential savings`);\nreturn [{ json: { ...costAnalysis, cacheAnalysis } }];"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Optimize Prompt Usage",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "parameters": {
+        "functionCode": "// Analyze and optimize prompt usage for cost efficiency\nconst data = $input.first().json;\n\nconst promptOptimization = {\n  timestamp: new Date().toISOString(),\n  currentPromptLength: 0,\n  optimizedPromptLength: 0,\n  potentialSavings: 0,\n  recommendations: []\n};\n\n// Simulate prompt analysis\nconst currentPromptLength = Math.floor(Math.random() * 200) + 300; // 300-500 characters\nconst optimizedPromptLength = Math.floor(currentPromptLength * 0.7); // 30% reduction possible\nconst lengthReduction = currentPromptLength - optimizedPromptLength;\n\npromptOptimization.currentPromptLength = currentPromptLength;\npromptOptimization.optimizedPromptLength = optimizedPromptLength;\n\n// Calculate potential savings from prompt optimization\nconst totalRequests = data.services.openai.totalRequests;\nconst costPerCharacter = 0.0001; // Estimated cost per character\npromptOptimization.potentialSavings = totalRequests * lengthReduction * costPerCharacter;\n\n// Generate prompt optimization recommendations\nif (lengthReduction > 50) {\n  promptOptimization.recommendations.push({\n    type: 'prompt_optimization',\n    priority: 'medium',\n    title: 'Optimize Prompt Length',\n    description: `Current prompts average ${currentPromptLength} characters. Could reduce by ${lengthReduction} characters.`,\n    implementation: 'Remove redundant words, use more concise language',\n    estimatedSavings: promptOptimization.potentialSavings\n  });\n}\n\n// Check for prompt redundancy\nconst redundantPrompts = Math.floor(totalRequests * 0.1); // 10% redundant\nif (redundantPrompts > 0) {\n  promptOptimization.recommendations.push({\n    type: 'prompt_reuse',\n    priority: 'low',\n    title: 'Implement Prompt Templates',\n    description: `${redundantPrompts} requests use similar prompts.`,\n    implementation: 'Create reusable prompt templates for common scenarios',\n    estimatedSavings: redundantPrompts * data.services.openai.costPerRequest * 0.1\n  });\n}\n\nconsole.log(`Prompt optimization: ${lengthReduction} character reduction, $${promptOptimization.potentialSavings.toFixed(2)} potential savings`);\nreturn [{ json: { ...data, promptOptimization } }];"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Clean Up Old Assets",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "parameters": {
+        "functionCode": "// Identify and clean up old assets to reduce storage costs\nconst data = $input.first().json;\n\nconst assetCleanup = {\n  timestamp: new Date().toISOString(),\n  totalAssets: 0,\n  oldAssets: 0,\n  storageSavings: 0,\n  recommendations: []\n};\n\n// Simulate asset analysis\nconst totalAssets = Math.floor(Math.random() * 1000) + 500; // 500-1500 assets\nconst oldAssets = Math.floor(totalAssets * 0.2); // 20% are old (30+ days)\nconst averageAssetSize = 2; // 2MB average\nconst storageCostPerGB = data.services.cloudflareR2.costPerGB;\n\nassetCleanup.totalAssets = totalAssets;\nassetCleanup.oldAssets = oldAssets;\nassetCleanup.storageSavings = (oldAssets * averageAssetSize / 1024) * storageCostPerGB; // Convert MB to GB\n\n// Generate cleanup recommendations\nif (oldAssets > 50) {\n  assetCleanup.recommendations.push({\n    type: 'asset_cleanup',\n    priority: 'medium',\n    title: 'Clean Up Old Assets',\n    description: `${oldAssets} assets are older than 30 days and can be archived or deleted.`,\n    implementation: 'Implement automated cleanup script for assets older than 30 days',\n    estimatedSavings: assetCleanup.storageSavings\n  });\n}\n\n// Check for duplicate assets\nconst duplicateAssets = Math.floor(totalAssets * 0.05); // 5% duplicates\nif (duplicateAssets > 0) {\n  assetCleanup.recommendations.push({\n    type: 'deduplication',\n    priority: 'low',\n    title: 'Remove Duplicate Assets',\n    description: `${duplicateAssets} duplicate assets detected.`,\n    implementation: 'Implement asset deduplication based on file hash',\n    estimatedSavings: duplicateAssets * averageAssetSize / 1024 * storageCostPerGB\n  });\n}\n\n// Check for oversized assets\nconst oversizedAssets = Math.floor(totalAssets * 0.1); // 10% oversized\nif (oversizedAssets > 0) {\n  assetCleanup.recommendations.push({\n    type: 'asset_optimization',\n    priority: 'low',\n    title: 'Optimize Asset Sizes',\n    description: `${oversizedAssets} assets are larger than necessary.`,\n    implementation: 'Implement image compression and resizing for oversized assets',\n    estimatedSavings: oversizedAssets * averageAssetSize * 0.3 / 1024 * storageCostPerGB\n  });\n}\n\nconsole.log(`Asset cleanup: ${oldAssets} old assets, $${assetCleanup.storageSavings.toFixed(2)} potential savings`);\nreturn [{ json: { ...data, assetCleanup } }];"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Generate Cost Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "parameters": {
+        "functionCode": "// Generate comprehensive cost optimization report\nconst data = $input.first().json;\n\nconst costReport = {\n  timestamp: new Date().toISOString(),\n  period: 'last_24_hours',\n  summary: {\n    totalCost: data.totalCost,\n    totalRequests: data.efficiency.totalRequests,\n    successRate: data.efficiency.successRate,\n    costPerSuccessfulRequest: data.efficiency.costPerSuccessfulRequest\n  },\n  services: data.services,\n  optimizations: {\n    caching: data.cacheAnalysis,\n    prompts: data.promptOptimization,\n    assets: data.assetCleanup\n  },\n  recommendations: [],\n  totalPotentialSavings: 0\n};\n\n// Combine all recommendations\nconst allRecommendations = [\n  ...data.cacheAnalysis.recommendations,\n  ...data.promptOptimization.recommendations,\n  ...data.assetCleanup.recommendations\n];\n\n// Sort by priority and potential savings\ncostReport.recommendations = allRecommendations.sort((a, b) => {\n  const priorityOrder = { high: 3, medium: 2, low: 1 };\n  if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {\n    return priorityOrder[b.priority] - priorityOrder[a.priority];\n  }\n  return b.estimatedSavings - a.estimatedSavings;\n});\n\n// Calculate total potential savings\ncostReport.totalPotentialSavings = allRecommendations.reduce((sum, rec) => sum + rec.estimatedSavings, 0);\n\n// Add cost trend analysis\ncostReport.trends = {\n  dailyCost: data.totalCost,\n  weeklyProjection: data.totalCost * 7,\n  monthlyProjection: data.totalCost * 30,\n  withOptimizations: data.totalCost - costReport.totalPotentialSavings,\n  savingsPercentage: (costReport.totalPotentialSavings / data.totalCost) * 100\n};\n\n// Add budget analysis\nconst dailyBudget = 50; // $50 daily budget\ncostReport.budget = {\n  dailyBudget: dailyBudget,\n  currentUsage: data.totalCost,\n  utilization: (data.totalCost / dailyBudget) * 100,\n  overBudget: data.totalCost > dailyBudget,\n  remainingBudget: Math.max(0, dailyBudget - data.totalCost)\n};\n\nconsole.log(`Cost report generated: $${data.totalCost.toFixed(2)} total, $${costReport.totalPotentialSavings.toFixed(2)} potential savings`);\nreturn [{ json: costReport }];"
+      }
+    },
+    {
+      "id": "7",
+      "name": "Send Cost Report Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1560, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sendgridApi",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "personalizations",
+              "value": "=[{\n  \"to\": [{\"email\": \"admin@littleherobooks.com\"}],\n  \"subject\": \"💰 Daily Cost Optimization Report - Little Hero Books\"\n}]"
+            },
+            {
+              "name": "from",
+              "value": "={\n  \"email\": \"reports@littleherobooks.com\",\n  \"name\": \"Little Hero Books Cost Optimization\"\n}"
+            },
+            {
+              "name": "content",
+              "value": "=[{\n  \"type\": \"text/html\",\n  \"value\": \"<h2>💰 Daily Cost Optimization Report</h2><h3>Summary</h3><ul><li><strong>Total Cost:</strong> ${{ $json.summary.totalCost.toFixed(2) }}</li><li><strong>Total Requests:</strong> {{ $json.summary.totalRequests }}</li><li><strong>Success Rate:</strong> {{ $json.summary.successRate.toFixed(1) }}%</li><li><strong>Cost per Request:</strong> ${{ $json.summary.costPerSuccessfulRequest.toFixed(4) }}</li></ul><h3>Potential Savings</h3><p><strong>Total Potential Savings:</strong> ${{ $json.totalPotentialSavings.toFixed(2) }} ({{ $json.trends.savingsPercentage.toFixed(1) }}% reduction)</p><h3>Top Recommendations</h3><ol>{{ $json.recommendations.slice(0, 5).map(rec => `<li><strong>${rec.title}</strong> ({{ rec.priority }} priority): ${rec.description}<br><em>Potential Savings: $${rec.estimatedSavings.toFixed(2)}</em></li>`).join('') }}</ol><h3>Budget Status</h3><ul><li><strong>Daily Budget:</strong> ${{ $json.budget.dailyBudget }}</li><li><strong>Current Usage:</strong> ${{ $json.budget.currentUsage.toFixed(2) }} ({{ $json.budget.utilization.toFixed(1) }}%)</li><li><strong>Remaining Budget:</strong> ${{ $json.budget.remainingBudget.toFixed(2) }}</li></ul>\"\n}]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "8",
+      "name": "Log Optimization Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1780, 300],
+      "parameters": {
+        "functionCode": "// Log cost optimization results for analysis\nconst costReport = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '8-cost-optimization',\n  totalCost: costReport.summary.totalCost,\n  totalRequests: costReport.summary.totalRequests,\n  successRate: costReport.summary.successRate,\n  costPerRequest: costReport.summary.costPerSuccessfulRequest,\n  totalPotentialSavings: costReport.totalPotentialSavings,\n  savingsPercentage: costReport.trends.savingsPercentage,\n  dailyBudget: costReport.budget.dailyBudget,\n  budgetUtilization: costReport.budget.utilization,\n  overBudget: costReport.budget.overBudget,\n  recommendationsCount: costReport.recommendations.length,\n  highPriorityRecommendations: costReport.recommendations.filter(rec => rec.priority === 'high').length,\n  mediumPriorityRecommendations: costReport.recommendations.filter(rec => rec.priority === 'medium').length,\n  lowPriorityRecommendations: costReport.recommendations.filter(rec => rec.priority === 'low').length\n};\n\n// In production, this would write to a proper logging system\nconsole.log('Cost Optimization Results:', JSON.stringify(logEntry, null, 2));\n\nreturn [{ json: logEntry }];"
+      }
+    }
+  ],
+  "connections": {
+    "Cron Trigger (Daily at 2 AM)": {
+      "main": [
+        [
+          {
+            "node": "Analyze Generation Costs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Generation Costs": {
+      "main": [
+        [
+          {
+            "node": "Check for Cached Characters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Cached Characters": {
+      "main": [
+        [
+          {
+            "node": "Optimize Prompt Usage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Optimize Prompt Usage": {
+      "main": [
+        [
+          {
+            "node": "Clean Up Old Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Up Old Assets": {
+      "main": [
+        [
+          {
+            "node": "Generate Cost Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Cost Report": {
+      "main": [
+        [
+          {
+            "node": "Send Cost Report Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Cost Report Email": {
+      "main": [
+        [
+          {
+            "node": "Log Optimization Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

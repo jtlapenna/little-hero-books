@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Poses Gallery</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .poses-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .pose-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .pose-card img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        
+        .pose-card h3 {
+            margin: 10px 0 5px 0;
+            color: #333;
+        }
+        
+        .pose-card p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .back-link {
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        .back-link a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎭 Character Poses Gallery</h1>
+    
+    <div class="poses-grid">
+        <div class="pose-card">
+            <img src="../assets/poses/characters_61e3d0af27acbed3_pose01.png" alt="Pose 01">
+            <h3>Pose 01</h3>
+            <p>Standing pose - Garden Path Twilight</p>
+        </div>
+        
+        <div class="pose-card">
+            <img src="../assets/poses/characters_61e3d0af27acbed3_pose02.png" alt="Pose 02">
+            <h3>Pose 02</h3>
+            <p>Sitting pose - Garden Gate Magical</p>
+        </div>
+        
+        <div class="pose-card">
+            <img src="../assets/poses/characters_61e3d0af27acbed3_pose03.png" alt="Pose 03">
+            <h3>Pose 03</h3>
+            <p>Flying pose - Forest Night</p>
+        </div>
+        
+        <div class="pose-card">
+            <img src="../assets/poses/characters_61e3d0af27acbed3_pose04.png" alt="Pose 04">
+            <h3>Pose 04</h3>
+            <p>Reaching pose - Forest Clearing</p>
+        </div>
+    </div>
+    
+    <div class="back-link">
+        <a href="page01-test.html">← Back to Page Tests</a>
+    </div>
+</body>
+</html>

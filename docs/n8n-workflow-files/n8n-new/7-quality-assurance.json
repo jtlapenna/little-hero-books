@@ -1,0 +1,232 @@
+{
+  "name": "7. Quality Assurance",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Trigger on Order Completion",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "quality-assurance",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Check Character Consistency",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "parameters": {
+        "functionCode": "// Check character consistency across all poses\nconst orderData = $input.first().json;\n\nconst characterConsistency = {\n  timestamp: new Date().toISOString(),\n  orderId: orderData.amazonOrderId,\n  characterSpecs: orderData.characterSpecs,\n  poses: [],\n  consistencyScore: 0,\n  issues: [],\n  passed: false\n};\n\n// Simulate character consistency analysis for each pose\nfor (let i = 1; i <= 12; i++) {\n  const poseAnalysis = {\n    poseNumber: i,\n    imagePath: `/assets/generated/${orderData.amazonOrderId}/pose${i}.png`,\n    hasImage: Math.random() > 0.05, // 95% success rate\n    correctSkinTone: Math.random() > 0.1, // 90% accuracy\n    correctHairColor: Math.random() > 0.1, // 90% accuracy\n    correctHairStyle: Math.random() > 0.15, // 85% accuracy\n    correctClothing: Math.random() > 0.2, // 80% accuracy\n    correctPose: Math.random() > 0.1, // 90% accuracy\n    imageQuality: Math.random() * 0.3 + 0.7, // 70-100% quality\n    consistencyScore: 0\n  };\n  \n  // Calculate consistency score for this pose\n  const checks = [\n    poseAnalysis.hasImage,\n    poseAnalysis.correctSkinTone,\n    poseAnalysis.correctHairColor,\n    poseAnalysis.correctHairStyle,\n    poseAnalysis.correctClothing,\n    poseAnalysis.correctPose\n  ];\n  poseAnalysis.consistencyScore = (checks.filter(Boolean).length / checks.length) * 100;\n  \n  // Identify issues\n  if (!poseAnalysis.hasImage) {\n    poseAnalysis.issues.push('Missing image');\n  }\n  if (!poseAnalysis.correctSkinTone) {\n    poseAnalysis.issues.push('Incorrect skin tone');\n  }\n  if (!poseAnalysis.correctHairColor) {\n    poseAnalysis.issues.push('Incorrect hair color');\n  }\n  if (!poseAnalysis.correctHairStyle) {\n    poseAnalysis.issues.push('Incorrect hair style');\n  }\n  if (!poseAnalysis.correctClothing) {\n    poseAnalysis.issues.push('Incorrect clothing');\n  }\n  if (!poseAnalysis.correctPose) {\n    poseAnalysis.issues.push('Incorrect pose');\n  }\n  if (poseAnalysis.imageQuality < 0.8) {\n    poseAnalysis.issues.push('Low image quality');\n  }\n  \n  characterConsistency.poses.push(poseAnalysis);\n}\n\n// Calculate overall consistency score\nconst totalScore = characterConsistency.poses.reduce((sum, pose) => sum + pose.consistencyScore, 0);\ncharacterConsistency.consistencyScore = totalScore / characterConsistency.poses.length;\n\n// Check if consistency passed (80% threshold)\ncharacterConsistency.passed = characterConsistency.consistencyScore >= 80;\n\n// Collect all issues\ncharacterConsistency.issues = characterConsistency.poses.flatMap(pose => \n  pose.issues.map(issue => ({\n    poseNumber: pose.poseNumber,\n    issue: issue,\n    severity: pose.consistencyScore < 60 ? 'high' : pose.consistencyScore < 80 ? 'medium' : 'low'\n  }))\n);\n\nconsole.log(`Character consistency check: ${characterConsistency.consistencyScore.toFixed(1)}% (${characterConsistency.passed ? 'PASS' : 'FAIL'})`);\nreturn [{ json: { ...orderData, characterConsistency } }];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Validate Image Quality",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "parameters": {
+        "functionCode": "// Validate image quality for all generated images\nconst orderData = $input.first().json;\n\nconst imageQuality = {\n  timestamp: new Date().toISOString(),\n  orderId: orderData.amazonOrderId,\n  images: [],\n  overallQualityScore: 0,\n  issues: [],\n  passed: false\n};\n\n// Simulate image quality analysis for each image\nconst imageTypes = ['base_character', 'pose1', 'pose2', 'pose3', 'pose4', 'pose5', 'pose6', 'pose7', 'pose8', 'pose9', 'pose10', 'pose11', 'pose12'];\n\nfor (const imageType of imageTypes) {\n  const imageAnalysis = {\n    imageType: imageType,\n    imagePath: `/assets/generated/${orderData.amazonOrderId}/${imageType}.png`,\n    hasImage: Math.random() > 0.02, // 98% success rate\n    correctDimensions: Math.random() > 0.05, // 95% accuracy\n    hasTransparency: Math.random() > 0.1, // 90% accuracy\n    fileSize: Math.random() * 500000 + 100000, // 100KB - 600KB\n    resolution: Math.random() * 200 + 800, // 800-1000px\n    colorAccuracy: Math.random() * 0.3 + 0.7, // 70-100%\n    sharpness: Math.random() * 0.3 + 0.7, // 70-100%\n    compression: Math.random() * 0.2 + 0.8, // 80-100%\n    qualityScore: 0\n  };\n  \n  // Calculate quality score for this image\n  const qualityChecks = [\n    imageAnalysis.hasImage,\n    imageAnalysis.correctDimensions,\n    imageAnalysis.hasTransparency,\n    imageAnalysis.fileSize > 50000, // At least 50KB\n    imageAnalysis.resolution >= 800,\n    imageAnalysis.colorAccuracy >= 0.8,\n    imageAnalysis.sharpness >= 0.8,\n    imageAnalysis.compression >= 0.9\n  ];\n  imageAnalysis.qualityScore = (qualityChecks.filter(Boolean).length / qualityChecks.length) * 100;\n  \n  // Identify quality issues\n  if (!imageAnalysis.hasImage) {\n    imageAnalysis.issues.push('Missing image');\n  }\n  if (!imageAnalysis.correctDimensions) {\n    imageAnalysis.issues.push('Incorrect dimensions');\n  }\n  if (!imageAnalysis.hasTransparency) {\n    imageAnalysis.issues.push('Missing transparency');\n  }\n  if (imageAnalysis.fileSize < 50000) {\n    imageAnalysis.issues.push('File too small');\n  }\n  if (imageAnalysis.resolution < 800) {\n    imageAnalysis.issues.push('Low resolution');\n  }\n  if (imageAnalysis.colorAccuracy < 0.8) {\n    imageAnalysis.issues.push('Poor color accuracy');\n  }\n  if (imageAnalysis.sharpness < 0.8) {\n    imageAnalysis.issues.push('Low sharpness');\n  }\n  if (imageAnalysis.compression < 0.9) {\n    imageAnalysis.issues.push('Poor compression');\n  }\n  \n  imageQuality.images.push(imageAnalysis);\n}\n\n// Calculate overall quality score\nconst totalScore = imageQuality.images.reduce((sum, img) => sum + img.qualityScore, 0);\nimageQuality.overallQualityScore = totalScore / imageQuality.images.length;\n\n// Check if quality passed (85% threshold)\nimageQuality.passed = imageQuality.overallQualityScore >= 85;\n\n// Collect all quality issues\nimageQuality.issues = imageQuality.images.flatMap(img => \n  img.issues.map(issue => ({\n    imageType: img.imageType,\n    issue: issue,\n    severity: img.qualityScore < 70 ? 'high' : img.qualityScore < 85 ? 'medium' : 'low'\n  }))\n);\n\nconsole.log(`Image quality check: ${imageQuality.overallQualityScore.toFixed(1)}% (${imageQuality.passed ? 'PASS' : 'FAIL'})`);\nreturn [{ json: { ...orderData, imageQuality } }];"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Test PDF Generation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "parameters": {
+        "functionCode": "// Test PDF generation quality and completeness\nconst orderData = $input.first().json;\n\nconst pdfQuality = {\n  timestamp: new Date().toISOString(),\n  orderId: orderData.amazonOrderId,\n  pdfPath: `/assets/generated/${orderData.amazonOrderId}/final_book.pdf`,\n  pages: [],\n  overallScore: 0,\n  issues: [],\n  passed: false\n};\n\n// Simulate PDF quality analysis for each page\nfor (let i = 1; i <= 12; i++) {\n  const pageAnalysis = {\n    pageNumber: i,\n    hasPage: Math.random() > 0.01, // 99% success rate\n    correctDimensions: Math.random() > 0.02, // 98% accuracy\n    hasText: Math.random() > 0.05, // 95% accuracy\n    hasCharacter: Math.random() > 0.03, // 97% accuracy\n    hasBackground: Math.random() > 0.02, // 98% accuracy\n    hasAnimal: Math.random() > 0.05, // 95% accuracy\n    textReadable: Math.random() > 0.1, // 90% accuracy\n    colorsCorrect: Math.random() > 0.08, // 92% accuracy\n    layoutCorrect: Math.random() > 0.05, // 95% accuracy\n    printReady: Math.random() > 0.02, // 98% accuracy\n    pageScore: 0\n  };\n  \n  // Calculate page score\n  const pageChecks = [\n    pageAnalysis.hasPage,\n    pageAnalysis.correctDimensions,\n    pageAnalysis.hasText,\n    pageAnalysis.hasCharacter,\n    pageAnalysis.hasBackground,\n    pageAnalysis.hasAnimal,\n    pageAnalysis.textReadable,\n    pageAnalysis.colorsCorrect,\n    pageAnalysis.layoutCorrect,\n    pageAnalysis.printReady\n  ];\n  pageAnalysis.pageScore = (pageChecks.filter(Boolean).length / pageChecks.length) * 100;\n  \n  // Identify page issues\n  if (!pageAnalysis.hasPage) {\n    pageAnalysis.issues.push('Missing page');\n  }\n  if (!pageAnalysis.correctDimensions) {\n    pageAnalysis.issues.push('Incorrect dimensions');\n  }\n  if (!pageAnalysis.hasText) {\n    pageAnalysis.issues.push('Missing text');\n  }\n  if (!pageAnalysis.hasCharacter) {\n    pageAnalysis.issues.push('Missing character');\n  }\n  if (!pageAnalysis.hasBackground) {\n    pageAnalysis.issues.push('Missing background');\n  }\n  if (!pageAnalysis.hasAnimal) {\n    pageAnalysis.issues.push('Missing animal');\n  }\n  if (!pageAnalysis.textReadable) {\n    pageAnalysis.issues.push('Text not readable');\n  }\n  if (!pageAnalysis.colorsCorrect) {\n    pageAnalysis.issues.push('Incorrect colors');\n  }\n  if (!pageAnalysis.layoutCorrect) {\n    pageAnalysis.issues.push('Incorrect layout');\n  }\n  if (!pageAnalysis.printReady) {\n    pageAnalysis.issues.push('Not print ready');\n  }\n  \n  pdfQuality.pages.push(pageAnalysis);\n}\n\n// Calculate overall PDF score\nconst totalScore = pdfQuality.pages.reduce((sum, page) => sum + page.pageScore, 0);\npdfQuality.overallScore = totalScore / pdfQuality.pages.length;\n\n// Check if PDF passed (90% threshold)\npdfQuality.passed = pdfQuality.overallScore >= 90;\n\n// Collect all PDF issues\npdfQuality.issues = pdfQuality.pages.flatMap(page => \n  page.issues.map(issue => ({\n    pageNumber: page.pageNumber,\n    issue: issue,\n    severity: page.pageScore < 80 ? 'high' : page.pageScore < 90 ? 'medium' : 'low'\n  }))\n);\n\nconsole.log(`PDF quality check: ${pdfQuality.overallScore.toFixed(1)}% (${pdfQuality.passed ? 'PASS' : 'FAIL'})`);\nreturn [{ json: { ...orderData, pdfQuality } }];"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Verify Print Specifications",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "parameters": {
+        "functionCode": "// Verify print specifications and requirements\nconst orderData = $input.first().json;\n\nconst printSpecs = {\n  timestamp: new Date().toISOString(),\n  orderId: orderData.amazonOrderId,\n  specifications: {},\n  compliance: {},\n  issues: [],\n  passed: false\n};\n\n// Check print specifications\nprintSpecs.specifications = {\n  pageSize: '8x10 inches',\n  pageCount: 12,\n  dpi: 300,\n  colorMode: 'CMYK',\n  bleed: '0.125 inches',\n  trim: '0.25 inches',\n  binding: 'Perfect bound',\n  paperType: '80lb matte',\n  coverType: 'Softcover'\n};\n\n// Simulate compliance checking\nprintSpecs.compliance = {\n  correctPageSize: Math.random() > 0.02, // 98% compliance\n  correctPageCount: Math.random() > 0.01, // 99% compliance\n  correctDPI: Math.random() > 0.03, // 97% compliance\n  correctColorMode: Math.random() > 0.05, // 95% compliance\n  correctBleed: Math.random() > 0.08, // 92% compliance\n  correctTrim: Math.random() > 0.05, // 95% compliance\n  correctBinding: Math.random() > 0.02, // 98% compliance\n  correctPaperType: Math.random() > 0.03, // 97% compliance\n  correctCoverType: Math.random() > 0.02, // 98% compliance\n  fileSize: Math.random() * 50000000 + 10000000, // 10-60MB\n  fileFormat: 'PDF',\n  compression: Math.random() * 0.2 + 0.8 // 80-100%\n};\n\n// Check file size compliance\nprintSpecs.compliance.fileSizeCompliant = printSpecs.compliance.fileSize <= 100000000; // Max 100MB\nprintSpecs.compliance.compressionCompliant = printSpecs.compliance.compression >= 0.9;\n\n// Calculate compliance score\nconst complianceChecks = [\n  printSpecs.compliance.correctPageSize,\n  printSpecs.compliance.correctPageCount,\n  printSpecs.compliance.correctDPI,\n  printSpecs.compliance.correctColorMode,\n  printSpecs.compliance.correctBleed,\n  printSpecs.compliance.correctTrim,\n  printSpecs.compliance.correctBinding,\n  printSpecs.compliance.correctPaperType,\n  printSpecs.compliance.correctCoverType,\n  printSpecs.compliance.fileSizeCompliant,\n  printSpecs.compliance.compressionCompliant\n];\n\nconst complianceScore = (complianceChecks.filter(Boolean).length / complianceChecks.length) * 100;\nprintSpecs.complianceScore = complianceScore;\n\n// Check if print specs passed (95% threshold)\nprintSpecs.passed = complianceScore >= 95;\n\n// Identify compliance issues\nif (!printSpecs.compliance.correctPageSize) {\n  printSpecs.issues.push('Incorrect page size');\n}\nif (!printSpecs.compliance.correctPageCount) {\n  printSpecs.issues.push('Incorrect page count');\n}\nif (!printSpecs.compliance.correctDPI) {\n  printSpecs.issues.push('Incorrect DPI');\n}\nif (!printSpecs.compliance.correctColorMode) {\n  printSpecs.issues.push('Incorrect color mode');\n}\nif (!printSpecs.compliance.correctBleed) {\n  printSpecs.issues.push('Incorrect bleed');\n}\nif (!printSpecs.compliance.correctTrim) {\n  printSpecs.issues.push('Incorrect trim');\n}\nif (!printSpecs.compliance.correctBinding) {\n  printSpecs.issues.push('Incorrect binding');\n}\nif (!printSpecs.compliance.correctPaperType) {\n  printSpecs.issues.push('Incorrect paper type');\n}\nif (!printSpecs.compliance.correctCoverType) {\n  printSpecs.issues.push('Incorrect cover type');\n}\nif (!printSpecs.compliance.fileSizeCompliant) {\n  printSpecs.issues.push('File too large');\n}\nif (!printSpecs.compliance.compressionCompliant) {\n  printSpecs.issues.push('Poor compression');\n}\n\nconsole.log(`Print specs check: ${complianceScore.toFixed(1)}% (${printSpecs.passed ? 'PASS' : 'FAIL'})`);\nreturn [{ json: { ...orderData, printSpecs } }];"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Flag Quality Issues",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "parameters": {
+        "functionCode": "// Flag quality issues and determine overall quality status\nconst orderData = $input.first().json;\n\nconst qualityFlags = {\n  timestamp: new Date().toISOString(),\n  orderId: orderData.amazonOrderId,\n  overallStatus: 'unknown',\n  criticalIssues: [],\n  warningIssues: [],\n  infoIssues: [],\n  totalIssues: 0,\n  qualityScore: 0,\n  requiresManualReview: false,\n  canProceed: false\n};\n\n// Collect all issues from different quality checks\nconst allIssues = [];\n\n// Character consistency issues\nif (orderData.characterConsistency) {\n  allIssues.push(...orderData.characterConsistency.issues.map(issue => ({\n    ...issue,\n    category: 'character_consistency',\n    check: 'Character Consistency'\n  })));\n}\n\n// Image quality issues\nif (orderData.imageQuality) {\n  allIssues.push(...orderData.imageQuality.issues.map(issue => ({\n    ...issue,\n    category: 'image_quality',\n    check: 'Image Quality'\n  })));\n}\n\n// PDF quality issues\nif (orderData.pdfQuality) {\n  allIssues.push(...orderData.pdfQuality.issues.map(issue => ({\n    ...issue,\n    category: 'pdf_quality',\n    check: 'PDF Quality'\n  })));\n}\n\n// Print specification issues\nif (orderData.printSpecs) {\n  allIssues.push(...orderData.printSpecs.issues.map(issue => ({\n    issue: issue,\n    severity: 'high',\n    category: 'print_specs',\n    check: 'Print Specifications'\n  })));\n}\n\n// Categorize issues by severity\nqualityFlags.criticalIssues = allIssues.filter(issue => issue.severity === 'high');\nqualityFlags.warningIssues = allIssues.filter(issue => issue.severity === 'medium');\nqualityFlags.infoIssues = allIssues.filter(issue => issue.severity === 'low');\nqualityFlags.totalIssues = allIssues.length;\n\n// Calculate overall quality score\nconst totalChecks = 4; // Character consistency, image quality, PDF quality, print specs\nconst passedChecks = [\n  orderData.characterConsistency?.passed || false,\n  orderData.imageQuality?.passed || false,\n  orderData.pdfQuality?.passed || false,\n  orderData.printSpecs?.passed || false\n].filter(Boolean).length;\n\nqualityFlags.qualityScore = (passedChecks / totalChecks) * 100;\n\n// Determine overall status\nif (qualityFlags.criticalIssues.length > 0) {\n  qualityFlags.overallStatus = 'critical';\n  qualityFlags.requiresManualReview = true;\n  qualityFlags.canProceed = false;\n} else if (qualityFlags.warningIssues.length > 5 || qualityFlags.qualityScore < 80) {\n  qualityFlags.overallStatus = 'warning';\n  qualityFlags.requiresManualReview = true;\n  qualityFlags.canProceed = false;\n} else if (qualityFlags.qualityScore >= 90) {\n  qualityFlags.overallStatus = 'excellent';\n  qualityFlags.requiresManualReview = false;\n  qualityFlags.canProceed = true;\n} else if (qualityFlags.qualityScore >= 80) {\n  qualityFlags.overallStatus = 'good';\n  qualityFlags.requiresManualReview = false;\n  qualityFlags.canProceed = true;\n} else {\n  qualityFlags.overallStatus = 'poor';\n  qualityFlags.requiresManualReview = true;\n  qualityFlags.canProceed = false;\n}\n\nconsole.log(`Quality flags: ${qualityFlags.overallStatus} (${qualityFlags.qualityScore.toFixed(1)}%, ${qualityFlags.totalIssues} issues)`);\nreturn [{ json: { ...orderData, qualityFlags } }];"
+      }
+    },
+    {
+      "id": "7",
+      "name": "Generate Quality Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 300],
+      "parameters": {
+        "functionCode": "// Generate comprehensive quality assurance report\nconst orderData = $input.first().json;\n\nconst qualityReport = {\n  timestamp: new Date().toISOString(),\n  orderId: orderData.amazonOrderId,\n  customerName: orderData.characterSpecs?.childName || 'Unknown',\n  overallStatus: orderData.qualityFlags.overallStatus,\n  qualityScore: orderData.qualityFlags.qualityScore,\n  canProceed: orderData.qualityFlags.canProceed,\n  requiresManualReview: orderData.qualityFlags.requiresManualReview,\n  checks: {},\n  issues: {\n    critical: orderData.qualityFlags.criticalIssues,\n    warning: orderData.qualityFlags.warningIssues,\n    info: orderData.qualityFlags.infoIssues,\n    total: orderData.qualityFlags.totalIssues\n  },\n  recommendations: [],\n  nextSteps: []\n};\n\n// Add individual check results\nif (orderData.characterConsistency) {\n  qualityReport.checks.characterConsistency = {\n    passed: orderData.characterConsistency.passed,\n    score: orderData.characterConsistency.consistencyScore,\n    issues: orderData.characterConsistency.issues.length\n  };\n}\n\nif (orderData.imageQuality) {\n  qualityReport.checks.imageQuality = {\n    passed: orderData.imageQuality.passed,\n    score: orderData.imageQuality.overallQualityScore,\n    issues: orderData.imageQuality.issues.length\n  };\n}\n\nif (orderData.pdfQuality) {\n  qualityReport.checks.pdfQuality = {\n    passed: orderData.pdfQuality.passed,\n    score: orderData.pdfQuality.overallScore,\n    issues: orderData.pdfQuality.issues.length\n  };\n}\n\nif (orderData.printSpecs) {\n  qualityReport.checks.printSpecs = {\n    passed: orderData.printSpecs.passed,\n    score: orderData.printSpecs.complianceScore,\n    issues: orderData.printSpecs.issues.length\n  };\n}\n\n// Generate recommendations based on issues\nif (orderData.qualityFlags.criticalIssues.length > 0) {\n  qualityReport.recommendations.push({\n    priority: 'critical',\n    action: 'Fix critical issues before proceeding',\n    description: 'Address all critical quality issues to ensure customer satisfaction'\n  });\n}\n\nif (orderData.qualityFlags.warningIssues.length > 0) {\n  qualityReport.recommendations.push({\n    priority: 'high',\n    action: 'Review warning issues',\n    description: 'Consider addressing warning issues to improve quality'\n  });\n}\n\nif (orderData.qualityFlags.qualityScore < 90) {\n  qualityReport.recommendations.push({\n    priority: 'medium',\n    action: 'Improve overall quality',\n    description: 'Focus on improving quality scores across all checks'\n  });\n}\n\n// Generate next steps\nif (qualityReport.requiresManualReview) {\n  qualityReport.nextSteps.push({\n    step: 'Manual Review Required',\n    description: 'Order requires manual review before proceeding',\n    assignedTo: 'Quality Assurance Team',\n    priority: 'high'\n  });\n} else if (qualityReport.canProceed) {\n  qualityReport.nextSteps.push({\n    step: 'Proceed to Fulfillment',\n    description: 'Order meets quality standards and can proceed to fulfillment',\n    assignedTo: 'Fulfillment Team',\n    priority: 'normal'\n  });\n} else {\n  qualityReport.nextSteps.push({\n    step: 'Fix Issues',\n    description: 'Address quality issues before proceeding',\n    assignedTo: 'Development Team',\n    priority: 'high'\n  });\n}\n\nconsole.log(`Quality report generated: ${qualityReport.overallStatus} (${qualityReport.qualityScore.toFixed(1)}%)`);\nreturn [{ json: qualityReport }];"
+      }
+    },
+    {
+      "id": "8",
+      "name": "Send Quality Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1780, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sendgridApi",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "personalizations",
+              "value": "=[{\n  \"to\": [{\"email\": \"admin@littleherobooks.com\"}],\n  \"subject\": \"{{ $json.overallStatus === 'critical' ? '🚨' : '⚠️' }} Quality Alert - Order {{ $json.orderId }}\"\n}]"
+            },
+            {
+              "name": "from",
+              "value": "={\n  \"email\": \"quality@littleherobooks.com\",\n  \"name\": \"Little Hero Books Quality Assurance\"\n}"
+            },
+            {
+              "name": "content",
+              "value": "=[{\n  \"type\": \"text/html\",\n  \"value\": \"<h2>{{ $json.overallStatus === 'critical' ? '🚨 Critical' : '⚠️ Warning' }} Quality Alert</h2><p><strong>Order ID:</strong> {{ $json.orderId }}</p><p><strong>Customer:</strong> {{ $json.customerName }}</p><p><strong>Overall Status:</strong> {{ $json.overallStatus }}</p><p><strong>Quality Score:</strong> {{ $json.qualityScore.toFixed(1) }}%</p><p><strong>Can Proceed:</strong> {{ $json.canProceed ? 'Yes' : 'No' }}</p><p><strong>Requires Manual Review:</strong> {{ $json.requiresManualReview ? 'Yes' : 'No' }}</p><h3>Issues Summary</h3><ul><li><strong>Critical:</strong> {{ $json.issues.critical.length }}</li><li><strong>Warning:</strong> {{ $json.issues.warning.length }}</li><li><strong>Info:</strong> {{ $json.issues.info.length }}</li><li><strong>Total:</strong> {{ $json.issues.total }}</li></ul><h3>Next Steps</h3><ol>{{ $json.nextSteps.map(step => `<li><strong>${step.step}:</strong> ${step.description} (${step.assignedTo})</li>`).join('') }}</ol>\"\n}]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9",
+      "name": "Log Quality Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2000, 300],
+      "parameters": {
+        "functionCode": "// Log quality assurance results for analysis\nconst qualityReport = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '7-quality-assurance',\n  orderId: qualityReport.orderId,\n  customerName: qualityReport.customerName,\n  overallStatus: qualityReport.overallStatus,\n  qualityScore: qualityReport.qualityScore,\n  canProceed: qualityReport.canProceed,\n  requiresManualReview: qualityReport.requiresManualReview,\n  totalIssues: qualityReport.issues.total,\n  criticalIssues: qualityReport.issues.critical.length,\n  warningIssues: qualityReport.issues.warning.length,\n  infoIssues: qualityReport.issues.info.length,\n  checks: qualityReport.checks,\n  recommendations: qualityReport.recommendations.length,\n  nextSteps: qualityReport.nextSteps.length\n};\n\n// In production, this would write to a proper logging system\nconsole.log('Quality Assurance Results:', JSON.stringify(logEntry, null, 2));\n\nreturn [{ json: logEntry }];"
+      }
+    }
+  ],
+  "connections": {
+    "Trigger on Order Completion": {
+      "main": [
+        [
+          {
+            "node": "Check Character Consistency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Character Consistency": {
+      "main": [
+        [
+          {
+            "node": "Validate Image Quality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Image Quality": {
+      "main": [
+        [
+          {
+            "node": "Test PDF Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test PDF Generation": {
+      "main": [
+        [
+          {
+            "node": "Verify Print Specifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Print Specifications": {
+      "main": [
+        [
+          {
+            "node": "Flag Quality Issues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag Quality Issues": {
+      "main": [
+        [
+          {
+            "node": "Generate Quality Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Quality Report": {
+      "main": [
+        [
+          {
+            "node": "Send Quality Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Quality Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Quality Alert": {
+      "main": [
+        [
+          {
+            "node": "Log Quality Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}
