@@ -59,3 +59,6 @@ Run the workflow and check:
 2. "Merge Character with Poses" receives **6 items** 
 3. "Reorganize Merged Data" outputs **5 items**
 
+
+
+

@@ -1,0 +1,1304 @@
+{
+  "name": "LHB - 2.A.- Character Creation - WORKING NEW",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Generate a mock order for testing the AI character generation workflow\n// This simulates an order coming from the order intake workflow\n\nconst mockOrder = {\n  amazonOrderId: 'TEST-ORDER-002',\n  status: 'queued_for_processing',\n  orderDate: new Date().toISOString(),\n  customerEmail: 'test@example.com',\n  characterSpecs: {\n    childName: 'Alex',\n    skinTone: 'medium',\n    hairColor: 'brown',\n    hairStyle: 'very short/straight',\n    age: 4,\n    pronouns: 'he/him',\n    favoriteColor: 'yellow',\n    animalGuide: 'unicorn',\n    clothingStyle: 't-shirt and shorts'\n  },\n  bookSpecs: {\n    title: 'Alex and the Adventure Compass',\n    totalPages: 16,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide' // or 'mvp-simple' for different book types\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: 'Test Customer',\n      address: '123 Test Street',\n      city: 'Test City',\n      state: 'CA',\n      zip: '90210'\n    }\n  }\n};\n\nconsole.log('Generated mock order for testing:', mockOrder);\nreturn [{ json: mockOrder }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -8160,
+        7392
+      ],
+      "id": "962616d0-c064-4bd7-add5-115a192ed8d2",
+      "name": "Generate Mock Order"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -8384,
+        7392
+      ],
+      "id": "3767be79-18fc-4019-a81b-32348798faed",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Get next order from processing queue and extract custom elements\n// In production, this would query a database queue\n// For now, we'll simulate getting an order from the previous workflow\n\nconst inputData = $input.first();\nif (!inputData || !inputData.json) {\n  console.log('No input data received');\n  return [];\n}\n\nconst orderData = inputData.json;\n\n// Check if order is ready for AI generation\nif (orderData.status !== 'queued_for_processing') {\n  console.log(`Order ${orderData.amazonOrderId} not ready for processing. Status: ${orderData.status}`);\n  return [];\n}\n\n// Extract and validate custom elements from characterSpecs\nconst characterSpecs = orderData.characterSpecs || {};\nconst customElements = {\n  childName: characterSpecs.childName || 'Adventure Hero',\n  skinTone: characterSpecs.skinTone || 'medium',\n  hairColor: characterSpecs.hairColor || 'brown',\n  hairStyle: characterSpecs.hairStyle || 'short/straight',\n  age: parseInt(characterSpecs.age) || 5,\n  pronouns: characterSpecs.pronouns || 'they/them',\n  favoriteColor: characterSpecs.favoriteColor || 'blue',\n  animalGuide: characterSpecs.animalGuide || 'dog',\n  clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts'\n};\n\n// Update order status to processing with custom elements\nconst processingOrder = {\n  ...orderData,\n  characterSpecs: customElements,\n  status: 'ai_generation_in_progress',\n  aiGenerationStartedAt: new Date().toISOString(),\n  posesGenerated: 0,\n  totalPosesRequired: 12,\n  generationProgress: 0\n};\n\nconsole.log(`Starting AI generation for order: ${orderData.amazonOrderId}`);\nconsole.log(`Custom elements:`, customElements);\nreturn [{ json: processingOrder }];"
+      },
+      "id": "c5123d73-331a-4a44-ae9c-5821e56d7ea1",
+      "name": "Get Next Order from Queue",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -7936,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate character hash for reuse detection\nconst orderData = $input.first().json;\nconst characterSpecs = orderData.characterSpecs || {};\n\n// Create a normalized character specification object for hashing\nconst characterHashSpec = {\n  skinTone: characterSpecs.skinTone || 'medium',\n  hairColor: characterSpecs.hairColor || 'brown',\n  hairStyle: characterSpecs.hairStyle || 'short/straight',\n  age: parseInt(characterSpecs.age) || 5,\n  pronouns: characterSpecs.pronouns || 'they/them',\n  favoriteColor: characterSpecs.favoriteColor || 'blue',\n  animalGuide: characterSpecs.animalGuide || 'dog',\n  clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts'\n};\n\n// Generate a deterministic hash from the character specifications\nconst crypto = require('crypto');\nconst hashString = JSON.stringify(characterHashSpec, Object.keys(characterHashSpec).sort());\nconst characterHash = crypto.createHash('sha256').update(hashString).digest('hex').substring(0, 16);\n\n// Add character hash and normalized specs to order data\nconst orderWithHash = {\n  ...orderData,\n  characterHash: characterHash,\n  characterHashSpec: characterHashSpec,\n  characterPath: `characters/${characterHash}`,\n  templatePath: 'templates'\n};\n\nconsole.log(`Generated character hash: ${characterHash}`);\nconsole.log(`Character specs:`, characterHashSpec);\n\nreturn [{ json: orderWithHash }];"
+      },
+      "id": "cc62a80b-ba11-49e9-9bd6-8530ef330074",
+      "name": "Generate Character Hash",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -7712,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore metadata after S3 upload\nconst uploadResult = $input.first();\nconst originalData = $('Process Gemini API response and extract generated image').first();\n\nreturn [{\n  json: {\n    ...originalData.json,\n    s3UploadResult: uploadResult.json,\n    baseCharacterUploaded: true,\n    baseCharacterUploadedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "bf59ff61-3d27-4e8a-980d-7dfdbbbc9017",
+      "name": "Restore Metadata After Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6368,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Initialize pose generation loop\nconst orderData = $input.first().json;\n\nconst existingPoses = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];\n\nconsole.log(`Using existing poses: ${existingPoses.join(', ')}`);\n\nconst posesToGenerate = existingPoses.map(poseNumber => ({\n  ...orderData,\n  currentPoseNumber: poseNumber,\n  poseStatus: 'pending',\n  poseGenerationAttempts: 0,\n  maxPoseAttempts: 3\n}));\n\nconsole.log(`Initialized pose generation for ${posesToGenerate.length} poses`);\nreturn posesToGenerate.map(pose => ({ json: pose }));"
+      },
+      "id": "e2db4ee1-be95-4638-8982-ed983f9b94f0",
+      "name": "Initialize Pose Generation Loop",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -5920,
+        7472
+      ]
+    },
+    {
+      "parameters": {
+        "bucketName": "little-hero-assets",
+        "fileKey": "=book-mvp-simple-adventure/order-generated-assets/{{ $json.characterPath }}/base-character.png"
+      },
+      "id": "6aa4cd62-fe9c-4ebc-98e1-dce81f566490",
+      "name": "Load Custom Character from R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -6144,
+        7392
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "bucketName": "little-hero-assets",
+        "fileKey": "=book-mvp-simple-adventure/characters/poses/pose{{ $json.currentPoseNumber.toString().padStart(2, '0') }}.png"
+      },
+      "id": "5e40986d-cf8b-4b83-bc7d-4b2affb83db1",
+      "name": "Load Pose Reference",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -5696,
+        7472
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "eccc7e7f-ca1c-4d77-a4ea-a29a51c3a33e",
+      "name": "Merge Character with Poses",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -5472,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reorganize merged data: duplicate character across all pose items\nconst items = $input.all();\nconst loopItems = $('Initialize Pose Generation Loop').all();\nconst characterLoadItem = $('Load Custom Character from R2').first();\n\nif (items.length !== 13) {\n  throw new Error(`Expected 13 items (1 character + 12 poses), got ${items.length}`);\n}\n\nconst characterItem = items[0];\nconst characterBuffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst characterBase64 = characterBuffer.toString('base64');\n\nif (!characterBase64 || characterBase64.length < 100) {\n  throw new Error('Invalid character binary');\n}\n\nconst characterPath = characterLoadItem.json.characterPath;\nconst characterHash = characterLoadItem.json.characterHash;\n\nconst results = [];\nfor (let i = 1; i < items.length; i++) {\n  const poseItem = items[i];\n  const loopItem = loopItems[i - 1];\n  \n  const poseBuffer = await this.helpers.getBinaryDataBuffer(i, 'data');\n  const poseBase64 = poseBuffer.toString('base64');\n  \n  if (!poseBase64 || poseBase64.length < 100) {\n    throw new Error(`Invalid pose binary for item ${i}`);\n  }\n  \n  const currentPoseNumber = loopItem.json.currentPoseNumber;\n  \n  results.push({\n    json: {\n      ...loopItem.json,\n      characterBase64: characterBase64,\n      poseBase64: poseBase64,\n      characterPath: characterPath,\n      characterHash: characterHash,\n      poseNumber: currentPoseNumber,\n      currentPoseNumber: currentPoseNumber\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "36bc39c0-06d7-4f78-8d80-7f0a375ec04f",
+      "name": "Reorganize Merged Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5248,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Gemini API request with character and pose images\nconst items = $input.all();\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  \n  const characterBase64 = item.json.characterBase64;\n  const poseBase64 = item.json.poseBase64;\n  const currentPoseNumber = item.json.currentPoseNumber;\n  const characterSpecs = item.json.characterSpecs;\n  \n  if (!characterBase64 || characterBase64.length < 100) {\n    throw new Error(`Character base64 data missing or invalid for pose ${currentPoseNumber}`);\n  }\n  if (!poseBase64 || poseBase64.length < 100) {\n    throw new Error(`Pose base64 data missing or invalid for pose ${currentPoseNumber}`);\n  }\n  if (!characterSpecs) {\n    throw new Error(`Character specifications missing for pose ${currentPoseNumber}`);\n  }\n\n  const systemText = `You are a precise illustration tool. CRITICAL: You must preserve the EXACT appearance from IMAGE A. IMAGE B is ONLY for body position - ignore ALL visual traits from IMAGE B. CONFLICT RULE: Always follow IMAGE A for appearance.`;\n\n  const promptText = `ULTRA-CRITICAL INSTRUCTION:\nYou must generate EXACTLY ONE image that combines:\n- The EXACT character appearance from IMAGE A (skin tone, hair color, hair length, hair style, clothing, facial features)\n- The EXACT body pose and position from IMAGE B (stance, limb positions, body angle)\n\nMANDATORY APPEARANCE TRAITS (from IMAGE A - DO NOT CHANGE):\n- Hair: ${characterSpecs.hairColor} ${characterSpecs.hairStyle} hair\n- Skin: ${characterSpecs.skinTone} skin tone\n- Clothing: ${characterSpecs.clothingStyle}\n- Age: ${characterSpecs.age} years old\n\nREQUIREMENTS:\n- Style: Watercolor storybook illustration\n- Background: Pure white (#FFFFFF) - NO transparency\n- Output: Character from IMAGE A in pose from IMAGE B\n- Ensure only ONE pair of legs, ONE pair of arms, and ONE head per character\n\nGenerate the image now.`;\n\n  const requestBody = {\n    systemInstruction: {\n      role: 'system',\n      parts: [{ text: systemText }]\n    },\n    contents: [{\n      role: 'user',\n      parts: [\n        { text: 'IMAGE A – CHARACTER REFERENCE (your source of truth for appearance):' },\n        { inlineData: { mimeType: \"image/png\", data: characterBase64 } },\n        { text: 'IMAGE B – POSE REFERENCE (body position ONLY, ignore character appearance):' },\n        { inlineData: { mimeType: \"image/png\", data: poseBase64 } },\n        { text: promptText }\n      ]\n    }],\n    generationConfig: {\n      imageConfig: { aspectRatio: \"1:1\" },\n      temperature: 0.3\n    }\n  };\n\n  results.push({\n    json: {\n      ...item.json,\n      requestBody: requestBody\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "172f16f6-9bf7-4713-98a1-07c9df6c7b1f",
+      "name": "Prepare Gemini Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5024,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.requestBody }}",
+        "options": {}
+      },
+      "id": "98954803-3fe0-434e-9cb2-5e559b28aa0c",
+      "name": "Generate Character in Pose",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -4800,
+        7392
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7jdcfc9T2O9vensv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract generated image from Gemini response\nconst items = $input.all();\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  const currentPoseNumber = item.json.currentPoseNumber || (i + 1);\n  \n  try {\n    const responseData = item.json;\n    \n    if (!responseData.candidates || responseData.candidates.length === 0) {\n      results.push({\n        json: {\n          ...item.json,\n          extractedImageData: null,\n          extractionError: 'No candidates found in response',\n          _STATUS: 'FAILED'\n        }\n      });\n      continue;\n    }\n    \n    const candidate = responseData.candidates[0];\n    \n    if (candidate.finishReason && candidate.finishReason !== 'STOP') {\n      results.push({\n        json: {\n          ...item.json,\n          extractedImageData: null,\n          extractionError: `Generation not completed, finishReason: ${candidate.finishReason}`,\n          _STATUS: 'FAILED'\n        }\n      });\n      continue;\n    }\n    \n    if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {\n      results.push({\n        json: {\n          ...item.json,\n          extractedImageData: null,\n          extractionError: 'No content parts found in candidate',\n          _STATUS: 'FAILED'\n        }\n      });\n      continue;\n    }\n    \n    const imagePart = candidate.content.parts.find(part => part.inlineData && part.inlineData.data);\n    \n    if (!imagePart || !imagePart.inlineData || !imagePart.inlineData.data) {\n      results.push({\n        json: {\n          ...item.json,\n          extractedImageData: null,\n          extractionError: 'No image data found in parts',\n          _STATUS: 'FAILED'\n        }\n      });\n      continue;\n    }\n    \n    const imageData = imagePart.inlineData.data;\n    \n    if (!imageData || imageData.length < 100) {\n      results.push({\n        json: {\n          ...item.json,\n          extractedImageData: null,\n          extractionError: `Invalid image data`,\n          _STATUS: 'FAILED'\n        }\n      });\n      continue;\n    }\n    \n    results.push({\n      json: {\n        ...item.json,\n        extractedImageData: imageData,\n        extractionSuccess: true,\n        _STATUS: 'IMAGE_FOUND'\n      }\n    });\n    \n  } catch (error) {\n    results.push({\n      json: {\n        ...item.json,\n        extractedImageData: null,\n        extractionError: error.message,\n        _STATUS: 'FAILED'\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "id": "065ca359-a81a-41b3-9fef-90b9590b3c70",
+      "name": "Extract Generated Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4576,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Diagnostic: Check what fields we actually have\nconst items = $input.all();\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  \n  const diagnostic = {\n    itemIndex: i,\n    allKeys: Object.keys(item.json),\n    hasCharacterPath: !!item.json.characterPath,\n    hasCharacterHash: !!item.json.characterHash,\n    hasCurrentPoseNumber: !!item.json.currentPoseNumber,\n    hasCharacterSpecs: !!item.json.characterSpecs,\n    characterPath: item.json.characterPath,\n    characterHash: item.json.characterHash,\n    currentPoseNumber: item.json.currentPoseNumber\n  };\n  \n  results.push({\n    json: {\n      ...item.json,\n      _DIAGNOSTIC: diagnostic\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "97789c8b-f654-4e6a-abaa-827a0c1ecce1",
+      "name": "DIAGNOSTIC: Check Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4352,
+        7392
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json._STATUS }}",
+              "value2": "IMAGE_FOUND"
+            }
+          ]
+        }
+      },
+      "id": "5e18c86a-0bb1-4235-afc5-a6c0373ca89f",
+      "name": "Filter: Only Items With Images",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -4128,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/characters/base-character.png",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -7488,
+        7392
+      ],
+      "id": "385b3e7b-16ed-4ccf-b8eb-5c95db97cd7a",
+      "name": "Load Reference Image"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.requestBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -7040,
+        7392
+      ],
+      "id": "5de869c4-fbbf-43a3-ae34-2624b6f977db",
+      "name": "Generate Custom Base Character",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7jdcfc9T2O9vensv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract first image from Gemini response and output as n8n binary\nconst input = $input.first();\nconst res = input.json;\n\nconst parts = res?.candidates?.[0]?.content?.parts ?? [];\nconst imagePart = parts.find(p => p?.inlineData?.data);\n\nif (!imagePart?.inlineData?.data) {\n  throw new Error('No inlineData image found in Gemini response');\n}\n\nconst mime = imagePart.inlineData.mimeType || 'image/png';\nconst buf = Buffer.from(imagePart.inlineData.data, 'base64');\n\nconst binary = await this.helpers.prepareBinaryData(buf, 'generated.png', mime);\n\nconst originalOrderData = $('Generate Character Hash').first().json;\n\nreturn [{\n  json: {\n    ...originalOrderData,\n    generatedImage: { mimeType: mime, size: buf.length }\n  },\n  binary: { data: binary }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6816,
+        7392
+      ],
+      "id": "df6eed13-4262-4c38-b743-60194383d55e",
+      "name": "Process Gemini API response and extract generated image"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst binaryKey = 'data';\n\nconst buffer = await this.helpers.getBinaryDataBuffer(0, binaryKey);\nconst base64Image = buffer.toString('base64');\n\nif (!base64Image || base64Image.length < 100) {\n  throw new Error('Invalid base64 from binary buffer');\n}\n\nconst cs = item.json.characterSpecs;\nconst requestBody = {\n  contents: [{\n    parts: [\n      { text: `Use this reference image as a style guide. Recreate this exact character pose with the following changes: skin tone: ${cs.skinTone}, hair color: ${cs.hairColor}, hair style: ${cs.hairStyle}, clothing style: ${cs.clothingStyle}, favorite color: ${cs.favoriteColor}. Maintain the same watercolor storybook style, proportions, and pose. Character should be on pure white background (#FFFFFF) - NO transparency. Age-appropriate for ${cs.age} years old.` },\n      { inlineData: { mimeType: \"image/png\", data: base64Image } }\n    ]\n  }],\n  generationConfig: { imageConfig: { aspectRatio: \"1:1\" } }\n};\n\nreturn [{ json: { ...item.json, requestBody } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -7264,
+        7392
+      ],
+      "id": "99b64e50-5fe6-4049-af8c-10e3b1ba2f97",
+      "name": "Prepare binary"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-assets",
+        "fileName": "=book-mvp-simple-adventure/order-generated-assets/{{ $json.characterPath }}/base-character.png",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -6592,
+        7392
+      ],
+      "id": "f92fbf18-97f6-4e44-8cdc-89907e3693b0",
+      "name": "Upload a file",
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Just pass through all items - minimal validation\nconst items = $input.all();\n\nconsole.log(`Received ${items.length} items for Bria AI submission`);\n\nif (items.length > 0) {\n  console.log('Sample item fields:', Object.keys(items[0].json));\n}\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  if (!item.json.extractedImageData) {\n    throw new Error(`Item ${i} missing extractedImageData`);\n  }\n}\n\nreturn items;"
+      },
+      "id": "3b7f5a69-c8be-4054-a39c-356213b15e67",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3904,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "f8ba5a00-ed44-4004-b015-88d5103ad686",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -3680,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://engine.prod.bria-api.com/v2/image/edit/remove_background",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_token",
+              "value": "eb0fed5156c441148c462a74d3f92f00"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "image",
+              "value": "={{ { image: $json._briaBody.image || $json._briaBody.image_url } }}"
+            },
+            {
+              "name": "pose_number",
+              "value": "={{$json._briaBody.pose_number}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bddbf611-049f-4df5-b780-7313eb8d6525",
+      "name": "Submit to Bria AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -640,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Accept two inputs: one is the Bria response, the other carries __meta.\n// This works whether the response arrives on input 0 or 1.\nconst inputs = $input.all();\n\n// Find the Bria response (the one with request_id or status_url)\nconst respItem = inputs.find(i => {\n  const j = i.json || {};\n  return j.request_id || j.status_url || j.data?.request_id || j.result?.request_id;\n}) || inputs[0];\n\nconst resp = respItem.json || {};\n\n// Find meta (the one with __meta)\nconst metaItem = inputs.find(i => (i.json && i.json.__meta)) || inputs[0];\nconst meta = (metaItem.json && metaItem.json.__meta) ? metaItem.json.__meta : {};\n\nconst requestId =\n  resp.request_id ?? resp.requestId ??\n  resp.data?.request_id ?? resp.result?.request_id ?? null;\n\nconst statusUrl  =\n  resp.status_url  ?? resp.statusUrl  ??\n  resp.data?.status_url ?? resp.result?.status_url ??\n  resp.links?.status ?? null;\n\nconst failed = !(requestId && statusUrl);\n\nconst out = {\n  requestId,\n  statusUrl,\n  poseNumber: meta.poseNumber ?? 0,\n  characterHash: meta.characterHash || null,\n  characterPath: null,          // prevent fallbacks in 2.B\n  failed,\n  submittedAt: new Date().toISOString(),\n};\n\nif (failed) {\n  out.error = {\n    message: 'Bria submission missing requestId/statusUrl',\n    keys: Object.keys(resp),\n  };\n}\n\nreturn [{ json: out }];\n"
+      },
+      "id": "a60ebbff-4c34-46d4-94d2-f7ec1a7f0b1b",
+      "name": "Store Submission Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 6,
+        "unit": "seconds"
+      },
+      "id": "352aa02f-21ac-4392-9d85-e91cf145dedf",
+      "name": "Wait 6 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        16,
+        7392
+      ],
+      "webhookId": "rate-limit-delay",
+      "notes": "Rate limiting: 10 req/min = 1 req/6 sec"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple time-based check instead of counting\nconst item = $input.first().json;\n\n// Check if this is approximately the 10th item by checking elapsed time\n// Each item takes ~6 seconds, so item 10 ≈ 60 seconds\nconst startTime = new Date($('Loop Over Items').first().json.aiGenerationStartedAt || Date.now());\nconst elapsedSeconds = (Date.now() - startTime) / 1000;\n\n// After ~54 seconds (9 items × 6 seconds), we need long wait\nconst needsLongWait = elapsedSeconds > 54 && elapsedSeconds < 70;\n\nconsole.log(`Elapsed: ${elapsedSeconds}s, needs long wait: ${needsLongWait}`);\n\nreturn [{\n  json: {\n    ...item,\n    needsLongWait: needsLongWait\n  }\n}];"
+      },
+      "id": "23d7edd0-295c-4bfe-a3f2-7859fa142078",
+      "name": "Check If Long Wait Needed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needsLongWait }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "a3c51b90-9857-4e22-bd91-8b9a3495d3da",
+      "name": "Is 10th Item?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        464,
+        7392
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 54,
+        "unit": "seconds"
+      },
+      "id": "3203bae0-0990-46ee-b45d-2bf14097a385",
+      "name": "Wait Extra 54 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        688,
+        7328
+      ],
+      "webhookId": "batch-transition-wait",
+      "notes": "6s + 54s = 60s total between batches"
+    },
+    {
+      "parameters": {},
+      "id": "ea3bb9ba-45f1-4799-b2ea-64ebfae8ea4f",
+      "name": "Merge Wait Paths",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        912,
+        7472
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Use ALL outputs from \"Store Submission Result\"\nconst results = $items('Store Submission Result').map(i => i.json);\n\n// (optional) de-dupe\nconst seen = new Set();\nconst lean = results.filter(r => {\n  const key = `${r.requestId || 'null'}::${r.poseNumber ?? 'null'}`;\n  if (seen.has(key)) return false;\n  seen.add(key);\n  return true;\n}).map(j => ({\n  requestId: j.requestId || null,\n  statusUrl: j.statusUrl || null,\n  poseNumber: j.poseNumber ?? 0,\n  characterHash: j.characterHash || null,\n  characterPath: j.characterPath || null,\n  failed: !!j.failed,\n  submittedAt: j.submittedAt || null,\n}));\n\nreturn [{\n  json: {\n    totalSubmissions: lean.length,\n    successful: lean.filter(x => !x.failed && x.requestId && x.statusUrl).length,\n    failed: lean.filter(x => x.failed || !x.requestId || !x.statusUrl).length,\n    submittedAt: new Date().toISOString(),\n    submissions: lean,\n  },\n}];\n"
+      },
+      "id": "982fdf69-9039-44b4-a726-80fd44cebcf4",
+      "name": "Create Final Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3360,
+        6976
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 90,
+        "unit": "seconds"
+      },
+      "id": "bf24bb2f-bda2-4744-a93f-8b52309a4ba1",
+      "name": "Wait 90 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -3136,
+        6976
+      ],
+      "webhookId": "wait-for-processing",
+      "notes": "Give Bria AI time to process images"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bria-workflow-b",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "submissions",
+              "value": "={{ $json.submissions }}"
+            },
+            {
+              "name": "totalSubmissions",
+              "value": "={{ $json.totalSubmissions }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6bc60532-4811-48a6-9981-4be236026521",
+      "name": "Trigger Workflow B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2896,
+        6976
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\ndelete j.extractedImageData;\ndelete j.poseBase64;\ndelete j.characterBase64;\ndelete j.requestBody;\nreturn [{ json: j }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        7392
+      ],
+      "id": "13054fab-042b-4da9-be7f-683ad7848edc",
+      "name": "Drop Heavy Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Capture Lean Meta — robust, keeps zero-based pose\nconst src = $input.first().json;\n\n// 1) Pose number: keep your zero-based policy (Set node uses {{$itemIndex}})\nconst poseNumberRaw = src.poseNumber ?? src.currentPoseNumber ?? 0;\nconst poseNumber = Number.isFinite(Number(poseNumberRaw)) ? Number(poseNumberRaw) : 0;\n\n// 2) Character hash: prefer what this item carries; then Generate Character Hash; then specs; finally guarded fallback\nconst upstreamHash = $('Generate Character Hash').first().json.characterHash;\nconst characterHash =\n  src.characterHash\n  || src.characterSpecs?.hash\n  || upstreamHash\n  || 'nohash'; // only if absolutely nothing exists\n\n// 3) Build storage key (bucket root path only; public base is added later)\nconst storageKey =\n  `book-mvp-simple-adventure/order-generated-assets/characters/` +\n  `${characterHash}/${poseNumber}.png`;\n\n// 4) Prefer any existing public URL if present; otherwise null (we’ll upload if needed)\nconst characterPath =\n  src.characterPath ||\n  src.originalImageUrl ||\n  src.imageUrl ||\n  src.sourceUrl ||\n  null;\n\n// 5) Merge into __meta without destroying other fields\nsrc.__meta = {\n  ...(src.__meta || {}),\n  poseNumber,\n  characterHash,\n  storageKey,     // used by R2 upload as File Name\n  characterPath   // preferred public URL if already available\n};\n\nreturn [{ json: src }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3232,
+        7392
+      ],
+      "id": "a292f01e-765a-45a3-b214-f6f553bd9107",
+      "name": "Capture Lean Meta"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ensure we have binary.image for R2 upload.\n// Priority: keep existing binary.image → convert base64 → download from URL.\n// If none available, set __skipUpload=true and pass the item through.\n\nconst j = $json;\n\n// 1) Already have a binary? keep it\nif ($binary?.image) {\n  return [{ json: j, binary: $binary }];\n}\n\n// 2) Try known base64 fields\nlet b64 = j.extractedImageData || j.poseBase64 || j.characterBase64 || null;\n\nif (typeof b64 === 'string' && b64.length > 10) {\n  // Strip data URI prefix if present\n  let mime = 'image/png';\n  const m = b64.match(/^data:(image\\/[a-z0-9+.\\-]+);base64,(.*)$/i);\n  if (m) {\n    mime = m[1];\n    b64 = m[2];\n  }\n  const buf = Buffer.from(b64, 'base64');\n  const bin = await this.helpers.prepareBinaryData(\n    buf,\n    `${j.__meta?.poseNumber ?? 0}.png`,\n    mime\n  );\n  return [{ json: j, binary: { image: bin } }];\n}\n\n// 3) Try to download from a URL we already have\nconst url =\n  j.__meta?.characterPath ||\n  j.originalImageUrl ||\n  j.imageUrl ||\n  j.sourceUrl ||\n  null;\n\nif (typeof url === 'string' && /^https?:\\/\\//i.test(url)) {\n  const res = await this.helpers.request({\n    method: 'GET',\n    url,\n    encoding: null, // Buffer\n    gzip: true,\n  });\n  const bin = await this.helpers.prepareBinaryData(\n    Buffer.from(res),\n    `${j.__meta?.poseNumber ?? 0}.png`\n  );\n  return [{ json: j, binary: { image: bin } }];\n}\n\n// 4) Nothing available → mark and pass through (do NOT throw)\nj.__skipUpload = true;\nreturn [{ json: j }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3008,
+        7392
+      ],
+      "id": "828f3e96-f113-4ddc-83bc-9fadbeef804b",
+      "name": "Make Binary from Base64"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-assets",
+        "fileName": "={{ $json.__meta.storageKey }}",
+        "binaryPropertyName": "image",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -2336,
+        7264
+      ],
+      "id": "445c4bbd-90b9-4508-9101-7649f6b49de0",
+      "name": "Add Upload to R2",
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Set Meta Path (final)\nconst j = $json;\nconst storageKey = j.__meta?.storageKey || null;\nconst didUpload = j.__meta?.didUpload === true;\n\n// Use bucket root; no folder prefix unless you put it inside storageKey.\nconst PUBLIC_BASE = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n\nfunction joinUrl(base, key) {\n  if (!base || !key) return null;\n  const b = base.replace(/\\/+$/, '');\n  const k = String(key).replace(/^\\/+/, '');\n  return `${b}/${k}`;\n}\n\nif (storageKey && (didUpload || j.__meta?.characterPath == null)) {\n  j.__meta.characterPath = joinUrl(PUBLIC_BASE, storageKey);\n}\n\nreturn [{ json: j }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        7392
+      ],
+      "id": "c3193b64-8ddb-471a-808d-5805606436e2",
+      "name": "Set Meta Path"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.__meta.characterPath}}",
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1536,
+        7392
+      ],
+      "id": "fc3f85f5-b7d5-4417-bcec-bdb9a36d7dc6",
+      "name": "Check Image URL (200)",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const probe = $items('Check Image URL (200)', 0, 0)[0]?.json;\nconst had200 = probe?.statusCode === 200 || probe?.status === 200;\n\nconst url = $json.__meta?.characterPath || null;\nconst b64 = $json.extractedImageData || null;\n\nreturn [{\n  json: {\n    ...$json,\n    _imageForBria: (had200 && url) ? url : b64,\n    _imageIsUrl: !!(had200 && url),\n    _urlCheckOk: !!had200,\n  },\n  binary: $input.first().binary,\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1312,
+        7392
+      ],
+      "id": "f9a00bd6-e87a-4a7f-9a89-0a4f41ed69b2",
+      "name": "URL OK or fallback to base64"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Bria Payload — minimal & spec-safe\nconst j = $json;\n\n// Prefer the public URL we just built\nconst url =\n  j.__meta?.characterPath ||\n  j.characterPath ||\n  j.imageUrl ||\n  j.sourceUrl ||\n  null;\n\n// Optional base64 fallbacks\nlet b64 = j.extractedImageData || j.poseBase64 || j.characterBase64 || null;\nif (typeof b64 === 'string') {\n  const m = b64.match(/^data:(image\\/[a-z0-9+.\\-]+);base64,(.*)$/i);\n  if (m) b64 = m[2];\n  b64 = b64.trim();\n  if (b64.length < 12) b64 = null;\n}\n\n// Pose (numeric, for your logging; we won't send it unless your endpoint truly supports it)\nconst poseNumber =\n  j.__meta?.poseNumber ??\n  (Number.isFinite(Number(j.poseNumber)) ? Number(j.poseNumber) : 0);\n\n// Choose source (prefer URL)\nlet _briaBody;\nif (url) {\n  // **Most Bria endpoints expect `image` as a STRING (URL)**\n  _briaBody = { image: url };\n} else if (b64) {\n  // Or `image` as base64 STRING + an explicit encoding hint some endpoints expect\n  _briaBody = { image: b64, image_encoding: 'base64' };\n} else {\n  j.__meta = j.__meta || {};\n  j.__meta.__skipBria = true;\n  j.__meta.__skipReason = 'No usable image (no URL and no base64 present)';\n  delete j._briaBody;\n  return [{ json: j }];\n}\n\n// Persist; keep pose for your own tracking (not sent unless you add it later)\nj.__meta = j.__meta || {};\nj.__meta.briaReady = true;\nj.__meta.briaSource = url ? 'url' : 'base64';\nj.__meta.poseNumber = poseNumber;\nj._briaBody = _briaBody;\n\nreturn [{ json: j }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        7392
+      ],
+      "id": "9272d6e7-b713-4ee2-9148-3200f665a11a",
+      "name": "Build Bria Payload"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fe658296-4c90-496b-a966-e8b551ef8f2e",
+              "name": "poseNumber",
+              "value": "={{$itemIndex}}\n",
+              "type": "string"
+            },
+            {
+              "id": "cfda7178-43ff-49f0-95ca-00b43d4f87a9",
+              "name": "R2_PUBLIC_BASE",
+              "value": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/little-hero-assets/",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3456,
+        7392
+      ],
+      "id": "617c4b79-2149-4f58-a07a-5ec0091dccf3",
+      "name": "Set Pose Index"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "39ba2fb9-75f8-42d5-b646-637dc74862b3",
+              "leftValue": "={{ !$json.__skipUpload }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2800,
+        7392
+      ],
+      "id": "b5e14f17-acc9-4733-a4d4-23d463e30bd2",
+      "name": "If (should upload?)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clean Binary After Upload (REPLACEMENT)\n// Goal: keep the original item (with __meta) and mark didUpload=true.\n// Also free binary & heavy fields.\n\nconst original = $items('Make Binary from Base64', 0, $itemIndex)?.[0]?.json ?? $json;\n\n// mark success\noriginal.__meta = original.__meta || {};\noriginal.__meta.didUpload = true;\n\n// free binary & heavy fields (defensive)\nif ($binary?.image) {\n  delete $binary.image;\n}\ndelete original.extractedImageData;\ndelete original.poseBase64;\ndelete original.characterBase64;\ndelete original.requestBody;\n\nreturn [{ json: original, binary: $binary }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1952,
+        7392
+      ],
+      "id": "b8e0b7cb-75f7-4308-999a-8eca7bfa370a",
+      "name": "Clean Binary After Upload"
+    },
+    {
+      "parameters": {
+        "jsCode": "// No Upload Pass-through\n// Goal: forward the original pre-branch item unchanged.\n\nconst UPSTREAM = 'Make Binary from Base64';\nconst priorArr = $items(UPSTREAM, 0, $itemIndex);\nconst original = (priorArr && priorArr[0] && priorArr[0].json) ? priorArr[0].json : $json;\n\nreturn [{ json: original }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2336,
+        7456
+      ],
+      "id": "a60ba390-9563-4994-b6b4-2141cfd26e23",
+      "name": "No Upload Pass-through"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json._briaBody;\nreturn [{ json: {\n  _bodyKeys: b ? Object.keys(b) : [],\n  _image_is_string: b ? typeof b.image === 'string' : null,\n  _image_url_is_string: b ? typeof b.image_url === 'string' : null,\n  _raw_body: b || null\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        7392
+      ],
+      "id": "24f8a934-ce0b-47a3-9f21-f6612c995363",
+      "name": "Proof",
+      "disabled": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Generate Mock Order": {
+      "main": [
+        [
+          {
+            "node": "Get Next Order from Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Generate Mock Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Character in Pose": {
+      "main": [
+        [
+          {
+            "node": "Extract Generated Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Generated Image": {
+      "main": [
+        [
+          {
+            "node": "DIAGNOSTIC: Check Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DIAGNOSTIC: Check Fields": {
+      "main": [
+        [
+          {
+            "node": "Filter: Only Items With Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Only Items With Images": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Next Order from Queue": {
+      "main": [
+        [
+          {
+            "node": "Generate Character Hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Character Hash": {
+      "main": [
+        [
+          {
+            "node": "Load Reference Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Reference Image": {
+      "main": [
+        [
+          {
+            "node": "Prepare binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Custom Base Character": {
+      "main": [
+        [
+          {
+            "node": "Process Gemini API response and extract generated image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare binary": {
+      "main": [
+        [
+          {
+            "node": "Generate Custom Base Character",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Gemini API response and extract generated image": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file": {
+      "main": [
+        [
+          {
+            "node": "Restore Metadata After Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Metadata After Upload": {
+      "main": [
+        [
+          {
+            "node": "Load Custom Character from R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Custom Character from R2": {
+      "main": [
+        [
+          {
+            "node": "Initialize Pose Generation Loop",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Character with Poses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Pose Generation Loop": {
+      "main": [
+        [
+          {
+            "node": "Load Pose Reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Pose Reference": {
+      "main": [
+        [
+          {
+            "node": "Merge Character with Poses",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Character with Poses": {
+      "main": [
+        [
+          {
+            "node": "Reorganize Merged Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reorganize Merged Data": {
+      "main": [
+        [
+          {
+            "node": "Prepare Gemini Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Gemini Requests": {
+      "main": [
+        [
+          {
+            "node": "Generate Character in Pose",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Create Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Pose Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit to Bria AI": {
+      "main": [
+        [
+          {
+            "node": "Drop Heavy Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Submission Result": {
+      "main": [
+        [
+          {
+            "node": "Wait 6 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 6 Seconds": {
+      "main": [
+        [
+          {
+            "node": "Check If Long Wait Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Long Wait Needed": {
+      "main": [
+        [
+          {
+            "node": "Is 10th Item?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is 10th Item?": {
+      "main": [
+        [
+          {
+            "node": "Wait Extra 54 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Wait Paths",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Wait Extra 54 Seconds": {
+      "main": [
+        [
+          {
+            "node": "Merge Wait Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Wait Paths": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Final Summary": {
+      "main": [
+        [
+          {
+            "node": "Wait 90 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 90 Seconds": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drop Heavy Fields": {
+      "main": [
+        [
+          {
+            "node": "Store Submission Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Lean Meta": {
+      "main": [
+        [
+          {
+            "node": "Make Binary from Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make Binary from Base64": {
+      "main": [
+        [
+          {
+            "node": "If (should upload?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Upload to R2": {
+      "main": [
+        [
+          {
+            "node": "Clean Binary After Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Meta Path": {
+      "main": [
+        [
+          {
+            "node": "Check Image URL (200)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Image URL (200)": {
+      "main": [
+        [
+          {
+            "node": "URL OK or fallback to base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "URL OK or fallback to base64": {
+      "main": [
+        [
+          {
+            "node": "Build Bria Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Bria Payload": {
+      "main": [
+        [
+          {
+            "node": "Proof",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Pose Index": {
+      "main": [
+        [
+          {
+            "node": "Capture Lean Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If (should upload?)": {
+      "main": [
+        [
+          {
+            "node": "Add Upload to R2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Upload Pass-through",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Binary After Upload": {
+      "main": [
+        [
+          {
+            "node": "Set Meta Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Upload Pass-through": {
+      "main": [
+        [
+          {
+            "node": "Clean Binary After Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Proof": {
+      "main": [
+        [
+          {
+            "node": "Submit to Bria AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "833acc54-cb76-403c-8404-25122626531d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "jZaJkKT9LRF6SfDC",
+  "tags": []
+}

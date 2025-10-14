@@ -1,0 +1,13 @@
+// Update order status to completed
+const orderData = $input.first().json;
+const r2BaseUrl = orderData.r2BaseUrl || process.env.R2_BASE_URL || 'https://little-hero-assets.r2.cloudflarestorage.com';
+const completedOrder = {
+  ...orderData,
+  status: 'book_assembly_completed',
+  bookAssemblyCompletedAt: new Date().toISOString(),
+  finalBookUrl: r2BaseUrl + '/books/' + orderData.amazonOrderId + '_final.pdf',
+  totalAssemblyTime: new Date(orderData.bookAssemblyCompletedAt) - new Date(orderData.assemblyStartedAt),
+  averageTimePerPage: Math.round((new Date(orderData.bookAssemblyCompletedAt) - new Date(orderData.assemblyStartedAt)) / orderData.totalPagesRequired / 1000)
+};
+console.log('Book assembly completed for order: ' + orderData.amazonOrderId);
+return [{ json: completedOrder }];

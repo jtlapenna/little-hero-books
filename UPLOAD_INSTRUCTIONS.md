@@ -52,3 +52,6 @@ If you prefer, you can manually upload via the web interface:
 2. Test the workflow
 3. Verify generated pose images use custom character's colors
 
+
+
+

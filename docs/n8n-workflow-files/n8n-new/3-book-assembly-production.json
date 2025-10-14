@@ -1,0 +1,417 @@
+{
+  "name": "3-book-assembly",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Sample Order Data for Workflow 3 Testing\n// Copy this code into a Manual Trigger Code Node in n8n\n\nconst sampleOrder = {\n  amazonOrderId: 'TEST-ORDER-001',\n  characterHash: '6ec1cd52dce77992',\n  status: 'ready_for_book_assembly',\n  characterSpecs: {\n    childName: 'Alex',\n    hometown: 'Seattle',\n    skinTone: 'medium african-american',\n    hairColor: 'black',\n    hairStyle: 'pom pom',\n    age: 4,\n    pronouns: 'they/them',\n    favoriteColor: 'green',\n    animalGuide: 'unicorn',\n    clothingStyle: 't-shirt and shorts'\n  },\n  r2BaseUrl: 'https://little-hero-assets.r2.cloudflarestorage.com',\n  orderDetails: {\n    orderDate: '2024-01-15T10:00:00.000Z',\n    customerEmail: 'test@example.com',\n    quantity: 1,\n    shippingAddress: {\n      name: 'Test Customer',\n      address: '123 Test Street', \n      city: 'Test City',\n      state: 'CA',\n      zip: '90210'\n    }\n  },\n  workflowProgress: {\n    characterGeneration: 'completed',\n    bookAssembly: 'pending',\n    pdfGeneration: 'pending',\n    shipping: 'pending'\n  },\n  bookSpecs: {\n    title: 'Alex and the Adventure Compass',\n    totalPages: 14,\n    pageSize: '8.5x8.5',\n    dpi: 300,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide'\n  },\n  metadata: {\n    createdAt: '2024-01-15T10:00:00.000Z',\n    updatedAt: '2024-01-15T10:00:00.000Z',\n    version: '1.0',\n    testMode: true\n  }\n};\n\nconsole.log('Sample order data for Workflow 3 testing:', sampleOrder);\nreturn [{ json: sampleOrder }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        4928
+      ],
+      "id": "efdb6afa-e16a-40fd-b0b5-33ef8d6a97ef",
+      "name": "Code"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        2592,
+        4928
+      ],
+      "id": "19793d88-3252-44af-a140-3bc307e26ba3",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Get order ready for book assembly\nconst orderData = $input.first().json;\n\n// Check if order is ready for book assembly\nif (orderData.status !== 'ready_for_book_assembly') {\n  return []; // Skip if not ready\n}\n\n// Update order status to assembling\nconst assemblingOrder = {\n  ...orderData,\n  status: 'book_assembly_in_progress',\n  assemblyStartedAt: new Date().toISOString(),\n  pagesGenerated: 0,\n  totalPagesRequired: 14, // 14 pages for production\n  assemblyProgress: 0\n};\n\nconsole.log('Starting book assembly for order: ' + orderData.amazonOrderId);\nreturn [{ json: assemblingOrder }];"
+      },
+      "id": "ff4564ec-3434-4cfe-aabd-4f8a91c12d14",
+      "name": "Get Order Ready for Assembly",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        3104,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Load all generated character images for the order\nconst orderData = $input.first().json;\n\n// Use public R2 URL like Workflow 2\nconst publicR2Url = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\nconst characterHash = orderData.characterHash;\n\n// Validate required fields\nif (!characterHash) {\n  throw new Error('Character hash is required for loading character images');\n}\n\n// Validate character hash format (should be 16 characters)\nif (!/^[a-f0-9]{16}$/.test(characterHash)) {\n  throw new Error('Invalid character hash format: ' + characterHash + '. Expected 16-character hex string.');\n}\n\n// Load base character and all poses\nconst characterImages = {\n  base: publicR2Url + '/book-mvp-simple-adventure/order-generated-assets/characters/' + characterHash + '/base-character.png',\n  poses: []\n};\n\n// Load all pose images (1-14) with validation\nfor (let i = 1; i <= 14; i++) {\n  const poseFilename = getPoseFilename(i);\n  if (poseFilename) {\n    const imagePath = publicR2Url + '/book-mvp-simple-adventure/order-generated-assets/characters/' + characterHash + '/characters_' + characterHash + '_pose' + i.toString().padStart(2, '0') + '.png';\n    \n    characterImages.poses.push({\n      poseNumber: i,\n      poseFilename: poseFilename,\n      imagePath: imagePath,\n      pageNumber: i,\n      validated: false // Will be validated when accessed\n    });\n  }\n}\n\n// Validate that we have the expected number of poses\nconst expectedPoses = 12; // Pages 1-12 have child poses, 13-14 have special cases\nconst actualPoses = characterImages.poses.length;\nif (actualPoses !== expectedPoses) {\n  console.warn('Expected ' + expectedPoses + ' poses, found ' + actualPoses + '. This may cause issues.');\n}\n\nfunction getPoseFilename(pageNumber) {\n  const poseMap = {\n    1: 'walking',\n    2: 'walking-looking-higher',\n    3: 'looking',\n    4: 'floating',\n    5: 'walking-looking-down',\n    6: 'jogging',\n    7: 'looking',\n    8: 'sitting-eating',\n    9: 'crouching',\n    10: 'crawling-moving-happy',\n    11: 'surprised-looking-up',\n    12: 'surprised',\n    13: null, // Tiger only, no child character\n    14: 'flying'\n  };\n  return poseMap[pageNumber];\n}\n\nconst orderWithCharacters = {\n  ...orderData,\n  characterImages: characterImages,\n  publicR2Url: publicR2Url\n};\n\nconsole.log('Loaded ' + characterImages.poses.length + ' character poses for assembly from ' + publicR2Url);\nreturn [{ json: orderWithCharacters }];"
+      },
+      "id": "e65ccad3-2338-497f-9b22-e30e40a7b6de",
+      "name": "Load Generated Characters",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        3328,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Load all background images for the Voice of Wonder story\nconst orderData = $input.first().json;\n\n// Use public R2 URL like Workflow 2\nconst publicR2Url = orderData.publicR2Url || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n\n// Validate required fields\nif (!orderData.amazonOrderId) {\n  throw new Error('Amazon Order ID is required for loading background images');\n}\n\n// Load background images for all 14 pages with validation\nconst backgroundImages = [];\nfor (let i = 1; i <= 14; i++) {\n  const sceneName = getSceneName(i);\n  const imagePath = publicR2Url + '/book-mvp-simple-adventure/backgrounds/page' + i.toString().padStart(2, '0') + '-' + getSceneSlug(i) + '.png';\n  \n  backgroundImages.push({\n    pageNumber: i,\n    imagePath: imagePath,\n    sceneName: sceneName,\n    validated: false // Will be validated when accessed\n  });\n}\n\n// Validate that we have the expected number of backgrounds\nconst expectedBackgrounds = 14;\nconst actualBackgrounds = backgroundImages.length;\nif (actualBackgrounds !== expectedBackgrounds) {\n  throw new Error('Expected ' + expectedBackgrounds + ' background images, found ' + actualBackgrounds);\n}\n\nfunction getSceneSlug(pageNumber) {\n  const sceneSlugs = [\n    'twilight-walk', 'night-forest', 'magic-doorway', 'courage-leap', 'morning-meadow',\n    'tall-forest', 'mountain-vista', 'picnic-surprise', 'beach-discovery', 'crystal-cave',\n    'giant-flowers', 'almost-there', 'animal-reveal', 'flying-home'\n  ];\n  return sceneSlugs[pageNumber - 1] || 'unknown';\n}\n\nfunction getSceneName(pageNumber) {\n  const scenes = [\n    'twilight_walk', 'night_forest', 'magic_doorway', 'courage_leap', 'morning_meadow',\n    'tall_forest', 'mountain_vista', 'picnic_surprise', 'beach_discovery', 'crystal_cave',\n    'giant_flowers', 'enchanted_grove', 'animal_reveal', 'flying_home'\n  ];\n  return scenes[pageNumber - 1] || 'unknown';\n}\n\nconst orderWithBackgrounds = {\n  ...orderData,\n  backgroundImages: backgroundImages\n};\n\nconsole.log('Loaded ' + backgroundImages.length + ' background images for assembly from ' + publicR2Url);\nreturn [{ json: orderWithBackgrounds }];"
+      },
+      "id": "571f99d4-bda1-4f02-9cc9-96fbc5abf1b7",
+      "name": "Load Background Images",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        3552,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Load story text for all pages with character personalization\nconst orderData = $input.first().json;\nconst childName = orderData.characterSpecs?.childName;\nconst hometown = orderData.characterSpecs?.hometown || 'Seattle';\nif (!childName) throw new Error('Child name required');\nconst storyTexts = [];\nfor (let i = 1; i <= 14; i++) {\n  storyTexts.push({\n    pageNumber: i,\n    text: getStoryText(i, childName, hometown),\n    characterName: childName,\n    hometown: hometown,\n    validated: true\n  });\n}\nfunction getStoryText(p, n, h) {\n  const s = [\n    'It was a nice night in ' + h + '. ' + n + ' went outside.',\n    n + ' looked at the stars.<br>You like to explore, the voice said.',\n    'There was a doorway! ' + n + ' walked through.',\n    'Stars were all around! ' + n + ' felt brave.',\n    n + ' noticed footprints and followed them.',\n    'The path went through giant trees. ' + n + ' felt small, but not scared.',\n    'Look how far you came, the voice said.',\n    'Lunch was waiting! ' + n + ' ate happily.<br>You earned this, the voice said.',\n    'The path became warm sand. Look down there, the voice said.<br>' + n + ' found a beautiful shell!',\n    n + ' found a cave with sparkly crystals! They glowed with rainbow colors. You can find beauty everywhere, the voice said.',\n    'The path went through giant flowers. The petals were SO big!<br>You make others happy, the voice said.',\n    'The voice felt very close now. You are perfect just as you are, it said.<br>' + n + ' looked around. Where was the voice?',\n    'Tiger appeared! It was the voice!<br>I have been with you this whole time, said Tiger.',\n    'Ready to fly home? asked Tiger. They flew through the stars to ' + h + '.<br>I am always in your heart, said Tiger.'\n  ];\n  return s[p - 1] || 'Adventure awaits!';\n}\nreturn [{ json: {...orderData, storyTexts: storyTexts} }];"
+      },
+      "id": "22fdaf1b-d065-41a1-a4f3-e9693b70aa64",
+      "name": "Load Story Text",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        3776,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Initialize page generation loop for all 14 pages\nconst orderData = $input.first().json;\n\n// Create array of pages to generate (1-14)\nconst pagesToGenerate = [];\nfor (let i = 1; i <= 14; i++) {\n  const characterImage = orderData.characterImages.poses.find(p => p.pageNumber === i);\n  const backgroundImage = orderData.backgroundImages.find(b => b.pageNumber === i);\n  const storyText = orderData.storyTexts.find(s => s.pageNumber === i);\n  \n  pagesToGenerate.push({\n    ...orderData,\n    currentPageNumber: i,\n    pageStatus: 'pending',\n    pageGenerationAttempts: 0,\n    maxPageAttempts: 3,\n    characterImage: characterImage,\n    backgroundImage: backgroundImage,\n    storyText: storyText\n  });\n}\n\nconsole.log('Initialized page generation for ' + pagesToGenerate.length + ' pages');\nreturn pagesToGenerate.map(page => ({ json: page }));"
+      },
+      "id": "2e1443c4-e430-49be-a6db-8d256ca3e479",
+      "name": "Initialize Page Generation Loop",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        5568
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate complete multi-page HTML document for PDFMonkey\nconst orderData = $input.first().json;\n\n// Debug: Log what data we have\nconsole.log('Order data keys:', Object.keys(orderData));\nconsole.log('Character images:', orderData.characterImages?.poses?.length || 'MISSING');\nconsole.log('Background images:', orderData.backgroundImages?.length || 'MISSING');\nconsole.log('Story texts:', orderData.storyTexts?.length || 'MISSING');\n\n// Get public R2 URL for dynamic asset paths\nconst publicR2Url = orderData.publicR2Url || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n\n// Generate all pages HTML content\nlet pagesHTML = '';\nlet pageCSS = '';\n\nfor (let i = 1; i <= 14; i++) {\n  const pageData = {\n    pageNumber: i,\n    characterImage: orderData.characterImages.poses.find(p => p.pageNumber === i),\n    backgroundImage: orderData.backgroundImages.find(b => b.pageNumber === i),\n    storyText: orderData.storyTexts.find(s => s.pageNumber === i),\n    layout: getPageLayout(i),\n    lightingData: getLightingData(i),\n    poseFilename: getPoseFilename(i)\n  };\n  \n  // Generate page-specific CSS\n  pageCSS += generatePageCSS(pageData, publicR2Url);\n  \n  // Generate page HTML content\n  pagesHTML += generatePageHTML(pageData, publicR2Url);\n}\n\n// Create complete multi-page HTML document with proper 8.5x8.5 inch dimensions\nconst completeHTML = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Little Hero Book - ${orderData.characterSpecs.childName}'s Story</title>\n  <style>\n    @font-face {\n      font-family: 'CustomFont';\n      src: url('${publicR2Url}/book-mvp-simple-adventure/fonts/custom-font.ttf') format('truetype');\n    }\n    \n    /* CRITICAL: Override PDFMonkey template with !important */\n    @page {\n      size: 2550px 2550px !important;\n      margin: 0 !important;\n      padding: 0 !important;\n    }\n    \n    * {\n      margin: 0 !important;\n      padding: 0 !important;\n      box-sizing: border-box;\n    }\n    \n    html, body {\n      width: 2550px !important;\n      height: 2550px !important;\n      margin: 0 !important;\n      padding: 0 !important;\n      overflow: hidden;\n    }\n    \n    body {\n      font-family: 'CustomFont', 'Arial', sans-serif;\n      position: relative;\n      width: 2550px !important;\n      height: 2550px !important;\n    }\n    \n    .book-page {\n      width: 2550px !important;\n      height: 2550px !important;\n      position: relative;\n      page-break-after: always !important;\n      page-break-inside: avoid !important;\n      background-size: 2550px 2550px !important;\n      background-position: center !important;\n      background-repeat: no-repeat !important;\n      display: block !important;\n    }\n    \n    .book-page:last-child {\n      page-break-after: avoid !important;\n    }\n    \n    /* TEXT BOX SPECIFICATIONS - Scale for 2550px width */\n    .text-box {\n      position: absolute;\n      left: 50%;\n      bottom: 3%;\n      width: 80%; /* 80% of 2550px = 2040px */\n      transform: translateX(-50%);\n      height: auto;\n      background-image: url('${publicR2Url}/book-mvp-simple-adventure/overlays/text-boxes/standard-box.png');\n      background-size: 100% 100%;\n      background-repeat: no-repeat;\n      background-position: center;\n      padding: 75px 180px; /* Scale padding for 300 DPI */\n      display: flex;\n      align-items: center;\n      justify-content: center;\n    }\n    \n    /* TEXT SPECIFICATIONS - Scale for 300 DPI */\n    .text-content {\n      font-size: 42px; /* Scale from 14px to 42px for 300 DPI */\n      line-height: 1.3;\n      letter-spacing: 1.5px; /* Scale from 0.5px to 1.5px for 300 DPI */\n      color: #312116;\n      text-align: center;\n      font-weight: 400;\n      width: 100%;\n      word-wrap: break-word;\n      hyphens: none;\n    }\n    \n    .character {\n      position: absolute !important;\n      z-index: 100 !important;\n      /* Add visibility debugging */\n      border: 3px solid red !important;\n      background: rgba(255, 0, 0, 0.2) !important;\n      min-width: 50px !important;\n      min-height: 50px !important;\n    }\n    \n    .character img {\n      width: 100% !important;\n      height: auto !important;\n      mix-blend-mode: multiply;\n      filter: contrast(1.1) brightness(0.95);\n      opacity: 0.9;\n      /* Add visibility debugging */\n      border: 2px solid blue !important;\n    }\n    \n    .animal-guide {\n      position: absolute;\n      z-index: 90;\n    }\n    \n    .animal-guide img {\n      width: 100%;\n      height: auto;\n    }\n    \n    .debug-info {\n      position: absolute;\n      top: 30px; /* Scale for 300 DPI */\n      left: 30px; /* Scale for 300 DPI */\n      background: rgba(255, 255, 255, 0.9);\n      padding: 45px; /* Scale for 300 DPI */\n      border-radius: 24px; /* Scale for 300 DPI */\n      font-size: 36px; /* Scale for 300 DPI */\n      font-family: monospace;\n      max-width: 900px; /* Scale for 300 DPI */\n      z-index: 1000;\n    }\n    \n    .debug-info h4 {\n      margin-bottom: 24px; /* Scale for 300 DPI */\n      color: #333;\n    }\n    \n    .debug-info ul {\n      margin-left: 45px; /* Scale for 300 DPI */\n    }\n    \n    .debug-info li {\n      margin-bottom: 9px; /* Scale for 300 DPI */\n    }\n    \n    @media print {\n      .debug-info {\n        display: none;\n      }\n    }\n    \n    /* Page-specific CSS */\n    ${pageCSS}\n  </style>\n</head>\n<body>\n  ${pagesHTML}\n</body>\n</html>`;\n\nconst result = {\n  ...orderData,\n  completeHTML: completeHTML,\n  totalPages: 14,\n  generatedAt: new Date().toISOString()\n};\n\nconsole.log('Generated complete multi-page HTML document with 14 pages at 8.5x8.5 inches (2550x2550px)');\nconsole.log('HTML length:', completeHTML.length);\nconsole.log('Number of .book-page divs:', (completeHTML.match(/\\.book-page/g) || []).length);\nconsole.log('First 500 chars of HTML:', completeHTML.substring(0, 500));\nreturn [{ json: result }];\n\n// Generate page-specific CSS with proper background sizing\nfunction generatePageCSS(pageData, publicR2Url) {\n  return `\n    #page-${pageData.pageNumber} {\n      background-image: url('${pageData.backgroundImage.imagePath}') !important;\n      background-size: 2550px 2550px !important;\n      background-position: center !important;\n      background-repeat: no-repeat !important;\n    }\n    \n    #page-${pageData.pageNumber} .character {\n      ${pageData.layout.character.position} !important;\n      width: ${pageData.layout.character.width}px !important;\n      /* Add visibility debugging */\n      border: 3px solid red !important;\n      background: rgba(255, 0, 0, 0.2) !important;\n      min-width: 50px !important;\n      min-height: 50px !important;\n    }\n  `;\n}\n\n// Generate page HTML content\nfunction generatePageHTML(pageData, publicR2Url) {\n  return `\n    <div class=\"book-page\" id=\"page-${pageData.pageNumber}\" style=\"width: 2550px !important; height: 2550px !important; background-size: 2550px 2550px !important; background-position: center !important; background-repeat: no-repeat !important; page-break-after: always !important;\">\n      <div class=\"debug-info\">\n        <h4>🎨 Page ${pageData.pageNumber}</h4>\n        <ul>\n          <li>Background: ${pageData.backgroundImage.sceneName}</li>\n          <li>Character: ${pageData.layout.character.position}</li>\n          <li>Size: 8.5in × 8.5in (2550px × 2550px @ 300 DPI)</li>\n          <li>Character Image: ${pageData.characterImage ? 'FOUND' : 'MISSING'}</li>\n          <li>Pose Filename: ${pageData.poseFilename || 'NONE'}</li>\n          <li>Character Width: ${pageData.layout.character.width}px</li>\n        </ul>\n      </div>\n      \n      <div class=\"text-box\">\n        <div class=\"text-content\">${pageData.storyText.text}</div>\n      </div>\n      \n      ${pageData.poseFilename ? `<div class=\"character\" style=\"${pageData.layout.character.position} !important; width: ${pageData.layout.character.width}px !important;\">\n        <img src=\"${pageData.characterImage.imagePath}\" alt=\"Character\">\n      </div>` : ''}\n      \n      ${pageData.pageNumber === 13 ? `<div class=\"animal-guide\" style=\"position: absolute; right: -30%; top: -5%; width: 1950px; height: auto; z-index: 90;\">\n        <img src=\"${publicR2Url}/animals/tiger-appears.png\" alt=\"Animal Guide\">\n      </div>` : ''}\n      \n      ${pageData.pageNumber === 14 ? `<div class=\"animal-guide\" style=\"position: absolute; right: 3%; top: 8%; width: 1650px; height: auto; z-index: 90;\">\n        <img src=\"${publicR2Url}/animals/tiger-flying.png\" alt=\"Animal Flying\">\n      </div>` : ''}\n    </div>\n  `;\n}\n\n// Dynamic positioning function for characters - correct sizes for 300 DPI\nfunction getPageLayout(pageNumber) {\n  const layouts = {\n    1: { // Twilight Walk\n      character: { position: 'right: -36%; top: 7%; transform: scaleX(1);', width: 350 }\n    },\n    2: { // Night Forest\n      character: { position: 'right: -35%; top: 18%; transform: scaleX(-1);', width: 300 }\n    },\n    3: { // Magic Doorway\n      character: { position: 'right: -19%; top: 15%; transform: scaleX(-1);', width: 350 }\n    },\n    4: { // Courage Leap\n      character: { position: 'right: -30%; top: -2%; transform: scaleX(1) rotateZ(-15deg);', width: 390 }\n    },\n    5: { // Morning Meadow\n      character: { position: 'right: -31%; top: 14%; transform: scaleX(-1);', width: 300 }\n    },\n    6: { // Tall Forest\n      character: { position: 'right: -32%; top: 13%; transform: scaleX(1);', width: 300 }\n    },\n    7: { // Mountain Vista\n      character: { position: 'right: -26%; top: -4%; transform: scaleX(-1);', width: 350 }\n    },\n    8: { // Picnic Surprise\n      character: { position: 'right: -30%; top: 0%; transform: scaleX(1);', width: 490 }\n    },\n    9: { // Beach Discovery\n      character: { position: 'right: -25%; top: 8%; transform: scaleX(-1);', width: 400 }\n    },\n    10: { // Crystal Cave\n      character: { position: 'right: -18%; top: 13%; transform: scaleX(-1);', width: 500 }\n    },\n    11: { // Giant Flowers\n      character: { position: 'right: -57%; top: 24.5%; transform: scaleX(1);', width: 200 }\n    },\n    12: { // Enchanted Grove\n      character: { position: 'right: -14%; top: 15%; transform: scaleX(-1);', width: 350 }\n    },\n    13: { // Animal Reveal\n      character: { position: 'right: -25%; top: 5%; transform: scaleX(1);', width: 390 }\n    },\n    14: { // Flying Home\n      character: { position: 'right: -5%; top: -5%; transform: scaleX(1);', width: 450 }\n    }\n  };\n  \n  return layouts[pageNumber] || layouts[1]; // Default to first layout if not found\n}\n\n// Get lighting data based on page number\nfunction getLightingData(pageNumber) {\n  const lightingMap = {\n    1: { gradient: 'linear-gradient(to bottom, rgba(255, 107, 53, 0.5) 0%, rgba(78, 205, 196, 0.5) 100%)', blendMode: 'none' },\n    2: { gradient: 'linear-gradient(to bottom left, rgba(255, 221, 51, 0.14) 0%, rgba(52, 30, 102, 0.34) 100%)', blendMode: 'none' },\n    3: { gradient: 'linear-gradient(to bottom right, rgba(111, 26, 122, 1) 0%, rgba(255, 222, 56, 0.5) 100%)', blendMode: 'none' },\n    4: { gradient: 'linear-gradient(to bottom right, rgba(255, 107, 53, 0) 0%, rgba(38, 7, 95, 0.12) 100%)', blendMode: 'multiply' },\n    5: { gradient: 'linear-gradient(to bottom, rgba(255, 107, 53, 0.5) 0%, rgba(78, 205, 196, 0.5) 100%)', blendMode: 'none' },\n    6: { gradient: 'linear-gradient(to bottom, rgba(255, 107, 53, 0.5) 0%, rgba(78, 205, 196, 0.5) 100%)', blendMode: 'none' },\n    7: { gradient: 'linear-gradient(to bottom, rgba(255, 107, 53, 0.5) 0%, rgba(78, 205, 196, 0.5) 100%)', blendMode: 'none' },\n    8: { gradient: 'linear-gradient(to bottom, rgba(255, 107, 53, 0.5) 0%, rgba(78, 205, 196, 0.5) 100%)', blendMode: 'none' },\n    9: { gradient: 'linear-gradient(to bottom, rgba(255, 107, 53, 0.5) 0%, rgba(78, 205, 196, 0.5) 100%)', blendMode: 'overlay' },\n    10: { gradient: 'linear-gradient(to bottom, rgba(255, 107, 53, 0.5) 0%, rgba(78, 205, 196, 0.5) 100%)', blendMode: 'none' },\n    11: { gradient: 'linear-gradient(to bottom, rgba(255, 107, 53, 0.5) 0%, rgba(78, 205, 196, 0.5) 100%)', blendMode: 'none' },\n    12: { gradient: 'linear-gradient(to bottom, rgba(255, 107, 53, 0.5) 0%, rgba(78, 205, 196, 0.5) 100%)', blendMode: 'overlay' },\n    13: { gradient: 'linear-gradient(to bottom, rgba(255, 107, 53, 0.5) 0%, rgba(78, 205, 196, 0.5) 100%)', blendMode: 'overlay' },\n    14: { gradient: 'linear-gradient(to bottom, rgba(255, 107, 53, 0.5) 0%, rgba(78, 205, 196, 0.5) 100%)', blendMode: 'overlay' }\n  };\n  \n  return lightingMap[pageNumber] || { gradient: 'none', blendMode: 'none' };\n}\n\n// Get pose filename mapping\nfunction getPoseFilename(pageNumber) {\n  const poseMap = {\n    1: 'walking',\n    2: 'walking-looking-higher',\n    3: 'looking',\n    4: 'floating',\n    5: 'walking-looking-down',\n    6: 'jogging',\n    7: 'looking',\n    8: 'sitting-eating',\n    9: 'crouching',\n    10: 'crawling-moving-happy',\n    11: 'surprised-looking-up',\n    12: 'surprised',\n    13: null, // Tiger only, no child character\n    14: 'flying'\n  };\n  return poseMap[pageNumber];\n}"
+      },
+      "id": "13971daa-4574-4c7b-b92c-868fd5f8644d",
+      "name": "Generate Complete HTML",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        4208,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Prepare data for PDFMonkey with complete multi-page HTML\nconst orderData = $input.first().json;\n\n// Prepare PDFMonkey payload with complete multi-page HTML\nconst pdfMonkeyData = {\n  ...orderData,\n  pdfMonkeyTemplateId: 'YOUR_PDFMONKEY_TEMPLATE_ID', // Replace with actual template ID\n  pdfFilename: 'complete_book_' + orderData.amazonOrderId + '.pdf',\n  // Send complete multi-page HTML to PDFMonkey\n  templateData: {\n    html_content: orderData.completeHTML\n  }\n};\n\nconsole.log('Prepared PDFMonkey data for complete book with ' + orderData.totalPages + ' pages');\nreturn [{ json: pdfMonkeyData }];"
+      },
+      "id": "0be86da7-7691-4bb7-8fc3-a452ebac0447",
+      "name": "Prepare PDFMonkey Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        4432,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdfmonkey.io/api/v1/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer 2zpxHdmsse2ECXgVVtVR"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"document\": {\n      \"document_template_id\": \"5539ddb4-ec78-4ae9-a3fb-db1e7f8dd172\",\n      \"status\": \"pending\",\n      \"meta\": {\n        \"_filename\": $json.pdfFilename\n      },\n      \"payload\": {\n        \"html_content\": $json.templateData.html_content\n      }\n    }\n  }\n}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "de62c402-d898-458c-b83d-437e1c65a463",
+      "name": "Generate PDF with PDFMonkey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4656,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.download_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "bd352eda-ea1c-4846-98b2-1dea13c6d1b3",
+      "name": "Download PDF from PDFMonkey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4880,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Update page generation progress\nconst pageData = $input.first().json;\n\n// Get the original order data from the first node in the workflow\nconst orderData = $('Get Order Ready for Assembly').first().json;\n\n// Calculate progress\nconst pagesGenerated = (orderData.pagesGenerated || 0) + 1;\nconst totalPages = orderData.totalPagesRequired || 14;\nconst progress = Math.round((pagesGenerated / totalPages) * 100);\n\nconst updatedOrder = {\n  ...orderData,\n  pagesGenerated: pagesGenerated,\n  assemblyProgress: progress,\n  lastPageGenerated: pageData.currentPageNumber,\n  lastPageGeneratedAt: new Date().toISOString()\n};\n\n// Check if all pages are complete\nif (pagesGenerated >= totalPages) {\n  updatedOrder.status = 'pages_generated';\n  updatedOrder.pagesGeneratedAt = new Date().toISOString();\n  console.log('All pages generated for order: ' + orderData.amazonOrderId);\n} else {\n  console.log('Page ' + pageData.currentPageNumber + ' generated. Progress: ' + progress + '%');\n}\n\nreturn [{ json: updatedOrder }];"
+      },
+      "id": "9e1e1dee-3d8b-4fed-8595-677bd16736ea",
+      "name": "Update Page Progress",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        5120,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Check if all pages have been generated successfully\nconst orderData = $input.first().json;\n\nif (orderData.status === 'pages_generated') {\n  // All pages generated successfully, proceed to compilation\n  const readyForCompilation = {\n    ...orderData,\n    status: 'ready_for_compilation',\n    readyForCompilationAt: new Date().toISOString()\n  };\n  \n  console.log('Order ' + orderData.amazonOrderId + ' ready for PDF compilation');\n  return [{ json: readyForCompilation }];\n} else {\n  // Still processing\n  console.log('Order ' + orderData.amazonOrderId + ' still processing: ' + orderData.assemblyProgress + '% complete');\n  return [{ json: orderData }];\n}"
+      },
+      "id": "eb7f7a1f-3ac9-48ed-bdb0-3ffbd13195f5",
+      "name": "Check All Pages Complete",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        5344,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Compile all individual page PDFs into final book (simplified version)\nconst orderData = $input.first().json;\n\n// For now, just prepare the compilation data without actual PDF merging\n// This will be handled by a separate service or manual process\nconst compilationResult = {\n  ...orderData,\n  compilationStartedAt: new Date().toISOString(),\n  compilationCompletedAt: new Date().toISOString(),\n  compilationLog: ['PDF compilation prepared - individual pages available for manual merging'],\n  totalPagesInFinalBook: 14,\n  status: 'final_book_compiled',\n  individualPageUrls: []\n};\n\n// Generate URLs for all individual pages using public R2 URL\nconst publicR2Url = orderData.publicR2Url || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\nfor (let i = 1; i <= 14; i++) {\n  const pageUrl = publicR2Url + '/little-hero-orders/' + orderData.amazonOrderId + '/page' + i + '.pdf';\n  compilationResult.individualPageUrls.push({\n    pageNumber: i,\n    url: pageUrl\n  });\n}\n\nconsole.log('PDF compilation prepared for order: ' + orderData.amazonOrderId);\nconsole.log('Individual pages available at: ' + publicR2Url + '/little-hero-orders/' + orderData.amazonOrderId + '/');\n\nreturn [{ json: compilationResult }];"
+      },
+      "id": "de1a2057-9091-4e17-98b3-12c9e602dc2a",
+      "name": "Compile Final Book PDF",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        5568,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-orders",
+        "fileName": "={{ $json.amazonOrderId }}/final_book.pdf",
+        "additionalFields": {}
+      },
+      "id": "69199692-d4dc-49ab-801e-3465342cdb11",
+      "name": "Upload Final Book to Storage",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        5792,
+        5136
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Update order status to completed\nconst orderData = $input.first().json;\nconst publicR2Url = orderData.publicR2Url || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\nconst completedOrder = {\n  ...orderData,\n  status: 'book_assembly_completed',\n  bookAssemblyCompletedAt: new Date().toISOString(),\n  finalBookUrl: publicR2Url + '/little-hero-orders/' + orderData.amazonOrderId + '/final_book.pdf',\n  totalAssemblyTime: new Date(orderData.bookAssemblyCompletedAt) - new Date(orderData.assemblyStartedAt),\n  averageTimePerPage: Math.round((new Date(orderData.bookAssemblyCompletedAt) - new Date(orderData.assemblyStartedAt)) / orderData.totalPagesRequired / 1000)\n};\nconsole.log('Book assembly completed for order: ' + orderData.amazonOrderId);\nreturn [{ json: completedOrder }];"
+      },
+      "id": "bc42a344-2d5a-45a6-9167-0c2d50cb1ec3",
+      "name": "Update Order Status Complete",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        6000,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log assembly results for monitoring\nconst orderData = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '3-book-assembly-voice-of-wonder',\n  orderId: orderData.amazonOrderId,\n  status: orderData.status,\n  pagesGenerated: orderData.pagesGenerated,\n  totalPagesRequired: orderData.totalPagesRequired,\n  assemblyProgress: orderData.assemblyProgress,\n  currentPageNumber: orderData.currentPageNumber,\n  pageStatus: orderData.pageStatus,\n  assemblyTime: orderData.totalAssemblyTime || 'N/A',\n  averageTimePerPage: orderData.averageTimePerPage || 'N/A',\n  finalBookUrl: orderData.finalBookUrl || 'N/A'\n};\n\nconsole.log('Book Assembly Results:', JSON.stringify(logEntry, null, 2));\nreturn [{ json: logEntry }];"
+      },
+      "id": "849dad72-dba6-4cbf-95b2-c2f551158af0",
+      "name": "Log Assembly Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        6224,
+        5136
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Get Order Ready for Assembly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Order Ready for Assembly": {
+      "main": [
+        [
+          {
+            "node": "Load Generated Characters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Generated Characters": {
+      "main": [
+        [
+          {
+            "node": "Load Background Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Background Images": {
+      "main": [
+        [
+          {
+            "node": "Load Story Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Story Text": {
+      "main": [
+        [
+          {
+            "node": "Generate Complete HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Complete HTML": {
+      "main": [
+        [
+          {
+            "node": "Prepare PDFMonkey Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare PDFMonkey Data": {
+      "main": [
+        [
+          {
+            "node": "Generate PDF with PDFMonkey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate PDF with PDFMonkey": {
+      "main": [
+        [
+          {
+            "node": "Download PDF from PDFMonkey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF from PDFMonkey": {
+      "main": [
+        [
+          {
+            "node": "Compile Final Book PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Final Book PDF": {
+      "main": [
+        [
+          {
+            "node": "Upload Final Book to Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Final Book to Storage": {
+      "main": [
+        [
+          {
+            "node": "Update Order Status Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order Status Complete": {
+      "main": [
+        [
+          {
+            "node": "Log Assembly Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "91783403-0c32-434b-a824-25aa630d44d9",
+  "meta": {
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "BsL7VPylfeo8EQ4M",
+  "tags": []
+}

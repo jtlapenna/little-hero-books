@@ -7,211 +7,280 @@
 
 ---
 
-## Dedication
+## Dedication Page
 *For **[Child's Name]**, with all my love. — **[Gift Giver's Name]***  
 
+<!-- Implementation: Text-only page, no illustration -->
+
 ---
 
-## Page 1 — A Gentle Night (twilight)
-It was a nice evening in **[Child's Hometown]**,  
-and **[Child's Name]** wanted to take a walk.  
-As they went outside, a soft voice said,  
-*"You are very brave."*
+## Page 1 — A Gentle Evening (twilight)
+**[Image 2: Twilight lamppost path]**
 
-<!-- v1.2 enhancement: 
-- Subtle footprints as Easter eggs: small paw prints glowing faintly
-- Animal clue variants (very subtle):
-  Dog: small round paw prints
-  Cat: neat oval paw prints with faint toe marks
-  Rabbit: pairs of small back-foot ovals, then two tiny front dots
-  Tiger: larger paw prints with bold pad shapes
-  Owl: light dotted steps + a single soft feather nearby
-  Penguin: webbed footprints in a tidy line
-  Unicorn: small hoof prints with a gentle sparkle speckle
-- Visual: very simple glow around prints; keep background minimal for compositing.
+It was a nice evening in **[Child's Hometown]**.  
+**[Child's Name]** went for a walk.  
+A soft voice whispered, *"You are very brave."*
+
+<!-- Enhancement notes:
+- Subtle glowing footprints (Easter eggs) appearing on the path ahead
+- Animal-specific print variants (see original notes)
+- Child positioned on the path, looking curious/alert
 -->
 
 ---
 
-## Page 2 — The Voice Gets Louder (twilight → night)
-The voice got a little louder as **[Child's Name]** walked.  
-*"You like to explore new things,"* it said.  
-**[Child's Name]** smiled and kept walking, feeling happy inside.
+## Page 2 — Into the Night Forest (night)
+**[Image 12: Dark forest at night with moon]**
 
-<!-- v1.2 enhancement:
-- Add a faint trail glow that subtly matches the child's favorite color: [Child Favorite Color].
-- Optional ambient particles (tiny dots), extremely subtle.
-- Footprints continue as subtle Easter eggs along the path.
+**[Child's Name]** followed the voice into the forest.  
+The trees were tall and friendly.  
+*"You like to explore,"* the voice said.
+
+<!-- Enhancement notes:
+- Footprints glowing softly on forest floor (Easter eggs)
+- Optional: faint [Child Favorite Color] glow around prints
+- Child walking confidently through trees
 -->
 
 ---
 
-## Page 3 — Into the Forest (night)
-The trees looked like big friends.  
-*"You are very kind,"* the voice said through the leaves.  
-**[Child's Name]** felt proud and kept walking.
+## Page 3 — The Magic Doorway (night)
+**[Image 11: Doorway with vines at night]**
 
-<!-- v1.2 enhancement:
-- Light, repeated footprint motif across soft leaf litter (Easter eggs).
-- Optional: a tiny prop per animal tucked safely (bone/yarn/carrot/leaf-scratch/feather/pebble/flower petal). Keep small and unobtrusive.
+**[Child's Name]** saw a glowing doorway.  
+*"Step through,"* the voice said. *"You are brave."*  
+**[Child's Name]** took a deep breath and walked in.
+
+<!-- Enhancement notes:
+- Doorway glowing warmly
+- Footprints leading up to threshold (Easter eggs)
+- Child posed at doorway entrance, hand reaching toward or on frame
+- Stars twinkling in doorway opening
 -->
 
 ---
 
-## Page 4 — Listening to the Forest (night)
-In a quiet spot, **[Child's Name]** stopped to listen.  
-*"You see beautiful things,"* the voice said softly.  
-The forest seemed to sing the same happy message.
+## Page 4 — The Courage Leap (night sky)
+**[Image 3: Child floating among stars]**
 
-<!-- v1.2 enhancement:
-- Very simple pose: standing/looking. 
-- Add a subtle breeze line through the leaves (no silhouettes).
-- Swapable micro-clue beside a footprint (see Page 3 list).
+Through the door were so many stars!  
+**[Child's Name]** floated down like a feather.  
+*"See?"* the voice laughed. *"You can do amazing things!"*
+
+<!-- Enhancement notes:
+- Child in peaceful floating/falling pose (arms slightly out)
+- Stars and soft clouds around them
+- Brief magical moment - single beat, not prolonged
+- Gentle downward motion suggested
+- Optional: subtle trail of [Child Favorite Color] stardust behind them
 -->
 
 ---
 
-## Page 5 — The Climb Begins (dawn)
-The sun came up and the path went up too.  
-*"You are very strong,"* the voice said.  
-**[Child's Name]** climbed up, feeling strong and happy.
+## Page 5 — Morning Meadow (dawn/morning)
+**[Image 1: Sunny meadow with happy sun]**
 
-<!-- v1.2 enhancement:
-- Crisp, easy rock shapes with prints placed clearly (Easter eggs).
-- Optional: a single encouraging word etched on a stone ("BRAVE" / "CURIOUS") in child's favorite color hue.
+**[Child's Name]** landed in a sunny meadow.  
+**[Child's Name]** noticed footprints and followed them.  
+*"You are strong,"* the voice said.
+
+<!-- Enhancement notes:
+- Bright morning light, fresh start feeling
+- Child standing confidently after landing
+- Footprints resuming on grass (Easter eggs)
+- Happy sun character in background
 -->
 
 ---
 
-## Page 6 — Mountain Air (early morning)
-At the top, **[Child's Name]** could see far and wide.  
-*"Look how far you walked,"* the voice said proudly.  
-**[Child's Name]** felt very happy and proud.
+## Page 6 — The Tall Forest (morning)
+**[Image 5: Forest with tall trees]**
 
-<!-- v1.2 enhancement:
-- Keep the child standing, hands at sides or one hand shading eyes.
-- Add soft rays of dawn; no silhouettes.
-- Prints lightly spaced toward the descending path (Easter eggs).
+The path went through giant trees.  
+**[Child's Name]** felt small, but not scared.  
+*"You are kind,"* the voice said.
+
+<!-- Enhancement notes:
+- Child small among towering trees
+- Dappled morning light
+- Footprints visible on forest floor (Easter eggs)
+- Optional: tiny animal-appropriate prop (feather, pebble, etc.)
 -->
 
 ---
 
-## Page 7 — The Flower Garden (morning)
-The path went through a garden full of pretty flowers.  
-*"You make people happy,"* the voice said sweetly.  
-**[Child's Name]** felt very happy inside.
+## Page 7 — Mountain View (morning)
+**[Image 10: Desert/hills vista]**
 
-<!-- v1.2 enhancement:
-- Flower hues can skew toward [Child Favorite Color] accents.
-- Optional micro-prop per animal near a bloom (very small).
-- Footprints continue as subtle Easter eggs between flowers.
+The path went up, up, up.  
+At the top, **[Child's Name]** could see everywhere!  
+*"Look how far you came,"* the voice said.
+
+<!-- Enhancement notes:
+- Child at vista point, hand shading eyes or hands on hips
+- Expansive view
+- Morning light on hills/rocks
+- Footprints on rocky path (Easter eggs)
 -->
 
 ---
 
 ## Page 8 — A Picnic Surprise (late morning)
-A nice picnic waited on a **[Child Favorite Color]** blanket.  
-*"You earned this treat,"* the voice said warmly.  
-**[Child's Name]** sat down and felt very special.
+**[Image 4: Picnic scene with yellow blanket]**
 
-<!-- v1.2 enhancement:
-- Simple picnic elements; avoid reflective surfaces.
-- Swap snack color to [Child Favorite Color].
-- Keep hero seated simply or standing beside blanket (choose one consistent pose across SKUs).
+Lunch waited on a soft blanket!  
+There was a treat just for **[Child's Name]**.  
+*"You earned this,"* the voice said.
+
+<!-- Enhancement notes:
+- Child seated on picnic blanket
+- Blanket color can be [Child Favorite Color] if possible
+- Picnic basket and simple food items
+- Cozy, restful moment
 -->
 
 ---
 
-## Page 9 — To the Beach (midday)
-The path became warm, soft sand under **[Child's Name]**'s feet.  
-*"You are so much fun,"* the voice laughed gently.  
-**[Child's Name]** skipped along, feeling happy and free.
+## Page 9 — Beach Discovery (midday)
+**[Image 7: Beach with shells and ocean]**
 
-<!-- v1.2 enhancement:
-- Clear footprints pressed in sand (Easter eggs); avoid water reflections.
-- Gentle shoreline curve; minimal foam.
+The path became warm sand.  
+*"Look down there,"* the voice said.  
+**[Child's Name]** found a beautiful shell!
+
+<!-- Enhancement notes:
+- Child in playful walking/skipping pose
+- Clear footprints in sand (Easter eggs)
+- Shells scattered naturally
+- Gentle waves, bright midday sun
 -->
 
 ---
 
-## Page 10 — Shell Clues (midday)
-Pretty seashells lined the path in a curvy pattern.  
-*"You are very creative,"* the voice said.  
-**[Child's Name]** grinned, feeling proud of their ideas.
+## Page 10 — The Crystal Cave (midday)
+**[Image 8: Crystal cave with glowing stones]**
 
-<!-- v1.2 enhancement:
-- Keep shells matte and simple; no reflections.
-- Optional: one shell tinted toward [Child Favorite Color].
-- Footprints continue as subtle Easter eggs in the sand.
+**[Child's Name]** found a cave with sparkly crystals!  
+They glowed with rainbow colors.  
+*"You can find beauty everywhere,"* the voice said.
+
+<!-- Enhancement notes:
+- Child reaching toward or looking at crystals
+- Magical but gentle lighting
+- Rainbow/iridescent crystal reflections
+- Sense of wonder and discovery
 -->
 
 ---
 
-## Page 11 — The Meadow Path (afternoon)
-The path went through a soft, swaying meadow.  
-*"You are very caring,"* the voice said tenderly.  
-**[Child's Name]** felt warm and happy inside.
+## Page 11 — Garden of Giants (afternoon)
+**[Image 9: Giant flowers at sunset]**
 
-<!-- v1.2 enhancement:
-- Low grass, visible footprints (Easter eggs); no complex overlays.
-- Add faint glow at horizon line (neutral white or fav-color tint).
+The path went through giant flowers.  
+The petals were SO big!  
+*"You make others happy,"* the voice said.
+
+<!-- Enhancement notes:
+- Child small among oversized flowers
+- Late afternoon golden light
+- Flowers in warm sunset tones
+- Magical scale shift
 -->
 
 ---
 
-## Page 12 — Almost There (late afternoon)
-The voice got closer and more familiar.  
-*"You are perfect just as you are,"* it said lovingly.  
-**[Child's Name]** felt excited and happy.
+## Page 12 — The Enchanted Grove (late afternoon)
+**[Image: NEEDED - transitional scene before reveal]**
 
-<!-- v1.2 enhancement:
-- Simple circular arrangement of prints (Easter eggs).
-- Add gentle dust motes; keep effects minimal.
+The voice felt very close now.  
+*"You are perfect just as you are,"* it said.  
+**[Child's Name]** looked around. Where was the voice?  
+
+<!-- Enhancement notes:
+- Anticipation and expectation
+- Child looking around curiously
+- Soft late afternoon light
+- Path curving toward golden light or clearing
+- Footprints more visible now (Easter eggs)
 -->
 
 ---
 
-## Page 13 — The Reveal (golden hour)
-**[Animal Guide]** stepped into view—  
-the same voice that had been talking to **[Child's Name]** all along.  
-*"I've been your special voice, cheering you on every step."*
+## Page 13 — The Reveal (golden hour/sunset)
+**[Image 6: Tiger in swirly golden sky]**
 
-<!-- v1.2 enhancement:
-- Place [Animal Guide] centered, full and clear; no silhouettes or complex lighting.
-- Keep hero standing, facing the guide, simple body language (hands at sides or one small wave).
-- Animal variants:
-  Dog/Cat/Rabbit/Tiger/Owl/Penguin/Unicorn — each in one friendly, neutral pose usable across pages.
+**[Animal Guide]** appeared! It was the voice!  
+*"I have been with you this whole time,"* said **[Animal Guide]**.
+
+<!-- Enhancement notes:
+- Animal guide centered, clear and friendly
+- Child facing them, arms open or waving
+- Warm golden hour lighting
+- Magical but gentle atmosphere
+- Animal variants: Dog/Cat/Rabbit/Tiger/Owl/Penguin/Unicorn
 -->
 
 ---
 
-## Page 14 — Walking Home (sunset)
-Side by side, they walked back to **[Child's Hometown]**.  
-*"Remember,"* **[Animal Guide]** said, *"I'm always in your heart."*  
-**[Child's Name]** smiled, knowing their special voice would never leave them.
+## Page 14 — Flying Home Together (night)
+**[Image: NEEDED - both child and animal guide flying through starry sky]**
 
-<!-- v1.2 enhancement:
-- Footprints gradually dim behind them (Easter eggs); minimal sunset wash.
-- If desired, add a tiny heart shape formed by two last footprints (generic; not animal-specific).
+*"Ready to fly home?"* asked **[Animal Guide]**.  
+They flew through the stars to **[Child's Hometown]**.  
+*"I am always in your heart,"* said **[Animal Guide]**.
+
+<!-- Enhancement notes:
+- Both child and animal guide flying/soaring together
+- Night sky with stars (similar to Page 4 but more triumphant)
+- Sense of companionship and joy
+- Can reuse/modify Image 3 with animal guide added
+- Child more confident in flight than Page 4 (arms wider, more joyful)
+- Town lights visible below in distance
 -->
 
 ---
 
 ### Closing Note
 Whenever you wonder, I am here,  
-said the voice, said the day, said **[Animal Guide]**—  
-and **[Child's Name]** smiled, ready for tomorrow.
-
-<!-- v1.2 enhancement:
-- Optional final decorative motif: a single small print (animal-appropriate) beside the closing line.
--->
+said the voice, said the stars, said **[Animal Guide]**—  
+and **[Child's Name]** smiled, ready for tomorrow's adventure.
 
 ---
 
-## Implementation Notes (for your workflow)
+## Implementation Notes (v2.0 — Updated Structure)
 
-- **Hero poses:** prioritize standing, walking, looking, reaching. Use **one** seated pose on the picnic page (Page 8) *or* keep standing everywhere for maximal reuse.  
-- **Clues:** **footprints are now Easter eggs** - subtle, secondary elements that hint at the animal guide's presence without being the main focus.  
-- **Animal variants:** provide **one hero-friendly pose** per animal for Page 13 (reveal); footprints throughout as subtle Easter eggs.  
-- **Personalization:** weave `[Child Favorite Color]` into small accents (trail glow, snack, one flower patch, a shell). Add `[Child's Hometown]` for local connection.  
-- **No complex compositing:** no reflections, silhouettes, or water ripples; avoid glassy surfaces and high-contrast shadows.
+### **Story Arc:**
+- **Act 1 (Pages 1-4):** Journey into wonder - grounded walk → night forest → magical threshold → **courage leap** → landing in new world
+- **Act 2 (Pages 5-11):** Exploration and growth - diverse environments, affirmations about child's character
+- **Act 3 (Pages 12-14):** Connection and return - anticipation → reveal → **flying home together**
+
+### **Key Poses Needed:**
+1. **Walking/standing** (Pages 1, 2, 5, 6, 9, 11, 12, 13) — most common, reusable
+2. **Reaching toward doorway** (Page 3) — threshold moment
+3. **Floating/falling peacefully** (Page 4) — arms slightly out, gentle
+4. **Seated on blanket** (Page 8) — rest moment
+5. **Reaching toward crystals** (Page 10) — discovery
+6. **Flying with joy** (Page 14) — triumphant, with animal guide
+
+### **Lighting Progression:**
+Twilight → Night → Night (magical) → **Dawn/Morning** → Morning → Morning → Late Morning → Midday → Midday → Afternoon → Late Afternoon → Golden Hour/Sunset → **Night (stars)**
+
+### **Personalization Hooks:**
+- `[Child's Hometown]` appears on Pages 1 and 14 (journey loop)
+- `[Child Favorite Color]` can accent: trail glow (P2), picnic blanket (P8), crystal highlights (P10)
+- `[Animal Guide]` revealed Page 13, flies with child Page 14
+
+### **Easter Egg Footprints:**
+- Present as subtle glowing elements Pages 1-3, 5-7, 9, 12
+- Animal-specific variants throughout
+- Not on Pages 4, 8, 10, 11, 13, 14 (where inappropriate or character is revealed)
+
+### **Missing Images (2 needed):**
+1. **Page 12** - Transitional anticipation scene (path through enchanted grove or clearing at sunset)
+2. **Page 14** - Child + animal guide flying together through stars toward home
+
+### **Technical Notes:**
+- Keep all poses simple and clear for character overlay
+- No reflections, complex shadows, or water ripples
+- Maintain consistent character scale and positioning
+- Test pages can use placeholder for Pages 12 and 14 until images are created

@@ -71,3 +71,6 @@ echo "Next steps:"
 echo "1. In n8n workflow, verify 'Load Pose Reference' connects to 'Prepare Gemini Requests'"
 echo "2. Test the workflow - pose images should now be grayscale"
 
+
+
+

@@ -1,0 +1,60 @@
+{
+  "amazonOrderId": "TEST-ORDER-001",
+  "characterHash": "6ec1cd52dce77992",
+  "status": "ready_for_book_assembly",
+  "characterSpecs": {
+    "childName": "Alex",
+    "hometown": "Seattle",
+    "age": 5,
+    "favoriteColor": "blue",
+    "personality": "curious and brave"
+  },
+  "orderDetails": {
+    "orderDate": "2024-01-15T10:00:00.000Z",
+    "customerEmail": "test@example.com",
+    "shippingAddress": {
+      "name": "Test Customer",
+      "address1": "123 Test Street",
+      "city": "Seattle",
+      "state": "WA",
+      "zipCode": "98101",
+      "country": "US"
+    }
+  },
+  "workflowProgress": {
+    "characterGeneration": "completed",
+    "bookAssembly": "pending",
+    "pdfGeneration": "pending",
+    "shipping": "pending"
+  },
+  "generatedAssets": {
+    "baseCharacter": "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/base-character.png",
+    "poses": [
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose01.png",
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose02.png",
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose03.png",
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose04.png",
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose05.png",
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose06.png",
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose07.png",
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose08.png",
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose09.png",
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose10.png",
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose11.png",
+      "https://little-hero-assets.r2.cloudflarestorage.com/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose12.png"
+    ]
+  },
+  "bookSpecs": {
+    "title": "Voice of Wonder",
+    "totalPages": 14,
+    "pageSize": "8.5x8.5",
+    "dpi": 300,
+    "format": "softcover"
+  },
+  "metadata": {
+    "createdAt": "2024-01-15T10:00:00.000Z",
+    "updatedAt": "2024-01-15T10:00:00.000Z",
+    "version": "1.0",
+    "testMode": true
+  }
+}

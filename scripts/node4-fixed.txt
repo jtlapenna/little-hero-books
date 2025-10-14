@@ -1,0 +1,35 @@
+// Load story text for all pages with character personalization
+const orderData = $input.first().json;
+const childName = orderData.characterSpecs?.childName;
+const hometown = orderData.characterSpecs?.hometown || 'Seattle';
+if (!childName) throw new Error('Child name required');
+const storyTexts = [];
+for (let i = 1; i <= 14; i++) {
+  storyTexts.push({
+    pageNumber: i,
+    text: getStoryText(i, childName, hometown),
+    characterName: childName,
+    hometown: hometown,
+    validated: true
+  });
+}
+function getStoryText(p, n, h) {
+  const s = [
+    'It was a nice night in ' + h + '. ' + n + ' went outside.',
+    n + ' looked at the stars.<br>You like to explore, the voice said.',
+    'There was a doorway! ' + n + ' walked through.',
+    'Stars were all around! ' + n + ' felt brave.',
+    n + ' noticed footprints and followed them.',
+    'The path went through giant trees. ' + n + ' felt small, but not scared.',
+    'Look how far you came, the voice said.',
+    'Lunch was waiting! ' + n + ' ate happily.<br>You earned this, the voice said.',
+    'The path became warm sand. Look down there, the voice said.<br>' + n + ' found a beautiful shell!',
+    n + ' found a cave with sparkly crystals! They glowed with rainbow colors. You can find beauty everywhere, the voice said.',
+    'The path went through giant flowers. The petals were SO big!<br>You make others happy, the voice said.',
+    'The voice felt very close now. You are perfect just as you are, it said.<br>' + n + ' looked around. Where was the voice?',
+    'Tiger appeared! It was the voice!<br>I have been with you this whole time, said Tiger.',
+    'Ready to fly home? asked Tiger. They flew through the stars to ' + h + '.<br>I am always in your heart, said Tiger.'
+  ];
+  return s[p - 1] || 'Adventure awaits!';
+}
+return [{ json: {...orderData, storyTexts: storyTexts} }];

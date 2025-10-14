@@ -336,3 +336,6 @@ Merge corrected area back
 - **Next best move**: Pose pre-processing (grayscale/line art conversion)
 - Long-term: Consider character-specific training if we use template characters across many books
 
+
+
+

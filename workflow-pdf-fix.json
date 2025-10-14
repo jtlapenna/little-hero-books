@@ -1,0 +1,95 @@
+// Quick Fix: Replace Function nodes with HTTP Request nodes for PDF operations
+// This is a simplified version focusing on the PDF generation and upload issues
+
+// Node 7: Generate PDF Page (HTTP Request)
+{
+  "id": "7",
+  "name": "Generate PDF Page",
+  "type": "n8n-nodes-base.httpRequest",
+  "typeVersion": 4.1,
+  "position": [1560, 300],
+  "parameters": {
+    "method": "POST",
+    "url": "https://renderpdf.io/api/pdfs/render-sync",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "renderpdfApi",
+    "options": {
+      "headers": {
+        "parameters": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      },
+      "timeout": 30000
+    },
+    "bodyParameters": {
+      "parameters": [
+        {
+          "name": "htmlContent",
+          "value": "={{ $json.html }}"
+        },
+        {
+          "name": "filename",
+          "value": "page{{ $json.currentPageNumber }}_{{ $json.amazonOrderId }}.pdf"
+        }
+      ]
+    }
+  }
+}
+
+// Node 8: Download PDF from RenderPDF (HTTP Request)
+{
+  "id": "8",
+  "name": "Download PDF from RenderPDF",
+  "type": "n8n-nodes-base.httpRequest",
+  "typeVersion": 4.1,
+  "position": [1780, 300],
+  "parameters": {
+    "method": "GET",
+    "url": "={{ $json.fileUrl }}",
+    "options": {
+      "response": {
+        "response": {
+          "responseFormat": "file"
+        }
+      },
+      "timeout": 30000
+    }
+  }
+}
+
+// Node 8b: Upload PDF to R2 (HTTP Request)
+{
+  "id": "8b",
+  "name": "Upload PDF to R2",
+  "type": "n8n-nodes-base.httpRequest",
+  "typeVersion": 4.1,
+  "position": [1900, 300],
+  "parameters": {
+    "method": "PUT",
+    "url": "={{ $json.r2BaseUrl || 'https://little-hero-assets.r2.cloudflarestorage.com' }}/generated/{{ $json.amazonOrderId }}/page{{ $json.currentPageNumber }}.pdf",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "cloudflareR2Api",
+    "options": {
+      "headers": {
+        "parameters": [
+          {
+            "name": "Content-Type",
+            "value": "application/pdf"
+          }
+        ]
+      },
+      "timeout": 30000
+    },
+    "bodyParameters": {
+      "parameters": [
+        {
+          "name": "file",
+          "value": "={{ $binary.data }}"
+        }
+      ]
+    }
+  }
+}

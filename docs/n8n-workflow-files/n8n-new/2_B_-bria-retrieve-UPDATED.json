@@ -1,0 +1,325 @@
+{
+  "name": "LHB - 2.B.- Character Creation - UPDATED",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bria-workflow-b",
+        "options": {}
+      },
+      "id": "93452822-ddb4-4731-b059-6fdff23a863b",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-2240, 368],
+      "webhookId": "bria-workflow-b",
+      "notes": "Receives submission data from Workflow A"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Parse Submissions - Extracts array from webhook payload\n */\nconst IN = $input.all().map(i => i.json);\n\nfunction extractArrayPayload() {\n  // Try different payload structures\n  for (const item of IN) {\n    if (Array.isArray(item?.submissions)) return item.submissions;\n    if (Array.isArray(item?.body?.submissions)) return item.body.submissions;\n    if (Array.isArray(item?.data?.submissions)) return item.data.submissions;\n  }\n  return [];\n}\n\nconst submissions = extractArrayPayload();\n\nif (!submissions.length) {\n  console.error('No submissions array found in webhook payload');\n  console.error('Available keys:', IN[0] ? Object.keys(IN[0]) : 'none');\n  throw new Error('No submissions received from Workflow A');\n}\n\nconsole.log(`✓ Received ${submissions.length} submissions from Workflow A`);\n\n// Normalize and return each submission as separate item\nconst out = submissions.map((s, idx) => {\n  const requestId = s.requestId || s.request_id || null;\n  const statusUrl = s.statusUrl || s.status_url || null;\n  const poseNumber = s.poseNumber ?? idx;\n  const failed = s.failed || !(requestId && statusUrl);\n  \n  return {\n    json: {\n      requestId,\n      statusUrl,\n      poseNumber,\n      characterHash: s.characterHash || 'nohash',\n      characterPath: s.characterPath || null,\n      failed,\n      submittedAt: s.submittedAt || new Date().toISOString(),\n      retryCount: s.retryCount || 0\n    }\n  };\n});\n\nconsole.log(`Parsed submissions: ${out.length} items, ${out.filter(i => !i.json.failed).length} valid`);\nreturn out;"
+      },
+      "id": "519ac83c-5d70-499c-acf7-db3c15b2425b",
+      "name": "Parse Submissions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-2016, 368]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ab4fb4f3-cb0f-4bbd-bf2a-24c51e7d8396",
+              "name": "API_TOKEN",
+              "value": "eb0fed5156c441148c462a74d3f92f00",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-1808, 368],
+      "id": "6a6fc42a-259a-472d-9067-3ce876cb0afa",
+      "name": "Inject API Token"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst out = [];\n\nasync function fetchBinary(url, filename, mime='image/png') {\n  const buf = await this.helpers.request({ method:'GET', url, encoding:null, gzip:true });\n  return this.helpers.prepareBinaryData(buf, filename, mime);\n}\n\nfunction pickResultUrl(res) {\n  return (\n    res?.result?.image_url || res?.result?.url ||\n    res?.output?.image_url || res?.output?.url ||\n    res?.data?.image_url   || res?.data?.url   ||\n    res?.image_url         || res?.url         || null\n  );\n}\n\nfor (const item of items) {\n  const j = { ...item.json };\n  const token = j.API_TOKEN || '';\n  const statusUrl = j.statusUrl;\n\n  // Skip failed submissions\n  if (j.failed && !statusUrl) {\n    console.log(`Pose ${j.poseNumber}: Skipping failed submission`);\n    out.push({ json: { ...j, status:'SUBMISSION_FAILED', briaCompleted:false }});\n    continue;\n  }\n\n  if (!statusUrl || !token) {\n    out.push({ json: { ...j, status:'NO_STATUS_URL', briaCompleted:false, error:'Missing statusUrl or token' }});\n    continue;\n  }\n\n  try {\n    const res = await this.helpers.request({\n      method: 'GET',\n      url: statusUrl,\n      headers: { api_token: token },\n      json: true,\n    });\n\n    const s = String(res.status || res.state || res.result?.status || '').toUpperCase();\n    const completed = ['COMPLETED','SUCCEEDED','DONE'].includes(s);\n\n    if (completed) {\n      const url = pickResultUrl(res);\n      if (url) {\n        const bin = await fetchBinary.call(this, url, `pose_${j.poseNumber}_bria.png`);\n        console.log(`Pose ${j.poseNumber}: Retrieved successfully`);\n        out.push({ json: { ...j, status:s, briaCompleted:true, resultUrl:url }, binary: { data: bin }});\n      } else {\n        console.error(`Pose ${j.poseNumber}: Completed but no result URL`);\n        out.push({ json: { ...j, status:s, briaCompleted:false, error:'No result URL' }});\n      }\n      continue;\n    }\n\n    // Still processing\n    console.log(`Pose ${j.poseNumber}: Status=${s}, needs retry`);\n    out.push({ json: { ...j, status:s || 'UNKNOWN', briaCompleted:false }});\n  } catch (e) {\n    console.error(`Pose ${j.poseNumber}: Poll error - ${e.message}`);\n    out.push({ json: { ...j, status:'POLL_ERROR', briaCompleted:false, error:e.message }});\n  }\n}\n\nconsole.log(`Polling complete: ${out.length} items, ${out.filter(i=>i.json.briaCompleted).length} completed`);\nreturn out;"
+      },
+      "id": "5cbd70a8-05a2-4f49-ac0c-8d5d3df2128e",
+      "name": "Poll Status & Retrieve",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1600, 368],
+      "notes": "Polls all statuses and downloads completed images"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.status || ''}}",
+              "value2": "IN_PROGRESS"
+            }
+          ]
+        }
+      },
+      "id": "339e7f6d-9d5c-48a8-a18b-fd0c32c27b18",
+      "name": "Check Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [-1392, 368],
+      "notes": "Split: IN_PROGRESS vs COMPLETED/FAILED"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.briaCompleted }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "filter-completed-images",
+      "name": "Filter Completed Images",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-1184, 464],
+      "notes": "Only upload images that Bria successfully processed"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare metadata for R2 upload\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const j = item.json;\n  const binary = item.binary;\n  \n  if (!binary?.data) {\n    console.warn(`Pose ${j.poseNumber}: No binary data, skipping upload`);\n    continue;\n  }\n  \n  // Build R2 storage path\n  const characterHash = j.characterHash || 'nohash';\n  const poseNumber = j.poseNumber ?? 0;\n  const storageKey = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/${poseNumber}-processed.png`;\n  \n  // Public URL after upload\n  const publicUrl = `https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/${storageKey}`;\n  \n  results.push({\n    json: {\n      ...j,\n      storageKey,\n      publicUrl,\n      uploadReady: true\n    },\n    binary\n  });\n}\n\nconsole.log(`Prepared ${results.length} images for R2 upload`);\nreturn results;"
+      },
+      "id": "prepare-r2-upload",
+      "name": "Prepare for R2 Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-976, 384]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-assets",
+        "fileName": "={{ $json.storageKey }}",
+        "binaryPropertyName": "data",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [-768, 384],
+      "id": "upload-to-r2",
+      "name": "Upload Processed Images to R2",
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Remove binary data, keep only metadata\nconst items = $input.all();\n\nreturn items.map(item => {\n  const j = item.json;\n  console.log(`Pose ${j.poseNumber}: Uploaded to ${j.publicUrl}`);\n  \n  return {\n    json: {\n      poseNumber: j.poseNumber,\n      characterHash: j.characterHash,\n      processedImageUrl: j.publicUrl,\n      briaCompleted: true,\n      uploadedToR2: true,\n      uploadedAt: new Date().toISOString(),\n      status: 'COMPLETED'\n    }\n  };\n});"
+      },
+      "id": "clean-after-upload",
+      "name": "Clean Binary After Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-560, 384]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle failed/incomplete items\nconst items = $input.all();\n\nreturn items.map(item => {\n  const j = item.json;\n  console.warn(`Pose ${j.poseNumber}: Failed or incomplete - status=${j.status}`);\n  \n  return {\n    json: {\n      poseNumber: j.poseNumber,\n      characterHash: j.characterHash,\n      processedImageUrl: null,\n      briaCompleted: false,\n      status: j.status || 'FAILED',\n      error: j.error || 'Did not complete Bria processing'\n    }\n  };\n});"
+      },
+      "id": "handle-failed",
+      "name": "Handle Failed Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-976, 544]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "merge-uploaded-failed",
+      "name": "Merge Uploaded with Failed",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [-352, 464]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.retryCount }}",
+              "value2": 5
+            }
+          ]
+        }
+      },
+      "id": "481b0c52-9103-48d5-8b3d-6bab4d68c826",
+      "name": "Check Retry Limit",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [-1184, 144],
+      "notes": "Max 5 retries per image"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate exponential backoff delay\nconst items = $input.all();\nconst retryCount = (items[0]?.json.retryCount || 0) + 1;\n\n// Exponential backoff: 30s, 60s, 90s, 120s, 180s\nconst baseDelay = 30;\nconst delay = Math.min(baseDelay * Math.pow(1.5, retryCount - 1), 180);\n\nconsole.log(`=== RETRY NEEDED ===`);\nconsole.log(`Items to retry: ${items.length}`);\nconsole.log(`Retry attempt: ${retryCount}`);\nconsole.log(`Waiting ${delay} seconds before retry`);\nconsole.log(`==================`);\n\nreturn [{\n  json: {\n    submissions: items.map(i => ({ ...i.json, retryCount })),\n    retryDelay: delay,\n    retryAttempt: retryCount,\n    totalSubmissions: items.length\n  }\n}];"
+      },
+      "id": "5cbf8d17-8910-4944-97e2-749225ab80d0",
+      "name": "Calculate Retry Delay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-976, 64],
+      "notes": "Exponential backoff: 30s, 60s, 90s, 120s, 180s"
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.retryDelay }}",
+        "unit": "seconds"
+      },
+      "id": "cc4a5def-c4be-495e-957c-9511eb19b8b0",
+      "name": "Wait Before Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [-768, 64],
+      "webhookId": "wait-retry-delay"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bria-workflow-b",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { submissions: $json.submissions, totalSubmissions: $json.totalSubmissions, retryAttempt: $json.retryAttempt } }}",
+        "options": {}
+      },
+      "id": "407c2598-c609-46e9-94ee-c5b3b3e3167e",
+      "name": "Retry Workflow B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-560, 64],
+      "notes": "Recursively call this workflow for in-progress items"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Max retries exceeded - mark as failed\nconst items = $input.all();\n\nreturn items.map(item => {\n  const j = item.json;\n  console.error(`Pose ${j.poseNumber}: Max retries exceeded`);\n  \n  return {\n    json: {\n      poseNumber: j.poseNumber,\n      characterHash: j.characterHash,\n      processedImageUrl: null,\n      briaCompleted: false,\n      status: 'MAX_RETRIES_EXCEEDED',\n      error: 'Maximum retry attempts (5) exceeded',\n      retrievedAt: new Date().toISOString()\n    }\n  };\n});"
+      },
+      "id": "80de970f-2ec8-4e84-9108-e084df36b5ed",
+      "name": "Max Retries Exceeded",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-976, 224]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "1039b003-3489-42ad-b2a6-d0cbb6317862",
+      "name": "Merge All Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [-144, 368]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Final summary and validation\nconst allItems = $input.all();\n\nconst summary = {\n  total: allItems.length,\n  completed: allItems.filter(i => i.json.briaCompleted === true).length,\n  failed: allItems.filter(i => i.json.briaCompleted === false).length,\n  completedAt: new Date().toISOString()\n};\n\nconsole.log('=== WORKFLOW B COMPLETE ===');\nconsole.log(`Total images: ${summary.total}`);\nconsole.log(`Bria processed: ${summary.completed}`);\nconsole.log(`Failed: ${summary.failed}`);\nconsole.log(`Success rate: ${(summary.completed / summary.total * 100).toFixed(1)}%`);\nconsole.log('===========================');\n\n// Add summary to each item for next workflow step\nreturn allItems.map(item => ({\n  json: {\n    ...item.json,\n    workflowSummary: summary\n  }\n}));"
+      },
+      "id": "78c1d875-6386-4573-8ef8-a43938ea9d18",
+      "name": "Generate Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [64, 368]
+    },
+    {
+      "parameters": {},
+      "id": "8b7d77ec-64a7-498d-a99b-154c151aff01",
+      "name": "Output: All Images Ready",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [272, 368],
+      "notes": "All processed images uploaded to R2 with URLs ready for HTML/PDF generation"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{"node": "Parse Submissions", "type": "main", "index": 0}]]
+    },
+    "Parse Submissions": {
+      "main": [[{"node": "Inject API Token", "type": "main", "index": 0}]]
+    },
+    "Inject API Token": {
+      "main": [[{"node": "Poll Status & Retrieve", "type": "main", "index": 0}]]
+    },
+    "Poll Status & Retrieve": {
+      "main": [[{"node": "Check Status", "type": "main", "index": 0}]]
+    },
+    "Check Status": {
+      "main": [
+        [{"node": "Check Retry Limit", "type": "main", "index": 0}],
+        [{"node": "Filter Completed Images", "type": "main", "index": 0}]
+      ]
+    },
+    "Filter Completed Images": {
+      "main": [
+        [{"node": "Prepare for R2 Upload", "type": "main", "index": 0}],
+        [{"node": "Handle Failed Items", "type": "main", "index": 0}]
+      ]
+    },
+    "Prepare for R2 Upload": {
+      "main": [[{"node": "Upload Processed Images to R2", "type": "main", "index": 0}]]
+    },
+    "Upload Processed Images to R2": {
+      "main": [[{"node": "Clean Binary After Upload", "type": "main", "index": 0}]]
+    },
+    "Clean Binary After Upload": {
+      "main": [[{"node": "Merge Uploaded with Failed", "type": "main", "index": 0}]]
+    },
+    "Handle Failed Items": {
+      "main": [[{"node": "Merge Uploaded with Failed", "type": "main", "index": 1}]]
+    },
+    "Merge Uploaded with Failed": {
+      "main": [[{"node": "Merge All Results", "type": "main", "index": 0}]]
+    },
+    "Check Retry Limit": {
+      "main": [
+        [{"node": "Calculate Retry Delay", "type": "main", "index": 0}],
+        [{"node": "Max Retries Exceeded", "type": "main", "index": 0}]
+      ]
+    },
+    "Calculate Retry Delay": {
+      "main": [[{"node": "Wait Before Retry", "type": "main", "index": 0}]]
+    },
+    "Wait Before Retry": {
+      "main": [[{"node": "Retry Workflow B", "type": "main", "index": 0}]]
+    },
+    "Max Retries Exceeded": {
+      "main": [[{"node": "Merge All Results", "type": "main", "index": 1}]]
+    },
+    "Merge All Results": {
+      "main": [[{"node": "Generate Summary", "type": "main", "index": 0}]]
+    },
+    "Generate Summary": {
+      "main": [[{"node": "Output: All Images Ready", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "UwwavojZUJ0pBU4Z",
+  "tags": []
+}

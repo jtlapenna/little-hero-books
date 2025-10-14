@@ -14,9 +14,9 @@ const PORT = 3001;
 const server = http.createServer((req, res) => {
   let filePath = '.' + req.url;
   
-  // Default to page01 if no specific page requested
+  // Default to index if no specific page requested
   if (filePath === './') {
-    filePath = './page01-test.html';
+    filePath = './index.html';
   }
   
   // Add .html extension if not present
@@ -72,18 +72,21 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log('🎨 Character Positioning Test Server');
+  console.log('🌟 Little Hero Books - Character Positioning Test Server');
   console.log(`📡 Server running at http://localhost:${PORT}`);
-  console.log('\n📋 Available test pages:');
-  console.log(`   http://localhost:${PORT}/page01-test.html - Garden Path Twilight`);
-  console.log(`   http://localhost:${PORT}/page02-test.html - Garden Gate Magical`);
-  console.log(`   http://localhost:${PORT}/page03-test.html - Forest Night`);
-  console.log(`   http://localhost:${PORT}/page04-test.html - Forest Clearing`);
-  console.log(`   http://localhost:${PORT}/pose-gallery.html - Character Poses Gallery`);
-  console.log('\n🎯 Instructions:');
-  console.log('1. Open each page in your browser');
-  console.log('2. Use the position controls to adjust character placement');
-  console.log('3. Click "Copy CSS" to get the exact positioning values');
-  console.log('4. Update the n8n workflow with the final positions');
-  console.log('\nPress Ctrl+C to stop the server');
+  console.log('\n🎯 Quick Start:');
+  console.log(`   Open http://localhost:${PORT}/ in your browser`);
+  console.log('   Click any page card to position characters\n');
+  console.log('📋 All 14 test pages available:');
+  console.log('   Pages 01-14 with full positioning & lighting controls');
+  console.log('   ⚠️  Page 12 needs background image (TBD)');
+  console.log('   ⚠️  Page 13 uses placeholder pose\n');
+  console.log('📝 Instructions:');
+  console.log('1. Navigate to any page from the index');
+  console.log('2. Use position controls (right %, top %, width px)');
+  console.log('3. Toggle "Flip Horizontal" if needed');
+  console.log('4. Adjust lighting gradient (direction, colors, opacity, blend mode)');
+  console.log('5. Click "Copy CSS" to export settings');
+  console.log('6. Save CSS for n8n workflow integration\n');
+  console.log('Press Ctrl+C to stop the server');
 });

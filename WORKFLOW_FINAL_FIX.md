@@ -73,3 +73,6 @@ const poseBuffer = await this.helpers.getBinaryDataBuffer(i, 'data');
 
 Let me know what the debug output shows!
 
+
+
+

@@ -102,3 +102,6 @@ for (let i = 0; i < poseItems.length; i++) {
 3. Update "Prepare Gemini Requests" to use the new character source
 4. Test the workflow
 
+
+
+
