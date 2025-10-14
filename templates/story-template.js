@@ -102,7 +102,7 @@ function generatePersonalizedStory(childData, options = {}) {
     HAIR_COLOR: childData.hair || 'brown',
     SKIN_TONE: childData.skin || 'medium',
     PRONOUNS: childData.pronouns || 'they/them',
-    FAVORITE_ANIMAL: options.favorite_animal || 'fox',
+    FAVORITE_ANIMAL: options.favorite_animal || 'dog',
     FAVORITE_FOOD: options.favorite_food || 'pizza',
     FAVORITE_COLOR: options.favorite_color || 'blue',
     HOMETOWN: options.hometown || 'Adventure City',
@@ -190,7 +190,7 @@ function getPersonalizationOptions() {
     required: ['name', 'age', 'hair', 'skin'],
     optional: ['favorite_animal', 'favorite_food', 'favorite_color', 'hometown', 'occasion', 'dedication'],
     defaults: {
-      favorite_animal: 'fox',
+      favorite_animal: 'dog',
       favorite_food: 'pizza', 
       favorite_color: 'blue',
       hometown: 'Adventure City',

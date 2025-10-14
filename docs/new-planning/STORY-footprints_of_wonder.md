@@ -3,7 +3,7 @@
 **Personalization tokens:**  
 `[Child's Name]` · `[Gift Giver's Name]` · `[Animal Guide]` · `[Child Age]` · `[Child Hair Color]` · `[Child Hair Style]` · `[Child Favorite Color]` · `[Child Skin Tone]` · `[Child's Hometown]`
 
-**Animal guide options (v1 set):** Dog, Cat, Rabbit, Tiger, Owl, Penguin, Unicorn
+**Animal guide options (v1 set):** Dog, Cat, T-Rex, Unicorn, Tiger, Lion, Owl
 
 ---
 
@@ -217,7 +217,7 @@ The voice felt very close now.
 - Child facing them, arms open or waving
 - Warm golden hour lighting
 - Magical but gentle atmosphere
-- Animal variants: Dog/Cat/Rabbit/Tiger/Owl/Penguin/Unicorn
+- Animal variants: Dog/Cat/T-Rex/Unicorn/Tiger/Lion/Owl
 -->
 
 ---

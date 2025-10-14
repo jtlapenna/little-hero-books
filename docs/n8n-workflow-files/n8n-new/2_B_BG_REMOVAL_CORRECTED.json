@@ -1,0 +1,500 @@
+{
+  "name": "LHB - 2.B.- BG REMOVAL - UPDATED",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-removal",
+        "options": {}
+      },
+      "id": "b73373b9-4968-4a0e-a403-805e0419e182",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -4288,
+        2784
+      ],
+      "webhookId": "bg-removal-webhook",
+      "notes": "Receives submission data from Workflow 2A"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Parse Submissions - Extract and validate webhook payload\n * UPDATED: Preserves orderData from Workflow 2A\n */\nconst input = $input.first().json;\n\n// Handle both direct submissions and webhook body structure\nconst submissions = input.body?.submissions || input.submissions || [];\nconst orderData = input.body?.orderData || input.orderData || {};\n\nconsole.log('=== WORKFLOW 2B STARTED ===');\nconsole.log('Input structure:', Object.keys(input));\nconsole.log(`Processing ${submissions.length} submissions`);\nconsole.log(`Order: ${orderData.amazonOrderId || 'UNKNOWN'}`);\nconsole.log(`Character Hash: ${orderData.characterHash || 'UNKNOWN'}`);\nconsole.log('============================');\n\n// Validate that we have submissions\nif (submissions.length === 0) {\n  console.error('❌ No submissions found!');\n  console.error('Available input keys:', Object.keys(input));\n  throw new Error('No submissions received from Workflow 2A');\n}\n\n// Validate orderData has required fields\nif (!orderData.characterHash) {\n  console.error('❌ Missing characterHash in orderData!');\n  throw new Error('characterHash is required for file organization');\n}\n\nconsole.log('✓ All submissions have required fields');\nconsole.log('✓ orderData validated');\n\n// Return each submission as separate item with orderData preserved\nreturn submissions.map((s, idx) => ({ \n  json: {\n    requestId: s.requestId || s.request_id,\n    statusUrl: s.statusUrl || s.status_url,\n    poseNumber: s.poseNumber || (idx + 1),\n    characterHash: s.characterHash || orderData.characterHash,\n    orderData: orderData,\n    retryCount: 0,\n    maxRetries: 5\n  }\n}));"
+      },
+      "id": "cbce8983-4c4c-474f-a861-f0c56f223b20",
+      "name": "Parse Submissions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4032,
+        2784
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.statusUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_token",
+              "value": "eb0fed5156c441148c462a74d3f92f00"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ee980717-3256-4121-bd6c-6e2a91867703",
+      "name": "Check Bria Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3808,
+        2784
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Parse Bria status response\n * Determines next action: download, retry, or fail\n */\nconst item = $input.first().json;\nconst status = item.status || 'UNKNOWN';\nconst poseNumber = item.poseNumber;\n\nconsole.log(`[Pose ${poseNumber}] Status: ${status}`);\n\nlet shouldDownload = false;\nlet shouldRetry = false;\nlet resultUrl = null;\n\nif (status === 'COMPLETED' || status === 'SUCCESS') {\n  shouldDownload = true;\n  resultUrl = item.result?.image_url || item.result_url || item.url;\n  console.log(`[Pose ${poseNumber}] ✓ Ready for download`);\n} else if (status === 'IN_PROGRESS' || status === 'PROCESSING') {\n  const currentRetry = item.retryCount || 0;\n  const maxRetries = item.maxRetries || 5;\n  shouldRetry = currentRetry < maxRetries;\n  \n  if (shouldRetry) {\n    console.log(`[Pose ${poseNumber}] ⏳ Still processing, will retry (${currentRetry + 1}/${maxRetries})`);\n  } else {\n    console.log(`[Pose ${poseNumber}] ❌ Max retries exceeded`);\n  }\n} else {\n  console.log(`[Pose ${poseNumber}] ❌ Processing failed: ${status}`);\n}\n\nreturn [{\n  json: {\n    ...item,\n    briaStatus: status,\n    resultUrl: resultUrl,\n    shouldDownload: shouldDownload,\n    shouldRetry: shouldRetry,\n    statusCheckedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "05cf4e6b-41af-469e-82ae-21e52364218d",
+      "name": "Parse Status Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3584,
+        2784
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.shouldDownload }}",
+              "value2": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6d28d4b2-8165-4e9b-9ff4-777e7c6d2bf2",
+      "name": "Route By Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3360,
+        2784
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.resultUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "984d264e-25b8-4fc7-a22b-c23ccff3ca00",
+      "name": "Download Processed Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3136,
+        2672
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Prepare for R2 Upload\n * UPDATED: Matches folder structure from Workflow 2A\n * Format: book-mvp-simple-adventure/order-generated-assets/characters/{hash}/characters_{hash}_pose{XX}_nobg.png\n */\nconst item = $input.first();\nconst poseNumber = item.json.poseNumber;\nconst orderData = item.json.orderData;\nconst characterHash = item.json.characterHash || orderData?.characterHash;\n\n// Get binary data\nconst binaryData = item.binary?.data;\n\nif (!binaryData) {\n  throw new Error(`No binary data received for pose ${poseNumber}`);\n}\n\nif (!characterHash) {\n  throw new Error(`Missing characterHash for pose ${poseNumber}`);\n}\n\nconsole.log(`[Pose ${poseNumber}] ✓ Downloaded image (${binaryData.fileSize || 'unknown'} bytes)`);\n\n// Build R2 path matching Workflow 2A structure\nconst paddedPose = poseNumber.toString().padStart(2, '0');\nconst fileName = `characters_${characterHash}_pose${paddedPose}_nobg.png`;\nconst r2Path = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/${fileName}`;\n\n// Build public URL\nconst publicUrl = `https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/${r2Path}`;\n\nconsole.log(`[Pose ${poseNumber}] Will upload to: ${r2Path}`);\n\nreturn [{\n  json: {\n    ...item.json,\n    fileName: fileName,\n    r2Path: r2Path,\n    publicUrl: publicUrl,\n    processedWithBria: true,\n    processingError: false,\n    downloadedAt: new Date().toISOString()\n  },\n  binary: {\n    data: binaryData\n  }\n}];"
+      },
+      "id": "8cb6bd34-ce60-4a2c-9bf8-9f418b0a4ad7",
+      "name": "Prepare for R2 Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2912,
+        2672
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-assets",
+        "fileName": "={{ $json.r2Path }}",
+        "additionalFields": {}
+      },
+      "id": "728fcad7-44d9-496f-9f8e-55316bfb67d3",
+      "name": "Upload to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -2688,
+        2672
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Clean up binary after upload\n * Store metadata for Workflow 3\n */\nconst item = $input.first().json;\nconst poseNumber = item.poseNumber;\n\nconsole.log(`[Pose ${poseNumber}] ✓ Uploaded to R2: ${item.r2Path}`);\n\nreturn [{\n  json: {\n    poseNumber: poseNumber,\n    characterHash: item.characterHash,\n    fileName: item.fileName,\n    r2Path: item.r2Path,\n    publicUrl: item.publicUrl,\n    briaProcessed: true,\n    briaStatus: item.briaStatus,\n    uploadComplete: true,\n    uploadedAt: new Date().toISOString(),\n    orderData: item.orderData\n  }\n}];"
+      },
+      "id": "acf9b798-166e-4505-95ba-eebc90da5d15",
+      "name": "Clean Binary After Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2464,
+        2672
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.shouldRetry }}",
+              "value2": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c30395ec-a39e-4916-a789-3779e256dfc1",
+      "name": "Check Retry Limit",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3136,
+        2896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate exponential backoff delay\nconst item = $input.first().json;\nconst retryCount = item.retryCount || 0;\n\n// Exponential backoff: 30s, 60s, 120s, 240s, 480s\nconst baseDelay = 30;\nconst delay = baseDelay * Math.pow(2, retryCount);\n\nconsole.log(`Retry ${retryCount + 1}: Waiting ${delay} seconds...`);\n\nreturn [{\n  json: {\n    ...item,\n    retryCount: retryCount + 1,\n    delaySeconds: delay\n  }\n}];"
+      },
+      "id": "03d05b71-5839-45e5-bf98-113c918aab3e",
+      "name": "Calculate Retry Delay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2912,
+        2816
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.delaySeconds }}"
+      },
+      "id": "16bb5409-33a5-4ded-a943-3d57ce39494e",
+      "name": "Wait Before Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -2688,
+        2816
+      ],
+      "webhookId": "retry-wait-webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ submissions: [$json], orderData: $json.orderData }) }}",
+        "options": {}
+      },
+      "id": "92cb0564-085c-462c-9994-cb4aac2b8454",
+      "name": "Retry Workflow B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2464,
+        2816
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Max retries exceeded - mark as failed\n */\nconst item = $input.first().json;\nconst poseNumber = item.poseNumber;\n\nconsole.error(`[Pose ${poseNumber}] ❌ Max retries (${item.maxRetries}) exceeded`);\n\nreturn [{\n  json: {\n    poseNumber: poseNumber,\n    characterHash: item.characterHash,\n    briaProcessed: false,\n    briaStatus: 'MAX_RETRIES_EXCEEDED',\n    processingError: true,\n    error: `Maximum retry attempts (${item.maxRetries}) exceeded`,\n    orderData: item.orderData\n  }\n}];"
+      },
+      "id": "f8e578f9-4225-4f79-b846-42318bf19cdf",
+      "name": "Max Retries Exceeded",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2912,
+        2976
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "08a661f3-cbd7-4705-8555-df65829f7b90",
+      "name": "Merge All Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -2240,
+        2784
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Generate final summary with complete orderData\n * UPDATED: Proper payload structure for Workflow 3\n */\nconst items = $input.all();\nconst orderData = items[0]?.json?.orderData || {};\n\nconsole.log('\\n=== WORKFLOW 2B COMPLETE ===');\nconsole.log(`Total images processed: ${items.length}`);\n\nconst processedImages = items.map(item => ({\n  poseNumber: item.json.poseNumber,\n  fileName: item.json.fileName,\n  r2Path: item.json.r2Path,\n  publicUrl: item.json.publicUrl,\n  briaProcessed: item.json.briaProcessed || false,\n  briaStatus: item.json.briaStatus,\n  processingError: item.json.processingError || false\n}));\n\nconst stats = {\n  total: items.length,\n  completed: processedImages.filter(i => i.briaProcessed).length,\n  failed: processedImages.filter(i => i.processingError).length\n};\n\nconsole.log(`✓ Bria processed: ${stats.completed}`);\nconsole.log(`❌ Failed: ${stats.failed}`);\nconsole.log(`Success rate: ${(stats.completed / stats.total * 100).toFixed(1)}%`);\nconsole.log('===========================\\n');\n\nreturn [{\n  json: {\n    processedImages: processedImages,\n    workflowSummary: stats,\n    orderData: orderData,\n    status: 'ready_for_book_assembly',\n    completedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "ec17c8ba-727d-4c24-9f8c-d365f160f980",
+      "name": "Generate Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2016,
+        2784
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "0aea749f-769e-4b66-bec5-63e3563fadd0",
+      "name": "Trigger Workflow 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1792,
+        2784
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Workflow 2B completed', total: $json.workflowSummary.total, completed: $json.workflowSummary.completed, failed: $json.workflowSummary.failed } }}",
+        "options": {}
+      },
+      "id": "fd8f7636-0626-4b04-adc8-e970902b55f2",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -1568,
+        2784
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Submissions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Submissions": {
+      "main": [
+        [
+          {
+            "node": "Check Bria Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Bria Status": {
+      "main": [
+        [
+          {
+            "node": "Parse Status Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Status Response": {
+      "main": [
+        [
+          {
+            "node": "Route By Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route By Status": {
+      "main": [
+        [
+          {
+            "node": "Download Processed Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Retry Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Processed Image": {
+      "main": [
+        [
+          {
+            "node": "Prepare for R2 Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for R2 Upload": {
+      "main": [
+        [
+          {
+            "node": "Upload to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to R2": {
+      "main": [
+        [
+          {
+            "node": "Clean Binary After Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Binary After Upload": {
+      "main": [
+        [
+          {
+            "node": "Merge All Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Retry Limit": {
+      "main": [
+        [
+          {
+            "node": "Calculate Retry Delay",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Max Retries Exceeded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Retry Delay": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Retry": {
+      "main": [
+        [
+          {
+            "node": "Retry Workflow B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Max Retries Exceeded": {
+      "main": [
+        [
+          {
+          "node": "Merge All Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge All Results": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Summary": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Workflow 3": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "updated-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "HfOmpwcjC11KQN28",
+  "tags": []
+}

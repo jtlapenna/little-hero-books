@@ -123,14 +123,13 @@ const ASSET_LIBRARY = {
   
   // Animal companions
   animalCompanions: {
-    'dragon': 'overlays/companions/dragon.png',
-    'fox': 'overlays/companions/fox.png',
-    'elephant': 'overlays/companions/elephant.png',
-    'butterfly': 'overlays/companions/butterfly.png',
-    'bear': 'overlays/companions/bear.png',
-    'rabbit': 'overlays/companions/rabbit.png',
-    'owl': 'overlays/companions/owl.png',
-    'turtle': 'overlays/companions/turtle.png'
+    'dog': 'overlays/companions/dog.png',
+    'cat': 'overlays/companions/cat.png',
+    't-rex': 'overlays/companions/t-rex.png',
+    'unicorn': 'overlays/companions/unicorn.png',
+    'tiger': 'overlays/companions/tiger.png',
+    'lion': 'overlays/companions/lion.png',
+    'owl': 'overlays/companions/owl.png'
   },
   
   // Magical elements with color variations

@@ -62,7 +62,7 @@
     age: 4,
     pronouns: 'he/him',
     favoriteColor: 'yellow',
-    animalGuide: 'unicorn',
+    animalGuide: 'dog',
     clothingStyle: 't-shirt and shorts'
   },
   characterHash: '6ec1cd52dce77992',

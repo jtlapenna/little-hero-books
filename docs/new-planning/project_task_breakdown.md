@@ -122,10 +122,10 @@ This document breaks down the Little Hero Books project into specific, assignabl
 - [ ] Create additional animal guide variants (V2)
   - [ ] Dog guide
   - [ ] Cat guide
-  - [ ] Rabbit guide
-  - [ ] Owl guide
-  - [ ] Penguin guide
+  - [ ] T-Rex guide
   - [ ] Unicorn guide
+  - [ ] Lion guide
+  - [ ] Owl guide
 
 ---
 

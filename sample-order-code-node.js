@@ -14,7 +14,7 @@ const sampleOrder = {
     age: 4,
     pronouns: 'they/them',
     favoriteColor: 'green',
-    animalGuide: 'unicorn',
+    animalGuide: 'dog',
     clothingStyle: 't-shirt and shorts'
   },
   publicR2Url: 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev',

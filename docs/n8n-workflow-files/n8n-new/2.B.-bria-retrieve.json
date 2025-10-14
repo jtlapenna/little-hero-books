@@ -1,230 +1,339 @@
 {
-  "name": "LHB - 2.B.- Character Creation",
+  "name": "LHB - 2.B.- BG REMOVAL",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "bria-workflow-b",
+        "path": "bg-removal",
         "options": {}
       },
-      "id": "93452822-ddb4-4731-b059-6fdff23a863b",
+      "id": "b73373b9-4968-4a0e-a403-805e0419e182",
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -2240,
-        368
+        -6800,
+        6272
       ],
-      "webhookId": "bria-workflow-b",
+      "webhookId": "4bfccdb7-ce6d-4961-85c1-5605f2a14128",
       "notes": "Receives submission data from Workflow A"
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Parse Submissions (tolerant + normalized)\n * - Accepts multiple payload shapes (body.submissions, data.submissions, raw array, etc.)\n * - Never throws if requestId/statusUrl are missing\n * - Emits a uniform schema and marks items that need fallback\n */\n\nconst IN = $input.all().map(i => i.json);\n\n// Helpers\nconst get = (obj, path) => {\n  try {\n    return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);\n  } catch { return undefined; }\n};\nconst looksLikeSubmission = (o) =>\n  o && typeof o === 'object' && (\n    'requestId' in o || 'request_id' in o || 'statusUrl' in o || 'status_url' in o ||\n    'characterPath' in o || 'poseNumber' in o || 'failed' in o\n  );\n\nfunction extractArrayPayload() {\n  // A) envelope styles\n  for (const item of IN) {\n    if (Array.isArray(item?.submissions)) return item.submissions;\n    if (Array.isArray(item?.body?.submissions)) return item.body.submissions;\n    if (Array.isArray(item?.data?.submissions)) return item.data.submissions;\n    if (Array.isArray(item?.json?.submissions)) return item.json.submissions;\n  }\n  // B) raw array as first item\n  if (Array.isArray(IN[0]) && IN[0].length && looksLikeSubmission(IN[0][0])) return IN[0];\n  // C) any incoming item is a raw array\n  for (const item of IN) {\n    if (Array.isArray(item) && item.length && looksLikeSubmission(item[0])) return item;\n  }\n  // D) single submission object (rare)\n  for (const item of IN) {\n    if (looksLikeSubmission(item)) return [item];\n  }\n  return [];\n}\n\nconst submissions = extractArrayPayload();\n\nif (!submissions.length) {\n  // Don’t throw—emit a single diagnostic item to keep the workflow moving.\n  const dbg = {\n    incomingItemCount: IN.length,\n    firstItemType: Array.isArray(IN[0]) ? 'array' : typeof IN[0],\n    firstItemKeys: IN[0] && typeof IN[0] === 'object' ? Object.keys(IN[0]) : null,\n  };\n  console.warn('No submissions array found. Debug:', dbg);\n  return [{ json: { _parseWarning: 'No submissions found', _debug: dbg, _needsFallback: true } }];\n}\n\n// Normalize each submission\nconst out = submissions.map((s, idx) => {\n  // Robust extraction: try multiple places/names\n  const requestId =\n    s.requestId ?? s.request_id ??\n    get(s, 'bria.requestId') ?? get(s, 'bria.request_id') ??\n    get(s, 'data.requestId') ?? get(s, 'data.request_id') ??\n    get(s, 'result.requestId') ?? get(s, 'result.request_id');\n\n  const statusUrl =\n    s.statusUrl ?? s.status_url ??\n    get(s, 'bria.statusUrl') ?? get(s, 'bria.status_url') ??\n    get(s, 'data.statusUrl') ?? get(s, 'data.status_url') ??\n    get(s, 'result.statusUrl') ?? get(s, 'result.status_url') ??\n    get(s, 'links.status') ?? get(s, 'links.poll');\n\n  const poseNumber = s.poseNumber ?? s.currentPoseNumber ?? s.pose ?? idx + 1;\n\n  const characterPath = s.characterPath ?? get(s, 'meta.characterPath') ?? null;\n  const fallbackBase64 = s.fallbackBase64 ?? null;\n\n  const submittedAt = s.submittedAt ?? new Date().toISOString();\n  const failed = !!s.failed;\n\n  const needsFallback = !(requestId && statusUrl);\n\n  return {\n    json: {\n      // Required downstream schema\n      requestId: requestId || null,\n      statusUrl: statusUrl || null,\n      poseNumber,\n      characterHash: s.characterHash ?? null,\n      characterPath,\n      fallbackBase64,\n      submittedAt,\n      failed: failed || needsFallback,\n      _needsFallback: needsFallback,\n\n      // carry through minimal debug keys if present in payload (optional)\n      __debug_bria_keys: s.__debug_bria_keys,\n      __debug_bria_data_keys: s.__debug_bria_data_keys,\n      __debug_bria_result_keys: s.__debug_bria_result_keys,\n      __debug_bria_links_keys: s.__debug_bria_links_keys\n    }\n  };\n});\n\nconst withIds = out.filter(i => i.json.requestId && i.json.statusUrl).length;\nconst withoutIds = out.length - withIds;\nconsole.log(`Parse Submissions: ${out.length} item(s). With IDs: ${withIds}. Without IDs (will fallback): ${withoutIds}.`);\n\nreturn out;\n"
+        "jsCode": "/**\n * Parse Submissions - Extract and validate webhook payload\n * UPDATED: Preserve full original payload as sourcePayload\n */\nconst input = $input.first().json;\n\n// Handle both direct submissions and webhook body structure\nconst sourcePayload = input.body || input || {};\nconst submissions = sourcePayload.submissions || [];\nconst orderData = sourcePayload.orderData || {};\n\nconsole.log('=== WORKFLOW 2B STARTED ===');\nconsole.log(`Processing ${submissions.length} submissions`);\nconsole.log(`Order: ${orderData.amazonOrderId || 'UNKNOWN'}`);\nconsole.log(`Character Hash: ${orderData.characterHash || 'UNKNOWN'}`);\n\nif (submissions.length === 0) {\n  throw new Error('No submissions received from Workflow 2A');\n}\nif (!orderData.characterHash) {\n  throw new Error('characterHash is required for file organization');\n}\n\n// Return each submission as separate item with orderData + sourcePayload preserved\nreturn submissions.map((s, idx) => ({\n  json: {\n    requestId: s.requestId || s.request_id,\n    statusUrl: s.statusUrl || s.status_url,\n    poseNumber: s.poseNumber || (idx + 1),\n    characterHash: s.characterHash || orderData.characterHash,\n    orderData,\n    sourcePayload,   // ← keep the full upstream body for later enrichment\n    retryCount: 0,\n    maxRetries: 5\n  }\n}));\n"
       },
-      "id": "519ac83c-5d70-499c-acf7-db3c15b2425b",
+      "id": "1185c359-15c0-444e-9177-d735653d80c0",
       "name": "Parse Submissions",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2016,
-        368
+        -6592,
+        6272
       ]
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst out = [];\n\nasync function fetchBinary(url, filename, mime='image/png') {\n  const buf = await this.helpers.request({ method:'GET', url, encoding:null, gzip:true });\n  return this.helpers.prepareBinaryData(buf, filename, mime);\n}\n\nfunction pickResultUrl(res) {\n  // Try common Bria shapes; add more if your payload differs\n  return (\n    res?.result?.image_url || res?.result?.url ||\n    res?.output?.image_url || res?.output?.url ||\n    res?.data?.image_url   || res?.data?.url   ||\n    res?.image_url         || res?.url         || null\n  );\n}\n\nfor (const item of items) {\n  const j = { ...item.json };\n  const token = j.API_TOKEN || '';\n  const statusUrl = j.statusUrl;\n\n  if (!statusUrl) {\n    out.push({ json: { ...j, status:'NO_STATUS_URL', briaCompleted:false, error:'Missing statusUrl' }});\n    continue;\n  }\n  if (!token) {\n    out.push({ json: { ...j, status:'NO_TOKEN', briaCompleted:false, error:'Missing API token' }});\n    continue;\n  }\n\n  try {\n    const res = await this.helpers.request({\n      method: 'GET',\n      url: statusUrl,\n      headers: { api_token: token },\n      json: true,\n    });\n\n    const s = String(res.status || res.state || res.result?.status || '').toUpperCase();\n    const completed = ['COMPLETED','SUCCEEDED','DONE'].includes(s);\n\n    if (completed) {\n      const url = pickResultUrl(res);\n      if (url) {\n        const bin = await fetchBinary.call(this, url, `pose_${j.poseNumber ?? 0}_bria.png`);\n        out.push({ json: { ...j, status:s, briaCompleted:true, resultUrl:url }, binary: { data: bin }});\n      } else {\n        // Leave raw status to help you discover the correct field name\n        out.push({ json: { ...j, status:s, briaCompleted:true, error:'Completed but no result URL found', rawStatus:res }});\n      }\n      continue;\n    }\n\n    // Not completed yet – let your If/Retry logic handle it\n    out.push({ json: { ...j, status:s || 'UNKNOWN', briaCompleted:false, rawStatus:res }});\n  } catch (e) {\n    out.push({ json: { ...j, status:'POLL_ERROR', briaCompleted:false, error:`${e.statusCode||''} ${e.message||e}` }});\n  }\n}\n\nreturn out;\n"
+        "url": "={{ $json.statusUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_token",
+              "value": "eb0fed5156c441148c462a74d3f92f00"
+            }
+          ]
+        },
+        "options": {}
       },
-      "id": "5cbd70a8-05a2-4f49-ac0c-8d5d3df2128e",
-      "name": "Poll Status & Retrieve",
+      "id": "e7831e06-29bf-4130-9d5e-7b4421443c46",
+      "name": "Check Bria Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -6368,
+        6160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Parse Bria status responses (one output item per input item)\n * Works with merged items where Bria fields are top-level.\n * Preserves poseNumber and characterHash from your data.\n */\n\nconst inputs = $input.all();\n\nconst DONE = new Set(['COMPLETED', 'SUCCESS']);\nconst WORKING = new Set(['IN_PROGRESS', 'PROCESSING', 'PENDING']);\n\nconst now = new Date().toISOString();\n\nreturn inputs.map(item => {\n  const j = item.json ?? {};\n\n  // --- Read Bria status/URL from either top-level or nested result ---\n  const status =\n    j.status ?? j.state ?? j.result?.status ?? 'UNKNOWN';\n\n  const resultUrl =\n    j.result?.image_url ??\n    j.result_url ??\n    j.url ??\n    j.output_url ??\n    null;\n\n  // --- Request ID: prefer explicit fields, else parse from statusUrl ---\n  let requestId = j.requestId ?? j.request_id ?? j.id ?? null;\n  if (!requestId && typeof j.statusUrl === 'string') {\n    const m = j.statusUrl.match(/\\/status\\/([^/?#]+)/);\n    if (m) requestId = m[1];\n  }\n\n  // --- Retry bookkeeping from your item ---\n  const currentRetry = Number(j.retryCount ?? 0);\n  const maxRetries   = Number(j.maxRetries ?? 5);\n\n  const shouldDownload = DONE.has(status) && !!resultUrl;\n  const shouldRetry    = WORKING.has(status) && currentRetry < maxRetries;\n\n  // --- Preserve your poseNumber and characterHash ---\n  const poseNumber = j.poseNumber ?? j.currentPoseNumber ?? null;\n\n  // Keep original characterHash unless it is missing/\"nohash\"\n  let characterHash = j.characterHash ?? null;\n  if (!characterHash || characterHash === 'nohash') {\n    characterHash = j.orderData?.characterHash ?? characterHash;\n  }\n\n  return {\n    json: {\n      ...j,                  // keep everything you already had (orderData, etc.)\n      requestId,\n      briaStatus: status,\n      resultUrl,\n      shouldDownload,\n      shouldRetry,\n      retryCount: shouldRetry ? currentRetry + 1 : currentRetry,\n      maxRetries,\n      poseNumber,\n      characterHash,\n      statusCheckedAt: now,\n    },\n  };\n});\n"
+      },
+      "id": "2f9ce6cf-fcaa-4668-9de1-6b77ffd674ab",
+      "name": "Parse Status Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1472,
-        368
-      ],
-      "notes": "Polls all statuses and downloads completed images"
+        -5936,
+        6160
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
             {
-              "value1": "={{$json.status || ''}}",
-              "value2": "IN_PROGRESS"
+              "id": "ef899931-a2e4-4c6a-aad6-05fc301635b2",
+              "leftValue": "={{ $json.shouldDownload ? 'download' : ($json.shouldRetry ? 'retry' : 'fail') }}",
+              "rightValue": "download",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
             }
-          ]
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": false
         }
       },
-      "id": "339e7f6d-9d5c-48a8-a18b-fd0c32c27b18",
-      "name": "Check Status",
+      "id": "2577eb21-07cb-4328-bfc8-d5c85402b90c",
+      "name": "Route By Status",
       "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -5712,
+        6160
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.resultUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "369312d1-c314-4b44-a4fe-0aee241a655b",
+      "name": "Download Processed Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -5488,
+        6048
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Prepare for R2 Upload\n * UPDATED: Matches folder structure from Workflow 2A\n * Format: book-mvp-simple-adventure/order-generated-assets/characters/{hash}/characters_{hash}_pose{XX}_nobg.png\n */\nconst item = $input.first();\nconst poseNumber = item.json.poseNumber;\nconst orderData = item.json.orderData;\nconst characterHash = item.json.characterHash || orderData?.characterHash;\n\n// Get binary data\nconst binaryData = item.binary?.data;\n\nif (!binaryData) {\n  throw new Error(`No binary data received for pose ${poseNumber}`);\n}\n\nif (!characterHash) {\n  throw new Error(`Missing characterHash for pose ${poseNumber}`);\n}\n\nconsole.log(`[Pose ${poseNumber}] ✓ Downloaded image (${binaryData.fileSize || 'unknown'} bytes)`);\n\n// Build R2 path matching Workflow 2A structure\nconst paddedPose = poseNumber.toString().padStart(2, '0');\nconst fileName = `characters_${characterHash}_pose${paddedPose}_nobg.png`;\nconst r2Path = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/${fileName}`;\n\n// Build public URL\nconst publicUrl = `https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/${r2Path}`;\n\nconsole.log(`[Pose ${poseNumber}] Will upload to: ${r2Path}`);\n\nreturn [{\n  json: {\n    ...item.json,\n    fileName: fileName,\n    r2Path: r2Path,\n    publicUrl: publicUrl,\n    processedWithBria: true,\n    processingError: false,\n    downloadedAt: new Date().toISOString()\n  },\n  binary: {\n    data: binaryData\n  }\n}];"
+      },
+      "id": "39522f4c-7d93-4001-9208-a0497efb7c40",
+      "name": "Prepare for R2 Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5264,
+        6048
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-assets",
+        "fileName": "={{ $json.r2Path }}",
+        "additionalFields": {}
+      },
+      "id": "b4aad433-0efa-43bd-844e-b80a62f70be0",
+      "name": "Upload to R2",
+      "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -1248,
-        368
+        -5040,
+        6048
       ],
-      "notes": "Split completed vs in-progress items"
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Clean up binary after upload\n * Store metadata for Workflow 3\n */\nconst item = $input.first().json;\nconst poseNumber = item.poseNumber;\n\nconsole.log(`[Pose ${poseNumber}] ✓ Uploaded to R2: ${item.r2Path}`);\n\nreturn [{\n  json: {\n    poseNumber,\n    characterHash: item.characterHash,\n    fileName: item.fileName,\n    r2Path: item.r2Path,\n    publicUrl: item.publicUrl,\n    briaProcessed: true,\n    briaStatus: item.briaStatus,\n    uploadComplete: true,\n    uploadedAt: new Date().toISOString(),\n    orderData: item.orderData,\n    sourcePayload: item.sourcePayload // ← keep it\n  }\n}];\n"
+      },
+      "id": "1938b7e5-8327-4ae5-a106-cb1b28bb15d3",
+      "name": "Clean Binary After Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4816,
+        6048
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "number": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.retryCount }}",
-              "value2": 5
+              "id": "fa5b21ca-408f-49d0-b982-92d115dec2e3",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "481b0c52-9103-48d5-8b3d-6bab4d68c826",
+      "id": "d3b9102d-e35f-4914-b143-6fdbc6c814a5",
       "name": "Check Retry Limit",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
-        -880,
-        144
-      ],
-      "notes": "Max 5 retries per image"
+        -5488,
+        6448
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Calculate exponential backoff delay\nconst items = $input.all();\nconst retryCount = items[0]?.json.retryCount || 1;\n\n// Exponential backoff: 30s, 60s, 90s, 120s, 180s\nconst baseDelay = 30;\nconst delay = Math.min(baseDelay * Math.pow(1.5, retryCount - 1), 180);\n\nconsole.log(`=== RETRY NEEDED ===`);\nconsole.log(`Items to retry: ${items.length}`);\nconsole.log(`Retry attempt: ${retryCount}`);\nconsole.log(`Waiting ${delay} seconds before retry`);\nconsole.log(`==================`);\n\nreturn [{\n  json: {\n    submissions: items.map(i => i.json),\n    retryDelay: delay,\n    retryAttempt: retryCount,\n    totalSubmissions: items.length\n  }\n}];"
+        "jsCode": "// Calculate exponential backoff delay\nconst item = $input.first().json;\nconst retryCount = item.retryCount || 0;\n\n// Exponential backoff: 30s, 60s, 120s, 240s, 480s\nconst baseDelay = 30;\nconst delay = baseDelay * Math.pow(2, retryCount);\n\nconsole.log(`Retry ${retryCount + 1}: Waiting ${delay} seconds...`);\n\nreturn [{\n  json: {\n    ...item,\n    retryCount: retryCount + 1,\n    delaySeconds: delay\n  }\n}];"
       },
-      "id": "5cbf8d17-8910-4944-97e2-749225ab80d0",
+      "id": "4676b8d6-4a16-4f36-8241-ae6aee1ff63d",
       "name": "Calculate Retry Delay",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -656,
-        48
-      ],
-      "notes": "Exponential backoff: 30s, 60s, 90s, 120s, 180s"
+        -5280,
+        6336
+      ]
     },
     {
       "parameters": {
-        "amount": "={{ $json.retryDelay }}",
-        "unit": "seconds"
+        "amount": "={{ $json.delaySeconds }}"
       },
-      "id": "cc4a5def-c4be-495e-957c-9511eb19b8b0",
+      "id": "2f5a6919-bbf3-4293-b231-ea1a298a6dc5",
       "name": "Wait Before Retry",
       "type": "n8n-nodes-base.wait",
-      "typeVersion": 1,
+      "typeVersion": 1.1,
       "position": [
-        -432,
-        48
+        -5088,
+        6336
       ],
-      "webhookId": "wait-retry-delay"
+      "webhookId": "retry-wait-webhook"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bria-workflow-b",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "submissions",
-              "value": "={{ $json.submissions }}"
-            },
-            {
-              "name": "totalSubmissions",
-              "value": "={{ $json.totalSubmissions }}"
-            },
-            {
-              "name": "retryAttempt",
-              "value": "={{ $json.retryAttempt }}"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ submissions: [$json], orderData: $json.orderData }) }}",
         "options": {}
       },
-      "id": "407c2598-c609-46e9-94ee-c5b3b3e3167e",
+      "id": "8ca793fd-b446-46f1-9458-b11552e0ae48",
       "name": "Retry Workflow B",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "typeVersion": 4.2,
       "position": [
-        -208,
-        48
-      ],
-      "notes": "Recursively call this workflow for in-progress items"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Max retries exceeded - use fallback images\nconst items = $input.all();\nconst results = [];\n\nconsole.log(`Max retries exceeded for ${items.length} items - using fallbacks`);\n\nfor (const item of items) {\n  const data = item.json;\n  \n  const buffer = Buffer.from(data.originalImageData, 'base64');\n  const binary = await this.helpers.prepareBinaryData(\n    buffer,\n    `pose_${data.poseNumber}_fallback.png`,\n    'image/png'\n  );\n  \n  results.push({\n    json: {\n      ...data,\n      status: 'MAX_RETRIES_FALLBACK',\n      briaCompleted: false,\n      reason: 'Maximum retry attempts exceeded',\n      retrievedAt: new Date().toISOString()\n    },\n    binary: { data: binary }\n  });\n}\n\nreturn results;"
-      },
-      "id": "80de970f-2ec8-4e84-9108-e084df36b5ed",
-      "name": "Use Fallback (Max Retries)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -656,
-        240
-      ],
-      "notes": "After 5 retries, use original image"
-    },
-    {
-      "parameters": {},
-      "id": "1039b003-3489-42ad-b2a6-d0cbb6317862",
-      "name": "Merge All Results",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
-      "position": [
-        -176,
-        384
+        -4912,
+        6336
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Final summary and validation\nconst allItems = $input.all();\n\nconst summary = {\n  total: allItems.length,\n  completed: allItems.filter(i => i.json.briaCompleted === true).length,\n  fallbacks: allItems.filter(i => i.json.briaCompleted === false).length,\n  completedAt: new Date().toISOString()\n};\n\nconsole.log('=== WORKFLOW B COMPLETE ===');\nconsole.log(`Total images: ${summary.total}`);\nconsole.log(`Bria processed: ${summary.completed}`);\nconsole.log(`Fallbacks used: ${summary.fallbacks}`);\nconsole.log(`Success rate: ${(summary.completed / summary.total * 100).toFixed(1)}%`);\nconsole.log('===========================');\n\n// Add summary to each item for next workflow step\nreturn allItems.map(item => ({\n  ...item,\n  json: {\n    ...item.json,\n    workflowSummary: summary\n  }\n}));"
+        "jsCode": "/**\n * Max retries exceeded - mark as failed\n */\nconst item = $input.first().json;\nconst poseNumber = item.poseNumber;\n\nconsole.error(`[Pose ${poseNumber}] ❌ Max retries (${item.maxRetries}) exceeded`);\n\nreturn [{\n  json: {\n    poseNumber: poseNumber,\n    characterHash: item.characterHash,\n    briaProcessed: false,\n    briaStatus: 'MAX_RETRIES_EXCEEDED',\n    processingError: true,\n    error: `Maximum retry attempts (${item.maxRetries}) exceeded`,\n    orderData: item.orderData\n  }\n}];"
       },
-      "id": "78c1d875-6386-4573-8ef8-a43938ea9d18",
+      "id": "864675db-92d3-416b-941d-5025ab6dc3c1",
+      "name": "Max Retries Exceeded",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5152,
+        6528
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "fbc61765-0d74-4210-8c08-be982773ff26",
+      "name": "Merge All Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -4560,
+        6512
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Generate final summary with complete order payload for Workflow 3\n * OUTPUT: a flat order object (NOT nested orderData wrapper)\n */\nconst items = $input.all();\n\n// Try to recover order data and full upstream payload\nconst any = items[0]?.json || {};\nconst orderData = any.orderData || {};\nconst sourcePayload = any.sourcePayload || {};\n\n// Collate processed images (good for debugging/traceability)\nconst processedImages = items.map(item => ({\n  poseNumber: item.json.poseNumber,\n  fileName: item.json.fileName,\n  r2Path: item.json.r2Path,\n  publicUrl: item.json.publicUrl,\n  briaProcessed: !!item.json.briaProcessed,\n  briaStatus: item.json.briaStatus || null,\n  processingError: !!item.json.processingError\n}));\n\nconst stats = {\n  total: items.length,\n  completed: processedImages.filter(i => i.briaProcessed).length,\n  failed: processedImages.filter(i => i.processingError).length\n};\n\n// Derive critical top-level fields for Workflow 3\nconst characterHash =\n  orderData.characterHash ||\n  items.find(i => i.json?.characterHash)?.json?.characterHash ||\n  null;\n\nconst amazonOrderId =\n  orderData.amazonOrderId ||\n  sourcePayload.amazonOrderId || // in case upstream sent it top-level\n  null;\n\nconst characterSpecs = orderData.characterSpecs || sourcePayload.characterSpecs || {};\nconst bookSpecs      = orderData.bookSpecs      || sourcePayload.bookSpecs      || {};\nconst orderDetails   = orderData.orderDetails   || sourcePayload.orderDetails   || {};\nconst publicR2Url    = sourcePayload.publicR2Url || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n\n// Basic validation (these are required by Workflow 3’s nodes)\nif (!characterHash) {\n  console.warn('⚠️ Missing characterHash in payload to Workflow 3');\n}\nif (!amazonOrderId) {\n  console.warn('⚠️ Missing amazonOrderId in payload to Workflow 3 (Load Background Images will throw)');\n}\nif (!characterSpecs?.childName) {\n  console.warn('⚠️ Missing characterSpecs.childName (Load Story Text will throw)');\n}\n\nconsole.log('\\n=== WORKFLOW 2B COMPLETE ===');\nconsole.log(`Total images processed: ${items.length}`);\nconsole.log(`✓ Bria processed: ${stats.completed}`);\nconsole.log(`❌ Failed: ${stats.failed}`);\nconsole.log('===========================\\n');\n\n// Build the FLAT order object for Workflow 3\nconst orderForWorkflow3 = {\n  // REQUIRED by WF3\n  status: 'ready_for_book_assembly',\n  amazonOrderId,\n  characterHash,\n  characterSpecs,\n  bookSpecs,\n  orderDetails,\n\n  // Helpful\n  publicR2Url,\n\n  // Optional: include for debugging/traceability\n  processedImages,\n  workflow2B: {\n    summary: stats,\n    completedAt: new Date().toISOString()\n  }\n};\n\nreturn [{ json: orderForWorkflow3 }];\n"
+      },
+      "id": "acf171c6-7c0d-4929-9dc3-01a1ab53298f",
       "name": "Generate Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        16,
-        384
+        -4368,
+        6160
       ]
     },
     {
       "parameters": {
-        "mode": "chooseBranch",
-        "output": "input2"
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
       },
-      "id": "8b7d77ec-64a7-498d-a99b-154c151aff01",
-      "name": "Continue to Next Step",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
+      "id": "6bc9da5a-5c49-4bd4-8bd5-6ddfae8d85c1",
+      "name": "Trigger Workflow 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        240,
-        384
-      ],
-      "notes": "All images ready - continue to S3 upload/validation"
+        -4144,
+        6160
+      ]
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "ab4fb4f3-cb0f-4bbd-bf2a-24c51e7d8396",
-              "name": "API_TOKEN",
-              "value": "eb0fed5156c441148c462a74d3f92f00",
-              "type": "string"
-            }
-          ]
-        },
-        "includeOtherFields": true,
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Workflow 2B completed', total: $json.workflowSummary.total, completed: $json.workflowSummary.completed, failed: $json.workflowSummary.failed } }}",
         "options": {}
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "id": "28070541-9042-46f4-b8a8-759335273e24",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
       "position": [
-        -1808,
-        368
+        -3920,
+        6160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -6128,
+        6256
       ],
-      "id": "6a6fc42a-259a-472d-9067-3ce876cb0afa",
-      "name": "Inject API Token"
+      "id": "4363d14a-6fd2-4734-9f61-b8da8867e031",
+      "name": "Merge"
     }
   ],
   "pinData": {
@@ -234,40 +343,213 @@
           "headers": {
             "host": "thepeakbeyond.app.n8n.cloud",
             "user-agent": "axios/1.8.3",
-            "content-length": "278",
+            "content-length": "9655",
             "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
             "accept-encoding": "gzip, br",
             "cdn-loop": "cloudflare; loops=1; subreqs=1",
             "cf-connecting-ip": "4.182.88.118",
             "cf-ew-via": "15",
             "cf-ipcountry": "DE",
-            "cf-ray": "98dc7d3a64663631-FRA",
+            "cf-ray": "98e9dc82b42937c6-FRA",
             "cf-visitor": "{\"scheme\":\"https\"}",
             "cf-worker": "n8n.cloud",
             "content-type": "application/json",
-            "x-forwarded-for": "4.182.88.118, 162.158.110.46",
+            "x-forwarded-for": "4.182.88.118, 162.158.95.101",
             "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
             "x-forwarded-port": "443",
             "x-forwarded-proto": "https",
-            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-n8pcb",
+            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-vdndp",
             "x-is-trusted": "yes",
             "x-real-ip": "4.182.88.118"
           },
           "params": {},
           "query": {},
           "body": {
+            "totalSubmissions": 12,
+            "successful": 12,
+            "failed": 0,
+            "submittedAt": "2025-10-14T20:33:37.128Z",
             "submissions": [
               {
-                "poseNumber": 0,
-                "characterHash": "nohash",
-                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/nohash/0.png",
-                "failed": true,
-                "submittedAt": "2025-10-13T05:28:09.219Z"
+                "requestId": "436eba60cad84317aea0f2df3a1c5387",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/436eba60cad84317aea0f2df3a1c5387",
+                "extractedImageData": null,
+                "currentPoseNumber": 1,
+                "poseNumber": 1,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/1.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/1.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/1.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:32:15.262Z",
+                "briaSubmissionSuccess": true
+              },
+              {
+                "requestId": "fab9b9f8a3f34ceda9a9f6e16df58fa1",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/fab9b9f8a3f34ceda9a9f6e16df58fa1",
+                "extractedImageData": null,
+                "currentPoseNumber": 2,
+                "poseNumber": 2,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/2.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/2.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/2.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:32:22.052Z",
+                "briaSubmissionSuccess": true
+              },
+              {
+                "requestId": "fb7f7d73c07444d2a2a04de82e64b7b5",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/fb7f7d73c07444d2a2a04de82e64b7b5",
+                "extractedImageData": null,
+                "currentPoseNumber": 3,
+                "poseNumber": 3,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/3.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/3.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/3.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:32:29.063Z",
+                "briaSubmissionSuccess": true
+              },
+              {
+                "requestId": "3698e5a0ff214c089803513b970342eb",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/3698e5a0ff214c089803513b970342eb",
+                "extractedImageData": null,
+                "currentPoseNumber": 4,
+                "poseNumber": 4,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/4.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/4.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/4.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:32:35.831Z",
+                "briaSubmissionSuccess": true
+              },
+              {
+                "requestId": "95c80f162df24757a6a9f56432f45404",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/95c80f162df24757a6a9f56432f45404",
+                "extractedImageData": null,
+                "currentPoseNumber": 5,
+                "poseNumber": 5,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/5.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/5.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/5.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:32:42.859Z",
+                "briaSubmissionSuccess": true
+              },
+              {
+                "requestId": "5e60ad3f9f74468e9f271b7408aa79b9",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/5e60ad3f9f74468e9f271b7408aa79b9",
+                "extractedImageData": null,
+                "currentPoseNumber": 6,
+                "poseNumber": 6,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/6.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/6.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/6.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:32:50.108Z",
+                "briaSubmissionSuccess": true
+              },
+              {
+                "requestId": "b28d6d262aa84ac2bf08f524a2abe0c0",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/b28d6d262aa84ac2bf08f524a2abe0c0",
+                "extractedImageData": null,
+                "currentPoseNumber": 7,
+                "poseNumber": 7,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/7.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/7.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/7.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:32:56.911Z",
+                "briaSubmissionSuccess": true
+              },
+              {
+                "requestId": "03cd07eeb13a4ca28344f2b8908336c1",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/03cd07eeb13a4ca28344f2b8908336c1",
+                "extractedImageData": null,
+                "currentPoseNumber": 8,
+                "poseNumber": 8,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/8.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/8.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/8.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:33:04.008Z",
+                "briaSubmissionSuccess": true
+              },
+              {
+                "requestId": "3e544b99980a49a09565a06026e744d9",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/3e544b99980a49a09565a06026e744d9",
+                "extractedImageData": null,
+                "currentPoseNumber": 9,
+                "poseNumber": 9,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/9.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/9.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/9.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:33:10.824Z",
+                "briaSubmissionSuccess": true
+              },
+              {
+                "requestId": "6d31285eaf0e43ef9f5f5eadb7037ed3",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/6d31285eaf0e43ef9f5f5eadb7037ed3",
+                "extractedImageData": null,
+                "currentPoseNumber": 10,
+                "poseNumber": 10,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/10.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/10.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/10.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:33:17.579Z",
+                "briaSubmissionSuccess": true
+              },
+              {
+                "requestId": "78ab4bdfdd5a4ed0abf4407a2bab2fae",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/78ab4bdfdd5a4ed0abf4407a2bab2fae",
+                "extractedImageData": null,
+                "currentPoseNumber": 11,
+                "poseNumber": 11,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/11.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/11.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/11.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:33:24.308Z",
+                "briaSubmissionSuccess": true
+              },
+              {
+                "requestId": "2e00390b40b14b8388ec562d2518d1fa",
+                "statusUrl": "https://engine.prod.bria-api.com/v2/status/2e00390b40b14b8388ec562d2518d1fa",
+                "extractedImageData": null,
+                "currentPoseNumber": 12,
+                "poseNumber": 12,
+                "characterHash": "1dde0fac84943088",
+                "characterPath": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/12.png",
+                "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/12.png",
+                "originalImageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/12.png",
+                "failed": false,
+                "submittedAt": "2025-10-14T20:33:31.111Z",
+                "briaSubmissionSuccess": true
               }
             ],
-            "totalSubmissions": 1
+            "orderData": {
+              "amazonOrderId": null,
+              "characterHash": "1dde0fac84943088",
+              "characterSpecs": {},
+              "bookSpecs": {},
+              "orderDetails": {},
+              "r2BucketName": "little-hero-assets"
+            },
+            "workflow2AComplete": true
           },
-          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/bria-workflow-b",
+          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal",
           "executionMode": "production"
         }
       }
@@ -289,33 +571,93 @@
       "main": [
         [
           {
-            "node": "Inject API Token",
+            "node": "Check Bria Status",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
           }
         ]
       ]
     },
-    "Poll Status & Retrieve": {
+    "Check Bria Status": {
       "main": [
         [
           {
-            "node": "Check Status",
+            "node": "Merge",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Status": {
+    "Parse Status Response": {
       "main": [
+        [
+          {
+            "node": "Route By Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route By Status": {
+      "main": [
+        [
+          {
+            "node": "Download Processed Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Check Retry Limit",
             "type": "main",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Download Processed Image": {
+      "main": [
+        [
+          {
+            "node": "Prepare for R2 Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for R2 Upload": {
+      "main": [
+        [
+          {
+            "node": "Upload to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to R2": {
+      "main": [
+        [
+          {
+            "node": "Clean Binary After Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Binary After Upload": {
+      "main": [
         [
           {
             "node": "Merge All Results",
@@ -336,7 +678,7 @@
         ],
         [
           {
-            "node": "Use Fallback (Max Retries)",
+            "node": "Max Retries Exceeded",
             "type": "main",
             "index": 0
           }
@@ -365,7 +707,7 @@
         ]
       ]
     },
-    "Use Fallback (Max Retries)": {
+    "Max Retries Exceeded": {
       "main": [
         [
           {
@@ -391,18 +733,29 @@
       "main": [
         [
           {
-            "node": "Continue to Next Step",
+            "node": "Trigger Workflow 3",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Inject API Token": {
+    "Trigger Workflow 3": {
       "main": [
         [
           {
-            "node": "Poll Status & Retrieve",
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Parse Status Response",
             "type": "main",
             "index": 0
           }
@@ -414,11 +767,11 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "a95f4a49-2adb-4379-8b9c-74c770d7715b",
+  "versionId": "f9b9005b-b32c-48a3-87c5-e58e0ac0ea1b",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },
-  "id": "UwwavojZUJ0pBU4Z",
+  "id": "HfOmpwcjC11KQN28",
   "tags": []
 }

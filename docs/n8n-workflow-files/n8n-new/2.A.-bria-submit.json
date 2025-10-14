@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "jsCode": "// Generate a mock order for testing the AI character generation workflow\n// This simulates an order coming from the order intake workflow\n\nconst mockOrder = {\n  amazonOrderId: 'TEST-ORDER-002',\n  status: 'queued_for_processing',\n  orderDate: new Date().toISOString(),\n  customerEmail: 'test@example.com',\n  characterSpecs: {\n    childName: 'Alex',\n    skinTone: 'medium',\n    hairColor: 'brown',\n    hairStyle: 'very short/straight',\n    age: 4,\n    pronouns: 'he/him',\n    favoriteColor: 'yellow',\n    animalGuide: 'unicorn',\n    clothingStyle: 't-shirt and shorts'\n  },\n  bookSpecs: {\n    title: 'Alex and the Adventure Compass',\n    totalPages: 16,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide' // or 'mvp-simple' for different book types\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: 'Test Customer',\n      address: '123 Test Street',\n      city: 'Test City',\n      state: 'CA',\n      zip: '90210'\n    }\n  }\n};\n\nconsole.log('Generated mock order for testing:', mockOrder);\nreturn [{ json: mockOrder }];"
+        "jsCode": "// Generate a mock order for testing the AI character generation workflow\n// This simulates an order coming from the order intake workflow\n\nconst mockOrder = {\n  amazonOrderId: 'TEST-ORDER-002',\n  status: 'queued_for_processing',\n  orderDate: new Date().toISOString(),\n  customerEmail: 'test@example.com',\n  characterSpecs: {\n    childName: 'Alex',\n    skinTone: 'medium',\n    hairColor: 'black',\n    hairStyle: 'medium/ponytail',\n    age: 4,\n    pronouns: 'he/him',\n    favoriteColor: 'yellow',\n    animalGuide: 'dog',\n    clothingStyle: 't-shirt and shorts'\n  },\n  bookSpecs: {\n    title: 'Alex and the Adventure Compass',\n    totalPages: 16,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide' // or 'mvp-simple' for different book types\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: 'Test Customer',\n      address: '123 Test Street',\n      city: 'Test City',\n      state: 'CA',\n      zip: '90210'\n    }\n  }\n};\n\nconsole.log('Generated mock order for testing:', mockOrder);\nreturn [{ json: mockOrder }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -19,8 +19,8 @@
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -8384,
-        7392
+        -3856,
+        7168
       ],
       "id": "3767be79-18fc-4019-a81b-32348798faed",
       "name": "When clicking ‘Execute workflow’"
@@ -361,7 +361,7 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -3680,
+        -2848,
         7392
       ]
     },
@@ -383,18 +383,8 @@
           ]
         },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "image",
-              "value": "={{ { image: $json._briaBody.image || $json._briaBody.image_url } }}"
-            },
-            {
-              "name": "pose_number",
-              "value": "={{$json._briaBody.pose_number}}"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={{ $json._briaBody }}",
         "options": {}
       },
       "id": "bddbf611-049f-4df5-b780-7313eb8d6525",
@@ -402,21 +392,21 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -640,
+        432,
         7392
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Accept two inputs: one is the Bria response, the other carries __meta.\n// This works whether the response arrives on input 0 or 1.\nconst inputs = $input.all();\n\n// Find the Bria response (the one with request_id or status_url)\nconst respItem = inputs.find(i => {\n  const j = i.json || {};\n  return j.request_id || j.status_url || j.data?.request_id || j.result?.request_id;\n}) || inputs[0];\n\nconst resp = respItem.json || {};\n\n// Find meta (the one with __meta)\nconst metaItem = inputs.find(i => (i.json && i.json.__meta)) || inputs[0];\nconst meta = (metaItem.json && metaItem.json.__meta) ? metaItem.json.__meta : {};\n\nconst requestId =\n  resp.request_id ?? resp.requestId ??\n  resp.data?.request_id ?? resp.result?.request_id ?? null;\n\nconst statusUrl  =\n  resp.status_url  ?? resp.statusUrl  ??\n  resp.data?.status_url ?? resp.result?.status_url ??\n  resp.links?.status ?? null;\n\nconst failed = !(requestId && statusUrl);\n\nconst out = {\n  requestId,\n  statusUrl,\n  poseNumber: meta.poseNumber ?? 0,\n  characterHash: meta.characterHash || null,\n  characterPath: null,          // prevent fallbacks in 2.B\n  failed,\n  submittedAt: new Date().toISOString(),\n};\n\nif (failed) {\n  out.error = {\n    message: 'Bria submission missing requestId/statusUrl',\n    keys: Object.keys(resp),\n  };\n}\n\nreturn [{ json: out }];\n"
+        "jsCode": "// Store Submission Result - Extract from Bria response + metadata (robust hash + pose + path)\n// Consolidates a Bria API response with local metadata while preferring a trusted characterHash\n// and backfilling characterPath when missing.\n\n// --- Constants (keep in sync across nodes)\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\n\n// --- Gather inputs\nconst inputs = $input.all();\n\n// --- Utilities\nconst isBadHash = (h) =>\n  !h || typeof h !== 'string' || h === 'nohash' || h === 'unknown' || h.trim().length < 4;\n\n// --- Identify response & meta items\nconst respItem = inputs.find(i => {\n  const j = i.json || {};\n  return j.request_id || j.status_url || j.data?.request_id || j.result?.request_id || j.links?.status;\n}) || inputs[0];\n\nconst resp = respItem?.json || {};\n\nconst metaItem = inputs.find(i => (i.json && i.json.__meta)) || inputs[0];\nconst meta = (metaItem?.json && metaItem.json.__meta) ? metaItem.json.__meta : {};\n\n// --- Pull trusted upstream hashes from other nodes (if available)\nconst metaNodeHash = $('Capture Lean Meta').first()?.json?.__meta?.characterHash;\nconst genNodeHash  = $('Generate Character Hash').first()?.json?.characterHash;\nconst upstreamHash = !isBadHash(metaNodeHash) ? metaNodeHash\n                   : (!isBadHash(genNodeHash) ? genNodeHash\n                   : null);\n\n// --- Extract Bria response fields (many shapes supported)\nconst requestId =\n  resp.request_id ?? resp.requestId ??\n  resp.data?.request_id ?? resp.result?.request_id ??\n  null;\n\nconst statusUrl =\n  resp.status_url ?? resp.statusUrl ??\n  resp.data?.status_url ?? resp.result?.status_url ??\n  resp.links?.status ?? null;\n\nconst failed = !(requestId && statusUrl);\n\n// --- Extract poseNumber from MULTIPLE sources (try everything!), clamp 1–12 just in case\nconst rawPose =\n  meta.poseNumber ??\n  metaItem?.json?.poseNumber ??\n  metaItem?.json?.currentPoseNumber ??\n  respItem?.json?.poseNumber ??\n  respItem?.json?.currentPoseNumber ??\n  1;\n\nconst poseParsed = Number.isFinite(Number(rawPose)) ? Number(rawPose) : 1;\nconst poseNumber = Math.min(12, Math.max(1, poseParsed));\n\n// --- Resolve characterHash (prefer trusted upstream → local fields; avoid placeholders)\nconst localHash =\n  meta.characterHash ??\n  metaItem?.json?.characterHash ??\n  respItem?.json?.characterHash ??\n  null;\n\nconst characterHash = !isBadHash(localHash) ? localHash\n                    : (!isBadHash(upstreamHash) ? upstreamHash\n                    : null);\n\n// --- Best-effort path/source reference, with backfill\nlet characterPath =\n  meta.characterPath ??\n  metaItem?.json?.characterPath ??\n  respItem?.json?.characterPath ??\n  metaItem?.json?.originalImageUrl ??\n  respItem?.json?.originalImageUrl ??\n  metaItem?.json?.imageUrl ??\n  respItem?.json?.imageUrl ??\n  metaItem?.json?.sourceUrl ??\n  respItem?.json?.sourceUrl ??\n  null;\n\nif (!characterPath && characterHash) {\n  characterPath = `${BASE_PREFIX}/${characterHash}/`;\n  console.log(`Backfilled characterPath=${characterPath}`);\n}\n\n// --- Logs for diagnostics\nconsole.log(\n  `Stored: pose=${poseNumber}, requestId=${requestId ? requestId.substring(0,8) : 'null'}..., failed=${failed}`\n);\nconsole.log(`[META] hasPath=${!!meta.characterPath} hasHash=${!!meta.characterHash}`);\nconsole.log(`[LOCAL] characterHash=${characterHash || 'null'} characterPath=${characterPath || 'null'}`);\n\n// --- Output\nconst out = {\n  requestId,\n  statusUrl,\n  poseNumber,\n  characterHash,          // robust (no forced placeholders)\n  characterPath,          // stable folder-style path; constructed if missing and hash present\n  failed,\n  submittedAt: new Date().toISOString(),\n};\n\nreturn [{ json: out }];\n"
       },
       "id": "a60ebbff-4c34-46d4-94d2-f7ec1a7f0b1b",
       "name": "Store Submission Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -208,
-        7392
+        1216,
+        7248
       ]
     },
     {
@@ -429,83 +419,23 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [
-        16,
-        7392
+        1792,
+        7440
       ],
       "webhookId": "rate-limit-delay",
       "notes": "Rate limiting: 10 req/min = 1 req/6 sec"
     },
     {
       "parameters": {
-        "jsCode": "// Simple time-based check instead of counting\nconst item = $input.first().json;\n\n// Check if this is approximately the 10th item by checking elapsed time\n// Each item takes ~6 seconds, so item 10 ≈ 60 seconds\nconst startTime = new Date($('Loop Over Items').first().json.aiGenerationStartedAt || Date.now());\nconst elapsedSeconds = (Date.now() - startTime) / 1000;\n\n// After ~54 seconds (9 items × 6 seconds), we need long wait\nconst needsLongWait = elapsedSeconds > 54 && elapsedSeconds < 70;\n\nconsole.log(`Elapsed: ${elapsedSeconds}s, needs long wait: ${needsLongWait}`);\n\nreturn [{\n  json: {\n    ...item,\n    needsLongWait: needsLongWait\n  }\n}];"
-      },
-      "id": "23d7edd0-295c-4bfe-a3f2-7859fa142078",
-      "name": "Check If Long Wait Needed",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        240,
-        7392
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.needsLongWait }}",
-              "value2": true
-            }
-          ]
-        }
-      },
-      "id": "a3c51b90-9857-4e22-bd91-8b9a3495d3da",
-      "name": "Is 10th Item?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        464,
-        7392
-      ]
-    },
-    {
-      "parameters": {
-        "amount": 54,
-        "unit": "seconds"
-      },
-      "id": "3203bae0-0990-46ee-b45d-2bf14097a385",
-      "name": "Wait Extra 54 Seconds",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1,
-      "position": [
-        688,
-        7328
-      ],
-      "webhookId": "batch-transition-wait",
-      "notes": "6s + 54s = 60s total between batches"
-    },
-    {
-      "parameters": {},
-      "id": "ea3bb9ba-45f1-4799-b2ea-64ebfae8ea4f",
-      "name": "Merge Wait Paths",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
-      "position": [
-        912,
-        7472
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Use ALL outputs from \"Store Submission Result\"\nconst results = $items('Store Submission Result').map(i => i.json);\n\n// (optional) de-dupe\nconst seen = new Set();\nconst lean = results.filter(r => {\n  const key = `${r.requestId || 'null'}::${r.poseNumber ?? 'null'}`;\n  if (seen.has(key)) return false;\n  seen.add(key);\n  return true;\n}).map(j => ({\n  requestId: j.requestId || null,\n  statusUrl: j.statusUrl || null,\n  poseNumber: j.poseNumber ?? 0,\n  characterHash: j.characterHash || null,\n  characterPath: j.characterPath || null,\n  failed: !!j.failed,\n  submittedAt: j.submittedAt || null,\n}));\n\nreturn [{\n  json: {\n    totalSubmissions: lean.length,\n    successful: lean.filter(x => !x.failed && x.requestId && x.statusUrl).length,\n    failed: lean.filter(x => x.failed || !x.requestId || !x.statusUrl).length,\n    submittedAt: new Date().toISOString(),\n    submissions: lean,\n  },\n}];\n"
+        "jsCode": "// === CREATE FINAL SUMMARY (robust hash propagation) ===\n\nconst incomingItems = $input.all();\nconsole.log('=== CREATE FINAL SUMMARY ===');\nconsole.log(`Received ${incomingItems.length} items from loop`);\n\n// Helper: treat placeholder hashes as empty\nconst isBadHash = (h) => !h || h === 'nohash' || h === 'unknown' || typeof h !== 'string' || h.length < 4;\n\n// Pull a trustworthy upstream hash (prefer Capture Lean Meta -> Generate Character Hash)\nconst metaHash = $('Capture Lean Meta').first()?.json?.__meta?.characterHash;\nconst genNode = $('Generate Character Hash').first()?.json || {};\nconst genHash  = genNode?.characterHash;\nconst upstreamHash = !isBadHash(metaHash) ? metaHash : (!isBadHash(genHash) ? genHash : null);\n\n// Prefer the upstream order snapshot, fall back sensibly\nconst firstItem = incomingItems[0]?.json || {};\nconst sourceOrder =\n  genNode && Object.keys(genNode).length ? genNode :\n  (firstItem || {});\n\n// Derive amazonOrderId with strong preference to Generate Character Hash node\nconst amazonOrderId =\n  genNode?.amazonOrderId ??\n  sourceOrder?.amazonOrderId ??\n  firstItem?.orderData?.amazonOrderId ??\n  firstItem?.amazonOrderId ??\n  null;\n\nconst orderData = {\n  amazonOrderId, // ← now included\n  characterHash: upstreamHash || (!isBadHash(sourceOrder.characterHash) ? sourceOrder.characterHash : null),\n  characterSpecs: sourceOrder.characterSpecs,\n  bookSpecs: sourceOrder.bookSpecs,\n  orderDetails: sourceOrder.orderDetails,\n  r2BucketName: 'little-hero-assets'\n};\n\nconsole.log('Order data snapshot:', {\n  amazonOrderId: orderData.amazonOrderId || 'null',\n  characterHash: orderData.characterHash || 'null'\n});\n\n// Build normalized submissions array with safe hash fallback\nconst submissions = incomingItems.map((item, idx) => {\n  const j = item.json || {};\n  const pose = j.poseNumber || j.currentPoseNumber || (idx + 1);\n\n  // choose item hash if it's real; otherwise fall back to the trusted upstream hash\n  const chosenHash = !isBadHash(j.characterHash) ? j.characterHash\n                    : (!isBadHash(orderData.characterHash) ? orderData.characterHash\n                    : upstreamHash);\n\n  // characterPath: prefer __meta.characterPath (public URL), then plain fields\n  const path =\n    j.__meta?.characterPath ??\n    j.characterPath ??\n    j.originalImageUrl ??\n    j.imageUrl ??\n    j.sourceUrl ??\n    null;\n\n  return {\n    requestId: j.requestId || null,\n    statusUrl: j.statusUrl || null,\n\n    // keep some context for fallbacks/diagnostics\n    extractedImageData: j.extractedImageData || null,\n\n    // pose\n    currentPoseNumber: pose,\n    poseNumber: pose,\n\n    // id & pathing\n    characterHash: chosenHash || null,\n    characterPath: path,\n\n    failed: !!j.failed,\n    submittedAt: j.submittedAt || new Date().toISOString(),\n    briaSubmissionSuccess: !!(j.requestId && j.statusUrl),\n  };\n});\n\nconst valid = submissions.filter(s => s.requestId && s.statusUrl);\nconst failed = submissions.length - valid.length;\n\nconsole.log(`Valid submissions: ${valid.length}`);\nconsole.log(`Failed submissions: ${failed}`);\nconsole.log(`Pose numbers: ${submissions.map(s => s.poseNumber).join(', ')}`);\n\nif (!orderData.amazonOrderId) {\n  console.warn('⚠️ amazonOrderId is missing. Ensure Generate Character Hash receives/forwards it.');\n}\n\nreturn [{\n  json: {\n    totalSubmissions: submissions.length,\n    successful: valid.length,\n    failed: failed,\n    submittedAt: new Date().toISOString(),\n\n    submissions,\n    orderData,           // ← CRITICAL for 2B\n    workflow2AComplete: true\n  }\n}];\n"
       },
       "id": "982fdf69-9039-44b4-a726-80fd44cebcf4",
       "name": "Create Final Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3360,
-        6976
+        -2576,
+        6784
       ]
     },
     {
@@ -518,7 +448,7 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [
-        -3136,
+        -2304,
         6976
       ],
       "webhookId": "wait-for-processing",
@@ -527,20 +457,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bria-workflow-b",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "submissions",
-              "value": "={{ $json.submissions }}"
-            },
-            {
-              "name": "totalSubmissions",
-              "value": "={{ $json.totalSubmissions }}"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
         "options": {}
       },
       "id": "6bc60532-4811-48a6-9981-4be236026521",
@@ -548,7 +468,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -2896,
+        -1856,
         6976
       ]
     },
@@ -559,7 +479,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -432,
+        720,
         7392
       ],
       "id": "13054fab-042b-4da9-be7f-683ad7848edc",
@@ -567,13 +487,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Capture Lean Meta — robust, keeps zero-based pose\nconst src = $input.first().json;\n\n// 1) Pose number: keep your zero-based policy (Set node uses {{$itemIndex}})\nconst poseNumberRaw = src.poseNumber ?? src.currentPoseNumber ?? 0;\nconst poseNumber = Number.isFinite(Number(poseNumberRaw)) ? Number(poseNumberRaw) : 0;\n\n// 2) Character hash: prefer what this item carries; then Generate Character Hash; then specs; finally guarded fallback\nconst upstreamHash = $('Generate Character Hash').first().json.characterHash;\nconst characterHash =\n  src.characterHash\n  || src.characterSpecs?.hash\n  || upstreamHash\n  || 'nohash'; // only if absolutely nothing exists\n\n// 3) Build storage key (bucket root path only; public base is added later)\nconst storageKey =\n  `book-mvp-simple-adventure/order-generated-assets/characters/` +\n  `${characterHash}/${poseNumber}.png`;\n\n// 4) Prefer any existing public URL if present; otherwise null (we’ll upload if needed)\nconst characterPath =\n  src.characterPath ||\n  src.originalImageUrl ||\n  src.imageUrl ||\n  src.sourceUrl ||\n  null;\n\n// 5) Merge into __meta without destroying other fields\nsrc.__meta = {\n  ...(src.__meta || {}),\n  poseNumber,\n  characterHash,\n  storageKey,     // used by R2 upload as File Name\n  characterPath   // preferred public URL if already available\n};\n\nreturn [{ json: src }];\n"
+        "jsCode": "// Capture Lean Meta — robust, preserves 1-based pose, builds stable characterPath\nconst src = ($input.first()?.json) || {};\n\n// --- Constants (keep in sync across nodes)\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\n\n// --- Utilities\nconst isBadHash = (h) =>\n  !h || typeof h !== 'string' || h === 'nohash' || h === 'unknown' || h.trim().length < 4;\n\n// 1) Pose number: try multiple sources, ensure 1–12 range\nconst poseNumberRaw =\n  src.poseNumber ??\n  src.currentPoseNumber ??\n  src.__meta?.poseNumber ??\n  ($itemIndex + 1); // Last resort: index + 1\n\nconst poseParsed = Number.isFinite(Number(poseNumberRaw)) ? Number(poseNumberRaw) : 1;\n// clamp to 1–12\nconst poseNumber = Math.min(12, Math.max(1, poseParsed));\nif (poseNumber !== poseParsed) {\n  console.warn(`Pose number ${poseParsed} out of range, clamped to ${poseNumber}`);\n}\n\n// 2) Character hash (prefer upstream; avoid placeholders)\nconst upstreamHash = $('Generate Character Hash').first()?.json?.characterHash;\nconst resolvedHash =\n  src.characterHash ||\n  src.characterSpecs?.hash ||\n  upstreamHash ||\n  null;\nconst characterHash = isBadHash(resolvedHash) ? null : resolvedHash;\n\n// 3) Build storage key (1-based pose numbers) only if we have a hash\nconst storageKey = characterHash\n  ? `${BASE_PREFIX}/${characterHash}/${poseNumber}.png`\n  : null;\n\n// 4) Character path: prefer existing; otherwise construct from hash\nlet characterPath =\n  src.__meta?.characterPath ||\n  src.characterPath ||\n  src.originalImageUrl ||\n  src.imageUrl ||\n  src.sourceUrl ||\n  null;\n\nif (!characterPath && characterHash) {\n  characterPath = `${BASE_PREFIX}/${characterHash}/`;\n  console.log(`Backfilled characterPath=${characterPath}`);\n}\n\n// 5) Store in __meta\nsrc.__meta = {\n  ...(src.__meta || {}),\n  poseNumber,          // 1..12\n  characterHash,       // may be null if not resolvable (no placeholders)\n  storageKey,          // null if no hash\n  characterPath        // stable folder-style path (not a full URL)\n};\n\nconsole.log(`Captured meta: pose=${poseNumber}, hash=${characterHash || 'null'}`);\n\nreturn [{ json: src }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3232,
-        7392
+        -2352,
+        7232
       ],
       "id": "a292f01e-765a-45a3-b214-f6f553bd9107",
       "name": "Capture Lean Meta"
@@ -585,8 +505,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3008,
-        7392
+        -2016,
+        7168
       ],
       "id": "828f3e96-f113-4ddc-83bc-9fadbeef804b",
       "name": "Make Binary from Base64"
@@ -602,8 +522,8 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -2336,
-        7264
+        -1408,
+        7296
       ],
       "id": "445c4bbd-90b9-4508-9101-7649f6b49de0",
       "name": "Add Upload to R2",
@@ -621,7 +541,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1760,
+        -512,
         7392
       ],
       "id": "c3193b64-8ddb-471a-808d-5805606436e2",
@@ -639,7 +559,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1536,
+        -288,
         7392
       ],
       "id": "fc3f85f5-b7d5-4417-bcec-bdb9a36d7dc6",
@@ -653,7 +573,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1312,
+        -64,
         7392
       ],
       "id": "f9a00bd6-e87a-4a7f-9a89-0a4f41ed69b2",
@@ -661,13 +581,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build Bria Payload — minimal & spec-safe\nconst j = $json;\n\n// Prefer the public URL we just built\nconst url =\n  j.__meta?.characterPath ||\n  j.characterPath ||\n  j.imageUrl ||\n  j.sourceUrl ||\n  null;\n\n// Optional base64 fallbacks\nlet b64 = j.extractedImageData || j.poseBase64 || j.characterBase64 || null;\nif (typeof b64 === 'string') {\n  const m = b64.match(/^data:(image\\/[a-z0-9+.\\-]+);base64,(.*)$/i);\n  if (m) b64 = m[2];\n  b64 = b64.trim();\n  if (b64.length < 12) b64 = null;\n}\n\n// Pose (numeric, for your logging; we won't send it unless your endpoint truly supports it)\nconst poseNumber =\n  j.__meta?.poseNumber ??\n  (Number.isFinite(Number(j.poseNumber)) ? Number(j.poseNumber) : 0);\n\n// Choose source (prefer URL)\nlet _briaBody;\nif (url) {\n  // **Most Bria endpoints expect `image` as a STRING (URL)**\n  _briaBody = { image: url };\n} else if (b64) {\n  // Or `image` as base64 STRING + an explicit encoding hint some endpoints expect\n  _briaBody = { image: b64, image_encoding: 'base64' };\n} else {\n  j.__meta = j.__meta || {};\n  j.__meta.__skipBria = true;\n  j.__meta.__skipReason = 'No usable image (no URL and no base64 present)';\n  delete j._briaBody;\n  return [{ json: j }];\n}\n\n// Persist; keep pose for your own tracking (not sent unless you add it later)\nj.__meta = j.__meta || {};\nj.__meta.briaReady = true;\nj.__meta.briaSource = url ? 'url' : 'base64';\nj.__meta.poseNumber = poseNumber;\nj._briaBody = _briaBody;\n\nreturn [{ json: j }];\n"
+        "jsCode": "// Build Bria Payload — minimal & spec-safe\nconst j = $json;\n\n// Prefer the public URL we just built\nconst url =\n  j.__meta?.characterPath ||\n  j.characterPath ||\n  j.imageUrl ||\n  j.sourceUrl ||\n  null;\n\n// Optional base64 fallbacks\nlet b64 = j.extractedImageData || j.poseBase64 || j.characterBase64 || null;\nif (typeof b64 === 'string') {\n  const m = b64.match(/^data:(image\\/[a-z0-9+.\\-]+);base64,(.*)$/i);\n  if (m) b64 = m[2];\n  b64 = b64.trim();\n  if (b64.length < 12) b64 = null;\n}\n\n// Pose (numeric, for your logging)\nconst poseNumber =\n  j.__meta?.poseNumber ??\n  j.poseNumber ??\n  (Number.isFinite(Number(j.currentPoseNumber)) ? Number(j.currentPoseNumber) : 0);\n\n// Choose source (prefer URL)\nlet _briaBody;\nif (url) {\n  // Bria expects `image` as a STRING (URL)\n  _briaBody = { \n    image: url\n    // Note: pose_number NOT included - Bria API doesn't accept it\n  };\n} else if (b64) {\n  // Or `image` as base64 STRING\n  _briaBody = { \n    image: b64\n  };\n} else {\n  j.__meta = j.__meta || {};\n  j.__meta.__skipBria = true;\n  j.__meta.__skipReason = 'No usable image (no URL and no base64 present)';\n  delete j._briaBody;\n  return [{ json: j }];\n}\n\n// Store metadata separately (NOT sent to Bria)\nj.__meta = j.__meta || {};\nj.__meta.briaReady = true;\nj.__meta.briaSource = url ? 'url' : 'base64';\nj.__meta.poseNumber = poseNumber;\nj._briaBody = _briaBody;\n\n// Debug logging\nconsole.log(`Pose ${poseNumber}: Bria payload ready, source=${j.__meta.briaSource}`);\nconsole.log('_briaBody:', JSON.stringify(_briaBody));\n\nreturn [{ json: j }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1088,
-        7392
+        160,
+        7232
       ],
       "id": "9272d6e7-b713-4ee2-9148-3200f665a11a",
       "name": "Build Bria Payload"
@@ -679,14 +599,20 @@
             {
               "id": "fe658296-4c90-496b-a966-e8b551ef8f2e",
               "name": "poseNumber",
-              "value": "={{$itemIndex}}\n",
-              "type": "string"
+              "value": "={{ Number(String(($json.currentPoseNumber ?? $json.poseNumber ?? $json.__meta?.poseNumber ?? ($itemIndex + 1))).trim()) }}",
+              "type": "number"
             },
             {
               "id": "cfda7178-43ff-49f0-95ca-00b43d4f87a9",
               "name": "R2_PUBLIC_BASE",
               "value": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/little-hero-assets/",
               "type": "string"
+            },
+            {
+              "id": "3e1d1930-1ea7-4095-9086-06c76fd55c4e",
+              "name": "index",
+              "value": "={{ Number($json.index ?? $itemIndex) }}",
+              "type": "number"
             }
           ]
         },
@@ -696,7 +622,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -3456,
+        -2624,
         7392
       ],
       "id": "617c4b79-2149-4f58-a07a-5ec0091dccf3",
@@ -730,7 +656,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -2800,
+        -1760,
         7392
       ],
       "id": "b5e14f17-acc9-4733-a4d4-23d463e30bd2",
@@ -738,12 +664,12 @@
     },
     {
       "parameters": {
-        "jsCode": "// Clean Binary After Upload (REPLACEMENT)\n// Goal: keep the original item (with __meta) and mark didUpload=true.\n// Also free binary & heavy fields.\n\nconst original = $items('Make Binary from Base64', 0, $itemIndex)?.[0]?.json ?? $json;\n\n// mark success\noriginal.__meta = original.__meta || {};\noriginal.__meta.didUpload = true;\n\n// free binary & heavy fields (defensive)\nif ($binary?.image) {\n  delete $binary.image;\n}\ndelete original.extractedImageData;\ndelete original.poseBase64;\ndelete original.characterBase64;\ndelete original.requestBody;\n\nreturn [{ json: original, binary: $binary }];\n"
+        "jsCode": "// Clean Binary After Upload (Function Item)\n// Assumes previous node is \"Attach Upload Response\" (Merge by position)\n\nconst out = { ...$json };\n\n// Normalize poseNumber -> number\nlet pose = out.currentPoseNumber ?? out.poseNumber ?? ($itemIndex + 1);\nif (typeof pose === 'string') pose = Number(pose.trim());\npose = Number(pose);\nout.poseNumber = pose;\nout.currentPoseNumber = pose;\n\n// Normalize index\nout.index = Number(out.index ?? $itemIndex);\n\n// Mark upload flags\nout.__meta = out.__meta || {};\nout.__meta.didUpload = true;\nif (out.__meta.poseNumber == null) out.__meta.poseNumber = pose;\n\n// Carry upload success if present\nif (typeof out.success !== 'undefined') out.upload_success = out.success;\n\n// Drop heavy fields if any leaked in\ndelete out.extractedImageData;\ndelete out.poseBase64;\ndelete out.characterBase64;\ndelete out.requestBody;\n\n// IMPORTANT: do not return $binary to keep memory low\nreturn [{ json: out }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1952,
+        -704,
         7392
       ],
       "id": "b8e0b7cb-75f7-4308-999a-8eca7bfa370a",
@@ -751,30 +677,144 @@
     },
     {
       "parameters": {
-        "jsCode": "// No Upload Pass-through\n// Goal: forward the original pre-branch item unchanged.\n\nconst UPSTREAM = 'Make Binary from Base64';\nconst priorArr = $items(UPSTREAM, 0, $itemIndex);\nconst original = (priorArr && priorArr[0] && priorArr[0].json) ? priorArr[0].json : $json;\n\nreturn [{ json: original }];"
+        "jsCode": "// No Upload Pass-through (prefer current item; no upstream lookups)\n// Use ONLY the current $json. Re-derive pose/index ONLY if missing.\n// This prevents resetting to pose=1 when earlier nodes exist.\n\nfunction parsePoseFromUrl(u) {\n  if (!u) return null;\n  const s = String(u);\n  const m = s.match(/\\/(\\d+)\\.(?:png|jpg|jpeg|webp)$/i);\n  return m ? Number(m[1]) : null;\n}\n\nconst out = { ...($json || {}) };   // keep exactly what came in\n\n// Pose: keep if present; otherwise derive from storageKey/url; last resort from index or $itemIndex\nlet pose = Number(\n  out.poseNumber ??\n  out.currentPoseNumber ??\n  out.__meta?.poseNumber ??\n  parsePoseFromUrl(out.__meta?.storageKey) ??\n  parsePoseFromUrl(out.originalImageUrl) ??\n  parsePoseFromUrl(out.imageUrl)\n);\n\nif (!Number.isFinite(pose) || pose < 1) {\n  pose = Number.isFinite(Number(out.index)) ? Number(out.index) + 1 : ($itemIndex + 1);\n}\n\n// If you always have 12 poses, clamp; otherwise remove this clamp.\nif (pose > 12) pose = 12;\n\n// Index: keep if present; else derive from pose\nlet idx = Number(out.index);\nif (!Number.isFinite(idx) || idx < 0) idx = pose - 1;\n\n// Normalize fields\nout.poseNumber = pose;\nout.currentPoseNumber = pose;\nout.index = idx;\n\nout.__meta = { ...(out.__meta || {}) };\nout.__meta.poseNumber = pose;\n\n// Do NOT touch urls/hashes or $binary; just forward\nreturn [{ json: out, binary: $binary }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2336,
-        7456
+        -1200,
+        7408
       ],
       "id": "a60ba390-9563-4994-b6b4-2141cfd26e23",
       "name": "No Upload Pass-through"
     },
     {
       "parameters": {
-        "jsCode": "const b = $json._briaBody;\nreturn [{ json: {\n  _bodyKeys: b ? Object.keys(b) : [],\n  _image_is_string: b ? typeof b.image === 'string' : null,\n  _image_url_is_string: b ? typeof b.image_url === 'string' : null,\n  _raw_body: b || null\n}}];"
+        "jsCode": "// Runs once over the whole array\nconst items = $input.all();\nreturn items.map((item, idx) => {\n  const j = { ...(item.json ?? {}) };\n\n  // If caller provided a pose, keep it; otherwise assign 1..N\n  j.poseNumber        = j.poseNumber ?? j.currentPoseNumber ?? (idx + 1);\n  j.currentPoseNumber = j.currentPoseNumber ?? j.poseNumber;\n\n  // Optional helper, zero-based\n  j.index = j.index ?? idx;\n\n  return { json: j, binary: item.binary };\n});\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -880,
+        -3696,
         7392
       ],
-      "id": "24f8a934-ce0b-47a3-9f21-f6612c995363",
-      "name": "Proof",
-      "disabled": true
+      "id": "bb2299e2-a802-4fe6-a81c-2cd581675618",
+      "name": "Stamp Pose Index"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1200,
+        7184
+      ],
+      "id": "0f85e1ca-b194-442f-8e6a-79e43c0e7274",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        928,
+        7248
+      ],
+      "id": "5ebc068f-b5fc-4348-a736-70bde865c153",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Stamp Pose Index-compatible items from small inputs + downloaded binary\n// Downstream expects: array of items where item.json has\n// poseNumber (1-based), currentPoseNumber (same), index (0-based),\n// and the Gemini-style `candidates[0].content.parts[0].inlineData` payload.\n\nconst items = $input.all();\n\nreturn items.map((item, idx) => {\n  const j = item.json ?? {};\n  const bin = item.binary ?? {};\n\n  // derive/normalize indices\n  const pose = Number.isFinite(Number(j.poseNumber)) ? Number(j.poseNumber) : (idx + 1);\n  const index = Number.isFinite(Number(j.index)) ? Number(j.index) : idx;\n\n  // n8n stores binary as base64 string at {binaryKey}.data\n  const b = bin.data;\n  if (!b?.data) {\n    throw new Error(\"Binary 'data' missing. Ensure HTTP Request returned a File with binary property 'data'.\");\n  }\n\n  const out = {\n    ...j,\n    poseNumber: pose,\n    currentPoseNumber: pose,\n    index,\n    candidates: [\n      {\n        content: {\n          parts: [\n            {\n              inlineData: {\n                mimeType: b.mimeType || \"image/png\",\n                data: b.data // base64 string\n              }\n            }\n          ]\n        }\n      }\n    ]\n  };\n\n  // Keep binary if you want (not necessary for most downstream nodes)\n  return { json: out, binary: item.binary };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3280,
+        7168
+      ],
+      "id": "1b852752-2d62-4b5d-80b6-3ea7b7267091",
+      "name": "Build Stamp Pose Output (Sim)"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.imageUrl}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3472,
+        7168
+      ],
+      "id": "260d1510-82af-4f7c-9189-4de6472ac1cd",
+      "name": "Download Image"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Capture Lean Meta (Sim Safe)\n// Works even if \"Generate Character Hash\" never ran.\n// Derives pose, hash, storageKey, and characterPath from the simulated item.\n// Also propagates amazonOrderId (default TEST-ORDER-002).\n\nconst src = ($input.first()?.json) || {};\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\nconst DEFAULT_AMZ_ID = 'TEST-ORDER-002';\n\nconst isBadHash = (h) =>\n  !h || typeof h !== 'string' || h === 'nohash' || h === 'unknown' || h.trim().length < 4;\n\n// ---- helpers ----\nfunction tryHashFromNode() {\n  try {\n    return $items('Generate Character Hash', 0, 0)?.[0]?.json?.characterHash ?? null;\n  } catch { return null; }\n}\n\nfunction hashFromUrl(u) {\n  if (!u) return null;\n  try {\n    const path = new URL(u).pathname;               // '/.../characters/<hash>/<pose>.png'\n    return path.match(/\\/characters\\/([^/]+)\\//i)?.[1] ?? null;\n  } catch {\n    return String(u).match(/characters\\/([^/]+)\\//i)?.[1] ?? null;\n  }\n}\n\nfunction folderFromUrl(u) {\n  if (!u) return null;\n  const path = (() => {\n    try { return new URL(u).pathname.replace(/^\\/+/, ''); }\n    catch { return String(u).replace(/^https?:\\/\\/[^/]+\\//, ''); }\n  })();\n  return path.replace(/[^/]+$/, ''); // drop filename to get folder path\n}\n\n// ---- 0) Amazon Order ID (propagate strongly) ----\nconst amazonOrderId =\n  src.orderData?.amazonOrderId ??\n  src.amazonOrderId ??\n  src.__meta?.amazonOrderId ??\n  DEFAULT_AMZ_ID;\n\n// ---- 1) Pose number (keep 1-based; clamp 1..12) ----\nconst poseNumberRaw =\n  src.poseNumber ??\n  src.currentPoseNumber ??\n  src.__meta?.poseNumber ??\n  ($itemIndex + 1);\n\nconst poseParsed = Number.isFinite(Number(poseNumberRaw)) ? Number(poseNumberRaw) : 1;\nconst poseNumber = Math.min(12, Math.max(1, Number(poseParsed)));\n\n// ---- 2) Character hash (prefer simulated fields; fall back to URL; last to node) ----\nconst upstreamHash   = tryHashFromNode();\nconst urlHash        = hashFromUrl(src.originalImageUrl || src.imageUrl);\nconst resolvedHash   = src.characterHash || src.characterSpecs?.hash || urlHash || upstreamHash || null;\nconst characterHash  = isBadHash(resolvedHash) ? null : resolvedHash;\n\n// ---- 3) Path & storageKey ----\nlet characterPath =\n  src.__meta?.characterPath ||\n  src.characterPath ||\n  folderFromUrl(src.originalImageUrl || src.imageUrl) ||\n  (characterHash ? `${BASE_PREFIX}/${characterHash}/` : null);\n\nconst storageKey = characterHash\n  ? `${BASE_PREFIX}/${characterHash}/${poseNumber}.png`\n  : null;\n\n// ---- 4) Write meta + top-level fields back ----\nsrc.amazonOrderId = amazonOrderId; // flat\nsrc.orderData = { ...(src.orderData || {}), amazonOrderId }; // nested for compatibility\n\nsrc.__meta = {\n  ...(src.__meta || {}),\n  amazonOrderId,     // keep in meta for easy access\n  poseNumber,        // 1..12\n  characterHash,     // may be null in extreme sim cases\n  storageKey,        // null if no hash\n  characterPath      // stable folder-style path (no domain)\n};\n\nreturn [{ json: src }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2352,
+        7392
+      ],
+      "id": "43f73e8f-a6f8-49b0-99e8-547b9ccd094c",
+      "name": "FOR TESTING - Capture Lean Meta"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Store Submission Result (Sim Safe) — with raw file URL\n// Works without Bria/Generate Character Hash. Safe for simulated inputs.\n// Now also carries amazonOrderId (default TEST-ORDER-002).\n\n// --- Constants (keep in sync across nodes)\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\nconst DEFAULT_AMZ_ID = 'TEST-ORDER-002';\n\n// --- Gather inputs (usually just your Sim Image Index item)\nconst inputs = $input.all();\n\n// --- Helpers\nconst isBadHash = (h) =>\n  !h || typeof h !== 'string' || h === 'nohash' || h === 'unknown' || h.trim().length < 4;\n\nfunction hashFromUrl(u) {\n  if (!u) return null;\n  try {\n    const path = new URL(u).pathname; // '/.../characters/<hash>/<pose>.png'\n    return path.match(/\\/characters\\/([^/]+)\\//i)?.[1] ?? null;\n  } catch {\n    return String(u).match(/characters\\/([^/]+)\\//i)?.[1] ?? null;\n  }\n}\n\nfunction folderFromUrl(u) {\n  if (!u) return null;\n  const path = (() => {\n    try { return new URL(u).pathname.replace(/^\\/+/, ''); }\n    catch { return String(u).replace(/^https?:\\/\\/[^/]+\\//, ''); }\n  })();\n  return path.replace(/[^/]+$/, ''); // drop filename → folder\n}\n\nfunction pickMetaItem() {\n  return inputs.find(i => i?.json?.__meta) || inputs[0];\n}\nfunction pickRespItem() {\n  return inputs.find(i => {\n    const j = i?.json || {};\n    return j.request_id || j.requestId || j.status_url || j.statusUrl ||\n           j.data?.request_id || j.result?.request_id || j.links?.status;\n  }) || inputs[0];\n}\n\n// --- Identify items (meta/resp may be the same in sim)\nconst metaItem = pickMetaItem();\nconst respItem = pickRespItem();\nconst meta = metaItem?.json?.__meta || {};\nconst resp = respItem?.json || {};\n\n// --- Amazon Order ID (prefer nested/flat/meta; default to TEST)\nconst amazonOrderId =\n  metaItem?.json?.orderData?.amazonOrderId ??\n  metaItem?.json?.amazonOrderId ??\n  meta?.amazonOrderId ??\n  DEFAULT_AMZ_ID;\n\n// --- Pose number (prefer meta/local; clamp 1..12)\nconst rawPose =\n  meta.poseNumber ??\n  metaItem?.json?.poseNumber ??\n  metaItem?.json?.currentPoseNumber ??\n  respItem?.json?.poseNumber ??\n  respItem?.json?.currentPoseNumber ??\n  1;\n\nconst poseParsed = Number.isFinite(Number(rawPose)) ? Number(rawPose) : 1;\nconst poseNumber = Math.min(12, Math.max(1, Number(poseParsed)));\n\n// --- Try to resolve a raw file URL from the sim inputs\nconst simSourceUrl =\n  metaItem?.json?.originalImageUrl || metaItem?.json?.imageUrl ||\n  respItem?.json?.originalImageUrl || respItem?.json?.imageUrl || null;\n\n// --- Resolve characterHash (prefer explicit, then from URL)\nconst localHash =\n  meta.characterHash ??\n  metaItem?.json?.characterHash ??\n  respItem?.json?.characterHash ??\n  metaItem?.json?.characterSpecs?.hash ??\n  respItem?.json?.characterSpecs?.hash ??\n  hashFromUrl(simSourceUrl) ??\n  null;\n\nconst characterHash = isBadHash(localHash) ? null : localHash;\n\n// --- characterPath (folder-style); backfill if missing\nlet characterPath =\n  meta.characterPath ??\n  metaItem?.json?.characterPath ??\n  respItem?.json?.characterPath ??\n  folderFromUrl(simSourceUrl) ??\n  (characterHash ? `${BASE_PREFIX}/${characterHash}/` : null);\n\n// --- Bria response identifiers (fabricate in sim mode if missing)\nlet requestId =\n  resp.request_id ?? resp.requestId ??\n  resp.data?.request_id ?? resp.result?.request_id ?? null;\n\nlet statusUrl =\n  resp.status_url ?? resp.statusUrl ??\n  resp.data?.status_url ?? resp.result?.status_url ??\n  resp.links?.status ?? null;\n\nif (!requestId) {\n  const hashForId = characterHash || 'sim';\n  requestId = `sim-${hashForId}-${poseNumber}`;\n}\nif (!statusUrl && simSourceUrl) {\n  statusUrl = simSourceUrl; // stand-in so downstream nodes have something resolvable\n}\n\n// In simulation we want success semantics; only fail if we truly have nothing\nconst failed = !(requestId && (statusUrl || characterHash || characterPath));\n\n// --- Output (now includes imageUrl & originalImageUrl and amazonOrderId)\nconst out = {\n  requestId,\n  statusUrl,\n  poseNumber,\n  characterHash,\n  characterPath,        // folder-style path (no filename)\n  imageUrl: simSourceUrl || null,\n  originalImageUrl: simSourceUrl || null,\n  amazonOrderId,        // ← NEW: carried forward\n  failed,\n  submittedAt: new Date().toISOString(),\n};\n\n// Diagnostics (optional)\nconsole.log(`SimSafe store: pose=${poseNumber}, id=${requestId}, failed=${failed}, amazonOrderId=${amazonOrderId}`);\n\nreturn [{ json: out }];\n"
+      },
+      "id": "7e2df765-8021-40bc-bf0c-d8277894c64e",
+      "name": "FOR TESTING - Store Submission Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        7440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// === CREATE FINAL SUMMARY (TEST) — no cross-node references ===\n// Uses only the incoming items (e.g., from Sim Image Index / Sim Safe Store) to\n// build orderData and submissions. Safe for runs where Capture Lean Meta /\n// Generate Character Hash are skipped.\n\nconst incomingItems = $input.all();\nconsole.log('=== CREATE FINAL SUMMARY (TEST) ===');\nconsole.log(`Received ${incomingItems.length} items from loop`);\n\nconst SIM_AMAZON_ORDER_ID = 'TEST-ORDER-LOCAL-001';\n\nconst isBadHash = (h) =>\n  !h || typeof h !== 'string' || h === 'nohash' || h === 'unknown' || h.trim().length < 4;\n\nfunction hashFromUrl(u) {\n  if (!u) return null;\n  try {\n    const path = new URL(u).pathname; // '/.../characters/<hash>/<pose>.png'\n    return path.match(/\\/characters\\/([^/]+)\\//i)?.[1] ?? null;\n  } catch {\n    return String(u).match(/characters\\/([^/]+)\\//i)?.[1] ?? null;\n  }\n}\n\nfunction folderFromUrl(u) {\n  if (!u) return null;\n  const path = (() => {\n    try { return new URL(u).pathname.replace(/^\\/+/, ''); }\n    catch { return String(u).replace(/^https?:\\/\\/[^/]+\\//, ''); }\n  })();\n  return path.replace(/[^/]+$/, ''); // drop filename → folder\n}\n\n// ---- Helpers to derive globals from ONLY incoming items ----\nfunction chooseGlobalHash(items) {\n  for (const it of items) {\n    const j = it?.json || {};\n    const candidate =\n      j.characterHash ??\n      j.__meta?.characterHash ??\n      j.characterSpecs?.hash ??\n      hashFromUrl(j.originalImageUrl || j.imageUrl) ??\n      null;\n    if (!isBadHash(candidate)) return candidate;\n  }\n  return null;\n}\n\nfunction chooseAmazonOrderId(items) {\n  for (const it of items) {\n    const j = it?.json || {};\n    const id =\n      j.orderData?.amazonOrderId ??\n      j.amazonOrderId ??\n      null;\n    if (id && String(id).trim().length > 0) return String(id).trim();\n  }\n  return SIM_AMAZON_ORDER_ID; // fallback for simulation\n}\n\n// Prefer any embedded order snapshot if present, else minimal structure\nconst firstJson = incomingItems?.[0]?.json || {};\nconst globalHash = chooseGlobalHash(incomingItems);\nconst amazonOrderId = chooseAmazonOrderId(incomingItems);\n\nconst orderData = {\n  // AMAZON ORDER: now guaranteed (sim default if absent)\n  amazonOrderId,\n\n  // Hash: prefer embedded, else global derived from URLs/fields\n  characterHash: !isBadHash(firstJson.orderData?.characterHash)\n                    ? firstJson.orderData.characterHash\n                    : (!isBadHash(firstJson.characterHash)\n                        ? firstJson.characterHash\n                        : globalHash),\n\n  characterSpecs: firstJson.orderData?.characterSpecs ?? firstJson.characterSpecs ?? {},\n  bookSpecs:      firstJson.orderData?.bookSpecs ?? firstJson.bookSpecs ?? {},\n  orderDetails:   firstJson.orderData?.orderDetails ?? firstJson.orderDetails ?? {},\n  r2BucketName:   firstJson.orderData?.r2BucketName ?? 'little-hero-assets'\n};\n\nconsole.log('Order data snapshot (TEST):', {\n  amazonOrderId: orderData.amazonOrderId,\n  characterHash: orderData.characterHash || 'null'\n});\n\n// ---- Build normalized submissions array (prefer item hash; fallback to order hash)\nconst submissions = incomingItems.map((item, idx) => {\n  const j = item.json || {};\n\n  const pose =\n    Number(j.poseNumber) ||\n    Number(j.currentPoseNumber) ||\n    (idx + 1);\n\n  const itemHash =\n    j.characterHash ??\n    j.__meta?.characterHash ??\n    j.characterSpecs?.hash ??\n    hashFromUrl(j.originalImageUrl || j.imageUrl) ??\n    null;\n\n  const chosenHash = !isBadHash(itemHash)\n    ? itemHash\n    : (!isBadHash(orderData.characterHash) ? orderData.characterHash : null);\n\n  // characterPath: prefer explicit/meta; otherwise derive from the file URL\n  let path =\n    j.__meta?.characterPath ??\n    j.characterPath ??\n    j.sourceUrl ??\n    null;\n\n  if (!path) {\n    const rawUrl = j.originalImageUrl || j.imageUrl || null;\n    if (rawUrl) path = folderFromUrl(rawUrl); // folder-style\n  }\n\n  const briaSubmissionSuccess = !!(j.requestId && j.statusUrl);\n  return {\n    requestId: j.requestId || null,\n    statusUrl: j.statusUrl || null,\n\n    // keep for compatibility/diagnostics\n    extractedImageData: j.extractedImageData || null,\n\n    // pose\n    currentPoseNumber: pose,\n    poseNumber: pose,\n\n    // id & pathing\n    characterHash: chosenHash || null,\n    characterPath: path || null,\n\n    // raw file references if present (harmless if null)\n    imageUrl: j.imageUrl || null,\n    originalImageUrl: j.originalImageUrl || null,\n\n    failed: !!j.failed,\n    submittedAt: j.submittedAt || new Date().toISOString(),\n    briaSubmissionSuccess\n  };\n});\n\nconst valid = submissions.filter(s => s.requestId && s.statusUrl);\nconst failed = submissions.length - valid.length;\n\nconsole.log(`Valid submissions: ${valid.length}`);\nconsole.log(`Failed submissions: ${failed}`);\nconsole.log(`Pose numbers: ${submissions.map(s => s.poseNumber).join(', ')}`);\n\nreturn [{\n  json: {\n    totalSubmissions: submissions.length,\n    successful: valid.length,\n    failed: failed,\n    submittedAt: new Date().toISOString(),\n\n    submissions,\n    orderData,           // preserved for 2B/next workflow\n    workflow2AComplete: true\n  }\n}];\n"
+      },
+      "id": "52416753-d4dc-4217-8f9b-a19760ddff67",
+      "name": "FOR TESTING - Create Final Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2576,
+        6976
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sim Image Indexes + hash for Capture Lean Meta\n// Mode: Run Once for All Items  |  Language: JavaScript\n\n// ---- EDIT THESE CONSTANTS ----\nconst CHARACTER_HASH = '1dde0fac84943088';\nconst PUBLIC_BASE = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters';\nconst AMAZON_ORDER_ID = 'TEST-ORDER-002'; // ← NEW\n// --------------------------------\n\nconst COUNT = 12;\n\nreturn Array.from({ length: COUNT }, (_, i) => {\n  const poseNumber = i + 1;\n  const url = `${PUBLIC_BASE}/${CHARACTER_HASH}/${poseNumber}.png`;\n\n  return {\n    json: {\n      // what downstream nodes expect for indexing\n      poseNumber,         // 1..12\n      index: i,           // 0-based\n\n      // image URL so preview/downstream still works\n      imageUrl: url,\n      originalImageUrl: url, // some nodes read this key\n\n      // provide the hash so Capture Lean Meta can build storageKey/characterPath\n      characterHash: CHARACTER_HASH,\n\n      // belt-and-suspenders: CLM also checks this location\n      characterSpecs: { hash: CHARACTER_HASH },\n\n      // test Amazon Order ID (set both flat and nested for compatibility)\n      amazonOrderId: AMAZON_ORDER_ID,\n      orderData: { amazonOrderId: AMAZON_ORDER_ID },\n\n      // optional hint; CLM will merge/overwrite as needed\n      __meta: { poseNumber, amazonOrderId: AMAZON_ORDER_ID }\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3648,
+        7168
+      ],
+      "id": "13875e52-122e-4d19-b5a7-f96ff95788a6",
+      "name": "Stamp Pose Index Simulation"
     }
   ],
   "pinData": {},
@@ -794,7 +834,7 @@
       "main": [
         [
           {
-            "node": "Generate Mock Order",
+            "node": "Stamp Pose Index Simulation",
             "type": "main",
             "index": 0
           }
@@ -1008,7 +1048,7 @@
       "main": [
         [
           {
-            "node": "Loop Over Items",
+            "node": "Stamp Pose Index",
             "type": "main",
             "index": 0
           }
@@ -1019,7 +1059,7 @@
       "main": [
         [
           {
-            "node": "Create Final Summary",
+            "node": "FOR TESTING - Create Final Summary",
             "type": "main",
             "index": 0
           }
@@ -1059,57 +1099,6 @@
       "main": [
         [
           {
-            "node": "Check If Long Wait Needed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check If Long Wait Needed": {
-      "main": [
-        [
-          {
-            "node": "Is 10th Item?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Is 10th Item?": {
-      "main": [
-        [
-          {
-            "node": "Wait Extra 54 Seconds",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Merge Wait Paths",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Wait Extra 54 Seconds": {
-      "main": [
-        [
-          {
-            "node": "Merge Wait Paths",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge Wait Paths": {
-      "main": [
-        [
-          {
             "node": "Loop Over Items",
             "type": "main",
             "index": 0
@@ -1143,9 +1132,9 @@
       "main": [
         [
           {
-            "node": "Store Submission Result",
+            "node": "Merge1",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -1168,6 +1157,11 @@
             "node": "If (should upload?)",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1176,9 +1170,9 @@
       "main": [
         [
           {
-            "node": "Clean Binary After Upload",
+            "node": "Merge",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -1220,7 +1214,12 @@
       "main": [
         [
           {
-            "node": "Proof",
+            "node": "Submit to Bria AI",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
             "type": "main",
             "index": 0
           }
@@ -1231,7 +1230,7 @@
       "main": [
         [
           {
-            "node": "Capture Lean Meta",
+            "node": "FOR TESTING - Capture Lean Meta",
             "type": "main",
             "index": 0
           }
@@ -1278,11 +1277,99 @@
         ]
       ]
     },
-    "Proof": {
+    "Stamp Pose Index": {
       "main": [
         [
           {
-            "node": "Submit to Bria AI",
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Clean Binary After Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "FOR TESTING - Store Submission Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Stamp Pose Output (Sim)": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image": {
+      "main": [
+        [
+          {
+            "node": "Build Stamp Pose Output (Sim)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FOR TESTING - Capture Lean Meta": {
+      "main": [
+        [
+          {
+            "node": "Make Binary from Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FOR TESTING - Store Submission Result": {
+      "main": [
+        [
+          {
+            "node": "Wait 6 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FOR TESTING - Create Final Summary": {
+      "main": [
+        [
+          {
+            "node": "Wait 90 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stamp Pose Index Simulation": {
+      "main": [
+        [
+          {
+            "node": "Download Image",
             "type": "main",
             "index": 0
           }
@@ -1294,7 +1381,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "833acc54-cb76-403c-8404-25122626531d",
+  "versionId": "004531ba-a6d2-4aca-85b7-1532b9d542e1",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
