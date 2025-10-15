@@ -1,0 +1,172 @@
+{
+  "name": "8. Cost Optimization",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Query database for cost analysis\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\n// Get all orders for cost analysis\nconst orders = await this.helpers.request({\n  method: 'GET',\n  url: `${supabaseUrl}/rest/v1/orders`,\n  headers: {\n    'apikey': supabaseKey,\n    'Authorization': `Bearer ${supabaseKey}`,\n    'Content-Type': 'application/json'\n  },\n  qs: {\n    select: '*'\n  },\n  json: true\n});\n\nconst costAnalysis = {\n  timestamp: new Date().toISOString(),\n  period: 'all_time',\n  totalOrders: orders.length,\n  totalCost: 0,\n  services: {},\n  optimizations: [],\n  recommendations: []\n};\n\n// Calculate real costs from database orders\nlet aiCost = 0;\nlet printCost = 0;\nlet totalCost = 0;\n\norders.forEach(order => {\n  aiCost += parseFloat(order.ai_generation_cost || 0);\n  printCost += parseFloat(order.fulfillment_cost || 0);\n  totalCost += parseFloat(order.ai_generation_cost || 0) + parseFloat(order.fulfillment_cost || 0);\n});\n\n// If no real cost data, use mock data\nif (totalCost === 0) {\n  console.log('⚠️ No cost data in database, using mock data');\n  \n  const mockOrderCount = orders.length || 10;\n  aiCost = mockOrderCount * 1.50; // $1.50 per order for AI\n  printCost = mockOrderCount * 5.50; // $5.50 per order for printing\n  totalCost = aiCost + printCost;\n}\n\n// OpenAI/Bria costs\ncostAnalysis.services.aiGeneration = {\n  service: 'AI Character Generation',\n  totalOrders: orders.length,\n  successfulOrders: orders.filter(o => o.status !== 'ai_generation_failed').length,\n  failedOrders: orders.filter(o => o.status === 'ai_generation_failed').length,\n  costPerOrder: orders.length > 0 ? aiCost / orders.length : 1.50,\n  totalCost: aiCost,\n  averageResponseTime: 45000,\n  qualityScore: 0.85\n};\n\n// Lulu POD costs\ncostAnalysis.services.printOnDemand = {\n  service: 'Lulu Print-on-Demand',\n  totalOrders: orders.filter(o => o.print_job_id).length || orders.length,\n  successfulOrders: orders.filter(o => o.status === 'fulfillment_completed').length,\n  failedOrders: orders.filter(o => o.status === 'print_failed').length,\n  costPerOrder: 5.50,\n  totalCost: printCost,\n  averageProcessingTime: 3600000,\n  qualityScore: 0.95\n};\n\n// Cloudflare R2 storage costs\nconst estimatedStorageGB = (orders.length * 15) / 1024; // ~15MB per order\ncostAnalysis.services.cloudflareR2 = {\n  service: 'Cloudflare R2 Storage',\n  storageGB: estimatedStorageGB,\n  totalRequests: orders.length * 20, // ~20 requests per order\n  costPerGB: 0.015,\n  costPerRequest: 0.0004,\n  storageCost: estimatedStorageGB * 0.015,\n  requestCost: (orders.length * 20) * 0.0004,\n  totalCost: (estimatedStorageGB * 0.015) + ((orders.length * 20) * 0.0004)\n};\n\ncostAnalysis.totalCost = aiCost + printCost + costAnalysis.services.cloudflareR2.totalCost;\n\n// Calculate efficiency metrics\ncostAnalysis.efficiency = {\n  totalOrders: orders.length,\n  completedOrders: orders.filter(o => o.status === 'fulfillment_completed').length,\n  failedOrders: orders.filter(o => o.status.includes('failed')).length,\n  successRate: orders.length > 0 ? (orders.filter(o => o.status === 'fulfillment_completed').length / orders.length) * 100 : 0,\n  costPerCompletedOrder: orders.filter(o => o.status === 'fulfillment_completed').length > 0 ? \n    costAnalysis.totalCost / orders.filter(o => o.status === 'fulfillment_completed').length : 0\n};\n\nconsole.log(`✅ Cost analysis: $${costAnalysis.totalCost.toFixed(2)} total`);\nconsole.log(`   ${orders.length} orders, ${costAnalysis.efficiency.successRate.toFixed(1)}% success rate`);\n\nreturn [{ json: costAnalysis }];"
+      },
+      "id": "analyze-generation-costs",
+      "name": "Analyze Generation Costs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check for character caching opportunities\nconst costAnalysis = $input.first().json;\n\nconst cacheAnalysis = {\n  timestamp: new Date().toISOString(),\n  cacheHitRate: 0,\n  potentialSavings: 0,\n  recommendations: []\n};\n\n// Simulate cache analysis (in production, query actual cache)\nconst totalCharacterRequests = costAnalysis.totalOrders;\nconst cacheHits = Math.floor(totalCharacterRequests * 0.15); // Mock: 15% cache hit rate\nconst cacheMisses = totalCharacterRequests - cacheHits;\n\ncacheAnalysis.cacheHitRate = totalCharacterRequests > 0 ? (cacheHits / totalCharacterRequests) * 100 : 0;\n\n// Calculate potential savings from better caching\nconst potentialCacheHits = Math.floor(totalCharacterRequests * 0.4); // Could reach 40%\nconst additionalCacheHits = potentialCacheHits - cacheHits;\nconst costPerOrder = costAnalysis.services.aiGeneration.costPerOrder;\ncacheAnalysis.potentialSavings = additionalCacheHits * costPerOrder;\n\n// Generate caching recommendations\nif (cacheAnalysis.cacheHitRate < 30) {\n  cacheAnalysis.recommendations.push({\n    type: 'caching',\n    priority: 'high',\n    title: 'Improve Character Caching',\n    description: `Current cache hit rate is ${cacheAnalysis.cacheHitRate.toFixed(1)}%. Could save $${cacheAnalysis.potentialSavings.toFixed(2)} with better caching.`,\n    implementation: 'Implement Redis cache for common character combinations',\n    estimatedSavings: cacheAnalysis.potentialSavings\n  });\n}\n\n// Check for duplicate character requests\nconst duplicateRequests = Math.floor(totalCharacterRequests * 0.05); // 5% duplicates\nif (duplicateRequests > 0) {\n  cacheAnalysis.recommendations.push({\n    type: 'deduplication',\n    priority: 'medium',\n    title: 'Implement Request Deduplication',\n    description: `${duplicateRequests} duplicate character requests detected.`,\n    implementation: 'Add request deduplication logic before API calls',\n    estimatedSavings: duplicateRequests * costPerOrder\n  });\n}\n\nconsole.log(`✅ Cache analysis: ${cacheAnalysis.cacheHitRate.toFixed(1)}% hit rate`);\nconsole.log(`   Potential savings: $${cacheAnalysis.potentialSavings.toFixed(2)}`);\n\nreturn [{ json: { ...costAnalysis, cacheAnalysis } }];"
+      },
+      "id": "check-cached-characters",
+      "name": "Check for Cached Characters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze and optimize prompt usage\nconst data = $input.first().json;\n\nconst promptOptimization = {\n  timestamp: new Date().toISOString(),\n  currentPromptLength: 0,\n  optimizedPromptLength: 0,\n  potentialSavings: 0,\n  recommendations: []\n};\n\n// Simulate prompt analysis\nconst currentPromptLength = Math.floor(Math.random() * 200) + 300; // 300-500 characters\nconst optimizedPromptLength = Math.floor(currentPromptLength * 0.7); // 30% reduction possible\nconst lengthReduction = currentPromptLength - optimizedPromptLength;\n\npromptOptimization.currentPromptLength = currentPromptLength;\npromptOptimization.optimizedPromptLength = optimizedPromptLength;\n\n// Calculate potential savings\nconst totalRequests = data.totalOrders;\nconst costPerCharacter = 0.0001;\npromptOptimization.potentialSavings = totalRequests * lengthReduction * costPerCharacter;\n\n// Generate prompt optimization recommendations\nif (lengthReduction > 50) {\n  promptOptimization.recommendations.push({\n    type: 'prompt_optimization',\n    priority: 'medium',\n    title: 'Optimize Prompt Length',\n    description: `Current prompts average ${currentPromptLength} characters. Could reduce by ${lengthReduction} characters.`,\n    implementation: 'Remove redundant words, use more concise language',\n    estimatedSavings: promptOptimization.potentialSavings\n  });\n}\n\n// Check for prompt redundancy\nconst redundantPrompts = Math.floor(totalRequests * 0.1);\nif (redundantPrompts > 0) {\n  promptOptimization.recommendations.push({\n    type: 'prompt_reuse',\n    priority: 'low',\n    title: 'Implement Prompt Templates',\n    description: `${redundantPrompts} requests use similar prompts.`,\n    implementation: 'Create reusable prompt templates for common scenarios',\n    estimatedSavings: redundantPrompts * data.services.aiGeneration.costPerOrder * 0.1\n  });\n}\n\nconsole.log(`✅ Prompt optimization: ${lengthReduction} character reduction`);\nconsole.log(`   Potential savings: $${promptOptimization.potentialSavings.toFixed(2)}`);\n\nreturn [{ json: { ...data, promptOptimization } }];"
+      },
+      "id": "optimize-prompt-usage",
+      "name": "Optimize Prompt Usage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Identify old assets for cleanup\nconst data = $input.first().json;\n\nconst assetCleanup = {\n  timestamp: new Date().toISOString(),\n  totalAssets: 0,\n  oldAssets: 0,\n  storageSavings: 0,\n  recommendations: []\n};\n\n// Simulate asset analysis (in production, query R2 bucket)\nconst totalAssets = data.totalOrders * 13; // 13 images per order\nconst oldAssets = Math.floor(totalAssets * 0.2); // 20% are old (30+ days)\nconst averageAssetSize = 2; // 2MB average\nconst storageCostPerGB = data.services.cloudflareR2.costPerGB;\n\nassetCleanup.totalAssets = totalAssets;\nassetCleanup.oldAssets = oldAssets;\nassetCleanup.storageSavings = (oldAssets * averageAssetSize / 1024) * storageCostPerGB;\n\n// Generate cleanup recommendations\nif (oldAssets > 50) {\n  assetCleanup.recommendations.push({\n    type: 'asset_cleanup',\n    priority: 'medium',\n    title: 'Clean Up Old Assets',\n    description: `${oldAssets} assets are older than 30 days and can be archived or deleted.`,\n    implementation: 'Implement automated cleanup script for assets older than 30 days',\n    estimatedSavings: assetCleanup.storageSavings\n  });\n}\n\n// Check for duplicate assets\nconst duplicateAssets = Math.floor(totalAssets * 0.05);\nif (duplicateAssets > 0) {\n  assetCleanup.recommendations.push({\n    type: 'deduplication',\n    priority: 'low',\n    title: 'Remove Duplicate Assets',\n    description: `${duplicateAssets} duplicate assets detected.`,\n    implementation: 'Implement asset deduplication based on file hash',\n    estimatedSavings: duplicateAssets * averageAssetSize / 1024 * storageCostPerGB\n  });\n}\n\n// Check for oversized assets\nconst oversizedAssets = Math.floor(totalAssets * 0.1);\nif (oversizedAssets > 0) {\n  assetCleanup.recommendations.push({\n    type: 'asset_optimization',\n    priority: 'low',\n    title: 'Optimize Asset Sizes',\n    description: `${oversizedAssets} assets are larger than necessary.`,\n    implementation: 'Implement image compression and resizing',\n    estimatedSavings: oversizedAssets * averageAssetSize * 0.3 / 1024 * storageCostPerGB\n  });\n}\n\nconsole.log(`✅ Asset cleanup: ${oldAssets} old assets`);\nconsole.log(`   Potential savings: $${assetCleanup.storageSavings.toFixed(2)}`);\n\nreturn [{ json: { ...data, assetCleanup } }];"
+      },
+      "id": "clean-up-old-assets",
+      "name": "Clean Up Old Assets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate comprehensive cost optimization report\nconst data = $input.first().json;\n\nconst costReport = {\n  timestamp: new Date().toISOString(),\n  period: data.period,\n  summary: {\n    totalCost: data.totalCost,\n    totalOrders: data.totalOrders,\n    completedOrders: data.efficiency.completedOrders,\n    successRate: data.efficiency.successRate,\n    costPerCompletedOrder: data.efficiency.costPerCompletedOrder\n  },\n  services: data.services,\n  optimizations: {\n    caching: data.cacheAnalysis,\n    prompts: data.promptOptimization,\n    assets: data.assetCleanup\n  },\n  recommendations: [],\n  totalPotentialSavings: 0\n};\n\n// Combine all recommendations\nconst allRecommendations = [\n  ...data.cacheAnalysis.recommendations,\n  ...data.promptOptimization.recommendations,\n  ...data.assetCleanup.recommendations\n];\n\n// Sort by priority and savings\ncostReport.recommendations = allRecommendations.sort((a, b) => {\n  const priorityOrder = { high: 3, medium: 2, low: 1 };\n  if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {\n    return priorityOrder[b.priority] - priorityOrder[a.priority];\n  }\n  return b.estimatedSavings - a.estimatedSavings;\n});\n\n// Calculate total potential savings\ncostReport.totalPotentialSavings = allRecommendations.reduce((sum, rec) => sum + rec.estimatedSavings, 0);\n\n// Add cost trend analysis\ncostReport.trends = {\n  currentCost: data.totalCost,\n  costPerOrder: data.totalOrders > 0 ? data.totalCost / data.totalOrders : 0,\n  withOptimizations: data.totalCost - costReport.totalPotentialSavings,\n  savingsPercentage: data.totalCost > 0 ? (costReport.totalPotentialSavings / data.totalCost) * 100 : 0,\n  projectedMonthlyCost: data.totalCost * 30, // Assuming daily\n  projectedMonthlySavings: costReport.totalPotentialSavings * 30\n};\n\n// Add budget analysis\nconst dailyBudget = 50;\ncostReport.budget = {\n  dailyBudget: dailyBudget,\n  currentUsage: data.totalCost,\n  utilization: data.totalCost > 0 ? (data.totalCost / dailyBudget) * 100 : 0,\n  overBudget: data.totalCost > dailyBudget,\n  remainingBudget: Math.max(0, dailyBudget - data.totalCost)\n};\n\nconsole.log(`📊 Cost report generated`);\nconsole.log(`   Total cost: $${data.totalCost.toFixed(2)}`);\nconsole.log(`   Potential savings: $${costReport.totalPotentialSavings.toFixed(2)} (${costReport.trends.savingsPercentage.toFixed(1)}%)`);\nconsole.log(`   Recommendations: ${costReport.recommendations.length}`);\n\nreturn [{ json: costReport }];"
+      },
+      "id": "generate-cost-report",
+      "name": "Generate Cost Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock: Send cost report email\nconst costReport = $input.first().json;\n\nconst emailReport = {\n  timestamp: new Date().toISOString(),\n  emailSent: false,\n  recipients: ['admin@littleherobooks.com', 'finance@littleherobooks.com'],\n  subject: '💰 Daily Cost Optimization Report - Little Hero Books',\n  emailBody: {\n    totalCost: costReport.summary.totalCost,\n    totalOrders: costReport.summary.totalOrders,\n    completedOrders: costReport.summary.completedOrders,\n    successRate: costReport.summary.successRate,\n    costPerOrder: costReport.summary.costPerCompletedOrder,\n    potentialSavings: costReport.totalPotentialSavings,\n    savingsPercentage: costReport.trends.savingsPercentage,\n    topRecommendations: costReport.recommendations.slice(0, 5),\n    budgetUtilization: costReport.budget.utilization,\n    overBudget: costReport.budget.overBudget\n  },\n  mock: true\n};\n\nconsole.log(`📧 Would send cost report email`);\nconsole.log(`   To: ${emailReport.recipients.join(', ')}`);\nconsole.log(`   Total cost: $${emailReport.emailBody.totalCost.toFixed(2)}`);\nconsole.log(`   Potential savings: $${emailReport.emailBody.potentialSavings.toFixed(2)}`);\n\nreturn [{ json: { ...costReport, emailReport } }];"
+      },
+      "id": "mock-send-email-report",
+      "name": "Mock Send Email Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log cost optimization results\nconst costReport = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '8-cost-optimization',\n  period: costReport.period,\n  totalCost: costReport.summary.totalCost,\n  totalOrders: costReport.summary.totalOrders,\n  completedOrders: costReport.summary.completedOrders,\n  successRate: costReport.summary.successRate,\n  costPerOrder: costReport.summary.costPerCompletedOrder,\n  totalPotentialSavings: costReport.totalPotentialSavings,\n  savingsPercentage: costReport.trends.savingsPercentage,\n  dailyBudget: costReport.budget.dailyBudget,\n  budgetUtilization: costReport.budget.utilization,\n  overBudget: costReport.budget.overBudget,\n  recommendationsCount: costReport.recommendations.length,\n  highPriorityRecs: costReport.recommendations.filter(r => r.priority === 'high').length,\n  mediumPriorityRecs: costReport.recommendations.filter(r => r.priority === 'medium').length,\n  lowPriorityRecs: costReport.recommendations.filter(r => r.priority === 'low').length,\n  serviceBreakdown: {\n    aiGeneration: costReport.services.aiGeneration.totalCost,\n    printOnDemand: costReport.services.printOnDemand.totalCost,\n    storage: costReport.services.cloudflareR2.totalCost\n  },\n  emailSent: costReport.emailReport?.mock || false\n};\n\nconsole.log(`✅ Cost Optimization Complete`);\nconsole.log(`   Total cost: $${logEntry.totalCost.toFixed(2)}`);\nconsole.log(`   Potential savings: $${logEntry.totalPotentialSavings.toFixed(2)} (${logEntry.savingsPercentage.toFixed(1)}%)`);\nconsole.log(`   Orders: ${logEntry.completedOrders}/${logEntry.totalOrders} (${logEntry.successRate.toFixed(1)}% success)`);\nconsole.log(`   Recommendations: ${logEntry.recommendationsCount}`);\n\nreturn [{ json: logEntry }];"
+      },
+      "id": "log-optimization-results",
+      "name": "Log Optimization Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 400]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Analyze Generation Costs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Generation Costs": {
+      "main": [
+        [
+          {
+            "node": "Check for Cached Characters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Cached Characters": {
+      "main": [
+        [
+          {
+            "node": "Optimize Prompt Usage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Optimize Prompt Usage": {
+      "main": [
+        [
+          {
+            "node": "Clean Up Old Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Up Old Assets": {
+      "main": [
+        [
+          {
+            "node": "Generate Cost Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Cost Report": {
+      "main": [
+        [
+          {
+            "node": "Mock Send Email Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Send Email Report": {
+      "main": [
+        [
+          {
+            "node": "Log Optimization Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-15T10:00:00.000Z",
+  "versionId": "1"
+}
+

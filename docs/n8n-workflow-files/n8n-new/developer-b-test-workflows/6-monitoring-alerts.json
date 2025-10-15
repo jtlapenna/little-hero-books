@@ -1,0 +1,193 @@
+{
+  "name": "6. Monitoring & Alerts - TEST",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Query real database for order statistics\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\n// Get order counts by status\nconst orderStats = await this.helpers.request({\n  method: 'GET',\n  url: `${supabaseUrl}/rest/v1/orders`,\n  headers: {\n    'apikey': supabaseKey,\n    'Authorization': `Bearer ${supabaseKey}`,\n    'Content-Type': 'application/json'\n  },\n  qs: {\n    select: '*'\n  },\n  json: true\n});\n\n// Calculate statistics\nconst stats = {\n  total: orderStats.length,\n  byStatus: {},\n  recentOrders: 0,\n  oldestPendingAge: null\n};\n\n// Count by status\norderStats.forEach(order => {\n  stats.byStatus[order.status] = (stats.byStatus[order.status] || 0) + 1;\n  \n  // Count orders from last 24 hours\n  const orderAge = Date.now() - new Date(order.created_at).getTime();\n  if (orderAge < 24 * 60 * 60 * 1000) {\n    stats.recentOrders++;\n  }\n  \n  // Find oldest pending order\n  if (order.status.includes('pending') || order.status.includes('queued')) {\n    if (!stats.oldestPendingAge || orderAge > stats.oldestPendingAge) {\n      stats.oldestPendingAge = orderAge;\n    }\n  }\n});\n\n// Mock system health (in production, would check actual services)\nconst systemHealth = {\n  timestamp: new Date().toISOString(),\n  database: {\n    status: 'healthy',\n    responseTime: 45,\n    totalOrders: stats.total,\n    orderStats: stats\n  },\n  services: {\n    supabase: { status: 'healthy', responseTime: 45 },\n    openai: { status: 'healthy', responseTime: 850, mock: true },\n    bria: { status: 'healthy', responseTime: 1200, mock: true },\n    lulu: { status: 'healthy', responseTime: 650, mock: true },\n    sendgrid: { status: 'healthy', responseTime: 120, mock: true },\n    cloudflareR2: { status: 'healthy', responseTime: 95, mock: true }\n  }\n};\n\n// Determine overall health\nconst unhealthyServices = Object.values(systemHealth.services).filter(s => s.status !== 'healthy');\nsystemHealth.overallStatus = unhealthyServices.length === 0 ? 'healthy' : \n                             unhealthyServices.length === 1 ? 'degraded' : 'critical';\n\nconsole.log(`📊 System Health: ${systemHealth.overallStatus}`);\nconsole.log(`📦 Total Orders: ${stats.total}`);\nconsole.log(`📈 Recent Orders (24h): ${stats.recentOrders}`);\nconsole.log(`📋 By Status:`, stats.byStatus);\n\nreturn { json: systemHealth };"
+      },
+      "id": "check-system-health",
+      "name": "Check System Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Query database for cost tracking\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\n// Get orders with cost data\nconst orders = await this.helpers.request({\n  method: 'GET',\n  url: `${supabaseUrl}/rest/v1/orders`,\n  headers: {\n    'apikey': supabaseKey,\n    'Authorization': `Bearer ${supabaseKey}`,\n    'Content-Type': 'application/json'\n  },\n  qs: {\n    select: '*'\n  },\n  json: true\n});\n\n// Calculate cost statistics\nconst now = Date.now();\nconst last24h = now - (24 * 60 * 60 * 1000);\nconst last7d = now - (7 * 24 * 60 * 60 * 1000);\n\nconst costStats = {\n  timestamp: new Date().toISOString(),\n  period: 'current',\n  last24h: { ai: 0, print: 0, total: 0, orders: 0 },\n  last7d: { ai: 0, print: 0, total: 0, orders: 0 },\n  allTime: { ai: 0, print: 0, total: 0, orders: orders.length }\n};\n\norders.forEach(order => {\n  const orderTime = new Date(order.created_at).getTime();\n  const aiCost = parseFloat(order.ai_generation_cost || 0);\n  const printCost = parseFloat(order.print_cost || 0);\n  const totalCost = parseFloat(order.total_cost || 0);\n  \n  // All time\n  costStats.allTime.ai += aiCost;\n  costStats.allTime.print += printCost;\n  costStats.allTime.total += totalCost;\n  \n  // Last 7 days\n  if (orderTime >= last7d) {\n    costStats.last7d.ai += aiCost;\n    costStats.last7d.print += printCost;\n    costStats.last7d.total += totalCost;\n    costStats.last7d.orders++;\n  }\n  \n  // Last 24 hours\n  if (orderTime >= last24h) {\n    costStats.last24h.ai += aiCost;\n    costStats.last24h.print += printCost;\n    costStats.last24h.total += totalCost;\n    costStats.last24h.orders++;\n  }\n});\n\n// Budget tracking\nconst dailyBudget = 50; // $50 per day\nconst weeklyBudget = 300; // $300 per week\n\ncostStats.budgets = {\n  daily: {\n    limit: dailyBudget,\n    used: costStats.last24h.total,\n    remaining: dailyBudget - costStats.last24h.total,\n    utilization: (costStats.last24h.total / dailyBudget) * 100,\n    exceeded: costStats.last24h.total > dailyBudget\n  },\n  weekly: {\n    limit: weeklyBudget,\n    used: costStats.last7d.total,\n    remaining: weeklyBudget - costStats.last7d.total,\n    utilization: (costStats.last7d.total / weeklyBudget) * 100,\n    exceeded: costStats.last7d.total > weeklyBudget\n  }\n};\n\n// Average cost per order\ncostStats.averages = {\n  aiCostPerOrder: costStats.allTime.orders > 0 ? costStats.allTime.ai / costStats.allTime.orders : 0,\n  printCostPerOrder: costStats.allTime.orders > 0 ? costStats.allTime.print / costStats.allTime.orders : 0,\n  totalCostPerOrder: costStats.allTime.orders > 0 ? costStats.allTime.total / costStats.allTime.orders : 0\n};\n\nconsole.log(`💰 Cost Tracking:`);\nconsole.log(`   24h: $${costStats.last24h.total.toFixed(2)} (${costStats.last24h.orders} orders)`);\nconsole.log(`   7d: $${costStats.last7d.total.toFixed(2)} (${costStats.last7d.orders} orders)`);\nconsole.log(`   Daily Budget: ${costStats.budgets.daily.utilization.toFixed(1)}% used`);\nconsole.log(`   Weekly Budget: ${costStats.budgets.weekly.utilization.toFixed(1)}% used`);\n\nreturn { json: costStats };"
+      },
+      "id": "monitor-costs",
+      "name": "Monitor API Costs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Query database for queue status\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\n// Get all orders with status and timestamps\nconst orders = await this.helpers.request({\n  method: 'GET',\n  url: `${supabaseUrl}/rest/v1/orders`,\n  headers: {\n    'apikey': supabaseKey,\n    'Authorization': `Bearer ${supabaseKey}`,\n    'Content-Type': 'application/json'\n  },\n  qs: {\n    select: '*'\n  },\n  json: true\n});\n\n// Categorize orders by workflow stage\nconst queueStatus = {\n  timestamp: new Date().toISOString(),\n  queues: {\n    orderIntake: { pending: 0, processing: 0, completed: 0, failed: 0, avgTime: 0 },\n    aiGeneration: { pending: 0, processing: 0, completed: 0, failed: 0, avgTime: 0 },\n    bookAssembly: { pending: 0, processing: 0, completed: 0, failed: 0, avgTime: 0 },\n    humanReview: { pending: 0, processing: 0, completed: 0, failed: 0, avgTime: 0 },\n    printFulfillment: { pending: 0, processing: 0, completed: 0, failed: 0, avgTime: 0 }\n  },\n  overall: {\n    totalOrders: orders.length,\n    totalPending: 0,\n    totalProcessing: 0,\n    totalCompleted: 0,\n    totalFailed: 0\n  }\n};\n\n// Categorize each order\norders.forEach(order => {\n  const status = order.status || 'unknown';\n  const workflow = order.workflow_step || 'unknown';\n  \n  // Order Intake\n  if (status === 'pending_validation') {\n    queueStatus.queues.orderIntake.pending++;\n  } else if (status === 'queued_for_processing') {\n    queueStatus.queues.orderIntake.completed++;\n  } else if (status === 'validation_failed') {\n    queueStatus.queues.orderIntake.failed++;\n  }\n  \n  // AI Generation\n  if (status === 'ai_generation_in_progress') {\n    queueStatus.queues.aiGeneration.processing++;\n  } else if (status === 'ai_generation_completed') {\n    queueStatus.queues.aiGeneration.completed++;\n  } else if (status === 'ai_generation_failed' || status === 'ai_generation_required') {\n    queueStatus.queues.aiGeneration.failed++;\n  }\n  \n  // Book Assembly\n  if (status === 'book_assembly_in_progress') {\n    queueStatus.queues.bookAssembly.processing++;\n  } else if (status === 'book_assembly_completed' && !order.human_approved) {\n    queueStatus.queues.bookAssembly.completed++;\n  } else if (status === 'book_assembly_failed') {\n    queueStatus.queues.bookAssembly.failed++;\n  }\n  \n  // Human Review\n  if (status === 'book_assembly_completed' && order.human_approved === null) {\n    queueStatus.queues.humanReview.pending++;\n  } else if (status === 'book_assembly_completed' && order.human_approved === true) {\n    queueStatus.queues.humanReview.completed++;\n  } else if (status === 'book_assembly_completed' && order.human_approved === false) {\n    queueStatus.queues.humanReview.failed++;\n  }\n  \n  // Print Fulfillment\n  if (status === 'print_submission_in_progress') {\n    queueStatus.queues.printFulfillment.processing++;\n  } else if (status === 'fulfillment_completed') {\n    queueStatus.queues.printFulfillment.completed++;\n  } else if (status === 'print_failed' || status === 'fulfillment_failed') {\n    queueStatus.queues.printFulfillment.failed++;\n  }\n});\n\n// Calculate overall totals\nObject.values(queueStatus.queues).forEach(queue => {\n  queueStatus.overall.totalPending += queue.pending;\n  queueStatus.overall.totalProcessing += queue.processing;\n  queueStatus.overall.totalCompleted += queue.completed;\n  queueStatus.overall.totalFailed += queue.failed;\n});\n\n// Determine queue health\nqueueStatus.overall.health = \n  queueStatus.overall.totalFailed > 5 ? 'critical' :\n  queueStatus.overall.totalPending > 10 ? 'degraded' :\n  'healthy';\n\nconsole.log(`📊 Queue Status: ${queueStatus.overall.health}`);\nconsole.log(`   Pending: ${queueStatus.overall.totalPending}`);\nconsole.log(`   Processing: ${queueStatus.overall.totalProcessing}`);\nconsole.log(`   Completed: ${queueStatus.overall.totalCompleted}`);\nconsole.log(`   Failed: ${queueStatus.overall.totalFailed}`);\n\nreturn { json: queueStatus };"
+      },
+      "id": "check-queue-status",
+      "name": "Check Queue Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check for orders requiring human review\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\n// Get orders with quality scores\nconst orders = await this.helpers.request({\n  method: 'GET',\n  url: `${supabaseUrl}/rest/v1/orders`,\n  headers: {\n    'apikey': supabaseKey,\n    'Authorization': `Bearer ${supabaseKey}`,\n    'Content-Type': 'application/json'\n  },\n  qs: {\n    select: '*'\n  },\n  json: true\n});\n\n// Calculate quality metrics\nconst qualityMetrics = {\n  timestamp: new Date().toISOString(),\n  totalOrders: orders.length,\n  withQaScore: 0,\n  averageQaScore: 0,\n  qualityDistribution: {\n    excellent: 0,  // >= 0.9\n    good: 0,       // 0.8 - 0.89\n    fair: 0,       // 0.7 - 0.79\n    poor: 0        // < 0.7\n  },\n  humanReview: {\n    required: 0,\n    pending: 0,\n    approved: 0,\n    rejected: 0,\n    avgReviewTime: 0\n  },\n  regenerations: {\n    total: 0,\n    attempt1: 0,\n    attempt2: 0,\n    attempt3Plus: 0\n  },\n  alerts: []\n};\n\nlet totalQaScore = 0;\n\norders.forEach(order => {\n  // QA Score tracking\n  if (order.qa_score !== null && order.qa_score !== undefined) {\n    qualityMetrics.withQaScore++;\n    totalQaScore += parseFloat(order.qa_score);\n    \n    const score = parseFloat(order.qa_score);\n    if (score >= 0.9) qualityMetrics.qualityDistribution.excellent++;\n    else if (score >= 0.8) qualityMetrics.qualityDistribution.good++;\n    else if (score >= 0.7) qualityMetrics.qualityDistribution.fair++;\n    else qualityMetrics.qualityDistribution.poor++;\n  }\n  \n  // Human review tracking\n  if (order.requires_human_review) {\n    qualityMetrics.humanReview.required++;\n    \n    if (order.human_approved === null) {\n      qualityMetrics.humanReview.pending++;\n    } else if (order.human_approved === true) {\n      qualityMetrics.humanReview.approved++;\n    } else if (order.human_approved === false) {\n      qualityMetrics.humanReview.rejected++;\n    }\n  }\n  \n  // Regeneration tracking\n  if (order.regeneration_attempt > 0) {\n    qualityMetrics.regenerations.total++;\n    \n    if (order.regeneration_attempt === 1) qualityMetrics.regenerations.attempt1++;\n    else if (order.regeneration_attempt === 2) qualityMetrics.regenerations.attempt2++;\n    else qualityMetrics.regenerations.attempt3Plus++;\n  }\n});\n\n// Calculate average QA score\nif (qualityMetrics.withQaScore > 0) {\n  qualityMetrics.averageQaScore = totalQaScore / qualityMetrics.withQaScore;\n}\n\n// Generate alerts\nif (qualityMetrics.averageQaScore < 0.8 && qualityMetrics.withQaScore > 5) {\n  qualityMetrics.alerts.push({\n    level: 'warning',\n    type: 'low_quality',\n    message: `Average QA score is ${qualityMetrics.averageQaScore.toFixed(2)} (below 0.8 threshold)`\n  });\n}\n\nif (qualityMetrics.humanReview.pending > 5) {\n  qualityMetrics.alerts.push({\n    level: 'warning',\n    type: 'review_backlog',\n    message: `${qualityMetrics.humanReview.pending} orders pending human review`\n  });\n}\n\nif (qualityMetrics.regenerations.attempt3Plus > 0) {\n  qualityMetrics.alerts.push({\n    level: 'critical',\n    type: 'max_regenerations',\n    message: `${qualityMetrics.regenerations.attempt3Plus} orders at max regeneration attempts`\n  });\n}\n\nconsole.log(`✅ Quality Metrics:`);\nconsole.log(`   Average QA Score: ${qualityMetrics.averageQaScore.toFixed(2)}`);\nconsole.log(`   Pending Review: ${qualityMetrics.humanReview.pending}`);\nconsole.log(`   Regenerations: ${qualityMetrics.regenerations.total}`);\nconsole.log(`   Alerts: ${qualityMetrics.alerts.length}`);\n\nreturn { json: qualityMetrics };"
+      },
+      "id": "check-quality-metrics",
+      "name": "Check Quality Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all monitoring data and check for alert conditions\nconst systemHealth = $('Check System Health').first().json;\nconst costStats = $('Monitor API Costs').first().json;\nconst queueStatus = $('Check Queue Status').first().json;\nconst qualityMetrics = $('Check Quality Metrics').first().json;\n\nconst alerts = [];\n\n// System health alerts\nif (systemHealth.overallStatus === 'critical') {\n  alerts.push({\n    level: 'critical',\n    type: 'system_health',\n    message: 'System is in critical state',\n    details: systemHealth,\n    timestamp: new Date().toISOString()\n  });\n} else if (systemHealth.overallStatus === 'degraded') {\n  alerts.push({\n    level: 'warning',\n    type: 'system_health',\n    message: 'System performance is degraded',\n    details: systemHealth,\n    timestamp: new Date().toISOString()\n  });\n}\n\n// Cost alerts\nif (costStats.budgets.daily.exceeded) {\n  alerts.push({\n    level: 'critical',\n    type: 'cost_budget',\n    message: `Daily budget exceeded: $${costStats.budgets.daily.used.toFixed(2)} / $${costStats.budgets.daily.limit}`,\n    details: costStats.budgets.daily,\n    timestamp: new Date().toISOString()\n  });\n} else if (costStats.budgets.daily.utilization > 80) {\n  alerts.push({\n    level: 'warning',\n    type: 'cost_budget',\n    message: `High daily budget utilization: ${costStats.budgets.daily.utilization.toFixed(1)}%`,\n    details: costStats.budgets.daily,\n    timestamp: new Date().toISOString()\n  });\n}\n\nif (costStats.budgets.weekly.exceeded) {\n  alerts.push({\n    level: 'critical',\n    type: 'cost_budget',\n    message: `Weekly budget exceeded: $${costStats.budgets.weekly.used.toFixed(2)} / $${costStats.budgets.weekly.limit}`,\n    details: costStats.budgets.weekly,\n    timestamp: new Date().toISOString()\n  });\n}\n\n// Queue alerts\nif (queueStatus.overall.health === 'critical') {\n  alerts.push({\n    level: 'critical',\n    type: 'queue_health',\n    message: `Queue health is critical: ${queueStatus.overall.totalFailed} failed orders`,\n    details: queueStatus.overall,\n    timestamp: new Date().toISOString()\n  });\n} else if (queueStatus.overall.totalPending > 10) {\n  alerts.push({\n    level: 'warning',\n    type: 'queue_backlog',\n    message: `High queue backlog: ${queueStatus.overall.totalPending} pending orders`,\n    details: queueStatus.overall,\n    timestamp: new Date().toISOString()\n  });\n}\n\n// Quality alerts\nqualityMetrics.alerts.forEach(alert => {\n  alerts.push({\n    ...alert,\n    timestamp: new Date().toISOString()\n  });\n});\n\n// Create alert summary\nconst alertSummary = {\n  timestamp: new Date().toISOString(),\n  totalAlerts: alerts.length,\n  criticalAlerts: alerts.filter(a => a.level === 'critical').length,\n  warningAlerts: alerts.filter(a => a.level === 'warning').length,\n  alerts: alerts,\n  overallStatus: alerts.some(a => a.level === 'critical') ? 'critical' :\n                 alerts.some(a => a.level === 'warning') ? 'warning' : 'healthy'\n};\n\nconsole.log(`🚨 Alert Summary: ${alertSummary.overallStatus}`);\nconsole.log(`   Total Alerts: ${alertSummary.totalAlerts}`);\nconsole.log(`   Critical: ${alertSummary.criticalAlerts}`);\nconsole.log(`   Warnings: ${alertSummary.warningAlerts}`);\n\nif (alerts.length > 0) {\n  console.log(`\\n📋 Active Alerts:`);\n  alerts.forEach(alert => {\n    console.log(`   [${alert.level.toUpperCase()}] ${alert.type}: ${alert.message}`);\n  });\n}\n\nreturn { json: alertSummary };"
+      },
+      "id": "check-alerts",
+      "name": "Check Alert Conditions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate comprehensive status report\nconst systemHealth = $('Check System Health').first().json;\nconst costStats = $('Monitor API Costs').first().json;\nconst queueStatus = $('Check Queue Status').first().json;\nconst qualityMetrics = $('Check Quality Metrics').first().json;\nconst alertSummary = $('Check Alert Conditions').first().json;\n\nconst statusReport = {\n  timestamp: new Date().toISOString(),\n  workflow: '6-monitoring-alerts',\n  overallStatus: alertSummary.overallStatus,\n  \n  summary: {\n    systemHealth: systemHealth.overallStatus,\n    totalOrders: systemHealth.database.totalOrders,\n    recentOrders24h: systemHealth.database.orderStats.recentOrders,\n    dailyCost: costStats.last24h.total,\n    dailyBudgetUtilization: costStats.budgets.daily.utilization,\n    queueHealth: queueStatus.overall.health,\n    pendingOrders: queueStatus.overall.totalPending,\n    failedOrders: queueStatus.overall.totalFailed,\n    averageQaScore: qualityMetrics.averageQaScore,\n    pendingReviews: qualityMetrics.humanReview.pending,\n    totalAlerts: alertSummary.totalAlerts,\n    criticalAlerts: alertSummary.criticalAlerts\n  },\n  \n  details: {\n    systemHealth,\n    costStats,\n    queueStatus,\n    qualityMetrics,\n    alerts: alertSummary.alerts\n  },\n  \n  recommendations: []\n};\n\n// Generate recommendations\nif (costStats.budgets.daily.utilization > 90) {\n  statusReport.recommendations.push('Consider optimizing AI generation costs or increasing daily budget');\n}\n\nif (queueStatus.overall.totalPending > 10) {\n  statusReport.recommendations.push('Queue backlog detected - consider scaling up processing capacity');\n}\n\nif (qualityMetrics.humanReview.pending > 5) {\n  statusReport.recommendations.push('Human review backlog detected - assign additional reviewers');\n}\n\nif (qualityMetrics.regenerations.attempt3Plus > 0) {\n  statusReport.recommendations.push('Orders at max regeneration attempts - manual intervention required');\n}\n\nif (qualityMetrics.averageQaScore < 0.8 && qualityMetrics.withQaScore > 5) {\n  statusReport.recommendations.push('Low average QA score - review AI generation prompts and parameters');\n}\n\nconsole.log(`\\n📊 === MONITORING REPORT ===`);\nconsole.log(`Overall Status: ${statusReport.overallStatus.toUpperCase()}`);\nconsole.log(`\\n📈 Key Metrics:`);\nconsole.log(`   Total Orders: ${statusReport.summary.totalOrders}`);\nconsole.log(`   Recent (24h): ${statusReport.summary.recentOrders24h}`);\nconsole.log(`   Daily Cost: $${statusReport.summary.dailyCost.toFixed(2)}`);\nconsole.log(`   Budget Used: ${statusReport.summary.dailyBudgetUtilization.toFixed(1)}%`);\nconsole.log(`   Queue Health: ${statusReport.summary.queueHealth}`);\nconsole.log(`   Pending: ${statusReport.summary.pendingOrders}`);\nconsole.log(`   Failed: ${statusReport.summary.failedOrders}`);\nconsole.log(`   Avg QA Score: ${statusReport.summary.averageQaScore.toFixed(2)}`);\nconsole.log(`   Pending Reviews: ${statusReport.summary.pendingReviews}`);\n\nif (statusReport.recommendations.length > 0) {\n  console.log(`\\n💡 Recommendations:`);\n  statusReport.recommendations.forEach((rec, i) => {\n    console.log(`   ${i + 1}. ${rec}`);\n  });\n}\n\nconsole.log(`\\n=========================\\n`);\n\nreturn { json: statusReport };"
+      },
+      "id": "generate-report",
+      "name": "Generate Status Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock sending email alerts (in production, use SendGrid)\nconst statusReport = $input.first().json;\nconst alerts = statusReport.details.alerts;\n\nconst criticalAlerts = alerts.filter(a => a.level === 'critical');\nconst warningAlerts = alerts.filter(a => a.level === 'warning');\n\nif (criticalAlerts.length > 0) {\n  console.log(`\\n🚨 CRITICAL ALERTS - Would send email to admin@littleherobooks.com:`);\n  criticalAlerts.forEach(alert => {\n    console.log(`   • ${alert.type}: ${alert.message}`);\n  });\n}\n\nif (warningAlerts.length > 0) {\n  console.log(`\\n⚠️  WARNING ALERTS - Would send email to admin@littleherobooks.com:`);\n  warningAlerts.forEach(alert => {\n    console.log(`   • ${alert.type}: ${alert.message}`);\n  });\n}\n\nif (criticalAlerts.length === 0 && warningAlerts.length === 0) {\n  console.log(`\\n✅ No alerts to send - system is healthy`);\n}\n\nconst emailLog = {\n  timestamp: new Date().toISOString(),\n  emailsSent: (criticalAlerts.length > 0 ? 1 : 0) + (warningAlerts.length > 0 ? 1 : 0),\n  criticalEmailSent: criticalAlerts.length > 0,\n  warningEmailSent: warningAlerts.length > 0,\n  recipients: ['admin@littleherobooks.com'],\n  mock: true\n};\n\nreturn { json: emailLog };"
+      },
+      "id": "mock-send-alerts",
+      "name": "Mock Send Email Alerts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Final logging and summary\nconst statusReport = $('Generate Status Report').first().json;\nconst emailLog = $('Mock Send Email Alerts').first().json;\n\nconst finalLog = {\n  timestamp: new Date().toISOString(),\n  workflow: '6-monitoring-alerts',\n  executionStatus: 'completed',\n  overallStatus: statusReport.overallStatus,\n  summary: statusReport.summary,\n  alertsSent: emailLog.emailsSent,\n  recommendations: statusReport.recommendations,\n  nextRun: 'In 5 minutes (when using Cron trigger)'\n};\n\nconsole.log(`\\n✅ Workflow 6 completed successfully`);\nconsole.log(`   Status: ${finalLog.overallStatus}`);\nconsole.log(`   Alerts Sent: ${finalLog.alertsSent}`);\nconsole.log(`   Recommendations: ${finalLog.recommendations.length}`);\n\nreturn { json: finalLog };"
+      },
+      "id": "log-results",
+      "name": "Log Monitoring Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 400]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check System Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check System Health": {
+      "main": [
+        [
+          {
+            "node": "Monitor API Costs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monitor API Costs": {
+      "main": [
+        [
+          {
+            "node": "Check Queue Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Queue Status": {
+      "main": [
+        [
+          {
+            "node": "Check Quality Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Quality Metrics": {
+      "main": [
+        [
+          {
+            "node": "Check Alert Conditions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Alert Conditions": {
+      "main": [
+        [
+          {
+            "node": "Generate Status Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Status Report": {
+      "main": [
+        [
+          {
+            "node": "Mock Send Email Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Send Email Alerts": {
+      "main": [
+        [
+          {
+            "node": "Log Monitoring Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-10-15T06:00:00.000Z",
+  "versionId": "1"
+}
+

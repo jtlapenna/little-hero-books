@@ -1,0 +1,238 @@
+{
+  "name": "Error Recovery Test - Supabase",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {}
+    },
+    {
+      "id": "2",
+      "name": "Query Failed Orders",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "parameters": {
+        "functionCode": "// Query database for failed orders ready for retry\n// In production, this would use Supabase node\n// For testing, we'll generate mock failed orders\n\nconst now = Date.now();\n\nconst mockFailedOrders = [\n  {\n    id: '123e4567-e89b-12d3-a456-426614174001',\n    amazon_order_id: 'TEST-ORDER-FAILED-001',\n    status: 'ai_generation_failed',\n    workflow_step: 'ai_generation',\n    error_type: 'openai_api_error',\n    error_message: 'OpenAI API rate limit exceeded',\n    failed_at: new Date(now - 30 * 60 * 1000).toISOString(), // 30 min ago\n    retry_count: 0,\n    max_retries: 3,\n    next_retry_at: new Date(now - 5 * 60 * 1000).toISOString(), // Ready for retry\n    customer_email: 'test@example.com',\n    customer_name: 'Test Customer',\n    character_specs: {\n      childName: 'Failed Test'\n    },\n    requires_human_review: false,\n    human_approved: null\n  },\n  {\n    id: '123e4567-e89b-12d3-a456-426614174002',\n    amazon_order_id: 'TEST-ORDER-FAILED-002',\n    status: 'book_assembly_failed',\n    workflow_step: 'book_assembly',\n    error_type: 'pdf_generation_error',\n    error_message: 'PDF generation service timeout',\n    failed_at: new Date(now - 45 * 60 * 1000).toISOString(),\n    retry_count: 1,\n    max_retries: 3,\n    next_retry_at: new Date(now - 2 * 60 * 1000).toISOString(), // Ready for retry\n    customer_email: 'test2@example.com',\n    customer_name: 'Test Customer 2',\n    character_specs: {\n      childName: 'Failed Test 2'\n    },\n    requires_human_review: false,\n    human_approved: null\n  },\n  {\n    id: '123e4567-e89b-12d3-a456-426614174003',\n    amazon_order_id: 'TEST-ORDER-FAILED-003',\n    status: 'print_submission_failed',\n    workflow_step: 'print_fulfillment',\n    error_type: 'lulu_api_error',\n    error_message: 'Lulu API authentication failed',\n    failed_at: new Date(now - 120 * 60 * 1000).toISOString(), // 2 hours ago\n    retry_count: 3, // Max retries reached\n    max_retries: 3,\n    next_retry_at: null,\n    customer_email: 'test3@example.com',\n    customer_name: 'Test Customer 3',\n    character_specs: {\n      childName: 'Failed Test 3'\n    },\n    requires_human_review: false,\n    human_approved: null\n  },\n  {\n    id: '123e4567-e89b-12d3-a456-426614174004',\n    amazon_order_id: 'TEST-ORDER-IN-REVIEW',\n    status: 'book_assembly_completed',\n    workflow_step: 'book_assembly',\n    error_type: null,\n    error_message: null,\n    failed_at: null,\n    retry_count: 0,\n    max_retries: 3,\n    next_retry_at: null,\n    customer_email: 'test4@example.com',\n    customer_name: 'Test Customer 4',\n    character_specs: {\n      childName: 'In Review'\n    },\n    requires_human_review: true,\n    human_approved: null // Still waiting for human review\n  }\n];\n\n// CRITICAL: Filter out orders in human review\n// We only handle technical failures, not quality issues\nconst technicalFailures = mockFailedOrders.filter(order => {\n  // Exclude orders waiting for human review\n  if (order.status === 'book_assembly_completed' && \n      order.requires_human_review === true && \n      order.human_approved === null) {\n    console.log(`⏭️  Skipping ${order.amazon_order_id} - in human review queue`);\n    return false;\n  }\n  \n  // Only include actual failures\n  return order.status && order.status.includes('_failed');\n});\n\nconsole.log(`🔍 Found ${mockFailedOrders.length} total orders, ${technicalFailures.length} technical failures`);\n\n// Filter orders ready for retry (next_retry_at <= now and retry_count < max_retries)\nconst ordersReadyForRetry = technicalFailures.filter(order => {\n  const isReadyForRetry = order.next_retry_at && new Date(order.next_retry_at) <= new Date();\n  const hasRetriesLeft = order.retry_count < order.max_retries;\n  return isReadyForRetry && hasRetriesLeft;\n});\n\n// Also get orders that need escalation (max retries exceeded)\nconst ordersNeedingEscalation = technicalFailures.filter(order => {\n  return order.retry_count >= order.max_retries;\n});\n\nconsole.log(`✅ Found ${ordersReadyForRetry.length} orders ready for retry`);\nconsole.log(`⚠️  Found ${ordersNeedingEscalation.length} orders needing escalation`);\n\nconst allOrders = [...ordersReadyForRetry, ...ordersNeedingEscalation];\nreturn allOrders.map(order => ({ json: order }));"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Analyze Error Type",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "parameters": {
+        "functionCode": "// Analyze error and determine recovery strategy\nconst orderData = $input.first().json;\n\n// Check if max retries exceeded\nif (orderData.retry_count >= orderData.max_retries) {\n  console.log(`❌ Order ${orderData.amazon_order_id} exceeded max retries, needs escalation`);\n  return [{ json: { ...orderData, needsEscalation: true } }];\n}\n\n// Determine recovery strategy based on error type\nconst errorStrategies = {\n  'openai_api_error': {\n    strategy: 'retry_with_backoff',\n    retryDelay: 300000, // 5 minutes\n    targetStatus: 'queued_for_processing',\n    targetWorkflow: '2.A.-bria-submit'\n  },\n  'pdf_generation_error': {\n    strategy: 'retry_with_fallback',\n    retryDelay: 600000, // 10 minutes\n    targetStatus: 'ai_generation_completed',\n    targetWorkflow: '3-book-assembly'\n  },\n  'lulu_api_error': {\n    strategy: 'retry_with_auth_refresh',\n    retryDelay: 900000, // 15 minutes\n    targetStatus: 'book_assembly_completed',\n    targetWorkflow: '4-print-fulfillment'\n  },\n  'network_error': {\n    strategy: 'retry_immediately',\n    retryDelay: 60000, // 1 minute\n    targetStatus: orderData.status.replace('_failed', '_retry'),\n    targetWorkflow: orderData.workflow_step\n  },\n  'validation_error': {\n    strategy: 'fix_and_retry',\n    retryDelay: 300000, // 5 minutes\n    targetStatus: 'pending_validation',\n    targetWorkflow: '1-order-intake-validation'\n  }\n};\n\nconst errorStrategy = errorStrategies[orderData.error_type] || {\n  strategy: 'escalate_to_manual',\n  retryDelay: 0,\n  targetStatus: 'escalated_to_manual',\n  targetWorkflow: null\n};\n\n// Calculate exponential backoff\nconst baseDelay = errorStrategy.retryDelay;\nconst backoffMultiplier = Math.pow(2, orderData.retry_count);\nconst actualDelay = baseDelay * backoffMultiplier;\n\nconst errorAnalysis = {\n  errorType: orderData.error_type,\n  errorMessage: orderData.error_message,\n  retryCount: orderData.retry_count,\n  maxRetries: orderData.max_retries,\n  recoveryStrategy: errorStrategy.strategy,\n  targetStatus: errorStrategy.targetStatus,\n  targetWorkflow: errorStrategy.targetWorkflow,\n  retryDelay: actualDelay,\n  nextRetryAt: new Date(Date.now() + actualDelay).toISOString(),\n  canRetry: orderData.retry_count < orderData.max_retries,\n  hoursSinceFailure: (Date.now() - new Date(orderData.failed_at)) / (1000 * 60 * 60)\n};\n\nconsole.log(`📊 Error analysis for ${orderData.amazon_order_id}:`);\nconsole.log(`   Strategy: ${errorAnalysis.recoveryStrategy}`);\nconsole.log(`   Retry #${orderData.retry_count + 1}/${orderData.max_retries}`);\nconsole.log(`   Delay: ${actualDelay / 1000}s (with backoff)`);\n\nconst analyzedOrder = {\n  ...orderData,\n  errorAnalysis: errorAnalysis,\n  analyzed_at: new Date().toISOString(),\n  needsEscalation: false\n};\n\nreturn [{ json: analyzedOrder }];"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Check If Escalation Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needsEscalation }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "5",
+      "name": "Prepare Retry",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 200],
+      "parameters": {
+        "functionCode": "// Prepare order for retry\nconst orderData = $input.first().json;\nconst analysis = orderData.errorAnalysis;\n\nconst retryOrder = {\n  amazon_order_id: orderData.amazon_order_id,\n  status: analysis.targetStatus,\n  workflow_step: analysis.targetWorkflow,\n  next_workflow: analysis.targetWorkflow,\n  retry_count: orderData.retry_count + 1,\n  next_retry_at: analysis.nextRetryAt,\n  last_error_type: orderData.error_type,\n  last_error_message: orderData.error_message,\n  recovery_strategy: analysis.recoveryStrategy,\n  retry_started_at: new Date().toISOString(),\n  updated_at: new Date().toISOString()\n};\n\nconsole.log(`🔄 Preparing retry for ${orderData.amazon_order_id}`);\nconsole.log(`   New status: ${retryOrder.status}`);\nconsole.log(`   Target workflow: ${retryOrder.next_workflow}`);\nconsole.log(`   Retry attempt: ${retryOrder.retry_count}/${orderData.max_retries}`);\n\nreturn [{ json: { ...orderData, retryUpdate: retryOrder } }];"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Mock Update Database - Retry",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 200],
+      "parameters": {
+        "functionCode": "// Mock database update for retry\n// In production, this would use Supabase update node\nconst orderData = $input.first().json;\nconst retryUpdate = orderData.retryUpdate;\n\nconsole.log('📊 Updating order in database (MOCK):');\nconsole.log(`   Order: ${retryUpdate.amazon_order_id}`);\nconsole.log(`   Status: ${retryUpdate.status}`);\nconsole.log(`   Retry count: ${retryUpdate.retry_count}`);\nconsole.log(`   Next retry: ${retryUpdate.next_retry_at}`);\n\n// In production, this would be:\n// await this.helpers.request({\n//   method: 'PATCH',\n//   url: `https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders?amazon_order_id=eq.${retryUpdate.amazon_order_id}`,\n//   headers: { ... },\n//   body: retryUpdate\n// });\n\nconst updatedOrder = {\n  ...orderData,\n  ...retryUpdate,\n  database_updated: true\n};\n\nconsole.log(`✅ Order ${retryUpdate.amazon_order_id} updated for retry`);\n\nreturn [{ json: updatedOrder }];"
+      }
+    },
+    {
+      "id": "7",
+      "name": "Prepare Escalation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 400],
+      "parameters": {
+        "functionCode": "// Prepare order for escalation to manual review\nconst orderData = $input.first().json;\n\n// Calculate escalation priority based on time since failure\nconst hoursSinceFailure = (Date.now() - new Date(orderData.failed_at)) / (1000 * 60 * 60);\nlet priority = 'low';\nif (hoursSinceFailure > 24) priority = 'high';\nelse if (hoursSinceFailure > 12) priority = 'medium';\n\nconst escalationUpdate = {\n  amazon_order_id: orderData.amazon_order_id,\n  status: 'escalated_to_manual',\n  workflow_step: 'manual_review',\n  next_workflow: null,\n  escalated_at: new Date().toISOString(),\n  escalation_reason: `Max retries (${orderData.max_retries}) exceeded`,\n  escalation_priority: priority,\n  requires_manual_intervention: true,\n  last_error_type: orderData.error_type,\n  last_error_message: orderData.error_message,\n  retry_count: orderData.retry_count,\n  failed_at: orderData.failed_at,\n  hours_since_failure: hoursSinceFailure.toFixed(1),\n  updated_at: new Date().toISOString()\n};\n\nconsole.log(`🚨 Escalating order ${orderData.amazon_order_id} to manual review`);\nconsole.log(`   Priority: ${priority}`);\nconsole.log(`   Hours since failure: ${hoursSinceFailure.toFixed(1)}`);\nconsole.log(`   Reason: ${escalationUpdate.escalation_reason}`);\n\nreturn [{ json: { ...orderData, escalationUpdate: escalationUpdate } }];"
+      }
+    },
+    {
+      "id": "8",
+      "name": "Mock Update Database - Escalation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 400],
+      "parameters": {
+        "functionCode": "// Mock database update for escalation\n// In production, this would use Supabase update node\nconst orderData = $input.first().json;\nconst escalationUpdate = orderData.escalationUpdate;\n\nconsole.log('📊 Updating order in database (MOCK):');\nconsole.log(`   Order: ${escalationUpdate.amazon_order_id}`);\nconsole.log(`   Status: ${escalationUpdate.status}`);\nconsole.log(`   Priority: ${escalationUpdate.escalation_priority}`);\n\n// In production, this would be:\n// 1. Update orders table\n// 2. Insert into human_review_queue table\n\nconst updatedOrder = {\n  ...orderData,\n  ...escalationUpdate,\n  database_updated: true\n};\n\nconsole.log(`✅ Order ${escalationUpdate.amazon_order_id} escalated to manual review`);\n\nreturn [{ json: updatedOrder }];"
+      }
+    },
+    {
+      "id": "9",
+      "name": "Mock Send Notification",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 400],
+      "parameters": {
+        "functionCode": "// Mock send notification for escalated orders\n// In production, this would use SendGrid HTTP Request\nconst orderData = $input.first().json;\n\nconst notification = {\n  to: ['admin@littleherobooks.com', 'support@littleherobooks.com'],\n  subject: `🚨 Order Escalated: ${orderData.amazon_order_id}`,\n  message: `\n    Order ${orderData.amazon_order_id} has been escalated to manual review.\n    \n    Priority: ${orderData.escalation_priority}\n    Error Type: ${orderData.last_error_type}\n    Error Message: ${orderData.last_error_message}\n    Retry Count: ${orderData.retry_count}/${orderData.max_retries}\n    Hours Since Failure: ${orderData.hours_since_failure}\n    \n    Please review and take appropriate action.\n  `,\n  customer_email: orderData.customer_email,\n  customer_name: orderData.customer_name\n};\n\nconsole.log('📧 Sending escalation notification (MOCK):');\nconsole.log(`   To: ${notification.to.join(', ')}`);\nconsole.log(`   Subject: ${notification.subject}`);\n\n// In production, this would be a SendGrid HTTP Request\n\nconst orderWithNotification = {\n  ...orderData,\n  notification_sent: true,\n  notification_sent_at: new Date().toISOString()\n};\n\nconsole.log(`✅ Escalation notification sent for ${orderData.amazon_order_id}`);\n\nreturn [{ json: orderWithNotification }];"
+      }
+    },
+    {
+      "id": "10",
+      "name": "Log Recovery Action",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 200],
+      "parameters": {
+        "functionCode": "// Log recovery action for monitoring\nconst orderData = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '5-error-recovery',\n  action: 'retry',\n  orderId: orderData.amazon_order_id,\n  status: orderData.status,\n  errorType: orderData.last_error_type,\n  errorMessage: orderData.last_error_message,\n  retryCount: orderData.retry_count,\n  maxRetries: orderData.max_retries,\n  recoveryStrategy: orderData.recovery_strategy,\n  targetWorkflow: orderData.next_workflow,\n  nextRetryAt: orderData.next_retry_at,\n  databaseUpdated: orderData.database_updated\n};\n\nconsole.log('📊 Recovery Action:', JSON.stringify(logEntry, null, 2));\nconsole.log(`✅ Retry prepared for order ${orderData.amazon_order_id}`);\n\nreturn [{ json: logEntry }];"
+      }
+    },
+    {
+      "id": "11",
+      "name": "Log Escalation Action",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1780, 400],
+      "parameters": {
+        "functionCode": "// Log escalation action for monitoring\nconst orderData = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '5-error-recovery',\n  action: 'escalate',\n  orderId: orderData.amazon_order_id,\n  status: orderData.status,\n  errorType: orderData.last_error_type,\n  errorMessage: orderData.last_error_message,\n  retryCount: orderData.retry_count,\n  maxRetries: orderData.max_retries,\n  escalationPriority: orderData.escalation_priority,\n  escalationReason: orderData.escalation_reason,\n  hoursSinceFailure: orderData.hours_since_failure,\n  notificationSent: orderData.notification_sent,\n  databaseUpdated: orderData.database_updated\n};\n\nconsole.log('📊 Escalation Action:', JSON.stringify(logEntry, null, 2));\nconsole.log(`✅ Order ${orderData.amazon_order_id} escalated successfully`);\n\nreturn [{ json: logEntry }];"
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Query Failed Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Failed Orders": {
+      "main": [
+        [
+          {
+            "node": "Analyze Error Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Error Type": {
+      "main": [
+        [
+          {
+            "node": "Check If Escalation Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Escalation Needed": {
+      "main": [
+        [
+          {
+            "node": "Prepare Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Retry": {
+      "main": [
+        [
+          {
+            "node": "Mock Update Database - Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Update Database - Retry": {
+      "main": [
+        [
+          {
+            "node": "Log Recovery Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Escalation": {
+      "main": [
+        [
+          {
+            "node": "Mock Update Database - Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Update Database - Escalation": {
+      "main": [
+        [
+          {
+            "node": "Mock Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Send Notification": {
+      "main": [
+        [
+          {
+            "node": "Log Escalation Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["testing", "workflow-5", "developer-b", "error-recovery", "supabase"],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-15T10:00:00.000Z",
+  "versionId": "1"
+}
+

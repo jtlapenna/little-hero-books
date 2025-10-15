@@ -1,0 +1,295 @@
+{
+  "name": "Order Intake Test - Simple Supabase",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {}
+    },
+    {
+      "id": "2",
+      "name": "Generate Mock Orders",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "parameters": {
+        "functionCode": "// Generate unique order IDs to avoid duplicates\nconst timestamp = Date.now();\nconst randomId1 = Math.floor(Math.random() * 1000);\nconst randomId2 = Math.floor(Math.random() * 1000);\n\nconst mockOrders = [\n  {\n    AmazonOrderId: `TEST-ORDER-${timestamp}-${randomId1}`,\n    OrderStatus: 'Unshipped',\n    PurchaseDate: new Date().toISOString(),\n    OrderTotal: { Amount: '29.99', CurrencyCode: 'USD' },\n    MarketplaceId: 'ATVPDKIKX0DER',\n    ShippingAddress: {\n      Name: 'Jane Smith',\n      AddressLine1: '123 Main Street',\n      City: 'Portland',\n      StateOrRegion: 'OR',\n      PostalCode: '97201',\n      CountryCode: 'US'\n    },\n    BuyerEmail: 'jane.smith@example.com',\n    BuyerName: 'Jane Smith'\n  },\n  {\n    AmazonOrderId: `TEST-ORDER-${timestamp}-${randomId2}`,\n    OrderStatus: 'Unshipped',\n    PurchaseDate: new Date(Date.now() - 30 * 60 * 1000).toISOString(),\n    OrderTotal: { Amount: '29.99', CurrencyCode: 'USD' },\n    MarketplaceId: 'ATVPDKIKX0DER',\n    ShippingAddress: {\n      Name: 'Mike Johnson',\n      AddressLine1: '456 Oak Avenue',\n      City: 'Seattle',\n      StateOrRegion: 'WA',\n      PostalCode: '98101',\n      CountryCode: 'US'\n    },\n    BuyerEmail: 'mike.johnson@example.com',\n    BuyerName: 'Mike Johnson'\n  }\n];\n\nconst mockApiResponse = {\n  payload: {\n    Orders: mockOrders\n  }\n};\n\nconsole.log(`Generated ${mockOrders.length} mock orders for testing`);\nconsole.log(`Order IDs: ${mockOrders.map(o => o.AmazonOrderId).join(', ')}`);\nreturn [{ json: mockApiResponse }];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Parse Orders",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "parameters": {
+        "functionCode": "const orders = $input.first().json.payload.Orders || [];\nconst processedOrders = [];\n\nfor (const order of orders) {\n  try {\n    const orderData = {\n      amazonOrderId: order.AmazonOrderId,\n      orderStatus: order.OrderStatus,\n      purchaseDate: order.PurchaseDate,\n      orderTotal: order.OrderTotal?.Amount || '0.00',\n      currency: order.OrderTotal?.CurrencyCode || 'USD',\n      marketplaceId: order.MarketplaceId,\n      shippingAddress: order.ShippingAddress,\n      customerEmail: order.BuyerEmail || 'N/A',\n      customerName: order.BuyerName || 'N/A'\n    };\n    \n    processedOrders.push(orderData);\n  } catch (error) {\n    console.log(`Error processing order: ${error.message}`);\n  }\n}\n\nconsole.log(`Processed ${processedOrders.length} orders`);\nreturn processedOrders.map(order => ({ json: order }));"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Generate Order Items",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "parameters": {
+        "functionCode": "const orderData = $input.first().json;\n\nconst mockOrderItems = {\n  payload: {\n    OrderItems: [\n      {\n        ASIN: 'B0LITTLEHERO001',\n        SellerSKU: 'LITTLE_HERO_BOOK_CUSTOM',\n        Title: `Little Hero Book - Emma's Adventure - Child Name: Emma - Skin Tone: medium - Hair Color: brown - Hair Style: short/curly - Age: 5 - Pronouns: she/her - Favorite Color: purple - Animal Guide: unicorn - Clothing Style: dress`,\n        QuantityOrdered: 1,\n        ItemPrice: { Amount: '29.99', CurrencyCode: 'USD' }\n      }\n    ]\n  }\n};\n\nconsole.log(`Generated mock order items for order: ${orderData.amazonOrderId}`);\nreturn [{ json: mockOrderItems }];"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Extract Character Specs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "parameters": {
+        "functionCode": "const orderItems = $input.first().json.payload.OrderItems || [];\nconst orderData = $('Parse Orders').first().json;\n\nconst customProduct = orderItems.find(item => \n  item.ASIN === 'B0LITTLEHERO001' || \n  item.SellerSKU?.includes('LITTLE_HERO_BOOK')\n);\n\nif (!customProduct) {\n  console.log('No custom product found in order items');\n  return [];\n}\n\nconst productTitle = customProduct.Title || '';\nconst customizationData = {\n  childName: extractFromTitle(productTitle, 'child_name') || 'Adventure Hero',\n  skinTone: extractFromTitle(productTitle, 'skin_tone') || 'medium',\n  hairColor: extractFromTitle(productTitle, 'hair_color') || 'brown',\n  hairStyle: extractFromTitle(productTitle, 'hair_style') || 'short/straight',\n  age: extractFromTitle(productTitle, 'age') || '5',\n  pronouns: extractFromTitle(productTitle, 'pronouns') || 'they/them',\n  favoriteColor: extractFromTitle(productTitle, 'favorite_color') || 'blue',\n  animalGuide: extractFromTitle(productTitle, 'animal_guide') || 'dog',\n  clothingStyle: extractFromTitle(productTitle, 'clothing_style') || 't-shirt and shorts'\n};\n\nconst characterHash = generateCharacterHash(customizationData);\n\nconst completeOrderData = {\n  ...orderData,\n  characterSpecs: customizationData,\n  characterHash: characterHash,\n  productInfo: {\n    asin: customProduct.ASIN,\n    sku: customProduct.SellerSKU,\n    title: customProduct.Title,\n    quantity: customProduct.QuantityOrdered\n  },\n  status: 'pending_validation',\n  createdAt: new Date().toISOString()\n};\n\nconsole.log(`Extracted character specs for ${customizationData.childName}:`, customizationData);\nreturn [{ json: completeOrderData }];\n\nfunction extractFromTitle(title, key) {\n  const patterns = {\n    child_name: /child[\\s_-]?name[\\s_-]?([a-zA-Z]+)/i,\n    skin_tone: /skin[\\s_-]?tone[\\s_-]?([a-zA-Z]+)/i,\n    hair_color: /hair[\\s_-]?color[\\s_-]?([a-zA-Z]+)/i,\n    hair_style: /hair[\\s_-]?style[\\s_-]?([a-zA-Z]+)/i,\n    age: /age[\\s_-]?([0-9]+)/i,\n    pronouns: /pronouns[\\s_-]?([a-zA-Z/]+)/i,\n    favorite_color: /favorite[\\s_-]?color[\\s_-]?([a-zA-Z]+)/i,\n    animal_guide: /animal[\\s_-]?guide[\\s_-]?([a-zA-Z]+)/i,\n    clothing_style: /clothing[\\s_-]?style[\\s_-]?([a-zA-Z\\s]+)/i\n  };\n  \n  const match = title.match(patterns[key]);\n  return match ? match[1] : null;\n}\n\nfunction generateCharacterHash(specs) {\n  const hashString = `${specs.skinTone}-${specs.hairColor}-${specs.hairStyle}-${specs.age}-${specs.pronouns}`;\n  let hash = 0;\n  for (let i = 0; i < hashString.length; i++) {\n    const char = hashString.charCodeAt(i);\n    hash = ((hash << 5) - hash) + char;\n    hash = hash & hash;\n  }\n  return Math.abs(hash).toString(16).substring(0, 8);\n}"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Validate Order",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "parameters": {
+        "functionCode": "const orderData = $input.first().json;\n\nconst validationErrors = [];\n\nif (!orderData.amazonOrderId) {\n  validationErrors.push('Missing Amazon Order ID');\n}\n\nif (!orderData.customerEmail || orderData.customerEmail === 'N/A') {\n  validationErrors.push('Missing customer email');\n}\n\nif (!orderData.shippingAddress) {\n  validationErrors.push('Missing shipping address');\n}\n\nconst charSpecs = orderData.characterSpecs;\nif (!charSpecs) {\n  validationErrors.push('Missing character specifications');\n} else {\n  if (!charSpecs.childName || charSpecs.childName.length < 2) {\n    validationErrors.push('Invalid child name');\n  }\n  \n  const validSkinTones = ['light', 'medium', 'dark', 'tan', 'olive'];\n  if (!validSkinTones.includes(charSpecs.skinTone)) {\n    validationErrors.push('Invalid skin tone');\n  }\n  \n  const validHairColors = ['black', 'brown', 'blonde', 'red', 'auburn'];\n  if (!validHairColors.includes(charSpecs.hairColor)) {\n    validationErrors.push('Invalid hair color');\n  }\n  \n  const validHairStyles = ['short/straight', 'short/curly', 'medium/straight', 'medium/curly', 'pony-tail', 'pom-pom', 'afro'];\n  if (!validHairStyles.includes(charSpecs.hairStyle)) {\n    validationErrors.push('Invalid hair style');\n  }\n  \n  const age = parseInt(charSpecs.age);\n  if (isNaN(age) || age < 3 || age > 7) {\n    validationErrors.push('Invalid age (must be 3-7)');\n  }\n  \n  const validColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'brown', 'black', 'white'];\n  if (!validColors.includes(charSpecs.favoriteColor)) {\n    validationErrors.push('Invalid favorite color');\n  }\n  \n  const validAnimalGuides = ['dog', 'cat', 't-rex', 'unicorn', 'tiger', 'lion', 'owl'];\n  if (!validAnimalGuides.includes(charSpecs.animalGuide)) {\n    validationErrors.push('Invalid animal guide');\n  }\n  \n  const validClothingStyles = ['t-shirt and shorts', 'dress'];\n  if (!validClothingStyles.includes(charSpecs.clothingStyle)) {\n    validationErrors.push('Invalid clothing style');\n  }\n}\n\nif (validationErrors.length === 0) {\n  orderData.status = 'validated';\n  orderData.validationErrors = [];\n  console.log(`✅ Order validation passed for ${orderData.amazonOrderId}`);\n} else {\n  orderData.status = 'validation_failed';\n  orderData.validationErrors = validationErrors;\n  console.log(`❌ Order validation failed for ${orderData.amazonOrderId}:`, validationErrors);\n}\n\norderData.validatedAt = new Date().toISOString();\n\nreturn [{ json: orderData }];"
+      }
+    },
+    {
+      "id": "7",
+      "name": "Format for Supabase",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 300],
+      "parameters": {
+        "functionCode": "const orderData = $input.first().json;\n\n// Format the data for Supabase insert\nconst supabaseData = {\n  amazon_order_id: orderData.amazonOrderId,\n  processing_id: `order_${orderData.amazonOrderId}_${Date.now()}`,\n  status: 'queued_for_processing',\n  workflow_step: 'order_intake',\n  next_workflow: '2.A.-bria-submit',\n  order_status: orderData.orderStatus,\n  purchase_date: orderData.purchaseDate,\n  order_total: parseFloat(orderData.orderTotal),\n  currency: orderData.currency,\n  marketplace_id: orderData.marketplaceId,\n  customer_email: orderData.customerEmail,\n  customer_name: orderData.customerName,\n  shipping_address: orderData.shippingAddress,\n  character_specs: orderData.characterSpecs,\n  character_hash: orderData.characterHash,\n  product_info: orderData.productInfo,\n  priority: 'normal',\n  estimated_processing_time: '30-45 minutes',\n  created_at: orderData.createdAt,\n  updated_at: new Date().toISOString(),\n  queued_at: new Date().toISOString(),\n  validated_at: orderData.validatedAt,\n  validation_errors: orderData.validationErrors\n};\n\nconsole.log(`Formatted order data for Supabase: ${supabaseData.amazon_order_id}`);\nreturn [{ json: supabaseData }];"
+      }
+    },
+    {
+      "id": "8",
+      "name": "Store Order in Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1780, 300],
+      "parameters": {
+        "operation": "create",
+        "table": "orders",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "amazon_order_id",
+              "fieldValue": "={{ $json.amazon_order_id }}"
+            },
+            {
+              "fieldId": "processing_id", 
+              "fieldValue": "={{ $json.processing_id }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $json.status }}"
+            },
+            {
+              "fieldId": "workflow_step",
+              "fieldValue": "={{ $json.workflow_step }}"
+            },
+            {
+              "fieldId": "next_workflow",
+              "fieldValue": "={{ $json.next_workflow }}"
+            },
+            {
+              "fieldId": "order_status",
+              "fieldValue": "={{ $json.order_status }}"
+            },
+            {
+              "fieldId": "purchase_date",
+              "fieldValue": "={{ $json.purchase_date }}"
+            },
+            {
+              "fieldId": "order_total",
+              "fieldValue": "={{ $json.order_total }}"
+            },
+            {
+              "fieldId": "currency",
+              "fieldValue": "={{ $json.currency }}"
+            },
+            {
+              "fieldId": "marketplace_id",
+              "fieldValue": "={{ $json.marketplace_id }}"
+            },
+            {
+              "fieldId": "customer_email",
+              "fieldValue": "={{ $json.customer_email }}"
+            },
+            {
+              "fieldId": "customer_name",
+              "fieldValue": "={{ $json.customer_name }}"
+            },
+            {
+              "fieldId": "shipping_address",
+              "fieldValue": "={{ $json.shipping_address }}"
+            },
+            {
+              "fieldId": "character_specs",
+              "fieldValue": "={{ $json.character_specs }}"
+            },
+            {
+              "fieldId": "character_hash",
+              "fieldValue": "={{ $json.character_hash }}"
+            },
+            {
+              "fieldId": "product_info",
+              "fieldValue": "={{ $json.product_info }}"
+            },
+            {
+              "fieldId": "priority",
+              "fieldValue": "={{ $json.priority }}"
+            },
+            {
+              "fieldId": "estimated_processing_time",
+              "fieldValue": "={{ $json.estimated_processing_time }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $json.created_at }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $json.updated_at }}"
+            },
+            {
+              "fieldId": "queued_at",
+              "fieldValue": "={{ $json.queued_at }}"
+            },
+            {
+              "fieldId": "validated_at",
+              "fieldValue": "={{ $json.validated_at }}"
+            },
+            {
+              "fieldId": "validation_errors",
+              "fieldValue": "={{ $json.validation_errors }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "id": "9",
+      "name": "Log Order Processing",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2000, 300],
+      "parameters": {
+        "functionCode": "const orderData = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '1-order-intake-validation',\n  orderId: orderData.amazon_order_id,\n  status: orderData.status,\n  customerEmail: orderData.customer_email,\n  characterSpecs: orderData.character_specs,\n  characterHash: orderData.character_hash,\n  validationErrors: orderData.validation_errors || [],\n  databaseStored: true,\n  nextWorkflow: orderData.next_workflow\n};\n\nconsole.log('📊 Order processed and stored:', JSON.stringify(logEntry, null, 2));\nconsole.log(`✅ Order ${orderData.amazon_order_id} ready for Workflow 2A (Bria Submit)`);\n\nreturn [{ json: logEntry }];"
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate Mock Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Mock Orders": {
+      "main": [
+        [
+          {
+            "node": "Parse Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Orders": {
+      "main": [
+        [
+          {
+            "node": "Generate Order Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Order Items": {
+      "main": [
+        [
+          {
+            "node": "Extract Character Specs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Character Specs": {
+      "main": [
+        [
+          {
+            "node": "Validate Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Order": {
+      "main": [
+        [
+          {
+            "node": "Format for Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format for Supabase": {
+      "main": [
+        [
+          {
+            "node": "Store Order in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Order in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Log Order Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["testing", "workflow-1", "developer-b", "supabase"],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

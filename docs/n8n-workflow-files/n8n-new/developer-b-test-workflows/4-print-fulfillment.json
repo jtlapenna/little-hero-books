@@ -1,0 +1,193 @@
+{
+  "name": "Print & Fulfillment Test - Supabase",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {}
+    },
+    {
+      "id": "2",
+      "name": "Query Approved Orders",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "parameters": {
+        "functionCode": "// Query database for human-approved orders ready for printing\n// In production, this would use Supabase node\n// For testing, we'll generate mock approved orders\n\nconst mockApprovedOrders = [\n  {\n    id: '123e4567-e89b-12d3-a456-426614174000',\n    amazon_order_id: 'TEST-ORDER-001',\n    status: 'book_assembly_completed',\n    workflow_step: 'book_assembly',\n    next_workflow: '4-print-fulfillment',\n    human_approved: true,\n    qa_score: 0.92,\n    requires_human_review: false,\n    \n    // Customer info\n    customer_email: 'jane.smith@example.com',\n    customer_name: 'Jane Smith',\n    shipping_address: {\n      Name: 'Jane Smith',\n      AddressLine1: '123 Main Street',\n      City: 'Portland',\n      StateOrRegion: 'OR',\n      PostalCode: '97201',\n      CountryCode: 'US'\n    },\n    \n    // Book info\n    final_book_url: 'https://r2.cloudflare.com/little-hero-assets/books/TEST-ORDER-001/final-book.pdf',\n    final_cover_url: 'https://r2.cloudflare.com/little-hero-assets/books/TEST-ORDER-001/cover.png',\n    \n    // Character info\n    character_specs: {\n      childName: 'Emma',\n      skinTone: 'medium',\n      hairColor: 'brown',\n      hairStyle: 'short/curly',\n      age: '5',\n      pronouns: 'she/her',\n      favoriteColor: 'purple',\n      animalGuide: 'unicorn',\n      clothingStyle: 'dress'\n    },\n    \n    // Timestamps\n    book_assembly_completed_at: '2025-10-15T05:00:00.000Z',\n    human_reviewed_at: '2025-10-15T05:15:00.000Z',\n    human_reviewer: 'QA Team',\n    \n    // Print fields (empty for new orders)\n    print_job_id: null,\n    print_status: null,\n    print_submission_started_at: null\n  }\n];\n\nconsole.log(`✅ Found ${mockApprovedOrders.length} approved orders ready for printing`);\nreturn mockApprovedOrders.map(order => ({ json: order }));"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Check Human Approval",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "parameters": {
+        "functionCode": "// Verify order is human-approved before processing\nconst orderData = $input.first().json;\n\n// Critical check: Only process human-approved orders\nif (!orderData.human_approved) {\n  console.log(`❌ Order ${orderData.amazon_order_id} not human-approved, skipping`);\n  return [];\n}\n\n// Check if already submitted to print\nif (orderData.print_job_id) {\n  console.log(`⚠️ Order ${orderData.amazon_order_id} already submitted to print, skipping`);\n  return [];\n}\n\n// Verify status\nif (orderData.status !== 'book_assembly_completed') {\n  console.log(`❌ Order ${orderData.amazon_order_id} status is ${orderData.status}, not ready for print`);\n  return [];\n}\n\nconsole.log(`✅ Order ${orderData.amazon_order_id} approved for printing`);\nconsole.log(`   QA Score: ${orderData.qa_score}`);\nconsole.log(`   Reviewed by: ${orderData.human_reviewer}`);\n\nreturn [{ json: orderData }];"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Validate Print Requirements",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "parameters": {
+        "functionCode": "// Validate all print requirements before submission\nconst orderData = $input.first().json;\nconst shippingAddr = orderData.shipping_address || {};\n\n// Validate print requirements\nconst printValidation = {\n  hasFinalBook: !!orderData.final_book_url,\n  hasCover: !!orderData.final_cover_url,\n  hasShippingAddress: !!(shippingAddr.AddressLine1 && shippingAddr.City && shippingAddr.StateOrRegion && shippingAddr.PostalCode),\n  hasCustomerInfo: !!(orderData.customer_name && orderData.customer_email),\n  hasOrderId: !!orderData.amazon_order_id,\n  bookSize: '8x10', // Fixed size for V1\n  pageCount: 16, // Fixed page count (14 interior + covers)\n  printQuality: 'standard' // Fixed quality for V1\n};\n\nconst validationErrors = [];\nif (!printValidation.hasFinalBook) validationErrors.push('Missing final book URL');\nif (!printValidation.hasCover) validationErrors.push('Missing cover URL');\nif (!printValidation.hasShippingAddress) validationErrors.push('Incomplete shipping address');\nif (!printValidation.hasCustomerInfo) validationErrors.push('Missing customer information');\nif (!printValidation.hasOrderId) validationErrors.push('Missing order ID');\n\nconst isValidForPrinting = validationErrors.length === 0;\n\nif (!isValidForPrinting) {\n  console.log(`❌ Print validation failed for order: ${orderData.amazon_order_id}`);\n  console.log(`   Errors: ${validationErrors.join(', ')}`);\n  return [];\n}\n\nconsole.log(`✅ Print validation passed for order: ${orderData.amazon_order_id}`);\n\nconst validatedOrder = {\n  ...orderData,\n  printValidation: printValidation,\n  validationErrors: validationErrors,\n  isValidForPrinting: isValidForPrinting,\n  print_validated_at: new Date().toISOString()\n};\n\nreturn [{ json: validatedOrder }];"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Mock Submit to Lulu",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "parameters": {
+        "functionCode": "// Mock Lulu Print-on-Demand API submission\n// In production, this would be an HTTP Request node to Lulu API\nconst orderData = $input.first().json;\nconst shippingAddr = orderData.shipping_address;\n\n// Simulate Lulu API request body\nconst luluRequest = {\n  line_items: [\n    {\n      external_id: orderData.amazon_order_id,\n      printable_normalization: {\n        cover: orderData.final_cover_url,\n        interior: orderData.final_book_url\n      },\n      quantity: 1,\n      pod_package_id: 'softcover-8x10-standard'\n    }\n  ],\n  contact_email: orderData.customer_email,\n  shipping_address: {\n    name: shippingAddr.Name,\n    street1: shippingAddr.AddressLine1,\n    city: shippingAddr.City,\n    state_code: shippingAddr.StateOrRegion,\n    postcode: shippingAddr.PostalCode,\n    country_code: shippingAddr.CountryCode\n  }\n};\n\nconsole.log('📤 Submitting to Lulu (MOCK):', JSON.stringify(luluRequest, null, 2));\n\n// Mock Lulu API response\nconst mockLuluResponse = {\n  id: `LULU-${Date.now()}`,\n  status: 'CREATED',\n  line_items: [\n    {\n      id: `LULU-ITEM-${Date.now()}`,\n      external_id: orderData.amazon_order_id,\n      status: 'CREATED',\n      tracking_number: null,\n      tracking_url: null\n    }\n  ],\n  shipping_address: luluRequest.shipping_address,\n  created_at: new Date().toISOString(),\n  estimated_ship_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now\n  cost: {\n    total: '12.45',\n    currency: 'USD',\n    line_item_costs: [\n      {\n        total: '8.95',\n        total_excluding_tax: '8.95'\n      }\n    ],\n    shipping_cost: {\n      total: '3.50',\n      total_excluding_tax: '3.50'\n    }\n  }\n};\n\nconsole.log(`✅ Mock Lulu response received: Job ID ${mockLuluResponse.id}`);\n\nreturn [{ json: { ...orderData, luluResponse: mockLuluResponse } }];"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Process Lulu Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "parameters": {
+        "functionCode": "// Process Lulu API response and extract print job details\nconst orderData = $input.first().json;\nconst luluResponse = orderData.luluResponse;\n\n// Extract print job information from Lulu response\nconst printJobInfo = {\n  printJobId: luluResponse.id,\n  status: luluResponse.status,\n  estimatedShipDate: luluResponse.estimated_ship_date,\n  trackingNumber: luluResponse.line_items[0]?.tracking_number || null,\n  trackingUrl: luluResponse.line_items[0]?.tracking_url || null,\n  cost: parseFloat(luluResponse.cost.total),\n  currency: luluResponse.cost.currency,\n  createdAt: luluResponse.created_at\n};\n\nconsole.log(`✅ Print job submitted to Lulu: ${printJobInfo.printJobId}`);\nconsole.log(`   Status: ${printJobInfo.status}`);\nconsole.log(`   Cost: $${printJobInfo.cost}`);\nconsole.log(`   Est. Ship: ${printJobInfo.estimatedShipDate}`);\n\nconst orderWithPrintJob = {\n  ...orderData,\n  print_job_id: printJobInfo.printJobId,\n  print_status: printJobInfo.status,\n  print_submission_started_at: printJobInfo.createdAt,\n  fulfillment_cost: printJobInfo.cost,\n  estimated_ship_date: printJobInfo.estimatedShipDate\n};\n\nreturn [{ json: orderWithPrintJob }];"
+      }
+    },
+    {
+      "id": "7",
+      "name": "Update Order in Database",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 300],
+      "parameters": {
+        "functionCode": "// Update order status in database\n// In production, this would use Supabase update node\nconst orderData = $input.first().json;\n\n// Prepare database update\nconst databaseUpdate = {\n  amazon_order_id: orderData.amazon_order_id,\n  status: 'print_submission_in_progress',\n  print_job_id: orderData.print_job_id,\n  print_status: orderData.print_status,\n  print_submission_started_at: orderData.print_submission_started_at,\n  print_submission_in_progress: true,\n  fulfillment_cost: orderData.fulfillment_cost,\n  updated_at: new Date().toISOString()\n};\n\nconsole.log('📊 Updating order in database (MOCK):', databaseUpdate.amazon_order_id);\nconsole.log(`   New status: ${databaseUpdate.status}`);\nconsole.log(`   Print job ID: ${databaseUpdate.print_job_id}`);\n\n// In production, this would be:\n// await this.helpers.request({\n//   method: 'PATCH',\n//   url: `https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders?amazon_order_id=eq.${orderData.amazon_order_id}`,\n//   headers: { ... },\n//   body: databaseUpdate\n// });\n\nconst updatedOrder = {\n  ...orderData,\n  ...databaseUpdate\n};\n\nconsole.log(`✅ Order ${orderData.amazon_order_id} updated in database`);\n\nreturn [{ json: updatedOrder }];"
+      }
+    },
+    {
+      "id": "8",
+      "name": "Mock Send Confirmation Email",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1780, 300],
+      "parameters": {
+        "functionCode": "// Mock customer notification email\n// In production, this would use SendGrid HTTP Request node\nconst orderData = $input.first().json;\n\n// Prepare email content\nconst emailContent = {\n  to: orderData.customer_email,\n  from: 'orders@littleherobooks.com',\n  subject: 'Your Little Hero Book is being printed!',\n  html: `\n    <h2>Your Little Hero Book is being printed!</h2>\n    <p>Hi ${orderData.customer_name},</p>\n    <p>Great news! Your personalized Little Hero Book for <strong>${orderData.character_specs.childName}</strong> has been approved and is now being printed.</p>\n    <p><strong>Order ID:</strong> ${orderData.amazon_order_id}</p>\n    <p><strong>Print Job ID:</strong> ${orderData.print_job_id}</p>\n    <p><strong>Estimated Ship Date:</strong> ${orderData.estimated_ship_date}</p>\n    <p>We'll send you another email with tracking information once your book ships.</p>\n    <p>Thank you for choosing Little Hero Books!</p>\n  `\n};\n\nconsole.log('📧 Sending confirmation email (MOCK)');\nconsole.log(`   To: ${emailContent.to}`);\nconsole.log(`   Subject: ${emailContent.subject}`);\n\n// In production, this would be a SendGrid HTTP Request\n\nconst orderWithEmail = {\n  ...orderData,\n  confirmation_email_sent: true,\n  confirmation_email_sent_at: new Date().toISOString()\n};\n\nconsole.log(`✅ Confirmation email sent to ${orderData.customer_email}`);\n\nreturn [{ json: orderWithEmail }];"
+      }
+    },
+    {
+      "id": "9",
+      "name": "Log Print Submission",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2000, 300],
+      "parameters": {
+        "functionCode": "// Log print submission for monitoring\nconst orderData = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '4-print-fulfillment',\n  step: 'print_submission',\n  orderId: orderData.amazon_order_id,\n  printJobId: orderData.print_job_id,\n  printStatus: orderData.print_status,\n  status: orderData.status,\n  customerEmail: orderData.customer_email,\n  childName: orderData.character_specs.childName,\n  qaScore: orderData.qa_score,\n  humanApproved: orderData.human_approved,\n  fulfillmentCost: orderData.fulfillment_cost,\n  estimatedShipDate: orderData.estimated_ship_date,\n  emailSent: orderData.confirmation_email_sent,\n  nextStep: 'Monitor print status (separate workflow)'\n};\n\nconsole.log('📊 Print Submission Complete:', JSON.stringify(logEntry, null, 2));\nconsole.log(`✅ Order ${orderData.amazon_order_id} successfully submitted to print`);\nconsole.log(`   Print Job ID: ${orderData.print_job_id}`);\nconsole.log(`   Status: ${orderData.print_status}`);\nconsole.log(`   Next: Monitoring workflow will track print progress`);\n\nreturn [{ json: logEntry }];"
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Query Approved Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Approved Orders": {
+      "main": [
+        [
+          {
+            "node": "Check Human Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Human Approval": {
+      "main": [
+        [
+          {
+            "node": "Validate Print Requirements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Print Requirements": {
+      "main": [
+        [
+          {
+            "node": "Mock Submit to Lulu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Submit to Lulu": {
+      "main": [
+        [
+          {
+            "node": "Process Lulu Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Lulu Response": {
+      "main": [
+        [
+          {
+            "node": "Update Order in Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order in Database": {
+      "main": [
+        [
+          {
+            "node": "Mock Send Confirmation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Send Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Log Print Submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["testing", "workflow-4", "developer-b", "print-fulfillment", "supabase"],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-15T10:00:00.000Z",
+  "versionId": "1"
+}
+
