@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal Position Test</title>
+    <style>
+        body {
+            width: 2550px;
+            height: 2550px;
+            position: relative;
+            background: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .page {
+            width: 2550px;
+            height: 2550px;
+            position: relative;
+            background: linear-gradient(45deg, #e0e0e0, #f0f0f0);
+            border: 2px solid #ccc;
+        }
+        
+        .character {
+            position: absolute;
+            right: 0%;
+            top: 0%;
+            width: 200px;
+            height: 200px;
+            background: red;
+            border: 5px solid blue;
+            z-index: 100;
+        }
+        
+        .animal {
+            position: absolute;
+            right: 0%;
+            top: 0%;
+            width: 300px;
+            height: 200px;
+            background: green;
+            border: 5px solid yellow;
+            z-index: 90;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 20px;
+            border: 2px solid black;
+            z-index: 1000;
+            font-family: monospace;
+        }
+        
+        .controls input {
+            width: 80px;
+            margin: 5px;
+        }
+        
+        .debug {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: yellow;
+            padding: 10px;
+            border: 2px solid black;
+            font-family: monospace;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h3>Character Position</h3>
+        <div>
+            <label>Right: <input type="number" id="charRight" value="0" onchange="updateChar()">%</label>
+        </div>
+        <div>
+            <label>Top: <input type="number" id="charTop" value="0" onchange="updateChar()">%</label>
+        </div>
+        
+        <h3>Animal Position</h3>
+        <div>
+            <label>Right: <input type="number" id="animalRight" value="0" onchange="updateAnimal()">%</label>
+        </div>
+        <div>
+            <label>Top: <input type="number" id="animalTop" value="0" onchange="updateAnimal()">%</label>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <button onclick="testPositions()">Test 0,0 then 50,50</button>
+        </div>
+    </div>
+    
+    <div class="debug" id="debug">
+        Debug Info
+    </div>
+    
+    <div class="page">
+        <div class="character" id="character"></div>
+        <div class="animal" id="animal"></div>
+    </div>
+    
+    <script>
+        function updateChar() {
+            const char = document.getElementById('character');
+            const right = document.getElementById('charRight').value;
+            const top = document.getElementById('charTop').value;
+            
+            console.log(`Character: right=${right}%, top=${top}%`);
+            
+            char.style.setProperty('right', right + '%', 'important');
+            char.style.setProperty('top', top + '%', 'important');
+            
+            updateDebug();
+        }
+        
+        function updateAnimal() {
+            const animal = document.getElementById('animal');
+            const right = document.getElementById('animalRight').value;
+            const top = document.getElementById('animalTop').value;
+            
+            console.log(`Animal: right=${right}%, top=${top}%`);
+            
+            animal.style.setProperty('right', right + '%', 'important');
+            animal.style.setProperty('top', top + '%', 'important');
+            
+            updateDebug();
+        }
+        
+        function updateDebug() {
+            const char = document.getElementById('character');
+            const animal = document.getElementById('animal');
+            
+            const charRect = char.getBoundingClientRect();
+            const animalRect = animal.getBoundingClientRect();
+            
+            document.getElementById('debug').innerHTML = `
+                <strong>Character:</strong><br>
+                CSS: right=${char.style.right}, top=${char.style.top}<br>
+                Position: ${charRect.left.toFixed(0)}, ${charRect.top.toFixed(0)}<br>
+                <strong>Animal:</strong><br>
+                CSS: right=${animal.style.right}, top=${animal.style.top}<br>
+                Position: ${animalRect.left.toFixed(0)}, ${animalRect.top.toFixed(0)}
+            `;
+        }
+        
+        function testPositions() {
+            // Test 0,0
+            document.getElementById('charRight').value = 0;
+            document.getElementById('charTop').value = 0;
+            document.getElementById('animalRight').value = 0;
+            document.getElementById('animalTop').value = 0;
+            updateChar();
+            updateAnimal();
+            
+            setTimeout(() => {
+                // Test 50,50
+                document.getElementById('charRight').value = 50;
+                document.getElementById('charTop').value = 50;
+                document.getElementById('animalRight').value = 50;
+                document.getElementById('animalTop').value = 50;
+                updateChar();
+                updateAnimal();
+            }, 2000);
+        }
+        
+        // Initialize
+        updateChar();
+        updateAnimal();
+    </script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Positioning Test</title>
+    <style>
+        body {
+            width: 2550px;
+            height: 2550px;
+            position: relative;
+            background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+            margin: 0;
+            padding: 0;
+        }
+        
+        .test-element {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: red;
+            border: 3px solid blue;
+            z-index: 100;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 20px;
+            border: 2px solid black;
+            z-index: 1000;
+        }
+        
+        .controls input {
+            width: 80px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h3>Position Test</h3>
+        <div>
+            <label>Right: <input type="number" id="right" value="0" onchange="updatePosition()">%</label>
+        </div>
+        <div>
+            <label>Top: <input type="number" id="top" value="0" onchange="updatePosition()">%</label>
+        </div>
+        <div>
+            <button onclick="resetPosition()">Reset to 0,0</button>
+        </div>
+        <div>
+            <button onclick="testPosition()">Test 50%,50%</button>
+        </div>
+    </div>
+    
+    <div class="test-element" id="testElement"></div>
+    
+    <script>
+        function updatePosition() {
+            const element = document.getElementById('testElement');
+            const right = document.getElementById('right').value;
+            const top = document.getElementById('top').value;
+            
+            console.log(`Setting position: right=${right}%, top=${top}%`);
+            
+            element.style.right = right + '%';
+            element.style.top = top + '%';
+        }
+        
+        function resetPosition() {
+            document.getElementById('right').value = 0;
+            document.getElementById('top').value = 0;
+            updatePosition();
+        }
+        
+        function testPosition() {
+            document.getElementById('right').value = 50;
+            document.getElementById('top').value = 50;
+            updatePosition();
+        }
+        
+        // Initialize
+        updatePosition();
+    </script>
+</body>
+</html>

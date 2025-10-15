@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Image Test</title>
+    <style>
+        body {
+            width: 2550px;
+            height: 2550px;
+            position: relative;
+            background: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .page {
+            width: 2550px;
+            height: 2550px;
+            position: relative;
+            background-image: url('https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/backgrounds/page01-twilight-walk.png');
+            background-size: 2550px 2550px;
+            background-position: center;
+            background-repeat: no-repeat;
+            border: 2px solid #ccc;
+        }
+        
+        .character {
+            position: absolute;
+            right: 22%;
+            top: 38%;
+            width: 800px;
+            height: 800px;
+            background: rgba(255, 0, 0, 0.5);
+            border: 3px solid blue;
+            z-index: 100;
+        }
+        
+        .debug-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: yellow;
+            padding: 10px;
+            border: 2px solid black;
+            font-family: monospace;
+            z-index: 1000;
+        }
+        
+        .grid-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .grid-line {
+            position: absolute;
+            background: rgba(255, 0, 0, 0.3);
+        }
+        
+        .grid-line.vertical {
+            width: 1px;
+            height: 100%;
+        }
+        
+        .grid-line.horizontal {
+            height: 1px;
+            width: 100%;
+        }
+        
+        .corner-markers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+        
+        .corner-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: red;
+            border: 2px solid white;
+        }
+        
+        .corner-marker.top-left { top: 0; left: 0; }
+        .corner-marker.top-right { top: 0; right: 0; }
+        .corner-marker.bottom-left { bottom: 0; left: 0; }
+        .corner-marker.bottom-right { bottom: 0; right: 0; }
+    </style>
+</head>
+<body>
+    <div class="debug-info" id="debugInfo">
+        <strong>Background & Character Test:</strong><br>
+        <span id="info"></span>
+    </div>
+    
+    <div class="page" id="page">
+        <div class="grid-lines" id="gridLines"></div>
+        <div class="corner-markers">
+            <div class="corner-marker top-left"></div>
+            <div class="corner-marker top-right"></div>
+            <div class="corner-marker bottom-left"></div>
+            <div class="corner-marker bottom-right"></div>
+        </div>
+        
+        <div class="character">
+            <div style="color: white; font-size: 24px; text-align: center; padding: 20px;">
+                CHARACTER<br>
+                right: 22%<br>
+                top: 38%
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function updateDebug() {
+            const page = document.getElementById('page');
+            const character = document.querySelector('.character');
+            
+            const pageRect = page.getBoundingClientRect();
+            const charRect = character.getBoundingClientRect();
+            
+            document.getElementById('info').innerHTML = `
+                <strong>Page:</strong> ${pageRect.width} × ${pageRect.height}<br>
+                <strong>Character:</strong><br>
+                &nbsp;&nbsp;CSS: right=22%, top=38%<br>
+                &nbsp;&nbsp;Actual: ${charRect.left.toFixed(0)}, ${charRect.top.toFixed(0)}<br>
+                &nbsp;&nbsp;From right: ${(pageRect.width - charRect.right).toFixed(0)}px<br>
+                &nbsp;&nbsp;From top: ${charRect.top.toFixed(0)}px<br>
+                <strong>Expected from right:</strong> ${(pageRect.width * 0.22).toFixed(0)}px<br>
+                <strong>Expected from top:</strong> ${(pageRect.height * 0.38).toFixed(0)}px
+            `;
+        }
+        
+        function createGrid() {
+            const gridLines = document.getElementById('gridLines');
+            
+            // Create vertical line at 22% from right (78% from left)
+            const vLine = document.createElement('div');
+            vLine.className = 'grid-line vertical';
+            vLine.style.left = '78%';
+            gridLines.appendChild(vLine);
+            
+            // Create horizontal line at 38% from top
+            const hLine = document.createElement('div');
+            hLine.className = 'grid-line horizontal';
+            hLine.style.top = '38%';
+            gridLines.appendChild(hLine);
+        }
+        
+        // Initialize
+        createGrid();
+        updateDebug();
+        
+        // Update on resize
+        window.addEventListener('resize', updateDebug);
+    </script>
+</body>
+</html>

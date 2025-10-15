@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic Page 01 - Check Dimensions</title>
+    <style>
+        @page {
+            size: 2550px 2550px;
+            margin: 0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            width: 2550px;
+            height: 2550px;
+            position: relative;
+            overflow: hidden;
+            background-color: #000;
+        }
+        
+        .page {
+            width: 2550px;
+            height: 2550px;
+            position: relative;
+            border: 2px solid #ccc;
+            overflow: hidden;
+        }
+        
+        .page img {
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        .character {
+            position: absolute;
+            right: 22%;
+            top: 38%;
+            width: 200px;
+            height: 200px;
+            background: red;
+            border: 5px solid blue;
+            z-index: 10;
+        }
+        
+        .text-box {
+            position: absolute;
+            left: 50%;
+            bottom: 3%;
+            width: 80%;
+            transform: translateX(-50%);
+            height: 100px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 3px solid green;
+            z-index: 10;
+        }
+        
+        .debug-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: yellow;
+            padding: 10px;
+            border: 2px solid black;
+            font-family: monospace;
+            z-index: 20;
+            max-width: 400px;
+        }
+        
+        .grid-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .grid-line {
+            position: absolute;
+            background: rgba(255, 0, 0, 0.3);
+        }
+        
+        .grid-line.vertical {
+            width: 1px;
+            height: 100%;
+        }
+        
+        .grid-line.horizontal {
+            height: 1px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info" id="debugInfo">
+        <strong>Page Dimensions:</strong><br>
+        <span id="pageDims"></span><br>
+        <strong>Character Position:</strong><br>
+        <span id="charPos"></span><br>
+        <strong>Text Box Position:</strong><br>
+        <span id="textPos"></span>
+    </div>
+    
+    <div class="page" id="page">
+        <img src="https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/backgrounds/page01-twilight-walk.png" alt="Background">
+        <div class="grid-lines" id="gridLines"></div>
+        
+        <div class="character" id="character"></div>
+        
+        <div class="text-box">
+            <div style="padding: 20px; text-align: center; font-size: 24px;">
+                It was a nice night in Seattle. Alex went outside.
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function updateDebug() {
+            const page = document.getElementById('page');
+            const character = document.getElementById('character');
+            const textBox = document.querySelector('.text-box');
+            
+            const pageRect = page.getBoundingClientRect();
+            const charRect = character.getBoundingClientRect();
+            const textRect = textBox.getBoundingClientRect();
+            
+            document.getElementById('pageDims').innerHTML = `
+                Page: ${pageRect.width.toFixed(0)} × ${pageRect.height.toFixed(0)}<br>
+                Background: 2550px × 2550px (CSS)
+            `;
+            
+            document.getElementById('charPos').innerHTML = `
+                CSS: right=22%, top=38%<br>
+                Actual: ${charRect.left.toFixed(0)}, ${charRect.top.toFixed(0)}<br>
+                From right: ${(pageRect.width - charRect.right).toFixed(0)}px<br>
+                From top: ${charRect.top.toFixed(0)}px
+            `;
+            
+            document.getElementById('textPos').innerHTML = `
+                CSS: left=50%, bottom=3%<br>
+                Actual: ${textRect.left.toFixed(0)}, ${textRect.top.toFixed(0)}<br>
+                From left: ${textRect.left.toFixed(0)}px<br>
+                From bottom: ${(pageRect.height - textRect.bottom).toFixed(0)}px
+            `;
+        }
+        
+        function createGrid() {
+            const gridLines = document.getElementById('gridLines');
+            const page = document.getElementById('page');
+            const pageRect = page.getBoundingClientRect();
+            
+            // Create vertical lines at 25%, 50%, 75%
+            for (let i = 1; i < 4; i++) {
+                const line = document.createElement('div');
+                line.className = 'grid-line vertical';
+                line.style.left = (i * 25) + '%';
+                gridLines.appendChild(line);
+            }
+            
+            // Create horizontal lines at 25%, 50%, 75%
+            for (let i = 1; i < 4; i++) {
+                const line = document.createElement('div');
+                line.className = 'grid-line horizontal';
+                line.style.top = (i * 25) + '%';
+                gridLines.appendChild(line);
+            }
+        }
+        
+        // Initialize
+        createGrid();
+        updateDebug();
+        
+        // Update on resize
+        window.addEventListener('resize', updateDebug);
+    </script>
+</body>
+</html>

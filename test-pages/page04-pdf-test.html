@@ -35,7 +35,7 @@
             height: 2550px;
             position: relative;
             background-image: url('https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/backgrounds/page04-courage-leap.png');
-            background-size: 2550px 2550px;
+            background-size: 100% 100%;
             background-position: center;
             background-repeat: no-repeat;
             border: 2px solid #ccc;
@@ -47,7 +47,7 @@
             left: 50%;
             bottom: 3%;
             width: 80%; /* 80% of 2550px = 2040px */
-            transform: translateX(-50%);
+            transform: scaleX(1) rotateZ(-20deg);
             height: auto;
             background-image: url('https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/overlays/text-boxes/standard-box.png');
             background-size: 100% 100%;
@@ -178,19 +178,19 @@
         <div class="controls-content">
         <h4>🎯 Character Position (PDF Scale)</h4>
         <div>
-            <label>Right: <input type="number" id="right" value="5" onchange="updatePosition()">%</label>
+            <label>Right: <input type="number" id="right" value="30" onchange="updatePosition()">%</label>
         </div>
         <div>
-            <label>Top: <input type="number" id="top" value="15" onchange="updatePosition()">%</label>
+            <label>Top: <input type="number" id="top" value="32" onchange="updatePosition()">%</label>
         </div>
         <div>
-            <label>Width: <input type="number" id="width" value="300" onchange="updatePosition()">px</label>
+            <label>Width: <input type="number" id="width" value="800" onchange="updatePosition()">px</label>
         </div>
         <div style="margin-top: 30px;">
             <label><input type="checkbox" id="flipHorizontal" onchange="updatePosition()"> Flip Horizontal</label>
         </div>
         <div style="margin-top: 30px;">
-            <label>Rotation: <input type="number" id="rotation" value="0" step="1" onchange="updatePosition()">°</label>
+            <label>Rotation: <input type="number" id="rotation" value="-20" step="1" onchange="updatePosition()">°</label>
         </div>
         <div style="margin-top: 30px;">
             <button onclick="copyPosition()" style="font-size: 36px; padding: 18px 36px;">Copy CSS</button>
@@ -206,7 +206,7 @@
         </div>
         
         <div class="character character-lighting" id="character">
-            <img src="https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose04.png" alt="Character">
+            <img src="https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose04_nobg.png" alt="Character">
         </div>
     </div>
     
@@ -221,9 +221,9 @@
         
         function updatePosition() {
             const character = document.getElementById('character');
-            const right = document.getElementById('right').value;
-            const top = document.getElementById('top').value;
-            const width = document.getElementById('width').value;
+            const right = document.getElementById('right').value || '0';
+            const top = document.getElementById('top').value || '0';
+            const width = document.getElementById('width').value || '900';
             const flipHorizontal = document.getElementById('flipHorizontal').checked;
             const rotation = document.getElementById('rotation').value;
             
@@ -241,9 +241,9 @@
         }
         
         function copyPosition() {
-            const right = document.getElementById('right').value;
-            const top = document.getElementById('top').value;
-            const width = document.getElementById('width').value;
+            const right = document.getElementById('right').value || '0';
+            const top = document.getElementById('top').value || '0';
+            const width = document.getElementById('width').value || '900';
             const flipHorizontal = document.getElementById('flipHorizontal').checked;
             const rotation = document.getElementById('rotation').value;
             
@@ -259,7 +259,7 @@
                 `right: ${right}%;`,
                 `top: ${top}%;`,
                 `width: ${width}px;`,
-                `transform: ${transformCss};`
+                `transform: scaleX(1) rotateZ(-20deg);`
             ];
             
             const fullCss = `/* Character Positioning for PDF (2550px × 2550px) */\n.character {\n    position: absolute;\n    ${positioningLines.join(' ')}\n    height: auto;\n    z-index: 100;\n}`;
