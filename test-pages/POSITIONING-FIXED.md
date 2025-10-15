@@ -73,27 +73,6 @@
 /* Character — page px (bottom-center anchor) */
 .character {
   position: absolute;
-  left: 1275px;
-  top: 2295px;
-  transform: translate(-50%, -100%);
-  width: 900px;
-  height: auto;
-  z-index: 100;
-}
-.character .sprite {
-  position: relative;
-  width: 100%;
-  height: auto;
-  transform: scaleX(1);
-  transform-origin: 50% 100%;
-}
-```
-
-### Page 04 - Courage Leap
-```css
-/* Character — page px (bottom-center anchor) */
-.character {
-  position: absolute;
   left: 1020px;
   top: 2142px;
   transform: translate(-50%, -100%);
@@ -106,6 +85,27 @@
   width: 100%;
   height: auto;
   transform: scaleX(-1);
+  transform-origin: 50% 100%;
+}
+```
+
+### Page 04 - Courage Leap
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1530px;
+  top: 1734px;
+  transform: translate(-50%, -100%);
+  width: 1100px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: rotateZ(-20deg);
   transform-origin: 50% 100%;
 }
 ```
@@ -280,13 +280,13 @@
 
 ### Page 13 - Animal Reveal
 ```css
-/* Character — page px (bottom-center anchor) */
+/* Character — page px (bottom-center anchor) NOTE: THE CHARACTER SHOULD NOT APPEAR ON THIS PAGE */
 .character {
   position: absolute;
   left: 1199px;
   top: 2040px;
   transform: translate(-50%, -100%);
-  width: 1150px;
+  width: 1250px;
   height: auto;
   z-index: 100;
 }
