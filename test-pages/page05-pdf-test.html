@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page 05 - PDF Test (2550px × 2550px)</title>
+    <style>
+        @page {
+            size: 2550px 2550px;
+            margin: 0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        @font-face {
+            font-family: 'CustomFont';
+            src: url('../renderer-mock/assets/fonts/custom-font.ttf') format('truetype');
+        }
+        
+        body {
+            font-family: 'CustomFont', 'Arial', sans-serif;
+            width: 2550px;
+            height: 2550px;
+            position: relative;
+            overflow: hidden;
+            background-color: #000;
+        }
+        
+        .page {
+            width: 2550px;
+            height: 2550px;
+            position: relative;
+            background-image: url('https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/backgrounds/page05-morning-meadow.png');
+            background-size: 2550px 2550px;
+            background-position: center;
+            background-repeat: no-repeat;
+            border: 2px solid #ccc;
+        }
+        
+        /* TEXT BOX SPECIFICATIONS - Scale for 2550px width */
+        .text-box {
+            position: absolute;
+            left: 50%;
+            bottom: 3%;
+            width: 80%; /* 80% of 2550px = 2040px */
+            transform: translateX(-50%);
+            height: auto;
+            background-image: url('https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/overlays/text-boxes/standard-box.png');
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            background-position: center;
+            padding: 120px 240px; /* Scaled for 300 DPI */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+        
+        /* TEXT SPECIFICATIONS - Scale for 300 DPI */
+        .text-content {
+            font-size: 60px; /* Scaled for 300 DPI */
+            line-height: 1.3;
+            letter-spacing: 2px;
+            color: #312116;
+            text-align: center;
+            font-weight: 400;
+            width: 100%;
+            word-wrap: break-word;
+            hyphens: none;
+        }
+        
+        /* CHARACTER POSITIONING - ADJUST THESE VALUES */
+        .character {
+            position: absolute;
+            right: 5%;
+            top: 15%;
+            width: 300px;
+            height: auto;
+            z-index: 100;
+            border: 3px solid red; /* Debug border */
+            background: rgba(255, 0, 0, 0.2); /* Debug background */
+        }
+        
+        .character img {
+            width: 100%;
+            height: auto;
+        }
+        
+        .position-controls {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 45px;
+            border-radius: 24px;
+            font-size: 36px;
+            font-family: monospace;
+            max-width: 900px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .position-controls.collapsed {
+            max-width: 150px;
+            max-height: 150px;
+            padding: 30px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        
+        .position-controls.collapsed .controls-content {
+            display: none;
+        }
+        
+        .position-controls .collapse-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            width: 72px;
+            height: 72px;
+            cursor: pointer;
+            font-size: 48px;
+            line-height: 1;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .position-controls .collapse-btn:hover {
+            background: #5568d3;
+        }
+        
+        .position-controls.collapsed .collapse-btn {
+            position: static;
+            width: 90px;
+            height: 90px;
+            font-size: 60px;
+        }
+        
+        .position-controls h4 {
+            margin-bottom: 24px;
+            color: #333;
+        }
+        
+        .position-controls input {
+            width: 180px;
+            margin: 6px;
+            font-size: 36px;
+            padding: 12px;
+        }
+        
+        .position-controls label {
+            font-size: 36px;
+            display: block;
+            margin-bottom: 12px;
+        }
+        
+        @media print {
+            .position-controls {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="position-controls" id="controls">
+        <button class="collapse-btn" onclick="toggleControls()" title="Collapse/Expand">−</button>
+        <div class="controls-content">
+        <h4>🎯 Character Position (PDF Scale)</h4>
+        <div>
+            <label>Right: <input type="number" id="right" value="5" onchange="updatePosition()">%</label>
+        </div>
+        <div>
+            <label>Top: <input type="number" id="top" value="15" onchange="updatePosition()">%</label>
+        </div>
+        <div>
+            <label>Width: <input type="number" id="width" value="300" onchange="updatePosition()">px</label>
+        </div>
+        <div style="margin-top: 30px;">
+            <label><input type="checkbox" id="flipHorizontal" onchange="updatePosition()"> Flip Horizontal</label>
+        </div>
+        <div style="margin-top: 30px;">
+            <label>Rotation: <input type="number" id="rotation" value="0" step="1" onchange="updatePosition()">°</label>
+        </div>
+        <div style="margin-top: 30px;">
+            <button onclick="copyPosition()" style="font-size: 36px; padding: 18px 36px;">Copy CSS</button>
+        </div>
+        </div>
+    </div>
+    
+    <div class="page">
+        <div class="text-box">
+            <div class="text-content">
+                Alex noticed footprints and followed them.
+            </div>
+        </div>
+        
+        <div class="character character-lighting" id="character">
+            <img src="https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/6ec1cd52dce77992/characters_6ec1cd52dce77992_pose05.png" alt="Character">
+        </div>
+    </div>
+    
+    <script>
+        // Toggle controls collapse/expand
+        function toggleControls() {
+            const controls = document.getElementById('controls');
+            const btn = controls.querySelector('.collapse-btn');
+            controls.classList.toggle('collapsed');
+            btn.textContent = controls.classList.contains('collapsed') ? '+' : '−';
+        }
+        
+        function updatePosition() {
+            const character = document.getElementById('character');
+            if (!character) return;
+            
+            const right = document.getElementById('right').value;
+            const top = document.getElementById('top').value;
+            const width = document.getElementById('width').value;
+            const flipHorizontal = document.getElementById('flipHorizontal').checked;
+            const rotation = document.getElementById('rotation').value;
+            
+            character.style.right = right + '%';
+            character.style.top = top + '%';
+            character.style.width = width + 'px';
+            
+            // Build transform property with flip and rotation
+            const transforms = [];
+            transforms.push(flipHorizontal ? 'scaleX(-1)' : 'scaleX(1)');
+            if (rotation != 0) {
+                transforms.push(`rotateZ(${rotation}deg)`);
+            }
+            character.style.transform = transforms.join(' ');
+        }
+        
+        function copyPosition() {
+            const right = document.getElementById('right').value;
+            const top = document.getElementById('top').value;
+            const width = document.getElementById('width').value;
+            const flipHorizontal = document.getElementById('flipHorizontal').checked;
+            const rotation = document.getElementById('rotation').value;
+            
+            // Build transform CSS with flip and rotation
+            const transforms = [];
+            transforms.push(flipHorizontal ? 'scaleX(-1)' : 'scaleX(1)');
+            if (rotation != 0) {
+                transforms.push(`rotateZ(${rotation}deg)`);
+            }
+            const transformCss = transforms.join(' ');
+            
+            const positioningLines = [
+                `right: ${right}%;`,
+                `top: ${top}%;`,
+                `width: ${width}px;`,
+                `transform: ${transformCss};`
+            ];
+            
+            const fullCss = `/* Character Positioning for PDF (2550px × 2550px) */\n.character {\n    position: absolute;\n    ${positioningLines.join(' ')}\n    height: auto;\n    z-index: 100;\n}`;
+            
+            navigator.clipboard.writeText(fullCss).then(() => {
+                alert('CSS copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>
