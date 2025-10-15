@@ -1,275 +1,303 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Page 05 - PDF Test (2550px × 2550px)</title>
-    <style>
-        @page {
-            size: 2550px 2550px;
-            margin: 0;
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        @font-face {
-            font-family: 'CustomFont';
-            src: url('../renderer-mock/assets/fonts/custom-font.ttf') format('truetype');
-        }
-        
-        body {
-            font-family: 'CustomFont', 'Arial', sans-serif;
-            width: 2550px;
-            height: 2550px;
-            position: relative;
-            overflow: hidden;
-            background-color: #000;
-        }
-        
-        .page {
-            width: 2550px;
-            height: 2550px;
-            position: relative;
-            background-image: url('https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/backgrounds/page05-morning-meadow.png');
-            background-size: 100% 100%;
-            background-position: center;
-            background-repeat: no-repeat;
-            border: 2px solid #ccc;
-        }
-        
-        /* TEXT BOX SPECIFICATIONS - Scale for 2550px width */
-        .text-box {
-            position: absolute;
-            left: 50%;
-            bottom: 3%;
-            width: 80%; /* 80% of 2550px = 2040px */
-            transform: scaleX(-1);
-            height: auto;
-            background-image: url('https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/overlays/text-boxes/standard-box.png');
-            background-size: 100% 100%;
-            background-repeat: no-repeat;
-            background-position: center;
-            padding: 120px 240px; /* Scaled for 300 DPI */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 400px;
-        }
-        
-        /* TEXT SPECIFICATIONS - Scale for 300 DPI */
-        .text-content {
-            font-size: 60px; /* Scaled for 300 DPI */
-            line-height: 1.3;
-            letter-spacing: 2px;
-            color: #312116;
-            text-align: center;
-            font-weight: 400;
-            width: 100%;
-            word-wrap: break-word;
-            hyphens: none;
-        }
-        
-        /* CHARACTER POSITIONING - ADJUST THESE VALUES */
-        .character {
-            position: absolute;
-            right: 5%;
-            top: 15%;
-            width: 300px;
-            height: auto;
-            z-index: 100;
-            border: 3px solid red; /* Debug border */
-            background: rgba(255, 0, 0, 0.2); /* Debug background */
-        }
-        
-        .character img {
-            width: 100%;
-            height: auto;
-        }
-        
-        .position-controls {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 45px;
-            border-radius: 24px;
-            font-size: 36px;
-            font-family: monospace;
-            max-width: 900px;
-            z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            transition: all 0.3s ease;
-        }
-        
-        .position-controls.collapsed {
-            max-width: 150px;
-            max-height: 150px;
-            padding: 30px;
-            overflow: hidden;
-            cursor: pointer;
-        }
-        
-        .position-controls.collapsed .controls-content {
-            display: none;
-        }
-        
-        .position-controls .collapse-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            width: 72px;
-            height: 72px;
-            cursor: pointer;
-            font-size: 48px;
-            line-height: 1;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .position-controls .collapse-btn:hover {
-            background: #5568d3;
-        }
-        
-        .position-controls.collapsed .collapse-btn {
-            position: static;
-            width: 90px;
-            height: 90px;
-            font-size: 60px;
-        }
-        
-        .position-controls h4 {
-            margin-bottom: 24px;
-            color: #333;
-        }
-        
-        .position-controls input {
-            width: 180px;
-            margin: 6px;
-            font-size: 36px;
-            padding: 12px;
-        }
-        
-        .position-controls label {
-            font-size: 36px;
-            display: block;
-            margin-bottom: 12px;
-        }
-        
-        @media print {
-            .position-controls {
-                display: none;
-            }
-        }
-    </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Little Hero — Positioning Rig (Bottom-Center Anchor)</title>
+<style>
+  @page { size: 2550px 2550px; margin: 0; }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family: Arial, sans-serif; width:2550px; height:2550px; background:#000; overflow:hidden; position:relative; }
+  .page { width:2550px; height:2550px; position:relative; border:2px solid #ccc;
+    --active-left: 0px; --active-top: 0px; --active-right: 0px; --active-bottom: 0px; }
+
+  /* Always visible background */
+  .bg { position:absolute; inset:0; z-index:1;
+    background-color:#000; background-repeat:no-repeat; background-position:center; background-size:100% 100%;
+  }
+
+  .active-area { position:absolute; z-index:5; left: var(--active-left); top: var(--active-top);
+    right: var(--active-right); bottom: var(--active-bottom); outline: 3px dashed rgba(0,255,0,.5);
+    overflow: hidden;
+  }
+
+  .text-box { position:absolute; left:50%; bottom:3%; width:80%; transform:translateX(-50%);
+    min-height:360px; background-image:url('https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/overlays/text-boxes/standard-box.png');
+    background-size:100% 100%; background-repeat:no-repeat; background-position:center;
+    padding: 100px 220px; display:flex; align-items:center; justify-content:center; z-index:6; }
+  .text-content { font-size:56px; line-height:1.3; letter-spacing:1px; color:#312116; text-align:center; width:100%; }
+
+  /* Character: outer anchor point (bottom-center pivot), inner sprite holds image+transforms */
+  .character {
+    position:absolute;
+    left: 1275px; top: 1275px;           /* will be set via JS */
+    transform: translate(-50%, -100%);   /* place bottom-center at the anchor point */
+    width: 900px; height: auto;          /* width set via JS; height auto */
+    z-index:10;
+    pointer-events:none;
+  }
+  .character .sprite {
+    position: relative;
+    width: 100%; height: auto;
+    transform-origin: 50% 100%;          /* bottom-center pivot */
+    will-change: transform;
+  }
+  .character .sprite img { display:block; width: 100%; height:auto; }
+
+  .position-controls { position:absolute; top:30px; left:30px; z-index:1000;
+    background: rgba(255,255,255,.97); padding: 20px 22px; border-radius: 14px;
+    font-family: monospace; font-size: 18px; max-width: 1160px; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+  .row { display:flex; align-items:center; gap:12px; margin: 6px 0; flex-wrap: wrap; }
+  label { font-size:16px; }
+  input[type="number"], input[type="text"], select { font-size:16px; padding:6px 8px; }
+  input[type="number"] { width:120px; }
+  .small { color:#555; font-size:13px; margin-top:6px; }
+  @media print { .position-controls { display:none; } }
+</style>
 </head>
 <body>
-    <div class="position-controls" id="controls">
-        <button class="collapse-btn" onclick="toggleControls()" title="Collapse/Expand">−</button>
-        <div class="controls-content">
-        <h4>🎯 Character Position (PDF Scale)</h4>
-        <div>
-            <label>Right: <input type="number" id="right" value="33" onchange="updatePosition()">%</label>
-        </div>
-        <div>
-            <label>Top: <input type="number" id="top" value="46" onchange="updatePosition()">%</label>
-        </div>
-        <div>
-            <label>Width: <input type="number" id="width" value="900" onchange="updatePosition()">px</label>
-        </div>
-        <div style="margin-top: 30px;">
-            <label><input type="checkbox" id="flipHorizontal" onchange="updatePosition()"> Flip Horizontal</label>
-        </div>
-        <div style="margin-top: 30px;">
-            <label>Rotation: <input type="number" id="rotation" value="0" step="1" onchange="updatePosition()">°</label>
-        </div>
-        <div style="margin-top: 30px;">
-            <button onclick="copyPosition()" style="font-size: 36px; padding: 18px 36px;">Copy CSS</button>
-        </div>
-        </div>
+  <div class="position-controls">
+    <div class="row">
+      <label>Background URL <input id="bgUrl" style="width:650px" value="https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/backgrounds/page05-morning-meadow.png"></label>
+      <button id="btnSwapBg">Load</button>
     </div>
-    
-    <div class="page">
-        <div class="text-box">
-            <div class="text-content">
-                Alex noticed footprints and followed them.
-            </div>
-        </div>
-        
-        <div class="character character-lighting" id="character">
-            <img src="https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose05_nobg.png" alt="Character">
-        </div>
+    <div class="row">
+      <label>X % (left→right) <input type="number" id="xpct" value="33" step="0.1"></label>
+      <label>Y % (bottom→top) <input type="number" id="ypct" value="46" step="0.1"></label>
+      <label>Width px <input type="number" id="charW" value="900" step="1"></label>
+      <label><input type="checkbox" id="keepInside" checked> Keep fully visible</label>
+      <label><input type="checkbox" id="useTight" checked> Tight character bounds</label>
     </div>
-    
-    <script>
-        // Toggle controls collapse/expand
-        function toggleControls() {
-            const controls = document.getElementById('controls');
-            const btn = controls.querySelector('.collapse-btn');
-            controls.classList.toggle('collapsed');
-            btn.textContent = controls.classList.contains('collapsed') ? '+' : '−';
-        }
-        
-        function updatePosition() {
-            const character = document.getElementById('character');
-            if (!character) return;
-            
-            const right = document.getElementById('right').value || '0';
-            const top = document.getElementById('top').value || '0';
-            const width = document.getElementById('width').value || '900';
-            const flipHorizontal = document.getElementById('flipHorizontal').checked;
-            const rotation = document.getElementById('rotation').value;
-            
-            character.style.right = right + '%';
-            character.style.top = top + '%';
-            character.style.width = width + 'px';
-            
-            // Build transform property with flip and rotation
-            const transforms = [];
-            transforms.push(flipHorizontal ? 'scaleX(-1)' : 'scaleX(1)');
-            if (rotation != 0) {
-                transforms.push(`rotateZ(${rotation}deg)`);
+    <div class="row">
+      <label><input type="checkbox" id="flipX"> Flip Horizontal</label>
+      <label>Rotation ° <input type="number" id="rot" value="0" step="1"></label>
+      <button id="btnCopyPagePx">Copy CSS — Page (px)</button>
+    </div>
+    <div class="small">Anchor = <b>bottom-center</b>. X% moves across; Y% moves up. Flip/rotate won't change the anchor point.</div>
+    <div class="small" id="debug"></div>
+  </div>
+
+  <div class="page" id="page">
+    <div class="bg" id="bgLayer"></div>
+    <img id="bgImg" alt="Background" style="display:none"/>
+    <div class="active-area" id="activeArea">
+      <div class="text-box"><div class="text-content">Alex noticed footprints and followed them.</div></div>
+
+      <div class="character" id="character">
+        <div class="sprite" id="sprite">
+          <img id="charImg" src="https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose05_nobg.png" alt="Character"/>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  // Elements
+  const page = document.getElementById('page');
+  const bgLayer = document.getElementById('bgLayer');
+  const bgImg = document.getElementById('bgImg');
+  const bgUrl = document.getElementById('bgUrl');
+  const btnSwapBg = document.getElementById('btnSwapBg');
+  const activeArea = document.getElementById('activeArea');
+  const character = document.getElementById('character');
+  const sprite = document.getElementById('sprite');
+  const charImg = document.getElementById('charImg');
+  const debugEl = document.getElementById('debug');
+
+  // Controls
+  const xpct = document.getElementById('xpct');
+  const ypct = document.getElementById('ypct');
+  const charW = document.getElementById('charW');
+  const keepInside = document.getElementById('keepInside');
+  const useTight = document.getElementById('useTight');
+  const flipX = document.getElementById('flipX');
+  const rot = document.getElementById('rot');
+
+  // Background always visible + bounds detection
+  function setVisibleBackground(url){ bgLayer.style.backgroundImage = `url("${url}")`; }
+  function alphaBoundsSafe(img) {
+    return new Promise((resolve) => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h) return resolve({minX:0,minY:0,maxX:2549,maxY:2549,w:2550,h:2550});
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      try {
+        ctx.drawImage(img, 0, 0);
+        const data = ctx.getImageData(0,0,w,h).data;
+        let minX=w, minY=h, maxX=-1, maxY=-1;
+        for (let y=0; y<h; y++) {
+          const row = y*w*4;
+          for (let x=0; x<w; x++) {
+            const a = data[row + x*4 + 3];
+            if (a !== 0) {
+              if (x<minX) minX=x;
+              if (y<minY) minY=y;
+              if (x>maxX) maxX=x;
+              if (y>maxY) maxY=y;
             }
-            character.style.transform = transforms.join(' ');
+          }
         }
-        
-        function copyPosition() {
-            const right = document.getElementById('right').value || '0';
-            const top = document.getElementById('top').value || '0';
-            const width = document.getElementById('width').value || '900';
-            const flipHorizontal = document.getElementById('flipHorizontal').checked;
-            const rotation = document.getElementById('rotation').value;
-            
-            // Build transform CSS with flip and rotation
-            const transforms = [];
-            transforms.push(flipHorizontal ? 'scaleX(-1)' : 'scaleX(1)');
-            if (rotation != 0) {
-                transforms.push(`rotateZ(${rotation}deg)`);
-            }
-            const transformCss = transforms.join(' ');
-            
-            const positioningLines = [
-                `right: ${right}%;`,
-                `top: ${top}%;`,
-                `width: ${width}px;`,
-                `transform: scaleX(-1);`
-            ];
-            
-            const fullCss = `/* Character Positioning for PDF (2550px × 2550px) */\n.character {\n    position: absolute;\n    ${positioningLines.join(' ')}\n    height: auto;\n    z-index: 100;\n}`;
-            
-            navigator.clipboard.writeText(fullCss).then(() => {
-                alert('CSS copied to clipboard!');
-            });
-        }
-    </script>
+        if (maxX < 0) resolve({minX:0,minY:0,maxX:w-1,maxY:h-1,w,h});
+        else resolve({minX,minY,maxX,maxY,w,h});
+      } catch(e) {
+        resolve({minX:0,minY:0,maxX:w-1,maxY:h-1,w,h}); // tainted: full image
+      }
+    });
+  }
+  function applyActiveInsets(bounds) {
+    const pageW = 2550, pageH = 2550;
+    const scaleX = pageW / bounds.w;
+    const scaleY = pageH / bounds.h;
+    const left   = Math.round(bounds.minX * scaleX);
+    const top    = Math.round(bounds.minY * scaleY);
+    const right  = Math.round((bounds.w - 1 - bounds.maxX) * scaleX);
+    const bottom = Math.round((bounds.h - 1 - bounds.maxY) * scaleY);
+    page.style.setProperty('--active-left', left + 'px');
+    page.style.setProperty('--active-top', top + 'px');
+    page.style.setProperty('--active-right', right + 'px');
+    page.style.setProperty('--active-bottom', bottom + 'px');
+    const activeWidth  = pageW - left - right;
+    const activeHeight = pageH - top - bottom;
+    page.dataset.activeLeft   = left;
+    page.dataset.activeTop    = top;
+    page.dataset.activeRight  = right;
+    page.dataset.activeBottom = bottom;
+    page.dataset.activeWidth  = activeWidth;
+    page.dataset.activeHeight = activeHeight;
+    updatePosition(true);
+    debugEl.textContent = `Active L:${left} T:${top} R:${right} B:${bottom} • ${activeWidth}×${activeHeight}`;
+  }
+  function loadBackground(url){
+    setVisibleBackground(url);
+    bgImg.removeAttribute('crossorigin');
+    bgImg.src = url;
+  }
+  bgImg.addEventListener('load', () => alphaBoundsSafe(bgImg).then(applyActiveInsets));
+  bgImg.addEventListener('error', () => applyActiveInsets({minX:0,minY:0,maxX:2549,maxY:2549,w:2550,h:2550}));
+  loadBackground(bgUrl.value);
+  btnSwapBg.addEventListener('click', () => loadBackground(bgUrl.value));
+
+  // Character tight bounds for clamping (ignore transparent gutters)
+  let charBounds = null;
+  function computeCharTightBounds(){
+    return alphaBoundsSafe(charImg).then(b => {
+      const nw = Math.max(1, charImg.naturalWidth||1);
+      const nh = Math.max(1, charImg.naturalHeight||1);
+      const leftGut   = b.minX;
+      const rightGut  = nw - 1 - b.maxX;
+      const topGut    = b.minY;
+      const bottomGut = nh - 1 - b.maxY;
+      const contentW  = nw - leftGut - rightGut;
+      const contentH  = nh - topGut - bottomGut;
+      charBounds = { leftGut, rightGut, topGut, bottomGut, contentW, contentH, nw, nh };
+    });
+  }
+  charImg.addEventListener('load', computeCharTightBounds);
+
+  function aspect(){ const nw = Math.max(1, charImg.naturalWidth||1); const nh = Math.max(1, charImg.naturalHeight||1); return nh/nw; }
+  function rotatedBoxAroundBottomCenter(w, h, deg){
+    // For clamping, we just need the width/height of the rotated content; pivot location remains the anchor.
+    const r = Math.abs((deg % 360) * Math.PI/180), c = Math.cos(r), s = Math.sin(r);
+    return { rotW: Math.abs(w*c) + Math.abs(h*s), rotH: Math.abs(w*s) + Math.abs(h*c) };
+  }
+
+  function updatePosition(force=false){
+    // Inputs
+    let x = parseFloat(xpct.value || '0');     // 0..100, left→right
+    let y = parseFloat(ypct.value || '0');     // 0..100, bottom→top
+    const w = parseFloat(charW.value || '900');
+    const deg = parseFloat(rot.value || '0');
+    const flip = !!flipX.checked;
+
+    // Active dims
+    const leftInset = parseFloat(page.dataset.activeLeft   || '0');
+    const topInset  = parseFloat(page.dataset.activeTop    || '0');
+    const rightInset= parseFloat(page.dataset.activeRight  || '0');
+    const bottomInset=parseFloat(page.dataset.activeBottom || '0');
+    const aw = parseFloat(page.dataset.activeWidth  || '2550');
+    const ah = parseFloat(page.dataset.activeHeight || '2550');
+
+    // Character geometry (content box if tight; else full image)
+    const ratio = aspect();
+    const nw = Math.max(1, charImg.naturalWidth||w);
+    const nh = Math.max(1, charImg.naturalHeight||w*ratio);
+    let contentW = nw, contentH = nh, gLeft=0, gRight=0, gTop=0, gBottom=0;
+    if (useTight.checked && charBounds) {
+      contentW = charBounds.contentW;
+      contentH = charBounds.contentH;
+      gLeft = charBounds.leftGut; gRight = charBounds.rightGut; gTop = charBounds.topGut; gBottom = charBounds.bottomGut;
+    }
+    const scale = w / nw;
+    const cW = contentW * scale;
+    const cH = contentH * scale;
+
+    // Rotated bbox around bottom-center pivot
+    const { rotW, rotH } = rotatedBoxAroundBottomCenter(cW, cH, deg);
+
+    // Clamp X%/Y% to keep the rotated content fully inside if requested
+    if (keepInside.checked) {
+      x = Math.min(Math.max(x, 0), 100);
+      y = Math.min(Math.max(y, 0), 100);
+    } else {
+      x = Math.max(x, -1000); y = Math.max(y, -1000); // allow overshoot if desired
+    }
+
+    // Convert X%/Y% to anchor pixel inside active area
+    const anchorX = leftInset + (x/100) * aw;
+    const anchorY = topInset + (1 - y/100) * ah; // bottom→top
+
+    // Place the outer anchor (bottom-center pivot)
+    character.style.width = w + 'px';       // width of the raw image; outer box uses this for sizing sprite wrapper
+    character.style.left  = Math.round(anchorX) + 'px';
+    character.style.top   = Math.round(anchorY) + 'px';
+
+    // Offset the inner sprite so the *content* bottom-center aligns to pivot (ignore gutters)
+    const offsetX = ((gRight - gLeft) * 0.5) * scale;  // shift so content center matches image center
+    const offsetY = (gBottom) * scale;                 // shift so content bottom sits at image bottom
+    sprite.style.transform = (flip ? 'scaleX(-1) ' : '') + (deg ? `rotateZ(${deg}deg)` : '');
+    sprite.style.width  = '100%';
+    sprite.style.height = 'auto';
+    sprite.style.transformOrigin = '50% 100%';
+    sprite.style.left = offsetX.toFixed(2) + 'px';
+    sprite.style.top  = (-offsetY).toFixed(2) + 'px';
+
+    // Debug
+    debugEl.textContent = `Anchor ${Math.round(anchorX)},${Math.round(anchorY)} • rotW≈${Math.round(rotW)} rotH≈${Math.round(rotH)} • tight=${!!charBounds && useTight.checked}`;
+  }
+
+  // Events
+  [xpct, ypct].forEach(el => el.addEventListener('input', ()=>updatePosition()));
+  [charW, rot].forEach(el => el.addEventListener('input', ()=>updatePosition(true)));
+  [flipX, keepInside, useTight].forEach(el => el.addEventListener('change', ()=>updatePosition(true)));
+  charImg.addEventListener('load', ()=>{ computeCharTightBounds(); updatePosition(true); });
+
+  // Copy CSS — page-relative (uses left/top with bottom-center pivot)
+  document.getElementById('btnCopyPagePx').addEventListener('click', ()=>{
+    const transform = sprite.style.transform || 'scaleX(1)';
+    const css = `/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: ${character.style.left};
+  top: ${character.style.top};
+  transform: translate(-50%, -100%);
+  width: ${character.style.width};
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: ${transform};
+  transform-origin: 50% 100%;
+}`;
+    navigator.clipboard.writeText(css).then(()=>alert('CSS copied (page px, bottom-center anchor)'));
+  });
+
+  // Kick once
+  updatePosition(true);
+</script>
 </body>
 </html>

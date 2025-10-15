@@ -2,140 +2,377 @@
 
 ## 🔧 Changes Made
 
-### 1. **Body Container Fixed to 8.5" × 8.5"**
-- **Before**: Body was 12" × 8.5" (with extra space for controls)
-- **After**: Body is 8.5" × 8.5" (matches book page dimensions)
-- **Impact**: CSS positioning percentages now calculate correctly relative to the actual book page size
+### 1. **Bottom-Center Anchor System Implemented**
+- **Revolutionary positioning**: Characters are anchored from their bottom-center (like placing feet on ground)
+- **No more floating characters**: The anchor point ensures characters always have a "ground" reference
+- **Transform stability**: Flip and rotation don't change the anchor point
+- **Intuitive controls**: X% moves left→right, Y% moves bottom→top
 
-### 2. **Removed Debug Info Box**
-- Deleted the "🎨 Page XX - [Title]" info box entirely
-- More screen real estate for the actual page view
-- All relevant info is now in the positioning controls panel
+### 2. **Active Area Detection**
+- **Smart background analysis**: Automatically detects the visible (non-transparent) area of background images
+- **Precise positioning**: Elements are positioned relative to the actual artwork, not the full canvas
+- **CORS-safe**: Graceful fallbacks for cross-origin image issues
 
-### 3. **Added Collapse/Expand Feature**
-- **Collapse Button** (− / +) in top-right of controls panel
-- Click to minimize the control panel to a small button
-- Click again to expand back to full controls
-- Allows you to see the full page without any obstruction
+### 3. **Enhanced Control System**
+- **X % (left→right)**: 0% = left edge, 100% = right edge
+- **Y % (bottom→top)**: 0% = bottom edge, 100% = top edge  
+- **Keep fully visible**: Prevents characters from going off-screen
+- **Tight character bounds**: Removes transparent gutters for more accurate positioning
 
-### 4. **Repositioned Controls**
-- Controls now appear in **top-left** of the page (at 20px, 20px)
-- Sits over the artwork but can be collapsed for full view
-- Semi-transparent white background for visibility
+### 4. **Advanced Technical Features**
+- **Dual-layer background**: Always visible background + bounds detection image
+- **Tight bounds detection**: Analyzes character alpha channel to remove transparent padding
+- **Rotation handling**: Proper bounding box calculation for rotated characters
 
-## 📐 Technical Details
+## 📐 Final Character Positioning (Bottom-Center Anchor)
 
-### CSS Positioning Now Accurate
-Character positioning is relative to `.page` div which is 8.5" × 8.5":
+### Page 01 - Twilight Walk
 ```css
-body {
-    width: 8.5in;  /* ✅ Fixed from 12in */
-    height: 8.5in;
-    position: relative;
-}
-
-.page {
-    width: 8.5in;
-    height: 8.5in;
-    position: relative;  /* Character positions relative to this */
-}
-
+/* Character — page px (bottom-center anchor) */
 .character {
-    position: absolute;
-    right: 5%;  /* ✅ Now correctly relative to 8.5" */
-    top: 15%;   /* ✅ Now correctly relative to 8.5" */
-    width: 300px;
+  position: absolute;
+  left: 1453px;
+  top: 1938px;
+  transform: translate(-50%, -100%);
+  width: 900px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(1);
+  transform-origin: 50% 100%;
 }
 ```
 
-### Collapse Feature
-```javascript
-function toggleControls() {
-    const controls = document.getElementById('controls');
-    const btn = controls.querySelector('.collapse-btn');
-    controls.classList.toggle('collapsed');
-    btn.textContent = controls.classList.contains('collapsed') ? '+' : '−';
+### Page 02 - Night Forest
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1403px;
+  top: 2091px;
+  transform: translate(-50%, -100%);
+  width: 950px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(1);
+  transform-origin: 50% 100%;
 }
 ```
 
-When collapsed:
-- Control panel shrinks to 50px × 50px
-- Shows only the + button
-- Click anywhere on it to expand
+### Page 03 - Magic Doorway
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1275px;
+  top: 2295px;
+  transform: translate(-50%, -100%);
+  width: 900px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(1);
+  transform-origin: 50% 100%;
+}
+```
 
-## 🎯 Usage Workflow
+### Page 04 - Courage Leap
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1020px;
+  top: 2142px;
+  transform: translate(-50%, -100%);
+  width: 1100px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(-1);
+  transform-origin: 50% 100%;
+}
+```
 
-1. **Open any test page** (`http://localhost:3001/pageXX-test.html`)
+### Page 05 - Morning Meadow
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1250px;
+  top: 2066px;
+  transform: translate(-50%, -100%);
+  width: 900px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(-1);
+  transform-origin: 50% 100%;
+}
+```
 
-2. **Position the character** using the sliders:
-   - Right %
-   - Top %
-   - Width px
-   - Flip horizontal (if needed)
+### Page 06 - Tall Forest
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1326px;
+  top: 2066px;
+  transform: translate(-50%, -100%);
+  width: 900px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(1);
+  transform-origin: 50% 100%;
+}
+```
 
-3. **Adjust lighting gradient**:
-   - Direction
-   - Start/end colors
-   - Opacity
-   - Blend mode
+### Page 07 - Mountain Vista
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1199px;
+  top: 1683px;
+  transform: translate(-50%, -100%);
+  width: 900px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(-1);
+  transform-origin: 50% 100%;
+}
+```
 
-4. **Collapse controls** (click −) to see full page without obstruction
+### Page 08 - Picnic Surprise
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1453px;
+  top: 2040px;
+  transform: translate(-50%, -100%);
+  width: 1400px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(1);
+  transform-origin: 50% 100%;
+}
+```
 
-5. **Expand controls** (click +) to make adjustments
+### Page 09 - Beach Discovery
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1428px;
+  top: 2142px;
+  transform: translate(-50%, -100%);
+  width: 1100px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(-1);
+  transform-origin: 50% 100%;
+}
+```
 
-6. **Copy CSS** when satisfied with positioning
+### Page 10 - Crystal Cave
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1275px;
+  top: 2295px;
+  transform: translate(-50%, -100%);
+  width: 1300px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(-1);
+  transform-origin: 50% 100%;
+}
+```
 
-7. **Repeat for all 14 pages**
+### Page 11 - Giant Flowers
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1964px;
+  top: 2117px;
+  transform: translate(-50%, -100%);
+  width: 500px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(1);
+  transform-origin: 50% 100%;
+}
+```
 
-## ✅ All 14 Pages Updated
+### Page 12 - Almost There
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 893px;
+  top: 2142px;
+  transform: translate(-50%, -100%);
+  width: 1000px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(-1);
+  transform-origin: 50% 100%;
+}
+```
+
+### Page 13 - Animal Reveal
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 1199px;
+  top: 2040px;
+  transform: translate(-50%, -100%);
+  width: 1150px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(1);
+  transform-origin: 50% 100%;
+}
+```
+
+### Page 14 - Flying Home (Character + Tiger)
+```css
+/* Character — page px (bottom-center anchor) */
+.character {
+  position: absolute;
+  left: 893px;
+  top: 1836px;
+  transform: translate(-50%, -100%);
+  width: 1500px;
+  height: auto;
+  z-index: 100;
+}
+.character .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(1);
+  transform-origin: 50% 100%;
+}
+
+/* Animal — page px (bottom-center anchor) */
+.animal {
+  position: absolute;
+  left: 1275px;
+  top: 1964px;
+  transform: translate(-50%, -100%);
+  width: 1250px;
+  height: auto;
+  z-index: 90;
+}
+.animal .sprite {
+  position: relative;
+  width: 100%;
+  height: auto;
+  transform: scaleX(1);
+  transform-origin: 50% 100%;
+}
+```
+
+## 🎯 Key Features
+
+### Bottom-Center Anchor System
+- **Intuitive positioning**: Characters are anchored from their bottom-center (like placing feet on ground)
+- **Transform stability**: Flip and rotation don't change the anchor point
+- **Professional approach**: Same system used by game engines and animation tools
+
+### Active Area Detection
+- **Smart background analysis**: Automatically detects visible artwork area
+- **Precise positioning**: Elements positioned relative to actual artwork, not full canvas
+- **CORS-safe**: Graceful fallbacks for cross-origin issues
+
+### Enhanced Controls
+- **X % (left→right)**: 0% = left edge, 100% = right edge
+- **Y % (bottom→top)**: 0% = bottom edge, 100% = top edge  
+- **Keep fully visible**: Prevents characters from going off-screen
+- **Tight character bounds**: Removes transparent gutters for accuracy
+
+## ✅ All 14 Pages Complete
 
 Every page now has:
-- ✅ Correct 8.5" × 8.5" dimensions
-- ✅ Accurate positioning calculations
-- ✅ Collapsible control panel
-- ✅ No debug info box
-- ✅ Full lighting controls
-- ✅ Horizontal flip feature
-- ✅ CSS export button
+- ✅ Bottom-center anchor positioning system
+- ✅ Active area detection for precise placement
+- ✅ Production-ready CSS output
+- ✅ Intuitive percentage-based controls
+- ✅ Transform support (flip, rotation)
+- ✅ Tight bounds detection
 
-## 🚀 Next Steps
+## 🚀 Ready for Production
 
-1. Kill any existing server: `pkill -f "node server.js"`
-2. Start fresh server: `cd test-pages && node server.js`
-3. Open: `http://localhost:3001/`
-4. Position all 14 characters
-5. Export and save CSS for each page
-
-## 📝 CSS Export Format
-
-When you click "Copy CSS", you'll get:
-
-```css
-/* Character Positioning */
-.character {
-    position: absolute;
-    right: 15%; top: 25%; width: 280px;
-    height: auto;
-    z-index: 100;
-}
-
-/* Character Lighting */
-.character-lighting::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    pointer-events: none;
-    z-index: 1;
-    background: linear-gradient(to bottom, rgba(255,100,50,0.3) 0%, rgba(100,150,255,0.3) 100%);
-    mix-blend-mode: overlay;
-}
-```
-
-These values will now be **accurate** for the 8.5" × 8.5" book pages! 🎉
+All character positioning is now complete and ready for integration into the n8n workflow!
 
 ---
 
-**Updated**: 2025-10-11  
-**All 14 pages regenerated with fixes**  
-**Ready for character positioning**
+**Updated**: 2025-10-12  
+**All 14 pages positioned with bottom-center anchor system**  
+**Production-ready CSS values documented**
 
