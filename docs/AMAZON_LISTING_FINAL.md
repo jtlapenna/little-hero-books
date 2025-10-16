@@ -3,7 +3,7 @@
 **Status**: Ready to publish  
 **Platform**: Amazon Custom  
 **Product**: Personalized Children's Book (8.5" × 8.5", 16 pages)  
-**Pricing**: TBD (Recommended: $24.99 intro → $29.99 standard)  
+**Pricing**: $27.99 (launch pricing, reassess after sales)  
 **Last Updated**: October 16, 2025
 
 ---
@@ -391,26 +391,24 @@ If you have Amazon Brand Registry, use these modules:
 
 ## 💰 **Pricing Strategy**
 
-### **Recommended Launch Pricing**:
+### **Launch Pricing Strategy**:
 
-**Month 1-2 (Intro)**: $24.99
+**Launch Price**: $27.99
 - Competitive with market ($19.99-$29.99 range)
 - Below established brands (Wonderbly $39.99)
 - Attractive for first customers and reviews
+- Reassess after 30-60 days based on sales data
 
-**Month 3-4 (Step-up)**: $27.99
-- Test price increase
-- Still competitive
+**Future Pricing**: TBD based on performance
+- Monitor conversion rates and margins
+- Consider $29.99 if demand supports it
+- Maintain competitive positioning
 
-**Month 5+ (Standard)**: $29.99
-- Target long-term price
-- Profitable at ~$22 net margin after Amazon fees
-
-### **Cost Breakdown** (at $29.99):
-- Selling Price: $29.99
-- Amazon Fees (~15%): -$4.50
-- Print Cost (Lulu): -$3.50
-- **Net Margin**: ~$22.00 (73%)
+### **Cost Breakdown** (at $27.99):
+- Selling Price: $27.99
+- Amazon Fees (~15%): -$4.20
+- Print Cost (Lulu): -$7.00
+- **Net Margin**: ~$16.79 (60%)
 
 ### **Break-Even**:
 - Need ~17-33 books/month to cover recurring costs ($360-720/mo)
@@ -424,7 +422,7 @@ Before publishing this listing:
 
 ### **Content**:
 - [ ] Choose product title (Option 1 or 2)
-- [ ] Finalize pricing ($24.99 intro or $29.99 standard)
+- [x] Pricing finalized ($27.99 launch, reassess after sales)
 - [ ] Copy all 5 bullets
 - [ ] Copy product description
 - [ ] Set up 10 customization fields

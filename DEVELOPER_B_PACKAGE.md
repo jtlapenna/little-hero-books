@@ -1027,10 +1027,15 @@ While waiting for Developer A to complete Workflows 2A, 2B, and 3, Developer B s
 
 ### **Your Responsibilities (Developer B)**
 
-#### **Phase 1: Amazon Mock Data Testing (This Week - Week 1)**
+#### **Phase 1: Amazon Mock Data Testing (Week 1)** ⏸️ ON HOLD
+
 **Goal**: Validate entire workflow with realistic Amazon order data
 
-**Tasks**:
+**Status**: ⏸️ **ON HOLD** - Waiting for Developer A to complete Workflows 2A, 2B, 3
+
+**Why on hold**: Workflow 4 needs PDF output from Workflow 3 (`final_book_url`). Can't test end-to-end without completed book generation workflows.
+
+**Tasks** (will resume Week 3-4):
 1. **Set Up Mock Amazon Data Workflow**
    - Location: `docs/amazon/mock-amazon-data-generator.js`
    - Follow: `AMAZON_INTEGRATION.md` section "PRE-LAUNCH TESTING"
@@ -1039,83 +1044,79 @@ While waiting for Developer A to complete Workflows 2A, 2B, and 3, Developer B s
 
 2. **Test Complete Order Flow**
    - Workflow 1: Order intake with mock Amazon data ✅ (already works)
-   - Wait for Developer A: Workflows 2A, 2B, 3
-   - Workflow 4: Print fulfillment with mock Lulu (test now)
+   - ⏳ Wait for Developer A: Workflows 2A, 2B, 3
+   - Workflow 4: Print fulfillment with actual PDFs
    - Document: Any issues or format mismatches
 
-3. **Order Sample Books**
+3. **Order Sample Books** (Week 3-4 after PDFs ready)
    - Order 3 test books from Lulu
    - Test different character combinations
    - Cost: ~$50-100
    - Use for: Product photography and quality verification
 
-**Deliverables**:
+**Deliverables** (Week 3-4):
 - [ ] Mock Amazon workflow tested and documented
 - [ ] 5 test order profiles validated
 - [ ] 3 sample books ordered from Lulu
-- [ ] Issues/findings documented in Notion or Slack
+- [ ] Issues/findings documented
 
-#### **Phase 2: Amazon Listing Content (Weeks 1-2)**
+**Current Action**: Focus on marketing tasks that don't require test PDFs (Phases 2-5 below)
+
+#### **Phase 2: Amazon Listing Content (Weeks 1-2)** ✅ COMPLETED
+
 **Goal**: Prepare all text content for Amazon Custom listing
 
-**Tasks**:
-1. **Write Amazon Listing Copy**
-   - Reference: `marketing.md` lines 587-712
-   - Reference: `docs/amazon/amazon-custom-listing-spec.md`
-   - Product title (200 char max)
-   - 5 bullet points
-   - Product description
-   - Backend search terms
+**Status**: ✅ **DONE** - See `docs/AMAZON_LISTING_FINAL.md`
 
-2. **Define Customization Fields**
-   - 10 fields already specified in `docs/amazon/amazon-custom-listing-spec.md`
-   - Verify alignment with Workflow 1 parsing
-   - Create field help text for customers
+**Completed Tasks**:
+1. ✅ **Write Amazon Listing Copy**
+   - Product title (2 options, SEO-optimized)
+   - 5 bullet points (plus 3 alternates for A/B testing)
+   - Complete product description with specifications
+   - Backend search terms (450 characters)
 
-3. **Write FAQ and Policies**
-   - Processing time: 3-5 business days
-   - Return/refund policy
-   - Privacy policy basics
-   - Shipping information
+2. ✅ **Define Customization Fields**
+   - 10 fields with help text and validation
+   - Aligned with Workflow 1 parsing requirements
+   - Dropdown options specified
+
+3. ✅ **Write FAQ and Policies**
+   - 8 FAQ responses ready
+   - Return/refund policy included
+   - Privacy policy basics included
+   - Shipping information (3-5 business days)
 
 **Deliverables**:
-- [ ] Complete Amazon listing copy document
-- [ ] Customization fields specification
-- [ ] FAQ content (5-7 questions)
-- [ ] Return/refund policy draft
+- [x] ~~Complete Amazon listing copy document~~ → `AMAZON_LISTING_FINAL.md`
+- [x] ~~Customization fields specification~~ → Included in listing doc
+- [x] ~~FAQ content (5-7 questions)~~ → 8 questions completed
+- [x] ~~Return/refund policy draft~~ → Included in listing doc
 
-#### **Phase 3: Product Images & Video (Weeks 2-3)**
-**Goal**: Create all visual assets for Amazon listing
+#### **Phase 3: Product Images & Video (Weeks 2-3)** 
 
-> **Note**: Requires sample books from Phase 1
+**Goal**: Coordinate with Developer A for Amazon listing assets
+
+> **Note**: Developer A has design capability and will create product images
 
 **Tasks**:
-1. **Hire Designer/Photographer** (or DIY)
-   - Budget: $300-500 for professional
-   - Alternative: DIY with Figma/Canva + phone camera
-   - Deliverable: 7 product images
+1. **Coordinate with Developer A**
+   - Developer A will create all 7 Amazon product images (Week 3-4)
+   - Review specifications together: `docs/AMAZON_LISTING_FINAL.md` (lines 113-152)
+   - Provide feedback on drafts
+   - Ensure images meet Amazon requirements
 
-2. **Create 7 Amazon Product Images**
-   - Image 1: Hero/main image (1000x1000px, white background)
-   - Image 2: Personalization options grid
-   - Image 3: Inside pages collage (4-6 spreads)
-   - Image 4: "How It Works" infographic (3 steps)
-   - Image 5: Quality guarantee badge
-   - Image 6: Gift-ready context shot
-   - Image 7: Lifestyle/emotional shot (parent + child)
-   - Specifications: See `PRE_LAUNCH_PREPARATION.md`
-
-3. **Create Product Video** (15-30 seconds)
+2. **Create Product Video** (15-30 seconds) - OPTIONAL
    - Screen recording: Entering child's name on Amazon Custom form
    - Page flips: Show 4-5 pages from sample book
    - Final shot: Printed book close-up
    - Format: Vertical 1080x1920 for social reuse
    - Tool: Phone camera + CapCut/iMovie
+   - **Note**: Video is helpful but not required for launch
 
 **Deliverables**:
-- [ ] 7 product images (Amazon specs)
-- [ ] 1 product video (15-30 sec)
-- [ ] All assets organized in cloud storage
+- [ ] Review and approve Developer A's 7 product images
+- [ ] (Optional) Create product video (15-30 sec)
+- [ ] Organize assets for Amazon upload
 
 #### **Phase 4: Social Media Content (Weeks 2-4)**
 **Goal**: Create library of promotional content for launch
@@ -1149,31 +1150,38 @@ While waiting for Developer A to complete Workflows 2A, 2B, and 3, Developer B s
 - [ ] Social media accounts created and branded
 - [ ] Content calendar for first 2 months
 
-#### **Phase 5: Website Landing Page (Weeks 3-4)**
+#### **Phase 5: Website Landing Page (HOLDING PATTERN WORK)**
 **Goal**: Build simple landing page at littleherolabs.com
 
-**Tasks**:
-1. **Choose Platform**
-   - Option 1: Framer (easiest, $5-15/month)
-   - Option 2: Webflow (more control, $14/month)
-   - Option 3: HTML + Cloudflare Pages (free, requires coding)
+**Status**: 🔄 **ACTIVE** - Perfect for holding pattern work while waiting for Developer A. Domain secured (littleherolabs.com).
+
+**Platform**: Cloudflare Pages (free) - Developer B can build now
+
+**Tasks** (Ready to start now):
+1. **Set Up Cursor → Git → Cloudflare Automation**
+   - Connect Cursor IDE to git repository
+   - Set up Cloudflare Pages deployment
+   - Configure automatic deploys on git push
+   - Test deployment workflow
 
 2. **Build One-Page Site**
-   - Complete copy deck: `marketing.md` lines 300-458
+   - Complete copy deck: `docs/MARKETING_ASSETS.md` - Website section
    - Sections: Hero, How It Works, Sample Pages, Quality, CTA
    - Email capture: Lead magnet (free printable coloring page)
-   - CTA buttons: Link to Amazon (when ready)
+   - CTA buttons: Link to Amazon listing
 
-3. **Set Up Email Capture**
+3. **Set Up Email Capture** (Optional)
    - Tool: ConvertKit (free up to 1,000 subscribers) or Mailchimp
    - Lead magnet: Personalized coloring page template
    - Welcome email sequence (3 emails)
 
-**Deliverables**:
+**Deliverables** (Future):
+- [ ] Cloudflare Pages deployment configured
 - [ ] Landing page live at littleherolabs.com
-- [ ] Email capture working
-- [ ] Lead magnet (coloring page) created
-- [ ] 3-email welcome sequence written
+- [ ] Email capture working (if implementing)
+- [ ] Lead magnet created (if implementing)
+
+**Note**: This is NOT required for MVP launch. Can be added anytime post-launch to build email list and enhance brand presence.
 
 #### **Phase 6: Amazon Account Setup (Week 7 - After Workflow 3 Complete)**
 **Goal**: Launch Amazon Custom listing
@@ -1194,7 +1202,7 @@ While waiting for Developer A to complete Workflows 2A, 2B, and 3, Developer B s
    - Add product video
    - Paste listing copy
    - Configure 10 customization fields
-   - Set initial price: $24.99 (intro pricing)
+   - Set initial price: $27.99 (launch pricing, reassess after sales)
    - Submit for approval (1-3 days)
 
 4. **Set Up Amazon PPC Campaign**
@@ -1268,6 +1276,38 @@ Before launch (Week 8), Developer B must have:
 - ✅ Social media accounts created and branded
 
 **If any of these are not ready, launch must be delayed.**
+
+---
+
+## 🔄 **HOLDING PATTERN WORK (Week 1-2)**
+
+**Situation**: Waiting for Developer A to complete Workflows 2A, 2B, and 3 (database integration + human review system)
+
+**Developer B Opportunity**: Build littleherolabs.com landing page while waiting
+
+### **Immediate Tasks (This Week)**:
+1. **Set Up Cloudflare Pages Deployment**
+   - Connect littleherolabs.com domain to Cloudflare Pages
+   - Set up automatic deployment from git repository
+   - Test deployment workflow
+
+2. **Build Landing Page Structure**
+   - Create simple, clean landing page
+   - Include hero section with book preview
+   - Add "Coming Soon" messaging
+   - Include email capture for launch notifications
+
+3. **Prepare for Amazon Launch**
+   - Review Amazon listing copy (already complete)
+   - Plan social media account creation
+   - Prepare marketing materials
+
+### **Why This Makes Sense**:
+- ✅ **Independent work** - doesn't require Developer A's workflows
+- ✅ **Domain secured** - littleherolabs.com ready to use
+- ✅ **Free hosting** - Cloudflare Pages (no cost)
+- ✅ **Future value** - landing page ready for post-launch marketing
+- ✅ **Professional presence** - shows project legitimacy
 
 ---
 

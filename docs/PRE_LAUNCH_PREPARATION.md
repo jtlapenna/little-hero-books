@@ -101,7 +101,7 @@ We are launching **Little Hero Labs** in a competitive but viable market. Analys
 - **Implementation**:
   - No hidden fees or forced upsells
   - Optional add-ons (dedication page, gift wrap) clearly marked
-  - Intro pricing: $24.99 first month
+  - Launch pricing: $27.99 (reassess after sales)
 
 #### 5. **Age-Appropriate Editorial Quality**
 - **Promise**: "Stories written for ages 3-7 by educators"
@@ -126,7 +126,7 @@ We are launching **Little Hero Labs** in a competitive but viable market. Analys
 ### Phase 1: Essential Assets (Weeks 1-3)
 
 #### Amazon Listing Assets (CRITICAL PATH)
-**Owner**: Developer B + Designer/Freelancer
+**Owner**: Developer A (has design capability)
 
 **Required Images** (7 total):
 1. **Hero/Main Image** (1000x1000px min)
@@ -200,10 +200,12 @@ personalized gift for kids, birthday gift child, grandparent gift,
 toddler book personalized, keepsake book
 ```
 
-#### Website Landing Page (OPTIONAL BUT RECOMMENDED)
+#### Website Landing Page (DEFERRED - POST-LAUNCH)
 **Owner**: Developer B
-**Domain**: littleherolabs.com
-**Tool**: Framer, Webflow, or simple HTML + Cloudflare Pages
+**Domain**: littleherolabs.com (secured)
+**Tool**: Cloudflare Pages (free)
+
+**Status**: ⏸️ **NOT REQUIRED FOR MVP** - Focus on Amazon-only launch first
 
 **Sections** (complete copy deck in `MARKETING_ASSETS.md`):
 1. Above-the-fold: Headline + CTA to Amazon
@@ -215,7 +217,7 @@ toddler book personalized, keepsake book
 7. FAQ
 8. Footer
 
-**Timeline**: Build in Weeks 3-4, launch same day as Amazon listing
+**Timeline**: Post-launch (optional enhancement for email list building)
 
 ### Phase 2: Social Media Assets (Weeks 2-4)
 
@@ -266,7 +268,7 @@ toddler book personalized, keepsake book
 3. Create Amazon Custom listing
 4. Upload all images and copy
 5. Submit for approval (1-3 days)
-6. Set initial price: $24.99 (intro pricing)
+6. Set initial price: $27.99 (launch pricing, reassess after sales)
 
 #### Workflow Testing with Mock Data
 **Owner**: Developer B
@@ -354,13 +356,66 @@ toddler book personalized, keepsake book
 - Get SP-API credentials (save for Week 8)
 - Create Amazon Custom listing with all assets
 - Submit for approval
-- Set up Amazon Sponsored Products campaign
+- **Set up Amazon Sponsored Products campaign** (see Advertising Channels below)
 
 **Developer A Focus**: Production Readiness
 - Deploy all workflows to production n8n
 - Set up monitoring dashboards
 - Configure error alerts
 - Prepare manual override procedures
+
+---
+
+## 📢 Advertising & Promotion Channels
+
+### Launch Stack (Week 8+)
+
+**Primary Objective**: Reach parents, grandparents, and gift-givers during gifting moments, bedtime routines, and milestone events.
+
+#### 1. **Amazon Sponsored Products** (PRIMARY - Start Here)
+- **Why**: Customers already in buying mindset
+- **Ad Type**: Sponsored Products → keyword targeting
+- **Keywords**: "custom kids book," "personalized story," "name book," "birthday gift"
+- **Budget**: $10-20/day to start
+- **CPC Range**: ~$0.50–$1.20
+- **ROI**: High due to high-intent searches
+- **Action**: Set up in Week 7, launch Week 8
+
+#### 2. **Meta (Facebook + Instagram)** (Week 9-10)
+- **Why**: Strong reach for parents (mothers 25–45)
+- **Creative**: Video flip-through showing child's name in story
+- **Targeting**: Parenting, early childhood, toys/books, life events
+- **Budget**: $20-40/day after Amazon validates
+- **ROI**: Mid-to-high, strong for gifting seasons
+
+#### 3. **TikTok Organic + Paid Boost** (Week 8+)
+- **Why**: #BookTok drives book sales
+- **Creative**: Quick reveal videos, parent reactions
+- **Strategy**: Post organic content, boost winners with $20-50
+- **ROI**: High if content feels authentic
+
+#### 4. **Pinterest Ads** (Week 10+)
+- **Why**: Users actively plan gifts
+- **Creative**: "Unique gift" messaging, cozy lifestyle imagery
+- **Budget**: $10-20/day
+- **ROI**: Slower but evergreen, strong for holidays
+
+#### 5. **Organic Leverage** (Ongoing)
+- TikTok & Instagram Reels (emotional reactions)
+- Parenting blogs & micro-influencers (5k–50k followers)
+- Etsy cross-listing (optional expansion)
+
+### **Recommended Rollout**
+- **Week 8**: Amazon Sponsored Products only ($10-20/day)
+- **Week 9-10**: Add Meta if Amazon shows traction ($20-40/day)
+- **Week 10+**: Add TikTok boosting ($20-50 per video)
+- **Week 12+**: Test Pinterest for holiday season
+
+### **Success Metrics by Channel**
+- **Amazon PPC**: Target ACOS < 30% (spend < $9 to acquire $30 sale)
+- **Meta**: Target CPA < $15 per order
+- **TikTok**: Focus on engagement rate > 5%, low CPA
+- **Overall**: CAC goal < $15 across all channels
 
 ### Week 8: Launch!
 **Developer B Focus**: Go Live
@@ -407,12 +462,12 @@ toddler book personalized, keepsake book
 ## 💰 Launch Budget Estimate
 
 ### Pre-Launch One-Time Costs
-- **Product Photography/Design**: $300-500 (or DIY with Figma/Canva)
+- **Product Photography/Design**: $0 (Developer A has design capability)
 - **Sample Books**: $50-100 (3 books from Lulu)
-- **Video Content Creation**: $200-400 (or DIY with phone)
-- **Domain & Hosting**: $50/year (already purchased)
+- **Video Content Creation**: $0-400 (optional - DIY or hire)
+- **Domain & Hosting**: $0 (littleherolabs.com purchased, Cloudflare Pages free)
 - **Business Formation**: $0-100 (LLC optional)
-- **Total Pre-Launch**: $600-1,150
+- **Total Pre-Launch**: $50-600 (minimal if DIY video)
 
 ### Monthly Recurring Costs (Starting Week 7)
 - **Amazon Professional Seller**: $40/month
@@ -423,7 +478,7 @@ toddler book personalized, keepsake book
 - **Total Monthly**: $360-720/month
 
 ### Revenue to Break Even
-- At $29.99 per book with ~$22 net margin
+- At $27.99 per book with ~$16.79 net margin
 - Need 17-33 books/month to break even on recurring costs
 - Need ~50-75 books to recoup pre-launch investment
 
@@ -432,17 +487,17 @@ toddler book personalized, keepsake book
 ## 📞 External Resources Needed
 
 ### Now (Weeks 1-2)
-- [ ] Designer/freelancer for product images
-- [ ] Access to Lulu account for sample orders
-- [ ] Content creator for video production (or DIY plan)
+- [ ] Access to Lulu account for sample orders (Week 3-4)
+- [ ] (Optional) Content creator for video production or DIY plan
 
 ### Soon (Weeks 3-4)
-- [ ] Amazon Professional Seller account ($40/month)
-- [ ] Stock photo subscriptions (if needed)
+- [ ] Amazon Professional Seller account ($40/month) - Wait until Week 7
 
-### Later (Weeks 6-7)
-- [ ] Micro-influencers for review seeding (5-10 people)
+### Later (Weeks 6-7+)
+- [ ] (Optional) Micro-influencers for review seeding (5-10 people)
 - [ ] Amazon PPC budget ($300-600/month)
+
+**Note**: Product images handled internally by Developer A (no external designer needed)
 
 ---
 
@@ -477,7 +532,7 @@ toddler book personalized, keepsake book
 **Mitigation**:
 - Start with low-budget Amazon PPC only ($10-20/day)
 - Optimize listing based on competitor research
-- A/B test pricing ($24.99 vs $29.99)
+- Monitor pricing performance ($27.99 launch, consider $29.99 after sales)
 - Build email list for retargeting
 
 ### Risk 5: Competitor Name Conflict
@@ -517,7 +572,7 @@ toddler book personalized, keepsake book
 - [ ] Amazon Custom listing created
 - [ ] All assets uploaded
 - [ ] Listing approved by Amazon
-- [ ] Initial price set ($24.99)
+- [ ] Initial price set ($27.99)
 - [ ] SP-API credentials obtained (Week 8)
 - [ ] Amazon PPC campaign configured
 
@@ -550,29 +605,65 @@ toddler book personalized, keepsake book
 
 ---
 
-## 🎯 Next Immediate Actions (This Week)
+## 🎯 Current Status & Next Actions
 
-### Developer A
-1. Continue Workflow 2A database integration
-2. Test character generation with 10 different profiles
-3. Document any quality issues
+### ✅ Completed
+- All Developer B workflows (1, 4, 5, 6, 7, 8) tested and working
+- Pre-launch marketing strategy documented
+- Competitive analysis completed
+- **Amazon listing copy written** (`docs/AMAZON_LISTING_FINAL.md`)
+- Marketing assets templates created (`docs/MARKETING_ASSETS.md`)
 
-### Developer B
-1. Test Amazon mock data workflow (AMAZON_INTEGRATION.md)
-2. Draft complete Amazon listing copy
-3. Get quotes from 2-3 designers for product images
-4. Order 3 sample books from Lulu
-5. Create content brief for video creator
+### 🔄 In Progress
 
-### Owner/Project Manager
-1. Review and approve launch timeline
-2. Approve budget for product images ($300-500)
-3. Approve video content budget ($200-400 or DIY)
-4. Make decision on Amazon account timing (Week 7 or later)
+#### Developer A (Workflows 2A, 2B, 3)
+- [ ] Workflow 2A database integration
+- [ ] Workflow 2B database integration  
+- [ ] Workflow 3 database integration + human review
+- [ ] Generate 5 test PDFs for marketing (Target: Week 3)
+
+#### Developer B (Marketing & Prep) - **CURRENT FOCUS**
+Week 1 Priorities (This Week):
+- [x] ~~Draft complete Amazon listing copy~~ ✅ **DONE** (`AMAZON_LISTING_FINAL.md`)
+- [x] **Launch pricing decided** ($27.99, reassess after sales) - COMPLETED
+- [ ] **Build littleherolabs.com landing page** (Cloudflare Pages) - **NEW PRIORITY**
+- [ ] **Create social media accounts** (Instagram, TikTok, Facebook, Pinterest) - OPTIONAL
+
+Week 1 Status:
+- 🔄 **HOLDING PATTERN** - Working on landing page while waiting for Developer A
+- ✅ Amazon listing copy complete
+- ⏸️ Product images → Developer A will create (Week 3-4)
+- 🆕 **NEW**: Landing page development (can proceed independently)
+- ⏸️ Website → Deferred to post-launch (domain secured)
+- ⏸️ Sample books → Need test PDFs first (Week 3)
+
+Week 3-4 Tasks (After Developer A completes Workflow 3):
+- [ ] Review and approve Developer A's 7 product images
+- [ ] Coordinate on sample book orders from Lulu
+- [ ] (Optional) Create product video
+- [ ] Plan social media content (scripts ready in MARKETING_ASSETS.md)
+
+### Owner/Project Manager Decisions Needed
+- [ ] Review and approve launch timeline (8 weeks from Workflow 3 completion)
+- [x] Launch pricing strategy decided ($27.99, reassess after sales) - **COMPLETED**
+- [ ] Make decision on Amazon account timing (Week 7 or later)
+- [ ] (Optional) Approve video content budget ($200-400 or DIY)
+
+**Note**: Product images handled by Developer A (no external budget needed)
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: October 16, 2025  
+**Document Version**: 1.4  
+**Last Updated**: October 16, 2025 (Updated responsibilities: Developer A doing images, website deferred, pricing set to $27.99)  
 **Next Review**: After Workflow 3 completion (Week 3)
+
+**Current Phase**: Week 1 - HOLDING PATTERN - Developer B working on landing page while waiting for Developer A Workflows 2A/2B/3
+
+**Key Changes v1.3**:
+- Developer A will create 7 Amazon product images (has design capability)
+- Website deferred to post-launch (domain littleherolabs.com secured)
+- Developer B focus: Amazon-only launch, minimal Week 1 tasks
+- Cloudflare Pages setup documented for future
+
+**Note**: This is the primary pre-launch document. All status updates maintained here, in DEVELOPER_A_PACKAGE.md, and DEVELOPER_B_PACKAGE.md.
 

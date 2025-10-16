@@ -26,6 +26,7 @@
 ## 🏗️ **Current Workflow Status**
 
 ### **Developer A (Your Work) - Database Integration Required**
+**Note**: Developer B is in holding pattern working on littleherolabs.com landing page while waiting for your workflows.
 - 🔄 **Workflow 2A**: AI Character Generation (Bria AI Integration) - `2.A.-bria-submit.json`
 - 🔄 **Workflow 2B**: AI Character Generation (Background Removal) - `2.B.-bria-retrieve.json`  
 - 🔄 **Workflow 3**: Book Assembly & PDF Generation - `3-book-assembly-production.json`
@@ -1010,6 +1011,64 @@ Generate these character combinations for marketing assets:
 5. **Riley** - Olive skin, brown/straight hair, pink theme, bunny
 
 **Why These?** Showcase diversity and personalization options for Amazon listing images.
+
+---
+
+## 🎨 **Product Images for Amazon Listing** (Week 3-4)
+
+**Owner**: Developer A (you have design capability)
+
+### **Your Responsibility**
+Create the 7 required Amazon product images using the test PDFs you generate from Workflow 3.
+
+### **Required Images** (Specifications in `docs/AMAZON_LISTING_FINAL.md`)
+
+1. **Main Product Image** (WHITE BACKGROUND - REQUIRED)
+   - 8.5×8.5 book mockup
+   - Professional product shot
+   - Minimum 1000×1000px (recommend 2000×2000px)
+   - No text overlay on main image
+
+2. **Personalization Options Grid**
+   - Show customization choices (name, hair, skin, animal)
+   - Visual examples of each option
+   - Text overlay allowed
+
+3. **Inside Pages Collage**
+   - 4-6 page spreads from test PDFs
+   - Character visible in different scenes
+   - Name visible in text
+
+4. **How It Works Infographic**
+   - 3 steps: Choose Options → We Create → Fast Shipping
+   - Simple icons
+   - Clean design
+
+5. **Quality Guarantee Badge**
+   - "Human-Reviewed Quality" messaging
+   - Trust badges
+   - Professional appearance
+
+6. **Gift-Ready Context**
+   - Book in birthday/holiday setting
+   - "Perfect for ages 3-7" callout
+   - Emotional connection
+
+7. **Lifestyle Shot**
+   - Parent + child reading together
+   - Can use stock photo + book overlay
+   - Warm, inviting
+
+### **Timeline**
+- **Week 3**: Generate test PDFs
+- **Week 3-4**: Create all 7 images
+- **Week 4**: Deliver to Developer B for Amazon listing
+
+### **Tools/Resources**
+- Use your design tools (same as storybook design)
+- Mockup generators if needed
+- Stock photos for lifestyle shots (Unsplash, Pexels)
+- Reference: `docs/AMAZON_LISTING_FINAL.md` (lines 113-152)
 
 ### **🎯 Testing Commands**
 
