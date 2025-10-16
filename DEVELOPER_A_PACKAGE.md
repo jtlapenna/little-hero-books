@@ -2,7 +2,9 @@
 
 ## 🎯 **Project Overview**
 
-**Little Hero Books** is a personalized children's book service that generates custom stories through Amazon Custom listings and automated print-on-demand fulfillment. The system creates watercolor storybook-style books featuring personalized child characters in 12 different poses across various story scenes.
+**Little Hero Labs** (littleherolabs.com) is a personalized children's book service that generates custom stories through Amazon Custom listings and automated print-on-demand fulfillment. The system creates watercolor storybook-style books featuring personalized child characters in 12 different poses across various story scenes.
+
+> **Note**: Codebase currently references "Little Hero Books" - this will be updated post-launch. Not critical for MVP.
 
 ## 🤖 **AI Agent Instructions**
 
@@ -969,6 +971,45 @@ Developer B's Workflow 4:
 - [ ] All status updates reflected in database
 - [ ] Integration tested with Developer B's Workflow 1
 - [ ] **Test regeneration flow: reject order → verify feedback used in 2A**
+- [ ] **Generate test PDFs for Developer B's marketing assets** (Week 2-3)
+
+---
+
+## 📅 **Pre-Launch Marketing Timeline (FYI)**
+
+> **📖 COMPLETE GUIDE**: See `docs/PRE_LAUNCH_PREPARATION.md` for full timeline and responsibilities
+
+### **How Your Work Enables Marketing (Developer A)**
+
+Your completed workflows generate the test books that Developer B needs for marketing assets:
+
+**Week 2-3: Your Deliverables Enable Marketing**
+- Once Workflow 3 is complete and generating test PDFs
+- Developer B will use these test books to:
+  - Order physical sample books from Lulu (~$50-100)
+  - Create 7 product images for Amazon listing
+  - Film product video and social media content
+  - Build landing page with real book examples
+
+**Target Timeline**:
+- **Weeks 1-2**: Complete Workflow 2A and 2B database integration
+- **Week 3**: Complete Workflow 3 + human review integration
+- **Week 3-4**: Generate 5-10 test PDFs with different character combinations
+- **Weeks 5-6**: End-to-end integration testing with Developer B
+- **Week 7**: Production deployment
+- **Week 8**: Launch!
+
+**Critical for Marketing**: Developer B needs test PDFs by Week 3 to stay on schedule for Week 8 launch.
+
+### **Test PDFs Needed for Marketing**
+Generate these character combinations for marketing assets:
+1. **Emma** - Medium skin, brown/curly hair, purple theme, unicorn
+2. **Alex** - Light skin, blonde/short hair, blue theme, dinosaur
+3. **Jordan** - Dark skin, black/braided hair, green theme, tiger
+4. **Sam** - Tan skin, red/wavy hair, yellow theme, dragon
+5. **Riley** - Olive skin, brown/straight hair, pink theme, bunny
+
+**Why These?** Showcase diversity and personalization options for Amazon listing images.
 
 ### **🎯 Testing Commands**
 

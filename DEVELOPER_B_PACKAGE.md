@@ -2,7 +2,9 @@
 
 ## 🎯 **Project Overview**
 
-**Little Hero Books** is a personalized children's book service that generates custom stories through Amazon Custom listings and automated print-on-demand fulfillment. The system creates watercolor storybook-style books featuring personalized child characters in 12 different poses across various story scenes.
+**Little Hero Labs** (littleherolabs.com) is a personalized children's book service that generates custom stories through Amazon Custom listings and automated print-on-demand fulfillment. The system creates watercolor storybook-style books featuring personalized child characters in 12 different poses across various story scenes.
+
+> **Note**: Codebase currently references "Little Hero Books" - this will be updated post-launch. Not critical for MVP.
 
 ## 🤖 **AI Agent Instructions**
 
@@ -976,9 +978,11 @@ const testStatus = async (statusUrl, token) => {
 **ALL DEVELOPER B WORKFLOWS ARE COMPLETE!** 🎉
 
 ### **🎯 What's Next (Priority Order)**
-1. **Wait for Developer A**: Workflows 2A, 2B, 3 need database integration
-2. **End-to-End Integration Testing**: Test complete workflow chain once Developer A completes their work
-3. **Production Deployment**: Transition from testing to production (see "Transition from Testing to Production" section below)
+1. **Pre-Launch Marketing Preparation**: See new section below ⭐ **START NOW**
+2. **Amazon Mock Data Testing**: Test complete flow with realistic Amazon order data
+3. **Wait for Developer A**: Workflows 2A, 2B, 3 need database integration
+4. **End-to-End Integration Testing**: Test complete workflow chain once Developer A completes their work
+5. **Production Deployment**: Transition from testing to production (see "Transition from Testing to Production" section below)
 
 ### **🔑 Key Information You Need**
 
@@ -1011,6 +1015,259 @@ const testStatus = async (statusUrl, token) => {
 - ⚠️ **TESTING vs PRODUCTION**:
   - **Testing** (now): Use `select: '*'` in Supabase queries to get all fields automatically
   - **Production** (later): Replace with specific field lists for better performance
+
+---
+
+## 🎬 **Pre-Launch Marketing & Preparation (NEW - START NOW)**
+
+> **📖 COMPLETE GUIDE**: See `docs/PRE_LAUNCH_PREPARATION.md` for full competitive analysis, marketing strategy, timeline, and budget.
+
+### **Overview**
+While waiting for Developer A to complete Workflows 2A, 2B, and 3, Developer B should prepare all marketing assets and Amazon integration for launch. This work can proceed in parallel and will accelerate time-to-market.
+
+### **Your Responsibilities (Developer B)**
+
+#### **Phase 1: Amazon Mock Data Testing (This Week - Week 1)**
+**Goal**: Validate entire workflow with realistic Amazon order data
+
+**Tasks**:
+1. **Set Up Mock Amazon Data Workflow**
+   - Location: `docs/amazon/mock-amazon-data-generator.js`
+   - Follow: `AMAZON_INTEGRATION.md` section "PRE-LAUNCH TESTING"
+   - Test: Generate 5 different customer profiles
+   - Verify: All data formats match real Amazon SP-API structure
+
+2. **Test Complete Order Flow**
+   - Workflow 1: Order intake with mock Amazon data ✅ (already works)
+   - Wait for Developer A: Workflows 2A, 2B, 3
+   - Workflow 4: Print fulfillment with mock Lulu (test now)
+   - Document: Any issues or format mismatches
+
+3. **Order Sample Books**
+   - Order 3 test books from Lulu
+   - Test different character combinations
+   - Cost: ~$50-100
+   - Use for: Product photography and quality verification
+
+**Deliverables**:
+- [ ] Mock Amazon workflow tested and documented
+- [ ] 5 test order profiles validated
+- [ ] 3 sample books ordered from Lulu
+- [ ] Issues/findings documented in Notion or Slack
+
+#### **Phase 2: Amazon Listing Content (Weeks 1-2)**
+**Goal**: Prepare all text content for Amazon Custom listing
+
+**Tasks**:
+1. **Write Amazon Listing Copy**
+   - Reference: `marketing.md` lines 587-712
+   - Reference: `docs/amazon/amazon-custom-listing-spec.md`
+   - Product title (200 char max)
+   - 5 bullet points
+   - Product description
+   - Backend search terms
+
+2. **Define Customization Fields**
+   - 10 fields already specified in `docs/amazon/amazon-custom-listing-spec.md`
+   - Verify alignment with Workflow 1 parsing
+   - Create field help text for customers
+
+3. **Write FAQ and Policies**
+   - Processing time: 3-5 business days
+   - Return/refund policy
+   - Privacy policy basics
+   - Shipping information
+
+**Deliverables**:
+- [ ] Complete Amazon listing copy document
+- [ ] Customization fields specification
+- [ ] FAQ content (5-7 questions)
+- [ ] Return/refund policy draft
+
+#### **Phase 3: Product Images & Video (Weeks 2-3)**
+**Goal**: Create all visual assets for Amazon listing
+
+> **Note**: Requires sample books from Phase 1
+
+**Tasks**:
+1. **Hire Designer/Photographer** (or DIY)
+   - Budget: $300-500 for professional
+   - Alternative: DIY with Figma/Canva + phone camera
+   - Deliverable: 7 product images
+
+2. **Create 7 Amazon Product Images**
+   - Image 1: Hero/main image (1000x1000px, white background)
+   - Image 2: Personalization options grid
+   - Image 3: Inside pages collage (4-6 spreads)
+   - Image 4: "How It Works" infographic (3 steps)
+   - Image 5: Quality guarantee badge
+   - Image 6: Gift-ready context shot
+   - Image 7: Lifestyle/emotional shot (parent + child)
+   - Specifications: See `PRE_LAUNCH_PREPARATION.md`
+
+3. **Create Product Video** (15-30 seconds)
+   - Screen recording: Entering child's name on Amazon Custom form
+   - Page flips: Show 4-5 pages from sample book
+   - Final shot: Printed book close-up
+   - Format: Vertical 1080x1920 for social reuse
+   - Tool: Phone camera + CapCut/iMovie
+
+**Deliverables**:
+- [ ] 7 product images (Amazon specs)
+- [ ] 1 product video (15-30 sec)
+- [ ] All assets organized in cloud storage
+
+#### **Phase 4: Social Media Content (Weeks 2-4)**
+**Goal**: Create library of promotional content for launch
+
+**Tasks**:
+1. **Create 10 Short-Form Videos**
+   - Format: 9:16 vertical, 12-20 seconds each
+   - Complete shot list: `marketing.md` lines 464-537
+   - Platforms: TikTok, Instagram Reels, YouTube Shorts
+   - Priority videos (make first):
+     1. Name reveal magic
+     2. How it works (3 steps)
+     3. Gift moment unboxing
+     4. Personalization options
+     5. Birthday/holiday context
+
+2. **Create 15 Static Social Posts**
+   - Mix: 5 product features, 5 emotional/lifestyle, 5 seasonal/gift
+   - Tool: Canva templates
+   - Platforms: Instagram, Facebook, Pinterest
+
+3. **Set Up Social Media Accounts**
+   - Instagram: @littleherolabs
+   - TikTok: @littleherolabs
+   - Facebook: Little Hero Labs
+   - Pinterest: Little Hero Labs
+
+**Deliverables**:
+- [ ] 10 short-form videos created
+- [ ] 15 static posts created
+- [ ] Social media accounts created and branded
+- [ ] Content calendar for first 2 months
+
+#### **Phase 5: Website Landing Page (Weeks 3-4)**
+**Goal**: Build simple landing page at littleherolabs.com
+
+**Tasks**:
+1. **Choose Platform**
+   - Option 1: Framer (easiest, $5-15/month)
+   - Option 2: Webflow (more control, $14/month)
+   - Option 3: HTML + Cloudflare Pages (free, requires coding)
+
+2. **Build One-Page Site**
+   - Complete copy deck: `marketing.md` lines 300-458
+   - Sections: Hero, How It Works, Sample Pages, Quality, CTA
+   - Email capture: Lead magnet (free printable coloring page)
+   - CTA buttons: Link to Amazon (when ready)
+
+3. **Set Up Email Capture**
+   - Tool: ConvertKit (free up to 1,000 subscribers) or Mailchimp
+   - Lead magnet: Personalized coloring page template
+   - Welcome email sequence (3 emails)
+
+**Deliverables**:
+- [ ] Landing page live at littleherolabs.com
+- [ ] Email capture working
+- [ ] Lead magnet (coloring page) created
+- [ ] 3-email welcome sequence written
+
+#### **Phase 6: Amazon Account Setup (Week 7 - After Workflow 3 Complete)**
+**Goal**: Launch Amazon Custom listing
+
+**Tasks**:
+1. **Create Amazon Professional Seller Account**
+   - Cost: $40/month
+   - Timing: Only when ready to launch (Week 7+)
+   - Account setup: 1-2 days
+
+2. **Get SP-API Credentials**
+   - Follow: `AMAZON_INTEGRATION.md` sections on SP-API setup
+   - Save credentials securely
+   - Do NOT implement yet (wait for Week 8)
+
+3. **Create Amazon Custom Listing**
+   - Upload all 7 images
+   - Add product video
+   - Paste listing copy
+   - Configure 10 customization fields
+   - Set initial price: $24.99 (intro pricing)
+   - Submit for approval (1-3 days)
+
+4. **Set Up Amazon PPC Campaign**
+   - Campaign type: Sponsored Products
+   - Budget: $10-20/day to start
+   - Keywords: 5-10 exact-match keywords
+   - Reference: `docs/advertising_strategy.md`
+
+**Deliverables**:
+- [ ] Amazon Seller account active
+- [ ] SP-API credentials obtained
+- [ ] Amazon Custom listing approved
+- [ ] Amazon PPC campaign ready
+
+### **Timeline for Developer B Marketing Tasks**
+
+| Week | Focus | Key Deliverables |
+|------|-------|-----------------|
+| **1** (Now) | Testing & Planning | Mock data tested, sample books ordered, designer hired |
+| **2** | Content Writing | Amazon copy done, social accounts created, first 5 videos |
+| **3** | Asset Creation | 7 product images, product video, remaining 5 social videos |
+| **4** | Website & Polish | Landing page live, email system working, all posts scheduled |
+| **5-6** | Integration Testing | Help with end-to-end workflow testing |
+| **7** | Amazon Setup | Seller account, listing created and approved |
+| **8** | Launch! | Go live, monitor, support first customers |
+
+### **Budget Required (Developer B to Coordinate)**
+
+#### One-Time Costs
+- Product images: $300-500 (or $0 if DIY)
+- Video content: $200-400 (or $0 if DIY)
+- Sample books: $50-100
+- **Total One-Time**: $550-1,000 (or $50-100 if all DIY)
+
+#### Monthly Costs (Starting Week 7)
+- Amazon Professional Seller: $40/month
+- Amazon PPC: $300-600/month
+- Website hosting: $5-15/month (Framer/Webflow) or $0 (Cloudflare Pages)
+- Email service: $0-15/month
+- **Total Monthly**: $345-670/month
+
+### **Resources & References**
+
+**Complete Marketing Guide**:
+- 📁 `docs/PRE_LAUNCH_PREPARATION.md` - Master document with competitive analysis and full strategy
+
+**Marketing Research**:
+- 📁 `competitive-landscape.md` - Competitor analysis (10+ competitors identified)
+- 📁 `marketing.md` - Detailed marketing strategy with ready-to-use copy
+
+**Amazon Integration**:
+- 📁 `docs/AMAZON_INTEGRATION.md` - Complete setup guide
+- 📁 `docs/amazon/mock-amazon-data-generator.js` - Test data for workflows
+- 📁 `docs/amazon/amazon-custom-listing-spec.md` - Complete listing copy
+- 📁 `docs/amazon/sp-api-integration-code.md` - Code for Workflows 1 & 4
+
+**Advertising Strategy**:
+- 📁 `docs/advertising_strategy.md` - Channel recommendations and budgets
+
+### **Success Criteria for Marketing Preparation**
+
+Before launch (Week 8), Developer B must have:
+- ✅ All 7 product images professional and ready
+- ✅ Product video created and formatted
+- ✅ Amazon listing copy finalized and approved
+- ✅ 10+ social videos created and ready to post
+- ✅ Landing page live with email capture working
+- ✅ Amazon Seller account approved and configured
+- ✅ Amazon Custom listing live and approved
+- ✅ Sample books received and photographed
+- ✅ Social media accounts created and branded
+
+**If any of these are not ready, launch must be delayed.**
 
 ---
 
