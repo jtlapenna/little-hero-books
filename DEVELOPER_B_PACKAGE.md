@@ -1286,21 +1286,41 @@ Before launch (Week 8), Developer B must have:
 **Developer B Opportunity**: Build littleherolabs.com landing page while waiting
 
 ### **Immediate Tasks (This Week)**:
+
+#### **Phase 1: Technical Setup (Days 1-2)**
 1. **Set Up Cloudflare Pages Deployment**
    - Connect littleherolabs.com domain to Cloudflare Pages
    - Set up automatic deployment from git repository
+   - Configure custom domain with SSL certificate
    - Test deployment workflow
 
-2. **Build Landing Page Structure**
-   - Create simple, clean landing page
+2. **Analytics & Tracking Setup**
+   - **Google Analytics 4**: Create property and install tracking code
+   - **Google Search Console**: Add and verify domain
+   - **Ahrefs**: Set up project and configure keyword tracking
+   - **Amazon Attribution**: Set up tracking links for Amazon CTAs
+
+#### **Phase 2: Landing Page Development (Days 3-5)**
+3. **Build Landing Page Structure**
+   - Create responsive one-page landing page
    - Include hero section with book preview
    - Add "Coming Soon" messaging
    - Include email capture for launch notifications
+   - Implement Amazon CTA buttons with attribution tracking
 
-3. **Prepare for Amazon Launch**
+4. **SEO Technical Foundation**
+   - Create `robots.txt` and `sitemap.xml` files
+   - Implement JSON-LD structured data (Organization, FAQ, Video)
+   - Set up Google Analytics 4 custom events
+   - Optimize for Core Web Vitals (LCP < 2.5s, CLS < 0.1, INP < 200ms)
+   - Add proper meta tags, alt text, and structured data
+
+#### **Phase 3: Content & Marketing Prep (Days 6-7)**
+5. **Prepare for Amazon Launch**
    - Review Amazon listing copy (already complete)
    - Plan social media account creation
    - Prepare marketing materials
+   - Set up email capture backend (ConvertKit/Mailchimp)
 
 ### **Why This Makes Sense**:
 - ✅ **Independent work** - doesn't require Developer A's workflows
@@ -1308,6 +1328,63 @@ Before launch (Week 8), Developer B must have:
 - ✅ **Free hosting** - Cloudflare Pages (no cost)
 - ✅ **Future value** - landing page ready for post-launch marketing
 - ✅ **Professional presence** - shows project legitimacy
+
+---
+
+## 📊 **Analytics & Tracking Setup Details**
+
+### **Google Analytics 4 Setup**
+**Purpose**: Track user behavior, conversions, and traffic sources
+**Implementation**:
+- Create GA4 property for littleherolabs.com
+- Install tracking code in landing page
+- Set up custom events: `cta_amazon_click`, `email_signup_submit`, `video_hero_play_6s`
+- Configure conversion goals for Amazon clicks and email signups
+- Set up enhanced ecommerce for future D2C functionality
+
+### **Google Search Console Setup**
+**Purpose**: Monitor search performance and technical SEO issues
+**Implementation**:
+- Add and verify littleherolabs.com domain
+- Submit sitemap.xml
+- Monitor Core Web Vitals
+- Track keyword rankings and search impressions
+- Set up email alerts for technical issues
+
+### **Ahrefs Setup**
+**Purpose**: Track keyword rankings and backlink growth
+**Implementation**:
+- Create Ahrefs project for littleherolabs.com
+- Set up keyword tracking for target terms:
+  - "personalized kids book"
+  - "custom children's book"
+  - "name book for kids"
+  - "personalized story book"
+- Monitor competitor backlinks and content gaps
+- Track domain rating growth
+
+### **Amazon Attribution Setup**
+**Purpose**: Measure impact of website traffic on Amazon sales
+**Implementation**:
+- Set up Amazon Attribution account
+- Create attribution links for all Amazon CTAs
+- Track clicks from website to Amazon
+- Measure conversion rates and revenue attribution
+- Use UTM parameters for detailed tracking
+
+### **Email Capture Backend Setup**
+**Purpose**: Collect leads and build email list
+**Options**:
+- **ConvertKit**: Recommended for creators, good automation
+- **Mailchimp**: Free tier available, easy setup
+- **SendGrid**: Developer-friendly, good API integration
+
+**Implementation**:
+- Set up email service account
+- Create email capture form
+- Design welcome email sequence
+- Set up lead magnet delivery (coloring page)
+- Configure email automation workflows
 
 ---
 

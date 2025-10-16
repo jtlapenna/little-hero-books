@@ -627,6 +627,7 @@ Week 1 Priorities (This Week):
 - [x] ~~Draft complete Amazon listing copy~~ ✅ **DONE** (`AMAZON_LISTING_FINAL.md`)
 - [x] **Launch pricing decided** ($27.99, reassess after sales) - COMPLETED
 - [ ] **Build littleherolabs.com landing page** (Cloudflare Pages) - **NEW PRIORITY**
+- [ ] **Set up analytics & tracking** (GA4, GSC, Ahrefs, Amazon Attribution)
 - [ ] **Create social media accounts** (Instagram, TikTok, Facebook, Pinterest) - OPTIONAL
 
 Week 1 Status:
