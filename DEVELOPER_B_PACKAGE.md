@@ -572,7 +572,229 @@ When you begin Workflow 4, it must:
 
 ---
 
-## 🛠️ **Technical Implementation Guide**
+## 🗄️ **Database Setup Instructions**
+
+### **Supabase Database Setup (Complete Guide)**
+
+The Human-in-the-Loop Asset Review System requires a PostgreSQL database. We use Supabase for this, which provides a managed PostgreSQL database with a built-in dashboard.
+
+#### **Step 1: Create Supabase Project**
+
+1. **Go to Supabase**: https://supabase.com
+2. **Sign up/Login** with your GitHub account
+3. **Create New Project**:
+   - Organization: Create new or use existing
+   - Project Name: `little-hero-books`
+   - Database Password: Generate strong password (save it!)
+   - Region: Choose closest to your location
+   - Pricing: Free tier is sufficient for development
+
+4. **Wait for Setup**: Takes 2-3 minutes
+
+#### **Step 2: Get Database Credentials**
+
+1. **Go to Project Settings** → **API**
+2. **Copy these values**:
+   - Project URL: `https://[your-project-id].supabase.co`
+   - Service Role Key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` (long string)
+   - Database Password: (the one you created)
+
+#### **Step 3: Run Database Schema**
+
+1. **Go to SQL Editor** in Supabase dashboard
+2. **Create New Query**
+3. **Copy and paste this complete schema**:
+
+```sql
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Main orders table
+CREATE TABLE orders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    amazon_order_id VARCHAR(255) UNIQUE NOT NULL,
+    processing_id VARCHAR(255) UNIQUE,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending_validation',
+    workflow_step VARCHAR(50) NOT NULL DEFAULT 'order_intake',
+    next_workflow VARCHAR(50),
+    
+    -- Order information
+    order_status VARCHAR(50),
+    purchase_date TIMESTAMP WITH TIME ZONE,
+    order_total DECIMAL(10, 2),
+    currency VARCHAR(10),
+    marketplace_id VARCHAR(50),
+    
+    -- Customer information
+    customer_email VARCHAR(255),
+    customer_name VARCHAR(255),
+    shipping_address JSONB,
+    
+    -- Character specifications
+    character_specs JSONB,
+    character_hash VARCHAR(255),
+    product_info JSONB,
+    
+    -- Priority and timing
+    priority VARCHAR(20) DEFAULT 'normal',
+    estimated_processing_time VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    validated_at TIMESTAMP WITH TIME ZONE,
+    validation_errors JSONB DEFAULT '[]'::jsonb,
+    queued_at TIMESTAMP WITH TIME ZONE,
+    
+    -- AI Generation tracking
+    ai_generation_started_at TIMESTAMP WITH TIME ZONE,
+    ai_generation_completed_at TIMESTAMP WITH TIME ZONE,
+    character_images_generated INTEGER DEFAULT 0,
+    total_poses_required INTEGER DEFAULT 12,
+    ai_generation_cost DECIMAL(10, 2) DEFAULT 0.00,
+    character_consistency_score DECIMAL(3, 2),
+    
+    -- Book Assembly tracking
+    book_assembly_started_at TIMESTAMP WITH TIME ZONE,
+    book_assembly_completed_at TIMESTAMP WITH TIME ZONE,
+    final_book_url TEXT,
+    final_cover_url TEXT,
+    pdf_generation_cost DECIMAL(10, 2) DEFAULT 0.00,
+    
+    -- Human Review fields (for Human-in-the-Loop system)
+    requires_human_review BOOLEAN DEFAULT FALSE,
+    human_approved BOOLEAN DEFAULT NULL,
+    human_reviewed_at TIMESTAMP WITH TIME ZONE,
+    human_reviewer VARCHAR(100),
+    qa_status VARCHAR(50) DEFAULT 'pending',
+    qa_score DECIMAL(3, 2),
+    qa_notes TEXT,
+    
+    -- Print & Fulfillment tracking
+    print_submission_in_progress BOOLEAN DEFAULT FALSE,
+    print_job_id VARCHAR(255),
+    print_status VARCHAR(50),
+    print_submission_started_at TIMESTAMP WITH TIME ZONE,
+    print_submission_completed_at TIMESTAMP WITH TIME ZONE,
+    fulfillment_tracking_id VARCHAR(255),
+    fulfillment_carrier VARCHAR(100),
+    fulfillment_completed_at TIMESTAMP WITH TIME ZONE,
+    fulfillment_cost DECIMAL(10, 2) DEFAULT 0.00,
+    
+    -- Cost optimization
+    cost_optimization_applied BOOLEAN DEFAULT FALSE,
+    cost_savings DECIMAL(10, 2) DEFAULT 0.00
+);
+
+-- Human review queue for quality control
+CREATE TABLE human_review_queue (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'pending',
+    review_type VARCHAR(50),
+    review_priority VARCHAR(20),
+    assigned_to VARCHAR(255),
+    reviewed_by VARCHAR(100),
+    review_notes TEXT,
+    decision VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Failed orders table (for error recovery)
+CREATE TABLE failed_orders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID REFERENCES orders(id),
+    workflow_step VARCHAR(50),
+    error_type VARCHAR(100),
+    error_message TEXT,
+    error_details JSONB,
+    retry_count INTEGER DEFAULT 0,
+    max_retries INTEGER DEFAULT 3,
+    next_retry_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Audit logs for tracking all actions
+CREATE TABLE audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    event_type VARCHAR(100) NOT NULL,
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id UUID NOT NULL,
+    user_id VARCHAR(255),
+    details JSONB
+);
+
+-- Create indexes for performance
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_amazon_order_id ON orders(amazon_order_id);
+CREATE INDEX idx_orders_next_workflow ON orders(next_workflow);
+CREATE INDEX idx_orders_created_at ON orders(created_at);
+CREATE INDEX idx_human_review_queue_status ON human_review_queue(status);
+CREATE INDEX idx_human_review_queue_created_at ON human_review_queue(created_at);
+CREATE INDEX idx_failed_orders_status ON failed_orders(error_type);
+CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+
+-- Create updated_at trigger function
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Add updated_at triggers
+CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_human_review_queue_updated_at BEFORE UPDATE ON human_review_queue
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert test data
+INSERT INTO orders (amazon_order_id, status, next_workflow, character_specs, customer_name, customer_email) VALUES
+('TEST-ORDER-001', 'queued_for_processing', '2.A.-bria-submit', 
+ '{"childName": "Emma", "age": 5, "pronouns": "she/her", "skinTone": "medium", "hairColor": "brown", "hairStyle": "curly", "favoriteColor": "purple", "animalGuide": "unicorn", "clothingStyle": "dress"}',
+ 'Emma Johnson', 'emma.johnson@example.com'),
+('TEST-ORDER-002', 'queued_for_processing', '2.A.-bria-submit',
+ '{"childName": "Alex", "age": 4, "pronouns": "he/him", "skinTone": "light", "hairColor": "blonde", "hairStyle": "short", "favoriteColor": "blue", "animalGuide": "dinosaur", "clothingStyle": "t-shirt and shorts"}',
+ 'Alex Smith', 'alex.smith@example.com'),
+('TEST-ORDER-1760504174618-929', 'queued_for_processing', '2.A.-bria-submit',
+ '{"childName": "Adventure Hero", "age": 5, "pronouns": "they/them", "skinTone": "tan", "hairColor": "black", "hairStyle": "braided", "favoriteColor": "green", "animalGuide": "tiger", "clothingStyle": "adventure gear"}',
+ 'Adventure Hero', 'adventure.hero@example.com');
+```
+
+4. **Click "Run"** to execute the schema
+5. **Verify tables created**: Check the "Table Editor" tab
+
+#### **Step 4: Configure n8n Integration**
+
+1. **Open n8n** (your n8n instance)
+2. **Go to Credentials** → **Add Credential**
+3. **Select "Supabase API"**
+4. **Fill in**:
+   - Host: `https://[your-project-id].supabase.co`
+   - Service Role Key: (the long key from Step 2)
+5. **Test Connection** and save
+
+#### **Step 5: Test Database Connection**
+
+1. **Create a simple n8n workflow**:
+   - Add "Supabase" node
+   - Operation: "read"
+   - Table: "orders"
+   - Click "Execute Node"
+2. **Should return** the 3 test orders
+
+#### **Step 6: Configure Environment Variables**
+
+Add to your `.env` file:
+```bash
+# Supabase Database
+SUPABASE_URL=https://[your-project-id].supabase.co
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
 
 ### **Database Connection Details**
 
@@ -969,13 +1191,23 @@ const testStatus = async (statusUrl, token) => {
 
 ### **✅ What You've Completed**
 1. ✅ **Workflow 1**: Order Intake & Validation - COMPLETE
-2. ✅ **Workflow 4**: Print & Fulfillment - COMPLETE
-3. ✅ **Workflow 5**: Error Recovery - COMPLETE
-4. ✅ **Workflow 6**: Monitoring & Alerts - COMPLETE
-5. ✅ **Workflow 7**: Quality Assurance - COMPLETE
-6. ✅ **Workflow 8**: Cost Optimization - COMPLETE
+2. ✅ **Human-in-the-Loop Asset Review System** - COMPLETE & OPERATIONAL
+   - ✅ Real-time monitoring dashboard at `/monitoring`
+   - ✅ Sequential approval workflow (Pre-Bria → Post-Bria → Post-PDF)
+   - ✅ R2 asset integration with Cloudflare storage
+   - ✅ Error handling and monitoring system
+   - ✅ File-based approval persistence
+   - ✅ Search functionality with character hash support
+   - ✅ Site rebranding to "Little Hero Labs"
+   - ✅ UI/UX improvements and text readability
+3. ✅ **Workflow 4**: Print & Fulfillment - COMPLETE
+4. ✅ **Workflow 5**: Error Recovery - COMPLETE
+5. ✅ **Workflow 6**: Monitoring & Alerts - COMPLETE
+6. ✅ **Workflow 7**: Quality Assurance - COMPLETE
+7. ✅ **Workflow 8**: Cost Optimization - COMPLETE
 
 **ALL DEVELOPER B WORKFLOWS ARE COMPLETE!** 🎉
+**HUMAN-IN-THE-LOOP REVIEW SYSTEM IS LIVE!** 🚀
 
 ### **🎯 What's Next (Priority Order)**
 1. **Pre-Launch Marketing Preparation**: See new section below ⭐ **START NOW**

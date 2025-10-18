@@ -26,14 +26,20 @@
 ## 🏗️ **Current Workflow Status**
 
 ### **Developer A (Your Work) - Database Integration Required**
-**Note**: Developer B is in holding pattern working on littleherolabs.com landing page while waiting for your workflows.
+**Note**: Human-in-the-Loop Asset Review System is now LIVE and operational. Your workflows need to integrate with the review system.
 - 🔄 **Workflow 2A**: AI Character Generation (Bria AI Integration) - `2.A.-bria-submit.json`
 - 🔄 **Workflow 2B**: AI Character Generation (Background Removal) - `2.B.-bria-retrieve.json`  
 - 🔄 **Workflow 3**: Book Assembly & PDF Generation - `3-book-assembly-production.json`
 
 ### **Developer B (Completed) - Ready for Integration**
 - ✅ **Workflow 1**: Order Intake & Validation - `1-order-intake-validation.json`
-- 🔄 **Workflow 4**: Print & Fulfillment - `4-print-fulfillment.json` (starting soon)
+- ✅ **Human-in-the-Loop Asset Review System** - COMPLETE & OPERATIONAL
+  - ✅ Real-time monitoring dashboard at `/monitoring`
+  - ✅ Sequential approval workflow (Pre-Bria → Post-Bria → Post-PDF)
+  - ✅ R2 asset integration with Cloudflare storage
+  - ✅ Error handling and monitoring system
+  - ✅ File-based approval persistence
+- 🔄 **Workflow 4**: Print & Fulfillment - `4-print-fulfillment.json` (ready for integration)
 - 🔄 **Workflow 5**: Error Recovery - `5-error-recovery.json`
 - 🔄 **Workflow 6**: Monitoring & Alerts - `6-monitoring-alerts.json`
 - 🔄 **Workflow 7**: Quality Assurance - `7-quality-assurance.json`
@@ -41,81 +47,96 @@
 
 ---
 
-## 🔄 **CRITICAL: Feedback-Driven Regeneration System**
+## 🎯 **NEW: Human-in-the-Loop Integration Requirements**
 
-### **⚠️ Important Update - Must Implement**
+### **⚠️ Critical Integration Points**
 
-Your Workflow 2A **MUST** be updated to handle feedback from rejected orders. Without this, rejected orders will regenerate with the same prompt and produce the same poor result.
+Your workflows must now integrate with the **Human-in-the-Loop Asset Review System** that is live and operational.
 
-### **What You Need to Do**
+#### **Key Integration Points:**
 
-When an order is rejected by human review, it goes back to Workflow 2A with:
-- `status = 'ai_generation_required'`
-- `regeneration_attempt = 1` (or 2, 3)
-- `regeneration_instructions = 'CRITICAL: [Specific feedback on what to fix]'`
+1. **Workflow 2A (Character Generation)**:
+   - Generate assets and store in R2 with proper character hash
+   - Set `status = 'pre_bria_pending'` in database
+   - Assets will be reviewed in Pre-Bria stage
+   - Wait for `status = 'pre_bria_approved'` before proceeding
 
-**Your Workflow 2A must**:
-1. Check if `regeneration_attempt > 0`
-2. If yes, read `regeneration_instructions` field
-3. Enhance the AI prompt with this feedback
-4. Use different seed/parameters for a new result
+2. **Workflow 2B (Background Removal)**:
+   - Only process orders with `status = 'pre_bria_approved'`
+   - Generate background-removed assets
+   - Set `status = 'post_bria_pending'` in database
+   - Assets will be reviewed in Post-Bria stage
+   - Wait for `status = 'post_bria_approved'` before proceeding
 
-### **Code Example**
+3. **Workflow 3 (Book Assembly)**:
+   - Only process orders with `status = 'post_bria_approved'`
+   - Generate final PDF
+   - Set `status = 'post_pdf_pending'` in database
+   - PDF will be reviewed in Post-PDF stage
+   - Wait for `status = 'post_pdf_approved'` before completion
 
-```javascript
-// At the start of Workflow 2A - Check for regeneration
-const order = await getOrderFromDatabase(orderId);
-
-if (order.regeneration_attempt > 0) {
-  console.log(`🔄 Regeneration attempt ${order.regeneration_attempt} for ${order.amazon_order_id}`);
-  console.log(`📝 Feedback: ${order.regeneration_instructions}`);
-  
-  // Build enhanced prompt with feedback
-  const basePrompt = generateCharacterPrompt(order.character_specs);
-  const enhancedPrompt = `${basePrompt}
-
-IMPORTANT CORRECTIONS FROM PREVIOUS ATTEMPT:
-${order.regeneration_instructions}
-
-Please ensure these corrections are applied to ALL character poses.`;
-
-  // Generate with enhanced prompt and new seed
-  const aiResponse = await generateCharacterWithBria({
-    prompt: enhancedPrompt,
-    characterSpecs: order.character_specs,
-    seed: Date.now(), // New seed for different result
-    qualityBoost: true
-  });
-  
-} else {
-  // First attempt - use standard prompt
-  const prompt = generateCharacterPrompt(order.character_specs);
-  const aiResponse = await generateCharacterWithBria({
-    prompt,
-    characterSpecs: order.character_specs
-  });
-}
+#### **Database Schema Integration:**
+```sql
+-- Add these fields to your orders table
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_stage VARCHAR(50) DEFAULT 'pre_bria_pending';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS human_approved BOOLEAN DEFAULT FALSE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS approval_notes TEXT;
 ```
 
-### **Database Migration Required**
-
-Run this migration to add feedback fields:
-```bash
-# In Supabase SQL Editor:
-docs/database/migration-add-feedback-fields.sql
+#### **Status Flow:**
+```
+pre_bria_pending → pre_bria_approved → post_bria_pending → post_bria_approved → post_pdf_pending → post_pdf_approved
 ```
 
-This adds:
-- `regeneration_attempt` (tracks how many times regenerated)
-- `regeneration_instructions` (detailed feedback from reviewer)
-- `qa_notes` (reviewer's notes)
-- `quality_issues` (categorized issues)
-- `rejection_history` (full history of rejections)
+#### **Review System Access:**
+- **URL**: `http://localhost:3000/review` (or your deployed URL)
+- **Monitoring**: `http://localhost:3000/monitoring`
+- **API Endpoints**: `/api/orders/[orderId]`, `/api/orders/[orderId]/approve`
 
-### **Full Documentation**
+---
 
-See complete implementation guide with all code examples:
-📖 **`docs/HUMAN_REVIEW_IMPLEMENTATION_GUIDE.md`** (search for "Workflow 2A Integration")
+## 🎯 **Human-in-the-Loop Asset Review System Integration**
+
+### **⚠️ Critical Integration - Human Review Dashboard**
+
+Your workflows must integrate with the **Human-in-the-Loop Asset Review System** that is now live and operational. This replaces the old retry/regeneration approach.
+
+### **How It Works**
+
+1. **Workflow 2A (Character Generation)**:
+   - Generate assets and store in R2 with proper character hash
+   - Set `status = 'pre_bria_pending'` in database
+   - Assets appear in Pre-Bria review stage
+   - Wait for human approval before proceeding
+
+2. **Workflow 2B (Background Removal)**:
+   - Only process orders with `status = 'pre_bria_approved'`
+   - Generate background-removed assets
+   - Set `status = 'post_bria_pending'` in database
+   - Assets appear in Post-Bria review stage
+   - Wait for human approval before proceeding
+
+3. **Workflow 3 (Book Assembly)**:
+   - Only process orders with `status = 'post_bria_approved'`
+   - Generate final PDF
+   - Set `status = 'post_pdf_pending'` in database
+   - PDF appears in Post-PDF review stage
+   - Wait for human approval before completion
+
+### **Status Flow**
+```
+pre_bria_pending → pre_bria_approved → post_bria_pending → post_bria_approved → post_pdf_pending → post_pdf_approved
+```
+
+### **Review System Access**
+- **Review Dashboard**: `http://localhost:3000/review`
+- **Monitoring Dashboard**: `http://localhost:3000/monitoring`
+- **API Endpoints**: `/api/orders/[orderId]`, `/api/orders/[orderId]/approve`
+
+### **Key Difference from Old System**
+- **Old**: Rejected orders go back to Workflow 2A for regeneration
+- **New**: Human reviewers use the dashboard to approve/reject at each stage
+- **Result**: More efficient, better quality control, no infinite retry loops
 
 ---
 
@@ -539,166 +560,42 @@ return [{ json: { ...orderData, ...finalOrderData } }];
 
 ---
 
-## 👥 **Human Intervention Workflow - Complete Guide**
+## 🎯 **Human-in-the-Loop Review System - LIVE & OPERATIONAL**
 
-> **📖 FULL IMPLEMENTATION GUIDE**: See `docs/HUMAN_REVIEW_IMPLEMENTATION_GUIDE.md` for:
-> - 3 implementation options (Manual, Notion/Sheets, Custom Dashboard)
-> - Complete code examples for each option
-> - Simple HTML dashboard you can deploy immediately
-> - Notification systems (Email, Slack)
-> - Security and authentication guidance
-> - Metrics and SLA tracking
+### **✅ System Status: COMPLETE & OPERATIONAL**
 
-### **Purpose**
-Ensure quality control before printing and shipping by requiring human approval for:
-- Low quality scores (< 0.8)
-- High priority orders
-- Manual flagging
-- Customer complaints
+The Human-in-the-Loop Asset Review System is now live and fully operational. Your workflows integrate with this system instead of the old retry/regeneration approach.
 
-### **Workflow Sequence**
+### **How It Works**
+
+**Three-Stage Sequential Approval Process**:
+1. **Pre-Bria Stage**: Review base character and pose images before background removal
+2. **Post-Bria Stage**: Review background-removed pose images
+3. **Post-PDF Stage**: Review final compiled PDF
+
+**Status Flow**:
 ```
-Workflow 1: Order Intake & Validation
-    ↓ (status: 'queued_for_processing')
-    
-Workflow 2A: AI Character Generation (Bria Submit)
-    ↓ (status: 'ai_generation_in_progress')
-    
-Workflow 2B: AI Character Generation (Bria Retrieve) 
-    ↓ (status: 'ai_generation_completed')
-    
-Workflow 3: Book Assembly & PDF Generation
-    ↓ (status: 'book_assembly_completed')
-    ↓ (requires_human_review: true/false)
-    
-👥 HUMAN INTERVENTION: Quality Review & Approval
-    ↓ (human_approved: true/false)
-    
-Workflow 4: Print & Fulfillment
-    ↓ (only if human_approved: true)
+pre_bria_pending → pre_bria_approved → post_bria_pending → post_bria_approved → post_pdf_pending → post_pdf_approved
 ```
 
-### **What Triggers Human Review?**
-1. **Automatic Quality Check Fails** (Quality Score < 0.8)
-2. **Character Consistency Issues** (Inconsistent character appearance)
-3. **Content Issues** (Inappropriate content, wrong character details)
-4. **Technical Issues** (PDF generation problems, missing assets)
-5. **Manual Flagging** (System flags for manual review)
-6. **High Priority Orders** (VIP customers, time-sensitive orders)
+### **Review Dashboard Access**
+- **URL**: `http://localhost:3000/review`
+- **Monitoring**: `http://localhost:3000/monitoring`
+- **API Endpoints**: `/api/orders/[orderId]`, `/api/orders/[orderId]/approve`
 
-### **Review Actions**
+### **Key Features**
+- ✅ Real-time monitoring dashboard
+- ✅ Sequential approval workflow (Pre-Bria → Post-Bria → Post-PDF)
+- ✅ R2 asset integration with Cloudflare storage
+- ✅ Error handling and monitoring system
+- ✅ File-based approval persistence
+- ✅ Search functionality with character hash support
 
-| Action | Result | Next Status | Database Update |
-|--------|--------|-------------|-----------------|
-| ✅ **Approve** | Book ready for printing | `human_approved: true` → Workflow 4 | Update `orders.human_approved = true` |
-| ❌ **Reject** | Book needs regeneration | `human_approved: false` → Back to Workflow 2A | Update `orders.status = 'ai_generation_required'` |
-| 🔄 **Request Changes** | Specific issues noted | `human_approved: false` + detailed notes | Add notes to `orders.qa_notes` |
-| 🚨 **Escalate** | Needs senior review | `status: 'escalated'` | Update `human_review_queue.status = 'escalated'` |
+### **Integration with Your Workflows**
 
-### **🚨 CRITICAL: Human Review vs Error Recovery**
-
-**Human Review (Your Workflow 3)** handles **quality issues**:
-- Character doesn't match specifications
-- Poor image quality or consistency
-- Layout problems in PDF
-- **Action**: Human approves or rejects based on quality
-
-**Error Recovery (Developer B's Workflow 5)** handles **technical failures**:
-- API timeouts or rate limits
-- Network connectivity issues
-- Service crashes or unavailability
-- **Action**: Automatic retry with exponential backoff
-
-**Key Safeguard**: Workflow 5 will **NEVER** touch orders with:
-- `status: 'book_assembly_completed'`
-- `requires_human_review: true`
-- `human_approved: null`
-
-This ensures error recovery doesn't interfere with your human review process.
-
-### **Review Dashboard Requirements**
-- **URL**: `/admin/review-queue` (to be built)
-- **Features**:
-  - PDF preview of generated book
-  - Character specifications display
-  - All 12 character poses display
-  - Quality scores visualization
-  - Approve/Reject buttons
-  - Review notes text area
-  - Order history and previous reviews
-
-### **Database Queries for Review Dashboard**
-
-**Get pending reviews**:
-```sql
-SELECT 
-  o.id,
-  o.amazon_order_id,
-  o.final_book_url,
-  o.character_specs,
-  o.qa_score,
-  hrq.review_priority,
-  hrq.created_at
-FROM orders o
-JOIN human_review_queue hrq ON o.id = hrq.order_id
-WHERE hrq.status = 'pending'
-ORDER BY hrq.review_priority DESC, hrq.created_at ASC;
-```
-
-**Approve order**:
-```sql
--- Update order
-UPDATE orders 
-SET human_approved = true,
-    human_reviewed_at = NOW(),
-    human_reviewer = 'reviewer_name',
-    next_workflow = '4-print-fulfillment',
-    updated_at = NOW()
-WHERE id = 'order_uuid';
-
--- Update review queue
-UPDATE human_review_queue
-SET status = 'completed',
-    decision = 'approve',
-    completed_at = NOW()
-WHERE order_id = 'order_uuid';
-
--- Add audit log
-INSERT INTO audit_logs (event_type, entity_type, entity_id, user_id, details)
-VALUES ('order_approved', 'order', 'order_uuid', 'reviewer_name', '{"qa_score": 0.85}');
-```
-
-**Reject order**:
-```sql
--- Update order
-UPDATE orders 
-SET human_approved = false,
-    human_reviewed_at = NOW(),
-    human_reviewer = 'reviewer_name',
-    qa_notes = 'Rejection reason here',
-    status = 'ai_generation_required',
-    next_workflow = '2.A.-bria-submit',
-    updated_at = NOW()
-WHERE id = 'order_uuid';
-
--- Update review queue
-UPDATE human_review_queue
-SET status = 'completed',
-    decision = 'reject',
-    review_notes = 'Rejection reason here',
-    completed_at = NOW()
-WHERE order_id = 'order_uuid';
-
--- Add audit log
-INSERT INTO audit_logs (event_type, entity_type, entity_id, user_id, details)
-VALUES ('order_rejected', 'order', 'order_uuid', 'reviewer_name', '{"reason": "Character inconsistency"}');
-```
-
-### **Success Metrics**
-- **Review Completion Time**: < 15 minutes average
-- **Quality Approval Rate**: > 85%
-- **Customer Satisfaction**: > 4.5/5 stars
-- **Print Error Rate**: < 2% (after human review)
+**Workflow 2A**: Set `status = 'pre_bria_pending'` → Wait for `pre_bria_approved`
+**Workflow 2B**: Only process `pre_bria_approved` → Set `status = 'post_bria_pending'` → Wait for `post_bria_approved`
+**Workflow 3**: Only process `post_bria_approved` → Set `status = 'post_pdf_pending'` → Wait for `post_pdf_approved`
 
 ---
 
@@ -874,12 +771,10 @@ Integrate your existing workflows (2A, 2B, 3) with the Supabase database and imp
 #### **Phase 1: Workflow 2A (Days 1-2)**
 1. Replace `Generate Mock Order` node with Supabase query
 2. Query: `status = 'queued_for_processing'` AND `next_workflow = '2.A.-bria-submit'`
-3. **🔄 CRITICAL: Add Feedback Loop Logic**:
-   - Check if `regeneration_attempt > 0` (this is a regeneration)
-   - If yes: Read `regeneration_instructions` field
-   - Enhance AI prompt with feedback instructions
-   - Use different seed/parameters for new result
-   - See full code example in `docs/HUMAN_REVIEW_IMPLEMENTATION_GUIDE.md` (search for "Workflow 2A Integration")
+3. **🎯 CRITICAL: Integrate with Human Review System**:
+   - Set `status = 'pre_bria_pending'` after character generation
+   - Wait for human approval in Pre-Bria stage
+   - Only proceed when `status = 'pre_bria_approved'`
 4. Change Manual Trigger → Cron Trigger (every 5 minutes: `*/5 * * * *`)
 5. Add database update after processing starts: `status = 'ai_generation_in_progress'`
 
@@ -961,17 +856,17 @@ Developer B's Workflow 4:
 
 ### **✅ Success Criteria**
 - [ ] Workflow 2A queries database and updates status
-- [ ] **Workflow 2A implements feedback loop for regenerations**
-- [ ] **Workflow 2A reads `regeneration_instructions` and enhances AI prompt**
+- [ ] **Workflow 2A integrates with Human Review System (Pre-Bria stage)**
+- [ ] **Workflow 2A sets `status = 'pre_bria_pending'` and waits for approval**
 - [ ] Workflow 2B updates status after completion
-- [ ] Workflow 3 queries database, generates book, checks quality
-- [ ] Quality check determines auto-approve vs human review
-- [ ] Low quality orders added to `human_review_queue`
-- [ ] High quality orders auto-approved
-- [ ] **Rejected orders include detailed `regeneration_instructions`**
+- [ ] **Workflow 2B integrates with Human Review System (Post-Bria stage)**
+- [ ] **Workflow 2B sets `status = 'post_bria_pending'` and waits for approval**
+- [ ] Workflow 3 queries database, generates book
+- [ ] **Workflow 3 integrates with Human Review System (Post-PDF stage)**
+- [ ] **Workflow 3 sets `status = 'post_pdf_pending'` and waits for approval**
 - [ ] All status updates reflected in database
 - [ ] Integration tested with Developer B's Workflow 1
-- [ ] **Test regeneration flow: reject order → verify feedback used in 2A**
+- [ ] **Test complete Human Review workflow: approve at each stage**
 - [ ] **Generate test PDFs for Developer B's marketing assets** (Week 2-3)
 
 ---
@@ -1074,56 +969,40 @@ Create the 7 required Amazon product images using the test PDFs you generate fro
 
 ```sql
 -- Check orders ready for Workflow 2A
-SELECT amazon_order_id, status, next_workflow, regeneration_attempt
+SELECT amazon_order_id, status, next_workflow
 FROM orders 
 WHERE status = 'queued_for_processing';
 
--- Check orders needing regeneration (with feedback)
+-- Check orders in Pre-Bria review stage
+SELECT amazon_order_id, status, character_hash
+FROM orders 
+WHERE status = 'pre_bria_pending';
+
+-- Check orders in Post-Bria review stage
+SELECT amazon_order_id, status, character_hash
+FROM orders 
+WHERE status = 'post_bria_pending';
+
+-- Check orders in Post-PDF review stage
+SELECT amazon_order_id, status, final_book_url
+FROM orders 
+WHERE status = 'post_pdf_pending';
+
+-- Check approved orders ready for next workflow
+SELECT amazon_order_id, status, next_workflow
+FROM orders 
+WHERE status IN ('pre_bria_approved', 'post_bria_approved', 'post_pdf_approved');
+
+-- Check human review system status
 SELECT 
-    amazon_order_id, 
-    status, 
-    regeneration_attempt,
-    regeneration_instructions,
-    qa_notes
-FROM orders 
-WHERE status = 'ai_generation_required' 
-AND regeneration_attempt > 0;
-
--- Check orders in AI generation
-SELECT amazon_order_id, status, ai_generation_started_at, regeneration_attempt
-FROM orders 
-WHERE status = 'ai_generation_in_progress';
-
--- Check completed books
-SELECT amazon_order_id, status, human_approved, qa_score, regeneration_attempt
-FROM orders 
-WHERE status = 'book_assembly_completed';
-
--- Check rejection history for an order
-SELECT 
-    amazon_order_id,
-    regeneration_attempt,
-    rejection_history,
-    previous_character_images
-FROM orders 
-WHERE amazon_order_id = 'TEST-ORDER-001';
-
--- Check human review queue
-SELECT o.amazon_order_id, hrq.status, hrq.created_at
-FROM human_review_queue hrq
-JOIN orders o ON hrq.order_id = o.id
-WHERE hrq.status = 'pending';
-
--- Check regeneration success rate
-SELECT 
-    regeneration_attempt,
-    COUNT(*) as total_orders,
-    SUM(CASE WHEN human_approved = true THEN 1 ELSE 0 END) as approved,
-    ROUND(SUM(CASE WHEN human_approved = true THEN 1 ELSE 0 END)::numeric / COUNT(*) * 100, 2) as approval_rate
-FROM orders
-WHERE regeneration_attempt >= 0
-GROUP BY regeneration_attempt
-ORDER BY regeneration_attempt;
+    o.amazon_order_id,
+    o.status,
+    o.character_hash,
+    o.final_book_url,
+    o.updated_at
+FROM orders o
+WHERE o.status LIKE '%_pending' OR o.status LIKE '%_approved'
+ORDER BY o.updated_at DESC;
 ```
 
 ---
