@@ -6,6 +6,18 @@
 
 > **Note**: Codebase currently references "Little Hero Books" - this will be updated post-launch. Not critical for MVP.
 
+## 🚨 **CRITICAL: Database Setup Required First**
+
+**⚠️ BEFORE starting any n8n workflows, you MUST complete the database setup!**
+
+**📁 `database/supabase-setup.md` - READ THIS FIRST!**
+
+This comprehensive guide is essential for:
+- Setting up your Supabase project
+- Creating the complete database schema
+- Configuring n8n integration
+- Troubleshooting common issues
+
 ## 🤖 **AI Agent Instructions**
 
 **Primary Role**: Assist Developer B in completing the remaining n8n workflows for the Little Hero Books system.
@@ -574,10 +586,22 @@ When you begin Workflow 4, it must:
 
 ## 🗄️ **Database Setup Instructions**
 
-### **📖 Complete Database Setup Guide**
+### **🚨 CRITICAL: Complete Database Setup Required**
 
-For comprehensive database setup instructions, see the dedicated guide:
-**📁 `database/supabase-setup.md`**
+**⚠️ BEFORE starting any n8n workflows, you MUST set up the database first!**
+
+### **📖 ESSENTIAL: Complete Database Setup Guide**
+
+**📁 `database/supabase-setup.md` - READ THIS FIRST!**
+
+This comprehensive guide includes:
+- ✅ **Step-by-step Supabase project creation**
+- ✅ **Complete PostgreSQL schema with Human-in-the-Loop fields**
+- ✅ **Database credentials and configuration**
+- ✅ **Environment variable setup**
+- ✅ **Security best practices and RLS policies**
+- ✅ **Troubleshooting and monitoring setup**
+- ✅ **Advanced features and pro tips**
 
 ### **🎯 Recommended Approach: Supabase API (Not PostgreSQL)**
 
@@ -592,15 +616,6 @@ For comprehensive database setup instructions, see the dedicated guide:
 - Use **Supabase API nodes** in n8n workflows (not PostgreSQL nodes)
 - Store **API keys** in n8n credentials (not database passwords)
 - Make **HTTP requests** to Supabase endpoints (not SQL queries)
-
-This includes:
-- ✅ Step-by-step Supabase project creation
-- ✅ Complete PostgreSQL schema with Human-in-the-Loop fields
-- ✅ **Supabase API integration** (recommended approach)
-- ✅ Environment variable configuration
-- ✅ Security best practices and RLS policies
-- ✅ Troubleshooting and monitoring setup
-- ✅ Advanced features and pro tips
 
 ### **Database Connection Details**
 
