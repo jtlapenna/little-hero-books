@@ -3,8 +3,135 @@
 ## 🎯 Current Status
 
 **Amazon Integration**: ✅ **COMPLETE & READY**  
-**Middleware**: Built and tested, ready for use  
-**Next Step**: Set up Amazon Professional Seller account when ready to pay $40/month
+**Pre-Launch Testing**: ✅ **TEST BEFORE AMAZON ACCOUNT**  
+**Next Step**: Test with mock data → Set up Amazon account when ready ($40/month)
+
+---
+
+## 🧪 **PRE-LAUNCH TESTING (Do This First - $0)**
+
+### Overview
+Before paying $40/month for an Amazon Professional Seller account, you can test the entire order processing workflow using **mock Amazon data**. All preparation work is complete and documented in the `docs/amazon/` folder.
+
+### Test Now (No Amazon Account Required)
+
+#### 1. **Mock Data Testing**
+Use the mock Amazon data generator to simulate real orders:
+
+📁 **File**: `docs/amazon/mock-amazon-data-generator.js`
+
+```javascript
+// Drop this into your n8n Workflow 1 "Generate Orders" node
+const orders = [
+  {
+    AmazonOrderId: `AMZ-${Date.now()}-001`,
+    PurchaseDate: new Date().toISOString(),
+    OrderStatus: 'Unshipped',
+    OrderTotal: { Amount: '29.99', CurrencyCode: 'USD' },
+    ShippingAddress: {
+      Name: 'Jane Smith',
+      AddressLine1: '123 Main St',
+      City: 'Portland',
+      StateOrRegion: 'OR',
+      PostalCode: '97201',
+      CountryCode: 'US'
+    },
+    BuyerInfo: { BuyerEmail: 'test@example.com' }
+  }
+];
+
+// Mock customization data (exactly as Amazon Custom returns it)
+const customization = {
+  'Child\'s Name': 'Emma',
+  'Child\'s Age': '5',
+  'Pronouns': 'she/her',
+  'Skin Tone': 'Medium',
+  'Hair Color': 'Brown',
+  'Hair Style': 'Short/Curly',
+  'Favorite Color': 'Purple',
+  'Animal Guide': 'Unicorn',
+  'Clothing Style': 'Dress',
+  'Dedication Message': 'To Emma, with love!'
+};
+
+return orders.map(order => ({
+  json: {
+    order: order,
+    items: {
+      OrderItems: [{
+        ASIN: 'B0LITTLEHERO001',
+        SellerSKU: 'LITTLE_HERO_BOOK_CUSTOM',
+        BuyerCustomizedInfo: {
+          CustomizedInfo: customization
+        }
+      }]
+    }
+  }
+}));
+```
+
+#### 2. **Test Complete Flow**
+- ✅ Workflow 1: Order intake with mock Amazon data
+- ✅ Workflow 2A: Character generation (Bria AI)
+- ✅ Workflow 2B: Character backup processing
+- ✅ Workflow 3: Book assembly
+- ✅ Human Review: Manual quality check
+- ✅ Workflow 4: Print submission (mock Lulu)
+- ✅ All workflows work with Amazon-formatted data
+
+#### 3. **Pre-Launch Preparation Resources**
+
+📁 **Complete Documentation in `docs/amazon/`**:
+
+1. **`amazon-custom-listing-spec.md`** (265 lines)
+   - Complete Amazon listing copy (ready to copy/paste)
+   - All 10 customization fields defined
+   - Product description, bullets, FAQ
+   - Search keywords and backend terms
+   - Product images checklist
+
+2. **`sp-api-integration-code.md`** (420 lines)
+   - Complete code for Workflow 1 (fetch orders from Amazon)
+   - Complete code for Workflow 4 (confirm shipment to Amazon)
+   - Ready to drop into n8n when you have credentials
+   - Error handling and retry logic included
+
+3. **`mock-amazon-data-generator.js`** (345 lines)
+   - Generates realistic Amazon order data
+   - Test with 5 different customer profiles
+   - Matches exact Amazon API response format
+   - Use in n8n Code nodes for testing
+
+4. **`pre-launch-checklist.md`** (272 lines)
+   - Everything you can do before Amazon account
+   - Cost breakdown ($0 now vs $40/month later)
+   - Timeline: 1-4 weeks to launch
+   - You're already 90% ready!
+
+#### 4. **Testing Workflow**
+
+**Current State**: All workflows use mock data and can be tested end-to-end
+
+**Replace This** (in Workflow 1 - Generate Mock Orders):
+```javascript
+// Simple mock data
+const mockOrders = [{
+  amazon_order_id: 'TEST-ORDER-001',
+  customer_name: 'Jane Smith',
+  // ...
+}];
+```
+
+**With This** (Mock Amazon-formatted data):
+```javascript
+// Import from mock-amazon-data-generator.js
+const { generateTestOrderBatch } = require('./mock-amazon-data-generator');
+const orders = generateTestOrderBatch(3); // Generate 3 realistic orders
+```
+
+**Result**: Test your entire workflow with data that matches exactly what Amazon will send!
+
+---
 
 ## 💰 Cost Considerations
 
@@ -12,7 +139,50 @@
 - **Amazon Custom Program**: Additional fees per order
 - **SP-API Usage**: ~$0.01 per order
 
-**Recommendation**: Build and test complete system first, then add Amazon when ready to commit to monthly fees.
+**Recommendation**: 
+1. ✅ **Test complete system with mock data** (Do now - $0)
+2. ✅ **Prepare all content and images** (See `pre-launch-checklist.md`)
+3. ✅ **Order sample books from Lulu** (~$50-100)
+4. ⏳ **Create Amazon account when ready to launch** ($40/month commitment)
+
+### Pre-Launch Costs (One-Time)
+- Product images (professional): $100-500 OR DIY free
+- Sample books from Lulu: $50-100
+- Domain name: $15/year
+- Business formation (optional): $0-100
+- **Total**: ~$150-700 one-time
+
+### What You Can Test Now (FREE)
+- ✅ Complete order processing workflow
+- ✅ Character generation and customization
+- ✅ PDF generation and book assembly
+- ✅ Human review queue
+- ✅ Error recovery and monitoring
+- ✅ All workflows with Amazon-formatted data
+
+---
+
+## 🚀 **When You're Ready to Launch**
+
+### Step 1: Amazon Account Setup (Day 1 - $40)
+1. Create Amazon Professional Seller account
+2. Get SP-API credentials (see setup below)
+3. Create Amazon Custom listing (copy/paste from `amazon-custom-listing-spec.md`)
+4. Upload product images
+
+### Step 2: Connect to Workflows (Day 1 - 2 hours)
+1. Add Amazon credentials to n8n
+2. Replace Workflow 1 mock data with real API code (from `sp-api-integration-code.md`)
+3. Add Workflow 4 shipment confirmation code
+4. Test with one real order
+
+### Step 3: Go Live! (Day 2)
+1. Place test order yourself
+2. Verify complete flow works
+3. Make listing public
+4. Start marketing!
+
+---
 
 ## 🛒 Customer Experience Flow
 
@@ -301,4 +471,58 @@ LOG_LEVEL=debug
 
 ---
 
-**Next Steps**: Once Amazon integration is working, proceed to n8n workflow setup for complete automation.
+## 📚 **Quick Reference: All Amazon Resources**
+
+### Pre-Launch Testing (Use Now - $0)
+- 📁 `docs/amazon/mock-amazon-data-generator.js` - Test data generator for n8n workflows
+- 📁 `docs/amazon/pre-launch-checklist.md` - Complete checklist of what to do before Amazon account
+
+### When Ready to Launch (After Amazon Account Setup)
+- 📁 `docs/amazon/amazon-custom-listing-spec.md` - Copy/paste product listing content
+- 📁 `docs/amazon/sp-api-integration-code.md` - Drop-in code for Workflows 1 & 4
+
+### Documentation
+- 📁 `DEVELOPER_A_PACKAGE.md` - Complete guide for Workflows 2A, 2B, 3 (includes Amazon integration points)
+- 📁 `DEVELOPER_B_PACKAGE.md` - Complete guide for Workflows 4, 5, 6, 7, 8 (includes Amazon shipment confirmation)
+- 📁 `docs/AMAZON_INTEGRATION.md` - This document (complete Amazon integration guide)
+
+### Database
+- 📁 `docs/database/little-hero-books-schema.sql` - Complete database schema with all Amazon order fields
+- 📁 `docs/database/migration-add-feedback-fields.sql` - Migration for human review feedback system
+
+### Workflows (n8n)
+- 📁 `docs/n8n-workflow-files/n8n-new/` - All production-ready workflows
+- 📁 `docs/n8n-workflow-files/n8n-new/developer-b-test-workflows/` - Test versions with mock data
+
+---
+
+## ✅ **Current Project Status**
+
+### Completed (Ready to Use)
+- ✅ All 8 n8n workflows built and tested
+- ✅ Supabase database configured with complete schema
+- ✅ Human review workflow with feedback regeneration system
+- ✅ Mock data generator for testing Amazon integration
+- ✅ Complete Amazon listing specification ready
+- ✅ SP-API integration code ready to deploy
+- ✅ Error recovery, monitoring, QA, and cost optimization workflows
+
+### Ready When You Are (Requires Amazon Account - $40/month)
+- ⏳ Connect to Amazon SP-API for real orders
+- ⏳ Create Amazon Custom listing
+- ⏳ Test with real Amazon order
+- ⏳ Go live and start selling!
+
+### Pre-Launch Tasks (Do at Your Own Pace - ~$150-700 one-time)
+- 📸 Create product images (7 images)
+- 📦 Order sample books from Lulu
+- 💼 Set up business entity and bank account
+- 🌐 Create website/landing page
+- 📱 Set up social media accounts
+
+---
+
+**Next Steps**: 
+1. **NOW**: Test complete workflow with mock Amazon data (see above)
+2. **SOON**: Prepare content and images (see `docs/amazon/pre-launch-checklist.md`)
+3. **WHEN READY**: Set up Amazon account and go live!

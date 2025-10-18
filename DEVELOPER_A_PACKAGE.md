@@ -2,7 +2,9 @@
 
 ## 🎯 **Project Overview**
 
-**Little Hero Books** is a personalized children's book service that generates custom stories through Amazon Custom listings and automated print-on-demand fulfillment. The system creates watercolor storybook-style books featuring personalized child characters in 12 different poses across various story scenes.
+**Little Hero Labs** (littleherolabs.com) is a personalized children's book service that generates custom stories through Amazon Custom listings and automated print-on-demand fulfillment. The system creates watercolor storybook-style books featuring personalized child characters in 12 different poses across various story scenes.
+
+> **Note**: Codebase currently references "Little Hero Books" - this will be updated post-launch. Not critical for MVP.
 
 ## 🤖 **AI Agent Instructions**
 
@@ -24,6 +26,7 @@
 ## 🏗️ **Current Workflow Status**
 
 ### **Developer A (Your Work) - Database Integration Required**
+**Note**: Developer B is in holding pattern working on littleherolabs.com landing page while waiting for your workflows.
 - 🔄 **Workflow 2A**: AI Character Generation (Bria AI Integration) - `2.A.-bria-submit.json`
 - 🔄 **Workflow 2B**: AI Character Generation (Background Removal) - `2.B.-bria-retrieve.json`  
 - 🔄 **Workflow 3**: Book Assembly & PDF Generation - `3-book-assembly-production.json`
@@ -969,6 +972,103 @@ Developer B's Workflow 4:
 - [ ] All status updates reflected in database
 - [ ] Integration tested with Developer B's Workflow 1
 - [ ] **Test regeneration flow: reject order → verify feedback used in 2A**
+- [ ] **Generate test PDFs for Developer B's marketing assets** (Week 2-3)
+
+---
+
+## 📅 **Pre-Launch Marketing Timeline (FYI)**
+
+> **📖 COMPLETE GUIDE**: See `docs/PRE_LAUNCH_PREPARATION.md` for full timeline and responsibilities
+
+### **How Your Work Enables Marketing (Developer A)**
+
+Your completed workflows generate the test books that Developer B needs for marketing assets:
+
+**Week 2-3: Your Deliverables Enable Marketing**
+- Once Workflow 3 is complete and generating test PDFs
+- Developer B will use these test books to:
+  - Order physical sample books from Lulu (~$50-100)
+  - Create 7 product images for Amazon listing
+  - Film product video and social media content
+  - Build landing page with real book examples
+
+**Target Timeline**:
+- **Weeks 1-2**: Complete Workflow 2A and 2B database integration
+- **Week 3**: Complete Workflow 3 + human review integration
+- **Week 3-4**: Generate 5-10 test PDFs with different character combinations
+- **Weeks 5-6**: End-to-end integration testing with Developer B
+- **Week 7**: Production deployment
+- **Week 8**: Launch!
+
+**Critical for Marketing**: Developer B needs test PDFs by Week 3 to stay on schedule for Week 8 launch.
+
+### **Test PDFs Needed for Marketing**
+Generate these character combinations for marketing assets:
+1. **Emma** - Medium skin, brown/curly hair, purple theme, unicorn
+2. **Alex** - Light skin, blonde/short hair, blue theme, dinosaur
+3. **Jordan** - Dark skin, black/braided hair, green theme, tiger
+4. **Sam** - Tan skin, red/wavy hair, yellow theme, dragon
+5. **Riley** - Olive skin, brown/straight hair, pink theme, bunny
+
+**Why These?** Showcase diversity and personalization options for Amazon listing images.
+
+---
+
+## 🎨 **Product Images for Amazon Listing** (Week 3-4)
+
+**Owner**: Developer A (you have design capability)
+
+### **Your Responsibility**
+Create the 7 required Amazon product images using the test PDFs you generate from Workflow 3.
+
+### **Required Images** (Specifications in `docs/AMAZON_LISTING_FINAL.md`)
+
+1. **Main Product Image** (WHITE BACKGROUND - REQUIRED)
+   - 8.5×8.5 book mockup
+   - Professional product shot
+   - Minimum 1000×1000px (recommend 2000×2000px)
+   - No text overlay on main image
+
+2. **Personalization Options Grid**
+   - Show customization choices (name, hair, skin, animal)
+   - Visual examples of each option
+   - Text overlay allowed
+
+3. **Inside Pages Collage**
+   - 4-6 page spreads from test PDFs
+   - Character visible in different scenes
+   - Name visible in text
+
+4. **How It Works Infographic**
+   - 3 steps: Choose Options → We Create → Fast Shipping
+   - Simple icons
+   - Clean design
+
+5. **Quality Guarantee Badge**
+   - "Human-Reviewed Quality" messaging
+   - Trust badges
+   - Professional appearance
+
+6. **Gift-Ready Context**
+   - Book in birthday/holiday setting
+   - "Perfect for ages 3-7" callout
+   - Emotional connection
+
+7. **Lifestyle Shot**
+   - Parent + child reading together
+   - Can use stock photo + book overlay
+   - Warm, inviting
+
+### **Timeline**
+- **Week 3**: Generate test PDFs
+- **Week 3-4**: Create all 7 images
+- **Week 4**: Deliver to Developer B for Amazon listing
+
+### **Tools/Resources**
+- Use your design tools (same as storybook design)
+- Mockup generators if needed
+- Stock photos for lifestyle shots (Unsplash, Pexels)
+- Reference: `docs/AMAZON_LISTING_FINAL.md` (lines 113-152)
 
 ### **🎯 Testing Commands**
 
