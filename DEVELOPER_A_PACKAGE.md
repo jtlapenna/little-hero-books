@@ -654,7 +654,8 @@ Human Review → Database → Workflow 4 (Dev B)
 1. Create simple web interface for order review
 2. Add PDF preview functionality
 3. Implement approve/reject actions
-4. Connect to Supabase database
+4. **Connect directly to Supabase database** (no custom API needed)
+5. **Use Supabase client library** for database operations
 
 #### **Day 4-5: Testing**
 1. Test complete workflow with database
@@ -760,6 +761,11 @@ Human Review → Database → Workflow 4 (Dev B)
 ### **🎯 Your Mission**
 Integrate your existing workflows (2A, 2B, 3) with the Supabase database and implement human review workflow.
 
+### **🏗️ Architecture Decision: Supabase-First Approach**
+- **No Custom API Needed**: Use Supabase directly for all database operations
+- **Simpler Deployment**: Host order approval backend on Cloudflare Pages
+- **Direct Integration**: Connect to Supabase using client library, not custom endpoints
+
 ### **✅ What's Already Done (by Developer B)**
 1. **Supabase Database**: Fully operational with schema
 2. **n8n Credentials**: Configured and tested
@@ -768,7 +774,7 @@ Integrate your existing workflows (2A, 2B, 3) with the Supabase database and imp
 
 ### **🔧 Your Tasks (Priority Order)**
 
-#### **Phase 1: Workflow 2A (Days 1-2)**
+#### **Phase 1: Workflow 2A (Days 1-2)** 🚀 START HERE
 1. Replace `Generate Mock Order` node with Supabase query
 2. Query: `status = 'queued_for_processing'` AND `next_workflow = '2.A.-bria-submit'`
 3. **🎯 CRITICAL: Integrate with Human Review System**:
@@ -778,12 +784,12 @@ Integrate your existing workflows (2A, 2B, 3) with the Supabase database and imp
 4. Change Manual Trigger → Cron Trigger (every 5 minutes: `*/5 * * * *`)
 5. Add database update after processing starts: `status = 'ai_generation_in_progress'`
 
-#### **Phase 2: Workflow 2B (Days 3-4)**
+#### **Phase 2: Workflow 2B (Days 3-4)** ⏳ NEXT
 1. Add database update after completion: `status = 'ai_generation_completed'`
 2. Set `next_workflow = '3-book-assembly'`
 3. Test complete AI generation flow
 
-#### **Phase 3: Workflow 3 (Days 5-7)**
+#### **Phase 3: Workflow 3 (Days 5-7)** ⏳ FINAL
 1. Replace mock data with Supabase query
 2. Query: `status = 'ai_generation_completed'` AND `next_workflow = '3-book-assembly'`
 3. Add quality check logic at the end
@@ -791,6 +797,13 @@ Integrate your existing workflows (2A, 2B, 3) with the Supabase database and imp
 5. If score < 0.8: Add to `human_review_queue`, set `requires_human_review = true`
 6. If score ≥ 0.8: Auto-approve, set `human_approved = true`
 7. Update order status: `status = 'book_assembly_completed'`
+
+#### **Phase 4: Order Approval Backend (Week 2)** 🏗️ NEW TASK
+1. **Create order approval web interface** - Simple HTML/JS dashboard
+2. **Connect directly to Supabase** - Use Supabase client library (no custom API)
+3. **Add PDF preview functionality** - Display generated books for review
+4. **Implement approve/reject actions** - Update database status
+5. **Prepare for Cloudflare Pages hosting** - Developer B will handle deployment
 
 ### **🔑 Key Information**
 
