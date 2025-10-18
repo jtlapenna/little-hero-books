@@ -1,0 +1,1762 @@
+{
+  "name": "LHB - 2.A.- CHARACTER CREATION - 2AGen - Draft 1",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Stamp Pose Index — single-item, authoritative, no $itemIndex fallback\nconst inItem = $input.first();\nconst j = { ...(inItem.json || {}) };\n\nfunction asIntMaybe(v) {\n  const n = Number(v);\n  return Number.isFinite(n) ? n : null;\n}\nfunction parsePoseFromString(s) {\n  if (!s) return null;\n  const m = String(s).match(/(?:pose[_\\- ]?(\\d{1,2}))|[_\\-\\.](\\d{1,2})(?:\\D|$)|\\/(\\d{1,2})\\.png$/i);\n  return m ? asIntMaybe(m[1] || m[2] || m[3]) : null;\n}\n\n// 1) Prefer upstream values (set in Reorganize/Prepare/Extract)\nlet pose =\n  asIntMaybe(j.poseNumber) ??\n  asIntMaybe(j.currentPoseNumber) ??\n  asIntMaybe(j.__meta?.poseNumber);\n\n// 2) If still missing, derive from filenames / recorded indices\nif (pose == null) {\n  const candidates = [\n    j.poseRefName, j.poseRefFilename, j.poseRef, j.poseFileName,\n    j.__reorg?.poseFileName,        // from Reorganize Merged Data\n  ];\n  for (const c of candidates) {\n    const parsed = parsePoseFromString(c);\n    if (parsed != null) { pose = parsed; break; }\n  }\n  // last resort: explicit numeric index captured upstream (1..12)\n  if (pose == null && asIntMaybe(j.__reorg?.fromIndex) != null) {\n    pose = asIntMaybe(j.__reorg.fromIndex);\n  }\n}\n\n// 3) Hard-fail if we still can't determine pose (prevents overwrites)\nif (pose == null || pose < 1 || pose > 12) {\n  throw new Error('Stamp Pose Index: poseNumber missing/invalid (expected 1..12).');\n}\n\n// 4) Clamp + write back (and mirror into __meta)\npose = Math.min(12, Math.max(1, pose));\nj.poseNumber = pose;\nj.currentPoseNumber = pose;\nj.index = pose - 1; // optional helper\nj.__meta = { ...(j.__meta || {}), poseNumber: pose };\n\nconsole.log(`Stamp Pose Index → pose=${pose}`);\nreturn [{ json: j, binary: inItem.binary }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -768,
+        -288
+      ],
+      "id": "0f4c25c1-1146-4711-8399-9e588e1d8522",
+      "name": "Stamp Pose Index"
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $json || {};\nconst bin = $binary || {};\nconst pose = Number(j.currentPoseNumber ?? j.poseNumber);\n\nconst problems = [];\nif (!bin.character) problems.push(\"missing base character (binary.character)\");\nif (!bin.pose) problems.push(\"missing pose reference (binary.pose)\");\nif (!Number.isFinite(pose) || pose < 1 || pose > 12) problems.push(`invalid poseNumber (${pose})`);\n\nif (problems.length) throw new Error(\"Validate Input: \" + problems.join(\"; \"));\nreturn [{ json: { ...j, __valid: true }, binary: bin }];\n"
+      },
+      "id": "9476a2fa-636c-4f23-a1e0-716cf8d56dfe",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "45488f50-d3e0-4712-9cad-28010daf28cb",
+      "name": "Trigger Workflow B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        32,
+        -592
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "amount": 90,
+        "unit": "seconds"
+      },
+      "id": "345eeb61-2e65-4a0a-93ca-d861ca323e7f",
+      "name": "Wait 90 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        -592
+      ],
+      "webhookId": "1edb1710-aa27-4854-9510-76b95a4bcef5",
+      "notes": "Give Bria AI time to process images"
+    },
+    {
+      "parameters": {
+        "jsCode": "// === CREATE FINAL SUMMARY (robust hash + order propagation + trace fields) ===\n\nconst incomingItems = $input.all();\nconsole.log('=== CREATE FINAL SUMMARY ===');\nconsole.log(`Received ${incomingItems.length} items from loop`);\n\nconst isBadHash = (h) => !h || h === 'nohash' || h === 'unknown' || typeof h !== 'string' || h.length < 4;\n\n// Upstream nodes\nconst metaHash = $('Capture Lean Meta').first()?.json?.__meta?.characterHash;\nconst genNode  = $('Generate Character Hash').first()?.json || {};\nconst genHash  = genNode?.characterHash;\nconst upstreamHash = !isBadHash(metaHash) ? metaHash : (!isBadHash(genHash) ? genHash : null);\n\n// Prefer upstream order snapshot, fall back sensibly\nconst firstItem   = incomingItems[0]?.json || {};\nconst sourceOrder = Object.keys(genNode).length ? genNode : firstItem;\n\n// IDs\nconst amazonOrderId =\n  genNode?.amazonOrderId ??\n  sourceOrder?.amazonOrderId ??\n  firstItem?.orderData?.amazonOrderId ??\n  firstItem?.amazonOrderId ??\n  null;\n\n// Rich fields (prefer Generate Character Hash)\nconst characterSpecs    = sourceOrder.characterSpecs    ?? {};\nconst characterHashSpec = sourceOrder.characterHashSpec ?? {};\nconst bookSpecs         = sourceOrder.bookSpecs         ?? {};\nconst orderDetails      = sourceOrder.orderDetails      ?? {};\nconst publicR2Url       = sourceOrder.publicR2Url       ?? firstItem?.publicR2Url ?? 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\nconst templatePath      = sourceOrder.templatePath      ?? firstItem?.templatePath ?? 'templates';\n\nconst orderData = {\n  amazonOrderId,\n  characterHash: upstreamHash || (!isBadHash(sourceOrder.characterHash) ? sourceOrder.characterHash : null),\n  characterSpecs,\n  characterHashSpec,\n  bookSpecs,\n  orderDetails,\n  publicR2Url,\n  templatePath,\n  r2BucketName: 'little-hero-assets'\n};\n\nconsole.log('Order data snapshot:', {\n  amazonOrderId: orderData.amazonOrderId || 'null',\n  characterHash: orderData.characterHash || 'null',\n  childName: orderData.characterSpecs?.childName || 'null'\n});\n\n// Build normalized submissions array with trace fields\nconst submissions = incomingItems.map((item, idx) => {\n  const j = item.json || {};\n  const pose =\n    j.__meta?.poseNumber ??\n    j.poseNumber ??\n    (Number.isFinite(Number(j.currentPoseNumber)) ? Number(j.currentPoseNumber) : (idx + 1));\n\n  // Hash\n  const chosenHash = !isBadHash(j.characterHash) ? j.characterHash\n                    : (!isBadHash(orderData.characterHash) ? orderData.characterHash\n                    : upstreamHash);\n\n  // Paths / URLs\n  const storageKey = j.__meta?.storageKey || j.r2Path || null;\n  const fileUrl =\n    j.fileUrl || j.imageUrl || j.sourceUrl ||\n    (publicR2Url && storageKey ? `${publicR2Url.replace(/\\/$/, '')}/${String(storageKey).replace(/^\\/+/, '')}` : null);\n\n  return {\n    poseNumber: pose,\n    characterHash: chosenHash || null,\n\n    // Trace\n    correlationId: j.correlationId || null,\n    generationConfig: j.generationConfig || null,\n\n    // Locations\n    storageKey,\n    r2Path: j.r2Path || storageKey || null,\n    fileUrl,\n\n    // Bria\n    briaSource: j.__meta?.briaSource || (fileUrl ? 'url' : (j.extractedImageData ? 'base64' : null)),\n    briaStatus: j.briaStatus || j.briaResult?.status || null,\n    briaRequestId: j.requestId || j.briaResult?.requestId || null,\n    briaStatusUrl: j.statusUrl || j.briaResult?.statusUrl || null,\n\n    // Failure / timing\n    failed: !!j.failed,\n    submittedAt: j.submittedAt || new Date().toISOString(),\n\n    // Order context\n    amazonOrderId: orderData.amazonOrderId || null,\n  };\n});\n\nconst valid = submissions.filter(s => s.briaRequestId && s.briaStatusUrl);\nconst failed = submissions.length - valid.length;\n\nconsole.log(`Valid submissions: ${valid.length}`);\nconsole.log(`Failed submissions: ${failed}`);\nconsole.log(`Pose numbers: ${submissions.map(s => s.poseNumber).join(', ')}`);\n\nif (!orderData.amazonOrderId) {\n  console.warn('⚠️ amazonOrderId is missing. Ensure Generate Character Hash receives/forwards it.');\n}\n\nreturn [{\n  json: {\n    totalSubmissions: submissions.length,\n    successful: valid.length,\n    failed: failed,\n    submittedAt: new Date().toISOString(),\n\n    submissions,\n    orderData,           // ← CRITICAL for 2B/next workflow\n    workflow2AComplete: true\n  }\n}];\n"
+      },
+      "id": "9f5e4007-2fde-4d8a-a69c-ff7690074b25",
+      "name": "Create Final Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        -592
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1184,
+        -288
+      ],
+      "id": "2bddc652-82b5-4447-b8fc-f7621a92cda2",
+      "name": "POSE_LOOP_SPLIT1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "a096a9f2-f622-4ec8-a263-d9fa81d56f13",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8a5aea1f-aa86-42ae-b48d-b7b13933f0bb",
+      "name": "If (should upload?)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('Before loopback → items:', $input.all().length, 'pose:', $json.poseNumber);\nreturn $input.all();\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -944,
+        64
+      ],
+      "id": "3be9a8f7-7869-4373-8a51-68dd3bb15847",
+      "name": "Count Before Loopback"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ensure we have binary.image for R2 upload.\n// Priority: keep existing binary.image → convert base64 → download from URL.\n// If none available, set __skipUpload=true and pass the item through.\n\nconst j = $json;\n\n// 1) Already have a binary? keep it\n// 0) If we have a generated image already, expose it as binary.image\nif ($binary?.generated) {\n  return [{ json: j, binary: { image: $binary.generated } }];\n}\n\nif ($binary?.image) {\n  return [{ json: j, binary: $binary }];\n}\n\n// 2) Try known base64 fields\nlet b64 = j.extractedImageData || j.poseBase64 || j.characterBase64 || null;\n\nif (typeof b64 === 'string' && b64.length > 10) {\n  // Strip data URI prefix if present\n  let mime = 'image/png';\n  const m = b64.match(/^data:(image\\/[a-z0-9+.\\-]+);base64,(.*)$/i);\n  if (m) {\n    mime = m[1];\n    b64 = m[2];\n  }\n  const buf = Buffer.from(b64, 'base64');\n  const bin = await this.helpers.prepareBinaryData(\n    buf,\n    `${j.__meta?.poseNumber ?? 0}.png`,\n    mime\n  );\n  return [{ json: j, binary: { image: bin } }];\n}\n\n// 3) Try to download from a URL we already have\nconst url =\n  j.__meta?.characterPath ||\n  j.originalImageUrl ||\n  j.imageUrl ||\n  j.sourceUrl ||\n  null;\n\nif (typeof url === 'string' && /^https?:\\/\\//i.test(url)) {\n  const res = await this.helpers.request({\n    method: 'GET',\n    url,\n    encoding: null, // Buffer\n    gzip: true,\n  });\n  const bin = await this.helpers.prepareBinaryData(\n    Buffer.from(res),\n    `${j.__meta?.poseNumber ?? 0}.png`\n  );\n  return [{ json: j, binary: { image: bin } }];\n}\n\n// 4) Nothing available → mark and pass through (do NOT throw)\nj.__skipUpload = true;\nreturn [{ json: j }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        64
+      ],
+      "id": "016e9753-fcc7-4536-8e88-dca92d54946b",
+      "name": "Make Binary from Base64"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Capture Lean Meta — robust, unique R2 key per pose (prevents overwrites)\n// SAFE against unexecuted upstream nodes (no $('...') data proxy calls)\n\nconst INPUT = $input.first() || {};\nconst src = (INPUT.json && typeof INPUT.json === 'object') ? { ...INPUT.json } : {};\nconst bin = INPUT.binary || {};\n\n// --- Constants (keep in sync across nodes)\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\nconst DEFAULT_R2  = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n\n// --- Utilities\nconst isBadHash = (h) =>\n  !h || typeof h !== 'string' || h === 'nohash' || h === 'unknown' || h.trim().length < 4;\n\n// --- Upstream order snapshot (try to read from \"Generate Character Hash\" if it exists)\nlet gen = {};\ntry {\n  const genItem = $items('Generate Character Hash', 0, $itemIndex)?.[0];\n  if (genItem && genItem.json) gen = genItem.json;\n} catch (e) {\n  // Node likely didn't execute; ignore and use fallbacks\n  gen = {};\n}\n\n// 1) Pose number: ensure 1–12 range, zero-pad for filenames\nconst poseNumberRaw =\n  src.poseNumber ??\n  src.currentPoseNumber ??\n  src.__meta?.poseNumber ??\n  null;\n\nif (!Number.isFinite(Number(poseNumberRaw))) {\n  throw new Error('Capture Lean Meta: poseNumber missing; ensure Stamp Pose Index runs before this node.');\n}\n\nconst poseParsed = Number(poseNumberRaw);\nconst poseNumber = Math.min(12, Math.max(1, poseParsed));\nconst posePadded = String(poseNumber).padStart(2, '0');\n\n// 2) Character hash (prefer upstream; avoid placeholders)\nconst upstreamHash = gen.characterHash;\nconst resolvedHash =\n  src.characterHash ||\n  src.characterSpecs?.hash ||\n  upstreamHash ||\n  null;\nconst characterHash = isBadHash(resolvedHash) ? null : resolvedHash;\n\n// 3) Build storage key (unique per pose). If no hash, segregate by order + run.\nconst orderId  = src.amazonOrderId ?? gen.amazonOrderId ?? src.orderData?.amazonOrderId ?? 'unknown-order';\nconst runStamp = new Date().toISOString().replace(/[-:TZ.]/g,'').slice(0,14); // yyyymmddhhmmss\n\nlet storageKey;\nlet characterPath;\n\nif (characterHash) {\n  // Canonical per-character, per-pose key\n  const fileName = `characters_${characterHash}_pose${posePadded}.png`;\n  characterPath  = `${BASE_PREFIX}/${characterHash}/`; // folder-style (not URL)\n  storageKey     = `${characterPath}${fileName}`;\n} else {\n  // Fallback: keep files segregated so nothing overwrites\n  characterPath  = `${BASE_PREFIX}/_nohash/${orderId}/run_${runStamp}/`;\n  storageKey     = `${characterPath}pose${posePadded}.png`;\n}\n\n// 4) Pull rich order info (favor current item, then gen snapshot)\nconst amazonOrderId     = src.amazonOrderId     ?? gen.amazonOrderId     ?? src.orderData?.amazonOrderId ?? null;\nconst characterSpecs    = src.characterSpecs    ?? gen.characterSpecs    ?? {};\nconst characterHashSpec = src.characterHashSpec ?? gen.characterHashSpec ?? {};\nconst bookSpecs         = src.bookSpecs         ?? gen.bookSpecs         ?? {};\nconst orderDetails      = src.orderDetails      ?? gen.orderDetails      ?? {};\nconst publicR2Url       = src.publicR2Url       ?? gen.publicR2Url       ?? DEFAULT_R2;\nconst templatePath      = src.templatePath      ?? gen.templatePath      ?? 'templates';\n\n// 5) Store in top-level + orderData + __meta\nObject.assign(src, {\n  amazonOrderId,\n  characterHash,\n  characterPath,   // folder-like path (not full URL)\n  templatePath,\n  characterSpecs,\n  characterHashSpec,\n  bookSpecs,\n  orderDetails,\n  publicR2Url,\n});\n\nsrc.orderData = {\n  ...(src.orderData || {}),\n  amazonOrderId,\n  characterHash,\n  characterPath,\n  templatePath,\n  characterSpecs,\n  characterHashSpec,\n  bookSpecs,\n  orderDetails,\n  publicR2Url,\n  r2BucketName: src.orderData?.r2BucketName ?? 'little-hero-assets',\n};\n\nsrc.__meta = {\n  ...(src.__meta || {}),\n  poseNumber,       // 1..12\n  characterHash,    // may be null if not resolvable\n  storageKey,       // ← used by Add Upload to R2 (unique per pose)\n  characterPath,    // stable folder-style path\n};\n\n// optional: log for debugging (safe)\nconsole.log(`Captured meta: pose=${poseNumber}, key=${storageKey}, hash=${characterHash || 'null'}, orderId=${amazonOrderId || 'null'}`);\n\nreturn [{ json: src, binary: bin }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        64
+      ],
+      "id": "1fbdb394-2177-44cf-b059-30ff2eaa9265",
+      "name": "Capture Lean Meta"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-assets",
+        "fileName": "={{$json.__meta.storageKey || $json.storageKey || 'pose.png'}}",
+        "binaryPropertyName": "generated",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        1952,
+        64
+      ],
+      "id": "3eed576e-ac62-48f1-b67e-695c72472b0b",
+      "name": "Add Upload to R2",
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Client-Request-Id",
+              "value": "={{$json.correlationId}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.qaRequestBody }}",
+        "options": {}
+      },
+      "id": "b03b3b1e-8311-4261-8564-bb2c88f94cda",
+      "name": "HTTP: Pose QA (Gemini) — Retry1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4912,
+        -208
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7jdcfc9T2O9vensv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Client-Request-Id",
+              "value": "={{$json.correlationId}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.requestBody }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "195f164d-cef5-4679-b72f-4f3bebc9786e",
+      "name": "HTTP: Generate Pose Image — Retry1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4080,
+        -208
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7jdcfc9T2O9vensv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Client-Request-Id",
+              "value": "={{$json.correlationId}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.qaRequestBody }}",
+        "options": {}
+      },
+      "id": "9c4caf41-91f1-4438-8d21-82fcc407fa99",
+      "name": "HTTP: Pose QA (Gemini)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        -288
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7jdcfc9T2O9vensv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Client-Request-Id",
+              "value": "={{$json.correlationId}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.requestBody }}",
+        "options": {}
+      },
+      "id": "fc776c0a-d4b8-4279-9699-a5a95d10950b",
+      "name": "Generate Character in Pose",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        784,
+        -288
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7jdcfc9T2O9vensv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "manual_review"
+            }
+          ],
+          "json": []
+        },
+        "options": {}
+      },
+      "id": "2ed9a85e-750c-415e-9389-55842b4f039d",
+      "name": "Set: Manual Review",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        3456,
+        64
+      ],
+      "notesInFlow": true,
+      "notes": "Terminal node for failed retries. Persist item and alert ops in your system."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "47a768ee-4b64-4254-927e-40bf4ad14b7d",
+              "leftValue": "={{ \n  Number($json.qaVerdict?.pose_score ?? 0) >= Number($json.qaThreshold ?? 0.70) &&\n  ($json.qaVerdict?.single_subject === true || $json.qaVerdict?.single_subject === 'true') &&\n  ($json.qaVerdict?.extra_limbs === false || $json.qaVerdict?.extra_limbs === 'false') &&\n  ($json.qaVerdict?.bg_white === true || $json.qaVerdict?.bg_white === 'true') &&\n  ($json.qaVerdict?.leakage_from_pose_ref === false || $json.qaVerdict?.leakage_from_pose_ref === 'false') &&\n  ($json.qaVerdict?.cropped === false || $json.qaVerdict?.cropped === 'false')\n}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "fc1bdac8-dcd6-4e6e-8b9b-84b2fa09fb6e",
+      "name": "IF: QA Pass? — Retry",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4928,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse QA Verdict (Retry) — strip code fences and robustly parse JSON\nconst item = $input.first();\nconst body = item.json;\n\nfunction findText(obj){\n  if (!obj || typeof obj !== 'object') return null;\n  if (Array.isArray(obj)){\n    for (const v of obj){ const f = findText(v); if (f) return f; }\n    return null;\n  }\n  if (typeof obj.text === 'string') return obj.text;\n  if (obj.candidates) return findText(obj.candidates);\n  if (obj.content)    return findText(obj.content);\n  if (obj.parts)      return findText(obj.parts);\n  if (obj[0])         return findText(obj[0]);\n  return null;\n}\n\nfunction stripFences(s){\n  if (!s) return '';\n  let t = String(s).trim();\n  t = t.replace(/^```[a-zA-Z]*\\s*/,'').replace(/```$/,'').trim();\n  t = t.replace(/```/g,'').trim();\n  return t;\n}\n\nfunction tryParseJsonLoose(s){\n  try { return JSON.parse(s); } catch (e) {}\n  const start = s.indexOf('{');\n  const end   = s.lastIndexOf('}');\n  if (start >= 0 && end > start) {\n    const sub = s.slice(start, end + 1);\n    try { return JSON.parse(sub); } catch (e) {}\n  }\n  return null;\n}\n\nconst rawText = findText(body) || '';\nconst cleaned = stripFences(rawText);\nconst verdict = tryParseJsonLoose(cleaned) || {\n  pose_score: 0,\n  single_subject: false,\n  extra_limbs: true,\n  bg_white: false,\n  leakage_from_pose_ref: true,\n  cropped: true,\n  notes: 'validator parse error'\n};\n\nreturn [{\n  json: { ...item.json, qaRaw: cleaned, qaVerdict: verdict },\n  binary: item.binary\n}];\n"
+      },
+      "id": "eb65c379-8985-49ff-b1d6-6e5ef72b22da",
+      "name": "Parse QA Verdict — Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5088,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pose QA — Build Request — Retry (MINIMAL‑PAIR, POSE‑FIRST)\n// Compares OUTPUT (generated) against IMAGE P (pose). Base is omitted to avoid confusion.\n// Adds qaDebug (filenames, sizes, sha1) + expected pose number sanity.\n\n\nconst item = $input.first();\nconst j = item?.json || {};\nconst bin = item?.binary || {};\n\n\nasync function readBuffer(key) {\nif (!bin[key]) return null;\nconst buf = await this.helpers.getBinaryDataBuffer(0, key);\nreturn buf && buf.length > 100 ? buf : null;\n}\nfunction toB64(buf){ return buf.toString('base64'); }\nfunction sha1(buf){ return require('crypto').createHash('sha1').update(buf).digest('hex'); }\n\n\nconst poseBuf = await readBuffer('pose');\nconst outBuf = await readBuffer('generated');\nif (!poseBuf) throw new Error('QA (retry): missing pose reference (binary.pose)');\nif (!outBuf) throw new Error('QA (retry): missing generated output (binary.generated)');\n\n\n// Expected pose number (for debug only)\nconst expectedPose = (Number.isFinite(Number(j.poseNumber)) ? Number(j.poseNumber) : null)\n?? (Number.isFinite(Number(j.currentPoseNumber)) ? Number(j.currentPoseNumber) : null)\n?? (Number.isFinite(Number(j.__meta?.poseNumber)) ? Number(j.__meta.poseNumber) : null);\nlet poseNumFromName = null;\nconst poseName = bin.pose?.fileName || j.poseRefName || '';\nconst m = String(poseName).match(/pose[_\\-]?(\\d{2})/i);\nif (m) poseNumFromName = Number(m[1]);\n\n\nconst systemText = [\n'You are a strict pose validator.',\n'You will receive exactly two images:',\n'- IMAGE P: pose reference (first image).',\n'- OUTPUT: candidate to validate (second image).',\n'Return ONLY a minified JSON with fields: pose_score[0..1], single_subject[bool], extra_limbs[bool], bg_white[bool], leakage_from_pose_ref[bool], cropped[bool], notes[string].',\n'Evaluate pose/positioning vs IMAGE P only; ignore clothing/colors.'\n].join('\\n');\n\n\nconst parts = [\n{ text: 'IMAGE P — POSE REFERENCE:' },\n{ inlineData: { mimeType: bin.pose?.mimeType || 'image/png', data: toB64(poseBuf) } },\n{ text: 'OUTPUT — IMAGE TO VALIDATE:' },\n{ inlineData: { mimeType: bin.generated?.mimeType || 'image/png', data: toB64(outBuf) } },\n{ text: 'Return ONLY valid JSON like: {\"pose_score\":0.0,\"single_subject\":true,\"extra_limbs\":false,\"bg_white\":true,\"leakage_from_pose_ref\":false,\"cropped\":false,\"notes\":\"\"}' }\n];\n\n\nconst qaRequestBody = {\nsystemInstruction: { role: 'system', parts: [{ text: systemText }] },\ncontents: [{ role: 'user', parts }],\ngenerationConfig: { temperature: 0.0 }\n};\n\n\nconst qaDebug = {\nexpectedPoseNumber: expectedPose,\npose: { fileName: poseName || null, bytes: poseBuf.length, sha1: sha1(poseBuf) },\ngenerated: { fileName: bin.generated?.fileName || null, bytes: outBuf.length, sha1: sha1(outBuf) }\n};\n\n\nreturn [{ json: { ...j, qaRequestBody, qaDebug }, binary: bin }];"
+      },
+      "id": "2e8d876f-5351-45f4-af0f-769014e5800c",
+      "name": "Pose QA — Build Request — Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4704,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Retry variant with safe cross-run lookups.\n// Works in \"Run once for EACH item\": returns a single object.\n\nconst res = $json || {};\n\n// ---------- find inline image ----------\nfunction findBase64(obj) {\n  if (!obj || typeof obj !== 'object') return null;\n  if (obj.inlineData?.data) return obj.inlineData.data;\n  if (Array.isArray(obj)) {\n    for (const v of obj) { const f = findBase64(v); if (f) return f; }\n    return null;\n  }\n  if (obj.candidates) return findBase64(obj.candidates);\n  if (obj.content)    return findBase64(obj.content);\n  if (obj.parts)      return findBase64(obj.parts);\n  if (obj[0])         return findBase64(obj[0]);\n  return null;\n}\nconst b64 = findBase64(res);\nif (!b64 || String(b64).length < 100) throw new Error('Extract Generated Image — Retry: no inlineData image found');\n\n// ---------- helpers ----------\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\nfunction safeItems(nodeName, rIx) {\n  try { return $items(nodeName, 0, rIx) || []; } catch { return []; }\n}\nfunction getNodeItem(nodeName) {\n  let arr = safeItems(nodeName, runIx);\n  if (!arr.length) arr = safeItems(nodeName, 0);\n  return arr[$itemIndex] || arr[0] || {};\n}\n\n// ---------- gather upstream context ----------\nconst prepCtx  = getNodeItem('Prepare Gemini (POSE) — Retry').json || {};\nconst poseItem = getNodeItem('Download pose reference');\nconst baseItem = getNodeItem('Download base character');\nconst hashItem = getNodeItem('Generate Character Hash');\nconst hashCtx  = hashItem.json || {};\n\n// ---------- derive identifiers ----------\nconst poseNumberRaw =\n  prepCtx.poseNumber ??\n  prepCtx.currentPoseNumber ??\n  prepCtx.__meta?.poseNumber ??\n  $json?.poseNumber ??\n  ($itemIndex + 1);\n\nconst poseNumber = Number.isFinite(Number(poseNumberRaw)) ? Number(poseNumberRaw) : ($itemIndex + 1);\nconst posePadded = String(poseNumber).padStart(2, '0');\n\nconst qaRetryRaw = prepCtx.qaRetry ?? $json?.qaRetry ?? 1; // retry path usually ≥ 1\nconst qaRetry = Number.isFinite(Number(qaRetryRaw)) ? Number(qaRetryRaw) : 1;\n\nconst characterHash =\n  prepCtx.characterHash ||\n  prepCtx.characterSpecs?.hash ||\n  $json?.characterHash ||\n  hashCtx.characterHash ||\n  'nohash';\n\nconst fileName = `characters_${characterHash}_pose${posePadded}_try${qaRetry}.png`;\n\n// ---------- bind binaries ----------\nconst poseBin = poseItem.binary?.pose || $binary?.pose || null;\nconst charBin = baseItem.binary?.character || $binary?.character || null;\n\n// ---------- build generated binary ----------\nconst buf = Buffer.from(b64, 'base64');\nconst gen = await this.helpers.prepareBinaryData(buf, fileName);\ngen.mimeType = 'image/png';\ngen.fileExtension = 'png';\n\n// ---------- debug pairing ----------\nconst boundPoseName = poseBin?.fileName || null;\n\nreturn {\n  json: {\n    ...prepCtx,\n    httpResponse: res,\n    fileName,\n    poseNumber,\n    qaRetry,\n    characterHash,\n    __meta: {\n      ...(prepCtx.__meta || {}),\n      generatedAttemptKey: fileName,\n      bindDebug: { runIx, itemIndex: $itemIndex, boundPoseName }\n    }\n  },\n  binary: {\n    ...(charBin ? { character: charBin } : {}),\n    ...(poseBin ? { pose: poseBin } : {}),\n    generated: gen\n  }\n};\n"
+      },
+      "id": "fa2ab5b9-70fd-43c3-ab70-dadbe7ace1c9",
+      "name": "Extract Generated Image — Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4304,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Gemini API request for POSE images (RETRY path).\n// Goal: On retries, STOP copying the baseline stance. Place the SAME character (A) into the POSE (P).\n// Strategy: Pose-first image order, add a \"discard prior output\" directive, and cool sampling on final retry.\n\nconst items = $input.all();\nconst out = [];\n\nfunction clampPose(n){ return Math.max(1, Math.min(12, Number(n||0))); }\nconst POSE_REGEX = /(?:pose[_\\- ]?(\\d{1,2}))|[_\\-\\.](\\d{1,2})(?:\\D|$)|\\/(\\d{1,2})\\.png$/i;\nfunction parsePoseFromString(s){ if (!s) return null; const m = String(s).match(POSE_REGEX); return m ? Number(m[1]||m[2]||m[3]) : null; }\n\n// Read binary for the specific item index\nasync function addInlineFromBinary(parts, label, bin, key, i){\n  if (!bin[key]) return false;\n  const buf = await this.helpers.getBinaryDataBuffer(i, key);\n  const base64 = buf.toString('base64');\n  if (!base64 || base64.length < 100) throw new Error(`${label}: binary.${key} base64 too short`);\n  const mime = bin[key].mimeType || 'image/png';\n  parts.push({ text: label });\n  parts.push({ inlineData: { mimeType: mime, data: base64 } });\n  return true;\n}\nfunction addInlineFromJsonBase64(parts, label, jKey, j){\n  const b64 = j[jKey];\n  if (!b64 || String(b64).length < 100) return false;\n  parts.push({ text: label });\n  parts.push({ inlineData: { mimeType: 'image/png', data: b64 } });\n  return true;\n}\n\nfor (let i = 0; i < items.length; i++){\n  const item = items[i];\n  const j    = item.json || {};\n  const bin  = item.binary || {};\n  const cs   = j.characterSpecs || {};\n\n  // ---- pose number resolution (robust) ----\n  let poseNum = j.poseNumber ?? j.currentPoseNumber ?? j.__meta?.poseNumber ?? null;\n  if (!Number.isFinite(Number(poseNum))) {\n    const cands = [\n      j.poseRefName, j.poseRefFilename, j.poseRef, j.poseFileName,\n      j.poseRefUrl, j.poseUrl, j.posePath, j.characterPath,\n      j.imageUrl, j.sourceUrl\n    ];\n    for (const c of cands){ const p = parsePoseFromString(c); if (Number.isFinite(p)){ poseNum = p; break; } }\n  }\n  if (!Number.isFinite(Number(poseNum))) throw new Error('Prepare Gemini (pose — retry): poseNumber missing/invalid.');\n  poseNum = clampPose(poseNum);\n\n  // ---- user block (must exist) ----\n  const userBlock = (j.posePromptBlock && String(j.posePromptBlock).trim()) || '';\n  if (!userBlock) throw new Error('Prepare Gemini (pose — retry): missing posePromptBlock from upstream.');\n\n  // ---- retry awareness (cool sampling on last retry) ----\n  const qaRetry = Number.isFinite(Number(j.qaRetry)) ? Number(j.qaRetry) : 1;   // retry index being run (1-based)\n  const maxRetries = Number.isFinite(Number(j.maxPoseRetries)) ? Number(j.maxPoseRetries) : 2;\n  const isLastRetry = qaRetry >= maxRetries;\n\n  // Allow override via j.retryTemp, else set per retry phase\n  const plannedTemp = (typeof j.retryTemp === 'number')\n    ? j.retryTemp\n    : (isLastRetry ? 0.07 : 0.12);   // floor: ~0.05–0.08 on last retry\n\n  // ---- build prompt parts in strict order ----\n  const parts = [];\n\n  // 0) Retry header to break anchoring to prior output\n  const retryHeader = [\n    'RETRY DIRECTIVES:',\n    '• Discard prior output; regenerate from scratch following IMAGE P.',\n    '• Place the SAME character from IMAGE A into the EXACT pose of IMAGE P.',\n    '• COPY limb arrangement and silhouette from IMAGE P; DO NOT reuse any stance from IMAGE A.',\n    '• RETAIN appearance from instructions/IMAGE A (hairstyle, skin tone, outfit).',\n    '• Keep background pure white (#FFFFFF).'\n  ].join('\\n');\n  parts.push({ text: retryHeader });\n\n  // 1) Your existing pose instructions (locks/negatives)\n  parts.push({ text: 'POSE INSTRUCTIONS (must be followed):' });\n  parts.push({ text: userBlock });\n\n  // 2) POSE reference FIRST to bias pose\n  let haveP = false;\n  haveP = await addInlineFromBinary.call(this, parts, 'IMAGE P — POSE REFERENCE (guide only; ignore appearance)', bin, 'pose', i);\n  if (!haveP) haveP = addInlineFromJsonBase64(parts, 'IMAGE P — POSE REFERENCE (guide only; ignore appearance)', 'poseBase64', j);\n  if (!haveP) throw new Error('Prepare Gemini (pose — retry): Missing pose reference image (IMAGE P).');\n\n  // 3) APPEARANCE source SECOND\n  let haveA = false;\n  // Prefer the explicit 'character' key; then fallbacks if your upstream used a different name.\n  const aKeys = ['character','image','data','file','reference','base'];\n  for (const k of aKeys) {\n    if (!haveA) haveA = await addInlineFromBinary.call(this, parts, 'IMAGE A — APPEARANCE SOURCE (base character)', bin, k, i);\n  }\n  if (!haveA) haveA = addInlineFromJsonBase64(parts, 'IMAGE A — APPEARANCE SOURCE (base character)', 'characterBase64', j);\n  if (!haveA) throw new Error('Prepare Gemini (pose — retry): Missing base character image (IMAGE A).');\n\n  // 4) Optional helpers (nudges only)\n  await addInlineFromBinary.call(this, parts, 'IMAGE B — Hair reference (silhouette/part/length only)', bin, 'hair', i);\n  await addInlineFromBinary.call(this, parts, 'IMAGE C — Skin-tone swatch (colors only)', bin, 'skin', i);\n\n  // ---- system instruction (simple, strict) ----\n  const systemText = [\n    'You are a precise illustration tool.',\n    'Honor the user instructions verbatim.',\n    'Use attached images ONLY as described.',\n    'Keep background pure white (#FFFFFF).'\n  ].join('\\n');\n\n  // ---- generation config ----\n  const generationConfig = {\n    imageConfig: { aspectRatio: '1:1' },\n    temperature: plannedTemp,\n  };\n\n  // ---- request body ----\n  const requestBody = {\n    systemInstruction: { role: 'system', parts: [{ text: systemText }] },\n    contents: [{ role: 'user', parts }],\n    generationConfig\n  };\n\n  // ---- correlation/meta ----\n  const characterHash = j.characterHash || cs.hash || 'nohash';\n  const correlationId = `${characterHash}-POSE${poseNum}-RETRY${qaRetry}-${Date.now()}`;\n\n  out.push({\n    json: {\n      ...j,\n      poseNumber: poseNum,\n      currentPoseNumber: poseNum,\n      qaRetry,\n      maxPoseRetries: maxRetries,\n      generationConfig,\n      requestBody,\n      correlationId\n    },\n    binary: bin\n  });\n}\n\nreturn out;\n"
+      },
+      "id": "94d5c0d3-6834-4273-817f-6d1d84a7b9b4",
+      "name": "Prepare Gemini (POSE) — Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3888,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build a stronger retry prompt from QA verdict; prepend to posePromptBlock; cool temperature; add entropy tag.\nconst item = $input.first();\nconst j = item.json || {};\nconst v = j.qaVerdict || {};\nconst add = [];\n\nconst retryN  = Number.isFinite(Number(j.qaRetry)) ? Number(j.qaRetry) : 1;\nconst entropy = Math.random().toString(36).slice(2, 8).toUpperCase();\nadd.push(`RETRY_ID: ${retryN}-${entropy}`);\n\n// Order of authority and conflict resolution\nadd.push(\n  'COMPLIANCE ORDER (highest→lowest): POSE LOCK (with IMAGE P) → Appearance Locks from IMAGE A → everything else.',\n  'If any instruction conflicts, follow POSE LOCK first and treat IMAGE A only as appearance.'\n);\n\n// Pose-first hard lock\nadd.push(\n  'POSE HARD LOCK:',\n  '- Use IMAGE P ONLY for pose. Ignore the pose in IMAGE A entirely.',\n  '- Limb positions and ground/air contact must MATCH IMAGE P exactly.'\n);\n\n// Anatomy/style stabilizers\nadd.push(\n  'STYLE/ANATOMY LOCK:',\n  '- Match IMAGE A style and proportions exactly (lines, textures, palette).',\n  '- SAME head-to-body ratio and limb lengths as IMAGE A.',\n  '- Keep silhouette thickness and camera distance consistent with IMAGE A.',\n  '- Absolutely no cropping of head or feet. One child only.'\n);\n\n// Explicit appearance locks (helps stop leakage from IMAGE P)\nadd.push(\n  'APPEARANCE SOURCE LOCK:',\n  '- Hair, face, skin tone, outfit type, outfit colors, and shoes must MATCH IMAGE A exactly.',\n  '- Do NOT copy hair or clothing from IMAGE P.'\n);\n\n// Targeted QA corrections\nif (v.single_subject === false || v.extra_limbs === true) add.push('- Exactly ONE child; exactly 2 arms, 2 legs, 2 shoes.');\nif (v.bg_white === false) add.push('- Background must be pure white (#FFFFFF); no gradients or textures.');\nif (v.cropped === true) add.push('- Full body visible with small margin; do not crop head/hands/feet.');\nif (v.leakage_from_pose_ref === true) add.push('- Ignore appearance in IMAGE P completely; use IMAGE P for pose ONLY.');\nif (typeof v.pose_score === 'number' && v.pose_score < 0.9) add.push('- FOLLOW IMAGE P EXACTLY for limb positions and contact; resolve conflicts in favor of POSE LOCK.');\nif (v.notes) add.push(`- Validator notes: ${String(v.notes).slice(0,180)}`);\n\nconst retryBlock = add.join('\\n') + '\\n\\n';\n\nconst current  = String(j.posePromptBlock || '');\nconst baseTemp = (j.generationConfig && typeof j.generationConfig.temperature === 'number')\n  ? j.generationConfig.temperature\n  : 0.25;\n\nconst retryTemp = Math.max(0.10, baseTemp - 0.10); // cooler but not below 0.10\n\nreturn [{\n  json: {\n    ...j,\n    posePromptBlock: retryBlock + current,  // prepend\n    retryTemp\n  },\n  binary: item.binary\n}];\n"
+      },
+      "id": "4ee60bac-acd8-40ef-ab5a-3f93ef64d072",
+      "name": "Retry Builder (Prompt Tweaks)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3280,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "a95395b9-de57-4f80-8478-ccc6968b3123",
+              "leftValue": "={{ $json.qaPass }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a25416ed-c526-48bf-82b2-912f8861e61d",
+      "name": "IF: QA Pass?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse QA Verdict — strip code fences and robustly parse JSON\nconst item = $input.first();\nconst body = item.json;\n\n// Find the model's text payload anywhere in the response\nfunction findText(obj){\n  if (!obj || typeof obj !== 'object') return null;\n  if (Array.isArray(obj)){\n    for (const v of obj){ const f = findText(v); if (f) return f; }\n    return null;\n  }\n  if (typeof obj.text === 'string') return obj.text;\n  if (obj.candidates) return findText(obj.candidates);\n  if (obj.content)    return findText(obj.content);\n  if (obj.parts)      return findText(obj.parts);\n  if (obj[0])         return findText(obj[0]);\n  return null;\n}\n\nfunction stripFences(s){\n  if (!s) return '';\n  let t = String(s).trim();\n  // remove leading/trailing code fences like ```json ... ``` or ``` ...\n  t = t.replace(/^```[a-zA-Z]*\\s*/,'').replace(/```$/,'').trim();\n  // also remove stray backticks if any remain\n  t = t.replace(/```/g,'').trim();\n  return t;\n}\n\nfunction tryParseJsonLoose(s){\n  // Try direct JSON.parse first\n  try { return JSON.parse(s); } catch (e) {}\n  // Try to extract the first {...} block\n  const start = s.indexOf('{');\n  const end   = s.lastIndexOf('}');\n  if (start >= 0 && end > start) {\n    const sub = s.slice(start, end + 1);\n    try { return JSON.parse(sub); } catch (e) {}\n  }\n  return null;\n}\n\nconst rawText = findText(body) || '';\nconst cleaned = stripFences(rawText);\nconst verdict = tryParseJsonLoose(cleaned) || {\n  pose_score: 0,\n  single_subject: false,\n  extra_limbs: true,\n  bg_white: false,\n  leakage_from_pose_ref: true,\n  cropped: true,\n  notes: 'validator parse error'\n};\n\nreturn [{\n  json: { ...item.json, qaRaw: cleaned, qaVerdict: verdict },\n  binary: item.binary\n}];\n"
+      },
+      "id": "add3111a-3c10-4b37-86bc-6202e11a8ced",
+      "name": "Parse QA Verdict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pose QA — Build Request (INITIAL) — MINIMAL‑PAIR\n// Validates OUTPUT (generated) vs IMAGE P (pose). Base is not included.\n\n\nconst item = $input.first();\nconst j = item?.json || {};\nconst bin = item?.binary || {};\n\n\nasync function readBuffer(key) {\nif (!bin[key]) return null;\nconst buf = await this.helpers.getBinaryDataBuffer(0, key);\nreturn buf && buf.length > 100 ? buf : null;\n}\nfunction toB64(buf){ return buf.toString('base64'); }\n\n\nconst poseBuf = await readBuffer('pose');\nconst outBuf = await readBuffer('generated');\nif (!poseBuf) throw new Error('QA (initial): missing pose reference (binary.pose)');\nif (!outBuf) throw new Error('QA (initial): missing generated output (binary.generated)');\n\n\nconst systemText = 'You are a strict pose validator. Return only minified JSON with the fields specified.';\n\n\nconst parts = [\n{ text: 'IMAGE P — POSE REFERENCE:' },\n{ inlineData: { mimeType: bin.pose?.mimeType || 'image/png', data: toB64(poseBuf) } },\n{ text: 'OUTPUT — IMAGE TO VALIDATE:' },\n{ inlineData: { mimeType: bin.generated?.mimeType || 'image/png', data: toB64(outBuf) } },\n{ text: 'Return ONLY valid JSON like: {\"pose_score\":0.0,\"single_subject\":true,\"extra_limbs\":false,\"bg_white\":true,\"leakage_from_pose_ref\":false,\"cropped\":false,\"notes\":\"\"}' }\n];\n\n\nconst qaRequestBody = {\nsystemInstruction: { role: 'system', parts: [{ text: systemText }] },\ncontents: [{ role: 'user', parts }],\ngenerationConfig: { temperature: 0.0 }\n};\n\n\nreturn [{ json: { ...j, qaRequestBody }, binary: bin }];"
+      },
+      "id": "d71ae207-5a47-461f-b3e7-d9cb6230df72",
+      "name": "Pose QA — Build Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract the inline image from the Gemini response and attach as a proper n8n binary.\n// Works in \"Run once for EACH item\": returns a single object, no .$input.first().\n//\n// Binaries:\n//   - character  from \"Download base character\" (per-run)\n//   - pose       from \"Download pose reference\" (per-run)\n//   - generated  newly prepared from Gemini response\n//\n// Robust cross-run lookups: prefer current run; fall back to run 0 if that node only ran once.\n\nconst res = $json || {};\n\n// ---------- find inline image ----------\nfunction findBase64(obj) {\n  if (!obj || typeof obj !== 'object') return null;\n  if (obj.inlineData?.data) return obj.inlineData.data;\n  if (Array.isArray(obj)) {\n    for (const v of obj) { const f = findBase64(v); if (f) return f; }\n    return null;\n  }\n  if (obj.candidates) return findBase64(obj.candidates);\n  if (obj.content)    return findBase64(obj.content);\n  if (obj.parts)      return findBase64(obj.parts);\n  if (obj[0])         return findBase64(obj[0]);\n  return null;\n}\nconst b64 = findBase64(res);\nif (!b64 || String(b64).length < 100) throw new Error('Extract Generated Image: no inlineData image found');\n\n// ---------- helpers for safe cross-run reads ----------\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\nfunction safeItems(nodeName, rIx) {\n  try { return $items(nodeName, 0, rIx) || []; } catch { return []; }\n}\nfunction getNodeItem(nodeName) {\n  // Prefer current run; fall back to run 0; then first/this item.\n  let arr = safeItems(nodeName, runIx);\n  if (!arr.length) arr = safeItems(nodeName, 0);\n  return arr[$itemIndex] || arr[0] || {};\n}\n\n// ---------- gather upstream context ----------\nconst prepCtx  = getNodeItem('Prepare Gemini (POSE)').json || {};\nconst poseItem = getNodeItem('Download pose reference');\nconst baseItem = getNodeItem('Download base character');\n\n// \"Generate Character Hash\" commonly runs once → always safe-get with fallback\nconst hashItem = getNodeItem('Generate Character Hash');\nconst hashCtx  = hashItem.json || {};\n\n// ---------- derive identifiers ----------\nconst poseNumberRaw =\n  prepCtx.poseNumber ??\n  prepCtx.currentPoseNumber ??\n  prepCtx.__meta?.poseNumber ??\n  $json?.poseNumber ??\n  ($itemIndex + 1);\n\nconst poseNumber = Number.isFinite(Number(poseNumberRaw)) ? Number(poseNumberRaw) : ($itemIndex + 1);\nconst posePadded = String(poseNumber).padStart(2, '0');\n\nconst qaRetryRaw = prepCtx.qaRetry ?? $json?.qaRetry ?? 0;\nconst qaRetry = Number.isFinite(Number(qaRetryRaw)) ? Number(qaRetryRaw) : 0;\n\nconst characterHash =\n  prepCtx.characterHash ||\n  prepCtx.characterSpecs?.hash ||\n  $json?.characterHash ||\n  hashCtx.characterHash ||\n  'nohash';\n\nconst fileName = `characters_${characterHash}_pose${posePadded}_try${qaRetry}.png`;\n\n// ---------- bind binaries ----------\nconst poseBin = poseItem.binary?.pose || $binary?.pose || null;\nconst charBin = baseItem.binary?.character || $binary?.character || null;\n\n// ---------- build generated binary ----------\nconst buf = Buffer.from(b64, 'base64');\nconst gen = await this.helpers.prepareBinaryData(buf, fileName);\ngen.mimeType = 'image/png';\ngen.fileExtension = 'png';\n\n// ---------- debug pairing ----------\nconst boundPoseName = poseBin?.fileName || null;\n\nreturn {\n  json: {\n    ...prepCtx,\n    httpResponse: res,\n    fileName,\n    poseNumber,\n    qaRetry,\n    characterHash,\n    __meta: {\n      ...(prepCtx.__meta || {}),\n      generatedAttemptKey: fileName,\n      bindDebug: { runIx, itemIndex: $itemIndex, boundPoseName }\n    }\n  },\n  binary: {\n    ...(charBin ? { character: charBin } : {}),\n    ...(poseBin ? { pose: poseBin } : {}),\n    generated: gen\n  }\n};\n"
+      },
+      "id": "42e924b9-e8ff-4460-ab34-4a61bf49dd42",
+      "name": "Extract Generated Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        992,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Gemini API request for POSE images — pose-first ordering + explicit pose override.\n// Runs \"Once for all items\". Expects:\n//  - binary.pose       (IMAGE P: pose guide)\n//  - binary.character  (IMAGE A: style/anatomy anchor)\n//  - (optional) binary.hair, binary.skin\n//  - j.posePromptBlock (built upstream)\n\nconst items = $input.all();\nconst out = [];\n\n// ---------- helpers ----------\nfunction clampPose(n){ return Math.max(1, Math.min(12, Number(n||0))); }\nconst POSE_REGEX = /(?:pose[_\\- ]?(\\d{1,2}))|[_\\-\\.](\\d{1,2})(?:\\D|$)|\\/(\\d{1,2})\\.png$/i;\nfunction parsePoseFromString(s){\n  if (!s) return null;\n  const m = String(s).match(POSE_REGEX);\n  return m ? Number(m[1] || m[2] || m[3]) : null;\n}\n\n// read binary from the specific item index (node runs once-for-all).\nasync function addInlineFromBinary(parts, label, bin, key, itemIndex){\n  if (!bin[key]) return false;\n  const buf = await this.helpers.getBinaryDataBuffer(itemIndex, key);\n  const base64 = buf.toString('base64');\n  if (!base64 || base64.length < 100) throw new Error(`${label}: binary.${key} base64 too short`);\n  const mime = bin[key].mimeType || 'image/png';\n  parts.push({ text: label });\n  parts.push({ inlineData: { mimeType: mime, data: base64 } });\n  return true;\n}\nfunction addInlineFromJsonBase64(parts, label, jKey, j){\n  const b64 = j[jKey];\n  if (!b64 || String(b64).length < 100) return false;\n  parts.push({ text: label });\n  parts.push({ inlineData: { mimeType: 'image/png', data: b64 } });\n  return true;\n}\n\n// ---------- main ----------\nfor (let i = 0; i < items.length; i++){\n  const item = items[i];\n  const j = item.json || {};\n  const bin = item.binary || {};\n  const cs = j.characterSpecs || {};\n\n  // Resolve poseNumber robustly (no index fallback)\n  let poseNum = j.poseNumber ?? j.currentPoseNumber ?? j.__meta?.poseNumber ?? null;\n  if (!Number.isFinite(Number(poseNum))) {\n    const cands = [j.poseRefName, j.poseRefFilename, j.poseRef, j.poseFileName, j.poseRefUrl, j.poseUrl, j.posePath, j.characterPath, j.imageUrl, j.sourceUrl];\n    for (const c of cands) { const p = parsePoseFromString(c); if (Number.isFinite(p)) { poseNum = p; break; } }\n  }\n  if (!Number.isFinite(Number(poseNum))) throw new Error('Prepare Gemini (pose): poseNumber missing/invalid.');\n  poseNum = clampPose(poseNum);\n\n  // Require upstream per-pose text\n  const posePromptBlock = (j.posePromptBlock && String(j.posePromptBlock).trim()) || '';\n  if (!posePromptBlock) throw new Error('Prepare Gemini (pose): missing posePromptBlock from upstream.');\n\n  // Build parts: USER TEXT → IMAGE P (pose) → IMAGE A (style) → optional hair/skin\n  const parts = [];\n  parts.push({ text: posePromptBlock });\n\n  // IMAGE P — pose guide (REQUIRED, placed BEFORE IMAGE A)\n  let haveP = false;\n  haveP = await addInlineFromBinary.call(this, parts, 'IMAGE P — POSE REFERENCE (guide only; ignore appearance)', bin, 'pose', i);\n  if (!haveP) haveP = addInlineFromJsonBase64(parts, 'IMAGE P — POSE REFERENCE (guide only; ignore appearance)', 'poseBase64', j);\n  if (!haveP) throw new Error('Prepare Gemini (pose): Missing pose reference image (IMAGE P).');\n\n  // IMAGE A — style/anatomy (REQUIRED)\n  let haveA = false;\n  for (const k of ['character','image','data','file','reference','base']) {\n    if (!haveA) haveA = await addInlineFromBinary.call(this, parts, 'IMAGE A — Style/Anatomy reference (ignore its pose)', bin, k, i);\n  }\n  if (!haveA) haveA = addInlineFromJsonBase64(parts, 'IMAGE A — Style/Anatomy reference (ignore its pose)', 'characterBase64', j);\n  if (!haveA) throw new Error('Prepare Gemini (pose): Missing base character image (IMAGE A).');\n\n  // Optional helpers\n  await addInlineFromBinary.call(this, parts, 'IMAGE B — Hair reference (silhouette/part/length only)', bin, 'hair', i);\n  await addInlineFromBinary.call(this, parts, 'IMAGE C — Skin-tone swatch (colors only)', bin, 'skin', i);\n\n  // System text with explicit POSE OVERRIDE\n  const systemText = [\n    'You are a precise illustration tool.',\n    'POSE OVERRIDE: If IMAGE A shows a different pose, IGNORE it completely.',\n    'Use IMAGE A ONLY for style, proportions, and face/anatomy. Use IMAGE P ONLY for pose.',\n    'Limb positions and ground/air contact MUST match IMAGE P exactly.',\n    'Keep background pure white (#FFFFFF).'\n  ].join('\\n');\n\n  const generationConfig = {\n    imageConfig: { aspectRatio: '1:1' },\n    temperature: (typeof j.retryTemp === 'number') ? j.retryTemp : 0.12,\n  };\n\n  const requestBody = {\n    systemInstruction: { role: 'system', parts: [{ text: systemText }] },\n    contents: [{ role: 'user', parts }],\n    generationConfig\n  };\n\n  const characterHash = j.characterHash || cs.hash || 'nohash';\n  const correlationId = `${characterHash}-POSE${poseNum}-${Date.now()}`;\n\n  out.push({\n    json: { ...j, poseNumber: poseNum, currentPoseNumber: poseNum, generationConfig, requestBody, correlationId },\n    binary: bin\n  });\n}\n\nreturn out;\n"
+      },
+      "id": "599c57de-8354-42c7-9450-2df3379ed658",
+      "name": "Prepare Gemini (POSE)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Dynamic Pose Prompt — with Clothing & Hairstyle locks (full body)\nconst items = $input.all();\nconst out = [];\n\nfunction norm(s){ return String(s||'').toLowerCase().trim(); }\nfunction clampPose(n){ return Math.max(1, Math.min(12, Number(n||0))); }\nconst POSE_REGEX = /(?:pose[_\\- ]?(\\d{1,2}))|[_\\-\\.](\\d{1,2})(?:\\D|$)|\\/(\\d{1,2})\\.png$/i;\nfunction parsePoseFromString(s){ if(!s) return null; const m=String(s).match(POSE_REGEX); return m?Number(m[1]||m[2]||m[3]):null; }\n\nconst POSE_PROMPT_MAP = {\n  '1': `Walking step. Front foot forward and flat; rear heel slightly lifted. Torso upright, shoulders level. Natural counter-swing of arms (opposite arm forward to leading leg). Head forward; gaze ahead; gentle smile.`,\n  '2': `Walking while looking higher. Front foot forward; rear heel lifted. Elbows softly bent; hands near torso (light fists). Chin raised; head tilted up/right; eyes above horizon. Torso upright; shoulders level.`,\n  '3': `Standing and scanning the distance. Feet under hips, weight even. One hand forms a visor across the brow (palm down, fingers together, elbow angled forward); other arm relaxed at side. Head slightly right; gaze far ahead; cheerful.`,\n  '4': `Floating/hovering. Both feet off ground, toes pointed downward; knees softly bent. Arms slightly out from sides (~30–45°), fingers relaxed. Torso upright; head forward; joyful. No running/walking motion.`,\n  '5': `Walking while looking down. Front foot flat; rear heel subtly lifted. Arms relaxed with palms facing in, slight rearward swing. Chin tipped downward; eyes on ground a step ahead. Torso upright; shoulders level; curious (not sad).`,\n  '6': `Jogging. Lead knee lifted; rear heel up. Elbows ~90°, hands light fists at mid-torso; opposite arm leads. Torso upright with slight forward lean; head forward; eyes ahead; focused happy smile.`,\n  '7': `Sitting cross-legged and eating. Legs crossed; feet tucked. Torso upright. Both hands hold a simple, unbranded sandwich near the mouth; elbows close to body. Mouth in cheerful bite; eyes on sandwich or slightly forward.`,\n  '8': `Crouching/inspect. Deep squat with feet flat, hips close to heels. Forearms rest on thighs; hands relaxed near knees. Head tilted down/forward; eyes focused on ground directly in front. Small “o” of wonder or soft smile; hair clear of face.`,\n  '9': `Crawling, moving, happy. On hands and knees; leading hand reaching forward while opposite knee advances. Hips low; back long; torso ~30–45° above ground. Head slightly raised; eyes forward/down along path; wide happy smile.`,\n  '10': `Surprised, looking up. Feet under hips; slight lean back. Elbows bent with open hands near mid-torso (no waving). Chin lifted; head tilted up; eyes wide above; small surprised “o”; eyebrows raised; shoulders level.`,\n  '11': `Surprised (forward). Feet under hips; slight recoil. Elbows bent; hands open slightly out from body at rib height. Head forward; eyes wide straight ahead; small surprised “o”; eyebrows raised; shoulders level.`,\n  '12': `Flying/gliding. Body airborne; legs trailing slightly back with toes pointed. Arms out ~30–45° for balance; fingers relaxed. Torso angled slightly upward; head forward; eyes ahead; joyful smile. No ground contact.`\n};\nconst POSE_NEGATIVES = {\n  '1': ['No jumping/airborne.', 'Rear heel must lift.', 'No same-side arm/leg forward together.'],\n  '2': ['Head must tilt up.', 'No fully straight elbows.', 'No downward gaze.'],\n  '3': ['No walking/jogging.', 'Visor palm faces down.', 'No hunched torso.'],\n  '4': ['No feet touching ground.', 'No running stride.', 'Arms not clamped to sides.'],\n  '5': ['No upward gaze.', 'Front foot stays flat.', 'No big arm swings/raised hands.'],\n  '6': ['Not a flat-foot walk.', 'Add slight forward lean.', 'Hands not open waving.'],\n  '7': ['No standing/kneeling.', 'No branding/crumbs/mess.', 'Elbows not flared wide.'],\n  '8': ['Heels stay flat.', 'Hips must be near heels.', 'No hands on ground.'],\n  '9': ['No standing/sitting.', 'One knee advances forward.', 'No pointing fingers.'],\n  '10': ['Not looking forward/down.', 'Hands not above shoulders.', 'No forward lean.'],\n  '11': ['Not looking up.', 'Only slight recoil (no lean back).', 'Hands open (no fists).'],\n  '12': ['No ground contact.', 'Torso not angled downward.', 'Arms not straight overhead.']\n};\nconst POSE_ALLOWED_PROPS = { '7': ['sandwich'] };\n\nfunction hairstyleLock(styleKey, color){\n  const c = norm(styleKey);\n  const base = [\n    'CONSISTENT HAIRSTYLE LOCK:',\n    '- Do not change cut, part side, length, or ear visibility.',\n    '- Motion may deflect strands but silhouette/part/length stay unchanged.',\n    '- Hair is a single, opaque, connected mass; no flyaways/halos.'\n  ];\n  const colorLine = color ? [`- Hair color: ${color} (do not recolor).`] : [];\n  const map = {\n    'side-part': ['- PART on character’s RIGHT (viewer’s LEFT); sweep LEFT.','- Both ears fully visible; no hair below ear top.','- Back follows skull curve; no straight “bob” hem.'],\n    'ponytail': ['- One ponytail back; no loose face strands.'],\n    'pigtails': ['- Two mid-height tails; solid masses; face/ears clear.'],\n    'bun': ['- Single back/low bun; tidy front.'],\n    'pom-poms': ['- Two high puffs; clean center part; each ≤30% head width; total ≤90%; no face overlap.'],\n    'locs': ['- Grouped neatly; continuous outer outline; interior detail by tone/lines.'],\n    'afro': ['- Even rounded halo; continuous silhouette; no pinholes.'],\n    'straight-short': ['- Above-chin; outline hugs head; eyes/ears clear.'],\n    'straight-medium': ['- To shoulders; kept behind shoulders.'],\n    'straight-long': ['- Below shoulders; trails behind back; length fixed.'],\n    'curly-short': ['- Compact halo; scalloped edge OK but continuous.'],\n    'curly-medium': ['- Shoulder-level curls; keep continuous outline.'],\n    'curly-long': ['- Long curls behind shoulders/back; no lace-like cutouts.']\n  };\n  return base.concat(colorLine, map[c]||[]).join('\\n');\n}\nfunction clothingLock(cs){\n  const type = norm(cs?.clothingStyle || '');\n  if (type === 'dress') {\n    return [\n      'OUTFIT / CLOTHING LOCK:',\n      '- Outfit MUST remain a DRESS (single-piece).',\n      '- Do NOT replace with a T-shirt and shorts, pants, or layered outfits.',\n      '- Keep the same dress silhouette as IMAGE A (short sleeves, A-line body); no waist seam or shorts hem visible.'\n    ].join('\\n');\n  }\n  return [\n    'OUTFIT / CLOTHING LOCK:',\n    '- Outfit MUST remain a short-sleeve T-SHIRT and SHORTS.',\n    '- Do NOT replace with a dress, skirt, pants, or layered outfits.',\n    '- Keep shorts length and T-shirt silhouette consistent with IMAGE A.'\n  ].join('\\n');\n}\nfunction buildPoseLock(poseNum){\n  const core = POSE_PROMPT_MAP[String(poseNum)] || '';\n  const negs = POSE_NEGATIVES[String(poseNum)] || [];\n  const lines = [\n    `POSE LOCK — ID ${poseNum}`,\n    core,\n    'FOLLOW IMAGE P EXACTLY for limb positions, weight/ground contact, and hand orientation.',\n    'If any instruction conflicts, this POSE LOCK (with IMAGE P) outranks all other guidance.'\n  ];\n  if (negs.length){ lines.push('POSE HARD NEGATIVES:'); for (const n of negs) lines.push('- ' + n); }\n  return lines.join('\\n');\n}\nfunction buildFraming(poseNum){\n  const airborne = (poseNum === 4 || poseNum === 12);\n  return [\n    'FRAMING & CONTACT:',\n    '- Full body in frame; do not crop head/hands/feet.',\n    airborne ? '- CONTACT: No feet touching ground; no grounded foot shadows.'\n             : '- CONTACT: At least one foot clearly on ground as described; anatomically correct contact.',\n    '- Perspective: mild 3/4 or straight-on; avoid extreme foreshortening.'\n  ].join('\\n');\n}\n\nfor (const item of items){\n  const j = item.json || {};\n  const cs = j.characterSpecs || {};\n\n  let poseNum = j.poseNumber ?? j.currentPoseNumber ?? j.__meta?.poseNumber ?? null;\n  if (!Number.isFinite(Number(poseNum))){\n    const cands = [j.poseRefName, j.poseRefFilename, j.poseRef, j.poseFileName, j.poseRefUrl, j.poseUrl, j.posePath, j.imageUrl, j.sourceUrl];\n    for (const c of cands){ const p = parsePoseFromString(c); if (Number.isFinite(p)){ poseNum = p; break; } }\n  }\n  if (!Number.isFinite(Number(poseNum))) throw new Error('Build Pose Prompt: poseNumber missing/invalid.');\n  poseNum = clampPose(poseNum);\n\n  const subjectLimit = 'SUBJECT LIMIT: Exactly one child in frame — no duplicates, reflections, extra limbs, or extra bodies.';\n  const hairLock = hairstyleLock(cs.hairStyle || '', cs.hairColor || j.hairPromptMeta?.color || '');\n  const outfitLock = clothingLock(cs);\n  const skinLock = [\n    'SKIN-TONE LOCK: Keep skin tone identical to base.',\n    j.skinToneId ? `- Palette: ${j.skinToneId}` : null,\n    j.skinHexBase ? `- Base hex: ${j.skinHexBase} (do not lighten/darken).` : null,\n    j.skinColorLock ? `- ${j.skinColorLock}` : null,\n    '- Maintain undertone; do not shift toward pink/gray/yellow; no freckles/blush unless requested.'\n  ].filter(Boolean).join('\\n');\n\n  const allowedProps = (POSE_ALLOWED_PROPS[String(poseNum)] || []);\n  const propsBlock = allowedProps.length\n    ? ['PROPS:', `- Allowed: ${allowedProps.join(', ')}.`, '- No other props.'].join('\\n')\n    : 'PROPS: No props. Hands empty unless the pose description specifies otherwise.';\n\n  const posePromptBlock = [\n    'COMPLIANCE ORDER (highest → lowest): Subject Limit → POSE LOCK (with IMAGE P) → Outfit Lock → Hairstyle Lock → Skin Tone Locks.',\n    subjectLimit,\n    buildPoseLock(poseNum),\n    buildFraming(poseNum),\n    outfitLock,\n    hairLock,\n    skinLock,\n    propsBlock,\n    '- Do NOT copy hair/outfit/colors from IMAGE P; IMAGE P is pose ONLY. All appearance comes from IMAGE A (and IMAGE B if provided).'\n  ].filter(Boolean).join('\\n\\n');\n\n  out.push({\n    json: {\n      ...j,\n      posePromptBlock,\n      posePromptMeta: { poseNumber: poseNum, allowedProps, version: 'v1.2-pose-with-outfit-lock', source: 'pose-prompt-builder' }\n    },\n    binary: item.binary\n  });\n}\n\nreturn out;\n"
+      },
+      "id": "d4f20eef-827a-4542-b0fb-c8ad4d9d1c08",
+      "name": "Build Dynamic Pose Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the public URL for the pose reference and a bucket-relative key for S3/R2.\nconst j = $json || {};\n\n// 1) Base URL (trailing slash normalized)\nconst bucketBase = (j.posesPublicBase || \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/little-hero-assets/book-mvp-simple-adventure/characters/poses/\")\n  .replace(/\\/?$/, \"/\");\n\n// 2) Choose pose number (clamped 1..12)\nlet n = Number(j.currentPoseNumber ?? j.poseNumber ?? ($itemIndex + 1));\nif (!Number.isFinite(n)) n = 1;\nn = Math.max(1, Math.min(12, Math.floor(n)));\nconst nn = String(n).padStart(2, \"0\");\n\n// 3) Filename pattern — CHANGE THIS LINE if your refs are named differently\n// Examples:\n//   `pose-${nn}.png`   (pose-01.png)  ← current default\n//   `${nn}.png`        (01.png)\n//   `${n}.png`         (1.png)\nconst refName = `pose${nn}.png`;\n\n// 4) Public URL\nconst poseRefUrl = `${bucketBase}${refName}`;\n\n// 5) Derive bucket-relative key from the public URL\nlet poseRefKey = poseRefUrl.replace(/^https?:\\/\\/[^/]+\\//, \"\");\n// If your S3 node sets bucketName = \"little-hero-assets\", the key must NOT include the bucket name:\nposeRefKey = poseRefKey.replace(/^little-hero-assets\\//, \"\");\n\n// 6) Output\nreturn [{\n  json: {\n    ...j,\n    poseNumber: n,\n    poseLabel: `pose-${nn}`,\n    poseRefUrl,\n    poseRefKey\n  },\n  binary: $binary\n}];\n"
+      },
+      "id": "6a5da1e0-1e6f-4e73-8840-c18864bd4842",
+      "name": "Resolve Pose Ref (IMAGE P)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [],
+          "number": [],
+          "boolean": [],
+          "json": []
+        },
+        "options": {}
+      },
+      "id": "e781280d-3803-4e94-be65-896801d81a51",
+      "name": "Start / Pass-through",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -1616,
+        -288
+      ],
+      "notesInFlow": true,
+      "notes": "Pass-through start. Provide one item per pose or upstream item explosion.\nExpected fields per item:\n - characterSpecs (object)\n - hairPromptMeta (optional)\n - characterHash (string)\n - poseNumber (int 1..12) OR names we can parse to get poseNumber\n - binary.character OR json.characterBase64 (IMAGE A)\nOptional: binary.hair (IMAGE B), binary.skin (IMAGE C)"
+    },
+    {
+      "parameters": {},
+      "id": "d2218a11-0c1c-4cec-b9e9-563de3891113",
+      "name": "Manual Trigger — Pose Sim",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -5504,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulate the upstream order so you can test the pose loop without regenerating the base character.\n// This mirrors production fields used by the prompt builder & QA.\n\n// ---------- SIM CONFIG ----------\nconst SIM = {\n  // Character + assets\n  characterHash: '1567edfe9a2e96c5',\n  totalPosesRequired: 2,                  // set 12 for full run\n  assetsRoot: 'book-mvp-simple-adventure',\n  orderAssetsPrefix: 'order-generated-assets',\n  baseCharacterFilename: 'base-character.png',\n  publicR2Url: 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev',\n  posesPublicBase: 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/little-hero-assets/book-mvp-simple-adventure/characters/poses/',\n  get characterPath() { return `characters/${this.characterHash}`; },\n\n  // Order/character knobs\n  customerEmail: 'jeff@example.com',\n\n  // These match what your prod prompt builder reads\n  characterSpecs: {\n    childName: 'Alex',\n    skinTone: 'medium',\n    hairColor: 'medium-brown',\n    hairStyle: 'straight-short',\n    age: 5,\n    pronouns: 'she/her',\n    favoriteColor: 'green',\n    animalGuide: 'tiger',\n    clothingStyle: 'dress',\n  },\n\n  bookSpecs: {\n    title: 'Alex and the Adventure Compass',\n    totalPages: 16,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide',\n  },\n\n  // Appearance locks used by your prompt nodes\n  // (Build Dynamic Pose Prompt looks for these)\n  hairStyleCanonical: 'straight-short',\n  hairPromptMeta: {\n    styleKey: 'straight-short',\n    color: 'medium-brown',\n    colorHex: '#B88751',                 // tweak as desired\n  },\n  skinToneId: 'medium',                  // optional palette id your builder may echo back\n  skinHexBase: '#C88C5A',                // optional anchor color\n  skinColorLock: '',                     // optional extra rule line\n\n  // QA / retry policy knobs (read by retry/IF nodes)\n  qaThreshold: 0.90,\n  maxPoseRetries: 2,\n};\n\n// ---------- EMIT ORDER ----------\nconst now = new Date().toISOString();\n\nconst order = {\n  amazonOrderId: 'SIM-ORDER-001',\n  status: 'ai_generation_in_progress',\n  orderDate: now,\n  customerEmail: SIM.customerEmail,\n\n  characterSpecs: SIM.characterSpecs,\n  bookSpecs: SIM.bookSpecs,\n  orderDetails: { quantity: 1 },\n\n  aiGenerationStartedAt: now,\n  posesGenerated: 0,\n  generationProgress: 0,\n\n  // critical derivations for downstream nodes\n  characterHash: SIM.characterHash,\n  characterPath: SIM.characterPath,\n  assetsRoot: SIM.assetsRoot,\n  orderAssetsPrefix: SIM.orderAssetsPrefix,\n  baseCharacterFilename: SIM.baseCharacterFilename,\n  publicR2Url: SIM.publicR2Url,\n\n  // pose loop config\n  totalPosesRequired: SIM.totalPosesRequired,\n  posesPublicBase: SIM.posesPublicBase,\n  templatePath: 'templates',\n\n  // appearance-lock fields (mirrors prod)\n  hairStyleCanonical: SIM.hairStyleCanonical,\n  hairPromptMeta: SIM.hairPromptMeta,\n  skinToneId: SIM.skinToneId,\n  skinHexBase: SIM.skinHexBase,\n  skinColorLock: SIM.skinColorLock,\n\n  // QA / retry policy\n  qaThreshold: SIM.qaThreshold,\n  maxPoseRetries: SIM.maxPoseRetries,\n};\n\nreturn [{ json: order }];\n"
+      },
+      "id": "701541e8-3a26-4d8d-824d-5c6a7a11b95c",
+      "name": "Simulate Upstream (Seed Pose Loop)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1824,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first() || { json: {}, binary: {} };\nconst j = item.json || {};\nconst b = item.binary || {};\nconst total = Number(j.totalPosesRequired) || 12;\nconst out = [];\nfor (let n=1;n<=total;n++){ out.push({ json:{ ...j, poseNumber:n, currentPoseNumber:n }, binary:b }); }\nreturn out;\n"
+      },
+      "id": "2b200d83-3994-45de-b527-c8570e164a10",
+      "name": "Expand to 12 Poses",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1424,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate a mock order for testing the AI character generation workflow\n// This simulates an order coming from the order intake workflow\n\nconst mockOrder = {\n  amazonOrderId: 'TEST-ORDER-003',\n  status: 'queued_for_processing',\n  orderDate: new Date().toISOString(),\n  customerEmail: 'test@example.com',\n  characterSpecs: {\n    childName: 'Alex',\n    skinTone: 'tan',\n    hairColor: 'red',\n    hairStyle: 'curly-medium',\n    age: 5,\n    pronouns: 'she/her',\n    favoriteColor: 'green',\n    animalGuide: 'tiger',\n    clothingStyle: 't-shirt and shorts'\n  },\n  bookSpecs: {\n    title: 'Alex and the Adventure Compass',\n    totalPages: 16,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide' // or 'mvp-simple' for different book types\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: 'Test Customer',\n      address: '123 Test Street',\n      city: 'Test City',\n      state: 'CA',\n      zip: '90210'\n    }\n  }\n};\n\nconsole.log('Generated mock order for testing:', mockOrder);\nreturn [{ json: mockOrder }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        -160
+      ],
+      "id": "400a800b-04ce-4c0f-b0b5-4535d3772e09",
+      "name": "Generate Mock Order"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Get next order from processing queue and extract custom elements\n// In production, this would query a database queue\n// For now, we'll simulate getting an order from the previous workflow\n\nconst inputData = $input.first();\nif (!inputData || !inputData.json) {\n  console.log('No input data received');\n  return [];\n}\n\nconst orderData = inputData.json;\n\n// Check if order is ready for AI generation\nif (orderData.status !== 'queued_for_processing') {\n  console.log(`Order ${orderData.amazonOrderId} not ready for processing. Status: ${orderData.status}`);\n  return [];\n}\n\n// Extract and validate custom elements from characterSpecs\nconst characterSpecs = orderData.characterSpecs || {};\nconst customElements = {\n  childName: characterSpecs.childName || 'Adventure Hero',\n  skinTone: characterSpecs.skinTone || 'medium',\n  hairColor: characterSpecs.hairColor || 'brown',\n  hairStyle: characterSpecs.hairStyle || 'short/straight',\n  age: parseInt(characterSpecs.age) || 5,\n  pronouns: characterSpecs.pronouns || 'they/them',\n  favoriteColor: characterSpecs.favoriteColor || 'blue',\n  animalGuide: characterSpecs.animalGuide || 'dog',\n  clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts'\n};\n\n// Update order status to processing with custom elements\nconst processingOrder = {\n  ...orderData,\n  characterSpecs: customElements,\n  status: 'ai_generation_in_progress',\n  aiGenerationStartedAt: new Date().toISOString(),\n  posesGenerated: 0,\n  totalPosesRequired: 12,\n  generationProgress: 0\n};\n\nconsole.log(`Starting AI generation for order: ${orderData.amazonOrderId}`);\nconsole.log(`Custom elements:`, customElements);\nreturn [{ json: processingOrder }];"
+      },
+      "id": "9c86d141-4d97-4f24-bebb-b547d8f6fc06",
+      "name": "Get Next Order from Queue",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -4896,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate character hash for reuse detection\nconst orderData = $input.first().json;\nconst characterSpecs = orderData.characterSpecs || {};\n\n// Create a normalized character specification object for hashing\nconst characterHashSpec = {\n  skinTone: characterSpecs.skinTone || 'medium',\n  hairColor: characterSpecs.hairColor || 'brown',\n  hairStyle: characterSpecs.hairStyle || 'short/straight',\n  age: parseInt(characterSpecs.age) || 5,\n  pronouns: characterSpecs.pronouns || 'they/them',\n  favoriteColor: characterSpecs.favoriteColor || 'blue',\n  animalGuide: characterSpecs.animalGuide || 'dog',\n  clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts'\n};\n\n// Generate a deterministic hash from the character specifications\nconst crypto = require('crypto');\nconst hashString = JSON.stringify(characterHashSpec, Object.keys(characterHashSpec).sort());\nconst characterHash = crypto.createHash('sha256').update(hashString).digest('hex').substring(0, 16);\n\n// Add character hash and normalized specs to order data\nconst orderWithHash = {\n  ...orderData,\n  characterHash: characterHash,\n  characterHashSpec: characterHashSpec,\n  characterPath: `characters/${characterHash}`,\n  templatePath: 'templates'\n};\n\nconsole.log(`Generated character hash: ${characterHash}`);\nconsole.log(`Character specs:`, characterHashSpec);\n\nreturn [{ json: orderWithHash }];"
+      },
+      "id": "04a6fc7c-ef08-4535-a5a6-4deb2295a757",
+      "name": "Generate Character Hash",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4720,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore metadata after S3 upload\nconst uploadResult = $input.first();\nconst originalData = $('Process Gemini API response and extract generated image').first();\n\nreturn [{\n  json: {\n    ...originalData.json,\n    s3UploadResult: uploadResult.json,\n    baseCharacterUploaded: true,\n    baseCharacterUploadedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "08adf83a-b8e6-44a4-86fd-f5e4fd2c4533",
+      "name": "Restore Metadata After Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2224,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Client-Request-Id",
+              "value": "={{$json.correlationId}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.requestBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2896,
+        -144
+      ],
+      "id": "9a73ade8-6635-4260-9c97-45482518bfde",
+      "name": "Generate Custom Base Character",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7jdcfc9T2O9vensv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract first image from Gemini response and output as n8n binary\nconst input = $input.first();\nconst res = input.json;\n\nconst parts = res?.candidates?.[0]?.content?.parts ?? [];\nconst imagePart = parts.find(p => p?.inlineData?.data);\n\nif (!imagePart?.inlineData?.data) {\n  throw new Error('No inlineData image found in Gemini response');\n}\n\nconst mime = imagePart.inlineData.mimeType || 'image/png';\nconst buf = Buffer.from(imagePart.inlineData.data, 'base64');\n\nconst binary = await this.helpers.prepareBinaryData(buf, 'generated.png', mime);\n\nconst originalOrderData = $('Generate Character Hash').first().json;\n\nreturn [{\n  json: {\n    ...originalOrderData,\n    generatedImage: { mimeType: mime, size: buf.length }\n  },\n  binary: { data: binary }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2672,
+        -144
+      ],
+      "id": "84d7bd00-6a64-476e-afac-ede6c1d5be0e",
+      "name": "Process Gemini API response and extract generated image"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-assets",
+        "fileName": "=book-mvp-simple-adventure/order-generated-assets/{{ $json.characterPath }}/base-character.png",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        -144
+      ],
+      "id": "9ef0fa63-5e27-4370-8237-47956e6bd0cd",
+      "name": "Upload a file",
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Dynamic Hairstyle Description — insert just BEFORE \"Prepare Binary\"\n// Adds: item.json.hairPromptBlock, hairPromptMeta (incl. hairColorHex + hairColorLock + clothing lock)\n// Preserves binary, aliases first unknown key to `image` if needed.\n\nconst item = $input.first();\nconst j = item.json || {};\nconst cs = j.characterSpecs || {};\n\n/* ---------------- Utils (local, but prefer globals if present) ---------------- */\nfunction norm(s){\n  return String(s||'')\n    .toLowerCase()\n    .replace(/[^a-z0-9#+\\-\\s]/g,' ')\n    .replace(/\\s+/g,' ')\n    .trim();\n}\n\n// If a Shared Utils node set global.canonicalClothingType, use it.\n// Otherwise define a compatible local fallback.\nconst canonicalClothingType = (global && typeof global.canonicalClothingType === 'function')\n  ? global.canonicalClothingType\n  : function canonicalClothingTypeLocal(raw){\n      const s = norm(raw);\n      if (!s) return 'tee-shorts';\n      if (/dress|sundress|gown/.test(s)) return 'dress';\n      // default → tee+shorts\n      return 'tee-shorts';\n    };\n\n/* ---------------- Hair style canonicalization (your live 13) ---------------- */\nconst CANONICAL_STYLES = [\n  'ponytail','pigtails',\n  'straight-short','straight-medium','straight-long',\n  'curly-short','curly-medium','curly-long',\n  'afro','pom-poms','bun','locs','side-part'\n];\n\nfunction canonicalStyle(styleRaw) {\n  const s = norm(styleRaw);\n  if (!s) return 'generic';\n  const sh = s.replace(/-/g,' ');\n  if (/(^|\\s)pom\\s*poms?($|\\s)|space\\s*buns?|puffs?/.test(sh)) return 'pom-poms';\n  if (/pigtails?/.test(sh)) return 'pigtails';\n  if (/side\\s*part/.test(sh)) return 'side-part';\n  if (/(^|\\s)bun($|\\s)/.test(sh)) return 'bun';\n  if (/(locs|dreadlocks|dreads)/.test(sh)) return 'locs';\n  if (/afro/.test(sh)) return 'afro';\n  if (/ponytail|pony\\s*tail/.test(sh)) return 'ponytail';\n\n  if (/straight/.test(sh) && /(short|above\\s*chin|chin)/.test(sh)) return 'straight-short';\n  if (/straight/.test(sh) && /(medium|shoulder|to\\s*shoulders?)/.test(sh)) return 'straight-medium';\n  if (/straight/.test(sh) && /(long|below\\s*shoulders?)/.test(sh)) return 'straight-long';\n  if (/straight/.test(sh)) return 'straight-medium';\n\n  if (/(curly|curls)/.test(sh) && /(short|halo)/.test(sh)) return 'curly-short';\n  if (/(curly|curls)/.test(sh) && /(medium|shoulder)/.test(sh)) return 'curly-medium';\n  if (/(curly|curls)/.test(sh) && /(long|below\\s*shoulders?)/.test(sh)) return 'curly-long';\n  if (/(curly|curls)/.test(sh)) return 'curly-medium';\n\n  return 'generic';\n}\n\n/* ---------------- Hair color canonicalization ---------------- */\n// Customer-facing labels → fixed HEX (your palette)\nconst HAIR_COLOR_MAP = {\n  'blonde':             { id:'blonde',            hex:'#D1B26F' },\n  'strawberry blonde':  { id:'strawberry-blonde', hex:'#E6A273' },\n  'light-brown':        { id:'light-brown',       hex:'#A4754A' },\n  'medium-brown':       { id:'medium-brown',      hex:'#7B4B2A' },\n  'dark-brown':         { id:'dark-brown',        hex:'#523418' },\n  'auburn':             { id:'auburn',            hex:'#8B3F2C' },\n  'black':              { id:'black',             hex:'#2B2B2B' },\n  'red':                { id:'red',               hex:'#C25E2E' }\n};\n\n// Accept many synonyms and raw hex like \"#734a2f\"\nfunction canonicalHairColor(raw){\n  const s = norm(raw);\n  if (!s) return { id:'unspecified', hex:null, source:'empty' };\n\n  // direct hex pass-through\n  const m = s.match(/#?[0-9a-f]{6}\\b/i);\n  if (m){\n    const hex = ('#' + m[0].replace('#','')).toUpperCase();\n    return { id:'custom-hex', hex, source:'hex' };\n  }\n\n  // normalize synonyms\n  const table = [\n    [/strawberry\\s*blonde|strawberry-blonde|strawberryblonde|strawb.*blonde/, 'strawberry blonde'],\n    [/light\\s*brown|lt\\s*brown|brown\\s*light/, 'light-brown'],\n    [/medium\\s*brown|mid\\s*brown|brown\\s*medium/, 'medium-brown'],\n    [/dark\\s*brown|dk\\s*brown|brown\\s*dark/, 'dark-brown'],\n    [/auburn|reddish\\s*brown/, 'auburn'],\n    [/ginger|copper|true\\s*red/, 'red'],\n    [/jet\\s*black|black/, 'black'],\n    [/blonde|blond/, 'blonde'],\n  ];\n  for (const [re,label] of table){\n    if (re.test(s)) return { ...HAIR_COLOR_MAP[label], source:'label' };\n  }\n\n  if (HAIR_COLOR_MAP[s]) return { ...HAIR_COLOR_MAP[s], source:'label-exact' };\n  return { id:'unspecified', hex:null, source:'unknown' };\n}\n\nconst colorIn = cs.hairColor || j.hairPromptMeta?.color || '';\nconst colorCanon = canonicalHairColor(colorIn);\n\n/* ---------------- Clothing type (now robust to style/type fields) ---------- */\nconst clothingTypeCanonical = canonicalClothingType(\n  cs.clothingType ?? cs.clothingStyle ?? j.clothingType ?? j.clothingStyle ?? j.clothingTypeCanonical\n) || 'tee-shorts';\n\n/* ---------------- Prompt map (same styles; side-part stricter) -------------- */\nconst PROMPT_MAP = {\n  'ponytail': [\n    'HAIRSTYLE — PONYTAIL',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Hair gathered into one ponytail; visible tie.',\n    '- Tail sits behind head/neck; no loose strands on face/shoulders.',\n    '- Tail reads as one connected mass.'\n  ],\n  'pigtails': [\n    'HAIRSTYLE — PIGTAILS (TWO PONYTAILS)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Two mid-height ponytails with visible ties.',\n    '- Tails near shoulders without covering face.',\n    '- Each tail forms a closed silhouette; no flyaways.'\n  ],\n  'straight-short': [\n    'HAIRSTYLE — STRAIGHT (SHORT / ABOVE CHIN)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Short straight cut above chin; eyes fully clear.',\n    '- Silhouette hugs head; no stringy separated strands.'\n  ],\n  'straight-medium': [\n    'HAIRSTYLE — STRAIGHT (MEDIUM / TO SHOULDERS)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Straight to shoulder length, falling behind shoulders.',\n    '- Neat part; no strands across eyes/cheeks.'\n  ],\n  'straight-long': [\n    'HAIRSTYLE — STRAIGHT (LONG / BELOW SHOULDERS)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Long straight hair past shoulders, kept behind back.',\n    '- Minimal layering; tips not split/stringy.'\n  ],\n  'curly-short': [\n    'HAIRSTYLE — CURLY (SHORT / HALO)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Compact curl halo close to head.',\n    '- Suggest curls with interior shapes; outer contour continuous.'\n  ],\n  'curly-medium': [\n    'HAIRSTYLE — CURLY (MEDIUM / TO SHOULDERS)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Medium curls to shoulder level.',\n    '- Group curls so outer silhouette stays continuous.'\n  ],\n  'curly-long': [\n    'HAIRSTYLE — CURLY (LONG / BELOW SHOULDERS)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Long curls falling behind shoulders/back.',\n    '- Single connected outline; texture inside the shape.'\n  ],\n  'afro': [\n    'HAIRSTYLE — AFRO (ROUNDED)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Even, rounded afro around the head.',\n    '- Texture via tone; no pinholes to background.'\n  ],\n  'pom-poms': [\n    'HAIRSTYLE — POM-POMS / SPACE BUNS (TWO PUFFS)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Two symmetric puffs high on upper sides/crown; clean center part; small ties.',\n    '- SIZE: each ≤ 30% of head width; combined span ≤ 90%.',\n    '- PLACEMENT: above and slightly behind ears; do not overlap face.'\n  ],\n  'bun': [\n    'HAIRSTYLE — BUN (BACK/LOW BUN)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Single bun at back/low back of head.',\n    '- Front tidy; bun reads as one solid form.'\n  ],\n  'locs': [\n    'HAIRSTYLE — LOCS (NEATLY GATHERED)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- Locs arranged so overall outline remains continuous.',\n    '- Indicate individual locs with tone/lines; no gaps between locs.'\n  ],\n  'side-part': [\n    'HAIRSTYLE — SIDE-PART (SHORT CUT)',\n    colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n    '- PART: crisp side part on the character’s RIGHT (viewer’s LEFT); hair sweeps LEFT.',\n    '- LENGTH/SHAPE: short overall; both ears fully visible; sides/back tidy and close to the head.',\n    '- FRONT: one soft curved forelock sweeping sideways above the eyebrow region; no bob/bang curtain.',\n    '- SILHOUETTE LOCKS: outline hugs the skull; no hair below the top of the ear; back follows skull curve (no straight “bob” hem).',\n    '- NEGATIVES: no middle part; no long layers; no hair over cheeks/ears; no spikes/fade lines/flyaways.'\n  ]\n};\n\n/* ---------------- Hygiene (BG removal, shared) ---------------- */\nfunction hygieneLines(allowScallop) {\n  return [\n    '',\n    'HAIR OUTPUT POLICY (BG-REMOVAL):',\n    '- Hair renders as a single, opaque, connected mass.',\n    '- No gaps/holes; no semi-transparent strokes; no halos/outer glows.',\n    allowScallop ? '- For curly/afro/puffs, a gently scalloped outer edge is OK; keep it solid (no cutouts).' : null,\n    'BACKGROUND: Pure white (#FFFFFF). NO transparency.'\n  ].filter(Boolean);\n}\n\n/* ---------------- Hair reference usage block (if present) ---------------- */\nconst hasHairRef = !!(item.binary && item.binary.hair);\nconst hairRefUsageBlock = hasHairRef\n  ? [\n      '',\n      'IMAGE B — HAIRSTYLE REFERENCE (USAGE):',\n      '- Use ONLY for part location, silhouette outline, maximum length, and placement.',\n      '- Do NOT copy face, skin tone, eyes, clothes, or colors from IMAGE B — hair shape only.'\n    ].join('\\n')\n  : '';\n\n/* ---------------- Outfit/Clothing Lock (critical to stop swaps) ----------- */\nconst outfitLock =\n  clothingTypeCanonical === 'dress'\n    ? [\n        'OUTFIT / CLOTHING LOCK:',\n        '- Outfit MUST remain a DRESS (single-piece).',\n        '- Do NOT replace with a T-shirt and shorts, pants, or layered outfits.',\n        '- Keep the same dress silhouette as IMAGE A (short sleeves, A-line body); no waist seam or shorts hem visible.'\n      ].join('\\n')\n    : [\n        'OUTFIT / CLOTHING LOCK:',\n        '- Outfit MUST remain a short-sleeve T-SHIRT and SHORTS.',\n        '- Do NOT replace with a dress, skirt, pants, or layered outfits.',\n        '- Keep shorts length and T-shirt silhouette consistent with IMAGE A.'\n      ].join('\\n');\n\n/* ---------------- Build hair-color lock line ---------------- */\nconst hairColorLock = colorCanon.hex\n  ? `HAIR COLOR LOCK: Use ${colorCanon.hex} consistently across ALL generated images. Do not recolor, lighten/darken, or shift undertone.`\n  : 'HAIR COLOR LOCK: Keep the selected hair color consistent across ALL generated images. Do not recolor or shift undertone.';\n\n/* ---------------- Build final block ---------------- */\nconst styleKeyRaw = cs.hairStyle;\nconst styleKey = canonicalStyle(styleKeyRaw);\nconst allowScallop = ['curly-short','curly-medium','curly-long','afro','pom-poms'].includes(styleKey);\nconst baseLines = PROMPT_MAP[styleKey] || [\n  'HAIRSTYLE — GENERIC',\n  colorCanon.hex ? `Hair color base: ${colorCanon.hex}` : 'Hair color: unspecified',\n  '- Hair silhouette is a single connected mass with clean, closed edges.',\n  '- Keep interior detail with tone/lines; avoid gaps between strands.',\n  '- Keep face and ears unobstructed unless the style requires otherwise.'\n];\n\n// Recommended order: outfit lock → color lock → style → image usage → hygiene\nconst hairPromptBlock = [\n  outfitLock,\n  hairColorLock,\n  ...baseLines,\n  hairRefUsageBlock || null,\n  ...hygieneLines(allowScallop)\n].filter(Boolean).join('\\n');\n\n/* ---------------- Preserve & normalize binary for downstream ---------------- */\nconst binaryIn = item.binary || {};\nconst binaryKeys = Object.keys(binaryIn);\nconst preferredBinaryKeys = ['data','image','file','character','reference','hair'];\nconst hasPreferred = preferredBinaryKeys.some(k => binaryIn[k]);\nconst binaryOut = binaryKeys.length ? { ...binaryIn } : undefined;\nif (binaryOut && !hasPreferred && binaryKeys.length) {\n  const firstKey = binaryKeys[0];\n  binaryOut.image = binaryOut[firstKey];\n}\n\n/* ---------------- Emit ---------------- */\nreturn [{\n  json: {\n    ...j,\n    hairPromptBlock,\n    hairPromptMeta: {\n      ...(j.hairPromptMeta || {}),\n      styleKey: CANONICAL_STYLES.includes(styleKey) ? styleKey : 'generic',\n      colorLabel: colorCanon.id,\n      colorHex: colorCanon.hex,\n      hairColorLock,\n      clothingTypeCanonical, // for audit/debug and pose carry-over\n      promptVersion: 'v1.4-haircolor-lock+outfit-lock',\n      allowedKeys: CANONICAL_STYLES,\n      source: 'dynamic-hairstyle-prompt-map',\n      _debug: {\n        receivedHairStyle: styleKeyRaw,\n        receivedHairColor: colorIn,\n        hairColorSource: colorCanon.source,\n        normalizedStyle: norm(styleKeyRaw),\n        matchedStyleKey: CANONICAL_STYLES.includes(styleKey) ? styleKey : 'generic',\n        clothingTypeRaw: cs.clothingType ?? cs.clothingStyle ?? j.clothingType ?? j.clothingStyle,\n        hasHairRef\n      }\n    }\n  },\n  binary: binaryOut\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3360,
+        -144
+      ],
+      "id": "1f7134c4-6851-49df-a103-d80121184596",
+      "name": "Build Dynamic Hairstyle Prompt"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Resolve Hairstyle Key and Asset Path — utils-aware + robust fallbacks\n// Inputs: item.json.characterSpecs.hairStyle (optional), item.json.hairPromptMeta.styleKey (optional)\n// Outputs: hairStyleCanonical, hairRefS3Key, hairRefPublicUrl, hairPromptMeta (augmented)\n\nconst item = $input.first();\nconst j = item.json || {};\nconst cs = j.characterSpecs || {};\n\n// ---------- try to use Shared Utils (Init) norm() if available ----------\nlet U = {};\ntry { U = $('Shared Utils (Init)').first()?.json || {}; } catch {}\nconst norm = (typeof U?.fns?.norm === 'string')\n  ? eval(`(${U.fns.norm})`)\n  : function normLocal(s){\n      return String(s || '')\n        .toLowerCase()\n        .replace(/[^a-z0-9+\\-#\\s]/g, ' ')\n        .replace(/\\s+/g, ' ')\n        .trim();\n    };\n\n// 13 canonical styles\nconst CANONICAL = [\n  'ponytail','pigtails',\n  'straight-short','straight-medium','straight-long',\n  'curly-short','curly-medium','curly-long',\n  'afro','pom-poms','bun','locs','side-part'\n];\n\n// Canonicalizer tolerant to synonyms\nfunction canonicalStyle(styleRaw) {\n  const s = norm(styleRaw);\n  if (!s) return 'generic';\n  const sh = s.replace(/-/g, ' ');\n\n  if (/(^|\\s)pom\\s*poms?($|\\s)|space\\s*buns?|puffs?/.test(sh)) return 'pom-poms';\n  if (/pigtails?/.test(sh)) return 'pigtails';\n  if (/side\\s*part/.test(sh)) return 'side-part';\n  if (/(^|\\s)bun($|\\s)/.test(sh)) return 'bun';\n  if (/(locs|dreadlocks|dreads)/.test(sh)) return 'locs';\n  if (/afro/.test(sh)) return 'afro';\n  if (/ponytail|pony\\s*tail/.test(sh)) return 'ponytail';\n\n  if (/straight/.test(sh) && /(short|above\\s*chin|chin)/.test(sh)) return 'straight-short';\n  if (/straight/.test(sh) && /(medium|shoulder|to\\s*shoulders?)/.test(sh)) return 'straight-medium';\n  if (/straight/.test(sh) && /(long|below\\s*shoulders?)/.test(sh)) return 'straight-long';\n  if (/straight/.test(sh)) return 'straight-medium';\n\n  if (/(curly|curls)/.test(sh) && /(short|halo)/.test(sh)) return 'curly-short';\n  if (/(curly|curls)/.test(sh) && /(medium|shoulder)/.test(sh)) return 'curly-medium';\n  if (/(curly|curls)/.test(sh) && /(long|below\\s*shoulders?)/.test(sh)) return 'curly-long';\n  if (/(curly|curls)/.test(sh)) return 'curly-medium';\n\n  return 'generic';\n}\n\n// --- resolve the input style from multiple places (most authoritative first) ---\nconst styleKeyRaw =\n  j.hairPromptMeta?.styleKey ??\n  j.hairStyleCanonical ??\n  cs.hairStyle ??\n  j.hairStyle ??\n  cs.hair ??          // very defensive\n  j.hair ??           // very defensive\n  null;\n\n// Canonicalize (may return 'generic')\nlet hairStyleCanonical = canonicalStyle(styleKeyRaw);\n\n// If not canonical, try one more pass: if the raw itself is already canonical, accept it\nif (hairStyleCanonical === 'generic' && CANONICAL.includes(norm(styleKeyRaw))) {\n  hairStyleCanonical = norm(styleKeyRaw);\n}\n\n// Final guard: if still not canonical, **fallback instead of throwing**\nlet fallbackUsed = false;\nif (!CANONICAL.includes(hairStyleCanonical)) {\n  console.warn('Resolve Hairstyle: missing/unknown hairStyle, falling back to side-part. Raw:', styleKeyRaw);\n  hairStyleCanonical = 'side-part';\n  fallbackUsed = true;\n}\n\n// Base path — allow override via j.hairRefBasePrefix, else default\nconst basePrefix = (typeof j.hairRefBasePrefix === 'string' && j.hairRefBasePrefix.trim())\n  ? j.hairRefBasePrefix.replace(/\\/+$/,'')\n  : 'book-mvp-simple-adventure/characters/hairstyles';\n\nconst hairRefS3Key = `${basePrefix}/${hairStyleCanonical}.png`;\n\n// Optional public URL if r2PublicBase provided\nlet hairRefPublicUrl = undefined;\nif (typeof j.r2PublicBase === 'string' && j.r2PublicBase.trim()) {\n  const trimmed = j.r2PublicBase.replace(/\\/+$/,'');\n  hairRefPublicUrl = `${trimmed}/${hairRefS3Key}`;\n}\n\n// Merge meta\nconst hairPromptMeta = {\n  ...(j.hairPromptMeta || {}),\n  referenceKey: hairStyleCanonical,\n  referenceUrl: hairRefPublicUrl,\n  _resolver: {\n    source: 'resolve-hairstyle-key+asset-path',\n    receivedStyleRaw: styleKeyRaw ?? null,\n    fallbackUsed\n  }\n};\n\nreturn [{\n  json: {\n    ...j,\n    hairStyleCanonical,\n    hairRefS3Key,\n    hairRefPublicUrl,\n    hairPromptMeta\n  },\n  binary: item.binary,\n}];\n"
+      },
+      "id": "016bd254-ad35-43d9-bd7f-4fb76842501e",
+      "name": "Resolve Hairstyle Key & Asset Path",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4256,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "bucketName": "little-hero-assets",
+        "fileKey": "={{$json.hairRefS3Key}}",
+        "binaryPropertyName": "hair"
+      },
+      "id": "e61a1113-a0b1-487b-ba10-8571ec1b871f",
+      "name": "Load Hairstyle Reference (R2/S3)",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -4048,
+        -16
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "60395f5c-74f9-4f77-acfb-cac758912683",
+      "name": "Merge Base & Hair Refs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        -3776,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Gemini API request for CUSTOM BASE CHARACTER (hair ref optional, skin swatch optional)\n// + Clothing type & color locks (top-only color; neutral denim shorts) with HARD wardrobe override\n// Inputs:\n//  - JSON: characterSpecs.*, hairPromptBlock (+ hairPromptMeta, optional),\n//          requireHairRef (bool, optional), skinToneId (opt), skinHexBase (opt),\n//          skinColorLock (opt — human text like \"brown-03 #B47B50 within swatch range\"),\n//          characterSpecs.favoriteColor (label),\n//          characterSpecs.clothingType / clothingStyle (\"t-shirt and shorts\" | \"dress\" | synonyms)\n//  - Binary:\n//      • base style reference on any of ['data','image','file','character','reference']  ← IMAGE A\n//      • hairstyle reference (optional) on 'hair'                                        ← IMAGE B\n//      • skin-tone swatch chip/strip (optional) on 'skin'                                ← IMAGE C\n// Output:\n//  - item.json: { correlationId, generationConfig, requestBody, requestBodyMeta, clothing* fields }\n//  - (does not modify binary)\n\nconst item = $input.first();\nconst j = item.json || {};\nconst cs = j.characterSpecs || {};\n\n// ---------- helpers ----------\nfunction norm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9#+\\-\\s]/g,' ').replace(/\\s+/g,' ').trim(); }\nfunction title(s){ return String(s||'').replace(/\\b\\w/g, c => c.toUpperCase()); }\n\n// ---------- clothing type canonicalization (prefer Shared Utils if available) ----------\nconst canonicalClothingType =\n  (typeof global !== 'undefined' && global && typeof global.canonicalClothingType === 'function')\n    ? global.canonicalClothingType\n    : function canonicalClothingTypeLocal(raw){\n        const s = norm(raw || '');\n        if (/dress|sundress|gown/.test(s)) return 'dress';\n        // default → tee+shorts\n        return 'tee-shorts';\n      };\n\nconst clothingTypeCanonical = canonicalClothingType(\n  cs.clothingType ?? cs.clothingStyle ?? j.clothingType ?? j.clothingStyle ?? j.clothingTypeCanonical\n) || 'tee-shorts';\n\n// Fixed neutral denim for shorts (muted to match book palette)\nconst SHORTS_HEX = '#5C7393';\n\n// ---------- favorite color (top or dress body) → HEX map ----------\nconst CLOTHING_COLOR_MAP = {\n  'red':      '#C8513C',\n  'orange':   '#DB8A2B',\n  'yellow':   '#E2C351',\n  'green':    '#76A355',\n  'blue':     '#4575A5',\n  'pink':     '#D77A8B',\n  'purple':   '#6E5A93',\n  'brown':    '#6B4E38',\n  'black':    '#212327'\n};\n\n// accept synonyms & raw hex\nfunction resolveTopColor(raw){\n  const s = norm(raw);\n  if (!s) return { label: 'unspecified', hex: null, source: 'empty' };\n\n  const m = s.match(/#?[0-9a-f]{6}\\b/i);\n  if (m){\n    const hex = ('#'+m[0].replace('#','')).toUpperCase();\n    return { label: 'custom-hex', hex, source: 'hex' };\n  }\n\n  const table = [\n    [/sky\\s*blue|navy|blue/, 'blue'],\n    [/lime|forest|green/, 'green'],\n    [/gold|sun|yellow/, 'yellow'],\n    [/peach|orange/, 'orange'],\n    [/rose|hot\\s*pink|pink/, 'pink'],\n    [/violet|lavender|purple/, 'purple'],\n    [/chocolate|brown/, 'brown'],\n    [/jet\\s*black|black/, 'black'],\n    [/scarlet|brick|red/, 'red'],\n  ];\n  for (const [re,label] of table){\n    if (re.test(s)) return { label, hex: CLOTHING_COLOR_MAP[label], source: 'label' };\n  }\n  if (CLOTHING_COLOR_MAP[s]) return { label: s, hex: CLOTHING_COLOR_MAP[s], source: 'label-exact' };\n  return { label: 'unspecified', hex: null, source: 'unknown' };\n}\nconst topColorIn = cs.favoriteColor || j.favoriteColor || cs.topColor || '';\nconst topColor = resolveTopColor(topColorIn);\n\n// ---------- 1) Resolve base reference binary ----------\nconst bin = item.binary || {};\nconst basePreferred = ['data','image','file','character','reference'];\nconst baseKey = basePreferred.find(k => bin[k]);\nif (!baseKey) {\n  throw new Error('Prepare Binary (Base): No base reference image found. Expected one of binary.' + basePreferred.join('|'));\n}\nlet baseBuf;\ntry { baseBuf = await this.helpers.getBinaryDataBuffer(0, baseKey); }\ncatch { throw new Error('Prepare Binary (Base): Failed to read base buffer from key \"' + baseKey + '\".'); }\nconst base64Base = baseBuf.toString('base64');\nif (!base64Base || base64Base.length < 100) throw new Error('Prepare Binary (Base): Base image base64 too short.');\nconst baseMime = (bin[baseKey] && bin[baseKey].mimeType) || 'image/png';\n\n// ---------- 2) Optional hairstyle & skin-swatch binaries ----------\nconst hasHair = !!bin.hair;\nif (j.requireHairRef === true && !hasHair) {\n  throw new Error('Prepare Binary (Base): hairstyle reference required (binary.hair) but missing.');\n}\n\nlet hair64 = null, hairMime = null;\nif (hasHair) {\n  try {\n    const hairBuf = await this.helpers.getBinaryDataBuffer(0, 'hair');\n    hair64 = hairBuf.toString('base64');\n    hairMime = (bin.hair && bin.hair.mimeType) || 'image/png';\n    if (!hair64 || hair64.length < 100) throw new Error('hair base64 too short');\n  } catch {\n    throw new Error('Prepare Binary (Base): Failed to read hairstyle reference from binary.hair.');\n  }\n}\n\n// Optional skin swatch\nlet skin64 = null, skinMime = null;\nconst hasSkin = !!bin.skin;\nif (hasSkin) {\n  try {\n    const skinBuf = await this.helpers.getBinaryDataBuffer(0, 'skin');\n    skin64 = skinBuf.toString('base64');\n    skinMime = (bin.skin && bin.skin.mimeType) || 'image/png';\n    if (!skin64 || skin64.length < 50) throw new Error('skin swatch base64 too short');\n  } catch {\n    skin64 = null; skinMime = null;\n  }\n}\n\n// ---------- 3) Build prompt text blocks (ordered) ----------\nconst styleKey = j.hairPromptMeta?.styleKey || j.hairStyleCanonical || norm(cs.hairStyle) || 'generic';\nconst hairColor = String(cs.hairColor || j.hairPromptMeta?.color || '').trim() || 'unspecified';\n\n// (A) Book style + BG rules\nconst styleRules = [\n  'BOOK STYLE: flat, clean vector-like forms with soft textured shading; no outlines on clothing folds.',\n  'BACKGROUND: pure white (#FFFFFF). No props, logos, or text. No transparency.'\n].join('\\n');\n\n// (B) SUBJECT LIMIT\nconst subjectLimit = 'SUBJECT LIMIT: Render exactly one child in frame. No additional people, duplicates, reflections, or background characters.';\n\n// (C) CLOTHING TYPE LOCK + COLOR LOCK (top only; fixed shorts) — with HARD OVERRIDE + NEGATIVES\nconst clothingTypeLine =\n  clothingTypeCanonical === 'dress'\n    ? [\n        'CLOTHING STYLE LOCK — DRESS (HARD OVERRIDE):',\n        '- Outfit must be a single-piece dress even if any reference image suggests otherwise.',\n        '- Ignore any cues for T-shirts, shorts, pants, skirts, or layered outfits.',\n        '- Dress silhouette: short sleeves or sleeveless OK; continuous skirt panel with no visible inseam; hem roughly mid-thigh; no leg openings that imply shorts.',\n      ].join('\\n')\n    : [\n        'CLOTHING STYLE LOCK — T-SHIRT & SHORTS:',\n        '- Short-sleeve T-shirt paired with shorts.',\n        '- No skirts, dresses, pants, or jackets.',\n      ].join('\\n');\n\nconst clothingNegatives =\n  clothingTypeCanonical === 'dress'\n    ? 'WARDROBE NEGATIVES (DRESS): No T-shirt seams/graphics, no waistband or fly, no leg cuffs, no pockets typical of shorts, no split at the crotch (no inseam).'\n    : null;\n\nconst topColorLock =\n  clothingTypeCanonical === 'dress'\n    ? (topColor.hex\n        ? `CLOTHING COLOR LOCK — DRESS BODY: Use ${topColor.hex} as the main fabric color. Keep hue constant across images; subtle book-style shading allowed; no recolor or saturation shifts.`\n        : 'CLOTHING COLOR LOCK — DRESS BODY: Keep a single solid color (per order) consistent across images; only subtle book-style shading allowed.')\n    : (topColor.hex\n        ? `CLOTHING COLOR LOCK — TOP ONLY: Use ${topColor.hex} for the T-shirt. Shorts must stay neutral denim ${SHORTS_HEX}. Keep hue constant; subtle shading allowed.`\n        : `CLOTHING COLOR LOCK — TOP ONLY: Keep a single solid color for the T-shirt (per order). Shorts must stay neutral denim ${SHORTS_HEX}.`);\n\nconst shortsRule = (clothingTypeCanonical === 'tee-shorts')\n  ? `SHORTS COLOR: Neutral denim ${SHORTS_HEX} (fixed). Do not recolor.`\n  : null;\n\n// (D) SKIN-TONE LOCK\nconst skinToneLine = (j.skinColorLock || j.skinToneId || j.skinHexBase)\n  ? [\n      'SKIN-TONE LOCK:',\n      j.skinColorLock\n        ? `- ${j.skinColorLock}`\n        : `- Use palette ${j.skinToneId || 'unspecified'} — base ${j.skinHexBase || '(missing hex)'}; keep highlights/shadows within the provided swatch; do not lighten/darken between images; do not change undertone.`\n    ].join('\\n')\n  : 'SKIN-TONE LOCK: Keep skin tone identical to the base reference across all outputs (no lightening/darkening; do not change undertone).';\n\n// (E) HAIRSTYLE LOCK\nconst hairLockShared = [\n  'HAIRSTYLE LOCK:',\n  '- Haircut is LOCKED to the base result (or IMAGE B if provided). Do not change cut, part side, ear visibility, or maximum length.',\n  '- Motion may deflect strands slightly, but silhouette/part/length remain unchanged.',\n  `- Hair color: ${hairColor} (do not recolor).`\n].join('\\n');\n\nconst perStyle = {\n  'side-part': [\n    '- PART: on the character’s RIGHT (viewer’s LEFT); sweep LEFT.',\n    '- Both ears fully visible. No hair below the TOP of the ear.',\n    '- Back follows skull curve; absolutely no straight “bob” hem.',\n    '- Forelock curves sideways above eyebrows; never a curtain bang.'\n  ],\n  'pom-poms': [\n    '- Two high puffs with small ties; clean center part.',\n    '- Each puff ≤30% head width; combined span ≤90%; do not overlap the face.'\n  ],\n  'ponytail': [\n    '- Single ponytail gathered back; sits behind head/neck; no loose face strands.'\n  ],\n  'pigtails': [\n    '- Two mid-height tails; solid masses; keep face/ears clear.'\n  ],\n  'afro': [\n    '- Even rounded halo; continuous outline without pinholes.'\n  ],\n  'locs': [\n    '- Grouped neatly; continuous outer outline; interior detail via tone/lines only.'\n  ]\n}[styleKey] || [];\nconst hairstyleLock = [hairLockShared].concat(perStyle).join('\\n');\n\n// (F) Image roles / annotations\nconst rolesLegend = [\n  'IMAGE ROLES:',\n  '- IMAGE A = base character style guide (bald/neutral head). Do not infer haircut from IMAGE A.',\n  '- IMAGE B = hairstyle reference (if present). Use ONLY for part location, silhouette, maximum length, and placement.',\n  '- IMAGE C = SKIN-TONE SWATCH (if present). SKIN COLORS ONLY — do not copy to hair/clothes.',\n  'Priority: if IMAGE A and IMAGE B ever conflict about hair, FOLLOW IMAGE B for silhouette/part/length.'\n].join('\\n');\n\nconst ann = j.hairPromptMeta?.annotations || {};\nconst annotLegend = (ann.partColor || ann.rightEarDotColor)\n  ? [\n      'ANNOTATION LEGEND (IMAGE B):',\n      ann.partColor ? (`- ${ann.partColor} line = hair part (character’s RIGHT / viewer’s LEFT).`) : null,\n      ann.rightEarDotColor ? (`- ${ann.rightEarDotColor} dot = right ear; keep BOTH ears fully visible.`) : null,\n    ].filter(Boolean).join('\\n')\n  : '';\n\n// Hair prompt block (fallback)\nconst hairPromptBlock = (j.hairPromptBlock && String(j.hairPromptBlock).trim()) || [\n  'HAIRSTYLE DESCRIPTION — GENERIC',\n  `- Color: ${hairColor}.`,\n  '- Hair silhouette is a single, opaque, connected mass with clean, closed edges.',\n  '- Keep face and both ears unobstructed unless the style requires otherwise.'\n].join('\\n');\n\n// Hygiene (BG removal)\nconst hygiene = [\n  'HAIR OUTPUT POLICY:',\n  '- Hair renders as a single, opaque, connected mass; closed edges.',\n  '- No halos, gaps, or semi-transparent strokes.'\n].join('\\n');\n\n// Compose final user text (recommended order)\nconst userTextParts = [\n  // 1) Style rules\n  styleRules,\n  // 2) Subject limit\n  subjectLimit,\n  // 3) Clothing locks (type + colors)\n  clothingTypeLine,\n  clothingNegatives,\n  topColorLock,\n  shortsRule,\n  // 4) Skin tone lock\n  skinToneLine,\n  // 5) Hairstyle lock\n  hairstyleLock,\n  // 6) Image roles & legends\n  rolesLegend,\n  annotLegend || null,\n  hairPromptBlock,\n  hygiene\n].filter(Boolean);\nconst userText = userTextParts.join('\\n\\n');\n\n// ---------- 4) System & generation config ----------\nconst systemText = [\n  'You are a precise illustration tool.',\n  'CRITICAL: Preserve EXACT requested traits. Use IMAGE A only for overall style; use IMAGE B only for hair; use IMAGE C only for skin color matching.',\n  'Do not add text, logos, props, or backgrounds.'\n].join('\\n');\n\nconst generationConfig = {\n  imageConfig: { aspectRatio: '1:1' },\n  temperature: 0.3\n};\n\n// ---------- 5) Build request body (images last) ----------\nconst parts = [];\nparts.push({ text: userText });\n\n// IMAGE A — base\nparts.push({ text: 'IMAGE A — BASE STYLE GUIDE (do not infer haircut).' });\nparts.push({ inlineData: { mimeType: baseMime, data: base64Base } });\n\n// IMAGE B — hairstyle ref (optional)\nif (hasHair && hair64) {\n  parts.push({ text: 'IMAGE B — HAIRSTYLE REFERENCE. Use ONLY for hair silhouette/part/length/placement. Do not copy face/skin/eyes/clothes.' });\n  parts.push({ inlineData: { mimeType: hairMime, data: hair64 } });\n}\n\n// IMAGE C — skin-tone swatch (optional)\nif (hasSkin && skin64) {\n  parts.push({ text: 'IMAGE C — COLOR SWATCH (SKIN ONLY). Match base/highlight/shadow exactly. Do NOT apply to hair/clothes.' });\n  parts.push({ inlineData: { mimeType: skinMime, data: skin64 } });\n}\n\nconst requestBody = {\n  systemInstruction: { role: 'system', parts: [{ text: systemText }] },\n  contents: [{ parts }],\n  generationConfig\n};\n\n// ---------- 6) Trace meta & correlation ----------\nconst characterHash = j.characterHash || cs.hash || 'nohash';\nconst correlationId = characterHash + '-BASE-' + Date.now();\n\nreturn [{\n  json: {\n    ...j,\n    correlationId,\n    generationConfig,\n    requestBody,\n    requestBodyMeta: {\n      hasHairRef: !!hair64,\n      hasSkinSwatch: !!skin64,\n      hairStyleKey: styleKey,\n      hairRefKey: j.hairRefS3Key || null,\n      baseBinaryKey: baseKey,\n      skinToneId: j.skinToneId || null,\n      skinHexBase: j.skinHexBase || null\n    },\n    // clothing metadata to carry into pose loop\n    clothingTypeCanonical,\n    clothingColorLabel: topColor.label,\n    clothingColorHex: topColor.hex,\n    shortsHex: SHORTS_HEX\n  },\n  binary: item.binary\n}];\n"
+      },
+      "id": "e49776c6-dc54-4bf9-bf40-b6fe109ffc26",
+      "name": "Prepare Binary (Base Gen, dual-image)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3136,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Inputs: item.json.characterSpecs.skinTone, .clothingType (free text from UI)\n// Outputs: item.json.skinToneCanonical, .skinToneLabel,\n//          .clothingTypeCanonical, .clothingTypeLabel,\n//          .baseRefS3Key, .baseRefPublicUrl\n\nconst item = $input.first();\nconst j = item.json || {};\nconst cs = j.characterSpecs || {};\n\nconst PUBLIC_BASE = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\nconst ASSET_ROOT  = 'book-mvp-simple-adventure/characters/bases';\n\n// ------------------------- helpers -------------------------\nfunction norm(s){\n  return String(s||'').toLowerCase().replace(/[^a-z0-9+\\-\\s]/g,' ').replace(/\\s+/g,' ').trim();\n}\n\n// ---------- Skin tone canonicalization ----------\nfunction canonicalSkinTone(raw){\n  const s = norm(raw);\n\n  if (!s) return 'skin-medium';\n\n  // accept explicit legacy keys too\n  if (/(^|[^a-z])skin[-_ ]?(light|tan|medium|brown[-_ ]light|brown[-_ ]deep|dark[-_ ]aa|light[-_ ]aa)([^a-z]|$)/.test(s)) {\n    if (/brown[-_ ]light|light[-_ ]aa/.test(s)) return 'skin-brown-light';\n    if (/brown[-_ ]deep|dark[-_ ]aa/.test(s))  return 'skin-brown-deep';\n    if (/skin[-_ ]light/.test(s))               return 'skin-light';\n    if (/skin[-_ ]tan/.test(s))                 return 'skin-tan';\n    return 'skin-medium';\n  }\n\n  // new labels & broad synonyms\n  if (/(brown).*(deep|dark)|\\b(deep|dark)\\b.*(brown|african|aa|black)/.test(s)) return 'skin-brown-deep';\n  if (/(brown).*(light)|\\blight\\b.*(brown|african|aa|black)|(light)\\s*(aa|african)/.test(s)) return 'skin-brown-light';\n  if (/^(light|fair)(\\b|$)/.test(s))                      return 'skin-light';\n  if (/(tan|olive)/.test(s))                              return 'skin-tan';\n  if (/(medium|mid|default|normal|average)/.test(s))      return 'skin-medium';\n\n  // very old phrasing\n  if (/(dark).*?(african|aa|black)/.test(s))              return 'skin-brown-deep';\n  if (/(light).*?(african|aa|black)/.test(s))             return 'skin-brown-light';\n\n  return 'skin-medium';\n}\n\nconst skinToneCanonical = canonicalSkinTone(cs.skinTone);\n\n// customer-facing skin labels\nconst CANONICAL_TO_SKIN_LABEL = {\n  'skin-light':       'Light',\n  'skin-tan':         'Tan',\n  'skin-medium':      'Medium',\n  'skin-brown-light': 'Brown — Light',\n  'skin-brown-deep':  'Brown — Deep',\n};\nconst skinToneLabel = CANONICAL_TO_SKIN_LABEL[skinToneCanonical] || CANONICAL_TO_SKIN_LABEL['skin-medium'];\n\n// --- Clothing type canonicalization ---\nconst rawClothing =\n  (cs.clothingType ?? cs.clothingStyle ?? j.clothingType ?? j.clothingStyle ?? '').toString();\n\nfunction canonicalClothing(raw){\n  const s = norm(raw);\n  if (!s) return 'tee-shorts';\n  if (/(^|\\b)dress(es)?($|\\b)/.test(s)) return 'dress';\n  if (/(t[\\-\\s]?shirt|tee)\\b/.test(s) && /\\bshorts?\\b/.test(s)) return 'tee-shorts';\n  if (/\\bshorts?\\b/.test(s)) return 'tee-shorts';\n  if (/tee|tshirt|t\\-shirt/.test(s)) return 'tee-shorts';\n  return 'tee-shorts';\n}\nconst clothingTypeCanonical = canonicalClothing(rawClothing);\n\n\n// clothing labels for audit/UI echo\nconst CLOTHING_LABELS = {\n  'tee-shorts': 'T-shirt & shorts',\n  'dress':      'Dress',\n};\nconst clothingTypeLabel = CLOTHING_LABELS[clothingTypeCanonical] || 'T-shirt & shorts';\n\n// ---------- Filename map (mixed extensions preserved) ----------\nconst FILENAME_MAP = {\n  'tee-shorts': {\n    'skin-brown-deep':  'base--skin-dark-aa.png',\n    'skin-brown-light': 'base--skin-light-aa.png',\n    'skin-light':       'base--skin-light.png',\n    'skin-medium':      'base--skin-medium.jpg',     // only JPG\n    'skin-tan':         'base--skin-tan.png',\n  },\n  'dress': {\n    'skin-brown-deep':  'base--skin-dark-aa--dress.png',\n    'skin-brown-light': 'base--skin-light-aa--dress.png',\n    'skin-light':       'base--skin-light--dress.png',\n    'skin-medium':      'base--skin-medium--dress.png',\n    'skin-tan':         'base--skin-tan--dress.png',\n  }\n};\n\nconst clothingTable = FILENAME_MAP[clothingTypeCanonical] || FILENAME_MAP['tee-shorts'];\nconst filename = clothingTable[skinToneCanonical] || clothingTable['skin-medium'];\n\nconst baseRefS3Key = `${ASSET_ROOT}/${filename}`;\nconst baseRefPublicUrl = `${PUBLIC_BASE}/${baseRefS3Key}`;\n\n// ---------- Emit ----------\nreturn [{\n  json: {\n    ...j,\n    skinToneCanonical,\n    skinToneLabel,\n    clothingTypeCanonical,\n    clothingTypeLabel,\n    baseRefS3Key,\n    baseRefPublicUrl,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4256,
+        -256
+      ],
+      "id": "a6f8ddb0-dbfe-49ea-85c2-94a144390c4c",
+      "name": "Resolve Skin Tone & Base Path"
+    },
+    {
+      "parameters": {
+        "bucketName": "=little-hero-assets",
+        "fileKey": "={{ $json.baseRefS3Key }}"
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -4048,
+        -256
+      ],
+      "id": "25886ce9-4f5d-4850-833d-89b312eb4de0",
+      "name": "Load Base Character Image",
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nreturn [{\n  json: {\n    ...item.json,\n    poseMeta: {\n      ...(item.json.poseMeta || {}),\n      skinToneCanonical: item.json.skinToneCanonical || 'skin-medium',\n    }\n  },\n  binary: item.binary  // pass through (data + hair, if present)\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3568,
+        -144
+      ],
+      "id": "d121d75d-9f99-43bd-adda-985826ace48c",
+      "name": "Canonical Skin Ton Preserver"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Resolve Base Character Key (production-ready)\n// Goal:\n// 1) If upstream already provides baseCharacterKey, pass it through.\n// 2) Otherwise, derive it from flexible fields (no hardcoded path unless defaulted).\n// 3) Also emit baseCharacterUrl if publicR2Url is present (useful for HTTP GET flows).\n\nconst j = $json || {};\n\n// 1) Pass-through if already set (preferred in production: upstream 2A returns it)\nif (j.baseCharacterKey) {\n  const baseUrl = j.publicR2Url ? String(j.publicR2Url).replace(/\\/$/, \"\") : undefined;\n  const url = baseUrl ? `${baseUrl}/${j.baseCharacterKey}` : (j.baseCharacterUrl || undefined);\n  return [{ json: { ...j, baseCharacterUrl: url }, binary: $binary }];\n}\n\n// 2) Derive a sane key if upstream didn’t provide one\n// You can override any of these via input JSON:\n//   assetsRoot          -> defaults to 'book-mvp-simple-adventure'\n//   orderAssetsPrefix   -> defaults to 'order-generated-assets'\n//   characterPath       -> defaults to `characters/<characterHash>`\n//   baseCharacterFilename -> defaults to 'base-character.png'\n\nconst assetsRoot = j.assetsRoot || j.bookSlug || 'book-mvp-simple-adventure';\nconst orderPrefix = j.orderAssetsPrefix || 'order-generated-assets';\n\nconst hash = j.characterHash || j.__meta?.characterHash;\nconst charDir = j.characterPath || (hash ? `characters/${hash}` : null);\nif (!charDir) throw new Error('Resolve Base Character Key: characterPath or characterHash required.');\n\nconst filename = j.baseCharacterFilename || 'base-character.png';\n\n// Build key\nconst key = `${assetsRoot}/${orderPrefix}/${charDir}/${filename}`;\n\n// Also build public URL if you have a CDN/public R2 base\nconst baseUrl = j.publicR2Url ? String(j.publicR2Url).replace(/\\/$/, \"\") : undefined;\nconst url = baseUrl ? `${baseUrl}/${key}` : undefined;\n\nreturn [{ json: { ...j, baseCharacterKey: key, baseCharacterUrl: url }, binary: $binary }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        -288
+      ],
+      "id": "e2deebab-0203-4eb6-acce-f1eae6190b43",
+      "name": "Resolve Base Character Key"
+    },
+    {
+      "parameters": {
+        "bucketName": "little-hero-assets",
+        "fileKey": "={{ $json.baseCharacterKey }}",
+        "binaryPropertyName": "character"
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -288
+      ],
+      "id": "e3c93228-183d-4e79-b055-27c7483425f3",
+      "name": "Download base character",
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "bucketName": "little-hero-assets",
+        "fileKey": "={{ $json.poseRefKey || $json.poseRefUrl }}",
+        "binaryPropertyName": "pose"
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        -288
+      ],
+      "id": "b8456b3b-6efc-4083-b9a7-dd9299194881",
+      "name": "Download pose reference",
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Derive QA Pass — produce strict boolean and reasons to drive the IF node.\nconst j = $json || {};\nconst v = j.qaVerdict || {};\n\nconst thr = Number.isFinite(Number(j.qaThreshold)) ? Number(j.qaThreshold) : 0.90; // default 0.90\nconst score = Number(v.pose_score);\nconst reasons = [];\n\nif (!Number.isFinite(score)) reasons.push('no_score');\nelse if (score < thr) reasons.push(`score_below_${thr}`);\n\nif (v.single_subject !== true) reasons.push('not_single_subject');\nif (v.extra_limbs !== false) reasons.push('extra_limbs');\nif (v.bg_white !== true) reasons.push('bg_not_white');\nif (v.leakage_from_pose_ref !== false) reasons.push('leakage_from_pose_ref');\nif (v.cropped !== false) reasons.push('cropped');\n\nconst qaPass =\n  Number.isFinite(score) &&\n  score >= thr &&\n  v.single_subject === true &&\n  v.extra_limbs === false &&\n  v.bg_white === true &&\n  v.leakage_from_pose_ref === false &&\n  v.cropped === false;\n\nreturn [{\n  json: {\n    ...j,\n    qaThreshold: thr,\n    qaScore: score,\n    qaPass,\n    qaReasons: reasons\n  },\n  binary: $binary\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        -288
+      ],
+      "id": "92f90008-a287-43a0-83ab-77073a449751",
+      "name": "Derive QA Pass"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reattach Binaries (For Retry Gen) — pose-number keyed & robust\n// Rebuild inputs for a new retry WITHOUT the previous output.\n// Attach: character (A), pose (P), optional hair. Do NOT pass along `generated`.\n//\n// Robustness:\n// - Resolves poseNumber from many sources (Build Dynamic Pose Prompt, Prepare nodes, current JSON, filenames, index+1).\n// - Finds the matching poseNN.png across runs (searches run 0 first, then current $runIndex).\n// - Emits debug (__meta.reattachRetryGen) so you can verify binding.\n\nconst j = $json || {};\nconst b = $binary || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// ---------- helpers ----------\nfunction safeItems(nodeName, rIx) {\n  try { return $items(nodeName, 0, rIx) || []; } catch { return []; }\n}\nfunction getNodeJson(nodeName) {\n  // Prefer current run, fallback to run 0; prefer this item, fallback to first\n  let arr = safeItems(nodeName, runIx);\n  if (!arr.length) arr = safeItems(nodeName, 0);\n  const it = arr[$itemIndex] || arr[0] || {};\n  return it.json || {};\n}\nfunction getNodeBinary(nodeName, key) {\n  let arr = safeItems(nodeName, runIx);\n  if (!arr.length) arr = safeItems(nodeName, 0);\n  const it = arr[$itemIndex] || arr[0] || {};\n  return it.binary?.[key] || null;\n}\nfunction clampInt(v, lo=1, hi=99) {\n  const n = Number(v);\n  return Number.isFinite(n) ? Math.max(lo, Math.min(hi, Math.floor(n))) : null;\n}\nfunction parsePoseFromString(s) {\n  if (!s) return null;\n  const str = String(s);\n  // Matches pose01, pose_01, pose-01, pose01.png, or trailing \"01(.png)\"\n  const m = str.match(/pose[_-]?(\\d{1,2})/i) || str.match(/(?:^|[^\\d])(\\d{1,2})(?:\\.png)?$/i);\n  return m ? clampInt(m[1]) : null;\n}\nfunction findPoseBinaryByNumber(nn) {\n  const needle = `pose${nn}`.toLowerCase();\n  for (const r of [0, runIx]) {\n    const a = safeItems('Download pose reference', r);\n    const b = safeItems('Download a file (pose)', r);\n    const arr = [...a, ...b];\n    // Prefer this item if available\n    const preferred = arr[$itemIndex] ? [arr[$itemIndex], ...arr] : arr;\n    for (const it of preferred) {\n      const pose = it?.binary?.pose;\n      const name = pose?.fileName || pose?.fileNameOriginal || '';\n      if (name && name.toLowerCase().includes(needle)) {\n        return { bin: pose, name, run: r };\n      }\n    }\n  }\n  return null;\n}\n\n// ---------- resolve target pose number (many sources) ----------\nconst fromBuild = getNodeJson('Build Dynamic Pose Prompt'); // your dynamic node\nconst fromPrep0 = getNodeJson('Prepare Gemini (POSE)');\nconst fromPrepR = getNodeJson('Prepare Gemini (POSE) — Retry');\n\nlet poseNum =\n  clampInt(j.poseNumber) ??\n  clampInt(j.currentPoseNumber) ??\n  clampInt(j.__meta?.poseNumber) ??\n  clampInt(fromBuild.poseNumber) ??\n  clampInt(fromBuild.currentPoseNumber) ??\n  (Number.isFinite(Number(fromBuild.index)) ? clampInt(Number(fromBuild.index) + 1) : null) ??\n  clampInt(fromPrepR.poseNumber) ??\n  clampInt(fromPrep0.poseNumber) ??\n  parsePoseFromString(j.poseRefName || j.poseRefFilename || j.poseRefUrl || j.poseUrl || b.pose?.fileName);\n\nif (!poseNum && b.pose?.fileName) {\n  poseNum = parsePoseFromString(b.pose.fileName) || null;\n}\nif (!poseNum) {\n  // Last-ditch: try to infer from this item's position (index+1)\n  if (Number.isFinite(Number(j.index))) {\n    poseNum = clampInt(Number(j.index) + 1);\n  }\n}\n\nif (!poseNum) {\n  throw new Error('Reattach (Retry Gen): cannot resolve poseNumber from context');\n}\nconst NN = String(poseNum).padStart(2, '0');\n\n// ---------- bind pose by *pose number* ----------\nlet found = findPoseBinaryByNumber(NN);\nlet poseBin = found?.bin || null;\nlet poseName = found?.name || null;\nlet poseSrc  = found ? `run${found.run}` : null;\n\n// If not found by search, allow incoming pose only if it matches the target NN\nif (!poseBin && b.pose?.fileName && b.pose.fileName.toLowerCase().includes(`pose${NN}`)) {\n  poseBin = b.pose;\n  poseName = b.pose.fileName;\n  poseSrc = 'incoming';\n}\nif (!poseBin) {\n  throw new Error(`Reattach (Retry Gen): could not find pose${NN}.png in available runs or incoming binaries`);\n}\n\n// ---------- bind base + optional hair ----------\nconst base =\n  b.character ||\n  getNodeBinary('Download base character', 'character') ||\n  getNodeBinary('Download Base Character (R2)', 'character');\n\nif (!base) throw new Error('Reattach (Retry Gen): missing character (A)');\n\nconst hair =\n  b.hair ||\n  getNodeBinary('Load Hairstyle Reference (R2/S3)', 'hair') ||\n  null;\n\n// ---------- emit ----------\nconst outJson = {\n  ...j,\n  poseNumber: poseNum,\n  currentPoseNumber: poseNum,\n  __meta: {\n    ...(j.__meta || {}),\n    reattachRetryGen: {\n      runIx,\n      itemIndex: $itemIndex,\n      resolvedPose: `pose${NN}.png`,\n      boundPoseName: poseName,\n      boundFrom: poseSrc,\n      sources: {\n        fromBuild: { poseNumber: fromBuild.poseNumber, currentPoseNumber: fromBuild.currentPoseNumber, index: fromBuild.index },\n        fromPrep0: { poseNumber: fromPrep0.poseNumber },\n        fromPrepR: { poseNumber: fromPrepR.poseNumber },\n      }\n    },\n  },\n};\n\nconst outBin = { character: base, pose: poseBin, ...(hair ? { hair } : {}) };\nreturn { json: outJson, binary: outBin };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3472,
+        -208
+      ],
+      "id": "b8bbe66b-ba87-4588-bb73-2d622d2cbab8",
+      "name": "Reattach Binaries (Retry)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Bump Retry Counter — single source of truth for loop control\n// prev = attempts already made; next = attempt about to run\n// Emits: qaRetry (next), maxPoseRetries, hasRetriesRemaining (= prev < max), shouldRetry (next <= max)\n\nconst j = $json || {};\n\nfunction toInt(v, d=0) {\n  const n = Number(v);\n  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : d;\n}\n\nconst prev = toInt(j.qaRetry, 0);\nconst max  = Math.max(0, toInt(j.maxPoseRetries, 2));\nconst next = prev + 1;\n\nconst hasRetriesRemaining = prev < max;  // PRE-increment logic\nconst shouldRetryNext     = next <= max;\n\nreturn {\n  json: {\n    ...j,\n    qaRetry: next,                   // value the *next* attempt should use\n    maxPoseRetries: max,\n    hasRetriesRemaining,             // ← IF should read this\n    shouldRetry: shouldRetryNext,    // for logs only\n    __bump: { prev, next, max, at: new Date().toISOString() }\n  },\n  binary: $binary,\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        -272
+      ],
+      "id": "8aefd4ac-8ea8-4930-9556-b985227af510",
+      "name": "Bump retry counter"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Upload (rehydrate + normalize binaries for S3/R2)\n// 1) Keep incoming binaries if present\n// 2) If missing, rebuild from httpResponse inlineData\n// 3) If still missing, pull from upstream nodes by name (safe)\n// 4) Normalize to `binary.generated` (what the S3 node reads)\n\nconst input = $input.first() || { json: {}, binary: {} };\nconst out   = { json: input.json || {}, binary: { ...(input.binary || {}) } };\n\n// ---------- helpers ----------\nfunction safeItems(name) {\n  try {\n    const arr = $items(name, 0, $itemIndex);\n    return (Array.isArray(arr) && arr.length) ? arr[0] : null;\n  } catch {\n    return null;\n  }\n}\nfunction pullBinaryFrom(candidates) {\n  for (const [nodeName, key] of candidates) {\n    const n = safeItems(nodeName);\n    const hit = n?.binary?.[key];\n    if (hit) return { node: nodeName, key, bin: hit };\n  }\n  return null;\n}\nfunction findBase64(obj){\n  if (!obj || typeof obj !== 'object') return null;\n  if (obj.inlineData?.data) return obj.inlineData.data;\n  if (Array.isArray(obj))   { for (const v of obj){ const f = findBase64(v); if (f) return f; } return null; }\n  if (obj.candidates) return findBase64(obj.candidates);\n  if (obj.content)    return findBase64(obj.content);\n  if (obj.parts)      return findBase64(obj.parts);\n  if (obj[0])         return findBase64(obj[0]);\n  return null;\n}\n\n// ---------- 1) Prefer any incoming binary keys ----------\nlet gen =\n  out.binary.generated ||\n  out.binary.image ||\n  out.binary.result ||\n  out.binary['pose-generated'] ||\n  null;\n\n// ---------- 2) If missing, rebuild from inline PNG in httpResponse ----------\nif (!gen) {\n  const b64 =\n    findBase64(out.json?.httpResponse) ||\n    findBase64(input.json?.httpResponse);\n  if (b64 && String(b64).length > 100) {\n    gen = { data: b64, mimeType: 'image/png', fileExtension: 'png', fileName: 'pose-generated.png' };\n    console.log('Rehydrated generated image from httpResponse inlineData');\n  }\n}\n\n// ---------- 3) If still missing, try upstream nodes (safe, tolerant to renames) ----------\nif (!gen) {\n  // Try latest-first variations (em-dash and hyphen)\n  const candidates = [\n    ['Extract Generated Image — Retry1', 'generated'],\n    ['Extract Generated Image - Retry1', 'generated'],\n    ['Extract Generated Image — Retry',  'generated'],\n    ['Extract Generated Image - Retry',  'generated'],\n    ['Extract Generated Image',          'generated'],\n    ['Make Binary from Base64',          'image'],      // legacy\n    ['Make Binary from Base64',          'generated'],  // legacy alt\n  ];\n  const pulled = pullBinaryFrom(candidates);\n  if (pulled) {\n    gen = pulled.bin;\n    console.log(`Fetched generated from upstream node \"${pulled.node}\" key \"${pulled.key}\"`);\n  }\n}\n\n// If we still don't have a payload, fail with a useful message.\nif (!gen) {\n  const have = Object.keys(out.binary);\n  throw new Error(`No uploadable binary found. Keys present: [${have.join(', ')}]. ` +\n                  `Upstream may have dropped binaries. Ensure 'Extract Generated Image' runs and/or httpResponse is present.`);\n}\n\n// ---------- Normalize for the S3 node ----------\nout.binary.generated = gen;\n\n// ---------- Bonus: try to keep helpful context binaries (pose/character) ----------\nif (!out.binary.pose) {\n  const p = pullBinaryFrom([\n    ['Download pose reference',          'pose'],\n    ['Resolve Pose Ref (IMAGE P)',       'pose'],\n  ]);\n  if (p) out.binary.pose = p.bin;\n}\nif (!out.binary.character) {\n  const c = pullBinaryFrom([\n    ['Download base character',          'character'],\n  ]);\n  if (c) out.binary.character = c.bin;\n}\n\nreturn [out];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        64
+      ],
+      "id": "83120393-3cc0-4aec-a81d-195f5950b447",
+      "name": "Prepare Upload (ensure generated)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reattach Binaries (For QA) — Minimal set for pose QA (P + G). Base optional.\n// Intentionally avoids making base a requirement to prevent model confusion.\n\n\nconst cur = $input.first() || {};\nconst j = cur.json || {};\nconst b = cur.binary || {};\n\n\nfunction from(node, key) {\ntry { return $items(node, 0, $itemIndex)?.[0]?.binary?.[key] || null; } catch { return null; }\n}\n\n\nconst pose = b.pose || from('Download pose reference','pose') || from('Download a file (pose)','pose');\nconst generated = b.generated || null;\nconst character = b.character || from('Download base character','character') || from('Download Base Character (R2)','character') || null; // optional\n\n\nif (!pose) throw new Error('For QA: missing pose (binary.pose)');\nif (!generated) throw new Error('For QA: missing generated (binary.generated)');\n\n\nreturn [{ json: j, binary: { pose, generated, ...(character ? { character } : {}) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4512,
+        -208
+      ],
+      "id": "08360eca-f214-4816-8097-867d7a3373f0",
+      "name": "Reattach Binaries (For QA)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "957c6f8d-7fad-4da6-8670-8af037611c2b",
+              "leftValue": "={{ $json.hasRetriesRemaining === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "caa689dc-d395-4177-81bb-4a37fafa350f",
+      "name": "IF: Retry < 3?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3040,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Probe A — after bump\nreturn { json: { ...$json, __probe: { where: 'after-bump', qaRetry: $json.qaRetry, max: $json.maxPoseRetries, bump: $json.__bump } }, binary: $binary };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2816,
+        -272
+      ],
+      "id": "39f66383-6e46-45ef-a513-301b0cf6002a",
+      "name": "Probe A"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Probe B — before prepare-retry\nreturn { json: { ...$json, __probe: { where: 'before-prepare', qaRetry: $json.qaRetry, max: $json.maxPoseRetries } }, binary: $binary };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3680,
+        -208
+      ],
+      "id": "a9e1d7b9-149f-47c4-b99f-a30a86c90083",
+      "name": "Probe B"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Stamp Pose Index": {
+      "main": [
+        [
+          {
+            "node": "Resolve Pose Ref (IMAGE P)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Build Dynamic Pose Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 90 Seconds": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Final Summary": {
+      "main": [
+        [
+          {
+            "node": "Wait 90 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POSE_LOOP_SPLIT1": {
+      "main": [
+        [
+          {
+            "node": "Create Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stamp Pose Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If (should upload?)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Upload (ensure generated)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Count Before Loopback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make Binary from Base64": {
+      "main": [
+        [
+          {
+            "node": "If (should upload?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Lean Meta": {
+      "main": [
+        [
+          {
+            "node": "Make Binary from Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Upload to R2": {
+      "main": [
+        [
+          {
+            "node": "Count Before Loopback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Pose QA (Gemini) — Retry1": {
+      "main": [
+        [
+          {
+            "node": "Parse QA Verdict — Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Generate Pose Image — Retry1": {
+      "main": [
+        [
+          {
+            "node": "Extract Generated Image — Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Pose QA (Gemini)1": {
+      "main": [
+        [
+          {
+            "node": "Parse QA Verdict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Character in Pose": {
+      "main": [
+        [
+          {
+            "node": "Extract Generated Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: QA Pass? — Retry": {
+      "main": [
+        [
+          {
+            "node": "Capture Lean Meta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Bump retry counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse QA Verdict — Retry": {
+      "main": [
+        [
+          {
+            "node": "IF: QA Pass? — Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pose QA — Build Request — Retry": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Pose QA (Gemini) — Retry1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Generated Image — Retry": {
+      "main": [
+        [
+          {
+            "node": "Reattach Binaries (For QA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Gemini (POSE) — Retry": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Generate Pose Image — Retry1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Builder (Prompt Tweaks)": {
+      "main": [
+        [
+          {
+            "node": "Reattach Binaries (Retry)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: QA Pass?": {
+      "main": [
+        [
+          {
+            "node": "Capture Lean Meta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Bump retry counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse QA Verdict": {
+      "main": [
+        [
+          {
+            "node": "Derive QA Pass",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pose QA — Build Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Pose QA (Gemini)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Generated Image": {
+      "main": [
+        [
+          {
+            "node": "Pose QA — Build Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Gemini (POSE)": {
+      "main": [
+        [
+          {
+            "node": "Generate Character in Pose",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Dynamic Pose Prompt": {
+      "main": [
+        [
+          {
+            "node": "Prepare Gemini (POSE)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Pose Ref (IMAGE P)": {
+      "main": [
+        [
+          {
+            "node": "Resolve Base Character Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start / Pass-through": {
+      "main": [
+        [
+          {
+            "node": "Expand to 12 Poses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger — Pose Sim": {
+      "main": [
+        [
+          {
+            "node": "Generate Mock Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulate Upstream (Seed Pose Loop)": {
+      "main": [
+        [
+          {
+            "node": "Start / Pass-through",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand to 12 Poses": {
+      "main": [
+        [
+          {
+            "node": "POSE_LOOP_SPLIT1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Count Before Loopback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Mock Order": {
+      "main": [
+        [
+          {
+            "node": "Get Next Order from Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Next Order from Queue": {
+      "main": [
+        [
+          {
+            "node": "Generate Character Hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Character Hash": {
+      "main": [
+        [
+          {
+            "node": "Resolve Skin Tone & Base Path",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Resolve Hairstyle Key & Asset Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Custom Base Character": {
+      "main": [
+        [
+          {
+            "node": "Process Gemini API response and extract generated image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Gemini API response and extract generated image": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file": {
+      "main": [
+        [
+          {
+            "node": "Restore Metadata After Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Dynamic Hairstyle Prompt": {
+      "main": [
+        [
+          {
+            "node": "Prepare Binary (Base Gen, dual-image)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Hairstyle Key & Asset Path": {
+      "main": [
+        [
+          {
+            "node": "Load Hairstyle Reference (R2/S3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Hairstyle Reference (R2/S3)": {
+      "main": [
+        [
+          {
+            "node": "Merge Base & Hair Refs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Base & Hair Refs": {
+      "main": [
+        [
+          {
+            "node": "Canonical Skin Ton Preserver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Binary (Base Gen, dual-image)": {
+      "main": [
+        [
+          {
+            "node": "Generate Custom Base Character",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Skin Tone & Base Path": {
+      "main": [
+        [
+          {
+            "node": "Load Base Character Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Base Character Image": {
+      "main": [
+        [
+          {
+            "node": "Merge Base & Hair Refs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canonical Skin Ton Preserver": {
+      "main": [
+        [
+          {
+            "node": "Build Dynamic Hairstyle Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Metadata After Upload": {
+      "main": [
+        [
+          {
+            "node": "Start / Pass-through",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Before Loopback": {
+      "main": [
+        [
+          {
+            "node": "POSE_LOOP_SPLIT1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Base Character Key": {
+      "main": [
+        [
+          {
+            "node": "Download base character",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download base character": {
+      "main": [
+        [
+          {
+            "node": "Download pose reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download pose reference": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Derive QA Pass": {
+      "main": [
+        [
+          {
+            "node": "IF: QA Pass?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reattach Binaries (Retry)": {
+      "main": [
+        [
+          {
+            "node": "Probe B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bump retry counter": {
+      "main": [
+        [
+          {
+            "node": "Probe A",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Upload (ensure generated)": {
+      "main": [
+        [
+          {
+            "node": "Add Upload to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reattach Binaries (For QA)": {
+      "main": [
+        [
+          {
+            "node": "Pose QA — Build Request — Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Retry < 3?": {
+      "main": [
+        [
+          {
+            "node": "Retry Builder (Prompt Tweaks)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set: Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Probe A": {
+      "main": [
+        [
+          {
+            "node": "IF: Retry < 3?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Probe B": {
+      "main": [
+        [
+          {
+            "node": "Prepare Gemini (POSE) — Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7a68d34d-8d36-4a3a-9116-6e6796a9da7b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "IqMbQ2uRv6BJLw3V",
+  "tags": []
+}
