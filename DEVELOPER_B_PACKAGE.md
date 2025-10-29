@@ -1111,11 +1111,306 @@ const testStatus = async (statusUrl, token) => {
 
 **🚀 ALL N8N WORKFLOWS ARE OPERATIONAL AND PRODUCTION-READY!** ✅
 
-### **🚀 YOUR NEXT PRIORITIES: WEBSITE & MARKETING INFRASTRUCTURE**
+### **🚀 YOUR NEXT PRIORITIES: TWO TRACKS IN PARALLEL**
 
-**Current Focus**: Build the marketing foundation while waiting for Developer A to complete their workflows.
+**Current Focus**: Complete database schema updates (BLOCKING Developer A) while setting up hosting and analytics infrastructure.
 
-#### **🎯 IMMEDIATE NEXT STEPS (This Week)**
+**Quick Summary**:
+1. **🚨 Priority 0**: Database schema updates (manifest columns, RPC functions) - **BLOCKING Developer A**
+2. **🚀 Priority 1**: Website & marketing infrastructure (Cloudflare, Analytics, Landing Page)
+
+**Estimated Timeline**:
+- Database tasks: 2-3 days (can work on these immediately)
+- Website tasks: 1-2 weeks (can run in parallel)
+- Both should be completed before Developer A finishes their workflow updates
+
+---
+
+## 🚨 **PRIORITY 0: DATABASE SCHEMA UPDATES (BLOCKING DEVELOPER A)**
+
+> **✅ COMPLETED**: Database schema updates have been successfully deployed. Developer A can now proceed with workflow integration.
+
+### **Objective**
+- Add manifest URL columns to `orders` table
+- Implement upsert logic driven by manifests (2A/2B/3)
+- Migrate approvals to `human_review_queue` (from file-based)
+- Provide env/credential setup and validation checklist
+
+### **Environment & Access**
+
+**Required Supabase Configuration**:
+- **Supabase URL**: `https://mdnthwpcnphjnnblbvxk.supabase.co`
+- **Service Role Key**: Already configured in n8n (stored securely)
+- **Project**: little-hero-books database
+
+**Optional Reachability Check**:
+```bash
+curl -I "$SUPABASE_URL/rest/v1/" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
+```
+
+**Reference Documents**:
+- `database/supabase-setup.md` - Complete Supabase setup instructions
+- `docs/new-planning/R2_Structure_Implementation_Request.md` - R2 manifest structure
+- `docs/new-planning/System_Architecture_Source_of_Truth.md` - System architecture
+- `docs/new-planning/Workflow_2B_Coordination_Response.md` - Workflow coordination details
+
+**Notes**:
+- Do NOT expose service role key to client code
+- Backend reads from `.env` and `back-end/.env.local`
+- Use existing Supabase credentials (already configured in n8n)
+
+### **✅ DATABASE MIGRATION STATUS: COMPLETE**
+
+**Migration Date**: 2025-01-XX  
+**Status**: ✅ **SUCCESSFULLY DEPLOYED**  
+**File**: `database/migration-manifest-support.sql`
+
+**What Was Deployed**:
+- ✅ 3 manifest URL columns added to `orders` table
+- ✅ `character_generations` table created with indexes
+- ✅ `human_review_queue` table created with indexes  
+- ✅ 2 RPC functions deployed (`upsert_from_manifest_2a`, `upsert_from_manifest_2b`)
+- ✅ Dashboard view `v_orders_review` created
+- ✅ All supporting columns and indexes
+
+**Developer A Status**: 🚀 **CAN PROCEED** - All schema updates complete and operational
+
+---
+
+### **🎯 IMMEDIATE DATABASE TASKS (P0 - This Week)**
+
+#### **Task 1: Schema Changes (Priority 0)**
+1. **Add manifest URL columns to `orders`**:
+   ```sql
+   ALTER TABLE orders ADD COLUMN IF NOT EXISTS manifest_2a_url TEXT;
+   ALTER TABLE orders ADD COLUMN IF NOT EXISTS manifest_2b_url TEXT;
+   ALTER TABLE orders ADD COLUMN IF NOT EXISTS manifest_3_url TEXT;
+   ```
+
+2. **Create indexes** (if missing):
+   ```sql
+   CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+   CREATE INDEX IF NOT EXISTS idx_orders_character_hash ON orders(character_hash);
+   CREATE INDEX IF NOT EXISTS idx_orders_amazon_order_id ON orders(amazon_order_id);
+   ```
+
+3. **Create `character_generations` table** (for per-pose tracking):
+   ```sql
+   CREATE TABLE IF NOT EXISTS character_generations (
+     id SERIAL PRIMARY KEY,
+     order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+     pose_number INTEGER NOT NULL CHECK (pose_number BETWEEN 1 AND 12),
+     status VARCHAR(50) NOT NULL DEFAULT 'pending',
+     original_image_url TEXT,
+     background_removed_url TEXT,
+     final_image_url TEXT,
+     quality_score DECIMAL(3,2),
+     consistency_score DECIMAL(3,2),
+     character_match_score DECIMAL(3,2),
+     bria_request_id VARCHAR(100),
+     bria_status VARCHAR(50),
+     needs_manual_review BOOLEAN DEFAULT FALSE,
+     manual_review_reason TEXT,
+     retry_count INTEGER DEFAULT 0,
+     created_at TIMESTAMP DEFAULT NOW(),
+     updated_at TIMESTAMP DEFAULT NOW(),
+     UNIQUE(order_id, pose_number)
+   );
+   
+   CREATE INDEX IF NOT EXISTS idx_character_generations_order_id ON character_generations(order_id);
+   CREATE INDEX IF NOT EXISTS idx_character_generations_needs_review 
+     ON character_generations(needs_manual_review) 
+     WHERE needs_manual_review = TRUE;
+   ```
+
+4. **Create `human_review_queue` table** (if missing):
+   ```sql
+   CREATE TABLE IF NOT EXISTS human_review_queue (
+     id SERIAL PRIMARY KEY,
+     order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+     review_type VARCHAR(50) NOT NULL,
+     status VARCHAR(50) NOT NULL DEFAULT 'pending',
+     review_priority VARCHAR(20) DEFAULT 'normal',
+     review_notes TEXT,
+     decision VARCHAR(50),
+     rejection_reason TEXT,
+     assigned_to UUID,
+     assigned_at TIMESTAMP,
+     reviewed_by UUID,
+     reviewed_at TIMESTAMP,
+     created_at TIMESTAMP DEFAULT NOW(),
+     updated_at TIMESTAMP DEFAULT NOW()
+   );
+   
+   CREATE INDEX IF NOT EXISTS idx_human_review_queue_status ON human_review_queue(status);
+   CREATE INDEX IF NOT EXISTS idx_human_review_queue_priority ON human_review_queue(review_priority);
+   ```
+
+#### **Task 2: Create Manifest-Driven Upsert RPC Functions (Priority 0)**
+
+1. **Create RPC: Upsert from 2A Manifest**
+   - Downloads manifest from R2
+   - Upserts order data and character generation entries
+   - Updates `character_generations` table with quality scores and review flags
+   
+   ```sql
+   CREATE OR REPLACE FUNCTION upsert_from_manifest_2a(p_order_id TEXT, p_manifest JSONB)
+   RETURNS VOID AS $$
+   DECLARE
+     v_orders_id INTEGER;
+     v_entry JSONB;
+     v_pose INT;
+   BEGIN
+     SELECT id INTO v_orders_id FROM orders 
+     WHERE amazon_order_id = (p_manifest->'order'->>'amazonOrderId')
+        OR id::TEXT = p_order_id
+     LIMIT 1;
+
+     IF v_orders_id IS NULL THEN
+       RAISE EXCEPTION 'Order not found for %', p_order_id;
+     END IF;
+
+     UPDATE orders SET
+       character_hash = p_manifest->>'characterHash',
+       manifest_2a_url = COALESCE(p_manifest->'manifests'->>'2a', manifest_2a_url),
+       status = '2a_review',
+       workflow_step = 'ai_generation',
+       next_workflow = '2b-retry',
+       updated_at = NOW()
+     WHERE id = v_orders_id;
+
+     FOR v_entry IN SELECT jsonb_array_elements(p_manifest->'entries') LOOP
+       v_pose := (v_entry->>'poseNumber')::INT;
+       INSERT INTO character_generations (
+         order_id, pose_number, status, original_image_url,
+         quality_score, consistency_score, character_match_score,
+         needs_manual_review, manual_review_reason
+       ) VALUES (
+         v_orders_id,
+         v_pose,
+         COALESCE(v_entry->>'status','generated'),
+         v_entry->>'publicUrl',
+         NULLIF(v_entry->>'qaScore','')::DECIMAL,
+         NULLIF(v_entry->>'styleScore','')::DECIMAL,
+         NULL,
+         COALESCE((v_entry->>'needsReview')::BOOLEAN, FALSE),
+         v_entry->>'reviewReason'
+       ) ON CONFLICT (order_id, pose_number) DO UPDATE SET
+         status = EXCLUDED.status,
+         original_image_url = EXCLUDED.original_image_url,
+         quality_score = EXCLUDED.quality_score,
+         consistency_score = EXCLUDED.consistency_score,
+         needs_manual_review = EXCLUDED.needs_manual_review,
+         manual_review_reason = EXCLUDED.manual_review_reason,
+         updated_at = NOW();
+     END LOOP;
+   END;
+   $$ LANGUAGE plpgsql SECURITY DEFINER;
+   ```
+
+2. **Create RPC: Upsert from 2B Manifest**
+   - Updates background-removed URLs
+   - Updates Bria processing status
+   - Links to final processed images
+   
+   ```sql
+   CREATE OR REPLACE FUNCTION upsert_from_manifest_2b(p_order_id TEXT, p_manifest JSONB)
+   RETURNS VOID AS $$
+   DECLARE
+     v_orders_id INTEGER;
+     v_entry JSONB;
+     v_pose INT;
+   BEGIN
+     SELECT id INTO v_orders_id FROM orders WHERE id::TEXT = p_order_id LIMIT 1;
+     IF v_orders_id IS NULL THEN RAISE EXCEPTION 'Order not found for %', p_order_id; END IF;
+
+     UPDATE orders SET
+       manifest_2b_url = COALESCE(p_manifest->'manifests'->>'2b', manifest_2b_url),
+       status = '2b_review',
+       workflow_step = 'bria_processing',
+       next_workflow = '3-compile-book',
+       updated_at = NOW()
+     WHERE id = v_orders_id;
+
+     FOR v_entry IN SELECT jsonb_array_elements(p_manifest->'entries') LOOP
+       v_pose := (v_entry->>'poseNumber')::INT;
+       UPDATE character_generations SET
+         background_removed_url = v_entry->>'bgRemovedImageUrl',
+         bria_request_id = v_entry->>'briaRequestId',
+         bria_status = v_entry->>'briaStatus',
+         status = COALESCE(v_entry->>'status','processed'),
+         needs_manual_review = COALESCE((v_entry->>'needsReview')::BOOLEAN, FALSE),
+         manual_review_reason = COALESCE(v_entry->>'reviewReason', manual_review_reason),
+         updated_at = NOW()
+       WHERE order_id = v_orders_id AND pose_number = v_pose;
+     END LOOP;
+   END;
+   $$ LANGUAGE plpgsql SECURITY DEFINER;
+   ```
+
+3. **Create RPC: Upsert from 3 Manifest** (to be implemented)
+   - Set `orders.manifest_3_url`
+   - Set `final_book_url` and related fields
+   - Full implementation pending Workflow 3 manifest schema
+
+#### **Task 3: Approvals Migration (Priority 0)**
+
+- Insert rows into `human_review_queue` when a stage needs review:
+  - 2A complete → `review_type='quality_check'`, `status='pending'`
+  - 2B complete → `review_type='bria_results'`, `status='pending'`
+- On admin approve, set `status='approved'`, fill `reviewed_by`, `reviewed_at`
+
+**Optional Dashboard View**:
+```sql
+CREATE OR REPLACE VIEW v_orders_review AS
+SELECT o.id as order_id,
+       o.status,
+       h.review_type,
+       h.status as review_status,
+       h.review_priority,
+       h.reviewed_by,
+       h.reviewed_at
+FROM orders o
+LEFT JOIN LATERAL (
+  SELECT * FROM human_review_queue hq
+  WHERE hq.order_id = o.id
+  ORDER BY hq.created_at DESC
+  LIMIT 1
+) h ON TRUE;
+```
+
+#### **Task 4: Backend Handover**
+
+Backend webhook handlers will:
+- Parse payload
+- Download manifest from R2
+- Call `upsert_from_manifest_2a/2b` (or perform equivalent Supabase client upserts)
+
+**n8n webhook URLs remain placeholders until provided by workflow team.**
+
+#### **Validation Checklist**
+- [ ] Columns present: `orders.manifest_2a_url/2b_url/3_url`
+- [ ] `character_generations` exists with unique `(order_id, pose_number)`
+- [ ] `human_review_queue` exists with proper indexes
+- [ ] RPCs created: `upsert_from_manifest_2a`, `upsert_from_manifest_2b`, `upsert_from_manifest_3`
+- [ ] Test 2A upsert with sample manifest → rows populate
+- [ ] Test 2B upsert with sample manifest → BG-removed URLs and Bria fields update
+- [ ] Dashboard queries return expected data
+
+**Database Connection**:
+- Follow `database/supabase-setup.md` for Supabase project access
+- Use existing Supabase URL: `https://mdnthwpcnphjnnblbvxk.supabase.co`
+- Use existing Service Role Key (configured in n8n)
+
+---
+
+## 🚀 **PRIORITY 1: WEBSITE & MARKETING INFRASTRUCTURE**
+
+**Current Focus**: Build the marketing foundation while completing database tasks.
+
+#### **🎯 IMMEDIATE WEBSITE TASKS (This Week)**
 1. ✅ **Domain Purchased** - littleherolabs.com purchased in Cloudflare
 2. ⏳ **Cloudflare Pages Setup** - Configure automatic deployment from git
 3. ⏳ **Google Analytics 4** - Set up tracking and conversion goals  
@@ -1123,18 +1418,13 @@ const testStatus = async (statusUrl, token) => {
 5. ⏳ **Ahrefs Setup** - Configure keyword tracking
 6. ⏳ **SSL Configuration** - Set up SSL certificate for domain
 
-#### **📋 WEEK 2-3 TASKS**
+#### **📋 WEEK 2-3 TASKS** (run in parallel with database tasks)
 1. **Landing Page Development** - Build responsive one-page site
 2. **Email Capture Integration** - Set up ConvertKit/Mailchimp
 3. **SEO Optimization** - Meta tags, structured data, Core Web Vitals
 4. **Order Approval Backend Hosting** - Set up hosting for Developer A's system
 
-#### **⏳ FUTURE TASKS (After Developer A Completes)**
-1. **End-to-End Testing** - Test complete workflow chain
-2. **Production Deployment** - Go live with real Amazon orders
-3. **Marketing Launch** - Promote the service using built infrastructure
-
-### **🚀 NEXT PHASE: WEBSITE & MARKETING INFRASTRUCTURE**
+### **Detailed Website & Marketing Tasks**
 
 #### **Phase 1: Cloudflare & Analytics Setup (Week 1-2)** 🚀 ACTIVE
 1. ✅ **Domain Purchased** - littleherolabs.com purchased in Cloudflare
@@ -1156,10 +1446,11 @@ const testStatus = async (statusUrl, token) => {
 3. ⏳ **Supabase Integration** - Ensure order approval system connects directly to Supabase (no custom API needed)
 4. ⏳ **Security Configuration** - Set up proper authentication and CORS for Supabase access
 
-### **⏳ FUTURE TASKS (After Developer A Completes Workflows)**
-1. ⏳ **END-TO-END TESTING** - Test complete workflow chain with Developer A
-2. ⏳ **PRODUCTION DEPLOYMENT** - Go live with real Amazon orders
-3. ⏳ **MARKETING LAUNCH** - Promote the service using built infrastructure
+### **⏳ FUTURE TASKS (After Database Updates Complete)**
+1. ⏳ **BACKEND INTEGRATION** - Coordinate with Developer A on RPC function usage
+2. ⏳ **END-TO-END TESTING** - Test complete workflow chain with Developer A
+3. ⏳ **PRODUCTION DEPLOYMENT** - Go live with real Amazon orders
+4. ⏳ **MARKETING LAUNCH** - Promote the service using built infrastructure
 
 ### **📊 Test Results Summary**
 - **Database**: ✅ Operational with 4 test orders stored
@@ -1188,10 +1479,18 @@ const testStatus = async (statusUrl, token) => {
 - **Error Handling**: Use `failed_orders` table for Workflow 5
 
 ### **📞 Communication with Developer A**
-- Developer A handling: Workflows 2A, 2B, 3
-- Developer A adding: Database integration + human review
-- You are ready: Workflow 1 complete, database operational
-- Coordination: Once Developer A completes Workflow 3, you can test end-to-end
+- **Developer A handling**: Workflows 2A, 2B, 3
+- **✅ Database schema updates COMPLETED**: All manifest columns, character_generations table, and RPC functions deployed
+- **You are ready**: Workflow 1 complete, database operational, schema updates complete
+- **Next steps**:
+  1. ✅ ~~Database schema updates~~ - **COMPLETED** - Migration successfully deployed
+  2. 🚀 Developer A can now integrate with new schema and RPCs
+  3. ⏳ End-to-end testing of complete workflow chain - Ready to proceed
+- **What Developer A Can Do Now**:
+  - ✅ Start integrating workflows with manifest-driven approach
+  - ✅ Use RPC functions: `upsert_from_manifest_2a()`, `upsert_from_manifest_2b()`
+  - ✅ Query `character_generations` table for per-pose tracking
+  - ✅ Use enhanced `human_review_queue` for quality workflows
 
 ### **🚨 Important Reminders**
 - ✅ Always use Supabase for all database operations
