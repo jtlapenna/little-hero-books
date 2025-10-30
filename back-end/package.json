@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "pages:build": "opennextjs-cloudflare build --openNextConfigPath ./open-next.config.js --skipWranglerConfigCheck",
+    "pages:build": "opennextjs-cloudflare build --openNextConfigPath ./open-next.config.ts --skipWranglerConfigCheck",
     "start": "next start",
     "lint": "eslint"
   },
