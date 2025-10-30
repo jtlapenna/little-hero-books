@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // Health check endpoint
 import { NextRequest, NextResponse } from 'next/server';
 import { monitoringService } from '@/lib/monitoring';

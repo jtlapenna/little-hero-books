@@ -1,7 +1,9 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
 import { downloadManifest } from '@/lib/r2-service';
+import { normalizeCharacterSpecs } from '@/lib/customization-utils';
 
 const PayloadSchema = z.object({
   orderId: z.string().min(1),
@@ -22,7 +24,10 @@ export async function POST(request: NextRequest) {
     const json = await request.json();
     const payload = PayloadSchema.parse(json);
 
-    const manifest = await downloadManifest(payload.orderId, '2b');
+           const manifest: any = await downloadManifest(payload.orderId, '2b');
+           if (manifest && manifest.characterSpecs) {
+             manifest.characterSpecs = normalizeCharacterSpecs(manifest.characterSpecs);
+           }
 
     // Note: DB updates to Supabase will be implemented in Phase 4
 

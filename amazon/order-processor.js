@@ -17,28 +17,102 @@ const RENDERER_URL = process.env.RENDERER_BASE_URL || 'http://localhost:8787';
 // Order processing status tracking
 const orderStatus = new Map();
 
+// === Canonicalization helpers (kept local to avoid cross-package build issues) ===
+const HAIR_COLOR_MAP = {
+  'blonde':            { id: 'blonde',            hex: '#D1B26F' },
+  'strawberry-blonde': { id: 'strawberry-blonde', hex: '#E6A273' },
+  'light-brown':       { id: 'light-brown',       hex: '#A4754A' },
+  'medium-brown':      { id: 'medium-brown',      hex: '#7B4B2A' },
+  'dark-brown':        { id: 'dark-brown',        hex: '#523418' },
+  'auburn':            { id: 'auburn',            hex: '#8B3F2C' },
+  'black':             { id: 'black',             hex: '#2B2B2B' },
+  'red':               { id: 'red',               hex: '#C25E2E' },
+};
+
+const ANIMAL_SET = new Set(['dog','cat','owl','lion','tiger','penguin','t-rex','unicorn']);
+const FAVORITE_COLOR_SET = new Set(['red','orange','yellow','green','blue','pink','purple','brown','black']);
+
+function canonicalizeSkinTone(raw) {
+  const s = String(raw ?? '').toLowerCase()
+    .replace(/[^a-z0-9+\-\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!s) return 'skin-medium';
+  if (/(^|[^a-z])skin[-_ ]?(light|tan|medium|brown[-_ ]light|brown[-_ ]deep|dark[-_ ]aa|light[-_ ]aa)([^a-z]|$)/.test(s)) {
+    if (/brown[-_ ]light|light[-_ ]aa/.test(s)) return 'skin-brown-light';
+    if (/brown[-_ ]deep|dark[-_ ]aa/.test(s))  return 'skin-brown-deep';
+    if (/skin[-_ ]light/.test(s))              return 'skin-light';
+    if (/skin[-_ ]tan/.test(s))                return 'skin-tan';
+    return 'skin-medium';
+  }
+  if (/(brown).*(deep|dark)|\b(deep|dark)\b.*(brown|african|aa|black)/.test(s)) return 'skin-brown-deep';
+  if (/(brown).*(light)|\blight\b.*(brown|african|aa|black)|(light)\s*(aa|african)/.test(s)) return 'skin-brown-light';
+  if (/^(light|fair)(\b|$)/.test(s))                      return 'skin-light';
+  if (/(tan|olive)/.test(s))                              return 'skin-tan';
+  if (/(medium|mid|default|normal|average)/.test(s))      return 'skin-medium';
+  if (/(dark).*?(african|aa|black)/.test(s))              return 'skin-brown-deep';
+  if (/(light).*?(african|aa|black)/.test(s))             return 'skin-brown-light';
+  return 'skin-medium';
+}
+
+function resolveHairColor(raw) {
+  if (raw == null) return undefined;
+  const s = String(raw).toLowerCase().trim();
+  // accept a few common aliases and map to our IDs
+  const alias = {
+    'strawberry blonde': 'strawberry-blonde',
+  };
+  const key = alias[s] || s;
+  return HAIR_COLOR_MAP[key];
+}
+
+function canonicalizeClothingStyleLabel(raw) {
+  const s = String(raw ?? '').toLowerCase().trim();
+  if (s === 'dress') return { label: 'dress', canonical: 'dress' };
+  return { label: 't-shirt and shorts', canonical: 'tee-shorts' };
+}
+
+function canonicalFavoriteColor(raw) {
+  const s = String(raw ?? '').toLowerCase().trim();
+  return FAVORITE_COLOR_SET.has(s) ? s : 'blue';
+}
+
+function canonicalAnimal(raw) {
+  const s = String(raw ?? '').toLowerCase().trim();
+  // fix common typos (e.g., trex)
+  const alias = { 'trex': 't-rex', 't rex': 't-rex', 't-rex': 't-rex' };
+  const k = alias[s] || s;
+  return ANIMAL_SET.has(k) ? k : 'dog';
+}
+
 // Normalize Amazon Custom data to our schema
 function normalizeCustomizationData(amazonData) {
-  // This function converts Amazon Custom order data to our renderer schema
-  // Customize based on your actual Amazon Custom listing field names
-  
+  const hairEntry = resolveHairColor(amazonData.hairColor);
+  const skinCanonical = canonicalizeSkinTone(amazonData.skinTone);
+  const clothing = canonicalizeClothingStyleLabel(amazonData.clothingStyle);
+  const favColor = canonicalFavoriteColor(amazonData.favoriteColor);
+  const animal = canonicalAnimal(amazonData.favoriteAnimal);
+
   const child = {
     name: amazonData.childName || 'Little Hero',
-    age: parseInt(amazonData.childAge) || 5,
-    hair: amazonData.hairColor || 'brown',
-    skin: amazonData.skinTone || 'light',
-    pronouns: 'they/them' // Default, could be extracted if provided
+    age: Number.parseInt(amazonData.childAge, 10) || 5,
+    hair: hairEntry ? hairEntry.id : 'medium-brown',
+    skin: skinCanonical,
+    pronouns: 'they/them'
   };
-  
+
   const options = {
-    favorite_animal: amazonData.favoriteAnimal || 'fox',
+    favorite_animal: animal,
     favorite_food: amazonData.favoriteFood || 'pizza',
-    favorite_color: amazonData.favoriteColor || 'blue',
+    favorite_color: favColor,
     hometown: amazonData.hometown || 'Adventure City',
     occasion: 'general',
-    dedication: amazonData.dedication || `Dear ${child.name}, you are the hero of this magical story!`
+    dedication: amazonData.dedication || `Dear ${child.name}, you are the hero of this magical story!`,
+    clothing_style_label: clothing.label,
+    clothing_style_canonical: clothing.canonical,
+    hair_hex: hairEntry ? hairEntry.hex : undefined,
   };
-  
+
   return { child, options };
 }
 

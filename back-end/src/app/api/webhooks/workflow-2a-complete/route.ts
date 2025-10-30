@@ -1,7 +1,9 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
 import { downloadManifest } from '@/lib/r2-service';
+import { normalizeCharacterSpecs } from '@/lib/customization-utils';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { r2Client } from '@/lib/r2-config';
 
@@ -24,7 +26,10 @@ export async function POST(request: NextRequest) {
 
     // Try to download/parse manifest (preferred)
     try {
-      await downloadManifest(payload.orderId, '2a');
+            const manifest: any = await downloadManifest(payload.orderId, '2a');
+            if (manifest && manifest.characterSpecs) {
+              manifest.characterSpecs = normalizeCharacterSpecs(manifest.characterSpecs);
+            }
       return NextResponse.json({ success: true, orderId: payload.orderId, stage: '2a', manifestLoaded: true });
     } catch {
       // Fallback: sanity-check object exists without reading body (edge/runtime-safe)

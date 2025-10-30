@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCharacterAssets, getAvailableCharacterHashes } from '@/lib/r2-service';
 import { Order } from '@/types/order';
