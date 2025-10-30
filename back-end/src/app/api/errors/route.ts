@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 // Error management endpoint
 import { NextRequest, NextResponse } from 'next/server';
 import { errorHandler, ErrorType, ErrorSeverity } from '@/lib/error-handler';

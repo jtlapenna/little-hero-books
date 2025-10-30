@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { NextRequest, NextResponse } from 'next/server';
 import { approveStage } from '@/lib/approval-store';
 import { buildManifestKey } from '@/lib/r2-service';
