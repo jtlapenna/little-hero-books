@@ -1,0 +1,289 @@
+{
+  "name": "LHB - 2B \u2014 A2 Approval Block",
+  "nodes": [
+    {
+      "id": "e05172d5",
+      "name": "Prepare Keyed Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        120
+      ],
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "const j = $json || {}; const job_id = j.job_id || j.orderData?.job_id || j.orderData?.amazonOrderId || 'unknown_job'; return [{ json: { key: job_id, summary: j } }];"
+      }
+    },
+    {
+      "id": "9e53a9c9",
+      "name": "A2 Webhook (Approval)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        400
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "approvals/a2",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "3875c2ed",
+      "name": "Verify A2 Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        400
+      ],
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "const crypto = require('crypto');\nconst headers = ($json.headers || {});\nconst signature = headers['x-lhl-signature'] || headers['X-LHL-Signature'] || $json.signature;\nconst clone = JSON.parse(JSON.stringify($json));\ndelete clone.headers; delete clone.signature;\nconst raw = JSON.stringify(clone);\nconst expected = crypto.createHmac('sha256', $env.LHL_WEBHOOK_SECRET).update(raw).digest('hex');\nif (!signature || signature !== expected) { throw new Error('Invalid approval signature'); }\nif (typeof clone.approved !== 'boolean' || !clone.job_id) { throw new Error('Approval payload missing required fields'); }\nreturn [{ json: clone }];"
+      }
+    },
+    {
+      "id": "95413ea9",
+      "name": "If Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.approved}}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "948557f6",
+      "name": "Write Stage: REJECTED_AT_A2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        80,
+        540
+      ],
+      "parameters": {
+        "authentication": "none",
+        "requestMethod": "POST",
+        "url": "={{$env.BACKEND_API_URL}}/rest/v1/jobs",
+        "jsonParameters": true,
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.BACKEND_SERVICE_TOKEN}}"
+            },
+            {
+              "name": "apikey",
+              "value": "={{$env.BACKEND_SERVICE_TOKEN}}"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "jsonObject": "={{ { job_id: $json.job_id, stage: 'REJECTED_AT_A2', status: 'STOPPED', rejection_reason: $json.reason || 'Rejected at A2' } }}"
+      }
+    },
+    {
+      "id": "5bbee01c",
+      "name": "Respond (Rejected)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        320,
+        540
+      ],
+      "parameters": {
+        "responseBody": "={{ JSON.stringify({ ok: false, job_id: $json.job_id, stage: 'REJECTED_AT_A2' }) }}",
+        "responseCode": 200
+      }
+    },
+    {
+      "id": "930da5e0",
+      "name": "Merge Summary + Approval",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        140,
+        260
+      ],
+      "parameters": {
+        "mode": "mergeByKey",
+        "propertyName1": "key",
+        "propertyName2": "job_id"
+      }
+    },
+    {
+      "id": "92c44159",
+      "name": "Build Handoff to 3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        260
+      ],
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "const { summary, approvedPoseNumbers } = $json;\nconst posesBg = (approvedPoseNumbers && approvedPoseNumbers.length) ? summary.posesBg.filter(p => approvedPoseNumbers.includes(Number(p.poseNumber))) : summary.posesBg;\nif (!posesBg || !posesBg.length) { throw new Error('No bg-removed poses selected for 3'); }\nreturn [{ json: { job_id: summary.job_id, characterHash: summary.characterHash, orderData: summary.orderData, posesBg } }];"
+      }
+    },
+    {
+      "id": "35fe9a2c",
+      "name": "Forward to 3 (PDF)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        620,
+        260
+      ],
+      "parameters": {
+        "authentication": "none",
+        "requestMethod": "POST",
+        "url": "={{$env.WORKFLOW_3_WEBHOOK_URL}}",
+        "jsonParameters": true,
+        "jsonObject": "={{$json}}",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "27889c81",
+      "name": "Respond (OK)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        860,
+        260
+      ],
+      "parameters": {
+        "responseBody": "={{ JSON.stringify({ ok: true, job_id: $json.job_id, forwarded_to_3: true, poseCount: $json.posesBg ? $json.posesBg.length : undefined }) }}",
+        "responseCode": 200
+      }
+    }
+  ],
+  "connections": {
+    "A2 Webhook (Approval)": {
+      "main": [
+        [
+          {
+            "node": "Verify A2 Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify A2 Signature": {
+      "main": [
+        [
+          {
+            "node": "If Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Approved?": {
+      "main": [
+        [
+          {
+            "node": "Merge Summary + Approval",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Write Stage: REJECTED_AT_A2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Stage: REJECTED_AT_A2": {
+      "main": [
+        [
+          {
+            "node": "Respond (Rejected)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Keyed Summary": {
+      "main": [
+        [
+          {
+            "node": "Merge Summary + Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Summary + Approval": {
+      "main": [
+        [
+          {
+            "node": "Build Handoff to 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Handoff to 3": {
+      "main": [
+        [
+          {
+            "node": "Forward to 3 (PDF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Forward to 3 (PDF)": {
+      "main": [
+        [
+          {
+            "node": "Respond (OK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "staticData": null,
+  "settings": {},
+  "meta": {
+    "templateCredsSetup": []
+  },
+  "version": 2
+}

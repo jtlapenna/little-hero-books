@@ -1,0 +1,1184 @@
+{
+  "name": "2A - Claude Fixes - WORKING",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Stamp Pose Index \u2014 EACH mode, authoritative, no $itemIndex fallback\n// Safe to use for BOTH \"Stamp Pose Index\" nodes.\n\nconst j = { ...$json };\nconst b = $binary || {};\n\nfunction asIntMaybe(v) {\n  const n = Number(v);\n  return Number.isFinite(n) ? Math.floor(n) : null;\n}\nfunction parsePoseFromString(s) {\n  if (!s) return null;\n  // Matches: pose01 / pose_01 / pose-01 / ..._01.png / /01.png\n  const m = String(s).match(/(?:pose[_\\- ]?(\\d{1,2}))|[_\\-\\.](\\d{1,2})(?:\\D|$)|\\/(\\d{1,2})\\.png$/i);\n  return m ? asIntMaybe(m[1] || m[2] || m[3]) : null;\n}\n\n// 1) Prefer upstream explicit values\nlet pose =\n  asIntMaybe(j.poseNumber) ??\n  asIntMaybe(j.currentPoseNumber) ??\n  asIntMaybe(j.__meta?.poseNumber);\n\n// 2) If still missing, derive from filenames / recorded indices\nif (pose == null) {\n  const candidates = [\n    j.poseRefName,\n    j.poseRefFilename,\n    j.poseRef,\n    j.poseFileName,\n    j.__reorg?.poseFileName,      // from Reorganize Merged Data\n    b.pose?.fileName,\n    b.pose?.fileNameOriginal,\n  ];\n  for (const c of candidates) {\n    const parsed = parsePoseFromString(c);\n    if (parsed != null) { pose = parsed; break; }\n  }\n  // last resort: explicit numeric index captured upstream (1..12)\n  if (pose == null && asIntMaybe(j.__reorg?.fromIndex) != null) {\n    pose = asIntMaybe(j.__reorg.fromIndex);\n  }\n}\n\n// 3) Hard-fail if we still can't determine pose (prevents overwrites)\nif (pose == null || pose < 1 || pose > 12) {\n  throw new Error('Stamp Pose Index: poseNumber missing/invalid (expected 1..12).');\n}\n\n// 4) Clamp + write back (and mirror into __meta)\npose = Math.max(1, Math.min(12, pose));\nconst out = {\n  ...j,\n  poseNumber: pose,\n  currentPoseNumber: pose,\n  index: pose - 1, // optional helper for merges\n  __meta: { ...(j.__meta || {}), poseNumber: pose },\n};\n\nconsole.log(`Stamp Pose Index \u2192 pose=${pose}`);\nreturn {\n  json: out,\n  binary: b,\n  // preserve pairing if provided upstream\n  ...(($input && $input.item && $input.item.pairedItem) ? { pairedItem: $input.item.pairedItem } : {})\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -15968,
+        -48
+      ],
+      "id": "f9e823d9-e138-4d16-9d5b-8b907da68a9d",
+      "name": "Stamp Pose Index"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate Input\n// Mode: Run once for EACH item\n\nconst j   = $json || {};\nconst bin = $binary || {};\n\n// --- Helpers ---\nfunction hasBinary(b) {\n  if (!b || typeof b !== 'object') return false;\n  // n8n binary usually has a .data property; treat presence as signal\n  if ('data' in b) return typeof b.data === 'string' ? b.data.length > 0 : !!b.data;\n  return true;\n}\n\n// Resolve pose number (prefer explicit fields, fallback to index+1), clamp to [1..12]\nlet poseNum = Number(j.currentPoseNumber ?? j.poseNumber);\nif (!Number.isFinite(poseNum)) {\n  poseNum = Number.isFinite(Number($itemIndex)) ? ($itemIndex + 1) : NaN;\n}\nconst poseNumValid    = Number.isFinite(poseNum);\nconst poseNumClamped  = poseNumValid ? Math.max(1, Math.min(12, Math.floor(poseNum))) : poseNum;\nconst nn              = poseNumValid ? String(poseNumClamped).padStart(2, '0') : '??';\nconst poseLabel       = `pose-${nn}`;\n\n// --- Validations ---\nconst problems = [];\nif (!hasBinary(bin.character)) problems.push('missing base character (binary.character)');\nif (!hasBinary(bin.pose))      problems.push('missing pose reference (binary.pose)');\nif (!poseNumValid)             problems.push('poseNumber missing/invalid');\nelse if (poseNumClamped !== poseNum)\n  problems.push(`poseNumber out of range (${poseNum}) \u2192 clamped to ${poseNumClamped}`);\n\nif (problems.length) {\n  const binKeys = Object.keys(bin || {}).join(', ') || 'none';\n  throw new Error(\n    'Validate Input: ' + problems.join('; ')\n    + ` | poseLabel=${poseLabel}`\n    + ` | binary keys=[${binKeys}]`\n  );\n}\n\n// --- Output (preserve binaries and add normalized fields) ---\nconst outJson = {\n  ...j,\n  poseNumber: poseNumClamped,\n  currentPoseNumber: poseNumClamped,\n  poseLabel,\n  __valid: true,\n};\n\nreturn {\n  json: outJson,\n  binary: bin,\n  pairedItem: ($input && $input.item && $input.item.pairedItem) ? $input.item.pairedItem : { item: ($itemIndex ?? 0) },\n};\n"
+      },
+      "id": "b3967430-4402-4a1e-8a64-c1ae8639e90f",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -15024,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "c8df8985-7950-473d-a0a7-8f3158f0df60",
+      "name": "Trigger Workflow B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -15168,
+        -352
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "amount": 90,
+        "unit": "seconds"
+      },
+      "id": "d6d87010-82f1-45af-b0d9-30d3e804496d",
+      "name": "Wait 90 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -15328,
+        -352
+      ],
+      "webhookId": "91203424-97e9-4868-ade6-e7834a797638",
+      "notes": "Give Bria AI time to process images"
+    },
+    {
+      "parameters": {
+        "jsCode": "// === CREATE FINAL SUMMARY (robust hash + order propagation + trace fields) ===\n\nconst incomingItems = $input.all();\nconsole.log('=== CREATE FINAL SUMMARY ===');\nconsole.log(`Received ${incomingItems.length} items from loop`);\n\nconst isBadHash = (h) => !h || h === 'nohash' || h === 'unknown' || typeof h !== 'string' || h.length < 4;\n\n// Upstream nodes\nconst metaHash = $('Capture Lean Meta').first()?.json?.__meta?.characterHash;\nconst genNode  = $('Generate Character Hash').first()?.json || {};\nconst genHash  = genNode?.characterHash;\nconst upstreamHash = !isBadHash(metaHash) ? metaHash : (!isBadHash(genHash) ? genHash : null);\n\n// Prefer upstream order snapshot, fall back sensibly\nconst firstItem   = incomingItems[0]?.json || {};\nconst sourceOrder = Object.keys(genNode).length ? genNode : firstItem;\n\n// IDs\nconst amazonOrderId =\n  genNode?.amazonOrderId ??\n  sourceOrder?.amazonOrderId ??\n  firstItem?.orderData?.amazonOrderId ??\n  firstItem?.amazonOrderId ??\n  null;\n\n// Rich fields (prefer Generate Character Hash)\nconst characterSpecs    = sourceOrder.characterSpecs    ?? {};\nconst characterHashSpec = sourceOrder.characterHashSpec ?? {};\nconst bookSpecs         = sourceOrder.bookSpecs         ?? {};\nconst orderDetails      = sourceOrder.orderDetails      ?? {};\nconst publicR2Url       = sourceOrder.publicR2Url       ?? firstItem?.publicR2Url ?? 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\nconst templatePath      = sourceOrder.templatePath      ?? firstItem?.templatePath ?? 'templates';\n\nconst orderData = {\n  amazonOrderId,\n  characterHash: upstreamHash || (!isBadHash(sourceOrder.characterHash) ? sourceOrder.characterHash : null),\n  characterSpecs,\n  characterHashSpec,\n  bookSpecs,\n  orderDetails,\n  publicR2Url,\n  templatePath,\n  r2BucketName: 'little-hero-assets'\n};\n\nconsole.log('Order data snapshot:', {\n  amazonOrderId: orderData.amazonOrderId || 'null',\n  characterHash: orderData.characterHash || 'null',\n  childName: orderData.characterSpecs?.childName || 'null'\n});\n\n// Build normalized submissions array with trace fields\nconst submissions = incomingItems.map((item, idx) => {\n  const j = item.json || {};\n  const pose =\n    j.__meta?.poseNumber ??\n    j.poseNumber ??\n    (Number.isFinite(Number(j.currentPoseNumber)) ? Number(j.currentPoseNumber) : (idx + 1));\n\n  // Hash\n  const chosenHash = !isBadHash(j.characterHash) ? j.characterHash\n                    : (!isBadHash(orderData.characterHash) ? orderData.characterHash\n                    : upstreamHash);\n\n  // Paths / URLs\n  const storageKey = j.__meta?.storageKey || j.r2Path || null;\n  const fileUrl =\n    j.fileUrl || j.imageUrl || j.sourceUrl ||\n    (publicR2Url && storageKey ? `${publicR2Url.replace(/\\/$/, '')}/${String(storageKey).replace(/^\\/+/, '')}` : null);\n\n  return {\n    poseNumber: pose,\n    characterHash: chosenHash || null,\n\n    // Trace\n    correlationId: j.correlationId || null,\n    generationConfig: j.generationConfig || null,\n\n    // Locations\n    storageKey,\n    r2Path: j.r2Path || storageKey || null,\n    fileUrl,\n\n    // Bria\n    briaSource: j.__meta?.briaSource || (fileUrl ? 'url' : (j.extractedImageData ? 'base64' : null)),\n    briaStatus: j.briaStatus || j.briaResult?.status || null,\n    briaRequestId: j.requestId || j.briaResult?.requestId || null,\n    briaStatusUrl: j.statusUrl || j.briaResult?.statusUrl || null,\n\n    // Failure / timing\n    failed: !!j.failed,\n    submittedAt: j.submittedAt || new Date().toISOString(),\n\n    // Order context\n    amazonOrderId: orderData.amazonOrderId || null,\n  };\n});\n\nconst valid = submissions.filter(s => s.briaRequestId && s.briaStatusUrl);\nconst failed = submissions.length - valid.length;\n\nconsole.log(`Valid submissions: ${valid.length}`);\nconsole.log(`Failed submissions: ${failed}`);\nconsole.log(`Pose numbers: ${submissions.map(s => s.poseNumber).join(', ')}`);\n\nif (!orderData.amazonOrderId) {\n  console.warn('\u26a0\ufe0f amazonOrderId is missing. Ensure Generate Character Hash receives/forwards it.');\n}\n\nreturn [{\n  json: {\n    totalSubmissions: submissions.length,\n    successful: valid.length,\n    failed: failed,\n    submittedAt: new Date().toISOString(),\n\n    submissions,\n    orderData,           // \u2190 CRITICAL for 2B/next workflow\n    workflow2AComplete: true\n  }\n}];\n"
+      },
+      "id": "c6f8af2b-c2ad-4969-a494-b51824792605",
+      "name": "Create Final Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -15520,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": true
+        },
+        "batchSize": 1
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -16384,
+        -48
+      ],
+      "id": "8f4694f6-2aaf-4a23-8fb8-34aa7347dff6",
+      "name": "POSE_LOOP_SPLIT1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Make/Ensure Binary for R2 (per-item)\n// Ensures there's a binary under `image` and uses a deterministic per-pose filename.\n// Force filesystem mode to reduce memory usage\nconst useFilesystem = true; // Set to true for large files\n\nconst j = $json || {};\nconst b = $binary || {};\n\n// helpers\nfunction clampInt(v, lo=1, hi=99){ v=Number(v); return Number.isFinite(v)?Math.max(lo,Math.min(hi,Math.floor(v))):null; }\nfunction pad2(n){ return String(n).padStart(2,'0'); }\nfunction lastSegment(p){ const s=String(p||''); const i=Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\\\')); return i>=0 ? s.slice(i+1) : s; }\n\nconst poseNum = clampInt(j.poseNumber ?? j.currentPoseNumber ?? j.__meta?.poseNumber ?? ($itemIndex+1)) || 0;\nconst NN = pad2(poseNum);\nconst hash = j.characterHash || j.characterSpecs?.hash || j.__meta?.characterHash || 'nohash';\n\n// Prefer an existing generated image\nif (b?.generated) {\n  // normalize name (no path) so it\u2019s a stable fallback\n  const fname = lastSegment(b.generated.fileName || b.generated.fileNameOriginal || `characters_${hash}_pose${NN}.png`);\n  const gen = { ...b.generated, fileName: fname, mimeType: b.generated.mimeType || 'image/png' };\n  return { json: j, binary: { ...b, image: gen } };\n}\n\n// Already had a generic `image`?\nif (b?.image) {\n  return { json: j, binary: b };\n}\n\n// Build one from base64 if available\nlet b64 = j.extractedImageData || j.poseBase64 || j.characterBase64 || null;\nif (typeof b64 === 'string' && b64.length > 10) {\n  let mime = 'image/png';\n  const m = b64.match(/^data:(image\\/[a-z0-9+.\\-]+);base64,(.*)$/i);\n  if (m) { mime = m[1]; b64 = m[2]; }\n  const buf = Buffer.from(b64, 'base64');\n  const bin = await this.helpers.prepareBinaryData(buf, `characters_${hash}_pose${NN}.png`, mime);\n  return { json: j, binary: { ...b, image: bin } };\n}\n\n// Try URL if present\nconst url = j.originalImageUrl || j.imageUrl || j.sourceUrl || null;\nif (typeof url === 'string' && /^https?:\\/\\//i.test(url)) {\n  const res = await this.helpers.request({ method: 'GET', url, encoding: null, gzip: true });\n  const bin = await this.helpers.prepareBinaryData(Buffer.from(res), `characters_${hash}_pose${NN}.png`);\n  return { json: j, binary: { ...b, image: bin } };\n}\n\n// Otherwise, nothing to upload \u2014 mark & pass through\nreturn { json: { ...j, __skipUpload: true } };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -12192,
+        320
+      ],
+      "id": "69b82764-1a5a-43bc-a693-e600c46e686e",
+      "name": "Make Binary from Base64"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Capture Lean Meta \u2014 per-item, upstream-aware, single-object return\n// Adds BOTH a canonical storageKey and a unique versionedKey.\n\nconst j = $json || {};\nconst b = $binary || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// helpers\nfunction clampInt(v, lo=1, hi=99){ const n=Number(v); return Number.isFinite(n)?Math.max(lo,Math.min(hi,Math.floor(n))):null; }\nfunction pad2(n){ return String(n).padStart(2,'0'); }\nfunction parsePoseFromName(s){ if(!s) return null; const m=String(s).match(/pose[_-]?(\\d{1,2})/i); return m?clampInt(m[1]):null; }\nfunction getItem(node){ try{ const a=$items(node,0,$itemIndex); if(a?.[0]) return a[0]; }catch{} try{ const a2=$items(node,runIx); return a2[$itemIndex]||a2[0]||{}; }catch{} return {}; }\nfunction J(node){ return getItem(node).json || {}; }\nfunction B(node,key){ return (getItem(node).binary||{})[key] || null; }\n\nconst fromBuild = J('Build Dynamic Pose Prompt');\nconst fromPrep0 = J('Prepare Gemini (POSE)');\nconst fromPrepR = J('Prepare Gemini (POSE) \u2014 Retry');\n\nlet poseNum =\n  clampInt(j.poseNumber) ??\n  clampInt(j.currentPoseNumber) ??\n  clampInt(j.__meta?.poseNumber) ??\n  clampInt(fromBuild.poseNumber) ??\n  clampInt(fromBuild.currentPoseNumber) ??\n  (Number.isFinite(Number(fromBuild.index)) ? clampInt(Number(fromBuild.index)+1) : null) ??\n  clampInt(fromPrepR.poseNumber) ??\n  clampInt(fromPrep0.poseNumber) ??\n  parsePoseFromName(b.pose?.fileName || j.poseRefName || j.poseRefFilename || B('Download pose reference','pose')?.fileName) ??\n  clampInt($itemIndex + 1);\n\nif (!poseNum) throw new Error('Capture Lean Meta: poseNumber missing; ensure upstream stamps pose index.');\nposeNum = Math.min(12, Math.max(1, poseNum));\nconst NN = pad2(poseNum);\n\n// character hash\nconst gen   = J('Generate Character Hash');\nconst hash  = j.characterHash || j.characterSpecs?.hash || gen.characterHash || null;\n\n// ========================================\n// CRITICAL VALIDATION: characterHash must be present\n// ========================================\nif (!hash || hash === 'nohash' || hash === 'unknown' || (typeof hash === 'string' && hash.trim().length < 4)) {\n  console.error('\u274c CRITICAL: characterHash missing or invalid in Capture Lean Meta', {\n    hasField: !!j.characterHash,\n    value: hash,\n    specsHash: j.characterSpecs?.hash,\n    genHash: gen.characterHash,\n    availableJsonFields: Object.keys(j).slice(0, 20),\n    itemIndex: $itemIndex\n  });\n  throw new Error(\n    'Capture Lean Meta: characterHash is missing or invalid. ' +\n    `Received: \"${hash}\". ` +\n    'Previous nodes (Derive QA Pass, etc.) must preserve characterHash field. ' +\n    'Check that \"Derive QA Pass\" preserves all fields correctly.'\n  );\n}\n\n// constants\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\nconst DEFAULT_R2  = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n\n// derive try/run id (unique per execution)\nconst tryNum   = clampInt(j.qaRetry ?? j.__meta?.qaRetry ?? 1) || 1;\nconst tryTag   = pad2(tryNum);\nconst orderId  = j.amazonOrderId ?? gen.amazonOrderId ?? j.orderData?.amazonOrderId ?? 'unknown-order';\nconst runStamp = (j.__meta?.runStamp) || new Date().toISOString().replace(/[-:TZ.]/g,'').slice(0,14);\nconst runTag   = j.correlationId || j.responseId || `run_${runStamp}`;\n\n// canonical & versioned keys\nlet storageKey, versionedKey, characterPath;\n\n// Hash is validated, safe to use\ncharacterPath = `${BASE_PREFIX}/${hash}`;\nconst baseFile = `characters_${hash}_pose${NN}.png`;\nstorageKey     = `${characterPath}/${baseFile}`;                           // canonical (\"latest\")\nversionedKey   = `${characterPath}/_runs/${runTag}/characters_${hash}_pose${NN}_try${tryTag}.png`; // unique\n\n// merge & return\nconst outJson = {\n  ...j,\n  publicR2Url: j.publicR2Url ?? gen.publicR2Url ?? DEFAULT_R2,\n  poseNumber: poseNum,\n  currentPoseNumber: poseNum,\n  characterHash: hash,\n  characterPath,\n  orderData: {\n    ...(j.orderData || {}),\n    amazonOrderId: orderId,\n    characterHash: hash,\n    characterPath,\n    r2BucketName: j.orderData?.r2BucketName ?? 'little-hero-assets',\n  },\n  __meta: {\n    ...(j.__meta || {}),\n    runStamp,\n    poseNumber: poseNum,\n    characterHash: hash,\n    characterPath,\n    storageKey,     // canonical (\"latest\")\n    versionedKey,   // \u2190 use this in the Upload node to avoid overwrites\n    captureLeanMeta: {\n      resolvedPose: `pose${NN}.png`,\n      tryNum, runTag,\n      validatedHash: true, // \u2190 added to track that validation passed\n      sources: {\n        local: { poseNumber: j.poseNumber, currentPoseNumber: j.currentPoseNumber, metaPose: j.__meta?.poseNumber },\n        build: { poseNumber: fromBuild.poseNumber, currentPoseNumber: fromBuild.currentPoseNumber, index: fromBuild.index },\n        prep0: { poseNumber: fromPrep0.poseNumber },\n        prepr:{ poseNumber: fromPrepR.poseNumber },\n        parsed: parsePoseFromName(b.pose?.fileName || j.poseRefFilename || j.poseRefName),\n        fallbackIndex1: $itemIndex + 1,\n      }\n    }\n  },\n};\n\nconsole.log(`\u2705 Capture Lean Meta: pose=${poseNum}, hash=${hash.substring(0,8)}..., try=${tryNum}`);\n\nreturn { json: outJson, binary: b, pairedItem: $input?.item?.pairedItem ?? { item: ($itemIndex ?? 0) } };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -12368,
+        320
+      ],
+      "id": "aee9b075-841c-4eae-ae7c-75fb92395435",
+      "name": "Capture Lean Meta"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-assets",
+        "fileName": "={{\n  $json.__meta?.versionedKey\n  || $json.__meta?.storageKey\n  ||\n  (() => {\n    const slug = s => String(s||'')\n      .toLowerCase().replace(/[^a-z0-9._-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');\n    const prefix = slug($json.s3Prefix || $json.bookSlug || $json.projectSlug || 'book-mvp-simple-adventure');\n    const ch     = slug($json.characterHash || 'nohash');\n    const pose   = String($json.poseNumber ?? $json.currentPoseNumber ?? 0).padStart(2,'0');\n    return `${prefix}/order-generated-assets/characters/${ch}/characters_${ch}_pose${pose}.png`;\n  })()\n}}\n",
+        "binaryPropertyName": "={{ $binary.generated ? 'generated' : ($binary.generated_inline ? 'generated_inline' : 'generated') }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -11536,
+        320
+      ],
+      "id": "eacaa5dc-8b42-4c1c-a7d0-9b8e67a4ce8e",
+      "name": "Add Upload to R2",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Client-Request-Id",
+              "value": "={{$json.correlationId}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.qaRequestBody }}",
+        "options": {}
+      },
+      "id": "1f804891-c161-4c8f-9220-d30e9f8034f7",
+      "name": "HTTP: Pose QA (Gemini)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -11856,
+        -224
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7jdcfc9T2O9vensv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Client-Request-Id",
+              "value": "={{$json.correlationId}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.requestBody }}",
+        "options": {}
+      },
+      "id": "194a84ef-6fb9-467b-93ae-83e7f0f39042",
+      "name": "Generate Character in Pose",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -14000,
+        -160
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7jdcfc9T2O9vensv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "a95395b9-de57-4f80-8478-ccc6968b3123",
+              "leftValue": "={{ $json.qaPass }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "df3f1783-a79e-4704-afa0-ccae8d254375",
+      "name": "IF: QA Pass?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -10352,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse QA Verdict \u2014 EACH mode (strip code fences and robustly parse JSON)\n// Input: Gemini QA HTTP response (text in candidates[].content.parts[].text)\n// Output fields added: qaText (cleaned), qaVerdict (parsed JSON)\n\nconst j   = $json || {};\nconst bin = $binary || {};\n\n// Find the model's text payload anywhere in the response\nfunction findText(obj){\n  if (!obj || typeof obj !== 'object') return null;\n  if (Array.isArray(obj)){\n    for (const v of obj){ const f = findText(v); if (f) return f; }\n    return null;\n  }\n  if (typeof obj.text === 'string') return obj.text;\n  if (obj.candidates) return findText(obj.candidates);\n  if (obj.content)    return findText(obj.content);\n  if (obj.parts)      return findText(obj.parts);\n  if (obj[0])         return findText(obj[0]);\n  return null;\n}\n\nfunction stripFences(s){\n  if (!s) return '';\n  let t = String(s).trim();\n  // remove leading/trailing code fences like ```json ... ``` or ``` ...\n  t = t.replace(/^```[a-zA-Z]*\\s*/,'').replace(/```$/,'').trim();\n  // also remove stray backticks if any remain\n  t = t.replace(/```/g,'').trim();\n  return t;\n}\n\nfunction tryParseJsonLoose(s){\n  // Try direct JSON.parse first\n  try { return JSON.parse(s); } catch {}\n  // Try to extract the first {...} block\n  const start = s.indexOf('{');\n  const end   = s.lastIndexOf('}');\n  if (start >= 0 && end > start) {\n    const sub = s.slice(start, end + 1);\n    try { return JSON.parse(sub); } catch {}\n  }\n  return null;\n}\n\nconst rawText = findText(j) || '';\nconst cleaned = stripFences(rawText);\n\nconst verdict = tryParseJsonLoose(cleaned) || {\n  pose_score: 0,\n  single_subject: false,\n  extra_limbs: true,\n  bg_white: false,\n  leakage_from_pose_ref: true,\n  cropped: true,\n  notes: 'validator parse error'\n};\n\n// Return ONE object (EACH mode)\nreturn {\n  json: { \n    ...j,\n    qaText: cleaned,\n    qaVerdict: verdict\n  },\n  binary: bin,\n  ...( $input?.item?.pairedItem ? { pairedItem: $input.item.pairedItem } : {} ),\n};\n"
+      },
+      "id": "30d76388-fb33-44ad-b748-7ac5212aa6a5",
+      "name": "Parse QA Verdict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -10800,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Pose QA \u2014 Build Request \u2014 INITIAL (POSE-FIRST, MINIMAL-PAIR) \u2014 EACH\n// Filesystem-safe; reads buffers for the CURRENT item; minimal 2-image payload.\n\n// ---------- boot ----------\nconst jIn  = $json || {};\nconst bin  = $binary || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// ---------- slim any heavy fields (no base64 carried downstream) ----------\nfunction stripInlineDataDeep(o){\n  if (!o || typeof o !== 'object') return o;\n  if (Array.isArray(o)) return o.map(stripInlineDataDeep);\n  const x = {};\n  for (const [k,v] of Object.entries(o)) {\n    if (k === 'inlineData' && v && typeof v === 'object') {\n      const mimeType = v.mimeType || undefined;\n      x.inlineData = mimeType ? { mimeType } : {};\n    } else {\n      x[k] = stripInlineDataDeep(v);\n    }\n  }\n  return x;\n}\nfunction slimJson(j){\n  const c = { ...(j || {}) };\n  delete c.qaRequestBody;\n  delete c.requestBody;\n  delete c.contents;\n  delete c.systemInstruction;\n  return stripInlineDataDeep(c);\n}\nconst j = slimJson(jIn);\n\n// ---------- mock/test thresholds ----------\nconst isMock =\n  !!j.__testMode ||\n  !!j.__allowTinyImage ||\n  String(j.modelVersion || '').toLowerCase().includes('mock');\n\nconst minBytes = Number.isFinite(Number(j.minInlineBytes))\n  ? Number(j.minInlineBytes)\n  : (isMock ? 1 : 100);\n\n// ---------- helpers ----------\nfunction currentIndex(){\n  const p = $input?.item?.pairedItem;\n  if (p && typeof p.item === 'number') return p.item;\n  if (typeof $itemIndex === 'number') return $itemIndex;\n  return 0;\n}\nconst idx = currentIndex();\n\nasync function readBuffer(key, { allowTiny=false } = {}){\n  if (!bin[key]) return null;\n  try {\n    const buf = await this.helpers.getBinaryDataBuffer(idx, key);\n    if (!buf) return null;\n    const ok = buf.length >= minBytes || (allowTiny && buf.length > 0);\n    return ok ? buf : null;\n  } catch { return null; }\n}\nfunction toB64(buf){ return buf.toString('base64'); }\nfunction sha1(buf){ return require('crypto').createHash('sha1').update(buf).digest('hex'); }\nfunction mimeFromExt(name=''){\n  const n = String(name).toLowerCase();\n  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg';\n  if (n.endsWith('.webp')) return 'image/webp';\n  if (n.endsWith('.png')) return 'image/png';\n  return null;\n}\nfunction inferMime(b, fallback='image/png'){\n  return b?.mimeType || mimeFromExt(b?.fileName || b?.fileNameOriginal) || fallback;\n}\nfunction zpad(n, w=2){ const s=String(Math.max(0, Number(n)|0)); return s.length>=w?s:'0'.repeat(w-s.length)+s; }\nfunction looksLikePoseName(name){\n  const n = String(name||'').toLowerCase();\n  if (/pose[_\\-]?\\d{1,3}\\.(png|jpe?g|webp)$/.test(n)) return true;\n  if (/^p[\\-_]?\\d{1,3}\\.(png|jpe?g|webp)$/.test(n))   return true;\n  return /(^|\\/)pose(\\.|_|-|$)/.test(n);\n}\n\nfunction safeItems(nodeName, rIx){ try { return $items(nodeName, 0, rIx) || []; } catch { return []; } }\nfunction preferredIndex(arr){\n  const p = $input?.item?.pairedItem?.item;\n  const ix = (typeof p === 'number') ? p : (typeof $itemIndex === 'number' ? $itemIndex : 0);\n  return (ix>=0 && ix<arr.length) ? ix : 0;\n}\nfunction getItemFromNode(nodeName, rIx){\n  const arr = safeItems(nodeName, rIx);\n  if (!arr.length) return null;\n  const ix = preferredIndex(arr);\n  return arr[ix] || arr[0] || null;\n}\n\nfunction normalizeBinary(b, fallbackName){\n  if (!b) return null;\n  return { ...b, mimeType: b.mimeType || 'image/png', fileName: b.fileName || b.fileNameOriginal || fallbackName };\n}\n\nfunction pickPoseFromMap(map, fallbackName){\n  if (!map) return null;\n  if (map.pose && looksLikePoseName(map.pose.fileName || map.pose.fileNameOriginal || 'pose.png'))\n    return normalizeBinary(map.pose, fallbackName);\n  for (const k of Object.keys(map)) {\n    const b = map[k];\n    const name = b?.fileName || b?.fileNameOriginal;\n    if (looksLikePoseName(name)) return normalizeBinary(b, fallbackName);\n  }\n  if (map.pose) return normalizeBinary(map.pose, fallbackName);\n  return null;\n}\nfunction expectedPoseNames(){\n  const n = j.poseNumber ?? j.currentPoseNumber ?? j.__meta?.poseNumber ?? null;\n  if (n == null || Number.isNaN(Number(n))) return [];\n  const nn2 = zpad(n,2), nn3 = zpad(n,3);\n  return [`pose${nn2}.png`,`pose-${nn2}.png`,`pose_${nn2}.png`,\n          `pose${nn3}.png`,`pose-${nn3}.png`,`pose_${nn3}.png`];\n}\nfunction posePredicate(b){\n  const fileName = (b?.fileName || b?.fileNameOriginal || '').toLowerCase();\n  const expect = expectedPoseNames();\n  if (expect.length) {\n    const nameNoExt = fileName.replace(/\\.(png|jpe?g|webp)$/, '');\n    for (const exp of expect) {\n      const eNoExt = String(exp).toLowerCase().replace(/\\.(png|jpe?g|webp)$/, '');\n      if (nameNoExt.endsWith(eNoExt)) return true;\n    }\n  }\n  return looksLikePoseName(fileName);\n}\nfunction findPoseFromNodes(preferRunIx=runIx){\n  const candidates = [\n    'Reattach Binaries (For QA)',\n    'Reattach Binaries (For Retry Gen)',\n    'Ensure Generated for QA Retry \u2014 EACH',\n    'Download Pose Reference',\n    'Download Pose Ref (IMAGE P)',\n    'Download a file (pose)',\n    'Prepare Upload',\n    'Carry Pose Index',\n  ];\n  const runs = [preferRunIx, 0];\n  for (const r of runs){\n    for (const name of candidates){\n      const it = getItemFromNode(name, r);\n      if (!it || !it.binary) continue;\n      const pick = pickPoseFromMap(it.binary, 'pose.png');\n      if (pick && posePredicate(pick)) return { bin: pick, from: name, run: r };\n    }\n  }\n  return null;\n}\n\n// ---------- read binaries with fallbacks ----------\nlet poseBin = normalizeBinary(bin.pose, 'pose.png');\nlet genBin  = normalizeBinary(bin.generated, 'generated.png');\n\nlet poseBuf = await readBuffer('pose',      { allowTiny: isMock });\nconst genBuf  = await readBuffer('generated', { allowTiny: isMock });\n\nif (!poseBuf) {\n  const found = findPoseFromNodes(runIx);\n  if (found) {\n    poseBin = found.bin;\n    bin.pose = poseBin; // attach\n    try { poseBuf = await this.helpers.getBinaryDataBuffer(idx, 'pose'); } catch {}\n  }\n}\n\n// ---------- guards ----------\nconst presentKeys = Object.keys(bin || {});\nif (!poseBuf) throw new Error(`QA (initial): missing pose reference (binary.pose). Present binary keys: [${presentKeys.join(', ')}], idx=${idx}`);\nif (!genBuf)  throw new Error(`QA (initial): missing generated output (binary.generated). Present binary keys: [${presentKeys.join(', ')}], idx=${idx}`);\n\n// ---------- build QA prompt ----------\nconst systemText = [\n  'You are a strict pose validator.',\n  'You will receive exactly two images:',\n  '- IMAGE P: pose reference (first image).',\n  '- OUTPUT: candidate to validate (second image).',\n  'Return ONLY a minified JSON with fields: pose_score[0..1], single_subject[bool], extra_limbs[bool], bg_white[bool], leakage_from_pose_ref[bool], cropped[bool], notes[string].',\n  'Evaluate pose/positioning vs IMAGE P only; ignore clothing/colors.'\n].join('\\n');\n\nconst parts = [\n  { text: 'IMAGE P \u2014 POSE REFERENCE:' },\n  { inlineData: { mimeType: inferMime(bin.pose),      data: toB64(poseBuf) } },\n  { text: 'OUTPUT \u2014 IMAGE TO VALIDATE:' },\n  { inlineData: { mimeType: inferMime(bin.generated), data: toB64(genBuf) } },\n  { text: 'Return ONLY valid JSON like: {\"pose_score\":0.0,\"single_subject\":true,\"extra_limbs\":false,\"bg_white\":true,\"leakage_from_pose_ref\":false,\"cropped\":false,\"notes\":\"\"}' }\n];\n\nconst qaRequestBody = {\n  systemInstruction: { role: 'system', parts: [{ text: systemText }] },\n  contents: [{ role: 'user', parts }],\n  generationConfig: { temperature: 0.0 }\n};\n\n// ---------- debug payload ----------\nconst expectedPose =\n  (Number.isFinite(Number(j.poseNumber)) ? Number(j.poseNumber) : null) ??\n  (Number.isFinite(Number(j.currentPoseNumber)) ? Number(j.currentPoseNumber) : null) ??\n  (Number.isFinite(Number(j.__meta?.poseNumber)) ? Number(j.__meta.poseNumber) : null);\n\nconst qaDebug = {\n  expectedPoseNumber: expectedPose,\n  pose:      { fileName: poseBin?.fileName || null, bytes: poseBuf.length, sha1: sha1(poseBuf) },\n  generated: { fileName: genBin?.fileName || null,  bytes: genBuf.length,  sha1: sha1(genBuf) },\n  presentBinaryKeys: presentKeys,\n  runIndex: runIx,\n  itemIndex: idx,\n  minBytesUsed: minBytes,\n  mockMode: !!isMock,\n};\n\n// ---------- return SINGLE object ----------\nreturn {\n  json: { ...j, qaRequestBody, qaDebug },\n  binary: bin,\n  pairedItem: ($input?.item?.pairedItem) ? $input.item.pairedItem : { item: idx },\n};\n"
+      },
+      "id": "205834eb-3cfc-4c43-9580-31c744ba7e3b",
+      "name": "Pose QA \u2014 Build Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -12752,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract Generated Image (Gemini) \u2014 EACH mode\n// Prefer binaries (generated / generated_inline). Fallback to JSON inline only if needed.\n// Guarantees: binary.generated present; keeps pose/character via rehydrate; returns SINGLE object.\n\nconst res   = $json || {};\nconst bIn   = $binary || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\nconst itemIx = ($input?.item?.pairedItem?.item ?? (typeof $itemIndex === 'number' ? $itemIndex : 0));\n\n/* --------------------------- helpers --------------------------- */\nfunction clampPose(n){ return Math.max(1, Math.min(999, Number(n || 0))); }\nfunction zpad(n,w=2){ const s=String(Math.max(0, Number(n)|0)); return s.length>=w?s:'0'.repeat(w-s.length)+s; }\n\nfunction stripInlineDataDeep(o){\n  if (!o || typeof o !== 'object') return o;\n  if (Array.isArray(o)) return o.map(stripInlineDataDeep);\n  const x = {};\n  for (const [k,v] of Object.entries(o)) {\n    if (k === 'inlineData' && v && typeof v === 'object') {\n      const mimeType = v.mimeType || undefined;\n      x.inlineData = mimeType ? { mimeType } : {};\n    } else {\n      x[k] = stripInlineDataDeep(v);\n    }\n  }\n  return x;\n}\n\n// make a *slim* copy of context so we never re-attach base64\nfunction slimCtx(j){\n  if (!j || typeof j !== 'object') return {};\n  const c = { ...j };\n  delete c.requestBody;\n  delete c.contents;\n  delete c.systemInstruction;\n  return stripInlineDataDeep(c);\n}\n\nfunction normalizeBinary(b, fallbackName){\n  if (!b) return null;\n  return { ...b, mimeType: b.mimeType || 'image/png', fileName: b.fileName || b.fileNameOriginal || fallbackName };\n}\nfunction preferredIndex(arr){ return (itemIx>=0 && itemIx<arr.length) ? itemIx : 0; }\nfunction safeItems(nodeName, rIx){ try { return $items(nodeName, 0, rIx) || []; } catch { return []; } }\nfunction getItemFromNode(nodeName, rIx){\n  const arr=safeItems(nodeName, rIx);\n  if (!arr.length) return null;\n  const ix=preferredIndex(arr);\n  return arr[ix] || arr[0] || null;\n}\n\nfunction looksLikePoseName(name){\n  const n = String(name||'').toLowerCase();\n  if (/pose[_\\-]?\\d{1,3}\\.(png|jpe?g|webp)$/.test(n)) return true;\n  if (/^p[\\-_]?\\d{1,3}\\.(png|jpe?g|webp)$/.test(n))   return true;\n  return /(^|\\/)pose(\\.|_|-|$)/.test(n);\n}\nfunction pickPoseFromMap(map, fallback){\n  if (!map) return null;\n  if (map.pose && looksLikePoseName(map.pose.fileName || map.pose.fileNameOriginal || 'pose.png')) return normalizeBinary(map.pose, fallback);\n  for (const k of Object.keys(map)){ const b=map[k]; const name=b?.fileName || b?.fileNameOriginal; if (looksLikePoseName(name)) return normalizeBinary(b, fallback); }\n  if (map.pose) return normalizeBinary(map.pose, fallback);\n  return null;\n}\nfunction pickCharacterFromMap(map, fallback){\n  if (!map) return null;\n  if (map.character) return normalizeBinary(map.character, fallback);\n  for (const k of Object.keys(map)){ const b=map[k]; const n=String(b?.fileName || b?.fileNameOriginal || '').toLowerCase(); if (/character|base/.test(n)) return normalizeBinary(b, fallback); }\n  return null;\n}\nfunction rehydrateFrom(nodeNames, picker, fallback){\n  const runs=[runIx,0];\n  for (const r of runs){\n    for (const name of nodeNames){\n      const it=getItemFromNode(name,r);\n      if (!it?.binary) continue;\n      const picked=picker(it.binary, fallback);\n      if (picked) return { bin:picked, from:`${name}#run${r}`, json:(it.json||{}) };\n    }\n  }\n  return null;\n}\n\nfunction findInline(obj, path = []) {\n  if (!obj || typeof obj !== 'object') return null;\n  if (obj.inlineData?.data) return { data: String(obj.inlineData.data), mime: obj.inlineData.mimeType || 'image/png', path: path.concat('inlineData') };\n  if (Array.isArray(obj)) { for (let i=0;i<obj.length;i++){ const h=findInline(obj[i], path.concat(i)); if (h) return h; } return null; }\n  if (obj.candidates) return findInline(obj.candidates, path.concat('candidates'));\n  if (obj.content)    return findInline(obj.content,    path.concat('content'));\n  if (obj.parts)      return findInline(obj.parts,      path.concat('parts'));\n  if (obj[0])         return findInline(obj[0],         path.concat(0));\n  for (const [k,v] of Object.entries(obj)) { if (k==='inlineData') continue; const h=findInline(v, path.concat(k)); if (h) return h; }\n  return null;\n}\nfunction sha1(buf){ return require('crypto').createHash('sha1').update(buf).digest('hex'); }\n\n/* ------------------------ thresholds ------------------------ */\nconst isMock = /mock/i.test(res.modelVersion || res?.candidates?.[0]?.modelVersion || '')\n            || res.__testMode === true\n            || res.__allowTinyImage === true;\nconst minInlineBytes = Number.isFinite(Number(res.minInlineBytes)) ? Number(res.minInlineBytes) : (isMock ? 1 : 100);\n\n/* ------------------------ 1) obtain GENERATED bytes ------------------------ */\n// Fast path: binaries from previous step\nlet genBuf = null;\nlet genSource = null;\nlet mime = 'image/png';\n\n// Prefer a fully-formed generated binary\nif (bIn.generated) {\n  try { genBuf = await this.helpers.getBinaryDataBuffer(0, 'generated'); genSource = 'binary.generated'; mime = bIn.generated.mimeType || mime; } catch {}\n}\n// Else try the temporary binary we created in \"Drop Pose Payload\"\nif (!genBuf && bIn.generated_inline) {\n  try { genBuf = await this.helpers.getBinaryDataBuffer(0, 'generated_inline'); genSource = 'binary.generated_inline'; mime = bIn.generated_inline.mimeType || mime; } catch {}\n}\n\n// Fallback: scan JSON once (kept for compatibility, but avoided in normal runs)\nlet inlinePath = null;\nif (!genBuf) {\n  let hit = findInline(res);\n  if (!hit && isMock) hit = { data: \"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\", mime: \"image/png\", path: [\"__mock_fallback\"] };\n  if (!hit) {\n    const fr = res?.candidates?.[0]?.finishReason || res.finishReason || 'UNKNOWN';\n    throw new Error(`Extract Generated Image: no inlineData image found (finishReason=${fr})`);\n  }\n  const b64 = String(hit.data || '');\n  if (!b64 || b64.length < minInlineBytes) {\n    throw new Error(`Extract Generated Image: inline image too short (${b64.length} < ${minInlineBytes})`);\n  }\n  genBuf = Buffer.from(b64, 'base64');\n  mime   = hit.mime || 'image/png';\n  genSource = 'json.inlineData';\n  inlinePath = hit.path;\n}\n\nif (!genBuf) throw new Error('Extract Generated Image: failed to obtain generated bytes');\n\n/* ---------------- 2) get context (prefer sanitized) ---------------- */\nconst ctxCandidates = [\n  'Drop Pose Payload', 'Drop Pose Payload1', 'Drop Pose Payload \u2014 Retry',\n  'Drop QA Payload', 'Drop QA Payload \u2014 Retry',\n  'Prepare Gemini (POSE)', 'Prepare Gemini (POSE) \u2014 Retry'\n];\nlet ctx = null, ctxSourceNode = null;\nfor (const name of ctxCandidates){\n  const hitItem = getItemFromNode(name, runIx) || getItemFromNode(name, 0);\n  if (hitItem) { ctx = hitItem; ctxSourceNode = name; break; }\n}\nconst rawCtxJson = ctx?.json || {};\nconst ctxJson = slimCtx(rawCtxJson);              // always slim to avoid base64 bloat\nconst ctxBin  = ctx?.binary || {};\nconst ctxWasSanitized = /drop.*payload/i.test(String(ctxSourceNode||'').toLowerCase());\n\n/* ------------------------ 3) pose number ------------------------ */\nlet poseNum = res.poseNumber ?? res.currentPoseNumber ?? res.__meta?.poseNumber ?? ctxJson.poseNumber ?? ctxJson.currentPoseNumber ?? ctxJson.__meta?.poseNumber ?? null;\nposeNum = Number.isFinite(Number(poseNum)) ? clampPose(poseNum) : null;\nconst NN = poseNum ? String(poseNum).padStart(2, '0') : 'xx';\n\n/* ------------------------ 4) ensure POSE ------------------------ */\nlet poseBin = bIn.pose ? normalizeBinary(bIn.pose, 'pose.png') : null;\nlet poseSource = poseBin ? 'current' : null;\n\nif (!poseBin && ctxBin && Object.keys(ctxBin).length){\n  const pick = pickPoseFromMap(ctxBin, 'pose.png');\n  if (pick) { poseBin = normalizeBinary(pick, 'pose.png'); poseSource = ctxWasSanitized ? 'sanitized ctx' : 'prepare ctx'; }\n}\nif (!poseBin) {\n  const re = rehydrateFrom(\n    ['Reattach Binaries (For QA)','Reattach Binaries (For Retry Gen)','Download Pose Reference','Download Pose Ref (IMAGE P)','Download a file (pose)','Carry Pose Index','Prepare Pose Reference','Prepare Upload','Prepare Gemini (POSE)'],\n    pickPoseFromMap,\n    'pose.png'\n  );\n  if (re) { poseBin = re.bin; poseSource = re.from; }\n}\n\n/* ------------------------ 5) ensure CHARACTER ------------------------ */\nlet characterBin = bIn.character ? normalizeBinary(bIn.character, 'character.png') : null;\nlet characterSource = characterBin ? 'current' : null;\n\nif (!characterBin && ctxBin && Object.keys(ctxBin).length){\n  const pick = pickCharacterFromMap(ctxBin, 'character.png');\n  if (pick) { characterBin = pick; characterSource = ctxWasSanitized ? 'sanitized ctx' : 'prepare ctx'; }\n}\nif (!characterBin) {\n  const re = rehydrateFrom(\n    ['Download base character','Download Base Character (R2)','Resolve Base Character Key','Prepare Binary (Base)','Reattach Binaries (For QA)','Prepare Upload','Prepare Gemini (POSE)'],\n    pickCharacterFromMap,\n    'character.png'\n  );\n  if (re) { characterBin = re.bin; characterSource = re.from; }\n}\n\n/* ------------------------ 6) restore/derive hash ------------------------ */\nfunction scanForHashStrings(obj){\n  const out = [];\n  (function walk(x){\n    if (!x) return;\n    if (typeof x === 'string') out.push(x);\n    else if (Array.isArray(x)) x.forEach(walk);\n    else if (typeof x === 'object') for (const v of Object.values(x)) walk(v);\n  })(obj);\n  return out;\n}\nfunction deriveCharacterHash(json, characterBin, ctxJson){\n  const j = json || {};\n  const c = ctxJson || {};\n  const direct =\n    j.characterHash || j.characterSpecs?.hash || j.__meta?.characterHash || j.hash ||\n    c.characterHash || c.characterSpecs?.hash || c.__meta?.characterHash || c.hash;\n  if (direct && /[a-z0-9]{6,64}/i.test(String(direct))) return String(direct);\n\n  const fname = characterBin?.fileName || characterBin?.fileNameOriginal || '';\n  const fpath = characterBin?.filePath || characterBin?.path || '';\n  const hay = `${fname} ${fpath}`.toLowerCase();\n  let m = hay.match(/characters[_\\/\\\\-]([a-z0-9]{6,64})[_\\/\\\\-](?:base|pose|hair|image)/i);\n  if (m) return m[1];\n\n  const haystack = scanForHashStrings(c).concat(scanForHashStrings(j));\n  for (const s of haystack) {\n    const sL = String(s).toLowerCase();\n    let mm = sL.match(/characters[_\\/\\\\-]([a-z0-9]{6,64})[_\\/\\\\-](?:base|pose|hair|image)/i);\n    if (mm) return mm[1];\n    mm = sL.match(/([a-z0-9]{10,64})/i);\n    if (mm) return mm[1];\n  }\n  return null;\n}\n\nlet characterHash =\n  res.characterHash || res.characterSpecs?.hash ||\n  ctxJson.characterHash || ctxJson.characterSpecs?.hash || null;\n\nif (!characterHash) characterHash = deriveCharacterHash(res, characterBin, ctxJson);\nconst safeHash = characterHash || 'nohash';\n\n/* ------------------------ 7) filename for GENERATED ------------------------ */\nconst baseName = res.correlationId\n  ? String(res.correlationId).replace(/[^\\w\\-]+/g, '_')\n  : `characters_${safeHash}_pose${NN}`;\nconst fileName = `${baseName}.png`;\n\n/* ------------------------ 8) make n8n binary for GENERATED ------------------------ */\nconst genBin = await this.helpers.prepareBinaryData(genBuf, fileName, mime);\ngenBin.mimeType = mime;\ngenBin.fileExtension = 'png';\n\n/* ------------------------ 9) emit binaries ------------------------ */\n// Only pass through the binaries we want to carry forward\nconst passthroughKeys = ['pose', 'character', 'hair', 'skin'];\nconst outBinary = {};\nfor (const k of passthroughKeys) {\n  if (bIn[k]) outBinary[k] = bIn[k];\n}\n// Promote the final output\noutBinary.generated = genBin;\n\n// (defensive) ensure no temporary inline copy survives\ndelete outBinary.generated_inline;\n\n/* ------------------------ 10) SLIM JSON + breadcrumbs ------------------------ */\nconst resSlim = stripInlineDataDeep(res);\n\nconst outJson = {\n  ...slimCtx(ctxJson),         // already slim\n  ...resSlim,\n  characterHash: characterHash || ctxJson.characterHash || null,\n  generatedFileName: fileName,\n  generatedImage: { mimeType: mime, size: genBuf.length },\n  __meta: {\n    ...(res.__meta || {}),\n    extractGenerated: {\n      source: genSource,\n      inlinePath,                        // only set if we fell back to JSON\n      isMock,\n      minInlineBytes,\n      finishReason: res?.candidates?.[0]?.finishReason || res.finishReason || null,\n      usage: res.usageMetadata || null,\n      poseAttached: !!poseBin,\n      poseSource,\n      characterAttached: !!characterBin,\n      characterSource,\n      presentBinaryKeysIn: Object.keys(bIn || {}),\n      presentBinaryKeysOut: Object.keys(outBinary || {}),\n      ctxFrom: ctxSourceNode || null,\n      filenameBase: baseName,\n      poseNumber: poseNum,\n      sha1_generated: sha1(genBuf),\n    }\n  }\n};\n\n/* ------------------------ 11) return SINGLE object ------------------------ */\nreturn {\n  json: outJson,\n  binary: outBinary,\n  pairedItem: $input?.item?.pairedItem ?? { item: itemIx },\n};\n"
+      },
+      "id": "1b5db69d-2490-46db-9268-6a615d35270c",
+      "name": "Extract Generated Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -13120,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare Gemini (POSE) \u2014 EACH (lean & filesystem-safe)\n// Mode: Run once for EACH item\n// Builds requestBody for ONE item from $binary (no $json base64 in prod).\n// Returns a SMALL json object (request + tiny meta). Immediately follow with:\n// HTTP \u2192 Drop Pose Payload (hardened) \u2192 Extract.\n\n// ---------- Inputs ----------\nconst j = $json || {};\nconst b = $binary || {};\n\n// ---------- Config ----------\nconst isMock =\n  /mock/i.test(j.modelVersion || j.requestBody?.modelVersion || '') ||\n  j.__testMode === true || j.__allowTinyImage === true;\n\nconst minInlineBytes = Number.isFinite(Number(j.minInlineBytes))\n  ? Number(j.minInlineBytes)\n  : (isMock ? 1 : 100);\n\n// Ceiling per image to avoid runner disconnects\nconst MAX_IMAGE_BYTES = Number.isFinite(Number(j.maxImageBytes))\n  ? Number(j.maxImageBytes)\n  : 8 * 1024 * 1024; // 8 MB\n\nfunction clampPose(n){ return Math.max(1, Math.min(12, Number(n || 0))); }\n\n// ---------- Pose inputs ----------\nlet poseNum = j.poseNumber ?? j.currentPoseNumber ?? j.__meta?.poseNumber ?? null;\nif (!Number.isFinite(Number(poseNum))) throw new Error('Prepare Gemini (pose): poseNumber missing/invalid.');\nposeNum = clampPose(poseNum);\nconst nn = String(poseNum).padStart(2, '0');\nconst poseLabel = `pose-${nn}`;\n\nconst posePromptBlock = (j.posePromptBlock && String(j.posePromptBlock).trim()) || '';\nif (!posePromptBlock) throw new Error(`Prepare Gemini (pose): missing posePromptBlock for ${poseLabel}.`);\n\n// ---------- Helpers ----------\nasync function addInlineFromBinary(parts, key){\n  if (!b[key]) return false;\n  const buf = await this.helpers.getBinaryDataBuffer(0, key); // EACH-safe\n  if (!buf || buf.length < minInlineBytes)\n    throw new Error(`Prepare Gemini (pose): binary.${key} too small (${buf?.length || 0} < ${minInlineBytes})`);\n  if (buf.length > MAX_IMAGE_BYTES)\n    throw new Error(`Prepare Gemini (pose): binary.${key} too large (${buf.length} > ${MAX_IMAGE_BYTES})`);\n\n  const mime =\n    b[key].mimeType ||\n    (String(b[key].fileName || '').toLowerCase().endsWith('.jpg') ? 'image/jpeg' : 'image/png');\n\n  // Minimal labels; the systemInstruction defines roles.\n  parts.push({ text: key === 'pose' ? 'IMAGE P' : key === 'character' ? 'IMAGE A' : key === 'hair' ? 'IMAGE B' : 'IMAGE' });\n  parts.push({ inlineData: { mimeType: mime, data: buf.toString('base64') } });\n  return true;\n}\n\nfunction addInlineFromJsonBase64IfMock(parts, key){\n  if (!isMock) return false; // never use JSON base64 in prod\n  const b64 = j?.[key];\n  if (!b64 || String(b64).length < minInlineBytes) return false;\n  parts.push({ text: key === 'poseBase64' ? 'IMAGE P' : key === 'characterBase64' ? 'IMAGE A' : 'IMAGE' });\n  parts.push({ inlineData: { mimeType: 'image/png', data: String(b64) } });\n  return true;\n}\n\nfunction pick(keys){ for (const k of keys) if (b[k]) return k; return null; }\n\n// ---------- Build parts ----------\nconst parts = [];\nparts.push({ text: posePromptBlock });\n\n// Pose guide (P) \u2014 REQUIRED, before A\nlet haveP = false;\nhaveP = await addInlineFromBinary.call(this, parts, 'pose');\nif (!haveP) haveP = addInlineFromJsonBase64IfMock(parts, 'poseBase64');\nif (!haveP) throw new Error('Prepare Gemini (pose): missing pose reference binary.');\n\n// Character style/anatomy (A) \u2014 REQUIRED\nlet haveA = false;\nconst charKey = pick(['character','image','reference','base','A','characterA','ref_character']);\nif (charKey) haveA = await addInlineFromBinary.call(this, parts, charKey);\nif (!haveA) haveA = addInlineFromJsonBase64IfMock(parts, 'characterBase64');\nif (!haveA) throw new Error('Prepare Gemini (pose): missing base character binary.');\n\n// Optional hair (B)\nconst hairKey = pick(['hair','hair_ref','H']);\nif (hairKey) { try { await addInlineFromBinary.call(this, parts, hairKey); } catch {} }\n\n// Optional skin swatch\nif (b.skin) { try { await addInlineFromBinary.call(this, parts, 'skin'); } catch {} }\n\n// ---------- Prompt & config ----------\nconst systemText = [\n  'You are a precise illustration tool.',\n  'POSE OVERRIDE: If IMAGE A shows any pose, IGNORE it completely.',\n  'Use IMAGE A ONLY for style, proportions, and face/anatomy. Use IMAGE P ONLY for pose.',\n  'Limb positions and ground/air contact MUST match IMAGE P exactly.',\n  'Keep background pure white (#FFFFFF).'\n].join('\\n');\n\nconst generationConfig = {\n  imageConfig: { aspectRatio: j.aspectRatio || '1:1' },\n  temperature: (typeof j.retryTemp === 'number')\n    ? j.retryTemp\n    : (typeof j.temperature === 'number' ? j.temperature : 0.12),\n};\n\nconst requestBody = {\n  model: j.model || 'models/gemini-2.5-flash',\n  systemInstruction: { role: 'system', parts: [{ text: systemText }] },\n  contents: [{ role: 'user', parts }],\n  generationConfig,\n};\n\nconst characterHash = j.characterHash || j.characterSpecs?.hash || 'nohash';\nconst correlationId = `${characterHash}-POSE${poseNum}-${Date.now()}`;\n\n// ---------- SMALL output JSON ----------\nreturn {\n  json: {\n    amazonOrderId: j.amazonOrderId ?? undefined,\n    characterHash,\n    poseNumber: poseNum,\n    currentPoseNumber: poseNum,\n    poseLabel,\n    poseRefName: b?.pose?.fileName || j.poseRefName || null,\n    posePromptBlock,          // plain text only\n    generationConfig,         // small\n    requestBody,              // big-for-this-item ONLY (will be dropped next node)\n    correlationId,\n    __meta: { __prepPose: { isMock, minInlineBytes, haveP: !!haveP, haveA: !!haveA } },\n  },\n  binary: b, // keep binaries untouched\n  pairedItem: ($input?.item?.pairedItem) ? $input.item.pairedItem : { item: ($itemIndex ?? 0) },\n};\n"
+      },
+      "id": "1c5894f7-d86f-4823-b256-ecfd13a9180d",
+      "name": "Prepare Gemini (POSE)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -14640,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build Dynamic Pose Prompt \u2014 EACH (lean)\n// Mode: Run once for EACH item\n// Creates posePromptBlock without copying the entire $json forward.\n\nconst j = $json || {};\nconst bin = $binary || {};\n\nfunction norm(s){ return String(s||'').toLowerCase().trim(); }\nfunction clampPose(n){ return Math.max(1, Math.min(12, Number(n||0))); }\nconst POSE_REGEX = /(?:pose[_\\- ]?(\\d{1,2}))|[_\\-\\.](\\d{1,2})(?:\\D|$)|\\/(\\d{1,2})\\.png$/i;\nfunction parsePoseFromString(s){ if(!s) return null; const m=String(s).match(POSE_REGEX); return m?Number(m[1]||m[2]||m[3]):null; }\n\nconst POSE_PROMPT_MAP = {\n  '1': `Walking step. Front foot forward and flat; rear heel slightly lifted. Torso upright, shoulders level. Natural counter-swing of arms (opposite arm forward to leading leg). Head forward; gaze ahead; gentle smile.`,\n  '2': `Walking while looking higher. Front foot forward; rear heel lifted. Elbows softly bent; hands near torso (light fists). Chin raised; head tilted up/right; eyes above horizon. Torso upright; shoulders level.`,\n  '3': `Standing and scanning the distance. Feet under hips, weight even. One hand forms a visor across the brow (palm down, fingers together, elbow angled forward); other arm relaxed at side. Head slightly right; gaze far ahead; cheerful.`,\n  '4': `Floating/hovering. Both feet off ground, toes pointed downward; knees softly bent. Arms slightly out from sides (~30\u201345\u00b0), fingers relaxed. Torso upright; head forward; joyful. No running/walking motion.`,\n  '5': `Walking while looking down. Front foot flat; rear heel subtly lifted. Arms relaxed with palms facing in, slight rearward swing. Chin tipped downward; eyes on ground a step ahead. Torso upright; shoulders level; curious (not sad).`,\n  '6': `Jogging. Lead knee lifted; rear heel up. Elbows ~90\u00b0, hands light fists at mid-torso; opposite arm leads. Torso upright with slight forward lean; head forward; eyes ahead; focused happy smile. Side/Profile view.`,\n  '7': `Sitting cross-legged and eating. Legs crossed; feet tucked. Torso upright. Both hands hold a simple, unbranded sandwich near the mouth; elbows close to body. Mouth in cheerful bite; eyes on sandwich or slightly forward.`,\n  '8': `Crouching/inspect. Deep squat with feet flat, hips close to heels. Forearms rest on thighs; hands relaxed near knees. Head tilted down/forward; eyes focused on ground directly in front. Small \u201co\u201d of wonder or soft smile; hair clear of face.`,\n  '9': `Crawling, moving, happy. On hands and knees; leading hand reaching forward while opposite knee advances. Hips low; back long; torso ~30\u201345\u00b0 above ground. Head slightly raised; eyes forward/down along path; wide happy smile.`,\n  '10': `Surprised, looking up. Feet under hips; slight lean back. Elbows bent with open hands near mid-torso (no waving). Chin lifted; head tilted up; eyes wide above; small surprised \u201co\u201d; eyebrows raised; shoulders level.`,\n  '11': `Surprised (forward). Feet under hips; slight recoil. Elbows bent; hands open slightly out from body at rib height. Head forward; eyes wide straight ahead; small surprised \u201co\u201d; eyebrows raised; shoulders level.`,\n  '12': `Flying/gliding. Body airborne; legs trailing slightly back with toes pointed. Arms out ~30\u201345\u00b0 for balance; fingers relaxed. Torso angled slightly upward; head forward; eyes ahead; joyful smile. No ground contact.`\n};\nconst POSE_NEGATIVES = {\n  '1': ['No jumping/airborne.', 'Rear heel must lift.', 'No same-side arm/leg forward together.'],\n  '2': ['Head must tilt up.', 'No fully straight elbows.', 'No downward gaze.'],\n  '3': ['No walking/jogging.', 'Visor palm faces down.', 'No hunched torso.'],\n  '4': ['No feet touching ground.', 'No running stride.', 'Arms not clamped to sides.'],\n  '5': ['No upward gaze.', 'Front foot stays flat.', 'No big arm swings/raised hands.'],\n  '6': ['Not a flat-foot walk.', 'Add slight forward lean.', 'Hands not open waving.'],\n  '7': ['No standing/kneeling.', 'No branding/crumbs/mess.', 'Elbows not flared wide.'],\n  '8': ['Heels stay flat.', 'Hips must be near heels.', 'No hands on ground.'],\n  '9': ['No standing/sitting.', 'One knee advances forward.', 'No pointing fingers.'],\n  '10': ['Not looking forward/down.', 'Hands not above shoulders.', 'No forward lean.'],\n  '11': ['Not looking up.', 'Only slight recoil (no lean back).', 'Hands open (no fists).'],\n  '12': ['No ground contact.', 'Torso not angled downward.', 'Arms not straight overhead.']\n};\n\nfunction hairstyleLock(styleKey, color){\n  const c = norm(styleKey);\n  const base = [\n    'CONSISTENT HAIRSTYLE LOCK:',\n    '- IMPORTANT! Hair is a single, opaque, connected; unanimous mass. no flyaways/halos, or stray hairs.',\n    '- Do not change cut, part side, length, or ear visibility.',\n    '- Motion should not create flyaways and silhouette/part/length stay unchanged.',\n    '- Hair is a single, opaque, connected; unanimous mass. no flyaways/halos, or stray hairs.'\n  ];\n  const colorLine = color ? [`- Hair color: ${color} (do not recolor).`] : [];\n  const map = {\n    'side-part': ['- PART on character\u2019s RIGHT (viewer\u2019s LEFT); sweep LEFT.','- Both ears fully visible; no hair below ear top.','- Back follows skull curve; no straight \u201cbob\u201d hem.'],\n    'ponytail': ['- One ponytail back; no loose face strands.'],\n    'pigtails': ['- Two mid-height tails; solid masses; face/ears clear.'],\n    'bun': ['- Single back/low bun; tidy front.'],\n    'pom-poms': ['- Two high puffs; clean center part; each \u226430% head width; total \u226490%; no face overlap.'],\n    'locs': ['- Grouped neatly; continuous outer outline; interior detail by tone/lines.'],\n    'afro': ['- Even rounded halo; continuous silhouette; no pinholes.'],\n    'straight-short': ['- Above-chin; outline hugs head; eyes/ears clear.'],\n    'straight-medium': ['- To shoulders; kept behind shoulders.'],\n    'straight-long': ['- Below shoulders; trails behind back; length fixed.'],\n    'curly-short': ['- Compact halo; scalloped edge OK but continuous.'],\n    'curly-medium': ['- Shoulder-level curls; keep continuous outline.'],\n    'curly-long': ['- Long curls behind shoulders/back; no lace-like cutouts.']\n  };\n  return base.concat(colorLine, map[c]||[]).join('\\n');\n}\n\nfunction clothingLock(cs){\n  const type = norm(cs?.clothingStyle || '');\n  if (type === 'dress') {\n    return [\n      'OUTFIT / CLOTHING LOCK:',\n      '- Outfit MUST remain a DRESS (single-piece).',\n      '- Do NOT replace with a T-shirt and shorts, pants, or layered outfits.',\n      '- Keep the same dress silhouette as IMAGE A (short sleeves, A-line body); no waist seam or shorts hem visible.'\n    ].join('\\n');\n  }\n  return [\n    'OUTFIT / CLOTHING LOCK:',\n    '- Outfit MUST remain a short-sleeve T-SHIRT and SHORTS.',\n    '- Do NOT replace with a dress, skirt, pants, or layered outfits.',\n    '- Keep shorts length and T-shirt silhouette consistent with IMAGE A.'\n  ].join('\\n');\n}\n\nfunction buildFraming(poseNum){\n  const airborne = (poseNum === 4 || poseNum === 12);\n  return [\n    'FRAMING & CONTACT:',\n    '- Full body in frame; do not crop head/hands/feet.',\n    airborne ? '- CONTACT: No feet touching ground; no grounded foot shadows.'\n             : '- CONTACT: At least one foot clearly on ground as described; anatomically correct contact.',\n    '- Perspective: mild 3/4 or straight-on; avoid extreme foreshortening.'\n  ].join('\\n');\n}\n\nfunction buildPoseLock(poseNum){\n  const core = POSE_PROMPT_MAP[String(poseNum)] || '';\n  const negs = POSE_NEGATIVES[String(poseNum)] || [];\n  const lines = [\n    `POSE LOCK \u2014 ID ${poseNum}`,\n    core,\n    'FOLLOW IMAGE P EXACTLY for limb positions, weight/ground contact, and hand orientation.',\n    'If any instruction conflicts, this POSE LOCK (with IMAGE P) outranks all other guidance.'\n  ];\n  if (negs.length){ lines.push('POSE HARD NEGATIVES:'); for (const n of negs) lines.push('- ' + n); }\n  return lines.join('\\n');\n}\n\n// ---- pose number (use explicit fields, fallback to filename) ----\nlet poseNum = j.poseNumber ?? j.currentPoseNumber ?? j.__meta?.poseNumber ?? null;\nif (!Number.isFinite(Number(poseNum))){\n  const cands = [j.poseRefName, j.poseRefFilename, j.poseRef, j.poseFileName, j.poseRefUrl, j.poseUrl, j.posePath, j.imageUrl, j.sourceUrl, $binary?.pose?.fileName];\n  for (const c of cands){ const p = parsePoseFromString(c); if (Number.isFinite(p)){ poseNum = p; break; } }\n}\nif (!Number.isFinite(Number(poseNum))) throw new Error('Build Pose Prompt: poseNumber missing/invalid.');\nposeNum = clampPose(poseNum);\n\n// ---- compose prompt (thin) ----\nconst cs = j.characterSpecs || {};\nconst subjectLimit = 'SUBJECT LIMIT: Exactly one child in frame \u2014 no duplicates, reflections, extra limbs, or extra bodies.';\nconst hairLock = hairstyleLock(cs.hairStyle || '', cs.hairColor || j.hairPromptMeta?.color || '');\nconst outfitLock = clothingLock(cs);\nconst skinLock = [\n  'SKIN-TONE LOCK: Keep skin tone identical to base.',\n  j.skinToneId ? `- Palette: ${j.skinToneId}` : null,\n  j.skinHexBase ? `- Base hex: ${j.skinHexBase} (do not lighten/darken).` : null,\n  j.skinColorLock ? `- ${j.skinColorLock}` : null,\n  '- Maintain undertone; do not shift toward pink/gray/yellow; no freckles/blush unless requested.'\n].filter(Boolean).join('\\n');\n\nconst allowedProps = []; // if you use these later, fill from a map as before\nconst posePromptBlock = [\n  'COMPLIANCE ORDER (highest \u2192 lowest): Subject Limit \u2192 POSE LOCK (with IMAGE P) \u2192 Outfit Lock \u2192 Hairstyle Lock \u2192 Skin Tone Locks.',\n  subjectLimit,\n  buildPoseLock(poseNum),\n  buildFraming(poseNum),\n  outfitLock,\n  hairLock,\n  skinLock,\n  'PROPS: No props. Hands empty unless the pose description specifies otherwise.',\n  '- Do NOT copy hair/outfit/colors from IMAGE P; IMAGE P is pose ONLY. All appearance comes from IMAGE A (and IMAGE B if provided).'\n].filter(Boolean).join('\\n\\n');\n\n// ---- minimal output JSON ----\nconst outJson = {\n  amazonOrderId: j.amazonOrderId,\n  characterHash: j.characterHash || j.characterSpecs?.hash || null,\n  poseNumber: poseNum,\n  currentPoseNumber: poseNum,\n  poseRefName: $binary?.pose?.fileName || j.poseRefName || null,\n  posePromptBlock,\n  posePromptMeta: { poseNumber: poseNum, allowedProps, version: 'v1.2-pose-with-outfit-lock', source: 'pose-prompt-builder' }\n};\n\nreturn {\n  json: outJson,\n  binary: $binary,\n  pairedItem: ($input?.item?.pairedItem) ? $input.item.pairedItem : { item: ($itemIndex ?? 0) },\n};\n"
+      },
+      "id": "6ce2d2e8-7871-4c98-81fe-d209ada99864",
+      "name": "Build Dynamic Pose Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -14848,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Resolve Pose Ref (IMAGE P) \u2014 EACH mode\n// Emits: poseRefKey, poseRefUrl, poseNumber/currentPoseNumber, poseLabel, poseRefName\n\nconst j = { ...($json || {}) };\nconst b = $binary || {};\nconst itemIx = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\n// 1) Base URL (normalize trailing slash)\nconst posesBase = String(\n  j.posesPublicBase ||\n  'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/little-hero-assets/book-mvp-simple-adventure/characters/poses/'\n).replace(/\\/?$/, '/');\n\n// 2) Pose number (clamp 1..12; prefer explicit fields, then __meta, then index+1)\nfunction clamp(n){ const x = Number(n); return Number.isFinite(x) ? Math.max(1, Math.min(12, Math.floor(x))) : null; }\nlet poseNum =\n  clamp(j.currentPoseNumber) ??\n  clamp(j.poseNumber) ??\n  clamp(j.__meta?.poseNumber) ??\n  clamp(itemIx + 1) ?? 1;\n\nconst NN = String(poseNum).padStart(2, '0');\n\n// 3) Filename pattern\n// Default to the hyphen style (pose-01.png). You can override with j.poseRefPattern,\n// e.g. 'pose-${NN}.png', 'pose${NN}.png', '${NN}.png', or '${N}.png'\nconst pattern = j.poseRefPattern || 'pose${NN}.png';\nconst refName = pattern\n  .replace('${NN}', NN).replace('{NN}', NN)\n  .replace('${N}', String(poseNum)).replace('{N}', String(poseNum));\n\n// 4) Public URL\nconst poseRefUrl = `${posesBase}${refName}`;\n\n// 5) Derive bucket-relative KEY from URL (strip protocol+host; then optional bucket prefix)\nlet poseRefKey = poseRefUrl.replace(/^https?:\\/\\/[^/]+\\//, '');\n// If your S3/R2 node uses bucketName = \"little-hero-assets\", the key must NOT include the bucket name\nposeRefKey = poseRefKey.replace(/^little-hero-assets\\//i, '');\n\n// 6) Emit single object (EACH mode)\nreturn {\n  json: {\n    ...j,\n    poseNumber: poseNum,\n    currentPoseNumber: poseNum,\n    poseLabel: `pose${NN}`,\n    poseRefName: refName,\n    poseRefUrl,\n    poseRefKey\n  },\n  binary: b,\n  pairedItem: ($input && $input.item && $input.item.pairedItem) ? $input.item.pairedItem : { item: itemIx }\n};\n"
+      },
+      "id": "660757b1-2aba-4fa7-b00d-d4904c28d72c",
+      "name": "Resolve Pose Ref (IMAGE P)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -15792,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Resolve Base Character Key (production-ready)\n// Goal:\n// 1) If upstream already provides baseCharacterKey, pass it through.\n// 2) Otherwise, derive it from flexible fields (no hardcoded path unless defaulted).\n// 3) Also emit baseCharacterUrl if publicR2Url is present (useful for HTTP GET flows).\n\nconst j = $json || {};\n\n// 1) Pass-through if already set (preferred in production: upstream 2A returns it)\nif (j.baseCharacterKey) {\n  const baseUrl = j.publicR2Url ? String(j.publicR2Url).replace(/\\/$/, \"\") : undefined;\n  const url = baseUrl ? `${baseUrl}/${j.baseCharacterKey}` : (j.baseCharacterUrl || undefined);\n  return [{ json: { ...j, baseCharacterUrl: url }, binary: $binary }];\n}\n\n// 2) Derive a sane key if upstream didn\u2019t provide one\n// You can override any of these via input JSON:\n//   assetsRoot          -> defaults to 'book-mvp-simple-adventure'\n//   orderAssetsPrefix   -> defaults to 'order-generated-assets'\n//   characterPath       -> defaults to `characters/<characterHash>`\n//   baseCharacterFilename -> defaults to 'base-character.png'\n\nconst assetsRoot = j.assetsRoot || j.bookSlug || 'book-mvp-simple-adventure';\nconst orderPrefix = j.orderAssetsPrefix || 'order-generated-assets';\n\nconst hash = j.characterHash || j.__meta?.characterHash;\nconst charDir = j.characterPath || (hash ? `characters/${hash}` : null);\nif (!charDir) throw new Error('Resolve Base Character Key: characterPath or characterHash required.');\n\nconst filename = j.baseCharacterFilename || 'base-character.png';\n\n// Build key\nconst key = `${assetsRoot}/${orderPrefix}/${charDir}/${filename}`;\n\n// Also build public URL if you have a CDN/public R2 base\nconst baseUrl = j.publicR2Url ? String(j.publicR2Url).replace(/\\/$/, \"\") : undefined;\nconst url = baseUrl ? `${baseUrl}/${key}` : undefined;\n\nreturn [{ json: { ...j, baseCharacterKey: key, baseCharacterUrl: url }, binary: $binary }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -15600,
+        -48
+      ],
+      "id": "2e0d3e63-8c94-48b0-90bc-ed6d275804fe",
+      "name": "Resolve Base Character Key"
+    },
+    {
+      "parameters": {
+        "bucketName": "little-hero-assets",
+        "fileKey": "={{ $json.baseCharacterKey }}",
+        "binaryPropertyName": "character"
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -15408,
+        -48
+      ],
+      "id": "582b2f93-6ea4-445a-95ce-0675c109cc99",
+      "name": "Download base character",
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "bucketName": "little-hero-assets",
+        "fileKey": "={{ $json.poseRefKey ?? (($json.poseRefUrl || '').replace(/^https?:\\/\\/[^/]+\\//, '')) }}",
+        "binaryPropertyName": "pose"
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -15232,
+        -48
+      ],
+      "id": "e2b610b9-fff3-441c-9454-9fa4d93e9f57",
+      "name": "Download pose reference",
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Derive QA Pass \u2014 EACH (preserve QA verdict for retry loop)\n// v3: Adds size-budget enforcement + allow-list fallback to prevent \u201cconnection lost\u201d\n//     Keeps critical keys, snapshots values, strips heavy fields & nested inlineData.data.\n\nconst item = $input.item || { json: {}, binary: {} };\nconst j    = { ...(item.json || {}) };\nconst b    = item.binary || {};\nconst v    = j.qaVerdict || {};\n\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\nconst ix    = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\n/* ------------ config (tune here) ------------ */\nconst MAX_JSON_BYTES   = Number.isFinite(Number(j.__qaMaxBytes)) ? Number(j.__qaMaxBytes) : 120 * 1024; // 120KB budget\nconst LARGE_STR_THRESH = 4096; // strip suspicious base64-ish strings above this length by key hint\nconst KEEP_PAIRED_ITEM = j.__keepPairedItem === true; // default false to reduce memory\n\n/* ------------ helpers ------------ */\nfunction firstDefined(...vals){ for (const v of vals){ if (v !== undefined && v !== null && v !== '') return v; } return undefined; }\nfunction toNum(x){ const n = Number(x); return Number.isFinite(n) ? n : undefined; }\nfunction pad2(n){ n = Number(n); return Number.isFinite(n) ? String(n).padStart(2,'0') : '01'; }\nfunction byteLen(o){ try{ return Buffer.byteLength(JSON.stringify(o),'utf8'); }catch{ return Infinity; } }\n\n// Recursively remove very heavy nested fields, esp. inlineData.data\nfunction stripInlineDataDeep(obj, maxString = LARGE_STR_THRESH){\n  if (!obj || typeof obj !== 'object') return;\n\n  // Special case: Gemini-style inlineData\n  if (obj.inlineData && typeof obj.inlineData === 'object') {\n    if (typeof obj.inlineData.data === 'string') {\n      delete obj.inlineData.data; // remove base64 payloads\n      obj.inlineData.stripped = true;\n    }\n  }\n\n  for (const k of Object.keys(obj)) {\n    const v = obj[k];\n\n    // Strings that are suspiciously large (probable base64)\n    if (typeof v === 'string' && v.length > maxString) {\n      if (/(?:^|_)(?:data|base64|b64|raw|payload|buffer)(?:$|_)/i.test(k)) {\n        delete obj[k];\n        obj[`${k}_stripped`] = true;\n        continue;\n      }\n    }\n\n    // Arrays/objects: dive deeper\n    if (v && typeof v === 'object') stripInlineDataDeep(v, maxString);\n  }\n}\n\n// Keep only specific keys from a source object into a new lean object\nfunction pick(obj, keys){\n  const out = {};\n  for (const k of keys){\n    const val = obj[k];\n    if (val !== undefined) out[k] = val;\n  }\n  return out;\n}\n\n/* ------------ derive QA verdict ------------ */\nconst thr = Number.isFinite(Number(j.qaThreshold)) ? Number(j.qaThreshold) : 0.90;\nconst scoreRaw = firstDefined(v.pose_score, v.score, j.qaScore);\nconst score = Number.isFinite(Number(scoreRaw)) ? Number(scoreRaw) : NaN;\n\nconst reasons = [];\nif (!Number.isFinite(score)) reasons.push('no_score'); else if (score < thr) reasons.push(`score_below_${thr}`);\nif (v.single_subject !== true) reasons.push('not_single_subject');\nif (v.extra_limbs !== false) reasons.push('extra_limbs');\nif (v.bg_white !== true) reasons.push('bg_not_white');\nif (v.leakage_from_pose_ref !== false) reasons.push('leakage_from_pose_ref');\nif (v.cropped !== false) reasons.push('cropped');\n\nconst qaPass =\n  Number.isFinite(score) &&\n  score >= thr &&\n  v.single_subject === true &&\n  v.extra_limbs === false &&\n  v.bg_white === true &&\n  v.leakage_from_pose_ref === false &&\n  v.cropped === false;\n\n/* ------------ resolve identity for snapshot ------------ */\nconst poseNumber = firstDefined(\n  toNum(j.poseNumber),\n  toNum(j.expectedPoseNumber),\n  toNum(j.pose_index),\n  (j.poseNN && toNum(String(j.poseNN).replace(/^pose/i, '')))\n);\nconst poseIndex = firstDefined(toNum(j.poseIndex), Number.isFinite(poseNumber) ? poseNumber - 1 : undefined);\nconst poseNN    = j.poseNN || (Number.isFinite(poseNumber) ? `pose${pad2(poseNumber)}` : undefined);\n\nconst amazonOrderId    = firstDefined(j.amazonOrderId, j.orderId, j.order_id, j.order?.id, j.meta?.orderId);\nconst correlationId    = firstDefined(j.correlationId, j.correlation_id, j.meta?.correlationId);\nconst characterHash    = firstDefined(j.characterHash, j.character_hash, j.character?.hash, 'nohash');\nconst generatedFileName= firstDefined(j.generatedFileName, b?.generated?.fileName, b?.generated_inline?.fileName);\nconst orderDate        = firstDefined(j.orderDate, j.order?.date, j.meta?.orderDate);\nconst poseKey          = firstDefined(j.poseKey, (amazonOrderId ? `${amazonOrderId}|${characterHash}|${poseNN||''}` : undefined));\n\n/* ------------ build base out ------------ */\nconst out = {\n  ...j, // keep upstream (we\u2019ll prune next)\n  qaPass,\n  qaReasons: reasons,\n  qaThreshold: thr,\n  qaScore: Number.isFinite(score) ? Number(score) : null,\n  // Slim qaVerdict to essentials\n  qaVerdict: {\n    single_subject: v.single_subject ?? null,\n    extra_limbs: v.extra_limbs ?? null,\n    bg_white: v.bg_white ?? null,\n    leakage_from_pose_ref: v.leakage_from_pose_ref ?? null,\n    cropped: v.cropped ?? null,\n    pose_score: Number.isFinite(score) ? Number(score) : null\n  },\n  __meta: {\n    ...(j.__meta || {}),\n    deriveQaPass: {\n      keptKeys: [\n        'amazonOrderId','correlationId','characterHash','generatedFileName',\n        'poseIndex','expectedPoseNumber','orderDate','qaPass','qaReasons','qaThreshold','qaScore'\n      ],\n      snapshot: {\n        amazonOrderId: amazonOrderId ?? null,\n        correlationId: correlationId ?? null,\n        characterHash: characterHash ?? null,\n        generatedFileName: generatedFileName ?? null,\n        poseIndex: Number.isFinite(poseIndex) ? poseIndex : null,\n        expectedPoseNumber: Number.isFinite(poseNumber) ? poseNumber : null,\n        orderDate: orderDate ?? null,\n        qaPass,\n        qaReasons: reasons,\n        qaThreshold: thr,\n        qaScore: Number.isFinite(score) ? Number(score) : null,\n        poseNN: poseNN ?? null,\n        poseKey: poseKey ?? null\n      }\n    }\n  }\n};\n\n/* ------------ prune heavy known keys ------------ */\n// Known heavy top-level keys from LLM/API nodes\nconst HEAVY_TOP = [\n  'qaRequestBody','systemInstruction','contents','candidates','usageMetadata',\n  'vertexResponse','rawResponse','raw','fullResponse','imagePrompt','promptParts',\n  'payload','result','response','debug','__raw','text','explanations'\n];\nfor (const k of HEAVY_TOP) delete out[k];\n\n// Recursively strip nested inlineData.data & big base64-like strings\nstripInlineDataDeep(out, LARGE_STR_THRESH);\n\n/* ------------ enforce size budget with allow-list fallback ------------ */\nlet size = byteLen(out);\nif (size > MAX_JSON_BYTES) {\n  // Absolute essentials that downstream nodes rely on\n  const ALLOW_TOP = [\n    // identities / routing\n    'amazonOrderId','orderId','correlationId','characterHash','poseNumber','poseNN','poseIndex','poseKey',\n    'generatedFileName','expectedPoseNumber','orderDate',\n    // QA outputs\n    'qaPass','qaReasons','qaThreshold','qaScore','qaVerdict',\n    // small meta (includes our snapshot)\n    '__meta'\n  ];\n  const lean = pick(out, ALLOW_TOP);\n\n  // Keep any small \u201cflags\u201d if present\n  for (const k of Object.keys(out)) {\n    if (k.startsWith('__') && lean[k] === undefined) lean[k] = out[k];\n  }\n\n  // Final slim pass & annotate\n  stripInlineDataDeep(lean, LARGE_STR_THRESH);\n  lean.__meta = lean.__meta || {};\n  lean.__meta.sizeGuard = {\n    applied: true,\n    beforeBytes: size,\n    budgetBytes: MAX_JSON_BYTES\n  };\n\n  // Replace out\n  Object.keys(out).forEach(k => delete out[k]);\n  Object.assign(out, lean);\n  size = byteLen(out);\n}\n\n/* ------------ output ------------ */\nconst result = {\n  json: out,\n  binary: b,\n};\nif (KEEP_PAIRED_ITEM && $input?.item?.pairedItem) result.pairedItem = $input.item.pairedItem;\n\nreturn result;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -10560,
+        -48
+      ],
+      "id": "2a8a2803-0886-4a0d-8719-bb63361779ac",
+      "name": "Derive QA Pass"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare Upload (per-item)\n// Ensures a binary is under `generated` and sets both storageKey (canonical) and versionedKey (unique).\n\nconst j0 = $json || {};\nconst b0 = $binary || {};\nconst out = { json: { ...j0 }, binary: { ...b0 } };\n\n// helpers\nfunction findBase64(obj){ if(!obj||typeof obj!=='object')return null;\n  if(obj.inlineData?.data) return obj.inlineData.data;\n  if(Array.isArray(obj)){ for(const v of obj){ const f=findBase64(v); if(f) return f; } return null; }\n  if(obj.candidates) return findBase64(obj.candidates);\n  if(obj.content) return findBase64(obj.content);\n  if(obj.parts) return findBase64(obj.parts);\n  if(obj[0]) return findBase64(obj[0]);\n  return null;\n}\nfunction safeItems(name, runIx){ try{ return $items(name,0,runIx) || []; }catch{ return []; } }\nfunction pullBinaryFrom(cands){\n  const runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n  for (const [node, key] of cands){\n    const arr = safeItems(node, runIx);\n    if (!arr.length) continue;\n    const it = arr[$itemIndex] || arr[0] || null;\n    const hit = it?.binary?.[key];\n    if (hit) return { node, key, bin: hit };\n  }\n  return null;\n}\nfunction clampInt(v, lo=1, hi=99){ v=Number(v); return Number.isFinite(v)?Math.max(lo,Math.min(hi,Math.floor(v))):null; }\nfunction pad2(n){ return String(n).padStart(2,'0'); }\nfunction lastSeg(s){ s=String(s||''); const i=Math.max(s.lastIndexOf('/'),s.lastIndexOf('\\\\')); return i>=0?s.slice(i+1):s; }\n\n// 1) Ensure we have a generated image\nlet gen = out.binary.generated || out.binary.image || out.binary.result || out.binary['pose-generated'] || null;\n\nif (!gen) {\n  const b64 = findBase64(out.json?.httpResponse);\n  if (b64 && String(b64).length > 100) {\n    const buf = Buffer.from(b64, 'base64');\n    gen = await this.helpers.prepareBinaryData(buf, 'pose-generated.png', 'image/png');\n  }\n}\nif (!gen) {\n  const pulled = pullBinaryFrom([\n    ['Extract Generated Image \u2014 Retry1', 'generated'],\n    ['Extract Generated Image - Retry1', 'generated'],\n    ['Extract Generated Image \u2014 Retry',  'generated'],\n    ['Extract Generated Image - Retry',  'generated'],\n    ['Extract Generated Image',          'generated'],\n    ['Make Binary from Base64',          'image'],\n    ['Make Binary from Base64',          'generated'],\n  ]);\n  if (pulled) gen = pulled.bin;\n}\nif (!gen) {\n  const have = Object.keys(out.binary || {});\n  throw new Error(`Prepare Upload: No uploadable binary found. Present keys: [${have.join(', ')}]`);\n}\n\n// 2) Compute names/keys\nconst poseNum = clampInt(out.json.poseNumber ?? out.json.currentPoseNumber ?? out.json.__meta?.poseNumber ?? ($itemIndex+1)) || 0;\nconst NN = pad2(poseNum);\nconst hash = out.json.characterHash || out.json.characterSpecs?.hash || out.json.__meta?.characterHash || 'nohash';\nconst tryNum = clampInt(out.json.qaRetry ?? out.json.__meta?.qaRetry ?? 1) || 1; const TT = pad2(tryNum);\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\nconst DEFAULT_R2  = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n\nconst orderId  = out.json.amazonOrderId ?? out.json.orderData?.amazonOrderId ?? 'unknown-order';\nconst runTag   = out.json.correlationId || out.json.responseId || out.json.__meta?.runStamp || new Date().toISOString().replace(/[-:TZ.]/g,'').slice(0,14);\n\n// **versioned** filename keeps `_tryNN`\nconst versionedName = lastSeg(gen.fileName || gen.fileNameOriginal || `characters_${hash}_pose${NN}_try${TT}.png`);\nconst stableName    = versionedName.replace(/_try\\d+(?=\\.[a-z0-9]+$)/i, '') || `characters_${hash}_pose${NN}.png`;\n\nconst nohashBase    = `${BASE_PREFIX}/_nohash/${orderId}/run_${runTag}`;\nconst hashedBase    = `${BASE_PREFIX}/${hash}`;\n\nconst computedStorageKey = (hash && hash !== 'nohash')\n  ? `${hashedBase}/${stableName}`                              // canonical \"latest\"\n  : `${nohashBase}/pose${NN}.png`;\n\nconst computedVersionedKey = (hash && hash !== 'nohash')\n  ? `${hashedBase}/_runs/${runTag}/${versionedName}`           // unique per execution\n  : `${nohashBase}/pose${NN}_try${TT}.png`;\n\n// keep existing keys if upstream set them\nconst existingStorage = out.json.__meta?.storageKey;\nconst existingVersion = out.json.__meta?.versionedKey;\n\n// normalize binary: keep the **versioned** name for traceability\nout.binary.generated = {\n  ...gen,\n  fileName: versionedName,\n  mimeType: gen.mimeType || 'image/png',\n  fileExtension: gen.fileExtension || 'png',\n};\n\n// 3) annotate JSON (no blow-ups)\nout.json.publicR2Url = out.json.publicR2Url || DEFAULT_R2;\nout.json.poseNumber = poseNum;\nout.json.currentPoseNumber = poseNum;\n\nout.json.__meta = {\n  ...(out.json.__meta || {}),\n  storageKey:  existingStorage || computedStorageKey,   // canonical\n  versionedKey: existingVersion || computedVersionedKey,// unique \u2192 use in Upload node\n  characterHash: hash,\n  poseNumber: poseNum,\n  prepareUpload: { versionedName, stableName, keptExistingStorageKey: !!existingStorage, keptExistingVersionedKey: !!existingVersion },\n};\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11968,
+        320
+      ],
+      "id": "9e3a9528-29a2-4575-aecd-f91a01f7955f",
+      "name": "Prepare Upload (ensure generated)"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Derive Pose Identities \u2014 EACH mode\n// Robustly resolves poseNumber per item (fields \u2192 filenames/keys \u2192 index+1)\n\nconst j   = $json || {};\nconst bin = $binary || {};\n\n// ---------- helpers ----------\nfunction clampInt(n, lo = 1, hi = 12) {\n  n = Number(n);\n  return Number.isFinite(n) ? Math.max(lo, Math.min(hi, Math.floor(n))) : null;\n}\nconst POSE_REGEX = /(?:pose[_\\- ]?(\\d{1,2}))|[_\\-\\.](\\d{1,2})(?:\\D|$)|\\/(\\d{1,2})\\.(?:png|jpe?g|webp)$/i;\nfunction parsePoseFromString(s) {\n  if (!s) return null;\n  const m = String(s).match(POSE_REGEX);\n  return m ? clampInt(m[1] || m[2] || m[3]) : null;\n}\n\n// Prefer paired index \u2192 $itemIndex\nconst i = ($input?.item?.pairedItem?.item ?? (typeof $itemIndex === 'number' ? $itemIndex : 0));\n\n// priority: explicit fields \u2192 URL/key/filename hints \u2192 index+1\nlet poseNum =\n  clampInt(j.poseNumber) ??\n  clampInt(j.currentPoseNumber) ??\n  clampInt(j.__meta?.poseNumber) ??\n  parsePoseFromString(j.poseRefKey) ??\n  parsePoseFromString(j.poseRefUrl) ??\n  parsePoseFromString(j.poseRefName || j.poseRefFilename || j.poseFileName) ??\n  parsePoseFromString(bin.pose?.fileName || bin.pose?.fileNameOriginal) ??\n  clampInt(i + 1);\n\nif (!poseNum) {\n  throw new Error(\n    'Derive Pose Identities (EACH): missing poseNumber '\n    + '(checked poseNumber/currentPoseNumber/__meta.poseNumber/poseRefKey/poseRefUrl/poseRefName/binary.pose.fileName)'\n  );\n}\n\nconst NN        = String(poseNum).padStart(2, '0');\nconst poseLabel = `pose-${NN}`;\n\nreturn {\n  json: {\n    ...j,\n    poseNumber: poseNum,\n    currentPoseNumber: poseNum,\n    poseIndex: poseNum - 1,\n    poseLabel,\n    __meta: { ...(j.__meta || {}), poseNumber: poseNum }\n  },\n  binary: bin,\n  pairedItem: $input?.item?.pairedItem ?? { item: i },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -12928,
+        -48
+      ],
+      "id": "0fae2ac2-34d1-4307-a302-b960b9858e26",
+      "name": "Derive Pose Identities"
+    },
+    {
+      "parameters": {
+        "jsCode": "// \ud83e\uddea MOCK: Gemini Image Generation (EACH mode)\n// Adds __testMode flags so downstream extractors can be lenient.\n// Keeps a realistic Gemini response with a 1x1 transparent PNG.\n\nconst j = $json || {};\nconst b = $binary || {};\n\n// Normalize pose for nicer filenames downstream (optional)\nfunction clamp(n, lo=1, hi=99){ const x = Number(n); return Number.isFinite(x) ? Math.max(lo, Math.min(hi, Math.floor(x))) : null; }\nlet poseNum = j.poseNumber ?? j.currentPoseNumber ?? j.__meta?.poseNumber ?? null;\nposeNum = clamp(poseNum);\n\n// Real 1x1 transparent PNG (base64)\nconst TINY_PNG_B64 = \"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\";\n\n// Realistic Gemini-style response\nconst mockResponse = {\n  candidates: [{\n    content: { parts: [{ inlineData: { mimeType: \"image/png\", data: TINY_PNG_B64 } }] },\n    finishReason: \"STOP\",\n    safetyRatings: []\n  }],\n  usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 50, totalTokenCount: 150 },\n  modelVersion: \"gemini-2.5-flash-image-mock\"\n};\n\nconsole.log('\ud83e\uddea MOCK: Returning fake image for pose', poseNum ?? '?');\n\nreturn {\n  json: {\n    // keep upstream context so extractor can name files, etc.\n    ...j,\n    poseNumber: poseNum ?? j.poseNumber,\n    currentPoseNumber: poseNum ?? j.currentPoseNumber,\n\n    // explicit test flags for downstream nodes\n    __testMode: true,\n    __allowTinyImage: true,\n    minInlineBytes: 1,\n\n    // merge the mock Gemini response at top level\n    ...mockResponse,\n  },\n  binary: b,\n  pairedItem: $input?.item?.pairedItem ?? { item: ($itemIndex ?? 0) }\n};\n"
+      },
+      "id": "b459b175-6241-40ec-aa2d-908161df71d6",
+      "name": "\ud83e\uddea MOCK: Generate Character in Pose",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -13392,
+        -400
+      ],
+      "notes": "Mock response for testing - no API calls made"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "9b8f7ae2-1625-4db5-95ea-ab730db92ead",
+              "leftValue": "={{$node[\"\ud83e\uddea TEST MODE TOGGLE\"].json.testMode}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "1f2014f4-f209-450c-b808-cb502a9ff639",
+      "name": "IF: Test Mode? (2)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -14464,
+        -384
+      ],
+      "notes": "Routes to MOCK (true) or REAL API (false)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// \ud83e\uddea MOCK: Gemini QA Analysis \u2014 PASS (canonical schema for parser)\n// Emits a Gemini-style response where `parts[].text` is JSON with the exact fields\n// your verdict parser expects. Always PASS unless you override scores in $json.\n\nconst j = $json || {};\n\n// Allow tuneable thresholds in tests\nconst minPoseScore = Number.isFinite(Number(j.qaMinPoseScore)) ? Number(j.qaMinPoseScore) : 0.70;\n// You can override with j.mockPoseScore if you want different values per test\nconst desiredScore = Number.isFinite(Number(j.mockPoseScore)) ? Number(j.mockPoseScore) : 0.95;\n// Guarantee pass by being \u2265 minPoseScore (with a small cushion)\nconst poseScore = Math.max(desiredScore, minPoseScore + 0.05);\n\n// Build the EXACT verdict object your parser expects\nconst verdictObject = {\n  pose_score: poseScore,\n  single_subject: true,\n  extra_limbs: false,\n  bg_white: true,\n  leakage_from_pose_ref: false,\n  cropped: false,\n  notes: 'Mock QA - test mode always passes (canonical schema)'\n};\n\n// Wrap it like a Gemini response (so your `findText` sees `.text`)\nconst mockResponse = {\n  candidates: [{\n    content: {\n      parts: [{\n        text: JSON.stringify(verdictObject)\n      }]\n    },\n    finishReason: \"STOP\"\n  }],\n  usageMetadata: {\n    promptTokenCount: 50,\n    candidatesTokenCount: 20,\n    totalTokenCount: 70\n  },\n  // optional debug breadcrumb\n  mockInfo: {\n    poseNumber: j.poseNumber ?? j.currentPoseNumber ?? null,\n    minPoseScore,\n    poseScore\n  }\n};\n\nconsole.log('\ud83e\uddea MOCK PASS emitted for pose', j.poseNumber ?? j.currentPoseNumber ?? '?', 'score:', poseScore);\n\n// Return SINGLE object (EACH mode)\nreturn {\n  json: mockResponse,\n  binary: $binary,\n  pairedItem: ($input && $input.item && $input.item.pairedItem)\n    ? $input.item.pairedItem\n    : { item: (typeof $itemIndex === 'number' ? $itemIndex : 0) },\n};\n"
+      },
+      "id": "413ffe8c-57e1-4501-bbe6-ace15741ac1a",
+      "name": "\ud83e\uddea MOCK: HTTP: Pose QA (Gemini)1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11648,
+        -480
+      ],
+      "notes": "Mock response for testing - no API calls made"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "8aefdd9d-1a9f-4dcd-8353-740059d03833",
+              "leftValue": "={{$node[\"\ud83e\uddea TEST MODE TOGGLE\"].json.testMode}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "0b30268e-b961-41d2-aeb9-e9a1c3a89b36",
+      "name": "IF: Test Mode? (4)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -12320,
+        -464
+      ],
+      "notes": "Routes to MOCK (true) or REAL API (false)"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Drop QA Payload - OPTIMIZED (preserves context)\n// This node runs AFTER Parse QA Verdict, which creates the fields we need\n\nconst j = $json || {};\nconst b = $binary || {};\n\n// Keep essential fields that exist at this point\nconst out = {\n  // Core identifiers (should exist from earlier nodes)\n  poseNumber: j.poseNumber,\n  currentPoseNumber: j.currentPoseNumber,\n  poseLabel: j.poseLabel,\n  characterHash: j.characterHash,\n  correlationId: j.correlationId,\n  \n  // QA results (created by Parse QA Verdict)\n  qaVerdict: j.qaVerdict,\n  qaPass: j.qaPass,\n  qaText: j.qaText,\n  qaScore: j.qaScore,\n  \n  // Keep any other critical fields\n  amazonOrderId: j.amazonOrderId,\n  __meta: j.__meta\n};\n\nreturn { \n  json: out, \n  binary: b,\n  pairedItem: $input?.item?.pairedItem ?? { item: ($itemIndex ?? 0) }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11056,
+        -48
+      ],
+      "id": "431bc615-749d-48c7-a64b-fb5edbd07990",
+      "name": "Drop QA Payload"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Drop Pose Payload - OPTIMIZED\n// Keep only essential fields, drop heavy payloads\n\nconst j = $json || {};\nconst b = $binary || {};\n\n// Keep only essential fields\nconst out = {\n  poseNumber: j.poseNumber,\n  currentPoseNumber: j.currentPoseNumber,\n  poseLabel: j.poseLabel,\n  characterHash: j.characterHash,\n  correlationId: j.correlationId,\n  storageKey: j.storageKey,\n  r2Path: j.r2Path,\n  fileUrl: j.fileUrl,\n  candidates: j.candidates,\n  generationConfig: j.generationConfig,\n  amazonOrderId: j.amazonOrderId,\n  __meta: j.__meta\n};\n\nreturn { \n  json: out, \n  binary: b,\n  pairedItem: $input?.item?.pairedItem ?? { item: ($itemIndex ?? 0) }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -13312,
+        128
+      ],
+      "id": "ebfe8af9-6510-4507-80bf-6484c5c30daa",
+      "name": "Drop Pose Payload"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Clean Up Binaries - OPTIMIZED\n// Drop binaries after upload, keep essential metadata\n\nconst j = $json || {};\n\n// Keep only essential fields - everything we need for tracking\nconst out = {\n  poseNumber: j.poseNumber,\n  currentPoseNumber: j.currentPoseNumber,\n  poseLabel: j.poseLabel,\n  characterHash: j.characterHash,\n  correlationId: j.correlationId,\n  storageKey: j.storageKey,\n  r2Path: j.r2Path,\n  fileUrl: j.fileUrl,\n  uploadSuccess: j.uploadSuccess,\n  uploadedAt: j.uploadedAt,\n  amazonOrderId: j.amazonOrderId,\n  __meta: j.__meta\n};\n\n// Drop ALL binaries to free memory\nconst cleanBinary = {};\n\nreturn { \n  json: out, \n  binary: cleanBinary,\n  pairedItem: $input?.item?.pairedItem ?? { item: ($itemIndex ?? 0) }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -15840,
+        320
+      ],
+      "id": "9dd21db0-b720-41b1-a0bf-f2ac6ca490a9",
+      "name": "Clean Up Binaries"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -13520,
+        128
+      ],
+      "id": "baa55d69-06d6-4008-9c08-442f09db8786",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -11312,
+        -64
+      ],
+      "id": "a0811f66-a29e-4fd1-994f-f53fd6dad3fe",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Restore Binaries After QA HTTP\n// HTTP nodes don't preserve binaries - we need to fetch them from upstream\n\nconst apiResponse = $input.item.json;\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\nconst itemIx = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\n// Get binaries from the node that built the QA request\nfunction getItemFromNode(nodeName) {\n  try {\n    const arr = $items(nodeName, 0, runIx);\n    return arr[itemIx] || arr[0] || null;\n  } catch {\n    return null;\n  }\n}\n\n// Try to find the binaries from upstream nodes\nconst binarySources = [\n  'Reattach Binaries (For QA)',\n  'Pose QA \u2014 Build Request',\n  'Extract Generated Image \u2014 Retry',\n  'Drop Pose Payload'\n];\n\nlet binaries = {};\nfor (const nodeName of binarySources) {\n  const item = getItemFromNode(nodeName);\n  if (item && item.binary) {\n    binaries = item.binary;\n    console.log('Found binaries from: ' + nodeName);\n    break;\n  }\n}\n\n// Also try to get metadata from request builder\nconst requestBuilder = getItemFromNode('Pose QA \u2014 Build Request');\nconst metadata = requestBuilder ? requestBuilder.json : {};\n\nreturn {\n  json: {\n    ...apiResponse,\n    \n    // Restore metadata that was lost by HTTP\n    characterHash: metadata.characterHash || apiResponse.characterHash,\n    poseNumber: metadata.poseNumber || apiResponse.poseNumber,\n    correlationId: metadata.correlationId || apiResponse.correlationId,\n    qaRetry: metadata.qaRetry || apiResponse.qaRetry,\n    orderData: metadata.orderData || apiResponse.orderData,\n    __meta: {\n      ...(apiResponse.__meta || {}),\n      ...(metadata.__meta || {})\n    },\n  },\n  binary: binaries,\n  pairedItem: $input.item.pairedItem ? $input.item.pairedItem : { item: itemIx }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11648,
+        -224
+      ],
+      "id": "dee6346b-ebfa-4ce8-8414-072d4325a4d3",
+      "name": "Restore Binaries After QA HTTP"
+    },
+    {
+      "id": "f542da5a-3e4c-41f4-9b7d-c7e1576a78d0",
+      "name": "Slim After Extract",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -13024,
+        -48
+      ],
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "characterHash",
+              "value": "{{$json[\"characterHash\"]}}"
+            },
+            {
+              "name": "poseNumber",
+              "value": "{{$json[\"poseNumber\"]}}"
+            },
+            {
+              "name": "currentPoseNumber",
+              "value": "{{$json[\"currentPoseNumber\"]}}"
+            },
+            {
+              "name": "poseLabel",
+              "value": "{{$json[\"poseLabel\"]}}"
+            },
+            {
+              "name": "generatedFileName",
+              "value": "{{$json[\"generatedFileName\"]}}"
+            },
+            {
+              "name": "correlationId",
+              "value": "{{$json[\"correlationId\"]}}"
+            },
+            {
+              "name": "__meta.poseNumber",
+              "value": "{{$json[\"__meta\"][\"poseNumber\"]}}"
+            }
+          ],
+          "number": [],
+          "boolean": [],
+          "object": []
+        },
+        "options": {
+          "includeBinary": true
+        }
+      }
+    },
+    {
+      "id": "c0d6d719-55d5-40ef-bd9b-0b576410ff23",
+      "name": "Slim After QA HTTP",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -11480,
+        -144
+      ],
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "body",
+              "value": "{{$json[\"body\"]}}"
+            },
+            {
+              "name": "characterHash",
+              "value": "{{$json[\"characterHash\"]}}"
+            },
+            {
+              "name": "poseNumber",
+              "value": "{{$json[\"poseNumber\"]}}"
+            },
+            {
+              "name": "currentPoseNumber",
+              "value": "{{$json[\"currentPoseNumber\"]}}"
+            },
+            {
+              "name": "poseLabel",
+              "value": "{{$json[\"poseLabel\"]}}"
+            },
+            {
+              "name": "correlationId",
+              "value": "{{$json[\"correlationId\"]}}"
+            },
+            {
+              "name": "qaRetry",
+              "value": "{{$json[\"qaRetry\"]}}"
+            },
+            {
+              "name": "__meta.poseNumber",
+              "value": "{{$json[\"__meta\"][\"poseNumber\"]}}"
+            }
+          ],
+          "number": [],
+          "boolean": [],
+          "object": []
+        },
+        "options": {
+          "includeBinary": true
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Stamp Pose Index": {
+      "main": [
+        [
+          {
+            "node": "Resolve Pose Ref (IMAGE P)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Build Dynamic Pose Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 90 Seconds": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Final Summary": {
+      "main": [
+        [
+          {
+            "node": "Wait 90 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POSE_LOOP_SPLIT1": {
+      "main": [
+        [
+          {
+            "node": "Create Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stamp Pose Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make Binary from Base64": {
+      "main": [
+        [
+          {
+            "node": "Prepare Upload (ensure generated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Lean Meta": {
+      "main": [
+        [
+          {
+            "node": "Make Binary from Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Upload to R2": {
+      "main": [
+        [
+          {
+            "node": "Clean Up Binaries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Pose QA (Gemini)1": {
+      "main": [
+        [
+          {
+            "node": "Restore Binaries After QA HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Character in Pose": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: QA Pass?": {
+      "main": [
+        [
+          {
+            "node": "Capture Lean Meta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Capture Lean Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse QA Verdict": {
+      "main": [
+        [
+          {
+            "node": "Derive QA Pass",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pose QA \u2014 Build Request": {
+      "main": [
+        [
+          {
+            "node": "IF: Test Mode? (4)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Extract Generated Image": {
+      "main": [
+        [
+          {
+            "node": "Slim After Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Gemini (POSE)": {
+      "main": [
+        [
+          {
+            "node": "IF: Test Mode? (2)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Build Dynamic Pose Prompt": {
+      "main": [
+        [
+          {
+            "node": "Prepare Gemini (POSE)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Pose Ref (IMAGE P)": {
+      "main": [
+        [
+          {
+            "node": "Resolve Base Character Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Base Character Key": {
+      "main": [
+        [
+          {
+            "node": "Download base character",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download base character": {
+      "main": [
+        [
+          {
+            "node": "Download pose reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download pose reference": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Derive QA Pass": {
+      "main": [
+        [
+          {
+            "node": "IF: QA Pass?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Upload (ensure generated)": {
+      "main": [
+        [
+          {
+            "node": "Add Upload to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Derive Pose Identities": {
+      "main": [
+        [
+          {
+            "node": "Pose QA \u2014 Build Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83e\uddea MOCK: Generate Character in Pose": {
+      "main": [
+        [
+          {
+            "node": "Extract Generated Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Test Mode? (2)": {
+      "main": [
+        [
+          {
+            "node": "\ud83e\uddea MOCK: Generate Character in Pose",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Character in Pose",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Before API Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83e\uddea MOCK: HTTP: Pose QA (Gemini)1": {
+      "main": [
+        [
+          {
+            "node": "Drop QA Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Test Mode? (4)": {
+      "main": [
+        [
+          {
+            "node": "\ud83e\uddea MOCK: HTTP: Pose QA (Gemini)1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP: Pose QA (Gemini)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drop QA Payload": {
+      "main": [
+        [
+          {
+            "node": "Parse QA Verdict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drop Pose Payload": {
+      "main": [
+        [
+          {
+            "node": "Extract Generated Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Up Binaries": {
+      "main": [
+        [
+          {
+            "node": "POSE_LOOP_SPLIT1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Drop Pose Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Drop QA Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Binaries After QA HTTP": {
+      "main": [
+        [
+          {
+            "node": "Slim After QA HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slim After Extract": {
+      "main": [
+        [
+          {
+            "node": "Derive Pose Identities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slim After QA HTTP": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "saveDataSuccessExecution": "none"
+  },
+  "versionId": "9b5ab1ff-2aff-4f97-a80c-c7704b73d418",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "r6qBsRyoItfFogUG",
+  "tags": []
+}
