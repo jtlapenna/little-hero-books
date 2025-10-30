@@ -4,8 +4,7 @@ module.exports = {
   default: {
     override: {
       wrapper: "cloudflare-node",
-      // Use Node converter so API routes are not treated as Edge
-      converter: "node",
+      converter: "edge",
       proxyExternalRequest: "fetch",
       incrementalCache: "dummy",
       tagCache: "dummy",
