@@ -10,10 +10,19 @@ export interface StageStatus {
   approvedBy?: string;
 }
 
-export function approveStage(orderId: string, stage: string): Promise<void> {
+export interface ApprovalResult {
+  reviewer: string;
+  approvedAt: string;
+}
+
+export function approveStage(orderId: string, stage: string): Promise<ApprovalResult> {
   console.log(`Approve stage ${stage} for order ${orderId}`);
   // Developer A must implement: Store approval in Supabase
-  return Promise.resolve();
+  // For now, return a placeholder result
+  return Promise.resolve({
+    reviewer: 'system', // TODO: Get from auth context
+    approvedAt: new Date().toISOString(),
+  });
 }
 
 export function getStageStatus(order: Order, stage: string): StageStatus {
