@@ -26,3 +26,9 @@ export async function listR2Objects(prefix?: string): Promise<any[]> {
   return [];
 }
 
+// Build manifest key for order-centric storage
+export function buildManifestKey(orderId: string, stage: '2a' | '2b' | '3'): string {
+  const PROJECT_NS = 'book-mvp-simple-adventure';
+  return `${PROJECT_NS}/orders/${orderId}/manifests/${stage}-manifest.json`;
+}
+
