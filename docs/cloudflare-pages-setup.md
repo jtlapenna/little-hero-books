@@ -31,10 +31,10 @@ This guide walks you through setting up automatic deployment from GitHub to Clou
 ### Step 2: Configure Build Settings
 
 **Build Configuration**:
-- **Framework preset**: `Next.js`
+- **Framework preset**: `Next.js` (automatic detection)
 - **Build command**: `cd back-end && npm install && npm run build`
-- **Build output directory**: `back-end/.next`
-- **Root directory**: `/back-end`
+- **Build output directory**: `.next` (or leave blank for auto-detection)
+- **Root directory**: Leave blank (default)
 
 **Advanced Build Settings** (if needed):
 ```

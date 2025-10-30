@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
     // This allows the site to deploy even with type errors
     ignoreBuildErrors: true,
   },
+  // For Cloudflare Pages
+  trailingSlash: false,
+  distDir: '.next',
 };
 
 export default nextConfig;
