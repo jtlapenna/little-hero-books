@@ -1,5 +1,7 @@
 // Minimal OpenNext config for Cloudflare Pages builds
-// Presence of this file avoids interactive prompts in CI
-export default {};
+// Use defineConfig to ensure the CLI detects a non-empty default export
+import { defineConfig } from '@opennextjs/cloudflare/config';
+
+export default defineConfig({});
 
 
