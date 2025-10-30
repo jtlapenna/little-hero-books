@@ -32,3 +32,10 @@ export function buildManifestKey(orderId: string, stage: '2a' | '2b' | '3'): str
   return `${PROJECT_NS}/orders/${orderId}/manifests/${stage}-manifest.json`;
 }
 
+// ⚠️ PLACEHOLDER - Developer A must implement properly
+export async function downloadManifest(key: string): Promise<any> {
+  console.log(`Download manifest with key: ${key}`);
+  // Developer A must implement: Download from Cloudflare R2
+  return null;
+}
+
