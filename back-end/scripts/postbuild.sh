@@ -1,6 +1,7 @@
 #!/bin/bash
 # Post-build script for Cloudflare Pages
 # Reorganizes OpenNext output into Cloudflare Pages-compatible structure
+# _worker.js has relative imports that require the full .open-next directory structure
 
 set -e  # Fail on error
 
@@ -12,7 +13,7 @@ OUTPUT_DIR=".open-next/cloudflare"
 echo "📁 Creating output directory: $OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
-# Copy worker file
+# Copy worker file (rename to _worker.js for Pages)
 echo "📦 Copying worker.js to _worker.js"
 if [ ! -f ".open-next/worker.js" ]; then
   echo "❌ ERROR: .open-next/worker.js not found!"
@@ -21,7 +22,64 @@ fi
 cp .open-next/worker.js "$OUTPUT_DIR/_worker.js"
 echo "✅ Copied worker.js"
 
-# Copy assets
+# Copy cloudflare directory (contains images.js, init.js, skew-protection.js)
+# _worker.js imports from "./cloudflare/images.js", so we need cloudflare/ subdirectory
+echo "📦 Copying cloudflare directory"
+mkdir -p "$OUTPUT_DIR/cloudflare"
+
+# Try cloudflare-templates first (these are the source implementations)
+if [ -f ".open-next/cloudflare-templates/images.js" ]; then
+  cp .open-next/cloudflare-templates/images.js "$OUTPUT_DIR/cloudflare/images.js"
+  cp .open-next/cloudflare-templates/init.js "$OUTPUT_DIR/cloudflare/init.js"
+  cp .open-next/cloudflare-templates/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
+  echo "✅ Copied cloudflare files from cloudflare-templates"
+# Fallback to .open-next/cloudflare if templates don't exist
+elif [ -f ".open-next/cloudflare/images.js" ]; then
+  cp .open-next/cloudflare/images.js "$OUTPUT_DIR/cloudflare/images.js"
+  cp .open-next/cloudflare/init.js "$OUTPUT_DIR/cloudflare/init.js"
+  cp .open-next/cloudflare/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
+  echo "✅ Copied cloudflare files from .open-next/cloudflare"
+else
+  echo "❌ ERROR: cloudflare files not found in expected locations!"
+  exit 1
+fi
+
+# Copy middleware directory (contains handler.mjs)
+echo "📦 Copying middleware directory"
+if [ -d ".open-next/middleware" ]; then
+  cp -r .open-next/middleware "$OUTPUT_DIR/"
+  echo "✅ Copied middleware"
+else
+  echo "❌ ERROR: .open-next/middleware directory not found!"
+  exit 1
+fi
+
+# Copy server-functions directory
+echo "📦 Copying server-functions directory"
+if [ -d ".open-next/server-functions" ]; then
+  cp -r .open-next/server-functions "$OUTPUT_DIR/"
+  echo "✅ Copied server-functions"
+else
+  echo "❌ ERROR: .open-next/server-functions directory not found!"
+  exit 1
+fi
+
+# Copy .build directory if it exists (for durable objects)
+echo "📦 Copying .build directory (if exists)"
+if [ -d ".open-next/.build" ]; then
+  cp -r .open-next/.build "$OUTPUT_DIR/"
+  echo "✅ Copied .build directory"
+else
+  echo "⚠️  WARNING: .open-next/.build directory not found (may be OK)"
+  # Create empty .build directory structure to avoid import errors
+  mkdir -p "$OUTPUT_DIR/.build/durable-objects"
+  touch "$OUTPUT_DIR/.build/durable-objects/queue.js"
+  touch "$OUTPUT_DIR/.build/durable-objects/sharded-tag-cache.js"
+  touch "$OUTPUT_DIR/.build/durable-objects/bucket-cache-purge.js"
+  echo "✅ Created placeholder .build directory"
+fi
+
+# Copy assets directory
 echo "📦 Copying assets directory"
 if [ ! -d ".open-next/assets" ]; then
   echo "❌ ERROR: .open-next/assets directory not found!"
@@ -30,7 +88,7 @@ fi
 cp -r .open-next/assets "$OUTPUT_DIR/assets"
 echo "✅ Copied assets"
 
-# Copy static files
+# Copy static files from .next to _next/static
 echo "📦 Copying static files"
 if [ ! -d ".next/static" ]; then
   echo "⚠️  WARNING: .next/static directory not found (may be OK if no static files)"
@@ -54,9 +112,11 @@ echo "✅ Created _routes.json"
 echo "🔍 Verifying build output..."
 test -f "$OUTPUT_DIR/_worker.js" || { echo "❌ ERROR: _worker.js missing!"; exit 1; }
 test -d "$OUTPUT_DIR/assets" || { echo "❌ ERROR: assets directory missing!"; exit 1; }
+test -d "$OUTPUT_DIR/middleware" || { echo "❌ ERROR: middleware directory missing!"; exit 1; }
+test -d "$OUTPUT_DIR/server-functions" || { echo "❌ ERROR: server-functions directory missing!"; exit 1; }
 
 echo ""
 echo "✅ Post-build script completed successfully!"
 echo "📁 Output directory structure:"
-ls -la "$OUTPUT_DIR" | head -10
+ls -la "$OUTPUT_DIR" | head -15
 
