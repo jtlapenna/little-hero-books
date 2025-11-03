@@ -42,10 +42,12 @@ if [ -f ".open-next/cloudflare-templates/images.js" ]; then
   # Copy init.js and inject all required constants
   if [ -f ".open-next/cloudflare-templates/init.js" ]; then
     # Replace all object shorthand constants with actual values
+    # Also inject __DEPLOYMENT_ID__ definition at the top of initRuntime function
     sed -e "s/__BUILD_TIMESTAMP_MS__,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
         -e "s/__NEXT_BASE_PATH__,/__NEXT_BASE_PATH__: \"\",/g" \
         -e "s/__ASSETS_RUN_WORKER_FIRST__,/__ASSETS_RUN_WORKER_FIRST__: false,/g" \
         -e "s/__TRAILING_SLASH__,/__TRAILING_SLASH__: false,/g" \
+        -e "s/function initRuntime() {/function initRuntime() {\n    const __DEPLOYMENT_ID__ = \"\";/g" \
       .open-next/cloudflare-templates/init.js > "$OUTPUT_DIR/cloudflare/init.js"
     echo "✅ Copied and updated init.js with constants (timestamp: ${BUILD_TIMESTAMP})"
   else
@@ -60,11 +62,13 @@ elif [ -f ".open-next/cloudflare/images.js" ]; then
   # Copy init.js and inject all required constants
   if [ -f ".open-next/cloudflare/init.js" ]; then
     # Replace all object shorthand constants with actual values (or update existing values)
+    # Also inject __DEPLOYMENT_ID__ definition at the top of initRuntime function
     sed -e "s/__BUILD_TIMESTAMP_MS__,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
         -e "s/__BUILD_TIMESTAMP_MS__: [0-9]*,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
         -e "s/__NEXT_BASE_PATH__,/__NEXT_BASE_PATH__: \"\",/g" \
         -e "s/__ASSETS_RUN_WORKER_FIRST__,/__ASSETS_RUN_WORKER_FIRST__: false,/g" \
         -e "s/__TRAILING_SLASH__,/__TRAILING_SLASH__: false,/g" \
+        -e "s/function initRuntime() {/function initRuntime() {\n    const __DEPLOYMENT_ID__ = \"\";/g" \
       .open-next/cloudflare/init.js > "$OUTPUT_DIR/cloudflare/init.js"
     echo "✅ Copied and updated init.js with constants (timestamp: ${BUILD_TIMESTAMP})"
   else
