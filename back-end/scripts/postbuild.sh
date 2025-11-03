@@ -76,11 +76,12 @@ if [ -d ".open-next/server-functions" ]; then
     echo "✅ Copied server-functions (using rsync)"
   else
     # Fallback: use find to copy files while excluding node_modules
+    # Need to strip .open-next/server-functions/ prefix from source path
     mkdir -p "$OUTPUT_DIR/server-functions"
     find .open-next/server-functions -type f \
       ! -path "*/node_modules/*" \
       ! -name "package.json" \
-      -exec sh -c 'mkdir -p "$(dirname "$2")" && cp "$1" "$2"' _ {} "$OUTPUT_DIR/{}" \;
+      -exec sh -c 'src="$1"; dest_base="$2"; dest_path="${src#.open-next/server-functions/}"; dest="$dest_base/$dest_path"; mkdir -p "$(dirname "$dest")" && cp "$src" "$dest"' _ {} "$OUTPUT_DIR/server-functions" \;
     echo "✅ Copied server-functions (using find)"
   fi
 else
@@ -152,6 +153,20 @@ test -f "$OUTPUT_DIR/_worker.js" || { echo "❌ ERROR: _worker.js missing!"; exi
 test -d "$OUTPUT_DIR/assets" || { echo "❌ ERROR: assets directory missing!"; exit 1; }
 test -d "$OUTPUT_DIR/middleware" || { echo "❌ ERROR: middleware directory missing!"; exit 1; }
 test -d "$OUTPUT_DIR/server-functions" || { echo "❌ ERROR: server-functions directory missing!"; exit 1; }
+
+# Verify critical import files exist
+echo "🔍 Verifying critical imports..."
+test -f "$OUTPUT_DIR/server-functions/default/handler.mjs" || { 
+  echo "❌ ERROR: server-functions/default/handler.mjs missing!"
+  echo "   This file is required for _worker.js to function."
+  echo "   Files in server-functions/default:"
+  ls -la "$OUTPUT_DIR/server-functions/default/" 2>/dev/null || echo "   (directory is empty)"
+  exit 1
+}
+test -f "$OUTPUT_DIR/cloudflare/images.js" || { echo "❌ ERROR: cloudflare/images.js missing!"; exit 1; }
+test -f "$OUTPUT_DIR/cloudflare/init.js" || { echo "❌ ERROR: cloudflare/init.js missing!"; exit 1; }
+test -f "$OUTPUT_DIR/middleware/handler.mjs" || { echo "❌ ERROR: middleware/handler.mjs missing!"; exit 1; }
+echo "✅ All critical imports verified"
 
 echo ""
 echo "✅ Post-build script completed successfully!"

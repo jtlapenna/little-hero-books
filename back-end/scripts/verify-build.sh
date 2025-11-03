@@ -9,6 +9,7 @@ REQUIRED_FILES=(
   "_worker.js"
   "assets"
   "_next/static"
+  "server-functions/default/handler.mjs"
 )
 
 echo "🔍 Verifying build output in: $OUTPUT_DIR"
@@ -51,6 +52,25 @@ if [ -f "$OUTPUT_DIR/_worker.js" ]; then
   WORKER_SIZE=$(du -h "$OUTPUT_DIR/_worker.js" | cut -f1)
   echo "📦 _worker.js size: $WORKER_SIZE"
 fi
+
+# Verify critical import files
+echo ""
+echo "🔍 Verifying critical imports..."
+CRITICAL_IMPORTS=(
+  "server-functions/default/handler.mjs"
+  "cloudflare/images.js"
+  "cloudflare/init.js"
+  "middleware/handler.mjs"
+)
+
+for import in "${CRITICAL_IMPORTS[@]}"; do
+  if [ -f "$OUTPUT_DIR/$import" ]; then
+    echo "✅ Found: $import"
+  else
+    echo "❌ Missing: $import"
+    MISSING_FILES+=("$import")
+  fi
+done
 
 # Final status
 if [ ${#MISSING_FILES[@]} -gt 0 ]; then

@@ -9,6 +9,8 @@
     "pages:postbuild": "bash scripts/postbuild.sh",
     "pages:verify": "bash scripts/verify-build.sh",
     "pages:analyze": "bash scripts/analyze-output.sh",
+    "pages:diagnose": "bash scripts/diagnose-worker-imports.sh",
+    "pages:verify-imports": "bash scripts/verify-worker-imports.sh",
     "start": "next start",
     "lint": "eslint"
   },
