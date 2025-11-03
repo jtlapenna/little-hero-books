@@ -54,7 +54,15 @@ if [ -f ".open-next/cloudflare-templates/images.js" ]; then
     cp .open-next/cloudflare-templates/init.js "$OUTPUT_DIR/cloudflare/init.js"
     echo "✅ Copied init.js (template not found)"
   fi
-  cp .open-next/cloudflare-templates/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
+  # Copy skew-protection.js and inject __SKEW_PROTECTION_ENABLED__
+  if [ -f ".open-next/cloudflare-templates/skew-protection.js" ]; then
+    sed "s/__SKEW_PROTECTION_ENABLED__/false/g" \
+      .open-next/cloudflare-templates/skew-protection.js > "$OUTPUT_DIR/cloudflare/skew-protection.js"
+    echo "✅ Copied and updated skew-protection.js"
+  else
+    cp .open-next/cloudflare-templates/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
+    echo "✅ Copied skew-protection.js"
+  fi
   echo "✅ Copied cloudflare files from cloudflare-templates"
 # Fallback to .open-next/cloudflare if templates don't exist
 elif [ -f ".open-next/cloudflare/images.js" ]; then
@@ -75,7 +83,15 @@ elif [ -f ".open-next/cloudflare/images.js" ]; then
     cp .open-next/cloudflare/init.js "$OUTPUT_DIR/cloudflare/init.js"
     echo "✅ Copied init.js (template not found)"
   fi
-  cp .open-next/cloudflare/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
+  # Copy skew-protection.js and inject __SKEW_PROTECTION_ENABLED__
+  if [ -f ".open-next/cloudflare/skew-protection.js" ]; then
+    sed "s/__SKEW_PROTECTION_ENABLED__/false/g" \
+      .open-next/cloudflare/skew-protection.js > "$OUTPUT_DIR/cloudflare/skew-protection.js"
+    echo "✅ Copied and updated skew-protection.js"
+  else
+    cp .open-next/cloudflare/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
+    echo "✅ Copied skew-protection.js"
+  fi
   echo "✅ Copied cloudflare files from .open-next/cloudflare"
 else
   echo "❌ ERROR: cloudflare files not found in expected locations!"
