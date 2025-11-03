@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { r2Client, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET, R2_CHARACTERS_PREFIX } from '@/lib/r2-config';
+import { r2Client, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET, R2_CHARACTERS_PREFIX, validateR2Config } from '@/lib/r2-config';
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getAvailableCharacterHashes, getAvailableOrderIds } from '@/lib/r2-service';
 
 export async function GET(request: NextRequest) {
+  const configValidation = validateR2Config();
+  
   const diagnostics: any = {
     timestamp: new Date().toISOString(),
+    config: {
+      valid: configValidation.valid,
+      missing: configValidation.missing,
+    },
     env: {
       hasAccountId: !!(process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID),
       accountId: process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID || 'MISSING',

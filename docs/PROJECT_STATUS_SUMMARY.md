@@ -86,17 +86,38 @@
   - `admin.littleherolabs.com/review`
   - `6356388e.little-hero-labs-admin.pages.dev`
 
-### Likely Causes
-1. Missing environment variables in Cloudflare Pages
-2. R2 client configuration issues (missing credentials)
-3. Import/module resolution issues at runtime
-4. Edge runtime compatibility issues with Next.js code
+### Root Cause
+**Multiple potential issues identified:**
 
-### Next Steps Needed
-1. Check Cloudflare Pages Workers Logs for detailed error messages
-2. Verify environment variables are set in Cloudflare Pages dashboard
-3. Test R2 connectivity with diagnostic endpoint (`/api/debug/r2-diagnostic`)
-4. Review edge runtime compatibility for Next.js API routes
+1. **Missing `runAllHealthChecks` method** ✅ FIXED - Health endpoint was calling non-existent method
+2. **Environment variables** - User reports variables are set, but may need verification:
+   - Check Workers Logs for actual error message
+   - Verify variables are set for **Production** environment (not just Preview)
+   - Confirm variable names match exactly (case-sensitive)
+3. **Module initialization** - Could be edge runtime compatibility issue
+
+**Note**: The deployment log shows `Build environment variables: (none found)` - this refers to **build-time** variables, not **runtime** variables. Runtime variables are set separately in Pages settings.
+
+### Solution
+Set the following environment variables in Cloudflare Pages dashboard:
+
+**Required:**
+- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
+- `R2_ACCESS_KEY_ID` - R2 API access key
+- `R2_SECRET_ACCESS_KEY` - R2 API secret key
+- `BACKEND_API_TOKEN` - Authentication token for webhooks
+
+**Optional (with defaults):**
+- `R2_PUBLIC_BUCKET_NAME` (default: `little-hero-assets`)
+- `R2_ORDERS_BUCKET_NAME` (default: `little-hero-orders`)
+
+**See full setup guide:** `docs/CLOUDFLARE_PAGES_ENV_SETUP.md`
+
+### Next Steps
+1. ✅ Set environment variables in Cloudflare Pages dashboard (Settings → Environment Variables)
+2. ✅ Verify with diagnostic endpoint: `/api/debug/r2-diagnostic`
+3. ✅ Check Workers Logs for detailed error messages if issues persist
+4. ✅ Test order listing: `/orders`
 
 ## Key Files & Scripts
 
@@ -205,12 +226,13 @@ back-end/
 
 ## Next Immediate Priorities
 
-1. **Fix Worker Runtime Errors**
-   - Check Cloudflare Workers Logs for detailed error messages
-   - Verify environment variables are set in Cloudflare Pages dashboard
-   - Test with minimal route to isolate the issue
+1. **✅ Fix Worker Runtime Errors** (ROOT CAUSE IDENTIFIED)
+   - **Action Required**: Set environment variables in Cloudflare Pages dashboard
+   - See: `docs/QUICK_FIX_WORKER_ERROR.md` for 5-minute fix
+   - See: `docs/CLOUDFLARE_PAGES_ENV_SETUP.md` for detailed guide
+   - Test: `/api/debug/env` and `/api/debug/r2-diagnostic` endpoints
 
-2. **Verify R2 Integration**
+2. **Verify R2 Integration** (After env vars are set)
    - Test `/api/debug/r2-diagnostic` endpoint
    - Verify R2 credentials are correct
    - Check if orders exist in R2 buckets
@@ -220,9 +242,9 @@ back-end/
    - Enable GitHub Actions workflow
    - Test automated deployment
 
-4. **Debug Worker Exception**
-   - Review worker logs for stack traces
-   - Check if it's related to missing environment variables
+4. **Monitor & Debug** (If issues persist)
+   - Check Cloudflare Workers Logs for detailed error messages
+   - Review stack traces in logs
    - Verify edge runtime compatibility
 
 ## Key Learnings
