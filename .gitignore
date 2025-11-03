@@ -136,3 +136,6 @@ renderer-mock/out/
 *.temp
 # Build artifacts
 .open-next/
+
+# Embedded git repositories
+n8n-mcp/
