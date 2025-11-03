@@ -39,32 +39,37 @@ fi
 # Try cloudflare-templates first (these are the source implementations)
 if [ -f ".open-next/cloudflare-templates/images.js" ]; then
   cp .open-next/cloudflare-templates/images.js "$OUTPUT_DIR/cloudflare/images.js"
-  # Copy init.js and inject BUILD_TIMESTAMP
+  # Copy init.js and inject all required constants
   if [ -f ".open-next/cloudflare-templates/init.js" ]; then
-    # Replace __BUILD_TIMESTAMP_MS__, (object shorthand) with actual value
-    # This handles: __BUILD_TIMESTAMP_MS__, -> __BUILD_TIMESTAMP_MS__: 1234567890,
-    sed "s/__BUILD_TIMESTAMP_MS__,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
+    # Replace all object shorthand constants with actual values
+    sed -e "s/__BUILD_TIMESTAMP_MS__,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
+        -e "s/__NEXT_BASE_PATH__,/__NEXT_BASE_PATH__: \"\",/g" \
+        -e "s/__ASSETS_RUN_WORKER_FIRST__,/__ASSETS_RUN_WORKER_FIRST__: false,/g" \
+        -e "s/__TRAILING_SLASH__,/__TRAILING_SLASH__: false,/g" \
       .open-next/cloudflare-templates/init.js > "$OUTPUT_DIR/cloudflare/init.js"
-    echo "✅ Copied and updated init.js with build timestamp: ${BUILD_TIMESTAMP}"
+    echo "✅ Copied and updated init.js with constants (timestamp: ${BUILD_TIMESTAMP})"
   else
     cp .open-next/cloudflare-templates/init.js "$OUTPUT_DIR/cloudflare/init.js"
-    echo "✅ Copied init.js (timestamp not found to replace)"
+    echo "✅ Copied init.js (template not found)"
   fi
   cp .open-next/cloudflare-templates/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
   echo "✅ Copied cloudflare files from cloudflare-templates"
 # Fallback to .open-next/cloudflare if templates don't exist
 elif [ -f ".open-next/cloudflare/images.js" ]; then
   cp .open-next/cloudflare/images.js "$OUTPUT_DIR/cloudflare/images.js"
-  # Copy init.js and inject BUILD_TIMESTAMP
+  # Copy init.js and inject all required constants
   if [ -f ".open-next/cloudflare/init.js" ]; then
-    # Replace __BUILD_TIMESTAMP_MS__, (object shorthand) or __BUILD_TIMESTAMP_MS__: value, with actual value
+    # Replace all object shorthand constants with actual values (or update existing values)
     sed -e "s/__BUILD_TIMESTAMP_MS__,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
         -e "s/__BUILD_TIMESTAMP_MS__: [0-9]*,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
+        -e "s/__NEXT_BASE_PATH__,/__NEXT_BASE_PATH__: \"\",/g" \
+        -e "s/__ASSETS_RUN_WORKER_FIRST__,/__ASSETS_RUN_WORKER_FIRST__: false,/g" \
+        -e "s/__TRAILING_SLASH__,/__TRAILING_SLASH__: false,/g" \
       .open-next/cloudflare/init.js > "$OUTPUT_DIR/cloudflare/init.js"
-    echo "✅ Copied and updated init.js with build timestamp: ${BUILD_TIMESTAMP}"
+    echo "✅ Copied and updated init.js with constants (timestamp: ${BUILD_TIMESTAMP})"
   else
     cp .open-next/cloudflare/init.js "$OUTPUT_DIR/cloudflare/init.js"
-    echo "✅ Copied init.js (timestamp not found to replace)"
+    echo "✅ Copied init.js (template not found)"
   fi
   cp .open-next/cloudflare/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
   echo "✅ Copied cloudflare files from .open-next/cloudflare"
