@@ -44,6 +44,18 @@ else
   exit 1
 fi
 
+# Copy next-env.mjs to cloudflare/ directory (needed by init.js)
+if [ -f ".open-next/cloudflare/next-env.mjs" ]; then
+  cp .open-next/cloudflare/next-env.mjs "$OUTPUT_DIR/cloudflare/next-env.mjs"
+  echo "✅ Copied next-env.mjs to cloudflare/"
+elif [ -f "$OUTPUT_DIR/next-env.mjs" ]; then
+  # If it's already at root, copy it to cloudflare/ as well
+  cp "$OUTPUT_DIR/next-env.mjs" "$OUTPUT_DIR/cloudflare/next-env.mjs"
+  echo "✅ Copied next-env.mjs from root to cloudflare/"
+else
+  echo "⚠️  WARNING: next-env.mjs not found, but continuing..."
+fi
+
 # Copy middleware directory (contains handler.mjs)
 echo "📦 Copying middleware directory"
 if [ -d ".open-next/middleware" ]; then
