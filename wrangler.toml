@@ -8,12 +8,4 @@ compatibility_flags = [
   "nodejs_compat_populate_process_env"
 ]
 
-# Define constants that OpenNext expects
-[define]
-__BUILD_TIMESTAMP_MS__ = "Date.now()"
-__NEXT_BASE_PATH__ = "\"\""
-__ASSETS_RUN_WORKER_FIRST__ = "false"
-__TRAILING_SLASH__ = "false"
-__DEPLOYMENT_ID__ = "\"\""
-
 
