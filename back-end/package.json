@@ -11,6 +11,8 @@
     "pages:analyze": "bash scripts/analyze-output.sh",
     "pages:diagnose": "bash scripts/diagnose-worker-imports.sh",
     "pages:verify-imports": "bash scripts/verify-worker-imports.sh",
+    "pages:pre-upload": "bash scripts/pre-upload-diagnostic.sh",
+    "pages:deploy": "wrangler pages deploy .open-next/cloudflare --project-name=little-hero-labs-admin",
     "start": "next start",
     "lint": "eslint"
   },
