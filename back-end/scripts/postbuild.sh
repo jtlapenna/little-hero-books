@@ -28,7 +28,13 @@ echo "📦 Copying cloudflare directory"
 mkdir -p "$OUTPUT_DIR/cloudflare"
 
 # Generate build timestamp (milliseconds since epoch)
-BUILD_TIMESTAMP=$(date +%s%3N 2>/dev/null || date +%s000)
+# macOS date doesn't support %N, so use Node.js or fallback
+if command -v node &> /dev/null; then
+  BUILD_TIMESTAMP=$(node -e "console.log(Date.now())")
+else
+  # Fallback: seconds * 1000 (less precise but works everywhere)
+  BUILD_TIMESTAMP=$(($(date +%s) * 1000))
+fi
 
 # Try cloudflare-templates first (these are the source implementations)
 if [ -f ".open-next/cloudflare-templates/images.js" ]; then
