@@ -27,16 +27,39 @@ echo "✅ Copied worker.js"
 echo "📦 Copying cloudflare directory"
 mkdir -p "$OUTPUT_DIR/cloudflare"
 
+# Generate build timestamp (milliseconds since epoch)
+BUILD_TIMESTAMP=$(date +%s%3N 2>/dev/null || date +%s000)
+
 # Try cloudflare-templates first (these are the source implementations)
 if [ -f ".open-next/cloudflare-templates/images.js" ]; then
   cp .open-next/cloudflare-templates/images.js "$OUTPUT_DIR/cloudflare/images.js"
-  cp .open-next/cloudflare-templates/init.js "$OUTPUT_DIR/cloudflare/init.js"
+  # Copy init.js and inject BUILD_TIMESTAMP
+  if [ -f ".open-next/cloudflare-templates/init.js" ]; then
+    # Replace __BUILD_TIMESTAMP_MS__, (object shorthand) with actual value
+    # This handles: __BUILD_TIMESTAMP_MS__, -> __BUILD_TIMESTAMP_MS__: 1234567890,
+    sed "s/__BUILD_TIMESTAMP_MS__,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
+      .open-next/cloudflare-templates/init.js > "$OUTPUT_DIR/cloudflare/init.js"
+    echo "✅ Copied and updated init.js with build timestamp: ${BUILD_TIMESTAMP}"
+  else
+    cp .open-next/cloudflare-templates/init.js "$OUTPUT_DIR/cloudflare/init.js"
+    echo "✅ Copied init.js (timestamp not found to replace)"
+  fi
   cp .open-next/cloudflare-templates/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
   echo "✅ Copied cloudflare files from cloudflare-templates"
 # Fallback to .open-next/cloudflare if templates don't exist
 elif [ -f ".open-next/cloudflare/images.js" ]; then
   cp .open-next/cloudflare/images.js "$OUTPUT_DIR/cloudflare/images.js"
-  cp .open-next/cloudflare/init.js "$OUTPUT_DIR/cloudflare/init.js"
+  # Copy init.js and inject BUILD_TIMESTAMP
+  if [ -f ".open-next/cloudflare/init.js" ]; then
+    # Replace __BUILD_TIMESTAMP_MS__, (object shorthand) or __BUILD_TIMESTAMP_MS__: value, with actual value
+    sed -e "s/__BUILD_TIMESTAMP_MS__,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
+        -e "s/__BUILD_TIMESTAMP_MS__: [0-9]*,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
+      .open-next/cloudflare/init.js > "$OUTPUT_DIR/cloudflare/init.js"
+    echo "✅ Copied and updated init.js with build timestamp: ${BUILD_TIMESTAMP}"
+  else
+    cp .open-next/cloudflare/init.js "$OUTPUT_DIR/cloudflare/init.js"
+    echo "✅ Copied init.js (timestamp not found to replace)"
+  fi
   cp .open-next/cloudflare/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
   echo "✅ Copied cloudflare files from .open-next/cloudflare"
 else
