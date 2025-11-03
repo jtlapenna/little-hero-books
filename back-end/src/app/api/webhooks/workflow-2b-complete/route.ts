@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
-import { downloadManifest } from '@/lib/r2-service';
+import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { normalizeCharacterSpecs } from '@/lib/customization-utils';
 
 const PayloadSchema = z.object({
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const json = await request.json();
     const payload = PayloadSchema.parse(json);
 
-           const manifest: any = await downloadManifest(payload.orderId, '2b');
+           const manifest: any = await downloadManifest(buildManifestKey(payload.orderId, '2b'));
            if (manifest && manifest.characterSpecs) {
              manifest.characterSpecs = normalizeCharacterSpecs(manifest.characterSpecs);
            }

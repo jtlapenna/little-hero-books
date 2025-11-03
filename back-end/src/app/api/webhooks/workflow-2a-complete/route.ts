@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
-import { downloadManifest } from '@/lib/r2-service';
+import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { normalizeCharacterSpecs } from '@/lib/customization-utils';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { r2Client } from '@/lib/r2-config';
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Try to download/parse manifest (preferred)
     try {
-            const manifest: any = await downloadManifest(payload.orderId, '2a');
+            const manifest: any = await downloadManifest(buildManifestKey(payload.orderId, '2a'));
             if (manifest && manifest.characterSpecs) {
               manifest.characterSpecs = normalizeCharacterSpecs(manifest.characterSpecs);
             }

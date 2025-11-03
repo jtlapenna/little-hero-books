@@ -1,9 +1,12 @@
-// ⚠️ PLACEHOLDER FILE - Developer A must implement this properly
-// This is a temporary placeholder to allow the build to succeed
+// Minimal bearer auth helper used by API routes
+export function verifyBearerAuth(request: Request): { ok: boolean; error?: string } {
+  const header = request.headers.get('authorization') || request.headers.get('Authorization');
+  const expected = process.env.BACKEND_API_TOKEN;
 
-export async function verifyBearerAuth(request: Request): Promise<boolean> {
-  console.log("Verify bearer auth");
-  // Developer A must implement: Verify bearer token from request
-  return true;
+  if (!expected) return { ok: false, error: 'Server token not configured' };
+  if (!header || !header.toLowerCase().startsWith('bearer ')) return { ok: false, error: 'Missing bearer token' };
+  const provided = header.slice(7).trim();
+  if (provided !== expected) return { ok: false, error: 'Invalid token' };
+  return { ok: true };
 }
 

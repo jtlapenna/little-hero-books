@@ -66,11 +66,23 @@ else
   exit 1
 fi
 
-# Copy server-functions directory
-echo "📦 Copying server-functions directory"
+# Copy server-functions directory (excluding node_modules)
+echo "📦 Copying server-functions directory (excluding node_modules)"
 if [ -d ".open-next/server-functions" ]; then
-  cp -r .open-next/server-functions "$OUTPUT_DIR/"
-  echo "✅ Copied server-functions"
+  # Use rsync if available (better for excluding patterns), otherwise use find + cp
+  if command -v rsync &> /dev/null; then
+    rsync -av --exclude='node_modules' --exclude='**/node_modules' --exclude='package.json' --exclude='**/package.json' \
+      .open-next/server-functions/ "$OUTPUT_DIR/server-functions/"
+    echo "✅ Copied server-functions (using rsync)"
+  else
+    # Fallback: use find to copy files while excluding node_modules
+    mkdir -p "$OUTPUT_DIR/server-functions"
+    find .open-next/server-functions -type f \
+      ! -path "*/node_modules/*" \
+      ! -name "package.json" \
+      -exec sh -c 'mkdir -p "$(dirname "$2")" && cp "$1" "$2"' _ {} "$OUTPUT_DIR/{}" \;
+    echo "✅ Copied server-functions (using find)"
+  fi
 else
   echo "❌ ERROR: .open-next/server-functions directory not found!"
   exit 1
@@ -91,13 +103,21 @@ else
   echo "✅ Created placeholder .build directory"
 fi
 
-# Copy assets directory
+# Copy assets directory (excluding node_modules if present)
 echo "📦 Copying assets directory"
 if [ ! -d ".open-next/assets" ]; then
   echo "❌ ERROR: .open-next/assets directory not found!"
   exit 1
 fi
-cp -r .open-next/assets "$OUTPUT_DIR/assets"
+# Use rsync if available to exclude node_modules, otherwise use cp
+if command -v rsync &> /dev/null; then
+  rsync -av --exclude='node_modules' --exclude='**/node_modules' \
+    .open-next/assets/ "$OUTPUT_DIR/assets/"
+else
+  cp -r .open-next/assets "$OUTPUT_DIR/assets"
+  # Remove node_modules if they exist
+  find "$OUTPUT_DIR/assets" -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
+fi
 echo "✅ Copied assets"
 
 # Copy static files from .next to _next/static
@@ -119,6 +139,12 @@ cat > "$OUTPUT_DIR/_routes.json" << 'EOF'
 }
 EOF
 echo "✅ Created _routes.json"
+
+# Clean up any remaining node_modules or package.json files that shouldn't be deployed
+echo "🧹 Cleaning up unnecessary files..."
+find "$OUTPUT_DIR" -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
+find "$OUTPUT_DIR/server-functions" -name "package.json" -type f -delete 2>/dev/null || true
+echo "✅ Cleanup complete"
 
 # Verify critical files exist
 echo "🔍 Verifying build output..."

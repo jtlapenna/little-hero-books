@@ -5,7 +5,7 @@ import { Order } from "@/types/order";
 
 export interface StageStatus {
   stage: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "in-review";
   approvedAt?: string;
   approvedBy?: string;
 }
@@ -25,7 +25,7 @@ export function approveStage(orderId: string, stage: string): Promise<ApprovalRe
   });
 }
 
-export function getStageStatus(order: Order, stage: string): StageStatus {
+export function getStageStatus(orderId: string, stage: string): StageStatus {
   // Developer A must implement: Query Supabase for real stage status
   return {
     stage,

@@ -8,6 +8,7 @@
     "pages:build": "opennextjs-cloudflare build --openNextConfigPath ./open-next.config.ts --skipWranglerConfigCheck && npm run pages:postbuild",
     "pages:postbuild": "bash scripts/postbuild.sh",
     "pages:verify": "bash scripts/verify-build.sh",
+    "pages:analyze": "bash scripts/analyze-output.sh",
     "start": "next start",
     "lint": "eslint"
   },

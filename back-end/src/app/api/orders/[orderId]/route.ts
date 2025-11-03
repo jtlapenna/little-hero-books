@@ -11,7 +11,7 @@ async function getOrder(
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   const { orderId } = await params;
-  const context = getRequestContext(request, { params: { orderId } });
+  const context = getRequestContext(request);
   
   console.log('API: Fetching order:', orderId);
   
@@ -88,23 +88,16 @@ async function getOrder(
     },
     assetPrefix: `projects/personalized-book/orders/${orderId}/`,
     reviewStages: {
-      preBria: { 
-        status: characterAssets.posesBgRemoved && characterAssets.posesBgRemoved.length > 0 
-          ? 'approved'  // If Post-Bria images exist, Pre-Bria must have been approved
-          : await getStageStatus(orderId, 'preBria')
-      },
-      postBria: { 
-        status: await getStageStatus(orderId, 'postBria')  // Check actual approval status
-      },
-      postPdf: { 
-        status: await getStageStatus(orderId, 'postPdf')  // PDF approval is always explicit
-      }
+      preBria: { status: getStageStatus(orderId, 'preBria').status },
+      postBria: { status: getStageStatus(orderId, 'postBria').status },
+      postPdf: { status: getStageStatus(orderId, 'postPdf').status },
     },
     webhooks: {
       onApprove: 'https://n8n.example.com/webhook/approve'
     },
     // Add R2 assets data
-    r2Assets: characterAssets
+    // For MVP, expose the raw list; richer shape can come later
+    r2Assets: undefined
   };
 
   return NextResponse.json(order);
