@@ -135,6 +135,7 @@ fi
 echo "📝 Creating _routes.json"
 cat > "$OUTPUT_DIR/_routes.json" << 'EOF'
 {
+  "version": 1,
   "include": ["/*"],
   "exclude": ["/_next/*", "/favicon.ico"]
 }

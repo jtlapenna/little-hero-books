@@ -53,8 +53,8 @@ echo "-------------------"
 echo ""
 
 # Check for very large files (>5MB)
-LARGE_FILES=$(find "$OUTPUT_DIR" -type f -size +5M | wc -l | tr -d ' ')
-if [ "$LARGE_FILES" -gt 0 ]; then
+LARGE_FILES=$(find "$OUTPUT_DIR" -type f -size +5M 2>/dev/null | wc -l | tr -d ' ')
+if [ -n "$LARGE_FILES" ] && [ "$LARGE_FILES" -gt 0 ]; then
   echo "⚠️  Found $LARGE_FILES file(s) larger than 5MB:"
   find "$OUTPUT_DIR" -type f -size +5M -exec du -h {} + | head -5
   echo ""
@@ -120,7 +120,7 @@ echo "Size: $TOTAL_SIZE ($TOTAL_SIZE_BYTES bytes)"
 echo ""
 
 # Cloudflare Pages limits check
-if [ "$TOTAL_SIZE_BYTES" -gt 104857600 ]; then  # 100MB
+if [ -n "$TOTAL_SIZE_BYTES" ] && [ "$TOTAL_SIZE_BYTES" -gt 104857600 ]; then  # 100MB
   echo "⚠️  WARNING: Output size exceeds 100MB - may exceed Cloudflare Pages limits"
 fi
 
