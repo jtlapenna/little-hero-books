@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "pages:build": "opennextjs-cloudflare build --openNextConfigPath ./open-next.config.ts --skipWranglerConfigCheck",
+    "pages:build": "opennextjs-cloudflare build --openNextConfigPath ./open-next.config.ts --skipWranglerConfigCheck && npm run pages:postbuild",
+    "pages:postbuild": "mkdir -p .open-next/cloudflare && cp -r .open-next/worker.js .open-next/cloudflare/_worker.js 2>/dev/null || true && cp -r .open-next/assets .open-next/cloudflare/ 2>/dev/null || true",
     "start": "next start",
     "lint": "eslint"
   },
