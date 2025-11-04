@@ -1,8 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAvailableCharacterHashes, getCharacterAssets, getAvailableOrderIds } from '@/lib/r2-service';
+import { getAvailableCharacterHashes, getCharacterAssets, getAvailableOrderIds, downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { Order } from '@/types/order';
 import { withErrorHandling, getRequestContext } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
+
+/**
+ * Convert manifest data to Order type
+ */
+function manifestToOrder(orderId: string, manifest: any): Order {
+  const orderData = manifest?.order || {};
+  const workflow = manifest?.workflow || {};
+  const characterHash = manifest?.characterHash;
+  
+  // Determine status from workflow stage
+  let status = 'queued_for_processing';
+  if (workflow.currentStage === '2A-complete') {
+    status = 'ai_generation_in_progress';
+  } else if (workflow.currentStage === '2B-complete') {
+    status = 'bria_processing_complete';
+  } else if (workflow.currentStage === '3-complete') {
+    status = 'book_compiled';
+  }
+  
+  // Extract customer name from order data
+  const childName = orderData.childName || 'Unknown';
+  const nameParts = childName.split(' ');
+  const firstName = nameParts[0] || 'Unknown';
+  const lastName = nameParts.slice(1).join(' ') || 'Customer';
+  
+  // Determine review stage status from manifest
+  const reviewStages = {
+    preBria: { 
+      status: workflow.currentStage === '2A-complete' ? 'approved' : 'pending' as const
+    },
+    postBria: { 
+      status: workflow.currentStage === '2B-complete' ? 'approved' : 'pending' as const
+    },
+    postPdf: { 
+      status: workflow.currentStage === '3-complete' ? 'approved' : 'pending' as const
+    }
+  };
+  
+  return {
+    orderId: orderData.orderId || orderId,
+    platform: 'amazon',
+    amazonOrderId: orderData.amazonOrderId || orderId,
+    project: orderData.project || 'book-mvp-simple-adventure',
+    customer: {
+      firstName,
+      lastName,
+      email: orderData.customerEmail || `customer@example.com`
+    },
+    customerEmail: orderData.customerEmail || `customer@example.com`,
+    orderDate: manifest?.generatedAt || manifest?.runStamp || new Date().toISOString(),
+    status,
+    aiGenerationStartedAt: manifest?.runStamp || manifest?.generatedAt,
+    characterHash,
+    characterPath: characterHash ? `characters/${characterHash}` : undefined,
+    templatePath: 'templates',
+    characterSpecs: orderData.characterSpecs || {},
+    bookSpecs: orderData.bookSpecs || {},
+    orderDetails: {
+      quantity: orderData.quantity || 1,
+      pages: orderData.bookSpecs?.totalPages || 16,
+      format: orderData.bookSpecs?.format || '8.5x8.5_softcover',
+      shippingAddress: orderData.shippingAddress || {}
+    },
+    assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
+    reviewStages,
+    webhooks: {
+      onApprove: orderData.webhookUrl || 'https://n8n.example.com/webhook/approve'
+    }
+  };
+}
 
 async function getOrders(request: NextRequest) {
   console.log('[GET /api/orders] Starting orders fetch...');
@@ -35,19 +105,79 @@ async function getOrders(request: NextRequest) {
     return NextResponse.json([]);
   }
   
-  // Use order IDs if available, otherwise fall back to character hashes
-  const sourceList = orderIds.length > 0 ? orderIds : characterHashes;
+  // Load orders from manifests if we have order IDs
+  const orders: Order[] = [];
   
-  // Create orders from order IDs or character hashes
-  // TODO: In production, load full order data from manifests/database
-  console.log('[GET /api/orders] Creating', sourceList.length, 'orders from', orderIds.length > 0 ? 'order IDs' : 'character hashes');
-  const orders: Order[] = sourceList.map((idOrHash, index) => {
-    // If we have order IDs, use them directly; otherwise extract hash from character hash
-    const orderId = orderIds.length > 0 ? idOrHash : `book-${String(index + 1).padStart(3, '0')}-20250116-${idOrHash.substring(0, 6)}`;
-    const characterHash = orderIds.length > 0 ? undefined : idOrHash;
+  if (orderIds.length > 0) {
+    console.log('[GET /api/orders] Loading manifests for', orderIds.length, 'orders');
     
-    return {
-      orderId,
+    // Try to load 2a manifest for each order (most recent workflow stage)
+    for (const orderId of orderIds) {
+      try {
+        // Try 2a first (most common), then 2b, then 3
+        let manifest: any = null;
+        let manifestKey = '';
+        
+        for (const stage of ['2a', '2b', '3'] as const) {
+          try {
+            manifestKey = buildManifestKey(orderId, stage);
+            manifest = await downloadManifest(manifestKey);
+            console.log(`[GET /api/orders] Loaded ${stage}-manifest for order ${orderId}`);
+            break; // Successfully loaded, use this manifest
+          } catch (err: any) {
+            // Continue to next stage
+            continue;
+          }
+        }
+        
+        if (manifest) {
+          const order = manifestToOrder(orderId, manifest);
+          orders.push(order);
+        } else {
+          console.warn(`[GET /api/orders] No manifest found for order ${orderId}, creating placeholder`);
+          // Create a basic order entry if manifest is missing
+          orders.push({
+            orderId,
+            platform: 'amazon',
+            amazonOrderId: orderId,
+            project: 'book-mvp-simple-adventure',
+            customer: {
+              firstName: 'Unknown',
+              lastName: 'Customer',
+              email: 'unknown@example.com'
+            },
+            customerEmail: 'unknown@example.com',
+            orderDate: new Date().toISOString(),
+            status: 'queued_for_processing',
+            templatePath: 'templates',
+            characterSpecs: {},
+            bookSpecs: {},
+            orderDetails: {
+              quantity: 1,
+              pages: 16,
+              format: '8.5x8.5_softcover'
+            },
+            assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
+            reviewStages: {
+              preBria: { status: 'pending' },
+              postBria: { status: 'pending' },
+              postPdf: { status: 'pending' }
+            },
+            webhooks: {
+              onApprove: 'https://n8n.example.com/webhook/approve'
+            }
+          });
+        }
+      } catch (error: any) {
+        console.error(`[GET /api/orders] Error loading manifest for order ${orderId}:`, error?.message || error);
+        // Continue with other orders
+      }
+    }
+  } else {
+    // Fallback: Create orders from character hashes (legacy behavior)
+    console.log('[GET /api/orders] Creating orders from character hashes (fallback mode)');
+    orders.push(...characterHashes.map((hash, index) => ({
+      orderId: `book-${String(index + 1).padStart(3, '0')}-20250116-${hash.substring(0, 6)}`,
       platform: 'amazon',
       amazonOrderId: `TEST-ORDER-${String(index + 1).padStart(3, '0')}`,
       project: 'personalized-book',
@@ -58,52 +188,28 @@ async function getOrders(request: NextRequest) {
       },
       customerEmail: `customer${index + 1}@example.com`,
       orderDate: new Date(Date.now() - (index * 24 * 60 * 60 * 1000)).toISOString(),
-      status: index === 0 ? 'ai_generation_in_progress' : 'queued_for_processing',
-      aiGenerationStartedAt: index === 0 ? new Date(Date.now() - (30 * 60 * 1000)).toISOString() : undefined,
-      characterHash,
-      characterPath: characterHash ? `characters/${characterHash}` : undefined,
-    templatePath: 'templates',
-    characterSpecs: {
-      childName: `Child${index + 1}`,
-      skinTone: ['light', 'medium', 'tan'][index % 3],
-      hairColor: ['blonde', 'brown', 'black'][index % 3],
-      hairStyle: ['short', 'long', 'curly'][index % 3],
-      age: 5 + (index % 3),
-      pronouns: 'she/her',
-      favoriteColor: ['pink', 'blue', 'green'][index % 3],
-      animalGuide: ['tiger', 'unicorn', 'owl'][index % 3],
-      clothingStyle: ['dress', 'tunic', 'shirt'][index % 3]
-    },
-    bookSpecs: {
-      title: `Child${index + 1} and the Adventure Compass`,
-      totalPages: 16,
-      format: '8.5x8.5_softcover',
-      bookType: 'animal-guide',
-      animalGuide: ['tiger', 'unicorn', 'owl'][index % 3]
-    },
-    orderDetails: {
-      quantity: 1,
-      pages: 16,
-      format: '8.5x8.5_softcover',
-      shippingAddress: {
-        name: `Customer${index + 1} Test`,
-        address: `${100 + index} Test Street`,
-        city: 'Test City',
-        state: 'CA',
-        zip: '90210'
-      }
-    },
-      assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
-    reviewStages: {
-      preBria: { status: 'pending' },
-      postBria: { status: 'pending' },
-      postPdf: { status: 'pending' }
-    },
+      status: 'queued_for_processing',
+      characterHash: hash,
+      characterPath: `characters/${hash}`,
+      templatePath: 'templates',
+      characterSpecs: {},
+      bookSpecs: {},
+      orderDetails: {
+        quantity: 1,
+        pages: 16,
+        format: '8.5x8.5_softcover'
+      },
+      assetPrefix: `book-mvp-simple-adventure/orders/book-${String(index + 1).padStart(3, '0')}/`,
+      reviewStages: {
+        preBria: { status: 'pending' },
+        postBria: { status: 'pending' },
+        postPdf: { status: 'pending' }
+      },
       webhooks: {
         onApprove: 'https://n8n.example.com/webhook/approve'
       }
-    };
-  });
+    })));
+  }
 
   console.log('[GET /api/orders] Returning', orders.length, 'orders');
   return NextResponse.json(orders);
