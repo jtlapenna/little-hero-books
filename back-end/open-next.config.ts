@@ -12,7 +12,7 @@ const config = {
     },
     functions: {},
   },
-  edgeExternals: ["node:crypto"],
+  edgeExternals: ["node:crypto", "fs", "fs/promises", "path", "os"],
   middleware: {
     external: true,
     override: {
