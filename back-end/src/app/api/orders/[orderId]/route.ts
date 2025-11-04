@@ -31,15 +31,17 @@ function manifestToOrder(orderId: string, manifest: any): Order {
   const lastName = nameParts.slice(1).join(' ') || 'Customer';
   
   // Determine review stage status from manifest
+  // Default to 'pending' - approval should be explicit, not inferred from workflow stage
+  // Workflow stage completion means the process ran, not that it was human-approved
   const reviewStages = {
     preBria: { 
-      status: workflow.currentStage === '2A-complete' ? 'approved' : 'pending' as const
+      status: 'pending' as const
     },
     postBria: { 
-      status: workflow.currentStage === '2B-complete' ? 'approved' : 'pending' as const
+      status: 'pending' as const
     },
     postPdf: { 
-      status: workflow.currentStage === '3-complete' ? 'approved' : 'pending' as const
+      status: 'pending' as const
     }
   };
   
@@ -131,13 +133,28 @@ async function getOrder(
   }
   
   // Add R2 assets to order
+  // For Pre-Bria stage: show all poses that aren't "final" type
+  // This includes both original and background-removed images (since bg-removed might be the only available)
+  // Base character: find pose 0, or first asset that's not final
+  const baseCharacter = characterAssets.find(a => a.poseNumber === 0 && a.assetType !== 'final') || 
+                       characterAssets.find(a => a.assetType !== 'final') || 
+                       characterAssets[0] || null;
+  
+  // Pre-Bria poses: all non-final assets with poseNumber > 0 (exclude base character)
+  // Include both original and background-removed (user may only have bg-removed versions)
+  const preBriaPoses = characterAssets
+    .filter(a => a.assetType !== 'final' && a.poseNumber > 0)
+    .sort((a, b) => a.poseNumber - b.poseNumber);
+  
   order.r2Assets = {
-    baseCharacter: characterAssets.find(a => a.assetType === 'original' && a.poseNumber === 0) || characterAssets[0] || null,
-    poses: characterAssets.filter(a => a.assetType === 'background-removed' || a.assetType === 'final').sort((a, b) => a.poseNumber - b.poseNumber),
+    baseCharacter,
+    poses: preBriaPoses,
     all: characterAssets
   };
   
   console.log(`[GET /api/orders/[orderId]] Returning order with ${characterAssets.length} assets`);
+  console.log(`[GET /api/orders/[orderId]] Base character:`, baseCharacter ? { url: baseCharacter.url, type: baseCharacter.assetType } : 'null');
+  console.log(`[GET /api/orders/[orderId]] Pre-Bria poses: ${preBriaPoses.length}`, preBriaPoses.map(p => ({ poseNumber: p.poseNumber, url: p.url, type: p.assetType })));
   
   return NextResponse.json(order);
 }

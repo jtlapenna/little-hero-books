@@ -29,15 +29,17 @@ function manifestToOrder(orderId: string, manifest: any): Order {
   const lastName = nameParts.slice(1).join(' ') || 'Customer';
   
   // Determine review stage status from manifest
+  // Default to 'pending' - approval should be explicit, not inferred from workflow stage
+  // Workflow stage completion means the process ran, not that it was human-approved
   const reviewStages = {
     preBria: { 
-      status: workflow.currentStage === '2A-complete' ? 'approved' : 'pending' as const
+      status: 'pending' as const
     },
     postBria: { 
-      status: workflow.currentStage === '2B-complete' ? 'approved' : 'pending' as const
+      status: 'pending' as const
     },
     postPdf: { 
-      status: workflow.currentStage === '3-complete' ? 'approved' : 'pending' as const
+      status: 'pending' as const
     }
   };
   
