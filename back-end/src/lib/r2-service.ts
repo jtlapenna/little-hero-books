@@ -19,10 +19,21 @@ export async function getCharacterAssets(characterHash: string): Promise<Charact
     const poseMatch = file.match(/(pose[-_]?)(\d+)/i) || key.match(/\/(\d+)[^/]*$/);
     const poseNumber = poseMatch ? parseInt(poseMatch[2] || poseMatch[1], 10) || 0 : 0;
     const lower = key.toLowerCase();
+    const lowerFile = file.toLowerCase();
+    
+    // Determine asset type:
+    // 1. Files in /poses/ directory are always "original" (2A images)
+    // 2. Files with "nobg" in filename are "background-removed" (2B images)
+    // 3. Files with "bg-removed" or "background-removed" are "background-removed"
+    // 4. Files with "final" are "final"
+    // 5. Otherwise, "original"
+    const isInPosesDir = lower.includes('/poses/');
     const type: CharacterAsset['assetType'] = lower.includes('final')
       ? 'final'
-      : (lower.includes('bg-removed') || lower.includes('background-removed'))
-        ? 'background-removed'
+      : isInPosesDir
+        ? 'original'  // Files in poses/ directory are always original (2A)
+        : (lowerFile.includes('nobg') || lower.includes('bg-removed') || lower.includes('background-removed'))
+          ? 'background-removed'  // Files in parent dir with nobg.png are background-removed (2B)
         : 'original';
 
     // Use API proxy endpoint for serving images (works regardless of bucket public/private status)

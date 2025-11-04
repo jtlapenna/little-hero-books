@@ -24,11 +24,39 @@ function manifestToOrder(orderId: string, manifest: any): Order {
     status = 'book_compiled';
   }
   
-  // Extract customer name from order data
-  const childName = orderData.childName || 'Unknown';
+  // Extract customer name from order data (check both top-level and characterSpecs)
+  const childName = orderData.childName || orderData.characterSpecs?.childName || 'Unknown';
   const nameParts = childName.split(' ');
   const firstName = nameParts[0] || 'Unknown';
   const lastName = nameParts.slice(1).join(' ') || 'Customer';
+  
+  // Extract characterSpecs with fallbacks from top-level orderData fields
+  // Character specs might be in orderData.characterSpecs or as top-level fields
+  const characterSpecs = {
+    childName: orderData.characterSpecs?.childName || orderData.childName || undefined,
+    age: orderData.characterSpecs?.age || orderData.age || undefined,
+    skinTone: orderData.characterSpecs?.skinTone || orderData.skinTone || undefined,
+    hairColor: orderData.characterSpecs?.hairColor || orderData.hairColor || undefined,
+    hairStyle: orderData.characterSpecs?.hairStyle || orderData.hairStyle || undefined,
+    animalGuide: orderData.characterSpecs?.animalGuide || orderData.animalGuide || orderData.characterSpecs?.favoriteAnimal || orderData.favoriteAnimal || undefined,
+    clothingStyle: orderData.characterSpecs?.clothingStyle || orderData.clothingStyle || undefined,
+    favoriteColor: orderData.characterSpecs?.favoriteColor || orderData.favoriteColor || undefined,
+    favoriteFood: orderData.characterSpecs?.favoriteFood || orderData.favoriteFood || undefined,
+    ...(orderData.characterSpecs || {})  // Include any other characterSpecs fields
+  };
+  
+  // Extract bookSpecs with fallbacks and construct title if missing
+  const extractedChildName = characterSpecs.childName || childName;
+  const bookTitle = orderData.bookSpecs?.title || 
+                   orderData.bookTitle || 
+                   (extractedChildName && extractedChildName !== 'Unknown' ? `${extractedChildName} and the Adventure Compass` : undefined);
+  
+  const bookSpecs = {
+    title: bookTitle,
+    totalPages: orderData.bookSpecs?.totalPages || orderData.totalPages || 16,
+    format: orderData.bookSpecs?.format || orderData.format || '8.5x8.5_softcover',
+    ...(orderData.bookSpecs || {})  // Include any other bookSpecs fields
+  };
   
   // Determine review stage status from manifest
   // Default to 'pending' - approval should be explicit, not inferred from workflow stage
@@ -62,12 +90,12 @@ function manifestToOrder(orderId: string, manifest: any): Order {
     characterHash,
     characterPath: characterHash ? `characters/${characterHash}` : undefined,
     templatePath: 'templates',
-    characterSpecs: orderData.characterSpecs || {},
-    bookSpecs: orderData.bookSpecs || {},
+    characterSpecs,
+    bookSpecs,
     orderDetails: {
       quantity: orderData.quantity || 1,
-      pages: orderData.bookSpecs?.totalPages || 16,
-      format: orderData.bookSpecs?.format || '8.5x8.5_softcover',
+      pages: bookSpecs.totalPages,
+      format: bookSpecs.format,
       shippingAddress: orderData.shippingAddress || {}
     },
     assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
