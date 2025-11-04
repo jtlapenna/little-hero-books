@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+/* Design System - Little Hero Labs */
+
+/* Color Tokens */
+:root {
+  /* Primary Palette */
+  --color-hero-coral: #FF6F61;
+  --color-golden-yellow: #F9C74F;
+  --color-sky-blue: #00B4D8;
+  --color-forest-green: #52796F;
+  --color-cream: #FFF8F0;
+  
+  /* Secondary Palette */
+  --color-sage-green: #C7D6B8;
+  --color-soft-teal: #A8DADC;
+  --color-dusty-peach: #F4A261;
+  --color-warm-sand: #F1FAEE;
+  
+  /* Neutral Tones */
+  --color-soft-charcoal: #333333;
+  --color-storybook-beige: #FAF3E3;
+  --color-off-white: #FFFCF8;
+  
+  /* Additional colors from styleguide */
+  --color-teal-explorer: #50E3C2;
+  --color-navy-midnight: #2D3142;
+  --color-soft-cream: #FFF7EC;
+  --color-storybook-sage: #C8D5B9;
+  
+  /* Typography */
+  --font-heading: 'Garamond', 'Playfair Display', serif;
+  --font-body: 'Merriweather', serif;
+  --font-ui: 'Poppins', sans-serif;
+  --font-display: 'Pequena', 'Comic Neue', sans-serif;
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 4rem;
+  
+  /* Layout */
+  --container-max-width: 1280px;
+  --grid-gutter: 1.5rem;
+}
+
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Garamond:wght@400;700&family=Merriweather:wght@300;400;700&family=Poppins:wght@400;500;600;700&family=Playfair+Display:wght@400;700&family=Comic+Neue:wght@400;700&display=swap');
+
+/* Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-soft-charcoal);
+  background-color: var(--color-off-white);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-navy-midnight);
+}
+
+h1 {
+  font-size: 3rem;
+}
+
+h2 {
+  font-size: 2.5rem;
+}
+
+h3 {
+  font-size: 2rem;
+}
+
+h4 {
+  font-size: 1.5rem;
+}
+
+p {
+  margin-bottom: 1rem;
+}
+
+a {
+  color: var(--color-hero-coral);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  color: var(--color-forest-green);
+}
+
+/* Container */
+.container {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+}
+
+/* Utility Classes */
+.text-center {
+  text-align: center;
+}
+
+.section-padding {
+  padding: var(--spacing-xl) 0;
+}
+
+@media (max-width: 768px) {
+  .section-padding {
+    padding: var(--spacing-lg) 0;
+  }
+  
+  h1 {
+    font-size: 2rem;
+  }
+  
+  h2 {
+    font-size: 1.75rem;
+  }
+  
+  h3 {
+    font-size: 1.5rem;
+  }
+}

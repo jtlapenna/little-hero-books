@@ -1,0 +1,312 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import Button from '../components/Button.astro';
+---
+
+<Layout title="Our Books - Little Hero Labs" description="Explore our collection of personalized children's books featuring magical adventures">
+  <Hero 
+    imageSrc="/our-books-hero.png" 
+    imageAlt="Our Books - Little Hero Labs"
+    title="Our Books"
+    subtitle="Each book is carefully crafted to create a magical experience where your child is the hero of their own adventure."
+    buttonText="Create Your Book"
+    buttonHref="/how-it-works"
+  />
+  
+  <!-- Books Section -->
+  <section class="section-padding">
+    <div class="container">
+      <div class="content-section">
+        <h2 class="section-title text-center">Featured Stories</h2>
+        <p class="section-text text-center" style="max-width: 700px; margin: 0 auto 3rem;">
+          Each book is carefully crafted to create a magical experience where your child 
+          is the hero of their own adventure. Explore our collection of personalized stories 
+          designed for children ages 3-7.
+        </p>
+        
+        <div class="books-grid">
+          <div class="book-card">
+            <div class="book-image-placeholder">
+              <img src="/assets/icon_book.png" alt="Book" class="book-icon" />
+            </div>
+            <div class="book-content">
+              <h3>The Adventure Compass</h3>
+              <p class="book-description">
+                Join your child on a magical journey through enchanted locations with "The Adventure Compass." 
+                This beautifully illustrated story takes young heroes on an exploration where they discover 
+                their own inner strength and wisdom. Perfect for children who love adventure and discovery.
+              </p>
+              <div class="book-details">
+                <div class="book-detail-item">
+                  <strong>Age Range:</strong> 3-7 years
+                </div>
+                <div class="book-detail-item">
+                  <strong>Pages:</strong> 16 pages (14 interior + covers)
+                </div>
+                <div class="book-detail-item">
+                  <strong>Format:</strong> 8×10 softcover
+                </div>
+              </div>
+              <div class="book-tags">
+                <span class="book-tag tag-adventure">Adventure</span>
+                <span class="book-tag tag-whimsical">Whimsical</span>
+                <span class="book-tag tag-nature">Nature</span>
+              </div>
+              <div class="book-cta">
+                <Button href="/how-it-works" variant="primary" size="md">
+                  Create Your Book
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="coming-soon-section">
+          <h3 class="coming-soon-title">More Stories Coming Soon</h3>
+          <p class="coming-soon-text">
+            We're constantly working on new adventures and themes. Stay tuned for more 
+            personalized stories that will spark your child's imagination and celebrate 
+            their unique personality.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Why Choose Section -->
+  <section class="section-padding why-choose-section">
+    <div class="container">
+      <h2 class="section-title text-center">Why Our Books Are Special</h2>
+      <div class="features-grid">
+        <div class="feature-item">
+          <div class="feature-icon-small">
+            <img src="/assets/icon_star.png" alt="Personalized" />
+          </div>
+          <h4>Fully Personalized</h4>
+          <p>Your child's name appears throughout the story, making them the true hero of every page.</p>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon-small">
+            <img src="/assets/icon_wand.png" alt="Age Appropriate" />
+          </div>
+          <h4>Age Appropriate</h4>
+          <p>Every story is carefully crafted for children ages 3-7 with warm, simple language and positive themes.</p>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon-small">
+            <img src="/assets/icon_rocket.png" alt="High Quality" />
+          </div>
+          <h4>High Quality</h4>
+          <p>Premium printing and durable binding ensure your book will be treasured for years to come.</p>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon-small">
+            <img src="/assets/icon_book.png" alt="Educational" />
+          </div>
+          <h4>Educational & Fun</h4>
+          <p>Each adventure includes gentle lessons about friendship, courage, and exploring the world.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .content-section {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  
+  .section-title {
+    margin-bottom: var(--spacing-lg);
+    color: var(--color-navy-midnight);
+  }
+  
+  .section-text {
+    font-size: 1.125rem;
+    line-height: 1.8;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-soft-charcoal);
+  }
+  
+  .books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+  }
+  
+  .book-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .book-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  }
+  
+  .book-image-placeholder {
+    width: 100%;
+    height: 300px;
+    background: linear-gradient(135deg, var(--color-soft-teal) 0%, var(--color-sage-green) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .book-icon {
+    width: 120px;
+    height: auto;
+    opacity: 0.8;
+  }
+  
+  .book-content {
+    padding: var(--spacing-lg);
+  }
+  
+  .book-content h3 {
+    font-size: 1.75rem;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-navy-midnight);
+  }
+  
+  .book-description {
+    font-size: 1rem;
+    line-height: 1.7;
+    margin-bottom: var(--spacing-lg);
+    color: var(--color-soft-charcoal);
+  }
+  
+  .book-details {
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--color-storybook-beige);
+    border-radius: 8px;
+  }
+  
+  .book-detail-item {
+    margin-bottom: var(--spacing-sm);
+    font-size: 0.95rem;
+    color: var(--color-soft-charcoal);
+  }
+  
+  .book-detail-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .book-detail-item strong {
+    color: var(--color-navy-midnight);
+  }
+  
+  .book-tags {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+  }
+  
+  .book-tag {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: var(--font-ui);
+  }
+  
+  .tag-adventure {
+    background: var(--color-hero-coral);
+    color: white;
+  }
+  
+  .tag-whimsical {
+    background: var(--color-golden-yellow);
+    color: var(--color-navy-midnight);
+  }
+  
+  .tag-nature {
+    background: var(--color-forest-green);
+    color: white;
+  }
+  
+  .book-cta {
+    margin-top: var(--spacing-md);
+  }
+  
+  .coming-soon-section {
+    text-align: center;
+    padding: var(--spacing-xl);
+    background: var(--color-storybook-beige);
+    border-radius: 16px;
+    margin-top: var(--spacing-xl);
+  }
+  
+  .coming-soon-title {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-navy-midnight);
+  }
+  
+  .coming-soon-text {
+    color: var(--color-soft-charcoal);
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .why-choose-section {
+    background: var(--color-off-white);
+  }
+  
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-xl);
+    margin-top: var(--spacing-xl);
+  }
+  
+  .feature-item {
+    text-align: center;
+    padding: var(--spacing-lg);
+  }
+  
+  .feature-icon-small {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto var(--spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .feature-icon-small img {
+    width: 100%;
+    height: auto;
+  }
+  
+  .feature-item h4 {
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-hero-coral);
+    font-size: 1.25rem;
+  }
+  
+  .feature-item p {
+    font-size: 0.95rem;
+    color: var(--color-soft-charcoal);
+    line-height: 1.6;
+  }
+  
+  @media (max-width: 768px) {
+    .books-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
