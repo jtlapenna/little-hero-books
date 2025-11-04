@@ -82,8 +82,14 @@ async function getOrders(request: NextRequest) {
   try {
     orderIds = await getAvailableOrderIds();
     console.log('[GET /api/orders] Found', orderIds.length, 'order IDs from orders bucket:', orderIds.slice(0, 5));
+    console.log('[GET /api/orders] All order IDs:', orderIds);
   } catch (error: any) {
-    console.warn('[GET /api/orders] Error fetching order IDs from orders bucket:', error?.message || error);
+    console.error('[GET /api/orders] Error fetching order IDs from orders bucket:', {
+      message: error?.message,
+      name: error?.name,
+      code: error?.$metadata?.httpStatusCode,
+      stack: error?.stack
+    });
     // Fall back to character hashes method
   }
   
@@ -113,28 +119,41 @@ async function getOrders(request: NextRequest) {
     
     // Try to load 2a manifest for each order (most recent workflow stage)
     for (const orderId of orderIds) {
+      console.log(`[GET /api/orders] Processing order: ${orderId}`);
       try {
         // Try 2a first (most common), then 2b, then 3
         let manifest: any = null;
         let manifestKey = '';
+        let loadedStage: string | null = null;
+        const errors: string[] = [];
         
         for (const stage of ['2a', '2b', '3'] as const) {
           try {
             manifestKey = buildManifestKey(orderId, stage);
+            console.log(`[GET /api/orders] Trying to load manifest: ${manifestKey}`);
             manifest = await downloadManifest(manifestKey);
-            console.log(`[GET /api/orders] Loaded ${stage}-manifest for order ${orderId}`);
+            loadedStage = stage;
+            console.log(`[GET /api/orders] ✅ Loaded ${stage}-manifest for order ${orderId}`);
             break; // Successfully loaded, use this manifest
           } catch (err: any) {
+            const errorMsg = `Failed to load ${stage}-manifest: ${err?.message || err}`;
+            errors.push(errorMsg);
+            console.log(`[GET /api/orders] ❌ ${errorMsg}`);
             // Continue to next stage
             continue;
           }
         }
         
         if (manifest) {
+          console.log(`[GET /api/orders] Converting manifest to order for ${orderId} (stage: ${loadedStage})`);
           const order = manifestToOrder(orderId, manifest);
           orders.push(order);
+          console.log(`[GET /api/orders] ✅ Added order ${orderId} to results`);
         } else {
-          console.warn(`[GET /api/orders] No manifest found for order ${orderId}, creating placeholder`);
+          console.warn(`[GET /api/orders] ⚠️ No manifest found for order ${orderId}`, {
+            triedStages: ['2a', '2b', '3'],
+            errors
+          });
           // Create a basic order entry if manifest is missing
           orders.push({
             orderId,
