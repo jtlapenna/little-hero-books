@@ -7,28 +7,28 @@
         "path": "bg-removal",
         "options": {}
       },
-      "id": "24b9eae1-24ef-4634-96e5-c4e674cc2d99",
+      "id": "8d4d6693-f8e9-4a58-bb33-fe729833703e",
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -1760,
-        -240
+        -3296,
+        -720
       ],
       "webhookId": "4bfccdb7-ce6d-4961-85c1-5605f2a14128",
       "notes": "Receives submission data from Workflow A"
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Extract Manifest URL - Normalize webhook data structure\n * Handles both webhook body structure (first pass) and direct fields (Wait node resume)\n * FIX: Check top-level first (Wait node), then body (webhook), process ALL items\n * Handle null values properly - construct from orderId if manifestUrl is null\n */\nconst inputs = $input.all();\n\nreturn inputs.map(item => {\n  const input = item.json;\n  \n  // Priority: Check top-level first (Wait node resume), then body (webhook first pass)\n  // Wait node data has manifestUrl at top level, webhook has it in body\n  // Handle null/empty string explicitly\n  let manifestUrl = (input.manifestUrl && input.manifestUrl !== null && input.manifestUrl !== '') ? input.manifestUrl : null;\n  if (!manifestUrl) {\n    manifestUrl = (input.originalManifestUrl && input.originalManifestUrl !== null && input.originalManifestUrl !== '') ? input.originalManifestUrl : null;\n  }\n  \n  let orderId = (input.orderId && input.orderId !== null && input.orderId !== '') ? input.orderId : null;\n  if (!orderId) {\n    orderId = (input.amazonOrderId && input.amazonOrderId !== null && input.amazonOrderId !== '') ? input.amazonOrderId : null;\n  }\n  \n  // Fallback: Extract orderId from manifestKey if available (S3 node might have stripped orderId)\n  if ((!orderId || orderId === null || orderId === '') && input.manifestKey) {\n    const manifestKeyStr = String(input.manifestKey).trim();\n    if (manifestKeyStr && manifestKeyStr !== 'null' && manifestKeyStr !== 'undefined') {\n      // Try multiple patterns: /orders/{orderId}/ or orders/{orderId}/\n      const patterns = [\n        /[\\/]orders[\\/]([^\\/]+)[\\/]/,  // Matches /orders/TEST-ORDER-006/\n        /orders[\\/]([^\\/]+)[\\/]/,     // Matches orders/TEST-ORDER-006/\n      ];\n      \n      for (const pattern of patterns) {\n        const keyMatch = manifestKeyStr.match(pattern);\n        if (keyMatch && keyMatch[1]) {\n          orderId = keyMatch[1];\n          console.log(`\u2713 Extracted orderId from manifestKey: ${orderId} (pattern matched)`);\n          break;\n        }\n      }\n      \n      if (!orderId) {\n        console.warn(`\u26a0\ufe0f Could not extract orderId from manifestKey: ${manifestKeyStr.substring(0, 100)}`);\n      }\n    }\n  }\n  \n  let webhookUrl = (input.webhookUrl && input.webhookUrl !== null && input.webhookUrl !== '') ? input.webhookUrl : null;\n  \n  // If not found at top level, check body (webhook structure)\n  if (!manifestUrl && input.body && input.body !== input) {\n    manifestUrl = (input.body.manifestUrl && input.body.manifestUrl !== null && input.body.manifestUrl !== '') ? input.body.manifestUrl : null;\n    if (!manifestUrl) {\n      manifestUrl = (input.body.originalManifestUrl && input.body.originalManifestUrl !== null && input.body.originalManifestUrl !== '') ? input.body.originalManifestUrl : null;\n    }\n    if (!orderId) {\n      orderId = (input.body.orderId && input.body.orderId !== null && input.body.orderId !== '') ? input.body.orderId : null;\n      if (!orderId) {\n        orderId = (input.body.amazonOrderId && input.body.amazonOrderId !== null && input.body.amazonOrderId !== '') ? input.body.amazonOrderId : null;\n      }\n    }\n    if (!webhookUrl) {\n      webhookUrl = (input.body.webhookUrl && input.body.webhookUrl !== null && input.body.webhookUrl !== '') ? input.body.webhookUrl : null;\n    }\n  }\n  \n  // If no manifestUrl but we have orderId, construct it\n  // This handles the case where manifestUrl is explicitly null (from Restore JSON After Upload)\n  if ((!manifestUrl || manifestUrl === null || manifestUrl === '') && orderId && orderId !== null && orderId !== '') {\n    const baseUrl = 'https://387cb69b.little-hero-labs-admin.pages.dev/api/manifests';\n    manifestUrl = `${baseUrl}/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2a-manifest.json`;\n    console.log(`\u2713 Constructed manifestUrl from orderId: ${manifestUrl} (orderId was: ${orderId})`);\n  }\n  \n  // Final validation - if still no manifestUrl, we have a problem\n  if (!manifestUrl || manifestUrl === null || manifestUrl === '') {\n    const keys = input ? Object.keys(input).join(', ') : 'no input';\n    const manifestUrlValue = input.manifestUrl;\n    const orderIdValue = orderId;  // Use the extracted orderId, not input.orderId\n    const manifestKeyValue = input.manifestKey || 'not present';\n    console.error(`\u274c Cannot resolve manifestUrl. manifestUrl=${manifestUrlValue}, orderId=${orderIdValue}, manifestKey=${manifestKeyValue}, Keys: ${keys}`);\n    throw new Error(`Cannot resolve manifestUrl. manifestUrl=${manifestUrlValue}, orderId=${orderIdValue}, manifestKey=${manifestKeyValue}, Keys: ${keys}`);\n  }\n  \n  // CRITICAL: Detect if this is from webhook (first pass) or Wait node (retry loop)\n  // On webhook: body.webhookUrl exists, isFirstPass is undefined\n  // On Wait node resume: isFirstPass is explicitly false (from Restore JSON After Upload)\n  let isFirstPass = input.isFirstPass;\n  if (isFirstPass === undefined) {\n    // Not set yet - check if this is from webhook (first pass) or Wait node (retry loop)\n    // Check for webhookUrl in body (webhook structure) or top-level (already extracted)\n    const hasWebhookUrl = !!(webhookUrl || (input.body && input.body !== input && input.body.webhookUrl));\n    isFirstPass = hasWebhookUrl ? true : false; // Default to false if we can't determine\n  }\n  \n  // CRITICAL: Preserve all fields from input, especially isFirstPass, statusUrl, etc.\n  // These are essential for routing in the IF node after retry loops\n  return {\n    json: {\n      ...input,  // Preserve ALL fields from input\n      manifestUrl: manifestUrl,\n      originalManifestUrl: manifestUrl,\n      orderId: orderId || input.orderId || input.amazonOrderId || null,\n      webhookUrl: webhookUrl || input.webhookUrl || null,\n      // Explicitly preserve these critical fields for IF node routing\n      isFirstPass: isFirstPass,\n      statusUrl: input.statusUrl || input.status_url || null,\n      status_url: input.status_url || input.statusUrl || null,\n      requestId: input.requestId || input.request_id || null,\n      request_id: input.request_id || input.requestId || null,\n      poseNumber: input.poseNumber || null,\n      characterHash: input.characterHash || null\n    }\n  };\n});\n"
+        "jsCode": "/**\n * Extract Manifest URL - Normalize webhook data structure\n * Handles both webhook body structure (first pass) and direct fields (Wait node resume)\n * FIX: Check top-level first (Wait node), then body (webhook), process ALL items\n * Handle null values properly - construct from orderId if manifestUrl is null\n */\nconst inputs = $input.all();\n\nreturn inputs.map(item => {\n  const input = item.json;\n  \n  // Priority: Check top-level first (Wait node resume), then body (webhook first pass)\n  // Wait node data has manifestUrl at top level, webhook has it in body\n  // Handle null/empty string explicitly\n  let manifestUrl = (input.manifestUrl && input.manifestUrl !== null && input.manifestUrl !== '') ? input.manifestUrl : null;\n  if (!manifestUrl) {\n    manifestUrl = (input.originalManifestUrl && input.originalManifestUrl !== null && input.originalManifestUrl !== '') ? input.originalManifestUrl : null;\n  }\n  \n  let orderId = (input.orderId && input.orderId !== null && input.orderId !== '') ? input.orderId : null;\n  if (!orderId) {\n    orderId = (input.amazonOrderId && input.amazonOrderId !== null && input.amazonOrderId !== '') ? input.amazonOrderId : null;\n  }\n  \n  // Fallback: Extract orderId from manifestKey if available (S3 node might have stripped orderId)\n  if ((!orderId || orderId === null || orderId === '') && input.manifestKey) {\n    const manifestKeyStr = String(input.manifestKey).trim();\n    if (manifestKeyStr && manifestKeyStr !== 'null' && manifestKeyStr !== 'undefined') {\n      // Try multiple patterns: /orders/{orderId}/ or orders/{orderId}/\n      const patterns = [\n        /[\\/]orders[\\/]([^\\/]+)[\\/]/,  // Matches /orders/TEST-ORDER-006/\n        /orders[\\/]([^\\/]+)[\\/]/,     // Matches orders/TEST-ORDER-006/\n      ];\n      \n      for (const pattern of patterns) {\n        const keyMatch = manifestKeyStr.match(pattern);\n        if (keyMatch && keyMatch[1]) {\n          orderId = keyMatch[1];\n          console.log(`✓ Extracted orderId from manifestKey: ${orderId} (pattern matched)`);\n          break;\n        }\n      }\n      \n      if (!orderId) {\n        console.warn(`⚠️ Could not extract orderId from manifestKey: ${manifestKeyStr.substring(0, 100)}`);\n      }\n    }\n  }\n  \n  let webhookUrl = (input.webhookUrl && input.webhookUrl !== null && input.webhookUrl !== '') ? input.webhookUrl : null;\n  \n  // If not found at top level, check body (webhook structure)\n  if (!manifestUrl && input.body && input.body !== input) {\n    manifestUrl = (input.body.manifestUrl && input.body.manifestUrl !== null && input.body.manifestUrl !== '') ? input.body.manifestUrl : null;\n    if (!manifestUrl) {\n      manifestUrl = (input.body.originalManifestUrl && input.body.originalManifestUrl !== null && input.body.originalManifestUrl !== '') ? input.body.originalManifestUrl : null;\n    }\n    if (!orderId) {\n      orderId = (input.body.orderId && input.body.orderId !== null && input.body.orderId !== '') ? input.body.orderId : null;\n      if (!orderId) {\n        orderId = (input.body.amazonOrderId && input.body.amazonOrderId !== null && input.body.amazonOrderId !== '') ? input.body.amazonOrderId : null;\n      }\n    }\n    if (!webhookUrl) {\n      webhookUrl = (input.body.webhookUrl && input.body.webhookUrl !== null && input.body.webhookUrl !== '') ? input.body.webhookUrl : null;\n    }\n  }\n  \n  // If no manifestUrl but we have orderId, construct it\n  // This handles the case where manifestUrl is explicitly null (from Restore JSON After Upload)\n  if ((!manifestUrl || manifestUrl === null || manifestUrl === '') && orderId && orderId !== null && orderId !== '') {\n    const baseUrl = 'https://387cb69b.little-hero-labs-admin.pages.dev/api/manifests';\n    manifestUrl = `${baseUrl}/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2a-manifest.json`;\n    console.log(`✓ Constructed manifestUrl from orderId: ${manifestUrl} (orderId was: ${orderId})`);\n  }\n  \n  // Final validation - if still no manifestUrl, we have a problem\n  if (!manifestUrl || manifestUrl === null || manifestUrl === '') {\n    const keys = input ? Object.keys(input).join(', ') : 'no input';\n    const manifestUrlValue = input.manifestUrl;\n    const orderIdValue = orderId;  // Use the extracted orderId, not input.orderId\n    const manifestKeyValue = input.manifestKey || 'not present';\n    console.error(`❌ Cannot resolve manifestUrl. manifestUrl=${manifestUrlValue}, orderId=${orderIdValue}, manifestKey=${manifestKeyValue}, Keys: ${keys}`);\n    throw new Error(`Cannot resolve manifestUrl. manifestUrl=${manifestUrlValue}, orderId=${orderIdValue}, manifestKey=${manifestKeyValue}, Keys: ${keys}`);\n  }\n  \n  // CRITICAL: Detect if this is from webhook (first pass) or Wait node (retry loop)\n  // On webhook: body.webhookUrl exists, isFirstPass is undefined\n  // On Wait node resume: isFirstPass is explicitly false (from Restore JSON After Upload)\n  let isFirstPass = input.isFirstPass;\n  if (isFirstPass === undefined) {\n    // Not set yet - check if this is from webhook (first pass) or Wait node (retry loop)\n    // Check for webhookUrl in body (webhook structure) or top-level (already extracted)\n    const hasWebhookUrl = !!(webhookUrl || (input.body && input.body !== input && input.body.webhookUrl));\n    isFirstPass = hasWebhookUrl ? true : false; // Default to false if we can't determine\n  }\n  \n  // CRITICAL: Preserve all fields from input, especially isFirstPass, statusUrl, etc.\n  // These are essential for routing in the IF node after retry loops\n  return {\n    json: {\n      ...input,  // Preserve ALL fields from input\n      manifestUrl: manifestUrl,\n      originalManifestUrl: manifestUrl,\n      orderId: orderId || input.orderId || input.amazonOrderId || null,\n      webhookUrl: webhookUrl || input.webhookUrl || null,\n      // Explicitly preserve these critical fields for IF node routing\n      isFirstPass: isFirstPass,\n      statusUrl: input.statusUrl || input.status_url || null,\n      status_url: input.status_url || input.statusUrl || null,\n      requestId: input.requestId || input.request_id || null,\n      request_id: input.request_id || input.requestId || null,\n      poseNumber: input.poseNumber || null,\n      characterHash: input.characterHash || null\n    }\n  };\n});\n"
       },
-      "id": "2bb29d9f-d2d9-494a-b379-6c7297f500d4",
+      "id": "5ff20e87-6d20-46d4-aa98-14a5d16faf57",
       "name": "Extract Manifest URL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1536,
-        -240
+        -3072,
+        -720
       ],
       "notes": "Normalizes webhook data and extracts manifestUrl to top level"
     },
@@ -43,41 +43,41 @@
           }
         }
       },
-      "id": "aa3f1826-0dfd-4b8d-b3d7-3ce5a2c9ace0",
+      "id": "27f5cece-6f3e-408f-b1da-0ab8bc7a36ef",
       "name": "Download 2A Manifest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1392,
-        -240
+        -2928,
+        -720
       ],
       "notes": "Downloads manifest from R2 to get approved poses"
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Preserve isFirstPass - Merge manifest with preserved metadata\n * HTTP Request node outputs only the downloaded manifest JSON, overwriting input fields.\n * This node retrieves isFirstPass and other critical metadata from Extract Manifest URL\n * and merges them with the manifest before passing to Parse Submissions.\n */\nconst inputs = $input.all();\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// Retrieve isFirstPass and other metadata from Extract Manifest URL\nlet preservedMetadata = null;\ntry {\n  // Try current run index first\n  const extractItems = $items('Extract Manifest URL', 0, runIx);\n  if (extractItems && Array.isArray(extractItems) && extractItems.length > 0) {\n    preservedMetadata = extractItems[0]?.json || {};\n    console.log(`\u2713 Retrieved metadata from Extract Manifest URL (runIndex ${runIx})`);\n  }\n} catch (e) {\n  console.warn(`\u26a0\ufe0f Could not retrieve from Extract Manifest URL (runIndex ${runIx}): ${e.message}`);\n  // Try previous run index as fallback\n  try {\n    const extractItems = $items('Extract Manifest URL', 0, runIx - 1);\n    if (extractItems && Array.isArray(extractItems) && extractItems.length > 0) {\n      preservedMetadata = extractItems[0]?.json || {};\n      console.log(`\u2713 Retrieved metadata from Extract Manifest URL (runIndex ${runIx - 1})`);\n    }\n  } catch (e2) {\n    console.warn(`\u26a0\ufe0f Could not retrieve from Extract Manifest URL (runIndex ${runIx - 1}): ${e2.message}`);\n  }\n}\n\n// Process each input item (should be 1 item with the manifest)\nreturn inputs.map(item => {\n  const manifest = item.json || {};\n  \n  // Extract preserved metadata\n  const isFirstPass = preservedMetadata?.isFirstPass !== undefined ? preservedMetadata.isFirstPass : true;\n  const manifestUrl = preservedMetadata?.manifestUrl || preservedMetadata?.originalManifestUrl || null;\n  const orderId = preservedMetadata?.orderId || preservedMetadata?.amazonOrderId || null;\n  const webhookUrl = preservedMetadata?.webhookUrl || null;\n  const statusUrl = preservedMetadata?.statusUrl || preservedMetadata?.status_url || null;\n  const requestId = preservedMetadata?.requestId || preservedMetadata?.request_id || null;\n  \n  console.log(`\ud83d\udccb Preserved metadata: isFirstPass=${isFirstPass}, manifestUrl=${manifestUrl ? 'present' : 'null'}, orderId=${orderId || 'null'}`);\n  \n  // Merge manifest with preserved metadata\n  return {\n    json: {\n      ...manifest,  // The downloaded manifest JSON\n      // Overlay with preserved metadata\n      isFirstPass: isFirstPass,\n      manifestUrl: manifestUrl,\n      originalManifestUrl: manifestUrl,\n      orderId: orderId,\n      webhookUrl: webhookUrl,\n      statusUrl: statusUrl,\n      status_url: statusUrl,\n      requestId: requestId,\n      request_id: requestId\n    }\n  };\n});\n"
+        "jsCode": "/**\n * Preserve isFirstPass - Merge manifest with preserved metadata\n * HTTP Request node outputs only the downloaded manifest JSON, overwriting input fields.\n * This node retrieves isFirstPass and other critical metadata from Extract Manifest URL\n * and merges them with the manifest before passing to Parse Submissions.\n */\nconst inputs = $input.all();\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// Retrieve isFirstPass and other metadata from Extract Manifest URL\nlet preservedMetadata = null;\ntry {\n  // Try current run index first\n  const extractItems = $items('Extract Manifest URL', 0, runIx);\n  if (extractItems && Array.isArray(extractItems) && extractItems.length > 0) {\n    preservedMetadata = extractItems[0]?.json || {};\n    console.log(`✓ Retrieved metadata from Extract Manifest URL (runIndex ${runIx})`);\n  }\n} catch (e) {\n  console.warn(`⚠️ Could not retrieve from Extract Manifest URL (runIndex ${runIx}): ${e.message}`);\n  // Try previous run index as fallback\n  try {\n    const extractItems = $items('Extract Manifest URL', 0, runIx - 1);\n    if (extractItems && Array.isArray(extractItems) && extractItems.length > 0) {\n      preservedMetadata = extractItems[0]?.json || {};\n      console.log(`✓ Retrieved metadata from Extract Manifest URL (runIndex ${runIx - 1})`);\n    }\n  } catch (e2) {\n    console.warn(`⚠️ Could not retrieve from Extract Manifest URL (runIndex ${runIx - 1}): ${e2.message}`);\n  }\n}\n\n// Process each input item (should be 1 item with the manifest)\nreturn inputs.map(item => {\n  const manifest = item.json || {};\n  \n  // Extract preserved metadata\n  const isFirstPass = preservedMetadata?.isFirstPass !== undefined ? preservedMetadata.isFirstPass : true;\n  const manifestUrl = preservedMetadata?.manifestUrl || preservedMetadata?.originalManifestUrl || null;\n  const orderId = preservedMetadata?.orderId || preservedMetadata?.amazonOrderId || null;\n  const webhookUrl = preservedMetadata?.webhookUrl || null;\n  const statusUrl = preservedMetadata?.statusUrl || preservedMetadata?.status_url || null;\n  const requestId = preservedMetadata?.requestId || preservedMetadata?.request_id || null;\n  \n  console.log(`📋 Preserved metadata: isFirstPass=${isFirstPass}, manifestUrl=${manifestUrl ? 'present' : 'null'}, orderId=${orderId || 'null'}`);\n  \n  // Merge manifest with preserved metadata\n  return {\n    json: {\n      ...manifest,  // The downloaded manifest JSON\n      // Overlay with preserved metadata\n      isFirstPass: isFirstPass,\n      manifestUrl: manifestUrl,\n      originalManifestUrl: manifestUrl,\n      orderId: orderId,\n      webhookUrl: webhookUrl,\n      statusUrl: statusUrl,\n      status_url: statusUrl,\n      requestId: requestId,\n      request_id: requestId\n    }\n  };\n});\n"
       },
-      "id": "7ba946df-21f9-46de-8fde-74d7163bf0a0",
+      "id": "04d5c2a3-18d6-4aec-8d04-5a79ad172773",
       "name": "Preserve isFirstPass",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1232,
-        -240
+        -2768,
+        -720
       ],
       "notes": "Preserves isFirstPass and other metadata from Extract Manifest URL after HTTP Request downloads manifest"
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Parse Submissions - Extract approved poses from 2A manifest\n * NEW: Works with manifest-based input and handles retry scenarios\n * FIX: Added isFirstPass flag to track execution context (first pass vs retry loop)\n */\nconst input = $input.first().json;\n\n// Handle both direct manifest and webhook body wrapper\nconst body = input.body || input;\nlet manifest = body.manifest || body;\n\n// If manifest is missing (e.g., from Wait node retry), try to get it from preserved data\nif (!manifest || !manifest.schema) {\n  // Try to get manifest from preserved fields (from Store Submission Result)\n  manifest = input.manifest || null;\n  \n  // If still missing, try to get manifestUrl and download it\n  if (!manifest || !manifest.schema) {\n    const manifestUrl = input.manifestUrl || body.manifestUrl || null;\n    if (manifestUrl) {\n      // Note: We can't download here in Code node, but we can log the URL\n      console.warn(`\u26a0\ufe0f Manifest missing, but manifestUrl found: ${manifestUrl}`);\n      console.warn(`\u26a0\ufe0f This workflow needs to download manifest from: ${manifestUrl}`);\n      throw new Error(`Manifest missing. Please ensure 'Download 2A Manifest' node runs before Parse Submissions. Manifest URL: ${manifestUrl}`);\n    } else {\n      throw new Error(`Invalid manifest: missing or invalid. Input keys: ${Object.keys(input || {}).join(', ')}`);\n    }\n  }\n}\n\n// Validate manifest schema\nif (manifest.schema !== 'lhb.run-manifest@v2.0') {\n  throw new Error(`Invalid manifest schema: ${manifest.schema || 'missing'}`);\n}\n\nconsole.log('=== WORKFLOW 2B STARTED ===');\nconsole.log(`Order: ${manifest.order.orderId}`);\nconsole.log(`Character Hash: ${manifest.characterHash}`);\nconsole.log(`Total poses: ${manifest.poses.total}`);\nconsole.log(`Approved poses: ${manifest.poses.approved}`);\n\n// Extract webhook URL from trigger (for backend callback)\n// Note: Environment variables are not accessible in Code nodes, so webhookUrl must be passed in the request body\nconst webhookUrl = body.webhookUrl || input.webhookUrl;\n\nif (!webhookUrl) {\n  console.warn('\u26a0\ufe0f No webhookUrl provided in trigger or environment');\n}\n\n// Detect execution context: first pass (from webhook) vs retry loop (from Wait 90 Seconds)\n// FIX: isFirstPass is now preserved by \"Preserve isFirstPass\" node (between Download 2A Manifest and Parse Submissions)\n// The Preserve isFirstPass node retrieves it from Extract Manifest URL and merges it with the manifest\n// On first pass: isFirstPass will be true (from Extract Manifest URL)\n// On retry loop: isFirstPass will be false (from Restore JSON After Upload \u2192 Extract Manifest URL)\n// Simply use isFirstPass from input (set by Preserve isFirstPass node)\nconst isFirstPass = input.isFirstPass !== undefined ? input.isFirstPass : true; // Default to true if not set (shouldn't happen)\n\nconsole.log(`\ud83d\udccb Execution context detection:`);\nconsole.log(`  - input.isFirstPass: ${input.isFirstPass}`);\nconsole.log(`  - Final isFirstPass: ${isFirstPass}`);\nconsole.log(`\ud83d\udccb Execution context: ${isFirstPass ? 'FIRST PASS' : 'RETRY LOOP'}`);\n\n// Extract only approved poses\nconst approvedPoses = manifest.entries.filter(entry => entry.approved && entry.status === 'approved');\n\nif (approvedPoses.length === 0) {\n  throw new Error('No approved poses found in manifest');\n}\n\nconsole.log(`Processing ${approvedPoses.length} approved poses`);\nconsole.log(`Webhook callback: ${webhookUrl || 'NOT SET'}`);\n\n// Return each approved pose as separate item\n// Check manifest entries for existing Bria processing status (for retry detection)\nconst posesWithStatus = approvedPoses.filter(p => p.briaStatusUrl || p.briaRequestId).length;\nconst posesWithoutStatus = approvedPoses.length - posesWithStatus;\nconsole.log(`\ud83d\udcca Bria status in manifest: ${posesWithStatus} poses have status, ${posesWithoutStatus} poses need submission`);\n\nreturn approvedPoses.map(pose => {\n  // Check if manifest entry has Bria processing info (from previous run)\n  const hasBriaStatus = !!(pose.briaStatusUrl || pose.briaRequestId);\n  const statusUrl = pose.briaStatusUrl || input.status_url || input.statusUrl || null;\n  const requestId = pose.briaRequestId || input.request_id || input.requestId || null;\n  \n  if (hasBriaStatus) {\n    console.log(`\u2713 Pose ${pose.poseNumber}: Already has Bria status (${statusUrl ? 'has statusUrl' : 'no statusUrl'})`);\n  } else {\n    console.log(`\u26a0 Pose ${pose.poseNumber}: No Bria status in manifest - will submit to Bria`);\n  }\n  \n  return {\n    json: {\n      poseNumber: pose.poseNumber,\n      originalImageUrl: pose.publicUrl,  // Use publicUrl from manifest (handles retries correctly)\n      characterHash: manifest.characterHash,\n      orderId: manifest.order.orderId || manifest.order.amazonOrderId,\n      manifest: manifest,  // Keep full manifest for later\n      manifestUrl: body.manifestUrl || input.manifestUrl || null,  // Preserve manifestUrl for retry scenarios\n      webhookUrl: webhookUrl,  // Pass through for final webhook\n      // CRITICAL: Preserve Bria status from input if available (from retry loop)\n      // Priority: input statusUrl (from retry loop) > manifest entry statusUrl\n      statusUrl: input.statusUrl || input.status_url || statusUrl || null,\n      status_url: input.status_url || input.statusUrl || statusUrl || null,\n      requestId: input.requestId || input.request_id || requestId || null,\n      request_id: input.request_id || input.requestId || requestId || null,\n      retryCount: input.retryCount || 0,\n      maxRetries: input.maxRetries || 5,\n      // Execution context flag: true on first pass (from webhook), false on retry loops\n      // CRITICAL: Preserve isFirstPass from input if it's already false (from retry loop)\n      isFirstPass: isFirstPass\n    }\n  };\n});\n"
+        "jsCode": "/**\n * Parse Submissions - Extract approved poses from 2A manifest\n * NEW: Works with manifest-based input and handles retry scenarios\n * FIX: Added isFirstPass flag to track execution context (first pass vs retry loop)\n */\nconst input = $input.first().json;\n\n// Handle both direct manifest and webhook body wrapper\nconst body = input.body || input;\nlet manifest = body.manifest || body;\n\n// If manifest is missing (e.g., from Wait node retry), try to get it from preserved data\nif (!manifest || !manifest.schema) {\n  // Try to get manifest from preserved fields (from Store Submission Result)\n  manifest = input.manifest || null;\n  \n  // If still missing, try to get manifestUrl and download it\n  if (!manifest || !manifest.schema) {\n    const manifestUrl = input.manifestUrl || body.manifestUrl || null;\n    if (manifestUrl) {\n      // Note: We can't download here in Code node, but we can log the URL\n      console.warn(`⚠️ Manifest missing, but manifestUrl found: ${manifestUrl}`);\n      console.warn(`⚠️ This workflow needs to download manifest from: ${manifestUrl}`);\n      throw new Error(`Manifest missing. Please ensure 'Download 2A Manifest' node runs before Parse Submissions. Manifest URL: ${manifestUrl}`);\n    } else {\n      throw new Error(`Invalid manifest: missing or invalid. Input keys: ${Object.keys(input || {}).join(', ')}`);\n    }\n  }\n}\n\n// Validate manifest schema\nif (manifest.schema !== 'lhb.run-manifest@v2.0') {\n  throw new Error(`Invalid manifest schema: ${manifest.schema || 'missing'}`);\n}\n\nconsole.log('=== WORKFLOW 2B STARTED ===');\nconsole.log(`Order: ${manifest.order.orderId}`);\nconsole.log(`Character Hash: ${manifest.characterHash}`);\nconsole.log(`Total poses: ${manifest.poses.total}`);\nconsole.log(`Approved poses: ${manifest.poses.approved}`);\n\n// Extract webhook URL from trigger (for backend callback)\n// Note: Environment variables are not accessible in Code nodes, so webhookUrl must be passed in the request body\nconst webhookUrl = body.webhookUrl || input.webhookUrl;\n\nif (!webhookUrl) {\n  console.warn('⚠️ No webhookUrl provided in trigger or environment');\n}\n\n// Detect execution context: first pass (from webhook) vs retry loop (from Wait 90 Seconds)\n// FIX: isFirstPass is now preserved by \"Preserve isFirstPass\" node (between Download 2A Manifest and Parse Submissions)\n// The Preserve isFirstPass node retrieves it from Extract Manifest URL and merges it with the manifest\n// On first pass: isFirstPass will be true (from Extract Manifest URL)\n// On retry loop: isFirstPass will be false (from Restore JSON After Upload → Extract Manifest URL)\n// Simply use isFirstPass from input (set by Preserve isFirstPass node)\nconst isFirstPass = input.isFirstPass !== undefined ? input.isFirstPass : true; // Default to true if not set (shouldn't happen)\n\nconsole.log(`📋 Execution context detection:`);\nconsole.log(`  - input.isFirstPass: ${input.isFirstPass}`);\nconsole.log(`  - Final isFirstPass: ${isFirstPass}`);\nconsole.log(`📋 Execution context: ${isFirstPass ? 'FIRST PASS' : 'RETRY LOOP'}`);\n\n// Extract only approved poses\nconst approvedPoses = manifest.entries.filter(entry => entry.approved && entry.status === 'approved');\n\nif (approvedPoses.length === 0) {\n  throw new Error('No approved poses found in manifest');\n}\n\nconsole.log(`Processing ${approvedPoses.length} approved poses`);\nconsole.log(`Webhook callback: ${webhookUrl || 'NOT SET'}`);\n\n// Return each approved pose as separate item\n// Check manifest entries for existing Bria processing status (for retry detection)\nconst posesWithStatus = approvedPoses.filter(p => p.briaStatusUrl || p.briaRequestId).length;\nconst posesWithoutStatus = approvedPoses.length - posesWithStatus;\nconsole.log(`📊 Bria status in manifest: ${posesWithStatus} poses have status, ${posesWithoutStatus} poses need submission`);\n\nreturn approvedPoses.map(pose => {\n  // Check if manifest entry has Bria processing info (from previous run)\n  const hasBriaStatus = !!(pose.briaStatusUrl || pose.briaRequestId);\n  const statusUrl = pose.briaStatusUrl || input.status_url || input.statusUrl || null;\n  const requestId = pose.briaRequestId || input.request_id || input.requestId || null;\n  \n  if (hasBriaStatus) {\n    console.log(`✓ Pose ${pose.poseNumber}: Already has Bria status (${statusUrl ? 'has statusUrl' : 'no statusUrl'})`);\n  } else {\n    console.log(`⚠ Pose ${pose.poseNumber}: No Bria status in manifest - will submit to Bria`);\n  }\n  \n  return {\n    json: {\n      poseNumber: pose.poseNumber,\n      originalImageUrl: pose.publicUrl,  // Use publicUrl from manifest (handles retries correctly)\n      characterHash: manifest.characterHash,\n      orderId: manifest.order.orderId || manifest.order.amazonOrderId,\n      manifest: manifest,  // Keep full manifest for later\n      manifestUrl: body.manifestUrl || input.manifestUrl || null,  // Preserve manifestUrl for retry scenarios\n      webhookUrl: webhookUrl,  // Pass through for final webhook\n      // CRITICAL FIX: Prioritize pose-specific statusUrl (from pose.briaStatusUrl) over input.statusUrl\n      // This ensures each pose gets its unique statusUrl instead of all poses sharing the same one\n      // Priority: pose-specific statusUrl > input statusUrl (from retry loop) > null\n      statusUrl: statusUrl || input.statusUrl || input.status_url || null,\n      status_url: statusUrl || input.status_url || input.statusUrl || null,\n      requestId: requestId || input.requestId || input.request_id || null,\n      request_id: requestId || input.request_id || input.requestId || null,\n      retryCount: input.retryCount || 0,\n      maxRetries: input.maxRetries || 5,\n      // Execution context flag: true on first pass (from webhook), false on retry loops\n      // CRITICAL: Preserve isFirstPass from input if it's already false (from retry loop)\n      isFirstPass: isFirstPass\n    }\n  };\n});\n"
       },
-      "id": "f055adaa-3093-4131-9b7e-84f82798e52d",
+      "id": "6231ff4e-3352-4d1d-8382-f8bb3bd461a5",
       "name": "Parse Submissions",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1088,
-        -240
+        -2624,
+        -720
       ]
     },
     {
@@ -106,13 +106,13 @@
           "ignoreCase": false
         }
       },
-      "id": "f074290e-d934-4498-9fda-58c0f2eb0eb6",
+      "id": "ec6c7188-d4d6-458e-a970-e526d5b75f4c",
       "name": "Is First Pass?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -896,
-        -240
+        -2432,
+        -720
       ],
       "notes": "Routes items on first pass to submit loop, retry loop items continue to status check"
     },
@@ -133,26 +133,26 @@
           "timeout": 30000
         }
       },
-      "id": "202268e6-00b8-409f-a23f-c94aedb4e237",
+      "id": "5e573716-a89f-4720-96c7-d511b2af323d",
       "name": "Check Bria Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -544,
-        -448
+        -2080,
+        -928
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Parse Bria status responses (one output item per input item)\n * Works with merged items where Bria fields are top-level.\n * Preserves poseNumber and characterHash from your data.\n */\n\nconst inputs = $input.all();\n\nconst DONE = new Set(['COMPLETED', 'SUCCESS']);\nconst WORKING = new Set(['IN_PROGRESS', 'PROCESSING', 'PENDING']);\n\nconst now = new Date().toISOString();\n\nreturn inputs.map(item => {\n  const j = item.json ?? {};\n\n  // --- Read Bria status/URL from either top-level or nested result ---\n  const status =\n    j.status ?? j.state ?? j.result?.status ?? 'UNKNOWN';\n\n  const resultUrl =\n    j.result?.image_url ??\n    j.result_url ??\n    j.url ??\n    j.output_url ??\n    null;\n\n  // --- Request ID: prefer explicit fields, else parse from statusUrl ---\n  let requestId = j.requestId ?? j.request_id ?? j.id ?? null;\n  if (!requestId && typeof j.statusUrl === 'string') {\n    const m = j.statusUrl.match(/\\/status\\/([^/?#]+)/);\n    if (m) requestId = m[1];\n  }\n\n  // --- Retry bookkeeping from your item ---\n  const currentRetry = Number(j.retryCount ?? 0);\n  const maxRetries   = Number(j.maxRetries ?? 5);\n\n  const shouldDownload = DONE.has(status) && !!resultUrl;\n  const shouldRetry    = WORKING.has(status) && currentRetry < maxRetries;\n\n  // --- Preserve your poseNumber and characterHash ---\n  const poseNumber = j.poseNumber ?? j.currentPoseNumber ?? null;\n\n  // Keep original characterHash unless it is missing/\"nohash\"\n  let characterHash = j.characterHash ?? null;\n  if (!characterHash || characterHash === 'nohash') {\n    characterHash = j.orderData?.characterHash ?? characterHash;\n  }\n\n  return {\n    json: {\n      ...j,                  // keep everything you already had (orderData, etc.)\n      requestId,\n      briaStatus: status,\n      resultUrl,\n      shouldDownload,\n      shouldRetry,\n      retryCount: shouldRetry ? currentRetry + 1 : currentRetry,\n      maxRetries,\n      poseNumber,\n      characterHash,\n      statusCheckedAt: now,\n    },\n  };\n});\n"
       },
-      "id": "6da19e88-2fdd-4be1-9ec0-d40c74e9a0b6",
+      "id": "b998794d-7157-44cd-8bf6-7125949353ad",
       "name": "Parse Status Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1728,
-        624
+        -3264,
+        160
       ]
     },
     {
@@ -182,13 +182,13 @@
           "ignoreCase": false
         }
       },
-      "id": "fde40edb-623b-4eda-98c4-3d4e82472f5e",
+      "id": "8950b827-8aee-49b9-9638-f3995490e09c",
       "name": "Route By Status",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1568,
-        624
+        -3104,
+        160
       ]
     },
     {
@@ -202,26 +202,26 @@
           }
         }
       },
-      "id": "3d506178-6e20-418b-84af-ba67947ded3b",
+      "id": "be0026fe-b26e-4b8a-9cd4-b1300fb2c088",
       "name": "Download Processed Image",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1376,
-        480
+        -2912,
+        16
       ]
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Prepare for R2 Upload (multi-item, no cross-workflow refs)\n * Output file path:\n *   book-mvp-simple-adventure/order-generated-assets/characters/{hash}/characters_{hash}_pose{XX}_nobg.png\n */\nconst items = $input.all();\n\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\n// Safely access env var with fallback\nlet PUBLIC_BASE = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\ntry {\n  if (typeof $env !== 'undefined' && $env.R2_PUBLIC_URL) {\n    PUBLIC_BASE = $env.R2_PUBLIC_URL;\n  }\n} catch (e) {\n  // Env vars not accessible, use default\n}\n\nfunction isBadHash(h) {\n  return !h || typeof h !== 'string' || h === 'nohash' || h === 'unknown' || h.trim().length < 4;\n}\n\n// try to recover hash from an asset URL if needed\nfunction hashFromUrl(u) {\n  if (!u) return null;\n  try {\n    const p = new URL(u).pathname;\n    // matches .../characters/<hash>/...\n    return p.match(/\\/characters\\/([^/]+)\\//i)?.[1] ?? null;\n  } catch {\n    // if it's a path string without host\n    return String(u).match(/characters\\/([^/]+)\\//i)?.[1] ?? null;\n  }\n}\n\nfunction getBinary(item) {\n  const bin = item.binary || {};\n  if (!Object.keys(bin).length) return { key: null, data: null };\n  const pref = ['data', 'image', 'file'];\n  const key = pref.find(k => bin[k]) || Object.keys(bin)[0];\n  return { key, data: bin[key] || null };\n}\n\nconst out = items.map((item, idx) => {\n  const j = item.json || {};\n\n  const poseNumber = Number(j.poseNumber ?? j.currentPoseNumber ?? (idx + 1)) || (idx + 1);\n\n  // Resolve characterHash from local fields first\n  let candidateHash =\n    j.characterHash ??\n    j.orderData?.characterHash ??\n    hashFromUrl(j.publicUrl || j.r2Path || j.imageUrl || j.originalImageUrl);\n\n  // If not found, try to retrieve from earlier nodes (Parse Status Response, Merge, or Check Bria Status)\n  if (isBadHash(candidateHash)) {\n    const runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n    \n    // Try Parse Status Response first (most recent before HTTP Request)\n    try {\n      const parseStatusItems = $items('Parse Status Response', 0, runIx);\n      if (parseStatusItems && Array.isArray(parseStatusItems) && parseStatusItems.length > 0) {\n        // Since poseNumber might be null, use array index matching\n        let matchingItem = null;\n        if (idx < parseStatusItems.length) {\n          matchingItem = parseStatusItems[idx];\n        }\n        // Also try to find by poseNumber if it exists\n        if (!matchingItem || !matchingItem.json?.characterHash) {\n          const foundByPose = parseStatusItems.find(item => {\n            const itemPose = item?.json?.poseNumber ?? null;\n            return itemPose !== null && itemPose === poseNumber;\n          });\n          if (foundByPose?.json?.characterHash) {\n            matchingItem = foundByPose;\n          }\n        }\n        if (matchingItem?.json?.characterHash) {\n          candidateHash = matchingItem.json.characterHash;\n          console.log(`\u2713 Retrieved characterHash from Parse Status Response (item ${idx}): ${candidateHash}`);\n        }\n      }\n    } catch (e) {\n      console.warn(`\u26a0\ufe0f Could not retrieve from Parse Status Response: ${e.message}`);\n    }\n    \n    // Fallback to Merge node (combines original data with status check)\n    if (isBadHash(candidateHash)) {\n      try {\n        const mergeItems = $items('Merge', 0, runIx);\n        if (mergeItems && Array.isArray(mergeItems) && mergeItems.length > 0 && idx < mergeItems.length) {\n          const mergeItem = mergeItems[idx];\n          if (mergeItem?.json?.characterHash) {\n            candidateHash = mergeItem.json.characterHash;\n            console.log(`\u2713 Retrieved characterHash from Merge (item ${idx}): ${candidateHash}`);\n          }\n        }\n      } catch (e) {\n        console.warn(`\u26a0\ufe0f Could not retrieve from Merge: ${e.message}`);\n      }\n    }\n    \n    // Final fallbacks: Check Bria Status and Parse Submissions (original item data)\n    if (isBadHash(candidateHash)) {\n      try {\n        const checkStatusItems = $items('Check Bria Status', 0, runIx);\n        if (checkStatusItems && Array.isArray(checkStatusItems) && checkStatusItems.length > 0 && idx < checkStatusItems.length) {\n          const checkItem = checkStatusItems[idx];\n          if (checkItem?.json?.characterHash) {\n            candidateHash = checkItem.json.characterHash;\n            console.log(`\u2713 Retrieved characterHash from Check Bria Status (item ${idx}): ${candidateHash}`);\n          }\n        }\n      } catch (e) {\n        console.warn(`\u26a0\ufe0f Could not retrieve from Check Bria Status: ${e.message}`);\n      }\n    }\n    \n    // Ultimate fallback: Parse Submissions (definitely has characterHash from manifest)\n    if (isBadHash(candidateHash)) {\n      try {\n        const parseSubItems = $items('Parse Submissions', 0, runIx);\n        if (parseSubItems && Array.isArray(parseSubItems) && parseSubItems.length > 0 && idx < parseSubItems.length) {\n          const parseItem = parseSubItems[idx];\n          if (parseItem?.json?.characterHash) {\n            candidateHash = parseItem.json.characterHash;\n            console.log(`\u2713 Retrieved characterHash from Parse Submissions (item ${idx}): ${candidateHash}`);\n          }\n        }\n      } catch (e) {\n        console.warn(`\u26a0\ufe0f Could not retrieve from Parse Submissions: ${e.message}`);\n      }\n    }\n  }\n\n  const characterHash = isBadHash(candidateHash) ? null : candidateHash;\n  if (!characterHash) {\n    throw new Error(`Missing characterHash for pose ${poseNumber} (item ${idx})`);\n  }\n\n  const { key: binKey, data: binaryData } = getBinary(item);\n  if (!binaryData) {\n    throw new Error(`No binary data for pose ${poseNumber} (item ${idx})`);\n  }\n\n  const paddedPose = String(poseNumber).padStart(2, '0');\n  const fileName = `characters_${characterHash}_pose${paddedPose}_nobg.png`;\n  const r2Path = `${BASE_PREFIX}/${characterHash}/${fileName}`;\n  const publicUrl = `${PUBLIC_BASE}/${r2Path}`;\n\n  console.log(`[Pose ${poseNumber}] \u2713 Prepared upload \u2192 ${r2Path}`);\n\n  return {\n    json: {\n      ...j,\n      poseNumber,\n      characterHash,\n      fileName,\n      r2Path,\n      publicUrl,\n      processedWithBria: true,\n      processingError: false,\n      downloadedAt: new Date().toISOString(),\n    },\n    binary: {\n      // keep same key so your actual uploader node can see it\n      [binKey]: binaryData,\n    },\n  };\n});\n\nreturn out;\n"
+        "jsCode": "/**\n * Prepare for R2 Upload (multi-item, no cross-workflow refs)\n * Output file path:\n *   book-mvp-simple-adventure/order-generated-assets/characters/{hash}/characters_{hash}_pose{XX}_nobg.png\n */\nconst items = $input.all();\n\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\n// Safely access env var with fallback\nlet PUBLIC_BASE = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\ntry {\n  if (typeof $env !== 'undefined' && $env.R2_PUBLIC_URL) {\n    PUBLIC_BASE = $env.R2_PUBLIC_URL;\n  }\n} catch (e) {\n  // Env vars not accessible, use default\n}\n\nfunction isBadHash(h) {\n  return !h || typeof h !== 'string' || h === 'nohash' || h === 'unknown' || h.trim().length < 4;\n}\n\n// try to recover hash from an asset URL if needed\nfunction hashFromUrl(u) {\n  if (!u) return null;\n  try {\n    const p = new URL(u).pathname;\n    // matches .../characters/<hash>/...\n    return p.match(/\\/characters\\/([^/]+)\\//i)?.[1] ?? null;\n  } catch {\n    // if it's a path string without host\n    return String(u).match(/characters\\/([^/]+)\\//i)?.[1] ?? null;\n  }\n}\n\nfunction getBinary(item) {\n  const bin = item.binary || {};\n  if (!Object.keys(bin).length) return { key: null, data: null };\n  const pref = ['data', 'image', 'file'];\n  const key = pref.find(k => bin[k]) || Object.keys(bin)[0];\n  return { key, data: bin[key] || null };\n}\n\nconst out = items.map((item, idx) => {\n  const j = item.json || {};\n\n  const poseNumber = Number(j.poseNumber ?? j.currentPoseNumber ?? (idx + 1)) || (idx + 1);\n\n  // Resolve characterHash from local fields first\n  let candidateHash =\n    j.characterHash ??\n    j.orderData?.characterHash ??\n    hashFromUrl(j.publicUrl || j.r2Path || j.imageUrl || j.originalImageUrl);\n\n  // If not found, try to retrieve from earlier nodes (Parse Status Response, Merge, or Check Bria Status)\n  if (isBadHash(candidateHash)) {\n    const runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n    \n    // Try Parse Status Response first (most recent before HTTP Request)\n    try {\n      const parseStatusItems = $items('Parse Status Response', 0, runIx);\n      if (parseStatusItems && Array.isArray(parseStatusItems) && parseStatusItems.length > 0) {\n        // Since poseNumber might be null, use array index matching\n        let matchingItem = null;\n        if (idx < parseStatusItems.length) {\n          matchingItem = parseStatusItems[idx];\n        }\n        // Also try to find by poseNumber if it exists\n        if (!matchingItem || !matchingItem.json?.characterHash) {\n          const foundByPose = parseStatusItems.find(item => {\n            const itemPose = item?.json?.poseNumber ?? null;\n            return itemPose !== null && itemPose === poseNumber;\n          });\n          if (foundByPose?.json?.characterHash) {\n            matchingItem = foundByPose;\n          }\n        }\n        if (matchingItem?.json?.characterHash) {\n          candidateHash = matchingItem.json.characterHash;\n          console.log(`✓ Retrieved characterHash from Parse Status Response (item ${idx}): ${candidateHash}`);\n        }\n      }\n    } catch (e) {\n      console.warn(`⚠️ Could not retrieve from Parse Status Response: ${e.message}`);\n    }\n    \n    // Fallback to Merge node (combines original data with status check)\n    if (isBadHash(candidateHash)) {\n      try {\n        const mergeItems = $items('Merge', 0, runIx);\n        if (mergeItems && Array.isArray(mergeItems) && mergeItems.length > 0 && idx < mergeItems.length) {\n          const mergeItem = mergeItems[idx];\n          if (mergeItem?.json?.characterHash) {\n            candidateHash = mergeItem.json.characterHash;\n            console.log(`✓ Retrieved characterHash from Merge (item ${idx}): ${candidateHash}`);\n          }\n        }\n      } catch (e) {\n        console.warn(`⚠️ Could not retrieve from Merge: ${e.message}`);\n      }\n    }\n    \n    // Final fallbacks: Check Bria Status and Parse Submissions (original item data)\n    if (isBadHash(candidateHash)) {\n      try {\n        const checkStatusItems = $items('Check Bria Status', 0, runIx);\n        if (checkStatusItems && Array.isArray(checkStatusItems) && checkStatusItems.length > 0 && idx < checkStatusItems.length) {\n          const checkItem = checkStatusItems[idx];\n          if (checkItem?.json?.characterHash) {\n            candidateHash = checkItem.json.characterHash;\n            console.log(`✓ Retrieved characterHash from Check Bria Status (item ${idx}): ${candidateHash}`);\n          }\n        }\n      } catch (e) {\n        console.warn(`⚠️ Could not retrieve from Check Bria Status: ${e.message}`);\n      }\n    }\n    \n    // Ultimate fallback: Parse Submissions (definitely has characterHash from manifest)\n    if (isBadHash(candidateHash)) {\n      try {\n        const parseSubItems = $items('Parse Submissions', 0, runIx);\n        if (parseSubItems && Array.isArray(parseSubItems) && parseSubItems.length > 0 && idx < parseSubItems.length) {\n          const parseItem = parseSubItems[idx];\n          if (parseItem?.json?.characterHash) {\n            candidateHash = parseItem.json.characterHash;\n            console.log(`✓ Retrieved characterHash from Parse Submissions (item ${idx}): ${candidateHash}`);\n          }\n        }\n      } catch (e) {\n        console.warn(`⚠️ Could not retrieve from Parse Submissions: ${e.message}`);\n      }\n    }\n  }\n\n  const characterHash = isBadHash(candidateHash) ? null : candidateHash;\n  if (!characterHash) {\n    throw new Error(`Missing characterHash for pose ${poseNumber} (item ${idx})`);\n  }\n\n  const { key: binKey, data: binaryData } = getBinary(item);\n  if (!binaryData) {\n    throw new Error(`No binary data for pose ${poseNumber} (item ${idx})`);\n  }\n\n  const paddedPose = String(poseNumber).padStart(2, '0');\n  const fileName = `characters_${characterHash}_pose${paddedPose}_nobg.png`;\n  const r2Path = `${BASE_PREFIX}/${characterHash}/${fileName}`;\n  const publicUrl = `${PUBLIC_BASE}/${r2Path}`;\n\n  console.log(`[Pose ${poseNumber}] ✓ Prepared upload → ${r2Path}`);\n\n  return {\n    json: {\n      ...j,\n      poseNumber,\n      characterHash,\n      fileName,\n      r2Path,\n      publicUrl,\n      processedWithBria: true,\n      processingError: false,\n      downloadedAt: new Date().toISOString(),\n    },\n    binary: {\n      // keep same key so your actual uploader node can see it\n      [binKey]: binaryData,\n    },\n  };\n});\n\nreturn out;\n"
       },
-      "id": "9f7b7731-8427-41d0-a631-4552800823d5",
+      "id": "008f876b-6e8a-40a8-9492-4deca923baab",
       "name": "Prepare for R2 Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1152,
-        272
+        -2688,
+        -208
       ]
     },
     {
@@ -231,13 +231,13 @@
         "fileName": "={{ $json.r2Path }}",
         "additionalFields": {}
       },
-      "id": "cc810fa5-1e2e-4342-9f44-d11739b81e6b",
+      "id": "500199d8-c765-48c0-b3f6-b7103d226ef8",
       "name": "Upload to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -928,
-        480
+        -2464,
+        16
       ],
       "credentials": {
         "s3": {
@@ -248,15 +248,15 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Clean up binary after upload (multi-item)\n * Emits only JSON metadata for Workflow 3 consumption.\n */\nconst items = $input.all();\n\nconst out = items.map((it) => {\n  const j = it.json || {};\n  const poseNumber = j.poseNumber;\n\n  console.log(`[Pose ${poseNumber}] \u2713 Uploaded to R2: ${j.r2Path}`);\n\n  return {\n    json: {\n      poseNumber,\n      characterHash: j.characterHash,\n      fileName: j.fileName,\n      r2Path: j.r2Path,\n      publicUrl: j.publicUrl,\n      briaProcessed: true,\n      briaStatus: j.briaStatus || 'COMPLETED',\n      uploadComplete: true,\n      uploadedAt: new Date().toISOString(),\n      orderData: j.orderData || null,\n      sourcePayload: j.sourcePayload || null,\n    },\n    // No `binary` here on purpose \u2014 this \"cleans\" it.\n  };\n});\n\nreturn out;\n"
+        "jsCode": "/**\n * Clean up binary after upload (multi-item)\n * Emits only JSON metadata for Workflow 3 consumption.\n */\nconst items = $input.all();\n\nconst out = items.map((it) => {\n  const j = it.json || {};\n  const poseNumber = j.poseNumber;\n\n  console.log(`[Pose ${poseNumber}] ✓ Uploaded to R2: ${j.r2Path}`);\n\n  return {\n    json: {\n      poseNumber,\n      characterHash: j.characterHash,\n      fileName: j.fileName,\n      r2Path: j.r2Path,\n      publicUrl: j.publicUrl,\n      briaProcessed: true,\n      briaStatus: j.briaStatus || 'COMPLETED',\n      uploadComplete: true,\n      uploadedAt: new Date().toISOString(),\n      orderData: j.orderData || null,\n      sourcePayload: j.sourcePayload || null,\n    },\n    // No `binary` here on purpose — this \"cleans\" it.\n  };\n});\n\nreturn out;\n"
       },
-      "id": "69e451aa-b526-4d5b-a6e3-6c7e1428a64a",
+      "id": "6252f8a1-2080-404f-89d3-3a723386343f",
       "name": "Clean Binary After Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -432,
-        640
+        -1968,
+        176
       ]
     },
     {
@@ -284,39 +284,39 @@
         },
         "options": {}
       },
-      "id": "e2203c85-932a-4cf3-825a-f5185b6c4aa4",
+      "id": "137c553e-aea0-4b35-aa5f-b31fb9fb06b1",
       "name": "Check Retry Limit",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1392,
-        816
+        -2928,
+        352
       ]
     },
     {
       "parameters": {
         "jsCode": "// Calculate exponential backoff delay\nconst item = $input.first().json;\nconst retryCount = item.retryCount || 0;\n\n// Exponential backoff: 30s, 60s, 120s, 240s, 480s\nconst baseDelay = 30;\nconst delay = baseDelay * Math.pow(2, retryCount);\n\nconsole.log(`Retry ${retryCount + 1}: Waiting ${delay} seconds...`);\n\nreturn [{\n  json: {\n    ...item,\n    retryCount: retryCount + 1,\n    delaySeconds: delay\n  }\n}];"
       },
-      "id": "bf4f2065-d31d-4b7f-85fc-729633e17664",
+      "id": "9268b378-f8b9-4fe6-bd66-b1129afe0f40",
       "name": "Calculate Retry Delay",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1184,
-        704
+        -2720,
+        240
       ]
     },
     {
       "parameters": {
         "amount": "={{ $json.delaySeconds }}"
       },
-      "id": "f821d6f0-3f6b-41f9-83a0-1f52ce4d4848",
+      "id": "75c640b9-2349-423d-9edc-df167b73b02b",
       "name": "Wait Before Retry",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        -992,
-        704
+        -2528,
+        240
       ],
       "webhookId": "retry-wait-webhook"
     },
@@ -329,37 +329,37 @@
         "jsonBody": "={{ JSON.stringify({ submissions: [$json], orderData: $json.orderData }) }}",
         "options": {}
       },
-      "id": "5ae429cd-c2c4-4e9c-b11f-80c8f001a07e",
+      "id": "6ab2b31e-cf49-48ab-bef3-8ccc28c48044",
       "name": "Retry Workflow B",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -816,
-        704
+        -2352,
+        240
       ]
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Max retries exceeded - mark as failed but include in manifest\n */\nconst item = $input.first().json;\nconst poseNumber = item.poseNumber;\n\nconsole.error(`[Pose ${poseNumber}] \u274c Max retries (${item.maxRetries}) exceeded`);\n\nreturn [{\n  json: {\n    poseNumber: poseNumber,\n    characterHash: item.characterHash,\n    orderId: item.orderId,\n    manifest: item.manifest,  // Keep manifest reference\n    briaProcessed: false,\n    briaStatus: 'MAX_RETRIES_EXCEEDED',\n    processingError: true,\n    error: `Maximum retry attempts (${item.maxRetries}) exceeded`,\n    uploadComplete: false,  // Mark as not uploaded\n    needsReview: true\n  }\n}];\n"
+        "jsCode": "/**\n * Max retries exceeded - mark as failed but include in manifest\n */\nconst item = $input.first().json;\nconst poseNumber = item.poseNumber;\n\nconsole.error(`[Pose ${poseNumber}] ❌ Max retries (${item.maxRetries}) exceeded`);\n\nreturn [{\n  json: {\n    poseNumber: poseNumber,\n    characterHash: item.characterHash,\n    orderId: item.orderId,\n    manifest: item.manifest,  // Keep manifest reference\n    briaProcessed: false,\n    briaStatus: 'MAX_RETRIES_EXCEEDED',\n    processingError: true,\n    error: `Maximum retry attempts (${item.maxRetries}) exceeded`,\n    uploadComplete: false,  // Mark as not uploaded\n    needsReview: true\n  }\n}];\n"
       },
-      "id": "ddfdb1ce-5d17-4f2f-88d0-89c7ba81677b",
+      "id": "db7200fb-1dbd-4b23-81cc-382740bdfb0e",
       "name": "Max Retries Exceeded",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -432,
-        832
+        -1968,
+        368
       ]
     },
     {
       "parameters": {},
-      "id": "2360fbf7-7454-45bf-b766-e0f297e74780",
+      "id": "e9b781e0-be06-4804-9802-3ebc4611b9e0",
       "name": "Merge All Results",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        -128,
-        768
+        -1664,
+        304
       ]
     },
     {
@@ -384,25 +384,27 @@
         "jsonBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
-      "id": "4fb88517-2c55-4650-9f26-f50dfd4b6494",
+      "id": "1cf59016-a9ff-41da-9fe1-1b0eb2dc538f",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        928,
-        288
+        -496,
+        -16
       ],
       "notes": "Calls backend webhook with 2B results"
     },
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
+      "parameters": {
+        "jsCode": "/**\n * Merge - Preserve original item metadata from Has statusUrl? before HTTP Request overwrote it\n * HTTP Request nodes overwrite input JSON with response JSON, losing poseNumber, characterHash, etc.\n * This node retrieves original items from Has statusUrl? and merges them with Bria API responses\n */\nconst briaResponses = $input.all();\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// Retrieve original items from Has statusUrl? (before Check Bria Status overwrote them)\nlet originalItems = [];\ntry {\n  const hasStatusItems = $items('Has statusUrl?', 0, runIx); // TRUE output (index 0)\n  if (hasStatusItems && Array.isArray(hasStatusItems) && hasStatusItems.length > 0) {\n    originalItems = hasStatusItems.map(item => item.json || {});\n    console.log(`✓ Retrieved ${originalItems.length} original item(s) from Has statusUrl?`);\n  }\n} catch (e) {\n  console.warn(`⚠️ Could not retrieve items from Has statusUrl?: ${e.message}`);\n}\n\n// If we couldn't retrieve original items, try to extract metadata from Bria response\n// (Bria responses might have some metadata in meta fields)\nif (originalItems.length === 0 && briaResponses.length > 0) {\n  console.warn(`⚠️ No original items found, trying to extract from Bria responses`);\n  // Try to get poseNumber from Bria response meta if available\n  originalItems = briaResponses.map((item, idx) => {\n    const briaJson = item.json || {};\n    return {\n      poseNumber: briaJson.meta?.pose || (idx + 1), // Fallback to index + 1\n      characterHash: briaJson.meta?.characterHash || null,\n      statusUrl: briaJson.statusUrl || null,\n      requestId: briaJson.request_id || briaJson.requestId || null\n    };\n  });\n}\n\n// Merge original metadata with Bria responses by position\n// Items should be in the same order (poseNumber should match)\nreturn briaResponses.map((briaItem, idx) => {\n  const briaJson = briaItem.json || {};\n  const originalItem = originalItems[idx] || {};\n  \n  // Extract poseNumber from original item or Bria response meta\n  const poseNumber = originalItem.poseNumber || briaJson.meta?.pose || (idx + 1);\n  \n  // Try to match by poseNumber if available (more reliable than position)\n  let matchedOriginal = originalItem;\n  if (originalItems.length > 0 && poseNumber) {\n    const matched = originalItems.find(item => item.poseNumber === poseNumber);\n    if (matched) {\n      matchedOriginal = matched;\n      console.log(`✓ Matched pose ${poseNumber} by poseNumber`);\n    } else if (originalItems[idx]) {\n      matchedOriginal = originalItems[idx];\n      console.log(`✓ Matched pose ${poseNumber} by position (index ${idx})`);\n    }\n  }\n  \n  // Merge: original metadata + Bria response\n  return {\n    json: {\n      // Original metadata (preserved from before HTTP Request)\n      poseNumber: matchedOriginal.poseNumber || poseNumber,\n      characterHash: matchedOriginal.characterHash || briaJson.meta?.characterHash || null,\n      originalImageUrl: matchedOriginal.originalImageUrl || null,\n      orderId: matchedOriginal.orderId || matchedOriginal.amazonOrderId || null,\n      amazonOrderId: matchedOriginal.amazonOrderId || matchedOriginal.orderId || null,\n      manifestUrl: matchedOriginal.manifestUrl || matchedOriginal.originalManifestUrl || null,\n      webhookUrl: matchedOriginal.webhookUrl || null,\n      isFirstPass: matchedOriginal.isFirstPass !== undefined ? matchedOriginal.isFirstPass : false,\n      // Bria status/request IDs (preserve both original and from response)\n      statusUrl: matchedOriginal.statusUrl || matchedOriginal.status_url || null,\n      status_url: matchedOriginal.status_url || matchedOriginal.statusUrl || null,\n      requestId: matchedOriginal.requestId || matchedOriginal.request_id || briaJson.request_id || null,\n      request_id: matchedOriginal.request_id || matchedOriginal.requestId || briaJson.request_id || null,\n      // Bria API response (merge with original)\n      ...briaJson,  // Bria response fields (status, result, etc.)\n      // Ensure poseNumber is at top level for next nodes\n      poseNumber: matchedOriginal.poseNumber || briaJson.meta?.pose || poseNumber,\n      characterHash: matchedOriginal.characterHash || briaJson.meta?.characterHash || null\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        -256,
-        32
+        -1792,
+        -448
       ],
-      "id": "454c2cf2-7403-463d-a32b-a6434ed84fab",
+      "id": "b3555d9f-090f-451e-bea7-094566e7c476",
       "name": "Merge"
     },
     {
@@ -414,10 +416,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -688,
-        288
+        -2224,
+        -192
       ],
-      "id": "cd900e2e-87b1-420c-bee0-b4e196dd39e9",
+      "id": "efbb2c29-87b0-4a3a-8ce7-a97928c97e71",
       "name": "Merge1"
     },
     {
@@ -442,39 +444,39 @@
         "jsonBody": "={{$json.briaPayload}}",
         "options": {}
       },
-      "id": "a518a7b8-674d-46b0-8c7d-b8f87aff2a9d",
+      "id": "bc86b8b5-3c5a-46d1-972b-7f46feb82693",
       "name": "Submit to Bria AI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -80,
-        -224
+        -1616,
+        -704
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Store Submission Result - Extract from Bria response + preserve ALL metadata\n// RESTORES manifest from upstream nodes (HTTP Request nodes don't preserve input data)\n// FIX: Process ALL items (not just first) - each pose needs its own output\n// FIX: Preserves isFirstPass flag and sets to false after first submission\n\n// --- Constants\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\n// Safely access env var with fallback\nlet DEFAULT_R2 = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\ntry {\n  if (typeof $env !== 'undefined' && $env.R2_PUBLIC_URL) {\n    DEFAULT_R2 = $env.R2_PUBLIC_URL;\n  }\n} catch (e) {\n  // Env vars not accessible, use default\n}\n\n// --- Process ALL input items (from Drop Heavy Fields, which may have lost manifest due to HTTP Request)\nconst allInputItems = $input.all();\n\nif (allInputItems.length === 0) {\n  throw new Error('No input items received');\n}\n\nconsole.log(`\ud83d\udce6 Processing ${allInputItems.length} submission result(s)`);\n\n// Get manifest from first item (all items should have the same manifest)\nconst firstInput = allInputItems[0].json || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// --- RESTORE manifest from upstream nodes (HTTP Request strips input data)\n// Try to get manifest from nodes BEFORE the HTTP Request\nfunction getItemFromNode(nodeName) {\n  try {\n    const arr = $items(nodeName, 0, runIx);\n    return arr?.[itemIx] || arr?.[0] || null;\n  } catch (e) {\n    return null;\n  }\n}\n\n// Try upstream nodes in order of preference\nconst upstreamNodes = [\n  'Build Bria Payload',  // Most recent before HTTP Request\n  'Parse Submissions'   // Original source\n];\n\n// Get manifest from first item (all items should have the same manifest)\nlet manifest = firstInput.manifest || null;\nlet restoredManifest = false;\n\nif (!manifest || !manifest.schema) {\n  for (const nodeName of upstreamNodes) {\n    try {\n      const arr = $items(nodeName, 0, runIx);\n      const upstreamItem = arr?.[0] || null;\n      if (upstreamItem?.json?.manifest && upstreamItem.json.manifest.schema) {\n        manifest = upstreamItem.json.manifest;\n        restoredManifest = true;\n        console.log(`\u2713 Restored manifest from: ${nodeName}`);\n        break;\n      }\n    } catch (e) {\n      // Continue to next node\n    }\n  }\n}\n\n// Get order info from manifest (if available)\nconst orderInfo = manifest?.order || {};\nconst characterSpecs = orderInfo.characterSpecs || {};\nconst characterHashSpec = {}; // Not typically in manifest\nconst bookSpecs = orderInfo.bookSpecs || {};\nconst orderDetails = orderInfo.orderDetails || {};\nconst publicR2Url = orderInfo.publicR2Url || firstInput.publicR2Url || DEFAULT_R2;\nconst templatePath = 'templates'; // Default\n\nif (!manifest) {\n  console.error('\u274c CRITICAL: Manifest is still missing after restoration attempt!');\n  console.error('   This will break manifest upload and retry loop.');\n}\n\n// Process each input item separately\nreturn allInputItems.map((item, itemIndex) => {\n  const input = item.json || {};\n  \n  // Also restore other critical fields from upstream\n  let upstreamData = {};\n  try {\n    const arr = $items('Build Bria Payload', 0, runIx);\n    const buildPayloadItem = arr?.[itemIndex] || arr?.[0] || null;\n    upstreamData = buildPayloadItem?.json || {};\n  } catch (e) {\n    // Use empty object\n  }\n  \n  // --- Extract Bria response IDs (from Submit to Bria AI response)\n  const requestId = input.request_id ?? input.requestId ?? null;\n  const statusUrl = input.status_url ?? input.statusUrl ?? null;\n  const failed = !(requestId && statusUrl);\n  \n  // --- Get ALL metadata from input OR restored upstream data\n  const poseNumber = input.poseNumber || upstreamData.poseNumber || 1;\n  const characterHash = input.characterHash || upstreamData.characterHash || manifest?.characterHash || null;\n  let orderId = input.orderId || upstreamData.orderId || manifest?.order?.orderId || null;\n  const originalImageUrl = input.originalImageUrl || upstreamData.originalImageUrl || null;\n  const webhookUrl = input.webhookUrl || upstreamData.webhookUrl || null;\n  const manifestUrl = input.manifestUrl || upstreamData.manifestUrl || null;\n  \n  // --- Preserve isFirstPass flag (set to false after first submission)\n  // After first submission, items should route based on statusUrl in retry loop\n  const isFirstPass = input.isFirstPass === true ? false : (input.isFirstPass !== undefined ? input.isFirstPass : false);\n  \n  // --- Get order info from manifest (if available)\n  let amazonOrderId = orderInfo.amazonOrderId || input.amazonOrderId || upstreamData.amazonOrderId || null;\n  \n  // Normalize: If orderId is null but amazonOrderId exists, use amazonOrderId as orderId\n  if ((!orderId || orderId === null || orderId === '') && amazonOrderId && amazonOrderId !== null && amazonOrderId !== '') {\n    orderId = amazonOrderId;\n    console.log(`\u2713 Normalized orderId from amazonOrderId: ${orderId}`);\n  }\n  // Also ensure amazonOrderId is set if we have orderId\n  if ((!amazonOrderId || amazonOrderId === null || amazonOrderId === '') && orderId && orderId !== null && orderId !== '') {\n    amazonOrderId = orderId;\n  }\n  \n  // --- Build character path from originalImageUrl or hash\n  let characterPath = originalImageUrl || null;\n  if (!characterPath && characterHash) {\n    characterPath = `${BASE_PREFIX}/${characterHash}/`;\n    console.log(`Backfilled characterPath=${characterPath}`);\n  }\n  \n  // --- Update manifest entry in memory with Bria status (for retry detection)\n  if (manifest && manifest.entries && Array.isArray(manifest.entries)) {\n    const entry = manifest.entries.find(e => e.poseNumber === poseNumber);\n    if (entry) {\n      // Update entry with Bria submission info (even if not completed yet)\n      entry.briaRequestId = requestId || entry.briaRequestId || null;\n      entry.briaStatusUrl = statusUrl || entry.briaStatusUrl || null;\n      console.log(`\u2713 Updated manifest entry ${poseNumber} with briaRequestId=${requestId ? requestId.substring(0,8) : 'null'}..., briaStatusUrl=${statusUrl ? 'present' : 'null'}`);\n    } else {\n      console.warn(`\u26a0\ufe0f Manifest entry not found for pose ${poseNumber}`);\n    }\n  }\n  \n  // --- Logs\n  console.log(`Stored: pose=${poseNumber}, requestId=${requestId ? requestId.substring(0,8) : 'null'}..., failed=${failed}`);\n  console.log(`[LOCAL] characterHash=${characterHash || 'null'} path=${characterPath || 'null'} orderId=${amazonOrderId || 'null'}`);\n  console.log(`[CONTEXT] isFirstPass=${isFirstPass} (will be false for retry loop)`);\n  \n  // --- Output (preserve ALL fields for next nodes, including UPDATED manifest)\n  return {\n    json: {\n      requestId,\n      statusUrl,\n      status_url: statusUrl,  // Also include snake_case for compatibility\n      request_id: requestId,  // Also include snake_case for compatibility\n      poseNumber,\n      characterHash,\n      characterPath,\n      originalImageUrl,\n      amazonOrderId,\n      orderId,\n      characterSpecs,\n      characterHashSpec,\n      bookSpecs,\n      orderDetails,\n      publicR2Url,\n      templatePath,\n      manifest,  // CRITICAL: Preserve manifest for later nodes (now restored from upstream)\n      manifestUrl: manifestUrl || input.manifestUrl || null,  // Preserve manifestUrl for retry scenarios\n      webhookUrl,  // Preserve webhook URL\n      isFirstPass,  // Set to false after first submission (for retry loop detection)\n      failed,\n      submittedAt: new Date().toISOString(),\n    }\n  };\n});\n"
+        "jsCode": "// Store Submission Result - Extract from Bria response + preserve ALL metadata\n// RESTORES manifest from upstream nodes (HTTP Request nodes don't preserve input data)\n// FIX: Process ALL items (not just first) - each pose needs its own output\n// FIX: Preserves isFirstPass flag and sets to false after first submission\n\n// --- Constants\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\n// Safely access env var with fallback\nlet DEFAULT_R2 = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\ntry {\n  if (typeof $env !== 'undefined' && $env.R2_PUBLIC_URL) {\n    DEFAULT_R2 = $env.R2_PUBLIC_URL;\n  }\n} catch (e) {\n  // Env vars not accessible, use default\n}\n\n// --- Process ALL input items (from Drop Heavy Fields, which may have lost manifest due to HTTP Request)\nconst allInputItems = $input.all();\n\nif (allInputItems.length === 0) {\n  throw new Error('No input items received');\n}\n\nconsole.log(`📦 Processing ${allInputItems.length} submission result(s)`);\n\n// Get manifest from first item (all items should have the same manifest)\nconst firstInput = allInputItems[0].json || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// --- RESTORE manifest from upstream nodes (HTTP Request strips input data)\n// Try to get manifest from nodes BEFORE the HTTP Request\nfunction getItemFromNode(nodeName) {\n  try {\n    const arr = $items(nodeName, 0, runIx);\n    return arr?.[itemIx] || arr?.[0] || null;\n  } catch (e) {\n    return null;\n  }\n}\n\n// Try upstream nodes in order of preference\nconst upstreamNodes = [\n  'Build Bria Payload',  // Most recent before HTTP Request\n  'Parse Submissions'   // Original source\n];\n\n// Get manifest from first item (all items should have the same manifest)\nlet manifest = firstInput.manifest || null;\nlet restoredManifest = false;\n\nif (!manifest || !manifest.schema) {\n  for (const nodeName of upstreamNodes) {\n    try {\n      const arr = $items(nodeName, 0, runIx);\n      const upstreamItem = arr?.[0] || null;\n      if (upstreamItem?.json?.manifest && upstreamItem.json.manifest.schema) {\n        manifest = upstreamItem.json.manifest;\n        restoredManifest = true;\n        console.log(`✓ Restored manifest from: ${nodeName}`);\n        break;\n      }\n    } catch (e) {\n      // Continue to next node\n    }\n  }\n}\n\n// Get order info from manifest (if available)\nconst orderInfo = manifest?.order || {};\nconst characterSpecs = orderInfo.characterSpecs || {};\nconst characterHashSpec = {}; // Not typically in manifest\nconst bookSpecs = orderInfo.bookSpecs || {};\nconst orderDetails = orderInfo.orderDetails || {};\nconst publicR2Url = orderInfo.publicR2Url || firstInput.publicR2Url || DEFAULT_R2;\nconst templatePath = 'templates'; // Default\n\nif (!manifest) {\n  console.error('❌ CRITICAL: Manifest is still missing after restoration attempt!');\n  console.error('   This will break manifest upload and retry loop.');\n}\n\n// Process each input item separately\nreturn allInputItems.map((item, itemIndex) => {\n  const input = item.json || {};\n  \n  // Also restore other critical fields from upstream\n  let upstreamData = {};\n  try {\n    const arr = $items('Build Bria Payload', 0, runIx);\n    const buildPayloadItem = arr?.[itemIndex] || arr?.[0] || null;\n    upstreamData = buildPayloadItem?.json || {};\n  } catch (e) {\n    // Use empty object\n  }\n  \n  // --- Extract Bria response IDs (from Submit to Bria AI response)\n  const requestId = input.request_id ?? input.requestId ?? null;\n  const statusUrl = input.status_url ?? input.statusUrl ?? null;\n  const failed = !(requestId && statusUrl);\n  \n  // --- Get ALL metadata from input OR restored upstream data\n  const poseNumber = input.poseNumber || upstreamData.poseNumber || 1;\n  const characterHash = input.characterHash || upstreamData.characterHash || manifest?.characterHash || null;\n  let orderId = input.orderId || upstreamData.orderId || manifest?.order?.orderId || null;\n  const originalImageUrl = input.originalImageUrl || upstreamData.originalImageUrl || null;\n  const webhookUrl = input.webhookUrl || upstreamData.webhookUrl || null;\n  const manifestUrl = input.manifestUrl || upstreamData.manifestUrl || null;\n  \n  // --- Preserve isFirstPass flag (set to false after first submission)\n  // After first submission, items should route based on statusUrl in retry loop\n  const isFirstPass = input.isFirstPass === true ? false : (input.isFirstPass !== undefined ? input.isFirstPass : false);\n  \n  // --- Get order info from manifest (if available)\n  let amazonOrderId = orderInfo.amazonOrderId || input.amazonOrderId || upstreamData.amazonOrderId || null;\n  \n  // Normalize: If orderId is null but amazonOrderId exists, use amazonOrderId as orderId\n  if ((!orderId || orderId === null || orderId === '') && amazonOrderId && amazonOrderId !== null && amazonOrderId !== '') {\n    orderId = amazonOrderId;\n    console.log(`✓ Normalized orderId from amazonOrderId: ${orderId}`);\n  }\n  // Also ensure amazonOrderId is set if we have orderId\n  if ((!amazonOrderId || amazonOrderId === null || amazonOrderId === '') && orderId && orderId !== null && orderId !== '') {\n    amazonOrderId = orderId;\n  }\n  \n  // --- Build character path from originalImageUrl or hash\n  let characterPath = originalImageUrl || null;\n  if (!characterPath && characterHash) {\n    characterPath = `${BASE_PREFIX}/${characterHash}/`;\n    console.log(`Backfilled characterPath=${characterPath}`);\n  }\n  \n  // --- Update manifest entry in memory with Bria status (for retry detection)\n  if (manifest && manifest.entries && Array.isArray(manifest.entries)) {\n    const entry = manifest.entries.find(e => e.poseNumber === poseNumber);\n    if (entry) {\n      // Update entry with Bria submission info (even if not completed yet)\n      entry.briaRequestId = requestId || entry.briaRequestId || null;\n      entry.briaStatusUrl = statusUrl || entry.briaStatusUrl || null;\n      console.log(`✓ Updated manifest entry ${poseNumber} with briaRequestId=${requestId ? requestId.substring(0,8) : 'null'}..., briaStatusUrl=${statusUrl ? 'present' : 'null'}`);\n    } else {\n      console.warn(`⚠️ Manifest entry not found for pose ${poseNumber}`);\n    }\n  }\n  \n  // --- Logs\n  console.log(`Stored: pose=${poseNumber}, requestId=${requestId ? requestId.substring(0,8) : 'null'}..., failed=${failed}`);\n  console.log(`[LOCAL] characterHash=${characterHash || 'null'} path=${characterPath || 'null'} orderId=${amazonOrderId || 'null'}`);\n  console.log(`[CONTEXT] isFirstPass=${isFirstPass} (will be false for retry loop)`);\n  \n  // --- Output (preserve ALL fields for next nodes, including UPDATED manifest)\n  return {\n    json: {\n      requestId,\n      statusUrl,\n      status_url: statusUrl,  // Also include snake_case for compatibility\n      request_id: requestId,  // Also include snake_case for compatibility\n      poseNumber,\n      characterHash,\n      characterPath,\n      originalImageUrl,\n      amazonOrderId,\n      orderId,\n      characterSpecs,\n      characterHashSpec,\n      bookSpecs,\n      orderDetails,\n      publicR2Url,\n      templatePath,\n      manifest,  // CRITICAL: Preserve manifest for later nodes (now restored from upstream)\n      manifestUrl: manifestUrl || input.manifestUrl || null,  // Preserve manifestUrl for retry scenarios\n      webhookUrl,  // Preserve webhook URL\n      isFirstPass,  // Set to false after first submission (for retry loop detection)\n      failed,\n      submittedAt: new Date().toISOString(),\n    }\n  };\n});\n"
       },
-      "id": "fa45084a-ebca-4b2c-9565-c6c30d8ade2e",
+      "id": "894df62d-7e51-4df2-a797-67167e6e5aaf",
       "name": "Store Submission Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        352,
-        -224
+        -1184,
+        -704
       ]
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Prep Incremental Manifest Upload - Prepare updated manifest for R2 upload\n * Updates the 2A manifest with Bria status info so retry loop can find it\n * FIX: Process ALL items (one per pose), update manifest with all Bria statuses, return all items\n */\nconst allInputItems = $input.all();\n\nif (allInputItems.length === 0) {\n  throw new Error('No input items received');\n}\n\nconsole.log(`\ud83d\udce4 Preparing manifest upload for ${allInputItems.length} pose(s)`);\n\n// Get manifest from first item (all items should have the same manifest)\nconst firstItem = allInputItems[0];\nconst firstInput = firstItem?.json || {};\n\n// Try multiple ways to get manifest (from input, from binary, or from preserved fields)\nlet manifest = firstInput.manifest || firstInput.body?.manifest || null;\n\n// If still missing, try to get from all items\nif (!manifest) {\n  for (const item of allInputItems) {\n    if (item.json?.manifest) {\n      manifest = item.json.manifest;\n      break;\n    }\n  }\n}\n\n// If STILL missing, try to get from previous node's output by looking at input structure\nif (!manifest) {\n  // Sometimes n8n wraps data differently - check all possible locations\n  if (firstItem?.json?.manifest) manifest = firstItem.json.manifest;\n  if (!manifest && firstItem?.json?.body?.manifest) manifest = firstItem.json.body.manifest;\n  if (!manifest && firstItem?.json?.data?.manifest) manifest = firstItem.json.data.manifest;\n}\n\n// Update manifest with Bria status from ALL items (aggregate all pose statuses)\nif (manifest && manifest.entries && Array.isArray(manifest.entries)) {\n  let updatedCount = 0;\n  for (const item of allInputItems) {\n    const itemJson = item.json || {};\n    const poseNumber = itemJson.poseNumber || null;\n    const requestId = itemJson.requestId || itemJson.request_id || null;\n    const statusUrl = itemJson.statusUrl || itemJson.status_url || null;\n    \n    if (poseNumber && (requestId || statusUrl)) {\n      const entry = manifest.entries.find(e => e.poseNumber === poseNumber);\n      if (entry) {\n        entry.briaRequestId = requestId || entry.briaRequestId || null;\n        entry.briaStatusUrl = statusUrl || entry.briaStatusUrl || null;\n        updatedCount++;\n        console.log(`\u2713 Updated manifest entry ${poseNumber} with Bria status`);\n      }\n    }\n  }\n  console.log(`\ud83d\udcca Updated ${updatedCount} manifest entry/entries with Bria status`);\n}\n\n// Get manifestUrl and orderId from first item (should be same for all items)\nconst manifestUrl = firstInput.manifestUrl || firstInput.originalManifestUrl || null;\n\n// CRITICAL: Check manifest FIRST, before checking orderId\n// If manifest is missing, we can't upload it, but we can still continue gracefully\nif (!manifest) {\n  console.warn('\u26a0\ufe0f WARNING: Manifest missing from input - cannot upload updated manifest');\n  console.warn('   This might happen if the manifest is too large or was stripped by n8n');\n  console.warn('   The retry loop will download the manifest from R2 instead');\n  \n  // Return all items without binary data - just pass through\n  const orderId = firstInput.orderId || null;\n  return allInputItems.map(item => {\n    const itemJson = item.json || {};\n    return {\n      json: {\n        ...itemJson,\n        manifestUploadSkipped: true,\n        manifestUploadSkippedReason: 'Manifest not found in input',\n        manifestKey: orderId ? `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json` : null,\n        manifestBucket: 'little-hero-orders',\n        originalManifestUrl: itemJson.manifestUrl || itemJson.originalManifestUrl || manifestUrl\n      }\n    };\n  });\n}\n\n// If we have manifest, we need orderId to construct the path\n// Try multiple ways to extract orderId\nlet orderId = firstInput.orderId || firstInput.amazonOrderId || null;\n\n// Try from manifest order object\nif (!orderId && manifest?.order) {\n  orderId = manifest.order.orderId || manifest.order.amazonOrderId || null;\n}\n\n// Try to extract from manifestUrl if it contains order path\nif (!orderId && manifestUrl) {\n  const urlMatch = manifestUrl.match(new RegExp('/orders/([^/]+)/'));\n  if (urlMatch) {\n    orderId = urlMatch[1];\n    console.log(`\u2713 Extracted orderId from manifestUrl: ${orderId}`);\n  }\n}\n\nif (!orderId) {\n  // Provide detailed error message for debugging\n  const manifestKeys = manifest ? Object.keys(manifest).join(', ') : 'no manifest';\n  const orderKeys = manifest?.order ? Object.keys(manifest.order).join(', ') : 'no order object';\n  const inputKeys = Object.keys(firstInput).join(', ');\n  console.error('\u274c OrderId extraction failed:');\n  console.error(`   Input keys: ${inputKeys}`);\n  console.error(`   Manifest keys: ${manifestKeys}`);\n  console.error(`   Manifest.order keys: ${orderKeys}`);\n  console.error(`   manifestUrl: ${manifestUrl || 'null'}`);\n  throw new Error(`OrderId missing - cannot construct manifest path. Tried: input.orderId, input.amazonOrderId, manifest.order.orderId, manifest.order.amazonOrderId, and manifestUrl parsing. None found.`);\n}\n\n// Construct R2 key - update the 2A manifest in place\n// Path format: book-mvp-simple-adventure/orders/{orderId}/manifests/2a-manifest.json\nconst manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`;\n\nconsole.log(`\ud83d\udce4 Preparing to upload updated manifest to: ${manifestKey}`);\n\n// Convert manifest to buffer for upload\nconst manifestJSON = JSON.stringify(manifest, null, 2);\nconst buffer = Buffer.from(manifestJSON, 'utf-8');\n\n// CRITICAL: Store all items' essential data in metadata for restoration after S3 upload\n// S3 node only processes items with binary data, so we only send the first item\n// But we need to preserve all 12 items for the retry loop\nconst allItemsMetadata = allInputItems.map((item, index) => {\n  const itemJson = item.json || {};\n  return {\n    poseNumber: itemJson.poseNumber || null,\n    characterHash: itemJson.characterHash || null,\n    orderId: itemJson.orderId || itemJson.amazonOrderId || orderId,\n    amazonOrderId: itemJson.amazonOrderId || itemJson.orderId || orderId,\n    statusUrl: itemJson.statusUrl || itemJson.status_url || null,\n    requestId: itemJson.requestId || itemJson.request_id || null,\n    status_url: itemJson.status_url || itemJson.statusUrl || null,\n    request_id: itemJson.request_id || itemJson.requestId || null,\n    manifestUrl: itemJson.manifestUrl || itemJson.originalManifestUrl || manifestUrl,\n    originalManifestUrl: itemJson.originalManifestUrl || manifestUrl,\n    webhookUrl: itemJson.webhookUrl || null,\n    isFirstPass: itemJson.isFirstPass !== undefined ? itemJson.isFirstPass : false,\n    manifestUploaded: false,  // Will be set to true after upload\n    manifestUploadedAt: null  // Will be set after upload\n  };\n});\n\n// Return ONLY the first item with binary data (S3 node requirement)\n// Include metadata for all items so Restore JSON After Upload can reconstruct them\nconst firstItemJson = allInputItems[0].json || {};\nreturn [{\n  json: {\n    ...firstItemJson,\n    manifestKey: manifestKey,\n    manifestBucket: 'little-hero-orders',\n    orderId: firstItemJson.orderId || firstItemJson.amazonOrderId || orderId,\n    amazonOrderId: firstItemJson.amazonOrderId || firstItemJson.orderId || orderId,\n    manifestUrl: firstItemJson.manifestUrl || firstItemJson.originalManifestUrl || manifestUrl,\n    originalManifestUrl: firstItemJson.originalManifestUrl || manifestUrl,\n    // CRITICAL: Store all items' metadata for restoration\n    _allItemsMetadata: allItemsMetadata,\n    _totalItemsCount: allInputItems.length\n  },\n  binary: {\n    data: {\n      data: buffer.toString('base64'),\n      mimeType: 'application/json',\n      fileName: '2a-manifest.json',\n      fileExtension: 'json'\n    }\n  }\n}];\n"
+        "jsCode": "/**\n * Prep Incremental Manifest Upload - Prepare updated manifest for R2 upload\n * Updates the 2A manifest with Bria status info so retry loop can find it\n * FIX: Process ALL items (one per pose), update manifest with all Bria statuses, return all items\n */\nconst allInputItems = $input.all();\n\nif (allInputItems.length === 0) {\n  throw new Error('No input items received');\n}\n\nconsole.log(`📤 Preparing manifest upload for ${allInputItems.length} pose(s)`);\n\n// Get manifest from first item (all items should have the same manifest)\nconst firstItem = allInputItems[0];\nconst firstInput = firstItem?.json || {};\n\n// Try multiple ways to get manifest (from input, from binary, or from preserved fields)\nlet manifest = firstInput.manifest || firstInput.body?.manifest || null;\n\n// If still missing, try to get from all items\nif (!manifest) {\n  for (const item of allInputItems) {\n    if (item.json?.manifest) {\n      manifest = item.json.manifest;\n      break;\n    }\n  }\n}\n\n// If STILL missing, try to get from previous node's output by looking at input structure\nif (!manifest) {\n  // Sometimes n8n wraps data differently - check all possible locations\n  if (firstItem?.json?.manifest) manifest = firstItem.json.manifest;\n  if (!manifest && firstItem?.json?.body?.manifest) manifest = firstItem.json.body.manifest;\n  if (!manifest && firstItem?.json?.data?.manifest) manifest = firstItem.json.data.manifest;\n}\n\n// Update manifest with Bria status from ALL items (aggregate all pose statuses)\nif (manifest && manifest.entries && Array.isArray(manifest.entries)) {\n  let updatedCount = 0;\n  for (const item of allInputItems) {\n    const itemJson = item.json || {};\n    const poseNumber = itemJson.poseNumber || null;\n    const requestId = itemJson.requestId || itemJson.request_id || null;\n    const statusUrl = itemJson.statusUrl || itemJson.status_url || null;\n    \n    if (poseNumber && (requestId || statusUrl)) {\n      const entry = manifest.entries.find(e => e.poseNumber === poseNumber);\n      if (entry) {\n        entry.briaRequestId = requestId || entry.briaRequestId || null;\n        entry.briaStatusUrl = statusUrl || entry.briaStatusUrl || null;\n        updatedCount++;\n        console.log(`✓ Updated manifest entry ${poseNumber} with Bria status`);\n      }\n    }\n  }\n  console.log(`📊 Updated ${updatedCount} manifest entry/entries with Bria status`);\n}\n\n// Get manifestUrl and orderId from first item (should be same for all items)\nconst manifestUrl = firstInput.manifestUrl || firstInput.originalManifestUrl || null;\n\n// CRITICAL: Check manifest FIRST, before checking orderId\n// If manifest is missing, we can't upload it, but we can still continue gracefully\nif (!manifest) {\n  console.warn('⚠️ WARNING: Manifest missing from input - cannot upload updated manifest');\n  console.warn('   This might happen if the manifest is too large or was stripped by n8n');\n  console.warn('   The retry loop will download the manifest from R2 instead');\n  \n  // Return all items without binary data - just pass through\n  const orderId = firstInput.orderId || null;\n  return allInputItems.map(item => {\n    const itemJson = item.json || {};\n    return {\n      json: {\n        ...itemJson,\n        manifestUploadSkipped: true,\n        manifestUploadSkippedReason: 'Manifest not found in input',\n        manifestKey: orderId ? `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json` : null,\n        manifestBucket: 'little-hero-orders',\n        originalManifestUrl: itemJson.manifestUrl || itemJson.originalManifestUrl || manifestUrl\n      }\n    };\n  });\n}\n\n// If we have manifest, we need orderId to construct the path\n// Try multiple ways to extract orderId\nlet orderId = firstInput.orderId || firstInput.amazonOrderId || null;\n\n// Try from manifest order object\nif (!orderId && manifest?.order) {\n  orderId = manifest.order.orderId || manifest.order.amazonOrderId || null;\n}\n\n// Try to extract from manifestUrl if it contains order path\nif (!orderId && manifestUrl) {\n  const urlMatch = manifestUrl.match(new RegExp('/orders/([^/]+)/'));\n  if (urlMatch) {\n    orderId = urlMatch[1];\n    console.log(`✓ Extracted orderId from manifestUrl: ${orderId}`);\n  }\n}\n\nif (!orderId) {\n  // Provide detailed error message for debugging\n  const manifestKeys = manifest ? Object.keys(manifest).join(', ') : 'no manifest';\n  const orderKeys = manifest?.order ? Object.keys(manifest.order).join(', ') : 'no order object';\n  const inputKeys = Object.keys(firstInput).join(', ');\n  console.error('❌ OrderId extraction failed:');\n  console.error(`   Input keys: ${inputKeys}`);\n  console.error(`   Manifest keys: ${manifestKeys}`);\n  console.error(`   Manifest.order keys: ${orderKeys}`);\n  console.error(`   manifestUrl: ${manifestUrl || 'null'}`);\n  throw new Error(`OrderId missing - cannot construct manifest path. Tried: input.orderId, input.amazonOrderId, manifest.order.orderId, manifest.order.amazonOrderId, and manifestUrl parsing. None found.`);\n}\n\n// Construct R2 key - update the 2A manifest in place\n// Path format: book-mvp-simple-adventure/orders/{orderId}/manifests/2a-manifest.json\nconst manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`;\n\nconsole.log(`📤 Preparing to upload updated manifest to: ${manifestKey}`);\n\n// Convert manifest to buffer for upload\nconst manifestJSON = JSON.stringify(manifest, null, 2);\nconst buffer = Buffer.from(manifestJSON, 'utf-8');\n\n// CRITICAL: Store all items' essential data in metadata for restoration after S3 upload\n// S3 node only processes items with binary data, so we only send the first item\n// But we need to preserve all 12 items for the retry loop\nconst allItemsMetadata = allInputItems.map((item, index) => {\n  const itemJson = item.json || {};\n  return {\n    poseNumber: itemJson.poseNumber || null,\n    characterHash: itemJson.characterHash || null,\n    orderId: itemJson.orderId || itemJson.amazonOrderId || orderId,\n    amazonOrderId: itemJson.amazonOrderId || itemJson.orderId || orderId,\n    statusUrl: itemJson.statusUrl || itemJson.status_url || null,\n    requestId: itemJson.requestId || itemJson.request_id || null,\n    status_url: itemJson.status_url || itemJson.statusUrl || null,\n    request_id: itemJson.request_id || itemJson.requestId || null,\n    manifestUrl: itemJson.manifestUrl || itemJson.originalManifestUrl || manifestUrl,\n    originalManifestUrl: itemJson.originalManifestUrl || manifestUrl,\n    webhookUrl: itemJson.webhookUrl || null,\n    isFirstPass: itemJson.isFirstPass !== undefined ? itemJson.isFirstPass : false,\n    manifestUploaded: false,  // Will be set to true after upload\n    manifestUploadedAt: null  // Will be set after upload\n  };\n});\n\n// Return ONLY the first item with binary data (S3 node requirement)\n// Include metadata for all items so Restore JSON After Upload can reconstruct them\nconst firstItemJson = allInputItems[0].json || {};\nreturn [{\n  json: {\n    ...firstItemJson,\n    manifestKey: manifestKey,\n    manifestBucket: 'little-hero-orders',\n    orderId: firstItemJson.orderId || firstItemJson.amazonOrderId || orderId,\n    amazonOrderId: firstItemJson.amazonOrderId || firstItemJson.orderId || orderId,\n    manifestUrl: firstItemJson.manifestUrl || firstItemJson.originalManifestUrl || manifestUrl,\n    originalManifestUrl: firstItemJson.originalManifestUrl || manifestUrl,\n    // CRITICAL: Store all items' metadata for restoration\n    _allItemsMetadata: allItemsMetadata,\n    _totalItemsCount: allInputItems.length\n  },\n  binary: {\n    data: {\n      data: buffer.toString('base64'),\n      mimeType: 'application/json',\n      fileName: '2a-manifest.json',\n      fileExtension: 'json'\n    }\n  }\n}];\n"
       },
-      "id": "cf72a6f2-1e75-4e97-ae85-0ee82ecfdbaf",
+      "id": "097b5106-7446-4252-a047-8dd31f9ab5e6",
       "name": "Prep Incremental Manifest Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        544,
-        -224
+        -992,
+        -704
       ],
       "notes": "Prepares updated manifest with Bria status for R2 upload"
     },
@@ -485,13 +487,13 @@
         "fileName": "={{ $json.manifestKey }}",
         "additionalFields": {}
       },
-      "id": "87ae5fe4-5534-44a1-b7a8-94fa5d0ead3c",
+      "id": "d2cd06fa-d6e1-473a-b013-5874a7d4797b",
       "name": "Upload Updated Manifest to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        736,
-        -224
+        -800,
+        -704
       ],
       "credentials": {
         "s3": {
@@ -503,15 +505,15 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Restore JSON After Upload - S3 upload node may strip JSON data\n * Restore essential fields needed for Wait nodes and retry loop\n * NOTE: We don't need manifest here since retry loop will download it from R2\n * FIX: Restore ALL items (12 poses) from Store Submission Result node (before S3 upload)\n */\nconst inputs = $input.all();\n\nif (inputs.length === 0) {\n  throw new Error('No input items received');\n}\n\n// Get the first item from S3 node\nconst firstInput = inputs[0].json || {};\n\n// Get run index for retrieving data from upstream nodes\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// Try to get manifestKey and manifestBucket from Prep Incremental Manifest Upload (S3 node might strip them)\nlet manifestKey = firstInput.manifestKey || null;\nlet manifestBucket = firstInput.manifestBucket || null;\nif (!manifestKey || !manifestBucket) {\n  try {\n    const prepItems = $items('Prep Incremental Manifest Upload', 0, runIx);\n    if (prepItems && Array.isArray(prepItems) && prepItems.length > 0) {\n      const firstPrepItem = prepItems[0]?.json || {};\n      manifestKey = manifestKey || firstPrepItem.manifestKey || null;\n      manifestBucket = manifestBucket || firstPrepItem.manifestBucket || null;\n    }\n  } catch (e) {\n    // Use values from firstInput if available\n  }\n}\n\n// CRITICAL: Retrieve original items from Store Submission Result (before S3 upload)\n// This node has all 12 items with all their data intact\nlet originalItems = [];\ntry {\n  const storeSubmissionItems = $items('Store Submission Result', 0, runIx);\n  if (storeSubmissionItems && Array.isArray(storeSubmissionItems) && storeSubmissionItems.length > 0) {\n    originalItems = storeSubmissionItems.map(item => item.json || {});\n    console.log(`\u2713 Retrieved ${originalItems.length} original item(s) from Store Submission Result`);\n  }\n} catch (e) {\n  console.warn(`\u26a0\ufe0f Could not retrieve items from Store Submission Result: ${e.message}`);\n}\n\n// Fallback: Try Prep Incremental Manifest Upload if Store Submission Result failed\nif (originalItems.length === 0) {\n  try {\n    const prepItems = $items('Prep Incremental Manifest Upload', 0, runIx);\n    if (prepItems && Array.isArray(prepItems) && prepItems.length > 0) {\n      // Extract metadata from first item if it exists\n      const firstPrepItem = prepItems[0]?.json || {};\n      const allItemsMetadata = firstPrepItem._allItemsMetadata || null;\n      if (allItemsMetadata && Array.isArray(allItemsMetadata)) {\n        originalItems = allItemsMetadata;\n        console.log(`\u2713 Retrieved ${originalItems.length} item(s) from Prep Incremental Manifest Upload metadata`);\n      }\n    }\n  } catch (e) {\n    console.warn(`\u26a0\ufe0f Could not retrieve items from Prep Incremental Manifest Upload: ${e.message}`);\n  }\n}\n\nif (originalItems.length > 0) {\n  console.log(`\u2713 Restoring ${originalItems.length} item(s) after manifest upload`);\n  \n  // Restore all items from original data\n  return originalItems.map((originalItem, index) => {\n    const input = originalItem || {};\n  \n  // Get original data from Prep Incremental Manifest Upload (before S3 upload)\n  // The S3 node might return minimal JSON, so we restore essential fields\n  // We explicitly DON'T restore manifest here since it's large and not needed for Wait nodes\n  \n    // Extract fields from original item data\n    let orderId = input.orderId || input.amazonOrderId || null;\n    let manifestUrl = input.manifestUrl || input.originalManifestUrl || null;\n    \n    // If orderId is missing, try to extract from manifestKey\n    if ((!orderId || orderId === null || orderId === '') && manifestKey) {\n      const keyMatch = String(manifestKey).match(/\\/orders\\/([^\\/]+)\\//);\n      if (keyMatch && keyMatch[1]) {\n        orderId = keyMatch[1];\n        console.log(`\u2713 Extracted orderId from manifestKey in Restore JSON: ${orderId}`);\n      }\n    }\n    \n    // If manifestUrl is missing/null but we have orderId, construct it\n    if ((!manifestUrl || manifestUrl === null || manifestUrl === '') && orderId && orderId !== null && orderId !== '') {\n      const baseUrl = 'https://387cb69b.little-hero-labs-admin.pages.dev/api/manifests';\n      manifestUrl = `${baseUrl}/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2a-manifest.json`;\n      console.log(`\u2713 Constructed manifestUrl from orderId in Restore JSON: ${manifestUrl}`);\n    }\n    \n    const restored = {\n      // Restore all fields from metadata\n      poseNumber: input.poseNumber || null,\n      characterHash: input.characterHash || null,\n      orderId: orderId,\n      amazonOrderId: input.amazonOrderId || orderId,\n      statusUrl: input.statusUrl || input.status_url || null,\n      requestId: input.requestId || input.request_id || null,\n      status_url: input.status_url || input.statusUrl || null,\n      request_id: input.request_id || input.requestId || null,\n      manifestUrl: manifestUrl,\n      originalManifestUrl: input.originalManifestUrl || manifestUrl,\n      manifestKey: manifestKey || firstInput.manifestKey || null,  // From S3 node output (firstInput)\n      manifestBucket: manifestBucket || firstInput.manifestBucket || null,  // From S3 node output (firstInput)\n      webhookUrl: input.webhookUrl || null,\n      // Ensure isFirstPass is false for retry loop\n      isFirstPass: false,\n      // Mark that manifest was uploaded\n      manifestUploaded: true,\n      manifestUploadedAt: new Date().toISOString(),\n    };\n    \n    console.log(`   Pose ${restored.poseNumber}: manifestUrl=${restored.manifestUrl ? 'present' : 'MISSING'}, orderId=${restored.orderId || 'null'}`);\n    \n    return { json: restored };\n  });\n} else {\n  // Fallback: If metadata not available, process single item (shouldn't happen)\n  console.warn('\u26a0\ufe0f No metadata found, restoring single item (fallback mode)');\n  const input = firstInput;\n  \n  let orderId = input.orderId || input.amazonOrderId || null;\n  let manifestUrl = input.manifestUrl || input.originalManifestUrl || null;\n  \n  if ((!orderId || orderId === null || orderId === '') && input.manifestKey) {\n    const keyMatch = String(input.manifestKey).match(/\\/orders\\/([^\\/]+)\\//);\n    if (keyMatch && keyMatch[1]) {\n      orderId = keyMatch[1];\n    }\n  }\n  \n  if ((!manifestUrl || manifestUrl === null || manifestUrl === '') && orderId) {\n    const baseUrl = 'https://387cb69b.little-hero-labs-admin.pages.dev/api/manifests';\n    manifestUrl = `${baseUrl}/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2a-manifest.json`;\n  }\n  \n  return [{\n    json: {\n      ...input,\n      poseNumber: input.poseNumber || null,\n      characterHash: input.characterHash || null,\n      orderId: orderId,\n      statusUrl: input.statusUrl || input.status_url || null,\n      requestId: input.requestId || input.request_id || null,\n      status_url: input.status_url || input.statusUrl || null,\n      request_id: input.request_id || input.requestId || null,\n      manifestUrl: manifestUrl,\n      originalManifestUrl: input.originalManifestUrl || manifestUrl,\n      manifestKey: input.manifestKey || null,\n      manifestBucket: input.manifestBucket || null,\n      webhookUrl: input.webhookUrl || null,\n      isFirstPass: false,\n      manifestUploaded: true,\n      manifestUploadedAt: new Date().toISOString(),\n    }\n  }];\n}\n"
+        "jsCode": "/**\n * Restore JSON After Upload - S3 upload node may strip JSON data\n * Restore essential fields needed for Wait nodes and retry loop\n * NOTE: We don't need manifest here since retry loop will download it from R2\n * FIX: Restore ALL items (12 poses) from Store Submission Result node (before S3 upload)\n */\nconst inputs = $input.all();\n\nif (inputs.length === 0) {\n  throw new Error('No input items received');\n}\n\n// Get the first item from S3 node\nconst firstInput = inputs[0].json || {};\n\n// Get run index for retrieving data from upstream nodes\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// Try to get manifestKey and manifestBucket from Prep Incremental Manifest Upload (S3 node might strip them)\nlet manifestKey = firstInput.manifestKey || null;\nlet manifestBucket = firstInput.manifestBucket || null;\nif (!manifestKey || !manifestBucket) {\n  try {\n    const prepItems = $items('Prep Incremental Manifest Upload', 0, runIx);\n    if (prepItems && Array.isArray(prepItems) && prepItems.length > 0) {\n      const firstPrepItem = prepItems[0]?.json || {};\n      manifestKey = manifestKey || firstPrepItem.manifestKey || null;\n      manifestBucket = manifestBucket || firstPrepItem.manifestBucket || null;\n    }\n  } catch (e) {\n    // Use values from firstInput if available\n  }\n}\n\n// CRITICAL: Retrieve original items from Store Submission Result (before S3 upload)\n// This node has all 12 items with all their data intact\nlet originalItems = [];\ntry {\n  const storeSubmissionItems = $items('Store Submission Result', 0, runIx);\n  if (storeSubmissionItems && Array.isArray(storeSubmissionItems) && storeSubmissionItems.length > 0) {\n    originalItems = storeSubmissionItems.map(item => item.json || {});\n    console.log(`✓ Retrieved ${originalItems.length} original item(s) from Store Submission Result`);\n  }\n} catch (e) {\n  console.warn(`⚠️ Could not retrieve items from Store Submission Result: ${e.message}`);\n}\n\n// Fallback: Try Prep Incremental Manifest Upload if Store Submission Result failed\nif (originalItems.length === 0) {\n  try {\n    const prepItems = $items('Prep Incremental Manifest Upload', 0, runIx);\n    if (prepItems && Array.isArray(prepItems) && prepItems.length > 0) {\n      // Extract metadata from first item if it exists\n      const firstPrepItem = prepItems[0]?.json || {};\n      const allItemsMetadata = firstPrepItem._allItemsMetadata || null;\n      if (allItemsMetadata && Array.isArray(allItemsMetadata)) {\n        originalItems = allItemsMetadata;\n        console.log(`✓ Retrieved ${originalItems.length} item(s) from Prep Incremental Manifest Upload metadata`);\n      }\n    }\n  } catch (e) {\n    console.warn(`⚠️ Could not retrieve items from Prep Incremental Manifest Upload: ${e.message}`);\n  }\n}\n\nif (originalItems.length > 0) {\n  console.log(`✓ Restoring ${originalItems.length} item(s) after manifest upload`);\n  \n  // Restore all items from original data\n  return originalItems.map((originalItem, index) => {\n    const input = originalItem || {};\n  \n  // Get original data from Prep Incremental Manifest Upload (before S3 upload)\n  // The S3 node might return minimal JSON, so we restore essential fields\n  // We explicitly DON'T restore manifest here since it's large and not needed for Wait nodes\n  \n    // Extract fields from original item data\n    let orderId = input.orderId || input.amazonOrderId || null;\n    let manifestUrl = input.manifestUrl || input.originalManifestUrl || null;\n    \n    // If orderId is missing, try to extract from manifestKey\n    if ((!orderId || orderId === null || orderId === '') && manifestKey) {\n      const keyMatch = String(manifestKey).match(/\\/orders\\/([^\\/]+)\\//);\n      if (keyMatch && keyMatch[1]) {\n        orderId = keyMatch[1];\n        console.log(`✓ Extracted orderId from manifestKey in Restore JSON: ${orderId}`);\n      }\n    }\n    \n    // If manifestUrl is missing/null but we have orderId, construct it\n    if ((!manifestUrl || manifestUrl === null || manifestUrl === '') && orderId && orderId !== null && orderId !== '') {\n      const baseUrl = 'https://387cb69b.little-hero-labs-admin.pages.dev/api/manifests';\n      manifestUrl = `${baseUrl}/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2a-manifest.json`;\n      console.log(`✓ Constructed manifestUrl from orderId in Restore JSON: ${manifestUrl}`);\n    }\n    \n    const restored = {\n      // Restore all fields from metadata\n      poseNumber: input.poseNumber || null,\n      characterHash: input.characterHash || null,\n      orderId: orderId,\n      amazonOrderId: input.amazonOrderId || orderId,\n      statusUrl: input.statusUrl || input.status_url || null,\n      requestId: input.requestId || input.request_id || null,\n      status_url: input.status_url || input.statusUrl || null,\n      request_id: input.request_id || input.requestId || null,\n      manifestUrl: manifestUrl,\n      originalManifestUrl: input.originalManifestUrl || manifestUrl,\n      manifestKey: manifestKey || firstInput.manifestKey || null,  // From S3 node output (firstInput)\n      manifestBucket: manifestBucket || firstInput.manifestBucket || null,  // From S3 node output (firstInput)\n      webhookUrl: input.webhookUrl || null,\n      // Ensure isFirstPass is false for retry loop\n      isFirstPass: false,\n      // Mark that manifest was uploaded\n      manifestUploaded: true,\n      manifestUploadedAt: new Date().toISOString(),\n    };\n    \n    console.log(`   Pose ${restored.poseNumber}: manifestUrl=${restored.manifestUrl ? 'present' : 'MISSING'}, orderId=${restored.orderId || 'null'}`);\n    \n    return { json: restored };\n  });\n} else {\n  // Fallback: If metadata not available, process single item (shouldn't happen)\n  console.warn('⚠️ No metadata found, restoring single item (fallback mode)');\n  const input = firstInput;\n  \n  let orderId = input.orderId || input.amazonOrderId || null;\n  let manifestUrl = input.manifestUrl || input.originalManifestUrl || null;\n  \n  if ((!orderId || orderId === null || orderId === '') && input.manifestKey) {\n    const keyMatch = String(input.manifestKey).match(/\\/orders\\/([^\\/]+)\\//);\n    if (keyMatch && keyMatch[1]) {\n      orderId = keyMatch[1];\n    }\n  }\n  \n  if ((!manifestUrl || manifestUrl === null || manifestUrl === '') && orderId) {\n    const baseUrl = 'https://387cb69b.little-hero-labs-admin.pages.dev/api/manifests';\n    manifestUrl = `${baseUrl}/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2a-manifest.json`;\n  }\n  \n  return [{\n    json: {\n      ...input,\n      poseNumber: input.poseNumber || null,\n      characterHash: input.characterHash || null,\n      orderId: orderId,\n      statusUrl: input.statusUrl || input.status_url || null,\n      requestId: input.requestId || input.request_id || null,\n      status_url: input.status_url || input.statusUrl || null,\n      request_id: input.request_id || input.requestId || null,\n      manifestUrl: manifestUrl,\n      originalManifestUrl: input.originalManifestUrl || manifestUrl,\n      manifestKey: input.manifestKey || null,\n      manifestBucket: input.manifestBucket || null,\n      webhookUrl: input.webhookUrl || null,\n      isFirstPass: false,\n      manifestUploaded: true,\n      manifestUploadedAt: new Date().toISOString(),\n    }\n  }];\n}\n"
       },
-      "id": "e72e5a87-eda1-4c42-b337-fd5ae14ddfd8",
+      "id": "48a7b115-b961-4459-9ba7-5e87d158a28e",
       "name": "Restore JSON After Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        928,
-        -224
+        -608,
+        -704
       ],
       "notes": "Restores JSON data after S3 upload (S3 node may strip fields)"
     },
@@ -520,13 +522,13 @@
         "amount": 55,
         "unit": "seconds"
       },
-      "id": "9c519d94-3f0d-4516-9085-4ea06e8bbc07",
+      "id": "17e456ad-bc0d-4b79-8e07-acd291b3230b",
       "name": "Wait 90 Seconds",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [
-        1104,
-        -224
+        -432,
+        -704
       ],
       "webhookId": "485b89a6-aebf-4bd0-95cf-414e680889ae",
       "notes": "Give Bria AI time to process images"
@@ -538,10 +540,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        160,
-        -224
+        -1376,
+        -704
       ],
-      "id": "40c9bdea-0b01-456e-b71d-2305b8da0e52",
+      "id": "2f648dd8-3ad0-42e2-acd9-ef26fc270fe4",
       "name": "Drop Heavy Fields"
     },
     {
@@ -551,10 +553,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -256,
-        -224
+        -1792,
+        -704
       ],
-      "id": "5a09e4a8-228e-4d2e-b26e-91adda6e0d39",
+      "id": "f901fb3e-7b2f-4ea3-9ddf-5bcddb040848",
       "name": "Build Bria Payload"
     },
     {
@@ -583,13 +585,13 @@
           "ignoreCase": false
         }
       },
-      "id": "65ea0b88-09ec-46b1-aa7a-1784c6ce5230",
+      "id": "9d3d72bd-c2b0-4c3b-aa19-838753312cc2",
       "name": "Has statusUrl?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -688,
-        -448
+        -2224,
+        -928
       ],
       "notes": "After first pass, routes items with statusUrl to status check, items without to submit (shouldn't happen)"
     },
@@ -597,25 +599,25 @@
       "parameters": {
         "jsCode": "// Collect items (one per bg-removed pose) into a single summary\nconst items = $input.all();\nif (!items.length) return [{ json: { error: 'NO_BG_POSES' }}];\n\nconst first = items[0].json || {};\nconst job_id = first.job_id || first.orderData?.job_id || first.orderData?.amazonOrderId || first.__meta?.job_id || 'unknown_job';\nconst characterHash = first.characterHash || first.__meta?.characterHash || first.characterSpecs?.hash || 'nohash';\nconst orderData = first.orderData || {};\n\nconst posesBg = items.map((it) => {\n  const j = it.json || {};\n  const poseNumber = Number(j.currentPoseNumber ?? j.poseNumber);\n  const r2Path = j.r2Path || j.__meta?.storageKey || j.fileName || null;\n  const publicUrl = j.publicUrl || null;\n  return { poseNumber, r2Path, publicUrl, qaFlags: j.qaFlags || [] };\n}).filter(p => Number.isFinite(p.poseNumber) && !!p.publicUrl)\n  .sort((a,b) => a.poseNumber - b.poseNumber);\n\nconst qa = {\n  alphaFringePctMax: Math.max(...posesBg.map(p => (p.qa?.alphaFringePct || 0))),\n  minDimsOk: items.every(i => (i.json?.width || 0) >= 1024 && (i.json?.height || 0) >= 1024),\n};\n\nreturn [{ json: { job_id, characterHash, orderData, posesBg, qa } }];\n"
       },
-      "id": "c70d3ffc-7618-466b-be88-3b6f55e6e66e",
+      "id": "cda44ec9-53fd-4c4c-8c38-ed5ecd77bdcc",
       "name": "Generate BRIA Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -432,
-        288
+        -1968,
+        -192
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://387cb69b.little-hero-labs-admin.pages.dev/rest/v1/jobs",
+        "url": "=https://387cb69b.little-hero-labs-admin.pages.dev/api/rest/v1/jobs",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer YOUR_BACKEND_SERVICE_TOKEN_HERE"
+              "value": "=Bearer YOUR_BACKEND_API_TOKEN_HERE"
             },
             {
               "name": "Prefer",
@@ -628,26 +630,26 @@
         "jsonBody": "={{ { job_id: $json.job_id, character_hash: $json.characterHash, stage: 'BRIA_READY', status: 'PAUSED_AWAITING_APPROVAL', poses_bg: $json.posesBg, qa: $json.qa, order_data: $json.orderData } }}",
         "options": {}
       },
-      "id": "359a77f5-bc44-49a6-84f1-aa5fd84460aa",
+      "id": "9dd4bd4b-8f35-46b7-af63-a0f2aaf095ec",
       "name": "Write Stage: BRIA_READY",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -240,
-        288
+        -1776,
+        -192
       ]
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Build 2B Manifest - Create updated manifest with Bria results\n * Handles both successes and failures\n */\nconst results = $input.all();\n\nif (!results.length) {\n  throw new Error('No results to process');\n}\n\n// Get original manifest from first result\nconst manifest = results[0].json.manifest;\nif (!manifest) {\n  throw new Error('Original manifest not found in results');\n}\n\nconsole.log('=== BUILDING 2B MANIFEST ===');\nconsole.log(`Processing ${results.length} results`);\n\n// Update each entry with Bria results\nconst updatedEntries = manifest.entries.map(entry => {\n  // Find matching result\n  const result = results.find(r => r.json.poseNumber === entry.poseNumber);\n  \n  if (!result) {\n    // Pose wasn't processed (not approved originally)\n    return entry;\n  }\n  \n  const resultData = result.json;\n  \n  // Check if successfully processed and uploaded\n  if (resultData.briaProcessed && resultData.uploadComplete) {\n    console.log(`Pose ${entry.poseNumber}: \u2713 SUCCESS - ${resultData.publicUrl}`);\n    \n    return {\n      ...entry,\n      bgRemovedKey: resultData.r2Path,\n      bgRemovedImageUrl: resultData.publicUrl,\n      briaRequestId: resultData.requestId || null,\n      briaStatusUrl: resultData.statusUrl || resultData.status_url || null,  // CRITICAL: Store status URL for retry detection\n      briaStatus: 'completed',\n      briaProcessingTimeMs: resultData.processingTimeMs || null,\n      needsReview: false\n    };\n  } else {\n    // Failed processing\n    const errorMsg = resultData.error || resultData.briaStatus || 'Bria processing failed';\n    console.log(`Pose ${entry.poseNumber}: \u2717 FAILED - ${errorMsg}`);\n    \n    return {\n      ...entry,\n      briaStatus: resultData.briaStatus || 'failed',\n      briaRequestId: resultData.requestId || null,\n      briaStatusUrl: resultData.statusUrl || resultData.status_url || null,  // CRITICAL: Store status URL even for failures\n      needsReview: true,\n      reviewReason: errorMsg\n    };\n  }\n});\n\n// Calculate summary statistics\nconst processedPoses = updatedEntries.filter(e => e.bgRemovedImageUrl);\nconst failedPoses = updatedEntries.filter(e => e.briaStatus === 'failed' || e.briaStatus === 'MAX_RETRIES_EXCEEDED');\nconst succeeded = processedPoses.length;\nconst failed = failedPoses.length;\nconst needsReview = failed > 0;\n\nconsole.log(`Summary: ${succeeded} succeeded, ${failed} failed, needs review: ${needsReview}`);\n\n// Build complete 2B manifest\nconst manifest2B = {\n  ...manifest,\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp: new Date().toISOString(),\n  \n  // Update entries with Bria results\n  entries: updatedEntries,\n  \n  // Add Bria processing section\n  briaProcessing: {\n    totalProcessed: manifest.poses.approved,\n    succeeded: succeeded,\n    failed: failed,\n    processingTimeMs: null,\n    completedAt: new Date().toISOString()\n  },\n  \n  // Update workflow section\n  workflow: {\n    currentStage: '2B-complete',\n    nextWorkflow: needsReview ? null : '3-compile-book',  // Don't auto-trigger if review needed\n    requiresHumanReview: needsReview\n  },\n  \n  // Update review queue\n  reviewQueue: failedPoses.map(pose => ({\n    poseNumber: pose.poseNumber,\n    reason: pose.reviewReason || 'Bria processing failed',\n    briaStatus: pose.briaStatus,\n    publicUrl: pose.publicUrl || null\n  })),\n  \n  // Update poses summary\n  poses: {\n    ...manifest.poses,\n    briaProcessed: succeeded,\n    briaFailed: failed\n  },\n  \n  // Update summary\n  summary: {\n    percentComplete: Math.round((succeeded / manifest.poses.total) * 100),\n    readyForBook: !needsReview && succeeded === manifest.poses.total,\n    needsHumanReview: needsReview\n  },\n  \n  generatedAt: new Date().toISOString()\n};\n\nconsole.log('\u2713 2B Manifest built successfully');\n\n// Get webhookUrl from first result\nconst webhookUrl = results[0].json.webhookUrl || null;\n\nreturn [{\n  json: {\n    manifest: manifest2B,\n    orderId: manifest.order.orderId,\n    characterHash: manifest.characterHash,\n    webhookUrl: webhookUrl  // Pass through for webhook call\n  }\n}];\n"
+        "jsCode": "/**\n * Build 2B Manifest - Create updated manifest with Bria results\n * Handles both successes and failures\n */\nconst results = $input.all();\n\nif (!results.length) {\n  throw new Error('No results to process');\n}\n\n// Get original manifest from first result\nconst manifest = results[0].json.manifest;\nif (!manifest) {\n  throw new Error('Original manifest not found in results');\n}\n\nconsole.log('=== BUILDING 2B MANIFEST ===');\nconsole.log(`Processing ${results.length} results`);\n\n// Update each entry with Bria results\nconst updatedEntries = manifest.entries.map(entry => {\n  // Find matching result\n  const result = results.find(r => r.json.poseNumber === entry.poseNumber);\n  \n  if (!result) {\n    // Pose wasn't processed (not approved originally)\n    return entry;\n  }\n  \n  const resultData = result.json;\n  \n  // Check if successfully processed and uploaded\n  if (resultData.briaProcessed && resultData.uploadComplete) {\n    console.log(`Pose ${entry.poseNumber}: ✓ SUCCESS - ${resultData.publicUrl}`);\n    \n    return {\n      ...entry,\n      bgRemovedKey: resultData.r2Path,\n      bgRemovedImageUrl: resultData.publicUrl,\n      briaRequestId: resultData.requestId || null,\n      briaStatusUrl: resultData.statusUrl || resultData.status_url || null,  // CRITICAL: Store status URL for retry detection\n      briaStatus: 'completed',\n      briaProcessingTimeMs: resultData.processingTimeMs || null,\n      needsReview: false\n    };\n  } else {\n    // Failed processing\n    const errorMsg = resultData.error || resultData.briaStatus || 'Bria processing failed';\n    console.log(`Pose ${entry.poseNumber}: ✗ FAILED - ${errorMsg}`);\n    \n    return {\n      ...entry,\n      briaStatus: resultData.briaStatus || 'failed',\n      briaRequestId: resultData.requestId || null,\n      briaStatusUrl: resultData.statusUrl || resultData.status_url || null,  // CRITICAL: Store status URL even for failures\n      needsReview: true,\n      reviewReason: errorMsg\n    };\n  }\n});\n\n// Calculate summary statistics\nconst processedPoses = updatedEntries.filter(e => e.bgRemovedImageUrl);\nconst failedPoses = updatedEntries.filter(e => e.briaStatus === 'failed' || e.briaStatus === 'MAX_RETRIES_EXCEEDED');\nconst succeeded = processedPoses.length;\nconst failed = failedPoses.length;\nconst needsReview = failed > 0;\n\nconsole.log(`Summary: ${succeeded} succeeded, ${failed} failed, needs review: ${needsReview}`);\n\n// Build complete 2B manifest\nconst manifest2B = {\n  ...manifest,\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp: new Date().toISOString(),\n  \n  // Update entries with Bria results\n  entries: updatedEntries,\n  \n  // Add Bria processing section\n  briaProcessing: {\n    totalProcessed: manifest.poses.approved,\n    succeeded: succeeded,\n    failed: failed,\n    processingTimeMs: null,\n    completedAt: new Date().toISOString()\n  },\n  \n  // Update workflow section\n  workflow: {\n    currentStage: '2B-complete',\n    nextWorkflow: needsReview ? null : '3-compile-book',  // Don't auto-trigger if review needed\n    requiresHumanReview: needsReview\n  },\n  \n  // Update review queue\n  reviewQueue: failedPoses.map(pose => ({\n    poseNumber: pose.poseNumber,\n    reason: pose.reviewReason || 'Bria processing failed',\n    briaStatus: pose.briaStatus,\n    publicUrl: pose.publicUrl || null\n  })),\n  \n  // Update poses summary\n  poses: {\n    ...manifest.poses,\n    briaProcessed: succeeded,\n    briaFailed: failed\n  },\n  \n  // Update summary\n  summary: {\n    percentComplete: Math.round((succeeded / manifest.poses.total) * 100),\n    readyForBook: !needsReview && succeeded === manifest.poses.total,\n    needsHumanReview: needsReview\n  },\n  \n  generatedAt: new Date().toISOString()\n};\n\nconsole.log('✓ 2B Manifest built successfully');\n\n// Get webhookUrl from first result\nconst webhookUrl = results[0].json.webhookUrl || null;\n\nreturn [{\n  json: {\n    manifest: manifest2B,\n    orderId: manifest.order.orderId,\n    characterHash: manifest.characterHash,\n    webhookUrl: webhookUrl  // Pass through for webhook call\n  }\n}];\n"
       },
-      "id": "b51333f3-9e56-44d7-bf5e-783a37dea89d",
+      "id": "879dbd05-e863-4797-940a-721eb3ddaa5c",
       "name": "Build 2B Manifest",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        80,
-        768
+        -1456,
+        304
       ],
       "notes": "Creates updated manifest with Bria processing results"
     },
@@ -655,13 +657,13 @@
       "parameters": {
         "jsCode": "/**\n * Prepare Manifest Upload - Set R2 key and convert to uploadable format\n */\nconst data = $input.first().json;\nconst manifest = data.manifest;\nconst orderId = data.orderId;\n\n// Construct R2 key\nconst manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json`;\n\nconsole.log(`Uploading manifest to: ${manifestKey}`);\n\n// Convert manifest to buffer for upload\nconst manifestJSON = JSON.stringify(manifest, null, 2);\nconst buffer = Buffer.from(manifestJSON, 'utf-8');\n\nreturn [{\n  json: {\n    ...data,\n    manifestKey: manifestKey,\n    manifestBucket: 'little-hero-orders'\n  },\n  binary: {\n    data: {\n      data: buffer.toString('base64'),\n      mimeType: 'application/json',\n      fileName: '2b-manifest.json',\n      fileExtension: 'json'\n    }\n  }\n}];\n"
       },
-      "id": "dc3a72fc-0e91-4923-83b9-9203b5fcfc2e",
+      "id": "01bddebf-764f-4ebe-b5a7-197aff8c1bf3",
       "name": "Prep Manifest Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        256,
-        768
+        -1280,
+        304
       ],
       "notes": "Prepares manifest for R2 upload"
     },
@@ -672,13 +674,13 @@
         "fileName": "={{ $json.manifestKey }}",
         "additionalFields": {}
       },
-      "id": "0696efa5-30dc-42dd-a215-b3295ab12225",
+      "id": "a3ec4e13-c862-4e46-9951-7c244bb603eb",
       "name": "Upload 2B Manifest to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        448,
-        768
+        -1088,
+        304
       ],
       "credentials": {
         "s3": {
@@ -692,28 +694,25 @@
       "parameters": {
         "jsCode": "/**\n * Call Backend Webhook - Notify backend that 2B is complete\n */\nconst data = $input.first().json;\nconst manifest = data.manifest;\n\n// Construct manifest URL using environment variable (with safe fallback)\nlet baseUrl = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\ntry {\n  if (typeof $env !== 'undefined') {\n    baseUrl = $env.R2_ORDERS_PUBLIC_URL || $env.R2_PUBLIC_URL || baseUrl;\n  }\n} catch (e) {\n  // Env vars not accessible, use default\n}\nconst manifestUrl = `${baseUrl}/${data.manifestKey}`;\n\n// Build webhook payload\nconst payload = {\n  orderId: manifest.order.orderId,\n  manifestUrl: manifestUrl,\n  characterHash: manifest.characterHash,\n  posesProcessed: manifest.briaProcessing.totalProcessed,\n  posesSucceeded: manifest.briaProcessing.succeeded,\n  posesFailed: manifest.briaProcessing.failed,\n  needsReview: manifest.workflow.requiresHumanReview,\n  completedAt: manifest.briaProcessing.completedAt\n};\n\nconsole.log('=== CALLING BACKEND WEBHOOK ===');\nconsole.log(`Order: ${payload.orderId}`);\nconsole.log(`Manifest URL: ${manifestUrl}`);\nconsole.log(`Succeeded: ${payload.posesSucceeded}, Failed: ${payload.posesFailed}`);\nconsole.log(`Needs Review: ${payload.needsReview}`);\n\nreturn [{\n  json: {\n    ...payload,\n    webhookUrl: data.webhookUrl  // Pass through for HTTP Request node\n  }\n}];\n"
       },
-      "id": "bacd5f2c-3e81-42ed-9aa5-2d45192e0937",
+      "id": "9c7c9912-d615-4dfd-a13c-4c7ecde6f350",
       "name": "Prep Backend Webhook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        656,
-        768
+        -880,
+        304
       ],
       "notes": "Prepares payload for backend webhook"
     },
     {
-      "parameters": {
-        "mode": "append",
-        "options": {}
-      },
-      "id": "959765e9-6b1c-4597-8893-dd60fef31f60",
+      "parameters": {},
+      "id": "d3f355e0-b49b-431a-99fd-1329a7d8da8c",
       "name": "Merge Before Webhook",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        792,
-        768
+        -704,
+        -16
       ],
       "notes": "Merges DB write and webhook prep before final response"
     }
@@ -1423,7 +1422,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "428e4672-4b16-40b6-8b87-6f0c22690405",
+  "versionId": "fd67c656-7295-47d4-a215-a7bd24a7d647",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"

@@ -148,9 +148,15 @@ async function getOrder(
     .sort((a, b) => a.poseNumber - b.poseNumber);
   
   // Post-Bria poses: only "background-removed" type with poseNumber > 0 (from parent dir with nobg.png - 2B images)
+  // Add cache-busting timestamp to ensure images refresh when overwritten in R2
+  const cacheBuster = Date.now();
   const postBriaPoses = characterAssets
     .filter(a => a.assetType === 'background-removed' && a.poseNumber > 0)
-    .sort((a, b) => a.poseNumber - b.poseNumber);
+    .sort((a, b) => a.poseNumber - b.poseNumber)
+    .map(pose => ({
+      ...pose,
+      url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
+    }));
   
   order.r2Assets = {
     baseCharacter,

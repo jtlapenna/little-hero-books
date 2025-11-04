@@ -39,12 +39,21 @@ export async function GET(
     // Get image data
     const imageBuffer = await response.arrayBuffer();
     
+    // Determine cache strategy based on image type
+    // Background-removed images (nobg.png) should refresh more frequently to show updated versions
+    const isBackgroundRemoved = key.toLowerCase().includes('nobg') || 
+                                key.toLowerCase().includes('bg-removed') ||
+                                key.toLowerCase().includes('background-removed');
+    const cacheControl = isBackgroundRemoved
+      ? 'public, max-age=60, must-revalidate' // Cache for 1 minute, must revalidate for post-Bria images
+      : 'public, max-age=3600, s-maxage=3600'; // Cache for 1 hour for other images
+    
     // Return image with proper headers
     return new NextResponse(imageBuffer, {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600', // Cache for 1 hour
+        'Cache-Control': cacheControl,
         'Access-Control-Allow-Origin': '*', // Allow CORS for images
       },
     });

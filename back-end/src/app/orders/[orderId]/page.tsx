@@ -21,34 +21,46 @@ export default function OrderDetailPage() {
   const [activeStage, setActiveStage] = useState<ReviewStage>('preBria' as unknown as ReviewStage);
   const [flagCounts, setFlagCounts] = useStateReact({ preBria: 0, postBria: 0, postPdf: 0 });
 
+  // Fetch order data from API
+  const fetchOrder = async (orderId: string) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch order');
+      }
+      const data = await response.json();
+      console.log('OrderDetailPage: Received order data:', data);
+      console.log('OrderDetailPage: R2 assets:', data.r2Assets);
+      console.log('OrderDetailPage: R2 base character:', data.r2Assets?.baseCharacter);
+      console.log('OrderDetailPage: R2 poses count:', data.r2Assets?.poses?.length);
+      console.log('OrderDetailPage: R2 post-Bria poses count:', data.r2Assets?.posesBgRemoved?.length);
+      setOrder(data);
+      setLoading(false);
+      return data;
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      // Fallback to mock data
+      const foundOrder = getOrderById(orderId);
+      setOrder(foundOrder || null);
+      setLoading(false);
+      return foundOrder;
+    }
+  };
+
   useEffect(() => {
     const orderId = params.orderId as string;
     if (orderId) {
-      // Fetch order from API
-      fetch(`/api/orders/${orderId}`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch order');
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log('OrderDetailPage: Received order data:', data);
-          console.log('OrderDetailPage: R2 assets:', data.r2Assets);
-          console.log('OrderDetailPage: R2 base character:', data.r2Assets?.baseCharacter);
-          console.log('OrderDetailPage: R2 poses count:', data.r2Assets?.poses?.length);
-          setOrder(data);
-          setLoading(false);
-        })
-        .catch(error => {
-          console.error('Error fetching order:', error);
-          // Fallback to mock data
-          const foundOrder = getOrderById(orderId);
-          setOrder(foundOrder || null);
-          setLoading(false);
-        });
+      fetchOrder(orderId);
     }
   }, [params.orderId]);
+
+  // Refresh handler for PostBriaStage
+  const handleRefreshOrder = async () => {
+    const orderId = params.orderId as string;
+    if (orderId) {
+      await fetchOrder(orderId);
+    }
+  };
 
   // Update flag counts when order changes
   useEffectReact(() => {
@@ -429,6 +441,7 @@ export default function OrderDetailPage() {
                   isApproved={order.reviewStages.postBria.status === 'approved'}
                   onApprove={async () => await handleStageApprove('postBria' as unknown as ReviewStage)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postBria' as unknown as ReviewStage)}
+                  onRefresh={handleRefreshOrder}
                 />
               )}
               
