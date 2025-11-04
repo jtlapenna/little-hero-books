@@ -1,0 +1,127 @@
+---
+// Header component with hide-on-scroll functionality
+---
+
+<header id="main-header" class="header">
+  <nav class="header-nav">
+    <div class="container">
+      <div class="header-content">
+        <a href="/" class="logo">
+          <img src="/assets/logo.png" alt="Little Hero Labs" class="logo-img" />
+          <span class="logo-text">Little Hero Labs</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="/">Home</a></li>
+          <li><a href="/our-books">Our Books</a></li>
+          <li><a href="/how-it-works">How It Works</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<script>
+  let lastScroll = 0;
+  const header = document.getElementById('main-header');
+  
+  window.addEventListener('scroll', () => {
+    const currentScroll = window.pageYOffset;
+    
+    if (currentScroll <= 0) {
+      header.classList.remove('header-hidden');
+      return;
+    }
+    
+    if (currentScroll > lastScroll && currentScroll > 100) {
+      // Scrolling down
+      header.classList.add('header-hidden');
+    } else {
+      // Scrolling up
+      header.classList.remove('header-hidden');
+    }
+    
+    lastScroll = currentScroll;
+  });
+</script>
+
+<style>
+  .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .header-hidden {
+    transform: translateY(-100%);
+  }
+  
+  .header-nav {
+    padding: 1rem 0;
+  }
+  
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--color-navy-midnight);
+    text-decoration: none;
+  }
+  
+  .logo:hover {
+    color: var(--color-hero-coral);
+  }
+  
+  .logo-img {
+    height: 40px;
+    width: auto;
+  }
+  
+  .logo-text {
+    font-family: var(--font-display);
+  }
+  
+  .nav-links {
+    display: flex;
+    list-style: none;
+    gap: 2rem;
+    align-items: center;
+  }
+  
+  .nav-links a {
+    font-family: var(--font-ui);
+    font-weight: 500;
+    color: var(--color-navy-midnight);
+    transition: color 0.3s ease;
+  }
+  
+  .nav-links a:hover {
+    color: var(--color-hero-coral);
+  }
+  
+  @media (max-width: 768px) {
+    .logo-text {
+      display: none;
+    }
+    
+    .nav-links {
+      gap: 1rem;
+      font-size: 0.9rem;
+    }
+  }
+</style>
+

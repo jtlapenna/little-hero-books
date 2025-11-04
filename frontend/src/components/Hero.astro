@@ -1,0 +1,121 @@
+---
+import Button from './Button.astro';
+
+interface Props {
+  imageSrc: string;
+  imageAlt: string;
+  title?: string;
+  subtitle?: string;
+  buttonText?: string;
+  buttonHref?: string;
+}
+
+const { imageSrc, imageAlt, title, subtitle, buttonText, buttonHref } = Astro.props;
+---
+
+<section class="hero">
+  <div class="hero-image-container">
+    <img src={imageSrc} alt={imageAlt} class="hero-image" />
+    {(title || subtitle || buttonText) && (
+      <div class="hero-content">
+        <div class="container">
+          {title && <h1 class="hero-title">{title}</h1>}
+          {subtitle && <p class="hero-subtitle">{subtitle}</p>}
+          {buttonText && buttonHref && (
+            <Button href={buttonHref} variant="primary" size="lg">
+              {buttonText}
+            </Button>
+          )}
+        </div>
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    width: 100%;
+    margin-top: 80px; /* Account for fixed header */
+  }
+  
+  .hero-image-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+  }
+  
+  .hero-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+  }
+  
+  .hero-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+    width: 100%;
+    max-width: 600px;
+    padding: 0 var(--spacing-lg);
+    pointer-events: none;
+  }
+  
+  .hero-content .container {
+    pointer-events: auto;
+  }
+  
+  .hero-title {
+    color: var(--color-forest-green);
+    font-family: var(--font-heading);
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-md);
+    text-shadow: none;
+  }
+  
+  .hero-subtitle {
+    color: var(--color-soft-charcoal);
+    font-size: 1.125rem;
+    font-family: var(--font-ui);
+    text-shadow: none;
+    margin-bottom: var(--spacing-lg);
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
+  }
+  
+  @media (max-width: 768px) {
+    .hero {
+      margin-top: 70px;
+    }
+    
+    .hero-content {
+      max-width: 90%;
+      padding: 0 var(--spacing-md);
+    }
+    
+    .hero-title {
+      font-size: 2rem;
+    }
+    
+    .hero-subtitle {
+      font-size: 1rem;
+    }
+  }
+  
+  @media (min-width: 769px) and (max-width: 1200px) {
+    .hero-content {
+      max-width: 500px;
+    }
+    
+    .hero-title {
+      font-size: 2.5rem;
+    }
+  }
+</style>
+

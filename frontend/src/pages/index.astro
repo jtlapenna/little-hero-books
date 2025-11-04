@@ -1,0 +1,256 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import Button from '../components/Button.astro';
+---
+
+<Layout title="Little Hero Labs - Become the Hero of Your Own Story" description="Personalized children's books where every child is the hero of their own magical adventure story">
+  <Hero 
+    imageSrc="/homepage-hero.png" 
+    imageAlt="Little Hero Labs - Adventure begins here"
+    title="Bring your child's imagination to life!"
+    subtitle="Create a personalized storybook adventure that stars your child."
+    buttonText="Create Your Book"
+    buttonHref="/how-it-works"
+  />
+  
+  <!-- About Section -->
+  <section class="section-padding">
+    <div class="container">
+      <div class="content-section">
+        <h2 class="section-title">Every Child is a Hero</h2>
+        <p class="section-text">
+          At Little Hero Labs, we believe every child deserves to see themselves as the hero of their own story. 
+          Our personalized children's books create magical adventures where your child is the star, exploring 
+          enchanted worlds and discovering their own courage, creativity, and kindness.
+        </p>
+        <p class="section-text">
+          Each story is carefully crafted to be age-appropriate, warm, and inspiring—perfect for children 
+          ages 3-7. Watch their eyes light up as they see their name and adventure come to life on every page.
+        </p>
+        <div class="button-container">
+          <Button href="/how-it-works" variant="primary" size="lg">
+            Get Started
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Features Section -->
+  <section class="section-padding features-section">
+    <div class="container">
+      <h2 class="section-title text-center">Why Choose Little Hero Labs?</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <img src="/assets/icon_star.png" alt="Star" />
+          </div>
+          <h3>Imagination</h3>
+          <p>Spark your child's creativity with stories that celebrate their unique personality and interests.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <img src="/assets/icon_book.png" alt="Book" />
+          </div>
+          <h3>Learning</h3>
+          <p>Every adventure includes gentle lessons about friendship, courage, and exploring the world around us.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <img src="/assets/icon_rocket.png" alt="Rocket" />
+          </div>
+          <h3>Joy</h3>
+          <p>Create lasting memories with a personalized keepsake that your child will treasure for years to come.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Latest Book Section -->
+  <section class="section-padding latest-book-section">
+    <div class="container">
+      <div class="latest-book-content">
+        <div class="latest-book-text">
+          <h2 class="section-title">The Adventure Compass</h2>
+          <p class="section-text">
+            Join your child on a magical journey through enchanted locations with "The Adventure Compass." 
+            This beautifully illustrated story takes young heroes on an exploration where they discover 
+            their own inner strength and wisdom.
+          </p>
+          <p class="section-text">
+            Each book is printed on high-quality paper with vibrant, age-appropriate illustrations. 
+            Perfect for bedtime stories, reading practice, or as a special gift.
+          </p>
+          <div class="button-container">
+            <Button href="/our-books" variant="secondary" size="lg">
+              View Our Books
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- How It Works Preview -->
+  <section class="section-padding">
+    <div class="container">
+      <div class="content-section">
+        <h2 class="section-title text-center">How It Works</h2>
+        <p class="section-text text-center" style="max-width: 600px; margin: 0 auto 2rem;">
+          Creating your child's personalized adventure is simple and fun. Follow these three easy steps 
+          to bring their story to life.
+        </p>
+        <div class="steps-preview">
+          <div class="step">
+            <div class="step-number">1</div>
+            <h3>Upload Photo</h3>
+            <p>Share a photo of your child</p>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <h3>Choose Story</h3>
+            <p>Select the adventure theme</p>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <h3>Receive Book</h3>
+            <p>Get your personalized book delivered</p>
+          </div>
+        </div>
+        <div class="button-container text-center">
+          <Button href="/how-it-works" variant="primary" size="lg">
+            Learn More
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .content-section {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .section-title {
+    margin-bottom: var(--spacing-lg);
+    color: var(--color-navy-midnight);
+  }
+  
+  .section-text {
+    font-size: 1.125rem;
+    line-height: 1.8;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-soft-charcoal);
+  }
+  
+  .button-container {
+    margin-top: var(--spacing-lg);
+  }
+  
+  .features-section {
+    background: var(--color-storybook-beige);
+  }
+  
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-xl);
+    margin-top: var(--spacing-xl);
+  }
+  
+  .feature-card {
+    text-align: center;
+    padding: var(--spacing-lg);
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .feature-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto var(--spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .feature-icon img {
+    width: 100%;
+    height: auto;
+  }
+  
+  .feature-card h3 {
+    margin-bottom: var(--spacing-md);
+    color: var(--color-hero-coral);
+  }
+  
+  .latest-book-section {
+    background: linear-gradient(135deg, var(--color-soft-teal) 0%, var(--color-sage-green) 100%);
+    color: var(--color-navy-midnight);
+  }
+  
+  .latest-book-content {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .latest-book-text .section-title {
+    color: var(--color-navy-midnight);
+  }
+  
+  .latest-book-text .section-text {
+    color: var(--color-navy-midnight);
+  }
+  
+  .steps-preview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+    margin: var(--spacing-xl) 0;
+  }
+  
+  .step {
+    text-align: center;
+    padding: var(--spacing-lg);
+  }
+  
+  .step-number {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--color-hero-coral);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 auto var(--spacing-md);
+    font-family: var(--font-display);
+  }
+  
+  .step h3 {
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-navy-midnight);
+  }
+  
+  @media (max-width: 768px) {
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .steps-preview {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

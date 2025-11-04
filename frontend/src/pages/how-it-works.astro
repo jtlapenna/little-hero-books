@@ -1,0 +1,236 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import Button from '../components/Button.astro';
+---
+
+<Layout title="How It Works - Little Hero Labs" description="Learn how to create your personalized children's book in three simple steps">
+  <Hero 
+    imageSrc="/how-it-works-hero.png" 
+    imageAlt="How It Works - Little Hero Labs"
+    title="How It Works"
+    subtitle="Creating your child's personalized adventure is simple and fun. Follow these three easy steps to bring their story to life."
+    buttonText="Get Started"
+    buttonHref="/our-books"
+  />
+  
+  <!-- Steps Section -->
+  <section class="section-padding">
+    <div class="container">
+      <div class="content-section">
+        <h2 class="section-title text-center">Creating Your Story is Simple</h2>
+        <p class="section-text text-center" style="max-width: 700px; margin: 0 auto 3rem;">
+          Follow these three easy steps to bring your child's personalized adventure to life. 
+          Each story is crafted with care to ensure your child feels like the true hero.
+        </p>
+        
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-visual">
+              <div class="step-icon-wrapper">
+                <img src="/assets/icon_picture.png" alt="Upload Photo" class="step-icon" />
+              </div>
+              <div class="step-number">1</div>
+            </div>
+            <div class="step-content">
+              <h3>Upload Photo</h3>
+              <p>
+                Start by sharing a photo of your child. This helps us create a personalized 
+                character that looks like them. Simply upload a clear photo through our 
+                secure platform—your child's image is used only for their book.
+              </p>
+            </div>
+          </div>
+          
+          <div class="step-item reverse">
+            <div class="step-visual">
+              <div class="step-icon-wrapper">
+                <img src="/assets/icon_wand.png" alt="Choose Story" class="step-icon" />
+              </div>
+              <div class="step-number">2</div>
+            </div>
+            <div class="step-content">
+              <h3>Choose Story</h3>
+              <p>
+                Select the adventure theme that best fits your child's interests. Whether they 
+                love exploring nature, going on magical quests, or discovering new places, 
+                we have the perfect story waiting. You can also customize details like your 
+                child's name and preferences.
+              </p>
+            </div>
+          </div>
+          
+          <div class="step-item">
+            <div class="step-visual">
+              <div class="step-icon-wrapper">
+                <img src="/assets/icon_rocket.png" alt="Receive Book" class="step-icon" />
+              </div>
+              <div class="step-number">3</div>
+            </div>
+            <div class="step-content">
+              <h3>Receive Book</h3>
+              <p>
+                Once your story is generated and printed, we'll ship your personalized book 
+                directly to your door. Each book features high-quality printing, vibrant 
+                illustrations, and durable binding perfect for little hands. Your child's 
+                adventure arrives ready to be read and treasured.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="cta-section">
+          <h2 class="section-title text-center">Ready to Begin?</h2>
+          <p class="section-text text-center" style="max-width: 600px; margin: 0 auto 2rem;">
+            Start creating your child's personalized adventure today. It only takes a few 
+            minutes to begin the journey.
+          </p>
+          <div class="button-container text-center">
+            <Button href="/our-books" variant="primary" size="lg">
+              View Our Books
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .content-section {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  
+  .section-title {
+    margin-bottom: var(--spacing-lg);
+    color: var(--color-navy-midnight);
+  }
+  
+  .section-text {
+    font-size: 1.125rem;
+    line-height: 1.8;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-soft-charcoal);
+  }
+  
+  .steps-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+    margin: var(--spacing-xl) 0;
+  }
+  
+  .step-item {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: var(--spacing-xl);
+    align-items: center;
+    padding: var(--spacing-lg);
+    background: var(--color-storybook-beige);
+    border-radius: 16px;
+  }
+  
+  .step-item.reverse {
+    grid-template-columns: 1fr 200px;
+  }
+  
+  .step-item.reverse .step-visual {
+    order: 2;
+  }
+  
+  .step-item.reverse .step-content {
+    order: 1;
+  }
+  
+  .step-visual {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .step-icon-wrapper {
+    width: 120px;
+    height: 120px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .step-icon {
+    width: 80px;
+    height: auto;
+  }
+  
+  .step-number {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--color-hero-coral);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+    box-shadow: 0 2px 8px rgba(255, 111, 97, 0.3);
+  }
+  
+  .step-content h3 {
+    font-size: 1.75rem;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-hero-coral);
+  }
+  
+  .step-content p {
+    font-size: 1.125rem;
+    line-height: 1.8;
+    color: var(--color-soft-charcoal);
+  }
+  
+  .cta-section {
+    margin-top: var(--spacing-xl);
+    padding: var(--spacing-xl);
+    background: linear-gradient(135deg, var(--color-hero-coral) 0%, var(--color-dusty-peach) 100%);
+    border-radius: 16px;
+    text-align: center;
+  }
+  
+  .cta-section .section-title {
+    color: white;
+  }
+  
+  .cta-section .section-text {
+    color: white;
+  }
+  
+  .button-container {
+    margin-top: var(--spacing-lg);
+  }
+  
+  @media (max-width: 768px) {
+    .step-item,
+    .step-item.reverse {
+      grid-template-columns: 1fr;
+      text-align: center;
+    }
+    
+    .step-item.reverse .step-visual,
+    .step-item.reverse .step-content {
+      order: unset;
+    }
+    
+    .step-icon-wrapper {
+      margin: 0 auto;
+    }
+  }
+</style>
+
