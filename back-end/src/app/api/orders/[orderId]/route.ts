@@ -1,10 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCharacterAssets, getAvailableCharacterHashes } from '@/lib/r2-service';
+import { getCharacterAssets, downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { Order } from '@/types/order';
 import { getOrderById } from '@/lib/mock-data';
 import { getStageStatus } from '@/lib/approval-store';
 import { withErrorHandling, getRequestContext } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
+
+/**
+ * Convert manifest data to Order type (same as orders list route)
+ */
+function manifestToOrder(orderId: string, manifest: any): Order {
+  const orderData = manifest?.order || {};
+  const workflow = manifest?.workflow || {};
+  const characterHash = manifest?.characterHash;
+  
+  // Determine status from workflow stage
+  let status = 'queued_for_processing';
+  if (workflow.currentStage === '2A-complete') {
+    status = 'ai_generation_in_progress';
+  } else if (workflow.currentStage === '2B-complete') {
+    status = 'bria_processing_complete';
+  } else if (workflow.currentStage === '3-complete') {
+    status = 'book_compiled';
+  }
+  
+  // Extract customer name from order data
+  const childName = orderData.childName || 'Unknown';
+  const nameParts = childName.split(' ');
+  const firstName = nameParts[0] || 'Unknown';
+  const lastName = nameParts.slice(1).join(' ') || 'Customer';
+  
+  // Determine review stage status from manifest
+  const reviewStages = {
+    preBria: { 
+      status: workflow.currentStage === '2A-complete' ? 'approved' : 'pending' as const
+    },
+    postBria: { 
+      status: workflow.currentStage === '2B-complete' ? 'approved' : 'pending' as const
+    },
+    postPdf: { 
+      status: workflow.currentStage === '3-complete' ? 'approved' : 'pending' as const
+    }
+  };
+  
+  return {
+    orderId: orderData.orderId || orderId,
+    platform: 'amazon',
+    amazonOrderId: orderData.amazonOrderId || orderId,
+    project: orderData.project || 'book-mvp-simple-adventure',
+    customer: {
+      firstName,
+      lastName,
+      email: orderData.customerEmail || `customer@example.com`
+    },
+    customerEmail: orderData.customerEmail || `customer@example.com`,
+    orderDate: manifest?.generatedAt || manifest?.runStamp || new Date().toISOString(),
+    status,
+    aiGenerationStartedAt: manifest?.runStamp || manifest?.generatedAt,
+    characterHash,
+    characterPath: characterHash ? `characters/${characterHash}` : undefined,
+    templatePath: 'templates',
+    characterSpecs: orderData.characterSpecs || {},
+    bookSpecs: orderData.bookSpecs || {},
+    orderDetails: {
+      quantity: orderData.quantity || 1,
+      pages: orderData.bookSpecs?.totalPages || 16,
+      format: orderData.bookSpecs?.format || '8.5x8.5_softcover',
+      shippingAddress: orderData.shippingAddress || {}
+    },
+    assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
+    reviewStages,
+    webhooks: {
+      onApprove: orderData.webhookUrl || 'https://n8n.example.com/webhook/approve'
+    }
+  };
+}
 
 async function getOrder(
   request: NextRequest,
@@ -13,93 +83,62 @@ async function getOrder(
   const { orderId } = await params;
   const context = getRequestContext(request);
   
-  console.log('API: Fetching order:', orderId);
+  console.log('[GET /api/orders/[orderId]] Fetching order:', orderId);
   
   // Validate order ID format
   if (!orderId || typeof orderId !== 'string') {
     throw createValidationError('Invalid order ID provided');
   }
   
-  // Extract character hash from order ID or use a default
-  // In a real implementation, this would come from a database
-  // The order ID format is: book-001-20250116-0ccbbb
-  // But the actual character hash in R2 is: 0ccbbb2ece0d4a46
-  // For now, let's use a mapping or try to find the full hash
-  const shortHash = orderId.split('-').pop() || '1dde0fac84943088';
-  console.log('API: Short hash from order ID:', shortHash);
+  // Try to load manifest for this order (same as orders list route)
+  let manifest: any = null;
+  let manifestKey = '';
+  let loadedStage: string | null = null;
   
-  // Try to find the full character hash that starts with the short hash
-  const availableHashes = await getAvailableCharacterHashes();
-  console.log('API: Available hashes:', availableHashes);
-  const characterHash = availableHashes.find(hash => hash.startsWith(shortHash)) || '1dde0fac84943088';
-  console.log('API: Using character hash:', characterHash);
+  for (const stage of ['2a', '2b', '3'] as const) {
+    try {
+      manifestKey = buildManifestKey(orderId, stage);
+      console.log(`[GET /api/orders/[orderId]] Trying to load manifest: ${manifestKey}`);
+      manifest = await downloadManifest(manifestKey);
+      loadedStage = stage;
+      console.log(`[GET /api/orders/[orderId]] ✅ Loaded ${stage}-manifest for order ${orderId}`);
+      break; // Successfully loaded, use this manifest
+    } catch (err: any) {
+      console.log(`[GET /api/orders/[orderId]] ❌ Failed to load ${stage}-manifest: ${err?.message || err}`);
+      continue;
+    }
+  }
   
-  // Get character assets from R2
-  const characterAssets = await getCharacterAssets(characterHash);
-  console.log('API: Character assets for', characterHash, ':', characterAssets);
+  if (!manifest) {
+    console.warn(`[GET /api/orders/[orderId]] ⚠️ No manifest found for order ${orderId}`);
+    throw createNotFoundError(`Order ${orderId} not found`);
+  }
   
-  // Create order object with R2 data (since we're generating orders from R2)
-  const order: Order = {
-    orderId,
-    platform: 'amazon',
-    amazonOrderId: `TEST-ORDER-${orderId.split('-')[1]}`,
-    project: 'personalized-book',
-    customer: {
-      firstName: 'Alex',
-      lastName: 'Doe',
-      email: 'test@example.com'
-    },
-    customerEmail: 'test@example.com',
-    orderDate: '2025-10-17T12:51:50.815Z',
-    status: 'ai_generation_in_progress',
-    aiGenerationStartedAt: '2025-10-17T10:35:00.000Z',
-    characterHash,
-    characterPath: `characters/${characterHash}`,
-    templatePath: 'templates',
-    characterSpecs: {
-      childName: 'Alex',
-      skinTone: 'tan',
-      hairColor: 'blonde',
-      hairStyle: 'straight-short',
-      age: 5,
-      pronouns: 'she/her',
-      favoriteColor: 'black',
-      animalGuide: 'tiger',
-      clothingStyle: 'dress'
-    },
-    bookSpecs: {
-      title: 'Alex and the Adventure Compass',
-      totalPages: 16,
-      format: '8.5x8.5_softcover',
-      bookType: 'animal-guide',
-      animalGuide: 'tiger'
-    },
-    orderDetails: {
-      quantity: 1,
-      pages: 16,
-      format: '8.5x8.5_softcover',
-      shippingAddress: {
-        name: 'Test Customer',
-        address: '123 Test Street',
-        city: 'Test City',
-        state: 'CA',
-        zip: '90210'
-      }
-    },
-    assetPrefix: `projects/personalized-book/orders/${orderId}/`,
-    reviewStages: {
-      preBria: { status: getStageStatus(orderId, 'preBria').status },
-      postBria: { status: getStageStatus(orderId, 'postBria').status },
-      postPdf: { status: getStageStatus(orderId, 'postPdf').status },
-    },
-    webhooks: {
-      onApprove: 'https://n8n.example.com/webhook/approve'
-    },
-    // Add R2 assets data
-    // For MVP, expose the raw list; richer shape can come later
-    r2Assets: undefined
+  // Convert manifest to order
+  const order = manifestToOrder(orderId, manifest);
+  
+  // Get character assets if characterHash is available
+  let characterAssets: any[] = [];
+  if (order.characterHash) {
+    try {
+      console.log(`[GET /api/orders/[orderId]] Fetching character assets for hash: ${order.characterHash}`);
+      characterAssets = await getCharacterAssets(order.characterHash);
+      console.log(`[GET /api/orders/[orderId]] Found ${characterAssets.length} character assets`);
+    } catch (error: any) {
+      console.error(`[GET /api/orders/[orderId]] Error fetching character assets:`, error?.message || error);
+      // Continue without assets rather than failing
+    }
+  }
+  
+  // Add R2 assets to order
+  order.r2Assets = {
+    baseCharacter: characterAssets.find(a => a.assetType === 'original' && a.poseNumber === 0) || characterAssets[0] || null,
+    poses: characterAssets.filter(a => a.assetType === 'background-removed' || a.assetType === 'final').sort((a, b) => a.poseNumber - b.poseNumber),
+    all: characterAssets
   };
-
+  
+  console.log(`[GET /api/orders/[orderId]] Returning order with ${characterAssets.length} assets`);
+  
   return NextResponse.json(order);
 }
 

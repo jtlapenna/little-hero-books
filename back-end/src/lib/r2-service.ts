@@ -13,6 +13,7 @@ export async function getCharacterAssets(characterHash: string): Promise<Charact
 
   const items = (res.Contents || []).filter(o => !!o.Key).map(o => o.Key as string);
 
+  // Generate URLs using API proxy endpoint (works for both public and private buckets)
   const assets: CharacterAsset[] = items.map((key) => {
     const file = key.split('/').pop() || '';
     const poseMatch = file.match(/(pose[-_]?)(\d+)/i) || key.match(/\/(\d+)[^/]*$/);
@@ -24,8 +25,9 @@ export async function getCharacterAssets(characterHash: string): Promise<Charact
         ? 'background-removed'
         : 'original';
 
-    // R2 public buckets serve at /<bucket>/<key> when proxied; for Pages we can use signed URLs later.
-    const url = `https://pub-${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.dev/${R2_PUBLIC_BUCKET}/${key}`;
+    // Use API proxy endpoint for serving images (works regardless of bucket public/private status)
+    // This avoids needing public URLs or signed URLs
+    const url = `/api/assets/${key}`;
 
     return { characterHash, poseNumber, url, assetType: type };
   });
