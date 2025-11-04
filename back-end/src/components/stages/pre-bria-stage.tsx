@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AssetGrid } from '@/components/assets/asset-grid';
-import { CheckCircle, Play } from 'lucide-react';
+import { CheckCircle, Play, X } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 
@@ -28,6 +28,11 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   });
 
   const [poses, setPoses] = useState([]);
+
+  // Three-step workflow state
+  const [approveAllConfirmed, setApproveAllConfirmed] = useState(false);
+  const [approveStageConfirmed, setApproveStageConfirmed] = useState(false);
+  const [triggerBackgroundRemovalConfirmed, setTriggerBackgroundRemovalConfirmed] = useState(false);
 
   // Update state when order data changes
   useEffect(() => {
@@ -115,17 +120,64 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
   const allAssets = [baseCharacter, ...poses];
   const flaggedCount = allAssets.filter(asset => asset.isFlagged).length;
-  const hasImages = baseCharacter.url && poses.length > 0;
-  const canApprove = flaggedCount === 0 && hasImages;
+  
+  // Check that all images exist and have URLs
+  const baseCharacterExists = baseCharacter.url && baseCharacter.url.length > 0;
+  const allPosesExist = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0);
+  const hasAllImages = baseCharacterExists && allPosesExist;
+  
+  // Can approve all only if all images exist and none are flagged
+  const canApproveAll = flaggedCount === 0 && hasAllImages;
+  
+  // Can approve stage if approve all is confirmed
+  const canApproveStage = approveAllConfirmed && canApproveAll;
+  
+  // Can trigger background removal if approve stage is confirmed
+  const canTriggerBackgroundRemoval = approveStageConfirmed && canApproveStage;
 
   useEffect(() => {
     setFlaggedCount(orderId, 'preBria', flaggedCount);
   }, [orderId, flaggedCount]);
 
+  // Handle approve all
+  const handleApproveAll = () => {
+    setApproveAllConfirmed(true);
+  };
+
+  // Handle un-confirm approve all (only if approve stage is not confirmed)
+  const handleUnconfirmApproveAll = () => {
+    // Can only un-confirm if step 2 is not confirmed
+    if (!approveStageConfirmed) {
+      setApproveAllConfirmed(false);
+    }
+  };
+
+  // Handle approve stage
+  const handleApproveStage = () => {
+    setApproveStageConfirmed(true);
+    // Call the actual approval API
+    onApprove();
+  };
+
+  // Handle un-confirm approve stage (only if trigger is not confirmed)
+  const handleUnconfirmApproveStage = () => {
+    // Can only un-confirm if step 3 is not confirmed
+    if (!triggerBackgroundRemovalConfirmed) {
+      setApproveStageConfirmed(false);
+    }
+  };
+
+  // Handle trigger background removal
+  const handleTriggerBackgroundRemoval = () => {
+    setTriggerBackgroundRemovalConfirmed(true);
+    // Call the workflow initiation
+    onInitiateWorkflow();
+  };
+
 
   return (
     <div className="space-y-8">
-      {hasImages ? (
+      {hasAllImages ? (
         <>
           {/* Base Character Section */}
           <AssetGrid
@@ -185,44 +237,91 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
       {/* Stage Actions */}
       <div className="bg-gray-50 rounded-lg p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="text-lg font-medium text-gray-900">Stage Actions</h4>
-            <p className="text-sm text-gray-600 mt-1">
-              {isApproved 
-                ? 'This stage has been approved. You can now initiate the next workflow.'
-                : !hasImages
-                ? 'Images are not available yet. Please wait for character generation to complete before approving.'
-                : flaggedCount > 0
-                ? `Please address ${flaggedCount} flagged item${flaggedCount !== 1 ? 's' : ''} before approving.`
-                : 'Review all assets and approve when ready to proceed to background removal.'
-              }
-            </p>
-          </div>
+        <div>
+          <h4 className="text-lg font-medium text-gray-900 mb-4">Stage Actions</h4>
+          <p className="text-sm text-gray-600 mb-4">
+            {!hasAllImages
+              ? 'All images must be available before approving. Please wait for character generation to complete.'
+              : flaggedCount > 0
+              ? `Please address ${flaggedCount} flagged item${flaggedCount !== 1 ? 's' : ''} before approving.`
+              : 'Review all assets and follow the workflow steps below.'
+            }
+          </p>
           
-          <div className="flex space-x-3">
-            {isApproved ? (
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Step 1: Approve All */}
+            <div className="flex items-center gap-2">
               <button
-                onClick={onInitiateWorkflow}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Initiate Next Workflow
-              </button>
-            ) : (
-              <button
-                onClick={onApprove}
-                disabled={!canApprove}
-                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                  canApprove
+                onClick={approveAllConfirmed ? handleUnconfirmApproveAll : handleApproveAll}
+                disabled={!canApproveAll || (approveAllConfirmed && approveStageConfirmed)}
+                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+                  approveAllConfirmed
+                    ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
+                    : canApproveAll
                     ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Approve Stage
+                {approveAllConfirmed ? (
+                  <>
+                    {!approveStageConfirmed && <X className="h-4 w-4 mr-2" />}
+                    {approveStageConfirmed && <CheckCircle className="h-4 w-4 mr-2" />}
+                    Approve All
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve All
+                  </>
+                )}
               </button>
-            )}
+            </div>
+
+            {/* Step 2: Approve Stage */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={approveStageConfirmed ? handleUnconfirmApproveStage : handleApproveStage}
+                disabled={!canApproveStage || (approveStageConfirmed && triggerBackgroundRemovalConfirmed)}
+                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+                  approveStageConfirmed
+                    ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
+                    : canApproveStage
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                {approveStageConfirmed ? (
+                  <>
+                    {!triggerBackgroundRemovalConfirmed && <X className="h-4 w-4 mr-2" />}
+                    {triggerBackgroundRemovalConfirmed && <CheckCircle className="h-4 w-4 mr-2" />}
+                    Approve Stage
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve Stage
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Step 3: Trigger Background Removal */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleTriggerBackgroundRemoval}
+                disabled={!canTriggerBackgroundRemoval}
+                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+                  triggerBackgroundRemovalConfirmed
+                    ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
+                    : canTriggerBackgroundRemoval
+                    ? 'bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Trigger Background-Removal
+              </button>
+            </div>
           </div>
         </div>
       </div>
