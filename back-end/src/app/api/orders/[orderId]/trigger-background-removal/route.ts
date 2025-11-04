@@ -32,24 +32,18 @@ async function triggerBackgroundRemoval(
     throw createNotFoundError(`2a manifest not found for order ${orderId}`);
   }
 
-  // Get public R2 URL from manifest or construct it
-  // The manifest has publicR2Url for assets, but we need to construct the orders bucket URL
-  // R2 public buckets use the format: https://pub-{PUBLIC_BUCKET_ID}.r2.dev/{bucket}/{key}
-  const assetsPublicR2Url = manifest?.order?.publicR2Url;
-  const publicR2Url = process.env.R2_PUBLIC_URL || assetsPublicR2Url ||
-    (process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID
-      ? `https://pub-${process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID}.r2.dev`
-      : null);
-
-  if (!publicR2Url) {
-    throw new Error('Public R2 URL not configured. Set R2_PUBLIC_URL or ensure manifest has publicR2Url');
-  }
-
-  // Construct manifest URL
-  // Format: https://pub-{PUBLIC_BUCKET_ID}.r2.dev/{bucket}/{key}
+  // Construct manifest URL using our API proxy endpoint
+  // This avoids needing public R2 bucket access for the orders bucket
   const manifestKey = buildManifestKey(orderId, '2a');
-  const ordersBucket = process.env.R2_ORDERS_BUCKET_NAME || 'little-hero-orders';
-  const manifestUrl = `${publicR2Url}/${ordersBucket}/${manifestKey}`;
+  
+  // Use our API endpoint to serve the manifest (works with private buckets)
+  // Get the base URL from the request
+  const baseUrl = request.headers.get('origin') || 
+    process.env.BACKEND_URL || 
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    'https://admin.littleherolabs.com';
+  
+  const manifestUrl = `${baseUrl}/api/manifests/${manifestKey}`;
 
   // Get webhook callback URL
   const webhookUrl = process.env.BACKEND_WEBHOOK_2B_COMPLETE_URL 
