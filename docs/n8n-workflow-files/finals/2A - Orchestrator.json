@@ -24,8 +24,8 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [
-        -256,
-        -656
+        -1936,
+        1152
       ],
       "webhookId": "64908fee-5b7d-4d69-9745-6390404024cc",
       "disabled": true,
@@ -45,8 +45,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -32,
-        -656
+        -1712,
+        1152
       ],
       "disabled": true
     },
@@ -60,8 +60,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        480,
-        32
+        -1808,
+        400
       ]
     },
     {
@@ -72,8 +72,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        64,
-        32
+        -2016,
+        400
       ],
       "id": "2beb4fdb-2397-44e9-a5c6-273a7e4363e6",
       "name": "Bump retry counter"
@@ -86,8 +86,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -112,
-        32
+        -2192,
+        400
       ],
       "id": "985a03a2-3a4e-4a29-b564-78f370789152",
       "name": "QA Handoff — Purge & Keep Keys"
@@ -264,8 +264,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        704,
-        32
+        -1584,
+        400
       ],
       "notesInFlow": true,
       "notes": "Returns envelope with updated retry fields for regeneration - FIXED: workingPoseNumber precedence, __isRetry flag, pose-${NN}.png format"
@@ -280,7 +280,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1968,
+        -1760,
         0
       ]
     },
@@ -316,8 +316,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -384,
-        16
+        -2464,
+        384
       ]
     },
     {
@@ -352,8 +352,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        928,
-        32
+        -1360,
+        400
       ]
     },
     {
@@ -366,31 +366,31 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2592,
+        -2304,
         0
       ]
     },
     {
       "parameters": {
-        "functionCode": "// Get next order from processing queue and extract custom elements\n// In production, this would query a database queue\n// For now, we'll simulate getting an order from the previous workflow\n\nconst inputData = $input.first();\nif (!inputData || !inputData.json) {\n  console.log('No input data received');\n  return [];\n}\n\nconst orderData = inputData.json;\n\n// Check if order is ready for AI generation\nif (orderData.status !== 'queued_for_processing') {\n  console.log(`Order ${orderData.amazonOrderId} not ready for processing. Status: ${orderData.status}`);\n  return [];\n}\n\n// Extract and validate custom elements from characterSpecs\nconst characterSpecs = orderData.characterSpecs || {};\nconst customElements = {\n  childName: characterSpecs.childName || 'Adventure Hero',\n  skinTone: characterSpecs.skinTone || 'medium',\n  hairColor: characterSpecs.hairColor || 'brown',\n  hairStyle: characterSpecs.hairStyle || 'short/straight',\n  age: parseInt(characterSpecs.age) || 5,\n  pronouns: characterSpecs.pronouns || 'they/them',\n  favoriteColor: characterSpecs.favoriteColor || 'blue',\n  animalGuide: characterSpecs.animalGuide || 'dog',\n  clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts'\n};\n\n// Update order status to processing with custom elements\nconst processingOrder = {\n  ...orderData,\n  characterSpecs: customElements,\n  status: 'ai_generation_in_progress',\n  aiGenerationStartedAt: new Date().toISOString(),\n  posesGenerated: 0,\n  totalPosesRequired: 12,\n  generationProgress: 0\n};\n\nconsole.log(`Starting AI generation for order: ${orderData.amazonOrderId}`);\nconsole.log(`Custom elements:`, customElements);\nreturn [{ json: processingOrder }];"
+        "functionCode": "// Get next order from processing queue and extract custom elements\n// In production, this would query a database queue\n// For now, we'll simulate getting an order from the previous workflow\n\nconst inputData = $input.first();\n\nif (!inputData || !inputData.json) {\n  console.log('No input data received');\n  return [];\n}\n\nconst orderData = inputData.json;\n\n// For mock/test mode, skip status check (production would enforce this)\nconst isMockMode = !orderData.status || orderData.status === 'mock';\n\nif (!isMockMode && orderData.status !== 'queued_for_processing') {\n  console.log(`Order ${orderData.amazonOrderId} not ready for processing. Status: ${orderData.status}`);\n  return [];\n}\n\n// Extract and validate custom elements from characterSpecs\nconst characterSpecs = orderData.characterSpecs || {};\n\nconst customElements = {\n  childName: characterSpecs.childName || 'Adventure Hero',\n  skinTone: characterSpecs.skinTone || 'medium',\n  hairColor: characterSpecs.hairColor || 'brown',\n  hairStyle: characterSpecs.hairStyle || 'short/straight',\n  age: parseInt(characterSpecs.age) || 5,\n  pronouns: characterSpecs.pronouns || 'they/them',\n  favoriteColor: characterSpecs.favoriteColor || 'blue',\n  animalGuide: characterSpecs.animalGuide || 'dog',\n  clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts'\n};\n\n// Update order status to processing with custom elements\nconst processingOrder = {\n  ...orderData,\n  characterSpecs: customElements,\n  status: 'ai_generation_in_progress',\n  aiGenerationStartedAt: new Date().toISOString(),\n  posesGenerated: 0,\n  totalPosesRequired: 12,\n  generationProgress: 0\n};\n\nconsole.log(`Starting AI generation for order: ${orderData.amazonOrderId}`);\nconsole.log('Custom elements:', customElements);\n\nreturn [{ json: processingOrder }];"
       },
       "id": "c648c7d8-1656-48fd-a179-9aafc802ed93",
       "name": "Get Next Order from Queue1",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [
-        -2800,
+        -2784,
         0
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Generate a mock order for testing the AI character generation workflow\n// This simulates an order coming from the order intake workflow\n\nconst mockOrder = {\n  amazonOrderId: 'TEST-ORDER-003',\n  status: 'queued_for_processing',\n  orderDate: new Date().toISOString(),\n  customerEmail: 'test@example.com',\n  characterSpecs: {\n    childName: 'Alex',\n    skinTone: 'tan',\n    hairColor: 'blonde',\n    hairStyle: 'curly-long',\n    age: 5,\n    pronouns: 'she/her',\n    favoriteColor: 'purple',\n    animalGuide: 'unicorn',\n    clothingStyle: 'dress'\n  },\n  bookSpecs: {\n    title: 'Alex and the Adventure Compass',\n    totalPages: 16,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide' // or 'mvp-simple' for different book types\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: 'Test Customer',\n      address: '123 Test Street',\n      city: 'Test City',\n      state: 'CA',\n      zip: '90210'\n    }\n  }\n};\n\nconsole.log('Generated mock order for testing:', mockOrder);\nreturn [{ json: mockOrder }];"
+        "jsCode": "// Generate a mock order for testing the AI character generation workflow\n// This simulates an order coming from the order intake workflow\n\nconst mockOrder = {\n  amazonOrderId: 'TEST-ORDER-006',\n  status: 'queued_for_processing',\n  orderDate: new Date().toISOString(),\n  customerEmail: 'test@example.com',\n  characterSpecs: {\n    childName: 'Luca',\n    skinTone: 'tan',\n    hairColor: 'blonde',\n    hairStyle: 'ponytail',\n    age: 5,\n    pronouns: 'he/him',\n    favoriteColor: 'red',\n    animalGuide: 'unicorn',\n    clothingStyle: 'dress'\n  },\n  bookSpecs: {\n    title: 'Alex and the Adventure Compass',\n    totalPages: 16,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide' // or 'mvp-simple' for different book types\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: 'Test Customer',\n      address: '123 Test Street',\n      city: 'Test City',\n      state: 'CA',\n      zip: '90210'\n    }\n  }\n};\n\nconsole.log('Generated mock order for testing:', mockOrder);\nreturn [{ json: mockOrder }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3024,
+        -3008,
         0
       ],
       "id": "163c1d42-b4ce-4a35-8fa0-590f111c846e",
@@ -411,7 +411,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 2,
       "position": [
-        -1520,
+        -1312,
         0
       ],
       "notesInFlow": true,
@@ -432,14 +432,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Expand to N Poses — ALL mode (JSON-only fan-out; no binaries)\n// Uses the first incoming item as the source and emits N JSON copies with pose fields.\n\nconst item = $input.first() || { json: {}, binary: {} };\nconst j = item.json || {};\n\nconst rawTotal = Number(j.totalPosesRequired);\nconst total = Number.isFinite(rawTotal) ? Math.max(1, Math.floor(rawTotal)) : 12;\n\nconst out = [];\nfor (let n = 1; n <= total; n++) {\n  out.push({\n    json: {\n      ...j,\n      poseNumber: n,\n      currentPoseNumber: n,\n      index: n - 1,\n      __meta: { ...(j.__meta || {}), poseNumber: n, totalPoses: total },\n    },\n    binary: {},            // <<< no binaries carried\n    pairedItem: { item: 0 }\n  });\n}\n\nreturn out;\n"
+        "jsCode": "// Expand to N Poses — v2.4 (JSON-only fan-out; staticData-aware; deterministic)\n// Mode: Run Once for All Items (ALL)\n// Uses the first incoming item as the source and emits N JSON copies with pose fields.\n\nconst item = $input.first() || { json: {}, binary: {} };\nconst j = item.json || {};\n\nfunction good(x){\n  return typeof x === 'string'\n    ? x.trim() !== '' && x.trim().toLowerCase() !== 'unknown-order'\n    : x !== undefined && x !== null;\n}\nfunction pickNE(){ for (const a of arguments){ if (good(a)) return a; } return null; }\n\n$execution.customData = $execution.customData || {};\nconst execCtx = $execution.customData.orderContext || {};\nconst inCtx   = j.orderContext || {};\nconst sd      = $getWorkflowStaticData('global');\n\n// Resolve amazonOrderId with robust precedence:\n// item → item.orderContext → $execution.customData → staticData.lastAmazonOrderId → staticData.lastOrderContext → global (last resort)\nconst incoming  = j.amazonOrderId || null;\nconst ctxId     = inCtx.amazonOrderId || null;\nconst execId    = execCtx.amazonOrderId || null;\nconst staticId  = sd?.lastAmazonOrderId || null;\nconst staticCtx = sd?.lastOrderContext?.amazonOrderId || null;\n// NOTE: `global` is not reliably shared across nodes; leave as lowest-priority fallback.\nconst globalId  = global?.currentAmazonOrderId || null;\n\nconst amazonOrderId = pickNE(\n  incoming,\n  ctxId,\n  execId,\n  staticId,\n  staticCtx,\n  globalId\n) || 'unknown-order';\n\n// Merge a durable order context with defaults for assets/public URL\nconst mergedCtx = {\n  ...execCtx,\n  ...inCtx,\n  amazonOrderId,\n  publicR2Url: inCtx.publicR2Url || execCtx.publicR2Url || sd?.lastOrderContext?.publicR2Url || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev',\n  assetsRoot : inCtx.assetsRoot  || execCtx.assetsRoot  || sd?.lastOrderContext?.assetsRoot  || 'book-mvp-simple-adventure/order-generated-assets',\n};\n\n// Persist for downstream reliability\n$execution.customData.orderContext = mergedCtx;\nif (good(amazonOrderId)) sd.lastAmazonOrderId = amazonOrderId;\nsd.lastOrderContext = mergedCtx;\n\n// Determine pose count (prefer explicit meta, then known fields; default 12)\nconst total =\n  Number.isFinite(+j.__meta?.totalPoses)     ? Math.max(1, Math.floor(+j.__meta.totalPoses)) :\n  Number.isFinite(+j.totalPosesRequired)     ? Math.max(1, Math.floor(+j.totalPosesRequired)) :\n  Number.isFinite(+j.totalPoses)             ? Math.max(1, Math.floor(+j.totalPoses)) :\n  Number.isFinite(+j.numPoses)               ? Math.max(1, Math.floor(+j.numPoses)) :\n  12;\n\nconsole.log(`🧩 Expand→${total} poses | using amazonOrderId=${amazonOrderId}`);\n\nconst base = {\n  ...j,\n  amazonOrderId,\n  orderContext: mergedCtx,\n  assetsRoot : mergedCtx.assetsRoot,\n  publicR2Url: mergedCtx.publicR2Url,\n};\n\n// Fan-out JSON-only items; no binaries forwarded\nconst out = [];\nfor (let n = 1; n <= total; n++) {\n  out.push({\n    json: {\n      ...base,\n      poseNumber: n,\n      currentPoseNumber: n,\n      index: n - 1,\n      __meta: { ...(base.__meta || {}), poseNumber: n, totalPoses: total },\n    },\n    binary: {},            // ensure no binaries carried\n    pairedItem: { item: 0 }\n  });\n}\n\nreturn out;\n"
       },
       "id": "c38efb01-7309-432d-a832-c439c56fd2b2",
       "name": "Expand to 12 Poses",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1312,
+        -1088,
         0
       ]
     },
@@ -448,8 +448,8 @@
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -1408,
-        -240
+        -3424,
+        0
       ],
       "id": "826f4e02-b4d5-49cb-b8c0-7ca1ac58a345",
       "name": "When clicking 'Execute workflow'"
@@ -461,8 +461,8 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -1072,
-        0
+        -3440,
+        368
       ],
       "id": "3296404a-3447-4bfe-a1d0-64bf250b413a",
       "name": "Loop Over Items"
@@ -493,7 +493,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        -1744,
+        -1536,
         0
       ],
       "id": "5e420df2-8036-4a8b-9cc0-fe36e3a25837",
@@ -523,8 +523,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        -848,
-        16
+        -2928,
+        384
       ],
       "id": "8b0d75d5-1c1a-484a-9320-817017330f07",
       "name": "Execute SW1 - Pose Generation"
@@ -553,8 +553,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        -640,
-        16
+        -2720,
+        384
       ],
       "id": "f42b877a-de28-4f2d-88a3-b3463c119509",
       "name": "Execute SW2 - Pose and Style QA"
@@ -583,23 +583,23 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        112,
-        288
+        -2160,
+        800
       ],
       "id": "1a5d99d8-73fa-440d-96bf-3d375ea6ad52",
       "name": "SW3 - Upload"
     },
     {
       "parameters": {
-        "jsCode": "// Write Run Manifest (2A-04) — v2.0.0 COMPREHENSIVE\n// Single document with manifest + order context + summary + review queue\n// Sources results and order context, outputs enriched manifest\n\nconsole.log('=== Write Run Manifest v2.0.0 COMPREHENSIVE ===');\n\n/* ---------------- helpers ---------------- */\nfunction toInt(v){ const n=Number(v); return Number.isFinite(n)?Math.floor(n):null; }\nfunction nonEmpty(v){ return v!==undefined && v!==null && String(v).trim()!=='' && String(v).toLowerCase()!=='undefined' && String(v).toLowerCase()!=='null'; }\nconst pickNE = (...vals)=> vals.find(nonEmpty);\nconst clamp = (n,lo,hi)=> Math.max(lo, Math.min(hi, n));\nconst HEX_OK = /^[a-f0-9]{12,64}$/i;\nconst STRICT_RE = /(?:^|\\/)characters\\/([a-f0-9]{12,64})(?:\\/|$)/i;\nconst LOOSE_RE1 = /characters[_\\-]([a-f0-9]{12,64})[_\\-]/i;\nconst LOOSE_RE2 = /characters[_\\-]([a-f0-9]{12,64})[_\\-]pose\\d{1,3}/i;\nfunction extractHashFromString(s){\n  if (!nonEmpty(s)) return null;\n  const str=String(s);\n  let m=str.match(STRICT_RE); if (m) return m[1];\n  m=str.match(LOOSE_RE2)||str.match(LOOSE_RE1);\n  return m?m[1]:null;\n}\nfunction sanitizePath(p){ return String(p||'').replace(/\\/{2,}/g,'/').replace(/^\\/+/,''); }\nfunction isoNow(){ return new Date().toISOString(); }\nfunction ensureIso(v){ try{ const d=new Date(v); if (!Number.isNaN(d.getTime())) return d.toISOString(); }catch{} return isoNow(); }\nfunction joinUrl(base, key) {\n  if (!base || !key) return null;\n  return `${String(base).replace(/\\/$/, '')}/${String(key).replace(/^\\/+/, '')}`;\n}\n\n// Scan a node across runs for all items (newest→older)\nfunction itemsAllRuns(nodeName, MAX_SCAN=40){\n  const out=[], seen=new Set();\n  try{\n    const latest = $items(nodeName);\n    if (Array.isArray(latest)) for (const it of latest){\n      const sig = it?.json?.__uuid || JSON.stringify(Object.keys(it?.binary||{}));\n      if (!seen.has(sig)){ seen.add(sig); out.push({ run:'latest', item: it }); }\n    }\n  }catch{}\n  try{\n    const last = $items(nodeName,0);\n    if (Array.isArray(last)) for (const it of last){\n      const sig = it?.json?.__uuid || JSON.stringify(Object.keys(it?.binary||{}));\n      if (!seen.has(sig)){ seen.add(sig); out.push({ run:'last', item: it }); }\n    }\n  }catch{}\n  for (let r=MAX_SCAN; r>=0; r--){\n    try{\n      const arr = $items(nodeName,0,r);\n      if (!Array.isArray(arr) || !arr.length) continue;\n      for (const it of arr){\n        const sig = JSON.stringify([r,it?.json?.__uuid,Object.keys(it?.binary||{})]);\n        if (!seen.has(sig)){ seen.add(sig); out.push({ run:r, item: it }); }\n      }\n    }catch{}\n  }\n  return out;\n}\n\n/* ---------------- gather accumulated results ---------------- */\nlet accumulatedResults = [];\nlet runId = null;\n\n/* Strategy 0: DIRECT INPUT */\ntry{\n  const incomingItems = (typeof $input?.all === 'function') ? $input.all() : [];\n  const fromItems = incomingItems.map(it => it?.json).filter(Boolean);\n  const fromJson  = Array.isArray($json) ? $json : (Object.keys($json||{}).length > 0 ? [$json] : []);\n  const combined  = [...fromItems, ...fromJson];\n  if (combined.length){\n    accumulatedResults = combined;\n    runId = pickNE($json?.runId, $json?.runStamp, $execution?.customData?.currentRunId, 'direct');\n    console.log(`Strategy 0: direct input provided ${accumulatedResults.length} results`);\n  }\n}catch(e){\n  console.warn('Strategy 0 error:', e?.message || e);\n}\n\n/* Strategy 1: currentRunId bucket */\nif (accumulatedResults.length === 0 && $execution.customData?.currentRunId){\n  runId = $execution.customData.currentRunId;\n  accumulatedResults = $execution.customData.poseResults?.[runId] || [];\n  console.log(`Strategy 1: currentRunId=\"${runId}\", found ${accumulatedResults.length}`);\n}\n\n/* Strategy 2: last bucket in poseResults */\nif (accumulatedResults.length === 0 && $execution.customData?.poseResults){\n  const allRunIds = Object.keys($execution.customData.poseResults);\n  console.log(`Strategy 2: poseResults buckets: ${allRunIds.length}`);\n  if (allRunIds.length){\n    runId = allRunIds[allRunIds.length-1];\n    accumulatedResults = $execution.customData.poseResults[runId] || [];\n    console.log(`Strategy 2: picked runId=\"${runId}\", found ${accumulatedResults.length}`);\n  }\n}\n\n/* Strategy 3: merge all buckets */\nif (accumulatedResults.length === 0 && $execution.customData?.poseResults){\n  const all = [];\n  for (const rid of Object.keys($execution.customData.poseResults)){\n    all.push(...($execution.customData.poseResults[rid] || []));\n  }\n  if (all.length){\n    accumulatedResults = all;\n    runId = 'merged';\n    console.log(`Strategy 3: merged all buckets, found ${accumulatedResults.length}`);\n  }\n}\n\n/* Strategy 4 (FALLBACK): scan upstream accumulator node outputs across runs */\nif (accumulatedResults.length === 0){\n  const ACCUM_NODE_NAMES = [\n    'Results Accumulator',\n    'Accumulator - Collect Pose Results',\n    'Accumulator — Collect Pose Results',\n    'Accumulator – Collect Pose Results',\n    'Collect Pose Results',\n    'Pose Results Accumulator',\n    'Accumulator - Collect Pose Results (2A)'\n  ];\n  for (const nm of ACCUM_NODE_NAMES){\n    const scan = itemsAllRuns(nm);\n    if (scan.length){\n      const pulled = scan.map(x => x.item?.json).filter(Boolean);\n      if (pulled.length){\n        accumulatedResults = pulled;\n        runId = runId || 'scanned';\n        console.log(`Strategy 4: scanned \"${nm}\" → ${pulled.length} items`);\n        break;\n      }\n    }\n  }\n}\n\nconsole.log(`Final gather → ${accumulatedResults.length} items, runId=\"${runId||'(none)'}\"`);\n\n/* If STILL nothing: emit a soft stub with binary so S3 node doesn't error */\nfunction emitStub(reason){\n  const runStamp = isoNow();\n  const manifest = {\n    schema: 'lhb.run-manifest@v2.0',\n    runStamp,\n    characterHash: 'unknown',\n    order: null,\n    poses: {\n      total: 0,\n      approved: 0,\n      exhausted: 0,\n      retried: 0,\n      failed: 0,\n      needingReview: 0\n    },\n    entries: [],\n    reviewQueue: [],\n    summary: {\n      percentComplete: 0,\n      readyForBook: false,\n      needsHumanReview: false\n    },\n    workflow: {\n      currentStage: '2A-complete',\n      nextWorkflow: 'unknown',\n      requiresHumanReview: false\n    },\n    generatedAt: runStamp,\n    _note: `EMPTY MANIFEST: ${reason}`\n  };\n  const manifestJson = JSON.stringify(manifest, null, 2);\n  const assetsRoot = 'book-mvp-simple-adventure/order-generated-assets';\n  const manifestKey = sanitizePath(`${assetsRoot}/runs/${runStamp.replace(/[:.TZ-]/g,'')}/run-manifest.json`);\n  return [{\n    json: { manifestKey, manifest, characterHash: 'unknown', manifestReady: false },\n    binary: {\n      data: {\n        data: Buffer.from(manifestJson,'utf-8').toString('base64'),\n        mimeType: 'application/json',\n        fileName: 'run-manifest.json',\n        fileExtension: 'json'\n      }\n    }\n  }];\n}\n\nif (accumulatedResults.length === 0){\n  console.warn('No pose results found anywhere. Emitting stub manifest.');\n  return emitStub('no_pose_results_found');\n}\n\n/* ---------------- Extract order context ---------------- */\nconst orderContext = $execution?.customData?.orderContext || {};\nconst first = accumulatedResults[0] || {};\n\nconst runStamp = ensureIso(pickNE(first.runStamp, first.ctx?.runStamp, runId));\nconst assetsRoot = sanitizePath(pickNE(first.assetsRoot, 'book-mvp-simple-adventure/order-generated-assets'));\nconst publicR2Url = pickNE(\n  orderContext.publicR2Url,\n  first.publicR2Url,\n  'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev'\n);\n\n// characterHash (try direct; if missing, derive later from keys)\nlet characterHash = pickNE(first.characterHash, first.ctx?.characterHash, orderContext.characterHash);\nconst haveHash = nonEmpty(characterHash) && HEX_OK.test(String(characterHash));\n\n/* ---------------- reduce per-pose ---------------- */\nconst byPose = new Map();\n\nfor (const result of accumulatedResults){\n  const poseNumber = toInt(result.poseNumber ?? result.currentPoseNumber);\n  if (!poseNumber) continue;\n\n  const attempt   = toInt(result.retryAttempt) ?? 0;\n  const qaPass    = result.qaPass === true || result.qaCombinedPass === true || result.success === true;\n  const approvedKey = pickNE(result.approvedKey, result.uploadKey, result.storageKey, null);\n  const approvedFilename = approvedKey ? approvedKey.split('/').pop() : null;\n\n  const qaScore    = result.qaScore ?? result.qa?.pose?.score ?? null;\n  const styleScore = result.styleScore ?? result.qa?.style?.score?.style_cohesion ?? null;\n  const qaReasons  = Array.isArray(result.qaReasons)\n    ? result.qaReasons\n    : (Array.isArray(result.qa?.style?.reasons) ? result.qa.style.reasons : []);\n\n  const publicUrl = pickNE(result.publicUrl, null);\n  const correlationId = pickNE(result.correlationId, null);\n  const qaPoseNotes = result.qa?.pose?.notes || null;\n  const qaStyleNotes = result.qa?.style?.notes || null;\n\n  const maxRetries = toInt(pickNE(result.maxPoseRetries, result.maxRetries, 3)) ?? 3;\n  const needsReview = result.needsReview === true;\n  const reviewReason = result.reviewReason || null;\n\n  const prev = byPose.get(poseNumber) || {\n    poseNumber,\n    attempts: 0,\n    approvedKey: null,\n    approvedFilename: null,\n    anyPass: false,\n    exhausted: false,\n    qaScore: null,\n    styleScore: null,\n    qaReasons: [],\n    needsReview: false,\n    reviewReason: null,\n    maxRetries,\n    retryHistory: [],\n    publicUrl: null,\n    correlationId: null,\n    qaPoseNotes: null,\n    qaStyleNotes: null\n  };\n\n  if (attempt > prev.attempts) prev.attempts = attempt;\n\n  if (!qaPass && qaReasons.length) {\n    prev.qaReasons = [...new Set([...prev.qaReasons, ...qaReasons])];\n  }\n\n  if (attempt > 0){\n    prev.retryHistory.push({\n      attempt, passed: qaPass, qaScore, styleScore,\n      reasons: qaReasons.length ? qaReasons : null\n    });\n  }\n\n  prev.anyPass = prev.anyPass || qaPass;\n\n  if (qaPass && approvedKey){\n    prev.approvedKey = approvedKey;\n    prev.approvedFilename = approvedFilename;\n    if (publicUrl) prev.publicUrl = publicUrl;\n    if (correlationId) prev.correlationId = correlationId;\n  }\n\n  if (qaPoseNotes) prev.qaPoseNotes = qaPoseNotes;\n  if (qaStyleNotes) prev.qaStyleNotes = qaStyleNotes;\n\n  if (needsReview){ prev.needsReview = true; prev.reviewReason = reviewReason || prev.reviewReason; }\n  if (attempt >= prev.maxRetries) prev.exhausted = true;\n  if (qaScore !== null) prev.qaScore = qaScore;\n  if (styleScore !== null) prev.styleScore = styleScore;\n\n  byPose.set(poseNumber, prev);\n}\n\n/* ---------------- build entries ---------------- */\nconst poseNumbers = Array.from(byPose.keys()).sort((a,b)=>a-b);\nconst entries = [];\nlet approvedCount=0, exhaustedCount=0, retriedCount=0, needsReviewCount=0;\n\nfor (const pn of poseNumbers){\n  const p = byPose.get(pn);\n  let finalStatus = 'failed_qa';\n  if (p.approvedKey && p.anyPass){ finalStatus='approved'; approvedCount++; }\n  else if (p.anyPass){ finalStatus='passed_qa'; }\n\n  const isExhausted = p.exhausted && finalStatus !== 'approved';\n  if (isExhausted){ finalStatus='exhausted'; exhaustedCount++; }\n  \n  // Auto-flag exhausted poses for review\n  const needsReview = p.needsReview || isExhausted;\n  if (needsReview) needsReviewCount++;\n\n  if (p.attempts >= 1) retriedCount++;\n\n  const entry = {\n    poseNumber: p.poseNumber,\n    attempts: p.attempts,\n    status: finalStatus,\n    approved: finalStatus === 'approved',\n    approvedKey: p.approvedKey || null,\n    approvedFilename: p.approvedFilename || null,\n    publicUrl: p.publicUrl || joinUrl(publicR2Url, p.approvedKey),\n    correlationId: p.correlationId || null,\n    qaScore: p.qaScore,\n    styleScore: p.styleScore,\n    needsReview,\n    reviewReason: p.reviewReason || (isExhausted ? 'Exhausted retry attempts' : null)\n  };\n  \n  if (p.qaPoseNotes || p.qaStyleNotes){\n    entry.qaNotes = {};\n    if (p.qaPoseNotes) entry.qaNotes.pose = p.qaPoseNotes;\n    if (p.qaStyleNotes) entry.qaNotes.style = p.qaStyleNotes;\n  }\n  \n  if (p.attempts >= 1){\n    entry.retryHistory = p.retryHistory.length ? p.retryHistory : null;\n    entry.qaReasons = p.qaReasons.length ? p.qaReasons : null;\n  }\n\n  entries.push(entry);\n}\n\nconst totalPoses = poseNumbers.length;\n\n// derive hash from keys if still missing\nif (!haveHash){\n  for (const e of entries){\n    const hit = extractHashFromString(e.approvedKey);\n    if (hit){ characterHash = hit; break; }\n  }\n}\n\n/* ---------------- Build review queue ---------------- */\nconst reviewQueue = entries\n  .filter(e => e.needsReview)\n  .map(e => ({\n    poseNumber: e.poseNumber,\n    reason: e.reviewReason,\n    publicUrl: e.publicUrl,\n    qaScore: e.qaScore,\n    styleScore: e.styleScore,\n    attempts: e.attempts,\n    correlationId: e.correlationId\n  }));\n\n/* ---------------- Build comprehensive manifest ---------------- */\nconst percentComplete = totalPoses > 0 \n  ? Math.round((approvedCount / totalPoses) * 100) \n  : 0;\nconst readyForBook = approvedCount === totalPoses && totalPoses > 0;\nconst needsHumanReview = needsReviewCount > 0;\n\nconst manifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp,\n  characterHash: characterHash || 'unknown',\n  \n  // Order context\n  order: {\n    amazonOrderId: orderContext.amazonOrderId || null,\n    childName: orderContext.childName || orderContext.characterSpecs?.childName || null,\n    characterSpecs: orderContext.characterSpecs || {},\n    bookSpecs: orderContext.bookSpecs || {},\n    publicR2Url,\n    r2BucketName: 'little-hero-assets'\n  },\n  \n  // Pose statistics\n  poses: {\n    total: totalPoses,\n    approved: approvedCount,\n    exhausted: exhaustedCount,\n    retried: retriedCount,\n    failed: Math.max(totalPoses - approvedCount - exhaustedCount, 0),\n    needingReview: needsReviewCount\n  },\n  \n  // All pose details\n  entries,\n  \n  // Review queue (subset of entries)\n  reviewQueue,\n  \n  // Summary for UI\n  summary: {\n    percentComplete,\n    readyForBook,\n    needsHumanReview\n  },\n  \n  // Workflow routing\n  workflow: {\n    currentStage: '2A-complete',\n    nextWorkflow: needsHumanReview ? '2B-retry' : 'book-generation',\n    requiresHumanReview: needsHumanReview\n  },\n  \n  generatedAt: isoNow()\n};\n\nconst manifestJson = JSON.stringify(manifest, null, 2);\nconst manifestKeyPreferred = (characterHash && HEX_OK.test(String(characterHash)))\n  ? `${assetsRoot}/characters/${characterHash}/run-manifest.json`\n  : `${assetsRoot}/runs/${runStamp.replace(/[:.TZ-]/g,'')}/run-manifest.json`;\nconst manifestKey = sanitizePath(manifestKeyPreferred);\n\nconst binaryOut = {\n  data: {\n    data: Buffer.from(manifestJson,'utf-8').toString('base64'),\n    mimeType: 'application/json',\n    fileName: 'run-manifest.json',\n    fileExtension: 'json'\n  }\n};\n\nconsole.log({\n  node: 'Write Run Manifest v2.0.0',\n  runId: runId || '(none)',\n  characterHash: manifest.characterHash,\n  manifestKey,\n  poses: manifest.poses,\n  summary: manifest.summary,\n  workflow: manifest.workflow\n});\n\n// Clean up buckets when possible\nif ($execution.customData?.poseResults){\n  if (runId && runId !== 'merged' && $execution.customData.poseResults[runId]){\n    delete $execution.customData.poseResults[runId];\n    console.log('Cleaned up accumulator storage for runId:', runId);\n  } else if (runId === 'merged'){\n    $execution.customData.poseResults = {};\n    console.log('Cleaned up all accumulator storage (merged mode)');\n  }\n}\n\nreturn [{\n  json: { manifestKey, manifest, characterHash: manifest.characterHash, manifestReady: true },\n  binary: binaryOut\n}];"
+        "jsCode": "// Write Run Manifest (2A-04) — v2.0.3 with GLOBAL ORDER ID SUPPORT\n// Single document with manifest + order context + summary + review queue\n// Sources results and order context, outputs enriched manifest\n// UPDATED: Uses global.currentAmazonOrderId as fallback for cross-context access\n\nconsole.log('=== Write Run Manifest v2.0.3 with GLOBAL SUPPORT ===');\n\n/* ---------------- helpers ---------------- */\nfunction toInt(v){ const n=Number(v); return Number.isFinite(n)?Math.floor(n):null; }\nfunction nonEmpty(v){ return v!==undefined && v!==null && String(v).trim()!=='' && String(v).toLowerCase()!=='undefined' && String(v).toLowerCase()!=='null'; }\nconst pickNE = (...vals)=> vals.find(nonEmpty);\nconst clamp = (n,lo,hi)=> Math.max(lo, Math.min(hi, n));\nconst HEX_OK = /^[a-f0-9]{12,64}$/i;\nconst STRICT_RE = /(?:^|\\/)characters\\/([a-f0-9]{12,64})(?:\\/|$)/i;\nconst LOOSE_RE1 = /characters[_\\-]([a-f0-9]{12,64})[_\\-]/i;\nconst LOOSE_RE2 = /characters[_\\-]([a-f0-9]{12,64})[_\\-]pose\\d{1,3}/i;\nfunction extractHashFromString(s){\n  if (!nonEmpty(s)) return null;\n  const str=String(s);\n  let m=str.match(STRICT_RE); if (m) return m[1];\n  m=str.match(LOOSE_RE2)||str.match(LOOSE_RE1);\n  return m?m[1]:null;\n}\nfunction sanitizePath(p){ return String(p||'').replace(/\\/{2,}/g,'/').replace(/^\\/+/,''); }\nfunction isoNow(){ return new Date().toISOString(); }\nfunction ensureIso(v){ try{ const d=new Date(v); if (!Number.isNaN(d.getTime())) return d.toISOString(); }catch{} return isoNow(); }\nfunction joinUrl(base, key) {\n  if (!base || !key) return null;\n  return `${String(base).replace(/\\/$/, '')}/${String(key).replace(/^\\/+/, '')}`;\n}\n\n// Scan a node across runs for all items (newest→older)\nfunction itemsAllRuns(nodeName, MAX_SCAN=40){\n  const out=[], seen=new Set();\n  try{\n    const latest = $items(nodeName);\n    if (Array.isArray(latest)) for (const it of latest){\n      const sig = it?.json?.__uuid || JSON.stringify(Object.keys(it?.binary||{}));\n      if (!seen.has(sig)){ seen.add(sig); out.push({ run:'latest', item: it }); }\n    }\n  }catch{}\n  try{\n    const last = $items(nodeName,0);\n    if (Array.isArray(last)) for (const it of last){\n      const sig = it?.json?.__uuid || JSON.stringify(Object.keys(it?.binary||{}));\n      if (!seen.has(sig)){ seen.add(sig); out.push({ run:'last', item: it }); }\n    }\n  }catch{}\n  for (let r=MAX_SCAN; r>=0; r--){\n    try{\n      const arr = $items(nodeName,0,r);\n      if (!Array.isArray(arr) || !arr.length) continue;\n      for (const it of arr){\n        const sig = JSON.stringify([r,it?.json?.__uuid,Object.keys(it?.binary||{})]);\n        if (!seen.has(sig)){ seen.add(sig); out.push({ run:r, item: it }); }\n      }\n    }catch{}\n  }\n  return out;\n}\n\n/* ---------------- gather accumulated results ---------------- */\nlet accumulatedResults = [];\nlet runId = null;\n\n/* Strategy 0: DIRECT INPUT */\ntry{\n  const incomingItems = (typeof $input?.all === 'function') ? $input.all() : [];\n  const fromItems = incomingItems.map(it => it?.json).filter(Boolean);\n  const fromJson  = Array.isArray($json) ? $json : (Object.keys($json||{}).length > 0 ? [$json] : []);\n  const combined  = [...fromItems, ...fromJson];\n  if (combined.length){\n    accumulatedResults = combined;\n    runId = pickNE($json?.runId, $json?.runStamp, $execution?.customData?.currentRunId, 'direct');\n    console.log(`Strategy 0: direct input provided ${accumulatedResults.length} results`);\n  }\n}catch(e){\n  console.warn('Strategy 0 error:', e?.message || e);\n}\n\n/* Strategy 1: currentRunId bucket */\nif (accumulatedResults.length === 0 && $execution.customData?.currentRunId){\n  runId = $execution.customData.currentRunId;\n  accumulatedResults = $execution.customData.poseResults?.[runId] || [];\n  console.log(`Strategy 1: currentRunId=\"${runId}\", found ${accumulatedResults.length}`);\n}\n\n/* Strategy 2: last bucket in poseResults */\nif (accumulatedResults.length === 0 && $execution.customData?.poseResults){\n  const allRunIds = Object.keys($execution.customData.poseResults);\n  console.log(`Strategy 2: poseResults buckets: ${allRunIds.length}`);\n  if (allRunIds.length){\n    runId = allRunIds[allRunIds.length-1];\n    accumulatedResults = $execution.customData.poseResults[runId] || [];\n    console.log(`Strategy 2: picked runId=\"${runId}\", found ${accumulatedResults.length}`);\n  }\n}\n\n/* Strategy 3: merge all buckets */\nif (accumulatedResults.length === 0 && $execution.customData?.poseResults){\n  const all = [];\n  for (const rid of Object.keys($execution.customData.poseResults)){\n    all.push(...($execution.customData.poseResults[rid] || []));\n  }\n  if (all.length){\n    accumulatedResults = all;\n    runId = 'merged';\n    console.log(`Strategy 3: merged all buckets, found ${accumulatedResults.length}`);\n  }\n}\n\n/* Strategy 4 (FALLBACK): scan upstream accumulator node outputs across runs */\nif (accumulatedResults.length === 0){\n  const ACCUM_NODE_NAMES = [\n    'Results Accumulator',\n    'Accumulator - Collect Pose Results',\n    'Accumulator — Collect Pose Results',\n    'Accumulator – Collect Pose Results',\n    'Collect Pose Results',\n    'Pose Results Accumulator',\n    'Accumulator - Collect Pose Results (2A)'\n  ];\n  for (const nm of ACCUM_NODE_NAMES){\n    const scan = itemsAllRuns(nm);\n    if (scan.length){\n      const pulled = scan.map(x => x.item?.json).filter(Boolean);\n      if (pulled.length){\n        accumulatedResults = pulled;\n        runId = runId || 'scanned';\n        console.log(`Strategy 4: scanned \"${nm}\" → ${pulled.length} items`);\n        break;\n      }\n    }\n  }\n}\n\nconsole.log(`Final gather → ${accumulatedResults.length} items, runId=\"${runId||'(none)'}\"`);\n\n/* If STILL nothing: emit a soft stub with binary so S3 node doesn't error */\nfunction emitStub(reason){\n  const runStamp = isoNow();\n  const manifest = {\n    schema: 'lhb.run-manifest@v2.0',\n    runStamp,\n    characterHash: 'unknown',\n    order: null,\n    poses: {\n      total: 0,\n      approved: 0,\n      exhausted: 0,\n      retried: 0,\n      failed: 0,\n      needingReview: 0\n    },\n    entries: [],\n    reviewQueue: [],\n    summary: {\n      percentComplete: 0,\n      readyForBook: false,\n      needsHumanReview: false\n    },\n    workflow: {\n      currentStage: '2A-complete',\n      nextWorkflow: 'unknown',\n      requiresHumanReview: false\n    },\n    generatedAt: runStamp,\n    _note: `EMPTY MANIFEST: ${reason}`\n  };\n  const manifestJson = JSON.stringify(manifest, null, 2);\n  \n  // Use fallback path structure for stub\n  const manifestKey = sanitizePath(`book-mvp-simple-adventure/orders/stub-${runStamp.replace(/[:.TZ-]/g,'')}/manifests/2a-manifest.json`);\n  \n  return [{\n    json: { manifestKey, manifest, characterHash: 'unknown', manifestReady: false },\n    binary: {\n      data: {\n        data: Buffer.from(manifestJson,'utf-8').toString('base64'),\n        mimeType: 'application/json',\n        fileName: '2a-manifest.json',\n        fileExtension: 'json'\n      }\n    }\n  }];\n}\n\nif (accumulatedResults.length === 0){\n  console.warn('No pose results found anywhere. Emitting stub manifest.');\n  return emitStub('no_pose_results_found');\n}\n\n/* ---------------- Extract order context (FLEXIBLE - tries multiple sources INCLUDING GLOBAL) ---------------- */\nconst first = accumulatedResults[0] || {};\n\n// Try multiple sources for order context object\nconst orderContext = \n  $execution?.customData?.orderContext     // A: Stored in execution customData\n  || $json?.orderContext                   // B: Passed directly as orderContext\n  || $json?.orderData                      // C: Passed as orderData\n  || $json?.order                          // D: Passed as order\n  || first.orderContext                    // E: In first pose result as orderContext\n  || first.orderData                       // F: In first pose result as orderData\n  || {};\n\nconsole.log('Order context source:', \n  $execution?.customData?.orderContext ? 'execution.customData' :\n  $json?.orderContext ? '$json.orderContext' :\n  $json?.orderData ? '$json.orderData' :\n  $json?.order ? '$json.order' :\n  first.orderContext ? 'first.orderContext' :\n  first.orderData ? 'first.orderData' :\n  'none (will use nulls)'\n);\n\n// ========== ENHANCED: Try GLOBAL as additional fallback ==========\nconst amazonOrderId = pickNE(\n  orderContext.amazonOrderId,\n  $json?.amazonOrderId,\n  first.amazonOrderId,\n  global.currentAmazonOrderId,  // ← NEW: Check global storage\n  null\n);\n\nconsole.log('amazonOrderId resolution:', {\n  'from orderContext': orderContext.amazonOrderId || '(none)',\n  'from $json': $json?.amazonOrderId || '(none)',\n  'from first result': first.amazonOrderId || '(none)',\n  'from global': global.currentAmazonOrderId || '(none)',\n  'FINAL VALUE': amazonOrderId || '(none)'\n});\n// ================================================================\n\nconst childName = pickNE(\n  orderContext.childName,\n  orderContext.characterSpecs?.childName,\n  $json?.childName,\n  $json?.characterSpecs?.childName,\n  first.childName,\n  first.characterSpecs?.childName,\n  null\n);\n\nconst characterSpecs = \n  orderContext.characterSpecs \n  || $json?.characterSpecs \n  || first.characterSpecs \n  || {};\n\nconst bookSpecs = \n  orderContext.bookSpecs \n  || $json?.bookSpecs \n  || first.bookSpecs \n  || {};\n\nconst orderDetails = \n  orderContext.orderDetails\n  || $json?.orderDetails\n  || first.orderDetails\n  || {};\n\n// Infrastructure fields\nconst runStamp = ensureIso(pickNE(first.runStamp, first.ctx?.runStamp, runId));\nconst assetsRoot = sanitizePath(pickNE(first.assetsRoot, 'book-mvp-simple-adventure/order-generated-assets'));\nconst publicR2Url = pickNE(\n  orderContext.publicR2Url,\n  $json?.publicR2Url,\n  first.publicR2Url,\n  'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev'\n);\n\n// characterHash (try direct; if missing, derive later from keys)\nlet characterHash = pickNE(\n  first.characterHash, \n  first.ctx?.characterHash, \n  orderContext.characterHash,\n  $json?.characterHash\n);\nconst haveHash = nonEmpty(characterHash) && HEX_OK.test(String(characterHash));\n\nconsole.log('Extracted order fields:', {\n  amazonOrderId: amazonOrderId || '(none)',\n  childName: childName || '(none)',\n  characterHash: characterHash || '(will derive from keys)',\n  hasCharacterSpecs: Object.keys(characterSpecs).length > 0,\n  hasBookSpecs: Object.keys(bookSpecs).length > 0\n});\n\n/* ---------------- reduce per-pose ---------------- */\nconst byPose = new Map();\n\nfor (const result of accumulatedResults){\n  const poseNumber = toInt(result.poseNumber ?? result.currentPoseNumber);\n  if (!poseNumber) continue;\n\n  const attempt   = toInt(result.retryAttempt) ?? 0;\n  const qaPass    = result.qaPass === true || result.qaCombinedPass === true || result.success === true;\n  const approvedKey = pickNE(result.approvedKey, result.uploadKey, result.storageKey, null);\n  const approvedFilename = approvedKey ? approvedKey.split('/').pop() : null;\n\n  const qaScore    = result.qaScore ?? result.qa?.pose?.score ?? null;\n  const styleScore = result.styleScore ?? result.qa?.style?.score?.style_cohesion ?? null;\n  const qaReasons  = Array.isArray(result.qaReasons)\n    ? result.qaReasons\n    : (Array.isArray(result.qa?.style?.reasons) ? result.qa.style.reasons : []);\n\n  const publicUrl = pickNE(result.publicUrl, null);\n  const correlationId = pickNE(result.correlationId, null);\n  const qaPoseNotes = result.qa?.pose?.notes || null;\n  const qaStyleNotes = result.qa?.style?.notes || null;\n\n  const maxRetries = toInt(pickNE(result.maxPoseRetries, result.maxRetries, 3)) ?? 3;\n  const needsReview = result.needsReview === true;\n  const reviewReason = result.reviewReason || null;\n\n  const prev = byPose.get(poseNumber) || {\n    poseNumber,\n    attempts: 0,\n    approvedKey: null,\n    approvedFilename: null,\n    anyPass: false,\n    exhausted: false,\n    qaScore: null,\n    styleScore: null,\n    qaReasons: [],\n    needsReview: false,\n    reviewReason: null,\n    maxRetries,\n    retryHistory: [],\n    publicUrl: null,\n    correlationId: null,\n    qaPoseNotes: null,\n    qaStyleNotes: null\n  };\n\n  if (attempt > prev.attempts) prev.attempts = attempt;\n\n  if (!qaPass && qaReasons.length) {\n    prev.qaReasons = [...new Set([...prev.qaReasons, ...qaReasons])];\n  }\n\n  if (attempt > 0){\n    prev.retryHistory.push({\n      attempt, passed: qaPass, qaScore, styleScore,\n      reasons: qaReasons.length ? qaReasons : null\n    });\n  }\n\n  prev.anyPass = prev.anyPass || qaPass;\n\n  if (qaPass && approvedKey){\n    prev.approvedKey = approvedKey;\n    prev.approvedFilename = approvedFilename;\n    if (publicUrl) prev.publicUrl = publicUrl;\n    if (correlationId) prev.correlationId = correlationId;\n  }\n\n  if (qaPoseNotes) prev.qaPoseNotes = qaPoseNotes;\n  if (qaStyleNotes) prev.qaStyleNotes = qaStyleNotes;\n\n  if (needsReview){ prev.needsReview = true; prev.reviewReason = reviewReason || prev.reviewReason; }\n  if (attempt >= prev.maxRetries) prev.exhausted = true;\n  if (qaScore !== null) prev.qaScore = qaScore;\n  if (styleScore !== null) prev.styleScore = styleScore;\n\n  byPose.set(poseNumber, prev);\n}\n\n/* ---------------- build entries ---------------- */\nconst poseNumbers = Array.from(byPose.keys()).sort((a,b)=>a-b);\nconst entries = [];\nlet approvedCount=0, exhaustedCount=0, retriedCount=0, needsReviewCount=0;\n\nfor (const pn of poseNumbers){\n  const p = byPose.get(pn);\n  let finalStatus = 'failed_qa';\n  if (p.approvedKey && p.anyPass){ finalStatus='approved'; approvedCount++; }\n  else if (p.anyPass){ finalStatus='passed_qa'; }\n\n  const isExhausted = p.exhausted && finalStatus !== 'approved';\n  if (isExhausted){ finalStatus='exhausted'; exhaustedCount++; }\n  \n  // Auto-flag exhausted poses for review\n  const needsReview = p.needsReview || isExhausted;\n  if (needsReview) needsReviewCount++;\n\n  if (p.attempts >= 1) retriedCount++;\n\n  const entry = {\n    poseNumber: p.poseNumber,\n    attempts: p.attempts,\n    status: finalStatus,\n    approved: finalStatus === 'approved',\n    approvedKey: p.approvedKey || null,\n    approvedFilename: p.approvedFilename || null,\n    publicUrl: p.publicUrl || joinUrl(publicR2Url, p.approvedKey),\n    correlationId: p.correlationId || null,\n    qaScore: p.qaScore,\n    styleScore: p.styleScore,\n    needsReview,\n    reviewReason: p.reviewReason || (isExhausted ? 'Exhausted retry attempts' : null)\n  };\n  \n  if (p.qaPoseNotes || p.qaStyleNotes){\n    entry.qaNotes = {};\n    if (p.qaPoseNotes) entry.qaNotes.pose = p.qaPoseNotes;\n    if (p.qaStyleNotes) entry.qaNotes.style = p.qaStyleNotes;\n  }\n  \n  if (p.attempts >= 1){\n    entry.retryHistory = p.retryHistory.length ? p.retryHistory : null;\n    entry.qaReasons = p.qaReasons.length ? p.qaReasons : null;\n  }\n\n  entries.push(entry);\n}\n\nconst totalPoses = poseNumbers.length;\n\n// derive hash from keys if still missing\nif (!haveHash){\n  for (const e of entries){\n    const hit = extractHashFromString(e.approvedKey);\n    if (hit){ characterHash = hit; break; }\n  }\n}\n\n/* ---------------- Build review queue ---------------- */\nconst reviewQueue = entries\n  .filter(e => e.needsReview)\n  .map(e => ({\n    poseNumber: e.poseNumber,\n    reason: e.reviewReason,\n    publicUrl: e.publicUrl,\n    qaScore: e.qaScore,\n    styleScore: e.styleScore,\n    attempts: e.attempts,\n    correlationId: e.correlationId\n  }));\n\n/* ---------------- Build comprehensive manifest ---------------- */\nconst percentComplete = totalPoses > 0 \n  ? Math.round((approvedCount / totalPoses) * 100) \n  : 0;\nconst readyForBook = approvedCount === totalPoses && totalPoses > 0;\nconst needsHumanReview = needsReviewCount > 0;\n\nconst manifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp,\n  characterHash: characterHash || 'unknown',\n  \n  // Order context (flexible extraction)\n  order: {\n    amazonOrderId: amazonOrderId,\n    childName: childName,\n    characterSpecs: characterSpecs,\n    bookSpecs: bookSpecs,\n    orderDetails: orderDetails,\n    publicR2Url,\n    r2BucketName: 'little-hero-assets'\n  },\n  \n  // Pose statistics\n  poses: {\n    total: totalPoses,\n    approved: approvedCount,\n    exhausted: exhaustedCount,\n    retried: retriedCount,\n    failed: Math.max(totalPoses - approvedCount - exhaustedCount, 0),\n    needingReview: needsReviewCount\n  },\n  \n  // All pose details\n  entries,\n  \n  // Review queue (subset of entries)\n  reviewQueue,\n  \n  // Summary for UI\n  summary: {\n    percentComplete,\n    readyForBook,\n    needsHumanReview\n  },\n  \n  // Workflow routing\n  workflow: {\n    currentStage: '2A-complete',\n    nextWorkflow: needsHumanReview ? '2B-retry' : 'book-generation',\n    requiresHumanReview: needsHumanReview\n  },\n  \n  generatedAt: isoNow()\n};\n\n/* ---------------- Generate manifest key with NEW STRUCTURE ---------------- */\n// NEW: Use orders bucket structure: book-mvp-simple-adventure/orders/{orderId}/manifests/2a-manifest.json\nlet manifestKey;\n\nif (amazonOrderId) {\n  // PREFERRED: Use order ID in path, simple filename\n  manifestKey = `book-mvp-simple-adventure/orders/${amazonOrderId}/manifests/2a-manifest.json`;\n  console.log(`✓ Using orderId-based path: ${manifestKey}`);\n} else if (characterHash && HEX_OK.test(String(characterHash))) {\n  // FALLBACK 1: Use character hash if no order ID\n  manifestKey = `book-mvp-simple-adventure/orders/character-${characterHash}/manifests/2a-manifest.json`;\n  console.warn(`⚠ No amazonOrderId, using characterHash fallback: ${manifestKey}`);\n} else {\n  // FALLBACK 2: Use timestamp if nothing else available\n  const timestamp = runStamp.replace(/[:.TZ-]/g, '');\n  manifestKey = `book-mvp-simple-adventure/orders/run-${timestamp}/manifests/2a-manifest.json`;\n  console.warn(`⚠ No amazonOrderId or characterHash, using timestamp fallback: ${manifestKey}`);\n}\n\nmanifestKey = sanitizePath(manifestKey);\n\n/* ---------------- Prepare binary output ---------------- */\nconst manifestJson = JSON.stringify(manifest, null, 2);\nconst binaryOut = {\n  data: {\n    data: Buffer.from(manifestJson,'utf-8').toString('base64'),\n    mimeType: 'application/json',\n    fileName: '2a-manifest.json',\n    fileExtension: 'json'\n  }\n};\n\nconsole.log({\n  node: 'Write Run Manifest v2.0.3',\n  runId: runId || '(none)',\n  bucket: 'little-hero-orders',\n  manifestKey,\n  characterHash: manifest.characterHash,\n  poses: manifest.poses,\n  summary: manifest.summary,\n  workflow: manifest.workflow,\n  orderContext: {\n    amazonOrderId: manifest.order.amazonOrderId || '(none)',\n    childName: manifest.order.childName || '(none)'\n  }\n});\n\n/* ---------------- Clean up storage ---------------- */\n// Clean up accumulator storage\nif ($execution.customData?.poseResults){\n  if (runId && runId !== 'merged' && $execution.customData.poseResults[runId]){\n    delete $execution.customData.poseResults[runId];\n    console.log('Cleaned up accumulator storage for runId:', runId);\n  } else if (runId === 'merged'){\n    $execution.customData.poseResults = {};\n    console.log('Cleaned up all accumulator storage (merged mode)');\n  }\n}\n\n// ========== CLEANUP: Delete global amazonOrderId ==========\nif (global.currentAmazonOrderId) {\n  console.log('🧹 Clearing global amazonOrderId:', global.currentAmazonOrderId);\n  delete global.currentAmazonOrderId;\n}\n// ==========================================================\n\nreturn [{\n  json: { \n    manifestKey,\n    manifest, \n    characterHash: manifest.characterHash,\n    amazonOrderId: amazonOrderId,\n    manifestReady: true,\n    uploadBucket: 'little-hero-orders'\n  },\n  binary: binaryOut\n}];"
       },
       "id": "f2a574b0-2dc0-4601-92e8-4c6574b2fffe",
       "name": "Write Run Manifest",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -880,
-        -416
+        -2448,
+        1152
       ],
       "notesInFlow": true,
       "notes": "Writes run-manifest.json for ops visibility (2A-04) - FIXED: path sanitization, characterHash requirement"
@@ -607,7 +607,7 @@
     {
       "parameters": {
         "operation": "upload",
-        "bucketName": "little-hero-assets",
+        "bucketName": "little-hero-orders",
         "fileName": "={{$json.manifestKey}}",
         "additionalFields": {}
       },
@@ -616,8 +616,8 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -704,
-        -560
+        -2176,
+        1152
       ],
       "credentials": {
         "s3": {
@@ -657,7 +657,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2240,
+        -2032,
         0
       ],
       "id": "e383a944-e0e3-4333-a48d-5ae5df7fc344",
@@ -673,24 +673,9 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1232,
-        272
+        -1040,
+        640
       ]
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Accumulator - Collect Pose Results — v2.2 (stable runId, per-item safe)\nconst result = $json;\n\n// Ensure container objects exist\nif (!$execution.customData) $execution.customData = {};\nif (!$execution.customData.poseResults) $execution.customData.poseResults = {};\n\n// Lock a single runId for this execution (do NOT mint a new one per item)\nif (!$execution.customData.currentRunId) {\n  const stamp = (result.runStamp || result.ctx?.runStamp || new Date().toISOString())\n    .replace(/[:.TZ-]/g,'');\n  const hash  = (result.characterHash || result.ctx?.characterHash || 'nohash');\n  $execution.customData.currentRunId = `${hash}-${stamp}`;\n}\n\nconst runId = $execution.customData.currentRunId;\n\n// Ensure array exists and push this item\n($execution.customData.poseResults[runId] ||= []).push(result);\n\n// Lightweight visibility (kept in your existing log stream)\ntry {\n  const count = $execution.customData.poseResults[runId].length;\n  console.log('ACCUM OK', { runId, pose: result.poseNumber, totalCollected: count });\n} catch {}\n\nreturn { json: result, binary: {} };\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        336,
-        288
-      ],
-      "id": "03124e2f-1299-4b82-a99e-2b331cac4dbf",
-      "name": "Results Accumulator-",
-      "disabled": true
     },
     {
       "parameters": {
@@ -699,11 +684,51 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1200,
-        -240
+        -2800,
+        1152
       ],
       "id": "8388996f-13ff-41cf-a6c0-9cab1052bd6a",
       "name": "Accumulator - Collect Pose Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Capture Order Context — v2.4 (store to staticData + execData)\nconst orderData = $json || {};\n\nfunction good(x){\n  return typeof x === 'string'\n    ? x.trim() !== '' && x.trim().toLowerCase() !== 'unknown-order'\n    : x !== undefined && x !== null;\n}\n\nconst orderContext = {\n  amazonOrderId: good(orderData.amazonOrderId) ? String(orderData.amazonOrderId).trim() : null,\n  characterHash: orderData.characterHash || null,\n  childName: orderData.characterSpecs?.childName || null,\n  characterSpecs: orderData.characterSpecs || {},\n  bookSpecs: orderData.bookSpecs || {},\n  orderDetails: orderData.orderDetails || {},\n  publicR2Url: orderData.publicR2Url || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev',\n  assetsRoot: orderData.assetsRoot || 'book-mvp-simple-adventure/order-generated-assets',\n};\n\n$execution.customData = $execution.customData || {};\n$execution.customData.orderContext = orderContext;\n\n// Store a durable fallback in workflow static data\nconst sd = $getWorkflowStaticData('global');\nsd.lastAmazonOrderId = orderContext.amazonOrderId || sd.lastAmazonOrderId || null;\nsd.lastOrderContext  = orderContext; // okay to overwrite during this run\n\n// (Optional) keep a run stamp for debugging\nsd.lastRunStamp = new Date().toISOString();\n\nconsole.log('=== ORDER CONTEXT CAPTURED ===');\nconsole.log('amazonOrderId:', orderContext.amazonOrderId || '(none)');\n\nreturn [{\n  json: {\n    ...orderData,\n    orderContext,\n    amazonOrderId: orderContext.amazonOrderId || 'unknown-order',\n    assetsRoot: orderContext.assetsRoot,\n    publicR2Url: orderContext.publicR2Url,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2544,
+        0
+      ],
+      "id": "ee32ebbf-4fdf-49d5-8ded-ab414f996451",
+      "name": "Capture Order Context"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Set Environment Defaults — v2.3 (execData-first; robust precedence)\nconst input = $json || {};\n\nfunction good(x){\n  return typeof x === 'string'\n    ? x.trim() !== '' && x.trim().toLowerCase() !== 'unknown-order'\n    : x !== undefined && x !== null;\n}\n\nconst execCtxId = $execution.customData?.orderContext?.amazonOrderId || null;\nconst ctxId     = input.orderContext?.amazonOrderId || null;\nconst incoming  = input.amazonOrderId || null;\nconst globalId  = global.currentAmazonOrderId || null;\n\n// Precedence: incoming(non-unknown) → execCtx → ctxId → global → 'unknown-order'\nconst amazonOrderId =\n  (good(incoming) ? incoming :\n  (good(execCtxId) ? execCtxId :\n  (good(ctxId) ? ctxId :\n  (good(globalId) ? globalId : 'unknown-order'))));\n\n// Keep execution context authoritative (fill if missing)\nif (!$execution.customData) $execution.customData = {};\nif (!$execution.customData.orderContext) $execution.customData.orderContext = {};\nif (!$execution.customData.orderContext.amazonOrderId && good(amazonOrderId)) {\n  $execution.customData.orderContext.amazonOrderId = amazonOrderId;\n}\n\n// Optional: update global fallback if still empty\nif (!global.currentAmazonOrderId && good(amazonOrderId)) {\n  global.currentAmazonOrderId = amazonOrderId;\n}\n\nconsole.log('📊 Set Env Defaults');\nconsole.log('  incoming:', incoming);\nconsole.log('  execCtx :', execCtxId);\nconsole.log('  ctxId   :', ctxId);\nconsole.log('  global  :', globalId);\nconsole.log('  → using :', amazonOrderId);\n\nconst output = {\n  ...input,\n  amazonOrderId,\n  assetsRoot:  input.assetsRoot  || 'book-mvp-simple-adventure/order-generated-assets',\n  publicR2Url: input.publicR2Url || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev',\n  maxPoseRetries: Number.isFinite(+input.maxPoseRetries) ? +input.maxPoseRetries : 3,\n  // propagate orderContext forward\n  orderContext: {\n    ...(input.orderContext || {}),\n    amazonOrderId: amazonOrderId !== 'unknown-order' ? amazonOrderId : (input.orderContext?.amazonOrderId || null),\n  }\n};\n\nreturn { json: output };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3136,
+        384
+      ],
+      "id": "65d04fdb-42e9-486d-87e4-81d727e2cf32",
+      "name": "Set Environment Defaults"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Results Accumulator — v3.2 (staticData-aware + upstream scan; stable runId; unique __uuid)\n\nconst result = $json || {};\n\nfunction good(x){\n  return typeof x === 'string'\n    ? x.trim() !== '' && x.trim().toLowerCase() !== 'unknown-order'\n    : x !== undefined && x !== null;\n}\n\nfunction findFromUpstream(){\n  // Only scans nodes in THIS workflow execution.\n  // Add/remove names to match your 2A node labels exactly.\n  const CANDIDATES = [\n    'Init / Validate Inputs',\n    'Capture Order Context',\n    'Set Environment Defaults (code)',\n    'Set Environment Defaults',\n    'Manual Trigger',\n    'Start / Pass-through'\n  ];\n  for (const name of CANDIDATES){\n    try {\n      const arr = $items(name);\n      if (Array.isArray(arr)) {\n        for (const it of arr){\n          const id = it?.json?.orderContext?.amazonOrderId || it?.json?.amazonOrderId;\n          if (good(id)) return { source: name, id };\n        }\n      }\n      const last = $items(name, 0);\n      if (Array.isArray(last)) {\n        for (const it of last){\n          const id = it?.json?.orderContext?.amazonOrderId || it?.json?.amazonOrderId;\n          if (good(id)) return { source: name, id };\n        }\n      }\n    } catch (e) {}\n  }\n  return { source: null, id: null };\n}\n\n$execution.customData = $execution.customData || {};\n$execution.customData.poseResults = $execution.customData.poseResults || {};\n$execution.customData.orderContext = $execution.customData.orderContext || {};\n\nconst sd = $getWorkflowStaticData('global');\n\n// Gather candidates (do NOT trust \"unknown-order\")\nconst incoming  = result.amazonOrderId || null;\nconst ctxId     = result.orderContext?.amazonOrderId || null;\nconst execCtxId = $execution.customData.orderContext.amazonOrderId || null;\nconst staticId  = sd?.lastAmazonOrderId || null;\nconst staticCtx = sd?.lastOrderContext?.amazonOrderId || null;\nconst globalId  = (typeof global !== 'undefined' && global) ? global.currentAmazonOrderId : null;\n\nlet upstream = { source: null, id: null };\nif (![incoming, ctxId, execCtxId, staticId, staticCtx, globalId].some(good)){\n  upstream = findFromUpstream();\n}\n\nconst canonicalOrderId =\n  [incoming, ctxId, execCtxId, staticId, staticCtx, globalId, upstream.id].find(good) || 'unknown-order';\n\n// Diagnostics\nconsole.log('🧲 Accumulator ID resolve:', {\n  incoming, ctxId, execCtxId, staticId, staticCtx, globalId,\n  upstreamFrom: upstream.source, final: canonicalOrderId\n});\n\n// Normalize result payload\nif (result.amazonOrderId !== canonicalOrderId) {\n  console.log('🔧 Accum amazonOrderId correction →', canonicalOrderId);\n  result.amazonOrderId = canonicalOrderId;\n}\nif (typeof result.orderContext !== 'object' || result.orderContext === null) {\n  result.orderContext = {};\n}\nif (!good(result.orderContext.amazonOrderId)) {\n  result.orderContext.amazonOrderId = canonicalOrderId;\n}\n\n// Keep exec + staticData in sync for downstream reliability\n$execution.customData.orderContext.amazonOrderId = canonicalOrderId;\nif (good(canonicalOrderId)) sd.lastAmazonOrderId = canonicalOrderId;\nsd.lastOrderContext = {\n  ...(sd.lastOrderContext || {}),\n  amazonOrderId: canonicalOrderId\n};\n\n// Ensure a stable runId for the whole execution\nif (!$execution.customData.currentRunId) {\n  const stamp = (result.runStamp || result.ctx?.runStamp || new Date().toISOString()).replace(/[:.TZ-]/g,'');\n  const hash  = (result.characterHash || result.ctx?.characterHash || 'nohash');\n  $execution.customData.currentRunId = `${hash}-${stamp}`;\n}\nconst runId = $execution.customData.currentRunId;\n\n// Add a unique signature to avoid scan de-dupe in manifest writer\nfunction makeUuid(r, ix){\n  const pose = String(r.poseNumber ?? ix + 1).padStart(2,'0');\n  const tail = (r.approvedKey || r.storageKey || r.generatedFileName || '').split('/').pop() || `pose${pose}.png`;\n  return `${r.characterHash||'unknown'}:${pose}:${tail}`;\n}\nif (!result.__uuid) {\n  result.__uuid = makeUuid(result, Number(result.poseNumber ?? 0) - 1);\n}\n\n// Push into accumulator\nif (!$execution.customData.poseResults[runId]) {\n  $execution.customData.poseResults[runId] = [];\n}\n$execution.customData.poseResults[runId].push(result);\n\n// Visibility\ntry {\n  const count = $execution.customData.poseResults[runId].length;\n  console.log('ACCUM OK', {\n    runId,\n    pose: result.poseNumber,\n    totalCollected: count,\n    amazonOrderId: result.amazonOrderId\n  });\n} catch {}\n\nreturn { json: result, binary: {} };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1936,
+        800
+      ],
+      "id": "03124e2f-1299-4b82-a99e-2b331cac4dbf",
+      "name": "Results Accumulator"
     }
   ],
   "pinData": {},
@@ -819,7 +844,7 @@
       "main": [
         [
           {
-            "node": "Generate Character Hash1",
+            "node": "Capture Order Context",
             "type": "main",
             "index": 0
           }
@@ -885,7 +910,7 @@
       "main": [
         [
           {
-            "node": "Accumulator - Collect Pose Results",
+            "node": "TEST MODE TOGGLE1",
             "type": "main",
             "index": 0
           }
@@ -903,7 +928,7 @@
         ],
         [
           {
-            "node": "Execute SW1 - Pose Generation",
+            "node": "Set Environment Defaults",
             "type": "main",
             "index": 0
           }
@@ -947,7 +972,7 @@
       "main": [
         [
           {
-            "node": "Results Accumulator-",
+            "node": "Results Accumulator",
             "type": "main",
             "index": 0
           }
@@ -1002,18 +1027,7 @@
       "main": [
         [
           {
-            "node": "Results Accumulator-",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Results Accumulator-": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Items",
+            "node": "Results Accumulator",
             "type": "main",
             "index": 0
           }
@@ -1022,9 +1036,36 @@
     },
     "Accumulator - Collect Pose Results": {
       "main": [
+        []
+      ]
+    },
+    "Capture Order Context": {
+      "main": [
         [
           {
-            "node": "Write Run Manifest",
+            "node": "Generate Character Hash1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Environment Defaults": {
+      "main": [
+        [
+          {
+            "node": "Execute SW1 - Pose Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Results Accumulator": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
             "type": "main",
             "index": 0
           }
@@ -1036,7 +1077,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1f7f41ec-3f32-43cc-9f97-769c0b76cb94",
+  "versionId": "366ce5f2-dc0e-4e94-8c6e-7d625674543e",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
