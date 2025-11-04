@@ -1,0 +1,7 @@
+# Cloudflare Pages configuration for marketing site
+# This prevents Cloudflare from using the back-end wrangler.toml
+
+name = "little-hero-labs"
+pages_build_output_dir = ".next"
+compatibility_date = "2024-11-01"
+
