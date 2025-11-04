@@ -29,8 +29,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
   const [poses, setPoses] = useState([]);
 
-  // Three-step workflow state
-  const [approveAllConfirmed, setApproveAllConfirmed] = useState(false);
+  // Two-step workflow state
   const [approveStageConfirmed, setApproveStageConfirmed] = useState(false);
   const [triggerBackgroundRemovalConfirmed, setTriggerBackgroundRemovalConfirmed] = useState(false);
 
@@ -126,31 +125,22 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   const allPosesExist = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0);
   const hasAllImages = baseCharacterExists && allPosesExist;
   
-  // Can approve all only if all images exist and none are flagged
-  const canApproveAll = flaggedCount === 0 && hasAllImages;
-  
-  // Can approve stage if approve all is confirmed
-  const canApproveStage = approveAllConfirmed && canApproveAll;
+  // Can approve stage only if all images exist and none are flagged
+  const canApproveStage = flaggedCount === 0 && hasAllImages;
   
   // Can trigger background removal if approve stage is confirmed
   const canTriggerBackgroundRemoval = approveStageConfirmed && canApproveStage;
 
+  // Un-confirm stages when flags are set
   useEffect(() => {
     setFlaggedCount(orderId, 'preBria', flaggedCount);
-  }, [orderId, flaggedCount]);
-
-  // Handle approve all
-  const handleApproveAll = () => {
-    setApproveAllConfirmed(true);
-  };
-
-  // Handle un-confirm approve all (only if approve stage is not confirmed)
-  const handleUnconfirmApproveAll = () => {
-    // Can only un-confirm if step 2 is not confirmed
-    if (!approveStageConfirmed) {
-      setApproveAllConfirmed(false);
+    
+    // If any asset is flagged, un-confirm all stages
+    if (flaggedCount > 0) {
+      setApproveStageConfirmed(false);
+      setTriggerBackgroundRemovalConfirmed(false);
     }
-  };
+  }, [orderId, flaggedCount]);
 
   // Handle approve stage
   const handleApproveStage = () => {
@@ -161,7 +151,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
   // Handle un-confirm approve stage (only if trigger is not confirmed)
   const handleUnconfirmApproveStage = () => {
-    // Can only un-confirm if step 3 is not confirmed
+    // Can only un-confirm if trigger is not confirmed
     if (!triggerBackgroundRemovalConfirmed) {
       setApproveStageConfirmed(false);
     }
@@ -249,45 +239,17 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
           </p>
           
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Step 1: Approve All */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={approveAllConfirmed ? handleUnconfirmApproveAll : handleApproveAll}
-                disabled={!canApproveAll || (approveAllConfirmed && approveStageConfirmed)}
-                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
-                  approveAllConfirmed
-                    ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
-                    : canApproveAll
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                {approveAllConfirmed ? (
-                  <>
-                    {!approveStageConfirmed && <X className="h-4 w-4 mr-2" />}
-                    {approveStageConfirmed && <CheckCircle className="h-4 w-4 mr-2" />}
-                    Approve All
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Approve All
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Step 2: Approve Stage */}
+            {/* Step 1: Approve Stage */}
             <div className="flex items-center gap-2">
               <button
                 onClick={approveStageConfirmed ? handleUnconfirmApproveStage : handleApproveStage}
                 disabled={!canApproveStage || (approveStageConfirmed && triggerBackgroundRemovalConfirmed)}
-                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+                className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all ${
                   approveStageConfirmed
-                    ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 focus:ring-emerald-500'
                     : canApproveStage
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 hover:border-slate-400 focus:ring-slate-500'
+                    : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
                 }`}
               >
                 {approveStageConfirmed ? (
@@ -305,17 +267,17 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
               </button>
             </div>
 
-            {/* Step 3: Trigger Background Removal */}
+            {/* Step 2: Trigger Background Removal */}
             <div className="flex items-center gap-2">
               <button
                 onClick={handleTriggerBackgroundRemoval}
                 disabled={!canTriggerBackgroundRemoval}
-                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+                className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all ${
                   triggerBackgroundRemovalConfirmed
-                    ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 focus:ring-emerald-500'
                     : canTriggerBackgroundRemoval
-                    ? 'bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-300 hover:bg-indigo-100 hover:border-indigo-400 focus:ring-indigo-500'
+                    : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
                 }`}
               >
                 <Play className="h-4 w-4 mr-2" />

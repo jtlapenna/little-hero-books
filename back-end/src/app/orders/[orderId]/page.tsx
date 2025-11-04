@@ -203,6 +203,16 @@ export default function OrderDetailPage() {
                   {flagCounts.preBria + flagCounts.postBria + flagCounts.postPdf} {flagCounts.preBria + flagCounts.postBria + flagCounts.postPdf === 1 ? 'Needs' : 'Need'} Attention
                 </span>
               )}
+              {/* Show stage status badge for current active stage */}
+              {order.reviewStages && (
+                <StatusBadge 
+                  status={
+                    order.reviewStages[activeStage as unknown as keyof typeof order.reviewStages]?.status === 'approved' 
+                      ? 'stage_approved' 
+                      : 'pending'
+                  } 
+                />
+              )}
               <StatusBadge status={order.status as any} />
             </div>
           </div>
@@ -357,7 +367,11 @@ export default function OrderDetailPage() {
                     <div className="flex items-center space-x-2">
                       <span>{stage.label}</span>
                       <StatusBadge 
-                        status={order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages].status} 
+                        status={
+                          order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status === 'approved'
+                            ? 'stage_approved'
+                            : order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status || 'pending'
+                        } 
                       />
                       {flagCounts[stage.key as unknown as keyof typeof flagCounts] > 0 && (
                         <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800">

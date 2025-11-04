@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 
 interface StatusBadgeProps {
-  status: 'pending' | 'in-review' | 'in_review' | 'approved' | 'completed' | 'rejected' | 'queued_for_processing' | string;
+  status: 'pending' | 'in-review' | 'in_review' | 'approved' | 'stage_approved' | 'completed' | 'rejected' | 'queued_for_processing' | string;
   className?: string;
 }
 
@@ -22,6 +22,10 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     approved: {
       label: 'Approved',
       className: 'bg-green-100 text-green-800 border-green-200'
+    },
+    stage_approved: {
+      label: 'Stage Approved',
+      className: 'bg-emerald-100 text-emerald-800 border-emerald-200'
     },
     completed: {
       label: 'Completed',
