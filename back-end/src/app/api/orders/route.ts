@@ -231,6 +231,21 @@ async function getOrders(request: NextRequest) {
   }
 
   console.log('[GET /api/orders] Returning', orders.length, 'orders');
+  
+  // Include debug info in response if no orders found
+  if (orders.length === 0) {
+    return NextResponse.json(orders, {
+      headers: {
+        'X-Debug-Info': JSON.stringify({
+          orderIdsFound: orderIds.length,
+          characterHashesFound: characterHashes.length,
+          orderIds: orderIds.slice(0, 10),
+          characterHashes: characterHashes.slice(0, 10)
+        })
+      }
+    });
+  }
+  
   return NextResponse.json(orders);
 }
 

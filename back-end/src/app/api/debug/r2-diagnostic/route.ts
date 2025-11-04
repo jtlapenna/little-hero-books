@@ -117,7 +117,33 @@ export async function GET(request: NextRequest) {
       success: true,
       count: orderIds.length,
       orderIds: orderIds.slice(0, 10),
+      foundTEST_ORDER_006: orderIds.includes('TEST-ORDER-006'),
     };
+    
+    // Test 6: Try to load manifest for TEST-ORDER-006 if it exists
+    if (orderIds.includes('TEST-ORDER-006')) {
+      try {
+        const { downloadManifest, buildManifestKey } = await import('@/lib/r2-service');
+        const manifestKey = buildManifestKey('TEST-ORDER-006', '2a');
+        const manifest = await downloadManifest(manifestKey);
+        diagnostics.tests.testOrderManifest = {
+          success: true,
+          manifestKey,
+          hasOrderData: !!manifest?.order,
+          orderId: manifest?.order?.orderId,
+          amazonOrderId: manifest?.order?.amazonOrderId,
+          childName: manifest?.order?.childName,
+          characterHash: manifest?.characterHash,
+          workflowStage: manifest?.workflow?.currentStage,
+        };
+      } catch (error: any) {
+        diagnostics.tests.testOrderManifest = {
+          success: false,
+          error: error?.message,
+          code: error?.$metadata?.httpStatusCode,
+        };
+      }
+    }
   } catch (error: any) {
     diagnostics.tests.getOrderIds = {
       success: false,
