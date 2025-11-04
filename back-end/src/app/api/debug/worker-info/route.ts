@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
 
     // Try to import and test critical modules
     try {
-      const r2Config = await import('@/lib/r2-config');
+      const r2Client = await import('@/lib/r2-client');
       info.modules.r2Config.loaded = true;
-      info.modules.r2Config.validateR2Config = r2Config.validateR2Config();
+      info.modules.r2Config.validateR2Config = r2Client.validateR2Config();
     } catch (error: any) {
       info.modules.r2Config.loaded = false;
       info.modules.r2Config.error = error?.message || String(error);

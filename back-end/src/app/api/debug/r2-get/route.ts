@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { r2Client } from '@/lib/r2-config';
-
-const ORDERS_BUCKET = process.env.R2_ORDERS_BUCKET_NAME || 'little-hero-orders';
+import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 
 // GET /api/debug/r2-get?orderId=...&stage=2a
 export async function GET(request: NextRequest) {
@@ -18,36 +14,38 @@ export async function GET(request: NextRequest) {
     }
 
     const key = buildManifestKey(orderId, stageParam);
-    // Try raw SDK call for clearer errors
+    // Try aws4fetch call
     try {
-      const cmd = new GetObjectCommand({ Bucket: ORDERS_BUCKET, Key: key });
-      const res = await r2Client.send(cmd);
-      // If we got here, Body exists; don't stream, just report success
-      return NextResponse.json({ ok: true, bucket: ORDERS_BUCKET, key, hasBody: !!res.Body });
-    } catch (err: any) {
-      // Build a signed URL to allow manual verification, and include error metadata
-      try {
-        const signedUrl = await getSignedUrl(r2Client, new GetObjectCommand({ Bucket: ORDERS_BUCKET, Key: key }), { expiresIn: 300 });
+      const res = await getObject(R2_ORDERS_BUCKET, key);
+      // Check if response is OK
+      if (res.ok) {
+        // Try to read a small portion to verify body exists
+        const text = await res.text();
+        return NextResponse.json({ 
+          ok: true, 
+          bucket: R2_ORDERS_BUCKET, 
+          key, 
+          hasBody: true,
+          bodyLength: text.length,
+          contentType: res.headers.get('content-type')
+        });
+      } else {
         return NextResponse.json({
           ok: false,
-          bucket: ORDERS_BUCKET,
+          bucket: R2_ORDERS_BUCKET,
           key,
-          error: err?.message || 'GetObject failed',
-          name: err?.name,
-          code: err?.$metadata?.httpStatusCode,
-          signedUrl,
-        }, { status: 500 });
-      } catch (e2: any) {
-        return NextResponse.json({
-          ok: false,
-          bucket: ORDERS_BUCKET,
-          key,
-          error: err?.message || 'GetObject failed',
-          name: err?.name,
-          code: err?.$metadata?.httpStatusCode,
-          signedUrlError: e2?.message,
-        }, { status: 500 });
+          error: `HTTP ${res.status}: ${res.statusText}`,
+          status: res.status,
+        }, { status: res.status });
       }
+    } catch (err: any) {
+      return NextResponse.json({
+        ok: false,
+        bucket: R2_ORDERS_BUCKET,
+        key,
+        error: err?.message || 'GetObject failed',
+        name: err?.name,
+      }, { status: 500 });
     }
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Internal error' }, { status: 500 });

@@ -1,5 +1,4 @@
-import { GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { r2Client, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET, R2_CHARACTERS_PREFIX } from './r2-config';
+import { listObjects, getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET, R2_CHARACTERS_PREFIX } from './r2-client';
 
 export interface CharacterAsset {
   characterHash: string;
@@ -10,10 +9,7 @@ export interface CharacterAsset {
 
 export async function getCharacterAssets(characterHash: string): Promise<CharacterAsset[]> {
   const prefix = `${R2_CHARACTERS_PREFIX}${characterHash}/`;
-  const res = await r2Client.send(new ListObjectsV2Command({
-    Bucket: R2_PUBLIC_BUCKET,
-    Prefix: prefix,
-  }));
+  const res = await listObjects(R2_PUBLIC_BUCKET, { prefix });
 
   const items = (res.Contents || []).filter(o => !!o.Key).map(o => o.Key as string);
 
@@ -40,11 +36,10 @@ export async function getCharacterAssets(characterHash: string): Promise<Charact
 export async function getAvailableCharacterHashes(): Promise<string[]> {
   try {
     console.log('[R2] Listing character hashes from bucket:', R2_PUBLIC_BUCKET, 'prefix:', R2_CHARACTERS_PREFIX);
-    const res = await r2Client.send(new ListObjectsV2Command({
-      Bucket: R2_PUBLIC_BUCKET,
-      Prefix: R2_CHARACTERS_PREFIX,
-      Delimiter: '/',
-    }));
+    const res = await listObjects(R2_PUBLIC_BUCKET, {
+      prefix: R2_CHARACTERS_PREFIX,
+      delimiter: '/',
+    });
     console.log('[R2] Response:', {
       hasCommonPrefixes: !!(res.CommonPrefixes && res.CommonPrefixes.length > 0),
       prefixCount: res.CommonPrefixes?.length || 0,
@@ -61,7 +56,6 @@ export async function getAvailableCharacterHashes(): Promise<string[]> {
     console.error('[R2] Error listing character hashes:', {
       message: error?.message,
       name: error?.name,
-      code: error?.$metadata?.httpStatusCode,
       bucket: R2_PUBLIC_BUCKET,
       prefix: R2_CHARACTERS_PREFIX
     });
@@ -70,10 +64,7 @@ export async function getAvailableCharacterHashes(): Promise<string[]> {
 }
 
 export async function listR2Objects(prefix?: string): Promise<any[]> {
-  const res = await r2Client.send(new ListObjectsV2Command({
-    Bucket: R2_PUBLIC_BUCKET,
-    Prefix: prefix,
-  }));
+  const res = await listObjects(R2_PUBLIC_BUCKET, { prefix });
   return (res.Contents || []).map(o => ({ key: o.Key, size: o.Size, lastModified: o.LastModified }));
 }
 
@@ -87,11 +78,10 @@ export async function getAvailableOrderIds(): Promise<string[]> {
     const prefix = `${PROJECT_NS}/orders/`;
     console.log('[R2] Listing order IDs from bucket:', R2_ORDERS_BUCKET, 'prefix:', prefix);
     
-    const res = await r2Client.send(new ListObjectsV2Command({
-      Bucket: R2_ORDERS_BUCKET,
-      Prefix: prefix,
-      Delimiter: '/',
-    }));
+    const res = await listObjects(R2_ORDERS_BUCKET, {
+      prefix,
+      delimiter: '/',
+    });
     
     console.log('[R2] Orders response:', {
       hasCommonPrefixes: !!(res.CommonPrefixes && res.CommonPrefixes.length > 0),
@@ -111,7 +101,6 @@ export async function getAvailableOrderIds(): Promise<string[]> {
     console.error('[R2] Error listing order IDs:', {
       message: error?.message,
       name: error?.name,
-      code: error?.$metadata?.httpStatusCode,
       bucket: R2_ORDERS_BUCKET
     });
     throw error;
@@ -125,9 +114,8 @@ export function buildManifestKey(orderId: string, stage: '2a' | '2b' | '3'): str
 }
 
 export async function downloadManifest(key: string): Promise<any> {
-  const resp = await r2Client.send(new GetObjectCommand({ Bucket: R2_ORDERS_BUCKET, Key: key }));
-  // @ts-ignore - resp.Body is a stream; in edge/node we read with transformToString
-  const text = await resp.Body?.transformToString?.() ?? '';
+  const resp = await getObject(R2_ORDERS_BUCKET, key);
+  const text = await resp.text();
   try {
     return JSON.parse(text);
   } catch {

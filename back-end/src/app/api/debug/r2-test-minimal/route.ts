@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { r2Client, R2_ORDERS_BUCKET } from '@/lib/r2-config';
+import { listObjects, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 
 /**
  * Minimal test to see if R2 client works at all
@@ -9,12 +8,7 @@ import { r2Client, R2_ORDERS_BUCKET } from '@/lib/r2-config';
 export async function GET(request: NextRequest) {
   try {
     // Try the simplest possible R2 operation
-    const cmd = new ListObjectsV2Command({
-      Bucket: R2_ORDERS_BUCKET,
-      MaxKeys: 1,
-    });
-    
-    const result = await r2Client.send(cmd);
+    const result = await listObjects(R2_ORDERS_BUCKET, { maxKeys: 1 });
     
     return NextResponse.json({
       success: true,
@@ -28,7 +22,6 @@ export async function GET(request: NextRequest) {
       success: false,
       error: error?.message,
       name: error?.name,
-      code: error?.$metadata?.httpStatusCode,
       stack: error?.stack,
       // Check if it's the filesystem error
       isFilesystemError: error?.message?.includes('fs.readFile') || error?.message?.includes('unenv'),

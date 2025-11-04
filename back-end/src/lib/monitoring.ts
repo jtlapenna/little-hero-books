@@ -41,7 +41,7 @@ export const monitoringService = {
 
     // Check R2 Storage
     try {
-      const { validateR2Config } = await import('@/lib/r2-config');
+      const { validateR2Config } = await import('@/lib/r2-client');
       const r2Config = validateR2Config();
       checks.push({
         service: 'R2 Storage',

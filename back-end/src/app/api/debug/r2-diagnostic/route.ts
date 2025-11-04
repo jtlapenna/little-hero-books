@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { r2Client, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET, R2_CHARACTERS_PREFIX, validateR2Config } from '@/lib/r2-config';
-import { ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { listObjects, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET, R2_CHARACTERS_PREFIX, validateR2Config } from '@/lib/r2-client';
 import { getAvailableCharacterHashes, getAvailableOrderIds } from '@/lib/r2-service';
 
 export async function GET(request: NextRequest) {
@@ -26,11 +25,7 @@ export async function GET(request: NextRequest) {
 
   // Test 1: List root of public bucket
   try {
-    const cmd1 = new ListObjectsV2Command({
-      Bucket: R2_PUBLIC_BUCKET,
-      MaxKeys: 10,
-    });
-    const res1 = await r2Client.send(cmd1);
+    const res1 = await listObjects(R2_PUBLIC_BUCKET, { maxKeys: 10 });
     diagnostics.tests.listPublicBucketRoot = {
       success: true,
       objectCount: res1.KeyCount || 0,
@@ -40,20 +35,17 @@ export async function GET(request: NextRequest) {
     diagnostics.tests.listPublicBucketRoot = {
       success: false,
       error: error?.message,
-      code: error?.$metadata?.httpStatusCode,
       name: error?.name,
     };
   }
 
   // Test 2: List characters prefix
   try {
-    const cmd2 = new ListObjectsV2Command({
-      Bucket: R2_PUBLIC_BUCKET,
-      Prefix: R2_CHARACTERS_PREFIX,
-      Delimiter: '/',
-      MaxKeys: 10,
+    const res2 = await listObjects(R2_PUBLIC_BUCKET, {
+      prefix: R2_CHARACTERS_PREFIX,
+      delimiter: '/',
+      maxKeys: 10,
     });
-    const res2 = await r2Client.send(cmd2);
     diagnostics.tests.listCharactersPrefix = {
       success: true,
       commonPrefixes: (res2.CommonPrefixes || []).map(p => p.Prefix),
@@ -64,7 +56,6 @@ export async function GET(request: NextRequest) {
     diagnostics.tests.listCharactersPrefix = {
       success: false,
       error: error?.message,
-      code: error?.$metadata?.httpStatusCode,
       name: error?.name,
     };
   }
@@ -81,20 +72,17 @@ export async function GET(request: NextRequest) {
     diagnostics.tests.getCharacterHashes = {
       success: false,
       error: error?.message,
-      code: error?.$metadata?.httpStatusCode,
       name: error?.name,
     };
   }
 
   // Test 4: List orders bucket
   try {
-    const cmd3 = new ListObjectsV2Command({
-      Bucket: R2_ORDERS_BUCKET,
-      Prefix: 'book-mvp-simple-adventure/orders/',
-      Delimiter: '/',
-      MaxKeys: 10,
+    const res3 = await listObjects(R2_ORDERS_BUCKET, {
+      prefix: 'book-mvp-simple-adventure/orders/',
+      delimiter: '/',
+      maxKeys: 10,
     });
-    const res3 = await r2Client.send(cmd3);
     diagnostics.tests.listOrdersBucket = {
       success: true,
       commonPrefixes: (res3.CommonPrefixes || []).map(p => p.Prefix),
@@ -105,7 +93,6 @@ export async function GET(request: NextRequest) {
     diagnostics.tests.listOrdersBucket = {
       success: false,
       error: error?.message,
-      code: error?.$metadata?.httpStatusCode,
       name: error?.name,
     };
   }
@@ -140,7 +127,6 @@ export async function GET(request: NextRequest) {
         diagnostics.tests.testOrderManifest = {
           success: false,
           error: error?.message,
-          code: error?.$metadata?.httpStatusCode,
         };
       }
     }
@@ -148,7 +134,6 @@ export async function GET(request: NextRequest) {
     diagnostics.tests.getOrderIds = {
       success: false,
       error: error?.message,
-      code: error?.$metadata?.httpStatusCode,
       name: error?.name,
     };
   }

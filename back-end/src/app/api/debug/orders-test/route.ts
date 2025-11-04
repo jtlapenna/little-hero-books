@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAvailableOrderIds, downloadManifest, buildManifestKey } from '@/lib/r2-service';
-import { ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { r2Client, R2_ORDERS_BUCKET } from '@/lib/r2-config';
+import { listObjects, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 
 /**
  * Test endpoint to debug order detection issues
@@ -28,20 +27,18 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     result.tests.listOrderIds = {
       success: false,
-      error: error?.message,
-      code: error?.$metadata?.httpStatusCode
+      error: error?.message
     };
   }
   
   // Test 2: List raw R2 objects for orders prefix
   try {
     const prefix = 'book-mvp-simple-adventure/orders/';
-    const res = await r2Client.send(new ListObjectsV2Command({
-      Bucket: R2_ORDERS_BUCKET,
-      Prefix: prefix,
-      Delimiter: '/',
-      MaxKeys: 100
-    }));
+    const res = await listObjects(R2_ORDERS_BUCKET, {
+      prefix,
+      delimiter: '/',
+      maxKeys: 100
+    });
     
     result.tests.listRawOrders = {
       success: true,
@@ -59,8 +56,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     result.tests.listRawOrders = {
       success: false,
-      error: error?.message,
-      code: error?.$metadata?.httpStatusCode
+      error: error?.message
     };
   }
   
@@ -91,8 +87,7 @@ export async function GET(request: NextRequest) {
           stage,
           manifestKey: buildManifestKey(specificOrderId, stage),
           success: false,
-          error: error?.message,
-          code: error?.$metadata?.httpStatusCode
+          error: error?.message
         });
       }
     }

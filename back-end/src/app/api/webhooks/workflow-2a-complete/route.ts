@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
 import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { normalizeCharacterSpecs } from '@/lib/customization-utils';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
-import { r2Client } from '@/lib/r2-config';
+import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 
 const PayloadSchema = z.object({
   orderId: z.string().min(1),
@@ -32,10 +31,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, orderId: payload.orderId, stage: '2a', manifestLoaded: true });
     } catch {
       // Fallback: sanity-check object exists without reading body (edge/runtime-safe)
-      const ORDERS_BUCKET = process.env.R2_ORDERS_BUCKET_NAME || 'little-hero-orders';
       const key = `book-mvp-simple-adventure/orders/${payload.orderId}/manifests/2a-manifest.json`;
-      await r2Client.send(new GetObjectCommand({ Bucket: ORDERS_BUCKET, Key: key }));
-      return NextResponse.json({ success: true, orderId: payload.orderId, stage: '2a', manifestLoaded: false, objectExists: true });
+      const resp = await getObject(R2_ORDERS_BUCKET, key);
+      // Check if response is OK (object exists)
+      if (resp.ok) {
+        return NextResponse.json({ success: true, orderId: payload.orderId, stage: '2a', manifestLoaded: false, objectExists: true });
+      } else {
+        throw new Error(`Object not found: ${key}`);
+      }
     }
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Internal Server Error' }, { status: 500 });
