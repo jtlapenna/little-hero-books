@@ -170,10 +170,36 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleInitiateWorkflow = (stage: ReviewStage) => {
+  const handleInitiateWorkflow = async (stage: ReviewStage) => {
+    if (!order) return;
+    
     console.log(`Initiating workflow for stage: ${stage}`);
-    // In real implementation, this would trigger the appropriate n8n workflow
-    // For now, we'll just log it
+    
+    // Only trigger background removal for preBria stage
+    if (stage === ('preBria' as unknown as ReviewStage)) {
+      try {
+        const response = await fetch(`/api/orders/${order.orderId}/trigger-background-removal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(error.error || 'Failed to trigger background removal workflow');
+        }
+
+        const result = await response.json();
+        console.log('Background removal workflow triggered:', result);
+        
+        // Show success message (you could add a toast notification here)
+        alert('Background removal workflow triggered successfully!');
+      } catch (error: any) {
+        console.error('Error triggering background removal workflow:', error);
+        alert(`Failed to trigger background removal: ${error?.message || error}`);
+      }
+    }
   };
 
   return (
