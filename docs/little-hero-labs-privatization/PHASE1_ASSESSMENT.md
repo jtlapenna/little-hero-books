@@ -105,7 +105,9 @@ Scripts that reference test-pages:
 ### Immediate Actions (Phase 1)
 - [x] ✅ Assessment complete
 - [x] ✅ Document findings
-- [ ] **DECISION:** Keep all files (no deletions)
+- [x] ✅ **DECISION:** Keep all files (no deletions)
+  - Test-pages: Keep for now (user decision - may be used for positioning work)
+  - Scripts: Keep (actively used)
 
 ### Future Actions (Phase 3 or Phase 6)
 
