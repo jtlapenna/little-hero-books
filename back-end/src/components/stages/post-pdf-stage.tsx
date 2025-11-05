@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
@@ -8,8 +8,10 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+// Configure PDF.js worker - use local worker from pdfjs-dist package
+if (typeof window !== 'undefined') {
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+}
 
 interface PostPdfStageProps {
   orderId: string;
@@ -65,6 +67,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           setPageNumber(1);
           setNumPages(null);
           setPdfError(null);
+          setPdfLoading(true);
         } else {
           setPdfAsset(prev => ({
             ...prev,
@@ -119,6 +122,12 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
   const isPostBriaApproved = order.reviewStages.postBria.status === 'approved';
   const canApprove = !pdfAsset.isFlagged && isPostBriaApproved;
+
+  // Memoize PDF file object to prevent unnecessary re-renders
+  const pdfFile = useMemo(() => {
+    if (!pdfAsset.exists || !pdfAsset.url) return null;
+    return pdfAsset.url;
+  }, [pdfAsset.exists, pdfAsset.url]);
 
   return (
     <div className="space-y-8">
@@ -225,7 +234,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                 <div className="flex flex-col items-center justify-center p-8">
                   <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
                   <p className="text-gray-700 text-sm font-medium mb-2">Unable to load PDF</p>
-                  <p className="text-gray-500 text-xs mb-4 text-center">{pdfError}</p>
+                  <p className="text-gray-500 text-xs mb-4 text-center max-w-md">{pdfError}</p>
                   <button
                     onClick={handleDownload}
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -234,34 +243,58 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     Download PDF to View
                   </button>
                 </div>
-              ) : (
+              ) : pdfFile ? (
                 <Document
-                  file={pdfAsset.url}
+                  file={pdfFile}
                   onLoadSuccess={({ numPages }) => {
+                    console.log('[PDF] Loaded successfully, pages:', numPages);
                     setNumPages(numPages);
                     setPdfLoading(false);
                     setPdfError(null);
                   }}
                   onLoadError={(error) => {
+                    console.error('[PDF] Load error:', error);
                     setPdfError(error.message || 'Failed to load PDF');
                     setPdfLoading(false);
                   }}
+                  onLoadProgress={({ loaded, total }) => {
+                    if (total) {
+                      const percent = Math.round((loaded / total) * 100);
+                      console.log('[PDF] Loading:', percent + '%');
+                    }
+                  }}
                   loading={
-                    <div className="flex flex-col items-center justify-center">
+                    <div className="flex flex-col items-center justify-center min-h-[400px]">
                       <Loader2 className="h-8 w-8 text-gray-400 animate-spin mb-2" />
                       <p className="text-gray-500 text-sm">Loading PDF...</p>
                     </div>
                   }
                   className="flex justify-center"
+                  options={{
+                    cMapUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/cmaps/`,
+                    cMapPacked: true,
+                    standardFontDataUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/standard_fonts/`,
+                  }}
                 >
                   <Page
+                    key={`page-${pageNumber}`}
                     pageNumber={pageNumber}
                     renderTextLayer={true}
                     renderAnnotationLayer={true}
                     className="shadow-lg"
                     width={800}
+                    loading={
+                      <div className="flex items-center justify-center min-h-[400px]">
+                        <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+                      </div>
+                    }
                   />
                 </Document>
+              ) : (
+                <div className="flex flex-col items-center justify-center min-h-[400px]">
+                  <Loader2 className="h-8 w-8 text-gray-400 animate-spin mb-2" />
+                  <p className="text-gray-500 text-sm">Preparing PDF viewer...</p>
+                </div>
               )}
             </div>
           </div>
