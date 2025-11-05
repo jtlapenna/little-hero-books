@@ -5,8 +5,8 @@ import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle, ChevronLeft, C
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 // Configure PDF.js worker - use local worker from pdfjs-dist package
 if (typeof window !== 'undefined') {
