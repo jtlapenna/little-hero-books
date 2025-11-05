@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, R2_ORDERS_BUCKET } from '@/src/lib/r2-client';
+import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 
 // Minimal helper to parse JSON body safely
 async function readJsonSafe<T = any>(res: Response): Promise<T> {
