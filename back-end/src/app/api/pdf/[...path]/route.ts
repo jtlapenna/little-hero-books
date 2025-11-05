@@ -104,6 +104,14 @@ async function handleRequest(
     
     // Stream the response body directly without loading into memory
     // This is essential for large files (219MB PDF exceeds worker memory limits)
+    if (!response.body) {
+      console.error(`[${method} /api/pdf] Response body is null for: ${key}`);
+      return NextResponse.json(
+        { error: 'PDF response body is null' },
+        { status: 500 }
+      );
+    }
+    
     return new NextResponse(response.body, {
       status: 200,
       headers: {
