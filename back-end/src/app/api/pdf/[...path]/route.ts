@@ -98,20 +98,21 @@ async function handleRequest(
       });
     }
     
-    // For GET requests, return the PDF data
-    console.log(`[${method} /api/pdf] Converting response to arrayBuffer for: ${key}`);
-    const pdfBuffer = await response.arrayBuffer();
-    console.log(`[${method} /api/pdf] PDF buffer size: ${pdfBuffer.byteLength} bytes`);
+    // For GET requests, stream the PDF data directly (don't load into memory)
+    // This avoids "Memory limit would be exceeded" errors for large PDFs
+    console.log(`[${method} /api/pdf] Streaming PDF response for: ${key} (${contentLength} bytes)`);
     
-    // Return PDF with proper headers for inline viewing
-    console.log(`[${method} /api/pdf] Returning PDF data for: ${key} (${pdfBuffer.byteLength} bytes)`);
-    return new NextResponse(pdfBuffer, {
+    // Stream the response body directly without loading into memory
+    // This is essential for large files (219MB PDF exceeds worker memory limits)
+    return new NextResponse(response.body, {
       status: 200,
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `inline; filename="${key.split('/').pop()}"`,
         'Cache-Control': 'public, max-age=3600, s-maxage=3600', // Cache for 1 hour
         'Access-Control-Allow-Origin': '*', // Allow CORS for frontend
+        // Preserve content-length if available
+        ...(contentLength ? { 'Content-Length': contentLength } : {}),
       },
     });
   } catch (error: any) {
