@@ -40,22 +40,22 @@ const { href, variant = 'primary', size = 'md', class: className = '' } = Astro.
   }
   
   .btn-primary:hover {
-    background: #e55a4f;
+    background: color-mix(in srgb, var(--color-hero-coral) 85%, black);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 111, 97, 0.4);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-hero-coral) 40%, transparent);
     color: #FFFFFF;
   }
   
   .btn-secondary {
     background: var(--color-golden-yellow);
-    color: var(--color-forest-green);
+    color: var(--color-navy-midnight);
   }
   
   .btn-secondary:hover {
-    background: #f7b83d;
+    background: color-mix(in srgb, var(--color-golden-yellow) 95%, white);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(249, 199, 79, 0.4);
-    color: var(--color-forest-green);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-golden-yellow) 40%, transparent);
+    color: var(--color-navy-midnight);
   }
   
   .btn-sm {

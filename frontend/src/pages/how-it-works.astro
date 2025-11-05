@@ -1,18 +1,33 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Hero from '../components/Hero.astro';
 import Button from '../components/Button.astro';
 ---
 
 <Layout title="How It Works - Little Hero Labs" description="Learn how to create your personalized children's book in three simple steps">
-  <Hero 
-    imageSrc="/how-it-works-hero.png" 
-    imageAlt="How It Works - Little Hero Labs"
-    title="How It Works"
-    subtitle="Creating your child's personalized adventure is simple and fun. Follow these three easy steps to bring their story to life."
-    buttonText="Get Started"
-    buttonHref="/our-books"
-  />
+  <section class="hiw-hero">
+    <div class="hiw-hero-image-container">
+      <img src="/how-it-works-hero.webp" alt="How It Works - Little Hero Labs" class="hiw-bg" />
+      <!-- Right third rotating propeller -->
+      <img src="/propeller.webp" alt="Propeller" class="hiw-propeller" />
+      <!-- Bottom-right alternating air streams -->
+      <img src="/air-streams.webp" alt="Air Streams A" class="hiw-air hiw-air-a" />
+      <img src="/air-streams2.webp" alt="Air Streams B" class="hiw-air hiw-air-b" />
+      <!-- Left-side stars near character's head -->
+      <img src="/stars1.webp" alt="Stars 1" class="hiw-stars hiw-stars-1" />
+      <img src="/stars2.webp" alt="Stars 2" class="hiw-stars hiw-stars-2" />
+      <div class="hiw-hero-content">
+        <div class="container">
+          <h1 class="hiw-title">How It Works</h1>
+          <p class="hiw-subtitle">Creating your child's personalized adventure is simple and fun. Follow these three easy steps to bring their story to life.</p>
+          <div class="button-container">
+            <Button href="/our-books" variant="primary" size="lg">Get Started</Button>
+          </div>
+        </div>
+      </div>
+      <!-- Mobile fallback static image -->
+      <img src="/how-it-works-hero-mobile.webp" alt="How It Works - Little Hero Labs" class="hiw-mobile" />
+    </div>
+  </section>
   
   <!-- Steps Section -->
   <section class="section-padding">
@@ -28,16 +43,16 @@ import Button from '../components/Button.astro';
           <div class="step-item">
             <div class="step-visual">
               <div class="step-icon-wrapper">
-                <img src="/assets/icon_picture.png" alt="Upload Photo" class="step-icon" />
+                <img src="/assets/icon_picture.png" alt="Customize Character" class="step-icon" />
               </div>
               <div class="step-number">1</div>
             </div>
             <div class="step-content">
-              <h3>Upload Photo</h3>
+              <h3>Customize Character</h3>
               <p>
-                Start by sharing a photo of your child. This helps us create a personalized 
-                character that looks like them. Simply upload a clear photo through our 
-                secure platform—your child's image is used only for their book.
+                Start by telling us about your child's appearance. Select their hair style and color, 
+                skin tone, and favorite things. This helps us create a personalized character that 
+                looks like them and reflects their unique personality.
               </p>
             </div>
           </div>
@@ -100,6 +115,181 @@ import Button from '../components/Button.astro';
   .content-section {
     max-width: 900px;
     margin: 0 auto;
+  }
+
+  /* How It Works Hero */
+  .hiw-hero {
+    position: relative;
+    width: 100%;
+    margin-top: 0;
+  }
+
+  .hiw-hero-image-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+    min-height: 500px;
+  }
+
+  .hiw-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+  }
+
+  /* Place propeller in right third; we'll fine-tune later */
+  .hiw-propeller {
+    position: absolute;
+    right: 28%; /* nudged a bit further left */
+    top: 55%; /* lowered an additional ~8% */
+    width: 60px; /* ~50% smaller */
+    height: auto;
+    transform-origin: 50% 50%;
+    animation: hiwPropellerSpin 2.2s linear infinite;
+    z-index: 3;
+  }
+
+  @keyframes hiwPropellerSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Air streams bottom-right with crossfade swap */
+  .hiw-air {
+    position: absolute;
+    right: 2%;
+    bottom: 4%;
+    width: 200px;
+    height: auto;
+    z-index: 2;
+  }
+
+  .hiw-air-a {
+    animation: hiwAirFadeA 4s ease-in-out infinite;
+  }
+
+  .hiw-air-b {
+    animation: hiwAirFadeB 4s ease-in-out infinite;
+  }
+
+  @keyframes hiwAirFadeA {
+    0%, 45% { opacity: 1; }
+    55%, 100% { opacity: 0; }
+  }
+
+  @keyframes hiwAirFadeB {
+    0%, 45% { opacity: 0; }
+    55%, 100% { opacity: 1; }
+  }
+
+  /* Stars near the left character's head */
+  .hiw-stars {
+    position: absolute;
+    left: 12%;
+    top: 36%;
+    width: 800px; /* ~10x larger */
+    height: auto;
+    z-index: 3; /* above air streams */
+    pointer-events: none;
+    opacity: 0.9;
+  }
+
+  .hiw-stars-1 {
+    animation: 
+      hiwStarsTwinkle1 3.8s ease-in-out infinite 0.83s,
+      hiwStarsDrift1 7.3s ease-in-out infinite alternate;
+    left: 2%; /* moved left by 2% from 4% */
+    top: 23%; /* moved up by 5% from 28% */
+    width: 520px; /* ~35% smaller than base 800px */
+    will-change: transform, opacity;
+  }
+  .hiw-stars-2 {
+    left: 4%; /* moved 6% left from 10% */
+    top: 23%; /* moved up 4% from 27% */
+    width: 516px; /* ~15% bigger than 448px */
+    animation: 
+      hiwStarsTwinkle2 4.7s cubic-bezier(0.4, 0.0, 0.2, 1) infinite 1.41s,
+      hiwStarsDrift2 9.1s ease-in-out infinite alternate-reverse;
+    will-change: transform, opacity;
+  }
+
+  @keyframes hiwStarsTwinkle1 {
+    0% { opacity: 0.25; transform: scale(0.98); }
+    17% { opacity: 0.95; transform: scale(1.07); }
+    39% { opacity: 0.45; transform: scale(1.0); }
+    63% { opacity: 1; transform: scale(1.1); }
+    82% { opacity: 0.5; transform: scale(1.02); }
+    100% { opacity: 0.25; transform: scale(0.98); }
+  }
+
+  @keyframes hiwStarsTwinkle2 {
+    0% { opacity: 0.7; transform: scale(1.01); }
+    13% { opacity: 0.35; transform: scale(0.97); }
+    46% { opacity: 1; transform: scale(1.12); }
+    71% { opacity: 0.5; transform: scale(1.02); }
+    100% { opacity: 0.7; transform: scale(1.01); }
+  }
+
+  /* subtle, decoupled drifting to enhance randomness */
+  @keyframes hiwStarsDrift1 {
+    0% { transform: translate(0, 0); }
+    50% { transform: translate(0.3%, -0.5%); }
+    100% { transform: translate(0, 0); }
+  }
+
+  @keyframes hiwStarsDrift2 {
+    0% { transform: translate(0, 0); }
+    50% { transform: translate(-0.4%, 0.6%); }
+    100% { transform: translate(0, 0); }
+  }
+
+  .hiw-hero-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 4;
+    width: 100%;
+    max-width: 700px;
+    padding: 0 var(--spacing-lg);
+  }
+
+  .hiw-title {
+    color: var(--color-forest-green);
+    font-family: var(--font-heading);
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .hiw-subtitle {
+    color: var(--color-soft-charcoal);
+    font-size: 1.125rem;
+    font-family: var(--font-ui);
+    margin-bottom: var(--spacing-lg);
+    line-height: 1.6;
+  }
+
+  .hiw-mobile { display: none; }
+
+  @media (max-width: 768px) {
+    .hiw-hero-image-container {
+      aspect-ratio: auto;
+      min-height: auto;
+    }
+    .hiw-mobile { display: block; width: 100%; height: auto; position: relative; z-index: 1; }
+    .hiw-bg,
+    .hiw-propeller,
+    .hiw-air,
+    .hiw-stars { display: none; }
+    .hiw-title { font-size: 2rem; }
+    .hiw-hero-content { max-width: 90%; padding: 0 var(--spacing-md); }
   }
   
   .section-title {

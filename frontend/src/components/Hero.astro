@@ -8,14 +8,40 @@ interface Props {
   subtitle?: string;
   buttonText?: string;
   buttonHref?: string;
+  // Layered animation mode
+  bgImage?: string;
+  characterA?: string;
+  characterB?: string;
 }
 
-const { imageSrc, imageAlt, title, subtitle, buttonText, buttonHref } = Astro.props;
+const { 
+  imageSrc, 
+  imageAlt, 
+  title, 
+  subtitle, 
+  buttonText, 
+  buttonHref,
+  bgImage,
+  characterA,
+  characterB
+} = Astro.props;
+
+const isLayered = bgImage && characterA && characterB;
 ---
 
 <section class="hero">
   <div class="hero-image-container">
-    <img src={imageSrc} alt={imageAlt} class="hero-image" />
+    {isLayered ? (
+      <>
+        <img src={bgImage} alt={imageAlt} class="hero-bg" />
+        <img src={characterA} alt="Character A" class={`hero-character hero-character-a`} />
+        <img src={characterB} alt="Character B" class={`hero-character hero-character-b`} />
+        {/* Mobile fallback - static image only in layered mode */}
+        <img src={imageSrc} alt={imageAlt} class="hero-image mobile-hero" />
+      </>
+    ) : (
+      <img src={imageSrc} alt={imageAlt} class="hero-image" />
+    )}
     {(title || subtitle || buttonText) && (
       <div class="hero-content">
         <div class="container">
@@ -36,20 +62,121 @@ const { imageSrc, imageAlt, title, subtitle, buttonText, buttonHref } = Astro.pr
   .hero {
     position: relative;
     width: 100%;
-    margin-top: 80px; /* Account for fixed header */
+    margin-top: 0; /* Hero slides under header */
   }
   
   .hero-image-container {
     position: relative;
     width: 100%;
     overflow: hidden;
+    min-height: 500px;
   }
   
+  /* Ensure layered mode has proper aspect ratio */
+  .hero-image-container:has(.hero-bg) {
+    aspect-ratio: 16 / 9;
+    min-height: 500px;
+  }
+  
+  /* Single image mode (non-layered) */
   .hero-image {
     width: 100%;
     height: auto;
     display: block;
     object-fit: cover;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Hidden by default; shown on mobile */
+  .mobile-hero {
+    display: none;
+  }
+  
+  /* Ken Burns effect - subtle zoom and pan on hover */
+  @keyframes kenBurns {
+    0% {
+      transform: scale(1) translate(0, 0);
+    }
+    50% {
+      transform: scale(1.05) translate(-1%, -1%);
+    }
+    100% {
+      transform: scale(1) translate(0, 0);
+    }
+  }
+  
+  .hero-image-container:hover .hero-image {
+    animation: kenBurns 20s ease-in-out infinite;
+  }
+  
+  /* Layered animation mode */
+  .hero-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+  }
+  
+  .hero-character {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: auto;
+    object-fit: contain;
+    z-index: 2;
+  }
+  
+  .hero-character-a {
+    left: 0;
+  }
+  
+  .hero-character-b {
+    right: 0;
+  }
+  
+  /* Version 1 removed */
+  
+  /* Version 2: Independent movement - each character moves on its own */
+  @keyframes characterMoveV2A {
+    0%, 100% {
+      transform: scale(0.55) translate(-22%, -10%);
+    }
+    20% {
+      transform: scale(0.55) translate(-18%, -2%);
+    }
+    40% {
+      transform: scale(0.55) translate(-24%, 4%);
+    }
+    60% {
+      transform: scale(0.55) translate(-30%, -2%);
+    }
+    80% {
+      transform: scale(0.55) translate(-26%, -8%);
+    }
+  }
+  
+  @keyframes characterMoveV2B {
+    0% {
+      transform: scale(0.55) translate(50%, 28%); /* start even further right */
+    }
+    50% {
+      transform: scale(0.55) translate(15%, 28%); /* slide left to stop */
+    }
+    100% {
+      transform: scale(0.55) translate(50%, 28%); /* slide back right to start */
+    }
+  }
+  
+  .hero-character-a {
+    animation: characterMoveV2A 18s ease-in-out infinite;
+  }
+  
+  .hero-character-b {
+    animation: characterMoveV2B 22s ease-in-out infinite;
   }
   
   .hero-content {
@@ -90,13 +217,21 @@ const { imageSrc, imageAlt, title, subtitle, buttonText, buttonHref } = Astro.pr
   }
   
   @media (max-width: 768px) {
-    .hero {
-      margin-top: 70px;
-    }
-    
     .hero-content {
       max-width: 90%;
       padding: 0 var(--spacing-md);
+    }
+    /* On mobile, show static image and hide layered elements */
+    .mobile-hero {
+      display: block;
+    }
+    .hero-bg,
+    .hero-character {
+      display: none;
+    }
+    .hero-image-container {
+      aspect-ratio: auto;
+      min-height: auto;
     }
     
     .hero-title {

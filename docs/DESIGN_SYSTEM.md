@@ -235,6 +235,63 @@ The brand uses three illustration styles that can be blended:
 
 ---
 
+## ✨ Animations (Consolidated)
+
+### Star Assets
+- Format: PNG with transparent background
+- Style: Soft, whimsical, watercolor; gentle glow
+- Color: Use CSS var `var(--color-golden-yellow)` (replace any hardcoded gold like `#FFD700`)
+- Variations: 3–4 designs (approx. 20–30px, 40–50px, 60–80px; optional sparkle/trail)
+- Location: `frontend/public/assets/animations/`
+  - `star-small.png`, `star-medium.png`, `star-large.png`, `star-sparkle.png` (optional)
+
+Animation usage in code:
+- Twinkle = opacity + scale keyframes with slight desynchronization per element
+- Optional subtle drift = small translate changes to avoid synchronized look
+
+### Cloud Assets
+- Format: PNG with transparent background
+- Style: Soft, fluffy watercolor, subtle shadows
+- Variations: small (100–120px), medium (150–180px), large (200–250px), optional wispy
+- Location: `frontend/public/assets/animations/`
+  - `cloud-small.png`, `cloud-medium.png`, `cloud-large.png`, `cloud-wispy.png` (optional)
+
+Animation usage in code:
+- Horizontal float (left↔right), gentle vertical drift, optional fade in/out
+
+### Technical Notes
+- Optimize all assets for web (file size)
+- Transparent backgrounds required
+- Should work on both light and darker hero backgrounds
+
+---
+
+## ✍️ Typography Strategy (Consolidated)
+
+This consolidates prior notes into the source of truth used in code variables.
+
+- Headings: `Garamond` via `var(--font-heading)`
+- Body: `Merriweather` via `var(--font-body)`
+- UI/Navigation: `Poppins` via `var(--font-ui)`
+- Display/Hero accents: `Comic Neue` via `var(--font-display)`
+
+Guidelines:
+- Use CSS variables for all font-family references
+- Limit to these roles to preserve hierarchy and performance
+- Load only necessary weights; fonts via Google Fonts with `display=swap`
+
+Note: Older references to different primary UI/body fonts (e.g., Nunito Sans) are superseded by the variables above.
+
+---
+
+## 🎨 Color Audit Notes (Consolidated)
+
+- Primary palette in this document remains source of truth; ensure code uses CSS variables
+- Replace any hardcoded hover colors with variables or computed variants (e.g., using `color-mix()`)
+- Replace hardcoded golds in animations with `var(--color-golden-yellow)`
+
+---
+
 ## 📦 Assets Location
 
 All design assets have been moved to:

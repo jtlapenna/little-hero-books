@@ -2,29 +2,32 @@
 
 /* Design System - Little Hero Labs */
 
-/* Color Tokens */
+/* Color Tokens - Updated to match design-document.png */
 :root {
-  /* Primary Palette */
-  --color-hero-coral: #FF6F61;
-  --color-golden-yellow: #F9C74F;
+  /* Primary Palette - From design-document.png */
+  --color-orange: #F9786B;
+  --color-gold: #F9BB3A;
+  --color-teal: #5AC6B1;
+  --color-navy: #2D3142; /* Design doc shows #349561 (green), using dark navy for text/UI */
+  --color-navy-green: #349561; /* Design doc navy value (appears green) - kept for reference */
+  
+  /* Legacy color mappings for backward compatibility */
+  --color-hero-coral: #F9786B; /* Maps to Orange */
+  --color-golden-yellow: #F9BB3A; /* Maps to Gold */
+  --color-teal-explorer: #5AC6B1; /* Maps to Teal */
+  --color-navy-midnight: #2D3142; /* Dark navy for text/UI */
+  
+  /* Additional colors */
   --color-sky-blue: #00B4D8;
   --color-forest-green: #52796F;
   --color-cream: #FFF8F0;
-  
-  /* Secondary Palette */
   --color-sage-green: #C7D6B8;
   --color-soft-teal: #A8DADC;
   --color-dusty-peach: #F4A261;
   --color-warm-sand: #F1FAEE;
-  
-  /* Neutral Tones */
   --color-soft-charcoal: #333333;
   --color-storybook-beige: #FAF3E3;
   --color-off-white: #FFFCF8;
-  
-  /* Additional colors from styleguide */
-  --color-teal-explorer: #50E3C2;
-  --color-navy-midnight: #2D3142;
   --color-soft-cream: #FFF7EC;
   --color-storybook-sage: #C8D5B9;
   
@@ -32,7 +35,7 @@
   --font-heading: 'Garamond', 'Playfair Display', serif;
   --font-body: 'Merriweather', serif;
   --font-ui: 'Poppins', sans-serif;
-  --font-display: 'Pequena', 'Comic Neue', sans-serif;
+  --font-display: 'Comic Neue', sans-serif;
   
   /* Spacing */
   --spacing-xs: 0.25rem;
