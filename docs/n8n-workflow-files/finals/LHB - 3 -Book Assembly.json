@@ -1,0 +1,606 @@
+{
+  "name": "LHB - 3 -Book Assembly",
+  "nodes": [
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "// Get order ready for book assembly (robust Webhook body handling)\n\n// Webhook puts the real payload under .body; if not present, assume it's already flat\nconst input = $input.first().json;\nconst payload = input.body ?? input;\n\n// Pull required fields from either flat or nested orderData\nconst amazonOrderId = payload.amazonOrderId ?? payload.orderData?.amazonOrderId ?? null;\nconst characterHash = payload.characterHash ?? payload.orderData?.characterHash ?? null;\n\n// Optional sections\nconst characterSpecs = payload.characterSpecs ?? payload.orderData?.characterSpecs ?? {};\nconst bookSpecs      = payload.bookSpecs      ?? payload.orderData?.bookSpecs      ?? {};\nconst orderDetails   = payload.orderDetails   ?? payload.orderData?.orderDetails   ?? {};\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url    = payload.publicR2Url    ?? null;\n\n// Processed images come in flat (2B sends them at top level)\nconst processedImages = payload.processedImages ?? [];\n\n// Validate\nif (!amazonOrderId || !characterHash) {\n  throw new Error('Missing required order data: amazonOrderId or characterHash');\n}\nif (!Array.isArray(processedImages) || processedImages.length === 0) {\n  throw new Error('No processed images received from Workflow 2B');\n}\n\n// Normalize/initialize assembly state\nconst assemblingOrder = {\n  status: 'book_assembly_in_progress',\n  assemblyStartedAt: new Date().toISOString(),\n  pagesGenerated: 0,\n  totalPagesRequired: 14,\n  assemblyProgress: 0,\n\n  amazonOrderId,\n  characterHash,\n  characterSpecs,\n  bookSpecs,\n  orderDetails,\n  publicR2Url,\n\n  processedImages\n};\n\nconsole.log(`Starting book assembly for order: ${amazonOrderId} (images: ${processedImages.length})`);\nreturn [{ json: assemblingOrder }];\n"
+      },
+      "id": "49fc0e23-6e17-4efa-8b21-9b8ddef19726",
+      "name": "Get Order Ready for Assembly",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        2496,
+        7296
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Load Background Images (pages 1..14)\n * Uses shared publicR2Url. Backgrounds live at:\n *   .../book-mvp-simple-adventure/backgrounds/pageXX-<slug>.png\n */\nconst order = $input.first().json || {};\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url = order.publicR2Url || null;\n\nif (!order.amazonOrderId) {\n  throw new Error('Amazon Order ID is required for loading background images');\n}\n\n// Keep slugs in lockstep with your storage names.\nconst sceneSlugs = [\n  'twilight-walk','night-forest','magic-doorway','courage-leap','morning-meadow',\n  'tall-forest','mountain-vista','picnic-surprise','beach-discovery','crystal-cave',\n  'giant-flowers','almost-there','animal-reveal','flying-home'\n];\nconst sceneNames = [\n  'twilight_walk','night_forest','magic_doorway','courage_leap','morning_meadow',\n  'tall_forest','mountain_vista','picnic_surprise','beach_discovery','crystal_cave',\n  'giant_flowers','enchanted_grove','animal_reveal','flying_home'\n];\n\nconst backgroundImages = Array.from({ length: 14 }, (_, i) => {\n  const pageNumber = i + 1;\n  const imagePath = `${publicR2Url}/book-mvp-simple-adventure/backgrounds/page${String(pageNumber).padStart(2,'0')}-${sceneSlugs[i]}.png`;\n  return {\n    pageNumber,\n    imagePath,\n    sceneName: sceneNames[i],\n    validated: false,\n  };\n});\n\nreturn [{ json: { ...order, backgroundImages } }];\n"
+      },
+      "id": "4a3fbd41-0bae-4a8e-9de6-d8b27b5b5248",
+      "name": "Load Generated Characters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        2688,
+        7296
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Load story text (14 pages) + ensure characterImages exists\n * Belt-and-suspenders: synthesize from processedImages or canonical paths.\n */\nconst order = $input.first().json || {};\nconst childName = order.characterSpecs?.childName;\nconst hometown  = order.characterSpecs?.hometown || 'Seattle';\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url = order.publicR2Url || null;\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\n\nif (!childName) throw new Error('Child name required (characterSpecs.childName)');\nconst hash = order.characterHash || order.orderData?.characterHash;\nif (!hash) throw new Error('Missing characterHash in order payload');\n\n// 1) Story lines (unchanged)\nconst lines = [\n  `It was a nice night in ${hometown}. ${childName} went outside.`,\n  `${childName} looked at the stars.<br>You like to explore, the voice said.`,\n  `There was a doorway! ${childName} walked through.`,\n  `Stars were all around! ${childName} felt brave.`,\n  `${childName} noticed footprints and followed them.`,\n  `The path went through giant trees. ${childName} felt small, but not scared.`,\n  `Look how far you came, the voice said.`,\n  `Lunch was waiting! ${childName} ate happily.<br>You earned this, the voice said.`,\n  `The path became warm sand. Look down there, the voice said.<br>${childName} found a beautiful shell!`,\n  `${childName} found a cave with sparkly crystals! They glowed with rainbow colors. You can find beauty everywhere, the voice said.`,\n  `The path went through giant flowers. The petals were SO big!<br>You make others happy, the voice said.`,\n  `The voice felt very close now. You are perfect just as you are, it said.<br>${childName} looked around. Where was the voice?`,\n  `Tiger appeared! It was the voice!<br>I have been with you this whole time, said Tiger.`,\n  `Ready to fly home? asked Tiger. They flew through the stars to ${hometown}.<br>I am always in your heart, said Tiger.`\n];\n\nconst storyTexts = lines.map((text, i) => ({\n  pageNumber: i + 1,\n  text,\n  characterName: childName,\n  hometown,\n  validated: true,\n}));\n\n// 2) Pose name map (for HTML alt/fallbacks)\nconst poseNames = [\n  'walking',                 // 1\n  'walking-looking-higher',  // 2\n  'looking',                 // 3\n  'floating',                // 4\n  'walking-looking-down',    // 5\n  'jogging',                 // 6\n  'looking',                 // 7\n  'sitting-eating',          // 8\n  'crouching',               // 9\n  'crawling-moving-happy',   // 10\n  'surprised-looking-up',    // 11\n  'surprised'                // 12\n];\n\n// 3) Ensure processedImages exists (12 canonical _nobg files) if missing\nlet processedImages = Array.isArray(order.processedImages) && order.processedImages.length\n  ? order.processedImages\n  : Array.from({ length: 12 }, (_, i) => {\n      const poseNumber = i + 1;\n      const padded = String(poseNumber).padStart(2, '0');\n      const fileName = `characters_${hash}_pose${padded}_nobg.png`;\n      const r2Path = `${BASE_PREFIX}/${hash}/${fileName}`;\n      const publicUrl = `${publicR2Url}/${r2Path}`;\n      return {\n        poseNumber,\n        fileName,\n        r2Path,\n        publicUrl,\n        briaProcessed: true,\n        briaStatus: 'COMPLETED',\n        processingError: false,\n      };\n    });\n\n// 4) Ensure characterImages exists; build it from processedImages if needed\nif (!order.characterImages || !Array.isArray(order.characterImages.poses)) {\n  const poses = processedImages\n    .filter(pi => Number.isFinite(pi.poseNumber) && pi.poseNumber >= 1 && pi.poseNumber <= 12)\n    .sort((a, b) => a.poseNumber - b.poseNumber)\n    .map(pi => ({\n      poseNumber: pi.poseNumber,\n      poseFilename: poseNames[pi.poseNumber - 1] || `pose${String(pi.poseNumber).padStart(2, '0')}`,\n      imagePath: pi.publicUrl,\n      pageNumber: pi.poseNumber,    // 1..12 map to pages 1..12\n      validated: !pi.processingError,\n    }));\n\n  order.characterImages = {\n    base: `${publicR2Url}/${BASE_PREFIX}/${hash}/base-character.png`,\n    poses,\n  };\n}\n\n// 5) Return merged payload for HTML node\nreturn [{\n  json: {\n    ...order,\n    publicR2Url,\n    storyTexts,\n    processedImages,\n  }\n}];\n"
+      },
+      "id": "14364987-6f7f-4c62-9f20-7c0a08331ecc",
+      "name": "Load Background Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        2864,
+        7296
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "// Build only the page blocks for PDFMonkey {{ pages_html }}\nconst order = $input.first().json;\n\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url = order.publicR2Url || null;\n// UPDATE: Removed hardcoded TEXT_BG and FONT_URL construction - use backend signed URL API if needed\n// Note: These may need to be generated via signed URL API before PDF generation\nconst TEXT_BG  = null; // Will need signed URL if PDF service requires external access\nconst FONT_URL = null; // Will need signed URL if PDF service requires external access\n\n// helpers\nconst findBg   = (i) => order.backgroundImages?.find(b => b.pageNumber === i)?.imagePath || '';\nconst findTxt  = (i) => (order.storyTexts?.find(s => s.pageNumber === i)?.text || '').replace(/\\n/g,'<br>');\n\n// Pose lookup (no character on page 13; page 14 fallback to any \"flying\")\nconst findPose = (i) => {\n  if (i === 13) return null; // SPEC: page 13 has animal only\n  const poses = order.characterImages?.poses || [];\n  let p = poses.find(p => p.pageNumber === i);\n  if (!p && i === 14) p = poses.find(p => /fly|flying/i.test(p.filename || p.pose || ''));\n  return p || poses[0] || null;\n};\n\n// px→in at 300dpi\nconst px2in = (px) => (px / 300).toFixed(4) + 'in';\n\n// Original px map (absolute) for most pages\nconst CHAR = {\n  1:  { left:1453, top:1938, w: 900, flip:  1 },\n  2:  { left:1403, top:2091, w: 950, flip:  1 },\n  3:  { left:1275, top:2295, w: 900, flip:  1 },   // will be overridden\n  4:  { left:1020, top:2142, w:1100, flip: -1 },   // will be overridden\n  5:  { left:1250, top:2066, w: 900, flip: -1 },\n  6:  { left:1326, top:2066, w: 900, flip:  1 },\n  7:  { left:1199, top:1683, w: 900, flip: -1 },\n  8:  { left:1453, top:2040, w:1400, flip:  1 },\n  9:  { left:1428, top:2142, w:1100, flip: -1 },\n  10: { left:1275, top:2295, w:1300, flip: -1 },\n  11: { left:1964, top:2117, w: 500, flip:  1 },\n  12: { left: 893, top:2142, w:1000, flip: -1 },\n  // 13: no character\n  14: { left: 893, top:1836, w:1500, flip:  1 },   // will be overridden w/ same numbers + class sprite\n};\n\n// === OVERRIDES from your snippet (absolute px, bottom-center anchor) ===\n// page03\nconst OV3 = { left:1020, top:2142, w:1100, flip:-1, rotate:0 };\n// page04\nconst OV4 = { left:1530, top:1734, w:1100, flip: 1, rotate:-20 };\n// page14 (character)\nconst OV14C = { left:893, top:1836, w:1500, flip:1, rotate:0 };\n// page14 (animal)\nconst OV14A = { left:1275, top:1964, w:1250 };\n\nfunction charStyle(n){\n  // apply overrides first\n  if (n === 3) {\n    return [\n      `left:${px2in(OV3.left)}`,\n      `top:${px2in(OV3.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV3.flip})`,\n      `width:${px2in(OV3.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  if (n === 4) {\n    return [\n      `left:${px2in(OV4.left)}`,\n      `top:${px2in(OV4.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV4.flip}) rotate(-20deg)`,\n      `width:${px2in(OV4.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  if (n === 14) {\n    return [\n      `left:${px2in(OV14C.left)}`,\n      `top:${px2in(OV14C.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV14C.flip})`,\n      `width:${px2in(OV14C.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  // fallback to your original px map (converted) for other pages\n  const c = CHAR[n];\n  if (!c) return '';\n  return [\n    `left:${px2in(c.left)}`,\n    `top:${px2in(c.top)}`,\n    `transform:translate(-50%,-100%) scaleX(${c.flip})`,\n    `width:${px2in(c.w)}`,\n    `z-index:11`\n  ].join('; ') + ';';\n}\n\n// Animals\n// Animals (URLs fixed). Page 13: animal only with tuned placement. Page 14: from doc.\nfunction animalHTML(i){\n  if (i === 13) {\n    const src = `${publicR2Url}/book-mvp-simple-adventure/characters/animals/tiger-appears.png`;\n\n    // Tuned for PDFMonkey with bottom-center anchor:\n    // - Slightly right of center (≈ 65%)\n    // - A bit higher (≈ 74%)\n    // - Large reveal (≈ 6.0in wide)\n    const leftPx = 1650;    // ≈ 65% of 2550\n    const topPx  = 1900;    // ≈ 74% of 2550\n    const wPx    = 1800;    // ≈ 6.0in at 300dpi\n\n    return `\n      <div class=\"animal\" style=\"\n        left:${px2in(leftPx)};\n        top:${px2in(topPx)};\n        transform:translate(-50%,-100%);\n        width:${px2in(wPx)};\n        z-index:9;\">\n        <img class=\"sprite\" src=\"${src}\" alt=\"Tiger Appears\">\n      </div>`;\n  }\n\n  if (i === 14) {\n    const src = `${publicR2Url}/book-mvp-simple-adventure/characters/animals/tiger-flying.png`;\n    // From positioning doc\n    const left = px2in(1275), top = px2in(1964), w = px2in(1250);\n    return `\n      <div class=\"animal\" style=\"\n        left:${left};\n        top:${top};\n        transform:translate(-50%,-100%);\n        width:${w};\n        z-index:9;\">\n        <img class=\"sprite\" src=\"${src}\" alt=\"Tiger Flying\">\n      </div>`;\n  }\n  return '';\n}\n\n\n// Inline font so it applies even when only {{ pages_html }} is rendered\nconst fontStyle = `\n<style>\n@font-face {\n  font-family: 'CustomBook';\n  src: url('${FONT_URL}') format('truetype');\n  font-display: swap;\n}\n.text-content, body { font-family: 'CustomBook', Arial, sans-serif; }\n</style>`.trim();\n\nlet pages_html = fontStyle + '\\n';\n\nfor (let i = 1; i <= 14; i++) {\n  const bg   = findBg(i);\n  const pose = findPose(i);\n  const text = findTxt(i);\n\n  pages_html += `\n<div class=\"book-page\" id=\"page-${i}\">\n  <div class=\"page-bg\" style=\"background-image:url('${bg}');\"></div>\n\n  <div class=\"text-box\" style=\"background-image:url('${TEXT_BG}')\">\n    <div class=\"text-content\">${text}</div>\n  </div>\n\n  ${pose ? `<div class=\"character\" style=\"${charStyle(i)}\"><img class=\"sprite\" src=\"${pose.imagePath}\" alt=\"\"></div>` : ''}\n  ${animalHTML(i)}\n</div>`;\n}\n\nreturn [{\n  json: {\n    ...order,\n    pages_html,\n    pdfMonkeyTemplateId: order.pdfMonkeyTemplateId || '5539ddb4-ec78-4ae9-a3fb-db1e7f8dd172',\n    pdfFilename: `complete_book_${order.amazonOrderId || 'ORDER'}.pdf`,\n  }\n}];\n"
+      },
+      "id": "a909a35d-039f-4c9e-89d9-2e85720ff9f6",
+      "name": "Generate Complete HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        3264,
+        7296
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "const d = $input.first().json;\n\nreturn [{\n  json: {\n    document: {\n      document_template_id: d.pdfMonkeyTemplateId,\n      status: 'pending',\n      meta: { _filename: d.pdfFilename },\n      payload: {\n        pages_html: d.pages_html\n      }\n    }\n  }\n}];\n"
+      },
+      "id": "9d425d10-fd93-46a2-b859-4e52971a2f65",
+      "name": "Prepare PDFMonkey Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        3664,
+        7296
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "const order = $input.first().json;\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url = order.publicR2Url || null;\n\nconst completed = {\n  ...order,\n  status: 'book_assembly_completed',\n  bookAssemblyCompletedAt: new Date().toISOString(),\n  finalBookUrl: `${publicR2Url}/little-hero-orders/${order.amazonOrderId}/${order.pdfFilename}`,\n  totalAssemblyTime: order.assemblyStartedAt ? (new Date() - new Date(order.assemblyStartedAt)) : null,\n  averageTimePerPage: order.assemblyStartedAt\n    ? Math.round(((new Date() - new Date(order.assemblyStartedAt)) / (order.totalPagesRequired || 14)) / 1000)\n    : null\n};\n\nconsole.log(`Book assembly completed: ${order.amazonOrderId}`);\nreturn [{ json: completed }];\n"
+      },
+      "id": "c314dc23-8cf2-45c7-bd1b-8e33133bf776",
+      "name": "Update Order Status Complete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        4880,
+        7296
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "const order = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '3-book-assembly-voice-of-wonder',\n  orderId: order.amazonOrderId,\n  status: order.status,\n  pagesGenerated: order.pagesGenerated,\n  totalPagesRequired: order.totalPagesRequired,\n  assemblyProgress: order.assemblyProgress,\n  finalBookUrl: order.finalBookUrl || 'N/A'\n};\n\nconsole.log('Book Assembly Results:', JSON.stringify(logEntry, null, 2));\nreturn [{ json: logEntry }];\n"
+      },
+      "id": "92ae853b-cb4d-4b27-abdf-15390b442ca7",
+      "name": "Log Assembly Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        5088,
+        7296
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "// Poll PDFMonkey until the document is ready; max 30s\n// Also MERGE with Prepare PDFMonkey Data so we keep amazonOrderId/pdfFilename/etc.\nconst createResp = $input.first().json;\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc.id || doc.data?.id;\n\nif (!docId) {\n  throw new Error('PDFMonkey create response missing id');\n}\n\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst http = this.helpers.httpRequest;\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nwhile (attempts < 15) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(2000);\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey document not ready after polling (status=${status})`);\n}\n\n// Merge in the context from Prepare PDFMonkey Data\nlet ctx = {};\ntry {\n  ctx = $items('Prepare PDFMonkey Data', 0, 0)?.[0]?.json || {};\n} catch {}\n\nreturn [{\n  json: {\n    ...ctx,\n    pdfMonkeyDocumentId: docId,\n    pdfDownloadUrl: downloadUrl\n  }\n}];\n"
+      },
+      "id": "acd5ee5e-f756-4975-b7d3-33651adf29a5",
+      "name": "Poll PDFMonkey until ready",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        4256,
+        7296
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-orders",
+        "fileName": "={{$json.pdfFilename}}",
+        "additionalFields": {
+          "acl": "public-read"
+        }
+      },
+      "id": "36b749ac-7ac5-4dde-bc64-8c7bf743d059",
+      "name": "Upload Final Book to Storage",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        4672,
+        7296
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{$json.pdfDownloadUrl}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "890afef4-c625-430a-a0b2-4b3a0973f7aa",
+      "name": "Download PDF from PDFMonkey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4464,
+        7296
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdfmonkey.io/api/v1/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer 2zpxHdmsse2ECXgVVtVR"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.document }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "dd507050-32c0-49f6-8d4f-9820ff55bdc1",
+      "name": "Generate PDF with PDFMonkey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3888,
+        7296
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "book-assembly",
+        "options": {
+          "responseData": "allEntries"
+        }
+      },
+      "id": "a5e236c7-c482-4ca2-9545-f14102a95560",
+      "name": "Webhook Trigger (Book Assembly)1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        2272,
+        7296
+      ],
+      "webhookId": "ee211ba1-104b-4eb3-a46d-3b42b61c82e3"
+    },
+    {
+      "parameters": {
+        "amount": 25
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4080,
+        7296
+      ],
+      "id": "6088c204-f662-47c1-afb6-645bf3a1bbec",
+      "name": "Wait",
+      "webhookId": "21616e36-6d94-4778-a60c-017f20057712"
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "// Load story text for all pages with personalization + animal images\nconst order = $input.first().json || {};\nconst childName = order.characterSpecs?.childName;\nconst hometown  = order.characterSpecs?.hometown || 'Seattle';\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url = order.publicR2Url || null;\n\nif (!childName) throw new Error('Child name required (characterSpecs.childName)');\n\n// --- Normalize & map animal guide ---\nconst rawAnimalInput = String(order.characterSpecs?.animalGuide || 'tiger');\n\n// strip emojis/punctuation, normalize spaces/hyphens, lowercase\nconst cleaned = rawAnimalInput\n  .replace(/[^a-z0-9\\s-]/gi, '')   // drop emojis & punctuation\n  .replace(/\\s+/g, ' ')            // collapse spaces\n  .trim()\n  .toLowerCase();\n\n// alias map → slug we use in filenames\nconst ALIAS_TO_SLUG = {\n  'dog': 'dog',\n  'cat': 'cat',\n  't rex': 't-rex',\n  'trex': 't-rex',\n  't-rex': 't-rex',\n  'unicorn': 'unicorn',\n  'tiger': 'tiger',\n  'lion': 'lion',\n  'owl': 'owl',\n};\n\n// default to tiger if unknown\nconst animalSlug = ALIAS_TO_SLUG[cleaned] || 'tiger';\n\n// pretty display names for alt text, etc.\nconst SLUG_TO_DISPLAY = {\n  'dog': 'Dog',\n  'cat': 'Cat',\n  't-rex': 'T-Rex',\n  'unicorn': 'Unicorn',\n  'tiger': 'Tiger',\n  'lion': 'Lion',\n  'owl': 'Owl',\n};\nconst animalDisplayName = SLUG_TO_DISPLAY[animalSlug] || 'Tiger';\n\n// build URLs (you said animals live at /animals/)\nconst animalImages = {\n  appears: `${publicR2Url}/animals/${animalSlug}-appears.png`,\n  flying:  `${publicR2Url}/animals/${animalSlug}-flying.png`,\n};\n\n// --- Story text (unchanged) ---\nconst lines = [\n  `It was a nice night in ${hometown}. ${childName} went outside.`,\n  `${childName} looked at the stars.<br>You like to explore, the voice said.`,\n  `There was a doorway! ${childName} walked through.`,\n  `Stars were all around! ${childName} felt brave.`,\n  `${childName} noticed footprints and followed them.`,\n  `The path went through giant trees. ${childName} felt small, but not scared.`,\n  `Look how far you came, the voice said.`,\n  `Lunch was waiting! ${childName} ate happily.<br>You earned this, the voice said.`,\n  `The path became warm sand. Look down there, the voice said.<br>${childName} found a beautiful shell!`,\n  `${childName} found a cave with sparkly crystals! They glowed with rainbow colors. You can find beauty everywhere, the voice said.`,\n  `The path went through giant flowers. The petals were SO big!<br>You make others happy, the voice said.`,\n  `The voice felt very close now. You are perfect just as you are, it said.<br>${childName} looked around. Where was the voice?`,\n  `${animalDisplayName} appeared! It was the voice!<br>I have been with you this whole time, said ${animalDisplayName}.`,\n  `Ready to fly home? asked ${animalDisplayName}. They flew through the stars to ${hometown}.<br>I am always in your heart, said ${animalDisplayName}.`\n];\n\nconst storyTexts = lines.map((text, i) => ({\n  pageNumber: i + 1, text, characterName: childName, hometown, validated: true\n}));\n\nreturn [{\n  json: {\n    ...order,\n    publicR2Url,\n    animalImages,          // ← add\n    animalDisplayName,     // ← optional, nice for alt text\n    storyTexts\n  }\n}];\n"
+      },
+      "id": "0fa2cccc-0eca-4d7a-a884-4990edcb0f2d",
+      "name": "Load story text (+ ensure characterImages)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        3056,
+        7296
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build a standalone preview HTML you can open anywhere\nconst order = $input.first().json;\n\nconst page_css   = order.page_css || '';\nconst pages_html = order.pages_html || '';\n\nconst html = [\n  '<!doctype html>',\n  '<html>',\n  '<head>',\n  '<meta charset=\"utf-8\">',\n  '<title>Book Preview</title>',\n  '<style>',\n  page_css,\n  '</style>',\n  '</head>',\n  '<body>',\n  // visible banner so you know CSS applied\n  '<div style=\"position:relative;z-index:9999;padding:.25in;background:#ff0;color:#000;font:bold 14pt/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif\">',\n  'BROWSER PREVIEW — if you see this bar, CSS applied',\n  '</div>',\n  pages_html,\n  '</body>',\n  '</html>'\n].join('\\n');\n\nconst buf = Buffer.from(html, 'utf8');\n\n// 1) Binary (works with Write Binary File or the node's Download button)\nconst binary = {\n  file: {\n    data: buf,\n    mimeType: 'text/html',\n    fileName: `book-preview_${order.amazonOrderId || 'ORDER'}.html`,\n  }\n};\n\n// 2) Data URL (paste this into your browser if Download doesn't work)\nconst dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);\n\n// 3) Inline string (copy-paste into a local .html)\nreturn [{\n  json: {\n    ...order,\n    preview_html_filename: `book-preview_${order.amazonOrderId || 'ORDER'}.html`,\n    preview_html_inline: html,                 // full HTML string\n    preview_data_url: dataUrl,                 // pasteable address-bar URL\n    preview_lengths: { css: page_css.length, html: pages_html.length }\n  },\n  binary\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3472,
+        7296
+      ],
+      "id": "da1eab07-5543-48b4-9a12-d1d0f37ffb46",
+      "name": "Build HTML",
+      "disabled": true
+    }
+  ],
+  "pinData": {
+    "Webhook Trigger (Book Assembly)1": [
+      {
+        "json": {
+          "headers": {
+            "host": "thepeakbeyond.app.n8n.cloud",
+            "user-agent": "axios/1.8.3",
+            "content-length": "6328",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "4.182.88.118",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "DE",
+            "cf-ray": "98ea990bf1d8693d-FRA",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "x-forwarded-for": "4.182.88.118, 162.158.86.127",
+            "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-n8pcb",
+            "x-is-trusted": "yes",
+            "x-real-ip": "4.182.88.118"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "status": "ready_for_book_assembly",
+            "amazonOrderId": "TEST-ORDER-002",
+            "characterHash": "1dde0fac84943088",
+            "characterSpecs": {
+              "childName": "Alex",
+              "hometown": "Seattle",
+              "pronouns": "he/him",
+              "age": 4,
+              "favoriteColor": "yellow",
+              "animalGuide": "tiger",
+              "clothingStyle": "t-shirt and shorts",
+              "hash": "1dde0fac84943088"
+            },
+            "bookSpecs": {
+              "title": "Alex and the Adventure Compass",
+              "totalPages": 16,
+              "format": "8.5x8.5_softcover",
+              "bookType": "animal-guide"
+            },
+            "orderDetails": {
+              "quantity": 1,
+              "shippingAddress": {
+                "name": "Test Customer",
+                "address": "123 Test Street",
+                "city": "Test City",
+                "state": "CA",
+                "zip": "90210"
+              }
+            },
+            "publicR2Url": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev",
+            "processedImages": [
+              {
+                "poseNumber": 1,
+                "fileName": "characters_1dde0fac84943088_pose01_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose01_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose01_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              },
+              {
+                "poseNumber": 2,
+                "fileName": "characters_1dde0fac84943088_pose02_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose02_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose02_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              },
+              {
+                "poseNumber": 3,
+                "fileName": "characters_1dde0fac84943088_pose03_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose03_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose03_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              },
+              {
+                "poseNumber": 4,
+                "fileName": "characters_1dde0fac84943088_pose04_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose04_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose04_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              },
+              {
+                "poseNumber": 5,
+                "fileName": "characters_1dde0fac84943088_pose05_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose05_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose05_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              },
+              {
+                "poseNumber": 6,
+                "fileName": "characters_1dde0fac84943088_pose06_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose06_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose06_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              },
+              {
+                "poseNumber": 7,
+                "fileName": "characters_1dde0fac84943088_pose07_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose07_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose07_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              },
+              {
+                "poseNumber": 8,
+                "fileName": "characters_1dde0fac84943088_pose08_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose08_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose08_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              },
+              {
+                "poseNumber": 9,
+                "fileName": "characters_1dde0fac84943088_pose09_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose09_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose09_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              },
+              {
+                "poseNumber": 10,
+                "fileName": "characters_1dde0fac84943088_pose10_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose10_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose10_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              },
+              {
+                "poseNumber": 11,
+                "fileName": "characters_1dde0fac84943088_pose11_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose11_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose11_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              },
+              {
+                "poseNumber": 12,
+                "fileName": "characters_1dde0fac84943088_pose12_nobg.png",
+                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose12_nobg.png",
+                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose12_nobg.png",
+                "briaProcessed": true,
+                "briaStatus": "COMPLETED",
+                "processingError": false
+              }
+            ],
+            "workflow2B": {
+              "summary": {
+                "total": 12,
+                "completed": 12,
+                "failed": 0
+              },
+              "completedAt": "2025-10-14T22:43:49.704Z"
+            }
+          },
+          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Get Order Ready for Assembly": {
+      "main": [
+        [
+          {
+            "node": "Load Generated Characters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Generated Characters": {
+      "main": [
+        [
+          {
+            "node": "Load Background Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Background Images": {
+      "main": [
+        [
+          {
+            "node": "Load story text (+ ensure characterImages)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Complete HTML": {
+      "main": [
+        [
+          {
+            "node": "Build HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare PDFMonkey Data": {
+      "main": [
+        [
+          {
+            "node": "Generate PDF with PDFMonkey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate PDF with PDFMonkey": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll PDFMonkey until ready": {
+      "main": [
+        [
+          {
+            "node": "Download PDF from PDFMonkey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF from PDFMonkey": {
+      "main": [
+        [
+          {
+            "node": "Upload Final Book to Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Final Book to Storage": {
+      "main": [
+        [
+          {
+            "node": "Update Order Status Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order Status Complete": {
+      "main": [
+        [
+          {
+            "node": "Log Assembly Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger (Book Assembly)1": {
+      "main": [
+        [
+          {
+            "node": "Get Order Ready for Assembly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Poll PDFMonkey until ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load story text (+ ensure characterImages)": {
+      "main": [
+        [
+          {
+            "node": "Generate Complete HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML": {
+      "main": [
+        [
+          {
+            "node": "Prepare PDFMonkey Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3293bfed-44ac-4c3c-b89c-b096875afc95",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "BsL7VPylfeo8EQ4M",
+  "tags": []
+}

@@ -649,8 +649,14 @@ const publicR2Url = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';
 const imageUrl = `${publicR2Url}/${storageKey}`;
 
 // AFTER: Get signed URL from backend API
-const backendUrl = $env.BACKEND_API_URL || 'https://admin.littleherolabs.com';
-const backendToken = $env.BACKEND_API_TOKEN || '';
+// Option 1: Use environment variables (if available in your n8n instance)
+// const backendUrl = $env.BACKEND_API_URL || 'https://admin.littleherolabs.com';
+// const backendToken = $env.BACKEND_API_TOKEN || '';
+
+// Option 2: Use hardcoded values (if env vars not available and workflows are private)
+// ⚠️ SECURITY NOTE: Only use hardcoded values if your n8n workflows are NOT publicly accessible
+const backendUrl = 'https://admin.littleherolabs.com';
+const backendToken = 'YOUR_BACKEND_API_TOKEN_HERE'; // Replace with actual token
 
 // Get signed URL from backend
 const signedUrlResponse = await this.helpers.request({
@@ -735,6 +741,9 @@ If you prefer to use HTTP Request nodes instead of Code nodes:
 **Action Items:**
 - [ ] Run automated script first (will update Code nodes to use `this.helpers.request()`)
 - [ ] Manually review critical workflows
+- [ ] **If env vars not available:** Use hardcoded values (see `N8N_HARDCODED_VALUES_GUIDE.md`)
+- [ ] Replace `$env.BACKEND_API_URL` with hardcoded URL: `'https://admin.littleherolabs.com'`
+- [ ] Replace `$env.BACKEND_API_TOKEN` with hardcoded token: `'YOUR_BACKEND_API_TOKEN_HERE'`
 - [ ] Verify `this.helpers.request()` works in your n8n version (test with one workflow first)
 - [ ] Test each updated workflow in n8n
 - [ ] Update workflow documentation
@@ -742,11 +751,18 @@ If you prefer to use HTTP Request nodes instead of Code nodes:
 **⚠️ Testing Recommendation:**
 Test `this.helpers.request()` with one workflow first before updating all workflows. If it doesn't work in your n8n version, fall back to Option B (HTTP Request nodes).
 
+**⚠️ Environment Variables:**
+If your n8n instance doesn't support environment variables, use hardcoded values instead. This is acceptable if workflows are private. See `N8N_HARDCODED_VALUES_GUIDE.md` for details.
+
 ---
 
-### Task 3.3: Update n8n Environment Variables
+### Task 3.3: Configure Backend API Credentials
 
-**⚠️ CRITICAL TIMING:** Do this **BEFORE** testing workflows. Environment variables must be set before workflows can use them.
+**⚠️ CRITICAL TIMING:** Do this **BEFORE** testing workflows. Credentials must be configured before workflows can call the backend API.
+
+**Option A: Environment Variables (If Available)**
+
+If your n8n instance supports environment variables:
 
 **Required Variables:**
 - `BACKEND_API_URL` - Your backend API URL (e.g., `https://admin.littleherolabs.com`)
@@ -760,7 +776,24 @@ Test `this.helpers.request()` with one workflow first before updating all workfl
 - [ ] **IMPORTANT:** Verify variables are accessible in workflows (test with a simple workflow)
 - [ ] **DO NOT** test workflows until variables are set (workflows will fail without them)
 
-**📄 Detailed Instructions:** See [Manual Tasks Guide](little-hero-books-manual-tasks.md) - Phase 3
+**Option B: Hardcoded Values (If Env Vars Not Available)**
+
+If your n8n instance doesn't support environment variables:
+
+**✅ Acceptable if:**
+- Your n8n workflows are **NOT publicly accessible**
+- Your n8n instance is private/self-hosted or behind authentication
+
+**Action Items:**
+- [ ] Get your `BACKEND_API_TOKEN` from your backend `.env` file
+- [ ] Use hardcoded values in Code nodes (see code examples in Task 3.2)
+- [ ] Replace `$env.BACKEND_API_URL` with `'https://admin.littleherolabs.com'`
+- [ ] Replace `$env.BACKEND_API_TOKEN` with `'YOUR_ACTUAL_TOKEN'`
+- [ ] **Security Note:** Only use hardcoded values if workflows are private
+
+**📄 Detailed Instructions:** 
+- Option A: See [Manual Tasks Guide](little-hero-books-manual-tasks.md) - Phase 3
+- Option B: See [Hardcoded Values Guide](N8N_HARDCODED_VALUES_GUIDE.md)
 
 ---
 
