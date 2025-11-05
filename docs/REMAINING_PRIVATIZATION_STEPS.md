@@ -104,6 +104,13 @@
 - [ ] Test frontend image loading (if applicable)
 - [ ] Check for any 403 errors in logs
 
+### Step 3b: Trigger Book Assembly (Workflow 3)
+
+- Admin UI: Post‑Bria tab now includes “Trigger Book Assembly”.
+- Backend endpoint: `POST /api/orders/{orderId}/trigger-book-assembly` (requires Bearer token)
+- Reads `little-hero-orders/.../orders/{orderId}/manifests/2b-manifest.json`, validates 12 bg-removed poses, posts payload with proxy URLs to Workflow 3 webhook.
+- Expected: Workflow 3 generates HTML + PDF and uploads final book.
+
 **What to Verify:**
 - ✅ Signed URLs work (can access files)
 - ✅ Proxy endpoint works (returns images)

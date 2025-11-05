@@ -101,6 +101,36 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const hasImages = poses.length > 0;
   const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
   const canApprove = flaggedCount === 0 && hasImages && isPreBriaApproved;
+  const canTriggerAssembly = isApproved && hasImages;
+
+  const [isTriggering, setIsTriggering] = useState(false);
+
+  const handleTriggerBookAssembly = async () => {
+    if (!canTriggerAssembly || isTriggering) return;
+    setIsTriggering(true);
+    try {
+      const token = localStorage.getItem('adminToken') || '';
+      const resp = await fetch(`/api/orders/${orderId}/trigger-book-assembly`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        console.error('Trigger assembly failed', resp.status, txt);
+        alert('Failed to trigger book assembly');
+        return;
+      }
+      alert('Book assembly triggered');
+    } catch (e) {
+      console.error('Trigger assembly error', e);
+      alert('Error triggering book assembly');
+    } finally {
+      setIsTriggering(false);
+    }
+  };
 
   useEffect(() => {
     setFlaggedCount(orderId, 'postBria', flaggedCount);
@@ -217,15 +247,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           </div>
           
           <div className="flex space-x-3">
-            {isApproved ? (
-              <button
-                onClick={onInitiateWorkflow}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Initiate Next Workflow
-              </button>
-            ) : (
+            {/* Approve Stage */}
+            {!isApproved && (
               <button
                 onClick={onApprove}
                 disabled={!canApprove}
@@ -239,6 +262,21 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
                 Approve Stage
               </button>
             )}
+
+            {/* Trigger Book Assembly */}
+            <button
+              onClick={handleTriggerBookAssembly}
+              disabled={!canTriggerAssembly || isTriggering}
+              className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                canTriggerAssembly && !isTriggering
+                  ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+              title={isApproved ? 'Trigger Workflow 3 (Book Assembly)' : 'Approve stage to enable book assembly'}
+            >
+              <Play className="h-4 w-4 mr-2" />
+              {isTriggering ? 'Triggering…' : 'Trigger Book Assembly'}
+            </button>
           </div>
         </div>
       </div>

@@ -31,6 +31,39 @@
 - **Backend URL:** `https://admin.littleherolabs.com`
 - **Backend Token:** `e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646`
 
+### New: Book Assembly Trigger (Workflow 3)
+
+- Endpoint: `POST /api/orders/{orderId}/trigger-book-assembly`
+- Auth: `Authorization: Bearer <admin token>`
+- Behavior:
+  - Loads `2b-manifest.json` from R2 at `little-hero-orders/book-mvp-simple-adventure/orders/{orderId}/manifests/2b-manifest.json`
+  - Validates 12 bg-removed poses
+  - Builds Workflow 3 payload with proxy URLs: `https://admin.littleherolabs.com/api/assets/{storageKey}`
+  - Posts to Workflow 3 webhook (`/webhook/book-assembly`)
+
+Payload (sent to Workflow 3):
+```
+{
+  amazonOrderId,
+  characterHash,
+  characterSpecs,
+  bookSpecs,
+  orderDetails,
+  publicR2Url: string | null,
+  processedImages: [
+    {
+      poseNumber,
+      fileName,
+      r2Path,
+      publicUrl,   // proxy URL
+      briaProcessed: true,
+      briaStatus: 'COMPLETED',
+      processingError: false
+    }
+  ]
+}
+```
+
 ### R2 Access Methods
 
 1. **Signed URLs** (for external services like Bria AI):
