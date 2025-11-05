@@ -53,6 +53,8 @@ This audit identifies all n8n workflows that need updates before R2 buckets can 
 **Why Critical:**
 - Passes image URLs directly to Bria AI API (external service)
 - Bria API **MUST** receive signed URLs when R2 is private
+- According to [Bria API documentation](https://docs.bria.ai/), Bria requires "publicly accessible URL" for image URLs
+- When R2 is private, public URLs return 403 Forbidden - **signed URLs make private R2 objects publicly accessible** (temporarily)
 - This workflow will break when R2 buckets are made private if not updated
 
 **Action Required:**

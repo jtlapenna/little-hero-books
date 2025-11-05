@@ -41,9 +41,12 @@
 **Priority:** 🔴 **CRITICAL - HIGHEST**
 
 **Why Critical:**
-- Passes image URLs directly to Bria AI API
+- Passes image URLs directly to Bria AI API (external service)
 - Bria API **MUST** receive signed URLs when R2 is private
-- External service cannot access private R2 buckets
+- According to [Bria API documentation](https://docs.bria.ai/), Bria requires "publicly accessible URL" for image URLs
+- When R2 is private, public URLs return 403 Forbidden - **signed URLs are the only way to make R2 URLs publicly accessible**
+- External service cannot access private R2 buckets without signed URLs
+- **Even if n8n workflows are authenticated, R2 URLs themselves must be publicly accessible for Bria API**
 
 **Current Code Pattern:**
 ```javascript
@@ -296,6 +299,12 @@ const manifestUrl = `${backendUrl}/api/manifests/${manifestKey}`;
 
 1. **Bria API Requirement:**
    - Bria API **MUST** receive signed URLs when R2 is private
+   - According to [Bria API documentation](https://docs.bria.ai/), Bria accepts:
+     - Image URLs: "Provide a publicly accessible URL to the image"
+     - Base64-encoded images: Convert image to Base64 string
+   - When R2 is private, public URLs return 403 Forbidden
+   - **Signed URLs make private R2 objects publicly accessible** (temporarily, with expiration)
+   - Alternative: Use Base64, but signed URLs are more efficient for large images
    - This is the most critical update
    - Failure to update will break workflow when R2 is private
 
