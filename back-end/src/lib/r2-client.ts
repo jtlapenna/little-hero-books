@@ -181,17 +181,24 @@ export async function getObject(bucket: string, key: string): Promise<Response> 
   
   // For direct API calls, we need to sign the request manually
   // Unlike presigned URLs (which sign query params), direct calls sign headers
+  // CRITICAL: The Host header must be explicitly set and included in signed headers
+  const urlObj = new URL(url);
   const unsignedRequest = new Request(url, {
     method: 'GET',
+    headers: {
+      'Host': urlObj.hostname, // Explicitly set Host header for signing
+    },
   });
   
   console.log('[R2 getObject] Unsigned request:', {
     method: unsignedRequest.method,
     url: unsignedRequest.url,
+    hostname: urlObj.hostname,
     headers: Object.fromEntries(unsignedRequest.headers.entries()),
   });
   
   // Sign the request (default behavior signs headers, not query params)
+  // The Host header will be included in the signature
   const signedRequest = await r2Client.sign(unsignedRequest);
   
   // Log signed request details (but don't log Authorization header value for security)
