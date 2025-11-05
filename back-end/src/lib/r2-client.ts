@@ -110,11 +110,17 @@ export async function listObjects(
   // Use subdomain-style addressing (required for private buckets)
   const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com?${params.toString()}`;
   
-  // Use aws4fetch.fetch() directly - it automatically signs requests
-  // For direct API calls (not presigned URLs), we sign headers, not query params
-  const response = await r2Client.fetch(url, {
+  // For direct API calls, we need to sign the request manually
+  // Unlike presigned URLs (which sign query params), direct calls sign headers
+  const unsignedRequest = new Request(url, {
     method: 'GET',
   });
+  
+  // Sign the request (default behavior signs headers, not query params)
+  const signedRequest = await r2Client.sign(unsignedRequest);
+  
+  // Fetch the signed request
+  const response = await fetch(signedRequest);
   
   if (!response.ok) {
     const errorText = await response.text();
@@ -164,11 +170,17 @@ export async function getObject(bucket: string, key: string): Promise<Response> 
   const encodedKey = encodeS3Key(key);
   const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodedKey}`;
   
-  // Use aws4fetch.fetch() directly - it automatically signs requests
-  // For direct API calls (not presigned URLs), we sign headers, not query params
-  const response = await r2Client.fetch(url, {
+  // For direct API calls, we need to sign the request manually
+  // Unlike presigned URLs (which sign query params), direct calls sign headers
+  const unsignedRequest = new Request(url, {
     method: 'GET',
   });
+  
+  // Sign the request (default behavior signs headers, not query params)
+  const signedRequest = await r2Client.sign(unsignedRequest);
+  
+  // Fetch the signed request
+  const response = await fetch(signedRequest);
   
   if (!response.ok) {
     const errorText = await response.text();
