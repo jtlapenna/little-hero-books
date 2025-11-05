@@ -4,6 +4,55 @@
     {
       "parameters": {
         "language": "JavaScript",
+        "jsCode": "/**\n * Extract Manifest URL for Workflow 3\n * Accepts orderId (preferred) or manifestKey/manifestUrl from webhook.\n * Builds R2 manifestKey and a backend-proxied manifestUrl if needed.\n */\nconst input = $input.first().json || {};\n\nconst orderId = input.orderId || input.amazonOrderId || input.body?.orderId || input.body?.amazonOrderId;\nconst backendUrl = input.backendUrl || input.PUBLIC_BACKEND_URL || 'https://admin.littleherolabs.com';\n\nlet manifestKey = input.manifestKey || input.body?.manifestKey || null;\nif (!manifestKey && orderId) {\n  manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json`;\n}\n\nlet manifestUrl = input.manifestUrl || input.body?.manifestUrl || null;\nif (!manifestUrl && manifestKey) {\n  manifestUrl = `${backendUrl}/api/manifests/${manifestKey}`;\n}\n\nif (!manifestKey || !manifestUrl) {\n  throw new Error('Missing orderId or manifest info for Workflow 3');\n}\n\nreturn [{ json: { ...input, orderId, backendUrl, manifestKey, manifestUrl } }];\n"
+      },
+      "id": "b8b1c0d1-5c5a-4f3f-b2f1-3e2b8f0b3c31",
+      "name": "Extract Manifest URL (3)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        7072
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.manifestUrl}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "c5d2dd73-8a8b-48d0-8c02-3d8d6a9b9a10",
+      "name": "Download 2B Manifest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        7072
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Build Assembly Input From Manifest\n * Converts 2B manifest into the payload expected downstream.\n */\nconst input = $input.first().json || {};\nconst manifest = input || {}; // HTTP node passes manifest JSON as item\n\n// Try to get preserved context from Extract node\nlet ctx = {};\ntry { ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst order = manifest.order || {};\nconst entries = Array.isArray(manifest.entries) ? manifest.entries : [];\nconst amazonOrderId = order.amazonOrderId || ctx.orderId || null;\nconst characterHash = manifest.characterHash || order.characterHash || null;\nconst backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n\nif (!amazonOrderId || !characterHash) {\n  throw new Error('Manifest missing amazonOrderId or characterHash');\n}\n\nconst toProxy = (key) => `${backendUrl}/api/assets/${key}`;\nconst processedImages = entries\n  .filter(e => Number.isFinite(Number(e.poseNumber)) && e.bgRemovedKey)\n  .sort((a,b) => a.poseNumber - b.poseNumber)\n  .map(e => ({\n    poseNumber: e.poseNumber,\n    fileName: (e.bgRemovedKey.split('/').pop()) || `pose${String(e.poseNumber).padStart(2,'0')}_nobg.png`,\n    r2Path: e.bgRemovedKey,\n    publicUrl: toProxy(e.bgRemovedKey),\n    briaProcessed: true,\n    briaStatus: 'COMPLETED',\n    processingError: false,\n  }));\n\nreturn [{ json: {\n  amazonOrderId,\n  characterHash,\n  characterSpecs: order.characterSpecs || {},\n  bookSpecs: order.bookSpecs || {},\n  orderDetails: order.orderDetails || {},\n  publicR2Url: order.publicR2Url || null,\n  processedImages\n} }];\n"
+      },
+      "id": "e4f8a2d7-0f9a-4f2a-9d0f-4c1f2b5c6a77",
+      "name": "Build Assembly Input From Manifest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        2624,
+        7072
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
         "jsCode": "// Get order ready for book assembly (robust Webhook body handling)\n\n// Webhook puts the real payload under .body; if not present, assume it's already flat\nconst input = $input.first().json;\nconst payload = input.body ?? input;\n\n// Pull required fields from either flat or nested orderData\nconst amazonOrderId = payload.amazonOrderId ?? payload.orderData?.amazonOrderId ?? null;\nconst characterHash = payload.characterHash ?? payload.orderData?.characterHash ?? null;\n\n// Optional sections\nconst characterSpecs = payload.characterSpecs ?? payload.orderData?.characterSpecs ?? {};\nconst bookSpecs      = payload.bookSpecs      ?? payload.orderData?.bookSpecs      ?? {};\nconst orderDetails   = payload.orderDetails   ?? payload.orderData?.orderDetails   ?? {};\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url    = payload.publicR2Url    ?? null;\n\n// Processed images come in flat (2B sends them at top level)\nconst processedImages = payload.processedImages ?? [];\n\n// Validate\nif (!amazonOrderId || !characterHash) {\n  throw new Error('Missing required order data: amazonOrderId or characterHash');\n}\nif (!Array.isArray(processedImages) || processedImages.length === 0) {\n  throw new Error('No processed images received from Workflow 2B');\n}\n\n// Normalize/initialize assembly state\nconst assemblingOrder = {\n  status: 'book_assembly_in_progress',\n  assemblyStartedAt: new Date().toISOString(),\n  pagesGenerated: 0,\n  totalPagesRequired: 14,\n  assemblyProgress: 0,\n\n  amazonOrderId,\n  characterHash,\n  characterSpecs,\n  bookSpecs,\n  orderDetails,\n  publicR2Url,\n\n  processedImages\n};\n\nconsole.log(`Starting book assembly for order: ${amazonOrderId} (images: ${processedImages.length})`);\nreturn [{ json: assemblingOrder }];\n"
       },
       "id": "49fc0e23-6e17-4efa-8b21-9b8ddef19726",
@@ -11,8 +60,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        2496,
-        7296
+        2816,
+        7072
       ]
     },
     {
@@ -204,8 +253,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        2272,
-        7296
+        2208,
+        7072
       ],
       "webhookId": "ee211ba1-104b-4eb3-a46d-3b42b61c82e3"
     },
@@ -437,6 +486,39 @@
     ]
   },
   "connections": {
+    "Extract Manifest URL (3)": {
+      "main": [
+        [
+          {
+            "node": "Download 2B Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download 2B Manifest": {
+      "main": [
+        [
+          {
+            "node": "Build Assembly Input From Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Assembly Input From Manifest": {
+      "main": [
+        [
+          {
+            "node": "Get Order Ready for Assembly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Get Order Ready for Assembly": {
       "main": [
         [
@@ -551,7 +633,7 @@
       "main": [
         [
           {
-            "node": "Get Order Ready for Assembly",
+            "node": "Extract Manifest URL (3)",
             "type": "main",
             "index": 0
           }

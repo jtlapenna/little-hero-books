@@ -134,13 +134,12 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     if (!canTriggerAssembly || isTriggering) return;
     setIsTriggering(true);
     try {
-      const token = localStorage.getItem('adminToken') || '';
-      const resp = await fetch(`/api/orders/${orderId}/trigger-book-assembly`, {
+      // Call n8n webhook directly (mirrors 2B pattern)
+      const webhookUrl = 'https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly';
+      const resp = await fetch(webhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
       });
       if (!resp.ok) {
         const txt = await resp.text();
@@ -148,9 +147,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         alert(`Failed to trigger book assembly: ${resp.status} ${txt}`);
         return;
       }
-      const data = await resp.json().catch(() => ({} as any));
       alert('Book assembly triggered');
-      console.log('Workflow 3 webhook result:', data);
     } catch (e) {
       console.error('Trigger assembly error', e);
       alert('Error triggering book assembly');
@@ -273,7 +270,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           
           <div className="flex items-center gap-3 flex-wrap">
             {/* Approve Stage (always visible, mirrors first tab styles) */}
-            <button
+              <button
               onClick={handleApproveStage}
               disabled={approveStageConfirmed || !canApprove}
               className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all ${
@@ -284,25 +281,25 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
                   : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
               }`}
               title={approveStageConfirmed ? 'Stage approved' : (canApprove ? 'Approve this stage' : 'Resolve issues to enable approval')}
-            >
+              >
               <CheckCircle className="h-4 w-4 mr-2" />
               {approveStageConfirmed ? 'Stage Approved' : 'Approve Stage'}
-            </button>
+              </button>
 
             {/* Trigger Book Assembly (replaces BG removal) */}
-            <button
+              <button
               onClick={handleTriggerBookAssembly}
               disabled={!canTriggerAssembly || isTriggering}
-              className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                 canTriggerAssembly && !isTriggering
                   ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               title={isApproved ? 'Trigger Workflow 3 (Book Assembly)' : 'Approve stage to enable book assembly'}
-            >
+              >
               <Play className="h-4 w-4 mr-2" />
               {isTriggering ? 'Triggering…' : 'Trigger Book Assembly'}
-            </button>
+              </button>
           </div>
         </div>
       </div>
