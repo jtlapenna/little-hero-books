@@ -170,20 +170,61 @@ export async function getObject(bucket: string, key: string): Promise<Response> 
   const encodedKey = encodeS3Key(key);
   const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodedKey}`;
   
+  console.log('[R2 getObject] Debug:', {
+    bucket,
+    key,
+    encodedKey,
+    url,
+    accountId: ACCOUNT_ID?.substring(0, 8) + '...',
+    hasCredentials: !!(ACCESS_KEY_ID && SECRET_ACCESS_KEY),
+  });
+  
   // For direct API calls, we need to sign the request manually
   // Unlike presigned URLs (which sign query params), direct calls sign headers
   const unsignedRequest = new Request(url, {
     method: 'GET',
   });
   
+  console.log('[R2 getObject] Unsigned request:', {
+    method: unsignedRequest.method,
+    url: unsignedRequest.url,
+    headers: Object.fromEntries(unsignedRequest.headers.entries()),
+  });
+  
   // Sign the request (default behavior signs headers, not query params)
   const signedRequest = await r2Client.sign(unsignedRequest);
+  
+  // Log signed request details (but don't log Authorization header value for security)
+  const signedHeaders: Record<string, string> = {};
+  signedRequest.headers.forEach((value, key) => {
+    if (key.toLowerCase() === 'authorization') {
+      signedHeaders[key] = value.substring(0, 20) + '...' + value.substring(value.length - 10);
+    } else {
+      signedHeaders[key] = value;
+    }
+  });
+  
+  console.log('[R2 getObject] Signed request:', {
+    method: signedRequest.method,
+    url: signedRequest.url,
+    headers: signedHeaders,
+    hasAuthHeader: signedRequest.headers.has('Authorization'),
+    authHeaderLength: signedRequest.headers.get('Authorization')?.length || 0,
+  });
   
   // Fetch the signed request
   const response = await fetch(signedRequest);
   
+  console.log('[R2 getObject] Response:', {
+    status: response.status,
+    statusText: response.statusText,
+    ok: response.ok,
+    headers: Object.fromEntries(response.headers.entries()),
+  });
+  
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('[R2 getObject] Error response body:', errorText.substring(0, 500));
     throw new Error(`R2 getObject failed: ${response.status} ${response.statusText} - ${errorText}`);
   }
   
