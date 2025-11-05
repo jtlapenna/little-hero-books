@@ -1,5 +1,5 @@
 {
-  "name": "LHB - 2.B.- 2A to 2B MERGE",
+  "name": "LHB - 2.B. - Background Removal",
   "nodes": [
     {
       "parameters": {
@@ -365,7 +365,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly",
+        "url": "=https://admin.littleherolabs.com/api/webhooks/workflow-2b-complete",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -381,7 +381,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json) }}",
+        "jsonBody": "={{ $json }}",
         "options": {}
       },
       "id": "21ef131f-e2cc-403a-b71b-343c56f851d7",
@@ -1422,7 +1422,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "00fd518b-4e22-4f82-9e7d-81254209e75d",
+  "versionId": "95e8a49e-0e5b-4ac2-8787-8140b32dc190",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
