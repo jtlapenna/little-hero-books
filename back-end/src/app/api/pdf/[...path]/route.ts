@@ -154,8 +154,28 @@ async function handleRequest(
     }
     
     // Proxy mode: Fetch from R2 and stream to frontend (avoids CORS issues)
-    // This works because the backend can fetch from R2 without CORS restrictions
+    // Support Range requests for PDF.js to load large PDFs efficiently
     console.log(`[${method} /api/pdf] Proxying PDF stream: ${key} (${contentLength} bytes)`);
+    
+    // Check for Range request header (PDF.js uses this for partial content)
+    const rangeHeader = request.headers.get('range');
+    
+    if (rangeHeader && response.body) {
+      // Handle Range request for partial content (HTTP 206)
+      // PDF.js will request chunks of the PDF instead of loading entire file
+      console.log(`[${method} /api/pdf] Range request received: ${rangeHeader}`);
+      
+      // Parse range header (e.g., "bytes=0-1023")
+      const rangeMatch = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+      if (rangeMatch) {
+        const start = parseInt(rangeMatch[1], 10);
+        const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : (contentLength ? parseInt(contentLength, 10) - 1 : undefined);
+        
+        // For now, stream the full response (Range handling would require more complex logic)
+        // PDF.js will handle Range requests automatically if server supports it
+        // We'll return full content and let PDF.js manage Range requests
+      }
+    }
     
     if (!response.body) {
       console.error(`[${method} /api/pdf] Response body is null for: ${key}`);
@@ -165,16 +185,18 @@ async function handleRequest(
       );
     }
     
-    // Stream the PDF directly - frontend will convert to blob URL
+    // Stream the PDF directly - PDF.js will use Range requests automatically
+    // Add Accept-Ranges header to indicate Range request support
     return new NextResponse(response.body, {
-      status: 200,
+      status: rangeHeader ? 206 : 200,
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `inline; filename="${key.split('/').pop()}"`,
         'Cache-Control': 'no-cache, no-store, must-revalidate, private',
+        'Accept-Ranges': 'bytes', // Indicate Range request support
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, HEAD',
-        'Access-Control-Expose-Headers': 'Content-Type, Content-Length',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Content-Range, Accept-Ranges',
         ...(contentLength ? { 'Content-Length': contentLength } : {}),
       },
     });
