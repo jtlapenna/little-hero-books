@@ -161,10 +161,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           characterImages[img.poseNumber] = img.imagePath;
         });
 
-        // Build animal images
+        // Build animal images - match Workflow 3 path structure
         const animalImages = {
-          appears: `${backendUrl}/api/assets/book-mvp-simple-adventure/animals/${animalSlug}/appears.png`,
-          flying: `${backendUrl}/api/assets/book-mvp-simple-adventure/animals/${animalSlug}/flying.png`
+          appears: `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-appears.png`,
+          flying: `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-flying.png`
         };
 
         // Text box overlay URL
