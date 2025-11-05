@@ -393,22 +393,21 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               </div>
             </div>
             <div className="h-[800px] bg-gray-100 overflow-auto flex items-center justify-center p-4">
+              {/* Match Workflow 3 HTML structure exactly: book-page > page-bg, text-box, character, animal */}
               <div
-                className="relative"
+                className="book-page relative"
+                id={`page-${currentPage.pageNumber}`}
                 style={{
                   width: '2550px',
                   height: '2550px',
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  backgroundColor: '#fff',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
                   transform: 'scale(0.3)',
-                  transformOrigin: 'center center'
+                  transformOrigin: 'top left',
+                  margin: '0 auto'
                 }}
               >
-                {/* Background */}
+                {/* Background - matches Workflow 3: <div class="page-bg" style="background-image:url('...')"></div> */}
                 <div
-                  className="absolute inset-0"
+                  className="page-bg absolute inset-0"
                   style={{
                     backgroundImage: `url(${currentPage.backgroundUrl})`,
                     backgroundSize: '2550px 2550px',
@@ -417,9 +416,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   }}
                 />
 
-                {/* Text Box Overlay - positioned like Workflow 3 (centered at bottom) */}
+                {/* Text Box - matches Workflow 3 exactly */}
                 <div
-                  className="absolute"
+                  className="text-box absolute"
                   style={{
                     left: '50%',
                     bottom: '3%',
@@ -452,10 +451,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   />
                 </div>
 
-                {/* Character */}
+                {/* Character - matches Workflow 3: <div class="character" style="..."><img class="sprite" src="..." alt=""></div> */}
                 {currentPage.characterUrl && CHAR_POSITIONS[currentPage.pageNumber] && (() => {
                   const pos = CHAR_POSITIONS[currentPage.pageNumber];
-                  // Apply overrides for pages 3, 4, 14
+                  // Apply overrides for pages 3, 4, 14 (same as Workflow 3)
                   let finalPos = pos;
                   if (currentPage.pageNumber === 3) {
                     finalPos = { left: 1020, top: 2142, w: 1100, flip: -1 };
@@ -465,50 +464,59 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     finalPos = { left: 893, top: 1836, w: 1500, flip: 1 };
                   }
                   
-                  let transform = `translate(-50%, -100%) scaleX(${finalPos.flip})`;
+                  // Build style string exactly like Workflow 3's charStyle function
+                  const leftIn = (finalPos.left / 300).toFixed(4) + 'in';
+                  const topIn = (finalPos.top / 300).toFixed(4) + 'in';
+                  const widthIn = (finalPos.w / 300).toFixed(4) + 'in';
+                  
+                  let transform = `translate(-50%,-100%) scaleX(${finalPos.flip})`;
                   if (currentPage.pageNumber === 4) {
                     transform += ' rotate(-20deg)';
                   }
                   
                   return (
                     <div
-                      className="absolute"
+                      className="character absolute"
                       style={{
-                        left: `${finalPos.left}px`,
-                        top: `${finalPos.top}px`,
-                        width: `${finalPos.w}px`,
+                        left: leftIn,
+                        top: topIn,
+                        width: widthIn,
                         transform,
                         zIndex: 11
                       }}
                     >
                       <img
-                        src={currentPage.characterUrl}
-                        alt="Character"
                         className="sprite"
+                        src={currentPage.characterUrl}
+                        alt=""
                         style={{ width: '100%', height: 'auto', display: 'block' }}
                       />
                     </div>
                   );
                 })()}
 
-                {/* Animal */}
+                {/* Animal - matches Workflow 3 structure */}
                 {currentPage.animalUrl && ANIMAL_POSITIONS[currentPage.pageNumber as keyof typeof ANIMAL_POSITIONS] && (() => {
                   const pos = ANIMAL_POSITIONS[currentPage.pageNumber as keyof typeof ANIMAL_POSITIONS];
+                  const leftIn = (pos.left / 300).toFixed(4) + 'in';
+                  const topIn = (pos.top / 300).toFixed(4) + 'in';
+                  const widthIn = (pos.w / 300).toFixed(4) + 'in';
+                  
                   return (
                     <div
-                      className="absolute"
+                      className="animal absolute"
                       style={{
-                        left: `${pos.left}px`,
-                        top: `${pos.top}px`,
-                        width: `${pos.w}px`,
-                        transform: 'translate(-50%, -100%)',
+                        left: leftIn,
+                        top: topIn,
+                        width: widthIn,
+                        transform: 'translate(-50%,-100%)',
                         zIndex: 9
                       }}
                     >
                       <img
-                        src={currentPage.animalUrl}
-                        alt="Animal guide"
                         className="sprite"
+                        src={currentPage.animalUrl}
+                        alt={currentPage.pageNumber === 13 ? 'Animal Appears' : 'Animal Flying'}
                         style={{ width: '100%', height: 'auto', display: 'block' }}
                       />
                     </div>
