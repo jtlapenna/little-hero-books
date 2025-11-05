@@ -99,8 +99,9 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
 
   const flaggedCount = poses.filter(asset => asset.isFlagged).length;
   const hasImages = poses.length > 0;
+  // Post‑Bria approval rule: if 2B populated images and none are flagged, allow approval
   const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
-  const canApprove = flaggedCount === 0 && hasImages && isPreBriaApproved;
+  const canApprove = flaggedCount === 0 && hasImages;
   const canTriggerAssembly = isApproved && hasImages;
 
   const [isTriggering, setIsTriggering] = useState(false);
@@ -235,13 +236,11 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
             <p className="text-sm text-gray-600 mt-1">
               {isApproved 
                 ? 'This stage has been approved. You can now initiate the next workflow.'
-                : !isPreBriaApproved
-                ? 'The Pre-Bria stage must be approved before this stage can be reviewed.'
                 : !hasImages
                 ? 'Background-removed images are not available yet. Please wait for the Bria process to complete before approving.'
                 : flaggedCount > 0
                 ? `Please address ${flaggedCount} flagged item${flaggedCount !== 1 ? 's' : ''} before approving.`
-                : 'Review all assets and approve when ready to proceed to PDF compilation.'
+                : 'Review all assets and follow the workflow steps below.'
               }
             </p>
           </div>
