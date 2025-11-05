@@ -17,7 +17,8 @@ export async function POST(req: NextRequest, { params }: { params: { orderId: st
   try {
     // Auth: require Bearer token (same as other admin endpoints)
     const auth = req.headers.get('authorization') || '';
-    if (!auth.startsWith('Bearer ')) {
+    const disableAuth = process.env.ADMIN_DISABLE_AUTH === 'true';
+    if (!disableAuth && !auth.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest, { params }: { params: { orderId: st
     }
 
     const json = await resp.json().catch(() => ({}));
-    return NextResponse.json({ ok: true, job: json, manifestKey });
+    return NextResponse.json({ ok: true, job: json, manifestKey, webhookUrl });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Internal error' }, { status: 500 });
   }

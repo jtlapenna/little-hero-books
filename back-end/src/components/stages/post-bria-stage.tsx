@@ -18,7 +18,12 @@ interface PostBriaStageProps {
 export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PostBriaStageProps) {
   const [showBlackBackground, setShowBlackBackground] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [approvedLocal, setApprovedLocal] = useState(!!isApproved);
+  const [approveStageConfirmed, setApproveStageConfirmed] = useState(!!isApproved);
+
+  // keep local confirm state in sync if parent updates
+  useEffect(() => {
+    setApproveStageConfirmed(!!isApproved);
+  }, [isApproved]);
   
   // Initialize with empty state
   const [poses, setPoses] = useState([
@@ -103,16 +108,16 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   // Post‑Bria approval rule: if 2B populated images and none are flagged, allow approval
   const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
   const canApprove = flaggedCount === 0 && hasImages;
-  const isApprovedEffective = approvedLocal || isApproved;
+  const isApprovedEffective = approveStageConfirmed || isApproved;
   const canTriggerAssembly = isApprovedEffective && hasImages;
 
   const [isTriggering, setIsTriggering] = useState(false);
 
   const handleApproveStage = async () => {
-    if (approvedLocal) return;
+    if (approveStageConfirmed) return;
     try {
       await onApprove();
-      setApprovedLocal(true);
+      setApproveStageConfirmed(true);
       // Optional refresh to reflect server state
       if (onRefresh) {
         setTimeout(() => {
@@ -140,10 +145,12 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       if (!resp.ok) {
         const txt = await resp.text();
         console.error('Trigger assembly failed', resp.status, txt);
-        alert('Failed to trigger book assembly');
+        alert(`Failed to trigger book assembly: ${resp.status} ${txt}`);
         return;
       }
+      const data = await resp.json().catch(() => ({} as any));
       alert('Book assembly triggered');
+      console.log('Workflow 3 webhook result:', data);
     } catch (e) {
       console.error('Trigger assembly error', e);
       alert('Error triggering book assembly');
@@ -264,24 +271,25 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
             </p>
           </div>
           
-          <div className="flex space-x-3">
-            {/* Approve Stage */}
-            {!isApprovedEffective && (
-              <button
-                onClick={handleApproveStage}
-                disabled={!canApprove}
-                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                  canApprove
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Approve Stage
-              </button>
-            )}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Approve Stage (always visible, mirrors first tab styles) */}
+            <button
+              onClick={handleApproveStage}
+              disabled={approveStageConfirmed || !canApprove}
+              className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all ${
+                approveStageConfirmed
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 focus:ring-emerald-500'
+                  : canApprove
+                  ? 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 hover:border-slate-400 focus:ring-slate-500'
+                  : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
+              }`}
+              title={approveStageConfirmed ? 'Stage approved' : (canApprove ? 'Approve this stage' : 'Resolve issues to enable approval')}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              {approveStageConfirmed ? 'Stage Approved' : 'Approve Stage'}
+            </button>
 
-            {/* Trigger Book Assembly */}
+            {/* Trigger Book Assembly (replaces BG removal) */}
             <button
               onClick={handleTriggerBookAssembly}
               disabled={!canTriggerAssembly || isTriggering}
