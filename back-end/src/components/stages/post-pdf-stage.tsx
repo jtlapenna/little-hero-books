@@ -125,8 +125,59 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               throw new Error(`Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
             }
             
+            // Check Content-Type header
+            const contentType = pdfResponse.headers.get('content-type');
+            console.log('[PDF] Response headers:', {
+              contentType,
+              contentLength: pdfResponse.headers.get('content-length'),
+              status: pdfResponse.status,
+              statusText: pdfResponse.statusText,
+              url: pdfResponse.url
+            });
+            
+            // Verify it's actually a PDF (check Content-Type)
+            if (contentType && !contentType.includes('application/pdf') && !contentType.includes('pdf')) {
+              const textPreview = await pdfResponse.clone().text();
+              console.error('[PDF] Response is not a PDF! Content-Type:', contentType, 'Preview:', textPreview.substring(0, 200));
+              throw new Error(`Expected PDF but got ${contentType}. Response may be an error page.`);
+            }
+            
             console.log('[PDF] PDF fetched, converting to blob');
             const pdfBlob = await pdfResponse.blob();
+            
+            console.log('[PDF] Blob created:', {
+              size: pdfBlob.size,
+              type: pdfBlob.type,
+              expectedSize: contentLength ? parseInt(contentLength, 10) : 'unknown'
+            });
+            
+            // Verify blob size matches expected (within 10% tolerance)
+            if (contentLength) {
+              const expectedSize = parseInt(contentLength, 10);
+              const sizeDiff = Math.abs(pdfBlob.size - expectedSize);
+              const sizeDiffPercent = (sizeDiff / expectedSize) * 100;
+              if (sizeDiffPercent > 10) {
+                console.warn('[PDF] Blob size mismatch:', {
+                  expected: expectedSize,
+                  actual: pdfBlob.size,
+                  diff: sizeDiff,
+                  diffPercent: sizeDiffPercent.toFixed(2) + '%'
+                });
+              }
+            }
+            
+            // Verify blob starts with PDF header (first 4 bytes should be %PDF)
+            const firstBytes = await pdfBlob.slice(0, 4).arrayBuffer();
+            const firstBytesText = new TextDecoder().decode(firstBytes);
+            console.log('[PDF] First bytes of blob:', firstBytesText, 'hex:', Array.from(new Uint8Array(firstBytes)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+            
+            if (!firstBytesText.startsWith('%PDF')) {
+              console.error('[PDF] Blob does not start with PDF header! First bytes:', firstBytesText);
+              // Try to read as text to see what we got
+              const blobText = await pdfBlob.slice(0, 500).text();
+              console.error('[PDF] Blob preview (first 500 chars):', blobText);
+              throw new Error('Blob does not contain valid PDF data. First bytes: ' + firstBytesText);
+            }
             
             if (!isMounted) {
               console.log('[PDF] Component unmounted during blob conversion, aborting');
