@@ -1,4 +1,7 @@
 import { listObjects, getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET, R2_CHARACTERS_PREFIX } from './r2-client';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { r2Client } from './r2-config';
 
 export interface CharacterAsset {
   characterHash: string;
@@ -133,6 +136,39 @@ export async function downloadManifest(key: string): Promise<any> {
     return JSON.parse(text);
   } catch {
     return text;
+  }
+}
+
+/**
+ * Generate a signed URL for an R2 object
+ * 
+ * This function is used by n8n workflows and external services (like Bria API)
+ * to get temporary access to R2 objects when buckets are private.
+ * 
+ * @param key - R2 object key (e.g., 'book-mvp-simple-adventure/backgrounds/page01.png')
+ * @param bucket - Bucket name (defaults to R2_PUBLIC_BUCKET)
+ * @param expiresIn - Expiration time in seconds (defaults to 3600 = 1 hour)
+ * @returns Signed URL string
+ * 
+ * @example
+ * const url = await getSignedUrlForObject('book-mvp-simple-adventure/backgrounds/page01.png', 'little-hero-assets', 3600);
+ */
+export async function getSignedUrlForObject(
+  key: string,
+  bucket: string = R2_PUBLIC_BUCKET,
+  expiresIn: number = 3600
+): Promise<string> {
+  try {
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    });
+    
+    const signedUrl = await getSignedUrl(r2Client, command, { expiresIn });
+    return signedUrl;
+  } catch (error: any) {
+    console.error(`[R2 Service] Error generating signed URL for ${bucket}/${key}:`, error);
+    throw new Error(`Failed to generate signed URL: ${error?.message || 'Unknown error'}`);
   }
 }
 
