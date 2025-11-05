@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
-import { r2Client, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-config';
+import { R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-config';
 import { verifyBearerAuth } from '@/lib/auth';
+import { getSignedUrlForObject } from '@/lib/r2-service';
 
 /**
  * Generate signed URL for R2 object access
@@ -63,13 +62,10 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Generate signed URL
-    const command = new GetObjectCommand({
-      Bucket: bucket,
-      Key: key,
-    });
-    
-    const signedUrl = await getSignedUrl(r2Client, command, { expiresIn });
+    // Generate signed URL using R2 service helper
+    // This uses the AWS SDK presigner which should work in Cloudflare Workers
+    // If it fails, we'll need to implement custom presigning using Web Crypto API
+    const signedUrl = await getSignedUrlForObject(key, bucket, expiresIn);
     
     // Log for audit trail (optional, but recommended for security monitoring)
     console.log(`[Signed URL API] Generated signed URL for ${bucket}/${key}, expires in ${expiresIn}s`);

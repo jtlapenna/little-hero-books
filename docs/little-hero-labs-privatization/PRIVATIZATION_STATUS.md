@@ -17,17 +17,21 @@
 - **Documentation:** `PHASE1_ASSESSMENT.md`
 
 ### Phase 2: Backend Signed URL Implementation ✅
-- **Status:** COMPLETE
+- **Status:** COMPLETE & TESTED
 - **Completed Tasks:**
   1. ✅ Created `/api/r2/signed-url` endpoint
      - Bearer token authentication required
      - Query parameters: `key`, `bucket`, `expiresIn`
      - Full validation and error handling
   2. ✅ Added `getSignedUrlForObject()` helper to `r2-service.ts`
+     - **Solution:** Using `aws4fetch` library per Cloudflare docs
+     - **Format:** Subdomain format (`https://{bucket}.{account_id}.r2.cloudflarestorage.com/{key}`)
   3. ✅ Reviewed frontend API endpoints
      - **Finding:** Frontend already uses proxy endpoints (`/api/assets/...`)
      - No changes needed - proxy works with private buckets
+  4. ✅ **Tested with Bria AI** - Presigned URLs work with external services
 - **Documentation:** `PHASE2_PROGRESS.md`
+- **Test Results:** ✅ 200 OK, Bria AI integration confirmed
 
 **Files Created/Modified:**
 - ✅ `back-end/src/app/api/r2/signed-url/route.ts` (NEW)
