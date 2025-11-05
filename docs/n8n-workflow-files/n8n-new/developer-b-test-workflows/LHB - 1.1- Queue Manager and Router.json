@@ -215,7 +215,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Process 2B orders\nconst routing = $input.first().json;\nconst orders2B = routing.workflow2B || [];\n\nif (orders2B.length === 0) {\n  console.log('No orders for 2B');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2B.length} ORDERS FOR 2B ===`);\n\nconst baseUrl = process.env.R2_ORDERS_PUBLIC_URL || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n\nreturn orders2B.map(order => ({\n  json: {\n    orderId: order.amazon_order_id,\n    manifestUrl: `${baseUrl}/book-mvp-simple-adventure/orders/${order.amazon_order_id}/manifests/2a-manifest.json`,\n    webhookUrl: process.env.BACKEND_WEBHOOK_2B_COMPLETE_URL || '',\n    characterHash: order.character_hash,\n    orderDbId: order.id,\n    workflow: '2B'\n  }\n}));"
+        "jsCode": "// Process 2B orders\nconst routing = $input.first().json;\nconst orders2B = routing.workflow2B || [];\n\nif (orders2B.length === 0) {\n  console.log('No orders for 2B');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2B.length} ORDERS FOR 2B ===`);\n\n// UPDATE: Use backend proxy for manifest URLs instead of direct R2 URLs\nconst backendUrl = 'https://admin.littleherolabs.com';\n\nreturn orders2B.map(order => ({\n  json: {\n    orderId: order.amazon_order_id,\n    manifestUrl: `${backendUrl}/api/manifests/${order.amazon_order_id}/2a-manifest.json`,\n    webhookUrl: process.env.BACKEND_WEBHOOK_2B_COMPLETE_URL || '',\n    characterHash: order.character_hash,\n    orderDbId: order.id,\n    workflow: '2B'\n  }\n}));"
       },
       "id": "4d8e5543-01eb-47ec-a747-2b4db72eda61",
       "name": "Prep 2B Orders",
@@ -228,7 +228,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Process Workflow 3 orders\nconst routing = $input.first().json;\nconst orders3 = routing.workflow3 || [];\n\nif (orders3.length === 0) {\n  console.log('No orders for Workflow 3');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders3.length} ORDERS FOR WORKFLOW 3 ===`);\n\nconst baseUrl = process.env.R2_ORDERS_PUBLIC_URL || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n\nreturn orders3.map(order => ({\n  json: {\n    orderId: order.amazon_order_id,\n    manifestUrl: `${baseUrl}/book-mvp-simple-adventure/orders/${order.amazon_order_id}/manifests/2b-manifest.json`,\n    webhookUrl: process.env.BACKEND_WEBHOOK_3_COMPLETE_URL || '',\n    characterHash: order.character_hash,\n    orderDbId: order.id,\n    workflow: '3'\n  }\n}));"
+        "jsCode": "// Process Workflow 3 orders\nconst routing = $input.first().json;\nconst orders3 = routing.workflow3 || [];\n\nif (orders3.length === 0) {\n  console.log('No orders for Workflow 3');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders3.length} ORDERS FOR WORKFLOW 3 ===`);\n\n// UPDATE: Use backend proxy for manifest URLs instead of direct R2 URLs\nconst backendUrl = 'https://admin.littleherolabs.com';\n\nreturn orders3.map(order => ({\n  json: {\n    orderId: order.amazon_order_id,\n    manifestUrl: `${backendUrl}/api/manifests/${order.amazon_order_id}/2b-manifest.json`,\n    webhookUrl: process.env.BACKEND_WEBHOOK_3_COMPLETE_URL || '',\n    characterHash: order.character_hash,\n    orderDbId: order.id,\n    workflow: '3'\n  }\n}));"
       },
       "id": "0a701bbc-76b1-44b3-be0f-685d52ffbbd9",
       "name": "Prep Workflow 3 Orders",
