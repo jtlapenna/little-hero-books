@@ -189,41 +189,108 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               console.warn('[PDF] Signed URL does not appear to be R2 URL:', signedUrl.substring(0, 100));
             }
             
-            // Use signed URL directly with PDF.js (no blob conversion needed)
-            // PDF.js can load directly from R2 signed URL
-            console.log('[PDF] Using signed URL directly with PDF.js:', signedUrl.substring(0, 50) + '...');
+            // R2 signed URLs have CORS restrictions, so we need to proxy through backend
+            // Fetch PDF from backend proxy endpoint and convert to blob URL
+            console.log('[PDF] R2 signed URL requires proxy due to CORS. Fetching through backend...');
             
             if (!isMounted) {
-              console.log('[PDF] Component unmounted before setting signed URL, aborting');
+              console.log('[PDF] Component unmounted before fetching PDF, aborting');
               return;
             }
             
-            // Clean up previous blob URL if exists
-            setPdfBlobUrl(prevBlobUrl => {
-              if (prevBlobUrl) {
-                console.log('[PDF] Revoking previous blob URL');
-                URL.revokeObjectURL(prevBlobUrl);
+            // Fetch PDF from backend proxy (no format=json param = stream mode)
+            const proxyUrl = pdfUrl; // Use original URL without query params for proxy
+            console.log('[PDF] Fetching PDF from proxy:', proxyUrl);
+            
+            try {
+              const pdfResponse = await fetch(proxyUrl, {
+                method: 'GET',
+                cache: 'no-store',
+              });
+              
+              if (!isMounted) {
+                console.log('[PDF] Component unmounted during PDF fetch, aborting');
+                return;
               }
-              return null; // No blob URL needed when using signed URL directly
-            });
-            
-            // Reset page number when PDF changes (before setting URL)
-            setPageNumber(1);
-            setNumPages(null);
-            setPdfError(null);
-            setPdfLoading(true);
-            
-            // Store signed URL for PDF.js to use directly
-            // This must happen AFTER resetting state to ensure PDF.js uses correct URL
-            setPdfAsset(prev => ({
-              ...prev,
-              url: signedUrl, // Store signed URL instead of blob URL
-              exists: true,
-              loading: false,
-              error: null
-            }));
-            
-            console.log('[PDF] Signed URL stored in pdfAsset.url, PDF.js will load from R2');
+              
+              if (!pdfResponse.ok) {
+                throw new Error(`Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
+              }
+              
+              // Verify Content-Type is PDF
+              const pdfContentType = pdfResponse.headers.get('Content-Type') || '';
+              console.log('[PDF] Proxy response:', {
+                contentType: pdfContentType,
+                status: pdfResponse.status,
+                contentLength: pdfResponse.headers.get('Content-Length')
+              });
+              
+              if (!pdfContentType.includes('application/pdf')) {
+                const textPreview = await pdfResponse.clone().text().then(t => t.substring(0, 200)).catch(() => 'Unable to read');
+                console.error('[PDF] Proxy returned non-PDF content:', {
+                  contentType: pdfContentType,
+                  preview: textPreview
+                });
+                throw new Error(`Expected PDF but got ${pdfContentType}`);
+              }
+              
+              // Convert to blob URL (blob URLs don't have CORS issues)
+              console.log('[PDF] Converting PDF response to blob URL');
+              const pdfBlob = await pdfResponse.blob();
+              
+              if (!isMounted) {
+                console.log('[PDF] Component unmounted during blob conversion, aborting');
+                return;
+              }
+              
+              console.log('[PDF] Blob created:', {
+                size: pdfBlob.size,
+                type: pdfBlob.type
+              });
+              
+              // Verify blob starts with PDF header
+              const firstBytes = await pdfBlob.slice(0, 4).arrayBuffer();
+              const firstBytesText = new TextDecoder().decode(firstBytes);
+              if (!firstBytesText.startsWith('%PDF')) {
+                throw new Error('Blob does not contain valid PDF data');
+              }
+              
+              // Create blob URL
+              const blobUrl = URL.createObjectURL(pdfBlob);
+              console.log('[PDF] Created blob URL:', blobUrl.substring(0, 50) + '...');
+              
+              // Clean up previous blob URL if exists
+              setPdfBlobUrl(prevBlobUrl => {
+                if (prevBlobUrl) {
+                  console.log('[PDF] Revoking previous blob URL');
+                  URL.revokeObjectURL(prevBlobUrl);
+                }
+                return blobUrl;
+              });
+              
+              // Reset page number when PDF changes (before setting URL)
+              setPageNumber(1);
+              setNumPages(null);
+              setPdfError(null);
+              setPdfLoading(true);
+              
+              // Store blob URL for PDF.js
+              setPdfAsset(prev => ({
+                ...prev,
+                url: blobUrl, // Store blob URL (no CORS issues)
+                exists: true,
+                loading: false,
+                error: null
+              }));
+              
+              console.log('[PDF] Blob URL stored, PDF.js will load from blob URL');
+            } catch (proxyError: any) {
+              if (!isMounted) return;
+              
+              console.error('[PDF] Error fetching PDF from proxy:', proxyError);
+              setPdfError(proxyError?.message || 'Failed to load PDF');
+              setPdfLoading(false);
+            }
           } catch (fetchError: any) {
             if (!isMounted) return;
             

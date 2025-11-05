@@ -104,54 +104,80 @@ async function handleRequest(
       });
     }
     
-    // For GET requests, return signed URL to avoid streaming limits
-    // Large PDFs (219MB) can't be streamed through Cloudflare Workers reliably
-    // PDF.js can load directly from R2 signed URL
-    console.log(`[${method} /api/pdf] Generating signed URL for: ${key} (${contentLength} bytes)`);
+    // For GET requests, check if we should proxy (stream) or return signed URL
+    const { searchParams } = new URL(request.url);
+    const shouldProxy = searchParams.get('proxy') === 'true' || searchParams.get('format') === 'json';
     
-    try {
-      // Generate signed URL valid for 1 hour (3600 seconds)
-      const expiresIn = 3600;
+    // If format=json, return signed URL (for initial fetch)
+    // Otherwise, proxy the PDF through backend to avoid CORS issues
+    if (shouldProxy && searchParams.get('format') === 'json') {
+      // Return JSON with signed URL for initial fetch
       console.log(`[${method} /api/pdf] Generating signed URL for: ${key} (${contentLength} bytes)`);
       
-      const signedUrl = await getSignedUrlForObject(key, R2_ORDERS_BUCKET, expiresIn);
-      
-      console.log(`[${method} /api/pdf] Generated signed URL successfully:`, {
-        key,
-        expiresIn,
-        signedUrlPrefix: signedUrl.substring(0, 50) + '...',
-        signedUrlLength: signedUrl.length,
-        isR2Url: signedUrl.includes('.r2.cloudflarestorage.com') || signedUrl.includes('.r2.dev')
-      });
-      
-      // Return JSON with signed URL - frontend will use this directly with PDF.js
-      // Use no-cache headers since signed URLs expire and each request should get fresh URL
-      console.log(`[${method} /api/pdf] Returning JSON response with signed URL`);
-      return NextResponse.json({
-        signedUrl,
-        expiresIn,
-        contentType,
-        contentLength: contentLength ? parseInt(contentLength, 10) : null,
-        filename: key.split('/').pop()
-      }, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate, private',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-          'Vary': 'Accept',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, HEAD',
-        },
-      });
-    } catch (error: any) {
-      console.error(`[${method} /api/pdf] Error generating signed URL:`, error);
+      try {
+        const expiresIn = 3600;
+        const signedUrl = await getSignedUrlForObject(key, R2_ORDERS_BUCKET, expiresIn);
+        
+        console.log(`[${method} /api/pdf] Generated signed URL successfully:`, {
+          key,
+          expiresIn,
+          signedUrlPrefix: signedUrl.substring(0, 50) + '...',
+          signedUrlLength: signedUrl.length,
+          isR2Url: signedUrl.includes('.r2.cloudflarestorage.com') || signedUrl.includes('.r2.dev')
+        });
+        
+        return NextResponse.json({
+          signedUrl,
+          expiresIn,
+          contentType,
+          contentLength: contentLength ? parseInt(contentLength, 10) : null,
+          filename: key.split('/').pop()
+        }, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate, private',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Vary': 'Accept',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD',
+          },
+        });
+      } catch (error: any) {
+        console.error(`[${method} /api/pdf] Error generating signed URL:`, error);
+        return NextResponse.json(
+          { error: 'Failed to generate signed URL', details: error?.message },
+          { status: 500 }
+        );
+      }
+    }
+    
+    // Proxy mode: Fetch from R2 and stream to frontend (avoids CORS issues)
+    // This works because the backend can fetch from R2 without CORS restrictions
+    console.log(`[${method} /api/pdf] Proxying PDF stream: ${key} (${contentLength} bytes)`);
+    
+    if (!response.body) {
+      console.error(`[${method} /api/pdf] Response body is null for: ${key}`);
       return NextResponse.json(
-        { error: 'Failed to generate signed URL', details: error?.message },
+        { error: 'PDF response body is null' },
         { status: 500 }
       );
     }
+    
+    // Stream the PDF directly - frontend will convert to blob URL
+    return new NextResponse(response.body, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Content-Disposition': `inline; filename="${key.split('/').pop()}"`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate, private',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD',
+        'Access-Control-Expose-Headers': 'Content-Type, Content-Length',
+        ...(contentLength ? { 'Content-Length': contentLength } : {}),
+      },
+    });
   } catch (error: any) {
     console.error(`[${method} /api/pdf] Error:`, error);
     // If it's a 404 error (NoSuchKey), return 404 instead of 500
