@@ -8,10 +8,40 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Configure PDF.js worker - use jsdelivr CDN (reliable npm package mirror)
+// Configure PDF.js worker - use unpkg CDN (more reliable than jsdelivr for this use case)
+// Alternative: Use jsdelivr or unpkg, both are reliable npm package CDNs
 if (typeof window !== 'undefined') {
-  // Use jsdelivr which mirrors npm packages reliably
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+  // Use unpkg which is very reliable for npm packages
+  // Format: https://unpkg.com/pdfjs-dist@VERSION/build/pdf.worker.min.mjs or .js
+  const workerUrl = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+  
+  // Fallback: jsdelivr if unpkg fails
+  const fallbackWorkerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+  
+  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+  
+  console.log('[PDF] Worker configured:', {
+    version: pdfjs.version,
+    workerUrl,
+    fallbackWorkerUrl,
+    workerSrc: pdfjs.GlobalWorkerOptions.workerSrc,
+    note: 'Using unpkg CDN. If this fails, check browser console for worker loading errors.'
+  });
+  
+  // Test worker URL accessibility (non-blocking)
+  fetch(workerUrl, { method: 'HEAD' })
+    .then(response => {
+      if (response.ok) {
+        console.log('[PDF] Worker URL is accessible:', workerUrl);
+      } else {
+        console.warn('[PDF] Worker URL returned non-OK status:', response.status, 'Trying fallback...');
+        pdfjs.GlobalWorkerOptions.workerSrc = fallbackWorkerUrl;
+        console.log('[PDF] Switched to fallback worker:', fallbackWorkerUrl);
+      }
+    })
+    .catch(error => {
+      console.warn('[PDF] Worker URL check failed:', error, 'Using primary URL anyway');
+    });
 }
 
 interface PostPdfStageProps {
@@ -49,14 +79,24 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     const checkPdfExists = async () => {
       if (!isMounted) return;
       
+      console.log('[PDF] Checking PDF existence:', { orderId, pdfPath, pdfUrl });
       setPdfAsset(prev => ({ ...prev, loading: true, error: null }));
       
       try {
+        console.log('[PDF] Sending HEAD request to:', pdfUrl);
         const response = await fetch(pdfUrl, { method: 'HEAD' });
+        
+        console.log('[PDF] HEAD response:', {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          headers: Object.fromEntries(response.headers.entries())
+        });
         
         if (!isMounted) return;
         
         if (response.ok) {
+          console.log('[PDF] PDF exists, setting up viewer');
           setPdfAsset(prev => ({
             ...prev,
             url: pdfUrl,
@@ -70,16 +110,24 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           setPdfError(null);
           setPdfLoading(true);
         } else {
+          const errorMsg = response.status === 404 ? 'PDF not yet generated' : `Failed to load PDF: ${response.status} ${response.statusText}`;
+          console.warn('[PDF] PDF check failed:', errorMsg);
           setPdfAsset(prev => ({
             ...prev,
             exists: false,
             loading: false,
-            error: response.status === 404 ? 'PDF not yet generated' : 'Failed to load PDF'
+            error: errorMsg
           }));
         }
       } catch (error: any) {
         if (!isMounted) return;
         
+        console.error('[PDF] Error checking PDF existence:', {
+          error,
+          message: error?.message,
+          stack: error?.stack,
+          pdfUrl
+        });
         setPdfAsset(prev => ({
           ...prev,
           exists: false,
@@ -126,7 +174,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
   // Memoize PDF file object to prevent unnecessary re-renders
   const pdfFile = useMemo(() => {
-    if (!pdfAsset.exists || !pdfAsset.url) return null;
+    if (!pdfAsset.exists || !pdfAsset.url) {
+      console.log('[PDF] pdfFile memo: no file available', { exists: pdfAsset.exists, url: pdfAsset.url });
+      return null;
+    }
+    console.log('[PDF] pdfFile memo: returning URL', pdfAsset.url);
     return pdfAsset.url;
   }, [pdfAsset.exists, pdfAsset.url]);
 
@@ -248,20 +300,52 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                 <Document
                   file={pdfFile}
                   onLoadSuccess={({ numPages }) => {
-                    console.log('[PDF] Loaded successfully, pages:', numPages);
+                    console.log('[PDF] Document loaded successfully:', {
+                      numPages,
+                      pdfUrl: pdfFile,
+                      workerSrc: pdfjs.GlobalWorkerOptions.workerSrc
+                    });
                     setNumPages(numPages);
                     setPdfLoading(false);
                     setPdfError(null);
                   }}
                   onLoadError={(error) => {
-                    console.error('[PDF] Load error:', error);
-                    setPdfError(error.message || 'Failed to load PDF');
+                    console.error('[PDF] Document load error:', {
+                      error,
+                      message: error?.message,
+                      name: error?.name,
+                      stack: error?.stack,
+                      pdfUrl: pdfFile,
+                      workerSrc: pdfjs.GlobalWorkerOptions.workerSrc,
+                      workerUrl: pdfjs.GlobalWorkerOptions.workerSrc
+                    });
+                    // Extract more detailed error information
+                    let errorMessage = 'Failed to load PDF';
+                    if (error?.message) {
+                      errorMessage = error.message;
+                    } else if (typeof error === 'string') {
+                      errorMessage = error;
+                    }
+                    // Check for specific error types
+                    if (errorMessage.includes('worker') || errorMessage.includes('Worker')) {
+                      errorMessage = `PDF.js worker error: ${errorMessage}. Worker URL: ${pdfjs.GlobalWorkerOptions.workerSrc}`;
+                    } else if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
+                      errorMessage = `PDF file not found: ${pdfFile}`;
+                    } else if (errorMessage.includes('CORS') || errorMessage.includes('cors')) {
+                      errorMessage = `CORS error loading PDF: ${errorMessage}`;
+                    }
+                    setPdfError(errorMessage);
                     setPdfLoading(false);
                   }}
                   onLoadProgress={({ loaded, total }) => {
                     if (total) {
                       const percent = Math.round((loaded / total) * 100);
-                      console.log('[PDF] Loading:', percent + '%');
+                      console.log('[PDF] Loading progress:', {
+                        percent: `${percent}%`,
+                        loaded,
+                        total,
+                        pdfUrl: pdfFile
+                      });
                     }
                   }}
                   loading={

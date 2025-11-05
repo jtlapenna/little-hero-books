@@ -21,18 +21,36 @@ async function handleRequest(
     // Reconstruct the key from path segments
     const key = path.join('/');
     
-    console.log(`[${method} /api/pdf] Fetching PDF: ${key}`);
+    console.log(`[${method} /api/pdf] Request received:`, {
+      key,
+      bucket: R2_ORDERS_BUCKET,
+      pathSegments: path,
+      url: request.url
+    });
     
     // Fetch object from R2 orders bucket
     let response: Response;
     try {
+      console.log(`[${method} /api/pdf] Calling getObject(${R2_ORDERS_BUCKET}, ${key})`);
       response = await getObject(R2_ORDERS_BUCKET, key);
+      console.log(`[${method} /api/pdf] getObject response:`, {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
     } catch (error: any) {
       // getObject throws an error if response is not ok
       // Check if it's a 404 (NoSuchKey)
       const errorMessage = error?.message || '';
+      console.error(`[${method} /api/pdf] getObject error:`, {
+        error,
+        message: errorMessage,
+        key,
+        bucket: R2_ORDERS_BUCKET
+      });
       if (errorMessage.includes('404') || errorMessage.includes('NoSuchKey') || errorMessage.includes('Not Found')) {
-        console.log(`[${method} /api/pdf] PDF not found: ${key}`);
+        console.log(`[${method} /api/pdf] PDF not found (404): ${key}`);
         return NextResponse.json(
           { error: 'PDF not found' },
           { status: 404 }
@@ -43,7 +61,11 @@ async function handleRequest(
     }
     
     if (!response.ok) {
-      console.error(`[${method} /api/pdf] Failed to fetch ${key}: ${response.status} ${response.statusText}`);
+      console.error(`[${method} /api/pdf] Response not OK:`, {
+        status: response.status,
+        statusText: response.statusText,
+        key
+      });
       // Return appropriate status code (404 for not found, etc.)
       return NextResponse.json(
         { error: `Failed to fetch PDF: ${response.statusText}` },
@@ -53,9 +75,18 @@ async function handleRequest(
 
     // Get content type from response or default to PDF
     const contentType = response.headers.get('content-type') || 'application/pdf';
+    const contentLength = response.headers.get('content-length');
+    
+    console.log(`[${method} /api/pdf] Successfully fetched PDF:`, {
+      key,
+      contentType,
+      contentLength,
+      status: response.status
+    });
     
     // For HEAD requests, return headers only
     if (method === 'HEAD') {
+      console.log(`[${method} /api/pdf] Returning HEAD response for: ${key}`);
       return new NextResponse(null, {
         status: 200,
         headers: {
@@ -68,9 +99,12 @@ async function handleRequest(
     }
     
     // For GET requests, return the PDF data
+    console.log(`[${method} /api/pdf] Converting response to arrayBuffer for: ${key}`);
     const pdfBuffer = await response.arrayBuffer();
+    console.log(`[${method} /api/pdf] PDF buffer size: ${pdfBuffer.byteLength} bytes`);
     
     // Return PDF with proper headers for inline viewing
+    console.log(`[${method} /api/pdf] Returning PDF data for: ${key} (${pdfBuffer.byteLength} bytes)`);
     return new NextResponse(pdfBuffer, {
       status: 200,
       headers: {
