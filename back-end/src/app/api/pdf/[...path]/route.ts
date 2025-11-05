@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { getSignedUrlForObject } from '@/lib/r2-service';
 
 /**
  * Proxy endpoint to serve PDF files from R2 orders bucket
@@ -98,32 +99,44 @@ async function handleRequest(
       });
     }
     
-    // For GET requests, stream PDF directly from R2
-    // Streaming avoids memory limits and works reliably with PDF.js via blob URLs
-    // The frontend will fetch, convert to blob, and create a blob URL for PDF.js
-    console.log(`[${method} /api/pdf] Streaming PDF directly: ${key} (${contentLength} bytes)`);
+    // For GET requests, return signed URL to avoid streaming limits
+    // Large PDFs (219MB) can't be streamed through Cloudflare Workers reliably
+    // PDF.js can load directly from R2 signed URL
+    console.log(`[${method} /api/pdf] Generating signed URL for: ${key} (${contentLength} bytes)`);
     
-    if (!response.body) {
-      console.error(`[${method} /api/pdf] Response body is null for: ${key}`);
+    try {
+      // Generate signed URL valid for 1 hour (3600 seconds)
+      const expiresIn = 3600;
+      const signedUrl = await getSignedUrlForObject(key, R2_ORDERS_BUCKET, expiresIn);
+      
+      console.log(`[${method} /api/pdf] Generated signed URL:`, {
+        key,
+        expiresIn,
+        signedUrlPrefix: signedUrl.substring(0, 50) + '...'
+      });
+      
+      // Return JSON with signed URL - frontend will use this directly with PDF.js
+      return NextResponse.json({
+        signedUrl,
+        expiresIn,
+        contentType,
+        contentLength: contentLength ? parseInt(contentLength, 10) : null,
+        filename: key.split('/').pop()
+      }, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, HEAD',
+        },
+      });
+    } catch (error: any) {
+      console.error(`[${method} /api/pdf] Error generating signed URL:`, error);
       return NextResponse.json(
-        { error: 'PDF response body is null' },
+        { error: 'Failed to generate signed URL', details: error?.message },
         { status: 500 }
       );
     }
-    
-    // Stream the PDF directly - frontend will handle blob conversion
-    return new NextResponse(response.body, {
-      status: 200,
-      headers: {
-        'Content-Type': contentType,
-        'Content-Disposition': `inline; filename="${key.split('/').pop()}"`,
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, HEAD',
-        'Access-Control-Expose-Headers': 'Content-Type, Content-Length',
-        ...(contentLength ? { 'Content-Length': contentLength } : {}),
-      },
-    });
   } catch (error: any) {
     console.error(`[${method} /api/pdf] Error:`, error);
     // If it's a 404 error (NoSuchKey), return 404 instead of 500

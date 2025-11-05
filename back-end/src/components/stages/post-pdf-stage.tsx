@@ -107,13 +107,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             error: null
           }));
           
-          // Fetch PDF and convert to blob URL (handles redirects automatically)
+          // Fetch signed URL from backend (avoids streaming limits for large PDFs)
           try {
-            console.log('[PDF] Fetching PDF from:', pdfUrl);
-            const pdfResponse = await fetch(pdfUrl, {
+            console.log('[PDF] Fetching signed URL from:', pdfUrl);
+            const response = await fetch(pdfUrl, {
               method: 'GET',
-              // Follow redirects automatically
-              redirect: 'follow',
+              headers: {
+                'Accept': 'application/json',
+              },
             });
             
             if (!isMounted) {
@@ -121,82 +122,45 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               return;
             }
             
-            if (!pdfResponse.ok) {
-              throw new Error(`Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
+            if (!response.ok) {
+              throw new Error(`Failed to get signed URL: ${response.status} ${response.statusText}`);
             }
             
-            // Check Content-Type and Content-Length headers
-            const contentType = pdfResponse.headers.get('content-type');
-            const contentLength = pdfResponse.headers.get('content-length');
-            console.log('[PDF] Response headers:', {
-              contentType,
-              contentLength,
-              status: pdfResponse.status,
-              statusText: pdfResponse.statusText,
-              url: pdfResponse.url
+            const data = await response.json();
+            console.log('[PDF] Received signed URL response:', {
+              hasSignedUrl: !!data.signedUrl,
+              expiresIn: data.expiresIn,
+              contentLength: data.contentLength,
+              contentType: data.contentType,
+              signedUrlPrefix: data.signedUrl ? data.signedUrl.substring(0, 50) + '...' : 'none'
             });
             
-            // Verify it's actually a PDF (check Content-Type)
-            if (contentType && !contentType.includes('application/pdf') && !contentType.includes('pdf')) {
-              const textPreview = await pdfResponse.clone().text();
-              console.error('[PDF] Response is not a PDF! Content-Type:', contentType, 'Preview:', textPreview.substring(0, 200));
-              throw new Error(`Expected PDF but got ${contentType}. Response may be an error page.`);
+            if (!data.signedUrl) {
+              throw new Error('No signed URL in response');
             }
             
-            console.log('[PDF] PDF fetched, converting to blob');
-            const pdfBlob = await pdfResponse.blob();
+            // Use signed URL directly with PDF.js (no blob conversion needed)
+            // PDF.js can load directly from R2 signed URL
+            const signedUrl = data.signedUrl;
+            console.log('[PDF] Using signed URL directly with PDF.js:', signedUrl.substring(0, 50) + '...');
             
-            console.log('[PDF] Blob created:', {
-              size: pdfBlob.size,
-              type: pdfBlob.type,
-              expectedSize: contentLength ? parseInt(contentLength, 10) : 'unknown'
-            });
-            
-            // Verify blob size matches expected (within 10% tolerance)
-            if (contentLength) {
-              const expectedSize = parseInt(contentLength, 10);
-              const sizeDiff = Math.abs(pdfBlob.size - expectedSize);
-              const sizeDiffPercent = (sizeDiff / expectedSize) * 100;
-              if (sizeDiffPercent > 10) {
-                console.warn('[PDF] Blob size mismatch:', {
-                  expected: expectedSize,
-                  actual: pdfBlob.size,
-                  diff: sizeDiff,
-                  diffPercent: sizeDiffPercent.toFixed(2) + '%'
-                });
-              }
-            }
-            
-            // Verify blob starts with PDF header (first 4 bytes should be %PDF)
-            const firstBytes = await pdfBlob.slice(0, 4).arrayBuffer();
-            const firstBytesText = new TextDecoder().decode(firstBytes);
-            console.log('[PDF] First bytes of blob:', firstBytesText, 'hex:', Array.from(new Uint8Array(firstBytes)).map(b => b.toString(16).padStart(2, '0')).join(' '));
-            
-            if (!firstBytesText.startsWith('%PDF')) {
-              console.error('[PDF] Blob does not start with PDF header! First bytes:', firstBytesText);
-              // Try to read as text to see what we got
-              const blobText = await pdfBlob.slice(0, 500).text();
-              console.error('[PDF] Blob preview (first 500 chars):', blobText);
-              throw new Error('Blob does not contain valid PDF data. First bytes: ' + firstBytesText);
-            }
-            
-            if (!isMounted) {
-              console.log('[PDF] Component unmounted during blob conversion, aborting');
-              return;
-            }
-            
-            // Create blob URL
-            const blobUrl = URL.createObjectURL(pdfBlob);
-            console.log('[PDF] Created blob URL:', blobUrl.substring(0, 50) + '...');
-            
-            // Clean up previous blob URL if exists (using state setter)
+            // Clean up previous blob URL if exists
             setPdfBlobUrl(prevBlobUrl => {
               if (prevBlobUrl) {
                 console.log('[PDF] Revoking previous blob URL');
                 URL.revokeObjectURL(prevBlobUrl);
               }
-              return blobUrl;
+              return null; // No blob URL needed when using signed URL directly
             });
+            
+            // Store signed URL for PDF.js to use directly
+            setPdfAsset(prev => ({
+              ...prev,
+              url: signedUrl, // Store signed URL instead of blob URL
+              exists: true,
+              loading: false,
+              error: null
+            }));
             
             // Reset page number when PDF changes
             setPageNumber(1);
@@ -206,7 +170,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           } catch (fetchError: any) {
             if (!isMounted) return;
             
-            console.error('[PDF] Error fetching/converting PDF:', fetchError);
+            console.error('[PDF] Error fetching signed URL:', fetchError);
             setPdfError(fetchError?.message || 'Failed to load PDF');
             setPdfLoading(false);
           }
@@ -283,28 +247,22 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     };
   }, [pdfBlobUrl]);
 
-  // Memoize PDF file object - use blob URL if available, otherwise use direct URL
+  // Memoize PDF file object - use signed URL directly (bypasses worker streaming limits)
   const pdfFile = useMemo(() => {
     if (!pdfAsset.exists) {
       console.log('[PDF] pdfFile memo: PDF does not exist');
       return null;
     }
     
-    // Prefer blob URL (more reliable for PDF.js)
-    if (pdfBlobUrl) {
-      console.log('[PDF] pdfFile memo: using blob URL');
-      return pdfBlobUrl;
-    }
-    
-    // Fallback to direct URL (if blob conversion hasn't happened yet)
+    // Use signed URL directly (PDF.js can load from R2 signed URL)
     if (pdfAsset.url) {
-      console.log('[PDF] pdfFile memo: using direct URL (blob not ready yet)');
+      console.log('[PDF] pdfFile memo: using signed URL directly');
       return pdfAsset.url;
     }
     
     console.log('[PDF] pdfFile memo: no file available');
     return null;
-  }, [pdfAsset.exists, pdfAsset.url, pdfBlobUrl]);
+  }, [pdfAsset.exists, pdfAsset.url]);
 
   return (
     <div className="space-y-8">
