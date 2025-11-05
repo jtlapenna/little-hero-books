@@ -457,7 +457,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   transform: 'scale(0.3)',
                   transformOrigin: 'center center',
                   margin: '0 auto',
-                  position: 'relative'
+                  position: 'relative',
+                  backgroundColor: '#fff',
+                  border: '2px solid red' // Debug: visible border
                 }}
               >
                 {/* Background - matches Workflow 3: <div class="page-bg" style="background-image:url('...')"></div> */}
