@@ -298,6 +298,101 @@
       "id": "8c3ef137-9b7d-405e-9445-98fad0cdb73b",
       "name": "Build HTML",
       "disabled": true
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Generate Page Preview Images\n * Converts each page's HTML to an image and stores in R2\n * Uses htmlcsstoimage.com API for HTML-to-image conversion\n */\nconst order = $input.first().json || {};\nconst pages_html = order.pages_html || '';\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\nconst backendUrl = order.backendUrl || 'https://admin.littleherolabs.com';\n\nif (!pages_html) {\n  throw new Error('pages_html is required for generating preview images');\n}\n\n// Extract individual page HTML from pages_html\n// Each page is wrapped in <div class=\"book-page\" id=\"page-{N}\">\nconst pageRegex = /<div class=\"book-page\" id=\"page-(\\d+)\">[\\s\\S]*?<\\/div>/g;\nconst pages = [];\nlet match;\n\nwhile ((match = pageRegex.exec(pages_html)) !== null) {\n  const pageNumber = parseInt(match[1], 10);\n  const pageHtml = match[0];\n  \n  // Wrap in full HTML document for rendering\n  const fullHtml = `<!DOCTYPE html>\\n<html>\\n<head>\\n  <meta charset=\"UTF-8\">\\n  <style>\\n    @page { size: 2550px 2550px; margin: 0; }\\n    * { box-sizing: border-box; margin: 0; padding: 0; }\\n    body { width: 2550px; height: 2550px; overflow: hidden; }\\n  </style>\\n</head>\\n<body>\\n${pageHtml}\\n</body>\\n</html>`;\n  \n  pages.push({\n    pageNumber,\n    html: fullHtml,\n    filename: `page-${String(pageNumber).padStart(2, '0')}_preview.png`\n  });\n}\n\n// Sort by page number\npages.sort((a, b) => a.pageNumber - b.pageNumber);\n\n// Return array of items for processing (one per page)\n// Each item will be processed by HTTP Request node to convert HTML to image\nreturn pages.map(page => ({\n  json: {\n    ...order,\n    pageNumber: page.pageNumber,\n    pageHtml: page.html,\n    pageImageFilename: page.filename,\n    pageImageR2Key: `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/${page.filename}`\n  }\n}));\n"
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Generate Page Preview Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -960,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hcti.io/v1/image",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"html\": \"{{ $json.pageHtml }}\",\n  \"width\": 2550,\n  \"height\": 2550,\n  \"device_scale_factor\": 1,\n  \"format\": \"png\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "Convert HTML to Image (htmlcsstoimage)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -752,
+        -352
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "htmlcsstoimage_creds",
+          "name": "htmlcsstoimage API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-orders",
+        "fileName": "={{ $json.pageImageR2Key }}",
+        "additionalFields": {
+          "acl": "public-read"
+        },
+        "binaryData": true
+      },
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "Upload Page Preview Image to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        -352
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Collect All Page Preview Images\n * Aggregates all page preview image URLs after upload\n */\nconst items = $input.all();\nconst order = items[0]?.json || {};\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\nconst backendUrl = order.backendUrl || 'https://admin.littleherolabs.com';\n\n// Collect all page preview images\nconst pageImages = items\n  .filter(item => item.json.pageNumber)\n  .sort((a, b) => a.json.pageNumber - b.json.pageNumber)\n  .map(item => {\n    const pageNumber = item.json.pageNumber;\n    const r2Key = item.json.pageImageR2Key;\n    \n    // Construct backend proxy URL for the image\n    const imageUrl = `${backendUrl}/api/assets/${r2Key}`;\n    \n    return {\n      pageNumber,\n      r2Key,\n      imageUrl,\n      filename: item.json.pageImageFilename\n    };\n  });\n\n// Return single item with all page images\nreturn [{\n  json: {\n    ...order,\n    pagePreviewImages: pageImages,\n    totalPages: pageImages.length\n  }\n}];\n"
+      },
+      "id": "d4e5f6a7-b8c9-0123-def4-234567890123",
+      "name": "Collect Page Preview Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        -352
+      ]
     }
   ],
   "pinData": {
