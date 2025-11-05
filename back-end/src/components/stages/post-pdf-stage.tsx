@@ -464,11 +464,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     finalPos = { left: 893, top: 1836, w: 1500, flip: 1 };
                   }
                   
-                  // Build style string exactly like Workflow 3's charStyle function
-                  const leftIn = (finalPos.left / 300).toFixed(4) + 'in';
-                  const topIn = (finalPos.top / 300).toFixed(4) + 'in';
-                  const widthIn = (finalPos.w / 300).toFixed(4) + 'in';
-                  
+                  // Use pixels directly (browser uses 96dpi, not 300dpi, so inches won't match)
+                  // Workflow 3 uses inches for PDFMonkey, but we need pixels for browser rendering
                   let transform = `translate(-50%,-100%) scaleX(${finalPos.flip})`;
                   if (currentPage.pageNumber === 4) {
                     transform += ' rotate(-20deg)';
@@ -478,9 +475,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     <div
                       className="character absolute"
                       style={{
-                        left: leftIn,
-                        top: topIn,
-                        width: widthIn,
+                        left: `${finalPos.left}px`,
+                        top: `${finalPos.top}px`,
+                        width: `${finalPos.w}px`,
                         transform,
                         zIndex: 11
                       }}
@@ -498,17 +495,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                 {/* Animal - matches Workflow 3 structure */}
                 {currentPage.animalUrl && ANIMAL_POSITIONS[currentPage.pageNumber as keyof typeof ANIMAL_POSITIONS] && (() => {
                   const pos = ANIMAL_POSITIONS[currentPage.pageNumber as keyof typeof ANIMAL_POSITIONS];
-                  const leftIn = (pos.left / 300).toFixed(4) + 'in';
-                  const topIn = (pos.top / 300).toFixed(4) + 'in';
-                  const widthIn = (pos.w / 300).toFixed(4) + 'in';
                   
                   return (
                     <div
                       className="animal absolute"
                       style={{
-                        left: leftIn,
-                        top: topIn,
-                        width: widthIn,
+                        left: `${pos.left}px`,
+                        top: `${pos.top}px`,
+                        width: `${pos.w}px`,
                         transform: 'translate(-50%,-100%)',
                         zIndex: 9
                       }}
