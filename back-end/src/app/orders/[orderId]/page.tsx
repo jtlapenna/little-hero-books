@@ -21,34 +21,46 @@ export default function OrderDetailPage() {
   const [activeStage, setActiveStage] = useState<ReviewStage>('preBria' as unknown as ReviewStage);
   const [flagCounts, setFlagCounts] = useStateReact({ preBria: 0, postBria: 0, postPdf: 0 });
 
+  // Fetch order data from API
+  const fetchOrder = async (orderId: string) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch order');
+      }
+      const data = await response.json();
+      console.log('OrderDetailPage: Received order data:', data);
+      console.log('OrderDetailPage: R2 assets:', data.r2Assets);
+      console.log('OrderDetailPage: R2 base character:', data.r2Assets?.baseCharacter);
+      console.log('OrderDetailPage: R2 poses count:', data.r2Assets?.poses?.length);
+      console.log('OrderDetailPage: R2 post-Bria poses count:', data.r2Assets?.posesBgRemoved?.length);
+      setOrder(data);
+      setLoading(false);
+      return data;
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      // Fallback to mock data
+      const foundOrder = getOrderById(orderId);
+      setOrder(foundOrder || null);
+      setLoading(false);
+      return foundOrder;
+    }
+  };
+
   useEffect(() => {
     const orderId = params.orderId as string;
     if (orderId) {
-      // Fetch order from API
-      fetch(`/api/orders/${orderId}`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch order');
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log('OrderDetailPage: Received order data:', data);
-          console.log('OrderDetailPage: R2 assets:', data.r2Assets);
-          console.log('OrderDetailPage: R2 base character:', data.r2Assets?.baseCharacter);
-          console.log('OrderDetailPage: R2 poses count:', data.r2Assets?.poses?.length);
-          setOrder(data);
-          setLoading(false);
-        })
-        .catch(error => {
-          console.error('Error fetching order:', error);
-          // Fallback to mock data
-          const foundOrder = getOrderById(orderId);
-          setOrder(foundOrder || null);
-          setLoading(false);
-        });
+      fetchOrder(orderId);
     }
   }, [params.orderId]);
+
+  // Refresh handler for PostBriaStage
+  const handleRefreshOrder = async () => {
+    const orderId = params.orderId as string;
+    if (orderId) {
+      await fetchOrder(orderId);
+    }
+  };
 
   // Update flag counts when order changes
   useEffectReact(() => {
@@ -170,10 +182,36 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleInitiateWorkflow = (stage: ReviewStage) => {
+  const handleInitiateWorkflow = async (stage: ReviewStage) => {
+    if (!order) return;
+    
     console.log(`Initiating workflow for stage: ${stage}`);
-    // In real implementation, this would trigger the appropriate n8n workflow
-    // For now, we'll just log it
+    
+    // Only trigger background removal for preBria stage
+    if (stage === ('preBria' as unknown as ReviewStage)) {
+      try {
+        const response = await fetch(`/api/orders/${order.orderId}/trigger-background-removal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(error.error || 'Failed to trigger background removal workflow');
+        }
+
+        const result = await response.json();
+        console.log('Background removal workflow triggered:', result);
+        
+        // Show success message (you could add a toast notification here)
+        alert('Background removal workflow triggered successfully!');
+      } catch (error: any) {
+        console.error('Error triggering background removal workflow:', error);
+        alert(`Failed to trigger background removal: ${error?.message || error}`);
+      }
+    }
   };
 
   return (
@@ -202,6 +240,16 @@ export default function OrderDetailPage() {
                   <Flag className="h-4 w-4 mr-1" />
                   {flagCounts.preBria + flagCounts.postBria + flagCounts.postPdf} {flagCounts.preBria + flagCounts.postBria + flagCounts.postPdf === 1 ? 'Needs' : 'Need'} Attention
                 </span>
+              )}
+              {/* Show stage status badge for current active stage */}
+              {order.reviewStages && (
+                <StatusBadge 
+                  status={
+                    order.reviewStages[activeStage as unknown as keyof typeof order.reviewStages]?.status === 'approved' 
+                      ? 'stage_approved' 
+                      : 'pending'
+                  } 
+                />
               )}
               <StatusBadge status={order.status as any} />
             </div>
@@ -357,7 +405,11 @@ export default function OrderDetailPage() {
                     <div className="flex items-center space-x-2">
                       <span>{stage.label}</span>
                       <StatusBadge 
-                        status={order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages].status} 
+                        status={
+                          order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status === 'approved'
+                            ? 'stage_approved'
+                            : order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status || 'pending'
+                        } 
                       />
                       {flagCounts[stage.key as unknown as keyof typeof flagCounts] > 0 && (
                         <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800">
@@ -389,6 +441,7 @@ export default function OrderDetailPage() {
                   isApproved={order.reviewStages.postBria.status === 'approved'}
                   onApprove={async () => await handleStageApprove('postBria' as unknown as ReviewStage)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postBria' as unknown as ReviewStage)}
+                  onRefresh={handleRefreshOrder}
                 />
               )}
               

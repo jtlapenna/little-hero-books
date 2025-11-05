@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AssetGrid } from '@/components/assets/asset-grid';
-import { CheckCircle, Play, Eye } from 'lucide-react';
+import { CheckCircle, Play, Eye, RefreshCw } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 
@@ -12,10 +12,12 @@ interface PostBriaStageProps {
   isApproved: boolean;
   onApprove: () => void;
   onInitiateWorkflow: () => void;
+  onRefresh?: () => void;
 }
 
-export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow }: PostBriaStageProps) {
+export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PostBriaStageProps) {
   const [showBlackBackground, setShowBlackBackground] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Initialize with empty state
   const [poses, setPoses] = useState([
@@ -57,6 +59,28 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const handleReplace = (assetId: string, file: File) => {
     console.log('Replacing asset:', assetId, file.name);
     // In real implementation, this would upload the new file to R2
+    // After replacement, refresh to show updated image
+    if (onRefresh) {
+      setTimeout(() => {
+        handleRefresh();
+      }, 1000); // Wait 1 second for upload to complete
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      if (onRefresh) {
+        await onRefresh();
+      } else {
+        // Fallback: reload the page
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error refreshing images:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleFlag = (assetId: string) => {
@@ -84,7 +108,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
 
   return (
     <div className="space-y-8">
-      {/* Background Toggle */}
+      {/* Background Toggle and Refresh */}
       <div className="bg-blue-50 rounded-lg p-4">
         <div className="flex items-center justify-between">
           <div>
@@ -93,16 +117,27 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
               Toggle black background to check for missed white edges or artifacts
             </p>
           </div>
-          <button
-            onClick={() => setShowBlackBackground(!showBlackBackground)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              showBlackBackground
-                ? 'bg-black text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            {showBlackBackground ? 'Hide' : 'Show'} Black Background
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh images from R2 storage"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh Images'}
+            </button>
+            <button
+              onClick={() => setShowBlackBackground(!showBlackBackground)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                showBlackBackground
+                  ? 'bg-black text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {showBlackBackground ? 'Hide' : 'Show'} Black Background
+            </button>
+          </div>
         </div>
       </div>
 

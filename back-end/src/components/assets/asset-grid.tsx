@@ -66,29 +66,6 @@ export function AssetGrid({
             </div>
           )}
         </div>
-        
-        {canApprove && (
-          <button
-            onClick={onApprove}
-            disabled={isApproved || flaggedCount > 0}
-            className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium ${
-              isApproved
-                ? 'bg-green-100 text-green-800 cursor-not-allowed'
-                : flaggedCount > 0
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-          >
-            {isApproved ? (
-              <>
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Approved
-              </>
-            ) : (
-              'Approve All'
-            )}
-          </button>
-        )}
       </div>
 
       {/* Asset Grid */}
@@ -113,14 +90,14 @@ export function AssetGrid({
             </div>
 
             {/* Overlay Actions */}
-            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
-              <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none group-hover:pointer-events-auto">
+              <div className="flex space-x-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 shadow-lg" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedAsset(asset);
                   }}
-                  className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
+                  className="p-2 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
                   title="View"
                 >
                   <Eye className="h-4 w-4" />
@@ -130,7 +107,7 @@ export function AssetGrid({
                     e.stopPropagation();
                     onDownload(asset.id);
                   }}
-                  className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
+                  className="p-2 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
                   title="Download"
                 >
                   <Download className="h-4 w-4" />
@@ -140,7 +117,7 @@ export function AssetGrid({
                     e.stopPropagation();
                     setIsReplacing(asset.id);
                   }}
-                  className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
+                  className="p-2 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
                   title="Replace"
                 >
                   <Upload className="h-4 w-4" />

@@ -1,0 +1,270 @@
+{
+  "schema": "lhb.run-manifest@v2.0",
+  "runStamp": "2025-11-04T04:03:10.006Z",
+  "characterHash": "a3fa3c94b55bb566",
+  "order": {
+    "amazonOrderId": "TEST-ORDER-006",
+    "characterSpecs": {},
+    "bookSpecs": {},
+    "orderDetails": {},
+    "publicR2Url": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev",
+    "r2BucketName": "little-hero-assets"
+  },
+  "poses": {
+    "total": 12,
+    "approved": 12,
+    "exhausted": 0,
+    "retried": 2,
+    "failed": 0,
+    "needingReview": 0
+  },
+  "entries": [
+    {
+      "poseNumber": 1,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose01.png",
+      "approvedFilename": "pose01.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose01.png",
+      "correlationId": "style-qa-1762228471357-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects of the output perfectly match the base image.",
+        "style": "All aspects of the output perfectly match the base image."
+      }
+    },
+    {
+      "poseNumber": 2,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose02.png",
+      "approvedFilename": "pose02.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose02.png",
+      "correlationId": "style-qa-1762228507931-0",
+      "qaScore": 0.9,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "No significant mismatches.",
+        "style": "No significant mismatches."
+      }
+    },
+    {
+      "poseNumber": 3,
+      "attempts": 1,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose03_r1.png",
+      "approvedFilename": "pose03_r1.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose03_r1.png",
+      "correlationId": "style-qa-1762228567118-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "The output image is an excellent match to the base image in all evaluated aspects, including texture, color, and hair cleanliness.",
+        "style": "The output image is an excellent match to the base image in all evaluated aspects, including texture, color, and hair cleanliness."
+      },
+      "retryHistory": [
+        {
+          "attempt": 1,
+          "passed": true,
+          "qaScore": 1,
+          "styleScore": 1,
+          "reasons": null
+        }
+      ],
+      "qaReasons": null
+    },
+    {
+      "poseNumber": 4,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose04.png",
+      "approvedFilename": "pose04.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose04.png",
+      "correlationId": "style-qa-1762228601001-0",
+      "qaScore": 0.9,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match the base image perfectly, including texture, colors, and hair integrity.",
+        "style": "All aspects match the base image perfectly, including texture, colors, and hair integrity."
+      }
+    },
+    {
+      "poseNumber": 5,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose05.png",
+      "approvedFilename": "pose05.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose05.png",
+      "correlationId": "style-qa-1762228638906-0",
+      "qaScore": 0.9,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match the base image perfectly, including texture, colors, and hair cleanliness.",
+        "style": "All aspects match the base image perfectly, including texture, colors, and hair cleanliness."
+      }
+    },
+    {
+      "poseNumber": 6,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose06.png",
+      "approvedFilename": "pose06.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose06.png",
+      "correlationId": "style-qa-1762228671914-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "The output is a perfect match to the base image in all evaluated aspects, including texture, color, and hair cleanliness.",
+        "style": "The output is a perfect match to the base image in all evaluated aspects, including texture, color, and hair cleanliness."
+      }
+    },
+    {
+      "poseNumber": 7,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose07.png",
+      "approvedFilename": "pose07.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose07.png",
+      "correlationId": "style-qa-1762228708734-0",
+      "qaScore": 0.9,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match the base image perfectly, including hair length, style, and silhouette integrity.",
+        "style": "All aspects match the base image perfectly, including hair length, style, and silhouette integrity."
+      }
+    },
+    {
+      "poseNumber": 8,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose08.png",
+      "approvedFilename": "pose08.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose08.png",
+      "correlationId": "style-qa-1762228743724-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match the base image perfectly, including texture, hair length, style, and silhouette integrity.",
+        "style": "All aspects match the base image perfectly, including texture, hair length, style, and silhouette integrity."
+      }
+    },
+    {
+      "poseNumber": 9,
+      "attempts": 2,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose09_r2.png",
+      "approvedFilename": "pose09_r2.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose09_r2.png",
+      "correlationId": "style-qa-1762228777493-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "The output perfectly matches the base in identity, style, color, and hair cleanliness. Texture and shading are also consistent.",
+        "style": "The output perfectly matches the base in identity, style, color, and hair cleanliness. Texture and shading are also consistent."
+      },
+      "retryHistory": [
+        {
+          "attempt": 2,
+          "passed": true,
+          "qaScore": 1,
+          "styleScore": 1,
+          "reasons": null
+        }
+      ],
+      "qaReasons": null
+    },
+    {
+      "poseNumber": 10,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose10.png",
+      "approvedFilename": "pose10.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose10.png",
+      "correlationId": "style-qa-1762228899538-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match the base image, including texture, color, and hair cleanliness.",
+        "style": "All aspects match the base image, including texture, color, and hair cleanliness."
+      }
+    },
+    {
+      "poseNumber": 11,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose11.png",
+      "approvedFilename": "pose11.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose11.png",
+      "correlationId": "style-qa-1762228941112-0",
+      "qaScore": 0.9,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "{\n  \"pose_score\": 0.9,\n  \"single_subject\": true,\n  \"extra_limbs\": false,\n  \"bg_white\": true,\n  \"leakage_from_pose_ref\": false,\n  \"cropped\": false,\n  \"notes\": \"Core standing pose (s"
+      }
+    },
+    {
+      "poseNumber": 12,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose12.png",
+      "approvedFilename": "pose12.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/poses/pose12.png",
+      "correlationId": "style-qa-1762228980677-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match the base image perfectly.",
+        "style": "All aspects match the base image perfectly."
+      }
+    }
+  ],
+  "reviewQueue": [],
+  "summary": {
+    "percentComplete": 100,
+    "readyForBook": true,
+    "needsHumanReview": false
+  },
+  "workflow": {
+    "currentStage": "2A-complete",
+    "nextWorkflow": "book-generation",
+    "requiresHumanReview": false
+  },
+  "generatedAt": "2025-11-04T04:03:10.007Z"
+}

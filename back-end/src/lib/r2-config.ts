@@ -1,4 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
+import { FetchHttpHandler } from '@smithy/fetch-http-handler';
 
 // Create a single S3-compatible client for Cloudflare R2
 // Env expected:
@@ -15,7 +16,9 @@ if (!ACCOUNT_ID) missingVars.push('CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID');
 if (!ACCESS_KEY_ID) missingVars.push('R2_ACCESS_KEY_ID');
 if (!SECRET_ACCESS_KEY) missingVars.push('R2_SECRET_ACCESS_KEY');
 
-// Create R2 client - will fail gracefully if credentials are missing
+// Create R2 client - configured for Cloudflare Workers runtime
+// Use FetchHttpHandler (Web Fetch API) instead of Node.js HTTP to avoid filesystem access
+// This is critical for Cloudflare Workers which don't have Node.js filesystem
 export const r2Client = new S3Client({
   region: 'auto',
   endpoint: ACCOUNT_ID ? `https://${ACCOUNT_ID}.r2.cloudflarestorage.com` : undefined,
@@ -24,6 +27,11 @@ export const r2Client = new S3Client({
     secretAccessKey: SECRET_ACCESS_KEY,
   } : undefined,
   forcePathStyle: true,
+  // Use Fetch-based HTTP handler (works in Workers/Edge runtime)
+  // This prevents the SDK from trying to use Node.js HTTP modules
+  requestHandler: new FetchHttpHandler({
+    requestTimeout: 30000,
+  }),
 });
 
 // Export validation helper
