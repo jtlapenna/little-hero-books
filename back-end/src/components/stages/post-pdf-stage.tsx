@@ -459,7 +459,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   margin: '0 auto',
                   position: 'relative',
                   backgroundColor: '#fff',
-                  border: '2px solid red' // Debug: visible border
+                  border: '2px solid red', // Debug: visible border
+                  overflow: 'hidden', // Clip content to container bounds
+                  boxSizing: 'border-box'
                 }}
               >
                 {/* Background - matches Workflow 3: <div class="page-bg" style="background-image:url('...')"></div> */}
@@ -536,7 +538,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                         top: `${finalPos.top}px`,
                         width: `${finalPos.w}px`,
                         transform,
-                        zIndex: 11
+                        zIndex: 11,
+                        pointerEvents: 'none' // Prevent interaction issues
                       }}
                     >
                       <img
