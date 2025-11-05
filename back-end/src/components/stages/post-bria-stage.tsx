@@ -18,6 +18,7 @@ interface PostBriaStageProps {
 export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PostBriaStageProps) {
   const [showBlackBackground, setShowBlackBackground] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [approvedLocal, setApprovedLocal] = useState(!!isApproved);
   
   // Initialize with empty state
   const [poses, setPoses] = useState([
@@ -102,9 +103,27 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   // Post‑Bria approval rule: if 2B populated images and none are flagged, allow approval
   const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
   const canApprove = flaggedCount === 0 && hasImages;
-  const canTriggerAssembly = isApproved && hasImages;
+  const isApprovedEffective = approvedLocal || isApproved;
+  const canTriggerAssembly = isApprovedEffective && hasImages;
 
   const [isTriggering, setIsTriggering] = useState(false);
+
+  const handleApproveStage = async () => {
+    if (approvedLocal) return;
+    try {
+      await onApprove();
+      setApprovedLocal(true);
+      // Optional refresh to reflect server state
+      if (onRefresh) {
+        setTimeout(() => {
+          handleRefresh();
+        }, 250);
+      }
+    } catch (e) {
+      console.error('Approve Post‑Bria failed', e);
+      alert('Failed to approve stage');
+    }
+  };
 
   const handleTriggerBookAssembly = async () => {
     if (!canTriggerAssembly || isTriggering) return;
@@ -247,9 +266,9 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           
           <div className="flex space-x-3">
             {/* Approve Stage */}
-            {!isApproved && (
+            {!isApprovedEffective && (
               <button
-                onClick={onApprove}
+                onClick={handleApproveStage}
                 disabled={!canApprove}
                 className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   canApprove
