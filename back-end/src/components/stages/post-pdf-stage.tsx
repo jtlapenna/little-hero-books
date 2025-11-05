@@ -193,6 +193,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             // PDF.js can load directly from R2 signed URL
             console.log('[PDF] Using signed URL directly with PDF.js:', signedUrl.substring(0, 50) + '...');
             
+            if (!isMounted) {
+              console.log('[PDF] Component unmounted before setting signed URL, aborting');
+              return;
+            }
+            
             // Clean up previous blob URL if exists
             setPdfBlobUrl(prevBlobUrl => {
               if (prevBlobUrl) {
@@ -202,7 +207,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               return null; // No blob URL needed when using signed URL directly
             });
             
+            // Reset page number when PDF changes (before setting URL)
+            setPageNumber(1);
+            setNumPages(null);
+            setPdfError(null);
+            setPdfLoading(true);
+            
             // Store signed URL for PDF.js to use directly
+            // This must happen AFTER resetting state to ensure PDF.js uses correct URL
             setPdfAsset(prev => ({
               ...prev,
               url: signedUrl, // Store signed URL instead of blob URL
@@ -211,11 +223,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               error: null
             }));
             
-            // Reset page number when PDF changes
-            setPageNumber(1);
-            setNumPages(null);
-            setPdfError(null);
-            setPdfLoading(true);
+            console.log('[PDF] Signed URL stored in pdfAsset.url, PDF.js will load from R2');
           } catch (fetchError: any) {
             if (!isMounted) return;
             
