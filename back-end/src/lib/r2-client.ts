@@ -91,7 +91,7 @@ export async function listObjects(
   } = {}
 ): Promise<ListObjectsV2Response['ListBucketResult']> {
   // Validate configuration
-  if (!R2_ENDPOINT) {
+  if (!ACCOUNT_ID) {
     throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
   }
   
@@ -107,8 +107,8 @@ export async function listObjects(
   if (maxKeys) params.set('max-keys', String(maxKeys));
   if (continuationToken) params.set('continuation-token', continuationToken);
   
-  // Build R2 URL with path-style addressing
-  const url = `${R2_ENDPOINT}/${bucket}?${params.toString()}`;
+  // Use subdomain-style addressing (required for private buckets)
+  const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com?${params.toString()}`;
   
   // Make signed request using aws4fetch
   const response = await r2Client.fetch(url, {
@@ -153,14 +153,15 @@ function encodeS3Key(key: string): string {
  */
 export async function getObject(bucket: string, key: string): Promise<Response> {
   // Validate configuration
-  if (!R2_ENDPOINT) {
+  if (!ACCOUNT_ID) {
     throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
   }
   
-  // Build R2 URL with path-style addressing
+  // Build R2 URL with subdomain-style addressing (required for private buckets)
+  // Format: https://{bucket}.{account_id}.r2.cloudflarestorage.com/{key}
   // Encode key while preserving slashes
   const encodedKey = encodeS3Key(key);
-  const url = `${R2_ENDPOINT}/${bucket}/${encodedKey}`;
+  const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodedKey}`;
   
   // Make signed request using aws4fetch
   const response = await r2Client.fetch(url, {
@@ -182,6 +183,10 @@ export async function getObject(bucket: string, key: string): Promise<Response> 
  * For now, this returns a URL that requires authentication via the client
  */
 export function getObjectUrl(bucket: string, key: string): string {
-  return `${R2_ENDPOINT}/${bucket}/${encodeS3Key(key)}`;
+  if (!ACCOUNT_ID) {
+    throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
+  }
+  // Use subdomain-style addressing (required for private buckets)
+  return `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodeS3Key(key)}`;
 }
 
