@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { getSignedUrlForObject } from '@/lib/r2-service';
 
 /**
  * Proxy endpoint to serve PDF files from R2 orders bucket
