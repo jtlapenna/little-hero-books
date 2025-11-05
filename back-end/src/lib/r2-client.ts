@@ -110,10 +110,17 @@ export async function listObjects(
   // Use subdomain-style addressing (required for private buckets)
   const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com?${params.toString()}`;
   
-  // Make signed request using aws4fetch
-  const response = await r2Client.fetch(url, {
+  // CRITICAL: aws4fetch.fetch() does NOT automatically sign requests
+  // We must use client.sign() to get a signed Request, then fetch that
+  const unsignedRequest = new Request(url, {
     method: 'GET',
   });
+  
+  // Sign the request using aws4fetch
+  const signedRequest = await r2Client.sign(unsignedRequest);
+  
+  // Fetch the signed request
+  const response = await fetch(signedRequest);
   
   if (!response.ok) {
     const errorText = await response.text();
@@ -163,10 +170,17 @@ export async function getObject(bucket: string, key: string): Promise<Response> 
   const encodedKey = encodeS3Key(key);
   const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodedKey}`;
   
-  // Make signed request using aws4fetch
-  const response = await r2Client.fetch(url, {
+  // CRITICAL: aws4fetch.fetch() does NOT automatically sign requests
+  // We must use client.sign() to get a signed Request, then fetch that
+  const unsignedRequest = new Request(url, {
     method: 'GET',
   });
+  
+  // Sign the request using aws4fetch
+  const signedRequest = await r2Client.sign(unsignedRequest);
+  
+  // Fetch the signed request
+  const response = await fetch(signedRequest);
   
   if (!response.ok) {
     const errorText = await response.text();
