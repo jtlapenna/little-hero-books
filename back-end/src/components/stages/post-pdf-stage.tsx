@@ -339,6 +339,23 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const currentPage = pages[pageNumber - 1];
   const totalPages = pages.length;
 
+  // Debug logging
+  useEffect(() => {
+    console.log('[Pages] Render state:', {
+      loadingPages,
+      pagesError,
+      pagesLength: pages.length,
+      pageNumber,
+      currentPage: currentPage ? {
+        pageNumber: currentPage.pageNumber,
+        hasBackground: !!currentPage.backgroundUrl,
+        hasCharacter: !!currentPage.characterUrl,
+        hasText: !!currentPage.text
+      } : null,
+      totalPages
+    });
+  }, [loadingPages, pagesError, pages.length, pageNumber, currentPage, totalPages]);
+
   return (
     <div className="space-y-8">
       <div className="space-y-6">
@@ -565,6 +582,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               <div className="text-center">
                 <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-500 text-sm">No pages available</p>
+                <p className="text-gray-400 text-xs mt-2">
+                  Debug: loadingPages={String(loadingPages)}, pagesError={String(pagesError)}, 
+                  pages.length={pages.length}, pageNumber={pageNumber}
+                </p>
               </div>
             </div>
           </div>
