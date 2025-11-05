@@ -68,6 +68,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const [pageNumber, setPageNumber] = useState(1);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
 
   // Construct PDF path: book-mvp-simple-adventure/orders/{orderId}/complete_book_{orderId}.pdf
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
@@ -97,7 +98,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         if (!isMounted) return;
         
         if (response.ok) {
-          console.log('[PDF] PDF exists, setting up viewer');
+          console.log('[PDF] PDF exists, fetching and converting to blob URL');
           setPdfAsset(prev => ({
             ...prev,
             url: pdfUrl,
@@ -105,11 +106,58 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             loading: false,
             error: null
           }));
-          // Reset page number when PDF changes
-          setPageNumber(1);
-          setNumPages(null);
-          setPdfError(null);
-          setPdfLoading(true);
+          
+          // Fetch PDF and convert to blob URL (handles redirects automatically)
+          try {
+            console.log('[PDF] Fetching PDF from:', pdfUrl);
+            const pdfResponse = await fetch(pdfUrl, {
+              method: 'GET',
+              // Follow redirects automatically
+              redirect: 'follow',
+            });
+            
+            if (!isMounted) {
+              console.log('[PDF] Component unmounted during fetch, aborting');
+              return;
+            }
+            
+            if (!pdfResponse.ok) {
+              throw new Error(`Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
+            }
+            
+            console.log('[PDF] PDF fetched, converting to blob');
+            const pdfBlob = await pdfResponse.blob();
+            
+            if (!isMounted) {
+              console.log('[PDF] Component unmounted during blob conversion, aborting');
+              return;
+            }
+            
+            // Create blob URL
+            const blobUrl = URL.createObjectURL(pdfBlob);
+            console.log('[PDF] Created blob URL:', blobUrl.substring(0, 50) + '...');
+            
+            // Clean up previous blob URL if exists (using state setter)
+            setPdfBlobUrl(prevBlobUrl => {
+              if (prevBlobUrl) {
+                console.log('[PDF] Revoking previous blob URL');
+                URL.revokeObjectURL(prevBlobUrl);
+              }
+              return blobUrl;
+            });
+            
+            // Reset page number when PDF changes
+            setPageNumber(1);
+            setNumPages(null);
+            setPdfError(null);
+            setPdfLoading(true);
+          } catch (fetchError: any) {
+            if (!isMounted) return;
+            
+            console.error('[PDF] Error fetching/converting PDF:', fetchError);
+            setPdfError(fetchError?.message || 'Failed to load PDF');
+            setPdfLoading(false);
+          }
         } else {
           const errorMsg = response.status === 404 ? 'PDF not yet generated' : `Failed to load PDF: ${response.status} ${response.statusText}`;
           console.warn('[PDF] PDF check failed:', errorMsg);
@@ -173,15 +221,38 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const isPostBriaApproved = order.reviewStages.postBria.status === 'approved';
   const canApprove = !pdfAsset.isFlagged && isPostBriaApproved;
 
-  // Memoize PDF file object to prevent unnecessary re-renders
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) {
+        console.log('[PDF] Cleaning up blob URL');
+        URL.revokeObjectURL(pdfBlobUrl);
+      }
+    };
+  }, [pdfBlobUrl]);
+
+  // Memoize PDF file object - use blob URL if available, otherwise use direct URL
   const pdfFile = useMemo(() => {
-    if (!pdfAsset.exists || !pdfAsset.url) {
-      console.log('[PDF] pdfFile memo: no file available', { exists: pdfAsset.exists, url: pdfAsset.url });
+    if (!pdfAsset.exists) {
+      console.log('[PDF] pdfFile memo: PDF does not exist');
       return null;
     }
-    console.log('[PDF] pdfFile memo: returning URL', pdfAsset.url);
-    return pdfAsset.url;
-  }, [pdfAsset.exists, pdfAsset.url]);
+    
+    // Prefer blob URL (more reliable for PDF.js)
+    if (pdfBlobUrl) {
+      console.log('[PDF] pdfFile memo: using blob URL');
+      return pdfBlobUrl;
+    }
+    
+    // Fallback to direct URL (if blob conversion hasn't happened yet)
+    if (pdfAsset.url) {
+      console.log('[PDF] pdfFile memo: using direct URL (blob not ready yet)');
+      return pdfAsset.url;
+    }
+    
+    console.log('[PDF] pdfFile memo: no file available');
+    return null;
+  }, [pdfAsset.exists, pdfAsset.url, pdfBlobUrl]);
 
   return (
     <div className="space-y-8">
