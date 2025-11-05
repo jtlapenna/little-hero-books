@@ -8,39 +8,40 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Configure PDF.js worker - use unpkg CDN (more reliable than jsdelivr for this use case)
-// Alternative: Use jsdelivr or unpkg, both are reliable npm package CDNs
+// Configure PDF.js worker - use local worker file (most reliable, no CDN issues)
+// Worker file is copied from node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs to public/
 if (typeof window !== 'undefined') {
-  // Use unpkg which is very reliable for npm packages
-  // Format: https://unpkg.com/pdfjs-dist@VERSION/build/pdf.worker.min.mjs or .js
-  const workerUrl = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+  // Use local worker file - avoids CORS and CDN issues
+  const localWorkerUrl = '/pdf.worker.min.mjs';
+  // Fallback to CDN if local file doesn't exist (shouldn't happen in production)
+  const cdnWorkerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/legacy/build/pdf.worker.min.mjs`;
   
-  // Fallback: jsdelivr if unpkg fails
-  const fallbackWorkerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-  
-  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+  // Prefer local worker, fallback to CDN
+  pdfjs.GlobalWorkerOptions.workerSrc = localWorkerUrl;
   
   console.log('[PDF] Worker configured:', {
     version: pdfjs.version,
-    workerUrl,
-    fallbackWorkerUrl,
+    localWorkerUrl,
+    fallbackWorkerUrl: cdnWorkerUrl,
     workerSrc: pdfjs.GlobalWorkerOptions.workerSrc,
-    note: 'Using unpkg CDN. If this fails, check browser console for worker loading errors.'
+    note: 'Using local worker file to avoid CORS/CDN issues'
   });
   
-  // Test worker URL accessibility (non-blocking)
-  fetch(workerUrl, { method: 'HEAD' })
+  // Verify local worker file exists (non-blocking check)
+  fetch(localWorkerUrl, { method: 'HEAD' })
     .then(response => {
       if (response.ok) {
-        console.log('[PDF] Worker URL is accessible:', workerUrl);
+        console.log('[PDF] Local worker file is accessible:', localWorkerUrl);
       } else {
-        console.warn('[PDF] Worker URL returned non-OK status:', response.status, 'Trying fallback...');
-        pdfjs.GlobalWorkerOptions.workerSrc = fallbackWorkerUrl;
-        console.log('[PDF] Switched to fallback worker:', fallbackWorkerUrl);
+        console.warn('[PDF] Local worker file not found, switching to CDN fallback:', response.status);
+        pdfjs.GlobalWorkerOptions.workerSrc = cdnWorkerUrl;
+        console.log('[PDF] Switched to CDN worker:', cdnWorkerUrl);
       }
     })
     .catch(error => {
-      console.warn('[PDF] Worker URL check failed:', error, 'Using primary URL anyway');
+      console.warn('[PDF] Local worker check failed, using CDN fallback:', error);
+      pdfjs.GlobalWorkerOptions.workerSrc = cdnWorkerUrl;
+      console.log('[PDF] Switched to CDN worker:', cdnWorkerUrl);
     });
 }
 
