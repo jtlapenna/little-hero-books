@@ -430,26 +430,38 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               ) : pdfFile ? (
                 <Document
                   file={pdfFile}
-                  onLoadSuccess={({ numPages }) => {
-                    console.log('[PDF] Document loaded successfully:', {
-                      numPages,
-                      pdfUrl: pdfFile,
-                      workerSrc: pdfjs.GlobalWorkerOptions.workerSrc
-                    });
-                    setNumPages(numPages);
-                    setPdfLoading(false);
-                    setPdfError(null);
-                  }}
-                  onLoadError={(error) => {
-                    console.error('[PDF] Document load error:', {
-                      error,
-                      message: error?.message,
-                      name: error?.name,
-                      stack: error?.stack,
-                      pdfUrl: pdfFile,
-                      workerSrc: pdfjs.GlobalWorkerOptions.workerSrc,
-                      workerUrl: pdfjs.GlobalWorkerOptions.workerSrc
-                    });
+                      onLoadSuccess={({ numPages }) => {
+                        const urlType = pdfFile?.startsWith('blob:') ? 'blob' : 
+                                       pdfFile?.includes('.r2.') ? 'r2-signed' : 
+                                       pdfFile?.includes('/api/') ? 'api-endpoint' : 'unknown';
+                        console.log('[PDF] Document loaded successfully:', {
+                          numPages,
+                          pdfUrl: pdfFile,
+                          pdfUrlType: urlType,
+                          isR2Url: pdfFile?.includes('.r2.'),
+                          isApiUrl: pdfFile?.includes('/api/pdf/'),
+                          workerSrc: pdfjs.GlobalWorkerOptions.workerSrc
+                        });
+                        setNumPages(numPages);
+                        setPdfLoading(false);
+                        setPdfError(null);
+                      }}
+                      onLoadError={(error) => {
+                        const urlType = pdfFile?.startsWith('blob:') ? 'blob' : 
+                                       pdfFile?.includes('.r2.') ? 'r2-signed' : 
+                                       pdfFile?.includes('/api/') ? 'api-endpoint' : 'unknown';
+                        console.error('[PDF] Document load error:', {
+                          error,
+                          message: error?.message,
+                          name: error?.name,
+                          stack: error?.stack,
+                          pdfUrl: pdfFile,
+                          pdfUrlType: urlType,
+                          isApiUrl: pdfFile?.includes('/api/pdf/'),
+                          isR2Url: pdfFile?.includes('.r2.'),
+                          workerSrc: pdfjs.GlobalWorkerOptions.workerSrc,
+                          workerUrl: pdfjs.GlobalWorkerOptions.workerSrc
+                        });
                     // Extract more detailed error information
                     let errorMessage = 'Failed to load PDF';
                     if (error?.message) {
