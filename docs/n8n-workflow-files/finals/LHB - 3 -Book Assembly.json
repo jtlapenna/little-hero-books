@@ -330,7 +330,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"html\": \"{{ $json.pageHtml }}\",\n  \"width\": 2550,\n  \"height\": 2550,\n  \"device_scale_factor\": 1,\n  \"format\": \"png\"\n}",
+        "jsonBody": "={\n  \"html\": {{ JSON.stringify($json.pageHtml) }},\n  \"width\": 2550,\n  \"height\": 2550,\n  \"device_scale_factor\": 1,\n  \"format\": \"png\"\n}",
         "options": {
           "response": {
             "response": {
@@ -363,7 +363,8 @@
         "additionalFields": {
           "acl": "public-read"
         },
-        "binaryData": true
+        "binaryData": true,
+        "binaryPropertyName": "data"
       },
       "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
       "name": "Upload Page Preview Image to R2",
