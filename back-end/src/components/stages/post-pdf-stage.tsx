@@ -445,7 +445,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                 </div>
               </div>
             </div>
-            <div className="h-[800px] bg-gray-100 overflow-auto flex items-center justify-center p-4">
+            <div className="h-[800px] bg-gray-100 overflow-hidden flex items-center justify-center p-4" style={{ position: 'relative' }}>
               {/* Match Workflow 3 HTML structure exactly: book-page > page-bg, text-box, character, animal */}
               {/* Scale container to fit viewport while maintaining 2550px internal coordinate system */}
               <div
