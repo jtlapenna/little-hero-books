@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CheckCircle, Play, Download, Eye, Flag } from 'lucide-react';
+import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 
@@ -17,15 +17,81 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const [pdfAsset, setPdfAsset] = useState({
     id: 'compiled-pdf',
     name: 'Compiled PDF',
-    url: '/mock-assets/compiled.pdf',
-    isFlagged: false
+    url: '',
+    isFlagged: false,
+    exists: false,
+    loading: true,
+    error: null as string | null
   });
 
-  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  // Construct PDF path: book-mvp-simple-adventure/orders/{orderId}/complete_book_{orderId}.pdf
+  const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
+  const pdfUrl = `/api/pdf/${pdfPath}`;
+
+  // Check if PDF exists when component mounts or orderId changes
+  useEffect(() => {
+    let isMounted = true;
+    
+    const checkPdfExists = async () => {
+      if (!isMounted) return;
+      
+      setPdfAsset(prev => ({ ...prev, loading: true, error: null }));
+      
+      try {
+        const response = await fetch(pdfUrl, { method: 'HEAD' });
+        
+        if (!isMounted) return;
+        
+        if (response.ok) {
+          setPdfAsset(prev => ({
+            ...prev,
+            url: pdfUrl,
+            exists: true,
+            loading: false,
+            error: null
+          }));
+        } else {
+          setPdfAsset(prev => ({
+            ...prev,
+            exists: false,
+            loading: false,
+            error: response.status === 404 ? 'PDF not yet generated' : 'Failed to load PDF'
+          }));
+        }
+      } catch (error: any) {
+        if (!isMounted) return;
+        
+        setPdfAsset(prev => ({
+          ...prev,
+          exists: false,
+          loading: false,
+          error: error?.message || 'Error checking PDF availability'
+        }));
+      }
+    };
+
+    checkPdfExists();
+    
+    // Poll every 10 seconds if PDF doesn't exist yet (workflow might still be running)
+    const interval = setInterval(() => {
+      checkPdfExists();
+    }, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [orderId, pdfUrl]);
 
   const handleDownload = () => {
-    console.log('Downloading PDF:', pdfAsset.name);
-    // In real implementation, this would trigger a download
+    if (pdfAsset.exists && pdfAsset.url) {
+      const link = document.createElement('a');
+      link.href = pdfAsset.url;
+      link.download = `complete_book_${orderId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handleFlag = () => {
@@ -58,20 +124,15 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           </div>
           
           <div className="flex space-x-3">
-            <button
-              onClick={() => setShowPdfPreview(!showPdfPreview)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              {showPdfPreview ? 'Hide' : 'Show'} Preview
-            </button>
-            <button
-              onClick={handleDownload}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Download PDF
-            </button>
+            {pdfAsset.exists && (
+              <button
+                onClick={handleDownload}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
+              </button>
+            )}
             <button
               onClick={handleFlag}
               className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 ${
@@ -86,25 +147,46 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           </div>
         </div>
 
-        {/* PDF Preview */}
-        {showPdfPreview && (
+        {/* PDF Preview - Auto-display when available */}
+        {pdfAsset.loading && (
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="h-96 bg-gray-50 flex items-center justify-center">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 text-gray-400 animate-spin mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">Checking for PDF...</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!pdfAsset.loading && !pdfAsset.exists && (
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="h-96 bg-gray-50 flex items-center justify-center">
+              <div className="text-center">
+                <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">{pdfAsset.error || 'PDF not yet available'}</p>
+                <p className="text-gray-400 text-xs mt-1">
+                  The PDF will appear here automatically once Workflow 3 completes
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!pdfAsset.loading && pdfAsset.exists && pdfAsset.url && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">{pdfAsset.name}</span>
-                <span className="text-xs text-gray-500">PDF Preview</span>
+                <span className="text-xs text-gray-500">PDF Viewer</span>
               </div>
             </div>
-            <div className="h-96 bg-gray-100 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gray-300 rounded-lg mx-auto mb-4 flex items-center justify-center">
-                  <Eye className="h-8 w-8 text-gray-500" />
-                </div>
-                <p className="text-gray-500 text-sm">PDF Preview</p>
-                <p className="text-gray-400 text-xs mt-1">
-                  In production, this would show the actual PDF content
-                </p>
-              </div>
+            <div className="h-[800px] bg-gray-100">
+              <iframe
+                src={pdfAsset.url}
+                className="w-full h-full border-0"
+                title="PDF Preview"
+              />
             </div>
           </div>
         )}
