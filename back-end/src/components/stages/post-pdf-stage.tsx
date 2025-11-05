@@ -125,11 +125,12 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               throw new Error(`Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
             }
             
-            // Check Content-Type header
+            // Check Content-Type and Content-Length headers
             const contentType = pdfResponse.headers.get('content-type');
+            const contentLength = pdfResponse.headers.get('content-length');
             console.log('[PDF] Response headers:', {
               contentType,
-              contentLength: pdfResponse.headers.get('content-length'),
+              contentLength,
               status: pdfResponse.status,
               statusText: pdfResponse.statusText,
               url: pdfResponse.url
