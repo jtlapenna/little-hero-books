@@ -189,19 +189,15 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               console.warn('[PDF] Signed URL does not appear to be R2 URL:', signedUrl.substring(0, 100));
             }
             
-            // R2 signed URLs have CORS restrictions, so we use backend proxy
-            // PDF.js can load directly from proxy URL using Range requests (no blob conversion needed)
-            // This avoids loading 219MB into memory at once
-            console.log('[PDF] Using backend proxy URL directly with PDF.js (Range requests supported)');
+            // Store signed URL for download button
+            // For now, we'll use download-only approach due to browser/Cloudflare limitations with 219MB files
+            // The ERR_CACHE_WRITE_FAILURE suggests the browser can't handle such large streams
+            console.log('[PDF] PDF is available for download (219MB file too large for browser preview)');
             
             if (!isMounted) {
-              console.log('[PDF] Component unmounted before setting proxy URL, aborting');
+              console.log('[PDF] Component unmounted before setting PDF state, aborting');
               return;
             }
-            
-            // Use backend proxy URL directly - PDF.js will handle Range requests automatically
-            // This avoids memory issues by loading PDF in chunks
-            const proxyUrl = pdfUrl; // Backend proxy supports Range requests
             
             // Clean up previous blob URL if exists
             setPdfBlobUrl(prevBlobUrl => {
@@ -209,25 +205,20 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                 console.log('[PDF] Revoking previous blob URL');
                 URL.revokeObjectURL(prevBlobUrl);
               }
-              return null; // No blob URL needed - using direct URL with Range requests
+              return null;
             });
             
-            // Reset page number when PDF changes (before setting URL)
-            setPageNumber(1);
-            setNumPages(null);
-            setPdfError(null);
-            setPdfLoading(true);
-            
-            // Store proxy URL directly - PDF.js will use Range requests to load in chunks
+            // Store PDF URL for download - skip in-browser preview for now
+            // The download button will use the signed URL directly
             setPdfAsset(prev => ({
               ...prev,
-              url: proxyUrl, // Direct URL - PDF.js handles Range requests automatically
+              url: signedUrl, // Use signed URL for download (bypasses backend proxy limits)
               exists: true,
               loading: false,
               error: null
             }));
             
-            console.log('[PDF] Proxy URL stored, PDF.js will load using Range requests');
+            console.log('[PDF] PDF ready for download. In-browser preview disabled due to file size limits.');
           } catch (fetchError: any) {
             if (!isMounted) return;
             
@@ -393,152 +384,44 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           </div>
         )}
 
-        {!pdfAsset.loading && pdfAsset.exists && pdfAsset.url && (
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">{pdfAsset.name}</span>
-                <div className="flex items-center gap-4">
-                  {numPages && (
-                    <span className="text-xs text-gray-500">
-                      Page {pageNumber} of {numPages}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-2">
+            {!pdfAsset.loading && pdfAsset.exists && pdfAsset.url && (
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">{pdfAsset.name}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleDownload}
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download PDF
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="h-[600px] bg-gray-50 flex items-center justify-center p-8">
+                  <div className="text-center max-w-md">
+                    <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">PDF Preview Unavailable</h3>
+                    <p className="text-gray-600 text-sm mb-4">
+                      This PDF file is 219MB, which exceeds browser limits for in-page preview. 
+                      Please download the file to view it using your system's PDF viewer.
+                    </p>
+                    <p className="text-gray-500 text-xs mb-6">
+                      The download button will open the PDF directly from secure storage.
+                    </p>
                     <button
-                      onClick={() => setPageNumber(prev => Math.max(1, prev - 1))}
-                      disabled={pageNumber <= 1}
-                      className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label="Previous page"
+                      onClick={handleDownload}
+                      className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 text-base font-medium"
                     >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setPageNumber(prev => Math.min(numPages || 1, prev + 1))}
-                      disabled={!numPages || pageNumber >= numPages}
-                      className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label="Next page"
-                    >
-                      <ChevronRight className="h-4 w-4" />
+                      <Download className="h-5 w-5 mr-2" />
+                      Download PDF to View
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="h-[800px] bg-gray-100 overflow-auto flex items-center justify-center p-4">
-              {pdfError ? (
-                <div className="flex flex-col items-center justify-center p-8">
-                  <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-gray-700 text-sm font-medium mb-2">Unable to load PDF</p>
-                  <p className="text-gray-500 text-xs mb-4 text-center max-w-md">{pdfError}</p>
-                  <button
-                    onClick={handleDownload}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download PDF to View
-                  </button>
-                </div>
-              ) : pdfFile ? (
-                <Document
-                  file={pdfFile}
-                      onLoadSuccess={({ numPages }) => {
-                        const urlType = pdfFile?.startsWith('blob:') ? 'blob' : 
-                                       pdfFile?.includes('.r2.') ? 'r2-signed' : 
-                                       pdfFile?.includes('/api/') ? 'api-endpoint' : 'unknown';
-                        console.log('[PDF] Document loaded successfully:', {
-                          numPages,
-                          pdfUrl: pdfFile,
-                          pdfUrlType: urlType,
-                          isR2Url: pdfFile?.includes('.r2.'),
-                          isApiUrl: pdfFile?.includes('/api/pdf/'),
-                          workerSrc: pdfjs.GlobalWorkerOptions.workerSrc
-                        });
-                        setNumPages(numPages);
-                        setPdfLoading(false);
-                        setPdfError(null);
-                      }}
-                      onLoadError={(error) => {
-                        const urlType = pdfFile?.startsWith('blob:') ? 'blob' : 
-                                       pdfFile?.includes('.r2.') ? 'r2-signed' : 
-                                       pdfFile?.includes('/api/') ? 'api-endpoint' : 'unknown';
-                        console.error('[PDF] Document load error:', {
-                          error,
-                          message: error?.message,
-                          name: error?.name,
-                          stack: error?.stack,
-                          pdfUrl: pdfFile,
-                          pdfUrlType: urlType,
-                          isApiUrl: pdfFile?.includes('/api/pdf/'),
-                          isR2Url: pdfFile?.includes('.r2.'),
-                          workerSrc: pdfjs.GlobalWorkerOptions.workerSrc,
-                          workerUrl: pdfjs.GlobalWorkerOptions.workerSrc
-                        });
-                    // Extract more detailed error information
-                    let errorMessage = 'Failed to load PDF';
-                    if (error?.message) {
-                      errorMessage = error.message;
-                    } else if (typeof error === 'string') {
-                      errorMessage = error;
-                    }
-                    // Check for specific error types
-                    if (errorMessage.includes('worker') || errorMessage.includes('Worker')) {
-                      errorMessage = `PDF.js worker error: ${errorMessage}. Worker URL: ${pdfjs.GlobalWorkerOptions.workerSrc}`;
-                    } else if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
-                      errorMessage = `PDF file not found: ${pdfFile}`;
-                    } else if (errorMessage.includes('CORS') || errorMessage.includes('cors')) {
-                      errorMessage = `CORS error loading PDF: ${errorMessage}`;
-                    }
-                    setPdfError(errorMessage);
-                    setPdfLoading(false);
-                  }}
-                  onLoadProgress={({ loaded, total }) => {
-                    if (total) {
-                      const percent = Math.round((loaded / total) * 100);
-                      console.log('[PDF] Loading progress:', {
-                        percent: `${percent}%`,
-                        loaded,
-                        total,
-                        pdfUrl: pdfFile
-                      });
-                    }
-                  }}
-                  loading={
-                    <div className="flex flex-col items-center justify-center min-h-[400px]">
-                      <Loader2 className="h-8 w-8 text-gray-400 animate-spin mb-2" />
-                      <p className="text-gray-500 text-sm">Loading PDF...</p>
-                    </div>
-                  }
-                  className="flex justify-center"
-                  options={{
-                    cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/cmaps/`,
-                    cMapPacked: true,
-                    standardFontDataUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
-                  }}
-                >
-                  <Page
-                    key={`page-${pageNumber}`}
-                    pageNumber={pageNumber}
-                    renderTextLayer={true}
-                    renderAnnotationLayer={true}
-                    className="shadow-lg"
-                    width={800}
-                    loading={
-                      <div className="flex items-center justify-center min-h-[400px]">
-                        <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
-                      </div>
-                    }
-                  />
-                </Document>
-              ) : (
-                <div className="flex flex-col items-center justify-center min-h-[400px]">
-                  <Loader2 className="h-8 w-8 text-gray-400 animate-spin mb-2" />
-                  <p className="text-gray-500 text-sm">Preparing PDF viewer...</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+            )}
 
         {/* PDF Info */}
         <div className="bg-gray-50 rounded-lg p-4">
