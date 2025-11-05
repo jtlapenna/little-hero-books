@@ -181,12 +181,28 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                 <span className="text-xs text-gray-500">PDF Viewer</span>
               </div>
             </div>
-            <div className="h-[800px] bg-gray-100">
-              <iframe
-                src={pdfAsset.url}
-                className="w-full h-full border-0"
-                title="PDF Preview"
-              />
+            <div className="h-[800px] bg-gray-100 relative">
+              <object
+                data={pdfAsset.url}
+                type="application/pdf"
+                className="w-full h-full"
+                aria-label="PDF Preview"
+              >
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 p-8">
+                  <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
+                  <p className="text-gray-700 text-sm font-medium mb-2">Unable to display PDF in browser</p>
+                  <p className="text-gray-500 text-xs mb-4 text-center">
+                    The PDF may be too large for the browser viewer. Please download it to view.
+                  </p>
+                  <button
+                    onClick={handleDownload}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download PDF to View
+                  </button>
+                </div>
+              </object>
             </div>
           </div>
         )}
