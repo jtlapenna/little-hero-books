@@ -302,58 +302,16 @@
     {
       "parameters": {
         "language": "JavaScript",
-        "jsCode": "/**\n * Generate Page Preview Images\n * Converts each page's HTML to an image and stores in R2\n * Uses htmlcsstoimage.com API for HTML-to-image conversion\n */\nconst order = $input.first().json || {};\nconst pages_html = order.pages_html || '';\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\nconst backendUrl = order.backendUrl || 'https://admin.littleherolabs.com';\n\nif (!pages_html) {\n  throw new Error('pages_html is required for generating preview images');\n}\n\n// Extract individual page HTML from pages_html\n// Each page is wrapped in <div class=\"book-page\" id=\"page-{N}\">\nconst pageRegex = /<div class=\"book-page\" id=\"page-(\\d+)\">[\\s\\S]*?<\\/div>/g;\nconst pages = [];\nlet match;\n\nwhile ((match = pageRegex.exec(pages_html)) !== null) {\n  const pageNumber = parseInt(match[1], 10);\n  const pageHtml = match[0];\n  \n  // Wrap in full HTML document for rendering\n  const fullHtml = `<!DOCTYPE html>\\n<html>\\n<head>\\n  <meta charset=\"UTF-8\">\\n  <style>\\n    @page { size: 2550px 2550px; margin: 0; }\\n    * { box-sizing: border-box; margin: 0; padding: 0; }\\n    body { width: 2550px; height: 2550px; overflow: hidden; }\\n  </style>\\n</head>\\n<body>\\n${pageHtml}\\n</body>\\n</html>`;\n  \n  pages.push({\n    pageNumber,\n    html: fullHtml,\n    filename: `page-${String(pageNumber).padStart(2, '0')}_preview.png`\n  });\n}\n\n// Sort by page number\npages.sort((a, b) => a.pageNumber - b.pageNumber);\n\n// Return array of items for processing (one per page)\n// Each item will be processed by HTTP Request node to convert HTML to image\nreturn pages.map(page => ({\n  json: {\n    ...order,\n    pageNumber: page.pageNumber,\n    pageHtml: page.html,\n    pageImageFilename: page.filename,\n    pageImageR2Key: `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/${page.filename}`\n  }\n}));\n"
+        "jsCode": "/**\n * Extract PDF Pages as Images\n * Splits the PDF into individual page images\n * Uses pdf2pic approach via HTTP service (PDF.co API) or similar\n */\nconst order = $input.first().json || {};\nconst pdfBinary = $binary || {};\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\nconst backendUrl = order.backendUrl || 'https://admin.littleherolabs.com';\n\n// Get PDF binary data\nconst pdfData = pdfBinary.data || null;\nif (!pdfData) {\n  throw new Error('PDF binary data is required for extracting page images');\n}\n\n// Convert binary to base64 for API request\nconst pdfBase64 = Buffer.from(pdfData.data).toString('base64');\n\n// Use PDF.co API to extract pages as images\n// This is a free tier service that converts PDF pages to PNG\nconst http = this.helpers.httpRequest;\n\n// Create array of items (one per page, 1-14)\nconst pageImages = [];\n\nfor (let pageNum = 1; pageNum <= 14; pageNum++) {\n  try {\n    // PDF.co API endpoint for PDF to PNG conversion\n    // Convert specific page to PNG\n    const response = await http({\n      method: 'POST',\n      url: 'https://api.pdf.co/v1/pdf/convert/to/png',\n      headers: {\n        'x-api-key': 'your-pdfco-api-key', // NOTE: Set this as env var or credential\n        'Content-Type': 'application/json'\n      },\n      body: {\n        file: `data:application/pdf;base64,${pdfBase64}`,\n        pages: `${pageNum}`, // Extract single page\n        async: false\n      },\n      json: true\n    });\n    \n    if (response.url || response.body) {\n      // Download the PNG image\n      const imageUrl = response.url || response.body;\n      const imageResponse = await http({\n        method: 'GET',\n        url: imageUrl,\n        encoding: 'arraybuffer'\n      });\n      \n      const imageBuffer = Buffer.from(imageResponse);\n      const imageBinary = await this.helpers.prepareBinaryData(imageBuffer, `page-${String(pageNum).padStart(2, '0')}_preview.png`);\n      \n      pageImages.push({\n        json: {\n          ...order,\n          pageNumber: pageNum,\n          pageImageFilename: `page-${String(pageNum).padStart(2, '0')}_preview.png`,\n          pageImageR2Key: `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/page-${String(pageNum).padStart(2, '0')}_preview.png`\n        },\n        binary: {\n          data: imageBinary\n        }\n      });\n    }\n  } catch (error) {\n    console.error(`Failed to extract page ${pageNum}:`, error.message);\n    // Continue with other pages even if one fails\n  }\n}\n\nif (pageImages.length === 0) {\n  throw new Error('Failed to extract any pages from PDF');\n}\n\nreturn pageImages;\n"
       },
       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "name": "Generate Page Preview Images",
+      "name": "Extract PDF Pages as Images",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -960,
+        32,
         -352
       ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://hcti.io/v1/image",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"html\": {{ JSON.stringify($json.pageHtml) }},\n  \"width\": 2550,\n  \"height\": 2550,\n  \"device_scale_factor\": 1,\n  \"format\": \"png\"\n}",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "file"
-            }
-          },
-          "timeout": 60000
-        }
-      },
-      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-      "name": "Convert HTML to Image (htmlcsstoimage)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        -752,
-        -352
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "htmlcsstoimage_creds",
-          "name": "htmlcsstoimage API"
-        }
-      }
     },
     {
       "parameters": {
@@ -695,6 +653,44 @@
       "main": [
         [
           {
+            "node": "Extract PDF Pages as Images",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upload Final Book to Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Pages as Images": {
+      "main": [
+        [
+          {
+            "node": "Upload Page Preview Image to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Page Preview Image to R2": {
+      "main": [
+        [
+          {
+            "node": "Collect Page Preview Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Page Preview Images": {
+      "main": [
+        [
+          {
             "node": "Upload Final Book to Storage",
             "type": "main",
             "index": 0
@@ -761,34 +757,7 @@
       "main": [
         [
           {
-            "node": "Generate Page Preview Images",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Build HTML",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Generate Page Preview Images": {
-      "main": [
-        [
-          {
-            "node": "Convert HTML to Image (htmlcsstoimage)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Convert HTML to Image (htmlcsstoimage)": {
-      "main": [
-        [
-          {
-            "node": "Upload Page Preview Image to R2",
             "type": "main",
             "index": 0
           }
