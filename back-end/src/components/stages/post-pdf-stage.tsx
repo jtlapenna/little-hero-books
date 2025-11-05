@@ -127,10 +127,30 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
         console.log('[Pages] Fetching 2B manifest:', manifestUrl);
         const manifestRes = await fetch(manifestUrl);
+        
+        console.log('[Pages] Manifest response:', {
+          status: manifestRes.status,
+          ok: manifestRes.ok,
+          contentType: manifestRes.headers.get('content-type')
+        });
+        
         if (!manifestRes.ok) {
-          throw new Error(`Failed to fetch manifest: ${manifestRes.status}`);
+          const errorText = await manifestRes.text().catch(() => 'Unable to read error');
+          console.error('[Pages] Manifest fetch failed:', {
+            status: manifestRes.status,
+            statusText: manifestRes.statusText,
+            error: errorText
+          });
+          throw new Error(`Failed to fetch manifest: ${manifestRes.status} ${manifestRes.statusText}`);
         }
+        
         const manifest = await manifestRes.json();
+        console.log('[Pages] Manifest loaded:', {
+          hasOrder: !!manifest.order,
+          hasEntries: Array.isArray(manifest.entries),
+          entriesCount: manifest.entries?.length || 0,
+          characterHash: manifest.characterHash || manifest.order?.characterHash
+        });
 
         const { order: orderData, entries } = manifest || {};
         const characterHash = manifest?.characterHash || orderData?.characterHash;
@@ -227,6 +247,17 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
         if (!isMounted) return;
 
+        console.log('[Pages] Built page data:', {
+          pageCount: pageData.length,
+          firstPage: pageData[0] ? {
+            pageNumber: pageData[0].pageNumber,
+            hasBackground: !!pageData[0].backgroundUrl,
+            hasCharacter: !!pageData[0].characterUrl,
+            hasText: !!pageData[0].text,
+            textLength: pageData[0].text?.length || 0
+          } : null
+        });
+
         setPages(pageData);
         setLoadingPages(false);
 
@@ -254,7 +285,12 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         }
       } catch (error: any) {
         if (!isMounted) return;
-        console.error('[Pages] Error loading pages:', error);
+        console.error('[Pages] Error loading pages:', {
+          error,
+          message: error?.message,
+          stack: error?.stack,
+          name: error?.name
+        });
         setPagesError(error?.message || 'Failed to load pages');
         setLoadingPages(false);
         setPdfAsset(prev => ({
