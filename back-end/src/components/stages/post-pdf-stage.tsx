@@ -89,10 +89,6 @@ function getStoryTexts(childName: string, hometown: string, animalDisplayName: s
   ];
 }
 
-// Convert px to inches at 300dpi
-function px2in(px: number): string {
-  return (px / 300).toFixed(4) + 'in';
-}
 
 export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow }: PostPdfStageProps) {
   const [pdfAsset, setPdfAsset] = useState({
@@ -375,39 +371,57 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               <div
                 className="relative"
                 style={{
-                  width: '11.25in',
-                  height: '8.75in',
+                  width: '2550px',
+                  height: '2550px',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
                   backgroundColor: '#fff',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                  transform: 'scale(0.3)',
+                  transformOrigin: 'center center'
                 }}
               >
                 {/* Background */}
                 <div
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: `url(${currentPage.backgroundUrl})` }}
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: `url(${currentPage.backgroundUrl})`,
+                    backgroundSize: '2550px 2550px',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat'
+                  }}
                 />
 
-                {/* Text Box Overlay */}
+                {/* Text Box Overlay - positioned like Workflow 3 (centered at bottom) */}
                 <div
                   className="absolute"
                   style={{
-                    left: '0.5in',
-                    top: '0.25in',
-                    width: '5.5in',
-                    height: '1.5in',
+                    left: '50%',
+                    bottom: '3%',
+                    width: '80%',
+                    minHeight: '360px',
+                    transform: 'translateX(-50%)',
                     backgroundImage: `url(${currentPage.textBoxOverlayUrl})`,
-                    backgroundSize: 'contain',
+                    backgroundSize: '100% 100%',
                     backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center'
+                    backgroundPosition: 'center',
+                    padding: '100px 220px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 6
                   }}
                 >
                   <div
-                    className="text-content absolute inset-0 flex items-center px-4"
+                    className="text-content"
                     style={{
                       fontFamily: 'Arial, sans-serif',
-                      fontSize: '18px',
+                      fontSize: '56px',
                       lineHeight: '1.3',
-                      color: '#000'
+                      letterSpacing: '1px',
+                      color: '#312116',
+                      textAlign: 'center',
+                      width: '100%'
                     }}
                     dangerouslySetInnerHTML={{ __html: currentPage.text }}
                   />
@@ -416,22 +430,37 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                 {/* Character */}
                 {currentPage.characterUrl && CHAR_POSITIONS[currentPage.pageNumber] && (() => {
                   const pos = CHAR_POSITIONS[currentPage.pageNumber];
+                  // Apply overrides for pages 3, 4, 14
+                  let finalPos = pos;
+                  if (currentPage.pageNumber === 3) {
+                    finalPos = { left: 1020, top: 2142, w: 1100, flip: -1 };
+                  } else if (currentPage.pageNumber === 4) {
+                    finalPos = { left: 1530, top: 1734, w: 1100, flip: 1 };
+                  } else if (currentPage.pageNumber === 14) {
+                    finalPos = { left: 893, top: 1836, w: 1500, flip: 1 };
+                  }
+                  
+                  let transform = `translate(-50%, -100%) scaleX(${finalPos.flip})`;
+                  if (currentPage.pageNumber === 4) {
+                    transform += ' rotate(-20deg)';
+                  }
+                  
                   return (
                     <div
                       className="absolute"
                       style={{
-                        left: px2in(pos.left),
-                        top: px2in(pos.top),
-                        width: px2in(pos.w),
-                        transform: `translate(-50%, -100%) scaleX(${pos.flip})`,
+                        left: `${finalPos.left}px`,
+                        top: `${finalPos.top}px`,
+                        width: `${finalPos.w}px`,
+                        transform,
                         zIndex: 11
                       }}
                     >
                       <img
                         src={currentPage.characterUrl}
                         alt="Character"
-                        className="w-full h-auto"
-                        style={{ display: 'block' }}
+                        className="sprite"
+                        style={{ width: '100%', height: 'auto', display: 'block' }}
                       />
                     </div>
                   );
@@ -444,9 +473,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     <div
                       className="absolute"
                       style={{
-                        left: px2in(pos.left),
-                        top: px2in(pos.top),
-                        width: px2in(pos.w),
+                        left: `${pos.left}px`,
+                        top: `${pos.top}px`,
+                        width: `${pos.w}px`,
                         transform: 'translate(-50%, -100%)',
                         zIndex: 9
                       }}
@@ -454,8 +483,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                       <img
                         src={currentPage.animalUrl}
                         alt="Animal guide"
-                        className="w-full h-auto"
-                        style={{ display: 'block' }}
+                        className="sprite"
+                        style={{ width: '100%', height: 'auto', display: 'block' }}
                       />
                     </div>
                   );
