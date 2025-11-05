@@ -37,42 +37,53 @@
 
 ## 🚧 Next Steps (Before n8n Changes)
 
-### Manual Task: Set n8n Environment Variables
+### ✅ Credential Configuration: Use Hardcoded Values
 
-**⚠️ CRITICAL:** Must be done BEFORE updating n8n workflows.
+**Decision:** n8n doesn't support environment variables, but workflows are private ✅
 
-**Required Variables:**
-1. `BACKEND_API_URL` - Set to your backend URL (e.g., `https://admin.littleherolabs.com`)
-2. `BACKEND_API_TOKEN` - Set to your `BACKEND_API_TOKEN` value
+**Approach:** Use hardcoded values in Code nodes (acceptable for private workflows)
 
-**Instructions:**
-- Log into n8n UI
-- Go to Settings > Environment Variables
-- Add both variables
-- Verify they're accessible (test with simple workflow)
+**Required Values:**
+1. `backendUrl` = `'https://admin.littleherolabs.com'`
+2. `backendToken` = `'YOUR_BACKEND_API_TOKEN'` (from your `.env` file)
 
-**📄 Detailed Instructions:** See `little-hero-books-manual-tasks.md` - Phase 3
+**Security Assessment:**
+- ✅ **Acceptable** - workflows are private/not publicly accessible
+- ⚠️ **Note:** Secrets in code are less secure than env vars, but acceptable for private workflows
+- ✅ **Best Practice:** Rotate token periodically and update all workflows
+
+**📄 Guide:** See `N8N_HARDCODED_VALUES_GUIDE.md` for implementation details
 
 ---
 
 ## ⏸️ Paused: Phase 3 - n8n Workflow Updates
 
-**Status:** READY - Waiting for user approval
+**Status:** READY - Code examples updated for hardcoded values
 
 **What Will Be Done:**
 1. Update n8n workflows to use `this.helpers.request()` in Code nodes
 2. Replace hardcoded R2 URLs with calls to backend signed URL API
-3. Test workflows with public R2 buckets first
+3. Use hardcoded `backendUrl` and `backendToken` (not env vars)
+4. Test workflows with public R2 buckets first
 
 **Critical Workflows:**
 - Workflow 2A (Character Generation) - HIGH PRIORITY
 - Workflow 2B (Background Removal) - HIGH PRIORITY  
 - Workflow 3 (Book Assembly) - MEDIUM PRIORITY
 
-**Approach:**
-- Use `this.helpers.request()` in Code nodes (no workflow structure changes - lowest risk)
-- Backend API endpoint is ready and tested
-- Can test with public R2 buckets before making buckets private
+**Code Pattern (Hardcoded Values):**
+```javascript
+const backendUrl = 'https://admin.littleherolabs.com';
+const backendToken = 'YOUR_BACKEND_API_TOKEN_HERE';
+
+const signedUrlResponse = await this.helpers.request({
+  method: 'GET',
+  url: `${backendUrl}/api/r2/signed-url`,
+  qs: { key: storageKey, bucket: 'little-hero-assets', expiresIn: 3600 },
+  headers: { 'Authorization': `Bearer ${backendToken}` },
+  json: true
+});
+```
 
 **📄 Detailed Guide:** See `little-hero-books-r2-migration-guide.md` - Phase 3
 
@@ -95,6 +106,7 @@ n8n Workflows → Backend Signed URL API → R2 (private bucket) ✅ Works!
 ### Key Insight
 - **Frontend:** Already uses backend proxy - no changes needed! ✅
 - **n8n Workflows:** Need signed URLs for external access (Bria API) - requires updates
+- **Credentials:** Use hardcoded values (acceptable for private workflows) ✅
 
 ---
 
@@ -102,8 +114,7 @@ n8n Workflows → Backend Signed URL API → R2 (private bucket) ✅ Works!
 
 ### Before Making R2 Private
 - [ ] Backend signed URL API tested (with authentication)
-- [ ] n8n environment variables set (`BACKEND_API_URL`, `BACKEND_API_TOKEN`)
-- [ ] n8n workflows updated to use signed URLs
+- [ ] **n8n workflows updated** with hardcoded backend URL and token
 - [ ] n8n workflows tested with public R2 buckets
 - [ ] All tests pass
 
@@ -122,7 +133,8 @@ n8n Workflows → Backend Signed URL API → R2 (private bucket) ✅ Works!
 1. **`PHASE1_ASSESSMENT.md`** - Test files and scripts assessment
 2. **`PHASE2_PROGRESS.md`** - Backend API implementation details
 3. **`TEST_PAGES_ANALYSIS.md`** - Analysis of test-pages (kept for now)
-4. **`PRIVATIZATION_STATUS.md`** - This file (overall status)
+4. **`N8N_HARDCODED_VALUES_GUIDE.md`** - Guide for using hardcoded values in n8n
+5. **`PRIVATIZATION_STATUS.md`** - This file (overall status)
 
 ---
 
@@ -132,14 +144,15 @@ n8n Workflows → Backend Signed URL API → R2 (private bucket) ✅ Works!
 - ✅ Backend signed URL API endpoint implemented
 - ✅ Helper function available for n8n workflows
 - ✅ Frontend APIs reviewed (no changes needed)
-- ✅ Documentation complete
+- ✅ Documentation updated for hardcoded values approach
+- ✅ Code examples ready for n8n updates
 
 **What's Needed:**
-1. Set n8n environment variables (manual task)
-2. Update n8n workflows (Phase 3 - paused per user request)
-3. Test with public R2 buckets
-4. Make R2 buckets private (manual task)
-5. Final testing
+1. ✅ **Decision Made:** Use hardcoded values (acceptable for private workflows)
+2. **Update n8n workflows** (Phase 3 - ready to proceed)
+3. **Test with public R2 buckets** (before making buckets private)
+4. **Make R2 buckets private** (manual task)
+5. **Final testing**
 
 ---
 
@@ -147,10 +160,10 @@ n8n Workflows → Backend Signed URL API → R2 (private bucket) ✅ Works!
 
 1. **Do NOT make R2 buckets private yet** - Wait until workflows are updated and tested
 2. **Test with public R2 first** - Signed URLs work with both public and private buckets
-3. **n8n env vars must be set first** - Before testing workflows
+3. **Hardcoded values are acceptable** - Since workflows are private
 4. **Use `this.helpers.request()`** - No workflow structure changes needed (lowest risk)
+5. **Get token from `.env`** - Use `BACKEND_API_TOKEN` from your backend `.env` file
 
 ---
 
-**Next Action:** Wait for user approval to proceed with Phase 3 (n8n workflow updates)
-
+**Next Action:** Ready to proceed with Phase 3 (n8n workflow updates) when approved
