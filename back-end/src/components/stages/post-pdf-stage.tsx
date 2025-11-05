@@ -138,13 +138,38 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         const childName = characterSpecs.childName || 'Child';
         const hometown = characterSpecs.hometown || 'Seattle';
 
-        // Get animal guide
+        // Get animal guide - match Workflow 3 normalization
         const rawAnimalInput = String(characterSpecs.animalGuide || 'tiger');
-        const animalSlug = rawAnimalInput
+        const cleaned = rawAnimalInput
           .replace(/[^a-z0-9\s-]/gi, '')
-          .replace(/\s+/g, '-')
+          .replace(/\s+/g, ' ')
+          .trim()
           .toLowerCase();
-        const animalDisplayName = characterSpecs.animalDisplayName || rawAnimalInput;
+        
+        const ALIAS_TO_SLUG: Record<string, string> = {
+          'dog': 'dog',
+          'cat': 'cat',
+          't rex': 't-rex',
+          'trex': 't-rex',
+          't-rex': 't-rex',
+          'unicorn': 'unicorn',
+          'tiger': 'tiger',
+          'lion': 'lion',
+          'owl': 'owl',
+        };
+        
+        const SLUG_TO_DISPLAY: Record<string, string> = {
+          'dog': 'Dog',
+          'cat': 'Cat',
+          't-rex': 'T-Rex',
+          'unicorn': 'Unicorn',
+          'tiger': 'Tiger',
+          'lion': 'Lion',
+          'owl': 'Owl',
+        };
+        
+        const animalSlug = ALIAS_TO_SLUG[cleaned] || 'tiger';
+        const animalDisplayName = SLUG_TO_DISPLAY[animalSlug] || 'Tiger';
 
         // Build processed images from manifest entries
         const processedImages = (entries || [])
