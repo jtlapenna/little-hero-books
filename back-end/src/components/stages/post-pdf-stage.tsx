@@ -1,9 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+import 'react-pdf/dist/esm/Page/TextLayer.css';
+
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 interface PostPdfStageProps {
   orderId: string;
@@ -23,6 +29,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     loading: true,
     error: null as string | null
   });
+
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   // Construct PDF path: book-mvp-simple-adventure/orders/{orderId}/complete_book_{orderId}.pdf
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
@@ -50,6 +61,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             loading: false,
             error: null
           }));
+          // Reset page number when PDF changes
+          setPageNumber(1);
+          setNumPages(null);
+          setPdfError(null);
         } else {
           setPdfAsset(prev => ({
             ...prev,
@@ -178,22 +193,39 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">{pdfAsset.name}</span>
-                <span className="text-xs text-gray-500">PDF Viewer</span>
+                <div className="flex items-center gap-4">
+                  {numPages && (
+                    <span className="text-xs text-gray-500">
+                      Page {pageNumber} of {numPages}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPageNumber(prev => Math.max(1, prev - 1))}
+                      disabled={pageNumber <= 1}
+                      className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setPageNumber(prev => Math.min(numPages || 1, prev + 1))}
+                      disabled={!numPages || pageNumber >= numPages}
+                      className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Next page"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="h-[800px] bg-gray-100 relative">
-              <object
-                data={pdfAsset.url}
-                type="application/pdf"
-                className="w-full h-full"
-                aria-label="PDF Preview"
-              >
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 p-8">
+            <div className="h-[800px] bg-gray-100 overflow-auto flex items-center justify-center p-4">
+              {pdfError ? (
+                <div className="flex flex-col items-center justify-center p-8">
                   <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-gray-700 text-sm font-medium mb-2">Unable to display PDF in browser</p>
-                  <p className="text-gray-500 text-xs mb-4 text-center">
-                    The PDF may be too large for the browser viewer. Please download it to view.
-                  </p>
+                  <p className="text-gray-700 text-sm font-medium mb-2">Unable to load PDF</p>
+                  <p className="text-gray-500 text-xs mb-4 text-center">{pdfError}</p>
                   <button
                     onClick={handleDownload}
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -202,7 +234,35 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     Download PDF to View
                   </button>
                 </div>
-              </object>
+              ) : (
+                <Document
+                  file={pdfAsset.url}
+                  onLoadSuccess={({ numPages }) => {
+                    setNumPages(numPages);
+                    setPdfLoading(false);
+                    setPdfError(null);
+                  }}
+                  onLoadError={(error) => {
+                    setPdfError(error.message || 'Failed to load PDF');
+                    setPdfLoading(false);
+                  }}
+                  loading={
+                    <div className="flex flex-col items-center justify-center">
+                      <Loader2 className="h-8 w-8 text-gray-400 animate-spin mb-2" />
+                      <p className="text-gray-500 text-sm">Loading PDF...</p>
+                    </div>
+                  }
+                  className="flex justify-center"
+                >
+                  <Page
+                    pageNumber={pageNumber}
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                    className="shadow-lg"
+                    width={800}
+                  />
+                </Document>
+              )}
             </div>
           </div>
         )}
