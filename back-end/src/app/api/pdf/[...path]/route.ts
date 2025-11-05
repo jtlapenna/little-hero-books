@@ -99,58 +99,32 @@ async function handleRequest(
       });
     }
     
-    // For GET requests, generate signed URL and redirect to R2
-    // This avoids memory limits and streaming issues with large PDFs (219MB)
-    // PDF.js can load directly from R2 signed URL without worker proxy
-    console.log(`[${method} /api/pdf] Generating signed URL for: ${key} (${contentLength} bytes)`);
+    // For GET requests, stream PDF directly from R2
+    // Streaming avoids memory limits and works reliably with PDF.js via blob URLs
+    // The frontend will fetch, convert to blob, and create a blob URL for PDF.js
+    console.log(`[${method} /api/pdf] Streaming PDF directly: ${key} (${contentLength} bytes)`);
     
-    try {
-      // Generate signed URL valid for 1 hour (3600 seconds)
-      const expiresIn = 3600;
-      const signedUrl = await getSignedUrlForObject(key, R2_ORDERS_BUCKET, expiresIn);
-      
-      console.log(`[${method} /api/pdf] Generated signed URL, redirecting to R2:`, {
-        key,
-        expiresIn,
-        signedUrlPrefix: signedUrl.substring(0, 50) + '...'
-      });
-      
-      // Return 302 redirect to signed URL
-      // PDF.js will follow the redirect and load PDF directly from R2
-      // Note: CORS headers on redirect response help, but R2 bucket must also have CORS configured
-      return NextResponse.redirect(signedUrl, {
-        status: 302,
-        headers: {
-          'Cache-Control': 'no-cache', // Don't cache redirect (signed URL expires)
-          'Access-Control-Allow-Origin': '*', // Allow CORS for frontend
-          'Access-Control-Allow-Methods': 'GET, HEAD',
-          'Access-Control-Expose-Headers': 'Content-Type, Content-Length',
-        },
-      });
-    } catch (error: any) {
-      console.error(`[${method} /api/pdf] Error generating signed URL:`, error);
-      // Fallback: try streaming if signed URL generation fails
-      console.log(`[${method} /api/pdf] Falling back to streaming for: ${key}`);
-      
-      if (!response.body) {
-        console.error(`[${method} /api/pdf] Response body is null for: ${key}`);
-        return NextResponse.json(
-          { error: 'PDF response body is null and signed URL generation failed' },
-          { status: 500 }
-        );
-      }
-      
-      return new NextResponse(response.body, {
-        status: 200,
-        headers: {
-          'Content-Type': contentType,
-          'Content-Disposition': `inline; filename="${key.split('/').pop()}"`,
-          'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-          'Access-Control-Allow-Origin': '*',
-          ...(contentLength ? { 'Content-Length': contentLength } : {}),
-        },
-      });
+    if (!response.body) {
+      console.error(`[${method} /api/pdf] Response body is null for: ${key}`);
+      return NextResponse.json(
+        { error: 'PDF response body is null' },
+        { status: 500 }
+      );
     }
+    
+    // Stream the PDF directly - frontend will handle blob conversion
+    return new NextResponse(response.body, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Content-Disposition': `inline; filename="${key.split('/').pop()}"`,
+        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD',
+        'Access-Control-Expose-Headers': 'Content-Type, Content-Length',
+        ...(contentLength ? { 'Content-Length': contentLength } : {}),
+      },
+    });
   } catch (error: any) {
     console.error(`[${method} /api/pdf] Error:`, error);
     // If it's a 404 error (NoSuchKey), return 404 instead of 500
