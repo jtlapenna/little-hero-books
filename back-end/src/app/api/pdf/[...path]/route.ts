@@ -22,11 +22,16 @@ async function handleRequest(
     // Reconstruct the key from path segments
     const key = path.join('/');
     
+    // Get Accept header to distinguish JSON vs PDF requests
+    const acceptHeader = request.headers.get('Accept') || '';
+    
     console.log(`[${method} /api/pdf] Request received:`, {
       key,
       bucket: R2_ORDERS_BUCKET,
       pathSegments: path,
-      url: request.url
+      url: request.url,
+      acceptHeader,
+      method
     });
     
     // Fetch object from R2 orders bucket
@@ -107,15 +112,21 @@ async function handleRequest(
     try {
       // Generate signed URL valid for 1 hour (3600 seconds)
       const expiresIn = 3600;
+      console.log(`[${method} /api/pdf] Generating signed URL for: ${key} (${contentLength} bytes)`);
+      
       const signedUrl = await getSignedUrlForObject(key, R2_ORDERS_BUCKET, expiresIn);
       
-      console.log(`[${method} /api/pdf] Generated signed URL:`, {
+      console.log(`[${method} /api/pdf] Generated signed URL successfully:`, {
         key,
         expiresIn,
-        signedUrlPrefix: signedUrl.substring(0, 50) + '...'
+        signedUrlPrefix: signedUrl.substring(0, 50) + '...',
+        signedUrlLength: signedUrl.length,
+        isR2Url: signedUrl.includes('.r2.cloudflarestorage.com') || signedUrl.includes('.r2.dev')
       });
       
       // Return JSON with signed URL - frontend will use this directly with PDF.js
+      // Use no-cache headers since signed URLs expire and each request should get fresh URL
+      console.log(`[${method} /api/pdf] Returning JSON response with signed URL`);
       return NextResponse.json({
         signedUrl,
         expiresIn,
@@ -126,6 +137,10 @@ async function handleRequest(
         status: 200,
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, private',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'Vary': 'Accept',
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, HEAD',
         },

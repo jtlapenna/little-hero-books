@@ -109,12 +109,16 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           
           // Fetch signed URL from backend (avoids streaming limits for large PDFs)
           try {
-            console.log('[PDF] Fetching signed URL from:', pdfUrl);
-            const response = await fetch(pdfUrl, {
+            // Add cache-busting query parameter to prevent stale responses
+            const cacheBustUrl = `${pdfUrl}?format=json&_t=${Date.now()}`;
+            console.log('[PDF] Fetching signed URL from:', cacheBustUrl);
+            
+            const response = await fetch(cacheBustUrl, {
               method: 'GET',
               headers: {
                 'Accept': 'application/json',
               },
+              cache: 'no-store', // Prevent browser caching
             });
             
             if (!isMounted) {
@@ -126,22 +130,67 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               throw new Error(`Failed to get signed URL: ${response.status} ${response.statusText}`);
             }
             
+            // Validate Content-Type before parsing JSON
+            const contentType = response.headers.get('Content-Type') || '';
+            console.log('[PDF] Response headers:', {
+              contentType,
+              status: response.status,
+              statusText: response.statusText,
+              url: response.url,
+              headers: Object.fromEntries(response.headers.entries())
+            });
+            
+            if (!contentType.includes('application/json')) {
+              // If we got PDF data instead of JSON, log full error
+              const textPreview = await response.clone().text().then(t => t.substring(0, 200)).catch(() => 'Unable to read response');
+              console.error('[PDF] Expected JSON but got:', {
+                contentType,
+                preview: textPreview,
+                isPdfHeader: textPreview.startsWith('%PDF')
+              });
+              throw new Error(`Expected JSON response but received ${contentType}. This may be a cached PDF response.`);
+            }
+            
             const data = await response.json();
             console.log('[PDF] Received signed URL response:', {
               hasSignedUrl: !!data.signedUrl,
               expiresIn: data.expiresIn,
               contentLength: data.contentLength,
               contentType: data.contentType,
-              signedUrlPrefix: data.signedUrl ? data.signedUrl.substring(0, 50) + '...' : 'none'
+              signedUrlPrefix: data.signedUrl ? data.signedUrl.substring(0, 50) + '...' : 'none',
+              fullData: data
             });
             
             if (!data.signedUrl) {
+              console.error('[PDF] No signed URL in response:', data);
               throw new Error('No signed URL in response');
+            }
+            
+            // Validate signed URL format - must be R2 URL, not API endpoint
+            const signedUrl = data.signedUrl;
+            const isR2Url = signedUrl.includes('.r2.cloudflarestorage.com') || 
+                           signedUrl.includes('.r2.dev') ||
+                           signedUrl.includes('r2.cloudflarestorage.com');
+            const isApiUrl = signedUrl.includes('/api/pdf/');
+            
+            console.log('[PDF] Validating signed URL:', {
+              signedUrlPrefix: signedUrl.substring(0, 50) + '...',
+              isR2Url,
+              isApiUrl,
+              urlLength: signedUrl.length
+            });
+            
+            if (isApiUrl) {
+              console.error('[PDF] Signed URL points to API endpoint instead of R2:', signedUrl);
+              throw new Error('Invalid signed URL: points to API endpoint instead of R2 storage');
+            }
+            
+            if (!isR2Url) {
+              console.warn('[PDF] Signed URL does not appear to be R2 URL:', signedUrl.substring(0, 100));
             }
             
             // Use signed URL directly with PDF.js (no blob conversion needed)
             // PDF.js can load directly from R2 signed URL
-            const signedUrl = data.signedUrl;
             console.log('[PDF] Using signed URL directly with PDF.js:', signedUrl.substring(0, 50) + '...');
             
             // Clean up previous blob URL if exists
