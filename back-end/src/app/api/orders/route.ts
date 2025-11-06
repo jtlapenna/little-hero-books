@@ -3,6 +3,7 @@ import { getAvailableCharacterHashes, getCharacterAssets, getAvailableOrderIds, 
 import { Order } from '@/types/order';
 import { withErrorHandling, getRequestContext } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
+import { OrderStatus, WorkflowStep } from '@/constants/statuses';
 
 /**
  * Convert manifest data to Order type
@@ -13,13 +14,13 @@ function manifestToOrder(orderId: string, manifest: any): Order {
   const characterHash = manifest?.characterHash;
   
   // Determine status from workflow stage
-  let status = 'queued_for_processing';
+  let status = OrderStatus.QUEUED_FOR_PROCESSING;
   if (workflow.currentStage === '2A-complete') {
-    status = 'ai_generation_in_progress';
+    status = OrderStatus.AI_GENERATION_IN_PROGRESS;
   } else if (workflow.currentStage === '2B-complete') {
-    status = 'bria_processing_complete';
+    status = OrderStatus.PENDING_ASSEMBLY; // Maps to bria_processing_complete -> pending_assembly
   } else if (workflow.currentStage === '3-complete') {
-    status = 'book_compiled';
+    status = OrderStatus.PENDING_ASSEMBLY_REVIEW; // Maps to book_assembly_completed -> pending_assembly_review
   }
   
   // Extract customer name from order data

@@ -14,13 +14,17 @@
     "pages:pre-upload": "bash scripts/pre-upload-diagnostic.sh",
     "pages:deploy": "wrangler pages deploy .open-next/cloudflare --project-name=little-hero-labs-admin",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:supabase": "dotenv -e .env.local -- tsx scripts/test-supabase-integration.ts",
+    "check:migration": "dotenv -e .env.local -- tsx scripts/check-migration-status.ts",
+    "test:statuses": "dotenv -e .env.local -- tsx scripts/test-status-constants.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",
     "@aws-sdk/s3-request-presigner": "^3.911.0",
     "@opennextjs/cloudflare": "^1.11.0",
     "@paschendale/r2-presigned-url": "^1.0.0",
+    "@supabase/supabase-js": "^2.79.0",
     "aws4fetch": "^1.0.20",
     "clsx": "^2.1.1",
     "fast-xml-parser": "^5.3.1",
@@ -41,9 +45,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.6",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5",
     "wrangler": "^4.45.2"
   },

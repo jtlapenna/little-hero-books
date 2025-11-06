@@ -5,6 +5,7 @@ import { OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDate } from '@/lib/utils';
 import { getOrderFlagSummary } from '@/lib/review-state';
+import { ReviewStageStatus } from '@/constants/statuses';
 import { Search, Filter, ChevronDown } from 'lucide-react';
 
 interface OrdersTableProps {
@@ -34,9 +35,10 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
   const getStatusFromOrder = (order: OrderListItem) => {
     // This would normally come from the order's review stages
     // For now, we'll use the order status
-    if (order.status === 'completed') return 'approved';
-    if (order.status === 'in_review') return 'in-review';
-    return 'pending';
+    // Map order statuses to review stage statuses for display
+    if (order.status === 'completed' || order.status === 'delivered') return ReviewStageStatus.APPROVED;
+    if (order.status?.includes('review') || order.status === 'in_review') return ReviewStageStatus.IN_REVIEW;
+    return ReviewStageStatus.PENDING;
   };
 
   return (
@@ -61,9 +63,9 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
           >
             <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="in-review">In Review</option>
-            <option value="approved">Approved</option>
+            <option value={ReviewStageStatus.PENDING}>Pending</option>
+            <option value={ReviewStageStatus.IN_REVIEW}>In Review</option>
+            <option value={ReviewStageStatus.APPROVED}>Approved</option>
           </select>
           
           <select

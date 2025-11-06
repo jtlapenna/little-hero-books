@@ -4,8 +4,10 @@ export interface Customer {
   email: string;
 }
 
+import { ReviewStageStatus } from '@/constants/statuses';
+
 export interface ReviewStage {
-  status: 'pending' | 'in-review' | 'approved' | 'rejected';
+  status: ReviewStageStatus | 'pending' | 'in-review' | 'approved' | 'rejected'; // Support both old and new values during transition
   reviewedAt?: string;
   reviewer?: string;
   comments?: string;

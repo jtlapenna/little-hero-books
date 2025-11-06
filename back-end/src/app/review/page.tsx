@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDate } from '@/lib/utils';
 import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
+import { OrderStatus } from '@/constants/statuses';
 import { ArrowRight, Clock, AlertCircle, Search, Grid3X3, List, ChevronDown } from 'lucide-react';
 
 export default function ReviewPage() {
@@ -30,7 +31,7 @@ export default function ReviewPage() {
       .then(data => {
         // Convert Order[] to OrderListItem[] and filter for pending reviews
         const orderListItems: OrderListItem[] = data
-          .filter((order: any) => order.status !== 'completed')
+          .filter((order: any) => order.status !== OrderStatus.COMPLETED)
           .map((order: any) => ({
             orderId: order.orderId,
             platform: order.platform,
@@ -47,7 +48,7 @@ export default function ReviewPage() {
         console.error('Error fetching orders:', error);
         // Fallback to mock data
         const allOrders = getOrderListItems();
-        const pendingOrders = allOrders.filter(order => order.status !== 'completed');
+        const pendingOrders = allOrders.filter(order => order.status !== OrderStatus.COMPLETED);
         setOrders(pendingOrders);
         setLoading(false);
       });

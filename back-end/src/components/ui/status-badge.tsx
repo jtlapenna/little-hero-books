@@ -1,60 +1,38 @@
 import { cn } from '@/lib/utils';
+import { getStatusLabel, getStatusColors } from '@/constants/statuses';
 
 interface StatusBadgeProps {
-  status: 'pending' | 'in-review' | 'in_review' | 'approved' | 'stage_approved' | 'completed' | 'rejected' | 'queued_for_processing' | string;
+  status: string;
   className?: string;
+  showTooltip?: boolean;
 }
 
-export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const statusConfig = {
-    pending: {
-      label: 'Pending',
-      className: 'bg-yellow-100 text-yellow-800 border-yellow-200'
-    },
-    'in-review': {
-      label: 'In Review',
-      className: 'bg-blue-100 text-blue-800 border-blue-200'
-    },
-    'in_review': {
-      label: 'In Review',
-      className: 'bg-blue-100 text-blue-800 border-blue-200'
-    },
-    approved: {
-      label: 'Approved',
-      className: 'bg-green-100 text-green-800 border-green-200'
-    },
-    stage_approved: {
-      label: 'Stage Approved',
-      className: 'bg-emerald-100 text-emerald-800 border-emerald-200'
-    },
-    completed: {
-      label: 'Completed',
-      className: 'bg-green-100 text-green-800 border-green-200'
-    },
-    rejected: {
-      label: 'Rejected',
-      className: 'bg-red-100 text-red-800 border-red-200'
-    },
-    'queued_for_processing': {
-      label: 'Queued',
-      className: 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  };
-
-  const config = (statusConfig as any)[status] || {
-    label: status,
-    className: 'bg-gray-100 text-gray-800 border-gray-200'
-  };
+/**
+ * StatusBadge Component
+ * 
+ * Displays a standardized status badge using the centralized status constants.
+ * All status values should come from the statuses.ts constants file.
+ * 
+ * @param status - Status value (should be from OrderStatus, ReviewStageStatus, etc.)
+ * @param className - Additional CSS classes
+ * @param showTooltip - Whether to show tooltip on hover (future enhancement)
+ */
+export function StatusBadge({ status, className, showTooltip = false }: StatusBadgeProps) {
+  const label = getStatusLabel(status);
+  const colors = getStatusColors(status);
 
   return (
     <span
       className={cn(
         'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
-        config.className,
+        colors.bg,
+        colors.text,
+        colors.border,
         className
       )}
+      title={showTooltip ? label : undefined}
     >
-      {config.label}
+      {label}
     </span>
   );
 }

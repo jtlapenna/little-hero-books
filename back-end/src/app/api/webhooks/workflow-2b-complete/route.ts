@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
 import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { normalizeCharacterSpecs } from '@/lib/customization-utils';
+import { updateOrderStatus } from '@/lib/status-service';
 
 // Force dynamic rendering - this route should never be statically generated
 export const dynamic = 'force-dynamic';
@@ -26,12 +27,18 @@ export async function POST(request: NextRequest) {
     const json = await request.json();
     const payload = PayloadSchema.parse(json);
 
-           const manifest: any = await downloadManifest(buildManifestKey(payload.orderId, '2b'));
-           if (manifest && manifest.characterSpecs) {
-             manifest.characterSpecs = normalizeCharacterSpecs(manifest.characterSpecs);
-           }
+    // Download manifest from R2
+    const manifest: any = await downloadManifest(buildManifestKey(payload.orderId, '2b'));
+    if (manifest && manifest.characterSpecs) {
+      manifest.characterSpecs = normalizeCharacterSpecs(manifest.characterSpecs);
+    }
 
-    // Note: DB updates to Supabase will be implemented in Phase 4
+    // Update Supabase with workflow completion
+    await updateOrderStatus(payload.orderId, {
+      workflow_step: 'bria_processing_complete',
+      manifest_2b_url: payload.manifestUrl,
+      // Status will be recalculated automatically by updateOrderStatus
+    });
 
     return NextResponse.json({ success: true, orderId: payload.orderId, stage: '2b', manifestLoaded: true });
   } catch (error: any) {

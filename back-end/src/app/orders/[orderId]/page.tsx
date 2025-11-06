@@ -10,6 +10,7 @@ import { PreBriaStage } from '@/components/stages/pre-bria-stage';
 import { PostBriaStage } from '@/components/stages/post-bria-stage';
 import { PostPdfStage } from '@/components/stages/post-pdf-stage';
 import { getStageFlaggedCount, getOrderFlagSummary } from '@/lib/review-state';
+import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
 import { ArrowLeft, User, Calendar, Package, Flag } from 'lucide-react';
 
@@ -65,18 +66,23 @@ export default function OrderDetailPage() {
   // Update flag counts when order changes
   useEffectReact(() => {
     if (order) {
-      const updateFlagCounts = () => {
-        setFlagCounts({
-          preBria: getStageFlaggedCount(order.orderId, 'preBria'),
-          postBria: getStageFlaggedCount(order.orderId, 'postBria'),
-          postPdf: getStageFlaggedCount(order.orderId, 'postPdf')
-        });
+      const updateFlagCounts = async () => {
+        try {
+          const [preBria, postBria, postPdf] = await Promise.all([
+            getStageFlaggedCount(order.orderId, 'preBria'),
+            getStageFlaggedCount(order.orderId, 'postBria'),
+            getStageFlaggedCount(order.orderId, 'postPdf')
+          ]);
+          setFlagCounts({ preBria, postBria, postPdf });
+        } catch (error) {
+          console.error('Error updating flag counts:', error);
+        }
       };
       
       updateFlagCounts();
       
       // Set up interval to check for flag count changes
-      const interval = setInterval(updateFlagCounts, 500);
+      const interval = setInterval(updateFlagCounts, 5000); // Increased to 5 seconds to reduce API calls
       return () => clearInterval(interval);
     }
   }, [order]);
@@ -246,8 +252,8 @@ export default function OrderDetailPage() {
                 <StatusBadge 
                   status={
                     order.reviewStages[activeStage as unknown as keyof typeof order.reviewStages]?.status === 'approved' 
-                      ? 'stage_approved' 
-                      : 'pending'
+                      ? ReviewStageStatus.APPROVED 
+                      : ReviewStageStatus.PENDING
                   } 
                 />
               )}
@@ -265,7 +271,7 @@ export default function OrderDetailPage() {
               <StatusBadge status={order.status as any} />
             </div>
             
-            {order.status === 'ai_generation_in_progress' && (
+            {order.status === OrderStatus.AI_GENERATION_IN_PROGRESS && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -406,9 +412,9 @@ export default function OrderDetailPage() {
                       <span>{stage.label}</span>
                       <StatusBadge 
                         status={
-                          order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status === 'approved'
-                            ? 'stage_approved'
-                            : order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status || 'pending'
+                          order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status === ReviewStageStatus.APPROVED
+                            ? ReviewStageStatus.APPROVED
+                            : order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status || ReviewStageStatus.PENDING
                         } 
                       />
                       {flagCounts[stage.key as unknown as keyof typeof flagCounts] > 0 && (
@@ -428,7 +434,7 @@ export default function OrderDetailPage() {
                 <PreBriaStage
                   orderId={order.orderId}
                   order={order}
-                  isApproved={order.reviewStages.preBria.status === 'approved'}
+                  isApproved={order.reviewStages.preBria.status === ReviewStageStatus.APPROVED}
                   onApprove={async () => await handleStageApprove('preBria' as unknown as ReviewStage)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('preBria' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
@@ -439,7 +445,7 @@ export default function OrderDetailPage() {
                 <PostBriaStage
                   orderId={order.orderId}
                   order={order}
-                  isApproved={order.reviewStages.postBria.status === 'approved'}
+                  isApproved={order.reviewStages.postBria.status === ReviewStageStatus.APPROVED}
                   onApprove={async () => await handleStageApprove('postBria' as unknown as ReviewStage)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postBria' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
@@ -450,7 +456,7 @@ export default function OrderDetailPage() {
                 <PostPdfStage
                   orderId={order.orderId}
                   order={order}
-                  isApproved={order.reviewStages.postPdf.status === 'approved'}
+                  isApproved={order.reviewStages.postPdf.status === ReviewStageStatus.APPROVED}
                   onApprove={async () => await handleStageApprove('postPdf' as unknown as ReviewStage)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postPdf' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
