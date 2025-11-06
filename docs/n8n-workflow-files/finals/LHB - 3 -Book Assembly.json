@@ -129,7 +129,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -1248,
+        -1040,
         -144
       ]
     },
@@ -143,7 +143,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -1040,
+        -832,
         -144
       ]
     },
@@ -371,7 +371,7 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        -2016,
+        -1808,
         -144
       ]
     },
@@ -385,7 +385,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -1840,
+        -1632,
         -144
       ]
     },
@@ -399,7 +399,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -1664,
+        -1456,
         -144
       ]
     },
@@ -415,7 +415,7 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -1456,
+        -1248,
         -144
       ],
       "credentials": {
@@ -461,7 +461,7 @@
       "typeVersion": 1,
       "position": [
         -2496,
-        112
+        -64
       ],
       "credentials": {
         "s3": {
@@ -480,9 +480,24 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -2320,
-        112
+        -2112,
+        96
       ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -2304,
+        96
+      ],
+      "id": "eee1b6ae-96b2-4717-8480-503c836f3d6d",
+      "name": "Merge"
     }
   ],
   "pinData": {
@@ -946,6 +961,11 @@
             "node": "Upload PDF to R2",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
           }
         ]
       ]
@@ -954,7 +974,7 @@
       "main": [
         [
           {
-            "node": "Prepare PDF Metadata for Merge",
+            "node": "Merge",
             "type": "main",
             "index": 0
           }
@@ -971,13 +991,24 @@
           }
         ]
       ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Prepare PDF Metadata for Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "5a324e35-f108-48a9-a5f9-ffdc52d5b11a",
+  "versionId": "0680502f-b5c4-4744-8603-42df7f1dae5b",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
