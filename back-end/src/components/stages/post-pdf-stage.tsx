@@ -201,151 +201,20 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             console.log('[Pages] 3-manifest not found (status:', manifest3Res.status, '), falling back to 2B reconstruction');
           }
         } catch (e) {
-          console.log('[Pages] 3-manifest fetch error, falling back to 2B reconstruction:', e);
+          console.log('[Pages] 3-manifest fetch error:', e);
         }
         
-        // Fallback: Fetch 2B manifest and reconstruct pages
+        // No fallback reconstruction - show waiting message
         if (!usingPreviewImages) {
-          const manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json`;
-          const manifestUrl = `${backendUrl}/api/manifests/${manifestKey}`;
-
-          console.log('[Pages] Fetching 2B manifest for reconstruction:', manifestUrl);
-          const manifestRes = await fetch(manifestUrl);
+          console.log('[Pages] 3-manifest not available yet. Preview images will appear once Workflow 3 completes.');
           
-          console.log('[Pages] Manifest response:', {
-            status: manifestRes.status,
-            ok: manifestRes.ok,
-            contentType: manifestRes.headers.get('content-type')
-          });
-          
-          if (!manifestRes.ok) {
-            const errorText = await manifestRes.text().catch(() => 'Unable to read error');
-            console.error('[Pages] Manifest fetch failed:', {
-              status: manifestRes.status,
-              statusText: manifestRes.statusText,
-              error: errorText
-            });
-            throw new Error(`Failed to fetch manifest: ${manifestRes.status} ${manifestRes.statusText}`);
-          }
-          
-          const manifest = await manifestRes.json();
-          console.log('[Pages] Manifest loaded:', {
-            hasOrder: !!manifest.order,
-            hasEntries: Array.isArray(manifest.entries),
-            entriesCount: manifest.entries?.length || 0,
-            characterHash: manifest.characterHash || manifest.order?.characterHash
-          });
-
-          const { order: orderData, entries } = manifest || {};
-          const characterHash = manifest?.characterHash || orderData?.characterHash;
-          const characterSpecs = orderData?.characterSpecs || {};
-          const childName = characterSpecs.childName || 'Child';
-          const hometown = characterSpecs.hometown || 'Seattle';
-
-          // Get animal guide - match Workflow 3 normalization
-          const rawAnimalInput = String(characterSpecs.animalGuide || 'tiger');
-          const cleaned = rawAnimalInput
-            .replace(/[^a-z0-9\s-]/gi, '')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .toLowerCase();
-          
-          const ALIAS_TO_SLUG: Record<string, string> = {
-            'dog': 'dog',
-            'cat': 'cat',
-            't rex': 't-rex',
-            'trex': 't-rex',
-            't-rex': 't-rex',
-            'unicorn': 'unicorn',
-            'tiger': 'tiger',
-            'lion': 'lion',
-            'owl': 'owl',
-          };
-          
-          const SLUG_TO_DISPLAY: Record<string, string> = {
-            'dog': 'Dog',
-            'cat': 'Cat',
-            't-rex': 'T-Rex',
-            'unicorn': 'Unicorn',
-            'tiger': 'Tiger',
-            'lion': 'Lion',
-            'owl': 'Owl',
-          };
-          
-          const animalSlug = ALIAS_TO_SLUG[cleaned] || 'tiger';
-          const animalDisplayName = SLUG_TO_DISPLAY[animalSlug] || 'Tiger';
-
-          // Build processed images from manifest entries
-          const processedImages = (entries || [])
-            .filter((e: any) => Number.isFinite(Number(e.poseNumber)) && e.bgRemovedKey)
-            .sort((a: any, b: any) => a.poseNumber - b.poseNumber)
-            .map((e: any) => ({
-              poseNumber: e.poseNumber,
-              imagePath: `${backendUrl}/api/assets/${e.bgRemovedKey}`
-            }));
-
-          // Build character images map
-          const characterImages: Record<number, string> = {};
-          processedImages.forEach((img: any) => {
-            characterImages[img.poseNumber] = img.imagePath;
-          });
-
-          // Build animal images - match Workflow 3 path structure
-          const animalImages = {
-            appears: `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-appears.png`,
-            flying: `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-flying.png`
-          };
-
-          // Text box overlay URL
-          const textBoxOverlayUrl = `${backendUrl}/api/assets/book-mvp-simple-adventure/overlays/text-boxes/standard-box.png`;
-
-          // Get story texts
-          const storyTexts = getStoryTexts(childName, hometown, animalDisplayName);
-
-          // Build page data
-          const pageData: PageData[] = [];
-          for (let i = 1; i <= 14; i++) {
-            const backgroundUrl = `${backendUrl}/api/assets/book-mvp-simple-adventure/backgrounds/page${String(i).padStart(2, '0')}-${SCENE_SLUGS[i - 1]}.png`;
-            
-            // Get character image for this page
-            const requiredPoseNumber = PAGE_TO_POSE_MAP[i];
-            const characterUrl = requiredPoseNumber ? characterImages[requiredPoseNumber] || null : null;
-
-            // Get animal image for this page
-            let animalUrl: string | null = null;
-            if (i === 13) {
-              animalUrl = animalImages.appears;
-            } else if (i === 14) {
-              animalUrl = animalImages.flying;
-            }
-
-            pageData.push({
-              pageNumber: i,
-              backgroundUrl,
-              characterUrl,
-              animalUrl,
-              text: storyTexts[i - 1] || '',
-              textBoxOverlayUrl
-            });
-          }
-
           if (!isMounted) return;
-
-          console.log('[Pages] Built page data (reconstruction mode):', {
-            pageCount: pageData.length,
-            firstPage: pageData[0] ? {
-              pageNumber: pageData[0].pageNumber,
-              hasBackground: !!pageData[0].backgroundUrl,
-              hasCharacter: !!pageData[0].characterUrl,
-              hasText: !!pageData[0].text,
-              textLength: pageData[0].text?.length || 0
-            } : null
-          });
-
-          setPages(pageData);
+          
+          setPages([]);
           setLoadingPages(false);
-
-          // Also check if PDF exists for download
+          setPagesError(null); // Clear error so we show the waiting message
+          
+          // Still check if PDF exists for download (even if preview images aren't ready)
           const pdfRes = await fetch(pdfUrl, { method: 'HEAD' });
           if (pdfRes.ok) {
             const jsonRes = await fetch(`${pdfUrl}?format=json`);
@@ -502,6 +371,23 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               <div className="text-center">
                 <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-500 text-sm">{pagesError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!loadingPages && !pagesError && pages.length === 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="h-[800px] bg-gray-50 flex items-center justify-center">
+              <div className="text-center max-w-md">
+                <Loader2 className="h-12 w-12 text-blue-500 animate-spin mx-auto mb-4" />
+                <h4 className="text-lg font-medium text-gray-900 mb-2">Preview Images Pending</h4>
+                <p className="text-gray-600 text-sm mb-4">
+                  Book preview images will appear here automatically once Workflow 3 (Book Assembly) completes.
+                </p>
+                <p className="text-gray-500 text-xs">
+                  This page will refresh automatically every 10 seconds. Preview images are generated from the final book layout.
+                </p>
               </div>
             </div>
           </div>
