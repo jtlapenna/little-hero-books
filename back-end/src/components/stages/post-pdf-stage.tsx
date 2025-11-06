@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
@@ -39,12 +39,26 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
 
+  // Track if images have been successfully loaded from manifest (stop polling once found)
+  const imagesFoundRef = useRef(false);
+
+  // Reset ref when orderId changes
+  useEffect(() => {
+    imagesFoundRef.current = false;
+  }, [orderId]);
+
   // Load preview images from 3-manifest or construct directly from R2
   useEffect(() => {
     let isMounted = true;
+    let intervalId: NodeJS.Timeout | null = null;
 
     const loadPages = async () => {
       if (!isMounted) return;
+
+      // Don't reload if we already have images from the manifest
+      if (imagesFoundRef.current) {
+        return;
+      }
 
       setLoadingPages(true);
       setPagesError(null);
@@ -55,6 +69,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         const manifest3Url = `/api/manifests/${manifest3Key}`; // Use relative URL
         
         let pageData: PageData[] = [];
+        let foundInManifest = false;
         
         try {
           const manifest3Res = await fetch(manifest3Url);
@@ -64,6 +79,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             const previewImages = manifest3?.bookAssembly?.pagePreviewImages;
             
             if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
+              foundInManifest = true;
               // Use preview images from manifest
               pageData = previewImages
                 .sort((a: any, b: any) => a.pageNumber - b.pageNumber)
@@ -144,6 +160,16 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         
         setLoadingPages(false);
         
+        // If we found images in the manifest, stop polling
+        if (foundInManifest && pageData.length > 0) {
+          imagesFoundRef.current = true;
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+            console.log('[Pages] Images found in manifest, stopping auto-refresh');
+          }
+        }
+        
         // Check if PDF exists for download
         try {
           const pdfRes = await fetch(pdfUrl, { method: 'HEAD' });
@@ -180,13 +206,16 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
     loadPages();
 
-    const interval = setInterval(() => {
+    // Start polling - will stop automatically once images are found
+    intervalId = setInterval(() => {
       loadPages();
     }, 10000);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, [orderId, pdfUrl]);
 
