@@ -66,8 +66,10 @@ This guide shows you how to find these template IDs in PDFMonkey.
 1. In n8n, go to **Settings** → **Environment Variables**
 2. Add these environment variables:
    - **PDFMONKEY_TEMPLATE_ID** = `your-pdf-template-id` (from step 2 above)
-   - **PDFMONKEY_IMAGE_TEMPLATE_ID** = `your-image-template-id` (from step 2 above)
+   - **PDFMONKEY_IMAGE_TEMPLATE_ID** = `23277725-4AB0-446A-98C5-CB99C21822B3` (image template ID)
 3. Save the environment variables
+
+**Note:** The image template ID `23277725-4AB0-446A-98C5-CB99C21822B3` is already configured as the default in the workflow. You can override it with an environment variable if needed.
 
 **Alternative: Set in Order Data**
 - If you prefer, you can pass `pdfMonkeyTemplateId` and `pdfMonkeyImageTemplateId` in the order data when triggering the workflow
