@@ -4,6 +4,10 @@ import { verifyBearerAuth } from '@/lib/auth';
 import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { normalizeCharacterSpecs } from '@/lib/customization-utils';
 
+// Force dynamic rendering - this route should never be statically generated
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
+
 const PayloadSchema = z.object({
   orderId: z.string().min(1),
   manifestUrl: z.string().url().or(z.string().min(1)),
