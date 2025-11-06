@@ -15,9 +15,10 @@ This document outlines the comprehensive status system for Little Hero Books ord
 - `pending_bg_removal_review` - Waiting for Post-Bria (background removal) review  
 - `pending_assembly_review` - Waiting for Post-PDF (book assembly) review
 
-### 3. **Revision States**
-- `revision_needed` - Universal revision status (any stage has flags)
-  - OR stage-specific: `revision_base`, `revision_bg_removal`, `revision_assembly`
+### 3. **Revision States** (Stage-Specific)
+- `revision_base` - Pre-Bria stage has flags, needs revision
+- `revision_bg_removal` - Post-Bria stage has flags, needs revision
+- `revision_assembly` - Post-PDF stage has flags, needs revision
 - `revision_in_progress` - Revision requested, workflow regenerating
 
 ### 4. **Customer Approval** (if needed)
