@@ -46,22 +46,29 @@ export async function GET(
     console.log(`[GET /api/assets] Using bucket: ${bucket} for key: ${key}`);
     
     // Fetch object from R2
-    const response = await getObject(bucket, key);
+    const r2Response = await getObject(bucket, key);
     
-    if (!response.ok) {
-      console.error(`[GET /api/assets] Failed to fetch ${key}: ${response.status} ${response.statusText}`);
+    if (!r2Response.ok) {
+      console.error(`[GET /api/assets] Failed to fetch ${key}: ${r2Response.status} ${r2Response.statusText}`);
       return NextResponse.json(
-        { error: `Failed to fetch image: ${response.statusText}` },
-        { status: response.status }
+        { error: `Failed to fetch image: ${r2Response.statusText}` },
+        { 
+          status: r2Response.status,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          }
+        }
       );
     }
 
     // Get content type from response or infer from extension
-    const contentType = response.headers.get('content-type') || 
+    const contentType = r2Response.headers.get('content-type') || 
       getContentTypeFromKey(key);
     
     // Get image data
-    const imageBuffer = await response.arrayBuffer();
+    const imageBuffer = await r2Response.arrayBuffer();
     
     // Determine cache strategy based on image type
     // Background-removed images (nobg.png) should refresh more frequently to show updated versions
@@ -133,14 +140,14 @@ export async function HEAD(
     console.log(`[HEAD /api/assets] Using bucket: ${bucket} for key: ${key}`);
     
     // Fetch object from R2
-    const response = await getObject(bucket, key);
+    const r2Response = await getObject(bucket, key);
     
-    if (!response.ok) {
-      console.error(`[HEAD /api/assets] Failed to fetch ${key}: ${response.status} ${response.statusText}`);
+    if (!r2Response.ok) {
+      console.error(`[HEAD /api/assets] Failed to fetch ${key}: ${r2Response.status} ${r2Response.statusText}`);
       return NextResponse.json(
-        { error: `Failed to fetch image: ${response.statusText}` },
+        { error: `Failed to fetch image: ${r2Response.statusText}` },
         { 
-          status: response.status,
+          status: r2Response.status,
           headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
@@ -151,7 +158,7 @@ export async function HEAD(
     }
 
     // Get content type from response or infer from extension
-    const contentType = response.headers.get('content-type') || 
+    const contentType = r2Response.headers.get('content-type') || 
       getContentTypeFromKey(key);
     
     // Return HEAD response with proper headers (no body)
@@ -159,7 +166,7 @@ export async function HEAD(
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Content-Length': response.headers.get('content-length') || '0',
+        'Content-Length': r2Response.headers.get('content-length') || '0',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
