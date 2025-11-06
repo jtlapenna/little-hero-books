@@ -161,14 +161,16 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
 /**
  * Update order status in Supabase and recalculate
  * This ensures status is always in sync
+ * Uses existing field names: status, workflow_step, lulu_status, review_stages, flags
  */
 export async function updateOrderStatus(orderId: string, updates: {
   status?: string;
-  workflowStage?: string;
-  reviewStages?: any;
+  workflow_step?: string;
+  review_stages?: any;
   flags?: any;
-  customerApprovalStatus?: string;
-  podStatus?: string;
+  has_flags?: boolean;
+  customer_approval_status?: string;
+  lulu_status?: string;
   [key: string]: any;
 }): Promise<void> {
   // Update Supabase
@@ -177,9 +179,9 @@ export async function updateOrderStatus(orderId: string, updates: {
   // Recalculate status based on new state
   const calculatedStatus = await calculateOrderStatus(orderId);
   
-  // Update with calculated status if different
+  // Update with calculated status if different (use existing 'status' field)
   if (updates.status !== calculatedStatus) {
-    await updateOrderInSupabase(orderId, { order_status: calculatedStatus });
+    await updateOrderInSupabase(orderId, { status: calculatedStatus });
   }
 }
 
@@ -192,6 +194,7 @@ export async function getOrderStatus(orderId: string): Promise<string> {
 
 /**
  * Map Lulu API status to our status system
+ * Uses existing lulu_status field from database
  */
 function mapLuluStatusToOrderStatus(luluStatus: string): string {
   const mapping: Record<string, string> = {
@@ -249,9 +252,9 @@ export async function approveStage(orderId: string, stage: string): Promise<Appr
     reviewer
   };
   
-  // Update Supabase
+  // Update Supabase (using review_stages field name)
   await updateOrderStatus(orderId, {
-    reviewStages: reviewStages
+    review_stages: reviewStages
   });
   
   // Trigger next workflow if needed
@@ -309,7 +312,7 @@ export async function setFlaggedCount(
   stage: 'preBria' | 'postBria' | 'postPdf', 
   count: number
 ): Promise<void> {
-  // Get current flags
+  // Get current flags (using flags JSONB field)
   const order = await getOrderFromSupabase(orderId).catch(() => null);
   const flags = order?.flags || { preBria: 0, postBria: 0, postPdf: 0, total: 0 };
   
@@ -317,7 +320,7 @@ export async function setFlaggedCount(
   flags[stage] = count;
   flags.total = flags.preBria + flags.postBria + flags.postPdf;
   
-  // Update Supabase
+  // Update Supabase (using flags and has_flags fields)
   await updateOrderStatus(orderId, {
     flags: flags,
     has_flags: flags.total > 0
@@ -347,12 +350,13 @@ export async function getOrderFlagSummary(orderId: string): Promise<FlagSummary>
     return { preBria: 0, postBria: 0, postPdf: 0, total: 0 };
   }
   
-  const flags = order.flags || { preBria: 0, postBria: 0, postPdf: 0 };
+  // Use flags JSONB field from database
+  const flags = order.flags || { preBria: 0, postBria: 0, postPdf: 0, total: 0 };
   return {
     preBria: flags.preBria || 0,
     postBria: flags.postBria || 0,
     postPdf: flags.postPdf || 0,
-    total: (flags.preBria || 0) + (flags.postBria || 0) + (flags.postPdf || 0)
+    total: flags.total || ((flags.preBria || 0) + (flags.postBria || 0) + (flags.postPdf || 0))
   };
 }
 ```
@@ -557,41 +561,40 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
 
 ```sql
 -- Add status system columns to orders table
+-- Note: Uses existing fields: status, workflow_step, lulu_status, lulu_job_id, tracking_number, carrier, shipped_at
+-- Only adds missing fields: review_stages, flags, has_flags, customer_approval fields
+
 ALTER TABLE orders 
-  -- Main status
-  ADD COLUMN IF NOT EXISTS order_status VARCHAR(50) DEFAULT 'new',
-  ADD COLUMN IF NOT EXISTS workflow_stage VARCHAR(50),
-  
-  -- Review stages (JSONB)
+  -- Review stages (JSONB) - NEW
   ADD COLUMN IF NOT EXISTS review_stages JSONB DEFAULT '{
     "preBria": {"status": "pending", "reviewedAt": null, "reviewer": null, "comments": null},
     "postBria": {"status": "pending", "reviewedAt": null, "reviewer": null, "comments": null},
     "postPdf": {"status": "pending", "reviewedAt": null, "reviewer": null, "comments": null}
   }'::jsonb,
   
-  -- Flags
+  -- Flags system - NEW
   ADD COLUMN IF NOT EXISTS has_flags BOOLEAN DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS flags JSONB DEFAULT '{"preBria": 0, "postBria": 0, "postPdf": 0, "total": 0}'::jsonb,
   
-  -- Customer approval
+  -- Customer approval - NEW
   ADD COLUMN IF NOT EXISTS customer_approval_status VARCHAR(50),
   ADD COLUMN IF NOT EXISTS customer_approval_required BOOLEAN DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS customer_approval_requested_at TIMESTAMP,
   ADD COLUMN IF NOT EXISTS customer_approval_approved_at TIMESTAMP,
   
-  -- Production
-  ADD COLUMN IF NOT EXISTS pod_order_id VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS pod_status VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS carrier VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMP,
+  -- Production tracking (if missing)
   ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP;
 
 -- Indexes
-CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(order_status);
-CREATE INDEX IF NOT EXISTS idx_orders_workflow_stage ON orders(workflow_stage);
 CREATE INDEX IF NOT EXISTS idx_orders_has_flags ON orders(has_flags);
-CREATE INDEX IF NOT EXISTS idx_orders_pod_status ON orders(pod_status);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_approval_status ON orders(customer_approval_status);
+CREATE INDEX IF NOT EXISTS idx_orders_review_stages ON orders USING GIN (review_stages);
+CREATE INDEX IF NOT EXISTS idx_orders_flags ON orders USING GIN (flags);
+
+-- Note: Existing indexes already cover:
+-- idx_orders_status (on 'status' field)
+-- idx_orders_character_hash (from migration)
+-- Other production fields (lulu_status, tracking_number, etc.) already exist
 ```
 
 ## Implementation Checklist
