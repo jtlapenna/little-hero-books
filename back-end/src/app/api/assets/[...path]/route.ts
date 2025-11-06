@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
+import { getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 
 /**
  * Proxy endpoint to serve R2 images
@@ -21,8 +21,16 @@ export async function GET(
     
     console.log(`[GET /api/assets] Fetching image: ${key}`);
     
+    // Determine which bucket to use based on path
+    // Orders bucket: book-mvp-simple-adventure/orders/...
+    // Public bucket: everything else
+    const isOrderAsset = key.startsWith('book-mvp-simple-adventure/orders/');
+    const bucket = isOrderAsset ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
+    
+    console.log(`[GET /api/assets] Using bucket: ${bucket} for key: ${key}`);
+    
     // Fetch object from R2
-    const response = await getObject(R2_PUBLIC_BUCKET, key);
+    const response = await getObject(bucket, key);
     
     if (!response.ok) {
       console.error(`[GET /api/assets] Failed to fetch ${key}: ${response.status} ${response.statusText}`);
