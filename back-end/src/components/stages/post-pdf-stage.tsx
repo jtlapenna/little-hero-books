@@ -133,14 +133,27 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         
         try {
           const manifest3Res = await fetch(manifest3Url);
+          console.log('[Pages] 3-manifest response:', {
+            status: manifest3Res.status,
+            ok: manifest3Res.ok,
+            url: manifest3Url
+          });
+          
           if (manifest3Res.ok) {
             const manifest3 = await manifest3Res.json();
+            console.log('[Pages] 3-manifest loaded:', {
+              hasBookAssembly: !!manifest3?.bookAssembly,
+              hasPagePreviewImages: !!manifest3?.bookAssembly?.pagePreviewImages,
+              previewImagesCount: manifest3?.bookAssembly?.pagePreviewImages?.length || 0
+            });
+            
             const previewImages = manifest3?.bookAssembly?.pagePreviewImages;
             
             if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
-              console.log('[Pages] Using preview images from 3-manifest:', {
+              console.log('[Pages] ✓ Using preview images from 3-manifest:', {
                 imageCount: previewImages.length,
-                firstPage: previewImages[0]?.pageNumber
+                firstPage: previewImages[0]?.pageNumber,
+                firstImageUrl: previewImages[0]?.imageUrl
               });
               
               // Use preview images directly
@@ -181,10 +194,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               }
               
               return; // Success with preview images, exit early
+            } else {
+              console.log('[Pages] 3-manifest found but no preview images, falling back to 2B reconstruction');
             }
+          } else {
+            console.log('[Pages] 3-manifest not found (status:', manifest3Res.status, '), falling back to 2B reconstruction');
           }
         } catch (e) {
-          console.log('[Pages] 3-manifest not available, falling back to 2B reconstruction:', e);
+          console.log('[Pages] 3-manifest fetch error, falling back to 2B reconstruction:', e);
         }
         
         // Fallback: Fetch 2B manifest and reconstruct pages
