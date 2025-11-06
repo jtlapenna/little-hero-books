@@ -52,6 +52,8 @@ export function AssetGrid({
       if (externalIsReplacing === undefined) {
         setInternalIsReplacing(null);
       }
+      // Reset the input value so the same file can be selected again
+      event.target.value = '';
     }
   };
 
@@ -98,7 +100,7 @@ export function AssetGrid({
 
             {/* Overlay Actions */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none group-hover:pointer-events-auto">
-              <div className="flex space-x-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 shadow-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="flex space-x-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 shadow-lg" onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -122,13 +124,23 @@ export function AssetGrid({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     if (disabledReplaceIds.includes(asset.id)) {
                       return;
+                    }
+                    if (isReplacing === asset.id) {
+                      return; // Already replacing
                     }
                     if (externalIsReplacing === undefined) {
                       setInternalIsReplacing(asset.id);
                     }
-                    document.getElementById(`replace-${asset.id}`)?.click();
+                    // Use setTimeout to ensure the click happens after event propagation is stopped
+                    setTimeout(() => {
+                      const fileInput = document.getElementById(`replace-${asset.id}`) as HTMLInputElement;
+                      if (fileInput) {
+                        fileInput.click();
+                      }
+                    }, 0);
                   }}
                   disabled={isReplacing === asset.id || disabledReplaceIds.includes(asset.id)}
                   className={`p-2 rounded-full transition-colors ${
@@ -178,7 +190,11 @@ export function AssetGrid({
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => handleFileReplace(asset.id, e)}
+              onChange={(e) => {
+                e.stopPropagation();
+                handleFileReplace(asset.id, e);
+              }}
+              onClick={(e) => e.stopPropagation()}
               className="hidden"
               id={`replace-${asset.id}`}
             />
