@@ -2023,4 +2023,889 @@ Workflow 8 (Cost Optimization) - Daily analysis
 
 ---
 
+## 🎯 **CURRENT PHASE: CUSTOMER PREVIEW, ADMIN AUTH & INFRASTRUCTURE**
+
+### **📋 Overview**
+This phase focuses on building the customer-facing preview system, finalizing database connections, organizing admin interfaces, and setting up critical infrastructure for production launch.
+
+**Branch**: `developer-b/customer-preview-and-admin-setup`  
+**Status**: 🚀 **IN PROGRESS**  
+**Timeline**: 2-3 weeks
+
+---
+
+## 🗂️ **TASK BREAKDOWN: CUSTOMER PREVIEW & ADMIN SETUP**
+
+### **Task 1: Finalize Supabase Connections / Statuses** 🗄️
+**Priority**: P0 (Critical - Blocks other tasks)  
+**Estimated Time**: 3-4 days  
+**Dependencies**: None
+
+#### **Objective**
+Ensure all approval stages, review stages, and order statuses are properly connected to Supabase with correct status tracking and state management.
+
+#### **Current State Analysis**
+- ✅ Database schema exists (`database/supabase-schema.sql`)
+- ✅ Basic order status tracking in place
+- ⚠️ Review stages (`preBria`, `postBria`, `postPdf`) need proper Supabase integration
+- ⚠️ Approval status tracking needs to be queryable from database
+- ⚠️ Status transitions need to be logged and auditable
+
+#### **Implementation Steps**
+
+1. **Audit Current Status Flow**
+   - [ ] Review all status values used in `back-end/src/types/order.ts`
+   - [ ] Map current status flow: `pending_processing` → `submitted` → `in_production` → `shipped`
+   - [ ] Document review stage statuses: `pending`, `in-review`, `approved`, `rejected`
+   - [ ] Create status flow diagram showing all transitions
+
+2. **Update Database Schema for Review Stages**
+   - [ ] Add `review_stages` table or JSONB column to `orders` table
+   - [ ] Ensure `human_review_queue` table supports review stages
+   - [ ] Add indexes for common queries (status, review stage, order date)
+   - [ ] Create migration file: `database/migration-add-review-stages.sql`
+   
+   **Recommended Schema Addition**:
+   ```sql
+   -- Option 1: Add JSONB column to orders table (simpler)
+   ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_stages JSONB DEFAULT '{}';
+   
+   -- Option 2: Create separate review_stages table (more normalized)
+   CREATE TABLE IF NOT EXISTS review_stages (
+     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+     order_id VARCHAR(50) NOT NULL REFERENCES orders(orderId) ON DELETE CASCADE,
+     stage_name VARCHAR(50) NOT NULL CHECK (stage_name IN ('preBria', 'postBria', 'postPdf')),
+     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in-review', 'approved', 'rejected')),
+     reviewed_at TIMESTAMP,
+     reviewed_by VARCHAR(100),
+     comments TEXT,
+     flagged_count INTEGER DEFAULT 0,
+     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+     UNIQUE(order_id, stage_name)
+   );
+   ```
+
+3. **Update Backend API to Use Supabase**
+   - [ ] Update `/api/orders/[orderId]/approve/route.ts` to write to Supabase
+   - [ ] Update `/api/orders/route.ts` to query review stages from Supabase
+   - [ ] Update `/api/orders/[orderId]/route.ts` to include review stage data
+   - [ ] Replace mock data in `back-end/src/lib/mock-data.ts` with Supabase queries
+   - [ ] Update `back-end/src/lib/review-state.ts` to query Supabase instead of placeholder
+   - [ ] **Update webhook handlers to write status changes to Supabase**:
+     - Update `/api/webhooks/workflow-2b-complete/route.ts` to write status `bria_processing_complete` to Supabase
+     - Update `/api/webhooks/workflow-3-complete/route.ts` to write status `book_assembly_completed` to Supabase
+     - These webhooks are called by n8n workflows when they complete, but currently only download manifests
+     - They should also update the order status in Supabase so the database stays in sync
+
+4. **Create Status Transition Functions**
+   - [ ] Create RPC function `update_order_status(order_id, new_status, metadata)`
+   - [ ] Create RPC function `update_review_stage(order_id, stage, status, reviewer)`
+   - [ ] Add audit logging for all status changes
+   - [ ] Test status transitions with sample orders
+
+5. **Testing & Validation**
+   - [ ] Test all status transitions end-to-end
+   - [ ] Verify review stage updates are reflected in UI immediately
+   - [ ] Test concurrent approval scenarios
+   - [ ] Verify audit trail is complete
+
+#### **Files to Modify**
+- `database/migration-add-review-stages.sql` (new)
+- `back-end/src/lib/review-state.ts`
+- `back-end/src/app/api/orders/[orderId]/approve/route.ts`
+- `back-end/src/app/api/orders/route.ts`
+- `back-end/src/app/api/orders/[orderId]/route.ts`
+- `back-end/src/lib/mock-data.ts` (remove mocks, add Supabase queries)
+- `back-end/src/app/api/webhooks/workflow-2b-complete/route.ts` (add Supabase status update)
+- `back-end/src/app/api/webhooks/workflow-3-complete/route.ts` (add Supabase status update)
+
+#### **Acceptance Criteria**
+- ✅ All review stages are stored in and retrieved from Supabase
+- ✅ Status transitions are logged and auditable
+- ✅ UI reflects database state in real-time
+- ✅ No mock data remains in production code paths
+- ✅ All API endpoints use Supabase for data persistence
+
+---
+
+### **Task 2: Fix Back-End Statuses and Tags** 🔧
+**Priority**: P0 (Critical - Blocks UI functionality)  
+**Estimated Time**: 2-3 days  
+**Dependencies**: Task 1 (Supabase connections)
+
+#### **Objective**
+Standardize and fix all status values and tags used throughout the backend to ensure consistency and proper filtering/sorting.
+
+#### **Current State Analysis**
+- ⚠️ Multiple status naming conventions may exist
+- ⚠️ Status badges may not match actual status values
+- ⚠️ Tags/labels may be inconsistent between frontend and backend
+- ⚠️ Status filtering may not work correctly
+
+#### **Implementation Steps**
+
+1. **Audit All Status Values**
+   - [ ] List all status values used in codebase
+   - [ ] Create status enum/constants file: `back-end/src/constants/statuses.ts`
+   - [ ] Map old status values to new standardized values
+   - [ ] Document status meaning and transitions
+
+2. **Standardize Status Values**
+   - [ ] Define canonical status enum:
+     ```typescript
+     export enum OrderStatus {
+       PENDING_PROCESSING = 'pending_processing',
+       QUEUED_FOR_PROCESSING = 'queued_for_processing',
+       AI_GENERATION_IN_PROGRESS = 'ai_generation_in_progress',
+       AI_GENERATION_COMPLETED = 'ai_generation_completed',
+       BOOK_ASSEMBLY_IN_PROGRESS = 'book_assembly_in_progress',
+       BOOK_ASSEMBLY_COMPLETED = 'book_assembly_completed',
+       PREVIEW_READY = 'preview_ready',
+       AWAITING_CUSTOMER_APPROVAL = 'awaiting_customer_approval',
+       CUSTOMER_APPROVED = 'customer_approved',
+       PRINT_SUBMISSION_IN_PROGRESS = 'print_submission_in_progress',
+       PRINT_SUBMISSION_COMPLETED = 'print_submission_completed',
+       IN_PRODUCTION = 'in_production',
+       SHIPPED = 'shipped',
+       DELIVERED = 'delivered',
+       FAILED = 'failed',
+       CANCELLED = 'cancelled'
+     }
+     
+     export enum ReviewStageStatus {
+       PENDING = 'pending',
+       IN_REVIEW = 'in-review',
+       APPROVED = 'approved',
+       REJECTED = 'rejected'
+     }
+     ```
+
+3. **Update Status Badge Component**
+   - [ ] Update `back-end/src/components/ui/status-badge.tsx` to use standardized statuses
+   - [ ] Ensure all status values have appropriate badge colors/styles
+   - [ ] Add tooltips explaining each status
+   - [ ] Test badge rendering for all status values
+
+4. **Fix Status Queries and Filters**
+   - [ ] Update all API routes to use standardized status values
+   - [ ] Fix status filtering in orders table
+   - [ ] Fix status sorting
+   - [ ] Update review page filters to use correct status values
+
+5. **Update Database Status Values** (if needed)
+   - [ ] Create migration to update existing status values to new standardized values
+   - [ ] Test migration on development database
+   - [ ] Document migration process
+
+6. **Testing & Validation**
+   - [ ] Test all status displays render correctly
+   - [ ] Test status filtering works for all statuses
+   - [ ] Test status sorting works correctly
+   - [ ] Verify no status values are missing or incorrectly displayed
+
+#### **Files to Modify**
+- `back-end/src/constants/statuses.ts` (new)
+- `back-end/src/components/ui/status-badge.tsx`
+- `back-end/src/app/api/orders/route.ts`
+- `back-end/src/components/orders/orders-table.tsx`
+- `back-end/src/app/review/page.tsx`
+- `back-end/src/app/orders/page.tsx`
+- `database/migration-standardize-statuses.sql` (if needed)
+
+#### **Acceptance Criteria**
+- ✅ All status values are standardized and consistent
+- ✅ Status badges display correctly for all statuses
+- ✅ Status filtering and sorting work correctly
+- ✅ No hardcoded status strings remain in code
+- ✅ Database status values match code constants
+
+---
+
+### **Task 3: Add Phase Organizations / Buckets to Orders and Reviews Pages** 📊
+**Priority**: P1 (High - Improves UX significantly)  
+**Estimated Time**: 2-3 days  
+**Dependencies**: Task 2 (Fixed statuses)
+
+#### **Objective**
+Organize orders and reviews into logical phase buckets (e.g., "Generation", "Review", "Production", "Shipping") to improve navigation and workflow management.
+
+#### **Current State Analysis**
+- ✅ Orders page exists (`back-end/src/app/orders/page.tsx`)
+- ✅ Review page exists (`back-end/src/app/review/page.tsx`)
+- ⚠️ Orders are displayed in flat list without phase grouping
+- ⚠️ No visual organization by workflow phase
+
+#### **Implementation Steps**
+
+1. **Define Phase Buckets**
+   - [ ] Create phase definitions: `back-end/src/constants/phases.ts`
+   - [ ] Map statuses to phases:
+     ```typescript
+     export enum OrderPhase {
+       GENERATION = 'generation', // AI generation, character creation
+       REVIEW = 'review', // Human review, approval
+       ASSEMBLY = 'assembly', // Book assembly, PDF creation
+       CUSTOMER_APPROVAL = 'customer_approval', // Customer preview/approval
+       PRODUCTION = 'production', // Print submission, production
+       SHIPPING = 'shipping', // Shipped, delivered
+       COMPLETED = 'completed', // Delivered, fulfilled
+       FAILED = 'failed' // Failed, cancelled
+     }
+     
+     export const STATUS_TO_PHASE: Record<string, OrderPhase> = {
+       'pending_processing': OrderPhase.GENERATION,
+       'queued_for_processing': OrderPhase.GENERATION,
+       'ai_generation_in_progress': OrderPhase.GENERATION,
+       'ai_generation_completed': OrderPhase.REVIEW,
+       'book_assembly_in_progress': OrderPhase.ASSEMBLY,
+       'book_assembly_completed': OrderPhase.REVIEW,
+       'preview_ready': OrderPhase.CUSTOMER_APPROVAL,
+       'awaiting_customer_approval': OrderPhase.CUSTOMER_APPROVAL,
+       'customer_approved': OrderPhase.PRODUCTION,
+       'print_submission_in_progress': OrderPhase.PRODUCTION,
+       'print_submission_completed': OrderPhase.PRODUCTION,
+       'in_production': OrderPhase.PRODUCTION,
+       'shipped': OrderPhase.SHIPPING,
+       'delivered': OrderPhase.COMPLETED,
+       'failed': OrderPhase.FAILED,
+       'cancelled': OrderPhase.FAILED
+     };
+     ```
+
+2. **Update Orders Page with Phase Buckets**
+   - [ ] Add phase filter/tabs to orders page
+   - [ ] Group orders by phase in UI
+   - [ ] Add phase badges/indicators
+   - [ ] Add phase summary counts (e.g., "5 in Generation", "3 in Review")
+   - [ ] Make phase buckets collapsible/expandable
+
+3. **Update Review Page with Phase Buckets**
+   - [ ] Group pending reviews by review stage
+   - [ ] Add visual indicators for each review phase
+   - [ ] Add counts for each review bucket
+   - [ ] Improve navigation between review stages
+
+4. **Create Phase Components**
+   - [ ] Create `PhaseBucket` component for displaying phase groups
+   - [ ] Create `PhaseSummary` component for phase statistics
+   - [ ] Add phase icons/colors for visual distinction
+
+5. **Testing & Validation**
+   - [ ] Test phase grouping with various order statuses
+   - [ ] Test phase filtering works correctly
+   - [ ] Test phase navigation and transitions
+   - [ ] Verify phase counts are accurate
+
+#### **Files to Modify**
+- `back-end/src/constants/phases.ts` (new)
+- `back-end/src/components/orders/phase-bucket.tsx` (new)
+- `back-end/src/components/orders/phase-summary.tsx` (new)
+- `back-end/src/app/orders/page.tsx`
+- `back-end/src/app/review/page.tsx`
+- `back-end/src/components/orders/orders-table.tsx`
+
+#### **Acceptance Criteria**
+- ✅ Orders are organized into logical phase buckets
+- ✅ Phase navigation is intuitive and clear
+- ✅ Phase counts are accurate and update in real-time
+- ✅ Review page shows clear phase organization
+- ✅ Users can easily navigate between phases
+
+---
+
+### **Task 4: Build Customer-Facing Preview / Approve Page** 👤
+**Priority**: P0 (Critical - Core customer feature)  
+**Estimated Time**: 5-7 days  
+**Dependencies**: Task 1 (Supabase connections), Task 2 (Fixed statuses)
+
+#### **Objective**
+Create a customer-facing page where customers can preview their book and approve it before printing. This page should be accessible via a secure link and allow customers to flag issues.
+
+#### **Current State Analysis**
+- ✅ Book assembly workflow creates PDFs
+- ✅ PDFs are stored in R2
+- ⚠️ No customer-facing preview page exists
+- ⚠️ No customer approval workflow exists
+- ⚠️ No secure link generation for customers
+
+#### **Implementation Steps**
+
+1. **Design Customer Preview Page Structure**
+   - [ ] Create page route: `frontend/src/pages/preview/[orderId]/[token].astro` (or Next.js route)
+   - [ ] Design page layout with:
+     - Book preview (PDF viewer or page-by-page view)
+     - Issue flagging interface
+     - Approval button with disclaimer
+     - Order status display
+   - [ ] Create wireframes/mockups
+
+2. **Create Secure Preview Link System**
+   - [ ] Generate secure tokens for preview links
+   - [ ] Store tokens in Supabase: `preview_tokens` table
+   - [ ] Create API endpoint: `/api/preview/generate-token`
+   - [ ] Token should be:
+     - Single-use or time-limited (e.g., 7 days)
+     - Unique per order
+     - Cryptographically secure
+   
+   **Database Schema**:
+   ```sql
+   CREATE TABLE IF NOT EXISTS preview_tokens (
+     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+     order_id VARCHAR(50) NOT NULL REFERENCES orders(orderId) ON DELETE CASCADE,
+     token VARCHAR(255) UNIQUE NOT NULL,
+     expires_at TIMESTAMP NOT NULL,
+     used_at TIMESTAMP,
+     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+     created_by VARCHAR(100) DEFAULT 'system'
+   );
+   
+   CREATE INDEX idx_preview_tokens_token ON preview_tokens(token);
+   CREATE INDEX idx_preview_tokens_order_id ON preview_tokens(order_id);
+   ```
+
+3. **Build Preview Page UI**
+   - [ ] Create PDF viewer component (use PDF.js or similar)
+   - [ ] Add page navigation (previous/next, page thumbnails)
+   - [ ] Add zoom controls
+   - [ ] Display book metadata (child name, order details)
+   - [ ] Add "Flag Issue" button/modal for each page
+   - [ ] Add "Approve Book" button with disclaimer modal
+   - [ ] Style with brand guidelines
+
+4. **Implement Issue Flagging**
+   - [ ] Create issue flagging modal/form
+   - [ ] Allow customers to select:
+     - Page number
+     - Issue type (character/art, text, other)
+     - Description/notes
+   - [ ] Store flagged issues in Supabase: `customer_feedback` table
+   - [ ] Trigger revision workflow if issues flagged
+   
+   **Database Schema**:
+   ```sql
+   CREATE TABLE IF NOT EXISTS customer_feedback (
+     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+     order_id VARCHAR(50) NOT NULL REFERENCES orders(orderId) ON DELETE CASCADE,
+     page_number INTEGER NOT NULL,
+     issue_type VARCHAR(50) NOT NULL CHECK (issue_type IN ('image', 'text', 'other')),
+     description TEXT NOT NULL,
+     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'resolved', 'dismissed')),
+     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+     resolved_at TIMESTAMP
+   );
+   
+   CREATE INDEX idx_customer_feedback_order_id ON customer_feedback(order_id);
+   CREATE INDEX idx_customer_feedback_status ON customer_feedback(status);
+   ```
+
+5. **Implement Approval Workflow**
+   - [ ] Create approval API endpoint: `/api/preview/[orderId]/approve`
+   - [ ] Update order status to `customer_approved`
+   - [ ] Mark preview token as used
+   - [ ] Send confirmation email to customer
+   - [ ] Trigger next workflow (print submission)
+   - [ ] Add approval disclaimer modal:
+     - "Changes after approval will incur additional charges"
+     - "Your book will be printed and shipped within [X] business days"
+     - Require explicit confirmation
+
+6. **Email Notification System**
+   - [ ] Create email template for preview link
+   - [ ] Send email when preview is ready
+   - [ ] Include secure preview link
+   - [ ] Use SendGrid or similar service
+   - [ ] Create API endpoint: `/api/preview/send-notification`
+
+7. **Security & Access Control**
+   - [ ] Verify preview token before allowing access
+   - [ ] Check token expiration
+   - [ ] Prevent token reuse (if single-use)
+   - [ ] Add rate limiting to prevent abuse
+   - [ ] Log all preview access attempts
+
+8. **Testing & Validation**
+   - [ ] Test preview link generation
+   - [ ] Test token expiration
+   - [ ] Test issue flagging flow
+   - [ ] Test approval workflow
+   - [ ] Test email notifications
+   - [ ] Test security (token validation, expiration)
+
+#### **Files to Create**
+- `frontend/src/pages/preview/[orderId]/[token].astro` (or Next.js equivalent)
+- `frontend/src/components/Preview/PDFViewer.astro` (or component)
+- `frontend/src/components/Preview/IssueFlagModal.astro`
+- `frontend/src/components/Preview/ApprovalModal.astro`
+- `back-end/src/app/api/preview/generate-token/route.ts` (new)
+- `back-end/src/app/api/preview/[orderId]/approve/route.ts` (new)
+- `back-end/src/app/api/preview/send-notification/route.ts` (new)
+- `database/migration-add-preview-tokens.sql` (new)
+- `database/migration-add-customer-feedback.sql` (new)
+
+#### **Files to Modify**
+- `back-end/src/app/api/webhooks/workflow-3-complete/route.ts` (send preview notification)
+- `back-end/src/app/api/orders/[orderId]/route.ts` (include preview token)
+
+#### **Acceptance Criteria**
+- ✅ Customers receive secure preview link via email
+- ✅ Preview page loads and displays book correctly
+- ✅ Customers can flag issues on specific pages
+- ✅ Customers can approve book with disclaimer
+- ✅ Approval triggers next workflow automatically
+- ✅ All preview access is logged and secure
+- ✅ Email notifications are sent correctly
+
+---
+
+### **Task 5: Build Transition from Preview / Approve Page to Order Status Page** 🔄
+**Priority**: P1 (High - Improves customer experience)  
+**Estimated Time**: 2-3 days  
+**Dependencies**: Task 4 (Customer Preview Page)
+
+#### **Objective**
+After customer approval, seamlessly transition to an order status page where customers can track their order through production and shipping.
+
+#### **Current State Analysis**
+- ⚠️ No customer-facing order status page exists
+- ⚠️ No order tracking integration
+- ⚠️ No shipping status updates
+
+#### **Implementation Steps**
+
+1. **Create Order Status Page**
+   - [ ] Create page route: `frontend/src/pages/order-status/[orderId]/[token].astro`
+   - [ ] Design status page layout with:
+     - Order timeline/progress bar
+     - Current status display
+     - Estimated delivery date
+     - Shipping information (when available)
+     - Tracking number/link (when available)
+   - [ ] Use same token system as preview page
+
+2. **Implement Status Timeline Component**
+   - [ ] Create timeline component showing:
+     - Order received
+     - Book generated
+     - Preview ready
+     - Customer approved
+     - In production
+     - Shipped
+     - Delivered
+   - [ ] Highlight current status
+   - [ ] Show estimated dates for upcoming steps
+
+3. **Integrate with Lulu API for Production Status**
+   - [ ] Query Lulu API for print job status
+   - [ ] Update order status based on Lulu status
+   - [ ] Display production status to customer
+   - [ ] Handle production delays gracefully
+
+4. **Integrate Shipping Tracking**
+   - [ ] Query shipping carrier API for tracking info
+   - [ ] Display tracking number and link
+   - [ ] Show shipping progress on map (optional)
+   - [ ] Update delivery status when package delivered
+
+5. **Create Status Update Webhooks**
+   - [ ] Create webhook endpoint for Lulu status updates
+   - [ ] Create webhook endpoint for shipping updates
+   - [ ] Update order status in real-time
+   - [ ] Notify customer of status changes (optional)
+
+6. **Add Email Notifications**
+   - [ ] Send email when order ships
+   - [ ] Send email when order is delivered
+   - [ ] Include tracking information in emails
+
+7. **Testing & Validation**
+   - [ ] Test status page displays correctly
+   - [ ] Test status transitions
+   - [ ] Test Lulu integration
+   - [ ] Test shipping tracking integration
+   - [ ] Test email notifications
+
+#### **Files to Create**
+- `frontend/src/pages/order-status/[orderId]/[token].astro`
+- `frontend/src/components/OrderStatus/Timeline.astro`
+- `frontend/src/components/OrderStatus/StatusCard.astro`
+- `back-end/src/app/api/order-status/[orderId]/route.ts`
+- `back-end/src/app/api/webhooks/lulu-status/route.ts` (new)
+- `back-end/src/app/api/webhooks/shipping-status/route.ts` (new)
+
+#### **Files to Modify**
+- `back-end/src/app/api/webhooks/workflow-4-complete/route.ts` (update status after print submission)
+- `back-end/src/app/api/preview/[orderId]/approve/route.ts` (redirect to status page)
+
+#### **Acceptance Criteria**
+- ✅ Status page loads after approval
+- ✅ Status timeline displays correctly
+- ✅ Production status updates from Lulu
+- ✅ Shipping tracking displays correctly
+- ✅ Status updates in real-time
+- ✅ Email notifications sent for major status changes
+
+---
+
+### **Task 6: Setup Amazon Custom** 🛒
+**Priority**: P1 (High - Required for launch)  
+**Estimated Time**: 3-5 days  
+**Dependencies**: None (can be done in parallel)
+
+#### **Objective**
+Set up Amazon Custom listing with all required fields, images, and configuration for accepting personalized book orders.
+
+#### **Current State Analysis**
+- ✅ Amazon listing copy exists (`docs/AMAZON_LISTING_FINAL.md`)
+- ✅ Amazon integration docs exist (`docs/AMAZON_INTEGRATION.md`)
+- ⚠️ Amazon Seller account may not be set up
+- ⚠️ Amazon Custom listing not created
+- ⚠️ SP-API credentials may not be configured
+
+#### **Implementation Steps**
+
+1. **Create Amazon Professional Seller Account**
+   - [ ] Sign up for Amazon Professional Seller account ($40/month)
+   - [ ] Complete seller verification
+   - [ ] Set up payment methods
+   - [ ] Configure tax settings
+   - [ ] Complete identity verification (if required)
+   - **Timing**: Only when ready to launch (not before)
+
+2. **Get SP-API Credentials**
+   - [ ] Follow `docs/AMAZON_INTEGRATION.md` for SP-API setup
+   - [ ] Create IAM user and policy
+   - [ ] Generate access keys
+   - [ ] Get refresh token
+   - [ ] Store credentials securely (environment variables)
+   - [ ] Test SP-API connection
+
+3. **Prepare Product Images**
+   - [ ] Coordinate with Developer A for 7 product images
+   - [ ] Review image specifications: `docs/AMAZON_LISTING_FINAL.md` (lines 113-152)
+   - [ ] Ensure images meet Amazon requirements:
+     - Main image: 1000x1000px minimum
+     - 6 additional images: Various sizes
+     - All images must show product clearly
+   - [ ] Optimize images for web (compress, proper format)
+
+4. **Create Product Video** (Optional but Recommended)
+   - [ ] Create 15-30 second product video
+   - [ ] Show: Form entry, page flips, final book
+   - [ ] Format: Vertical 1080x1920 for social reuse
+   - [ ] Upload to Amazon
+
+5. **Create Amazon Custom Listing**
+   - [ ] Log into Seller Central
+   - [ ] Create new Custom product listing
+   - [ ] Upload all 7 product images
+   - [ ] Add product video (if created)
+   - [ ] Paste listing copy from `docs/AMAZON_LISTING_FINAL.md`
+   - [ ] Configure 10 customization fields:
+     - Child's name
+     - Child's age
+     - Pronouns
+     - Skin tone
+     - Hair color
+     - Hair style
+     - Favorite color
+     - Animal guide
+     - Clothing style
+     - Hometown
+   - [ ] Set initial price: $27.99 (adjust based on market research)
+   - [ ] Set shipping options and rates
+   - [ ] Configure fulfillment settings
+   - [ ] Submit for approval (1-3 days)
+
+6. **Configure Custom Field Validation**
+   - [ ] Set up field requirements and constraints
+   - [ ] Add help text for each field
+   - [ ] Test custom field submission
+   - [ ] Ensure data maps correctly to Workflow 1
+
+7. **Set Up Amazon PPC Campaign** (After Listing Approved)
+   - [ ] Create Sponsored Products campaign
+   - [ ] Set initial budget: $10-20/day
+   - [ ] Add 5-10 exact-match keywords:
+     - "personalized kids book"
+     - "custom children's book"
+     - "name book for kids"
+     - etc.
+   - [ ] Monitor and optimize campaign performance
+
+8. **Testing & Validation**
+   - [ ] Test order submission through Amazon Custom
+   - [ ] Verify all custom fields are captured correctly
+   - [ ] Test order appears in Workflow 1
+   - [ ] Test end-to-end order flow
+   - [ ] Verify SP-API integration works
+
+#### **Files to Reference**
+- `docs/AMAZON_INTEGRATION.md` - Complete setup guide
+- `docs/AMAZON_LISTING_FINAL.md` - Listing copy and specifications
+- `docs/amazon/amazon-custom-listing-spec.md` - Detailed listing spec
+- `docs/amazon/sp-api-integration-code.md` - SP-API code examples
+
+#### **Files to Modify** (after Amazon setup)
+- `back-end/.env.local` - Add SP-API credentials
+- `docs/n8n-workflow-files/n8n-new/1-order-intake-validation.json` - Update to use real SP-API
+
+#### **Acceptance Criteria**
+- ✅ Amazon Seller account active and verified
+- ✅ SP-API credentials obtained and configured
+- ✅ Amazon Custom listing created and approved
+- ✅ All 7 product images uploaded
+- ✅ Product video uploaded (if created)
+- ✅ Custom fields configured correctly
+- ✅ Test order successfully flows through system
+- ✅ Amazon PPC campaign ready (optional)
+
+---
+
+### **Task 7: Setup Cloudflare Auth for admin.littleherolabs.com** 🔐
+**Priority**: P0 (Critical - Security requirement)  
+**Estimated Time**: 2-3 days  
+**Dependencies**: None (can be done in parallel)
+
+#### **Objective**
+Set up Cloudflare Access (Zero Trust) authentication for the admin panel to secure admin.littleherolabs.com.
+
+#### **Current State Analysis**
+- ⚠️ Admin panel currently uses basic bearer token auth (`back-end/src/lib/auth.ts`)
+- ⚠️ No user authentication system exists
+- ⚠️ Admin panel needs proper access control
+- ⚠️ Multiple admin users need individual access
+
+#### **Implementation Steps**
+
+1. **Set Up Cloudflare Zero Trust Account**
+   - [ ] Sign up for Cloudflare Zero Trust (free tier available)
+   - [ ] Add domain: `littleherolabs.com`
+   - [ ] Configure DNS settings
+   - [ ] Verify domain ownership
+
+2. **Configure Cloudflare Access Application**
+   - [ ] Create new Access application for `admin.littleherolabs.com`
+   - [ ] Set application type: Self-hosted
+   - [ ] Configure application URL: `https://admin.littleherolabs.com`
+   - [ ] Set session duration (recommend 24 hours)
+   - [ ] Configure allowed email domains (e.g., `@littleherolabs.com`)
+   - [ ] Add admin users:
+     - Add email addresses for authorized admins
+     - Set user roles (admin, reviewer, viewer)
+     - Configure MFA requirement (recommended)
+
+3. **Configure Access Policies**
+   - [ ] Create policy for admin access:
+     - Rule: Email domain is `@littleherolabs.com`
+     - Action: Allow
+     - Include additional verification (MFA)
+   - [ ] Create policy for specific admin users:
+     - Rule: Email is in list `[admin1@example.com, admin2@example.com]`
+     - Action: Allow
+   - [ ] Test policy matching
+
+4. **Update Backend to Use Cloudflare Access**
+   - [ ] Remove basic bearer token auth (or keep as fallback)
+   - [ ] Add Cloudflare Access token verification
+   - [ ] Extract user email from Cloudflare Access JWT
+   - [ ] Store user session in database (optional)
+   - [ ] Create middleware for protected routes
+   
+   **Implementation Example**:
+   ```typescript
+   // back-end/src/lib/cloudflare-auth.ts
+   import { verify } from 'jsonwebtoken';
+   
+   export async function verifyCloudflareAccess(request: Request): Promise<{ ok: boolean; email?: string; error?: string }> {
+     const cfJwt = request.headers.get('cf-access-jwt-assertion');
+     if (!cfJwt) {
+       return { ok: false, error: 'Missing Cloudflare Access token' };
+     }
+     
+     try {
+       // Verify JWT with Cloudflare's public key
+       const payload = await verifyCloudflareJWT(cfJwt);
+       return { ok: true, email: payload.email };
+     } catch (error) {
+       return { ok: false, error: 'Invalid token' };
+     }
+   }
+   ```
+
+5. **Update Middleware**
+   - [ ] Update `back-end/src/middleware.ts` to check Cloudflare Access
+   - [ ] Protect all `/api/*` routes (except public endpoints)
+   - [ ] Protect all admin pages
+   - [ ] Add user context to requests
+   - [ ] Log all authentication attempts
+
+6. **Create User Management UI** (Optional)
+   - [ ] Create admin user management page
+   - [ ] Display current logged-in user
+   - [ ] Show user permissions/roles
+   - [ ] Add logout functionality
+
+7. **Configure DNS and SSL**
+   - [ ] Point `admin.littleherolabs.com` to Cloudflare
+   - [ ] Configure SSL certificate (automatic with Cloudflare)
+   - [ ] Set up Cloudflare proxy (orange cloud)
+   - [ ] Test SSL connection
+
+8. **Testing & Validation**
+   - [ ] Test authentication with allowed users
+   - [ ] Test authentication rejection with unauthorized users
+   - [ ] Test MFA flow
+   - [ ] Test session expiration
+   - [ ] Test logout functionality
+   - [ ] Test API route protection
+
+#### **Files to Create**
+- `back-end/src/lib/cloudflare-auth.ts` (new)
+- `back-end/src/middleware-auth.ts` (new, if separate from main middleware)
+
+#### **Files to Modify**
+- `back-end/src/middleware.ts` - Add Cloudflare Access verification
+- `back-end/src/lib/auth.ts` - Update or replace with Cloudflare auth
+- `back-end/src/app/layout.tsx` - Add user context provider (optional)
+- `wrangler.toml` - Configure Cloudflare Access (if using Workers)
+
+#### **Acceptance Criteria**
+- ✅ Cloudflare Zero Trust configured
+- ✅ Admin panel requires Cloudflare Access authentication
+- ✅ Only authorized users can access admin panel
+- ✅ MFA is enforced (if configured)
+- ✅ User email is available in request context
+- ✅ All API routes are protected
+- ✅ SSL certificate is valid
+- ✅ Unauthorized access attempts are blocked and logged
+
+---
+
+## 📊 **IMPLEMENTATION PRIORITY & TIMELINE**
+
+### **Phase 1: Foundation (Week 1)**
+**Priority**: P0 - Critical blockers
+1. ✅ Task 1: Finalize Supabase Connections / Statuses (3-4 days)
+2. ✅ Task 2: Fix Back-End Statuses and Tags (2-3 days)
+
+**Deliverables**:
+- All database connections working
+- Status system standardized
+- Review stages properly tracked
+
+### **Phase 2: Customer Experience (Week 2)**
+**Priority**: P0 - Core customer features
+3. ✅ Task 4: Build Customer-Facing Preview / Approve Page (5-7 days)
+4. ✅ Task 5: Build Transition to Order Status Page (2-3 days)
+
+**Deliverables**:
+- Customer preview page functional
+- Customer approval workflow working
+- Order status tracking page
+
+### **Phase 3: Admin Experience (Week 2-3)**
+**Priority**: P1 - Improves admin workflow
+5. ✅ Task 3: Add Phase Organizations / Buckets (2-3 days)
+
+**Deliverables**:
+- Orders organized by phases
+- Review page shows clear phase buckets
+
+### **Phase 4: Infrastructure (Week 3)**
+**Priority**: P0-P1 - Required for launch
+6. ✅ Task 7: Setup Cloudflare Auth (2-3 days)
+7. ✅ Task 6: Setup Amazon Custom (3-5 days)
+
+**Deliverables**:
+- Admin panel secured
+- Amazon listing live and ready
+
+---
+
+## 🎯 **SUCCESS CRITERIA**
+
+### **Database & Status System**
+- ✅ All order statuses are tracked in Supabase
+- ✅ Review stages are properly connected and queryable
+- ✅ Status transitions are logged and auditable
+- ✅ No mock data remains in production code
+
+### **Customer Experience**
+- ✅ Customers receive secure preview links
+- ✅ Preview page displays books correctly
+- ✅ Customers can flag issues and approve books
+- ✅ Order status page shows accurate tracking information
+- ✅ Email notifications are sent at appropriate times
+
+### **Admin Experience**
+- ✅ Orders are organized into logical phase buckets
+- ✅ Review page clearly shows pending reviews by stage
+- ✅ Status badges display correctly for all statuses
+- ✅ Admin can easily navigate between phases
+
+### **Security & Infrastructure**
+- ✅ Admin panel requires Cloudflare Access authentication
+- ✅ Only authorized users can access admin features
+- ✅ All API routes are properly protected
+- ✅ Preview links are secure and time-limited
+
+### **Amazon Integration**
+- ✅ Amazon Seller account is active
+- ✅ Amazon Custom listing is live and approved
+- ✅ Orders flow correctly from Amazon to system
+- ✅ SP-API integration is working
+
+---
+
+## 📝 **NOTES & CONSIDERATIONS**
+
+### **Database Migrations**
+- All migrations should be tested on development database first
+- Create rollback scripts for all migrations
+- Document all schema changes
+- Coordinate with Developer A on schema changes
+
+### **Security**
+- Never commit API keys or credentials to git
+- Use environment variables for all sensitive data
+- Rotate tokens regularly
+- Monitor authentication logs for suspicious activity
+
+### **Testing**
+- Test all features with real data before production
+- Test error scenarios (expired tokens, invalid data, etc.)
+- Test concurrent user scenarios
+- Test on multiple browsers and devices
+
+### **Coordination with Developer A**
+- Communicate schema changes before implementing
+- Coordinate on workflow status values
+- Share preview/approval workflow requirements
+- Test integration points together
+
+---
+
+## 🔗 **RESOURCES & REFERENCES**
+
+### **Documentation**
+- `docs/AMAZON_INTEGRATION.md` - Amazon SP-API setup
+- `docs/AMAZON_LISTING_FINAL.md` - Amazon listing copy
+- `database/supabase-setup.md` - Database setup guide
+- `docs/HUMAN_REVIEW_IMPLEMENTATION_GUIDE.md` - Human review system
+
+### **API Documentation**
+- Cloudflare Access: https://developers.cloudflare.com/cloudflare-one/
+- Amazon SP-API: https://developer-docs.amazon.com/sp-api/
+- Supabase: https://supabase.com/docs
+
+### **Code References**
+- `back-end/src/lib/auth.ts` - Current auth implementation
+- `back-end/src/types/order.ts` - Order type definitions
+- `back-end/src/lib/review-state.ts` - Review state management
+- `database/supabase-schema.sql` - Database schema
+
+---
+
 **Good luck with the development! Let's build an amazing personalized book service together! 🚀📚**
