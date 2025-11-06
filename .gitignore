@@ -97,6 +97,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+# Allow back-end/src/lib (TypeScript library files)
+!back-end/src/lib/
 parts/
 sdist/
 var/
