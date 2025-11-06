@@ -1406,6 +1406,387 @@ Backend webhook handlers will:
 
 ---
 
+## 🎯 **PRIORITY 0: STATUS SYSTEM IMPLEMENTATION (Phase 1 Foundation)**
+
+### **Overview**
+Implement a comprehensive order status system that tracks orders through all stages from intake to delivery, with stage-specific review tracking, flag management, and customer approval workflows.
+
+**Status**: 🚀 **READY TO START** - All planning complete, migration SQL ready
+
+**Estimated Time**: 5-7 days (Task 1: 3-4 days, Task 2: 2-3 days)
+
+**Dependencies**: None (can proceed immediately)
+
+**Blocks**: Other backend tasks depend on status system being operational
+
+### **Key Documents**
+
+**📖 Complete Implementation Guides**:
+- `docs/STATUS_SYSTEM_IMPLEMENTATION_PLAN.md` - High-level plan, status values, triggers, UI locations
+- `docs/STATUS_SYSTEM_IMPLEMENTATION_DETAILS.md` - Detailed code templates, service patterns, API routes
+- `docs/STATUS_SYSTEM_SCHEMA_ALIGNMENT.md` - Schema comparison, field mapping, migration strategy
+
+**📋 Status System Design**:
+- `docs/ORDER_STATUS_SYSTEM.md` - Status values, flow diagrams, status categories
+
+**🗄️ Database Migrations**:
+- `database/migration-status-system.sql` - Migration SQL for missing columns (review_stages, flags, customer approval)
+
+### **What We're Building**
+
+#### **1. Comprehensive Status Tracking**
+- **Main Order Status**: Calculated dynamically based on workflow stage, flags, reviews, and production status
+- **Stage-Specific Reviews**: Track approval status for Pre-Bria, Post-Bria, and Post-PDF stages
+- **Flag System**: Track flagged images per stage, block approvals when flags exist
+- **Customer Approval**: Optional customer approval workflow before printing
+- **Production Status**: Map Lulu API statuses to our status system
+
+#### **2. Status Calculation Logic**
+- **Single Source of Truth**: All status reads go through `calculateOrderStatus()` function
+- **Priority Rules**: Flags → Production → Customer Approval → Review Stages → Workflow Step → Default
+- **Always Calculated**: Status is never stale, always computed from current state
+- **Revision Statuses**: Optional statuses that only appear when flags exist
+
+#### **3. Backend Integration**
+- **Supabase as Primary**: All status data stored in Supabase `orders` table
+- **R2 Manifests as Fallback**: If Supabase unavailable, fall back to R2 manifest data
+- **Centralized Service**: `status-service.ts` handles all status operations
+- **Templated Patterns**: All API routes follow consistent patterns
+
+### **Field Mapping Strategy**
+
+**Uses Existing Database Fields** (no duplicates):
+- `status` → Main order status (calculated and updated)
+- `workflow_step` → Current workflow stage tracking
+- `lulu_status` → Production status from Lulu API
+- `lulu_job_id`, `tracking_number`, `carrier`, `shipped_at` → Production tracking
+
+**New Fields to Add** (via migration):
+- `review_stages` (JSONB) → Stage-specific review status
+- `flags` (JSONB) + `has_flags` (BOOLEAN) → Flag counts per stage
+- `customer_approval_status` → Customer approval state
+- `customer_approval_required` → Whether customer approval needed
+- `customer_approval_requested_at`, `customer_approval_approved_at` → Timestamps
+
+### **Task 1: Finalize Supabase Connections/Statuses (3-4 days)**
+
+#### **Objective**
+Run database migration, create centralized status service, and connect Supabase to backend.
+
+#### **Step 1: Run Database Migration**
+**File**: `database/migration-status-system.sql`
+
+**Action**: Execute migration in Supabase SQL Editor
+
+**What It Adds**:
+- `review_stages` JSONB field (with default structure)
+- `flags` JSONB + `has_flags` boolean
+- Customer approval fields
+- Indexes for performance
+
+**Verification**:
+```sql
+-- Verify columns exist
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'orders' 
+  AND column_name IN ('review_stages', 'flags', 'has_flags', 'customer_approval_status');
+
+-- Verify indexes exist
+SELECT indexname FROM pg_indexes 
+WHERE tablename = 'orders' 
+  AND indexname LIKE 'idx_orders_%';
+```
+
+#### **Step 2: Install Supabase Client**
+**Location**: `back-end/package.json`
+
+**Action**: Install `@supabase/supabase-js` package
+```bash
+cd back-end && npm install @supabase/supabase-js
+```
+
+#### **Step 3: Create Supabase Client**
+**File**: `back-end/src/lib/supabase-client.ts` (new file)
+
+**Reference**: `docs/STATUS_SYSTEM_IMPLEMENTATION_DETAILS.md` - Section "Supabase Client"
+
+**Key Features**:
+- Centralized Supabase connection
+- Service role key from environment variables
+- CRUD utility functions (`getOrderFromSupabase`, `updateOrderInSupabase`, `createOrderInSupabase`)
+
+**Environment Variables Needed**:
+```bash
+SUPABASE_URL=https://mdnthwpcnphjnnblbvxk.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
+```
+
+#### **Step 4: Create Status Service**
+**File**: `back-end/src/lib/status-service.ts` (new file)
+
+**Reference**: `docs/STATUS_SYSTEM_IMPLEMENTATION_DETAILS.md` - Section "Status Service"
+
+**Key Functions**:
+- `calculateOrderStatus(orderId)` - **SINGLE SOURCE OF TRUTH** for status calculation
+- `updateOrderStatus(orderId, updates)` - Updates order and recalculates status
+- `getOrderStatus(orderId)` - Get current status (always calculated)
+
+**Status Calculation Priority**:
+1. Flags exist → Set revision status (`revision_base`, `revision_bg_removal`, `revision_assembly`)
+2. Production status → Use `lulu_status` (if exists)
+3. Customer approval → Use `customer_approval_status`
+4. Review stages → Check `review_stages` JSONB
+5. Workflow step → Use `workflow_step` field
+6. Default → `'new'`
+
+**Important Notes**:
+- Uses existing field names: `status`, `workflow_step`, `lulu_status`, `review_stages`, `flags`
+- Revision statuses are **OPTIONAL** - only show when flags exist
+- Status is **always calculated**, never just read from database
+
+#### **Step 5: Update Approval Store**
+**File**: `back-end/src/lib/approval-store.ts`
+
+**Reference**: `docs/STATUS_SYSTEM_IMPLEMENTATION_DETAILS.md` - Section "Approval Store with Supabase"
+
+**Changes**:
+- Replace placeholder code with Supabase integration
+- Update `approveStage()` to use `review_stages` JSONB field
+- Update `getStageStatus()` to read from Supabase
+- All updates go through `updateOrderStatus()`
+
+#### **Step 6: Update Review State**
+**File**: `back-end/src/lib/review-state.ts`
+
+**Reference**: `docs/STATUS_SYSTEM_IMPLEMENTATION_DETAILS.md` - Section "Review State with Supabase"
+
+**Changes**:
+- Update `setFlaggedCount()` to use `flags` JSONB field
+- Update `getOrderFlagSummary()` to read from Supabase
+- All updates go through `updateOrderStatus()`
+
+#### **Step 7: Test Supabase Connection**
+**Action**: Create test script or use Supabase dashboard
+
+```typescript
+// Test connection
+import { supabase } from '@/lib/supabase-client';
+
+const testOrder = await getOrderFromSupabase('TEST-ORDER-001');
+console.log('Test order:', testOrder);
+```
+
+**Verification Checklist**:
+- [ ] Supabase client connects successfully
+- [ ] Can read orders from Supabase
+- [ ] Can update orders in Supabase
+- [ ] Status calculation works with test data
+- [ ] Flag system updates work
+- [ ] Review stages updates work
+
+### **Task 2: Fix Back-End Statuses and Tags (2-3 days)**
+
+#### **Objective**
+Update all API routes and UI components to use the new status system.
+
+#### **Step 1: Update API Routes**
+**Reference**: `docs/STATUS_SYSTEM_IMPLEMENTATION_DETAILS.md` - Section "API Route Pattern"
+
+**Files to Update**:
+- `back-end/src/app/api/orders/route.ts` - Order list endpoint
+- `back-end/src/app/api/orders/[orderId]/route.ts` - Order detail endpoint
+- `back-end/src/app/api/orders/[orderId]/approve/route.ts` - Approval endpoint
+- `back-end/src/app/api/webhooks/workflow-2a-complete/route.ts` - Workflow 2A webhook
+- `back-end/src/app/api/webhooks/workflow-2b-complete/route.ts` - Workflow 2B webhook
+- `back-end/src/app/api/webhooks/workflow-3-complete/route.ts` - Workflow 3 webhook
+
+**Pattern to Follow**:
+```typescript
+import { updateOrderStatus } from '@/lib/status-service';
+import { getOrderFromSupabase } from '@/lib/supabase-client';
+
+// All updates go through updateOrderStatus
+await updateOrderStatus(orderId, {
+  review_stages: { ... },
+  flags: { ... },
+  // etc.
+});
+
+// Status is automatically recalculated
+```
+
+#### **Step 2: Update Status Badge Component**
+**File**: `back-end/src/components/ui/status-badge.tsx`
+
+**Reference**: `docs/STATUS_SYSTEM_IMPLEMENTATION_DETAILS.md` - Section "Status Badge Component Updates"
+
+**Changes**:
+- Add all new status values to `statusConfig` object
+- Include stage-specific revision statuses
+- Include customer approval statuses
+- Include production statuses
+- Match colors/styles from status system design
+
+**Status Values to Add**:
+- Review stages: `pending_base_review`, `pending_bg_removal_review`, `pending_assembly_review`
+- Revisions: `revision_base`, `revision_bg_removal`, `revision_assembly`
+- Customer: `pending_customer_approval`, `customer_approved`, `customer_revision_requested`
+- Production: `pending_print`, `in_production`, `pending_shipping`, `shipped`, `in_transit`, `delivered`, `complete`
+
+#### **Step 3: Update Order List Page**
+**File**: `back-end/src/app/orders/page.tsx`
+
+**Changes**:
+- Fetch orders from Supabase (not R2 manifests)
+- Call `calculateOrderStatus()` for each order
+- Display status badge using new status values
+- Add status filter dropdown
+
+#### **Step 4: Update Order Detail Page**
+**File**: `back-end/src/app/orders/[orderId]/page.tsx`
+
+**Changes**:
+- Fetch order from Supabase (with fallback to R2)
+- Display calculated status in header
+- Show stage-specific status badges
+- Show flag counts per stage
+- Update approval buttons to use new status system
+
+#### **Step 5: Update Stage Components**
+**Files**:
+- `back-end/src/components/stages/pre-bria-stage.tsx`
+- `back-end/src/components/stages/post-bria-stage.tsx`
+- `back-end/src/components/stages/post-pdf-stage.tsx`
+
+**Reference**: `docs/STATUS_SYSTEM_IMPLEMENTATION_DETAILS.md` - Section "Gating Logic"
+
+**Changes**:
+- Update `canApprove` logic to check flags + status
+- Use `getOrderFlagSummary()` for flag counts
+- Block approval if status is revision status
+- Block approval if flags exist for that stage
+- Update approval handler to use `approveStage()` from updated approval store
+
+#### **Step 6: Update Webhook Handlers**
+**Files**: All webhook route files
+
+**Reference**: `docs/STATUS_SYSTEM_IMPLEMENTATION_DETAILS.md` - Section "Webhook Pattern"
+
+**Changes**:
+- Download manifest from R2
+- Update Supabase using `updateOrderStatus()`
+- Set `review_stages` status to `'ready'` when workflow completes
+- Trigger status recalculation
+
+**Example Pattern**:
+```typescript
+// After workflow completes
+await updateOrderStatus(orderId, {
+  workflow_step: '2A-complete',
+  review_stages: {
+    preBria: {
+      status: 'ready',
+      reviewedAt: null,
+      reviewer: null
+    }
+  }
+});
+// Status automatically recalculates to 'pending_base_review'
+```
+
+#### **Step 7: Test End-to-End**
+**Test Scenarios**:
+1. Create order → Status should be `'new'`
+2. Workflow 2A completes → Status should be `'pending_base_review'`
+3. Flag images → Status should be `'revision_base'`
+4. Unflag all → Status should return to `'pending_base_review'`
+5. Approve Pre-Bria → Status should be `'pending_bg_removal_review'`
+6. Approve Post-Bria → Status should be `'pending_assembly_review'`
+7. Approve Post-PDF → Status should be `'pending_customer_approval'` or `'pending_print'`
+8. Lulu ships → Status should be `'shipped'`
+
+**Verification Checklist**:
+- [ ] Status badges display correctly for all status values
+- [ ] Status calculation works for all workflow stages
+- [ ] Flags block approval correctly
+- [ ] Approval updates status correctly
+- [ ] Webhooks update status correctly
+- [ ] UI reflects status changes in real-time
+- [ ] No console errors or warnings
+
+### **Implementation Checklist**
+
+#### **Phase 1: Database & Core Services (Task 1)**
+- [ ] Run `database/migration-status-system.sql` in Supabase
+- [ ] Install `@supabase/supabase-js` package
+- [ ] Create `supabase-client.ts` with connection
+- [ ] Create `status-service.ts` with calculation logic
+- [ ] Update `approval-store.ts` to use Supabase
+- [ ] Update `review-state.ts` to use Supabase
+- [ ] Test Supabase connection and CRUD operations
+
+#### **Phase 2: API Routes & UI (Task 2)**
+- [ ] Update `/api/orders` to query Supabase + calculate status
+- [ ] Update `/api/orders/[orderId]` to query Supabase + calculate status
+- [ ] Update `/api/orders/[orderId]/approve` to use new approval store
+- [ ] Update all webhook endpoints to use `updateOrderStatus()`
+- [ ] Update `StatusBadge` component with all new statuses
+- [ ] Update stage components to use status-based gating
+- [ ] Update order list page to fetch from Supabase
+- [ ] Update order detail page to fetch from Supabase
+- [ ] Test end-to-end status flow
+
+### **Key Implementation Principles**
+
+1. **Single Source of Truth**: Supabase is primary, R2 manifests are fallback
+2. **Always Calculate**: Status is always calculated, never just read from DB
+3. **Centralized Updates**: All status changes go through `updateOrderStatus()`
+4. **Gating Logic**: Flags + status prevent approval, not just flags
+5. **Templated Pattern**: All API routes follow the same pattern
+
+### **Status Values Reference**
+
+**Complete List**: See `docs/ORDER_STATUS_SYSTEM.md` for full status definitions
+
+**Quick Reference**:
+- Intake: `new`, `queued`, `processing`
+- Review: `pending_base_review`, `pending_bg_removal_review`, `pending_assembly_review`
+- Revision: `revision_base`, `revision_bg_removal`, `revision_assembly` (optional)
+- Customer: `pending_customer_approval`, `customer_approved`, `customer_revision_requested`
+- Production: `pending_print`, `in_production`, `pending_shipping`, `shipped`, `in_transit`, `delivered`, `complete`
+- Errors: `failed`, `cancelled`, `on_hold`
+
+### **Troubleshooting**
+
+**Status not updating**:
+- Check if `updateOrderStatus()` is being called
+- Verify Supabase connection is working
+- Check if status calculation logic is correct
+- Verify database fields exist (run migration verification queries)
+
+**Status calculation wrong**:
+- Review priority rules in `calculateOrderStatus()`
+- Check field names match database columns
+- Verify flags and review_stages JSONB structure
+- Check workflow_step values match expected patterns
+
+**Flags not blocking approval**:
+- Verify `canApprove` logic checks both flags and status
+- Check `getOrderFlagSummary()` returns correct counts
+- Ensure flag updates go through `updateOrderStatus()`
+
+### **Next Steps After Completion**
+
+Once Tasks 1 and 2 are complete:
+- ✅ Status system fully operational
+- ✅ All backend status updates working
+- ✅ UI displays correct statuses
+- ✅ Ready for Developer A to integrate workflows
+- ✅ Ready for end-to-end testing
+
+---
+
 ## 🚀 **PRIORITY 1: WEBSITE & MARKETING INFRASTRUCTURE**
 
 **Current Focus**: Build the marketing foundation while completing database tasks.
