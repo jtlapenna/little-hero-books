@@ -38,7 +38,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
-  const backendUrl = typeof window !== 'undefined' ? window.location.origin : 'https://admin.littleherolabs.com';
+  // Use relative URLs so preview deployments call their own API, not production
+  const backendUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   // Load preview images from 3-manifest or construct directly from R2
   useEffect(() => {
