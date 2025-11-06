@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
@@ -15,18 +15,35 @@ interface PostPdfStageProps {
 
 interface PageData {
   pageNumber: number;
-  // Preview image mode (when available)
-  previewImageUrl?: string;
-  // Reconstruction mode (fallback)
-  backgroundUrl?: string;
-  characterUrl?: string | null;
-  animalUrl?: string | null;
-  text?: string;
-  textBoxOverlayUrl?: string;
+  previewImageUrl: string;
 }
 
-// Note: Page reconstruction logic removed - now using preview images from Workflow 3's 3-manifest
+interface SpreadData {
+  spreadNumber: number;
+  leftPage?: PageData;
+  rightPage?: PageData;
+  isCover: boolean;
+  isBackCover: boolean;
+}
 
+// Create spreads from pages (pages 1-14 only, no cover/back cover yet)
+function createSpreads(pages: PageData[]): SpreadData[] {
+  const spreads: SpreadData[] = [];
+  
+  // Interior spreads (pages 1-14, paired)
+  // Note: Cover, dedication, and back cover not yet implemented
+  for (let i = 0; i < pages.length; i += 2) {
+    spreads.push({
+      spreadNumber: Math.floor(i / 2) + 1,
+      leftPage: pages[i],
+      rightPage: pages[i + 1] || undefined, // Last spread might have only left page
+      isCover: false,
+      isBackCover: false
+    });
+  }
+  
+  return spreads;
+}
 
 export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow }: PostPdfStageProps) {
   const [pdfAsset, setPdfAsset] = useState({
@@ -40,130 +57,156 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   });
 
   const [pages, setPages] = useState<PageData[]>([]);
-  const [pageNumber, setPageNumber] = useState(1);
+  const [spreads, setSpreads] = useState<SpreadData[]>([]);
+  const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
   const [loadingPages, setLoadingPages] = useState(false);
   const [pagesError, setPagesError] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState({ left: true, right: true });
+  const [imageError, setImageError] = useState<{ left: string | null; right: string | null }>({ left: null, right: null });
 
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
-  const backendUrl = typeof window !== 'undefined' ? window.location.origin : 'https://admin.littleherolabs.com';
 
-  // Check if PDF exists and load page data from 2B manifest
+  // Track if images have been successfully loaded from manifest (stop polling once found)
+  const imagesFoundRef = useRef(false);
+
+  // Reset ref and spread index when orderId changes
+  useEffect(() => {
+    imagesFoundRef.current = false;
+    setCurrentSpreadIndex(0); // Always start at first spread when viewing a new order
+  }, [orderId]);
+
+  // Load preview images from 3-manifest or construct directly from R2
   useEffect(() => {
     let isMounted = true;
+    let intervalId: NodeJS.Timeout | null = null;
 
     const loadPages = async () => {
       if (!isMounted) return;
+
+      // Don't reload if we already have images from the manifest
+      if (imagesFoundRef.current) {
+        return;
+      }
 
       setLoadingPages(true);
       setPagesError(null);
 
       try {
-        // Try 3-manifest first (has preview images)
+        // Try 3-manifest first (has preview images with correct URLs)
         const manifest3Key = `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;
-        const manifest3Url = `${backendUrl}/api/manifests/${manifest3Key}`;
+        const manifest3Url = `/api/manifests/${manifest3Key}`; // Use relative URL
         
-        console.log('[Pages] Trying 3-manifest first:', manifest3Url);
-        let usingPreviewImages = false;
+        let pageData: PageData[] = [];
+        let foundInManifest = false;
         
         try {
           const manifest3Res = await fetch(manifest3Url);
-          console.log('[Pages] 3-manifest response:', {
-            status: manifest3Res.status,
-            ok: manifest3Res.ok,
-            url: manifest3Url
-          });
           
           if (manifest3Res.ok) {
             const manifest3 = await manifest3Res.json();
-            console.log('[Pages] 3-manifest loaded:', {
-              hasBookAssembly: !!manifest3?.bookAssembly,
-              hasPagePreviewImages: !!manifest3?.bookAssembly?.pagePreviewImages,
-              previewImagesCount: manifest3?.bookAssembly?.pagePreviewImages?.length || 0,
-              bookAssemblyKeys: manifest3?.bookAssembly ? Object.keys(manifest3.bookAssembly) : [],
-              previewImagesType: Array.isArray(manifest3?.bookAssembly?.pagePreviewImages) ? 'array' : typeof manifest3?.bookAssembly?.pagePreviewImages,
-              firstPreviewImage: manifest3?.bookAssembly?.pagePreviewImages?.[0] || null
-            });
-            
             const previewImages = manifest3?.bookAssembly?.pagePreviewImages;
             
-            // Log the actual structure for debugging
-            if (previewImages) {
-              console.log('[Pages] Preview images structure:', {
-                isArray: Array.isArray(previewImages),
-                length: Array.isArray(previewImages) ? previewImages.length : 'N/A',
-                type: typeof previewImages,
-                firstItem: Array.isArray(previewImages) && previewImages.length > 0 ? previewImages[0] : null,
-                allItems: Array.isArray(previewImages) ? previewImages : null
-              });
-            }
-            
             if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
-              console.log('[Pages] ✓ Using preview images from 3-manifest:', {
-                imageCount: previewImages.length,
-                firstPage: previewImages[0]?.pageNumber,
-                firstImageUrl: previewImages[0]?.imageUrl
-              });
+              foundInManifest = true;
+              // Use preview images from manifest
+              pageData = previewImages
+                .sort((a: any, b: any) => a.pageNumber - b.pageNumber)
+                .map((img: any) => {
+                  // Always construct relative URL from r2Key to ensure preview deployments call their own API
+                  // Ignore imageUrl from manifest as it may contain absolute URLs pointing to production
+                  let imageUrl: string;
+                  if (img.r2Key) {
+                    // Use relative URL so it works with any deployment (production or preview)
+                    imageUrl = `/api/assets/${img.r2Key}`;
+                  } else {
+                    // Fallback: try to extract r2Key from imageUrl if it's an absolute URL
+                    const fallbackUrl = img.imageUrl || '';
+                    const r2KeyMatch = fallbackUrl.match(/\/api\/assets\/(.+)$/);
+                    if (r2KeyMatch) {
+                      imageUrl = `/api/assets/${r2KeyMatch[1]}`;
+                    } else {
+                      // Last resort: construct from page number
+                      imageUrl = `/api/assets/book-mvp-simple-adventure/orders/${orderId}/preview-images/page-${String(img.pageNumber).padStart(2, '0')}_preview.png`;
+                    }
+                  }
+                  
+                  console.log(`[Pages] Page ${img.pageNumber}:`, {
+                    hasImageUrl: !!img.imageUrl,
+                    hasR2Key: !!img.r2Key,
+                    constructedUrl: imageUrl,
+                    r2Key: img.r2Key
+                  });
+                  
+                  return {
+                    pageNumber: img.pageNumber,
+                    previewImageUrl: imageUrl
+                  };
+                });
               
-              // Use preview images directly
-              const pageData = previewImages
-                .sort((a, b) => a.pageNumber - b.pageNumber)
-                .map((img: any) => ({
-                  pageNumber: img.pageNumber,
-                  previewImageUrl: img.imageUrl
-                }));
-              
-              if (!isMounted) return;
-              
-              setPages(pageData);
-              setLoadingPages(false);
-              usingPreviewImages = true;
-              
-              // Also check if PDF exists for download
-              const pdfRes = await fetch(pdfUrl, { method: 'HEAD' });
-              if (pdfRes.ok) {
-                const jsonRes = await fetch(`${pdfUrl}?format=json`);
-                if (jsonRes.ok) {
-                  const data = await jsonRes.json();
-                  setPdfAsset(prev => ({
-                    ...prev,
-                    url: data.signedUrl || pdfUrl,
-                    exists: true,
-                    loading: false,
-                    error: null
-                  }));
-                }
-              } else {
-                setPdfAsset(prev => ({
-                  ...prev,
-                  exists: false,
-                  loading: false,
-                  error: 'PDF not yet generated'
-                }));
-              }
-              
-              return; // Success with preview images, exit early
-            } else {
-              console.log('[Pages] 3-manifest found but pagePreviewImages array is empty or missing');
+              console.log('[Pages] ✓ Loaded preview images from 3-manifest:', pageData.length);
+              console.log('[Pages] First page URL:', pageData[0]?.previewImageUrl);
             }
-          } else {
-            console.log('[Pages] 3-manifest not found (status:', manifest3Res.status, ')');
           }
         } catch (e) {
           console.log('[Pages] 3-manifest fetch error:', e);
         }
         
-        // No fallback reconstruction - show waiting message
-        if (!usingPreviewImages) {
-          console.log('[Pages] 3-manifest not available yet. Preview images will appear once Workflow 3 completes.');
+        // Fallback: Construct image URLs directly from R2 path pattern
+        if (pageData.length === 0) {
+          console.log('[Pages] Constructing preview image URLs from R2 path pattern');
+          // Images are stored at: book-mvp-simple-adventure/orders/{orderId}/preview-images/page-{pageNumber}_preview.png
+          pageData = Array.from({ length: 14 }, (_, i) => {
+            const pageNum = i + 1;
+            const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/page-${String(pageNum).padStart(2, '0')}_preview.png`;
+            return {
+              pageNumber: pageNum,
+              previewImageUrl: `/api/assets/${r2Key}` // Use relative URL
+            };
+          });
+        }
+        
+        if (!isMounted) return;
+        
+        // Always start with first available spread (spread 1, pages 1-2)
+        // When cover/dedication are added later, createSpreads will include them automatically
+        setPages((prevPages) => {
+          const isInitialLoad = prevPages.length === 0;
+          const newSpreads = createSpreads(pageData);
           
-          if (!isMounted) return;
+          // Always start at the first spread (index 0) when pages are first loaded
+          // This ensures we start with the first available page, not blank placeholders
+          if (isInitialLoad) {
+            // First time loading pages - always start at first spread
+            setCurrentSpreadIndex(0);
+          } else {
+            // Refreshing pages - preserve current spread index, but clamp to valid range
+            setCurrentSpreadIndex((prevIndex) => {
+              const maxIndex = newSpreads.length > 0 ? newSpreads.length - 1 : 0;
+              return Math.min(prevIndex, maxIndex);
+            });
+          }
           
-          setPages([]);
-          setLoadingPages(false);
-          setPagesError(null); // Clear error so we show the waiting message
+          // Update spreads when pages change
+          setSpreads(newSpreads);
           
-          // Still check if PDF exists for download (even if preview images aren't ready)
+          return pageData;
+        });
+        
+        setLoadingPages(false);
+        
+        // If we found images in the manifest, stop polling
+        if (foundInManifest && pageData.length > 0) {
+          imagesFoundRef.current = true;
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+            console.log('[Pages] Images found in manifest, stopping auto-refresh');
+          }
+        }
+        
+        // Check if PDF exists for download
+        try {
           const pdfRes = await fetch(pdfUrl, { method: 'HEAD' });
           if (pdfRes.ok) {
             const jsonRes = await fetch(`${pdfUrl}?format=json`);
@@ -185,36 +228,42 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               error: 'PDF not yet generated'
             }));
           }
+        } catch (e) {
+          console.error('[Pages] Error checking PDF:', e);
         }
       } catch (error: any) {
         if (!isMounted) return;
-        console.error('[Pages] Error loading pages:', {
-          error,
-          message: error?.message,
-          stack: error?.stack,
-          name: error?.name
-        });
+        console.error('[Pages] Error loading pages:', error);
         setPagesError(error?.message || 'Failed to load pages');
         setLoadingPages(false);
-        setPdfAsset(prev => ({
-          ...prev,
-          loading: false,
-          error: error?.message || 'Failed to load preview'
-        }));
       }
     };
 
     loadPages();
 
-    const interval = setInterval(() => {
+    // Start polling - will stop automatically once images are found
+    intervalId = setInterval(() => {
       loadPages();
     }, 10000);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
-  }, [orderId, pdfUrl, backendUrl]);
+  }, [orderId, pdfUrl]);
+
+  // Reset image loading state when spread changes
+  useEffect(() => {
+    const currentSpread = spreads[currentSpreadIndex];
+    // Only set loading to true if there's actually a page to load
+    setImageLoading({ 
+      left: currentSpread?.leftPage ? true : false, 
+      right: currentSpread?.rightPage ? true : false 
+    });
+    setImageError({ left: null, right: null });
+  }, [currentSpreadIndex, spreads]);
 
   const handleDownload = () => {
     if (pdfAsset.exists && pdfAsset.url) {
@@ -239,30 +288,70 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const isPostBriaApproved = order.reviewStages.postBria.status === 'approved';
   const canApprove = !pdfAsset.isFlagged && isPostBriaApproved;
 
-  const currentPage = pages[pageNumber - 1];
-  const totalPages = pages.length;
+  const currentSpread = spreads[currentSpreadIndex];
+  const totalSpreads = spreads.length;
+  const currentSpreadNumber = currentSpreadIndex + 1;
 
-  // Debug logging
+  const handlePreviousSpread = () => {
+    if (currentSpreadIndex > 0) {
+      setCurrentSpreadIndex(currentSpreadIndex - 1);
+    }
+  };
+
+  const handleNextSpread = () => {
+    if (currentSpreadIndex < totalSpreads - 1) {
+      setCurrentSpreadIndex(currentSpreadIndex + 1);
+    }
+  };
+
+  // Keyboard navigation
   useEffect(() => {
-    console.log('[Pages] Render state:', {
-      loadingPages,
-      pagesError,
-      pagesLength: pages.length,
-      pageNumber,
-      currentPage: currentPage ? {
-        pageNumber: currentPage.pageNumber,
-        hasPreviewImage: !!currentPage.previewImageUrl,
-        hasBackground: !!currentPage.backgroundUrl,
-        hasCharacter: !!currentPage.characterUrl,
-        hasText: !!currentPage.text,
-        mode: currentPage.previewImageUrl ? 'PREVIEW_IMAGE' : 'RECONSTRUCTION'
-      } : null,
-      totalPages
-    });
-  }, [loadingPages, pagesError, pages.length, pageNumber, currentPage, totalPages]);
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' && currentSpreadIndex > 0) {
+        setCurrentSpreadIndex(currentSpreadIndex - 1);
+      } else if (e.key === 'ArrowRight' && currentSpreadIndex < totalSpreads - 1) {
+        setCurrentSpreadIndex(currentSpreadIndex + 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentSpreadIndex, totalSpreads]);
 
   return (
-    <div className="space-y-8">
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .spread-container {
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+          width: 100%;
+        }
+
+        .two-page-spread {
+          display: flex;
+          gap: 0; /* No gap between pages in print */
+          width: 100%;
+          max-width: 100%;
+          height: auto;
+        }
+
+        .two-page-spread img {
+          width: 50%;
+          height: auto;
+          object-fit: contain;
+          display: block;
+          aspect-ratio: 1 / 1;
+        }
+
+        .white-page {
+          width: 50%;
+          aspect-ratio: 1 / 1;
+          background-color: white;
+          /* Simulated white page - no image needed */
+        }
+      `}} />
+      <div className="space-y-8">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -302,7 +391,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           </div>
         </div>
 
-        {/* Page Preview */}
+        {/* PDF Viewer - Page Preview */}
         {loadingPages && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="h-[800px] bg-gray-50 flex items-center justify-center">
@@ -318,11 +407,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="h-[800px] bg-gray-50 flex items-center justify-center">
               <div className="text-center">
-                <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">{pagesError}</p>
+                <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                <p className="text-red-600 text-sm font-medium">{pagesError}</p>
               </div>
             </div>
-                </div>
+          </div>
         )}
 
         {!loadingPages && !pagesError && pages.length === 0 && (
@@ -335,68 +424,162 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   Book preview images will appear here automatically once Workflow 3 (Book Assembly) completes.
                 </p>
                 <p className="text-gray-500 text-xs">
-                  This page will refresh automatically every 10 seconds. Preview images are generated from the final book layout.
+                  This page will refresh automatically every 10 seconds.
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {!loadingPages && !pagesError && currentPage && (
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+        {!loadingPages && !pagesError && spreads.length > 0 && currentSpread && (
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+            {/* Viewer Header */}
+            <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Page {pageNumber} of {totalPages}</span>
-                <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">
+                  Spread {currentSpreadNumber} of {totalSpreads}
+                  {currentSpread.leftPage && currentSpread.rightPage && (
+                    <span className="text-gray-500 ml-2">
+                      (Pages {currentSpread.leftPage.pageNumber} & {currentSpread.rightPage.pageNumber})
+                    </span>
+                  )}
+                  {currentSpread.leftPage && !currentSpread.rightPage && (
+                    <span className="text-gray-500 ml-2">
+                      (Page {currentSpread.leftPage.pageNumber})
+                    </span>
+                  )}
+                </span>
+                <div className="flex items-center gap-3">
                   <button
-                    onClick={() => setPageNumber(prev => Math.max(1, prev - 1))}
-                    disabled={pageNumber <= 1}
-                    className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    aria-label="Previous page"
+                    onClick={handlePreviousSpread}
+                    disabled={currentSpreadIndex === 0}
+                    className="p-2 rounded-md hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Previous spread"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-5 w-5 text-gray-600" />
                   </button>
                   <button
-                    onClick={() => setPageNumber(prev => Math.min(totalPages, prev + 1))}
-                    disabled={pageNumber >= totalPages}
-                    className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    aria-label="Next page"
+                    onClick={handleNextSpread}
+                    disabled={currentSpreadIndex >= totalSpreads - 1}
+                    className="p-2 rounded-md hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Next spread"
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-5 w-5 text-gray-600" />
                   </button>
                 </div>
               </div>
             </div>
-            <div className="h-[800px] bg-gray-100 overflow-hidden flex items-center justify-center p-4" style={{ position: 'relative' }}>
-              {/* Preview image mode (from 3-manifest) */}
-              {currentPage?.previewImageUrl && (
-                <div
-                  className="book-page relative"
-                  id={`page-${currentPage.pageNumber}`}
-                  style={{
-                    width: '2550px',
-                    height: '2550px',
-                    transform: 'scale(0.3)',
-                    transformOrigin: 'center center',
-                    margin: '0 auto',
-                    position: 'relative',
-                    backgroundColor: '#fff',
-                    overflow: 'hidden',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  <img
-                    src={currentPage.previewImageUrl}
-                    alt={`Page ${currentPage.pageNumber}`}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                      display: 'block'
-                    }}
-                  />
+
+            {/* Spread Display Area */}
+            <div className="bg-gray-100 flex items-center justify-center p-8 relative">
+              {((currentSpread.leftPage && imageLoading.left) || (currentSpread.rightPage && imageLoading.right)) && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                  <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
                 </div>
               )}
+              
+              {(imageError.left || imageError.right) && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                  <div className="text-center">
+                    <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                    <p className="text-red-600 text-sm">
+                      {imageError.left || imageError.right}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="spread-container w-full max-w-full">
+                <div className="two-page-spread">
+                  {/* Left page */}
+                  {currentSpread.leftPage ? (
+                    <img
+                      src={currentSpread.leftPage.previewImageUrl}
+                      alt={`Page ${currentSpread.leftPage.pageNumber}`}
+                      onLoad={() => {
+                        console.log(`[Spreads] ✓ Left image loaded successfully for page ${currentSpread.leftPage!.pageNumber}`);
+                        setImageLoading(prev => ({ ...prev, left: false }));
+                        setImageError(prev => ({ ...prev, left: null }));
+                      }}
+                      onError={async (e) => {
+                        const img = e.currentTarget;
+                        const url = currentSpread.leftPage!.previewImageUrl;
+                        
+                        try {
+                          const response = await fetch(url, { method: 'HEAD' });
+                          console.error(`[Spreads] ✗ Left image failed to load for page ${currentSpread.leftPage!.pageNumber}:`, {
+                            url,
+                            httpStatus: response.status,
+                            httpStatusText: response.statusText,
+                            error: e
+                          });
+                        } catch (fetchError) {
+                          console.error(`[Spreads] ✗ Left image fetch error for page ${currentSpread.leftPage!.pageNumber}:`, {
+                            url,
+                            fetchError,
+                            error: e
+                          });
+                        }
+                        
+                        setImageLoading(prev => ({ ...prev, left: false }));
+                        setImageError(prev => ({ ...prev, left: `Failed to load page ${currentSpread.leftPage!.pageNumber}` }));
+                      }}
+                      className={`transition-opacity duration-200 ${
+                        imageLoading.left ? 'opacity-0' : 'opacity-100'
+                      }`}
+                      style={{
+                        display: imageError.left ? 'none' : 'block'
+                      }}
+                    />
+                  ) : (
+                    <div className="white-page" />
+                  )}
+                  
+                  {/* Right page */}
+                  {currentSpread.rightPage ? (
+                    <img
+                      src={currentSpread.rightPage.previewImageUrl}
+                      alt={`Page ${currentSpread.rightPage.pageNumber}`}
+                      onLoad={() => {
+                        console.log(`[Spreads] ✓ Right image loaded successfully for page ${currentSpread.rightPage!.pageNumber}`);
+                        setImageLoading(prev => ({ ...prev, right: false }));
+                        setImageError(prev => ({ ...prev, right: null }));
+                      }}
+                      onError={async (e) => {
+                        const img = e.currentTarget;
+                        const url = currentSpread.rightPage!.previewImageUrl;
+                        
+                        try {
+                          const response = await fetch(url, { method: 'HEAD' });
+                          console.error(`[Spreads] ✗ Right image failed to load for page ${currentSpread.rightPage!.pageNumber}:`, {
+                            url,
+                            httpStatus: response.status,
+                            httpStatusText: response.statusText,
+                            error: e
+                          });
+                        } catch (fetchError) {
+                          console.error(`[Spreads] ✗ Right image fetch error for page ${currentSpread.rightPage!.pageNumber}:`, {
+                            url,
+                            fetchError,
+                            error: e
+                          });
+                        }
+                        
+                        setImageLoading(prev => ({ ...prev, right: false }));
+                        setImageError(prev => ({ ...prev, right: `Failed to load page ${currentSpread.rightPage!.pageNumber}` }));
+                      }}
+                      className={`transition-opacity duration-200 ${
+                        imageLoading.right ? 'opacity-0' : 'opacity-100'
+                      }`}
+                      style={{
+                        display: imageError.right ? 'none' : 'block'
+                      }}
+                    />
+                  ) : (
+                    <div className="white-page" />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -410,7 +593,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             </div>
             <div>
               <span className="text-gray-500">Pages:</span>
-              <span className="ml-1 text-gray-900">{totalPages || 14}</span>
+              <span className="ml-1 text-gray-900">{pages.length || 14}</span>
             </div>
             <div>
               <span className="text-gray-500">Format:</span>
@@ -493,5 +676,6 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         </div>
       </div>
     </div>
+    </>
   );
 }

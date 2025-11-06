@@ -1,9 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
+import { getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+
+/**
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
 
 /**
  * Proxy endpoint to serve R2 images
  * GET /api/assets/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/pose01-walking-bg-removed.png
+ * HEAD /api/assets/... (for checking if file exists)
  */
 export async function GET(
   request: NextRequest,
@@ -21,23 +37,45 @@ export async function GET(
     
     console.log(`[GET /api/assets] Fetching image: ${key}`);
     
-    // Fetch object from R2
-    const response = await getObject(R2_PUBLIC_BUCKET, key);
+    // Determine which bucket to use based on path
+    // Orders bucket: book-mvp-simple-adventure/orders/...
+    // Public bucket: everything else
+    const isOrderAsset = key.startsWith('book-mvp-simple-adventure/orders/');
+    const bucket = isOrderAsset ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
     
-    if (!response.ok) {
-      console.error(`[GET /api/assets] Failed to fetch ${key}: ${response.status} ${response.statusText}`);
+    console.log(`[GET /api/assets] Using bucket: ${bucket} for key: ${key}`);
+    
+    // Fetch object from R2 (getObject throws on error, so catch it)
+    let r2Response: Response;
+    try {
+      r2Response = await getObject(bucket, key);
+    } catch (error: any) {
+      // getObject throws on non-OK responses (404, 403, etc.)
+      console.error(`[GET /api/assets] getObject threw error for ${key}:`, error.message);
+      
+      // Extract status code from error message if available
+      const statusMatch = error.message?.match(/(\d{3})/);
+      const status = statusMatch ? parseInt(statusMatch[1]) : 404;
+      
       return NextResponse.json(
-        { error: `Failed to fetch image: ${response.statusText}` },
-        { status: response.status }
+        { error: `Failed to fetch image: ${error.message || 'Not found'}` },
+        { 
+          status,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          }
+        }
       );
     }
 
     // Get content type from response or infer from extension
-    const contentType = response.headers.get('content-type') || 
+    const contentType = r2Response.headers.get('content-type') || 
       getContentTypeFromKey(key);
     
     // Get image data
-    const imageBuffer = await response.arrayBuffer();
+    const imageBuffer = await r2Response.arrayBuffer();
     
     // Determine cache strategy based on image type
     // Background-removed images (nobg.png) should refresh more frequently to show updated versions
@@ -48,20 +86,119 @@ export async function GET(
       ? 'public, max-age=60, must-revalidate' // Cache for 1 minute, must revalidate for post-Bria images
       : 'public, max-age=3600, s-maxage=3600'; // Cache for 1 hour for other images
     
-    // Return image with proper headers
-    return new NextResponse(imageBuffer, {
+    // Return image with proper headers (including CORS)
+    const response = new NextResponse(imageBuffer, {
       status: 200,
       headers: {
         'Content-Type': contentType,
         'Cache-Control': cacheControl,
-        'Access-Control-Allow-Origin': '*', // Allow CORS for images
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+    });
+    
+    return response;
+  } catch (error: any) {
+    console.error('[GET /api/assets] Error:', error);
+    const errorResponse = NextResponse.json(
+      { error: error?.message || 'Failed to fetch image' },
+      { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        }
+      }
+    );
+    return errorResponse;
+  }
+}
+
+/**
+ * Handle HEAD requests (for checking if file exists)
+ */
+export async function HEAD(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  try {
+    const { path } = await params;
+    
+    if (!path || path.length === 0) {
+      return NextResponse.json({ error: 'Missing path' }, { 
+        status: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        }
+      });
+    }
+
+    // Reconstruct the key from path segments
+    const key = path.join('/');
+    
+    console.log(`[HEAD /api/assets] Checking image: ${key}`);
+    
+    // Determine which bucket to use based on path
+    const isOrderAsset = key.startsWith('book-mvp-simple-adventure/orders/');
+    const bucket = isOrderAsset ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
+    
+    console.log(`[HEAD /api/assets] Using bucket: ${bucket} for key: ${key}`);
+    
+    // Fetch object from R2 (getObject throws on error, so catch it)
+    let r2Response: Response;
+    try {
+      r2Response = await getObject(bucket, key);
+    } catch (error: any) {
+      // getObject throws on non-OK responses (404, 403, etc.)
+      console.error(`[HEAD /api/assets] getObject threw error for ${key}:`, error.message);
+      
+      // Extract status code from error message if available
+      const statusMatch = error.message?.match(/(\d{3})/);
+      const status = statusMatch ? parseInt(statusMatch[1]) : 404;
+      
+      return NextResponse.json(
+        { error: `Failed to fetch image: ${error.message || 'Not found'}` },
+        { 
+          status,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          }
+        }
+      );
+    }
+
+    // Get content type from response or infer from extension
+    const contentType = r2Response.headers.get('content-type') || 
+      getContentTypeFromKey(key);
+    
+    // Return HEAD response with proper headers (no body)
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Content-Length': r2Response.headers.get('content-length') || '0',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
       },
     });
   } catch (error: any) {
-    console.error('[GET /api/assets] Error:', error);
+    console.error('[HEAD /api/assets] Error:', error);
     return NextResponse.json(
-      { error: error?.message || 'Failed to fetch image' },
-      { status: 500 }
+      { error: error?.message || 'Failed to check image' },
+      { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        }
+      }
     );
   }
 }

@@ -3,15 +3,15 @@
   "nodes": [
     {
       "parameters": {
-        "jsCode": "/**\n * Extract Manifest URL for Workflow 3 - Normalize webhook data structure\n * Handles both webhook body structure (first pass) and direct fields\n * FIX: Check top-level first (Wait node), then body (webhook), process ALL items\n * Handle null values properly - construct from orderId if manifestUrl is null\n * UPDATED: Uses 2B manifest (not 2A) and includes needed info for Workflow 3\n */\nconst inputs = $input.all();\n\nreturn inputs.map(item => {\n  const input = item.json;\n  \n  // Priority: Check top-level first (Wait node resume), then body (webhook first pass)\n  // Wait node data has manifestUrl at top level, webhook has it in body\n  // Handle null/empty string explicitly\n  let manifestUrl = (input.manifestUrl && input.manifestUrl !== null && input.manifestUrl !== '') ? input.manifestUrl : null;\n  if (!manifestUrl) {\n    manifestUrl = (input.originalManifestUrl && input.originalManifestUrl !== null && input.originalManifestUrl !== '') ? input.originalManifestUrl : null;\n  }\n  \n  let orderId = (input.orderId && input.orderId !== null && input.orderId !== '') ? input.orderId : null;\n  if (!orderId) {\n    orderId = (input.amazonOrderId && input.amazonOrderId !== null && input.amazonOrderId !== '') ? input.amazonOrderId : null;\n  }\n  \n  // Fallback: Extract orderId from manifestKey if available (S3 node might have stripped orderId)\n  if ((!orderId || orderId === null || orderId === '') && input.manifestKey) {\n    const manifestKeyStr = String(input.manifestKey).trim();\n    if (manifestKeyStr && manifestKeyStr !== 'null' && manifestKeyStr !== 'undefined') {\n      // Try multiple patterns: /orders/{orderId}/ or orders/{orderId}/\n      const patterns = [\n        /[\\/]orders[\\/]([^\\/]+)[\\/]/,  // Matches /orders/TEST-ORDER-006/\n        /orders[\\/]([^\\/]+)[\\/]/,     // Matches orders/TEST-ORDER-006/\n      ];\n      \n      for (const pattern of patterns) {\n        const keyMatch = manifestKeyStr.match(pattern);\n        if (keyMatch && keyMatch[1]) {\n          orderId = keyMatch[1];\n          console.log(`\u2713 Extracted orderId from manifestKey: ${orderId} (pattern matched)`);\n          break;\n        }\n      }\n      \n      if (!orderId) {\n        console.warn(`\u26a0\ufe0f Could not extract orderId from manifestKey: ${manifestKeyStr.substring(0, 100)}`);\n      }\n    }\n  }\n  \n  let webhookUrl = (input.webhookUrl && input.webhookUrl !== null && input.webhookUrl !== '') ? input.webhookUrl : null;\n  \n  // If not found at top level, check body (webhook structure)\n  if (!manifestUrl && input.body && input.body !== input) {\n    manifestUrl = (input.body.manifestUrl && input.body.manifestUrl !== null && input.body.manifestUrl !== '') ? input.body.manifestUrl : null;\n    if (!manifestUrl) {\n      manifestUrl = (input.body.originalManifestUrl && input.body.originalManifestUrl !== null && input.body.originalManifestUrl !== '') ? input.body.originalManifestUrl : null;\n    }\n    if (!orderId) {\n      orderId = (input.body.orderId && input.body.orderId !== null && input.body.orderId !== '') ? input.body.orderId : null;\n      if (!orderId) {\n        orderId = (input.body.amazonOrderId && input.body.amazonOrderId !== null && input.body.amazonOrderId !== '') ? input.body.amazonOrderId : null;\n      }\n    }\n    if (!webhookUrl) {\n      webhookUrl = (input.body.webhookUrl && input.body.webhookUrl !== null && input.body.webhookUrl !== '') ? input.body.webhookUrl : null;\n    }\n  }\n  \n  // If no manifestUrl but we have orderId, construct it\n  // UPDATED: Uses 2B manifest (not 2A) for Workflow 3\n  if ((!manifestUrl || manifestUrl === null || manifestUrl === '') && orderId && orderId !== null && orderId !== '') {\n    // PRODUCTION URL: https://admin.littleherolabs.com\n    // PREVIEW URL: https://387cb69b.little-hero-labs-admin.pages.dev (for testing preview branches)\n    const baseUrl = 'https://admin.littleherolabs.com/api/manifests';\n    manifestUrl = `${baseUrl}/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2b-manifest.json`;\n    console.log(`\u2713 Constructed manifestUrl from orderId: ${manifestUrl} (orderId was: ${orderId})`);\n  }\n  \n  // Final validation - if still no manifestUrl, we have a problem\n  if (!manifestUrl || manifestUrl === null || manifestUrl === '') {\n    const keys = input ? Object.keys(input).join(', ') : 'no input';\n    const manifestUrlValue = input.manifestUrl;\n    const orderIdValue = orderId;  // Use the extracted orderId, not input.orderId\n    const manifestKeyValue = input.manifestKey || 'not present';\n    console.error(`\u274c Cannot resolve manifestUrl. manifestUrl=${manifestUrlValue}, orderId=${orderIdValue}, manifestKey=${manifestKeyValue}, Keys: ${keys}`);\n    throw new Error(`Cannot resolve manifestUrl. manifestUrl=${manifestUrlValue}, orderId=${orderIdValue}, manifestKey=${manifestKeyValue}, Keys: ${keys}`);\n  }\n  \n  // CRITICAL: Detect if this is from webhook (first pass) or Wait node (retry loop)\n  // On webhook: body.webhookUrl exists, isFirstPass is undefined\n  // On Wait node resume: isFirstPass is explicitly false (from Restore JSON After Upload)\n  let isFirstPass = input.isFirstPass;\n  if (isFirstPass === undefined) {\n    // Not set yet - check if this is from webhook (first pass) or Wait node (retry loop)\n    // Check for webhookUrl in body (webhook structure) or top-level (already extracted)\n    const hasWebhookUrl = !!(webhookUrl || (input.body && input.body !== input && input.body.webhookUrl));\n    isFirstPass = hasWebhookUrl ? true : false; // Default to false if we can't determine\n  }\n  \n  // CRITICAL: Preserve all fields from input, especially isFirstPass, statusUrl, etc.\n  // These are essential for routing in the IF node after retry loops\n  // Also include manifestKey for downstream nodes\n  const manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json`;\n  \n  return {\n    json: {\n      ...input,  // Preserve ALL fields from input\n      manifestUrl: manifestUrl,\n      originalManifestUrl: manifestUrl,\n      manifestKey: manifestKey,\n      orderId: orderId || input.orderId || input.amazonOrderId || null,\n      webhookUrl: webhookUrl || input.webhookUrl || null,\n      // Explicitly preserve these critical fields for IF node routing\n      isFirstPass: isFirstPass,\n      statusUrl: input.statusUrl || input.status_url || null,\n      status_url: input.status_url || input.statusUrl || null,\n      requestId: input.requestId || input.request_id || null,\n      request_id: input.request_id || input.requestId || null,\n      poseNumber: input.poseNumber || null,\n      characterHash: input.characterHash || null,\n      // Include backend URL for downstream proxy URL construction\n      backendUrl: 'https://admin.littleherolabs.com'\n    }\n  };\n});\n"
+        "jsCode": "/**\n * Extract Manifest URL for Workflow 3 - Normalize webhook data structure\n * Handles both webhook body structure (first pass) and direct fields\n * FIX: Check top-level first (Wait node), then body (webhook), process ALL items\n * Handle null values properly - construct from orderId if manifestUrl is null\n * UPDATED: Uses 2B manifest (not 2A) and includes needed info for Workflow 3\n */\nconst inputs = $input.all();\n\nreturn inputs.map(item => {\n  const input = item.json;\n  \n  // Priority: Check top-level first (Wait node resume), then body (webhook first pass)\n  // Wait node data has manifestUrl at top level, webhook has it in body\n  // Handle null/empty string explicitly\n  let manifestUrl = (input.manifestUrl && input.manifestUrl !== null && input.manifestUrl !== '') ? input.manifestUrl : null;\n  if (!manifestUrl) {\n    manifestUrl = (input.originalManifestUrl && input.originalManifestUrl !== null && input.originalManifestUrl !== '') ? input.originalManifestUrl : null;\n  }\n  \n  let orderId = (input.orderId && input.orderId !== null && input.orderId !== '') ? input.orderId : null;\n  if (!orderId) {\n    orderId = (input.amazonOrderId && input.amazonOrderId !== null && input.amazonOrderId !== '') ? input.amazonOrderId : null;\n  }\n  \n  // Fallback: Extract orderId from manifestKey if available (S3 node might have stripped orderId)\n  if ((!orderId || orderId === null || orderId === '') && input.manifestKey) {\n    const manifestKeyStr = String(input.manifestKey).trim();\n    if (manifestKeyStr && manifestKeyStr !== 'null' && manifestKeyStr !== 'undefined') {\n      // Try multiple patterns: /orders/{orderId}/ or orders/{orderId}/\n      const patterns = [\n        /[\\/]orders[\\/]([^\\/]+)[\\/]/,  // Matches /orders/TEST-ORDER-006/\n        /orders[\\/]([^\\/]+)[\\/]/,     // Matches orders/TEST-ORDER-006/\n      ];\n      \n      for (const pattern of patterns) {\n        const keyMatch = manifestKeyStr.match(pattern);\n        if (keyMatch && keyMatch[1]) {\n          orderId = keyMatch[1];\n          console.log(`✓ Extracted orderId from manifestKey: ${orderId} (pattern matched)`);\n          break;\n        }\n      }\n      \n      if (!orderId) {\n        console.warn(`⚠️ Could not extract orderId from manifestKey: ${manifestKeyStr.substring(0, 100)}`);\n      }\n    }\n  }\n  \n  let webhookUrl = (input.webhookUrl && input.webhookUrl !== null && input.webhookUrl !== '') ? input.webhookUrl : null;\n  \n  // If not found at top level, check body (webhook structure)\n  if (!manifestUrl && input.body && input.body !== input) {\n    manifestUrl = (input.body.manifestUrl && input.body.manifestUrl !== null && input.body.manifestUrl !== '') ? input.body.manifestUrl : null;\n    if (!manifestUrl) {\n      manifestUrl = (input.body.originalManifestUrl && input.body.originalManifestUrl !== null && input.body.originalManifestUrl !== '') ? input.body.originalManifestUrl : null;\n    }\n    if (!orderId) {\n      orderId = (input.body.orderId && input.body.orderId !== null && input.body.orderId !== '') ? input.body.orderId : null;\n      if (!orderId) {\n        orderId = (input.body.amazonOrderId && input.body.amazonOrderId !== null && input.body.amazonOrderId !== '') ? input.body.amazonOrderId : null;\n      }\n    }\n    if (!webhookUrl) {\n      webhookUrl = (input.body.webhookUrl && input.body.webhookUrl !== null && input.body.webhookUrl !== '') ? input.body.webhookUrl : null;\n    }\n  }\n  \n  // If no manifestUrl but we have orderId, construct it\n  // UPDATED: Uses 2B manifest (not 2A) for Workflow 3\n  if ((!manifestUrl || manifestUrl === null || manifestUrl === '') && orderId && orderId !== null && orderId !== '') {\n    // PRODUCTION URL: https://admin.littleherolabs.com\n    // PREVIEW URL: https://387cb69b.little-hero-labs-admin.pages.dev (for testing preview branches)\n    const baseUrl = 'https://admin.littleherolabs.com/api/manifests';\n    manifestUrl = `${baseUrl}/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2b-manifest.json`;\n    console.log(`✓ Constructed manifestUrl from orderId: ${manifestUrl} (orderId was: ${orderId})`);\n  }\n  \n  // Final validation - if still no manifestUrl, we have a problem\n  if (!manifestUrl || manifestUrl === null || manifestUrl === '') {\n    const keys = input ? Object.keys(input).join(', ') : 'no input';\n    const manifestUrlValue = input.manifestUrl;\n    const orderIdValue = orderId;  // Use the extracted orderId, not input.orderId\n    const manifestKeyValue = input.manifestKey || 'not present';\n    console.error(`❌ Cannot resolve manifestUrl. manifestUrl=${manifestUrlValue}, orderId=${orderIdValue}, manifestKey=${manifestKeyValue}, Keys: ${keys}`);\n    throw new Error(`Cannot resolve manifestUrl. manifestUrl=${manifestUrlValue}, orderId=${orderIdValue}, manifestKey=${manifestKeyValue}, Keys: ${keys}`);\n  }\n  \n  // CRITICAL: Detect if this is from webhook (first pass) or Wait node (retry loop)\n  // On webhook: body.webhookUrl exists, isFirstPass is undefined\n  // On Wait node resume: isFirstPass is explicitly false (from Restore JSON After Upload)\n  let isFirstPass = input.isFirstPass;\n  if (isFirstPass === undefined) {\n    // Not set yet - check if this is from webhook (first pass) or Wait node (retry loop)\n    // Check for webhookUrl in body (webhook structure) or top-level (already extracted)\n    const hasWebhookUrl = !!(webhookUrl || (input.body && input.body !== input && input.body.webhookUrl));\n    isFirstPass = hasWebhookUrl ? true : false; // Default to false if we can't determine\n  }\n  \n  // CRITICAL: Preserve all fields from input, especially isFirstPass, statusUrl, etc.\n  // These are essential for routing in the IF node after retry loops\n  // Also include manifestKey for downstream nodes\n  const manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json`;\n  \n  return {\n    json: {\n      ...input,  // Preserve ALL fields from input\n      manifestUrl: manifestUrl,\n      originalManifestUrl: manifestUrl,\n      manifestKey: manifestKey,\n      orderId: orderId || input.orderId || input.amazonOrderId || null,\n      webhookUrl: webhookUrl || input.webhookUrl || null,\n      // Explicitly preserve these critical fields for IF node routing\n      isFirstPass: isFirstPass,\n      statusUrl: input.statusUrl || input.status_url || null,\n      status_url: input.status_url || input.statusUrl || null,\n      requestId: input.requestId || input.request_id || null,\n      request_id: input.request_id || input.requestId || null,\n      poseNumber: input.poseNumber || null,\n      characterHash: input.characterHash || null,\n      // Include backend URL for downstream proxy URL construction\n      backendUrl: 'https://admin.littleherolabs.com'\n    }\n  };\n});\n"
       },
-      "id": "471f6509-4962-455e-a962-b4c7bbfb530a",
+      "id": "a296ebdd-dc69-48f8-b460-3a52a8ea6622",
       "name": "Extract Manifest URL (3)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -5024,
-        -80
+        -1856,
+        -128
       ]
     },
     {
@@ -26,13 +26,13 @@
           "timeout": 30000
         }
       },
-      "id": "036effab-ca40-4e2a-ab93-1964455de224",
+      "id": "3b898486-5cf3-43c9-bfe0-92786fa92caf",
       "name": "Download 2B Manifest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -4832,
-        -80
+        -1664,
+        -128
       ]
     },
     {
@@ -40,13 +40,13 @@
         "language": "JavaScript",
         "jsCode": "/**\n * Build Assembly Input From Manifest\n * Converts 2B manifest into the payload expected downstream.\n */\nconst input = $input.first().json || {};\nconst manifest = input || {}; // HTTP node passes manifest JSON as item\n\n// Validate manifest schema\nif (!manifest.schema || !manifest.schema.includes('lhb.run-manifest')) {\n  throw new Error(`Invalid or missing manifest schema. Expected 'lhb.run-manifest@v2.0', got: ${manifest.schema || 'undefined'}`);\n}\n\n// Try to get preserved context from Extract node\nlet ctx = {};\ntry { ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst order = manifest.order || {};\nconst entries = Array.isArray(manifest.entries) ? manifest.entries : [];\nconst amazonOrderId = order.amazonOrderId || ctx.orderId || null;\nconst characterHash = manifest.characterHash || order.characterHash || null;\nconst backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n\n// Validate required fields\nif (!amazonOrderId) {\n  throw new Error('Manifest missing required order.amazonOrderId');\n}\nif (!characterHash) {\n  throw new Error('Manifest missing required characterHash');\n}\nif (!Array.isArray(manifest.entries) || manifest.entries.length === 0) {\n  throw new Error('Manifest has no entries (poses)');\n}\n\nconst toProxy = (key) => `${backendUrl}/api/assets/${key}`;\nconst processedImages = entries\n  .filter(e => Number.isFinite(Number(e.poseNumber)) && e.bgRemovedKey)\n  .sort((a,b) => a.poseNumber - b.poseNumber)\n  .map(e => ({\n    poseNumber: e.poseNumber,\n    fileName: (e.bgRemovedKey.split('/').pop()) || `pose${String(e.poseNumber).padStart(2,'0')}_nobg.png`,\n    r2Path: e.bgRemovedKey,\n    publicUrl: toProxy(e.bgRemovedKey),\n    briaProcessed: true,\n    briaStatus: 'COMPLETED',\n    processingError: false,\n  }));\n\nreturn [{ json: {\n  amazonOrderId,\n  characterHash,\n  characterSpecs: order.characterSpecs || {},\n  bookSpecs: order.bookSpecs || {},\n  orderDetails: order.orderDetails || {},\n  publicR2Url: order.publicR2Url || null,\n  backendUrl,\n  processedImages\n} }];\n"
       },
-      "id": "02a8d7d4-42b5-4c17-b317-ea20af4a0a32",
+      "id": "42935dcc-c64b-4134-bda5-bf0cbcb0eca0",
       "name": "Build Assembly Input From Manifest",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -4656,
-        -80
+        -1488,
+        -128
       ]
     },
     {
@@ -54,13 +54,13 @@
         "language": "JavaScript",
         "jsCode": "// Get order ready for book assembly (robust Webhook body handling)\n\n// Webhook puts the real payload under .body; if not present, assume it's already flat\nconst input = $input.first().json;\nconst payload = input.body ?? input;\n\n// Pull required fields from either flat or nested orderData\nconst amazonOrderId = payload.amazonOrderId ?? payload.orderData?.amazonOrderId ?? null;\nconst characterHash = payload.characterHash ?? payload.orderData?.characterHash ?? null;\n\n// Optional sections\nconst characterSpecs = payload.characterSpecs ?? payload.orderData?.characterSpecs ?? {};\nconst bookSpecs      = payload.bookSpecs      ?? payload.orderData?.bookSpecs      ?? {};\nconst orderDetails   = payload.orderDetails   ?? payload.orderData?.orderDetails   ?? {};\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url    = payload.publicR2Url    ?? null;\n\n// Processed images come in flat (2B sends them at top level)\nconst processedImages = payload.processedImages ?? [];\n\n// Validate\nif (!amazonOrderId || !characterHash) {\n  throw new Error('Missing required order data: amazonOrderId or characterHash');\n}\nif (!Array.isArray(processedImages) || processedImages.length === 0) {\n  throw new Error('No processed images received from Workflow 2B');\n}\n\n// Normalize/initialize assembly state\nconst assemblingOrder = {\n  status: 'book_assembly_in_progress',\n  assemblyStartedAt: new Date().toISOString(),\n  pagesGenerated: 0,\n  totalPagesRequired: 14,\n  assemblyProgress: 0,\n\n  amazonOrderId,\n  characterHash,\n  characterSpecs,\n  bookSpecs,\n  orderDetails,\n  publicR2Url,\n\n  processedImages\n};\n\nconsole.log(`Starting book assembly for order: ${amazonOrderId} (images: ${processedImages.length})`);\nreturn [{ json: assemblingOrder }];\n"
       },
-      "id": "5f55707c-5f1e-4ebd-bef4-13096274fcf9",
+      "id": "7b0e8684-28df-48b8-9729-2033dcaca1d8",
       "name": "Get Order Ready for Assembly",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -4480,
-        -80
+        -1312,
+        -128
       ]
     },
     {
@@ -68,13 +68,13 @@
         "language": "JavaScript",
         "jsCode": "/**\n * Load Background Images (pages 1..14)\n * Uses backend proxy URLs for R2 assets. Backgrounds live at:\n *   little-hero-assets/book-mvp-simple-adventure/backgrounds/pageXX-<slug>.png\n */\nconst order = $input.first().json || {};\n\n// Get backendUrl from context or use default\nlet backendUrl = order.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\n\nif (!order.amazonOrderId) {\n  throw new Error('Amazon Order ID is required for loading background images');\n}\n\n// Keep slugs in lockstep with your storage names.\nconst sceneSlugs = [\n  'twilight-walk','night-forest','magic-doorway','courage-leap','morning-meadow',\n  'tall-forest','mountain-vista','picnic-surprise','beach-discovery','crystal-cave',\n  'giant-flowers','almost-there','animal-reveal','flying-home'\n];\nconst sceneNames = [\n  'twilight_walk','night_forest','magic_doorway','courage_leap','morning_meadow',\n  'tall_forest','mountain_vista','picnic_surprise','beach_discovery','crystal_cave',\n  'giant_flowers','enchanted_grove','animal_reveal','flying_home'\n];\n\n// Construct backend proxy URLs for backgrounds\nconst backgroundImages = Array.from({ length: 14 }, (_, i) => {\n  const pageNumber = i + 1;\n  const r2Key = `book-mvp-simple-adventure/backgrounds/page${String(pageNumber).padStart(2,'0')}-${sceneSlugs[i]}.png`;\n  const imagePath = `${backendUrl}/api/assets/${r2Key}`;\n  return {\n    pageNumber,\n    imagePath,\n    sceneName: sceneNames[i],\n    validated: false,\n  };\n});\n\nreturn [{ json: { ...order, backgroundImages, backendUrl } }];\n"
       },
-      "id": "5ab6d87f-c9b3-421a-a5b2-70a5761325b7",
+      "id": "534907d3-0b4e-4470-9eb0-34f47534cb4b",
       "name": "Load Generated Characters",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -4288,
-        -80
+        -1120,
+        -128
       ]
     },
     {
@@ -82,27 +82,27 @@
         "language": "JavaScript",
         "jsCode": "/**\n * Load story text (14 pages) + ensure characterImages exists\n * Belt-and-suspenders: synthesize from processedImages or canonical paths.\n */\nconst order = $input.first().json || {};\nconst childName = order.characterSpecs?.childName;\nconst hometown  = order.characterSpecs?.hometown || 'Seattle';\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url = order.publicR2Url || null;\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\n\nif (!childName) throw new Error('Child name required (characterSpecs.childName)');\nconst hash = order.characterHash || order.orderData?.characterHash;\nif (!hash) throw new Error('Missing characterHash in order payload');\n\n// 1) Story lines (unchanged)\nconst lines = [\n  `It was a nice night in ${hometown}. ${childName} went outside.`,\n  `${childName} looked at the stars.<br>You like to explore, the voice said.`,\n  `There was a doorway! ${childName} walked through.`,\n  `Stars were all around! ${childName} felt brave.`,\n  `${childName} noticed footprints and followed them.`,\n  `The path went through giant trees. ${childName} felt small, but not scared.`,\n  `Look how far you came, the voice said.`,\n  `Lunch was waiting! ${childName} ate happily.<br>You earned this, the voice said.`,\n  `The path became warm sand. Look down there, the voice said.<br>${childName} found a beautiful shell!`,\n  `${childName} found a cave with sparkly crystals! They glowed with rainbow colors. You can find beauty everywhere, the voice said.`,\n  `The path went through giant flowers. The petals were SO big!<br>You make others happy, the voice said.`,\n  `The voice felt very close now. You are perfect just as you are, it said.<br>${childName} looked around. Where was the voice?`,\n  `Tiger appeared! It was the voice!<br>I have been with you this whole time, said Tiger.`,\n  `Ready to fly home? asked Tiger. They flew through the stars to ${hometown}.<br>I am always in your heart, said Tiger.`\n];\n\nconst storyTexts = lines.map((text, i) => ({\n  pageNumber: i + 1,\n  text,\n  characterName: childName,\n  hometown,\n  validated: true,\n}));\n\n// 2) Pose name map (for HTML alt/fallbacks)\nconst poseNames = [\n  'walking',                 // 1\n  'walking-looking-higher',  // 2\n  'looking',                 // 3\n  'floating',                // 4\n  'walking-looking-down',    // 5\n  'jogging',                 // 6\n  'looking',                 // 7\n  'sitting-eating',          // 8\n  'crouching',               // 9\n  'crawling-moving-happy',   // 10\n  'surprised-looking-up',    // 11\n  'surprised'                // 12\n];\n\n// 3) Ensure processedImages exists (12 canonical _nobg files) if missing\nlet processedImages = Array.isArray(order.processedImages) && order.processedImages.length\n  ? order.processedImages\n  : Array.from({ length: 12 }, (_, i) => {\n      const poseNumber = i + 1;\n      const padded = String(poseNumber).padStart(2, '0');\n      const fileName = `characters_${hash}_pose${padded}_nobg.png`;\n      const r2Path = `${BASE_PREFIX}/${hash}/${fileName}`;\n      const publicUrl = `${publicR2Url}/${r2Path}`;\n      return {\n        poseNumber,\n        fileName,\n        r2Path,\n        publicUrl,\n        briaProcessed: true,\n        briaStatus: 'COMPLETED',\n        processingError: false,\n      };\n    });\n\n// 4) Ensure characterImages exists; build it from processedImages if needed\n// CRITICAL: Use backend proxy URLs, not publicR2Url direct URLs\n// Get backendUrl from order context\nlet backendUrl = order.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\n\nif (!order.characterImages || !Array.isArray(order.characterImages.poses)) {\n  // Build poses from processedImages, ensuring correct pose-to-page mapping\n  // processedImages come from 2B manifest with poseNumber 1-12\n  // These should map directly to pages 1-12 (page 13 has animal only, page 14 has character + animal)\n  const poses = processedImages\n    .filter(pi => Number.isFinite(Number(pi.poseNumber)) && pi.poseNumber >= 1 && pi.poseNumber <= 12)\n    .sort((a, b) => Number(a.poseNumber) - Number(b.poseNumber))\n    .map(pi => {\n      const poseNum = Number(pi.poseNumber);\n      // Use backend proxy URL if available, otherwise fall back to publicUrl\n      const imagePath = pi.publicUrl || (pi.r2Path ? `${backendUrl}/api/assets/${pi.r2Path}` : null);\n      return {\n        poseNumber: poseNum,\n        poseFilename: poseNames[poseNum - 1] || `pose${String(poseNum).padStart(2, '0')}`,\n        imagePath: imagePath,\n        pageNumber: poseNum,    // NOTE: This is the pose's own number, not the page it appears on (see PAGE_TO_POSE_MAP in Generate Complete HTML)\n        validated: !pi.processingError,\n      };\n    });\n\n  order.characterImages = {\n    base: `${backendUrl}/api/assets/${BASE_PREFIX}/${hash}/base-character.png`,\n    poses,\n  };\n}\n\n// 5) Return merged payload for HTML node\nreturn [{\n  json: {\n    ...order,\n    publicR2Url,\n    backendUrl,\n    storyTexts,\n    processedImages,\n  }\n}];\n"
       },
-      "id": "da1598bb-c1a7-4e67-9691-0e92d4d6e5f8",
+      "id": "018b67f1-362a-40a0-852d-88b50ef36130",
       "name": "Load Background Images",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -4112,
-        -80
+        -944,
+        -128
       ]
     },
     {
       "parameters": {
         "language": "JavaScript",
-        "jsCode": "// Build only the page blocks for PDFMonkey {{ pages_html }}\nconst order = $input.first().json;\n\n// Get backendUrl from order context or extract from upstream\nlet backendUrl = order.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\n\n// Construct text box overlay URL using backend proxy\n// Uses standard-box.png for all pages\nconst getTextBoxOverlayUrl = () => {\n  const r2Key = `book-mvp-simple-adventure/overlays/text-boxes/standard-box.png`;\n  return `${backendUrl}/api/assets/${r2Key}`;\n};\n\n// FONT_URL still null for now (to be implemented if needed)\nconst FONT_URL = null;\n\n// helpers\nconst findBg   = (i) => order.backgroundImages?.find(b => b.pageNumber === i)?.imagePath || '';\nconst findTxt  = (i) => (order.storyTexts?.find(s => s.pageNumber === i)?.text || '').replace(/\\n/g,'<br>');\nconst findTextBoxOverlay = () => getTextBoxOverlayUrl();\n\n// Pose lookup with explicit page-to-pose mapping\n// CRITICAL: Page 7 uses pose 3 (looking), not pose 7!\n// Pages 8-12 use poses 7-11 respectively (pose number = page number - 1)\nconst PAGE_TO_POSE_MAP = {\n  1: 1,   // walking\n  2: 2,   // walking-looking-higher\n  3: 3,   // looking\n  4: 4,   // floating\n  5: 5,   // walking-looking-down\n  6: 6,   // jogging\n  7: 3,   // looking (reuse pose 3 from page 3)\n  8: 7,   // sitting-eating\n  9: 8,   // crouching\n  10: 9,  // crawling-moving-happy\n  11: 10, // surprised-looking-up\n  12: 11, // surprised\n  // 13: no character (animal only)\n  14: 12  // flying/gliding\n};\n\nconst findPose = (pageNum) => {\n  if (pageNum === 13) return null; // SPEC: page 13 has animal only\n  const poses = order.characterImages?.poses || [];\n  const requiredPoseNumber = PAGE_TO_POSE_MAP[pageNum];\n  if (!requiredPoseNumber) return null;\n  // Find pose by poseNumber, not pageNumber\n  let p = poses.find(p => Number(p.poseNumber) === requiredPoseNumber);\n  // Fallback for page 14: try to find any flying pose\n  if (!p && pageNum === 14) p = poses.find(p => /fly|flying/i.test(p.poseFilename || p.filename || ''));\n  return p || null;\n};\n\n// px\u2192in at 300dpi\nconst px2in = (px) => (px / 300).toFixed(4) + 'in';\n\n// Original px map (absolute) for most pages\nconst CHAR = {\n  1:  { left:1453, top:1938, w: 900, flip:  1 },\n  2:  { left:1403, top:2091, w: 950, flip:  1 },\n  3:  { left:1275, top:2295, w: 900, flip:  1 },   // will be overridden\n  4:  { left:1020, top:2142, w:1100, flip: -1 },   // will be overridden\n  5:  { left:1250, top:2066, w: 900, flip: -1 },\n  6:  { left:1326, top:2066, w: 900, flip:  1 },\n  7:  { left:1199, top:1683, w: 900, flip: -1 },\n  8:  { left:1453, top:2040, w:1400, flip:  1 },\n  9:  { left:1352, top:2066, w:1100, flip: -1 },  // crouching - moved 3% left, 3% up\n  10: { left:1275, top:2295, w:1300, flip: -1 },\n  11: { left:1964, top:2117, w: 500, flip:  1 },\n  12: { left: 893, top:2066, w: 920, flip: -1 },  // surprised - moved 3% up, scaled down 8%\n  // 13: no character\n  14: { left: 893, top:1836, w:1500, flip:  1 },   // will be overridden w/ same numbers + class sprite\n};\n\n// === OVERRIDES from your snippet (absolute px, bottom-center anchor) ===\n// page03\nconst OV3 = { left:1020, top:2142, w:1100, flip:-1, rotate:0 };\n// page04\nconst OV4 = { left:1530, top:1734, w:1100, flip: 1, rotate:-20 };\n// page14 (character)\nconst OV14C = { left:893, top:1836, w:1500, flip:1, rotate:0 };\n// page14 (animal)\nconst OV14A = { left:1275, top:1964, w:1250 };\n\nfunction charStyle(n){\n  // apply overrides first\n  if (n === 3) {\n    return [\n      `left:${px2in(OV3.left)}`,\n      `top:${px2in(OV3.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV3.flip})`,\n      `width:${px2in(OV3.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  if (n === 4) {\n    return [\n      `left:${px2in(OV4.left)}`,\n      `top:${px2in(OV4.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV4.flip}) rotate(-20deg)`,\n      `width:${px2in(OV4.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  if (n === 14) {\n    return [\n      `left:${px2in(OV14C.left)}`,\n      `top:${px2in(OV14C.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV14C.flip})`,\n      `width:${px2in(OV14C.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  // fallback to your original px map (converted) for other pages\n  const c = CHAR[n];\n  if (!c) return '';\n  return [\n    `left:${px2in(c.left)}`,\n    `top:${px2in(c.top)}`,\n    `transform:translate(-50%,-100%) scaleX(${c.flip})`,\n    `width:${px2in(c.w)}`,\n    `z-index:11`\n  ].join('; ') + ';';\n}\n\n// Animals - use order.animalImages and order.animalDisplayName\nfunction animalHTML(i){\n  const animalImages = order.animalImages || {};\n  const animalDisplayName = order.animalDisplayName || 'Tiger';\n  \n  if (i === 13) {\n    const src = animalImages.appears || '';\n    if (!src) return '';\n\n    // Tuned for PDFMonkey with bottom-center anchor:\n    // Positioned over the yellow circle/shadow on the ground\n    // Adjusted: moved 2% left, 1% down from previous position, then another 2% left, then another 2% left\n    const leftPx = 1191;    // \u2248 47% of 2550 (was 1242, moved left another 2%)\n    const topPx  = 2104;    // \u2248 82% of 2550 (was 2078, moved down 1%)\n    const wPx    = 1800;    // \u2248 6.0in at 300dpi\n\n    return `\n      <div class=\"animal\" style=\"\n        left:${px2in(leftPx)};\n        top:${px2in(topPx)};\n        transform:translate(-50%,-100%);\n        width:${px2in(wPx)};\n        z-index:9;\">\n        <img class=\"sprite\" src=\"${src}\" alt=\"${animalDisplayName} Appears\">\n      </div>`;\n  }\n\n  if (i === 14) {\n    const src = animalImages.flying || '';\n    if (!src) return '';\n    // From positioning doc\n    const left = px2in(1275), top = px2in(1964), w = px2in(1250);\n    return `\n      <div class=\"animal\" style=\"\n        left:${left};\n        top:${top};\n        transform:translate(-50%,-100%);\n        width:${w};\n        z-index:9;\">\n        <img class=\"sprite\" src=\"${src}\" alt=\"${animalDisplayName} Flying\">\n      </div>`;\n  }\n  return '';\n}\n\n\n// Inline font so it applies even when only {{ pages_html }} is rendered\nconst fontStyle = `\n<style>\n@font-face {\n  font-family: 'CustomBook';\n  src: url('${FONT_URL}') format('truetype');\n  font-display: swap;\n}\n.text-content, body { \n  font-family: 'CustomBook', Arial, sans-serif; \n  font-size: 18px;\n  line-height: 1.3;\n}\n.text-content {\n  font-size: 18px;\n  line-height: 1.3;\n  padding: 0.15in 0.2in;\n  box-sizing: border-box;\n}\n</style>`.trim();\n\nlet pages_html = fontStyle + '\\n';\n\nfor (let i = 1; i <= 14; i++) {\n  const bg   = findBg(i);\n  const pose = findPose(i);\n  const text = findTxt(i);\n  const textBoxOverlay = findTextBoxOverlay();\n\n  pages_html += `\n<div class=\"book-page\" id=\"page-${i}\">\n  <div class=\"page-bg\" style=\"background-image:url('${bg}');\"></div>\n\n  <div class=\"text-box\" style=\"background-image:url('${textBoxOverlay}')\">\n    <div class=\"text-content\">${text}</div>\n  </div>\n\n  ${pose ? `<div class=\"character\" style=\"${charStyle(i)}\"><img class=\"sprite\" src=\"${pose.imagePath}\" alt=\"\"></div>` : ''}\n  ${animalHTML(i)}\n</div>`;\n}\n\n\n// Define base CSS for page rendering\nconst basePageCss = `\n  @page { size: 2550px 2550px; margin: 0; }\n  * { box-sizing: border-box; margin: 0; padding: 0; }\n  body { width: 2550px; height: 2550px; overflow: hidden; }\n  \n  .book-page {\n    position: relative;\n    width: 2550px;\n    height: 2550px;\n    overflow: hidden;\n  }\n  .page-bg {\n    position: absolute;\n    top: 0;\n    left: 0;\n    width: 100%;\n    height: 100%;\n    background-size: cover;\n    background-position: center;\n    z-index: 1;\n  }\n  .text-box {\n    position: absolute;\n    left: 127.5px;\n    bottom: 127.5px;\n    width: 2295px;\n    height: 510px;\n    background-size: contain;\n    background-repeat: no-repeat;\n    background-position: center;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    z-index: 10;\n  }\n  .text-content {\n    width: 100%;\n    text-align: center;\n    font-size: 48px;\n    line-height: 1.4;\n    padding: 60px 80px;\n    color: #2c3e50;\n  }\n  .character, .animal {\n    position: absolute;\n    display: inline-block;\n  }\n  .character img, .animal img {\n    display: block;\n    width: 100%;\n    height: auto;\n  }\n  .sprite {\n    max-width: 100%;\n    height: auto;\n  }\n`;\n\nreturn [{\n  json: {\n    ...order,\n    pages_html,\n    // PDF template ID - MUST be set in order data or PDFMONKEY_TEMPLATE_ID environment variable\n    // See docs/MANUAL_STEPS_PDFMONKEY_PREVIEW_IMAGES.md for how to find your template ID\n    pdfMonkeyTemplateId: (() => {\n      const templateId = order.pdfMonkeyTemplateId || \"5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172\";\n      if (!templateId) {\n        throw new Error('pdfMonkeyTemplateId is required. Set in order data or PDFMONKEY_TEMPLATE_ID environment variable. See docs/MANUAL_STEPS_PDFMONKEY_PREVIEW_IMAGES.md for how to find your template ID in PDFMonkey.');\n      }\n      return templateId;\n    })(),\n    page_css: basePageCss,\n    pdfFilename: `complete_book_${order.amazonOrderId || 'ORDER'}.pdf`,\n  }\n}];\n"
+        "jsCode": "// Build only the page blocks for PDFMonkey {{ pages_html }}\nconst order = $input.first().json;\n\n// Get backendUrl from order context or extract from upstream\nlet backendUrl = order.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\n\n// Construct asset URLs via backend proxy\nconst getTextBoxOverlayUrl = () => {\n  const r2Key = `book-mvp-simple-adventure/overlays/text-boxes/standard-box.png`;\n  return `${backendUrl}/api/assets/${r2Key}`;\n};\nconst getFontUrl = () => {\n  const r2Key = `book-mvp-simple-adventure/fonts/custom-font.ttf`;\n  return `${backendUrl}/api/assets/${r2Key}`;\n};\n\n// helpers\nconst findBg  = (i) => order.backgroundImages?.find(b => b.pageNumber === i)?.imagePath || '';\nconst findRaw = (i) => (order.storyTexts?.find(s => s.pageNumber === i)?.text || '');\nconst findTextBoxOverlay = () => getTextBoxOverlayUrl();\n\n// pose lookup with explicit page-to-pose mapping\nconst PAGE_TO_POSE_MAP = {\n  1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6,\n  7: 3, 8: 7, 9: 8, 10: 9, 11: 10, 12: 11,\n  // 13: animal only\n  14: 12\n};\nconst findPose = (pageNum) => {\n  if (pageNum === 13) return null;\n  const poses = order.characterImages?.poses || [];\n  const n = PAGE_TO_POSE_MAP[pageNum];\n  if (!n) return null;\n  let p = poses.find(p => Number(p.poseNumber) === n);\n  if (!p && pageNum === 14) p = poses.find(p => /fly|flying/i.test(p.poseFilename || p.filename || ''));\n  return p || null;\n};\n\n// px→in at 300dpi (kept for positioned sprites)\nconst px2in = (px) => (px / 300).toFixed(4) + 'in';\n\n// Base character positions (px, bottom-center anchor)\nconst CHAR = {\n  1:{left:1453,top:1938,w:900,flip:1},  2:{left:1403,top:2091,w:950,flip:1},\n  3:{left:1275,top:2295,w:900,flip:1},  4:{left:1020,top:2142,w:1100,flip:-1},\n  5:{left:1250,top:2066,w:900,flip:-1}, 6:{left:1326,top:2066,w:900,flip:1},\n  7:{left:1199,top:1683,w:900,flip:-1}, 8:{left:1453,top:2040,w:1400,flip:1},\n  9:{left:1352,top:2066,w:1100,flip:-1},10:{left:1275,top:2295,w:1300,flip:-1},\n  11:{left:1964,top:2117,w:500,flip:1}, 12:{left:893, top:2066,w:920, flip:-1},\n  // 13: none\n  14:{left:893, top:1836,w:1500,flip:1}\n};\n// overrides\nconst OV3  = { left:1020, top:2142, w:1100, flip:-1, rotate:0 };\nconst OV4  = { left:1530, top:1734, w:1100, flip: 1, rotate:-20 };\nconst OV14C= { left:893,  top:1836, w:1500, flip: 1, rotate:0 };\n\nfunction charStyle(n){\n  if (n === 3) {\n    return [\n      `left:${px2in(OV3.left)}`,\n      `top:${px2in(OV3.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV3.flip})`,\n      `width:${px2in(OV3.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  if (n === 4) {\n    return [\n      `left:${px2in(OV4.left)}`,\n      `top:${px2in(OV4.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV4.flip}) rotate(-20deg)`,\n      `width:${px2in(OV4.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  if (n === 14) {\n    return [\n      `left:${px2in(OV14C.left)}`,\n      `top:${px2in(OV14C.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV14C.flip})`,\n      `width:${px2in(OV14C.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  const c = CHAR[n];\n  if (!c) return '';\n  return [\n    `left:${px2in(c.left)}`,\n    `top:${px2in(c.top)}`,\n    `transform:translate(-50%,-100%) scaleX(${c.flip})`,\n    `width:${px2in(c.w)}`,\n    `z-index:11`\n  ].join('; ') + ';';\n}\n\n// Animals\nfunction animalHTML(i){\n  const animalImages = order.animalImages || {};\n  const name = order.animalDisplayName || 'Animal';\n\n  if (i === 13) {\n    const src = animalImages.appears || '';\n    if (!src) return '';\n    const leftPx = 1191, topPx = 2104, wPx = 1800;\n    return `\n      <div class=\"animal\" style=\"\n        left:${px2in(leftPx)};\n        top:${px2in(topPx)};\n        transform:translate(-50%,-100%);\n        width:${px2in(wPx)};\n        z-index:9;\">\n        <img class=\"sprite\" src=\"${src}\" alt=\"${name} Appears\">\n      </div>`;\n  }\n  if (i === 14) {\n    const src = animalImages.flying || '';\n    if (!src) return '';\n    const left = px2in(1275), top = px2in(1964), w = px2in(1250);\n    return `\n      <div class=\"animal\" style=\"\n        left:${left};\n        top:${top};\n        transform:translate(-50%,-100%);\n        width:${w};\n        z-index:9;\">\n        <img class=\"sprite\" src=\"${src}\" alt=\"${name} Flying\">\n      </div>`;\n  }\n  return '';\n}\n\n// --- Typography helpers ---\n// Convert \\n to <br>, then avoid single-word widows per sentence\nfunction prettifyText(raw){\n  const withBr = String(raw || '').replace(/\\n/g, '<br>');\n  const parts = withBr.split('<br>');\n  const widont = (seg) => seg.replace(/\\s+([^\\s<]{1,12})\\s*$/u, '&nbsp;$1'); // keep ~last 1–12 chars with prev word\n  return parts.map(s => widont(s.trim())).join('<br>');\n}\n\n// Inline PDF CSS (scoped to the page blocks we emit)\n// NOTE: We layer a white 20% gradient OVER the overlay image to increase perceived opacity.\nconst FONT_URL = getFontUrl();\nconst pdfCss = `\n<style>\n@font-face {\n  font-family: 'CustomBook';\n  src: url('${FONT_URL}') format('truetype');\n  font-display: swap;\n}\n:root { --book-font: 'CustomBook', Arial, sans-serif; --overlay-tint: rgba(255,255,255,0.20); }\n\nhtml, body { margin: 0; padding: 0; }\n* { box-sizing: border-box; }\n\n.book-page{\n  position: relative;\n  width: 8.5in; height: 8.5in;\n  overflow: hidden; display: block;\n}\n.page-bg{\n  position: absolute; inset: 0;\n  background-repeat: no-repeat;\n  background-position: center center;\n  background-size: cover;\n  z-index: 0;\n}\n\n/* Text box overlay */\n.text-box{\n  position: absolute; left: 50%; bottom: 3%;\n  width: 80%; transform: translateX(-50%);\n  /* Two-layer background: top gradient (adds ~20% opacity), bottom overlay image */\n  background-image: linear-gradient(var(--overlay-tint), var(--overlay-tint)), var(--overlay-url);\n  background-repeat: no-repeat, no-repeat;\n  background-position: center center, center center;\n  background-size: 100% 100%, 100% 100%;\n  padding: 0.20in 1.00in;   /* more comfortable padding */\n  min-height: 1.10in;\n  display: flex; align-items: center; justify-content: center;\n  z-index: 10;\n  border-radius: 0.08in; /* slight softening if the PNG has rounded corners already this is harmless */\n}\n\n/* Text inside the box */\n.text-content{\n  width: 100%;\n  text-align: center;\n  font-family: var(--book-font, Arial, sans-serif);\n  font-size: 16pt;\n  line-height: 1.35;\n  letter-spacing: 0.02em;\n  color: #312116;\n  text-wrap: balance;\n  hyphens: auto;\n  overflow-wrap: break-word;\n  word-break: normal;\n  widows: 2; orphans: 2;\n}\n\n.character, .animal { position: absolute; display: inline-block; }\n.character img, .animal img { display: block; width: 100%; height: auto; }\n.sprite { max-width: 100%; height: auto; }\n</style>`.trim();\n\nlet pages_html = pdfCss + '\\n';\nfor (let i = 1; i <= 14; i++) {\n  const bg   = findBg(i);\n  const pose = findPose(i);\n  const raw  = findRaw(i);\n  const text = prettifyText(raw);\n  const textBoxOverlay = findTextBoxOverlay();\n\n  pages_html += `\n<div class=\"book-page\" id=\"page-${i}\">\n  <div class=\"page-bg\" style=\"background-image:url('${bg}');\"></div>\n\n  <div class=\"text-box\" style=\"--overlay-url:url('${textBoxOverlay}')\">\n    <div class=\"text-content\">${text}</div>\n  </div>\n\n  ${pose ? `<div class=\"character\" style=\"${charStyle(i)}\"><img class=\"sprite\" src=\"${pose.imagePath}\" alt=\"\"></div>` : ''}\n  ${animalHTML(i)}\n</div>`;\n}\n\n// === PNG preview CSS (pixel equivalents for per-page previews) ===\n// (Kept here for downstream tracking; the preview node injects its own shim.)\nconst basePageCss = `\n  @page { size: 2550px 2550px; margin: 0; }\n  * { box-sizing: border-box; margin: 0; padding: 0; }\n  body { width: 2550px; height: 2550px; overflow: hidden; }\n\n  .book-page { position: relative; width: 2550px; height: 2550px; overflow: hidden; display: block; }\n  .page-bg { position: absolute; inset: 0; background-repeat: no-repeat; background-position: center center; background-size: cover; z-index: 0; }\n\n  .text-box{\n    position: absolute; left: 50%; bottom: 76.5px; /* 3% of 2550 */\n    width: 2040px; /* 80% of 2550 */\n    transform: translateX(-50%);\n    background-image: linear-gradient(rgba(255,255,255,0.20), rgba(255,255,255,0.20)), var(--overlay-url);\n    background-repeat: no-repeat, no-repeat;\n    background-position: center center, center center;\n    background-size: 100% 100%, 100% 100%;\n    padding: 54px 300px; /* 0.18in 1.00in @ 300dpi */\n    min-height: 330px;   /* 1.10in @ 300dpi */\n    display: flex; align-items: center; justify-content: center;\n    z-index: 10;\n  }\n  .text-content{\n    width: 100%;\n    text-align: center;\n    font-size: 66.7px; /* ~16pt @ 300dpi */\n    line-height: 1.35;\n    letter-spacing: 1px;\n    color: #312116;\n    font-family: var(--book-font, Arial, sans-serif);\n    text-wrap: balance;\n    hyphens: auto;\n    overflow-wrap: break-word;\n    word-break: normal;\n  }\n\n  .character, .animal { position: absolute; display: inline-block; }\n  .character img, .animal img { display: block; width: 100%; height: auto; }\n  .sprite { max-width: 100%; height: auto; }\n`;\n\nreturn [{\n  json: {\n    ...order,\n    pages_html,\n    pdfMonkeyTemplateId: (() => {\n      const templateId = order.pdfMonkeyTemplateId || \"5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172\";\n      if (!templateId) throw new Error('pdfMonkeyTemplateId is required.');\n      return templateId;\n    })(),\n    page_css: basePageCss,\n    pdfFilename: `complete_book_${order.amazonOrderId || 'ORDER'}.pdf`,\n  }\n}];\n"
       },
-      "id": "f6a2def9-6272-4835-b6e4-4ed2b5d29767",
+      "id": "5484cb44-f76f-47a8-a9fa-6ac5c172b5ae",
       "name": "Generate Complete HTML",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -3712,
-        -80
+        -544,
+        -128
       ]
     },
     {
@@ -110,13 +110,13 @@
         "language": "JavaScript",
         "jsCode": "const d = $input.first().json;\n\nreturn [{\n  json: {\n    document: {\n      document_template_id: d.pdfMonkeyTemplateId,\n      status: 'pending',\n      meta: { _filename: d.pdfFilename },\n      payload: {\n        pages_html: d.pages_html\n      }\n    }\n  }\n}];\n"
       },
-      "id": "4343fdd7-c9e9-4ee0-b102-5be3d2a60e0f",
+      "id": "6d67d6c3-0224-486d-acb9-0b0a230229df",
       "name": "Prepare PDFMonkey Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -3424,
-        112
+        -256,
+        96
       ]
     },
     {
@@ -124,13 +124,13 @@
         "language": "JavaScript",
         "jsCode": "const order = $input.first().json;\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url = order.publicR2Url || null;\n\nconst completed = {\n  ...order,\n  status: 'book_assembly_completed',\n  bookAssemblyCompletedAt: new Date().toISOString(),\n  finalBookUrl: `${publicR2Url}/little-hero-orders/${order.amazonOrderId}/${order.pdfFilename}`,\n  totalAssemblyTime: order.assemblyStartedAt ? (new Date() - new Date(order.assemblyStartedAt)) : null,\n  averageTimePerPage: order.assemblyStartedAt\n    ? Math.round(((new Date() - new Date(order.assemblyStartedAt)) / (order.totalPagesRequired || 14)) / 1000)\n    : null\n};\n\nconsole.log(`Book assembly completed: ${order.amazonOrderId}`);\nreturn [{ json: completed }];\n"
       },
-      "id": "5662a4c7-9ef7-47fd-ab24-1494ccc7f828",
+      "id": "b287d61b-21c7-40e3-a0e4-1799b86ef17b",
       "name": "Update Order Status Complete",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -1040,
-        -144
+        2144,
+        -192
       ]
     },
     {
@@ -138,13 +138,13 @@
         "language": "JavaScript",
         "jsCode": "const order = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '3-book-assembly-voice-of-wonder',\n  orderId: order.amazonOrderId,\n  status: order.status,\n  pagesGenerated: order.pagesGenerated,\n  totalPagesRequired: order.totalPagesRequired,\n  assemblyProgress: order.assemblyProgress,\n  finalBookUrl: order.finalBookUrl || 'N/A'\n};\n\nconsole.log('Book Assembly Results:', JSON.stringify(logEntry, null, 2));\nreturn [{ json: logEntry }];\n"
       },
-      "id": "64078891-e2f9-44ea-b17b-21e79cc3e025",
+      "id": "2c77a69f-79c7-43be-9891-8bf50e26b2e5",
       "name": "Log Assembly Results",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -832,
-        -144
+        2352,
+        -192
       ]
     },
     {
@@ -152,13 +152,13 @@
         "language": "JavaScript",
         "jsCode": "// Poll PDFMonkey until the document is ready; max 30s\n// Also MERGE with Prepare PDFMonkey Data so we keep amazonOrderId/pdfFilename/etc.\nconst createResp = $input.first().json;\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc.id || doc.data?.id;\n\nif (!docId) {\n  throw new Error('PDFMonkey create response missing id');\n}\n\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst http = this.helpers.httpRequest;\n\n// Use the same API token as the create step\n// NOTE: Replace with env/credential if available\nconst AUTH_HEADER = { Authorization: 'Bearer 2zpxHdmsse2ECXgVVtVR' };\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nwhile (attempts < 15) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true, headers: AUTH_HEADER });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(2000);\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey document not ready after polling (status=${status})`);\n}\n\n// Merge in the context from Prepare PDFMonkey Data and earlier nodes\nlet ctx = {};\ntry {\n  ctx = $items('Prepare PDFMonkey Data', 0, 0)?.[0]?.json || {};\n} catch {}\n\n// Try to get pdfFilename and amazonOrderId from Generate Complete HTML\nlet htmlCtx = {};\ntry {\n  htmlCtx = $items('Generate Complete HTML', 0, 0)?.[0]?.json || {};\n} catch {}\n\n// Also try Build Assembly Input From Manifest for amazonOrderId\nlet manifestCtx = {};\ntry {\n  manifestCtx = $items('Build Assembly Input From Manifest', 0, 0)?.[0]?.json || {};\n} catch {}\n\n// Preserve pdfFilename and amazonOrderId (prioritize htmlCtx, then manifestCtx, then ctx)\nconst pdfFilename = htmlCtx.pdfFilename || ctx.pdfFilename || 'complete_book_ORDER.pdf';\nconst amazonOrderId = htmlCtx.amazonOrderId || manifestCtx.amazonOrderId || ctx.amazonOrderId || null;\n\n\n// Construct pdfR2Key for upload\nconst pdfR2Key = `book-mvp-simple-adventure/orders/${amazonOrderId}/${pdfFilename}`;\n\nreturn [{\n  json: {\n    ...ctx,\n    ...manifestCtx,\n    ...htmlCtx,\n    pdfFilename,\n    amazonOrderId,\n    pdfMonkeyDocumentId: docId,\n    pdfDownloadUrl: downloadUrl,\n    pdfR2Key: pdfR2Key\n  }\n}];\n"
       },
-      "id": "79b08cc7-e81c-491c-bea9-ad6e99ab25f9",
+      "id": "01d7b201-abb6-4f35-9998-4898f482f0ff",
       "name": "Poll PDFMonkey until ready",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -2896,
-        112
+        272,
+        96
       ]
     },
     {
@@ -173,13 +173,13 @@
           "timeout": 30000
         }
       },
-      "id": "769051c7-05df-498a-acf9-d239ecea0b1d",
+      "id": "2ba7587f-aaf6-45f1-8c54-10aae55f30ed",
       "name": "Download PDF from PDFMonkey",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -2688,
-        112
+        496,
+        96
       ]
     },
     {
@@ -206,13 +206,13 @@
           "timeout": 30000
         }
       },
-      "id": "148787cf-9c63-4738-980e-ceb8ad00860c",
+      "id": "18661446-6362-4850-aa3c-eb8136c258af",
       "name": "Generate PDF with PDFMonkey",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -3248,
-        112
+        -80,
+        96
       ]
     },
     {
@@ -223,13 +223,13 @@
           "responseData": "allEntries"
         }
       },
-      "id": "75a0060e-efc2-4bc5-8bbd-4d4c5b9c5c2e",
+      "id": "bb8cde52-8ece-44a2-b1ec-d1c761f9339b",
       "name": "Webhook Trigger (Book Assembly)1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -5216,
-        -80
+        -2048,
+        -128
       ],
       "webhookId": "ee211ba1-104b-4eb3-a46d-3b42b61c82e3"
     },
@@ -240,39 +240,39 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        -3072,
-        112
+        96,
+        96
       ],
-      "id": "3baeb1df-d841-4900-b461-c1fa78cc8949",
+      "id": "ff5d8ba6-7a17-4736-8496-ec88cec8274e",
       "name": "Wait",
       "webhookId": "21616e36-6d94-4778-a60c-017f20057712"
     },
     {
       "parameters": {
         "language": "JavaScript",
-        "jsCode": "// Load story text for all pages with personalization + animal images\nconst order = $input.first().json || {};\nconst childName = order.characterSpecs?.childName;\nconst hometown  = order.characterSpecs?.hometown || 'Seattle';\n\n// Get backendUrl from order context or extract from upstream\nlet backendUrl = order.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\n\nif (!childName) throw new Error('Child name required (characterSpecs.childName)');\n\n// --- Normalize & map animal guide ---\nconst rawAnimalInput = String(order.characterSpecs?.animalGuide || 'tiger');\n\n// strip emojis/punctuation, normalize spaces/hyphens, lowercase\nconst cleaned = rawAnimalInput\n  .replace(/[^a-z0-9\\s-]/gi, '')   // drop emojis & punctuation\n  .replace(/\\s+/g, ' ')            // collapse spaces\n  .trim()\n  .toLowerCase();\n\n// alias map \u2192 slug we use in filenames\nconst ALIAS_TO_SLUG = {\n  'dog': 'dog',\n  'cat': 'cat',\n  't rex': 't-rex',\n  'trex': 't-rex',\n  't-rex': 't-rex',\n  'unicorn': 'unicorn',\n  'tiger': 'tiger',\n  'lion': 'lion',\n  'owl': 'owl',\n};\n\n// default to tiger if unknown\nconst animalSlug = ALIAS_TO_SLUG[cleaned] || 'tiger';\n\n// pretty display names for alt text, etc.\nconst SLUG_TO_DISPLAY = {\n  'dog': 'Dog',\n  'cat': 'Cat',\n  't-rex': 'T-Rex',\n  'unicorn': 'Unicorn',\n  'tiger': 'Tiger',\n  'lion': 'Lion',\n  'owl': 'Owl',\n};\nconst animalDisplayName = SLUG_TO_DISPLAY[animalSlug] || 'Tiger';\n\n// Build backend proxy URLs for animal images\n// NOTE: Backend /api/assets/ uses R2_PUBLIC_BUCKET, so keys should NOT include bucket name\nconst animalImages = {\n  appears: `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-appears.png`,\n  flying:  `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-flying.png`,\n};\n\n// --- Story text with personalization ---\n// Uses: childName (throughout), hometown (pages 1 & 14), animalDisplayName (pages 13 & 14)\nconst lines = [\n  `It was a nice evening in ${hometown}. ${childName} went outside.`,\n  `${childName} looked at the stars.<br>You like to explore, the voice said.`,\n  `There was a doorway! ${childName} walked through.`,\n  `Stars were all around! ${childName} felt brave.`,\n  `${childName} noticed footprints and followed them.`,\n  `The path went through giant trees. ${childName} felt small, but not scared.`,\n  `Look how far you came, the voice said.`,\n  `Lunch was waiting! ${childName} ate happily.<br>You earned this, the voice said.`,\n  `The path became warm sand. Look down there, the voice said.<br>${childName} found a beautiful shell!`,\n  `${childName} found a cave with sparkly crystals! They glowed with rainbow colors. You can find beauty everywhere, the voice said.`,\n  `The path went through giant flowers. The petals were SO big!<br>You make others happy, the voice said.`,\n  `The voice felt very close now. You are perfect just as you are, it said.<br>${childName} looked around. Where was the voice?`,\n  `${animalDisplayName} appeared!<br>It was the voice! I have been with you this whole time, said ${animalDisplayName}.`,\n  `Ready to fly home? asked ${animalDisplayName}.<br>They flew through the stars to ${hometown}. I am always in your heart, said ${animalDisplayName}.`\n];\n\nconst storyTexts = lines.map((text, i) => ({\n  pageNumber: i + 1, text, characterName: childName, hometown, validated: true\n}));\n\n// Ensure characterImages exists with correct pose-to-page mapping\n// Use processedImages from 2B manifest - these have poseNumber 1-12\n// Map directly: pose 1 \u2192 page 1, pose 2 \u2192 page 2, ..., pose 12 \u2192 page 12\nif (!order.characterImages || !Array.isArray(order.characterImages.poses) || order.characterImages.poses.length === 0) {\n  const processedImages = order.processedImages || [];\n  const poseNames = [\n    'walking', 'walking-looking-higher', 'looking', 'floating',\n    'walking-looking-down', 'jogging', 'looking', 'sitting-eating',\n    'crouching', 'crawling-moving-happy', 'surprised-looking-up', 'surprised'\n  ];\n  \n  const poses = processedImages\n    .filter(pi => Number.isFinite(Number(pi.poseNumber)) && Number(pi.poseNumber) >= 1 && Number(pi.poseNumber) <= 12)\n    .sort((a, b) => Number(a.poseNumber) - Number(b.poseNumber))\n    .map(pi => {\n      const poseNum = Number(pi.poseNumber);\n      // Use backend proxy URL from processedImages (already set by Build Assembly Input From Manifest)\n      const imagePath = pi.publicUrl || (pi.r2Path ? `${backendUrl}/api/assets/${pi.r2Path}` : null);\n      return {\n        poseNumber: poseNum,\n        poseFilename: poseNames[poseNum - 1] || `pose${String(poseNum).padStart(2, '0')}`,\n        imagePath: imagePath,\n        pageNumber: poseNum,    // CRITICAL: pose 1 \u2192 page 1, pose 2 \u2192 page 2, ..., pose 12 \u2192 page 12\n        validated: !pi.processingError,\n      };\n    });\n  \n  const hash = order.characterHash || order.orderData?.characterHash || '';\n  order.characterImages = {\n    base: hash ? `${backendUrl}/api/assets/book-mvp-simple-adventure/order-generated-assets/characters/${hash}/base-character.png` : null,\n    poses,\n  };\n}\n\nreturn [{\n  json: {\n    ...order,\n    backendUrl,\n    animalImages,          // \u2190 add\n    animalDisplayName,     // \u2190 optional, nice for alt text\n    storyTexts\n  }\n}];\n"
+        "jsCode": "// Load story text for all pages with personalization + animal images\nconst order = $input.first().json || {};\nconst childName = order.characterSpecs?.childName;\nconst hometown  = order.characterSpecs?.hometown || 'Seattle';\n\n// Get backendUrl from order context or extract from upstream\nlet backendUrl = order.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\n\nif (!childName) throw new Error('Child name required (characterSpecs.childName)');\n\n// --- Normalize & map animal guide ---\nconst rawAnimalInput = String(order.characterSpecs?.animalGuide || 'tiger');\n\n// strip emojis/punctuation, normalize spaces/hyphens, lowercase\nconst cleaned = rawAnimalInput\n  .replace(/[^a-z0-9\\s-]/gi, '')   // drop emojis & punctuation\n  .replace(/\\s+/g, ' ')            // collapse spaces\n  .trim()\n  .toLowerCase();\n\n// alias map → slug we use in filenames\nconst ALIAS_TO_SLUG = {\n  'dog': 'dog',\n  'cat': 'cat',\n  't rex': 't-rex',\n  'trex': 't-rex',\n  't-rex': 't-rex',\n  'unicorn': 'unicorn',\n  'tiger': 'tiger',\n  'lion': 'lion',\n  'owl': 'owl',\n};\n\n// default to tiger if unknown\nconst animalSlug = ALIAS_TO_SLUG[cleaned] || 'tiger';\n\n// pretty display names for alt text, etc.\nconst SLUG_TO_DISPLAY = {\n  'dog': 'Dog',\n  'cat': 'Cat',\n  't-rex': 'T-Rex',\n  'unicorn': 'Unicorn',\n  'tiger': 'Tiger',\n  'lion': 'Lion',\n  'owl': 'Owl',\n};\nconst animalDisplayName = SLUG_TO_DISPLAY[animalSlug] || 'Tiger';\n\n// Build backend proxy URLs for animal images\n// NOTE: Backend /api/assets/ uses R2_PUBLIC_BUCKET, so keys should NOT include bucket name\nconst animalImages = {\n  appears: `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-appears.png`,\n  flying:  `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-flying.png`,\n};\n\n// --- Story text with personalization ---\n// Uses: childName (throughout), hometown (pages 1 & 14), animalDisplayName (pages 13 & 14)\nconst lines = [\n  `It was a nice evening in ${hometown}. ${childName} went outside.`,\n  `${childName} looked at the stars.<br>You like to explore, the voice said.`,\n  `There was a doorway! ${childName} walked through.`,\n  `Stars were all around! ${childName} felt brave.`,\n  `${childName} noticed footprints and followed them.`,\n  `The path went through giant trees. ${childName} felt small, but not scared.`,\n  `Look how far you came, the voice said.`,\n  `Lunch was waiting! ${childName} ate happily.<br>You earned this, the voice said.`,\n  `The path became warm sand. Look down there, the voice said.<br>${childName} found a beautiful shell!`,\n  `${childName} found a cave with sparkly crystals! They glowed with rainbow colors. You can find beauty everywhere, the voice said.`,\n  `The path went through giant flowers. The petals were SO big!<br>You make others happy, the voice said.`,\n  `The voice felt very close now. You are perfect just as you are, it said.<br>${childName} looked around. Where was the voice?`,\n  `${animalDisplayName} appeared!<br>It was the voice! I have been with you this whole time, said ${animalDisplayName}.`,\n  `Ready to fly home? asked ${animalDisplayName}.<br>They flew through the stars to ${hometown}. I am always in your heart, said ${animalDisplayName}.`\n];\n\nconst storyTexts = lines.map((text, i) => ({\n  pageNumber: i + 1, text, characterName: childName, hometown, validated: true\n}));\n\n// Ensure characterImages exists with correct pose-to-page mapping\n// Use processedImages from 2B manifest - these have poseNumber 1-12\n// Map directly: pose 1 → page 1, pose 2 → page 2, ..., pose 12 → page 12\nif (!order.characterImages || !Array.isArray(order.characterImages.poses) || order.characterImages.poses.length === 0) {\n  const processedImages = order.processedImages || [];\n  const poseNames = [\n    'walking', 'walking-looking-higher', 'looking', 'floating',\n    'walking-looking-down', 'jogging', 'looking', 'sitting-eating',\n    'crouching', 'crawling-moving-happy', 'surprised-looking-up', 'surprised'\n  ];\n  \n  const poses = processedImages\n    .filter(pi => Number.isFinite(Number(pi.poseNumber)) && Number(pi.poseNumber) >= 1 && Number(pi.poseNumber) <= 12)\n    .sort((a, b) => Number(a.poseNumber) - Number(b.poseNumber))\n    .map(pi => {\n      const poseNum = Number(pi.poseNumber);\n      // Use backend proxy URL from processedImages (already set by Build Assembly Input From Manifest)\n      const imagePath = pi.publicUrl || (pi.r2Path ? `${backendUrl}/api/assets/${pi.r2Path}` : null);\n      return {\n        poseNumber: poseNum,\n        poseFilename: poseNames[poseNum - 1] || `pose${String(poseNum).padStart(2, '0')}`,\n        imagePath: imagePath,\n        pageNumber: poseNum,    // CRITICAL: pose 1 → page 1, pose 2 → page 2, ..., pose 12 → page 12\n        validated: !pi.processingError,\n      };\n    });\n  \n  const hash = order.characterHash || order.orderData?.characterHash || '';\n  order.characterImages = {\n    base: hash ? `${backendUrl}/api/assets/book-mvp-simple-adventure/order-generated-assets/characters/${hash}/base-character.png` : null,\n    poses,\n  };\n}\n\nreturn [{\n  json: {\n    ...order,\n    backendUrl,\n    animalImages,          // ← add\n    animalDisplayName,     // ← optional, nice for alt text\n    storyTexts\n  }\n}];\n"
       },
-      "id": "9d499d74-d032-4f72-8058-96e7bee83d48",
+      "id": "c8496ae1-3c06-4eef-b002-706e1949bb67",
       "name": "Load story text (+ ensure characterImages)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -3920,
-        -80
+        -752,
+        -128
       ]
     },
     {
       "parameters": {
         "language": "JavaScript",
-        "jsCode": "/**\n * Generate Page Preview Images from PDF\n * Uses PDFMonkey to generate images from the same HTML\n * PDFMonkey supports image generation with _type: 'png' in meta\n */\nconst order = $input.first().json || {};\nconst pages_html = order.pages_html || '';\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\n\nif (!pages_html) {\n  throw new Error('pages_html is required for generating preview images');\n}\n\n// Extract individual page HTML from pages_html using robust method\n// Each page is wrapped in <div class=\"book-page\" id=\"page-{N}\">\n// Use a more robust extraction that handles nested divs\nconst pageMatches = [];\nconst pagePattern = /<div class=\"book-page\" id=\"page-(\\d+)\">/g;\nlet match;\nlet lastIndex = 0;\nconst pageStarts = [];\n\n// Find all page start positions\nwhile ((match = pagePattern.exec(pages_html)) !== null) {\n  pageStarts.push({\n    pageNumber: parseInt(match[1], 10),\n    startIndex: match.index\n  });\n}\n\n// Extract each page by finding the matching closing tag\n// Count opening/closing divs to find the correct closing tag\nfor (let i = 0; i < pageStarts.length; i++) {\n  const { pageNumber, startIndex } = pageStarts[i];\n  const nextStartIndex = i < pageStarts.length - 1 ? pageStarts[i + 1].startIndex : pages_html.length;\n  \n  // Extract from this page start to the next page start (or end)\n  let pageHtml = pages_html.substring(startIndex, nextStartIndex);\n  \n  // Find the matching closing tag by counting divs\n  let divCount = 0;\n  let endIndex = pageHtml.length;\n  for (let j = 0; j < pageHtml.length; j++) {\n    if (pageHtml.substring(j, j + 4) === '<div') {\n      divCount++;\n    } else if (pageHtml.substring(j, j + 6) === '</div>') {\n      divCount--;\n      if (divCount === 0) {\n        endIndex = j + 6;\n        break;\n      }\n    }\n  }\n  pageHtml = pageHtml.substring(0, endIndex);\n  \n  // Get page_css from order if available\n  const pageCss = order.page_css || '';\n  \n  // Wrap in full HTML document for rendering\n  const fullHtml = `<!DOCTYPE html>\\n<html>\\n<head>\\n  <meta charset=\"UTF-8\">\\n  <style>\\n    ${pageCss}\\n    @page { size: 2550px 2550px; margin: 0; }\\n    * { box-sizing: border-box; margin: 0; padding: 0; }\\n    body { width: 2550px; height: 2550px; overflow: hidden; }\\n  </style>\\n</head>\\n<body>\\n${pageHtml}\\n</body>\\n</html>`;\n  \n  pageMatches.push({\n    pageNumber,\n    html: fullHtml,\n    filename: `page-${String(pageNumber).padStart(2, '0')}_preview.png`\n  });\n}\n\nconst pages = pageMatches;\n\n// Sort by page number\npages.sort((a, b) => a.pageNumber - b.pageNumber);\n\n// Return array of items (one per page) for PDFMonkey image generation\nreturn pages.map(page => ({\n  json: {\n    ...order,\n    pageNumber: page.pageNumber,\n    pageHtml: page.html,\n    pageImageFilename: page.filename,\n    pageImageR2Key: `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/${page.filename}`,\n    // PDFMonkey image template ID - MUST be set in order data or environment variable\n    // See docs/MANUAL_STEPS_PDFMONKEY_PREVIEW_IMAGES.md for setup instructions\n    // Default image template ID: 23277725-4AB0-446A-98C5-CB99C21822B3\n    pdfMonkeyImageTemplateId: (() => {\n      const templateId = order.pdfMonkeyImageTemplateId || \"23277725-4AB0-446A-98C5-CB99C21822B3\";\n      if (!templateId) {\n        throw new Error('pdfMonkeyImageTemplateId is required. Set in order data or PDFMONKEY_IMAGE_TEMPLATE_ID environment variable.');\n      }\n      return templateId;\n    })()\n  }\n}));\n"
+        "jsCode": "/** \n * Generate Page Preview Images from HTML (per page)\n * - Canonical canvas: 2550 x 2550 px (300 dpi @ 8.5\")\n * - Converts inch/mm to px (300dpi)\n * - Injects a 300-dpi CSS shim (now includes @font-face + overlay tint + better wrapping)\n */\nconst order = $input.first().json || {};\nconst pages_html = order.pages_html || '';\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\n\nif (!pages_html) throw new Error('pages_html is required for generating preview images');\n\n// --- constants ---\nconst PX_PER_IN = 300;               // 2550px / 8.5in\nconst PX_PER_MM = PX_PER_IN / 25.4;  // ~11.8110236\n\n// Paddings (match PDF but in px here)\nconst PAD_V_IN = 0.20;\nconst PAD_H_IN = 1.00;\nconst PAD_V_PX = Math.round(PAD_V_IN * PX_PER_IN); // 60\nconst PAD_H_PX = Math.round(PAD_H_IN * PX_PER_IN); // 300\nconst MIN_H_PX = Math.round(1.10 * PX_PER_IN);     // 330\n\n// Font URL via backend proxy\nlet backendUrl = order.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\nconst FONT_URL = `${backendUrl}/api/assets/book-mvp-simple-adventure/fonts/custom-font.ttf`;\n\n// --- helpers ---\nfunction unitsToPx(str) {\n  if (!str) return str;\n  str = str.replace(/(-?\\d*\\.?\\d+)\\s*in\\b/gi, (_, v) =>\n    `${Math.round(parseFloat(v) * PX_PER_IN)}px`\n  );\n  str = str.replace(/(-?\\d*\\.?\\d+)\\s*mm\\b/gi, (_, v) =>\n    `${Math.round(parseFloat(v) * PX_PER_MM)}px`\n  );\n  return str;\n}\n\n// --- split out each <div class=\"book-page\" id=\"page-N\"> block ---\nconst pagePattern = /<div class=\"book-page\" id=\"page-(\\d+)\">/g;\nconst starts = [];\nlet m;\nwhile ((m = pagePattern.exec(pages_html)) !== null) {\n  starts.push({ pageNumber: parseInt(m[1], 10), startIndex: m.index });\n}\n\nconst pages = [];\nfor (let i = 0; i < starts.length; i++) {\n  const { pageNumber, startIndex } = starts[i];\n  const next = i < starts.length - 1 ? starts[i + 1].startIndex : pages_html.length;\n\n  // raw block for this page\n  let pageHtml = pages_html.substring(startIndex, next);\n\n  // defensively trim at the matching closing </div>\n  let depth = 0;\n  let end = pageHtml.length;\n  for (let j = 0; j < pageHtml.length; j++) {\n    if (pageHtml.slice(j, j + 4) === '<div') depth++;\n    else if (pageHtml.slice(j, j + 6) === '</div>') {\n      depth--;\n      if (depth === 0) { end = j + 6; break; }\n    }\n  }\n  pageHtml = pageHtml.substring(0, end);\n\n  // Convert ANY inline/page CSS inches/mm to px BEFORE rendering (300 dpi)\n  pageHtml = unitsToPx(pageHtml);\n\n  // 300-dpi CSS shim for previews (includes font + overlay tint + better wrapping)\n  const INLINE_PNG_CSS = `\n<style id=\"png-300dpi-css\">\n  @font-face {\n    font-family: 'CustomBook';\n    src: url('${FONT_URL}') format('truetype');\n    font-display: swap;\n  }\n  :root { --book-font: 'CustomBook', Arial, sans-serif; --overlay-tint: rgba(255,255,255,0.20); }\n\n  html, body { margin:0; padding:0; box-sizing:border-box; width:2550px; height:2550px; overflow:hidden; }\n  * { box-sizing:border-box; }\n\n  .book-page{\n    position:relative; width:2550px; height:2550px; overflow:hidden; display:block;\n  }\n  .page-bg{\n    position:absolute; inset:0; background-repeat:no-repeat; background-position:center center; background-size:cover; z-index:0;\n  }\n\n  /* 300-dpi mirror of the PDF rules */\n  .text-box{\n    position:absolute; left:50%; bottom:${Math.round(0.03*2550)}px; /* 3% */\n    width:${Math.round(0.80*2550)}px; transform:translateX(-50%);\n    background-image: linear-gradient(var(--overlay-tint), var(--overlay-tint)), var(--overlay-url);\n    background-repeat: no-repeat, no-repeat;\n    background-position: center center, center center;\n    background-size: 100% 100%, 100% 100%;\n    padding:${PAD_V_PX}px ${PAD_H_PX}px;\n    min-height:${MIN_H_PX}px;\n    display:flex; align-items:center; justify-content:center;\n    z-index:10;\n    border-radius:${Math.round(0.08*PX_PER_IN)}px;\n  }\n  .text-content{\n    width:100%;\n    text-align:center;\n    font-family: var(--book-font, Arial, sans-serif);\n    font-size:${(16/72)*PX_PER_IN}px; /* ~16pt at 300dpi */\n    line-height:1.35;\n    letter-spacing:1px;\n    color:#312116;\n    text-wrap: balance;\n    hyphens: auto;\n    overflow-wrap: break-word;\n    word-break: normal;\n  }\n\n  .character{ position:absolute; z-index:10; }\n  .character img{ width:100%; height:auto; display:block; }\n  .animal{ position:absolute; z-index:8; }\n  .animal img{ width:100%; height:auto; display:block; }\n</style>`.trim();\n\n  // Build full HTML (keep head minimal; put overriding CSS in body for precedence)\n  const fullHtml = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>@page { size: 2550px 2550px; margin: 0; }</style>\n</head>\n<body>\n${INLINE_PNG_CSS}\n${pageHtml}\n</body>\n</html>`;\n\n  pages.push({\n    pageNumber,\n    html: fullHtml,\n    filename: `page-${String(pageNumber).padStart(2, '0')}_preview.png`,\n  });\n}\n\n// sort & emit\npages.sort((a, b) => a.pageNumber - b.pageNumber);\n\nreturn pages.map(p => ({\n  json: {\n    ...order,\n    pageNumber: p.pageNumber,\n    pageHtml: p.html,\n    pageImageFilename: p.filename,\n    pageImageR2Key: `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/${p.filename}`,\n    pdfMonkeyImageTemplateId: (() => {\n      const id = order.pdfMonkeyImageTemplateId || \"23277725-4AB0-446A-98C5-CB99C21822B3\";\n      if (!id) throw new Error('pdfMonkeyImageTemplateId is required.');\n      return id;\n    })(),\n  }\n}));\n"
       },
-      "id": "46c6d695-1e7c-423e-8d89-70b4686a45ca",
+      "id": "f1ee46c1-700a-4939-b777-f945b615ab93",
       "name": "Generate Page Preview Images",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -3392,
-        -304
+        -224,
+        -352
       ]
     },
     {
@@ -296,36 +296,37 @@
         "specifyBody": "json",
         "jsonBody": "={\n  \"document\": {\n    \"document_template_id\": \"{{ $json.pdfMonkeyImageTemplateId }}\",\n    \"status\": \"pending\",\n    \"meta\": {\n      \"_filename\": \"{{ $json.pageImageFilename }}\",\n      \"_type\": \"png\",\n      \"_width\": 2550,\n      \"_height\": 2550\n    },\n    \"payload\": {\n      \"pages_html\": {{ JSON.stringify($json.pageHtml) }}\n    }\n  }\n}",
         "options": {
-          "timeout": 30000,
           "batching": {
             "batch": {
               "batchSize": 1
             }
-          }
+          },
+          "timeout": 30000
         }
       },
-      "id": "7b282106-6224-4fd0-a8fd-924426b9eb70",
+      "id": "7caf242d-3982-40bc-a87f-5d128e4f1e79",
       "name": "Generate Page Image with PDFMonkey",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -3200,
-        -304
+        -32,
+        -352
       ],
       "executeOnce": false
     },
     {
       "parameters": {
+        "mode": "runOnceForEachItem",
         "language": "JavaScript",
-        "jsCode": "// Poll PDFMonkey until image is ready\nconst createResp = $input.first().json;\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc.id || doc.data?.id;\n\nif (!docId) {\n  throw new Error('PDFMonkey create response missing id');\n}\n\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst http = this.helpers.httpRequest;\nconst AUTH_HEADER = { Authorization: 'Bearer 2zpxHdmsse2ECXgVVtVR' };\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nwhile (attempts < 15) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true, headers: AUTH_HEADER });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(2000);\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey image not ready after polling (status=${status})`);\n}\n\n// Preserve order context\n// CRITICAL: Preserve ALL input context\nconst input = $input.first().json;\n\nreturn [{\n  json: {\n    ...input,\n    pdfMonkeyImageDocumentId: docId,\n    pageImageDownloadUrl: downloadUrl\n  }\n}];\n"
+        "jsCode": "// Poll PDFMonkey until image is ready\n// When running \"Once for Each Item\", use $input.item instead of $input.first()\nconst createResp = $input.item.json;\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc.id || doc.data?.id;\n\nif (!docId) {\n  throw new Error('PDFMonkey create response missing id');\n}\n\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst http = this.helpers.httpRequest;\nconst AUTH_HEADER = { Authorization: 'Bearer 2zpxHdmsse2ECXgVVtVR' };\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nwhile (attempts < 15) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true, headers: AUTH_HEADER });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(2000);\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey image not ready after polling (status=${status})`);\n}\n\n// Preserve ALL input context from the current item\nconst input = $input.item.json;\n\nreturn {\n  json: {\n    ...input,\n    pdfMonkeyImageDocumentId: docId,\n    pageImageDownloadUrl: downloadUrl\n  }\n};"
       },
-      "id": "c7dc9818-0d6c-4758-baf5-abd6fac3dfce",
+      "id": "b9fd1ce4-5d47-4e7b-87d9-4d50aa41ffb9",
       "name": "Poll PDFMonkey Image until ready",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -3008,
-        -304
+        160,
+        -352
       ],
       "executeOnce": false
     },
@@ -333,41 +334,41 @@
       "parameters": {
         "url": "={{$json.pageImageDownloadUrl}}",
         "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          },
           "response": {
             "response": {
               "responseFormat": "file"
             }
           },
-          "timeout": 30000,
-          "batching": {
-            "batch": {
-              "batchSize": 1
-            }
-          }
+          "timeout": 30000
         }
       },
-      "id": "ad0b3265-959c-4686-bf4d-f476868f03f1",
+      "id": "0d6c1375-2eb7-4c02-9b32-1ad9117eb919",
       "name": "Download Page Image from PDFMonkey",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -2816,
-        -304
+        352,
+        -352
       ],
       "executeOnce": false
     },
     {
       "parameters": {
         "language": "JavaScript",
-        "jsCode": "/**\n * Collect All Page Preview Images\n * Aggregates all page images from upstream nodes running in \"each item\" mode\n */\nconst items = $input.all();\n\nif (!items || items.length === 0) {\n  throw new Error('No page preview images to collect');\n}\n\nconst order = items[0]?.json || {};\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\nconst backendUrl = order.backendUrl || 'https://admin.littleherolabs.com';\n\n// Collect all page preview images\nconst pageImages = items\n  .filter(item => item.json.pageNumber)\n  .sort((a, b) => a.json.pageNumber - b.json.pageNumber)\n  .map(item => {\n    const pageNumber = item.json.pageNumber;\n    const r2Key = item.json.pageImageR2Key;\n    \n    if (!r2Key) {\n      console.warn(`\u26a0\ufe0f Page ${pageNumber} missing pageImageR2Key`);\n    }\n    \n    const imageUrl = r2Key ? `${backendUrl}/api/assets/${r2Key}` : null;\n    \n    return {\n      pageNumber,\n      r2Key,\n      imageUrl,\n      filename: item.json.pageImageFilename\n    };\n  });\n\nconsole.log(`\u2713 Collected ${pageImages.length} page preview images`);\n\n// Return single item with all page images for merge\nreturn [{\n  json: {\n    ...order,\n    pagePreviewImages: pageImages,\n    totalPages: pageImages.length,\n    imagesCollectedAt: new Date().toISOString()\n  }\n}];\n"
+        "jsCode": "/**\n * Collect All Page Preview Images (Run once for all items)\n * - Reads original items from \"Generate Page Preview Images\"\n * - Builds progress counters\n */\nconst SOURCE_NODE = 'Generate Page Preview Images'; // exact node name\n\nconst previews = $items(SOURCE_NODE);\nif (!previews || previews.length === 0) {\n  throw new Error(`No items found from \"${SOURCE_NODE}\". Ensure that node produced per-page items.`);\n}\n\nconst base = previews[0]?.json || {};\nconst amazonOrderId = base.amazonOrderId || 'ORDER';\nconst backendUrl = base.backendUrl || 'https://admin.littleherolabs.com';\nconst publicR2Url = base.publicR2Url || null;\n\n// Helper to form a public URL for an r2Key\nfunction toPublicUrl(r2Key) {\n  if (!r2Key) return null;\n  if (backendUrl) return `${backendUrl}/api/assets/${r2Key}`;\n  if (publicR2Url) return `${publicR2Url.replace(/\\/$/, '')}/${r2Key}`;\n  return null;\n}\n\n// Build page images list from originals\nconst pageImages = previews\n  .map(it => {\n    const j = it.json || {};\n    const pageNumber = Number(j.pageNumber);\n    const r2Key = j.pageImageR2Key;\n    const filename = j.pageImageFilename || (r2Key ? r2Key.split('/').pop() : null);\n    return Number.isFinite(pageNumber) ? {\n      pageNumber, r2Key, filename, imageUrl: toPublicUrl(r2Key),\n    } : null;\n  })\n  .filter(Boolean)\n  .sort((a,b) => a.pageNumber - b.pageNumber);\n\n// Progress counters\nconst pagesGenerated = pageImages.length;\n\n// Derive total pages required from whichever source we have\nconst totalFromStory = Array.isArray(base.storyTexts) ? base.storyTexts.length : 0;\nconst totalFromBackgrounds = Array.isArray(base.backgroundImages) ? base.backgroundImages.length : 0;\nconst totalFromBookSpecs = base.bookSpecs && Number.isFinite(base.bookSpecs.totalPages)\n  ? (base.bookSpecs.totalPages - (base.bookSpecs.frontMatterPages || 2))  // if you use 16 incl. covers, adjust as needed\n  : 0;\n\n// Prefer explicit per-story/page assets; fall back to a reasonable number\nconst totalPagesRequired = Math.max(totalFromStory, totalFromBackgrounds, totalFromBookSpecs, 0) || pageImages.length;\nconst assemblyProgress = totalPagesRequired > 0\n  ? Math.round((pagesGenerated / totalPagesRequired) * 100) / 100\n  : 0;\n\nreturn [{\n  json: {\n    ...base,\n    status: pagesGenerated >= totalPagesRequired ? 'book_assembly_previews_ready' : 'book_assembly_in_progress',\n    assemblyStartedAt: base.assemblyStartedAt || new Date().toISOString(),\n    pagesGenerated,\n    totalPagesRequired,\n    assemblyProgress,\n    pagePreviewImages: pageImages,\n    totalPages: pageImages.length,\n    imagesCollectedAt: new Date().toISOString(),\n    success: pageImages.length > 0,\n  }\n}];\n"
       },
-      "id": "c0fe3acb-cd04-4cc3-b573-3357141b07ab",
+      "id": "04fd8108-afe9-4465-8475-0e260d1775b5",
       "name": "Collect Page Preview Images",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -2432,
-        -304
+        752,
+        -352
       ]
     },
     {
@@ -376,27 +377,27 @@
         "combineBy": "combineAll",
         "options": {}
       },
-      "id": "12f979d0-16e2-42cb-8adb-edb8c63909c5",
+      "id": "b0dd1cd9-0a2c-4020-8197-621179960e58",
       "name": "Merge Preview Images + PDF Data",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        -1808,
-        -144
+        1376,
+        -192
       ]
     },
     {
       "parameters": {
         "language": "JavaScript",
-        "jsCode": "/**\n * Build 3 Manifest - Create manifest with book assembly results\n * Receives merged data from both preview images and PDF paths\n */\nconst input = $input.first().json || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// Get data from merge node\nconst pagePreviewImages = input.pagePreviewImages || [];\nconst pdfFilename = input.pdfFilename || null;\nconst pdfR2Key = input.pdfR2Key || null;\nconst amazonOrderId = input.amazonOrderId || null;\n\n// Validate required fields\nif (!amazonOrderId) {\n  throw new Error('amazonOrderId is required for building 3-manifest');\n}\nif (!pdfR2Key) {\n  throw new Error('pdfR2Key is missing - PDF may not have been uploaded');\n}\nif (!pdfFilename) {\n  throw new Error('pdfFilename is missing');\n}\nif (!pagePreviewImages || pagePreviewImages.length === 0) {\n  console.warn('\u26a0\ufe0f No pagePreviewImages found - preview images may have failed');\n}\n\n// Get 2B manifest from upstream (Download 2B Manifest node)\nlet manifest2B = null;\ntry {\n  const downloadItems = $items('Download 2B Manifest', 0, runIx);\n  if (downloadItems && Array.isArray(downloadItems) && downloadItems.length > 0) {\n    const downloadItem = downloadItems[0]?.json || {};\n    if (downloadItem.schema && downloadItem.schema.includes('lhb.run-manifest')) {\n      manifest2B = downloadItem;\n      console.log('\u2713 Retrieved 2B manifest from Download 2B Manifest node');\n    }\n  }\n} catch (e) {\n  console.warn(`\u26a0\ufe0f Could not retrieve 2B manifest: ${e.message}`);\n}\n\nif (!manifest2B || !manifest2B.schema) {\n  throw new Error('2B manifest not found. Cannot build 3-manifest without 2B manifest.');\n}\n\nconst totalPages = pagePreviewImages.length || 14;\n\nconsole.log(`=== BUILDING 3 MANIFEST ===`);\nconsole.log(`Order: ${amazonOrderId}`);\nconsole.log(`Preview images: ${pagePreviewImages.length}`);\nconsole.log(`PDF: ${pdfFilename}`);\nconsole.log(`PDF R2 Key: ${pdfR2Key}`);\n\n// Build 3-manifest by extending 2B manifest\nconst manifest3 = {\n  ...manifest2B,\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp: new Date().toISOString(),\n  \n  // Add book assembly section\n  bookAssembly: {\n    completedAt: new Date().toISOString(),\n    pdfFilename: pdfFilename,\n    pdfR2Key: pdfR2Key,\n    totalPages: totalPages,\n    pagePreviewImages: pagePreviewImages\n  },\n  \n  // Update workflow section\n  workflow: {\n    ...manifest2B.workflow,\n    currentStage: '3-complete',\n    nextWorkflow: null,\n    requiresHumanReview: false\n  },\n  \n  // Update summary\n  summary: {\n    ...manifest2B.summary,\n    percentComplete: 100,\n    readyForBook: true,\n    needsHumanReview: false\n  },\n  \n  generatedAt: new Date().toISOString()\n};\n\nconsole.log('\u2713 3-Manifest built successfully');\n\nreturn [{\n  json: {\n    manifest: manifest3,\n    orderId: amazonOrderId,\n    characterHash: input.characterHash || manifest2B.characterHash,\n    pagePreviewImages: pagePreviewImages,\n    pdfFilename: pdfFilename,\n    pdfR2Key: pdfR2Key\n  }\n}];\n"
+        "jsCode": "/**\n * Build 3 Manifest — minimal, reference-only to Stage-2B\n * Creates the final manifest with book assembly results\n * Input: merged data from preview + PDF paths\n */\n\nconst input = $input.first().json || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\nconst pagePreviewImages = input.pagePreviewImages || [];\nconst pdfFilename = input.pdfFilename || null;\nconst pdfR2Key = input.pdfR2Key || null;\nconst amazonOrderId = input.amazonOrderId || null;\n\n// ---- Required checks\nif (!amazonOrderId) throw new Error('amazonOrderId is required for building 3-manifest');\nif (!pdfR2Key)     throw new Error('pdfR2Key is missing — PDF may not have been uploaded');\nif (!pdfFilename)  throw new Error('pdfFilename is missing');\nif (!pagePreviewImages || pagePreviewImages.length === 0) {\n  console.warn('⚠️ No pagePreviewImages found — preview images may have failed');\n}\n\n// ---- Retrieve 2B manifest JSON (for identity + order) and discover its storage reference\nlet manifest2B = null;\nlet upstreamRef = {\n  posesManifestR2Key: null,\n  posesManifestUrl:   null,\n  schema:             null,\n  runStamp:           null,\n  characterHash:      null,\n};\n\ntry {\n  const dl = $items('Download 2B Manifest', 0, runIx);\n  if (dl && Array.isArray(dl) && dl.length > 0) {\n    const raw = dl[0] || {};\n    const j = raw.json || {};\n\n    // If the node returns the manifest JSON directly, capture minimal identity\n    if (j && j.schema && String(j.schema).includes('lhb.run-manifest')) {\n      manifest2B = j;\n      upstreamRef.schema        = j.schema || null;\n      upstreamRef.runStamp      = j.runStamp || null;\n      upstreamRef.characterHash = j.characterHash || null;\n    }\n\n    // Heuristic probes for a stored reference (R2 key / public URL) that some HTTP/R2 nodes include\n    upstreamRef.posesManifestR2Key =\n        j.r2Key\n     || j.manifestR2Key\n     || j.r2_key\n     || j.r2_path\n     || j.key\n     || j.sourceKey\n     || null;\n\n    upstreamRef.posesManifestUrl =\n        j.publicUrl\n     || j.url\n     || j.presignedUrl\n     || j.signedUrl\n     || j.downloadUrl\n     || null;\n  }\n} catch (e) {\n  console.warn(`⚠️ Could not retrieve Stage-2B manifest reference: ${e.message}`);\n}\n\nif (!manifest2B || !manifest2B.schema) {\n  throw new Error('2B manifest not found. Cannot build 3-manifest without Stage-2B.');\n}\n\n// ---- Basic totals\nconst totalPages = pagePreviewImages.length || 14;\n\n// ---- Build 3-manifest WITHOUT copying pose/entries/counter blocks from 2B\n// Keep the order section, identity, and a lightweight upstream reference to 2B.\nconst nowIso = new Date().toISOString();\n\nconst manifest3 = {\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp: nowIso,\n\n  // identity\n  characterHash: input.characterHash || manifest2B.characterHash || null,\n\n  // order block: prefer the fully-populated one from 2B to remain canonical\n  order: manifest2B.order || {\n    amazonOrderId,\n    publicR2Url: input.publicR2Url || null,\n  },\n\n  // Upstream references instead of duplicating pose data/counters/entries\n  upstream: {\n    stage2: upstreamRef, // { posesManifestR2Key, posesManifestUrl, schema, runStamp, characterHash }\n  },\n\n  // Book assembly results (this stage’s product)\n  bookAssembly: {\n    completedAt: nowIso,\n    pdfFilename,\n    pdfR2Key,\n    totalPages,\n    pagePreviewImages,\n  },\n\n  // Workflow + summary for this stage only\n  workflow: {\n    currentStage: '3-complete',\n    nextWorkflow: null,\n    requiresHumanReview: false,\n  },\n  summary: {\n    percentComplete: 100,\n    readyForBook: true,\n    needsHumanReview: false,\n  },\n\n  generatedAt: nowIso,\n};\n\nconsole.log('✓ 3-Manifest built successfully (reference-only to Stage-2B).');\n\nreturn [{\n  json: {\n    manifest: manifest3,\n    orderId: amazonOrderId,\n    characterHash: manifest3.characterHash,\n    pagePreviewImages,\n    pdfFilename,\n    pdfR2Key,\n  }\n}];\n"
       },
-      "id": "c968368c-9b28-46f7-837c-a0ac0dac300f",
+      "id": "1b66274c-4a49-4ab7-911e-229422f1bcaf",
       "name": "Build 3 Manifest",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -1632,
-        -144
+        1552,
+        -192
       ]
     },
     {
@@ -404,13 +405,13 @@
         "language": "JavaScript",
         "jsCode": "/**\n * Prep Manifest Upload (3) - Convert manifest to binary format for R2 upload\n */\nconst data = $input.first().json;\nconst manifest = data.manifest;\nconst orderId = data.orderId;\n\nif (!manifest || !manifest.schema) {\n  throw new Error('Manifest is missing or invalid in Prep Manifest Upload (3)');\n}\n\nif (!orderId) {\n  throw new Error('orderId is required for Prep Manifest Upload (3)');\n}\n\n// Construct R2 key for 3-manifest\nconst manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;\n\nconsole.log(`Preparing to upload 3-manifest to: ${manifestKey}`);\n\n// Convert manifest to buffer for upload\nconst manifestJSON = JSON.stringify(manifest, null, 2);\nconst buffer = Buffer.from(manifestJSON, 'utf-8');\n\nreturn [{\n  json: {\n    ...data,\n    manifestKey: manifestKey,\n    manifestBucket: 'little-hero-orders'\n  },\n  binary: {\n    data: {\n      data: buffer.toString('base64'),\n      mimeType: 'application/json',\n      fileName: '3-manifest.json',\n      fileExtension: 'json'\n    }\n  }\n}];\n"
       },
-      "id": "fbc10054-7503-40bf-81cd-6c45bf170593",
+      "id": "53f3cb82-6ffe-4cda-9689-2c5ed1a640be",
       "name": "Prep Manifest Upload (3)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -1456,
-        -144
+        1728,
+        -192
       ]
     },
     {
@@ -420,13 +421,13 @@
         "fileName": "={{ $json.manifestKey }}",
         "additionalFields": {}
       },
-      "id": "52110b52-9146-424b-9c71-21dddf0c938e",
+      "id": "e2d5a2ad-716c-4dec-a22d-25c236118cb0",
       "name": "Upload 3 Manifest to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -1248,
-        -144
+        1936,
+        -192
       ],
       "credentials": {
         "s3": {
@@ -439,17 +440,16 @@
       "parameters": {
         "operation": "upload",
         "bucketName": "little-hero-orders",
-        "fileName": "={{ $json.pageImageR2Key }}",
-        "additionalFields": {},
-        "options": {}
+        "fileName": "={{$items(\"Generate Page Preview Images\")[$itemIndex].json.pageImageR2Key}}",
+        "additionalFields": {}
       },
-      "id": "7526f6b1-4bae-47f3-8959-416f222c26a1",
+      "id": "8f4889b5-a017-4415-95ff-8e7502150ea3",
       "name": "Upload Page Preview Image to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -2624,
-        -304
+        560,
+        -352
       ],
       "executeOnce": false,
       "credentials": {
@@ -466,13 +466,13 @@
         "fileName": "={{ $json.pdfR2Key }}",
         "additionalFields": {}
       },
-      "id": "db217a23-5b63-408d-8194-08076e29a64a",
+      "id": "5b6575f9-6c12-4962-b045-70aaca7fd570",
       "name": "Upload PDF to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -2496,
-        -64
+        688,
+        -112
       ],
       "credentials": {
         "s3": {
@@ -484,15 +484,15 @@
     {
       "parameters": {
         "language": "JavaScript",
-        "jsCode": "/**\n * Prepare PDF Metadata for Merge\n * Strips binary data and passes only metadata to merge node\n */\nconst input = $input.first().json;\nconst amazonOrderId = input.amazonOrderId;\nconst pdfFilename = input.pdfFilename;\nconst pdfR2Key = input.pdfR2Key;\n\nif (!amazonOrderId || !pdfFilename || !pdfR2Key) {\n  throw new Error('Missing required PDF metadata: amazonOrderId, pdfFilename, or pdfR2Key');\n}\n\nconsole.log(`\u2713 PDF uploaded to R2: ${pdfR2Key}`);\n\nreturn [{\n  json: {\n    amazonOrderId,\n    characterHash: input.characterHash,\n    pdfComplete: true,\n    pdfFilename,\n    pdfR2Key,\n    pdfUploadedAt: new Date().toISOString(),\n    // Preserve any other order context needed downstream\n    characterSpecs: input.characterSpecs,\n    bookSpecs: input.bookSpecs,\n    orderDetails: input.orderDetails,\n    backendUrl: input.backendUrl\n  }\n  // Note: No binary data - it's already uploaded to R2\n}];\n"
+        "jsCode": "/**\n * Prepare PDF Metadata for Merge\n * Strips binary data and passes only metadata to merge node\n */\nconst input = $input.first().json;\nconst amazonOrderId = input.amazonOrderId;\nconst pdfFilename = input.pdfFilename;\nconst pdfR2Key = input.pdfR2Key;\n\nif (!amazonOrderId || !pdfFilename || !pdfR2Key) {\n  throw new Error('Missing required PDF metadata: amazonOrderId, pdfFilename, or pdfR2Key');\n}\n\nconsole.log(`✓ PDF uploaded to R2: ${pdfR2Key}`);\n\nreturn [{\n  json: {\n    amazonOrderId,\n    characterHash: input.characterHash,\n    pdfComplete: true,\n    pdfFilename,\n    pdfR2Key,\n    pdfUploadedAt: new Date().toISOString(),\n    // Preserve any other order context needed downstream\n    characterSpecs: input.characterSpecs,\n    bookSpecs: input.bookSpecs,\n    orderDetails: input.orderDetails,\n    backendUrl: input.backendUrl\n  }\n  // Note: No binary data - it's already uploaded to R2\n}];\n"
       },
-      "id": "aaab5ed1-180f-4017-8e90-5228b2095434",
+      "id": "60f5bc10-6291-42c6-ae6a-0ccac1eb498b",
       "name": "Prepare PDF Metadata for Merge",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -2112,
-        96
+        1072,
+        80
       ]
     },
     {
@@ -504,197 +504,14 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -2304,
-        96
+        880,
+        80
       ],
-      "id": "eee1b6ae-96b2-4717-8480-503c836f3d6d",
+      "id": "66e5c74a-dc20-456b-b232-788cb3653de0",
       "name": "Merge"
     }
   ],
-  "pinData": {
-    "Webhook Trigger (Book Assembly)1": [
-      {
-        "json": {
-          "headers": {
-            "host": "thepeakbeyond.app.n8n.cloud",
-            "user-agent": "axios/1.8.3",
-            "content-length": "6328",
-            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
-            "accept-encoding": "gzip, br",
-            "cdn-loop": "cloudflare; loops=1; subreqs=1",
-            "cf-connecting-ip": "4.182.88.118",
-            "cf-ew-via": "15",
-            "cf-ipcountry": "DE",
-            "cf-ray": "98ea990bf1d8693d-FRA",
-            "cf-visitor": "{\"scheme\":\"https\"}",
-            "cf-worker": "n8n.cloud",
-            "content-type": "application/json",
-            "x-forwarded-for": "4.182.88.118, 162.158.86.127",
-            "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
-            "x-forwarded-port": "443",
-            "x-forwarded-proto": "https",
-            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-n8pcb",
-            "x-is-trusted": "yes",
-            "x-real-ip": "4.182.88.118"
-          },
-          "params": {},
-          "query": {},
-          "body": {
-            "status": "ready_for_book_assembly",
-            "amazonOrderId": "TEST-ORDER-002",
-            "characterHash": "1dde0fac84943088",
-            "characterSpecs": {
-              "childName": "Alex",
-              "hometown": "Seattle",
-              "pronouns": "he/him",
-              "age": 4,
-              "favoriteColor": "yellow",
-              "animalGuide": "tiger",
-              "clothingStyle": "t-shirt and shorts",
-              "hash": "1dde0fac84943088"
-            },
-            "bookSpecs": {
-              "title": "Alex and the Adventure Compass",
-              "totalPages": 16,
-              "format": "8.5x8.5_softcover",
-              "bookType": "animal-guide"
-            },
-            "orderDetails": {
-              "quantity": 1,
-              "shippingAddress": {
-                "name": "Test Customer",
-                "address": "123 Test Street",
-                "city": "Test City",
-                "state": "CA",
-                "zip": "90210"
-              }
-            },
-            "publicR2Url": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev",
-            "processedImages": [
-              {
-                "poseNumber": 1,
-                "fileName": "characters_1dde0fac84943088_pose01_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose01_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose01_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              },
-              {
-                "poseNumber": 2,
-                "fileName": "characters_1dde0fac84943088_pose02_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose02_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose02_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              },
-              {
-                "poseNumber": 3,
-                "fileName": "characters_1dde0fac84943088_pose03_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose03_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose03_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              },
-              {
-                "poseNumber": 4,
-                "fileName": "characters_1dde0fac84943088_pose04_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose04_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose04_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              },
-              {
-                "poseNumber": 5,
-                "fileName": "characters_1dde0fac84943088_pose05_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose05_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose05_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              },
-              {
-                "poseNumber": 6,
-                "fileName": "characters_1dde0fac84943088_pose06_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose06_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose06_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              },
-              {
-                "poseNumber": 7,
-                "fileName": "characters_1dde0fac84943088_pose07_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose07_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose07_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              },
-              {
-                "poseNumber": 8,
-                "fileName": "characters_1dde0fac84943088_pose08_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose08_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose08_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              },
-              {
-                "poseNumber": 9,
-                "fileName": "characters_1dde0fac84943088_pose09_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose09_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose09_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              },
-              {
-                "poseNumber": 10,
-                "fileName": "characters_1dde0fac84943088_pose10_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose10_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose10_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              },
-              {
-                "poseNumber": 11,
-                "fileName": "characters_1dde0fac84943088_pose11_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose11_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose11_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              },
-              {
-                "poseNumber": 12,
-                "fileName": "characters_1dde0fac84943088_pose12_nobg.png",
-                "r2Path": "book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose12_nobg.png",
-                "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/1dde0fac84943088/characters_1dde0fac84943088_pose12_nobg.png",
-                "briaProcessed": true,
-                "briaStatus": "COMPLETED",
-                "processingError": false
-              }
-            ],
-            "workflow2B": {
-              "summary": {
-                "total": 12,
-                "completed": 12,
-                "failed": 0
-              },
-              "completedAt": "2025-10-14T22:43:49.704Z"
-            }
-          },
-          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly",
-          "executionMode": "production"
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "connections": {
     "Extract Manifest URL (3)": {
       "main": [
@@ -762,6 +579,22 @@
         ]
       ]
     },
+    "Generate Complete HTML": {
+      "main": [
+        [
+          {
+            "node": "Generate Page Preview Images",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare PDFMonkey Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Prepare PDFMonkey Data": {
       "main": [
         [
@@ -773,33 +606,11 @@
         ]
       ]
     },
-    "Generate PDF with PDFMonkey": {
+    "Update Order Status Complete": {
       "main": [
         [
           {
-            "node": "Wait",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Upload Page Preview Image to R2": {
-      "main": [
-        [
-          {
-            "node": "Collect Page Preview Images",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Collect Page Preview Images": {
-      "main": [
-        [
-          {
-            "node": "Merge Preview Images + PDF Data",
+            "node": "Log Assembly Results",
             "type": "main",
             "index": 0
           }
@@ -817,55 +628,27 @@
         ]
       ]
     },
-    "Merge Preview Images + PDF Data": {
+    "Download PDF from PDFMonkey": {
       "main": [
         [
           {
-            "node": "Build 3 Manifest",
+            "node": "Upload PDF to R2",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
           }
         ]
       ]
     },
-    "Build 3 Manifest": {
+    "Generate PDF with PDFMonkey": {
       "main": [
         [
           {
-            "node": "Prep Manifest Upload (3)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prep Manifest Upload (3)": {
-      "main": [
-        [
-          {
-            "node": "Upload 3 Manifest to R2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Upload 3 Manifest to R2": {
-      "main": [
-        [
-          {
-            "node": "Update Order Status Complete",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update Order Status Complete": {
-      "main": [
-        [
-          {
-            "node": "Log Assembly Results",
+            "node": "Wait",
             "type": "main",
             "index": 0
           }
@@ -899,22 +682,6 @@
         [
           {
             "node": "Generate Complete HTML",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Generate Complete HTML": {
-      "main": [
-        [
-          {
-            "node": "Generate Page Preview Images",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Prepare PDFMonkey Data",
             "type": "main",
             "index": 0
           }
@@ -965,18 +732,68 @@
         ]
       ]
     },
-    "Download PDF from PDFMonkey": {
+    "Collect Page Preview Images": {
       "main": [
         [
           {
-            "node": "Upload PDF to R2",
+            "node": "Merge Preview Images + PDF Data",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Merge Preview Images + PDF Data": {
+      "main": [
+        [
           {
-            "node": "Merge",
+            "node": "Build 3 Manifest",
             "type": "main",
-            "index": 1
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build 3 Manifest": {
+      "main": [
+        [
+          {
+            "node": "Prep Manifest Upload (3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Manifest Upload (3)": {
+      "main": [
+        [
+          {
+            "node": "Upload 3 Manifest to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload 3 Manifest to R2": {
+      "main": [
+        [
+          {
+            "node": "Update Order Status Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Page Preview Image to R2": {
+      "main": [
+        [
+          {
+            "node": "Collect Page Preview Images",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1019,7 +836,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "0680502f-b5c4-4744-8603-42df7f1dae5b",
+  "versionId": "9a403e35-d187-4f90-9635-159b02ea3dd0",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
