@@ -424,15 +424,30 @@
     },
     {
       "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "j0k1l2m3-n4o5-p6q7-r8s9-t0u1v2w3x4y5",
+      "name": "Merge Preview Images + PDF Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        176,
+        -352
+      ]
+    },
+    {
+      "parameters": {
         "language": "JavaScript",
-        "jsCode": "/**\n * Build 3 Manifest - Create manifest with book assembly results\n * Extends 2B manifest with pagePreviewImages and book assembly metadata\n */\nconst input = $input.first().json || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// Get 2B manifest from upstream (Download 2B Manifest node)\nlet manifest2B = null;\ntry {\n  const downloadItems = $items('Download 2B Manifest', 0, runIx);\n  if (downloadItems && Array.isArray(downloadItems) && downloadItems.length > 0) {\n    const downloadItem = downloadItems[0]?.json || {};\n    // Download 2B Manifest outputs the manifest JSON directly\n    if (downloadItem.schema === 'lhb.run-manifest@v2.0') {\n      manifest2B = downloadItem;\n      console.log('✓ Retrieved 2B manifest from Download 2B Manifest node');\n    }\n  }\n} catch (e) {\n  console.warn(`⚠️ Could not retrieve 2B manifest: ${e.message}`);\n}\n\n// Try Build Assembly Input From Manifest as fallback\nif (!manifest2B) {\n  try {\n    const buildItems = $items('Build Assembly Input From Manifest', 0, runIx);\n    if (buildItems && Array.isArray(buildItems) && buildItems.length > 0) {\n      const buildItem = buildItems[0]?.json || {};\n      // This node receives manifest from HTTP request, check if it's in the structure\n      if (buildItem.schema === 'lhb.run-manifest@v2.0') {\n        manifest2B = buildItem;\n        console.log('✓ Retrieved 2B manifest from Build Assembly Input From Manifest node');\n      }\n    }\n  } catch (e) {\n    console.warn(`⚠️ Could not retrieve from Build Assembly Input From Manifest: ${e.message}`);\n  }\n}\n\nif (!manifest2B || !manifest2B.schema) {\n  throw new Error('2B manifest not found. Cannot build 3-manifest without 2B manifest.');\n}\n\n// Get pagePreviewImages from input (from Collect Page Preview Images)\nconst pagePreviewImages = input.pagePreviewImages || [];\nconst totalPages = input.totalPages || pagePreviewImages.length || 14;\n\n// Get order data from input or manifest\nconst amazonOrderId = input.amazonOrderId || manifest2B.order?.amazonOrderId || manifest2B.order?.orderId || null;\n\n// Try to get pdfFilename from upstream nodes (Poll PDFMonkey until ready)\nlet pdfFilename = input.pdfFilename || null;\nif (!pdfFilename) {\n  try {\n    const pollItems = $items('Poll PDFMonkey until ready', 0, runIx);\n    if (pollItems && Array.isArray(pollItems) && pollItems.length > 0) {\n      pdfFilename = pollItems[0]?.json?.pdfFilename || null;\n    }\n  } catch (e) {\n    console.warn(`⚠️ Could not retrieve pdfFilename from Poll PDFMonkey: ${e.message}`);\n  }\n}\n\n// Fallback to default filename\nif (!pdfFilename) {\n  pdfFilename = `complete_book_${amazonOrderId || 'ORDER'}.pdf`;\n}\n\nconst pdfR2Key = `book-mvp-simple-adventure/orders/${amazonOrderId}/${pdfFilename}`;\n\nif (!amazonOrderId) {\n  throw new Error('amazonOrderId is required for building 3-manifest');\n}\n\nconsole.log(`=== BUILDING 3 MANIFEST ===`);\nconsole.log(`Order: ${amazonOrderId}`);\nconsole.log(`Preview images: ${pagePreviewImages.length}`);\nconsole.log(`PDF: ${pdfFilename}`);\n\n// Build 3-manifest by extending 2B manifest\nconst manifest3 = {\n  ...manifest2B,\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp: new Date().toISOString(),\n  \n  // Add book assembly section\n  bookAssembly: {\n    completedAt: new Date().toISOString(),\n    pdfFilename: pdfFilename,\n    pdfR2Key: pdfR2Key,\n    totalPages: totalPages,\n    pagePreviewImages: pagePreviewImages  // Array of { pageNumber, r2Key, imageUrl, filename }\n  },\n  \n  // Update workflow section\n  workflow: {\n    ...manifest2B.workflow,\n    currentStage: '3-complete',\n    nextWorkflow: null,  // Final stage\n    requiresHumanReview: false  // Book assembly is automated\n  },\n  \n  // Update summary\n  summary: {\n    ...manifest2B.summary,\n    percentComplete: 100,\n    readyForBook: true,\n    needsHumanReview: false\n  },\n  \n  generatedAt: new Date().toISOString()\n};\n\nconsole.log('✓ 3-Manifest built successfully');\n\nreturn [{\n  json: {\n    manifest: manifest3,\n    orderId: amazonOrderId,\n    characterHash: manifest2B.characterHash,\n    pagePreviewImages: pagePreviewImages,\n    pdfFilename: pdfFilename,\n    pdfR2Key: pdfR2Key\n  }\n}];\n"
+        "jsCode": "/**\n * Build 3 Manifest - Create manifest with book assembly results\n * Extends 2B manifest with pagePreviewImages and book assembly metadata\n * Receives merged data from both preview images path and PDF path\n */\nconst input = $input.first().json || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// Merge node combines data from both paths, so we have both pagePreviewImages and pdfFilename\nconst pagePreviewImages = input.pagePreviewImages || [];\nconst pdfFilename = input.pdfFilename || null;\n\n// Get 2B manifest from upstream (Download 2B Manifest node)\nlet manifest2B = null;\ntry {\n  const downloadItems = $items('Download 2B Manifest', 0, runIx);\n  if (downloadItems && Array.isArray(downloadItems) && downloadItems.length > 0) {\n    const downloadItem = downloadItems[0]?.json || {};\n    // Download 2B Manifest outputs the manifest JSON directly\n    if (downloadItem.schema === 'lhb.run-manifest@v2.0') {\n      manifest2B = downloadItem;\n      console.log('✓ Retrieved 2B manifest from Download 2B Manifest node');\n    }\n  }\n} catch (e) {\n  console.warn(`⚠️ Could not retrieve 2B manifest: ${e.message}`);\n}\n\n// Try Build Assembly Input From Manifest as fallback\nif (!manifest2B) {\n  try {\n    const buildItems = $items('Build Assembly Input From Manifest', 0, runIx);\n    if (buildItems && Array.isArray(buildItems) && buildItems.length > 0) {\n      const buildItem = buildItems[0]?.json || {};\n      // This node receives manifest from HTTP request, check if it's in the structure\n      if (buildItem.schema === 'lhb.run-manifest@v2.0') {\n        manifest2B = buildItem;\n        console.log('✓ Retrieved 2B manifest from Build Assembly Input From Manifest node');\n      }\n    }\n  } catch (e) {\n    console.warn(`⚠️ Could not retrieve from Build Assembly Input From Manifest: ${e.message}`);\n  }\n}\n\nif (!manifest2B || !manifest2B.schema) {\n  throw new Error('2B manifest not found. Cannot build 3-manifest without 2B manifest.');\n}\n\nconst totalPages = input.totalPages || pagePreviewImages.length || 14;\n\n// Get order data from input or manifest\nconst amazonOrderId = input.amazonOrderId || manifest2B.order?.amazonOrderId || manifest2B.order?.orderId || null;\n\n// pdfFilename should come from merge node (from Poll PDFMonkey until ready)\n// Fallback to default if not provided\nif (!pdfFilename) {\n  pdfFilename = `complete_book_${amazonOrderId || 'ORDER'}.pdf`;\n}\n\nconst pdfR2Key = `book-mvp-simple-adventure/orders/${amazonOrderId}/${pdfFilename}`;\n\nif (!amazonOrderId) {\n  throw new Error('amazonOrderId is required for building 3-manifest');\n}\n\nconsole.log(`=== BUILDING 3 MANIFEST ===`);\nconsole.log(`Order: ${amazonOrderId}`);\nconsole.log(`Preview images: ${pagePreviewImages.length}`);\nconsole.log(`PDF: ${pdfFilename}`);\n\n// Build 3-manifest by extending 2B manifest\nconst manifest3 = {\n  ...manifest2B,\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp: new Date().toISOString(),\n  \n  // Add book assembly section\n  bookAssembly: {\n    completedAt: new Date().toISOString(),\n    pdfFilename: pdfFilename,\n    pdfR2Key: pdfR2Key,\n    totalPages: totalPages,\n    pagePreviewImages: pagePreviewImages  // Array of { pageNumber, r2Key, imageUrl, filename }\n  },\n  \n  // Update workflow section\n  workflow: {\n    ...manifest2B.workflow,\n    currentStage: '3-complete',\n    nextWorkflow: null,  // Final stage\n    requiresHumanReview: false  // Book assembly is automated\n  },\n  \n  // Update summary\n  summary: {\n    ...manifest2B.summary,\n    percentComplete: 100,\n    readyForBook: true,\n    needsHumanReview: false\n  },\n  \n  generatedAt: new Date().toISOString()\n};\n\nconsole.log('✓ 3-Manifest built successfully');\n\nreturn [{\n  json: {\n    manifest: manifest3,\n    orderId: amazonOrderId,\n    characterHash: manifest2B.characterHash,\n    pagePreviewImages: pagePreviewImages,\n    pdfFilename: pdfFilename,\n    pdfR2Key: pdfR2Key\n  }\n}];\n"
       },
       "id": "g7h8i9j0-k1l2-m3n4-o5p6-q7r8s9t0u1v2",
       "name": "Build 3 Manifest",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        256,
+        352,
         -352
       ]
     },
@@ -446,7 +461,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        448,
+        544,
         -352
       ]
     },
@@ -465,7 +480,7 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        640,
+        736,
         -352
       ],
       "credentials": {
@@ -800,17 +815,6 @@
         ]
       ]
     },
-    "Download PDF from PDFMonkey": {
-      "main": [
-        [
-          {
-            "node": "Upload Final Book to Storage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Upload Page Preview Image to R2": {
       "main": [
         [
@@ -823,6 +827,33 @@
       ]
     },
     "Collect Page Preview Images": {
+      "main": [
+        [
+          {
+            "node": "Merge Preview Images + PDF Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll PDFMonkey until ready": {
+      "main": [
+        [
+          {
+            "node": "Merge Preview Images + PDF Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Download PDF from PDFMonkey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Preview Images + PDF Data": {
       "main": [
         [
           {
