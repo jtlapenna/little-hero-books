@@ -161,54 +161,58 @@ Each stage (`preBria`, `postBria`, `postPdf`) uses:
 - **Workflow regeneration**: If workflows are retried/regenerated (future feature), they would update status back to `pending_[stage]_review` when complete
 
 ### Status Calculation Function
+**Note**: Uses existing database fields: `status`, `workflow_step`, `lulu_status`, `review_stages`, `flags`
+
 ```typescript
 function calculateOrderStatus(order: Order): string {
   // 1. Check flags first (highest priority) - REVISION STATUSES ARE OPTIONAL
-  // Only show revision status if flags exist, otherwise proceed to next stage
-  const flagSummary = getOrderFlagSummary(order.orderId);
-  if (flagSummary.total > 0) {
+  // Uses flags JSONB field from database
+  const flags = order.flags || { preBria: 0, postBria: 0, postPdf: 0, total: 0 };
+  if (flags.total > 0) {
+    const reviewStages = order.review_stages || {};
     // If flags exist, show revision status for that stage
-    if (flagSummary.preBria > 0 && order.reviewStages.preBria.status !== 'approved') return 'revision_base';
-    if (flagSummary.postBria > 0 && order.reviewStages.postBria.status !== 'approved') return 'revision_bg_removal';
-    if (flagSummary.postPdf > 0 && order.reviewStages.postPdf.status !== 'approved') return 'revision_assembly';
+    if (flags.preBria > 0 && reviewStages.preBria?.status !== 'approved') return 'revision_base';
+    if (flags.postBria > 0 && reviewStages.postBria?.status !== 'approved') return 'revision_bg_removal';
+    if (flags.postPdf > 0 && reviewStages.postPdf?.status !== 'approved') return 'revision_assembly';
   }
   
-  // 2. Check production status
-  if (order.podStatus) {
-    return mapLuluStatusToOrderStatus(order.podStatus);
+  // 2. Check production status - uses existing lulu_status field
+  if (order.lulu_status) {
+    return mapLuluStatusToOrderStatus(order.lulu_status);
   }
   
-  // 3. Check customer approval
-  if (order.customerApprovalStatus === 'pending') return 'pending_customer_approval';
-  if (order.customerApprovalStatus === 'approved') return 'customer_approved';
-  if (order.customerApprovalStatus === 'revision_requested') return 'customer_revision_requested';
+  // 3. Check customer approval - uses customer_approval_status field
+  if (order.customer_approval_status === 'pending') return 'pending_customer_approval';
+  if (order.customer_approval_status === 'approved') return 'customer_approved';
+  if (order.customer_approval_status === 'revision_requested') return 'customer_revision_requested';
   
-  // 4. Check review stages
-  if (order.reviewStages.postPdf.status === 'approved') {
+  // 4. Check review stages - uses review_stages JSONB field
+  const reviewStages = order.review_stages || {};
+  if (reviewStages.postPdf?.status === 'approved') {
     // All stages approved, ready for customer approval or production
-    return order.customerApprovalRequired ? 'pending_customer_approval' : 'pending_print';
+    return order.customer_approval_required ? 'pending_customer_approval' : 'pending_print';
   }
-  if (order.reviewStages.postPdf.status === 'ready' || order.reviewStages.postPdf.status === 'in_review') {
+  if (reviewStages.postPdf?.status === 'ready' || reviewStages.postPdf?.status === 'in_review') {
     return 'pending_assembly_review';
   }
-  if (order.reviewStages.postBria.status === 'approved' && order.reviewStages.postPdf.status === 'pending') {
+  if (reviewStages.postBria?.status === 'approved' && reviewStages.postPdf?.status === 'pending') {
     return 'pending_assembly_review';
   }
-  if (order.reviewStages.postBria.status === 'ready' || order.reviewStages.postBria.status === 'in_review') {
+  if (reviewStages.postBria?.status === 'ready' || reviewStages.postBria?.status === 'in_review') {
     return 'pending_bg_removal_review';
   }
-  if (order.reviewStages.preBria.status === 'approved' && order.reviewStages.postBria.status === 'pending') {
+  if (reviewStages.preBria?.status === 'approved' && reviewStages.postBria?.status === 'pending') {
     return 'pending_bg_removal_review';
   }
-  if (order.reviewStages.preBria.status === 'ready' || order.reviewStages.preBria.status === 'in_review') {
+  if (reviewStages.preBria?.status === 'ready' || reviewStages.preBria?.status === 'in_review') {
     return 'pending_base_review';
   }
   
-  // 5. Check workflow stage
-  const workflowStage = order.workflow?.currentStage;
-  if (workflowStage === '3-complete') return 'pending_assembly_review';
-  if (workflowStage === '2B-complete') return 'pending_bg_removal_review';
-  if (workflowStage === '2A-complete') return 'pending_base_review';
+  // 5. Check workflow stage - uses existing workflow_step field
+  const workflowStep = order.workflow_step;
+  if (workflowStep === 'book_assembly_completed' || workflowStep === '3-complete') return 'pending_assembly_review';
+  if (workflowStep === 'bria_processing_completed' || workflowStep === '2B-complete') return 'pending_bg_removal_review';
+  if (workflowStep === 'ai_generation_completed' || workflowStep === '2A-complete') return 'pending_base_review';
   
   // 6. Default
   return 'new';
@@ -220,13 +224,14 @@ function calculateOrderStatus(order: Order): string {
 ### Phase 1: Database Schema Updates
 
 #### A. Supabase Orders Table Migration
-**File**: Create `database/migrations/add-status-system.sql`
+**File**: `database/migration-status-system.sql`
+
+**Note**: Uses existing fields (`status`, `workflow_step`, `lulu_status`) - only adds missing fields
 
 ```sql
 -- Add new status-related columns to orders table
+-- Note: Uses existing fields: status, workflow_step, lulu_status (no duplicates)
 ALTER TABLE orders 
-  ADD COLUMN IF NOT EXISTS order_status VARCHAR(50) DEFAULT 'new',
-  ADD COLUMN IF NOT EXISTS workflow_stage VARCHAR(50),
   ADD COLUMN IF NOT EXISTS review_stages JSONB DEFAULT '{
     "preBria": {"status": "pending", "reviewedAt": null, "reviewer": null, "comments": null},
     "postBria": {"status": "pending", "reviewedAt": null, "reviewer": null, "comments": null},
