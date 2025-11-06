@@ -147,7 +147,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               console.log('[Pages] 3-manifest found but pagePreviewImages array is empty or missing');
             }
           } else {
-            console.log('[Pages] 3-manifest not found (status:', manifest3Res.status, '), falling back to 2B reconstruction');
+            console.log('[Pages] 3-manifest not found (status:', manifest3Res.status, ')');
           }
         } catch (e) {
           console.log('[Pages] 3-manifest fetch error:', e);
