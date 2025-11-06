@@ -123,9 +123,26 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         
         if (!isMounted) return;
         
-        setPages(pageData);
+        // Preserve current page index when refreshing, only reset to 0 on initial load
+        setPages((prevPages) => {
+          const isInitialLoad = prevPages.length === 0;
+          
+          // Update page index based on whether this is initial load or refresh
+          if (isInitialLoad) {
+            // First time loading pages - start at page 1
+            setCurrentPageIndex(0);
+          } else {
+            // Refreshing pages - preserve current page index, but clamp to valid range
+            setCurrentPageIndex((prevIndex) => {
+              const maxIndex = pageData.length > 0 ? pageData.length - 1 : 0;
+              return Math.min(prevIndex, maxIndex);
+            });
+          }
+          
+          return pageData;
+        });
+        
         setLoadingPages(false);
-        setCurrentPageIndex(0);
         
         // Check if PDF exists for download
         try {
