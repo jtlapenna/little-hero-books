@@ -336,7 +336,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Generate a mock order for testing the AI character generation workflow\n// This simulates an order coming from the order intake workflow\n\nconst mockOrder = {\n  amazonOrderId: 'TEST-ORDER-009',\n  status: 'queued_for_processing',\n  orderDate: new Date().toISOString(),\n  customerEmail: 'test@example.com',\n  characterSpecs: {\n    childName: 'Luca',\n    skinTone: 'tan',\n    hairColor: 'blonde',\n    hairStyle: 'pom-poms',\n    age: 5,\n    pronouns: 'he/him',\n    favoriteColor: 'pink',\n    animalGuide: 'unicorn',\n    clothingStyle: 'tee-shorts'\n  },\n  bookSpecs: {\n    title: 'Alex and the Adventure Compass',\n    totalPages: 16,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide' // or 'mvp-simple' for different book types\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: 'Test Customer',\n      address: '123 Test Street',\n      city: 'Test City',\n      state: 'CA',\n      zip: '90210'\n    }\n  }\n};\n\nconsole.log('Generated mock order for testing:', mockOrder);\nreturn [{ json: mockOrder }];"
+        "jsCode": "// Generate a mock order for testing the AI character generation workflow\n// This simulates an order coming from the order intake workflow\n\nconst mockOrder = {\n  amazonOrderId: 'TEST-ORDER-011',\n  status: 'queued_for_processing',\n  orderDate: new Date().toISOString(),\n  customerEmail: 'test@example.com',\n  characterSpecs: {\n    childName: 'Luca',\n    skinTone: 'tan',\n    hairColor: 'black',\n    hairStyle: 'pom-poms',\n    age: 5,\n    pronouns: 'he/him',\n    favoriteColor: 'pink',\n    animalGuide: 'lion',\n    clothingStyle: 'dress'\n  },\n  bookSpecs: {\n    title: 'Alex and the Adventure Compass',\n    totalPages: 16,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide' // or 'mvp-simple' for different book types\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: 'Test Customer',\n      address: '123 Test Street',\n      city: 'Test City',\n      state: 'CA',\n      zip: '90210'\n    }\n  }\n};\n\nconsole.log('Generated mock order for testing:', mockOrder);\nreturn [{ json: mockOrder }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -399,7 +399,7 @@
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -3552,
+        -3600,
         -800
       ],
       "id": "759c59ab-5956-42b8-920a-2354981f85a2",
@@ -454,9 +454,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "Kl5tiioHVGbUSfZf",
+          "value": "kVlSZ0gu0DDewGsj",
           "mode": "list",
-          "cachedResultName": "Little Hero Labs — SW1 - Pose Generation"
+          "cachedResultName": "Little Hero Labs — 13 -- SW1 - Pose Generation"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -474,7 +474,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        -3056,
+        -3040,
         -416
       ],
       "id": "6a01b3db-1777-4bd6-8fb0-cd1bd3586743",
@@ -484,9 +484,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "QC9w6XxCzDQndJxC",
+          "value": "HMXLhoiMQvy8hhNV",
           "mode": "list",
-          "cachedResultName": "Little Hero Labs — SW2 - Pose and Style QA"
+          "cachedResultName": "Little Hero Labs — PRIVATIZED -- SW2 - Pose and Style QA"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -504,7 +504,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        -2848,
+        -2816,
         -416
       ],
       "id": "6cc1e746-7a60-4dec-a224-24f35dd96315",
@@ -514,9 +514,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "K79ql8j6KQy3eu9e",
+          "value": "aghaFG3Aubtke7kd",
           "mode": "list",
-          "cachedResultName": "Little Hero Labs — SW3 - Upload"
+          "cachedResultName": "Little Hero Labs — PRIVATIZED -- SW3 - Upload"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -988,7 +988,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "7c6376d6-0806-4443-a51a-d642827011f6",
+  "versionId": "66b0d29c-3f6f-4e78-967d-332511146410",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"

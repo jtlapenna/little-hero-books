@@ -174,21 +174,26 @@ async function getOrder(
        characterAssets.find(a => a.assetType === 'original') || 
        characterAssets[0] || null;
   
-  // Get pose0 asset separately to check if it's the same as base character
-  const pose0Asset = characterAssets.find(a => a.poseNumber === 0 && a.assetType === 'original');
+  // Get pose0 asset separately (this is pose00.png, not base-character.png)
+  const pose0Asset = characterAssets.find(a => {
+    const url = a.url.toLowerCase();
+    // pose0 should be pose00.png or similar, NOT base-character.png
+    return a.poseNumber === 0 && a.assetType === 'original' && !url.includes('base-character');
+  });
+  
   const baseCharacterUrl = baseCharacterAsset?.url?.toLowerCase() || '';
   const pose0Url = pose0Asset?.url?.toLowerCase() || '';
   const isBaseCharacterSameAsPose0 = baseCharacterUrl && pose0Url && baseCharacterUrl === pose0Url;
   
   // Pre-Bria poses: all "original" type images including pose0 (poseNumber >= 0)
-  // But exclude base-character.png if it's a separate file (not pose0)
+  // But exclude base-character.png from poses (it's shown in Base Character section)
   // Accept any number of poses, sorted by poseNumber
   const preBriaPoses = characterAssets
     .filter(a => {
       if (a.assetType !== 'original' || a.poseNumber < 0) return false;
-      // If base character is a separate file (base-character.png), exclude it from poses
+      // Always exclude base-character.png from poses (it's shown separately in Base Character section)
       const url = a.url.toLowerCase();
-      if (url.includes('base-character') && !isBaseCharacterSameAsPose0) return false;
+      if (url.includes('base-character')) return false;
       return true;
     })
     .sort((a, b) => a.poseNumber - b.poseNumber);
