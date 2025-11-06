@@ -68,12 +68,28 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               // Use preview images from manifest
               pageData = previewImages
                 .sort((a: any, b: any) => a.pageNumber - b.pageNumber)
-                .map((img: any) => ({
-                  pageNumber: img.pageNumber,
-                  previewImageUrl: img.imageUrl || `${backendUrl}/api/assets/${img.r2Key}`
-                }));
+                .map((img: any) => {
+                  // Construct URL: prefer imageUrl from manifest, fallback to constructing from r2Key
+                  let imageUrl = img.imageUrl;
+                  if (!imageUrl && img.r2Key) {
+                    imageUrl = `${backendUrl}/api/assets/${img.r2Key}`;
+                  }
+                  
+                  console.log(`[Pages] Page ${img.pageNumber}:`, {
+                    hasImageUrl: !!img.imageUrl,
+                    hasR2Key: !!img.r2Key,
+                    imageUrl,
+                    r2Key: img.r2Key
+                  });
+                  
+                  return {
+                    pageNumber: img.pageNumber,
+                    previewImageUrl: imageUrl
+                  };
+                });
               
               console.log('[Pages] ✓ Loaded preview images from 3-manifest:', pageData.length);
+              console.log('[Pages] First page URL:', pageData[0]?.previewImageUrl);
             }
           }
         } catch (e) {
@@ -338,10 +354,16 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     src={currentPage.previewImageUrl}
                     alt={`Page ${currentPage.pageNumber}`}
                     onLoad={() => {
+                      console.log(`[Pages] ✓ Image loaded successfully for page ${currentPage.pageNumber}`);
                       setImageLoading(false);
                       setImageError(null);
                     }}
-                    onError={() => {
+                    onError={(e) => {
+                      console.error(`[Pages] ✗ Image failed to load for page ${currentPage.pageNumber}:`, {
+                        url: currentPage.previewImageUrl,
+                        error: e,
+                        target: e.currentTarget
+                      });
                       setImageLoading(false);
                       setImageError(`Failed to load page ${currentPage.pageNumber}`);
                     }}
