@@ -202,7 +202,7 @@ export function AssetGrid({
               onChange={(e) => {
                 console.log('[AssetGrid] File input onChange fired for:', asset.id, 'files:', e.target.files?.length);
                 e.stopPropagation();
-                e.preventDefault();
+                // Don't preventDefault on change - it might interfere with file reading
                 handleFileReplace(asset.id, e);
               }}
               onClick={(e) => {
