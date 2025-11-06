@@ -387,21 +387,6 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           </div>
         )}
 
-        {!loadingPages && !pagesError && !currentPage && (
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="h-[800px] bg-gray-50 flex items-center justify-center">
-              <div className="text-center">
-                <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">No pages available</p>
-                <p className="text-gray-400 text-xs mt-2">
-                  Debug: loadingPages={String(loadingPages)}, pagesError={String(pagesError)}, 
-                  pages.length={pages.length}, pageNumber={pageNumber}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* PDF Info */}
         <div className="bg-gray-50 rounded-lg p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
