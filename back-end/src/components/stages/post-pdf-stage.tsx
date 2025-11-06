@@ -358,12 +358,28 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                       setImageLoading(false);
                       setImageError(null);
                     }}
-                    onError={(e) => {
-                      console.error(`[Pages] ✗ Image failed to load for page ${currentPage.pageNumber}:`, {
-                        url: currentPage.previewImageUrl,
-                        error: e,
-                        target: e.currentTarget
-                      });
+                    onError={async (e) => {
+                      const img = e.currentTarget;
+                      const url = currentPage.previewImageUrl;
+                      
+                      // Try to fetch the URL directly to see what error we get
+                      try {
+                        const response = await fetch(url, { method: 'HEAD' });
+                        console.error(`[Pages] ✗ Image failed to load for page ${currentPage.pageNumber}:`, {
+                          url,
+                          httpStatus: response.status,
+                          httpStatusText: response.statusText,
+                          headers: Object.fromEntries(response.headers.entries()),
+                          error: e
+                        });
+                      } catch (fetchError) {
+                        console.error(`[Pages] ✗ Image fetch error for page ${currentPage.pageNumber}:`, {
+                          url,
+                          fetchError,
+                          error: e
+                        });
+                      }
+                      
                       setImageLoading(false);
                       setImageError(`Failed to load page ${currentPage.pageNumber}`);
                     }}
