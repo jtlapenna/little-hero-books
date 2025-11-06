@@ -292,8 +292,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1152,
-        -464
+        -1104,
+        -272
       ],
       "id": "7d649655-8590-458c-8a17-3cfb5b1aa0c9",
       "name": "Build HTML",
@@ -309,8 +309,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -1152,
-        -464
+        -1136,
+        -736
       ]
     },
     {
@@ -342,7 +342,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -960,
+        -944,
         -736
       ]
     },
@@ -356,7 +356,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        -768,
+        -752,
         -736
       ]
     },
@@ -407,7 +407,7 @@
       "typeVersion": 3,
       "position": [
         64,
-        -512
+        -496
       ]
     },
     {
@@ -977,7 +977,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1d3ddaa4-35e9-4af7-bf0b-ecce251b9e76",
+  "versionId": "9a4822db-b7d0-433d-85d2-7d0c0b4f0071",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
