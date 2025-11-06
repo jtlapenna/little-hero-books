@@ -129,7 +129,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        448,
+        832,
         -352
       ]
     },
@@ -424,6 +424,59 @@
     },
     {
       "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Build 3 Manifest - Create manifest with book assembly results\n * Extends 2B manifest with pagePreviewImages and book assembly metadata\n */\nconst input = $input.first().json || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// Get 2B manifest from upstream (Download 2B Manifest node)\nlet manifest2B = null;\ntry {\n  const downloadItems = $items('Download 2B Manifest', 0, runIx);\n  if (downloadItems && Array.isArray(downloadItems) && downloadItems.length > 0) {\n    const downloadItem = downloadItems[0]?.json || {};\n    // Download 2B Manifest outputs the manifest JSON directly\n    if (downloadItem.schema === 'lhb.run-manifest@v2.0') {\n      manifest2B = downloadItem;\n      console.log('✓ Retrieved 2B manifest from Download 2B Manifest node');\n    }\n  }\n} catch (e) {\n  console.warn(`⚠️ Could not retrieve 2B manifest: ${e.message}`);\n}\n\n// Try Build Assembly Input From Manifest as fallback\nif (!manifest2B) {\n  try {\n    const buildItems = $items('Build Assembly Input From Manifest', 0, runIx);\n    if (buildItems && Array.isArray(buildItems) && buildItems.length > 0) {\n      const buildItem = buildItems[0]?.json || {};\n      // This node receives manifest from HTTP request, check if it's in the structure\n      if (buildItem.schema === 'lhb.run-manifest@v2.0') {\n        manifest2B = buildItem;\n        console.log('✓ Retrieved 2B manifest from Build Assembly Input From Manifest node');\n      }\n    }\n  } catch (e) {\n    console.warn(`⚠️ Could not retrieve from Build Assembly Input From Manifest: ${e.message}`);\n  }\n}\n\nif (!manifest2B || !manifest2B.schema) {\n  throw new Error('2B manifest not found. Cannot build 3-manifest without 2B manifest.');\n}\n\n// Get pagePreviewImages from input (from Collect Page Preview Images)\nconst pagePreviewImages = input.pagePreviewImages || [];\nconst totalPages = input.totalPages || pagePreviewImages.length || 14;\n\n// Get order data from input or manifest\nconst amazonOrderId = input.amazonOrderId || manifest2B.order?.amazonOrderId || manifest2B.order?.orderId || null;\n\n// Try to get pdfFilename from upstream nodes (Poll PDFMonkey until ready)\nlet pdfFilename = input.pdfFilename || null;\nif (!pdfFilename) {\n  try {\n    const pollItems = $items('Poll PDFMonkey until ready', 0, runIx);\n    if (pollItems && Array.isArray(pollItems) && pollItems.length > 0) {\n      pdfFilename = pollItems[0]?.json?.pdfFilename || null;\n    }\n  } catch (e) {\n    console.warn(`⚠️ Could not retrieve pdfFilename from Poll PDFMonkey: ${e.message}`);\n  }\n}\n\n// Fallback to default filename\nif (!pdfFilename) {\n  pdfFilename = `complete_book_${amazonOrderId || 'ORDER'}.pdf`;\n}\n\nconst pdfR2Key = `book-mvp-simple-adventure/orders/${amazonOrderId}/${pdfFilename}`;\n\nif (!amazonOrderId) {\n  throw new Error('amazonOrderId is required for building 3-manifest');\n}\n\nconsole.log(`=== BUILDING 3 MANIFEST ===`);\nconsole.log(`Order: ${amazonOrderId}`);\nconsole.log(`Preview images: ${pagePreviewImages.length}`);\nconsole.log(`PDF: ${pdfFilename}`);\n\n// Build 3-manifest by extending 2B manifest\nconst manifest3 = {\n  ...manifest2B,\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp: new Date().toISOString(),\n  \n  // Add book assembly section\n  bookAssembly: {\n    completedAt: new Date().toISOString(),\n    pdfFilename: pdfFilename,\n    pdfR2Key: pdfR2Key,\n    totalPages: totalPages,\n    pagePreviewImages: pagePreviewImages  // Array of { pageNumber, r2Key, imageUrl, filename }\n  },\n  \n  // Update workflow section\n  workflow: {\n    ...manifest2B.workflow,\n    currentStage: '3-complete',\n    nextWorkflow: null,  // Final stage\n    requiresHumanReview: false  // Book assembly is automated\n  },\n  \n  // Update summary\n  summary: {\n    ...manifest2B.summary,\n    percentComplete: 100,\n    readyForBook: true,\n    needsHumanReview: false\n  },\n  \n  generatedAt: new Date().toISOString()\n};\n\nconsole.log('✓ 3-Manifest built successfully');\n\nreturn [{\n  json: {\n    manifest: manifest3,\n    orderId: amazonOrderId,\n    characterHash: manifest2B.characterHash,\n    pagePreviewImages: pagePreviewImages,\n    pdfFilename: pdfFilename,\n    pdfR2Key: pdfR2Key\n  }\n}];\n"
+      },
+      "id": "g7h8i9j0-k1l2-m3n4-o5p6-q7r8s9t0u1v2",
+      "name": "Build 3 Manifest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        256,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Prep Manifest Upload (3) - Convert manifest to binary format for R2 upload\n */\nconst data = $input.first().json;\nconst manifest = data.manifest;\nconst orderId = data.orderId;\n\nif (!manifest || !manifest.schema) {\n  throw new Error('Manifest is missing or invalid in Prep Manifest Upload (3)');\n}\n\nif (!orderId) {\n  throw new Error('orderId is required for Prep Manifest Upload (3)');\n}\n\n// Construct R2 key for 3-manifest\nconst manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;\n\nconsole.log(`Preparing to upload 3-manifest to: ${manifestKey}`);\n\n// Convert manifest to buffer for upload\nconst manifestJSON = JSON.stringify(manifest, null, 2);\nconst buffer = Buffer.from(manifestJSON, 'utf-8');\n\nreturn [{\n  json: {\n    ...data,\n    manifestKey: manifestKey,\n    manifestBucket: 'little-hero-orders'\n  },\n  binary: {\n    data: {\n      data: buffer.toString('base64'),\n      mimeType: 'application/json',\n      fileName: '3-manifest.json',\n      fileExtension: 'json'\n    }\n  }\n}];\n"
+      },
+      "id": "h8i9j0k1-l2m3-n4o5-p6q7-r8s9t0u1v2w3",
+      "name": "Prep Manifest Upload (3)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "={{ $json.manifestBucket }}",
+        "fileName": "={{ $json.manifestKey }}",
+        "additionalFields": {},
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "binaryProperty": "data"
+      },
+      "id": "i9j0k1l2-m3n4-o5p6-q7r8-s9t0u1v2w3x4",
+      "name": "Upload 3 Manifest to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        640,
+        -352
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "operation": "upload",
         "bucketName": "little-hero-orders",
         "fileName": "={{ $json.pageImageR2Key }}",
@@ -714,17 +767,6 @@
         ]
       ]
     },
-    "Generate Complete HTML": {
-      "main": [
-        [
-          {
-            "node": "Build HTML",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Prepare PDFMonkey Data": {
       "main": [
         [
@@ -781,6 +823,39 @@
       ]
     },
     "Collect Page Preview Images": {
+      "main": [
+        [
+          {
+            "node": "Build 3 Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build 3 Manifest": {
+      "main": [
+        [
+          {
+            "node": "Prep Manifest Upload (3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Manifest Upload (3)": {
+      "main": [
+        [
+          {
+            "node": "Upload 3 Manifest to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload 3 Manifest to R2": {
       "main": [
         [
           {
@@ -853,26 +928,53 @@
             "node": "Build HTML",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Upload Page Preview Image to R2": {
-      "main": [
-        [
+          },
           {
-            "node": "Collect Page Preview Images",
+            "node": "Generate Page Preview Images",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Collect Page Preview Images": {
+    "Generate Page Preview Images": {
       "main": [
         [
           {
-            "node": "Prepare PDFMonkey Data",
+            "node": "Generate Page Image with PDFMonkey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Page Image with PDFMonkey": {
+      "main": [
+        [
+          {
+            "node": "Poll PDFMonkey Image until ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll PDFMonkey Image until ready": {
+      "main": [
+        [
+          {
+            "node": "Download Page Image from PDFMonkey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Page Image from PDFMonkey": {
+      "main": [
+        [
+          {
+            "node": "Upload Page Preview Image to R2",
             "type": "main",
             "index": 0
           }

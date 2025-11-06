@@ -15,11 +15,14 @@ interface PostPdfStageProps {
 
 interface PageData {
   pageNumber: number;
-  backgroundUrl: string;
-  characterUrl: string | null;
-  animalUrl: string | null;
-  text: string;
-  textBoxOverlayUrl: string;
+  // Preview image mode (when available)
+  previewImageUrl?: string;
+  // Reconstruction mode (fallback)
+  backgroundUrl?: string;
+  characterUrl?: string | null;
+  animalUrl?: string | null;
+  text?: string;
+  textBoxOverlayUrl?: string;
 }
 
 // Page-to-pose mapping (same as Workflow 3)
@@ -121,167 +124,232 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       setPagesError(null);
 
       try {
-        // Fetch 2B manifest to get page data
-        const manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json`;
-        const manifestUrl = `${backendUrl}/api/manifests/${manifestKey}`;
-
-        console.log('[Pages] Fetching 2B manifest:', manifestUrl);
-        const manifestRes = await fetch(manifestUrl);
+        // Try 3-manifest first (has preview images)
+        const manifest3Key = `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;
+        const manifest3Url = `${backendUrl}/api/manifests/${manifest3Key}`;
         
-        console.log('[Pages] Manifest response:', {
-          status: manifestRes.status,
-          ok: manifestRes.ok,
-          contentType: manifestRes.headers.get('content-type')
-        });
+        console.log('[Pages] Trying 3-manifest first:', manifest3Url);
+        let usingPreviewImages = false;
         
-        if (!manifestRes.ok) {
-          const errorText = await manifestRes.text().catch(() => 'Unable to read error');
-          console.error('[Pages] Manifest fetch failed:', {
-            status: manifestRes.status,
-            statusText: manifestRes.statusText,
-            error: errorText
-          });
-          throw new Error(`Failed to fetch manifest: ${manifestRes.status} ${manifestRes.statusText}`);
+        try {
+          const manifest3Res = await fetch(manifest3Url);
+          if (manifest3Res.ok) {
+            const manifest3 = await manifest3Res.json();
+            const previewImages = manifest3?.bookAssembly?.pagePreviewImages;
+            
+            if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
+              console.log('[Pages] Using preview images from 3-manifest:', {
+                imageCount: previewImages.length,
+                firstPage: previewImages[0]?.pageNumber
+              });
+              
+              // Use preview images directly
+              const pageData = previewImages
+                .sort((a, b) => a.pageNumber - b.pageNumber)
+                .map((img: any) => ({
+                  pageNumber: img.pageNumber,
+                  previewImageUrl: img.imageUrl
+                }));
+              
+              if (!isMounted) return;
+              
+              setPages(pageData);
+              setLoadingPages(false);
+              usingPreviewImages = true;
+              
+              // Also check if PDF exists for download
+              const pdfRes = await fetch(pdfUrl, { method: 'HEAD' });
+              if (pdfRes.ok) {
+                const jsonRes = await fetch(`${pdfUrl}?format=json`);
+                if (jsonRes.ok) {
+                  const data = await jsonRes.json();
+                  setPdfAsset(prev => ({
+                    ...prev,
+                    url: data.signedUrl || pdfUrl,
+                    exists: true,
+                    loading: false,
+                    error: null
+                  }));
+                }
+              } else {
+                setPdfAsset(prev => ({
+                  ...prev,
+                  exists: false,
+                  loading: false,
+                  error: 'PDF not yet generated'
+                }));
+              }
+              
+              return; // Success with preview images, exit early
+            }
+          }
+        } catch (e) {
+          console.log('[Pages] 3-manifest not available, falling back to 2B reconstruction:', e);
         }
         
-        const manifest = await manifestRes.json();
-        console.log('[Pages] Manifest loaded:', {
-          hasOrder: !!manifest.order,
-          hasEntries: Array.isArray(manifest.entries),
-          entriesCount: manifest.entries?.length || 0,
-          characterHash: manifest.characterHash || manifest.order?.characterHash
-        });
+        // Fallback: Fetch 2B manifest and reconstruct pages
+        if (!usingPreviewImages) {
+          const manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json`;
+          const manifestUrl = `${backendUrl}/api/manifests/${manifestKey}`;
 
-        const { order: orderData, entries } = manifest || {};
-        const characterHash = manifest?.characterHash || orderData?.characterHash;
-        const characterSpecs = orderData?.characterSpecs || {};
-        const childName = characterSpecs.childName || 'Child';
-        const hometown = characterSpecs.hometown || 'Seattle';
-
-        // Get animal guide - match Workflow 3 normalization
-        const rawAnimalInput = String(characterSpecs.animalGuide || 'tiger');
-        const cleaned = rawAnimalInput
-          .replace(/[^a-z0-9\s-]/gi, '')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .toLowerCase();
-        
-        const ALIAS_TO_SLUG: Record<string, string> = {
-          'dog': 'dog',
-          'cat': 'cat',
-          't rex': 't-rex',
-          'trex': 't-rex',
-          't-rex': 't-rex',
-          'unicorn': 'unicorn',
-          'tiger': 'tiger',
-          'lion': 'lion',
-          'owl': 'owl',
-        };
-        
-        const SLUG_TO_DISPLAY: Record<string, string> = {
-          'dog': 'Dog',
-          'cat': 'Cat',
-          't-rex': 'T-Rex',
-          'unicorn': 'Unicorn',
-          'tiger': 'Tiger',
-          'lion': 'Lion',
-          'owl': 'Owl',
-        };
-        
-        const animalSlug = ALIAS_TO_SLUG[cleaned] || 'tiger';
-        const animalDisplayName = SLUG_TO_DISPLAY[animalSlug] || 'Tiger';
-
-        // Build processed images from manifest entries
-        const processedImages = (entries || [])
-          .filter((e: any) => Number.isFinite(Number(e.poseNumber)) && e.bgRemovedKey)
-          .sort((a: any, b: any) => a.poseNumber - b.poseNumber)
-          .map((e: any) => ({
-            poseNumber: e.poseNumber,
-            imagePath: `${backendUrl}/api/assets/${e.bgRemovedKey}`
-          }));
-
-        // Build character images map
-        const characterImages: Record<number, string> = {};
-        processedImages.forEach((img: any) => {
-          characterImages[img.poseNumber] = img.imagePath;
-        });
-
-        // Build animal images - match Workflow 3 path structure
-        const animalImages = {
-          appears: `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-appears.png`,
-          flying: `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-flying.png`
-        };
-
-        // Text box overlay URL
-        const textBoxOverlayUrl = `${backendUrl}/api/assets/book-mvp-simple-adventure/overlays/text-boxes/standard-box.png`;
-
-        // Get story texts
-        const storyTexts = getStoryTexts(childName, hometown, animalDisplayName);
-
-        // Build page data
-        const pageData: PageData[] = [];
-        for (let i = 1; i <= 14; i++) {
-          const backgroundUrl = `${backendUrl}/api/assets/book-mvp-simple-adventure/backgrounds/page${String(i).padStart(2, '0')}-${SCENE_SLUGS[i - 1]}.png`;
+          console.log('[Pages] Fetching 2B manifest for reconstruction:', manifestUrl);
+          const manifestRes = await fetch(manifestUrl);
           
-          // Get character image for this page
-          const requiredPoseNumber = PAGE_TO_POSE_MAP[i];
-          const characterUrl = requiredPoseNumber ? characterImages[requiredPoseNumber] || null : null;
+          console.log('[Pages] Manifest response:', {
+            status: manifestRes.status,
+            ok: manifestRes.ok,
+            contentType: manifestRes.headers.get('content-type')
+          });
+          
+          if (!manifestRes.ok) {
+            const errorText = await manifestRes.text().catch(() => 'Unable to read error');
+            console.error('[Pages] Manifest fetch failed:', {
+              status: manifestRes.status,
+              statusText: manifestRes.statusText,
+              error: errorText
+            });
+            throw new Error(`Failed to fetch manifest: ${manifestRes.status} ${manifestRes.statusText}`);
+          }
+          
+          const manifest = await manifestRes.json();
+          console.log('[Pages] Manifest loaded:', {
+            hasOrder: !!manifest.order,
+            hasEntries: Array.isArray(manifest.entries),
+            entriesCount: manifest.entries?.length || 0,
+            characterHash: manifest.characterHash || manifest.order?.characterHash
+          });
 
-          // Get animal image for this page
-          let animalUrl: string | null = null;
-          if (i === 13) {
-            animalUrl = animalImages.appears;
-          } else if (i === 14) {
-            animalUrl = animalImages.flying;
+          const { order: orderData, entries } = manifest || {};
+          const characterHash = manifest?.characterHash || orderData?.characterHash;
+          const characterSpecs = orderData?.characterSpecs || {};
+          const childName = characterSpecs.childName || 'Child';
+          const hometown = characterSpecs.hometown || 'Seattle';
+
+          // Get animal guide - match Workflow 3 normalization
+          const rawAnimalInput = String(characterSpecs.animalGuide || 'tiger');
+          const cleaned = rawAnimalInput
+            .replace(/[^a-z0-9\s-]/gi, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+          
+          const ALIAS_TO_SLUG: Record<string, string> = {
+            'dog': 'dog',
+            'cat': 'cat',
+            't rex': 't-rex',
+            'trex': 't-rex',
+            't-rex': 't-rex',
+            'unicorn': 'unicorn',
+            'tiger': 'tiger',
+            'lion': 'lion',
+            'owl': 'owl',
+          };
+          
+          const SLUG_TO_DISPLAY: Record<string, string> = {
+            'dog': 'Dog',
+            'cat': 'Cat',
+            't-rex': 'T-Rex',
+            'unicorn': 'Unicorn',
+            'tiger': 'Tiger',
+            'lion': 'Lion',
+            'owl': 'Owl',
+          };
+          
+          const animalSlug = ALIAS_TO_SLUG[cleaned] || 'tiger';
+          const animalDisplayName = SLUG_TO_DISPLAY[animalSlug] || 'Tiger';
+
+          // Build processed images from manifest entries
+          const processedImages = (entries || [])
+            .filter((e: any) => Number.isFinite(Number(e.poseNumber)) && e.bgRemovedKey)
+            .sort((a: any, b: any) => a.poseNumber - b.poseNumber)
+            .map((e: any) => ({
+              poseNumber: e.poseNumber,
+              imagePath: `${backendUrl}/api/assets/${e.bgRemovedKey}`
+            }));
+
+          // Build character images map
+          const characterImages: Record<number, string> = {};
+          processedImages.forEach((img: any) => {
+            characterImages[img.poseNumber] = img.imagePath;
+          });
+
+          // Build animal images - match Workflow 3 path structure
+          const animalImages = {
+            appears: `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-appears.png`,
+            flying: `${backendUrl}/api/assets/book-mvp-simple-adventure/characters/animals/${animalSlug}-flying.png`
+          };
+
+          // Text box overlay URL
+          const textBoxOverlayUrl = `${backendUrl}/api/assets/book-mvp-simple-adventure/overlays/text-boxes/standard-box.png`;
+
+          // Get story texts
+          const storyTexts = getStoryTexts(childName, hometown, animalDisplayName);
+
+          // Build page data
+          const pageData: PageData[] = [];
+          for (let i = 1; i <= 14; i++) {
+            const backgroundUrl = `${backendUrl}/api/assets/book-mvp-simple-adventure/backgrounds/page${String(i).padStart(2, '0')}-${SCENE_SLUGS[i - 1]}.png`;
+            
+            // Get character image for this page
+            const requiredPoseNumber = PAGE_TO_POSE_MAP[i];
+            const characterUrl = requiredPoseNumber ? characterImages[requiredPoseNumber] || null : null;
+
+            // Get animal image for this page
+            let animalUrl: string | null = null;
+            if (i === 13) {
+              animalUrl = animalImages.appears;
+            } else if (i === 14) {
+              animalUrl = animalImages.flying;
+            }
+
+            pageData.push({
+              pageNumber: i,
+              backgroundUrl,
+              characterUrl,
+              animalUrl,
+              text: storyTexts[i - 1] || '',
+              textBoxOverlayUrl
+            });
           }
 
-          pageData.push({
-            pageNumber: i,
-            backgroundUrl,
-            characterUrl,
-            animalUrl,
-            text: storyTexts[i - 1] || '',
-            textBoxOverlayUrl
+          if (!isMounted) return;
+
+          console.log('[Pages] Built page data (reconstruction mode):', {
+            pageCount: pageData.length,
+            firstPage: pageData[0] ? {
+              pageNumber: pageData[0].pageNumber,
+              hasBackground: !!pageData[0].backgroundUrl,
+              hasCharacter: !!pageData[0].characterUrl,
+              hasText: !!pageData[0].text,
+              textLength: pageData[0].text?.length || 0
+            } : null
           });
-        }
 
-        if (!isMounted) return;
+          setPages(pageData);
+          setLoadingPages(false);
 
-        console.log('[Pages] Built page data:', {
-          pageCount: pageData.length,
-          firstPage: pageData[0] ? {
-            pageNumber: pageData[0].pageNumber,
-            hasBackground: !!pageData[0].backgroundUrl,
-            hasCharacter: !!pageData[0].characterUrl,
-            hasText: !!pageData[0].text,
-            textLength: pageData[0].text?.length || 0
-          } : null
-        });
-
-        setPages(pageData);
-        setLoadingPages(false);
-
-        // Also check if PDF exists for download
-        const pdfRes = await fetch(pdfUrl, { method: 'HEAD' });
-        if (pdfRes.ok) {
-          const jsonRes = await fetch(`${pdfUrl}?format=json`);
-          if (jsonRes.ok) {
-            const data = await jsonRes.json();
+          // Also check if PDF exists for download
+          const pdfRes = await fetch(pdfUrl, { method: 'HEAD' });
+          if (pdfRes.ok) {
+            const jsonRes = await fetch(`${pdfUrl}?format=json`);
+            if (jsonRes.ok) {
+              const data = await jsonRes.json();
+              setPdfAsset(prev => ({
+                ...prev,
+                url: data.signedUrl || pdfUrl,
+                exists: true,
+                loading: false,
+                error: null
+              }));
+            }
+          } else {
             setPdfAsset(prev => ({
               ...prev,
-              url: data.signedUrl || pdfUrl,
-              exists: true,
+              exists: false,
               loading: false,
-              error: null
+              error: 'PDF not yet generated'
             }));
           }
-        } else {
-          setPdfAsset(prev => ({
-            ...prev,
-            exists: false,
-            loading: false,
-            error: 'PDF not yet generated'
-          }));
         }
       } catch (error: any) {
         if (!isMounted) return;
@@ -446,137 +514,169 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               </div>
             </div>
             <div className="h-[800px] bg-gray-100 overflow-hidden flex items-center justify-center p-4" style={{ position: 'relative' }}>
-              {/* Match Workflow 3 HTML structure exactly: book-page > page-bg, text-box, character, animal */}
-              {/* Scale container to fit viewport while maintaining 2550px internal coordinate system */}
-              <div
-                className="book-page relative"
-                id={`page-${currentPage.pageNumber}`}
-                style={{
-                  width: '2550px',
-                  height: '2550px',
-                  transform: 'scale(0.3)',
-                  transformOrigin: 'center center',
-                  margin: '0 auto',
-                  position: 'relative',
-                  backgroundColor: '#fff',
-                  border: '2px solid red', // Debug: visible border
-                  overflow: 'hidden', // Clip content to container bounds
-                  boxSizing: 'border-box'
-                }}
-              >
-                {/* Background - matches Workflow 3: <div class="page-bg" style="background-image:url('...')"></div> */}
+              {/* Preview image mode (when available) */}
+              {currentPage.previewImageUrl ? (
                 <div
-                  className="page-bg absolute inset-0"
+                  className="book-page relative"
+                  id={`page-${currentPage.pageNumber}`}
                   style={{
-                    backgroundImage: `url(${currentPage.backgroundUrl})`,
-                    backgroundSize: '2550px 2550px',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat'
-                  }}
-                />
-
-                {/* Text Box - matches Workflow 3 exactly */}
-                <div
-                  className="text-box absolute"
-                  style={{
-                    left: '50%',
-                    bottom: '3%',
-                    width: '80%',
-                    minHeight: '360px',
-                    transform: 'translateX(-50%)',
-                    backgroundImage: `url(${currentPage.textBoxOverlayUrl})`,
-                    backgroundSize: '100% 100%',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center',
-                    padding: '100px 220px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 6
+                    width: '2550px',
+                    height: '2550px',
+                    transform: 'scale(0.3)',
+                    transformOrigin: 'center center',
+                    margin: '0 auto',
+                    position: 'relative',
+                    backgroundColor: '#fff',
+                    overflow: 'hidden',
+                    boxSizing: 'border-box'
                   }}
                 >
-                  <div
-                    className="text-content"
+                  <img
+                    src={currentPage.previewImageUrl}
+                    alt={`Page ${currentPage.pageNumber}`}
                     style={{
-                      fontFamily: 'Arial, sans-serif',
-                      fontSize: '56px',
-                      lineHeight: '1.3',
-                      letterSpacing: '1px',
-                      color: '#312116',
-                      textAlign: 'center',
-                      width: '100%'
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      display: 'block'
                     }}
-                    dangerouslySetInnerHTML={{ __html: currentPage.text }}
                   />
                 </div>
-
-                {/* Character - matches Workflow 3: <div class="character" style="..."><img class="sprite" src="..." alt=""></div> */}
-                {currentPage.characterUrl && CHAR_POSITIONS[currentPage.pageNumber] && (() => {
-                  const pos = CHAR_POSITIONS[currentPage.pageNumber];
-                  // Apply overrides for pages 3, 4, 14 (same as Workflow 3)
-                  let finalPos = pos;
-                  if (currentPage.pageNumber === 3) {
-                    finalPos = { left: 1020, top: 2142, w: 1100, flip: -1 };
-                  } else if (currentPage.pageNumber === 4) {
-                    finalPos = { left: 1530, top: 1734, w: 1100, flip: 1 };
-                  } else if (currentPage.pageNumber === 14) {
-                    finalPos = { left: 893, top: 1836, w: 1500, flip: 1 };
-                  }
-                  
-                  // Use pixels directly (browser uses 96dpi, not 300dpi, so inches won't match)
-                  // Workflow 3 uses inches for PDFMonkey, but we need pixels for browser rendering
-                  let transform = `translate(-50%,-100%) scaleX(${finalPos.flip})`;
-                  if (currentPage.pageNumber === 4) {
-                    transform += ' rotate(-20deg)';
-                  }
-                  
-                  return (
+              ) : (
+                /* Reconstruction mode (fallback) */
+                <div
+                  className="book-page relative"
+                  id={`page-${currentPage.pageNumber}`}
+                  style={{
+                    width: '2550px',
+                    height: '2550px',
+                    transform: 'scale(0.3)',
+                    transformOrigin: 'center center',
+                    margin: '0 auto',
+                    position: 'relative',
+                    backgroundColor: '#fff',
+                    overflow: 'hidden',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {/* Background - matches Workflow 3: <div class="page-bg" style="background-image:url('...')"></div> */}
+                  {currentPage.backgroundUrl && (
                     <div
-                      className="character absolute"
+                      className="page-bg absolute inset-0"
                       style={{
-                        left: `${finalPos.left}px`,
-                        top: `${finalPos.top}px`,
-                        width: `${finalPos.w}px`,
-                        transform,
-                        zIndex: 11,
-                        pointerEvents: 'none' // Prevent interaction issues
+                        backgroundImage: `url(${currentPage.backgroundUrl})`,
+                        backgroundSize: '2550px 2550px',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat'
+                      }}
+                    />
+                  )}
+
+                  {/* Text Box - matches Workflow 3 exactly */}
+                  {currentPage.textBoxOverlayUrl && currentPage.text && (
+                    <div
+                      className="text-box absolute"
+                      style={{
+                        left: '50%',
+                        bottom: '3%',
+                        width: '80%',
+                        minHeight: '360px',
+                        transform: 'translateX(-50%)',
+                        backgroundImage: `url(${currentPage.textBoxOverlayUrl})`,
+                        backgroundSize: '100% 100%',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center',
+                        padding: '100px 220px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 6
                       }}
                     >
-                      <img
-                        className="sprite"
-                        src={currentPage.characterUrl}
-                        alt=""
-                        style={{ width: '100%', height: 'auto', display: 'block' }}
+                      <div
+                        className="text-content"
+                        style={{
+                          fontFamily: 'Arial, sans-serif',
+                          fontSize: '56px',
+                          lineHeight: '1.3',
+                          letterSpacing: '1px',
+                          color: '#312116',
+                          textAlign: 'center',
+                          width: '100%'
+                        }}
+                        dangerouslySetInnerHTML={{ __html: currentPage.text || '' }}
                       />
                     </div>
-                  );
-                })()}
+                  )}
 
-                {/* Animal - matches Workflow 3 structure */}
-                {currentPage.animalUrl && ANIMAL_POSITIONS[currentPage.pageNumber as keyof typeof ANIMAL_POSITIONS] && (() => {
-                  const pos = ANIMAL_POSITIONS[currentPage.pageNumber as keyof typeof ANIMAL_POSITIONS];
-                  
-                  return (
-                    <div
-                      className="animal absolute"
-                      style={{
-                        left: `${pos.left}px`,
-                        top: `${pos.top}px`,
-                        width: `${pos.w}px`,
-                        transform: 'translate(-50%,-100%)',
-                        zIndex: 9
-                      }}
-                    >
-                      <img
-                        className="sprite"
-                        src={currentPage.animalUrl}
-                        alt={currentPage.pageNumber === 13 ? 'Animal Appears' : 'Animal Flying'}
-                        style={{ width: '100%', height: 'auto', display: 'block' }}
-                      />
-                    </div>
-                  );
-                })()}
-              </div>
+                  {/* Character - matches Workflow 3: <div class="character" style="..."><img class="sprite" src="..." alt=""></div> */}
+                  {currentPage.characterUrl && CHAR_POSITIONS[currentPage.pageNumber] && (() => {
+                    const pos = CHAR_POSITIONS[currentPage.pageNumber];
+                    // Apply overrides for pages 3, 4, 14 (same as Workflow 3)
+                    let finalPos = pos;
+                    if (currentPage.pageNumber === 3) {
+                      finalPos = { left: 1020, top: 2142, w: 1100, flip: -1 };
+                    } else if (currentPage.pageNumber === 4) {
+                      finalPos = { left: 1530, top: 1734, w: 1100, flip: 1 };
+                    } else if (currentPage.pageNumber === 14) {
+                      finalPos = { left: 893, top: 1836, w: 1500, flip: 1 };
+                    }
+                    
+                    // Use pixels directly (browser uses 96dpi, not 300dpi, so inches won't match)
+                    // Workflow 3 uses inches for PDFMonkey, but we need pixels for browser rendering
+                    let transform = `translate(-50%,-100%) scaleX(${finalPos.flip})`;
+                    if (currentPage.pageNumber === 4) {
+                      transform += ' rotate(-20deg)';
+                    }
+                    
+                    return (
+                      <div
+                        className="character absolute"
+                        style={{
+                          left: `${finalPos.left}px`,
+                          top: `${finalPos.top}px`,
+                          width: `${finalPos.w}px`,
+                          transform,
+                          zIndex: 11,
+                          pointerEvents: 'none' // Prevent interaction issues
+                        }}
+                      >
+                        <img
+                          className="sprite"
+                          src={currentPage.characterUrl}
+                          alt=""
+                          style={{ width: '100%', height: 'auto', display: 'block' }}
+                        />
+                      </div>
+                    );
+                  })()}
+
+                  {/* Animal - matches Workflow 3 structure */}
+                  {currentPage.animalUrl && ANIMAL_POSITIONS[currentPage.pageNumber as keyof typeof ANIMAL_POSITIONS] && (() => {
+                    const pos = ANIMAL_POSITIONS[currentPage.pageNumber as keyof typeof ANIMAL_POSITIONS];
+                    
+                    return (
+                      <div
+                        className="animal absolute"
+                        style={{
+                          left: `${pos.left}px`,
+                          top: `${pos.top}px`,
+                          width: `${pos.w}px`,
+                          transform: 'translate(-50%,-100%)',
+                          zIndex: 9
+                        }}
+                      >
+                        <img
+                          className="sprite"
+                          src={currentPage.animalUrl}
+                          alt={currentPage.pageNumber === 13 ? 'Animal Appears' : 'Animal Flying'}
+                          style={{ width: '100%', height: 'auto', display: 'block' }}
+                        />
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         )}
