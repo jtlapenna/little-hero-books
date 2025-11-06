@@ -515,20 +515,6 @@
           "name": "S3 account"
         }
       }
-    },
-    {
-      "parameters": {
-        "language": "JavaScript",
-        "jsCode": "/**\n * Collect All Page Preview Images\n * Aggregates all page preview image URLs after upload\n */\nconst items = $input.all();\nconst order = items[0]?.json || {};\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\nconst backendUrl = order.backendUrl || 'https://admin.littleherolabs.com';\n\n// Collect all page preview images\nconst pageImages = items\n  .filter(item => item.json.pageNumber)\n  .sort((a, b) => a.json.pageNumber - b.json.pageNumber)\n  .map(item => {\n    const pageNumber = item.json.pageNumber;\n    const r2Key = item.json.pageImageR2Key;\n    \n    // Construct backend proxy URL for the image\n    const imageUrl = `${backendUrl}/api/assets/${r2Key}`;\n    \n    return {\n      pageNumber,\n      r2Key,\n      imageUrl,\n      filename: item.json.pageImageFilename\n    };\n  });\n\n// Return single item with all page images\nreturn [{\n  json: {\n    ...order,\n    pagePreviewImages: pageImages,\n    totalPages: pageImages.length\n  }\n}];\n"
-      },
-      "id": "d4e5f6a7-b8c9-0123-def4-234567890123",
-      "name": "Collect Page Preview Images",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 1,
-      "position": [
-        -336,
-        -352
-      ]
     }
   ],
   "pinData": {
@@ -798,17 +784,6 @@
         [
           {
             "node": "Wait",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Poll PDFMonkey until ready": {
-      "main": [
-        [
-          {
-            "node": "Download PDF from PDFMonkey",
             "type": "main",
             "index": 0
           }
