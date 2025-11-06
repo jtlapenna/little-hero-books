@@ -81,17 +81,20 @@
 Display the book in print format (spreads) where pages are shown side-by-side as they appear in the printed book, matching the physical layout.
 
 ## Book Structure (14 pages total)
-- **Cover** (page 0): Front cover only
-- **Spread 1**: Inside front cover (page 1) + Dedication page (page 2)
+
+**Note**: Cover, dedication page, and back cover are not yet designed/incorporated. This implementation focuses on pages 1-14 only.
+
+- **Spread 1**: Page 1 + Page 2
 - **Spread 2**: Page 3 + Page 4
 - **Spread 3**: Page 5 + Page 6
 - **Spread 4**: Page 7 + Page 8
 - **Spread 5**: Page 9 + Page 10
 - **Spread 6**: Page 11 + Page 12
 - **Spread 7**: Page 13 + Page 14
-- **Back Cover** (page 15): Back cover only
 
-**Total**: 9 spreads (1 cover + 7 interior spreads + 1 back cover)
+**Total**: 7 spreads (pages 1-14 only)
+
+**Important**: Inside cover and inside back cover pages (if there is an odd number of pages) will always be a white page (simulated with CSS, not a blank white image).
 
 ## Current State
 - `post-pdf-stage.tsx` displays pages individually (one at a time)
@@ -123,16 +126,8 @@ interface PageData {
 function createSpreads(pages: PageData[]): SpreadData[] {
   const spreads: SpreadData[] = [];
   
-  // Cover (single page, no spread)
-  spreads.push({
-    spreadNumber: 0,
-    leftPage: undefined,
-    rightPage: undefined,
-    isCover: true,
-    isBackCover: false
-  });
-  
   // Interior spreads (pages 1-14, paired)
+  // Note: Cover, dedication, and back cover not yet implemented
   for (let i = 0; i < pages.length; i += 2) {
     spreads.push({
       spreadNumber: Math.floor(i / 2) + 1,
@@ -143,41 +138,40 @@ function createSpreads(pages: PageData[]): SpreadData[] {
     });
   }
   
-  // Back cover (single page, no spread)
-  spreads.push({
-    spreadNumber: spreads.length,
-    leftPage: undefined,
-    rightPage: undefined,
-    isCover: false,
-    isBackCover: true
-  });
-  
   return spreads;
 }
 ```
+
+**Note**: If the last spread has only a left page (odd number of pages), the right side will display a white page (simulated with CSS, not a blank image).
 
 ### 2. UI Component Changes
 
 #### Update `post-pdf-stage.tsx`
 - Replace single-page display with spread display
-- Show two images side-by-side for interior spreads
-- Show single image for cover/back cover
+- Show two images side-by-side for interior spreads (pages 1-14)
+- If a spread has only a left page (odd number), show white page on right (CSS, not image)
 - Update navigation to move by spreads, not individual pages
+- **Note**: Cover, dedication, and back cover not yet implemented
 
 #### Spread Display Component
 ```typescript
 // New component structure
 <div className="spread-container">
-  {spread.isCover || spread.isBackCover ? (
-    // Single page display (cover/back cover)
-    <img src={coverImageUrl} alt={spread.isCover ? "Cover" : "Back Cover"} />
-  ) : (
-    // Two-page spread
-    <div className="two-page-spread">
-      <img src={spread.leftPage?.previewImageUrl} alt={`Page ${spread.leftPage?.pageNumber}`} />
-      <img src={spread.rightPage?.previewImageUrl} alt={`Page ${spread.rightPage?.pageNumber}`} />
-    </div>
-  )}
+  <div className="two-page-spread">
+    {/* Left page */}
+    {spread.leftPage ? (
+      <img src={spread.leftPage.previewImageUrl} alt={`Page ${spread.leftPage.pageNumber}`} />
+    ) : (
+      <div className="white-page" /> // Simulated white page (CSS, not image)
+    )}
+    
+    {/* Right page */}
+    {spread.rightPage ? (
+      <img src={spread.rightPage.previewImageUrl} alt={`Page ${spread.rightPage.pageNumber}`} />
+    ) : (
+      <div className="white-page" /> // Simulated white page (CSS, not image)
+    )}
+  </div>
 </div>
 ```
 
@@ -219,9 +213,11 @@ function createSpreads(pages: PageData[]): SpreadData[] {
   object-fit: contain;
 }
 
-.single-page-spread {
+.white-page {
   width: 2550px;
   height: 2550px;
+  background-color: white;
+  /* Simulated white page - no image needed */
 }
 ```
 
@@ -232,21 +228,15 @@ function createSpreads(pages: PageData[]): SpreadData[] {
 
 ### 5. Cover/Back Cover Handling
 
-#### Options
-**Option A: Generate cover images in Workflow 3**
-- Add cover generation to Workflow 3
+**Status**: Not yet implemented. Cover, dedication page, and back cover are not yet designed/incorporated.
+
+**Future Implementation** (when covers are ready):
+- Generate cover images in Workflow 3
 - Store as `page-00_cover.png` and `page-15_back-cover.png`
 - Include in 3-manifest
+- Update spread mapping to include cover spreads
 
-**Option B: Use placeholder/static covers**
-- Use static cover template
-- Or skip covers and start with spread 1
-
-**Option C: Extract from PDF**
-- Extract first/last page from generated PDF
-- Convert to image (requires additional processing)
-
-**Recommendation**: Option A - Generate covers in Workflow 3 for consistency
+**For now**: Implementation focuses on pages 1-14 only (7 spreads).
 
 ### 6. Workflow 3 Updates (if generating covers)
 
@@ -268,13 +258,14 @@ function createSpreads(pages: PageData[]): SpreadData[] {
 
 ### 7. Implementation Steps
 
-1. **Phase 1: Spread View (without covers)**
+1. **Phase 1: Spread View (pages 1-14 only)**
    - Update data structure to create spreads from pages 1-14
    - Update UI to display two pages side-by-side
+   - Handle white page simulation for odd-numbered last spread (CSS, not image)
    - Update navigation to move by spreads
    - Test with existing preview images
 
-2. **Phase 2: Cover Generation (optional)**
+2. **Phase 2: Cover Generation (future - not yet implemented)**
    - Add cover generation to Workflow 3
    - Update 3-manifest to include covers
    - Update frontend to handle covers as single-page spreads
@@ -300,8 +291,7 @@ function createSpreads(pages: PageData[]): SpreadData[] {
 
 - [ ] Spreads display correctly (two pages side-by-side)
 - [ ] Navigation moves by spreads, not individual pages
-- [ ] Cover displays as single page (if implemented)
-- [ ] Back cover displays as single page (if implemented)
+- [ ] White page displays correctly when spread has only one page (odd number)
 - [ ] Keyboard navigation works (ArrowLeft/ArrowRight)
 - [ ] Page counter shows correct spread number
 - [ ] Images load correctly for both pages in spread

@@ -18,6 +18,33 @@ interface PageData {
   previewImageUrl: string;
 }
 
+interface SpreadData {
+  spreadNumber: number;
+  leftPage?: PageData;
+  rightPage?: PageData;
+  isCover: boolean;
+  isBackCover: boolean;
+}
+
+// Create spreads from pages (pages 1-14 only, no cover/back cover yet)
+function createSpreads(pages: PageData[]): SpreadData[] {
+  const spreads: SpreadData[] = [];
+  
+  // Interior spreads (pages 1-14, paired)
+  // Note: Cover, dedication, and back cover not yet implemented
+  for (let i = 0; i < pages.length; i += 2) {
+    spreads.push({
+      spreadNumber: Math.floor(i / 2) + 1,
+      leftPage: pages[i],
+      rightPage: pages[i + 1] || undefined, // Last spread might have only left page
+      isCover: false,
+      isBackCover: false
+    });
+  }
+  
+  return spreads;
+}
+
 export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow }: PostPdfStageProps) {
   const [pdfAsset, setPdfAsset] = useState({
     id: 'compiled-pdf',
@@ -30,11 +57,12 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   });
 
   const [pages, setPages] = useState<PageData[]>([]);
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [spreads, setSpreads] = useState<SpreadData[]>([]);
+  const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
   const [loadingPages, setLoadingPages] = useState(false);
   const [pagesError, setPagesError] = useState<string | null>(null);
-  const [imageLoading, setImageLoading] = useState(true);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState({ left: true, right: true });
+  const [imageError, setImageError] = useState<{ left: string | null; right: string | null }>({ left: null, right: null });
 
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
@@ -139,21 +167,25 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         
         if (!isMounted) return;
         
-        // Preserve current page index when refreshing, only reset to 0 on initial load
+        // Preserve current spread index when refreshing, only reset to 0 on initial load
         setPages((prevPages) => {
           const isInitialLoad = prevPages.length === 0;
+          const newSpreads = createSpreads(pageData);
           
-          // Update page index based on whether this is initial load or refresh
+          // Update spread index based on whether this is initial load or refresh
           if (isInitialLoad) {
-            // First time loading pages - start at page 1
-            setCurrentPageIndex(0);
+            // First time loading pages - start at spread 1
+            setCurrentSpreadIndex(0);
           } else {
-            // Refreshing pages - preserve current page index, but clamp to valid range
-            setCurrentPageIndex((prevIndex) => {
-              const maxIndex = pageData.length > 0 ? pageData.length - 1 : 0;
+            // Refreshing pages - preserve current spread index, but clamp to valid range
+            setCurrentSpreadIndex((prevIndex) => {
+              const maxIndex = newSpreads.length > 0 ? newSpreads.length - 1 : 0;
               return Math.min(prevIndex, maxIndex);
             });
           }
+          
+          // Update spreads when pages change
+          setSpreads(newSpreads);
           
           return pageData;
         });
@@ -219,11 +251,16 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     };
   }, [orderId, pdfUrl]);
 
-  // Reset image loading state when page changes
+  // Reset image loading state when spread changes
   useEffect(() => {
-    setImageLoading(true);
-    setImageError(null);
-  }, [currentPageIndex]);
+    const currentSpread = spreads[currentSpreadIndex];
+    // Only set loading to true if there's actually a page to load
+    setImageLoading({ 
+      left: currentSpread?.leftPage ? true : false, 
+      right: currentSpread?.rightPage ? true : false 
+    });
+    setImageError({ left: null, right: null });
+  }, [currentSpreadIndex, spreads]);
 
   const handleDownload = () => {
     if (pdfAsset.exists && pdfAsset.url) {
@@ -248,38 +285,69 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const isPostBriaApproved = order.reviewStages.postBria.status === 'approved';
   const canApprove = !pdfAsset.isFlagged && isPostBriaApproved;
 
-  const currentPage = pages[currentPageIndex];
-  const totalPages = pages.length;
-  const currentPageNumber = currentPageIndex + 1;
+  const currentSpread = spreads[currentSpreadIndex];
+  const totalSpreads = spreads.length;
+  const currentSpreadNumber = currentSpreadIndex + 1;
 
-  const handlePreviousPage = () => {
-    if (currentPageIndex > 0) {
-      setCurrentPageIndex(currentPageIndex - 1);
+  const handlePreviousSpread = () => {
+    if (currentSpreadIndex > 0) {
+      setCurrentSpreadIndex(currentSpreadIndex - 1);
     }
   };
 
-  const handleNextPage = () => {
-    if (currentPageIndex < totalPages - 1) {
-      setCurrentPageIndex(currentPageIndex + 1);
+  const handleNextSpread = () => {
+    if (currentSpreadIndex < totalSpreads - 1) {
+      setCurrentSpreadIndex(currentSpreadIndex + 1);
     }
   };
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' && currentPageIndex > 0) {
-        setCurrentPageIndex(currentPageIndex - 1);
-      } else if (e.key === 'ArrowRight' && currentPageIndex < totalPages - 1) {
-        setCurrentPageIndex(currentPageIndex + 1);
+      if (e.key === 'ArrowLeft' && currentSpreadIndex > 0) {
+        setCurrentSpreadIndex(currentSpreadIndex - 1);
+      } else if (e.key === 'ArrowRight' && currentSpreadIndex < totalSpreads - 1) {
+        setCurrentSpreadIndex(currentSpreadIndex + 1);
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentPageIndex, totalPages]);
+  }, [currentSpreadIndex, totalSpreads]);
 
   return (
-    <div className="space-y-8">
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .spread-container {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: 100%;
+          max-width: 5100px; /* 2 × 2550px pages */
+        }
+
+        .two-page-spread {
+          display: flex;
+          gap: 0; /* No gap between pages in print */
+          width: 5100px;
+          height: 2550px;
+        }
+
+        .two-page-spread img {
+          width: 2550px;
+          height: 2550px;
+          object-fit: contain;
+          display: block;
+        }
+
+        .white-page {
+          width: 2550px;
+          height: 2550px;
+          background-color: white;
+          /* Simulated white page - no image needed */
+        }
+      `}} />
+      <div className="space-y-8">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -359,28 +427,38 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           </div>
         )}
 
-        {!loadingPages && !pagesError && pages.length > 0 && (
+        {!loadingPages && !pagesError && spreads.length > 0 && currentSpread && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
             {/* Viewer Header */}
             <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">
-                  Page {currentPageNumber} of {totalPages}
+                  Spread {currentSpreadNumber} of {totalSpreads}
+                  {currentSpread.leftPage && currentSpread.rightPage && (
+                    <span className="text-gray-500 ml-2">
+                      (Pages {currentSpread.leftPage.pageNumber} & {currentSpread.rightPage.pageNumber})
+                    </span>
+                  )}
+                  {currentSpread.leftPage && !currentSpread.rightPage && (
+                    <span className="text-gray-500 ml-2">
+                      (Page {currentSpread.leftPage.pageNumber})
+                    </span>
+                  )}
                 </span>
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={handlePreviousPage}
-                    disabled={currentPageIndex === 0}
+                    onClick={handlePreviousSpread}
+                    disabled={currentSpreadIndex === 0}
                     className="p-2 rounded-md hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Previous page"
+                    aria-label="Previous spread"
                   >
                     <ChevronLeft className="h-5 w-5 text-gray-600" />
                   </button>
                   <button
-                    onClick={handleNextPage}
-                    disabled={currentPageIndex >= totalPages - 1}
+                    onClick={handleNextSpread}
+                    disabled={currentSpreadIndex >= totalSpreads - 1}
                     className="p-2 rounded-md hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Next page"
+                    aria-label="Next spread"
                   >
                     <ChevronRight className="h-5 w-5 text-gray-600" />
                   </button>
@@ -388,67 +466,116 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               </div>
             </div>
 
-            {/* Image Display Area */}
-            <div className="bg-gray-100 flex items-center justify-center min-h-[800px] p-8 relative">
-              {currentPage && (
-                <>
-                  {imageLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                      <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
-                    </div>
+            {/* Spread Display Area */}
+            <div className="bg-gray-100 flex items-center justify-center min-h-[800px] p-8 relative overflow-x-auto">
+              {((currentSpread.leftPage && imageLoading.left) || (currentSpread.rightPage && imageLoading.right)) && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                  <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+                </div>
+              )}
+              
+              {(imageError.left || imageError.right) && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                  <div className="text-center">
+                    <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                    <p className="text-red-600 text-sm">
+                      {imageError.left || imageError.right}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="spread-container" style={{ transform: 'scale(0.3)', transformOrigin: 'center center' }}>
+                <div className="two-page-spread">
+                  {/* Left page */}
+                  {currentSpread.leftPage ? (
+                    <img
+                      src={currentSpread.leftPage.previewImageUrl}
+                      alt={`Page ${currentSpread.leftPage.pageNumber}`}
+                      onLoad={() => {
+                        console.log(`[Spreads] ✓ Left image loaded successfully for page ${currentSpread.leftPage!.pageNumber}`);
+                        setImageLoading(prev => ({ ...prev, left: false }));
+                        setImageError(prev => ({ ...prev, left: null }));
+                      }}
+                      onError={async (e) => {
+                        const img = e.currentTarget;
+                        const url = currentSpread.leftPage!.previewImageUrl;
+                        
+                        try {
+                          const response = await fetch(url, { method: 'HEAD' });
+                          console.error(`[Spreads] ✗ Left image failed to load for page ${currentSpread.leftPage!.pageNumber}:`, {
+                            url,
+                            httpStatus: response.status,
+                            httpStatusText: response.statusText,
+                            error: e
+                          });
+                        } catch (fetchError) {
+                          console.error(`[Spreads] ✗ Left image fetch error for page ${currentSpread.leftPage!.pageNumber}:`, {
+                            url,
+                            fetchError,
+                            error: e
+                          });
+                        }
+                        
+                        setImageLoading(prev => ({ ...prev, left: false }));
+                        setImageError(prev => ({ ...prev, left: `Failed to load page ${currentSpread.leftPage!.pageNumber}` }));
+                      }}
+                      className={`transition-opacity duration-200 ${
+                        imageLoading.left ? 'opacity-0' : 'opacity-100'
+                      }`}
+                      style={{
+                        display: imageError.left ? 'none' : 'block'
+                      }}
+                    />
+                  ) : (
+                    <div className="white-page" />
                   )}
                   
-                  {imageError && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                      <div className="text-center">
-                        <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
-                        <p className="text-red-600 text-sm">{imageError}</p>
-                      </div>
-                    </div>
+                  {/* Right page */}
+                  {currentSpread.rightPage ? (
+                    <img
+                      src={currentSpread.rightPage.previewImageUrl}
+                      alt={`Page ${currentSpread.rightPage.pageNumber}`}
+                      onLoad={() => {
+                        console.log(`[Spreads] ✓ Right image loaded successfully for page ${currentSpread.rightPage!.pageNumber}`);
+                        setImageLoading(prev => ({ ...prev, right: false }));
+                        setImageError(prev => ({ ...prev, right: null }));
+                      }}
+                      onError={async (e) => {
+                        const img = e.currentTarget;
+                        const url = currentSpread.rightPage!.previewImageUrl;
+                        
+                        try {
+                          const response = await fetch(url, { method: 'HEAD' });
+                          console.error(`[Spreads] ✗ Right image failed to load for page ${currentSpread.rightPage!.pageNumber}:`, {
+                            url,
+                            httpStatus: response.status,
+                            httpStatusText: response.statusText,
+                            error: e
+                          });
+                        } catch (fetchError) {
+                          console.error(`[Spreads] ✗ Right image fetch error for page ${currentSpread.rightPage!.pageNumber}:`, {
+                            url,
+                            fetchError,
+                            error: e
+                          });
+                        }
+                        
+                        setImageLoading(prev => ({ ...prev, right: false }));
+                        setImageError(prev => ({ ...prev, right: `Failed to load page ${currentSpread.rightPage!.pageNumber}` }));
+                      }}
+                      className={`transition-opacity duration-200 ${
+                        imageLoading.right ? 'opacity-0' : 'opacity-100'
+                      }`}
+                      style={{
+                        display: imageError.right ? 'none' : 'block'
+                      }}
+                    />
+                  ) : (
+                    <div className="white-page" />
                   )}
-
-                  <img
-                    src={currentPage.previewImageUrl}
-                    alt={`Page ${currentPage.pageNumber}`}
-                    onLoad={() => {
-                      console.log(`[Pages] ✓ Image loaded successfully for page ${currentPage.pageNumber}`);
-                      setImageLoading(false);
-                      setImageError(null);
-                    }}
-                    onError={async (e) => {
-                      const img = e.currentTarget;
-                      const url = currentPage.previewImageUrl;
-                      
-                      // Try to fetch the URL directly to see what error we get
-                      try {
-                        const response = await fetch(url, { method: 'HEAD' });
-                        console.error(`[Pages] ✗ Image failed to load for page ${currentPage.pageNumber}:`, {
-                          url,
-                          httpStatus: response.status,
-                          httpStatusText: response.statusText,
-                          headers: Object.fromEntries(response.headers.entries()),
-                          error: e
-                        });
-                      } catch (fetchError) {
-                        console.error(`[Pages] ✗ Image fetch error for page ${currentPage.pageNumber}:`, {
-                          url,
-                          fetchError,
-                          error: e
-                        });
-                      }
-                      
-                      setImageLoading(false);
-                      setImageError(`Failed to load page ${currentPage.pageNumber}`);
-                    }}
-                    className={`max-w-full max-h-[800px] object-contain shadow-lg transition-opacity duration-200 ${
-                      imageLoading ? 'opacity-0' : 'opacity-100'
-                    }`}
-                    style={{
-                      display: imageError ? 'none' : 'block'
-                    }}
-                  />
-                </>
-              )}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -462,7 +589,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             </div>
             <div>
               <span className="text-gray-500">Pages:</span>
-              <span className="ml-1 text-gray-900">{totalPages || 14}</span>
+              <span className="ml-1 text-gray-900">{pages.length || 14}</span>
             </div>
             <div>
               <span className="text-gray-500">Format:</span>
@@ -545,5 +672,6 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         </div>
       </div>
     </div>
+    </>
   );
 }
