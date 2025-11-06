@@ -38,8 +38,6 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
-  // Use relative URLs so preview deployments call their own API, not production
-  const backendUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   // Load preview images from 3-manifest or construct directly from R2
   useEffect(() => {
@@ -54,7 +52,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       try {
         // Try 3-manifest first (has preview images with correct URLs)
         const manifest3Key = `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;
-        const manifest3Url = `${backendUrl}/api/manifests/${manifest3Key}`;
+        const manifest3Url = `/api/manifests/${manifest3Key}`; // Use relative URL
         
         let pageData: PageData[] = [];
         
@@ -70,16 +68,28 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               pageData = previewImages
                 .sort((a: any, b: any) => a.pageNumber - b.pageNumber)
                 .map((img: any) => {
-                  // Construct URL: prefer imageUrl from manifest, fallback to constructing from r2Key
-                  let imageUrl = img.imageUrl;
-                  if (!imageUrl && img.r2Key) {
-                    imageUrl = `${backendUrl}/api/assets/${img.r2Key}`;
+                  // Always construct relative URL from r2Key to ensure preview deployments call their own API
+                  // Ignore imageUrl from manifest as it may contain absolute URLs pointing to production
+                  let imageUrl: string;
+                  if (img.r2Key) {
+                    // Use relative URL so it works with any deployment (production or preview)
+                    imageUrl = `/api/assets/${img.r2Key}`;
+                  } else {
+                    // Fallback: try to extract r2Key from imageUrl if it's an absolute URL
+                    const fallbackUrl = img.imageUrl || '';
+                    const r2KeyMatch = fallbackUrl.match(/\/api\/assets\/(.+)$/);
+                    if (r2KeyMatch) {
+                      imageUrl = `/api/assets/${r2KeyMatch[1]}`;
+                    } else {
+                      // Last resort: construct from page number
+                      imageUrl = `/api/assets/book-mvp-simple-adventure/orders/${orderId}/preview-images/page-${String(img.pageNumber).padStart(2, '0')}_preview.png`;
+                    }
                   }
                   
                   console.log(`[Pages] Page ${img.pageNumber}:`, {
                     hasImageUrl: !!img.imageUrl,
                     hasR2Key: !!img.r2Key,
-                    imageUrl,
+                    constructedUrl: imageUrl,
                     r2Key: img.r2Key
                   });
                   
@@ -100,13 +110,13 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         // Fallback: Construct image URLs directly from R2 path pattern
         if (pageData.length === 0) {
           console.log('[Pages] Constructing preview image URLs from R2 path pattern');
-          // Images are stored at: book-mvp-simple-adventure/orders/{orderId}/preview-images/page-{pageNumber}.png
+          // Images are stored at: book-mvp-simple-adventure/orders/{orderId}/preview-images/page-{pageNumber}_preview.png
           pageData = Array.from({ length: 14 }, (_, i) => {
             const pageNum = i + 1;
-            const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/page-${pageNum}.png`;
+            const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/page-${String(pageNum).padStart(2, '0')}_preview.png`;
             return {
               pageNumber: pageNum,
-              previewImageUrl: `${backendUrl}/api/assets/${r2Key}`
+              previewImageUrl: `/api/assets/${r2Key}` // Use relative URL
             };
           });
         }
@@ -161,7 +171,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       isMounted = false;
       clearInterval(interval);
     };
-  }, [orderId, pdfUrl, backendUrl]);
+  }, [orderId, pdfUrl]);
 
   // Reset image loading state when page changes
   useEffect(() => {
