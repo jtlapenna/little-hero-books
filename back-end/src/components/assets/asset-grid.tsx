@@ -48,12 +48,21 @@ export function AssetGrid({
   const handleFileReplace = (assetId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      console.log('[AssetGrid] File selected for replacement:', assetId, file.name);
+      // Don't clear loading state here - let the parent component's handleReplace manage it
+      // The parent will set isReplacing via the prop, or we'll keep it until upload completes
       onReplace(assetId, file);
+      // Reset the input value so the same file can be selected again
+      // But do this after a small delay to ensure the change event is fully processed
+      setTimeout(() => {
+        event.target.value = '';
+      }, 100);
+    } else {
+      console.log('[AssetGrid] No file selected, clearing loading state');
+      // If no file was selected (user cancelled), clear the loading state
       if (externalIsReplacing === undefined) {
         setInternalIsReplacing(null);
       }
-      // Reset the input value so the same file can be selected again
-      event.target.value = '';
     }
   };
 
@@ -191,10 +200,15 @@ export function AssetGrid({
               type="file"
               accept="image/*"
               onChange={(e) => {
+                console.log('[AssetGrid] File input onChange fired for:', asset.id, 'files:', e.target.files?.length);
                 e.stopPropagation();
+                e.preventDefault();
                 handleFileReplace(asset.id, e);
               }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                console.log('[AssetGrid] File input onClick fired for:', asset.id);
+                e.stopPropagation();
+              }}
               className="hidden"
               id={`replace-${asset.id}`}
             />

@@ -121,6 +121,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       return;
     }
 
+    console.log('[PreBriaStage] Starting replace for:', assetId, 'file:', file.name);
     setIsReplacing(assetId);
     try {
       // Extract pose number from assetId (e.g., "pose01" -> 1)

@@ -75,6 +75,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   };
 
   const handleReplace = async (assetId: string, file: File) => {
+    console.log('[PostBriaStage] Starting replace for:', assetId, 'file:', file.name);
     setIsReplacing(assetId);
     try {
       // Extract pose number from assetId (e.g., "pose01" -> 1)
