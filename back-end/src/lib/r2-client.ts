@@ -239,6 +239,77 @@ export async function getObject(bucket: string, key: string): Promise<Response> 
 }
 
 /**
+ * Put (upload) an object to R2 bucket
+ * @param bucket - Bucket name
+ * @param key - Object key
+ * @param body - File body (Blob, ArrayBuffer, or ReadableStream)
+ * @param contentType - Content type (e.g., 'image/png')
+ * @returns Response from R2
+ */
+export async function putObject(
+  bucket: string,
+  key: string,
+  body: Blob | ArrayBuffer | ReadableStream | string,
+  contentType?: string
+): Promise<Response> {
+  // Validate configuration
+  if (!ACCOUNT_ID) {
+    throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
+  }
+  
+  // Build R2 URL with subdomain-style addressing (required for private buckets)
+  const encodedKey = encodeS3Key(key);
+  const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodedKey}`;
+  
+  console.log('[R2 putObject] Uploading:', {
+    bucket,
+    key,
+    encodedKey,
+    url,
+    contentType,
+    accountId: ACCOUNT_ID?.substring(0, 8) + '...',
+    hasCredentials: !!(ACCESS_KEY_ID && SECRET_ACCESS_KEY),
+  });
+  
+  // Build request with body and content type
+  const headers: HeadersInit = {};
+  if (contentType) {
+    headers['Content-Type'] = contentType;
+  }
+  
+  const urlObj = new URL(url);
+  const unsignedRequest = new Request(url, {
+    method: 'PUT',
+    headers: {
+      'Host': urlObj.hostname,
+      ...headers,
+    },
+    body: body,
+  });
+  
+  // Sign the request
+  const signedRequest = await r2Client.sign(unsignedRequest);
+  
+  // Fetch the signed request
+  const response = await fetch(signedRequest);
+  
+  console.log('[R2 putObject] Response:', {
+    status: response.status,
+    statusText: response.statusText,
+    ok: response.ok,
+    headers: Object.fromEntries(response.headers.entries()),
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[R2 putObject] Error response body:', errorText.substring(0, 500));
+    throw new Error(`R2 putObject failed: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+  
+  return response;
+}
+
+/**
  * Generate a signed URL for an R2 object (for public access)
  * Note: aws4fetch doesn't have built-in presigning, so we'll use the client's fetch method
  * For temporary signed URLs, we'd need to implement presigning manually or use a different approach

@@ -431,6 +431,7 @@ export default function OrderDetailPage() {
                   isApproved={order.reviewStages.preBria.status === 'approved'}
                   onApprove={async () => await handleStageApprove('preBria' as unknown as ReviewStage)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('preBria' as unknown as ReviewStage)}
+                  onRefresh={handleRefreshOrder}
                 />
               )}
               
@@ -452,6 +453,7 @@ export default function OrderDetailPage() {
                   isApproved={order.reviewStages.postPdf.status === 'approved'}
                   onApprove={async () => await handleStageApprove('postPdf' as unknown as ReviewStage)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postPdf' as unknown as ReviewStage)}
+                  onRefresh={handleRefreshOrder}
                 />
               )}
             </div>

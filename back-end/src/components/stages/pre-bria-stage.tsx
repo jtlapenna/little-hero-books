@@ -12,9 +12,10 @@ interface PreBriaStageProps {
   isApproved: boolean;
   onApprove: () => void;
   onInitiateWorkflow: () => void;
+  onRefresh?: () => void;
 }
 
-export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow }: PreBriaStageProps) {
+export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PreBriaStageProps) {
   // Debug: Check if order has R2 assets
   console.log('PreBriaStage rendered with order:', order?.orderId, 'R2 assets:', !!order?.r2Assets);
   
@@ -28,6 +29,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   });
 
   const [poses, setPoses] = useState([]);
+  const [isReplacing, setIsReplacing] = useState<string | null>(null);
 
   // Two-step workflow state
   const [approveStageConfirmed, setApproveStageConfirmed] = useState(false);
@@ -82,14 +84,92 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     }
   }, [order]);
 
-  const handleDownload = (assetId: string) => {
-    console.log('Downloading asset:', assetId);
-    // In real implementation, this would trigger a download
+  const handleDownload = async (assetId: string) => {
+    try {
+      // Find the asset URL
+      let assetUrl: string | null = null;
+      if (assetId === 'base-character') {
+        assetUrl = baseCharacter.url;
+      } else {
+        const pose = poses.find(p => p.id === assetId);
+        assetUrl = pose?.url || null;
+      }
+
+      if (!assetUrl) {
+        console.error('Asset URL not found for:', assetId);
+        alert('Asset not found');
+        return;
+      }
+
+      // Trigger download by creating a temporary link
+      const link = document.createElement('a');
+      link.href = assetUrl;
+      link.download = `${assetId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download asset');
+    }
   };
 
-  const handleReplace = (assetId: string, file: File) => {
-    console.log('Replacing asset:', assetId, file.name);
-    // In real implementation, this would upload the new file to R2
+  const handleReplace = async (assetId: string, file: File) => {
+    // Disable base-character replacement (not tracked in manifest)
+    if (assetId === 'base-character') {
+      alert('Base character replacement is not yet supported');
+      return;
+    }
+
+    setIsReplacing(assetId);
+    try {
+      // Extract pose number from assetId (e.g., "pose01" -> 1)
+      const match = assetId.match(/pose(\d+)/);
+      if (!match) {
+        console.error('Could not determine poseNumber for:', assetId);
+        alert('Invalid asset ID');
+        return;
+      }
+
+      const poseNumber = parseInt(match[1], 10);
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('poseNumber', poseNumber.toString());
+      formData.append('stage', 'preBria');
+      formData.append('file', file);
+      // replacedBy is optional - will be added when auth is implemented
+
+      // Call API endpoint
+      const response = await fetch(`/api/orders/${orderId}/replace-image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to replace image';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('Image replaced successfully:', result);
+
+      // Refresh the order data to show updated image
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error: any) {
+      console.error('Replace failed:', error);
+      alert(error.message || 'Failed to replace image');
+    } finally {
+      setIsReplacing(null);
+    }
   };
 
   const handleFlag = (assetId: string) => {
@@ -183,6 +263,8 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             onApprove={() => {}} // Base character doesn't need separate approval
             canApprove={false}
             isApproved={true}
+            isReplacing={isReplacing}
+            disabledReplaceIds={['base-character']}
           />
 
           {/* Poses Section */}
@@ -196,6 +278,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             onApprove={onApprove}
             canApprove={true}
             isApproved={isApproved}
+            isReplacing={isReplacing}
           />
         </>
       ) : (

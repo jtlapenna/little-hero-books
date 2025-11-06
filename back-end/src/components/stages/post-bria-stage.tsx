@@ -27,6 +27,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   
   // Initialize with empty state - will be populated from R2 data
   const [poses, setPoses] = useState([]);
+  const [isReplacing, setIsReplacing] = useState<string | null>(null);
 
   // Update state when order data changes - use actual poseNumber from data to support any number of poses (including pose0)
   useEffect(() => {
@@ -48,19 +49,80 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     }
   }, [order]);
 
-  const handleDownload = (assetId: string) => {
-    console.log('Downloading asset:', assetId);
-    // In real implementation, this would trigger a download
+  const handleDownload = async (assetId: string) => {
+    try {
+      // Find the asset URL
+      const pose = poses.find(p => p.id === assetId);
+      const assetUrl = pose?.url || null;
+
+      if (!assetUrl) {
+        console.error('Asset URL not found for:', assetId);
+        alert('Asset not found');
+        return;
+      }
+
+      // Trigger download by creating a temporary link
+      const link = document.createElement('a');
+      link.href = assetUrl;
+      link.download = `${assetId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download asset');
+    }
   };
 
-  const handleReplace = (assetId: string, file: File) => {
-    console.log('Replacing asset:', assetId, file.name);
-    // In real implementation, this would upload the new file to R2
-    // After replacement, refresh to show updated image
-    if (onRefresh) {
-      setTimeout(() => {
-        handleRefresh();
-      }, 1000); // Wait 1 second for upload to complete
+  const handleReplace = async (assetId: string, file: File) => {
+    setIsReplacing(assetId);
+    try {
+      // Extract pose number from assetId (e.g., "pose01" -> 1)
+      const match = assetId.match(/pose(\d+)/);
+      if (!match) {
+        console.error('Could not determine poseNumber for:', assetId);
+        alert('Invalid asset ID');
+        return;
+      }
+
+      const poseNumber = parseInt(match[1], 10);
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('poseNumber', poseNumber.toString());
+      formData.append('stage', 'postBria');
+      formData.append('file', file);
+      // replacedBy is optional - will be added when auth is implemented
+
+      // Call API endpoint
+      const response = await fetch(`/api/orders/${orderId}/replace-image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to replace image';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('Image replaced successfully:', result);
+
+      // Refresh the order data to show updated image
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error: any) {
+      console.error('Replace failed:', error);
+      alert(error.message || 'Failed to replace image');
+    } finally {
+      setIsReplacing(null);
     }
   };
 
@@ -199,6 +261,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           canApprove={true}
           isApproved={isApproved}
           showBlackBackground={showBlackBackground}
+          isReplacing={isReplacing}
         />
       ) : (
         <div className="bg-gray-50 rounded-lg p-8 text-center">

@@ -23,6 +23,8 @@ interface AssetGridProps {
   canApprove: boolean;
   isApproved: boolean;
   showBlackBackground?: boolean;
+  isReplacing?: string | null;
+  disabledReplaceIds?: string[];
 }
 
 export function AssetGrid({
@@ -35,16 +37,21 @@ export function AssetGrid({
   onApprove,
   canApprove,
   isApproved,
-  showBlackBackground = false
+  showBlackBackground = false,
+  isReplacing: externalIsReplacing,
+  disabledReplaceIds = []
 }: AssetGridProps) {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [isReplacing, setIsReplacing] = useState<string | null>(null);
+  const [internalIsReplacing, setInternalIsReplacing] = useState<string | null>(null);
+  const isReplacing = externalIsReplacing !== undefined ? externalIsReplacing : internalIsReplacing;
 
   const handleFileReplace = (assetId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       onReplace(assetId, file);
-      setIsReplacing(null);
+      if (externalIsReplacing === undefined) {
+        setInternalIsReplacing(null);
+      }
     }
   };
 
@@ -115,12 +122,27 @@ export function AssetGrid({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setIsReplacing(asset.id);
+                    if (disabledReplaceIds.includes(asset.id)) {
+                      return;
+                    }
+                    if (externalIsReplacing === undefined) {
+                      setInternalIsReplacing(asset.id);
+                    }
+                    document.getElementById(`replace-${asset.id}`)?.click();
                   }}
-                  className="p-2 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
-                  title="Replace"
+                  disabled={isReplacing === asset.id || disabledReplaceIds.includes(asset.id)}
+                  className={`p-2 rounded-full transition-colors ${
+                    isReplacing === asset.id || disabledReplaceIds.includes(asset.id)
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title={disabledReplaceIds.includes(asset.id) ? 'Replace not available' : isReplacing === asset.id ? 'Replacing...' : 'Replace'}
                 >
-                  <Upload className="h-4 w-4" />
+                  {isReplacing === asset.id ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700"></div>
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>

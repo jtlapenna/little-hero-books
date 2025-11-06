@@ -11,6 +11,7 @@ interface PostPdfStageProps {
   isApproved: boolean;
   onApprove: () => void;
   onInitiateWorkflow: () => void;
+  onRefresh?: () => void;
 }
 
 interface PageData {
@@ -45,7 +46,7 @@ function createSpreads(pages: PageData[]): SpreadData[] {
   return spreads;
 }
 
-export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow }: PostPdfStageProps) {
+export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PostPdfStageProps) {
   const [pdfAsset, setPdfAsset] = useState({
     id: 'compiled-pdf',
     name: 'Compiled PDF',
