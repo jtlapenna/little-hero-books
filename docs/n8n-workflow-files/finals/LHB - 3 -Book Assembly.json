@@ -38,7 +38,7 @@
     {
       "parameters": {
         "language": "JavaScript",
-        "jsCode": "/**\n * Build Assembly Input From Manifest\n * Converts 2B manifest into the payload expected downstream.\n */\nconst input = $input.first().json || {};\nconst manifest = input || {}; // HTTP node passes manifest JSON as item\n\n// Try to get preserved context from Extract node\nlet ctx = {};\ntry { ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst order = manifest.order || {};\nconst entries = Array.isArray(manifest.entries) ? manifest.entries : [];\nconst amazonOrderId = order.amazonOrderId || ctx.orderId || null;\nconst characterHash = manifest.characterHash || order.characterHash || null;\nconst backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n\nif (!amazonOrderId || !characterHash) {\n  throw new Error('Manifest missing amazonOrderId or characterHash');\n}\n\nconst toProxy = (key) => `${backendUrl}/api/assets/${key}`;\nconst processedImages = entries\n  .filter(e => Number.isFinite(Number(e.poseNumber)) && e.bgRemovedKey)\n  .sort((a,b) => a.poseNumber - b.poseNumber)\n  .map(e => ({\n    poseNumber: e.poseNumber,\n    fileName: (e.bgRemovedKey.split('/').pop()) || `pose${String(e.poseNumber).padStart(2,'0')}_nobg.png`,\n    r2Path: e.bgRemovedKey,\n    publicUrl: toProxy(e.bgRemovedKey),\n    briaProcessed: true,\n    briaStatus: 'COMPLETED',\n    processingError: false,\n  }));\n\nreturn [{ json: {\n  amazonOrderId,\n  characterHash,\n  characterSpecs: order.characterSpecs || {},\n  bookSpecs: order.bookSpecs || {},\n  orderDetails: order.orderDetails || {},\n  publicR2Url: order.publicR2Url || null,\n  backendUrl,\n  processedImages\n} }];\n"
+        "jsCode": "/**\n * Build Assembly Input From Manifest\n * Converts 2B manifest into the payload expected downstream.\n */\nconst input = $input.first().json || {};\nconst manifest = input || {}; // HTTP node passes manifest JSON as item\n\n// Validate manifest schema\nif (!manifest.schema || !manifest.schema.includes('lhb.run-manifest')) {\n  throw new Error(`Invalid or missing manifest schema. Expected 'lhb.run-manifest@v2.0', got: ${manifest.schema || 'undefined'}`);\n}\n\n// Try to get preserved context from Extract node\nlet ctx = {};\ntry { ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst order = manifest.order || {};\nconst entries = Array.isArray(manifest.entries) ? manifest.entries : [];\nconst amazonOrderId = order.amazonOrderId || ctx.orderId || null;\nconst characterHash = manifest.characterHash || order.characterHash || null;\nconst backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n\n// Validate required fields\nif (!amazonOrderId) {\n  throw new Error('Manifest missing required order.amazonOrderId');\n}\nif (!characterHash) {\n  throw new Error('Manifest missing required characterHash');\n}\nif (!Array.isArray(manifest.entries) || manifest.entries.length === 0) {\n  throw new Error('Manifest has no entries (poses)');\n}\n\nconst toProxy = (key) => `${backendUrl}/api/assets/${key}`;\nconst processedImages = entries\n  .filter(e => Number.isFinite(Number(e.poseNumber)) && e.bgRemovedKey)\n  .sort((a,b) => a.poseNumber - b.poseNumber)\n  .map(e => ({\n    poseNumber: e.poseNumber,\n    fileName: (e.bgRemovedKey.split('/').pop()) || `pose${String(e.poseNumber).padStart(2,'0')}_nobg.png`,\n    r2Path: e.bgRemovedKey,\n    publicUrl: toProxy(e.bgRemovedKey),\n    briaProcessed: true,\n    briaStatus: 'COMPLETED',\n    processingError: false,\n  }));\n\nreturn [{ json: {\n  amazonOrderId,\n  characterHash,\n  characterSpecs: order.characterSpecs || {},\n  bookSpecs: order.bookSpecs || {},\n  orderDetails: order.orderDetails || {},\n  publicR2Url: order.publicR2Url || null,\n  backendUrl,\n  processedImages\n} }];\n"
       },
       "id": "f1132c12-a8e6-4c22-a25e-4fce0c8f72c0",
       "name": "Build Assembly Input From Manifest",
@@ -302,7 +302,7 @@
     {
       "parameters": {
         "language": "JavaScript",
-        "jsCode": "/**\n * Generate Page Preview Images from PDF\n * Uses PDFMonkey to generate images from the same HTML\n * PDFMonkey supports image generation with _type: 'png' in meta\n */\nconst order = $input.first().json || {};\nconst pages_html = order.pages_html || '';\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\n\nif (!pages_html) {\n  throw new Error('pages_html is required for generating preview images');\n}\n\n// Extract individual page HTML from pages_html\n// Each page is wrapped in <div class=\"book-page\" id=\"page-{N}\">\nconst pageRegex = /<div class=\"book-page\" id=\"page-(\\d+)\">[\\s\\S]*?<\\/div>/g;\nconst pages = [];\nlet match;\n\nwhile ((match = pageRegex.exec(pages_html)) !== null) {\n  const pageNumber = parseInt(match[1], 10);\n  const pageHtml = match[0];\n  \n  // Wrap in full HTML document for rendering\n  const fullHtml = `<!DOCTYPE html>\\n<html>\\n<head>\\n  <meta charset=\"UTF-8\">\\n  <style>\\n    @page { size: 2550px 2550px; margin: 0; }\\n    * { box-sizing: border-box; margin: 0; padding: 0; }\\n    body { width: 2550px; height: 2550px; overflow: hidden; }\\n  </style>\\n</head>\\n<body>\\n${pageHtml}\\n</body>\\n</html>`;\n  \n  pages.push({\n    pageNumber,\n    html: fullHtml,\n    filename: `page-${String(pageNumber).padStart(2, '0')}_preview.png`\n  });\n}\n\n// Sort by page number\npages.sort((a, b) => a.pageNumber - b.pageNumber);\n\n// Return array of items (one per page) for PDFMonkey image generation\nreturn pages.map(page => ({\n  json: {\n    ...order,\n    pageNumber: page.pageNumber,\n    pageHtml: page.html,\n    pageImageFilename: page.filename,\n    pageImageR2Key: `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/${page.filename}`,\n    // PDFMonkey image template ID (create separate image template in PDFMonkey)\n    pdfMonkeyImageTemplateId: order.pdfMonkeyImageTemplateId || 'your-image-template-id'\n  }\n}));\n"
+        "jsCode": "/**\n * Generate Page Preview Images from PDF\n * Uses PDFMonkey to generate images from the same HTML\n * PDFMonkey supports image generation with _type: 'png' in meta\n */\nconst order = $input.first().json || {};\nconst pages_html = order.pages_html || '';\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\n\nif (!pages_html) {\n  throw new Error('pages_html is required for generating preview images');\n}\n\n// Extract individual page HTML from pages_html using robust method\n// Each page is wrapped in <div class=\"book-page\" id=\"page-{N}\">\n// Use a more robust extraction that handles nested divs\nconst pageMatches = [];\nconst pagePattern = /<div class=\"book-page\" id=\"page-(\\d+)\">/g;\nlet match;\nlet lastIndex = 0;\nconst pageStarts = [];\n\n// Find all page start positions\nwhile ((match = pagePattern.exec(pages_html)) !== null) {\n  pageStarts.push({\n    pageNumber: parseInt(match[1], 10),\n    startIndex: match.index\n  });\n}\n\n// Extract each page by finding the matching closing tag\n// Count opening/closing divs to find the correct closing tag\nfor (let i = 0; i < pageStarts.length; i++) {\n  const { pageNumber, startIndex } = pageStarts[i];\n  const nextStartIndex = i < pageStarts.length - 1 ? pageStarts[i + 1].startIndex : pages_html.length;\n  \n  // Extract from this page start to the next page start (or end)\n  let pageHtml = pages_html.substring(startIndex, nextStartIndex);\n  \n  // Find the matching closing tag by counting divs\n  let divCount = 0;\n  let endIndex = pageHtml.length;\n  for (let j = 0; j < pageHtml.length; j++) {\n    if (pageHtml.substring(j, j + 4) === '<div') {\n      divCount++;\n    } else if (pageHtml.substring(j, j + 6) === '</div>') {\n      divCount--;\n      if (divCount === 0) {\n        endIndex = j + 6;\n        break;\n      }\n    }\n  }\n  pageHtml = pageHtml.substring(0, endIndex);\n  \n  // Get page_css from order if available\n  const pageCss = order.page_css || '';\n  \n  // Wrap in full HTML document for rendering\n  const fullHtml = `<!DOCTYPE html>\\n<html>\\n<head>\\n  <meta charset=\"UTF-8\">\\n  <style>\\n    ${pageCss}\\n    @page { size: 2550px 2550px; margin: 0; }\\n    * { box-sizing: border-box; margin: 0; padding: 0; }\\n    body { width: 2550px; height: 2550px; overflow: hidden; }\\n  </style>\\n</head>\\n<body>\\n${pageHtml}\\n</body>\\n</html>`;\n  \n  pageMatches.push({\n    pageNumber,\n    html: fullHtml,\n    filename: `page-${String(pageNumber).padStart(2, '0')}_preview.png`\n  });\n}\n\nconst pages = pageMatches;\n\n// Sort by page number\npages.sort((a, b) => a.pageNumber - b.pageNumber);\n\n// Return array of items (one per page) for PDFMonkey image generation\nreturn pages.map(page => ({\n  json: {\n    ...order,\n    pageNumber: page.pageNumber,\n    pageHtml: page.html,\n    pageImageFilename: page.filename,\n    pageImageR2Key: `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/${page.filename}`,\n    // PDFMonkey image template ID - MUST be set in order data or environment variable\n    // See docs/MANUAL_STEPS_PDFMONKEY_PREVIEW_IMAGES.md for setup instructions\n    pdfMonkeyImageTemplateId: order.pdfMonkeyImageTemplateId || process.env.PDFMONKEY_IMAGE_TEMPLATE_ID || (() => { throw new Error('pdfMonkeyImageTemplateId is required. Set in order data or PDFMONKEY_IMAGE_TEMPLATE_ID environment variable.'); })()\n  }\n}));\n"
       },
       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "name": "Generate Page Preview Images",
@@ -380,33 +380,6 @@
         -336,
         -352
       ]
-    },
-    {
-      "parameters": {
-        "operation": "upload",
-        "bucketName": "little-hero-orders",
-        "fileName": "={{ $json.pageImageR2Key }}",
-        "additionalFields": {
-          "acl": "public-read"
-        },
-        "binaryData": true,
-        "binaryPropertyName": "data",
-        "binaryProperty": "data"
-      },
-      "id": "e5f6a7b8-c9d0-1234-ef56-345678901234",
-      "name": "Upload Page Preview Image to R2",
-      "type": "n8n-nodes-base.s3",
-      "typeVersion": 1,
-      "position": [
-        -128,
-        -352
-      ],
-      "credentials": {
-        "s3": {
-          "id": "7tJOX9QjL1jqyEjf",
-          "name": "S3 account"
-        }
-      }
     },
     {
       "parameters": {
