@@ -79,10 +79,24 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             console.log('[Pages] 3-manifest loaded:', {
               hasBookAssembly: !!manifest3?.bookAssembly,
               hasPagePreviewImages: !!manifest3?.bookAssembly?.pagePreviewImages,
-              previewImagesCount: manifest3?.bookAssembly?.pagePreviewImages?.length || 0
+              previewImagesCount: manifest3?.bookAssembly?.pagePreviewImages?.length || 0,
+              bookAssemblyKeys: manifest3?.bookAssembly ? Object.keys(manifest3.bookAssembly) : [],
+              previewImagesType: Array.isArray(manifest3?.bookAssembly?.pagePreviewImages) ? 'array' : typeof manifest3?.bookAssembly?.pagePreviewImages,
+              firstPreviewImage: manifest3?.bookAssembly?.pagePreviewImages?.[0] || null
             });
             
             const previewImages = manifest3?.bookAssembly?.pagePreviewImages;
+            
+            // Log the actual structure for debugging
+            if (previewImages) {
+              console.log('[Pages] Preview images structure:', {
+                isArray: Array.isArray(previewImages),
+                length: Array.isArray(previewImages) ? previewImages.length : 'N/A',
+                type: typeof previewImages,
+                firstItem: Array.isArray(previewImages) && previewImages.length > 0 ? previewImages[0] : null,
+                allItems: Array.isArray(previewImages) ? previewImages : null
+              });
+            }
             
             if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
               console.log('[Pages] ✓ Using preview images from 3-manifest:', {
@@ -308,7 +322,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                 <p className="text-gray-500 text-sm">{pagesError}</p>
               </div>
             </div>
-          </div>
+                </div>
         )}
 
         {!loadingPages && !pagesError && pages.length === 0 && (
