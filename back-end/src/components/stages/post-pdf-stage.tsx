@@ -25,72 +25,7 @@ interface PageData {
   textBoxOverlayUrl?: string;
 }
 
-// Page-to-pose mapping (same as Workflow 3)
-const PAGE_TO_POSE_MAP: Record<number, number> = {
-  1: 1,   // walking
-  2: 2,   // walking-looking-higher
-  3: 3,   // looking
-  4: 4,   // floating
-  5: 5,   // walking-looking-down
-  6: 6,   // jogging
-  7: 3,   // looking (reuse pose 3 from page 3)
-  8: 7,   // sitting-eating
-  9: 8,   // crouching
-  10: 9,  // crawling-moving-happy
-  11: 10, // surprised-looking-up
-  12: 11, // surprised
-  // 13: no character (animal only)
-  14: 12  // flying/gliding
-};
-
-// Character positioning (same as Workflow 3)
-const CHAR_POSITIONS: Record<number, { left: number; top: number; w: number; flip: number }> = {
-  1: { left: 1453, top: 1938, w: 900, flip: 1 },
-  2: { left: 1403, top: 2091, w: 950, flip: 1 },
-  3: { left: 1020, top: 2142, w: 1100, flip: -1 },
-  4: { left: 1530, top: 1734, w: 1100, flip: 1 },
-  5: { left: 1250, top: 2066, w: 900, flip: -1 },
-  6: { left: 1326, top: 2066, w: 900, flip: 1 },
-  7: { left: 1199, top: 1683, w: 900, flip: -1 },
-  8: { left: 1453, top: 2040, w: 1400, flip: 1 },
-  9: { left: 1352, top: 2066, w: 1100, flip: -1 },
-  10: { left: 1275, top: 2295, w: 1300, flip: -1 },
-  11: { left: 1964, top: 2117, w: 500, flip: 1 },
-  12: { left: 893, top: 2066, w: 920, flip: -1 },
-  14: { left: 893, top: 1836, w: 1500, flip: 1 },
-};
-
-// Animal positions
-const ANIMAL_POSITIONS = {
-  13: { left: 1191, top: 2104, w: 1800 }, // appears
-  14: { left: 1275, top: 1964, w: 1250 }, // flying
-};
-
-// Scene slugs for backgrounds
-const SCENE_SLUGS = [
-  'twilight-walk', 'night-forest', 'magic-doorway', 'courage-leap', 'morning-meadow',
-  'tall-forest', 'mountain-vista', 'picnic-surprise', 'beach-discovery', 'crystal-cave',
-  'giant-flowers', 'almost-there', 'animal-reveal', 'flying-home'
-];
-
-// Story text templates (same as Workflow 3)
-function getStoryTexts(childName: string, hometown: string, animalDisplayName: string): string[] {
-  return [
-    `It was a nice evening in ${hometown}. ${childName} went outside.`,
-    `${childName} looked at the stars.<br>You like to explore, the voice said.`,
-    `There was a doorway! ${childName} walked through.`,
-    `Stars were all around! ${childName} felt brave.`,
-    `The path went through giant trees. ${childName} felt small, but not scared.`,
-    `Look how far you came, the voice said.`,
-    `Lunch was waiting! ${childName} ate happily.<br>You earned this, the voice said.`,
-    `The path became warm sand. Look down there, the voice said.<br>${childName} found a beautiful shell!`,
-    `${childName} found a cave with sparkly crystals! They glowed with rainbow colors. You can find beauty everywhere, the voice said.`,
-    `The path went through giant flowers. The petals were SO big!<br>You make others happy, the voice said.`,
-    `The voice felt very close now. You are perfect just as you are, it said.<br>${childName} looked around. Where was the voice?`,
-    `${animalDisplayName} appeared!<br>It was the voice! I have been with you this whole time, said ${animalDisplayName}.`,
-    `Ready to fly home? asked ${animalDisplayName}.<br>They flew through the stars to ${hometown}. I am always in your heart, said ${animalDisplayName}.`
-  ];
-}
+// Note: Page reconstruction logic removed - now using preview images from Workflow 3's 3-manifest
 
 
 export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow }: PostPdfStageProps) {
@@ -419,8 +354,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               </div>
             </div>
             <div className="h-[800px] bg-gray-100 overflow-hidden flex items-center justify-center p-4" style={{ position: 'relative' }}>
-              {/* Preview image mode (when available from 3-manifest) */}
-              {currentPage?.previewImageUrl ? (
+              {/* Preview image mode (from 3-manifest) */}
+              {currentPage?.previewImageUrl && (
                 <div
                   className="book-page relative"
                   id={`page-${currentPage.pageNumber}`}
@@ -446,140 +381,6 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                       display: 'block'
                     }}
                   />
-                </div>
-              ) : (
-                /* Reconstruction mode (fallback) */
-                <div
-                  className="book-page relative"
-                  id={`page-${currentPage.pageNumber}`}
-                  style={{
-                    width: '2550px',
-                    height: '2550px',
-                    transform: 'scale(0.3)',
-                    transformOrigin: 'center center',
-                    margin: '0 auto',
-                    position: 'relative',
-                    backgroundColor: '#fff',
-                    overflow: 'hidden',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  {/* Background - matches Workflow 3: <div class="page-bg" style="background-image:url('...')"></div> */}
-                  {currentPage.backgroundUrl && (
-                    <div
-                      className="page-bg absolute inset-0"
-                      style={{
-                        backgroundImage: `url(${currentPage.backgroundUrl})`,
-                        backgroundSize: '2550px 2550px',
-                        backgroundPosition: 'center',
-                        backgroundRepeat: 'no-repeat'
-                      }}
-                    />
-                  )}
-
-                  {/* Text Box - matches Workflow 3 exactly */}
-                  {currentPage.textBoxOverlayUrl && currentPage.text && (
-                    <div
-                      className="text-box absolute"
-                      style={{
-                        left: '50%',
-                        bottom: '3%',
-                        width: '80%',
-                        minHeight: '360px',
-                        transform: 'translateX(-50%)',
-                        backgroundImage: `url(${currentPage.textBoxOverlayUrl})`,
-                        backgroundSize: '100% 100%',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'center',
-                        padding: '100px 220px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 6
-                      }}
-                    >
-                      <div
-                        className="text-content"
-                        style={{
-                          fontFamily: 'Arial, sans-serif',
-                          fontSize: '56px',
-                          lineHeight: '1.3',
-                          letterSpacing: '1px',
-                          color: '#312116',
-                          textAlign: 'center',
-                          width: '100%'
-                        }}
-                        dangerouslySetInnerHTML={{ __html: currentPage.text || '' }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Character - matches Workflow 3: <div class="character" style="..."><img class="sprite" src="..." alt=""></div> */}
-                  {currentPage.characterUrl && CHAR_POSITIONS[currentPage.pageNumber] && (() => {
-                    const pos = CHAR_POSITIONS[currentPage.pageNumber];
-                    // Apply overrides for pages 3, 4, 14 (same as Workflow 3)
-                    let finalPos = pos;
-                    if (currentPage.pageNumber === 3) {
-                      finalPos = { left: 1020, top: 2142, w: 1100, flip: -1 };
-                    } else if (currentPage.pageNumber === 4) {
-                      finalPos = { left: 1530, top: 1734, w: 1100, flip: 1 };
-                    } else if (currentPage.pageNumber === 14) {
-                      finalPos = { left: 893, top: 1836, w: 1500, flip: 1 };
-                    }
-                    
-                    // Use pixels directly (browser uses 96dpi, not 300dpi, so inches won't match)
-                    // Workflow 3 uses inches for PDFMonkey, but we need pixels for browser rendering
-                    let transform = `translate(-50%,-100%) scaleX(${finalPos.flip})`;
-                    if (currentPage.pageNumber === 4) {
-                      transform += ' rotate(-20deg)';
-                    }
-                    
-                    return (
-                      <div
-                        className="character absolute"
-                        style={{
-                          left: `${finalPos.left}px`,
-                          top: `${finalPos.top}px`,
-                          width: `${finalPos.w}px`,
-                          transform,
-                          zIndex: 11,
-                          pointerEvents: 'none' // Prevent interaction issues
-                        }}
-                      >
-                        <img
-                          className="sprite"
-                          src={currentPage.characterUrl}
-                          alt=""
-                          style={{ width: '100%', height: 'auto', display: 'block' }}
-                        />
-                      </div>
-                    );
-                  })()}
-
-                  {/* Animal - matches Workflow 3 structure */}
-                  {currentPage.animalUrl && ANIMAL_POSITIONS[currentPage.pageNumber as keyof typeof ANIMAL_POSITIONS] && (() => {
-                    const pos = ANIMAL_POSITIONS[currentPage.pageNumber as keyof typeof ANIMAL_POSITIONS];
-                    
-                    return (
-                      <div
-                        className="animal absolute"
-                        style={{
-                          left: `${pos.left}px`,
-                          top: `${pos.top}px`,
-                          width: `${pos.w}px`,
-                          transform: 'translate(-50%,-100%)',
-                          zIndex: 9
-                        }}
-                      >
-                        <img
-                          className="sprite"
-                          src={currentPage.animalUrl}
-                          alt={currentPage.pageNumber === 13 ? 'Animal Appears' : 'Animal Flying'}
-                          style={{ width: '100%', height: 'auto', display: 'block' }}
-                        />
-                      </div>
-                    );
-                  })()}
                 </div>
               )}
             </div>
