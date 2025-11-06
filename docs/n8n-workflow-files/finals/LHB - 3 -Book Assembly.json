@@ -302,14 +302,123 @@
     {
       "parameters": {
         "language": "JavaScript",
-        "jsCode": "/**\n * Extract PDF Pages as Images\n * Splits the PDF into individual page images\n * Uses pdf2pic approach via HTTP service (PDF.co API) or similar\n */\nconst order = $input.first().json || {};\nconst pdfBinary = $binary || {};\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\nconst backendUrl = order.backendUrl || 'https://admin.littleherolabs.com';\n\n// Get PDF binary data\nconst pdfData = pdfBinary.data || null;\nif (!pdfData) {\n  throw new Error('PDF binary data is required for extracting page images');\n}\n\n// Convert binary to base64 for API request\nconst pdfBase64 = Buffer.from(pdfData.data).toString('base64');\n\n// Use PDF.co API to extract pages as images\n// This is a free tier service that converts PDF pages to PNG\nconst http = this.helpers.httpRequest;\n\n// Create array of items (one per page, 1-14)\nconst pageImages = [];\n\nfor (let pageNum = 1; pageNum <= 14; pageNum++) {\n  try {\n    // PDF.co API endpoint for PDF to PNG conversion\n    // Convert specific page to PNG\n    const response = await http({\n      method: 'POST',\n      url: 'https://api.pdf.co/v1/pdf/convert/to/png',\n      headers: {\n        'x-api-key': 'your-pdfco-api-key', // NOTE: Set this as env var or credential\n        'Content-Type': 'application/json'\n      },\n      body: {\n        file: `data:application/pdf;base64,${pdfBase64}`,\n        pages: `${pageNum}`, // Extract single page\n        async: false\n      },\n      json: true\n    });\n    \n    if (response.url || response.body) {\n      // Download the PNG image\n      const imageUrl = response.url || response.body;\n      const imageResponse = await http({\n        method: 'GET',\n        url: imageUrl,\n        encoding: 'arraybuffer'\n      });\n      \n      const imageBuffer = Buffer.from(imageResponse);\n      const imageBinary = await this.helpers.prepareBinaryData(imageBuffer, `page-${String(pageNum).padStart(2, '0')}_preview.png`);\n      \n      pageImages.push({\n        json: {\n          ...order,\n          pageNumber: pageNum,\n          pageImageFilename: `page-${String(pageNum).padStart(2, '0')}_preview.png`,\n          pageImageR2Key: `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/page-${String(pageNum).padStart(2, '0')}_preview.png`\n        },\n        binary: {\n          data: imageBinary\n        }\n      });\n    }\n  } catch (error) {\n    console.error(`Failed to extract page ${pageNum}:`, error.message);\n    // Continue with other pages even if one fails\n  }\n}\n\nif (pageImages.length === 0) {\n  throw new Error('Failed to extract any pages from PDF');\n}\n\nreturn pageImages;\n"
+        "jsCode": "/**\n * Generate Page Preview Images from PDF\n * Uses PDFMonkey to generate images from the same HTML\n * PDFMonkey supports image generation with _type: 'png' in meta\n */\nconst order = $input.first().json || {};\nconst pages_html = order.pages_html || '';\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\n\nif (!pages_html) {\n  throw new Error('pages_html is required for generating preview images');\n}\n\n// Extract individual page HTML from pages_html\n// Each page is wrapped in <div class=\"book-page\" id=\"page-{N}\">\nconst pageRegex = /<div class=\"book-page\" id=\"page-(\\d+)\">[\\s\\S]*?<\\/div>/g;\nconst pages = [];\nlet match;\n\nwhile ((match = pageRegex.exec(pages_html)) !== null) {\n  const pageNumber = parseInt(match[1], 10);\n  const pageHtml = match[0];\n  \n  // Wrap in full HTML document for rendering\n  const fullHtml = `<!DOCTYPE html>\\n<html>\\n<head>\\n  <meta charset=\"UTF-8\">\\n  <style>\\n    @page { size: 2550px 2550px; margin: 0; }\\n    * { box-sizing: border-box; margin: 0; padding: 0; }\\n    body { width: 2550px; height: 2550px; overflow: hidden; }\\n  </style>\\n</head>\\n<body>\\n${pageHtml}\\n</body>\\n</html>`;\n  \n  pages.push({\n    pageNumber,\n    html: fullHtml,\n    filename: `page-${String(pageNumber).padStart(2, '0')}_preview.png`\n  });\n}\n\n// Sort by page number\npages.sort((a, b) => a.pageNumber - b.pageNumber);\n\n// Return array of items (one per page) for PDFMonkey image generation\nreturn pages.map(page => ({\n  json: {\n    ...order,\n    pageNumber: page.pageNumber,\n    pageHtml: page.html,\n    pageImageFilename: page.filename,\n    pageImageR2Key: `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/${page.filename}`,\n    // PDFMonkey image template ID (create separate image template in PDFMonkey)\n    pdfMonkeyImageTemplateId: order.pdfMonkeyImageTemplateId || 'your-image-template-id'\n  }\n}));\n"
       },
       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "name": "Extract PDF Pages as Images",
+      "name": "Generate Page Preview Images",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        32,
+        -960,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdfmonkey.io/api/v1/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer 2zpxHdmsse2ECXgVVtVR"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"document\": {\n    \"document_template_id\": \"{{ $json.pdfMonkeyImageTemplateId }}\",\n    \"status\": \"pending\",\n    \"meta\": {\n      \"_filename\": \"{{ $json.pageImageFilename }}\",\n      \"_type\": \"png\",\n      \"_width\": 2550,\n      \"_height\": 2550\n    },\n    \"payload\": {\n      \"pages_html\": \"{{ $json.pageHtml }}\"\n    }\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "Generate Page Image with PDFMonkey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -752,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "// Poll PDFMonkey until image is ready\nconst createResp = $input.first().json;\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc.id || doc.data?.id;\n\nif (!docId) {\n  throw new Error('PDFMonkey create response missing id');\n}\n\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst http = this.helpers.httpRequest;\nconst AUTH_HEADER = { Authorization: 'Bearer 2zpxHdmsse2ECXgVVtVR' };\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nwhile (attempts < 15) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true, headers: AUTH_HEADER });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(2000);\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey image not ready after polling (status=${status})`);\n}\n\n// Preserve order context\nconst order = $input.first().json;\n\nreturn [{\n  json: {\n    ...order,\n    pdfMonkeyImageDocumentId: docId,\n    pageImageDownloadUrl: downloadUrl\n  }\n}];\n"
+      },
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "Poll PDFMonkey Image until ready",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.pageImageDownloadUrl}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "d4e5f6a7-b8c9-0123-def4-234567890123",
+      "name": "Download Page Image from PDFMonkey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -336,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-orders",
+        "fileName": "={{ $json.pageImageR2Key }}",
+        "additionalFields": {
+          "acl": "public-read"
+        },
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "binaryProperty": "data"
+      },
+      "id": "e5f6a7b8-c9d0-1234-ef56-345678901234",
+      "name": "Upload Page Preview Image to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        -352
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Collect All Page Preview Images\n * Aggregates all page preview image URLs after upload\n */\nconst items = $input.all();\nconst order = items[0]?.json || {};\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\nconst backendUrl = order.backendUrl || 'https://admin.littleherolabs.com';\n\n// Collect all page preview images\nconst pageImages = items\n  .filter(item => item.json.pageNumber)\n  .sort((a, b) => a.json.pageNumber - b.json.pageNumber)\n  .map(item => {\n    const pageNumber = item.json.pageNumber;\n    const r2Key = item.json.pageImageR2Key;\n    \n    // Construct backend proxy URL for the image\n    const imageUrl = `${backendUrl}/api/assets/${r2Key}`;\n    \n    return {\n      pageNumber,\n      r2Key,\n      imageUrl,\n      filename: item.json.pageImageFilename\n    };\n  });\n\n// Return single item with all page images\nreturn [{\n  json: {\n    ...order,\n    pagePreviewImages: pageImages,\n    totalPages: pageImages.length\n  }\n}];\n"
+      },
+      "id": "f6a7b8c9-d0e1-2345-f678-456789012345",
+      "name": "Collect Page Preview Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        80,
         -352
       ]
     },
@@ -653,23 +762,7 @@
       "main": [
         [
           {
-            "node": "Extract PDF Pages as Images",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Upload Final Book to Storage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extract PDF Pages as Images": {
-      "main": [
-        [
-          {
-            "node": "Upload Page Preview Image to R2",
             "type": "main",
             "index": 0
           }
