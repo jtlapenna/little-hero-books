@@ -45,15 +45,22 @@ export async function GET(
     
     console.log(`[GET /api/assets] Using bucket: ${bucket} for key: ${key}`);
     
-    // Fetch object from R2
-    const r2Response = await getObject(bucket, key);
-    
-    if (!r2Response.ok) {
-      console.error(`[GET /api/assets] Failed to fetch ${key}: ${r2Response.status} ${r2Response.statusText}`);
+    // Fetch object from R2 (getObject throws on error, so catch it)
+    let r2Response: Response;
+    try {
+      r2Response = await getObject(bucket, key);
+    } catch (error: any) {
+      // getObject throws on non-OK responses (404, 403, etc.)
+      console.error(`[GET /api/assets] getObject threw error for ${key}:`, error.message);
+      
+      // Extract status code from error message if available
+      const statusMatch = error.message?.match(/(\d{3})/);
+      const status = statusMatch ? parseInt(statusMatch[1]) : 404;
+      
       return NextResponse.json(
-        { error: `Failed to fetch image: ${r2Response.statusText}` },
+        { error: `Failed to fetch image: ${error.message || 'Not found'}` },
         { 
-          status: r2Response.status,
+          status,
           headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
@@ -139,15 +146,22 @@ export async function HEAD(
     
     console.log(`[HEAD /api/assets] Using bucket: ${bucket} for key: ${key}`);
     
-    // Fetch object from R2
-    const r2Response = await getObject(bucket, key);
-    
-    if (!r2Response.ok) {
-      console.error(`[HEAD /api/assets] Failed to fetch ${key}: ${r2Response.status} ${r2Response.statusText}`);
+    // Fetch object from R2 (getObject throws on error, so catch it)
+    let r2Response: Response;
+    try {
+      r2Response = await getObject(bucket, key);
+    } catch (error: any) {
+      // getObject throws on non-OK responses (404, 403, etc.)
+      console.error(`[HEAD /api/assets] getObject threw error for ${key}:`, error.message);
+      
+      // Extract status code from error message if available
+      const statusMatch = error.message?.match(/(\d{3})/);
+      const status = statusMatch ? parseInt(statusMatch[1]) : 404;
+      
       return NextResponse.json(
-        { error: `Failed to fetch image: ${r2Response.statusText}` },
+        { error: `Failed to fetch image: ${error.message || 'Not found'}` },
         { 
-          status: r2Response.status,
+          status,
           headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
