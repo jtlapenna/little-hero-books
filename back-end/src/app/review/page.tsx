@@ -8,6 +8,8 @@ import { formatDate } from '@/lib/utils';
 import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
 import { OrderStatus } from '@/constants/statuses';
+import { PhaseBucket } from '@/components/orders/phase-bucket';
+import { OrderPhase } from '@/constants/phases';
 import { ArrowRight, Clock, AlertCircle, Search, Grid3X3, List, ChevronDown } from 'lucide-react';
 
 export default function ReviewPage() {
@@ -17,7 +19,7 @@ export default function ReviewPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'orderDate' | 'firstName' | 'lastName' | 'platform'>('orderDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'list' | 'stages'>('stages');
 
   useEffect(() => {
     // Fetch orders from API
@@ -53,6 +55,34 @@ export default function ReviewPage() {
         setLoading(false);
       });
   }, []);
+
+  // Group orders by review stage
+  const reviewStages = {
+    preBria: orders.filter(order => 
+      order.status === OrderStatus.PENDING_BASE_REVIEW ||
+      order.status === OrderStatus.REVISION_BASE ||
+      order.status === OrderStatus.AI_GENERATION_COMPLETED
+    ),
+    postBria: orders.filter(order => 
+      order.status === OrderStatus.PENDING_BG_REMOVAL_REVIEW ||
+      order.status === OrderStatus.REVISION_BG_REMOVAL
+    ),
+    postPdf: orders.filter(order => 
+      order.status === OrderStatus.PENDING_ASSEMBLY_REVIEW ||
+      order.status === OrderStatus.REVISION_ASSEMBLY
+    ),
+    other: orders.filter(order => 
+      ![
+        OrderStatus.PENDING_BASE_REVIEW,
+        OrderStatus.REVISION_BASE,
+        OrderStatus.AI_GENERATION_COMPLETED,
+        OrderStatus.PENDING_BG_REMOVAL_REVIEW,
+        OrderStatus.REVISION_BG_REMOVAL,
+        OrderStatus.PENDING_ASSEMBLY_REVIEW,
+        OrderStatus.REVISION_ASSEMBLY
+      ].includes(order.status as OrderStatus)
+    )
+  };
 
   // Filter and sort orders
   const filteredAndSortedOrders = orders
@@ -171,12 +201,24 @@ export default function ReviewPage() {
             {/* View Toggle */}
             <div className="flex border border-gray-300 rounded-lg overflow-hidden">
               <button
+                onClick={() => setViewMode('stages')}
+                className={`px-3 py-2 flex items-center text-xs ${
+                  viewMode === 'stages'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                title="Group by Review Stage"
+              >
+                Stages
+              </button>
+              <button
                 onClick={() => setViewMode('cards')}
-                className={`px-3 py-2 flex items-center ${
+                className={`px-3 py-2 flex items-center border-l border-gray-300 ${
                   viewMode === 'cards'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
+                title="Card View"
               >
                 <Grid3X3 className="h-4 w-4" />
               </button>
@@ -187,6 +229,7 @@ export default function ReviewPage() {
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
+                title="List View"
               >
                 <List className="h-4 w-4" />
               </button>
@@ -194,7 +237,173 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        {filteredAndSortedOrders.length === 0 ? (
+        {viewMode === 'stages' ? (
+          <div className="space-y-4">
+            {/* Pre-Bria Review Stage */}
+            {reviewStages.preBria.length > 0 && (
+              <PhaseBucket
+                phase={OrderPhase.REVIEW}
+                orders={reviewStages.preBria}
+                defaultExpanded={true}
+                customLabel="Pre-Bria Review"
+                customDescription="Review generated character and poses before background removal"
+                renderOrder={(order, index) => {
+                  const flagSummary = getOrderFlagSummary(order.orderId);
+                  const needsAttention = flagSummary.total > 0;
+                  return (
+                    <div
+                      key={order.orderId}
+                      onClick={() => handleOrderClick(order.orderId)}
+                      className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4 flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {order.firstName} {order.lastName}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                ({order.orderId})
+                              </span>
+                              {needsAttention && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  {flagSummary.total} flag{flagSummary.total !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
+                              <span>{order.platform}</span>
+                              <span>•</span>
+                              <span>{formatDate(order.orderDate)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <StatusBadge status={order.status} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }}
+              />
+            )}
+
+            {/* Post-Bria Review Stage */}
+            {reviewStages.postBria.length > 0 && (
+              <PhaseBucket
+                phase={OrderPhase.REVIEW}
+                orders={reviewStages.postBria}
+                defaultExpanded={true}
+                customLabel="Post-Bria Review"
+                customDescription="Review background-removed images from Bria.ai"
+                renderOrder={(order, index) => {
+                  const flagSummary = getOrderFlagSummary(order.orderId);
+                  const needsAttention = flagSummary.total > 0;
+                  return (
+                    <div
+                      key={order.orderId}
+                      onClick={() => handleOrderClick(order.orderId)}
+                      className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4 flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {order.firstName} {order.lastName}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                ({order.orderId})
+                              </span>
+                              {needsAttention && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  {flagSummary.total} flag{flagSummary.total !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
+                              <span>{order.platform}</span>
+                              <span>•</span>
+                              <span>{formatDate(order.orderDate)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <StatusBadge status={order.status} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }}
+              />
+            )}
+
+            {/* Post-PDF Review Stage */}
+            {reviewStages.postPdf.length > 0 && (
+              <PhaseBucket
+                phase={OrderPhase.REVIEW}
+                orders={reviewStages.postPdf}
+                defaultExpanded={true}
+                customLabel="Post-PDF Review"
+                customDescription="Review final compiled PDF before production"
+                renderOrder={(order, index) => {
+                  const flagSummary = getOrderFlagSummary(order.orderId);
+                  const needsAttention = flagSummary.total > 0;
+                  return (
+                    <div
+                      key={order.orderId}
+                      onClick={() => handleOrderClick(order.orderId)}
+                      className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4 flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {order.firstName} {order.lastName}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                ({order.orderId})
+                              </span>
+                              {needsAttention && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  {flagSummary.total} flag{flagSummary.total !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
+                              <span>{order.platform}</span>
+                              <span>•</span>
+                              <span>{formatDate(order.orderDate)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <StatusBadge status={order.status} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }}
+              />
+            )}
+
+            {reviewStages.preBria.length === 0 && reviewStages.postBria.length === 0 && reviewStages.postPdf.length === 0 && (
+              <div className="text-center py-12 bg-white rounded-lg">
+                <div className="mx-auto h-12 w-12 text-gray-400">
+                  <AlertCircle className="h-12 w-12" />
+                </div>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  No pending reviews
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  All orders have been reviewed and approved.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : filteredAndSortedOrders.length === 0 ? (
           <div className="text-center py-12">
             <div className="mx-auto h-12 w-12 text-gray-400">
               <AlertCircle className="h-12 w-12" />

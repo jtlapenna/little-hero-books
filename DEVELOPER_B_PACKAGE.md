@@ -2410,9 +2410,11 @@ Workflow 8 (Cost Optimization) - Daily analysis
 This phase focuses on building the customer-facing preview system, finalizing database connections, organizing admin interfaces, and setting up critical infrastructure for production launch.
 
 **Branch**: `developer-b/customer-preview-and-admin-setup`  
-**Status**: 🚀 **IN PROGRESS** (Tasks 1 & 2 Complete)  
+**Status**: 🚀 **IN PROGRESS** (Tasks 1, 2, 3 Complete)  
 **Timeline**: 2-3 weeks  
-**Progress**: Task 1 ✅ Complete | Task 2 ✅ Complete | Task 3 ⏭️ Next
+**Progress**: Task 1 ✅ Complete | Task 2 ✅ Complete | Task 3 ✅ Complete | Task 4 ⏭️ Next (Placeholder)
+
+> **📋 TASK STATUS**: See `docs/DEVELOPER_B_TASK_STATUS.md` for detailed task breakdown and working plan.
 
 ---
 
@@ -2667,7 +2669,8 @@ See `docs/TASK_2_SUMMARY.md` for detailed progress and accomplishments.
 ### **Task 3: Add Phase Organizations / Buckets to Orders and Reviews Pages** 📊
 **Priority**: P1 (High - Improves UX significantly)  
 **Estimated Time**: 2-3 days  
-**Dependencies**: Task 2 (Fixed statuses)
+**Dependencies**: Task 2 (Fixed statuses)  
+**Status**: ✅ **COMPLETED**
 
 #### **Objective**
 Organize orders and reviews into logical phase buckets (e.g., "Generation", "Review", "Production", "Shipping") to improve navigation and workflow management.
@@ -2675,14 +2678,15 @@ Organize orders and reviews into logical phase buckets (e.g., "Generation", "Rev
 #### **Current State Analysis**
 - ✅ Orders page exists (`back-end/src/app/orders/page.tsx`)
 - ✅ Review page exists (`back-end/src/app/review/page.tsx`)
-- ⚠️ Orders are displayed in flat list without phase grouping
-- ⚠️ No visual organization by workflow phase
+- ✅ Orders are now organized into phase buckets with visual grouping
+- ✅ Phase summary widget shows counts for each phase
+- ✅ Review page groups by review stages (Pre-Bria, Post-Bria, Post-PDF)
 
 #### **Implementation Steps**
 
 1. **Define Phase Buckets**
-   - [ ] Create phase definitions: `back-end/src/constants/phases.ts`
-   - [ ] Map statuses to phases:
+   - [x] Create phase definitions: `back-end/src/constants/phases.ts`
+   - [x] Map statuses to phases:
      ```typescript
      export enum OrderPhase {
        GENERATION = 'generation', // AI generation, character creation
@@ -2716,28 +2720,31 @@ Organize orders and reviews into logical phase buckets (e.g., "Generation", "Rev
      ```
 
 2. **Update Orders Page with Phase Buckets**
-   - [ ] Add phase filter/tabs to orders page
-   - [ ] Group orders by phase in UI
-   - [ ] Add phase badges/indicators
-   - [ ] Add phase summary counts (e.g., "5 in Generation", "3 in Review")
-   - [ ] Make phase buckets collapsible/expandable
+   - [x] Add phase filter/tabs to orders page
+   - [x] Group orders by phase in UI
+   - [x] Add phase badges/indicators
+   - [x] Add phase summary counts (e.g., "5 in Generation", "3 in Review")
+   - [x] Make phase buckets collapsible/expandable
+   - [x] Add toggle between Phase View and Table View
 
 3. **Update Review Page with Phase Buckets**
-   - [ ] Group pending reviews by review stage
-   - [ ] Add visual indicators for each review phase
-   - [ ] Add counts for each review bucket
-   - [ ] Improve navigation between review stages
+   - [x] Group pending reviews by review stage
+   - [x] Add visual indicators for each review phase
+   - [x] Add counts for each review bucket
+   - [x] Improve navigation between review stages
+   - [x] Add "Stages" view mode for review-specific organization
 
 4. **Create Phase Components**
-   - [ ] Create `PhaseBucket` component for displaying phase groups
-   - [ ] Create `PhaseSummary` component for phase statistics
-   - [ ] Add phase icons/colors for visual distinction
+   - [x] Create `PhaseBucket` component for displaying phase groups
+   - [x] Create `PhaseSummary` component for phase statistics
+   - [x] Add phase icons/colors for visual distinction
+   - [x] Support custom labels for review stages
 
 5. **Testing & Validation**
-   - [ ] Test phase grouping with various order statuses
-   - [ ] Test phase filtering works correctly
-   - [ ] Test phase navigation and transitions
-   - [ ] Verify phase counts are accurate
+   - [x] Test phase grouping with various order statuses
+   - [x] Test phase filtering works correctly
+   - [x] Test phase navigation and transitions
+   - [x] Verify phase counts are accurate
 
 #### **Files to Modify**
 - `back-end/src/constants/phases.ts` (new)
@@ -2758,54 +2765,84 @@ Organize orders and reviews into logical phase buckets (e.g., "Generation", "Rev
 
 ### **Task 4: Build Customer-Facing Preview / Approve Page** 👤
 **Priority**: P0 (Critical - Core customer feature)  
-**Estimated Time**: 5-7 days  
-**Dependencies**: Task 1 (Supabase connections), Task 2 (Fixed statuses)
+**Estimated Time**: Placeholder: 2-3 days | Full Implementation: 5-7 days (after Developer A completes admin previewer)  
+**Dependencies**: Task 1 ✅, Task 2 ✅  
+**Status**: 📋 **PLANNING PHASE - TEMPORARY PLACEHOLDER APPROACH**
+
+> **📖 COMPLETE PLAN**: See `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md` - This is the single source of truth for the customer preview and approval system, including all decisions, architecture, notification strategy, and implementation details.
 
 #### **Objective**
 Create a customer-facing page where customers can preview their book and approve it before printing. This page should be accessible via a secure link and allow customers to flag issues.
 
+**Approach**: 
+- **Phase 1 (Now)**: Build temporary placeholder with foundation (2-3 days)
+- **After Placeholder**: Skip to Tasks 5, 6, 7 while waiting for Developer A
+- **Phase 3 (Later)**: Full implementation after Developer A completes admin previewer (clone previewer component)
+
 #### **Current State Analysis**
 - ✅ Book assembly workflow creates PDFs
 - ✅ PDFs are stored in R2
+- ✅ Customer approval fields exist in database (from Task 1)
 - ⚠️ No customer-facing preview page exists
 - ⚠️ No customer approval workflow exists
 - ⚠️ No secure link generation for customers
+- ⚠️ No email notification system
 
-#### **Implementation Steps**
+**Key Decisions Made**:
+- ✅ Tokenized secure links: `/approve/[orderId]-[token]` (single-use, 3-day expiration)
+- ✅ **Amazon Message Center only** for MVP (Amazon sends email notifications automatically)
+- ✅ Auto-approval after **3 days** with reminders at 1 day and 2 days
+- ✅ Revision limit: **2 free revisions** with countdown display
+- ✅ **Revision countdown**: Show "Revisions remaining: [X]" on preview page
+- ✅ **Last revision acknowledgment**: Checkbox "This is your last revision - I understand this will go to print directly when I click OK"
+- ✅ Clone Developer A's PDF previewer when ready (Phase 3)
 
-1. **Design Customer Preview Page Structure**
-   - [ ] Create page route: `frontend/src/pages/preview/[orderId]/[token].astro` (or Next.js route)
-   - [ ] Design page layout with:
-     - Book preview (PDF viewer or page-by-page view)
-     - Issue flagging interface
-     - Approval button with disclaimer
-     - Order status display
-   - [ ] Create wireframes/mockups
+#### **Implementation Steps - Phase 1: Temporary Placeholder (NOW)**
 
-2. **Create Secure Preview Link System**
-   - [ ] Generate secure tokens for preview links
-   - [ ] Store tokens in Supabase: `preview_tokens` table
+**Goal**: Build foundation that can be expanded later. This is a **temporary placeholder** - full implementation will happen after Developer A completes admin previewer.
+
+1. **Database Setup**
+   - [ ] Run migration: `database/migration-preview-system.sql`
+   - [ ] Verify all tables created (`preview_tokens`, `customer_feedback`, `notification_logs`)
+   - [ ] Test database connections
+
+2. **Token Generation System**
+   - [ ] Create token generation function: `back-end/src/lib/preview-tokens.ts`
    - [ ] Create API endpoint: `/api/preview/generate-token`
-   - [ ] Token should be:
-     - Single-use or time-limited (e.g., 7 days)
-     - Unique per order
-     - Cryptographically secure
-   
-   **Database Schema**:
-   ```sql
-   CREATE TABLE IF NOT EXISTS preview_tokens (
-     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-     order_id VARCHAR(50) NOT NULL REFERENCES orders(orderId) ON DELETE CASCADE,
-     token VARCHAR(255) UNIQUE NOT NULL,
-     expires_at TIMESTAMP NOT NULL,
-     used_at TIMESTAMP,
-     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-     created_by VARCHAR(100) DEFAULT 'system'
-   );
-   
-   CREATE INDEX idx_preview_tokens_token ON preview_tokens(token);
-   CREATE INDEX idx_preview_tokens_order_id ON preview_tokens(order_id);
-   ```
+   - [ ] Store tokens in Supabase (3-day expiration)
+   - [ ] Test token generation
+
+3. **Basic Preview Route (Placeholder)**
+   - [ ] Create route: `/approve/[token]`
+   - [ ] Token validation logic
+   - [ ] Basic UI layout (branded, matches site)
+   - [ ] **Placeholder for PDF preview area** (will be replaced with Developer A's previewer)
+   - [ ] Approve/Reject buttons (save to Supabase)
+   - [ ] **Show revision countdown**: "Revisions remaining: [X]"
+   - [ ] **Last revision checkbox**: "This is your last revision - I understand this will go to print directly when I click OK"
+
+4. **Approval Workflow**
+   - [ ] Create API endpoint: `/api/preview/[orderId]/approve`
+   - [ ] Update order status in Supabase
+   - [ ] Mark token as used (single-use)
+   - [ ] Basic approval logic with disclaimer checkbox
+
+5. **Rejection/Feedback Workflow**
+   - [ ] Create API endpoint: `/api/preview/[orderId]/reject`
+   - [ ] Store feedback in `customer_feedback` table
+   - [ ] Update order status to `customer_revision_requested`
+   - [ ] Increment revision count
+   - [ ] Basic feedback form
+
+**After Phase 1 Completion**: Move to Tasks 5, 6, 7 while waiting for Developer A's previewer.
+
+**Phase 3 (Future)**: Full implementation after Developer A completes admin previewer:
+   - Clone Developer A's previewer component
+   - Replace placeholder with full PDF viewer
+   - Add page-by-page navigation, zoom controls
+   - Add issue flagging UI
+
+**Note**: See `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md` for complete database schema and implementation details.
 
 3. **Build Preview Page UI**
    - [ ] Create PDF viewer component (use PDF.js or similar)
@@ -2853,12 +2890,7 @@ Create a customer-facing page where customers can preview their book and approve
      - "Your book will be printed and shipped within [X] business days"
      - Require explicit confirmation
 
-6. **Email Notification System**
-   - [ ] Create email template for preview link
-   - [ ] Send email when preview is ready
-   - [ ] Include secure preview link
-   - [ ] Use SendGrid or similar service
-   - [ ] Create API endpoint: `/api/preview/send-notification`
+**Note**: Email notifications deferred. Amazon Message Center will be used (Amazon automatically sends email notifications to customers). SendGrid will be added later when we capture orders on our website.
 
 7. **Security & Access Control**
    - [ ] Verify preview token before allowing access
@@ -2890,14 +2922,20 @@ Create a customer-facing page where customers can preview their book and approve
 - `back-end/src/app/api/webhooks/workflow-3-complete/route.ts` (send preview notification)
 - `back-end/src/app/api/orders/[orderId]/route.ts` (include preview token)
 
-#### **Acceptance Criteria**
-- ✅ Customers receive secure preview link via email
-- ✅ Preview page loads and displays book correctly
-- ✅ Customers can flag issues on specific pages
-- ✅ Customers can approve book with disclaimer
-- ✅ Approval triggers next workflow automatically
-- ✅ All preview access is logged and secure
-- ✅ Email notifications are sent correctly
+#### **Acceptance Criteria - Phase 1 (Placeholder)**
+- ✅ Preview route accessible via token
+- ✅ Token validation working (single-use, 3-day expiration)
+- ✅ Basic UI template matches brand
+- ✅ Approve/Reject saves to database
+- ✅ Revision countdown displayed
+- ✅ Last revision acknowledgment checkbox working
+- ✅ Database schema ready for expansion
+
+#### **Acceptance Criteria - Phase 3 (Full Implementation - After Developer A)**
+- ✅ PDF viewer displays correctly (cloned from Developer A)
+- ✅ Issue flagging functional
+- ✅ Disclaimer and terms implemented
+- ✅ Complete customer experience
 
 ---
 

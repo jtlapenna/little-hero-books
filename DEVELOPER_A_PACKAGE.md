@@ -825,6 +825,8 @@ Integrate your existing workflows (2A, 2B, 3) with the Supabase database and imp
 4. **Implement approve/reject actions** - Update database status
 5. **Prepare for Cloudflare Pages hosting** - Developer B will handle deployment
 
+**📖 Note**: Developer B will clone your PDF previewer for the customer-facing preview page. See `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md` - This is the complete implementation plan including notification strategy, coordination details, and all decisions.
+
 ### **🔑 Key Information**
 
 **Database Credentials**:
