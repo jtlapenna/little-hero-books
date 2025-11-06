@@ -57,7 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_notification_logs_status ON notification_logs(sta
 CREATE INDEX IF NOT EXISTS idx_notification_logs_type ON notification_logs(notification_type);
 
 -- Add comment for documentation
-COMMENT ON TABLE preview_tokens IS 'Secure tokens for customer preview links. Tokens expire after 14 days and are single-use.';
+COMMENT ON TABLE preview_tokens IS 'Secure tokens for customer preview links. Tokens expire after 3 days and are single-use.';
 COMMENT ON TABLE customer_feedback IS 'Customer feedback and issue flags for book revisions. Tracks revision requests and resolution status.';
 COMMENT ON TABLE notification_logs IS 'Tracks all notification attempts (email, Amazon Message Center, SMS) for preview links. Used for reliability and debugging.';
 COMMENT ON COLUMN orders.revision_count IS 'Number of revision requests made by customer. Used to enforce revision limits.';

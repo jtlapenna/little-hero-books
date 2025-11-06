@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
+  output: 'static', // In Astro 5, 'static' includes hybrid capabilities (SSR when prerender = false)
   vite: {
     plugins: [tailwindcss()]
   }

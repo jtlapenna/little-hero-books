@@ -2767,7 +2767,7 @@ Organize orders and reviews into logical phase buckets (e.g., "Generation", "Rev
 **Priority**: P0 (Critical - Core customer feature)  
 **Estimated Time**: Placeholder: 2-3 days | Full Implementation: 5-7 days (after Developer A completes admin previewer)  
 **Dependencies**: Task 1 ✅, Task 2 ✅  
-**Status**: 📋 **PLANNING PHASE - TEMPORARY PLACEHOLDER APPROACH**
+**Status**: ✅ **PLACEHOLDER COMPLETE - MOVED TO CUSTOMER-FACING SITE (Admin copy removed)**
 
 > **📖 COMPLETE PLAN**: See `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md` - This is the single source of truth for the customer preview and approval system, including all decisions, architecture, notification strategy, and implementation details.
 
@@ -2783,10 +2783,10 @@ Create a customer-facing page where customers can preview their book and approve
 - ✅ Book assembly workflow creates PDFs
 - ✅ PDFs are stored in R2
 - ✅ Customer approval fields exist in database (from Task 1)
-- ⚠️ No customer-facing preview page exists
-- ⚠️ No customer approval workflow exists
-- ⚠️ No secure link generation for customers
-- ⚠️ No email notification system
+- ✅ Customer-facing preview page exists at `frontend/src/pages/approve/[token].astro`
+- ✅ Admin preview page removed (`back-end/src/app/approve/[token]/*` deleted)
+- ✅ Secure token generation/validation live (`preview_tokens`, single-use, 3-day expiry)
+- ⏳ Email notifications deferred (Amazon Message Center only for MVP)
 
 **Key Decisions Made**:
 - ✅ Tokenized secure links: `/approve/[orderId]-[token]` (single-use, 3-day expiration)
@@ -2797,42 +2797,42 @@ Create a customer-facing page where customers can preview their book and approve
 - ✅ **Last revision acknowledgment**: Checkbox "This is your last revision - I understand this will go to print directly when I click OK"
 - ✅ Clone Developer A's PDF previewer when ready (Phase 3)
 
-#### **Implementation Steps - Phase 1: Temporary Placeholder (NOW)**
+#### **Implementation Steps - Phase 1: Temporary Placeholder (NOW)** ✅ **COMPLETE**
 
 **Goal**: Build foundation that can be expanded later. This is a **temporary placeholder** - full implementation will happen after Developer A completes admin previewer.
 
-1. **Database Setup**
-   - [ ] Run migration: `database/migration-preview-system.sql`
-   - [ ] Verify all tables created (`preview_tokens`, `customer_feedback`, `notification_logs`)
-   - [ ] Test database connections
+1. **Database Setup** ✅
+   - ✅ Run migration: `database/migration-preview-system.sql`
+   - ✅ Verify all tables created (`preview_tokens`, `customer_feedback`, `notification_logs`)
+   - ✅ Test database connections
 
-2. **Token Generation System**
-   - [ ] Create token generation function: `back-end/src/lib/preview-tokens.ts`
-   - [ ] Create API endpoint: `/api/preview/generate-token`
-   - [ ] Store tokens in Supabase (3-day expiration)
-   - [ ] Test token generation
+2. **Token Generation System** ✅
+   - ✅ Create token generation function: `back-end/src/lib/preview-tokens.ts`
+   - ✅ Create API endpoint: `/api/preview/generate-token`
+   - ✅ Store tokens in Supabase (3-day expiration)
+   - ✅ Test token generation
 
-3. **Basic Preview Route (Placeholder)**
-   - [ ] Create route: `/approve/[token]`
-   - [ ] Token validation logic
-   - [ ] Basic UI layout (branded, matches site)
-   - [ ] **Placeholder for PDF preview area** (will be replaced with Developer A's previewer)
-   - [ ] Approve/Reject buttons (save to Supabase)
-   - [ ] **Show revision countdown**: "Revisions remaining: [X]"
-   - [ ] **Last revision checkbox**: "This is your last revision - I understand this will go to print directly when I click OK"
+3. **Basic Preview Route (Placeholder)** ✅ **MOVED TO CUSTOMER-FACING SITE**
+   - ✅ Create route: `frontend/src/pages/approve/[token].astro` (converted from React to Astro)
+   - ✅ Token validation logic
+   - ✅ Basic UI layout (branded, matches site)
+   - ✅ **Placeholder for PDF preview area** (will be replaced with Developer A's previewer)
+   - ✅ Approve/Reject buttons (save to Supabase)
+   - ✅ **Show revision countdown**: "Revisions remaining: [X]"
+   - ✅ **Last revision checkbox**: "This is your last revision - I understand this will go to print directly when I click OK"
 
-4. **Approval Workflow**
-   - [ ] Create API endpoint: `/api/preview/[orderId]/approve`
-   - [ ] Update order status in Supabase
-   - [ ] Mark token as used (single-use)
-   - [ ] Basic approval logic with disclaimer checkbox
+4. **Approval Workflow** ✅
+   - ✅ Create API endpoint: `/api/preview/[orderId]/approve`
+   - ✅ Update order status in Supabase
+   - ✅ Mark token as used (single-use)
+   - ✅ Basic approval logic with disclaimer checkbox
 
-5. **Rejection/Feedback Workflow**
-   - [ ] Create API endpoint: `/api/preview/[orderId]/reject`
-   - [ ] Store feedback in `customer_feedback` table
-   - [ ] Update order status to `customer_revision_requested`
-   - [ ] Increment revision count
-   - [ ] Basic feedback form
+5. **Rejection/Feedback Workflow** ✅
+   - ✅ Create API endpoint: `/api/preview/[orderId]/reject`
+   - ✅ Store feedback in `customer_feedback` table
+   - ✅ Update order status to `customer_revision_requested`
+   - ✅ Increment revision count
+   - ✅ Basic feedback form
 
 **After Phase 1 Completion**: Move to Tasks 5, 6, 7 while waiting for Developer A's previewer.
 
@@ -2907,29 +2907,28 @@ Create a customer-facing page where customers can preview their book and approve
    - [ ] Test email notifications
    - [ ] Test security (token validation, expiration)
 
-#### **Files to Create**
-- `frontend/src/pages/preview/[orderId]/[token].astro` (or Next.js equivalent)
-- `frontend/src/components/Preview/PDFViewer.astro` (or component)
-- `frontend/src/components/Preview/IssueFlagModal.astro`
-- `frontend/src/components/Preview/ApprovalModal.astro`
-- `back-end/src/app/api/preview/generate-token/route.ts` (new)
-- `back-end/src/app/api/preview/[orderId]/approve/route.ts` (new)
-- `back-end/src/app/api/preview/send-notification/route.ts` (new)
-- `database/migration-add-preview-tokens.sql` (new)
-- `database/migration-add-customer-feedback.sql` (new)
+#### **Files Created / Updated (Phase 1)**
+- `frontend/src/pages/approve/[token].astro` (customer-facing route)
+- `back-end/src/app/api/preview/generate-token/route.ts` (returns full customer URL via `CUSTOMER_SITE_URL`)
+- `back-end/src/app/api/preview/validate-token/route.ts` (with CORS)
+- `back-end/src/app/api/preview/[orderId]/approve/route.ts` (with CORS)
+- `back-end/src/app/api/preview/[orderId]/reject/route.ts` (with CORS)
+- `database/migration-preview-system.sql` (tokens, feedback, logs)
 
 #### **Files to Modify**
 - `back-end/src/app/api/webhooks/workflow-3-complete/route.ts` (send preview notification)
 - `back-end/src/app/api/orders/[orderId]/route.ts` (include preview token)
 
-#### **Acceptance Criteria - Phase 1 (Placeholder)**
-- ✅ Preview route accessible via token
+#### **Acceptance Criteria - Phase 1 (Placeholder)** ✅ **ALL COMPLETE**
+- ✅ Preview route accessible via token at `localhost:4321/approve/[token]` (customer-facing site)
 - ✅ Token validation working (single-use, 3-day expiration)
-- ✅ Basic UI template matches brand
+- ✅ Basic UI template matches brand (Astro, customer-facing styling)
 - ✅ Approve/Reject saves to database
 - ✅ Revision countdown displayed
 - ✅ Last revision acknowledgment checkbox working
+- ✅ API endpoints call back-end at `localhost:3000/api/preview/*`
 - ✅ Database schema ready for expansion
+- ✅ Admin preview page removed (no duplicate routes)
 
 #### **Acceptance Criteria - Phase 3 (Full Implementation - After Developer A)**
 - ✅ PDF viewer displays correctly (cloned from Developer A)

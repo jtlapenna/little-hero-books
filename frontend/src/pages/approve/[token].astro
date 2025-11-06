@@ -1,0 +1,883 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+// This is a server-rendered dynamic route (not pre-rendered)
+// We need to validate tokens at runtime, so we can't use static generation
+export const prerender = false;
+
+// Get token from URL params
+const { token } = Astro.params;
+
+if (!token) {
+  return Astro.redirect('/');
+}
+---
+
+<Layout title="Book Preview - Little Hero Labs" description="Preview your personalized children's book">
+  <!-- Hide header and footer navigation for preview page (secure link, no need for nav) -->
+  <style is:global>
+    #main-header,
+    footer {
+      display: none;
+    }
+  </style>
+  <div id="preview-app">
+    <!-- Loading State -->
+    <div id="loading-state" class="preview-container">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <p class="loading-text">Loading your book preview...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="preview-container" style="display: none;">
+      <div class="error-content">
+        <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <h1 class="error-title">Unable to Load Preview</h1>
+        <p id="error-message" class="error-text"></p>
+        <a href="/" class="btn btn-primary">Return Home</a>
+      </div>
+    </div>
+
+    <!-- Main Preview Content -->
+    <div id="preview-content" class="preview-container" style="display: none;">
+      <!-- Header -->
+      <header class="preview-header">
+        <div class="container">
+          <div class="header-content">
+            <div class="header-brand">
+              <svg class="header-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+              <h1 class="header-title">Little Hero Labs</h1>
+            </div>
+            <p class="header-subtitle">Book Preview</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="container preview-main">
+        <!-- Page Header -->
+        <div class="preview-card">
+          <div class="preview-card-header">
+            <div>
+              <h2 class="preview-title">Your Book Preview</h2>
+              <p class="preview-subtitle">
+                Review your personalized book for <span id="child-name" class="font-semibold">your child</span>
+              </p>
+            </div>
+            <svg class="preview-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Revision Countdown -->
+        <div id="revision-warning" class="preview-card revision-warning" style="display: none;">
+          <div class="revision-content">
+            <svg class="revision-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div class="revision-text">
+              <p class="revision-title">
+                Revisions Remaining: <span id="revisions-remaining" class="revision-count">2</span>
+              </p>
+              <p id="revision-message" class="revision-subtitle" style="display: none;">
+                This is your last revision. After this, your book will go directly to print.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview Area (Placeholder) -->
+        <div class="preview-card preview-area">
+          <div class="preview-placeholder">
+            <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <h3 class="placeholder-title">Preview Will Appear Here</h3>
+            <p class="placeholder-text">
+              The full PDF preview will be available once Developer A completes the admin previewer.
+            </p>
+            <div class="placeholder-badge">
+              <svg class="badge-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>This is a temporary placeholder</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Order Details -->
+        <div class="preview-card">
+          <h3 class="card-title">Order Details</h3>
+          <div class="order-details-grid">
+            <div>
+              <p class="detail-label">Order ID</p>
+              <p id="order-id" class="detail-value"></p>
+            </div>
+            <div id="age-detail" style="display: none;">
+              <p class="detail-label">Age</p>
+              <p id="age-value" class="detail-value"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="preview-card">
+          <div class="action-buttons">
+            <button id="reject-btn" class="btn btn-secondary" disabled>
+              Request Revision
+            </button>
+            <button id="approve-btn" class="btn btn-primary" disabled>
+              Approve Book
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Approval Modal -->
+    <div id="approval-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <h3 class="modal-title">Approve Your Book</h3>
+        <div class="modal-body">
+          <div class="warning-box">
+            <p class="warning-title">⚠️ Important Information:</p>
+            <ul class="warning-list">
+              <li>Changes after approval will incur additional charges</li>
+              <li>Your book will be printed and shipped within 5-7 business days after approval</li>
+              <li>If you do not respond within 3 days, your book will be automatically approved and sent to print</li>
+              <li>By approving, you confirm the book is correct and ready for printing</li>
+            </ul>
+          </div>
+          <div id="last-revision-checkbox-container" style="display: none;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="acknowledge-last-revision" />
+              <span>This is your last revision - I understand this will go to print directly when I click OK</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="approval-cancel" class="btn btn-outline">Cancel</button>
+          <button id="approval-confirm" class="btn btn-primary" disabled>Approve Book</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div id="reject-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <h3 class="modal-title">Request Revision</h3>
+        <p class="modal-subtitle">
+          Please let us know what needs to be changed. We'll process your revision and send you a new preview link.
+        </p>
+        <form id="reject-form" class="reject-form">
+          <div class="form-group">
+            <label class="form-label">Page Number</label>
+            <input type="number" id="page-number" min="1" max="16" value="1" class="form-input" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Issue Type</label>
+            <select id="issue-type" class="form-input" required>
+              <option value="image">Image/Art Issue</option>
+              <option value="text">Text/Content Issue</option>
+              <option value="character">Character Issue</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea id="description" rows="4" class="form-input" placeholder="Please describe what needs to be changed..." required></textarea>
+          </div>
+          <div id="last-revision-checkbox-reject" class="checkbox-container" style="display: none;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="acknowledge-last-revision-reject" required />
+              <span>This is your last revision - I understand this will go to print directly when I click OK</span>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="reject-cancel" class="btn btn-outline">Cancel</button>
+            <button type="submit" id="reject-submit" class="btn btn-danger">Submit Revision Request</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script define:vars={{ token }} is:inline>
+  // API base URL - points to back-end API
+  // In production, this should be: https://admin.littleherolabs.com
+  // For now, using localhost for development
+  const API_BASE = 'http://localhost:3000';
+  let orderData = null;
+  let revisionsRemaining = 2;
+  let isLastRevision = false;
+
+  // DOM elements
+  const loadingState = document.getElementById('loading-state');
+  const errorState = document.getElementById('error-state');
+  const errorMessage = document.getElementById('error-message');
+  const previewContent = document.getElementById('preview-content');
+  const childNameEl = document.getElementById('child-name');
+  const orderIdEl = document.getElementById('order-id');
+  const ageDetail = document.getElementById('age-detail');
+  const ageValue = document.getElementById('age-value');
+  const revisionWarning = document.getElementById('revision-warning');
+  const revisionsRemainingEl = document.getElementById('revisions-remaining');
+  const revisionMessage = document.getElementById('revision-message');
+  const approveBtn = document.getElementById('approve-btn');
+  const rejectBtn = document.getElementById('reject-btn');
+  const approvalModal = document.getElementById('approval-modal');
+  const rejectModal = document.getElementById('reject-modal');
+  const acknowledgeCheckbox = document.getElementById('acknowledge-last-revision');
+  const acknowledgeCheckboxReject = document.getElementById('acknowledge-last-revision-reject');
+  const lastRevisionContainer = document.getElementById('last-revision-checkbox-container');
+  const lastRevisionContainerReject = document.getElementById('last-revision-checkbox-reject');
+
+  // Load and validate token
+  async function loadPreview() {
+    try {
+      const response = await fetch(`${API_BASE}/api/preview/validate-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.valid) {
+        showError(data.error || 'Invalid or expired token');
+        return;
+      }
+
+      if (!data.order) {
+        showError('Order not found');
+        return;
+      }
+
+      orderData = data.order;
+      displayOrder(orderData);
+      showPreview();
+
+    } catch (error) {
+      console.error('Error loading preview:', error);
+      showError(error.message || 'Failed to load preview');
+    }
+  }
+
+  function displayOrder(order) {
+    // Display child name
+    const childName = order.characterSpecs?.childName || 'your child';
+    childNameEl.textContent = childName;
+
+    // Display order ID
+    orderIdEl.textContent = order.amazonOrderId || order.orderId;
+
+    // Display age if available
+    if (order.characterSpecs?.age) {
+      ageDetail.style.display = 'block';
+      ageValue.textContent = `${order.characterSpecs.age} years old`;
+    }
+
+    // Calculate revisions
+    const revisionCount = order.revisionCount || 0;
+    revisionsRemaining = Math.max(0, 2 - revisionCount);
+    isLastRevision = revisionsRemaining === 0;
+
+    // Update revision display
+    if (revisionsRemaining >= 0) {
+      revisionWarning.style.display = 'block';
+      revisionsRemainingEl.textContent = revisionsRemaining;
+      
+      if (isLastRevision) {
+        revisionWarning.classList.add('revision-warning-last');
+        revisionMessage.style.display = 'block';
+        lastRevisionContainer.style.display = 'block';
+        lastRevisionContainerReject.style.display = 'block';
+      }
+    }
+
+    // Enable buttons
+    approveBtn.disabled = false;
+    rejectBtn.disabled = revisionsRemaining <= 0;
+  }
+
+  function showError(message) {
+    loadingState.style.display = 'none';
+    errorState.style.display = 'flex';
+    errorMessage.textContent = message;
+  }
+
+  function showPreview() {
+    loadingState.style.display = 'none';
+    previewContent.style.display = 'block';
+  }
+
+  // Approval handler
+  async function handleApprove() {
+    if (!orderData || !token) return;
+
+    const requiresAck = isLastRevision && !acknowledgeCheckbox.checked;
+    if (requiresAck) {
+      alert('Please acknowledge that this is your last revision');
+      return;
+    }
+
+    approveBtn.disabled = true;
+    approveBtn.textContent = 'Approving...';
+
+    try {
+      const response = await fetch(`${API_BASE}/api/preview/${orderData.orderId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to approve');
+      }
+
+      // Redirect to order status page (or home for now)
+      window.location.href = `/order-status/${orderData.orderId}?token=${token}`;
+    } catch (error) {
+      console.error('Error approving:', error);
+      alert(error.message || 'Failed to approve book. Please try again.');
+      approveBtn.disabled = false;
+      approveBtn.textContent = 'Approve Book';
+    }
+  }
+
+  // Rejection handler
+  async function handleReject(e) {
+    e.preventDefault();
+
+    if (!orderData || !token) return;
+
+    if (revisionsRemaining <= 0) {
+      alert('You have reached the maximum number of revisions. Please contact customer service.');
+      return;
+    }
+
+    const requiresAck = isLastRevision && !acknowledgeCheckboxReject.checked;
+    if (requiresAck) {
+      alert('Please acknowledge that this is your last revision');
+      return;
+    }
+
+    const feedback = {
+      pageNumber: parseInt(document.getElementById('page-number').value) || 1,
+      issueType: document.getElementById('issue-type').value,
+      description: document.getElementById('description').value
+    };
+
+    const submitBtn = document.getElementById('reject-submit');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    try {
+      const response = await fetch(`${API_BASE}/api/preview/${orderData.orderId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, feedback })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to submit feedback');
+      }
+
+      alert('Thank you for your feedback! We will process your revision request and send you a new preview link.');
+      rejectModal.style.display = 'none';
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error rejecting:', error);
+      alert(error.message || 'Failed to submit feedback. Please try again.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Revision Request';
+    }
+  }
+
+  // Event listeners
+  approveBtn.addEventListener('click', () => {
+    approvalModal.style.display = 'flex';
+  });
+
+  rejectBtn.addEventListener('click', () => {
+    rejectModal.style.display = 'flex';
+  });
+
+  document.getElementById('approval-cancel').addEventListener('click', () => {
+    approvalModal.style.display = 'none';
+  });
+
+  document.getElementById('reject-cancel').addEventListener('click', () => {
+    rejectModal.style.display = 'none';
+  });
+
+  document.getElementById('approval-confirm').addEventListener('click', handleApprove);
+
+  document.getElementById('reject-form').addEventListener('submit', handleReject);
+
+  // Update approve button state based on checkbox
+  acknowledgeCheckbox.addEventListener('change', () => {
+    const confirmBtn = document.getElementById('approval-confirm');
+    if (isLastRevision) {
+      confirmBtn.disabled = !acknowledgeCheckbox.checked;
+    }
+  });
+
+  // Load preview on page load
+  loadPreview();
+</script>
+
+<style>
+  .preview-container {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
+  }
+
+  .loading-content,
+  .error-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    text-align: center;
+    padding: var(--spacing-xl);
+  }
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e5e7eb;
+    border-top-color: var(--color-hero-coral);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: var(--spacing-md);
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .loading-text {
+    color: var(--color-soft-charcoal);
+    font-size: 1.125rem;
+  }
+
+  .error-icon {
+    color: #ef4444;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .error-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--color-navy-midnight);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .error-text {
+    color: var(--color-soft-charcoal);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .preview-header {
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: var(--spacing-md) 0;
+  }
+
+  .header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .header-icon {
+    color: var(--color-hero-coral);
+  }
+
+  .header-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-navy-midnight);
+    margin: 0;
+  }
+
+  .header-subtitle {
+    font-size: 0.875rem;
+    color: var(--color-soft-charcoal);
+    margin: 0;
+  }
+
+  .preview-main {
+    padding: var(--spacing-lg) 0;
+  }
+
+  .preview-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .preview-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .preview-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--color-navy-midnight);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .preview-subtitle {
+    color: var(--color-soft-charcoal);
+    margin: 0;
+  }
+
+  .preview-icon {
+    color: var(--color-hero-coral);
+  }
+
+  .revision-warning {
+    border: 2px solid #fbbf24;
+  }
+
+  .revision-warning-last {
+    border-color: #f97316;
+  }
+
+  .revision-content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+  }
+
+  .revision-icon {
+    color: var(--color-hero-coral);
+    flex-shrink: 0;
+  }
+
+  .revision-title {
+    font-weight: 600;
+    color: var(--color-navy-midnight);
+    margin: 0 0 var(--spacing-xs) 0;
+  }
+
+  .revision-count {
+    color: var(--color-hero-coral);
+  }
+
+  .revision-subtitle {
+    font-size: 0.875rem;
+    color: var(--color-soft-charcoal);
+    margin: 0;
+  }
+
+  .preview-area {
+    min-height: 600px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .preview-placeholder {
+    text-align: center;
+  }
+
+  .placeholder-icon {
+    color: #d1d5db;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .placeholder-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-soft-charcoal);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .placeholder-text {
+    color: var(--color-soft-charcoal);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .placeholder-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    background: #f3f4f6;
+    border-radius: 8px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.875rem;
+    color: var(--color-soft-charcoal);
+  }
+
+  .badge-icon {
+    color: var(--color-soft-charcoal);
+  }
+
+  .card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-navy-midnight);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .order-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+  }
+
+  .detail-label {
+    font-size: 0.875rem;
+    color: var(--color-soft-charcoal);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .detail-value {
+    font-weight: 500;
+    color: var(--color-navy-midnight);
+    margin: 0;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: #10b981;
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #059669;
+  }
+
+  .btn-secondary {
+    background: #ef4444;
+    color: white;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: #dc2626;
+  }
+
+  .btn-secondary:disabled {
+    background: #d1d5db;
+  }
+
+  .btn-outline {
+    background: white;
+    color: var(--color-navy-midnight);
+    border: 1px solid #d1d5db;
+  }
+
+  .btn-outline:hover {
+    background: #f9fafb;
+  }
+
+  .btn-danger {
+    background: #ef4444;
+    color: white;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: #dc2626;
+  }
+
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: var(--spacing-md);
+  }
+
+  .modal-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    max-width: 28rem;
+    width: 100%;
+    padding: var(--spacing-lg);
+  }
+
+  .modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-navy-midnight);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .modal-subtitle {
+    font-size: 0.875rem;
+    color: var(--color-soft-charcoal);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .modal-body {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .warning-box {
+    background: #fef3c7;
+    border: 1px solid #fbbf24;
+    border-radius: 8px;
+    padding: var(--spacing-md);
+  }
+
+  .warning-title {
+    font-weight: 600;
+    color: #92400e;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .warning-list {
+    font-size: 0.875rem;
+    color: #78350f;
+    list-style: disc;
+    list-style-position: inside;
+    margin: 0;
+    padding: 0;
+  }
+
+  .warning-list li {
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: start;
+    gap: var(--spacing-sm);
+    font-size: 0.875rem;
+    color: var(--color-soft-charcoal);
+    cursor: pointer;
+  }
+
+  .checkbox-label input[type="checkbox"] {
+    margin-top: 0.125rem;
+    cursor: pointer;
+  }
+
+  .checkbox-container {
+    background: #fff7ed;
+    border: 1px solid #fb923c;
+    border-radius: 8px;
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-md);
+  }
+
+  .checkbox-container .checkbox-label {
+    color: #9a3412;
+  }
+
+  .modal-actions,
+  .form-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+  }
+
+  .modal-actions .btn,
+  .form-actions .btn {
+    flex: 1;
+  }
+
+  .reject-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-navy-midnight);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .form-input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: var(--color-hero-coral);
+    box-shadow: 0 0 0 3px rgba(249, 120, 107, 0.1);
+  }
+
+  @media (max-width: 768px) {
+    .order-details-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .action-buttons {
+      flex-direction: column;
+    }
+
+    .preview-card-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--spacing-md);
+    }
+  }
+</style>
+

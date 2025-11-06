@@ -1,7 +1,7 @@
 # Customer Preview & Approval System - Complete Implementation Plan
 
 **Status**: 📋 **PLANNING PHASE**  
-**Last Updated**: 2025-11-05  
+**Last Updated**: 2025-11-06  
 **Owner**: Developer B  
 **Dependencies**: Task 1 ✅, Task 2 ✅, Task 3 ✅
 
@@ -64,13 +64,15 @@ This document outlines the complete plan for building the customer-facing previe
 
 ### **Decision 3: Where It Lives**
 **Status**: ✅ **DECIDED**  
-**Decision**: Public route on main site, not in navigation  
+**Decision**: Public route on customer-facing site (littleherolabs.com), not in navigation  
 **Rationale**:
-- Must be accessible via link
-- Not customer-specific enough for main nav
-- Not fully hidden (needs to be reachable)
+- Must be accessible via link from Amazon Message Center
+- Customer-facing site has proper branding and styling
+- Not in main navigation (only accessible via secure token link)
+- **NOT on admin site** (admin.littleherolabs.com) - admin site is for internal use only
 
-**URL Pattern**: `littleherolabs.com/approve/[token]`
+**URL Pattern**: `littleherolabs.com/approve/[token]`  
+**Current Implementation**: Implemented on customer-facing site at `frontend/src/pages/approve/[token].astro` (Astro). Admin copy removed.
 
 ### **Decision 4: PDF Viewer**
 **Status**: ✅ **DECIDED**  
@@ -145,12 +147,12 @@ This document outlines the complete plan for building the customer-facing previe
 
 ### **Decision 8: Auto-Approval Timeline**
 **Status**: ✅ **DECIDED**  
-**Decision**: 14 days before auto-approval
+**Decision**: 3 days before auto-approval
 
 **Reminder Schedule**:
-- 7 days: Send reminder (both channels)
-- 3 days: Send final reminder (both channels)
-- 14 days: Auto-approve if no response
+- 1 day: Send reminder (Amazon Message Center)
+- 2 days: Send final reminder (Amazon Message Center)
+- 3 days: Auto-approve if no response
 
 **Rationale**: Industry standard timeline that balances customer needs with production timeline
 
@@ -162,7 +164,7 @@ This document outlines the complete plan for building the customer-facing previe
 - "⚠️ **Important Information**:"
 - "• Changes after approval will incur additional charges"
 - "• Your book will be printed and shipped within 5-7 business days after approval"
-- "• If you do not respond within 14 days, your book will be automatically approved and sent to print"
+- "• If you do not respond within 3 days, your book will be automatically approved and sent to print"
 - "• By approving, you confirm the book is correct and ready for printing"
 
 **Checkbox**: Customer must check "I understand and agree to the terms above" before approval button is enabled
@@ -321,7 +323,7 @@ Customer Reviews Book
   ↓
 [If Approved] → Update Status → Trigger Print Workflow
   ↓
-[If No Response] → Auto-Approve After 14 Days
+[If No Response] → Auto-Approve After 3 Days
 ```
 
 ### **Status Flow**
@@ -634,7 +636,7 @@ export async function validatePreviewToken(token: string): Promise<{ valid: bool
 async function sendAmazonMessage(orderId: string, previewLink: string) {
   const message = {
     subject: 'Your personalized book preview is ready',
-    body: `Hi! Your personalized book is ready for preview. Please review at: ${previewLink}\n\nYou have 14 days to review. If we don't hear from you, we'll automatically approve and print your book.`
+    body: `Hi! Your personalized book is ready for preview. Please review at: ${previewLink}\n\nYou have 3 days to review. If we don't hear from you, we'll automatically approve and print your book.`
   };
   
   // Use Amazon SP-API messaging endpoint

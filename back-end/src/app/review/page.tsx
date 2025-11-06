@@ -248,7 +248,8 @@ export default function ReviewPage() {
                 customLabel="Pre-Bria Review"
                 customDescription="Review generated character and poses before background removal"
                 renderOrder={(order, index) => {
-                  const flagSummary = getOrderFlagSummary(order.orderId);
+                  // getOrderFlagSummary expects order object, not orderId string
+                  const flagSummary = getOrderFlagSummary(order);
                   const needsAttention = flagSummary.total > 0;
                   return (
                     <div
@@ -298,7 +299,8 @@ export default function ReviewPage() {
                 customLabel="Post-Bria Review"
                 customDescription="Review background-removed images from Bria.ai"
                 renderOrder={(order, index) => {
-                  const flagSummary = getOrderFlagSummary(order.orderId);
+                  // getOrderFlagSummary expects order object, not orderId string
+                  const flagSummary = getOrderFlagSummary(order);
                   const needsAttention = flagSummary.total > 0;
                   return (
                     <div
@@ -348,7 +350,8 @@ export default function ReviewPage() {
                 customLabel="Post-PDF Review"
                 customDescription="Review final compiled PDF before production"
                 renderOrder={(order, index) => {
-                  const flagSummary = getOrderFlagSummary(order.orderId);
+                  // getOrderFlagSummary expects order object, not orderId string
+                  const flagSummary = getOrderFlagSummary(order);
                   const needsAttention = flagSummary.total > 0;
                   return (
                     <div

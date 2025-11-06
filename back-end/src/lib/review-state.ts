@@ -17,9 +17,9 @@ export async function getStageFlaggedCount(orderId: string, stage: string): Prom
   const order = await getOrderFromSupabase(orderId).catch(() => null);
   
   if (!order) {
-    return 0;
-  }
-  
+  return 0;
+}
+
   const flags = order.flags || {};
   const stageKey = stage === 'preBria' ? 'preBria' : 
                    stage === 'postBria' ? 'postBria' : 
@@ -30,23 +30,25 @@ export async function getStageFlaggedCount(orderId: string, stage: string): Prom
 
 /**
  * Legacy function signature for compatibility (takes order object)
- * New code should use getOrderFlagSummaryById instead
+ * This function works with order objects that have flags property
+ * Works on both client and server side - no Supabase needed
  */
 export function getOrderFlagSummary(order: any): FlagSummary {
-  // If order is a string (orderId), treat it as orderId
+  // If order is a string (orderId), we can't fetch on client side
   if (typeof order === 'string') {
     // This is actually an orderId, but we can't make async here
     // Return default and log warning
-    console.warn('getOrderFlagSummary called with orderId string. Use getOrderFlagSummaryById instead.');
-    return {
-      preBria: 0,
-      postBria: 0,
-      postPdf: 0,
+    console.warn('getOrderFlagSummary called with orderId string. Use getOrderFlagSummaryById instead (server-side only).');
+  return {
+    preBria: 0,
+    postBria: 0,
+    postPdf: 0,
       total: 0
     };
   }
   
-  // If order has flags property (from Supabase)
+  // If order has flags property (from Supabase or API response)
+  // This works on both client and server side
   const flags = order.flags || {};
   
   return {

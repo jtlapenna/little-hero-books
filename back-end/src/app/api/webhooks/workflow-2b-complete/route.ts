@@ -28,10 +28,10 @@ export async function POST(request: NextRequest) {
     const payload = PayloadSchema.parse(json);
 
     // Download manifest from R2
-    const manifest: any = await downloadManifest(buildManifestKey(payload.orderId, '2b'));
-    if (manifest && manifest.characterSpecs) {
-      manifest.characterSpecs = normalizeCharacterSpecs(manifest.characterSpecs);
-    }
+           const manifest: any = await downloadManifest(buildManifestKey(payload.orderId, '2b'));
+           if (manifest && manifest.characterSpecs) {
+             manifest.characterSpecs = normalizeCharacterSpecs(manifest.characterSpecs);
+           }
 
     // Update Supabase with workflow completion
     await updateOrderStatus(payload.orderId, {

@@ -1,6 +1,6 @@
 # Developer B Task Status
 
-**Last Updated**: 2025-11-05  
+**Last Updated**: 2025-11-06  
 **Branch**: `developer-b/customer-preview-and-admin-setup`
 
 ---
@@ -61,28 +61,19 @@ None currently.
 
 ### **Phase 2: Customer Experience (Week 2)** — P0
 
-#### **Task 4: Build Customer-Facing Preview / Approve Page** ⏳ **PLACEHOLDER IN PROGRESS**
+#### **Task 4: Build Customer-Facing Preview / Approve Page** ✅ **PLACEHOLDER COMPLETE**
 - **Priority**: P0 (Critical - Core customer feature)
 - **Estimated Time**: 
   - **Placeholder**: 2-3 days (NOW)
   - **Full Implementation**: 5-7 days (after Developer A completes admin previewer)
 - **Dependencies**: Task 1 ✅, Task 2 ✅
-- **Status**: 📋 **PLANNING PHASE - TEMPORARY PLACEHOLDER APPROACH**
+- **Status**: ✅ **MOVED TO CUSTOMER-FACING SITE (Astro)** — Admin copy removed
 
-**Approach**:
-1. **Phase 1 (Now)**: Build temporary placeholder with foundation (2-3 days)
-   - Database setup
-   - Token generation system
-   - Basic preview route with placeholder
-   - Approval/rejection workflow
-   - Revision countdown display
-   - Last revision acknowledgment checkbox
-2. **After Placeholder**: Skip to Tasks 5, 6, 7 while waiting for Developer A
-3. **Phase 3 (Later)**: Full implementation after Developer A completes admin previewer
-   - Clone Developer A's previewer component
-   - Replace placeholder with full PDF viewer
-   - Add page-by-page navigation, zoom controls
-   - Add issue flagging UI
+**Summary**:
+- Customer preview page exists at `frontend/src/pages/approve/[token].astro` (Astro)
+- Backend API remains at `localhost:3000/api/preview/*` with CORS
+- Admin preview page has been removed to avoid duplication
+- Token validation, approval/rejection, and revision limits are functional
 
 **Key Decisions**:
 - ✅ Amazon Message Center only for MVP (Amazon sends email notifications automatically)
@@ -91,7 +82,7 @@ None currently.
 - ✅ Single-use tokens (3-day expiration)
 - ✅ Last revision acknowledgment checkbox
 
-**Documentation**: See `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md` for complete plan.
+**Documentation**: See `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md` for complete plan (updated with final URLs, 3-day auto-approval, and reminders at day 1 and 2).
 
 ---
 

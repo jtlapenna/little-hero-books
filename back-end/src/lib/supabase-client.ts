@@ -1,16 +1,104 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+let supabaseClient: ReturnType<typeof createClient> | null = null;
+let initializationError: Error | null = null;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+function getSupabaseClient() {
+  // Return cached client if available
+  if (supabaseClient) {
+    return supabaseClient;
+  }
+
+  // On client side, if we've already tried and failed, return null
+  // (don't throw, let the proxy handle it gracefully)
+  if (initializationError && typeof window !== 'undefined') {
+    return null as any;
+  }
+
+  // On server side, throw if we've already tried and failed
+  if (initializationError) {
+    throw initializationError;
+  }
+
+  // Try to get env vars (server-side only, not available on client)
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+
+  // Check if we're on the client side (where env vars won't be available)
+  const isClient = typeof window !== 'undefined';
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    // On client side, we can't use Supabase directly - this is expected
+    // Supabase operations should happen via API routes
+    // Don't throw error, just cache it silently on client
+    if (isClient) {
+      // Client-side: Supabase not available (expected, use API routes)
+      // Return a silent error that won't be logged
+      initializationError = new Error('Supabase client is not available on the client side.');
+      return null as any; // Return null instead of throwing
+    }
+    
+    // On server side, show helpful error
+    if (process.env.NODE_ENV === 'development') {
+      initializationError = new Error('Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local file and restart the dev server.');
+      throw initializationError;
+    }
+    initializationError = new Error('Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+    throw initializationError;
+  }
+
+  supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+
+  return supabaseClient;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+// Create a lazy proxy that only initializes when actually accessed
+// This prevents initialization during React module evaluation
+export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
+  get(_target, prop) {
+    // Skip initialization for React/Next.js internal properties
+    if (prop === 'then' || prop === 'Symbol' || typeof prop === 'symbol') {
+      return undefined;
+    }
+    
+    // Skip for React refresh/internal checks
+    if (typeof prop === 'string' && (
+      prop.startsWith('$$') || 
+      prop === 'constructor' ||
+      prop === 'toString' ||
+      prop === 'valueOf'
+    )) {
+      return undefined;
+    }
+    
+    // Only initialize when actually accessing a Supabase method
+    try {
+      const client = getSupabaseClient();
+      // If client is null (client-side, Supabase not available), return no-op
+      if (!client) {
+        return () => Promise.resolve({ data: null, error: null });
+      }
+      const value = client[prop as keyof ReturnType<typeof createClient>];
+      if (typeof value === 'function') {
+        return value.bind(client);
+      }
+      return value;
+    } catch (error) {
+      // If we're on client side and Supabase isn't available, suppress the error
+      // since Supabase operations should happen via API routes anyway
+      if (typeof window !== 'undefined') {
+        // Return a no-op function for methods, undefined for properties
+        // This prevents errors during React module evaluation
+        return () => Promise.resolve({ data: null, error: null });
+      }
+      // On server side, we want to know about the error
+      throw error;
+    }
   }
 });
 

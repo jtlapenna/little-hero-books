@@ -79,11 +79,11 @@ export default function OrdersPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
-              <p className="mt-2 text-gray-600">
-                Manage and review personalized book orders
-              </p>
-            </div>
+          <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
+          <p className="mt-2 text-gray-600">
+            Manage and review personalized book orders
+          </p>
+        </div>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setViewMode('buckets')}
