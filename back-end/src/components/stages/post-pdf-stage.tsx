@@ -70,9 +70,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   // Track if images have been successfully loaded from manifest (stop polling once found)
   const imagesFoundRef = useRef(false);
 
-  // Reset ref when orderId changes
+  // Reset ref and spread index when orderId changes
   useEffect(() => {
     imagesFoundRef.current = false;
+    setCurrentSpreadIndex(0); // Always start at first spread when viewing a new order
   }, [orderId]);
 
   // Load preview images from 3-manifest or construct directly from R2
@@ -167,14 +168,16 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         
         if (!isMounted) return;
         
-        // Preserve current spread index when refreshing, only reset to 0 on initial load
+        // Always start with first available spread (spread 1, pages 1-2)
+        // When cover/dedication are added later, createSpreads will include them automatically
         setPages((prevPages) => {
           const isInitialLoad = prevPages.length === 0;
           const newSpreads = createSpreads(pageData);
           
-          // Update spread index based on whether this is initial load or refresh
+          // Always start at the first spread (index 0) when pages are first loaded
+          // This ensures we start with the first available page, not blank placeholders
           if (isInitialLoad) {
-            // First time loading pages - start at spread 1
+            // First time loading pages - always start at first spread
             setCurrentSpreadIndex(0);
           } else {
             // Refreshing pages - preserve current spread index, but clamp to valid range
@@ -321,28 +324,29 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         .spread-container {
           display: flex;
           justify-content: center;
-          align-items: center;
+          align-items: flex-start;
           width: 100%;
-          max-width: 5100px; /* 2 × 2550px pages */
         }
 
         .two-page-spread {
           display: flex;
           gap: 0; /* No gap between pages in print */
-          width: 5100px;
-          height: 2550px;
+          width: 100%;
+          max-width: 100%;
+          height: auto;
         }
 
         .two-page-spread img {
-          width: 2550px;
-          height: 2550px;
+          width: 50%;
+          height: auto;
           object-fit: contain;
           display: block;
+          aspect-ratio: 1 / 1;
         }
 
         .white-page {
-          width: 2550px;
-          height: 2550px;
+          width: 50%;
+          aspect-ratio: 1 / 1;
           background-color: white;
           /* Simulated white page - no image needed */
         }
@@ -467,7 +471,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             </div>
 
             {/* Spread Display Area */}
-            <div className="bg-gray-100 flex items-center justify-center min-h-[800px] p-8 relative overflow-x-auto">
+            <div className="bg-gray-100 flex items-center justify-center p-8 relative">
               {((currentSpread.leftPage && imageLoading.left) || (currentSpread.rightPage && imageLoading.right)) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
                   <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
@@ -485,7 +489,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                 </div>
               )}
 
-              <div className="spread-container" style={{ transform: 'scale(0.3)', transformOrigin: 'center center' }}>
+              <div className="spread-container w-full max-w-full">
                 <div className="two-page-spread">
                   {/* Left page */}
                   {currentSpread.leftPage ? (
