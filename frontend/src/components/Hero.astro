@@ -34,6 +34,15 @@ const isLayered = bgImage && characterA && characterB;
     {isLayered ? (
       <>
         <img src={bgImage} alt={imageAlt} class="hero-bg" />
+        {/* Floating clouds - behind characters, above background */}
+        <img src="/cloud-1.png" alt="Cloud 1" class="hero-cloud hero-cloud-1" />
+        <img src="/cloud-2.png" alt="Cloud 2" class="hero-cloud hero-cloud-2" />
+        <img src="/cloud-1.png" alt="Cloud 3" class="hero-cloud hero-cloud-3" />
+        <img src="/cloud-2.png" alt="Cloud 4" class="hero-cloud hero-cloud-4" />
+        {/* Twinkling stars - behind left character, above background */}
+        <img src="/stars1.webp" alt="Stars 1" class="hero-stars hero-stars-1" />
+        <img src="/stars4.webp" alt="Stars 4" class="hero-stars hero-stars-4" />
+        <img src="/stars3.webp" alt="Stars 3" class="hero-stars hero-stars-3" />
         <img src={characterA} alt="Character A" class={`hero-character hero-character-a`} />
         <img src={characterB} alt="Character B" class={`hero-character hero-character-b`} />
         {/* Mobile fallback - static image only in layered mode */}
@@ -161,13 +170,10 @@ const isLayered = bgImage && characterA && characterB;
   
   @keyframes characterMoveV2B {
     0% {
-      transform: scale(0.55) translate(50%, 28%); /* start even further right */
-    }
-    50% {
-      transform: scale(0.55) translate(15%, 28%); /* slide left to stop */
+      transform: scale(0.55) translate(50%, 28%); /* start at right */
     }
     100% {
-      transform: scale(0.55) translate(50%, 28%); /* slide back right to start */
+      transform: scale(0.55) translate(15%, 28%); /* slide left and stop */
     }
   }
   
@@ -176,7 +182,200 @@ const isLayered = bgImage && characterA && characterB;
   }
   
   .hero-character-b {
-    animation: characterMoveV2B 22s ease-in-out infinite;
+    animation: characterMoveV2B 22s ease-in forwards; /* forwards = stay at end position */
+  }
+  
+  /* Floating clouds - behind characters, above background */
+  .hero-cloud {
+    position: absolute;
+    z-index: 1; /* Above background (1), below characters (2) */
+    opacity: 0;
+    pointer-events: none;
+  }
+  
+  .hero-cloud-1 {
+    top: 6%; /* Top 48%: 0-48% */
+    width: 138px; /* Small +15% (was 120px) */
+    height: auto;
+    animation: cloudFloat1 28s linear infinite;
+  }
+  
+  .hero-cloud-2 {
+    top: 18%; /* Top 48% */
+    width: 230px; /* Large +15% (was 200px) */
+    height: auto;
+    animation: cloudFloat2 32s linear infinite 4s; /* Staggered start */
+  }
+  
+  .hero-cloud-3 {
+    top: 32%; /* Top 48% */
+    width: 115px; /* Small +15% (was 100px) */
+    height: auto;
+    animation: cloudFloat3 26s linear infinite 8s;
+  }
+  
+  .hero-cloud-4 {
+    top: 12%; /* Top 48% */
+    width: 253px; /* Large +15% (was 220px) */
+    height: auto;
+    animation: cloudFloat4 35s linear infinite 12s;
+  }
+  
+  @keyframes cloudFloat1 {
+    0% {
+      left: 50%; /* Start at midpoint */
+      opacity: 0;
+      transform: translateX(0);
+    }
+    10% {
+      opacity: 1; /* Fade in quickly */
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      left: 100%; /* Exit off right edge */
+      opacity: 0;
+      transform: translateX(20%);
+    }
+  }
+  
+  @keyframes cloudFloat2 {
+    0% {
+      left: 50%; /* Start at midpoint */
+      opacity: 0;
+      transform: translateX(0);
+    }
+    10% {
+      opacity: 1; /* Fade in quickly */
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      left: 100%; /* Exit off right edge */
+      opacity: 0;
+      transform: translateX(20%);
+    }
+  }
+  
+  @keyframes cloudFloat3 {
+    0% {
+      left: 50%; /* Start at midpoint */
+      opacity: 0;
+      transform: translateX(0);
+    }
+    10% {
+      opacity: 1; /* Fade in quickly */
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      left: 100%; /* Exit off right edge */
+      opacity: 0;
+      transform: translateX(20%);
+    }
+  }
+  
+  @keyframes cloudFloat4 {
+    0% {
+      left: 50%; /* Start at midpoint */
+      opacity: 0;
+      transform: translateX(0);
+    }
+    10% {
+      opacity: 1; /* Fade in quickly */
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      left: 100%; /* Exit off right edge */
+      opacity: 0;
+      transform: translateX(20%);
+    }
+  }
+  
+  /* Twinkling stars - behind left character, above background */
+  .hero-stars {
+    position: absolute;
+    z-index: 1; /* Above background (1), below characters (2) */
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+  
+  .hero-stars-1 {
+    left: 0%; /* Moved left 2% (was 2%) */
+    top: 26%; /* Moved down 8% (was 18%) */
+    width: 400px; /* Initial size */
+    animation: 
+      heroStarsTwinkle1 3.8s ease-in-out infinite 0.83s,
+      heroStarsDrift1 7.3s ease-in-out infinite alternate;
+  }
+  
+  .hero-stars-4 {
+    left: -1%; /* Moved right 1% (was -2%) */
+    top: 52%; /* Moved down 12% (was 40%) */
+    width: 171px; /* 25% smaller (was 228px) */
+    animation: 
+      heroStarsTwinkle4 4.2s ease-in-out infinite 1.2s,
+      heroStarsDrift4 8.5s ease-in-out infinite alternate;
+  }
+  
+  .hero-stars-3 {
+    left: 10%; /* Moved left 5% (was 15%) */
+    top: 63%; /* Moved up 12% (was 75%) */
+    width: 255px; /* 15% smaller (was 300px) */
+    animation: 
+      heroStarsTwinkle3 3.9s ease-in-out infinite 0.6s,
+      heroStarsDrift3 7.8s ease-in-out infinite alternate-reverse;
+  }
+  
+  @keyframes heroStarsTwinkle3 {
+    0% { opacity: 0.28; transform: scale(0.96); }
+    18% { opacity: 0.92; transform: scale(1.09); }
+    42% { opacity: 0.38; transform: scale(1.0); }
+    65% { opacity: 1; transform: scale(1.11); }
+    88% { opacity: 0.48; transform: scale(1.0); }
+    100% { opacity: 0.28; transform: scale(0.96); }
+  }
+  
+  @keyframes heroStarsDrift3 {
+    0% { transform: translate(0, 0); }
+    50% { transform: translate(-0.3%, 0.3%); }
+    100% { transform: translate(0, 0); }
+  }
+  
+  @keyframes heroStarsTwinkle4 {
+    0% { opacity: 0.3; transform: scale(0.97); }
+    20% { opacity: 0.9; transform: scale(1.08); }
+    45% { opacity: 0.4; transform: scale(1.0); }
+    68% { opacity: 1; transform: scale(1.12); }
+    85% { opacity: 0.5; transform: scale(1.01); }
+    100% { opacity: 0.3; transform: scale(0.97); }
+  }
+  
+  @keyframes heroStarsDrift4 {
+    0% { transform: translate(0, 0); }
+    50% { transform: translate(0.2%, 0.4%); }
+    100% { transform: translate(0, 0); }
+  }
+  
+  @keyframes heroStarsTwinkle1 {
+    0% { opacity: 0.25; transform: scale(0.98); }
+    17% { opacity: 0.95; transform: scale(1.07); }
+    39% { opacity: 0.45; transform: scale(1.0); }
+    63% { opacity: 1; transform: scale(1.1); }
+    82% { opacity: 0.5; transform: scale(1.02); }
+    100% { opacity: 0.25; transform: scale(0.98); }
+  }
+  
+  /* Subtle drifting to enhance randomness */
+  @keyframes heroStarsDrift1 {
+    0% { transform: translate(0, 0); }
+    50% { transform: translate(0.3%, -0.5%); }
+    100% { transform: translate(0, 0); }
   }
   
   .hero-content {
@@ -226,7 +425,9 @@ const isLayered = bgImage && characterA && characterB;
       display: block;
     }
     .hero-bg,
-    .hero-character {
+    .hero-character,
+    .hero-cloud,
+    .hero-stars {
       display: none;
     }
     .hero-image-container {
