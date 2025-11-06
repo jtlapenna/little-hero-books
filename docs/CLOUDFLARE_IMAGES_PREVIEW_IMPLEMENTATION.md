@@ -98,3 +98,10 @@ if (img.cloudflareImageId) {
 - R2 remains authoritative for production/print
 - If Cloudflare Images upload fails, fallback to R2 proxy URL
 
+## Decision Point: Customer Previews
+**If you decide NOT to serve previews to customers**, you can skip Cloudflare Images entirely:
+- Admins can use R2 proxy URLs directly (already working)
+- R2 images load fine for admin review purposes
+- Cloudflare Images is only beneficial if you need optimized delivery for many customer views
+- **Recommendation**: Only implement Cloudflare Images if customer previews are planned
+
