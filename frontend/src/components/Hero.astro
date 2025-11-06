@@ -35,6 +35,11 @@ const isLayered = bgImage && characterA && characterB;
       <>
         <img src={bgImage} alt={imageAlt} class="hero-bg" />
         {/* Floating clouds - behind characters, above background */}
+        {/* Initial clouds visible on page load */}
+        <img src="/cloud-1.png" alt="Cloud 1 Initial" class="hero-cloud hero-cloud-1-initial" />
+        <img src="/cloud-2.png" alt="Cloud 2 Initial" class="hero-cloud hero-cloud-2-initial" />
+        <img src="/cloud-1.png" alt="Cloud 3 Initial" class="hero-cloud hero-cloud-3-initial" />
+        {/* Animated clouds that cycle */}
         <img src="/cloud-1.png" alt="Cloud 1" class="hero-cloud hero-cloud-1" />
         <img src="/cloud-2.png" alt="Cloud 2" class="hero-cloud hero-cloud-2" />
         <img src="/cloud-1.png" alt="Cloud 3" class="hero-cloud hero-cloud-3" />
@@ -170,7 +175,7 @@ const isLayered = bgImage && characterA && characterB;
   
   @keyframes characterMoveV2B {
     0% {
-      transform: scale(0.55) translate(50%, 28%); /* start at right */
+      transform: scale(0.55) translate(65%, 28%); /* start further right */
     }
     100% {
       transform: scale(0.55) translate(15%, 28%); /* slide left and stop */
@@ -182,7 +187,7 @@ const isLayered = bgImage && characterA && characterB;
   }
   
   .hero-character-b {
-    animation: characterMoveV2B 22s ease-in forwards; /* forwards = stay at end position */
+    animation: characterMoveV2B 11s ease-in forwards; /* 50% faster (was 22s), forwards = stay at end position */
   }
   
   /* Floating clouds - behind characters, above background */
@@ -193,6 +198,83 @@ const isLayered = bgImage && characterA && characterB;
     pointer-events: none;
   }
   
+  /* Initial clouds visible on page load - positioned across screen and already moving */
+  .hero-cloud-1-initial {
+    top: 6%;
+    width: 138px;
+    height: auto;
+    opacity: 0.85; /* Visible immediately, not animated */
+    animation: cloudFloatInitial1 18s linear forwards -6s; /* 20% slower (was 15s), start 6s into animation */
+  }
+  
+  .hero-cloud-2-initial {
+    top: 18%;
+    width: 230px;
+    height: auto;
+    opacity: 0.9; /* Visible immediately, not animated */
+    animation: cloudFloatInitial2 14.4s linear forwards -4.8s; /* 20% slower (was 12s), start 4.8s into animation */
+  }
+  
+  .hero-cloud-3-initial {
+    top: 32%;
+    width: 115px;
+    height: auto;
+    opacity: 0.75; /* Visible immediately, not animated */
+    animation: cloudFloatInitial3 12s linear forwards -3.6s; /* 20% slower (was 10s), start 3.6s into animation */
+  }
+  
+  @keyframes cloudFloatInitial1 {
+    0% {
+      left: 45%; /* Start further right */
+      opacity: 0.85;
+      transform: translateX(0);
+    }
+    80% {
+      left: 95%;
+      opacity: 0.85;
+    }
+    100% {
+      left: 100%; /* Exit off right edge */
+      opacity: 0;
+      transform: translateX(20%);
+    }
+  }
+  
+  @keyframes cloudFloatInitial2 {
+    0% {
+      left: 50%; /* Start further right */
+      opacity: 0.9;
+      transform: translateX(0);
+    }
+    80% {
+      left: 95%;
+      opacity: 0.9;
+    }
+    100% {
+      left: 100%; /* Exit off right edge */
+      opacity: 0;
+      transform: translateX(20%);
+    }
+  }
+  
+  @keyframes cloudFloatInitial3 {
+    0% {
+      left: 55%; /* Start further right */
+      opacity: 0.75;
+      transform: translateX(0);
+    }
+    80% {
+      left: 95%;
+      opacity: 0.75;
+    }
+    100% {
+      left: 100%; /* Exit off right edge */
+      opacity: 0;
+      transform: translateX(20%);
+    }
+  }
+  
+  /* Animated clouds that cycle */
   .hero-cloud-1 {
     top: 6%; /* Top 48%: 0-48% */
     width: 138px; /* Small +15% (was 120px) */
@@ -310,8 +392,8 @@ const isLayered = bgImage && characterA && characterB;
     top: 26%; /* Moved down 8% (was 18%) */
     width: 400px; /* Initial size */
     animation: 
-      heroStarsTwinkle1 3.8s ease-in-out infinite 0.83s,
-      heroStarsDrift1 7.3s ease-in-out infinite alternate;
+      heroStarsTwinkle1 3.04s ease-in-out infinite 0.3s, /* 20% faster (was 3.8s) */
+      heroStarsDrift1 5.84s ease-in-out infinite alternate; /* 20% faster (was 7.3s) */
   }
   
   .hero-stars-4 {
@@ -319,8 +401,8 @@ const isLayered = bgImage && characterA && characterB;
     top: 52%; /* Moved down 12% (was 40%) */
     width: 171px; /* 25% smaller (was 228px) */
     animation: 
-      heroStarsTwinkle4 4.2s ease-in-out infinite 1.2s,
-      heroStarsDrift4 8.5s ease-in-out infinite alternate;
+      heroStarsTwinkle4 3.36s ease-in-out infinite 0.7s, /* 20% faster (was 4.2s) */
+      heroStarsDrift4 6.8s ease-in-out infinite alternate; /* 20% faster (was 8.5s) */
   }
   
   .hero-stars-3 {
@@ -328,53 +410,58 @@ const isLayered = bgImage && characterA && characterB;
     top: 63%; /* Moved up 12% (was 75%) */
     width: 255px; /* 15% smaller (was 300px) */
     animation: 
-      heroStarsTwinkle3 3.9s ease-in-out infinite 0.6s,
-      heroStarsDrift3 7.8s ease-in-out infinite alternate-reverse;
+      heroStarsTwinkle3 3.12s ease-in-out infinite 0.2s, /* 20% faster (was 3.9s) */
+      heroStarsDrift3 6.24s ease-in-out infinite alternate-reverse; /* 20% faster (was 7.8s) */
   }
   
   @keyframes heroStarsTwinkle3 {
-    0% { opacity: 0.28; transform: scale(0.96); }
-    18% { opacity: 0.92; transform: scale(1.09); }
-    42% { opacity: 0.38; transform: scale(1.0); }
-    65% { opacity: 1; transform: scale(1.11); }
-    88% { opacity: 0.48; transform: scale(1.0); }
-    100% { opacity: 0.28; transform: scale(0.96); }
+    0% { opacity: 0.22; transform: scale(0.94) rotate(-1deg); }
+    15% { opacity: 0.95; transform: scale(1.13) rotate(2deg); }
+    38% { opacity: 0.32; transform: scale(0.97) rotate(-1.5deg); }
+    58% { opacity: 1; transform: scale(1.16) rotate(1deg); }
+    81% { opacity: 0.41; transform: scale(1.01) rotate(-0.8deg); }
+    100% { opacity: 0.22; transform: scale(0.94) rotate(-1deg); }
   }
   
   @keyframes heroStarsDrift3 {
     0% { transform: translate(0, 0); }
-    50% { transform: translate(-0.3%, 0.3%); }
+    30% { transform: translate(-0.5%, 0.6%); }
+    60% { transform: translate(0.3%, -0.4%); }
     100% { transform: translate(0, 0); }
   }
   
   @keyframes heroStarsTwinkle4 {
-    0% { opacity: 0.3; transform: scale(0.97); }
-    20% { opacity: 0.9; transform: scale(1.08); }
-    45% { opacity: 0.4; transform: scale(1.0); }
-    68% { opacity: 1; transform: scale(1.12); }
-    85% { opacity: 0.5; transform: scale(1.01); }
-    100% { opacity: 0.3; transform: scale(0.97); }
+    0% { opacity: 0.24; transform: scale(0.95) rotate(1deg); }
+    16% { opacity: 0.93; transform: scale(1.11) rotate(-2deg); }
+    39% { opacity: 0.33; transform: scale(0.99) rotate(1.2deg); }
+    61% { opacity: 1; transform: scale(1.14) rotate(-1.5deg); }
+    79% { opacity: 0.44; transform: scale(1.02) rotate(0.8deg); }
+    100% { opacity: 0.24; transform: scale(0.95) rotate(1deg); }
   }
   
   @keyframes heroStarsDrift4 {
     0% { transform: translate(0, 0); }
-    50% { transform: translate(0.2%, 0.4%); }
+    35% { transform: translate(0.4%, 0.7%); }
+    70% { transform: translate(-0.3%, 0.2%); }
     100% { transform: translate(0, 0); }
   }
   
   @keyframes heroStarsTwinkle1 {
-    0% { opacity: 0.25; transform: scale(0.98); }
-    17% { opacity: 0.95; transform: scale(1.07); }
-    39% { opacity: 0.45; transform: scale(1.0); }
-    63% { opacity: 1; transform: scale(1.1); }
-    82% { opacity: 0.5; transform: scale(1.02); }
-    100% { opacity: 0.25; transform: scale(0.98); }
+    0% { opacity: 0.2; transform: scale(0.95) rotate(0deg); }
+    12% { opacity: 0.98; transform: scale(1.12) rotate(2deg); }
+    31% { opacity: 0.35; transform: scale(0.98) rotate(-1deg); }
+    52% { opacity: 1; transform: scale(1.15) rotate(1.5deg); }
+    74% { opacity: 0.42; transform: scale(1.0) rotate(-0.5deg); }
+    89% { opacity: 0.88; transform: scale(1.08) rotate(1deg); }
+    100% { opacity: 0.2; transform: scale(0.95) rotate(0deg); }
   }
   
-  /* Subtle drifting to enhance randomness */
+  /* Subtle drifting to enhance randomness - more variation */
   @keyframes heroStarsDrift1 {
     0% { transform: translate(0, 0); }
-    50% { transform: translate(0.3%, -0.5%); }
+    25% { transform: translate(0.5%, -0.8%); }
+    50% { transform: translate(-0.2%, 0.4%); }
+    75% { transform: translate(0.4%, -0.3%); }
     100% { transform: translate(0, 0); }
   }
   
