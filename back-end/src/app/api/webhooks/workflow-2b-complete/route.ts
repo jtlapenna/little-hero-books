@@ -6,7 +6,6 @@ import { normalizeCharacterSpecs } from '@/lib/customization-utils';
 
 // Force dynamic rendering - this route should never be statically generated
 export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
 
 const PayloadSchema = z.object({
   orderId: z.string().min(1),
