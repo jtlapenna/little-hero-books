@@ -164,29 +164,49 @@ async function getOrder(
   // Pre-Bria stage: show only "original" type images (from poses/ directory - 2A images)
   // Post-Bria stage: show only "background-removed" type images (from parent dir with nobg.png - 2B images)
   
-  // Base character: find pose 0, prefer original type
-  const baseCharacter = characterAssets.find(a => a.poseNumber === 0 && a.assetType === 'original') || 
-                       characterAssets.find(a => a.poseNumber === 0 && a.assetType !== 'final') || 
-                       characterAssets.find(a => a.assetType === 'original') || 
-                       characterAssets[0] || null;
+  // Base character: prefer base-character.png specifically, fallback to pose0
+  // We want to show pose0 in Character Poses, so base character should be base-character.png if it exists
+  const baseCharacterAsset = characterAssets.find(a => {
+    const url = a.url.toLowerCase();
+    return url.includes('base-character') && a.assetType === 'original';
+  }) || characterAssets.find(a => a.poseNumber === 0 && a.assetType === 'original') || 
+       characterAssets.find(a => a.poseNumber === 0 && a.assetType !== 'final') || 
+       characterAssets.find(a => a.assetType === 'original') || 
+       characterAssets[0] || null;
   
-  // Pre-Bria poses: all "original" type images (poseNumber > 0 only, pose0 is shown as Base Character)
+  // Get pose0 asset separately to check if it's the same as base character
+  const pose0Asset = characterAssets.find(a => a.poseNumber === 0 && a.assetType === 'original');
+  const baseCharacterUrl = baseCharacterAsset?.url?.toLowerCase() || '';
+  const pose0Url = pose0Asset?.url?.toLowerCase() || '';
+  const isBaseCharacterSameAsPose0 = baseCharacterUrl && pose0Url && baseCharacterUrl === pose0Url;
+  
+  // Pre-Bria poses: all "original" type images including pose0 (poseNumber >= 0)
+  // But exclude base-character.png if it's a separate file (not pose0)
   // Accept any number of poses, sorted by poseNumber
   const preBriaPoses = characterAssets
-    .filter(a => a.assetType === 'original' && a.poseNumber > 0)
+    .filter(a => {
+      if (a.assetType !== 'original' || a.poseNumber < 0) return false;
+      // If base character is a separate file (base-character.png), exclude it from poses
+      const url = a.url.toLowerCase();
+      if (url.includes('base-character') && !isBaseCharacterSameAsPose0) return false;
+      return true;
+    })
     .sort((a, b) => a.poseNumber - b.poseNumber);
   
-  // Post-Bria poses: all "background-removed" type images (poseNumber > 0 only, pose0 is shown as Base Character)
+  // Post-Bria poses: all "background-removed" type images including pose0 (poseNumber >= 0)
   // Accept any number of poses, sorted by poseNumber
   // Add cache-busting timestamp to ensure images refresh when overwritten in R2
   const cacheBuster = Date.now();
   const postBriaPoses = characterAssets
-    .filter(a => a.assetType === 'background-removed' && a.poseNumber > 0)
+    .filter(a => a.assetType === 'background-removed' && a.poseNumber >= 0)
     .sort((a, b) => a.poseNumber - b.poseNumber)
     .map(pose => ({
       ...pose,
       url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
     }));
+  
+  // Use the selected base character asset
+  const baseCharacter = baseCharacterAsset;
   
   order.r2Assets = {
     baseCharacter,
