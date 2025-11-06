@@ -332,7 +332,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"document\": {\n    \"document_template_id\": \"{{ $json.pdfMonkeyImageTemplateId }}\",\n    \"status\": \"pending\",\n    \"meta\": {\n      \"_filename\": \"{{ $json.pageImageFilename }}\",\n      \"_type\": \"png\",\n      \"_width\": 2550,\n      \"_height\": 2550\n    },\n    \"payload\": {\n      \"pages_html\": \"{{ $json.pageHtml }}\"\n    }\n  }\n}",
+        "jsonBody": "={\n  \"document\": {\n    \"document_template_id\": \"{{ $json.pdfMonkeyImageTemplateId }}\",\n    \"status\": \"pending\",\n    \"meta\": {\n      \"_filename\": \"{{ $json.pageImageFilename }}\",\n      \"_type\": \"png\",\n      \"_width\": 2550,\n      \"_height\": 2550\n    },\n    \"payload\": {\n      \"pages_html\": {{ JSON.stringify($json.pageHtml) }}\n    }\n  }\n}",
         "options": {
           "timeout": 30000
         }
