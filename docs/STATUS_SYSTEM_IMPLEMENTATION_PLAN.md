@@ -148,21 +148,29 @@ Each stage (`preBria`, `postBria`, `postPdf`) uses:
 
 ### Priority Rules (in order):
 1. **Flags exist** → Set to stage-specific revision status (`revision_base`, `revision_bg_removal`, `revision_assembly`)
+   - **NOTE**: Revision statuses are OPTIONAL - orders can proceed directly if no flags exist
 2. **In production** → Use production status (`pending_print`, `in_production`, `shipped`, etc.)
 3. **Waiting for review** → Set to appropriate `pending_[stage]_review`
 4. **Customer approval** → Use customer approval statuses
 5. **Processing** → `processing` or `queued`
 6. **Default** → `new` or last known status
 
+### Important Notes:
+- **No explicit "request revision" action**: Flags just prevent approval. When all flags are cleared, status returns to pending review.
+- **Revision statuses are optional**: If no flags exist, order flows directly: `pending_base_review` → `pending_bg_removal_review` → `pending_assembly_review`
+- **Workflow regeneration**: If workflows are retried/regenerated (future feature), they would update status back to `pending_[stage]_review` when complete
+
 ### Status Calculation Function
 ```typescript
 function calculateOrderStatus(order: Order): string {
-  // 1. Check flags first (highest priority)
+  // 1. Check flags first (highest priority) - REVISION STATUSES ARE OPTIONAL
+  // Only show revision status if flags exist, otherwise proceed to next stage
   const flagSummary = getOrderFlagSummary(order.orderId);
   if (flagSummary.total > 0) {
-    if (flagSummary.preBria > 0) return 'revision_base';
-    if (flagSummary.postBria > 0) return 'revision_bg_removal';
-    if (flagSummary.postPdf > 0) return 'revision_assembly';
+    // If flags exist, show revision status for that stage
+    if (flagSummary.preBria > 0 && order.reviewStages.preBria.status !== 'approved') return 'revision_base';
+    if (flagSummary.postBria > 0 && order.reviewStages.postBria.status !== 'approved') return 'revision_bg_removal';
+    if (flagSummary.postPdf > 0 && order.reviewStages.postPdf.status !== 'approved') return 'revision_assembly';
   }
   
   // 2. Check production status
@@ -354,10 +362,13 @@ CREATE INDEX IF NOT EXISTS idx_orders_has_flags ON orders(has_flags);
 | `queued` → `processing` | Workflow 2A starts | Workflow 2A webhook | Update `workflow_stage = 'character_generation'`, `status = 'processing'` |
 | `processing` → `pending_base_review` | Workflow 2A completes | `/api/webhooks/workflow-2a-complete` | Update `workflow_stage = '2A-complete'`, `review_stages.preBria.status = 'ready'`, recalculate status |
 | `pending_base_review` → `revision_base` | Admin flags images | Pre-Bria stage UI | Update `flags.preBria` count, set `has_flags = true`, recalculate status |
-| `revision_base` → `revision_in_progress` | Admin requests revision | Pre-Bria stage UI | Trigger Workflow 2A retry, set `status = 'revision_in_progress'` |
-| `revision_in_progress` → `pending_base_review` | Workflow 2A completes (retry) | `/api/webhooks/workflow-2a-complete` | Update `review_stages.preBria.status = 'ready'`, clear flags, recalculate status |
-| `pending_base_review` → `pending_bg_removal_review` | Admin approves Pre-Bria | `/api/orders/[orderId]/approve` | Update `review_stages.preBria.status = 'approved'`, trigger Workflow 2B, recalculate status |
-| `pending_bg_removal_review` → `pending_assembly_review` | Admin approves Post-Bria | `/api/orders/[orderId]/approve` | Update `review_stages.postBria.status = 'approved'`, trigger Workflow 3, recalculate status |
+| `revision_base` → `pending_base_review` | Admin unflags all images OR workflow regenerates | Pre-Bria stage UI OR Workflow 2A webhook | Clear flags OR workflow regenerates images, recalculate status |
+| `pending_base_review` → `pending_bg_removal_review` | Admin approves Pre-Bria (no flags) | `/api/orders/[orderId]/approve` | Update `review_stages.preBria.status = 'approved'`, trigger Workflow 2B, recalculate status |
+| `pending_bg_removal_review` → `revision_bg_removal` | Admin flags images | Post-Bria stage UI | Update `flags.postBria` count, set `has_flags = true`, recalculate status |
+| `revision_bg_removal` → `pending_bg_removal_review` | Admin unflags all images OR workflow regenerates | Post-Bria stage UI OR Workflow 2B webhook | Clear flags OR workflow regenerates images, recalculate status |
+| `pending_bg_removal_review` → `pending_assembly_review` | Admin approves Post-Bria (no flags) | `/api/orders/[orderId]/approve` | Update `review_stages.postBria.status = 'approved'`, trigger Workflow 3, recalculate status |
+| `pending_assembly_review` → `revision_assembly` | Admin flags images | Post-PDF stage UI | Update `flags.postPdf` count, set `has_flags = true`, recalculate status |
+| `revision_assembly` → `pending_assembly_review` | Admin unflags all images OR workflow regenerates | Post-PDF stage UI OR Workflow 3 webhook | Clear flags OR workflow regenerates, recalculate status |
 | `pending_assembly_review` → `pending_customer_approval` | Admin approves Post-PDF | `/api/orders/[orderId]/approve` | Update `review_stages.postPdf.status = 'approved'`, set `customer_approval_required = true`, recalculate status |
 | `pending_customer_approval` → `customer_approved` | Customer approves | `/api/orders/[orderId]/customer-approve` | Update `customer_approval_status = 'approved'`, recalculate status |
 | `customer_approved` → `pending_print` | Customer approval received | Status calculation | Set `status = 'pending_print'`, trigger Lulu order creation |
