@@ -25,32 +25,23 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     setApproveStageConfirmed(!!isApproved);
   }, [isApproved]);
   
-  // Initialize with empty state
-  const [poses, setPoses] = useState([
-    { id: 'pose01-bg-removed', name: 'Walking (BG Removed)', url: '/mock-assets/pose01-walking-bg-removed.png', isFlagged: false, hasTransparentBackground: true },
-    { id: 'pose02-bg-removed', name: 'Walking Looking Higher (BG Removed)', url: '/mock-assets/pose02-walking-looking-higher-bg-removed.png', isFlagged: false, hasTransparentBackground: true },
-    { id: 'pose03-bg-removed', name: 'Looking (BG Removed)', url: '/mock-assets/pose03-looking-bg-removed.png', isFlagged: false, hasTransparentBackground: true },
-    { id: 'pose04-bg-removed', name: 'Floating (BG Removed)', url: '/mock-assets/pose04-floating-bg-removed.png', isFlagged: false, hasTransparentBackground: true },
-    { id: 'pose05-bg-removed', name: 'Walking Looking Down (BG Removed)', url: '/mock-assets/pose05-walking-looking-down-bg-removed.png', isFlagged: false, hasTransparentBackground: true },
-    { id: 'pose06-bg-removed', name: 'Jogging (BG Removed)', url: '/mock-assets/pose06-jogging-bg-removed.png', isFlagged: false, hasTransparentBackground: true },
-    { id: 'pose07-bg-removed', name: 'Sitting Eating (BG Removed)', url: '/mock-assets/pose07-sitting-eating-bg-removed.png', isFlagged: false, hasTransparentBackground: true },
-    { id: 'pose08-bg-removed', name: 'Crouching (BG Removed)', url: '/mock-assets/pose08-crouching-bg-removed.png', isFlagged: false, hasTransparentBackground: true },
-    { id: 'pose09-bg-removed', name: 'Crawling Moving Happy (BG Removed)', url: '/mock-assets/pose09-crawling-moving-happy-bg-removed.png', isFlagged: false, hasTransparentBackground: true },
-    { id: 'pose10-bg-removed', name: 'Surprised Looking Up (BG Removed)', url: '/mock-assets/pose10-surprised-looking-up-bg-removed.png', isFlagged: false, hasTransparentBackground: true },
-    { id: 'pose11-bg-removed', name: 'Surprised (BG Removed)', url: '/mock-assets/pose11-surprised-bg-removed.png', isFlagged: false, hasTransparentBackground: true },
-    { id: 'pose12-bg-removed', name: 'Flying (BG Removed)', url: '/mock-assets/pose12-flying-bg-removed.png', isFlagged: false, hasTransparentBackground: true }
-  ]);
+  // Initialize with empty state - will be populated from R2 data
+  const [poses, setPoses] = useState([]);
 
-  // Update state when order data changes
+  // Update state when order data changes - use actual poseNumber from data to support any number of poses (including pose0)
   useEffect(() => {
     if (order.r2Assets?.posesBgRemoved && order.r2Assets.posesBgRemoved.length > 0) {
-      setPoses(order.r2Assets.posesBgRemoved.map((pose, index) => ({
-        id: `pose${String(index + 1).padStart(2, '0')}-bg-removed`,
-        name: `Pose ${index + 1} (BG Removed)`,
-        url: pose.url,
-        isFlagged: false,
-        hasTransparentBackground: true
-      })));
+      console.log('PostBriaStage: Setting poses from R2:', order.r2Assets.posesBgRemoved.length, 'poses');
+      setPoses(order.r2Assets.posesBgRemoved.map((pose) => {
+        const poseNumber = pose.poseNumber ?? 0;
+        return {
+          id: `pose${String(poseNumber).padStart(2, '0')}-bg-removed`,
+          name: `Pose ${poseNumber} (BG Removed)`,
+          url: pose.url,
+          isFlagged: false,
+          hasTransparentBackground: true
+        };
+      }));
     } else {
       // Reset poses if no R2 data
       setPoses([]);

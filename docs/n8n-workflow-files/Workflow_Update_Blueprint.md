@@ -1,11 +1,13 @@
 # Little Hero Books - Workflow Update Blueprint v3.0
-## PNG-First Approach with Approval Gates & Lulu API Requirements
+## PNG-First Approach & Lulu API Requirements
 
 ---
 
 ## **Document Changes**
 **v1.0 → v2.0:** Added Lulu API requirements (separate interior + cover PDFs)  
 **v2.0 → v3.0:** PNG-first architecture + confirmed Lulu specifications + split workflows + approval gates
+**v3.0 → v3.1:** Dedication page is generated inside the interior pages loop (single stream); keep existing webhook + payload unchanged; no automatic customer notifications from LHB‑3; workflow end remains: send manifest and exit. 
+
 
 ---
 
@@ -164,12 +166,12 @@ Generate all PNG assets for preview and print, with admin and customer approval 
         ↓
         ├─────────────────────┬─────────────────────┐
         ↓                     ↓                     ↓
-   DEDICATION PAGE    STORY PAGES (14)      COVER SPREAD
-   (page-00)          (page-01 to 14)       (back+spine+front)
-        ↓                     ↓                     ↓
-[Generate Dedication PNG] [Loop: Generate Story PNGs] [Generate Cover Spread PNG]
-   2625x2625                2625x2625 each            5203x2625
-        ↓                     ↓                     ↓
+   INTERIOR PAGES (page-00..14)       COVER SPREAD
+(dedication is page-00)            (back+spine+front)
+        ↓                                ↓
+[Loop: Generate Interior PNGs]     [Generate Cover Spread PNG]
+  2625x2625 each                        5203x2625
+        ↓                                ↓
 [Upload to R2]           [Upload to R2]         [Upload to R2]
         ↓                     ↓                     ↓
         └─────────────────────┴─────────────────────┘
@@ -218,22 +220,18 @@ Generate all PNG assets for preview and print, with admin and customer approval 
 
 ### **Node: "Generate Complete HTML"**
 **Updates Required:**
-1. Generate HTML for **3 distinct output types** (all from single CSS system):
-   - **Dedication page** (page-00):
-     - Dynamic: Custom dedication text from order data
-     - Static: Background image, decorative elements
-     - Dimensions: 2625x2625px
-   
-   - **Story pages** (page-01 through page-14):
-     - Dynamic: Story text, character images, page numbers
-     - Static: Background images per page
-     - Dimensions: 2625x2625px each
-   
-   - **Cover spread**:
-     - Dynamic: Character image (pose 13), child's name, optional animal guide
-     - Static: Front/back backgrounds, barcode placement area
-     - Dimensions: 5203x2625px (back 2587px + spine 29px + front 2587px)
-     - Layout: CSS positioned sections for back cover, spine, front cover
+1. Generate HTML for **2 output streams** (single CSS system):
+   - **Interior pages** (page-00 through page-14):
+  - **page-00** is the dedication page (generated within the same loop)
+  - Dynamic: Dedication text (p00), story text (p01–p14), character images, page numbers
+  - Static: Background images per page
+  - Dimensions: 2625x2625px each
+
+- **Cover spread**:
+  - Dynamic: Character image (pose 13), child's name, optional animal guide
+  - Static: Front/back backgrounds, reserved barcode area
+  - Dimensions: 5203x2625px (no spine text)
+
 
 2. **Export complete CSS** with page_css including:
    ```css
@@ -811,7 +809,7 @@ Convert approved PNGs to print-ready PDFs and submit to Lulu API for printing.
 9. Create 3A manifest structure
 10. Test end-to-end PNG generation (16 PNGs total)
 
-### **Phase 3: Approval Gates** (Week 3-4)
+### **Phase 3: Admin Review (handled in backend)** (Week 3-4)
 11. Build admin dashboard for preview/approval
 12. Build customer preview interface
 13. Implement status update webhooks
@@ -829,7 +827,7 @@ Convert approved PNGs to print-ready PDFs and submit to Lulu API for printing.
 21. Create "Build Lulu API Payload" node
 22. Implement "Submit to Lulu API" node with error handling
 23. Build 4 manifest structure
-24. Implement customer/admin notification webhooks
+24. Admin/customer notifications are handled by the backend; no workflow changes in LHB‑3
 25. Test with Lulu sandbox environment
 
 ### **Phase 6: Integration & Testing** (Week 6-7)
@@ -900,3 +898,7 @@ Convert approved PNGs to print-ready PDFs and submit to Lulu API for printing.
 **Created:** For Little Hero Labs cover pages project  
 **Updated:** PNG-first architecture + confirmed Lulu specs + split workflows  
 **Status:** Blueprint - Ready for implementation
+
+
+---
+**LHB‑3 Webhook Contract:** Webhook URL and payload remain unchanged in v3.1. Admin/customer notifications occur in the backend, not in LHB‑3.

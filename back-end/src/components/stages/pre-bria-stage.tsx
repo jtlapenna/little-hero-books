@@ -63,16 +63,19 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       });
     }
 
-    // Update poses if available
+    // Update poses if available - use actual poseNumber from data to support any number of poses (including pose0)
     if (order.r2Assets.poses && order.r2Assets.poses.length > 0) {
       console.log('PreBriaStage: Setting poses from R2:', order.r2Assets.poses.length, 'poses');
-      setPoses(order.r2Assets.poses.map((pose, index) => ({
-        id: `pose${String(index + 1).padStart(2, '0')}`,
-        name: `Pose ${index + 1}`,
-        url: pose.url,
-        isFlagged: false,
-        hasTransparentBackground: false
-      })));
+      setPoses(order.r2Assets.poses.map((pose) => {
+        const poseNumber = pose.poseNumber ?? 0;
+        return {
+          id: `pose${String(poseNumber).padStart(2, '0')}`,
+          name: `Pose ${poseNumber}`,
+          url: pose.url,
+          isFlagged: false,
+          hasTransparentBackground: false
+        };
+      }));
     } else {
       // Reset poses if no R2 data
       setPoses([]);
@@ -185,7 +188,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
           {/* Poses Section */}
           <AssetGrid
             title="Character Poses"
-            description="12 different poses for the character across all story pages"
+            description={`${poses.length} pose${poses.length !== 1 ? 's' : ''} for the character across all story pages`}
             assets={poses}
             onDownload={handleDownload}
             onReplace={handleReplace}

@@ -1,0 +1,156 @@
+2A – Orchestrator: Minimal-diff update report (12 → 13)
+================================================================
+Original file: /mnt/data/2A - Orchestrator.json
+Updated file : /mnt/data/2A - Orchestrator.updated.json
+Nodes scanned : 31
+
+1. Node: Get Next Order from Queue1
+   Field: functionCode
+   Note : Queue seed totalPosesRequired 12→13
+   Before:
+     // Get next order from processing queue and extract custom elements
+     // In production, this would query a database queue
+     // For now, we'll simulate getting an order from the previous workflow
+
+     const inputData = $input.first();
+
+     if (!inputData || !inputData.json) {
+       console.log('No input data received');
+       return [];
+     }
+
+     const orderData = inputData.json;
+
+     // For mock/test mode, skip status check (production would enforce this)
+     const isMockMode = !orderData.status || orderData.status === 'mock';
+
+     i
+   After:
+     // Get next order from processing queue and extract custom elements
+     // In production, this would query a database queue
+     // For now, we'll simulate getting an order from the previous workflow
+
+     const inputData = $input.first();
+
+     if (!inputData || !inputData.json) {
+       console.log('No input data received');
+       return [];
+     }
+
+     const orderData = inputData.json;
+
+     // For mock/test mode, skip status check (production would enforce this)
+     const isMockMode = !orderData.status || orderData.status === 'mock';
+
+     i
+----------------------------------------------------------------
+2. Node: Simulate Upstream (Seed Pose Loop)
+   Field: jsCode
+   Note : Seed helper comment and seed total 12→13
+   Before:
+     // Simulate the upstream order so you can test the pose loop without regenerating the base character.
+     // This mirrors production fields used by the prompt builder & QA.
+
+     // ---------- SIM CONFIG ----------
+     const SIM = {
+       // Character + assets
+       characterHash: '1567edfe9a2e96c5',
+       totalPosesRequired: 2,                  // set 12 for full run
+       assetsRoot: 'book-mvp-simple-adventure',
+       orderAssetsPrefix: 'order-generated-assets',
+       baseCharacterFilename: 'base-character.png',
+       publicR2Url: 'h
+   After:
+     // Simulate the upstream order so you can test the pose loop without regenerating the base character.
+     // This mirrors production fields used by the prompt builder & QA.
+
+     // ---------- SIM CONFIG ----------
+     const SIM = {
+       // Character + assets
+       characterHash: '1567edfe9a2e96c5',
+       totalPosesRequired: 2,                  // set 13 for full run
+       assetsRoot: 'book-mvp-simple-adventure',
+       orderAssetsPrefix: 'order-generated-assets',
+       baseCharacterFilename: 'base-character.png',
+       publicR2Url: 'h
+----------------------------------------------------------------
+3. Node: Expand to 12 Poses
+   Field: name
+   Note : Rename for clarity
+   Before:
+     Expand to 12 Poses
+   After:
+     Expand to N Poses
+----------------------------------------------------------------
+4. Node: Expand to N Poses
+   Field: jsCode
+   Note : Bump default 12→13 for pose expansion
+   Before:
+     // Expand to N Poses — v2.4 (JSON-only fan-out; staticData-aware; deterministic)
+     // Mode: Run Once for All Items (ALL)
+     // Uses the first incoming item as the source and emits N JSON copies with pose fields.
+
+     const item = $input.first() || { json: {}, binary: {} };
+     const j = item.json || {};
+
+     function good(x){
+       return typeof x === 'string'
+         ? x.trim() !== '' && x.trim().toLowerCase() !== 'unknown-order'
+         : x !== undefined && x !== null;
+     }
+     function pickNE(){ for (const a of arguments){ if (
+   After:
+     // Expand to N Poses — v2.4 (JSON-only fan-out; staticData-aware; deterministic)
+     // Mode: Run Once for All Items (ALL)
+     // Uses the first incoming item as the source and emits N JSON copies with pose fields.
+
+     const item = $input.first() || { json: {}, binary: {} };
+     const j = item.json || {};
+
+     function good(x){
+       return typeof x === 'string'
+         ? x.trim() !== '' && x.trim().toLowerCase() !== 'unknown-order'
+         : x !== undefined && x !== null;
+     }
+     function pickNE(){ for (const a of arguments){ if (
+----------------------------------------------------------------
+5. Node: Set Environment Defaults (code)
+   Field: jsCode
+   Note : Env default 12→13
+   Before:
+     // Set Orchestrator Defaults (safe) — no $env/process usage
+
+     const j = $json || {};
+     const ctxIn = j.ctx || {};
+
+     // test flag purely from JSON (no env!)
+     const isTest = !!(
+       j.__testMode ||
+       j.testMode   ||
+       j.__meta?.__testMode ||
+       j.ctx?.__testMode ||
+       j.ctx?.testMode
+     );
+
+     // sensible defaults (overrideable via incoming JSON)
+     const assetsRoot   = j.assetsRoot   || 'book-mvp-simple-adventure/order-generated-assets';
+     // UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or sign
+   After:
+     // Set Orchestrator Defaults (safe) — no $env/process usage
+
+     const j = $json || {};
+     const ctxIn = j.ctx || {};
+
+     // test flag purely from JSON (no env!)
+     const isTest = !!(
+       j.__testMode ||
+       j.testMode   ||
+       j.__meta?.__testMode ||
+       j.ctx?.__testMode ||
+       j.ctx?.testMode
+     );
+
+     // sensible defaults (overrideable via incoming JSON)
+     const assetsRoot   = j.assetsRoot   || 'book-mvp-simple-adventure/order-generated-assets';
+     // UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or sign
+----------------------------------------------------------------

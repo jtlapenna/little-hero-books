@@ -170,16 +170,18 @@ async function getOrder(
                        characterAssets.find(a => a.assetType === 'original') || 
                        characterAssets[0] || null;
   
-  // Pre-Bria poses: only "original" type with poseNumber > 0 (from poses/ directory - 2A images)
+  // Pre-Bria poses: all "original" type images (including pose0) - from poses/ directory (2A images)
+  // Accept any number of poses, sorted by poseNumber
   const preBriaPoses = characterAssets
-    .filter(a => a.assetType === 'original' && a.poseNumber > 0)
+    .filter(a => a.assetType === 'original' && a.poseNumber >= 0)
     .sort((a, b) => a.poseNumber - b.poseNumber);
   
-  // Post-Bria poses: only "background-removed" type with poseNumber > 0 (from parent dir with nobg.png - 2B images)
+  // Post-Bria poses: all "background-removed" type images (including pose0) - from parent dir with nobg.png (2B images)
+  // Accept any number of poses, sorted by poseNumber
   // Add cache-busting timestamp to ensure images refresh when overwritten in R2
   const cacheBuster = Date.now();
   const postBriaPoses = characterAssets
-    .filter(a => a.assetType === 'background-removed' && a.poseNumber > 0)
+    .filter(a => a.assetType === 'background-removed' && a.poseNumber >= 0)
     .sort((a, b) => a.poseNumber - b.poseNumber)
     .map(pose => ({
       ...pose,
