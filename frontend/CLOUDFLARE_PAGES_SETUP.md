@@ -29,5 +29,8 @@ If you cannot update the dashboard settings, you can:
 ## Notes
 
 - Astro builds to the `dist` directory by default
-- The build output is static HTML/CSS/JS
-- No server-side rendering is configured (static site mode)
+- Hybrid rendering: site is static by default, with server-rendered dynamic routes where `export const prerender = false;` is set (Astro 5 hybrid)
+- Customer preview page `src/pages/approve/[token].astro` is server-rendered to validate tokens at runtime
+- On Cloudflare Pages, ensure Functions are enabled (automatic) so SSR routes run at the edge; no extra env vars needed for frontend
+- Backend API remains on `admin.littleherolabs.com` (Next.js); confirm CORS allows the customer site origin
+
