@@ -174,10 +174,18 @@ export function AssetGrid({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (asset.isMissing || !asset.url) {
+                      return; // Don't allow download for missing assets
+                    }
                     onDownload(asset.id);
                   }}
-                  className="p-2 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
-                  title="Download"
+                  className={`p-2 rounded-full transition-colors ${
+                    asset.isMissing || !asset.url
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title={asset.isMissing || !asset.url ? 'Download not available' : 'Download'}
+                  disabled={asset.isMissing || !asset.url}
                 >
                   <Download className="h-4 w-4" />
                 </button>
