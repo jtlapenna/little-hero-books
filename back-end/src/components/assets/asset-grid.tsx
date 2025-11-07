@@ -10,6 +10,10 @@ interface Asset {
   url: string;
   isFlagged: boolean;
   hasTransparentBackground?: boolean;
+  isMissing?: boolean;
+  status?: string;
+  reviewReason?: string;
+  attempts?: number;
 }
 
 interface AssetGridProps {
@@ -111,17 +115,47 @@ export function AssetGrid({
             className="relative group bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => setSelectedAsset(asset)}
           >
-            {/* Image */}
+            {/* Image or Placeholder */}
             <div 
               className={`w-full aspect-square flex items-center justify-center ${
                 showBlackBackground && asset.hasTransparentBackground ? 'bg-black' : 'bg-gray-50'
-              }`}
+              } ${asset.isMissing ? 'bg-red-50 border-2 border-red-300 border-dashed' : ''}`}
             >
-              <img
-                src={asset.url}
-                alt={asset.name}
-                className="max-w-full max-h-full object-contain"
-              />
+              {asset.isMissing || !asset.url ? (
+                <div className="flex flex-col items-center justify-center p-4 text-center">
+                  <div className="text-4xl mb-2">⚠️</div>
+                  <div className="text-sm font-medium text-red-600 mb-1">Missing</div>
+                  {asset.status && (
+                    <div className="text-xs text-gray-500 capitalize">{asset.status}</div>
+                  )}
+                  {asset.reviewReason && (
+                    <div className="text-xs text-gray-500 mt-1">{asset.reviewReason.replace(/_/g, ' ')}</div>
+                  )}
+                  {asset.attempts !== undefined && asset.attempts > 0 && (
+                    <div className="text-xs text-gray-500 mt-1">{asset.attempts} attempt{asset.attempts !== 1 ? 's' : ''}</div>
+                  )}
+                </div>
+              ) : (
+                <img
+                  src={asset.url}
+                  alt={asset.name}
+                  className="max-w-full max-h-full object-contain"
+                  onError={(e) => {
+                    // Fallback to placeholder if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent && !parent.querySelector('.missing-placeholder')) {
+                      parent.innerHTML = `
+                        <div class="missing-placeholder flex flex-col items-center justify-center p-4 text-center">
+                          <div class="text-4xl mb-2">⚠️</div>
+                          <div class="text-sm font-medium text-red-600">Image not found</div>
+                        </div>
+                      `;
+                    }
+                  }}
+                />
+              )}
             </div>
 
             {/* Overlay Actions */}
@@ -152,6 +186,10 @@ export function AssetGrid({
                     console.log('[AssetGrid] Replace button clicked for:', asset.id);
                     e.stopPropagation();
                     e.preventDefault();
+                    if (asset.isMissing || !asset.url) {
+                      console.log('[AssetGrid] Replace disabled for missing asset:', asset.id);
+                      return; // Don't allow replace for missing assets
+                    }
                     if (disabledReplaceIds.includes(asset.id)) {
                       console.log('[AssetGrid] Replace disabled for:', asset.id);
                       return;

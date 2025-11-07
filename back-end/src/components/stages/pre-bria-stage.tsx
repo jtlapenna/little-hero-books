@@ -66,16 +66,22 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     }
 
     // Update poses if available - use actual poseNumber from data to support any number of poses (including pose0)
+    // Include missing/exhausted poses as placeholders
     if (order.r2Assets.poses && order.r2Assets.poses.length > 0) {
       console.log('PreBriaStage: Setting poses from R2:', order.r2Assets.poses.length, 'poses');
       setPoses(order.r2Assets.poses.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
+        const isMissing = pose.isMissing || !pose.url;
         return {
           id: `pose${String(poseNumber).padStart(2, '0')}`,
-          name: `Pose ${poseNumber}`,
-          url: pose.url,
-          isFlagged: false,
-          hasTransparentBackground: false
+          name: `Pose ${poseNumber}${isMissing ? ' (Missing)' : ''}`,
+          url: pose.url || '',
+          isFlagged: pose.isFlagged || isMissing || false, // Auto-flag missing poses
+          hasTransparentBackground: false,
+          isMissing: isMissing,
+          status: pose.status,
+          reviewReason: pose.reviewReason,
+          attempts: pose.attempts
         };
       }));
     } else {
@@ -233,14 +239,15 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
   const allAssets = [baseCharacter, ...poses];
   const flaggedCount = allAssets.filter(asset => asset.isFlagged).length;
+  const missingCount = poses.filter(pose => pose.isMissing || !pose.url).length;
   
   // Check that all images exist and have URLs
   const baseCharacterExists = baseCharacter.url && baseCharacter.url.length > 0;
-  const allPosesExist = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0);
+  const allPosesExist = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0 && !pose.isMissing);
   const hasAllImages = baseCharacterExists && allPosesExist;
   
-  // Can approve stage only if all images exist and none are flagged
-  const canApproveStage = flaggedCount === 0 && hasAllImages;
+  // Can approve stage only if all images exist, none are missing, and none are flagged
+  const canApproveStage = flaggedCount === 0 && hasAllImages && missingCount === 0;
   
   // Can trigger background removal if approve stage is confirmed
   const canTriggerBackgroundRemoval = approveStageConfirmed && canApproveStage;

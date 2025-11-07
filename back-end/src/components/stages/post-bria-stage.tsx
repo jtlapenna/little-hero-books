@@ -26,21 +26,27 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   }, [isApproved]);
   
   // Initialize with empty state - will be populated from R2 data
-  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean }>>([]);
+  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
 
   // Update state when order data changes - use actual poseNumber from data to support any number of poses (including pose0)
+  // Include missing/exhausted poses as placeholders
   useEffect(() => {
     if (order.r2Assets?.posesBgRemoved && order.r2Assets.posesBgRemoved.length > 0) {
       console.log('PostBriaStage: Setting poses from R2:', order.r2Assets.posesBgRemoved.length, 'poses');
       setPoses(order.r2Assets.posesBgRemoved.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
+        const isMissing = pose.isMissing || !pose.url;
         return {
           id: `pose${String(poseNumber).padStart(2, '0')}-bg-removed`,
-          name: `Pose ${poseNumber} (BG Removed)`,
-          url: pose.url,
-          isFlagged: false,
-          hasTransparentBackground: true
+          name: `Pose ${poseNumber} (BG Removed)${isMissing ? ' (Missing)' : ''}`,
+          url: pose.url || '',
+          isFlagged: pose.isFlagged || isMissing || false, // Auto-flag missing poses
+          hasTransparentBackground: true,
+          isMissing: isMissing,
+          status: pose.status,
+          reviewReason: pose.reviewReason,
+          attempts: pose.attempts
         };
       }));
     } else {

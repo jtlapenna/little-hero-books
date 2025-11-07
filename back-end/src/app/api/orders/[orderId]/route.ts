@@ -185,12 +185,16 @@ async function getOrder(
   const pose0Url = pose0Asset?.url?.toLowerCase() || '';
   const isBaseCharacterSameAsPose0 = baseCharacterUrl && pose0Url && baseCharacterUrl === pose0Url;
   
+  // Get manifest entries to determine expected poses and identify missing/exhausted ones
+  const manifestEntries = manifest?.entries || [];
+  const expectedPoseCount = manifest?.poses?.total || manifestEntries.length || 13; // Default to 13 if not specified
+  
+  // Create a map of existing assets by pose number for quick lookup
+  const cacheBuster = Date.now();
+  
   // Pre-Bria poses: all "original" type images including pose0 (poseNumber >= 0)
   // But exclude base-character.png from poses (it's shown in Base Character section)
-  // Accept any number of poses, sorted by poseNumber
-  // Add cache-busting timestamp to ensure images refresh when overwritten in R2
-  const cacheBuster = Date.now();
-  const preBriaPoses = characterAssets
+  const existingPreBriaPoses = characterAssets
     .filter(a => {
       if (a.assetType !== 'original' || a.poseNumber < 0) return false;
       // Always exclude base-character.png from poses (it's shown separately in Base Character section)
@@ -204,16 +208,84 @@ async function getOrder(
       url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
     }));
   
+  // Create map of existing poses by poseNumber
+  const existingPreBriaMap = new Map(existingPreBriaPoses.map(p => [p.poseNumber, p]));
+  
+  // Build complete list of pre-Bria poses, including placeholders for missing/exhausted ones
+  const preBriaPoses: any[] = [];
+  for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
+    const existingPose = existingPreBriaMap.get(poseNum);
+    const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
+    
+    if (existingPose) {
+      // Pose exists in R2
+      preBriaPoses.push(existingPose);
+    } else {
+      // Pose is missing - create placeholder
+      const isExhausted = manifestEntry?.status === 'exhausted' || manifestEntry?.status === 'failed';
+      const needsReview = manifestEntry?.needsReview || isExhausted;
+      const reviewReason = manifestEntry?.reviewReason || (isExhausted ? 'missing' : 'not_generated');
+      
+      preBriaPoses.push({
+        poseNumber: poseNum,
+        url: '', // No URL - will show placeholder in UI
+        assetType: 'original',
+        characterHash: order.characterHash,
+        isMissing: true,
+        isFlagged: true, // Automatically flag missing poses
+        status: manifestEntry?.status || 'missing',
+        needsReview: needsReview,
+        reviewReason: reviewReason,
+        attempts: manifestEntry?.attempts || 0,
+        approved: false
+      });
+    }
+  }
+  
   // Post-Bria poses: all "background-removed" type images including pose0 (poseNumber >= 0)
-  // Accept any number of poses, sorted by poseNumber
-  // Add cache-busting timestamp to ensure images refresh when overwritten in R2
-  const postBriaPoses = characterAssets
+  const existingPostBriaPoses = characterAssets
     .filter(a => a.assetType === 'background-removed' && a.poseNumber >= 0)
     .sort((a, b) => a.poseNumber - b.poseNumber)
     .map(pose => ({
       ...pose,
       url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
     }));
+  
+  // Create map of existing post-Bria poses by poseNumber
+  const existingPostBriaMap = new Map(existingPostBriaPoses.map(p => [p.poseNumber, p]));
+  
+  // Build complete list of post-Bria poses, including placeholders for missing ones
+  const postBriaPoses: any[] = [];
+  for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
+    const existingPose = existingPostBriaMap.get(poseNum);
+    const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
+    
+    if (existingPose) {
+      // Pose exists in R2
+      postBriaPoses.push(existingPose);
+    } else {
+      // Pose is missing - create placeholder
+      // For post-Bria, check if the pre-Bria pose was approved (bg removal might not have run yet)
+      const preBriaEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
+      const isExhausted = preBriaEntry?.status === 'exhausted' || preBriaEntry?.status === 'failed';
+      const needsReview = preBriaEntry?.needsReview || isExhausted;
+      const reviewReason = preBriaEntry?.reviewReason || (isExhausted ? 'missing' : 'not_processed');
+      
+      postBriaPoses.push({
+        poseNumber: poseNum,
+        url: '', // No URL - will show placeholder in UI
+        assetType: 'background-removed',
+        characterHash: order.characterHash,
+        isMissing: true,
+        isFlagged: true, // Automatically flag missing poses
+        status: preBriaEntry?.status || 'missing',
+        needsReview: needsReview,
+        reviewReason: reviewReason,
+        attempts: preBriaEntry?.attempts || 0,
+        approved: false
+      });
+    }
+  }
   
   // Use the selected base character asset
   const baseCharacter = baseCharacterAsset;
