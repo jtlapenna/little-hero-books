@@ -252,10 +252,13 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   const flaggedCount = allAssets.filter(asset => asset.isFlagged).length;
   const missingCount = poses.filter(pose => pose.isMissing || !pose.url).length;
   
-  // Check that all images exist and have URLs
+  // Check that we have some images to display (even if some are missing/placeholders)
   const baseCharacterExists = baseCharacter.url && baseCharacter.url.length > 0;
+  const hasSomePoses = poses.length > 0;
+  const hasAllImages = baseCharacterExists && hasSomePoses; // Changed: allow rendering even if some poses are missing (they'll show as placeholders)
+  
+  // Separate check for whether ALL poses exist (for approval logic)
   const allPosesExist = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0 && !pose.isMissing);
-  const hasAllImages = baseCharacterExists && allPosesExist;
   
   // Can approve stage only if all images exist, none are missing, and none are flagged
   const canApproveStage = flaggedCount === 0 && hasAllImages && missingCount === 0;
