@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
+import { getObject, putObject, deleteObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { buildManifestKey } from '@/lib/r2-service';
 
 // Helper to parse JSON safely
@@ -144,8 +144,45 @@ export async function POST(
     const isCharacterAsset = originalKey.includes('/characters/');
     const bucket = isCharacterAsset ? R2_PUBLIC_BUCKET : R2_ORDERS_BUCKET;
 
+    // Delete the old file (the one from manifest, which might have retry suffix)
+    // This ensures we don't have duplicates (e.g., both pose03.png and pose03_r2.png)
+    if (r2Key !== originalKey) {
+      console.log(`[Replace Image API] Deleting old file with retry suffix: ${bucket}/${r2Key}`);
+      try {
+        await deleteObject(bucket, r2Key);
+        console.log(`[Replace Image API] Old file ${r2Key} deleted successfully`);
+      } catch (deleteError: any) {
+        // Log error but don't fail the upload - the new file should still be uploaded
+        // If the old file doesn't exist (404), that's fine - it might have already been deleted
+        if (deleteError.message?.includes('404') || deleteError.message?.includes('Not Found')) {
+          console.log(`[Replace Image API] Old file ${r2Key} not found (may have already been deleted), continuing...`);
+        } else {
+          console.error(`[Replace Image API] Error deleting old file ${r2Key}:`, deleteError);
+          // Continue with upload even if delete fails
+        }
+      }
+    }
+
+    // Also check if there's already a file at the originalKey location and delete it
+    // This handles the case where the original file exists and we want to replace it
+    console.log(`[Replace Image API] Checking if original file exists: ${bucket}/${originalKey}`);
+    try {
+      // Try to get the object to see if it exists
+      const existingFileCheck = await getObject(bucket, originalKey);
+      if (existingFileCheck.ok) {
+        console.log(`[Replace Image API] Original file ${originalKey} exists, will be overwritten by upload`);
+      }
+    } catch (checkError: any) {
+      // File doesn't exist, which is fine - we'll create it
+      if (checkError.message?.includes('404') || checkError.message?.includes('Not Found')) {
+        console.log(`[Replace Image API] Original file ${originalKey} does not exist, will be created`);
+      } else {
+        console.error(`[Replace Image API] Error checking for original file:`, checkError);
+      }
+    }
+
     // Upload new file (overwrites existing original file, not retry file)
-    console.log(`[Replace Image API] Uploading to ${bucket}/${originalKey}`);
+    console.log(`[Replace Image API] Uploading new file to ${bucket}/${originalKey}`);
     console.log(`[Replace Image API] File details:`, {
       name: file.name,
       size: file.size,
