@@ -286,35 +286,69 @@ async function getOrder(
       postBriaPoses.push(...existingPostBriaPoses);
     } else {
       // Normal flow: build complete list including placeholders
+      console.log(`[GET /api/orders/[orderId]] Building post-Bria poses list, expectedPoseCount: ${expectedPoseCount}, existingPostBriaMap size: ${existingPostBriaMap.size}`);
       for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
         const existingPose = existingPostBriaMap.get(poseNum);
         const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
         
+        // Check if manifest has bgRemovedKey
+        const hasBgRemovedKey = manifestEntry?.bgRemovedKey && manifestEntry.bgRemovedKey.length > 0;
+        
+        console.log(`[GET /api/orders/[orderId]] Processing pose ${poseNum}: existingPose=${!!existingPose}, manifestEntry=${!!manifestEntry}, hasBgRemovedKey=${hasBgRemovedKey}, manifestEntry.poseNumber=${manifestEntry?.poseNumber}, manifestEntry.bgRemovedKey=${manifestEntry?.bgRemovedKey || 'null'}`);
+        
         if (existingPose) {
-          // Pose exists in R2
+          // File exists in R2 - show it (even if manifest doesn't have bgRemovedKey yet)
+          // This handles cases where the file was uploaded but manifest wasn't updated
           postBriaPoses.push(existingPose);
-        } else {
-          // Pose is missing - create placeholder (only if workflow 2B has run)
-          const preBriaEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
-          const isExhausted = preBriaEntry?.status === 'exhausted' || preBriaEntry?.status === 'failed';
-          const needsReview = preBriaEntry?.needsReview || isExhausted;
-          const reviewReason = preBriaEntry?.reviewReason || (isExhausted ? 'missing' : 'not_processed');
+          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found in R2, hasBgRemovedKey in manifest: ${hasBgRemovedKey}`);
+        } else if (hasBgRemovedKey) {
+          // Manifest says it should exist but file not found in R2 - this is unexpected
+          // Construct URL from manifest's bgRemovedKey
+          const r2Key = manifestEntry.bgRemovedKey;
+          const publicUrl = manifestEntry.bgRemovedImageUrl || (order.publicR2Url ? `${order.publicR2Url}/${r2Key}` : null);
+          const proxyUrl = publicUrl ? `/api/assets/${r2Key}` : '';
           
           postBriaPoses.push({
+            poseNumber: poseNum,
+            url: proxyUrl,
+            assetType: 'background-removed',
+            characterHash: order.characterHash,
+            isMissing: !proxyUrl,
+            isFlagged: !proxyUrl,
+            status: manifestEntry?.status || 'missing',
+            needsReview: !proxyUrl,
+            reviewReason: !proxyUrl ? 'file_not_found_in_r2' : null,
+            attempts: manifestEntry?.attempts || 0,
+            approved: manifestEntry?.approved || false
+          });
+          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Manifest has bgRemovedKey but file not in R2 map, constructed URL: ${proxyUrl ? 'present' : 'missing'}`);
+        } else {
+          // Pose is missing - create placeholder
+          const isExhausted = manifestEntry?.status === 'exhausted' || manifestEntry?.status === 'failed';
+          const needsReview = manifestEntry?.needsReview || isExhausted;
+          // If manifest entry exists but no bgRemovedKey, it means workflow 2B didn't process it
+          const reviewReason = manifestEntry && !hasBgRemovedKey 
+            ? 'not_processed' 
+            : (isExhausted ? 'missing' : 'not_processed');
+          
+          const placeholder = {
             poseNumber: poseNum,
             url: '', // No URL - will show placeholder in UI
             assetType: 'background-removed',
             characterHash: order.characterHash,
             isMissing: true,
             isFlagged: true, // Automatically flag missing poses
-            status: preBriaEntry?.status || 'missing',
+            status: manifestEntry?.status || 'missing',
             needsReview: needsReview,
             reviewReason: reviewReason,
-            attempts: preBriaEntry?.attempts || 0,
+            attempts: manifestEntry?.attempts || 0,
             approved: false
-          });
+          };
+          postBriaPoses.push(placeholder);
+          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Missing (no file in R2, no bgRemovedKey in manifest), created placeholder:`, JSON.stringify(placeholder));
         }
       }
+      console.log(`[GET /api/orders/[orderId]] Final postBriaPoses count: ${postBriaPoses.length}, poseNumbers: [${postBriaPoses.map(p => p.poseNumber).join(', ')}]`);
     }
   }
   

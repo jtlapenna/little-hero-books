@@ -86,36 +86,13 @@ export async function POST(
     }
 
     // Determine which manifest to use
-    // For Post-Bria, try 2b-manifest first, but fall back to 2a-manifest if it doesn't exist yet
-    let manifest: any = null;
-    let manifestKey = '';
+    const manifestType = stage === 'preBria' ? '2a' : '2b';
+    const manifestKey = buildManifestKey(orderId, manifestType);
     
-    if (stage === 'preBria') {
-      manifestKey = buildManifestKey(orderId, '2a');
-      console.log(`[Replace Image] Loading 2a-manifest: ${manifestKey}`);
-      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-      manifest = await readJsonSafe<any>(manifestRes);
-    } else {
-      // Post-Bria: try 2b-manifest first, fall back to 2a-manifest if it doesn't exist
-      try {
-        manifestKey = buildManifestKey(orderId, '2b');
-        console.log(`[Replace Image] Trying to load 2b-manifest: ${manifestKey}`);
-        const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-        manifest = await readJsonSafe<any>(manifestRes);
-        console.log(`[Replace Image] Successfully loaded 2b-manifest`);
-      } catch (error: any) {
-        // 2b-manifest doesn't exist yet, fall back to 2a-manifest
-        if (error.message?.includes('404') || error.message?.includes('NoSuchKey')) {
-          console.log(`[Replace Image] 2b-manifest not found, falling back to 2a-manifest`);
-          manifestKey = buildManifestKey(orderId, '2a');
-          const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-          manifest = await readJsonSafe<any>(manifestRes);
-          console.log(`[Replace Image] Successfully loaded 2a-manifest as fallback`);
-        } else {
-          throw error; // Re-throw if it's not a 404
-        }
-      }
-    }
+    // Download current manifest
+    console.log(`[Replace Image] Loading manifest: ${manifestKey}`);
+    const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
+    const manifest = await readJsonSafe<any>(manifestRes);
 
     if (!manifest || !manifest.entries || !Array.isArray(manifest.entries)) {
       return NextResponse.json(

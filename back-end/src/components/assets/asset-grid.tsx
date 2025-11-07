@@ -52,20 +52,12 @@ export function AssetGrid({
   const fileInputRefs = useRef<Record<string, HTMLInputElement>>({});
 
   const handleFileReplace = (assetId: string, event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('[AssetGrid] handleFileReplace called for:', assetId, 'files length:', event.target.files?.length);
     const file = event.target.files?.[0];
     if (file) {
-      console.log('[AssetGrid] File selected for replacement:', assetId, 'file:', {
-        name: file.name,
-        size: file.size,
-        type: file.type
-      });
-      console.log('[AssetGrid] Calling onReplace callback with assetId:', assetId, 'file:', file.name);
       try {
         // Don't clear loading state here - let the parent component's handleReplace manage it
         // The parent will set isReplacing via the prop, or we'll keep it until upload completes
         onReplace(assetId, file);
-        console.log('[AssetGrid] onReplace callback completed');
         // Reset the input value so the same file can be selected again
         // But do this after a small delay to ensure the change event is fully processed
         setTimeout(() => {
@@ -79,7 +71,6 @@ export function AssetGrid({
         }
       }
     } else {
-      console.log('[AssetGrid] No file selected (user cancelled), clearing loading state');
       // If no file was selected (user cancelled), clear the loading state
       if (externalIsReplacing === undefined) {
         setInternalIsReplacing(null);
@@ -136,10 +127,10 @@ export function AssetGrid({
                   )}
                 </div>
               ) : (
-                <img
-                  src={asset.url}
-                  alt={asset.name}
-                  className="max-w-full max-h-full object-contain"
+              <img
+                src={asset.url}
+                alt={asset.name}
+                className="max-w-full max-h-full object-contain"
                   onError={(e) => {
                     // Fallback to placeholder if image fails to load
                     const target = e.target as HTMLImageElement;
@@ -154,7 +145,7 @@ export function AssetGrid({
                       `;
                     }
                   }}
-                />
+              />
               )}
             </div>
 
@@ -191,32 +182,25 @@ export function AssetGrid({
                 </button>
                 <button
                   onClick={(e) => {
-                    console.log('[AssetGrid] Replace button clicked for:', asset.id);
                     e.stopPropagation();
                     e.preventDefault();
                     // Allow replace for missing assets - this will upload the missing image
                     // The API will handle creating the entry and uploading to the correct location
                     if (disabledReplaceIds.includes(asset.id)) {
-                      console.log('[AssetGrid] Replace disabled for:', asset.id);
                       return;
                     }
                     if (isReplacing === asset.id) {
-                      console.log('[AssetGrid] Already replacing:', asset.id);
                       return; // Already replacing
                     }
-                    console.log('[AssetGrid] Setting loading state and triggering file input');
                     if (externalIsReplacing === undefined) {
                       setInternalIsReplacing(asset.id);
-                      console.log('[AssetGrid] Set internal isReplacing to:', asset.id);
                     }
                     // Use setTimeout to ensure the click happens after event propagation is stopped
                     setTimeout(() => {
                       // Try ref first, then fallback to getElementById
                       const fileInput = fileInputRefs.current[asset.id] || 
                                        document.getElementById(`replace-${asset.id}`) as HTMLInputElement;
-                      console.log('[AssetGrid] Looking for file input:', `replace-${asset.id}`, 'found:', !!fileInput);
                       if (fileInput) {
-                        console.log('[AssetGrid] Clicking file input programmatically');
                         fileInput.click();
                       } else {
                         console.error('[AssetGrid] File input not found! Available refs:', Object.keys(fileInputRefs.current));
@@ -242,7 +226,7 @@ export function AssetGrid({
                   {isReplacing === asset.id ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700"></div>
                   ) : (
-                    <Upload className="h-4 w-4" />
+                  <Upload className="h-4 w-4" />
                   )}
                 </button>
               </div>
@@ -282,19 +266,16 @@ export function AssetGrid({
               ref={(el) => {
                 if (el) {
                   fileInputRefs.current[asset.id] = el;
-                  console.log('[AssetGrid] File input ref registered for:', asset.id);
                 } else {
                   delete fileInputRefs.current[asset.id];
                 }
               }}
               onChange={(e) => {
-                console.log('[AssetGrid] File input onChange fired for:', asset.id, 'files:', e.target.files?.length);
                 e.stopPropagation();
                 // Don't preventDefault on change - it might interfere with file reading
                 handleFileReplace(asset.id, e);
               }}
               onClick={(e) => {
-                console.log('[AssetGrid] File input onClick fired for:', asset.id);
                 e.stopPropagation();
               }}
               className="hidden"

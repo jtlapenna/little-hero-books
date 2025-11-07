@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AssetGrid } from '@/components/assets/asset-grid';
 import { CheckCircle, Play, Eye, RefreshCw } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
@@ -29,12 +29,21 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
 
-  // Update state when R2 assets change - use JSON stringify for stable comparison
-  // This prevents infinite loops when order object reference changes but data is the same
+  // Update state when R2 assets change - use ref to track previous key and prevent infinite loops
   const posesBgRemoved = order?.r2Assets?.posesBgRemoved || [];
-  const posesBgRemovedKey = JSON.stringify(posesBgRemoved.map(p => ({ poseNumber: p.poseNumber, url: p.url, isMissing: p.isMissing })));
+  const prevKeyRef = useRef<string>('');
   
   useEffect(() => {
+    // Calculate stable key from actual data
+    const currentKey = JSON.stringify(posesBgRemoved.map(p => ({ poseNumber: p.poseNumber, url: p.url, isMissing: p.isMissing })));
+    
+    // Only update if the key actually changed
+    if (currentKey === prevKeyRef.current) {
+      return;
+    }
+    
+    prevKeyRef.current = currentKey;
+    
     if (posesBgRemoved.length > 0) {
       setPoses(posesBgRemoved.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
@@ -55,7 +64,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [posesBgRemovedKey, orderId]); // Use stable key instead of array reference
+  }, [posesBgRemoved, orderId]); // Depend on the array directly, but use ref to prevent unnecessary updates
 
   const handleDownload = async (assetId: string) => {
     try {
@@ -147,7 +156,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       console.log('[PostBriaStage] Image replaced successfully:', result);
 
       // Refresh the order data to show updated image
-      if (onRefresh) {
+    if (onRefresh) {
         console.log('[PostBriaStage] Calling onRefresh...');
         await onRefresh();
         console.log('[PostBriaStage] onRefresh completed');
