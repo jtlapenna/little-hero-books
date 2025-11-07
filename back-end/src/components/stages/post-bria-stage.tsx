@@ -29,9 +29,10 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
 
-  // Update state when R2 assets change - use specific dependency to avoid infinite loops
-  // Only depend on the actual data we need, not the entire order object
+  // Update state when R2 assets change - use JSON stringify for stable comparison
+  // This prevents infinite loops when order object reference changes but data is the same
   const posesBgRemoved = order?.r2Assets?.posesBgRemoved || [];
+  const posesBgRemovedKey = JSON.stringify(posesBgRemoved.map(p => ({ poseNumber: p.poseNumber, url: p.url, isMissing: p.isMissing })));
   
   useEffect(() => {
     if (posesBgRemoved.length > 0) {
@@ -54,7 +55,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [posesBgRemoved]); // Only depend on the specific data we need
+  }, [posesBgRemovedKey, orderId]); // Use stable key instead of array reference
 
   const handleDownload = async (assetId: string) => {
     try {
