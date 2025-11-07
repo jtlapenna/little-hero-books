@@ -251,39 +251,49 @@ async function getOrder(
       url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
     }));
   
+  console.log(`[GET /api/orders/[orderId]] Found ${existingPostBriaPoses.length} existing post-Bria poses:`, existingPostBriaPoses.map(p => ({ poseNumber: p.poseNumber, url: p.url })));
+  
   // Create map of existing post-Bria poses by poseNumber
   const existingPostBriaMap = new Map(existingPostBriaPoses.map(p => [p.poseNumber, p]));
   
   // Build complete list of post-Bria poses, including placeholders for missing ones
   const postBriaPoses: any[] = [];
-  for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
-    const existingPose = existingPostBriaMap.get(poseNum);
-    const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
-    
-    if (existingPose) {
-      // Pose exists in R2
-      postBriaPoses.push(existingPose);
-    } else {
-      // Pose is missing - create placeholder
-      // For post-Bria, check if the pre-Bria pose was approved (bg removal might not have run yet)
-      const preBriaEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
-      const isExhausted = preBriaEntry?.status === 'exhausted' || preBriaEntry?.status === 'failed';
-      const needsReview = preBriaEntry?.needsReview || isExhausted;
-      const reviewReason = preBriaEntry?.reviewReason || (isExhausted ? 'missing' : 'not_processed');
+  
+  // If we have existing poses but no manifest entries, just use the existing poses (fallback)
+  if (existingPostBriaPoses.length > 0 && manifestEntries.length === 0) {
+    console.log(`[GET /api/orders/[orderId]] No manifest entries found, using existing post-Bria poses only`);
+    postBriaPoses.push(...existingPostBriaPoses);
+  } else {
+    // Normal flow: build complete list including placeholders
+    for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
+      const existingPose = existingPostBriaMap.get(poseNum);
+      const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
       
-      postBriaPoses.push({
-        poseNumber: poseNum,
-        url: '', // No URL - will show placeholder in UI
-        assetType: 'background-removed',
-        characterHash: order.characterHash,
-        isMissing: true,
-        isFlagged: true, // Automatically flag missing poses
-        status: preBriaEntry?.status || 'missing',
-        needsReview: needsReview,
-        reviewReason: reviewReason,
-        attempts: preBriaEntry?.attempts || 0,
-        approved: false
-      });
+      if (existingPose) {
+        // Pose exists in R2
+        postBriaPoses.push(existingPose);
+      } else {
+        // Pose is missing - create placeholder
+        // For post-Bria, check if the pre-Bria pose was approved (bg removal might not have run yet)
+        const preBriaEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
+        const isExhausted = preBriaEntry?.status === 'exhausted' || preBriaEntry?.status === 'failed';
+        const needsReview = preBriaEntry?.needsReview || isExhausted;
+        const reviewReason = preBriaEntry?.reviewReason || (isExhausted ? 'missing' : 'not_processed');
+        
+        postBriaPoses.push({
+          poseNumber: poseNum,
+          url: '', // No URL - will show placeholder in UI
+          assetType: 'background-removed',
+          characterHash: order.characterHash,
+          isMissing: true,
+          isFlagged: true, // Automatically flag missing poses
+          status: preBriaEntry?.status || 'missing',
+          needsReview: needsReview,
+          reviewReason: reviewReason,
+          attempts: preBriaEntry?.attempts || 0,
+          approved: false
+        });
+      }
     }
   }
   
