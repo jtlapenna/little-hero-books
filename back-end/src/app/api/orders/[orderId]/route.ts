@@ -227,26 +227,41 @@ async function getOrder(
     
     if (existingPose) {
       // Pose exists in R2 - merge manifest entry's review flags if present
-      const needsReview = manifestEntry?.needsReview || false;
+      // IMPORTANT: Only use Pre-Bria review reasons (exclude Post-Bria-specific like transparency_fail)
+      const postBriaSpecificReasons = ['transparency_fail', 'file_not_found_in_r2', 'not_processed'];
       const reviewReason = manifestEntry?.reviewReason || null;
+      const isPostBriaReason = reviewReason && postBriaSpecificReasons.includes(reviewReason);
+      
+      // Only flag Pre-Bria if the review reason is NOT Post-Bria-specific
+      const needsReview = manifestEntry?.needsReview && !isPostBriaReason ? manifestEntry.needsReview : false;
+      const preBriaReviewReason = isPostBriaReason ? null : reviewReason;
       const isFlagged = needsReview || existingPose.isFlagged || false;
       
       preBriaPoses.push({
         ...existingPose,
         needsReview: needsReview,
-        reviewReason: reviewReason,
+        reviewReason: preBriaReviewReason,
         isFlagged: isFlagged,
         status: manifestEntry?.status || existingPose.status,
         attempts: manifestEntry?.attempts ?? existingPose.attempts,
         approved: manifestEntry?.approved ?? existingPose.approved
       });
-      console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found existing pose with URL, needsReview=${needsReview}, reviewReason=${reviewReason || 'null'}`);
+      console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found existing pose with URL, needsReview=${needsReview}, reviewReason=${preBriaReviewReason || 'null'} (filtered Post-Bria: ${isPostBriaReason})`);
     } else {
       // Pose is missing - create placeholder
       console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Creating placeholder (existingPose: ${!!existingPose}, manifestEntry: ${!!manifestEntry})`);
       const isExhausted = manifestEntry?.status === 'exhausted' || manifestEntry?.status === 'failed';
-      const needsReview = manifestEntry?.needsReview || isExhausted;
-      const reviewReason = manifestEntry?.reviewReason || (isExhausted ? 'missing' : 'not_generated');
+      
+      // Filter out Post-Bria-specific review reasons for Pre-Bria placeholders
+      const postBriaSpecificReasons = ['transparency_fail', 'file_not_found_in_r2', 'not_processed'];
+      const manifestReviewReason = manifestEntry?.reviewReason || null;
+      const isPostBriaReason = manifestReviewReason && postBriaSpecificReasons.includes(manifestReviewReason);
+      
+      // Only use Pre-Bria review reasons (exhausted/missing/not_generated)
+      const needsReview = isExhausted || (manifestEntry?.needsReview && !isPostBriaReason);
+      const reviewReason = isPostBriaReason 
+        ? (isExhausted ? 'missing' : 'not_generated')
+        : (manifestReviewReason || (isExhausted ? 'missing' : 'not_generated'));
       
       preBriaPoses.push({
         poseNumber: poseNum,
