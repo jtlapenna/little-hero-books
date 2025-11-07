@@ -189,6 +189,9 @@ async function getOrder(
   const manifestEntries = manifest?.entries || [];
   const expectedPoseCount = manifest?.poses?.total || manifestEntries.length || 13; // Default to 13 if not specified
   
+  console.log(`[GET /api/orders/[orderId]] Expected pose count: ${expectedPoseCount}, Manifest entries: ${manifestEntries.length}, Character assets: ${characterAssets.length}`);
+  console.log(`[GET /api/orders/[orderId]] Character assets sample:`, characterAssets.slice(0, 3).map(a => ({ poseNumber: a.poseNumber, assetType: a.assetType, url: a.url?.substring(0, 50) })));
+  
   // Create a map of existing assets by pose number for quick lookup
   const cacheBuster = Date.now();
   
@@ -208,8 +211,11 @@ async function getOrder(
       url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
     }));
   
+  console.log(`[GET /api/orders/[orderId]] Found ${existingPreBriaPoses.length} existing pre-Bria poses:`, existingPreBriaPoses.map(p => ({ poseNumber: p.poseNumber, url: p.url?.substring(0, 60) })));
+  
   // Create map of existing poses by poseNumber
   const existingPreBriaMap = new Map(existingPreBriaPoses.map(p => [p.poseNumber, p]));
+  console.log(`[GET /api/orders/[orderId]] Pre-Bria map keys:`, Array.from(existingPreBriaMap.keys()));
   
   // Build complete list of pre-Bria poses, including placeholders for missing/exhausted ones
   const preBriaPoses: any[] = [];
@@ -219,9 +225,11 @@ async function getOrder(
     
     if (existingPose) {
       // Pose exists in R2
+      console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found existing pose with URL`);
       preBriaPoses.push(existingPose);
     } else {
       // Pose is missing - create placeholder
+      console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Creating placeholder (existingPose: ${!!existingPose}, manifestEntry: ${!!manifestEntry})`);
       const isExhausted = manifestEntry?.status === 'exhausted' || manifestEntry?.status === 'failed';
       const needsReview = manifestEntry?.needsReview || isExhausted;
       const reviewReason = manifestEntry?.reviewReason || (isExhausted ? 'missing' : 'not_generated');
