@@ -116,7 +116,7 @@ export async function POST(
     }
 
     // Get the R2 key to replace
-    const r2Key = stage === 'preBria' ? entry.approvedKey : entry.bgRemovedKey;
+    let r2Key = stage === 'preBria' ? entry.approvedKey : entry.bgRemovedKey;
     if (!r2Key) {
       return NextResponse.json(
         { error: `No ${stage === 'preBria' ? 'approvedKey' : 'bgRemovedKey'} found for pose ${poseNumber}` },
@@ -124,12 +124,28 @@ export async function POST(
       );
     }
 
+    // CRITICAL: Strip retry suffixes from the key to upload to the original filename
+    // Retry suffixes can be: _r1, _r2, _TRY01, _TRY02, etc.
+    // We want to overwrite the original file (e.g., pose03.png), not the retry file (e.g., pose03_r2.png)
+    const originalKey = r2Key.replace(/_r\d+\.png$/i, '.png')  // Remove _r1, _r2, etc.
+                             .replace(/_TRY\d+\.png$/i, '.png'); // Remove _TRY01, _TRY02, etc.
+    
+    console.log(`[Replace Image API] Original key from manifest: ${r2Key}`);
+    console.log(`[Replace Image API] Stripped retry suffix, using key: ${originalKey}`);
+    
+    // Update the manifest entry to point to the original key (without retry suffix)
+    if (stage === 'preBria') {
+      entry.approvedKey = originalKey;
+    } else {
+      entry.bgRemovedKey = originalKey;
+    }
+
     // Determine bucket (character assets are in public bucket)
-    const isCharacterAsset = r2Key.includes('/characters/');
+    const isCharacterAsset = originalKey.includes('/characters/');
     const bucket = isCharacterAsset ? R2_PUBLIC_BUCKET : R2_ORDERS_BUCKET;
 
-    // Upload new file (overwrites existing)
-    console.log(`[Replace Image API] Uploading to ${bucket}/${r2Key}`);
+    // Upload new file (overwrites existing original file, not retry file)
+    console.log(`[Replace Image API] Uploading to ${bucket}/${originalKey}`);
     console.log(`[Replace Image API] File details:`, {
       name: file.name,
       size: file.size,
@@ -142,7 +158,7 @@ export async function POST(
     console.log(`[Replace Image API] Content type:`, contentType);
     
     console.log(`[Replace Image API] Calling putObject...`);
-    await putObject(bucket, r2Key, fileBuffer, contentType);
+    await putObject(bucket, originalKey, fileBuffer, contentType);
     console.log(`[Replace Image API] putObject completed successfully`);
 
     // Update manifest entry with replacement history
@@ -181,7 +197,7 @@ export async function POST(
       orderId,
       poseNumber,
       stage,
-      r2Key,
+      r2Key: originalKey, // Return the original key (without retry suffix)
       replacedAt,
       replacementCount,
       replacedBy: replacedBy || null,

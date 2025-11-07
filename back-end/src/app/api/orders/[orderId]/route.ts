@@ -188,6 +188,8 @@ async function getOrder(
   // Pre-Bria poses: all "original" type images including pose0 (poseNumber >= 0)
   // But exclude base-character.png from poses (it's shown in Base Character section)
   // Accept any number of poses, sorted by poseNumber
+  // Add cache-busting timestamp to ensure images refresh when overwritten in R2
+  const cacheBuster = Date.now();
   const preBriaPoses = characterAssets
     .filter(a => {
       if (a.assetType !== 'original' || a.poseNumber < 0) return false;
@@ -196,7 +198,11 @@ async function getOrder(
       if (url.includes('base-character')) return false;
       return true;
     })
-    .sort((a, b) => a.poseNumber - b.poseNumber);
+    .sort((a, b) => a.poseNumber - b.poseNumber)
+    .map(pose => ({
+      ...pose,
+      url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
+    }));
   
   // Post-Bria poses: all "background-removed" type images including pose0 (poseNumber >= 0)
   // Accept any number of poses, sorted by poseNumber
