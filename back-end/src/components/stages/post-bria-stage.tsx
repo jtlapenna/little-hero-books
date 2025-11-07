@@ -29,12 +29,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
 
-  // Update state when order data changes - use actual poseNumber from data to support any number of poses (including pose0)
-  // Include missing/exhausted poses as placeholders
+  // Update state when R2 assets change - use specific dependency to avoid infinite loops
+  // Only depend on the actual data we need, not the entire order object
+  const posesBgRemoved = order?.r2Assets?.posesBgRemoved || [];
+  
   useEffect(() => {
-    if (order.r2Assets?.posesBgRemoved && order.r2Assets.posesBgRemoved.length > 0) {
-      console.log('PostBriaStage: Setting poses from R2:', order.r2Assets.posesBgRemoved.length, 'poses');
-      setPoses(order.r2Assets.posesBgRemoved.map((pose) => {
+    if (posesBgRemoved.length > 0) {
+      setPoses(posesBgRemoved.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
         const isMissing = pose.isMissing || !pose.url;
         return {
@@ -53,7 +54,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [order]);
+  }, [posesBgRemoved]); // Only depend on the specific data we need
 
   const handleDownload = async (assetId: string) => {
     try {

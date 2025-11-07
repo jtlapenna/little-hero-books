@@ -16,9 +16,6 @@ interface PreBriaStageProps {
 }
 
 export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PreBriaStageProps) {
-  // Debug: Check if order has R2 assets
-  console.log('PreBriaStage rendered with order:', order?.orderId, 'R2 assets:', !!order?.r2Assets);
-  
   // Initialize with empty state - will be populated from R2 data
   const [baseCharacter, setBaseCharacter] = useState({
     id: 'base-character',
@@ -35,22 +32,23 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   const [approveStageConfirmed, setApproveStageConfirmed] = useState(false);
   const [triggerBackgroundRemovalConfirmed, setTriggerBackgroundRemovalConfirmed] = useState(false);
 
-  // Update state when order data changes
+  // Update state when R2 assets change - use specific dependency to avoid infinite loops
+  // Only depend on the actual data we need, not the entire order object
+  const r2Assets = order?.r2Assets;
+  const baseCharacterUrl = r2Assets?.baseCharacter?.url || '';
+  const posesData = r2Assets?.poses || [];
+  
   useEffect(() => {
-    if (!order?.r2Assets) {
-      console.log('PreBriaStage: No R2 assets available');
+    if (!r2Assets) {
       return;
     }
-
-    console.log('PreBriaStage: Updating with R2 data:', order.r2Assets);
     
     // Update base character if available
-    if (order.r2Assets.baseCharacter && order.r2Assets.baseCharacter.url) {
-      console.log('PreBriaStage: Setting base character from R2');
+    if (r2Assets.baseCharacter && r2Assets.baseCharacter.url) {
       setBaseCharacter({
         id: 'base-character',
         name: 'Base Character',
-        url: order.r2Assets.baseCharacter.url,
+        url: r2Assets.baseCharacter.url,
         isFlagged: false,
         hasTransparentBackground: false
       });
@@ -67,9 +65,8 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
     // Update poses if available - use actual poseNumber from data to support any number of poses (including pose0)
     // Include missing/exhausted poses as placeholders
-    if (order.r2Assets.poses && order.r2Assets.poses.length > 0) {
-      console.log('PreBriaStage: Setting poses from R2:', order.r2Assets.poses.length, 'poses');
-      setPoses(order.r2Assets.poses.map((pose) => {
+    if (posesData.length > 0) {
+      setPoses(posesData.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
         const isMissing = pose.isMissing || !pose.url;
         return {
@@ -88,7 +85,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [order]);
+  }, [r2Assets, baseCharacterUrl, posesData]); // Only depend on the specific data we need
 
   const handleDownload = async (assetId: string) => {
     try {
