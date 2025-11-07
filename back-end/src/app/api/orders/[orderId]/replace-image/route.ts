@@ -191,13 +191,15 @@ export async function POST(
     // referenced in the manifest. Workflows may have created multiple retry files, and we
     // should only remove the one that's being replaced.
     // 
+    // For missing poses, there's no old file to delete, so skip this step.
+    // 
     // Example scenario:
     // - Manifest has approvedKey: "pose03_r2.png" (current active file)
     // - R2 might also have: pose03.png, pose03_r1.png, pose03_r2.png
     // - We delete ONLY pose03_r2.png (the one in manifest)
     // - We upload to pose03.png (canonical name)
     // - pose03_r1.png is left untouched (legitimate workflow retry file)
-    if (r2Key !== originalKey) {
+    if (!isMissingPose && r2Key !== originalKey) {
       console.log(`[Replace Image API] Deleting old file from manifest (may have retry suffix): ${bucket}/${r2Key}`);
       console.log(`[Replace Image API] Note: Only deleting the file referenced in manifest entry. Other retry files (if any) will remain untouched.`);
       try {
@@ -213,6 +215,8 @@ export async function POST(
           // Continue with upload even if delete fails
         }
       }
+    } else if (isMissingPose) {
+      console.log(`[Replace Image API] Missing pose - no old file to delete, will create new file at ${originalKey}`);
     } else {
       console.log(`[Replace Image API] Manifest key matches original key (${r2Key}), no old file to delete`);
     }
