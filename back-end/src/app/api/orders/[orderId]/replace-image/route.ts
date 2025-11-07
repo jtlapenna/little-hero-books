@@ -23,20 +23,39 @@ export async function POST(
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
+    console.log('[Replace Image API] Request received');
     const { orderId } = await params;
+    console.log('[Replace Image API] OrderId:', orderId);
+    
     if (!orderId) {
+      console.error('[Replace Image API] Missing orderId');
       return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
     }
 
     // Parse multipart form data
+    console.log('[Replace Image API] Parsing form data...');
     const formData = await request.formData();
+    console.log('[Replace Image API] FormData keys:', Array.from(formData.keys()));
+    
     const poseNumberStr = formData.get('poseNumber')?.toString();
     const stage = formData.get('stage')?.toString();
     const file = formData.get('file') as File | null;
     const replacedBy = formData.get('replacedBy')?.toString() || null; // Optional
 
+    console.log('[Replace Image API] Extracted values:', {
+      poseNumberStr,
+      stage,
+      file: file ? { name: file.name, size: file.size, type: file.type } : null,
+      replacedBy
+    });
+
     // Validation
     if (!poseNumberStr || !stage || !file) {
+      console.error('[Replace Image API] Missing required fields:', {
+        hasPoseNumber: !!poseNumberStr,
+        hasStage: !!stage,
+        hasFile: !!file
+      });
       return NextResponse.json(
         { error: 'Missing required fields: poseNumber, stage, or file' },
         { status: 400 }
@@ -110,11 +129,21 @@ export async function POST(
     const bucket = isCharacterAsset ? R2_PUBLIC_BUCKET : R2_ORDERS_BUCKET;
 
     // Upload new file (overwrites existing)
-    console.log(`[Replace Image] Uploading to ${bucket}/${r2Key}`);
-    const fileBuffer = await file.arrayBuffer();
-    const contentType = file.type || 'image/png';
+    console.log(`[Replace Image API] Uploading to ${bucket}/${r2Key}`);
+    console.log(`[Replace Image API] File details:`, {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
     
+    const fileBuffer = await file.arrayBuffer();
+    console.log(`[Replace Image API] File buffer size:`, fileBuffer.byteLength, 'bytes');
+    const contentType = file.type || 'image/png';
+    console.log(`[Replace Image API] Content type:`, contentType);
+    
+    console.log(`[Replace Image API] Calling putObject...`);
     await putObject(bucket, r2Key, fileBuffer, contentType);
+    console.log(`[Replace Image API] putObject completed successfully`);
 
     // Update manifest entry with replacement history
     const replacedAt = new Date().toISOString();

@@ -1,17 +1,17 @@
 {
-  "name": "SW2 - Pose and Style QA",
+  "name": "PRIVATIZED -- SW2 - Pose and Style QA",
   "nodes": [
     {
       "parameters": {
         "inputSource": "passthrough"
       },
-      "id": "6be09d04-30b2-449a-b876-a712b2c3772c",
+      "id": "ec82a4b3-2e4e-4495-b4d5-a07e5c498bfc",
       "typeVersion": 1.1,
       "name": "When Executed by Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "position": [
-        -1472,
-        -256
+        -3744,
+        -160
       ]
     },
     {
@@ -21,10 +21,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1280,
-        -256
+        -3552,
+        -160
       ],
-      "id": "4269adbf-89dc-422c-a6e9-996e7be584c6",
+      "id": "ae6b8eb4-31ae-45d9-8f74-dc06cc4e6361",
       "name": "Schema Check + Defaults"
     },
     {
@@ -52,13 +52,13 @@
         },
         "options": {}
       },
-      "id": "28c4cc64-53c6-40ee-a7bf-3648af77a993",
+      "id": "8b2b1eeb-d61f-4cb6-8b66-0594482c181b",
       "name": "IF: Should Run Style QA?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1440,
-        848
+        -3712,
+        960
       ],
       "notes": "Sequential policy: Only run Style QA if Pose QA passed"
     },
@@ -67,13 +67,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Style QA — Build Request — v2.4 (hair locks = hard gate; base-only hair color)\n// Builds Gemini JSON with IMAGE A (BASE), optional IMAGE B (HAIR silhouette), and OUTPUT.\n// Requests the SAME fields as v2.3. No schema changes.\n// CRITICAL: Any hair length/style/silhouette mismatch must set:\n//   hair_cleanliness_score = 0,\n//   hair_silhouette_solid = false,\n//   stray_hairs_present = true (stray_hair_count ≥ 1),\n//   identity_score = 0,\n//   style_score = 0,\n//   notes includes the mismatch reason.\n//\n// Also: hair_color_score compares OUTPUT vs BASE only (ignore IMAGE B color).\n\nconst j = $json || {};\nconst b = $binary || {};\nconst ix = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\nconst STRICT_ASSERT = true;\n\n/* ------------ helpers ------------ */\nfunction isImageBin(x){\n  if (!x) return false;\n  const mt = (x.mimeType || x.mimetype || '').toLowerCase();\n  return typeof mt === 'string' && mt.startsWith('image/');\n}\nfunction parseSize(bin){\n  const n = Number(bin?.fileSize);\n  if (Number.isFinite(n)) return n;\n  const d = bin?.data;\n  if (typeof d === 'string') return d.length;\n  if (Buffer.isBuffer(d)) return d.length;\n  return 0;\n}\nasync function keyToB64(key){\n  if (!b[key]) return null;\n  let buf = null;\n  try { buf = await this.helpers.getBinaryDataBuffer(ix, key); } catch {}\n  if (!buf) {\n    try { buf = await this.helpers.getBinaryDataBuffer(key); } catch {}\n  }\n  if (buf) return buf.toString('base64');\n  const d = b[key].data;\n  if (typeof d === 'string') return d;\n  if (Buffer.isBuffer(d)) return d.toString('base64');\n  return null;\n}\nfunction keyMime(key){ return (b[key]?.mimeType || b[key]?.mimetype || 'image/png'); }\nfunction firstDefined(){ for (let i=0;i<arguments.length;i++){ const v=arguments[i]; if (v!==undefined && v!==null && v!=='') return v; } }\nfunction pad2(n){ n = Number(n); return Number.isFinite(n) ? String(n).padStart(2,'0') : '01'; }\nfunction clampInt(v, lo=1, hi=99){ const n=Number(v); return Number.isFinite(n)?Math.max(lo,Math.min(hi,Math.floor(n))):null; }\nfunction parsePoseFromString(s){\n  if (!s) return null;\n  const str=String(s);\n  const m1 = str.match(/pose[_-]?(\\d{1,2})(?:\\.(?:png|jpe?g|webp))?$/i);\n  const m2 = str.match(/(^|[^0-9])(\\d{1,2})(?:\\.(?:png|jpe?g|webp))?$/i);\n  return m1 ? clampInt(m1[1]) : (m2 ? clampInt(m2[2]) : null);\n}\nfunction toPlainPoseNN(val, poseNumber){\n  if (Number.isFinite(poseNumber)) return `pose${pad2(poseNumber)}`;\n  if (!val) return undefined;\n  const s = String(val).toLowerCase();\n  const m = s.match(/pose[_-]?(\\d{1,2})/i);\n  return m ? `pose${pad2(Number(m[1]))}` : undefined;\n}\n\n/* ------------ resolve BASE (IMAGE A) ------------ */\nconst baseKey = b.character ? 'character' : (b.base ? 'base' : null);\nif (!baseKey) throw new Error('Style QA: missing character (base) binary');\n\nconst characterB64 = await keyToB64.call(this, baseKey);\nif (!characterB64) throw new Error('Style QA: character binary had no data');\n\n/* ------------ resolve GENERATED (OUTPUT) ------------ */\nconst EXCLUDE_KEYS = new Set(['pose','poseRef','image_pose','P','A','pose_ref']);\nconst PREFERRED_GEN_KEYS = [\n  'generated','final_generated','generated_inline',\n  'output','result','image','image_output','data','file','content'\n];\n\nlet genKey = null;\nfor (const k of PREFERRED_GEN_KEYS) {\n  if (isImageBin(b[k])) { genKey = k; break; }\n}\nif (!genKey) {\n  const excludeAlso = new Set([...EXCLUDE_KEYS, baseKey, 'hair']);\n  let best = null;\n  for (const [k, bin] of Object.entries(b)) {\n    if (excludeAlso.has(k)) continue;\n    if (!isImageBin(bin)) continue;\n    const size = parseSize(bin);\n    if (!best || size > best.size) best = { k, size };\n  }\n  genKey = best?.k || null;\n}\nif (!genKey) throw new Error('Style QA: missing generated image binary');\n\nconst generatedB64 = await keyToB64.call(this, genKey);\nif (!generatedB64) throw new Error('Style QA: generated binary had no data');\n\n/* ------------ optional HAIR (IMAGE B) ------------ */\nconst hairKey = isImageBin(b.hair) ? 'hair'\n  : (isImageBin(b.hair_chip) ? 'hair_chip'\n  : (isImageBin(b.hairRef) ? 'hairRef' : null));\nconst hairB64 = hairKey ? await keyToB64.call(this, hairKey) : null;\n\n/* ------------ identity mirrors (LEAN) ------------ */\nconst characterHash     = firstDefined(j.characterHash, j.character_hash, j.character?.hash);\nconst poseNumberRaw     = firstDefined(j.poseNumber, j.expectedPoseNumber, j.pose_index);\nlet   poseNumber        = Number.isFinite(Number(poseNumberRaw)) ? Number(poseNumberRaw) : null;\nif (!Number.isFinite(poseNumber)) {\n  poseNumber = parsePoseFromString(j.generatedFileName)\n            ?? parsePoseFromString(b[genKey]?.fileName)\n            ?? (Number.isFinite(Number(j.index)) ? Number(j.index) + 1 : null);\n}\n\nconst poseNN_plain   = toPlainPoseNN(j.poseNN || j.poseNN_hyphen, poseNumber) \n                    || (Number.isFinite(poseNumber) ? `pose${pad2(poseNumber)}` : undefined);\nconst poseNN_hyphen  = poseNN_plain ? poseNN_plain.replace(/^pose(\\d{2})$/,'pose-$1') : undefined;\n\nconst generatedFileName = firstDefined(j.generatedFileName, b[genKey]?.fileName, b[genKey]?.fileNameOriginal);\n\n/* ------------ thresholds (pass-through) ------------ */\nconst qaThreshold       = Number.isFinite(+j.qaThreshold)      ? +j.qaThreshold      : 0.75;\nconst styleQaThreshold  = Number.isFinite(+j.styleQaThreshold) ? +j.styleQaThreshold : 0.75;\nconst colorQaThreshold  = Number.isFinite(+j.colorQaThreshold) ? +j.colorQaThreshold : 0.75;\n\n/* ------------ system instruction (texture + hair locks) ------------ */\nconst systemText = `You are a validator for a vector character illustration.\nCompare OUTPUT to BASE (IMAGE A). If present, use IMAGE B only for HAIR silhouette reference (ignore its color).\nDo NOT evaluate pose.\n\nTEXTURE EVALUATION (match BASE):\n- Detect whether BASE has subtle paper-grain texture and/or soft shading.\n- OUTPUT must match BASE's texture level exactly (paper grain present vs not present).\n\nCRITICAL HAIR RULES — any violation forces FAIL via fields below:\n1) LENGTH LOCK (categorize length and compare to BASE):\n   - SHORT: above chin; MEDIUM: around/at shoulders; LONG: below shoulders.\n   - If category differs from BASE (e.g., BASE=LONG, OUTPUT=SHORT), treat as FAILURE.\n2) STYLE LOCK (categorize style and compare to BASE):\n   - LOOSE/FLOWING vs PULLED-BACK (ponytail/pigtails) vs UP-DO (bun) vs PUFF/AFRO vs LOCS.\n   - If category differs from BASE (e.g., BASE=LOOSE, OUTPUT=PONYTAIL), treat as FAILURE.\n3) SILHOUETTE INTEGRITY:\n   - Hair must be one solid contiguous mass (no islands/holes).\n   - ANY separated strand, wisp, flyaway, halo, or disconnected pixel cluster counts as stray hair.\n   - Even one clean separated strand = stray_hairs_present: true (count ≥ 1) → treat as FAILURE.\n\nFAILURE ACTION (apply all of the following when any rule above fails):\n- \"hair_cleanliness_score\": 0\n- \"hair_silhouette_solid\": false\n- \"stray_hairs_present\": true   (and \"stray_hair_count\" ≥ 1)\n- \"identity_score\": 0\n- \"style_score\": 0\n- \"notes\": include which rule failed (length/style/silhouette) and a brief reason.\n\nHAIR COLOR SCORING:\n- Compare OUTPUT hair color to BASE ONLY (ignore IMAGE B color).\n- Perfect match = 1.0; noticeable hue/value shift or missing hair = 0.0–0.25.\n\nRETURN ONLY this JSON (no extra text) with EXACT property names:\n{\n  \"identity_score\": 0.0-1.0,\n  \"identity_match\": true/false,\n\n  \"style_score\": 0.0-1.0,              // flat vectors, single outline weight; texture MUST match BASE\n  \"line_style_match\": true/false,\n\n  \"color_score\": 0.0-1.0,              // overall palette fidelity (no invented colors or hue/sat shifts)\n\n  \"hair_color_score\": 0.0-1.0,         // vs BASE only (ignore IMAGE B color)\n  \"hair_color_match\": true/false,\n\n  \"skin_tone_score\": 0.0-1.0,\n\n  \"clothing_score\": 0.0-1.0,\n\n  \"hair_cleanliness_score\": 0.0-1.0,   // set to 0 for ANY fail in LENGTH/STYLE/SILHOUETTE\n  \"hair_silhouette_solid\": true/false,\n  \"stray_hairs_present\": true/false,\n  \"stray_hair_count\": 0-50,\n\n  \"notes\": \"brief sentence on biggest mismatch (if any)\"\n}`;\n\n/* ------------ build parts (IMAGE A, optional IMAGE B, OUTPUT) ------------ */\nconst parts = [\n  { text: \"Validate identity, style, color, skin tone, clothing, and HAIR CLEANLINESS. Compare OUTPUT to BASE. If IMAGE B is present, use it for HAIR SILHOUETTE ONLY. Do NOT comment on pose.\" },\n  { inlineData: { mimeType: keyMime(baseKey), data: characterB64 } },\n  { text: \"^ IMAGE A: Base character (appearance & palette; authoritative for hair color)\" },\n];\nif (hairB64) {\n  parts.push({ inlineData: { mimeType: keyMime(hairKey), data: hairB64 } });\n  parts.push({ text: \"^ IMAGE B: Hair silhouette reference ONLY (ignore its color)\" });\n}\nparts.push({ inlineData: { mimeType: keyMime(genKey), data: generatedB64 } });\nparts.push({ text: \"^ OUTPUT: Generated image to validate\" });\n\n// structure self-check\nconst kinds = parts.map(p => p.inlineData ? 'inlineData' : 'text');\nconst expectedNoHair  = ['text','inlineData','text','inlineData','text'];\nconst expectedWithHair= ['text','inlineData','text','inlineData','text','inlineData','text'];\nconst expected = hairB64 ? expectedWithHair : expectedNoHair;\n\nconst partsSummary = {\n  length: parts.length,\n  kinds,\n  expected,\n  hasBase: true,\n  hasOutput: true,\n  hasHair: !!hairB64,\n  baseKeyUsed: baseKey,\n  generatedKeyUsed: genKey,\n  hairKeyUsed: hairKey || null,\n  poseNN_plain: (toPlainPoseNN(j.poseNN || j.poseNN_hyphen, poseNumber)) || null,\n  poseNN_hyphen: ((toPlainPoseNN(j.poseNN || j.poseNN_hyphen, poseNumber)) || '').replace(/^pose(\\d{2})$/,'pose-$1') || null,\n};\n\nif (STRICT_ASSERT && JSON.stringify(kinds) !== JSON.stringify(expected)) {\n  throw new Error(`Style QA Build Request: parts order mismatch. Got ${JSON.stringify(kinds)} expected ${JSON.stringify(expected)}.`);\n}\n\n/* ------------ Gemini request body ------------ */\nconst qaRequestBody = {\n  systemInstruction: { parts: [{ text: systemText }] },\n  contents: [{ role: 'user', parts }],\n  generationConfig: { temperature: 0.0, responseMimeType: 'application/json' },\n};\n\n/* ------------ emit (pose binaries dropped; OUT = LEAN) ------------ */\nconst corrIn = firstDefined(j.correlationId, j.correlation_id);\nconst correlationId = (typeof corrIn === 'string' && corrIn.includes('-POSE'))\n  ? corrIn.replace('-POSE', '-STYLE')\n  : (corrIn || `style-qa-${Date.now()}-${ix}`);\n\nconst droppedPoseKeys = Object.keys(b).filter(k => /^pose($|_|-|Ref)/i.test(k));\nconst approxBodyBytes = Buffer.byteLength(JSON.stringify(qaRequestBody), 'utf8');\n\nconst out = {\n  correlationId,\n  characterHash,\n  poseNumber: Number.isFinite(poseNumber) ? poseNumber : undefined,\n  poseNN: toPlainPoseNN(j.poseNN || j.poseNN_hyphen, poseNumber),\n  poseNN_hyphen: (toPlainPoseNN(j.poseNN || j.poseNN_hyphen, poseNumber) || '').replace(/^pose(\\d{2})$/,'pose-$1') || undefined,\n  generatedFileName,\n\n  // thresholds (unchanged schema)\n  qaThreshold,\n  styleQaThreshold,\n  colorQaThreshold,\n\n  // request body for HTTP node\n  qaType: 'style',\n  qaContractVersion: 'styleqa@2.4',\n  qaRequestBody,\n\n  __meta: {\n    ...(j.__meta || {}),\n    styleQaBuildRequest: {\n      droppedPoseKeys,\n      approxBodyBytes,\n      partsSummary,\n    },\n  },\n};\n\nconst outBin = {\n  character: b[baseKey],\n  generated: b[genKey],\n  ...(hairKey ? { hair: b[hairKey] } : {}),\n};\n\nreturn {\n  json: out,\n  binary: outBin,\n  pairedItem: ($input?.item?.pairedItem) ? $input.item.pairedItem : { item: ix },\n};\n"
       },
-      "id": "3747c1ae-a35d-499f-b76b-9abb3b007760",
+      "id": "427cd601-cdd3-4e7e-8187-b47824a5054b",
       "name": "Style QA — Build Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -736,
-        304
+        -3008,
+        416
       ]
     },
     {
@@ -101,13 +101,13 @@
         },
         "options": {}
       },
-      "id": "368768d6-91c3-4bd4-9dfe-7e99a367d7b0",
+      "id": "fb63229e-d63d-4fc8-b82f-143b8ef3053c",
       "name": "IF: Test Mode? (Style)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -560,
-        576
+        -2832,
+        688
       ]
     },
     {
@@ -136,13 +136,13 @@
           "timeout": 120000
         }
       },
-      "id": "1269658d-3ed9-4095-b26b-c9961701fbd2",
+      "id": "2fdc7183-a1d1-4ffe-9e29-c24745266610",
       "name": "HTTP: Style QA (Gemini)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -224,
-        448
+        -2496,
+        560
       ],
       "credentials": {
         "googlePalmApi": {
@@ -155,27 +155,27 @@
       "parameters": {
         "jsCode": "// 🧪 MOCK: Style QA - Always PASS\n// Returns a passing style/color QA verdict for testing\n\nconst j = $json || {};\n\nconst mockPoseScore = Number.isFinite(Number(j.mockStyleScore)) ? Number(j.mockStyleScore) : 0.95;\nconst mockColorScore = Number.isFinite(Number(j.mockColorScore)) ? Number(j.mockColorScore) : 0.93;\n\nconst verdictObject = {\n  style_score: mockPoseScore,\n  color_score: mockColorScore,\n  line_style_match: true,\n  palette_shift: false,\n  saturation_shift: false,\n  skin_tone_match: true,\n  hair_color_match: true,\n  notes: 'Mock Style QA - test mode always passes'\n};\n\nconst mockResponse = {\n  candidates: [{\n    content: {\n      parts: [{\n        text: JSON.stringify(verdictObject)\n      }]\n    },\n    finishReason: \"STOP\"\n  }],\n  usageMetadata: {\n    promptTokenCount: 50,\n    candidatesTokenCount: 20,\n    totalTokenCount: 70\n  }\n};\n\nconsole.log('🧪 MOCK STYLE QA PASS emitted, style_score:', mockPoseScore, 'color_score:', mockColorScore);\n\nreturn {\n  json: mockResponse,\n  binary: $binary,\n  pairedItem: ($input?.item?.pairedItem) ? $input.item.pairedItem : { item: ($itemIndex ?? 0) }\n};"
       },
-      "id": "1a1a070b-52bb-42de-8d11-dea5169d1c2a",
+      "id": "a1fa9c99-65b3-4f3c-b9b8-ac77fcd012d6",
       "name": "🧪 MOCK: HTTP: Style QA",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -224,
-        720
+        -2496,
+        832
       ]
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Parse Style QA Verdict — v2.6 (simplified metrics; derives hair_cleanliness & style_cohesion; back-compatible)\n// Purpose: Normalize the model's style/identity/color verdict into numeric scores,\n//          derive missing fields (hair_cleanliness_score, style_cohesion_score, hair_color_score),\n//          and preserve upstream context (qa.pose, identity, ref URLs/keys).\n// NOTE: Pass/fail is computed in Derive Style QA Pass (next node). No caps/effective scores here.\n\nconst j  = $json || {};\nconst b  = $binary || {};\nconst ix = (typeof $itemIndex === 'number') ? $itemIndex : 0;\nconst rx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n/* ---------------- helpers ---------------- */\nfunction firstDefined(...vals){ for (const v of vals){ if (v !== undefined && v !== null && v !== '' ) return v; } }\nfunction toNum01(x, d=undefined){ const n = Number(x); return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : d; }\nfunction toBoolStrict(x){\n  if (x === true || x === false) return x;\n  if (typeof x === 'string'){\n    const s = x.trim().toLowerCase();\n    if (['true','1','yes','y','on'].includes(s))  return true;\n    if (['false','0','no','n','off'].includes(s)) return false;\n  }\n  if (x === 1) return true;\n  if (x === 0) return false;\n  return undefined;\n}\nfunction findText(obj) {\n  if (!obj || typeof obj !== 'object') return null;\n  if (typeof obj.text === 'string') return obj.text;\n  if (Array.isArray(obj.parts)) {\n    for (const p of obj.parts) {\n      const t = findText(p);\n      if (t) return t;\n    }\n  }\n  if (obj.content) return findText(obj.content);\n  if (Array.isArray(obj.candidates)) {\n    for (const c of obj.candidates) {\n      const t = findText(c);\n      if (t) return t;\n    }\n  }\n  return null;\n}\nfunction stripInlineDataDeep(obj){\n  if (!obj || typeof obj !== 'object') return;\n  if (obj.inlineData && typeof obj.inlineData === 'object') {\n    if (typeof obj.inlineData.data === 'string') {\n      delete obj.inlineData.data;\n      obj.inlineData.stripped = true;\n    }\n  }\n  for (const k of Object.keys(obj)) {\n    const v = obj[k];\n    if (v && typeof v === 'object') stripInlineDataDeep(v);\n  }\n}\nfunction getSameRunItem(name){\n  try{\n    const arr = $items(name, 0, rx);\n    return (Array.isArray(arr) && arr[ix]) ? arr[ix] : null;\n  }catch{ return null; }\n}\n\n/* ---------------- parse verdict (robust) ---------------- */\n// Accept either a direct object (adapter already parsed) or JSON text.\nlet verdict = {};\nlet parseOk = false;\nlet rawText = '';\n\nconst candidateObj = (typeof j === 'object' && j) || {};\nconst hasDirect =\n  ('identity_score' in candidateObj) ||\n  ('identity_match' in candidateObj) ||\n  ('style_score' in candidateObj) ||\n  ('line_style_match' in candidateObj) ||\n  ('color_score' in candidateObj) ||\n  ('hair_color_score' in candidateObj) ||\n  ('hair_color_match' in candidateObj) ||\n  ('skin_tone_score' in candidateObj) ||\n  ('clothing_score' in candidateObj) ||\n  ('hair_cleanliness_score' in candidateObj) ||\n  ('hair_silhouette_solid' in candidateObj) ||\n  ('stray_hairs_present' in candidateObj) ||\n  ('stray_hair_count' in candidateObj);\n\nif (hasDirect) {\n  verdict = candidateObj;\n  parseOk = true;\n} else {\n  rawText = firstDefined(findText(j), j.text, j.result, '') || '';\n  let cleaned = rawText.trim();\n  cleaned = cleaned.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/i, '');\n  function safeParse(s){ try { return JSON.parse(s); } catch { return null; } }\n  verdict = safeParse(cleaned);\n  if (!verdict) {\n    const m = cleaned.match(/\\{[\\s\\S]*\\}/m);\n    if (m) verdict = safeParse(m[0]);\n  }\n  parseOk = !!verdict && typeof verdict === 'object';\n}\n\n// Fallback on parse failure (explicit, not heuristic)\nif (!parseOk) {\n  verdict = {\n    identity_score: 0, identity_match: false,\n    style_score: 0, line_style_match: false,\n    color_score: 0,\n    hair_color_score: 0, hair_color_match: false,\n    skin_tone_score: 0,\n    clothing_score: 0,\n    hair_cleanliness_score: 0,\n    hair_silhouette_solid: false,\n    stray_hairs_present: true,\n    stray_hair_count: 1,\n    notes: `Parse error or empty verdict.`\n  };\n}\n\n/* ---------------- normalize + derive missing fields ---------------- */\nconst norm = {\n  identity_score:  toNum01(verdict.identity_score, undefined),\n  identity_match:  toBoolStrict(verdict.identity_match),\n\n  style_score:     toNum01(verdict.style_score, 0),\n  line_style_match:toBoolStrict(verdict.line_style_match),\n\n  color_score:     toNum01(verdict.color_score, 0),\n\n  hair_color_score:toNum01(verdict.hair_color_score, undefined),\n  hair_color_match:toBoolStrict(verdict.hair_color_match),\n\n  skin_tone_score: toNum01(verdict.skin_tone_score, undefined),\n\n  clothing_score:  toNum01(verdict.clothing_score, undefined),\n\n  hair_cleanliness_score: toNum01(verdict.hair_cleanliness_score, undefined),\n  hair_silhouette_solid:  toBoolStrict(verdict.hair_silhouette_solid),\n  stray_hairs_present:    toBoolStrict(verdict.stray_hairs_present),\n  stray_hair_count: Number.isFinite(+verdict.stray_hair_count) ? Math.max(0, Math.min(999, Math.floor(+verdict.stray_hair_count))) : undefined,\n\n  notes: (typeof verdict.notes === 'string' ? verdict.notes.trim() : undefined)\n};\n\n// Identity default if only score present\nif (norm.identity_match === undefined && norm.identity_score !== undefined) {\n  norm.identity_match = (norm.identity_score >= 0.85);\n}\n\n// Hair color numeric fallback if only boolean present\nif (norm.hair_color_score === undefined && norm.hair_color_match !== undefined) {\n  norm.hair_color_score = norm.hair_color_match ? 1 : 0;\n}\n\n// Derive hair_cleanliness_score from silhouette/strays if missing\nif (norm.hair_cleanliness_score === undefined) {\n  let s = 1.0;\n  if (norm.hair_silhouette_solid === false) s = Math.min(s, 0.5); // open silhouette caps at 0.5\n  if (typeof norm.stray_hair_count === 'number') {\n    const pen = Math.min(1, norm.stray_hair_count / 6); // ≥6 groups ≈ full penalty band\n    s = Math.max(0, s - 0.7 * pen);\n  } else if (norm.stray_hairs_present === true) {\n    s = Math.min(s, 0.5);\n  }\n  norm.hair_cleanliness_score = Math.max(0, Math.min(1, s));\n}\n\n// Derive style_cohesion_score by folding line_style_match into style_score\nconst style_cohesion_score = (norm.line_style_match === false)\n  ? Math.min(0.49, norm.style_score)\n  : norm.style_score;\n\n/* ---------------- slim original response before emitting ---------------- */\nconst HEAVY_TOP = [\n  'qaRequestBody','systemInstruction','contents','candidates','usageMetadata',\n  'vertexResponse','rawResponse','raw','fullResponse','prompt','messages',\n  'payload','result','response','debug','__raw','explanations','body','data'\n];\nconst jSlim = { ...(j || {}) };\nfor (const k of HEAVY_TOP) { if (k in jSlim) delete jSlim[k]; }\nstripInlineDataDeep(jSlim);\n\n/* ---------------- preserve upstream context (same run, same index) ---------------- */\nconst seedFrom = getSameRunItem('Reattach (Style QA): Base + Generated')\n              || getSameRunItem('Derive QA Pass1')\n              || getSameRunItem('Derive QA Pass');\n\nconst seed = (seedFrom && seedFrom.json) ? seedFrom.json : {};\nconst qaMerged = (typeof seed.qa === 'object' && seed.qa) ? { ...seed.qa } : (typeof jSlim.qa === 'object' ? { ...jSlim.qa } : undefined);\n\n/* ---------------- build output ---------------- */\nconst outBase = {\n  // identity / refs (carry through if present upstream)\n  correlationId:      firstDefined(jSlim.correlationId,      seed.correlationId),\n  characterHash:      firstDefined(jSlim.characterHash,      seed.characterHash),\n  poseNumber:         firstDefined(jSlim.poseNumber,         seed.poseNumber),\n  poseNN:             firstDefined(jSlim.poseNN,             seed.poseNN),\n  generatedFileName:  firstDefined(jSlim.generatedFileName,  seed.generatedFileName),\n\n  baseCharacterKey:   firstDefined(jSlim.baseCharacterKey,   seed.baseCharacterKey),\n  baseRefPublicUrl:   firstDefined(jSlim.baseRefPublicUrl,   seed.baseRefPublicUrl),\n  poseRefKey:         firstDefined(jSlim.poseRefKey,         seed.poseRefKey),\n  poseRefPublicUrl:   firstDefined(jSlim.poseRefPublicUrl,   seed.poseRefPublicUrl),\n\n  // thresholds / retry passthroughs if present upstream\n  qaThreshold:        firstDefined(jSlim.qaThreshold,        seed.qaThreshold),\n  styleQaThreshold:   firstDefined(jSlim.styleQaThreshold,   seed.styleQaThreshold),\n  colorQaThreshold:   firstDefined(jSlim.colorQaThreshold,   seed.colorQaThreshold),\n  retryAttempt:       firstDefined(jSlim.retryAttempt,       seed.retryAttempt),\n  retryTag:           firstDefined(jSlim.retryTag,           seed.retryTag),\n\n  // merge upstream qa (e.g., qa.pose)\n  ...(qaMerged ? { qa: qaMerged } : {}),\n\n  // this node’s additions\n  qaType: 'style',\n  qaContractVersion: jSlim.qaContractVersion || 'styleqa@2.1',\n  styleQaVerdict: { ...norm, style_cohesion_score },\n\n  // readable text capture + compatibility mirror for downstream\n  styleQaText: (typeof rawText === 'string' && rawText.trim()) ? rawText.slice(0, 4000) : (jSlim.styleQaText || jSlim.qaText || undefined),\n  ...(jSlim.qaText ? {} : { qaText: JSON.stringify({ ...norm, style_cohesion_score }) }),\n\n  // Bubble model notes if none set yet\n  ...( (jSlim.qaNotes || (jSlim.qa && jSlim.qa.style && jSlim.qa.style.notes)) ? {} : (norm.notes ? { qaNotes: norm.notes } : {}) ),\n\n  __meta: {\n    ...(jSlim.__meta || {}),\n    parseStyleQa: {\n      ok: parseOk,\n      rawLen: (typeof rawText === 'string') ? rawText.length : 0,\n    }\n  }\n};\n\n// Merge remaining non-heavy fields\nconst out = { ...jSlim, ...outBase };\n\ntry {\n  console.log('Style QA Parsed v2.6:', {\n    itemIndex: ix,\n    identity_score: out.styleQaVerdict.identity_score,\n    identity_match: out.styleQaVerdict.identity_match,\n    style_score: out.styleQaVerdict.style_score,\n    style_cohesion_score: out.styleQaVerdict.style_cohesion_score,\n    color_score: out.styleQaVerdict.color_score,\n    hair_color_score: out.styleQaVerdict.hair_color_score,\n    skin_tone_score: out.styleQaVerdict.skin_tone_score,\n    clothing_score: out.styleQaVerdict.clothing_score,\n    hair_cleanliness_score: out.styleQaVerdict.hair_cleanliness_score,\n    hair_silhouette_solid: out.styleQaVerdict.hair_silhouette_solid,\n    stray_hairs_present: out.styleQaVerdict.stray_hairs_present,\n    stray_hair_count: out.styleQaVerdict.stray_hair_count\n  });\n} catch {}\n\nreturn {\n  json: out,\n  binary: b, // preserve binaries (usually none after HTTP)\n  pairedItem: ($input?.item?.pairedItem) ? $input.item.pairedItem : { item: ix }\n};\n"
+        "jsCode": "// Style QA — Build Request — v2.5\n// (hair locks = hard gate; base-only hair color; binary skin-tone HSV pass/fail)\n// Builds Gemini JSON with IMAGE A (BASE), optional IMAGE B (HAIR silhouette), and OUTPUT.\n// Requests the SAME fields as v2.3. No schema changes.\n// CRITICAL: Any hair length/style/silhouette mismatch must set:\n//   hair_cleanliness_score = 0,\n//   hair_silhouette_solid = false,\n//   stray_hairs_present = true (stray_hair_count ≥ 1),\n//   identity_score = 0,\n//   style_score = 0,\n//   notes includes the mismatch reason.\n//\n// Also: hair_color_score compares OUTPUT vs BASE only (ignore IMAGE B color).\n\nconst j = $json || {};\nconst b = $binary || {};\nconst ix = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\nconst STRICT_ASSERT = true;\n\n/* ------------ helpers ------------ */\nfunction isImageBin(x){\n  if (!x) return false;\n  const mt = (x.mimeType || x.mimetype || '').toLowerCase();\n  return typeof mt === 'string' && mt.startsWith('image/');\n}\nfunction parseSize(bin){\n  const n = Number(bin?.fileSize);\n  if (Number.isFinite(n)) return n;\n  const d = bin?.data;\n  if (typeof d === 'string') return d.length;\n  if (Buffer.isBuffer(d)) return d.length;\n  return 0;\n}\nasync function keyToB64(key){\n  if (!b[key]) return null;\n  let buf = null;\n  try { buf = await this.helpers.getBinaryDataBuffer(ix, key); } catch {}\n  if (!buf) {\n    try { buf = await this.helpers.getBinaryDataBuffer(key); } catch {}\n  }\n  if (buf) return buf.toString('base64');\n  const d = b[key].data;\n  if (typeof d === 'string') return d;\n  if (Buffer.isBuffer(d)) return d.toString('base64');\n  return null;\n}\nfunction keyMime(key){ return (b[key]?.mimeType || b[key]?.mimetype || 'image/png'); }\nfunction firstDefined(){ for (let i=0;i<arguments.length;i++){ const v=arguments[i]; if (v!==undefined && v!==null && v!=='') return v; } }\nfunction pad2(n){ n = Number(n); return Number.isFinite(n) ? String(n).padStart(2,'0') : '01'; }\nfunction clampInt(v, lo=1, hi=99){ const n=Number(v); return Number.isFinite(n)?Math.max(lo,Math.min(hi,Math.floor(n))):null; }\nfunction parsePoseFromString(s){\n  if (!s) return null;\n  const str=String(s);\n  const m1 = str.match(/pose[_-]?(\\d{1,2})(?:\\.(?:png|jpe?g|webp))?$/i);\n  const m2 = str.match(/(^|[^0-9])(\\d{1,2})(?:\\.(?:png|jpe?g|webp))?$/i);\n  return m1 ? clampInt(m1[1]) : (m2 ? clampInt(m2[2]) : null);\n}\nfunction toPlainPoseNN(val, poseNumber){\n  if (Number.isFinite(poseNumber)) return `pose${pad2(poseNumber)}`;\n  if (!val) return undefined;\n  const s = String(val).toLowerCase();\n  const m = s.match(/pose[_-]?(\\d{1,2})/i);\n  return m ? `pose${pad2(Number(m[1]))}` : undefined;\n}\n\n/* ------------ resolve BASE (IMAGE A) ------------ */\nconst baseKey = b.character ? 'character' : (b.base ? 'base' : null);\nif (!baseKey) throw new Error('Style QA: missing character (base) binary');\n\nconst characterB64 = await keyToB64.call(this, baseKey);\nif (!characterB64) throw new Error('Style QA: character binary had no data');\n\n/* ------------ resolve GENERATED (OUTPUT) ------------ */\nconst EXCLUDE_KEYS = new Set(['pose','poseRef','image_pose','P','A','pose_ref']);\nconst PREFERRED_GEN_KEYS = [\n  'generated','final_generated','generated_inline',\n  'output','result','image','image_output','data','file','content'\n];\n\nlet genKey = null;\nfor (const k of PREFERRED_GEN_KEYS) {\n  if (isImageBin(b[k])) { genKey = k; break; }\n}\nif (!genKey) {\n  const excludeAlso = new Set([...EXCLUDE_KEYS, baseKey, 'hair']);\n  let best = null;\n  for (const [k, bin] of Object.entries(b)) {\n    if (excludeAlso.has(k)) continue;\n    if (!isImageBin(bin)) continue;\n    const size = parseSize(bin);\n    if (!best || size > best.size) best = { k, size };\n  }\n  genKey = best?.k || null;\n}\nif (!genKey) throw new Error('Style QA: missing generated image binary');\n\nconst generatedB64 = await keyToB64.call(this, genKey);\nif (!generatedB64) throw new Error('Style QA: generated binary had no data');\n\n/* ------------ optional HAIR (IMAGE B) ------------ */\nconst hairKey = isImageBin(b.hair) ? 'hair'\n  : (isImageBin(b.hair_chip) ? 'hair_chip'\n  : (isImageBin(b.hairRef) ? 'hairRef' : null));\nconst hairB64 = hairKey ? await keyToB64.call(this, hairKey) : null;\n\n/* ------------ identity mirrors (LEAN) ------------ */\nconst characterHash     = firstDefined(j.characterHash, j.character_hash, j.character?.hash);\nconst poseNumberRaw     = firstDefined(j.poseNumber, j.expectedPoseNumber, j.pose_index);\nlet   poseNumber        = Number.isFinite(Number(poseNumberRaw)) ? Number(poseNumberRaw) : null;\nif (!Number.isFinite(poseNumber)) {\n  poseNumber = parsePoseFromString(j.generatedFileName)\n            ?? parsePoseFromString(b[genKey]?.fileName)\n            ?? (Number.isFinite(Number(j.index)) ? Number(j.index) + 1 : null);\n}\n\nconst poseNN_plain   = toPlainPoseNN(j.poseNN || j.poseNN_hyphen, poseNumber) \n                    || (Number.isFinite(poseNumber) ? `pose${pad2(poseNumber)}` : undefined);\nconst poseNN_hyphen  = poseNN_plain ? poseNN_plain.replace(/^pose(\\d{2})$/,'pose-$1') : undefined;\n\nconst generatedFileName = firstDefined(j.generatedFileName, b[genKey]?.fileName, b[genKey]?.fileNameOriginal);\n\n/* ------------ thresholds (pass-through) ------------ */\nconst qaThreshold       = Number.isFinite(+j.qaThreshold)      ? +j.qaThreshold      : 0.75;\nconst styleQaThreshold  = Number.isFinite(+j.styleQaThreshold) ? +j.styleQaThreshold : 0.75;\nconst colorQaThreshold  = Number.isFinite(+j.colorQaThreshold) ? +j.colorQaThreshold : 0.75;\n\n/* ------------ system instruction (texture + hair locks + binary skin tone) ------------ */\nconst systemText = `You are a validator for a vector character illustration.\nCompare OUTPUT to BASE (IMAGE A). If present, use IMAGE B only for HAIR silhouette reference (ignore its color).\nDo NOT evaluate pose.\n\nTEXTURE EVALUATION (match BASE):\n- Detect whether BASE has subtle paper-grain texture and/or soft shading.\n- OUTPUT must match BASE's texture level exactly (paper grain present vs not present).\n\nCRITICAL HAIR RULES — any violation forces FAIL via fields below:\n1) LENGTH LOCK (categorize length and compare to BASE):\n   - SHORT: above chin; MEDIUM: around/at shoulders; LONG: below shoulders.\n   - If category differs from BASE (e.g., BASE=LONG, OUTPUT=SHORT), treat as FAILURE.\n2) STYLE LOCK (categorize style and compare to BASE):\n   - LOOSE/FLOWING vs PULLED-BACK (ponytail/pigtails) vs UP-DO (bun) vs PUFF/AFRO vs LOCS.\n   - If category differs from BASE (e.g., BASE=LOOSE, OUTPUT=PONYTAIL), treat as FAILURE.\n3) SILHOUETTE INTEGRITY:\n   - Hair must be one solid contiguous mass (no islands/holes).\n   - ANY separated strand, wisp, flyaway, halo, or disconnected pixel cluster counts as stray hair.\n   - Even one clean separated strand = stray_hairs_present: true (count ≥ 1) → treat as FAILURE.\n\nFAILURE ACTION (apply all of the following when any rule above fails):\n- \"hair_cleanliness_score\": 0\n- \"hair_silhouette_solid\": false\n- \"stray_hairs_present\": true   (and \"stray_hair_count\" ≥ 1)\n- \"identity_score\": 0\n- \"style_score\": 0\n- \"notes\": include which rule failed (length/style/silhouette) and a brief reason.\n\nHAIR COLOR SCORING:\n- Compare OUTPUT hair color to BASE ONLY (ignore IMAGE B color).\n- Perfect match = 1.0; noticeable hue/value shift or missing hair = 0.0–0.25.\n\nSKIN TONE (binary HSV rule):\n- Identify visible skin (face/neck/arms). Ignore lips, blush/makeup, and specular highlights.\n- Estimate skin midtone saturation (S) and brightness/value (V) in BASE and OUTPUT.\n- Compute percent deltas vs BASE: ΔV% and ΔS%.\n- PASS if |ΔV| ≤ 8% AND |ΔS| ≤ 12%; otherwise FAIL.\n- On PASS set \"skin_tone_score\" near 1.0 (0.95–1.0); on FAIL set it low (0.30–0.45).\n- In \"notes\", include: \"skin ΔV≈x%, ΔS≈y%\" and the direction (darker/lighter, more/less saturated).\n\nRETURN ONLY this JSON (no extra text) with EXACT property names:\n{\n  \"identity_score\": 0.0-1.0,\n  \"identity_match\": true/false,\n\n  \"style_score\": 0.0-1.0,              // flat vectors, single outline weight; texture MUST match BASE\n  \"line_style_match\": true/false,\n\n  \"color_score\": 0.0-1.0,              // overall palette fidelity (no invented colors or hue/sat shifts)\n\n  \"hair_color_score\": 0.0-1.0,         // vs BASE only (ignore IMAGE B color)\n  \"hair_color_match\": true/false,\n\n  \"skin_tone_score\": 0.0-1.0,\n\n  \"clothing_score\": 0.0-1.0,\n\n  \"hair_cleanliness_score\": 0.0-1.0,   // set to 0 for ANY fail in LENGTH/STYLE/SILHOUETTE\n  \"hair_silhouette_solid\": true/false,\n  \"stray_hairs_present\": true/false,\n  \"stray_hair_count\": 0-50,\n\n  \"notes\": \"brief sentence on biggest mismatch (if any)\"\n}`;\n\n/* ------------ build parts (IMAGE A, optional IMAGE B, OUTPUT) ------------ */\nconst parts = [\n  { text: \"Validate identity, style, color, skin tone (binary HSV rule), clothing, and HAIR CLEANLINESS. Compare OUTPUT to BASE. If IMAGE B is present, use it for HAIR SILHOUETTE ONLY. Do NOT comment on pose.\" },\n  { inlineData: { mimeType: keyMime(baseKey), data: characterB64 } },\n  { text: \"^ IMAGE A: Base character (appearance & palette; authoritative for hair color)\" },\n];\nif (hairB64) {\n  parts.push({ inlineData: { mimeType: keyMime(hairKey), data: hairB64 } });\n  parts.push({ text: \"^ IMAGE B: Hair silhouette reference ONLY (ignore its color)\" });\n}\nparts.push({ inlineData: { mimeType: keyMime(genKey), data: generatedB64 } });\nparts.push({ text: \"^ OUTPUT: Generated image to validate\" });\n\n// structure self-check\nconst kinds = parts.map(p => p.inlineData ? 'inlineData' : 'text');\nconst expectedNoHair  = ['text','inlineData','text','inlineData','text'];\nconst expectedWithHair= ['text','inlineData','text','inlineData','text','inlineData','text'];\nconst expected = hairB64 ? expectedWithHair : expectedNoHair;\n\nconst partsSummary = {\n  length: parts.length,\n  kinds,\n  expected,\n  hasBase: true,\n  hasOutput: true,\n  hasHair: !!hairB64,\n  baseKeyUsed: baseKey,\n  generatedKeyUsed: genKey,\n  hairKeyUsed: hairKey || null,\n  poseNN_plain: (toPlainPoseNN(j.poseNN || j.poseNN_hyphen, poseNumber)) || null,\n  poseNN_hyphen: ((toPlainPoseNN(j.poseNN || j.poseNN_hyphen, poseNumber)) || '').replace(/^pose(\\d{2})$/,'pose-$1') || null,\n};\n\nif (STRICT_ASSERT && JSON.stringify(kinds) !== JSON.stringify(expected)) {\n  throw new Error(`Style QA Build Request: parts order mismatch. Got ${JSON.stringify(kinds)} expected ${JSON.stringify(expected)}.`);\n}\n\n/* ------------ Gemini request body ------------ */\nconst qaRequestBody = {\n  systemInstruction: { parts: [{ text: systemText }] },\n  contents: [{ role: 'user', parts }],\n  generationConfig: { temperature: 0.0, responseMimeType: 'application/json' },\n};\n\n/* ------------ emit (pose binaries dropped; OUT = LEAN) ------------ */\nconst corrIn = firstDefined(j.correlationId, j.correlation_id);\nconst correlationId = (typeof corrIn === 'string' && corrIn.includes('-POSE'))\n  ? corrIn.replace('-POSE', '-STYLE')\n  : (corrIn || `style-qa-${Date.now()}-${ix}`);\n\nconst droppedPoseKeys = Object.keys(b).filter(k => /^pose($|_|-|Ref)/i.test(k));\nconst approxBodyBytes = Buffer.byteLength(JSON.stringify(qaRequestBody), 'utf8');\n\nconst out = {\n  correlationId,\n  characterHash,\n  poseNumber: Number.isFinite(poseNumber) ? poseNumber : undefined,\n  poseNN: toPlainPoseNN(j.poseNN || j.poseNN_hyphen, poseNumber),\n  poseNN_hyphen: (toPlainPoseNN(j.poseNN || j.poseNN_hyphen, poseNumber) || '').replace(/^pose(\\d{2})$/,'pose-$1') || undefined,\n  generatedFileName,\n\n  // thresholds (unchanged schema)\n  qaThreshold,\n  styleQaThreshold,\n  colorQaThreshold,\n\n  // request body for HTTP node\n  qaType: 'style',\n  qaContractVersion: 'styleqa@2.5', // schema unchanged; adds binary skin-tone HSV rule\n  qaRequestBody,\n\n  __meta: {\n    ...(j.__meta || {}),\n    styleQaBuildRequest: {\n      droppedPoseKeys,\n      approxBodyBytes,\n      partsSummary,\n    },\n  },\n};\n\nconst outBin = {\n  character: b[baseKey],\n  generated: b[genKey],\n  ...(hairKey ? { hair: b[hairKey] } : {}),\n};\n\nreturn {\n  json: out,\n  binary: outBin,\n  pairedItem: ($input?.item?.pairedItem) ? $input.item.pairedItem : { item: ix },\n};\n"
       },
-      "id": "65beb998-45bb-47cf-9e63-a4ff3d6f2fdb",
+      "id": "2ddbbd1f-8bf8-4558-bbf3-69e9cab85393",
       "name": "Parse Style QA Verdict",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        336,
-        320
+        -1936,
+        432
       ]
     },
     {
@@ -183,13 +183,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Derive Style QA Pass — v2.2 (simplified AND-gated thresholds; identity hard-fail; hair-color scored)\n// Consumes styleQaVerdict (numeric fields) and outputs pass/fail with reasons.\n// No caps/effective math; no aggregation — any dimension below its threshold ⇒ fail.\n\nconst j  = $json || {};\nconst b  = $binary || {};\nconst ix = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\n/* helpers */\nfunction num(x, d){ const n = Number(x); return Number.isFinite(n) ? n : d; }\nfunction n01(x, d=null){ const n = Number(x); return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : d; }\nfunction bstrict(x){\n  if (x === true || x === false) return x;\n  if (typeof x === 'string'){\n    const s = x.trim().toLowerCase();\n    if (['true','1','yes','y','on'].includes(s))  return true;\n    if (['false','0','no','n','off'].includes(s)) return false;\n  }\n  if (x === 1) return true;\n  if (x === 0) return false;\n  return undefined;\n}\nfunction fd(){ for (let i=0;i<arguments.length;i++){ const v = arguments[i]; if (v!==undefined && v!==null && v!=='') return v; } }\n\n/* input */\nconst v = (j.styleQaVerdict && typeof j.styleQaVerdict === 'object') ? j.styleQaVerdict : {};\n\n/* thresholds (defaults reflect our agreed policy) */\nconst identityMin   = num(fd(j.identityQaThreshold), 0.85);\nconst styleMin      = num(fd(j.styleMin),      0.85);\nconst colorMin      = num(fd(j.colorMin),      0.75);\nconst hairColorMin  = num(fd(j.hairColorMin),  0.75);\nconst skinToneMin   = num(fd(j.skinToneQaMin), 0.75);\nconst clothingMin   = num(fd(j.clothingMin),   0.75);\nconst hairCleanMin  = num(fd(j.hairCleanMin),  0.75);\n\n/* scores */\nconst identityScore     = n01(v.identity_score, null);\nconst identityMatch     = (v.identity_match === undefined && identityScore !== null)\n  ? (identityScore >= identityMin) : bstrict(v.identity_match);\n\nconst styleCohesion     = n01(fd(v.style_cohesion_score, v.style_score), null);\nconst colorScore        = n01(v.color_score, null);\nconst hairColorScore    = n01(v.hair_color_score, (bstrict(v.hair_color_match) === undefined ? null : (bstrict(v.hair_color_match) ? 1 : 0)));\nlet   skinToneScore     = n01(v.skin_tone_score, null);\nconst clothingScore     = n01(v.clothing_score, null);\nconst hairCleanliness   = n01(v.hair_cleanliness_score, null);\n\n/* back-compat skin tone synthesis if missing */\nif (skinToneScore === null) {\n  const p = v.palette_shift === true, s = v.saturation_shift === true, m = bstrict(v.skin_tone_match);\n  const wp = num(j.skinToneWeightPalette, 0.5), ws = num(j.skinToneWeightSaturation, 0.5);\n  const denom = Math.max(1e-9, wp + ws);\n  const base = Math.max(0, Math.min(1, 1 - (((p?1:0)*wp + (s?1:0)*ws)/denom)));\n  skinToneScore = Math.max(0, Math.min(1, base - (m ? 0 : 0.25)));\n}\n\n/* AND-gated rules (treat missing metrics as neutral: true) */\nconst hardFailIdentity = (identityMatch === false) || (identityScore !== null && identityScore < identityMin);\n\nconst styleOk    = (styleCohesion !== null   ? styleCohesion   >= styleMin     : true);\nconst colorOk    = (colorScore !== null      ? colorScore      >= colorMin     : true);\nconst hairColOk  = (hairColorScore !== null  ? hairColorScore  >= hairColorMin : true);\nconst skinOk     = (skinToneScore !== null   ? skinToneScore   >= skinToneMin  : true);\nconst clothingOk = (clothingScore !== null   ? clothingScore   >= clothingMin  : true);\nconst hairOk     = (hairCleanliness !== null ? hairCleanliness >= hairCleanMin : true);\n\n/* reasons */\nconst reasons = [];\nif (hardFailIdentity) reasons.push(`identity_below_${identityMin}`);\nif (!styleOk)         reasons.push(`style_below_${styleMin}`);\nif (!colorOk)         reasons.push(`color_below_${colorMin}`);\nif (!hairColOk)       reasons.push(`hair_color_below_${hairColorMin}`);\nif (!skinOk)          reasons.push(`skin_tone_below_${skinToneMin}`);\nif (!clothingOk)      reasons.push(`clothing_below_${clothingMin}`);\nif (!hairOk)          reasons.push(`hair_cleanliness_below_${hairCleanMin}`);\n\n/* final pass */\nconst styleQaPass = !hardFailIdentity && styleOk && colorOk && hairColOk && skinOk && clothingOk && hairOk;\n\n/* merge into qa */\nconst qaIn = (j.qa && typeof j.qa === 'object') ? { ...j.qa } : {};\nqaIn.style = {\n  pass: styleQaPass,\n  ran: true,\n  threshold: {\n    identity: identityMin,\n    style: styleMin,\n    color: colorMin,\n    hair_color: hairColorMin,\n    skin_tone: skinToneMin,\n    clothing: clothingMin,\n    hair_cleanliness: hairCleanMin\n  },\n  score: {\n    identity: identityScore,\n    style_cohesion: styleCohesion,\n    color: colorScore,\n    hair_color: hairColorScore,\n    skin_tone: skinToneScore,\n    clothing: clothingScore,\n    hair_cleanliness: hairCleanliness\n  },\n  reasons,\n  ...(typeof v.notes === 'string' && v.notes.trim() ? { notes: v.notes } : {})\n};\n\n/* build out (preserve upstream fields + legacy mirrors for compatibility) */\nconst out = {\n  ...j,\n  styleQaRan: true,\n  styleQaPass,\n  // legacy mirrors (kept for downstream consumers)\n  styleQaThreshold: styleMin,\n  colorQaThreshold: colorMin,\n  styleQaScore: n01(v.style_score, null),      // raw style score (legacy)\n  styleCohesionScore: styleCohesion,           // new canonical style score\n  colorQaScore: colorScore,\n  hairColorScore: hairColorScore,\n  skinToneScore: skinToneScore,\n  clothingScore: clothingScore,\n  hairCleanlinessScore: hairCleanliness,\n  identityScore: identityScore,\n  identityMatch: identityMatch,\n  styleQaReasons: reasons,\n  styleQaNotes: (typeof v.notes === 'string') ? v.notes : '',\n  qa: qaIn,\n  styleQaVerdict: v\n};\n\ntry {\n  console.log('Derive Style QA Pass v2.2', {\n    ix,\n    pass: styleQaPass,\n    thresholds: qaIn.style.threshold,\n    scores: qaIn.style.score,\n    reasons\n  });\n} catch {}\n\nreturn {\n  json: out,\n  binary: b,\n  pairedItem: ($input?.item?.pairedItem) ? $input.item.pairedItem : { item: ix }\n};\n"
       },
-      "id": "40407c73-4f2c-42a8-ba98-3a9e4b3ac98f",
+      "id": "71650347-1974-4de7-8269-6b3cf120490d",
       "name": "Derive Style QA Pass",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        560,
-        576
+        -1712,
+        688
       ]
     },
     {
@@ -197,13 +197,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Combine QA Verdicts — v2.5 (simplified scheme; mirrors new style fields; lean pass-through)\nconst j = $json || {};\nconst b = $binary || {};\nconst ix = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\n/* helpers */\nfunction firstDefined(){ for (let i=0;i<arguments.length;i++){ const v=arguments[i]; if (v!==undefined && v!==null && v!=='') return v; } }\nfunction toNum(x){ const n = Number(x); return Number.isFinite(n) ? n : null; }\nfunction stripHeavy(o){\n  if (!o || typeof o !== 'object') return {};\n  const out = { ...o };\n  for (const k of [\n    'qaRequestBody','systemInstruction','contents','candidates','usageMetadata',\n    'vertexResponse','rawResponse','raw','fullResponse','prompt','messages',\n    'payload','result','response','debug','__raw','explanations','body','data'\n  ]) if (k in out) delete out[k];\n  return out;\n}\n\n/* inputs */\nconst policy = firstDefined(j.qaPolicy, j.__qaPolicy, 'pose_then_style');\n\n/* ---------------- Pose ---------------- */\nconst posePass    = !!( (j.qaPass === true) || (j.poseQaPass === true) || (j.qa?.pose?.pass === true) );\nconst poseScore   = toNum(firstDefined(j.qaScore, j.poseQaScore, j.qa?.pose?.score));\nconst poseReasons = Array.isArray(j.qaReasons) ? j.qaReasons\n                   : (Array.isArray(j.qa?.pose?.reasons) ? j.qa.pose.reasons : []);\nconst poseNotes   = firstDefined(j.qaNotes, j.qa?.pose?.notes, '');\nconst poseThr     = toNum(j.qaThreshold);\n\n/* ---------------- Style (new scheme) ---------------- */\nconst stylePass   = !!( (j.styleQaPass === true) || (j.qa?.style?.pass === true) );\nconst styleRan    = !!( (typeof j.styleQaPass === 'boolean') || (j.styleQaRan === true) || (typeof j.qa?.style?.pass === 'boolean') );\n\nconst thrStyle      = toNum(firstDefined(j.styleQaThreshold, j.qa?.style?.threshold?.style));\nconst thrColor      = toNum(firstDefined(j.colorQaThreshold, j.qa?.style?.threshold?.color));\nconst thrSkinTone   = toNum(firstDefined(j.skinToneThreshold, j.qa?.style?.threshold?.skin_tone));\nconst thrIdentity   = toNum(firstDefined(j.identityQaThreshold, j.qa?.style?.threshold?.identity));\nconst thrHairColor  = toNum(firstDefined(j.hairColorMin, j.qa?.style?.threshold?.hair_color));\nconst thrClothing   = toNum(firstDefined(j.clothingMin, j.qa?.style?.threshold?.clothing));\nconst thrHairClean  = toNum(firstDefined(j.hairCleanMin, j.qa?.style?.threshold?.hair_cleanliness));\n\nconst styleCohesionScore = toNum(firstDefined(j.styleCohesionScore, j.qa?.style?.score?.style_cohesion, j.styleQaScore));\nconst colorScore         = toNum(firstDefined(j.colorQaScore, j.qa?.style?.score?.color));\nconst skinToneScore      = toNum(firstDefined(j.skinToneScore, j.qa?.style?.score?.skin_tone));\nconst identityScore      = toNum(firstDefined(j.identityScore, j.qa?.style?.score?.identity));\nconst hairColorScore     = toNum(firstDefined(j.hairColorScore, j.qa?.style?.score?.hair_color));\nconst clothingScore      = toNum(firstDefined(j.clothingScore, j.qa?.style?.score?.clothing));\nconst hairCleanScore     = toNum(firstDefined(j.hairCleanlinessScore, j.qa?.style?.score?.hair_cleanliness));\n\nconst styleReasons = Array.isArray(j.styleQaReasons) ? j.styleQaReasons\n                   : (Array.isArray(j.qa?.style?.reasons) ? j.qa.style.reasons : []);\nconst styleNotes   = firstDefined(j.styleQaNotes, j.qa?.style?.notes, '');\n\n/* combine policy */\nlet combinedPass = false;\nconst combinedNotes = [];\n\nif (policy === 'all' || policy === 'pose_then_style') {\n  combinedPass = posePass && (styleRan ? stylePass : true);\n  if (!posePass) combinedNotes.push('Pose QA failed');\n  if (styleRan && !stylePass) combinedNotes.push('Style QA failed');\n} else if (policy === 'any') {\n  combinedPass = !!(posePass || (styleRan ? stylePass : false));\n  if (!combinedPass) combinedNotes.push('Both QA checks failed');\n} else {\n  combinedPass = posePass && (styleRan ? stylePass : true);\n  combinedNotes.push('Unknown qaPolicy; defaulted to pose_then_style');\n}\n\n/* build qa object */\nconst qaOut = { ...(typeof j.qa === 'object' && j.qa ? j.qa : {}) };\n\nqaOut.pose = {\n  pass: posePass,\n  threshold: (poseThr !== null ? poseThr : undefined),\n  score: poseScore,\n  reasons: poseReasons,\n  notes: poseNotes,\n};\n\nif (styleRan) {\n  qaOut.style = {\n    pass: stylePass,\n    ran: true,\n    threshold: {\n      style: thrStyle ?? undefined,\n      color: thrColor ?? undefined,\n      ...(thrSkinTone  !== null ? { skin_tone:       thrSkinTone }  : {}),\n      ...(thrIdentity  !== null ? { identity:        thrIdentity }  : {}),\n      ...(thrHairColor !== null ? { hair_color:      thrHairColor } : {}),\n      ...(thrClothing  !== null ? { clothing:        thrClothing }  : {}),\n      ...(thrHairClean !== null ? { hair_cleanliness:thrHairClean } : {}),\n    },\n    score: {\n      style_cohesion: styleCohesionScore,\n      color:          colorScore,\n      ...(skinToneScore  !== null ? { skin_tone:        skinToneScore }  : {}),\n      ...(identityScore  !== null ? { identity:         identityScore }  : {}),\n      ...(hairColorScore !== null ? { hair_color:       hairColorScore } : {}),\n      ...(clothingScore  !== null ? { clothing:         clothingScore }  : {}),\n      ...(hairCleanScore !== null ? { hair_cleanliness: hairCleanScore } : {}),\n    },\n    reasons: styleReasons,\n    notes: styleNotes,\n  };\n}\n\nqaOut.combined = {\n  pass: combinedPass,\n  policy,\n  notes: combinedNotes.length ? combinedNotes : ['All checks passed'],\n};\n\n/* prepare out */\nconst lean = stripHeavy(j);\nconst out = {\n  // identity mirrors\n  correlationId: lean.correlationId,\n  characterHash: lean.characterHash,\n  poseNumber:    lean.poseNumber,\n  poseNN:        lean.poseNN,\n  generatedFileName: lean.generatedFileName,\n\n  // top-level threshold mirrors (for downstream consumers)\n  qaThreshold:        poseThr ?? lean.qaThreshold,\n  styleQaThreshold:   thrStyle ?? lean.styleQaThreshold,\n  colorQaThreshold:   thrColor ?? lean.colorQaThreshold,\n  skinToneThreshold:  thrSkinTone ?? lean.skinToneThreshold,\n  identityQaThreshold:thrIdentity ?? lean.identityQaThreshold,\n  hairColorMin:       thrHairColor ?? lean.hairColorMin,\n  clothingMin:        thrClothing ?? lean.clothingMin,\n  hairCleanMin:       thrHairClean ?? lean.hairCleanMin,\n\n  // top-level score mirrors\n  styleCohesionScore: styleCohesionScore ?? lean.styleCohesionScore,\n  colorQaScore:       colorScore ?? lean.colorQaScore,\n  skinToneScore:      skinToneScore ?? lean.skinToneScore,\n  identityScore:      identityScore ?? lean.identityScore,\n  hairColorScore:     hairColorScore ?? lean.hairColorScore,\n  clothingScore:      clothingScore ?? lean.clothingScore,\n  hairCleanlinessScore: hairCleanScore ?? lean.hairCleanlinessScore,\n\n  // >>> pass-through refs & crumbs <<<\n  baseCharacterKey:   lean.baseCharacterKey,\n  baseRefPublicUrl:   lean.baseRefPublicUrl,\n  poseRefKey:         lean.poseRefKey,\n  poseRefPublicUrl:   lean.poseRefPublicUrl,\n\n  retryAttempt: (Number.isFinite(Number(lean.retryAttempt)) ? Number(lean.retryAttempt)\n               : (Number.isFinite(Number(lean.qaRetry)) ? Number(lean.qaRetry) : undefined)),\n  retryTag: lean.retryTag ?? '',\n  qaHints:  lean.qaHints,\n  qaNotes:  firstDefined(lean.styleQaNotes, lean.qaNotes, ''),\n  qaText:   firstDefined(lean.qaText, lean.qaRawText, lean.styleQaText, ''),\n\n  // final QA blocks + mirrors\n  qa: qaOut,\n  qaPass: combinedPass,\n  qaCombinedPass: combinedPass,\n  qaPolicy: policy,\n  qaCombinedNotes: combinedNotes.join('; ') || 'All checks passed',\n\n  __meta: {\n    ...(lean.__meta || {}),\n    combineQa: {\n      itemIndex: ix,\n      policy,\n      posePass,\n      styleRan,\n      stylePass\n    }\n  }\n};\n\ntry {\n  console.log('Combine QA v2.5', {\n    ix, policy, posePass, styleRan, stylePass, combinedPass,\n    styleCohesionScore, colorScore, skinToneScore,\n    identityScore, hairColorScore, clothingScore, hairCleanScore,\n    thresholds: { poseThr, thrStyle, thrColor, thrSkinTone, thrIdentity, thrHairColor, thrClothing, thrHairClean }\n  });\n} catch {}\n\nreturn { json: out, binary: b, pairedItem: ($input?.item?.pairedItem) ? $input.item.pairedItem : { item: ix } };\n"
       },
-      "id": "8e3f9631-8318-419b-82d8-04b8a2ca777f",
+      "id": "3470fd78-8f06-4333-b010-12d6e0fb35e6",
       "name": "Combine QA Verdicts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
-        864
+        -1392,
+        976
       ]
     },
     {
@@ -232,13 +232,13 @@
           "timeout": 120000
         }
       },
-      "id": "0f0576c4-96e9-4677-92a9-c887306d0e9b",
+      "id": "ffd3223d-1116-47e3-b700-3dfc67d8257c",
       "name": "HTTP: Pose QA (Gemini)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        240,
-        -432
+        -2032,
+        -336
       ],
       "credentials": {
         "googlePalmApi": {
@@ -252,13 +252,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Parse QA Verdict — SLIM (EACH) — v2.1\n// Finds Gemini QA JSON in candidates[].content.parts[].text or back-references HTTP QA nodes.\n// Emits minimal identity + qaText + qaVerdict + qaScore + qaReasons + qaHints,\n// normalizes poseLabel to no-hyphen form (poseNN), and mirrors qa.pose.score.\n// Does not compute pass/fail (done later in Derive QA Pass).\n\nconst j   = $json || {};\nconst bin = $binary || {};\n\nconst runIx  = (typeof $runIndex  === 'number') ? $runIndex  : 0;\nconst itemIx = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\nconst POSE_QA_NODES = [\n  'HTTP: Pose QA (Gemini)1',\n  '🧪 MOCK: HTTP: Pose QA (Gemini)1',\n  'HTTP: Pose QA (Gemini) — Retry1',\n  'HTTP: Pose QA (Gemini)',\n  '🧪 MOCK: HTTP: Pose QA (Gemini) — Retry1'\n];\n\n/* ---------------- helpers ---------------- */\nfunction get(obj, path){\n  let cur = obj;\n  for (const k of path) { if (cur == null) return undefined; cur = cur[k]; }\n  return cur;\n}\nfunction pickPartsText(root){\n  let parts = get(root, ['candidates', 0, 'content', 'parts']);\n  if (Array.isArray(parts)) {\n    const hit = parts.find(p => typeof p?.text === 'string' && p.text.trim());\n    if (hit) return hit.text;\n  }\n  for (const base of ['body','data','response']) {\n    parts = get(root, [base, 'candidates', 0, 'content', 'parts']);\n    if (Array.isArray(parts)) {\n      const hit = parts.find(p => typeof p?.text === 'string' && p.text.trim());\n      if (hit) return hit.text;\n    }\n  }\n  return null;\n}\nfunction fetchFromNode(nodeName){\n  try {\n    const arr = $items(nodeName, 0, runIx);\n    const it  = arr?.[itemIx] || arr?.[0];\n    return it?.json ? pickPartsText(it.json) : null;\n  } catch { return null; }\n}\nfunction stripFences(s){\n  if (!s) return '';\n  let t = String(s).trim();\n  t = t.replace(/^```[a-zA-Z]*\\s*/,'').replace(/```$/,'').trim();\n  t = t.replace(/```/g,'').trim();\n  return t;\n}\nfunction tryParseJsonLoose(s){\n  if (!s) return null;\n  if (/^\"(?:\\\\.|[^\"])*\"$/.test(s)) { try { s = JSON.parse(s); } catch {} }\n  try { return JSON.parse(s); } catch {}\n  const start = s.indexOf('{'); const end = s.lastIndexOf('}');\n  if (start >= 0 && end > start) { const sub = s.slice(start, end + 1); try { return JSON.parse(sub); } catch {} }\n  return null;\n}\nfunction boolish(v){ if (typeof v === 'boolean') return v; if (typeof v === 'number') return v !== 0; if (typeof v === 'string') return /^(true|yes|y|1)$/i.test(v.trim()); return false; }\nfunction num01(v, def=0){ const n = Number(v); if (!Number.isFinite(n)) return def; return Math.max(0, Math.min(1, n)); }\nfunction asInt(v){ const n=Number(v); return Number.isFinite(n)?Math.floor(n):null; }\nfunction sanitizeMeta(meta){\n  if (!meta || typeof meta !== 'object') return undefined;\n  const out = {};\n  for (const k of ['characterHash','poseNumber','runStamp','storageKey','versionedKey','tryNumber']) {\n    if (meta[k] !== undefined) out[k] = meta[k];\n  }\n  return Object.keys(out).length ? out : undefined;\n}\nconst pad2 = n => String(Number(n)).padStart(2,'0');\n\n/* ---------------- minimal identity (with poseLabel normalization) ---------------- */\nfunction pickMinimal(j){\n  const pn = (j.poseNumber ?? j.currentPoseNumber);\n  const nn = Number.isFinite(Number(pn)) ? pad2(pn) : null;\n\n  // normalize to no-hyphen form: poseNN (e.g., 'pose01')\n  const poseLabelRaw = j.poseLabel || '';\n  let poseLabel = poseLabelRaw;\n  if (nn) {\n    poseLabel = `pose${nn}`;\n  } else if (poseLabelRaw) {\n    const m = String(poseLabelRaw).match(/pose-?(\\d{1,3})/i);\n    if (m) poseLabel = `pose${pad2(m[1])}`;\n  }\n\n  return {\n    characterHash:     j.characterHash,\n    poseNumber:        pn,\n    currentPoseNumber: pn,\n    poseLabel,                         // normalized no-hyphen label\n    amazonOrderId:     j.amazonOrderId,\n    correlationId:     j.correlationId,\n    storageKey:        j.storageKey,\n    r2Path:            j.r2Path,\n    fileUrl:           j.fileUrl,\n    // retry pass-through\n    retryAttempt:      asInt(j.retryAttempt) ?? asInt(j.qaRetry) ?? asInt(j.retryTry) ?? null,\n    retryTag:          j.retryTag ?? null,\n    __meta:            sanitizeMeta(j.__meta)\n  };\n}\n\n/* ---------------- extract QA text ---------------- */\nlet raw =\n  j.qaText ||\n  j.qaRawText ||\n  pickPartsText(j) ||\n  pickPartsText(j.body || {}) ||\n  pickPartsText(j.data || {}) ||\n  null;\n\nif (!raw) {\n  for (const name of POSE_QA_NODES) {\n    raw = fetchFromNode(name);\n    if (raw) { console.log(`Parse QA: back-referenced \"${name}\"`); break; }\n  }\n  if (!raw) console.warn('Parse QA: could not find QA text on input or HTTP nodes.');\n}\n\nconst cleaned = stripFences(raw || '');\nconst parsed  = tryParseJsonLoose(cleaned);\n\n/* ---------------- normalize verdict → numbers/booleans ---------------- */\nconst fallback = {\n  pose_score: 0,\n  single_subject: false,\n  extra_limbs: true,\n  bg_white: false,\n  leakage_from_pose_ref: true,\n  cropped: true,\n  notes: 'validator parse error'\n};\n\nconst vIn = (parsed && typeof parsed === 'object') ? parsed : fallback;\nconst verdict = {\n  pose_score:            num01(vIn.pose_score, 0),\n  single_subject:        boolish(vIn.single_subject),\n  extra_limbs:           boolish(vIn.extra_limbs),\n  bg_white:              boolish(vIn.bg_white),\n  leakage_from_pose_ref: boolish(vIn.leakage_from_pose_ref),\n  cropped:               boolish(vIn.cropped),\n  notes:                 String(vIn.notes ?? '').slice(0, 500),\n};\n\n/* ---------------- reasons + hints ---------------- */\nconst qaReasons = [];\nif (!verdict.single_subject)         qaReasons.push('multiple_subjects');\nif (verdict.extra_limbs)             qaReasons.push('extra_limbs');\nif (!verdict.bg_white)               qaReasons.push('bg_not_white');\nif (verdict.leakage_from_pose_ref)   qaReasons.push('pose_ref_leakage');\nif (verdict.cropped)                 qaReasons.push('cropped');\n\nconst qaHints = {\n  single_subject: verdict.single_subject,\n  extra_limbs: verdict.extra_limbs,\n  bg_white: verdict.bg_white,\n  leakage_from_pose_ref: verdict.leakage_from_pose_ref,\n  cropped: verdict.cropped,\n  pose_score: verdict.pose_score,\n};\n\n/* ---------------- emit SLIM payload ---------------- */\nconst minimal = pickMinimal(j);\n\nconsole.log({\n  source: raw ? (j.qaText ? 'qaText' : 'candidates/body/data/backref') : 'missing',\n  cleaned_len: cleaned.length,\n  parsed_ok: !!parsed,\n  pose_score: verdict.pose_score,\n  retryAttempt: minimal.retryAttempt,\n  retryTag: minimal.retryTag\n});\n\nreturn {\n  json: {\n    ...minimal,\n    qaText: cleaned,\n    qaVerdict: verdict,\n    qaScore: verdict.pose_score,            // numeric mirror for derive node\n    qaReasons,                              // normalized reasons array\n    qaHints,                                // structured hints for 2A\n    qa: {                                   // mirror into canonical qa.pose.* (no pass here)\n      ...(j.qa || {}),\n      pose: { ...(j.qa?.pose || {}), score: verdict.pose_score }\n    }\n  },\n  binary: bin,\n  ...( $input?.item?.pairedItem ? { pairedItem: $input.item.pairedItem } : {} ),\n};\n"
       },
-      "id": "d5ec71bd-c155-4553-aa46-fe3cb8ca0437",
+      "id": "a74d4e25-6b6d-45b5-9577-4541d2fc33d2",
       "name": "Parse QA Verdict1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1200,
-        -240
+        -1072,
+        -144
       ]
     },
     {
@@ -266,13 +266,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Pose QA — Build Request — v2.6 (LENIENT ARMS EXCEPT POSE 3) — EACH\n// Robust rehydration of $binary.generated:\n// 1) try current item buffer\n// 2) try upstream items\n// 3) try constructed/public URL (preferred when buffer missing)\n// 4) tiny 1x1 PNG only in manual/test\n// Real runs remain strict at the final guard.\n\nconst jIn  = $json || {};\nconst bin  = $binary || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n/* ---------------- slim any heavy fields ---------------- */\nfunction stripInlineDataDeep(o){\n  if (!o || typeof o !== 'object') return o;\n  if (Array.isArray(o)) return o.map(stripInlineDataDeep);\n  const x = {};\n  for (const [k,v] of Object.entries(o)) {\n    if (k === 'inlineData' && v && typeof v === 'object') {\n      const mimeType = v.mimeType || undefined;\n      x.inlineData = mimeType ? { mimeType } : {};\n    } else {\n      x[k] = stripInlineDataDeep(v);\n    }\n  }\n  return x;\n}\nfunction slimJson(j){\n  const c = { ...(j || {}) };\n  delete c.qaRequestBody;\n  delete c.requestBody;\n  delete c.contents;\n  delete c.systemInstruction;\n  return stripInlineDataDeep(c);\n}\nconst j = slimJson(jIn);\n\n/* ---------------- run mode / thresholds ---------------- */\nconst route = String(j.__route || '').toUpperCase();\nconst isManual = (typeof this.getMode === 'function') ? (this.getMode() === 'manual') : false;\nconst isTest = !!j.__testMode || !!j.testMode || route === 'TEST' || isManual;\n\nconst isMock =\n  isTest ||\n  !!j.__allowTinyImage ||\n  String(j.modelVersion || '').toLowerCase().includes('mock');\n\nconst minBytes = Number.isFinite(Number(j.minInlineBytes))\n  ? Number(j.minInlineBytes)\n  : (isMock ? 1 : 100);\n\n/* ---------------- helpers ---------------- */\nfunction asInt(v){ const n=Number(v); return Number.isFinite(n)?Math.floor(n):null; }\nfunction currentIndex(){\n  const p = $input?.item?.pairedItem;\n  if (p && typeof p.item === 'number') return p.item;\n  if (typeof $itemIndex === 'number') return $itemIndex;\n  return 0;\n}\nconst idx = currentIndex();\n\nasync function readBuffer(key, { allowTiny=false } = {}){\n  if (!bin[key]) return null;\n  try {\n    const buf = await this.helpers.getBinaryDataBuffer(idx, key);\n    if (!buf) return null;\n    const ok = buf.length >= minBytes || (allowTiny && buf.length > 0);\n    return ok ? buf : null;\n  } catch { return null; }\n}\nfunction toB64(buf){ return buf.toString('base64'); }\nfunction sha1(buf){ return require('crypto').createHash('sha1').update(buf).digest('hex'); }\nfunction mimeFromExt(name=''){\n  const n = String(name).toLowerCase();\n  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg';\n  if (n.endsWith('.webp')) return 'image/webp';\n  if (n.endsWith('.png')) return 'image/png';\n  return null;\n}\nfunction inferMime(b, fallback='image/png'){\n  return b?.mimeType || mimeFromExt(b?.fileName || b?.fileNameOriginal) || fallback;\n}\nfunction zpad(n, w=2){ const s=String(Math.max(0, Number(n)|0)); return s.length>=w?s:'0'.repeat(w-s.length)+s; }\nfunction looksLikePoseName(name){\n  const n = String(name||'').toLowerCase();\n  if (/pose[_\\-]?\\d{1,3}\\.(png|jpe?g|webp)$/.test(n)) return true;\n  if (/^p[\\-_]?\\d{1,3}\\.(png|jpe?g|webp)$/.test(n))   return true;\n  return /(^|\\/)pose(\\.|_|-|$)/.test(n);\n}\nfunction safeItems(nodeName, rIx){ try { return $items(nodeName, 0, rIx) || []; } catch { return []; } }\nfunction preferredIndex(arr){\n  const p = $input?.item?.pairedItem?.item;\n  const ix = (typeof p === 'number') ? p : (typeof $itemIndex === 'number' ? $itemIndex : 0);\n  return (ix>=0 && ix<arr.length) ? ix : 0;\n}\nfunction getItemFromNode(nodeName, rIx){\n  const arr = safeItems(nodeName, rIx);\n  if (!arr.length) return null;\n  const ix = preferredIndex(arr);\n  return arr[ix] || arr[0] || null;\n}\nfunction normalizeBinary(b, fallbackName){\n  if (!b) return null;\n  return { ...b, mimeType: b.mimeType || 'image/png', fileName: b.fileName || b.fileNameOriginal || fallbackName };\n}\nfunction pickPoseFromMap(map, fallbackName){\n  if (!map) return null;\n  if (map.pose && looksLikePoseName(map.pose.fileName || map.pose.fileNameOriginal || 'pose.png'))\n    return normalizeBinary(map.pose, fallbackName);\n  for (const k of Object.keys(map)) {\n    const b = map[k];\n    const name = b?.fileName || b?.fileNameOriginal;\n    if (looksLikePoseName(name)) return normalizeBinary(b, fallbackName);\n  }\n  if (map.pose) return normalizeBinary(map.pose, fallbackName);\n  return null;\n}\nfunction expectedPoseNames(){\n  const n = j.poseNumber ?? j.currentPoseNumber ?? j.__meta?.poseNumber ?? null;\n  if (n == null || Number.isNaN(Number(n))) return [];\n  const nn2 = zpad(n,2), nn3 = zpad(n,3);\n  return [`pose${nn2}.png`,`pose_${nn2}.png`,`pose${nn3}.png`,`pose_${nn3}.png`,`pose-${nn2}.png`,`pose-${nn3}.png`];\n}\nfunction posePredicate(b){\n  const fileName = (b?.fileName || b?.fileNameOriginal || '').toLowerCase();\n  const expect = expectedPoseNames();\n  if (expect.length) {\n    const nameNoExt = fileName.replace(/\\.(png|jpe?g|webp)$/, '');\n    for (const exp of expect) {\n      const eNoExt = String(exp).toLowerCase().replace(/\\.(png|jpe?g|webp)$/, '');\n      if (nameNoExt.endsWith(eNoExt)) return true;\n    }\n  }\n  return looksLikePoseName(fileName);\n}\nfunction findPoseFromNodes(preferRunIx=runIx){\n  const candidates = [\n    'Get Pose',\n    'Download Pose Reference',\n    'Download Pose Ref (IMAGE P)',\n    'Download a file (pose)',\n    'Reattach Binaries (For QA)',\n    'Reattach Binaries (For Retry Gen)',\n    'Ensure Generated for QA Retry — EACH',\n    'Prepare Upload',\n    'Carry Pose Index',\n  ];\n  const runs = [preferRunIx, 0];\n  for (const r of runs){\n    for (const name of candidates){\n      const it = getItemFromNode(name, r);\n      if (!it || !it.binary) continue;\n      const pick = pickPoseFromMap(it.binary, 'pose.png');\n      if (pick && posePredicate(pick)) return { bin: pick, from: name, run: r };\n    }\n  }\n  return null;\n}\nfunction pickGeneratedFromMap(map, fallbackName='generated.png'){\n  if (!map) return null;\n  for (const k of ['generated','final_generated','image','output','generated_inline']) {\n    if (map[k]) return normalizeBinary(map[k], fallbackName);\n  }\n  return null;\n}\nfunction first(...vals){ for (const v of vals){ if (v!==undefined && v!==null && v!=='') return v; } return undefined; }\n\n// NOTE: returns { bin, buf } so we don't have to re-read it.\nasync function downloadToBinaryPlus(url, fileName){\n  if (!url) return { bin: null, buf: null };\n  try{\n    let finalUrl = url;\n    const backendUrl = 'https://admin.littleherolabs.com';\n    const backendToken = 'e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646';\n    if (url.includes('.r2.dev') || url.includes('.r2.cloudflarestorage.com') || url.includes('pub-92cec53654f84771956bc84dfea65baa')) {\n      let storageKey = null;\n      try {\n        const urlMatch = url.match(/^https?:\\/\\/[^\\/]+\\/(.+)$/);\n        if (urlMatch) {\n          storageKey = urlMatch[1];\n          finalUrl = `${backendUrl}/api/assets/${storageKey}`;\n        }\n      } catch (parseError) {\n        console.warn('BuildRequest: Failed to parse R2 URL:', url, parseError);\n      }\n    }\n    const headers = {};\n    if (finalUrl.includes('/api/assets/')) {\n      headers['Authorization'] = `Bearer ${backendToken}`;\n    }\n    const res = await this.helpers.httpRequest({ method:'GET', url: finalUrl, headers, encoding:'arraybuffer' });\n    const buf = Buffer.from(res);\n    const bin = await this.helpers.prepareBinaryData(buf, fileName);\n    return { bin, buf };\n  }catch(e){\n    console.warn('BuildRequest: download failed', { url, msg: e?.message });\n    return { bin: null, buf: null }\n  }\n}\n/* ---------------- read binaries with fallbacks ---------------- */\nlet poseBin = normalizeBinary(bin.pose, 'pose.png');\nlet genBin  = normalizeBinary(bin.generated, 'generated.png');\n\nlet poseBuf = await readBuffer('pose',      { allowTiny: isMock });\nlet genBuf  = await readBuffer('generated', { allowTiny: isMock });\nlet genSource = 'input';\n\nif (!poseBuf) {\n  const found = findPoseFromNodes(runIx);\n  if (found) {\n    poseBin = found.bin;\n    bin.pose = poseBin; // attach\n    try { poseBuf = await this.helpers.getBinaryDataBuffer(idx, 'pose'); } catch {}\n  }\n}\n\n// If we failed to read generated buffer, try URL first (preferred), then upstream, then dummy (manual/test only)\nif (!genBuf) {\n  // Build best-guess public URL\n  const assetsRoot  = j.assetsRoot   || 'book-mvp-simple-adventure/order-generated-assets';\n  const publicR2Url = j.publicR2Url  || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n  const hash        = first(j.characterHash, j.ctx?.characterHash);\n  const poseNum     = Number.isFinite(+j.poseNumber) ? +j.poseNumber\n                   : Number.isFinite(+j.currentPoseNumber) ? +j.currentPoseNumber\n                   : null;\n  const NN          = poseNum ? zpad(poseNum,2) : null;\n  const genName     = j.generatedFileName || (hash && NN ? `characters_${hash}_pose${NN}.png` : 'generated.png');\n  const genUrl      = first(\n    j.generatedPublicUrl,\n    j.fileUrl,\n    (hash && NN) ? `${publicR2Url}/${assetsRoot}/characters/${hash}/${genName}` : null\n  );\n\n  // 1) URL download\n  if (genUrl) {\n    const { bin: dlBin, buf: dlBuf } = await downloadToBinaryPlus.call(this, genUrl, genName);\n    if (dlBin && dlBuf) {\n      bin.generated = normalizeBinary(dlBin, genName);\n      genBin = bin.generated;\n      genBuf = dlBuf;\n      genSource = 'url';\n    }\n  }\n\n  // 2) upstream (only if still missing)\n  if (!genBuf) {\n    const genCandidates = [\n      'Extract Generated Image',\n      'Prepare Upload',\n      'Restore Binaries After QA HTTP',\n      'Schema Check + Defaults (SAFE) — SW2',\n      'Reattach (Style QA): Base + Generated',\n      'Reattach Binaries (For QA)',\n      'Derive QA Pass','Derive QA Pass1'\n    ];\n    for (const name of genCandidates){\n      const it = getItemFromNode(name, runIx) || getItemFromNode(name, 0);\n      const pick = pickGeneratedFromMap(it?.binary, genName);\n      if (pick) {\n        bin.generated = pick;\n        genBin = pick;\n        try { genBuf = await this.helpers.getBinaryDataBuffer(idx, 'generated'); } catch {}\n        if (genBuf) { genSource = `upstream:${name}`; break; }\n      }\n    }\n  }\n\n  // 3) dummy last resort (manual/test only)\n  if (!genBuf && isTest) {\n    const base64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==';\n    const buf = Buffer.from(base64, 'base64');\n    const genName2 = genName || 'generated.png';\n    bin.generated = await this.helpers.prepareBinaryData(buf, genName2);\n    genBin = bin.generated;\n    genBuf = buf;\n    genSource = 'dummy';\n  }\n}\n\n/* ---------------- guards ---------------- */\nconst presentKeys = Object.keys(bin || {});\nif (!poseBuf) throw new Error(`QA (initial): missing pose reference (binary.pose). Present binary keys: [${presentKeys.join(', ')}], idx=${idx}`);\nif (!genBuf)  throw new Error(`QA (initial): missing generated output (binary.generated). Present binary keys: [${presentKeys.join(', ')}], idx=${idx}`);\n\n/* ---------------- determine pose number for special handling ---------------- */\nconst expectedPose =\n  (Number.isFinite(Number(j.poseNumber)) ? Number(j.poseNumber) : null) ??\n  (Number.isFinite(Number(j.currentPoseNumber)) ? Number(j.currentPoseNumber) : null) ??\n  (Number.isFinite(Number(j.__meta?.poseNumber)) ? Number(j.__meta.poseNumber) : null);\n\nconst isPose3 = expectedPose === 3;\n\n/* ---------------- build QA prompt (v2.6: lenient arms EXCEPT pose 3) ---------------- */\nconst baseSystemText = [\n  'You are a pose validator for children\\'s book illustrations.',\n  'You will receive exactly two images:',\n  '- IMAGE P: pose reference (gray mannequin showing target pose)',\n  '- OUTPUT: generated character illustration to validate',\n  '',\n  'SCORING RUBRIC (0.0-1.0 scale):',\n  '1.0 = Perfect match on all pose elements',\n  '0.9 = Excellent - core pose perfect, minor arm/hand angle variations acceptable',\n  '0.8 = Very good - stance, weight, legs correct; small limb angle differences',\n  '0.7 = Good - recognizable pose with natural variations in arm positions',\n  '0.5 = Moderate - some major elements differ but activity is recognizable',\n  '0.3 = Significant - stance or weight distribution clearly wrong',\n  '0.1 = Completely wrong pose or activity',\n].join('\\n');\n\n// Pose-specific strict requirements\nconst pose3StrictRules = isPose3 ? [\n  '',\n  '!! SPECIAL RULES FOR POSE 3 (HAND VISOR) !!',\n  'POSE 3 REQUIRES STRICT ARM/HAND MATCHING:',\n  '- CRITICAL: One hand MUST form a visor across the brow (palm down, fingers together, elbow angled forward)',\n  '- CRITICAL: Other arm MUST be relaxed at side',\n  '- CRITICAL: Head slightly tilted right, gaze directed far ahead',\n  '- Feet under hips, weight distributed evenly',\n  '',\n  'POSE 3 SCORING:',\n  '- Missing hand visor = FAIL (score ≤0.5)',\n  '- Wrong hand position (not at brow) = FAIL (score ≤0.5)',\n  '- Both arms at sides = FAIL (score ≤0.3)',\n  '- Visor present but imperfect angle = 0.7-0.8',\n  '- Perfect visor gesture = 0.9-1.0',\n  '',\n  'For POSE 3, the hand visor is NON-NEGOTIABLE.',\n].join('\\n') : '';\n\nconst generalPriorityRules = !isPose3 ? [\n  '',\n  'PRIORITY HIERARCHY (evaluate in this order):',\n  '1. CRITICAL (must match closely):',\n  '   - Weight distribution and balance',\n  '   - Ground contact (which feet touch ground, heel lifted vs flat)',\n  '   - Stance width and leg positions',\n  '   - Core activity (walking vs standing vs sitting vs crouching)',\n  '',\n  '2. IMPORTANT (should match but allow small variations):',\n  '   - Torso angle and orientation',\n  '   - Head direction and tilt',\n  '   - Leg angles and knee bends',\n  '',\n  '3. FLEXIBLE (natural variation acceptable):',\n  '   - Exact arm angles and positions',\n  '   - Hand orientations and finger positions',\n  '   - Arms at sides vs natural swing vs slight gestures',\n  '',\n  'CRITICAL GUIDANCE:',\n  '- If OUTPUT shows correct walking stance (front foot forward, rear heel lifted, upright torso) but arms differ from IMAGE P, score 0.8-0.9',\n  '- Natural arm positions that differ from reference are ACCEPTABLE if the core pose activity is correct',\n  '- Focus on: Does OUTPUT capture the same ACTIVITY and ENERGY as IMAGE P?',\n  '- Do NOT penalize arm variations unless they contradict the pose activity (e.g., arms flailing during a calm walk)',\n].join('\\n') : '';\n\nconst systemText = [\n  baseSystemText,\n  pose3StrictRules,\n  generalPriorityRules,\n  '',\n  'CAREFULLY double check for hiding extra limbs',\n  `Return ONLY valid JSON: {\"pose_score\":0.0-1.0,\"single_subject\":bool,\"extra_limbs\":bool,\"bg_white\":bool,\"leakage_from_pose_ref\":bool,\"cropped\":bool,\"notes\":\"brief explanation focusing on critical elements${isPose3 ? ' - MUST mention hand visor for pose 3' : ''}\"}`,\n  '',\n  'Evaluate pose/positioning vs IMAGE P; ignore clothing, colors, and character appearance.'\n].join('\\n');\n\nconst parts = [\n  { text: 'IMAGE P — POSE REFERENCE (gray mannequin):' },\n  { inlineData: { mimeType: inferMime(bin.pose),      data: toB64(poseBuf) } },\n  { text: 'OUTPUT — CHARACTER TO VALIDATE:' },\n  { inlineData: { mimeType: inferMime(bin.generated), data: toB64(genBuf) } },\n  { text: isPose3 \n      ? 'Return ONLY valid JSON like: {\"pose_score\":0.9,\"single_subject\":true,\"extra_limbs\":false,\"bg_white\":true,\"leakage_from_pose_ref\":false,\"cropped\":false,\"notes\":\"Hand visor at brow matches reference; correct scanning stance\"}'\n      : 'Return ONLY valid JSON like: {\"pose_score\":0.9,\"single_subject\":true,\"extra_limbs\":false,\"bg_white\":true,\"leakage_from_pose_ref\":false,\"cropped\":false,\"notes\":\"Correct walking stance; minor arm variation acceptable\"}'\n  }\n];\n\nconst qaRequestBody = {\n  systemInstruction: { role: 'system', parts: [{ text: systemText }] },\n  contents: [{ role: 'user', parts }],\n  generationConfig: { temperature: 0.0 }\n};\n\n/* ---------------- debug payload ---------------- */\nconst retryAttempt = asInt(j.retryAttempt) ?? asInt(j.qaRetry) ?? asInt(j.retryTry) ?? null;\nconst retryTag     = j.retryTag ?? null;\n\nconst qaDebug = {\n  expectedPoseNumber: expectedPose,\n  isPose3StrictMode: isPose3,\n  pose:      { fileName: bin.pose?.fileName || null, bytes: poseBuf.length, sha1: sha1(poseBuf) },\n  generated: { fileName: bin.generated?.fileName || null,  bytes: genBuf.length,  sha1: sha1(genBuf) },\n  presentBinaryKeys: presentKeys,\n  runIndex: runIx,\n  itemIndex: idx,\n  minBytesUsed: minBytes,\n  mockMode: !!isMock,\n  isTest, isManual,\n  genSource,\n  retryAttempt,\n  retryTag,\n  qaVersion: isPose3 ? 'v2.6-pose3-strict-visor' : 'v2.6-lenient-arms'\n};\n\n/* ---------------- return SINGLE object ---------------- */\nreturn {\n  json: { ...j, qaRequestBody, qaDebug, retryAttempt, retryTag },\n  binary: bin,\n  pairedItem: ($input?.item?.pairedItem) ? $input.item.pairedItem : { item: idx },\n};"
       },
-      "id": "079dc205-2331-4f69-a180-fbeb940a71d0",
+      "id": "3590e6a1-47c4-49fa-b652-a0cd6a327a9a",
       "name": "Pose QA — Build Request1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -304,
-        -240
+        -2576,
+        -144
       ]
     },
     {
@@ -283,23 +283,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1376,
-        -160
+        -896,
+        -64
       ],
-      "id": "9fb74894-f00f-46ae-bd3d-90735f1177d6",
+      "id": "487e8dee-54e1-4698-9724-f4b1d78bdb77",
       "name": "Derive QA Pass1"
     },
     {
       "parameters": {
         "jsCode": "// 🧪 MOCK: Gemini QA Analysis — PASS (canonical schema for parser)\n// Emits a Gemini-style response where `parts[].text` is JSON with the exact fields\n// your verdict parser expects. Always PASS unless you override scores in $json.\n\nconst j = $json || {};\n\n// Allow tuneable thresholds in tests\nconst minPoseScore = Number.isFinite(Number(j.qaMinPoseScore)) ? Number(j.qaMinPoseScore) : 0.70;\n// You can override with j.mockPoseScore if you want different values per test\nconst desiredScore = Number.isFinite(Number(j.mockPoseScore)) ? Number(j.mockPoseScore) : 0.95;\n// Guarantee pass by being ≥ minPoseScore (with a small cushion)\nconst poseScore = Math.max(desiredScore, minPoseScore + 0.05);\n\n// Build the EXACT verdict object your parser expects\nconst verdictObject = {\n  pose_score: poseScore,\n  single_subject: true,\n  extra_limbs: false,\n  bg_white: true,\n  leakage_from_pose_ref: false,\n  cropped: false,\n  notes: 'Mock QA - test mode always passes (canonical schema)'\n};\n\n// Wrap it like a Gemini response (so your `findText` sees `.text`)\nconst mockResponse = {\n  candidates: [{\n    content: {\n      parts: [{\n        text: JSON.stringify(verdictObject)\n      }]\n    },\n    finishReason: \"STOP\"\n  }],\n  usageMetadata: {\n    promptTokenCount: 50,\n    candidatesTokenCount: 20,\n    totalTokenCount: 70\n  },\n  // optional debug breadcrumb\n  mockInfo: {\n    poseNumber: j.poseNumber ?? j.currentPoseNumber ?? null,\n    minPoseScore,\n    poseScore\n  }\n};\n\nconsole.log('🧪 MOCK PASS emitted for pose', j.poseNumber ?? j.currentPoseNumber ?? '?', 'score:', poseScore);\n\n// Return SINGLE object (EACH mode)\nreturn {\n  json: mockResponse,\n  binary: $binary,\n  pairedItem: ($input && $input.item && $input.item.pairedItem)\n    ? $input.item.pairedItem\n    : { item: (typeof $itemIndex === 'number' ? $itemIndex : 0) },\n};\n"
       },
-      "id": "0426a0fe-3369-4b15-b369-5a10759bcab4",
+      "id": "3f9b699a-5c57-43d3-9ea1-1b578ccd3947",
       "name": "🧪 MOCK: HTTP: Pose QA (Gemini)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        240,
-        -256
+        -2032,
+        -160
       ],
       "notes": "Mock response for testing - no API calls made"
     },
@@ -330,13 +330,13 @@
           "looseTypeValidation": true
         }
       },
-      "id": "b735acc4-079f-4c2c-a8b2-6a9349a70bbf",
+      "id": "f0048992-1031-4b27-9963-d667a26442a4",
       "name": "IF: Test Mode? (4)1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -128,
-        -240
+        -2400,
+        -144
       ],
       "notes": "Routes to MOCK (true) or REAL API (false)"
     },
@@ -347,10 +347,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        608,
-        -240
+        -1664,
+        -144
       ],
-      "id": "d911f8f1-4abd-4844-b56e-ef456b043b10",
+      "id": "c5202c6d-d416-44da-bc7d-569f298f3d62",
       "name": "Drop QA Payload1"
     },
     {
@@ -361,10 +361,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1008,
-        -240
+        -1264,
+        -144
       ],
-      "id": "bcd29371-2fcc-49da-ba5b-95ab7382cb8d",
+      "id": "8ea884a5-b623-40d3-a404-2d2ff1d7f64e",
       "name": "Restore Binaries After QA HTTP1"
     },
     {
@@ -427,10 +427,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        816,
-        -240
+        -1456,
+        -144
       ],
-      "id": "ee834497-502c-4a16-b5dd-83e3cad3957d",
+      "id": "bc1728a1-a901-4e26-a3a9-1d766b7aad11",
       "name": "Slim1"
     },
     {
@@ -461,15 +461,14 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -880,
-        -256
+        -3152,
+        -160
       ],
-      "id": "52916dd4-03dc-43d5-b591-1cb9fb213176",
+      "id": "6117371d-b028-4b67-9447-0d14397ba176",
       "name": "IF: Pose Binary Missing?"
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "=https://admin.littleherolabs.com/api/assets/{{ $json.poseRefKey }}",
         "sendHeaders": true,
         "headerParameters": {
@@ -492,10 +491,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -592,
-        -448
+        -2864,
+        -352
       ],
-      "id": "927d7049-3434-44e1-bb55-c9782132b645",
+      "id": "79dc3450-b745-4d12-a36d-c6cc5d2eaed3",
       "name": "Get Pose"
     },
     {
@@ -505,10 +504,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -960,
-        592
+        -3232,
+        704
       ],
-      "id": "5491329f-a09e-48c3-bc5f-9f4b17c23374",
+      "id": "6a8de895-1349-446a-8bf2-25f0e7505e95",
       "name": "Reattach (Style QA): Base + Generated"
     },
     {
@@ -520,10 +519,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        48,
-        320
+        -2224,
+        432
       ],
-      "id": "ed069634-65f9-41b6-9cc8-c43f186c45d3",
+      "id": "f32e6e2e-c24a-4266-b08d-0854b92eaf62",
       "name": "Merge"
     },
     {
@@ -717,13 +716,13 @@
           "dotNotation": true
         }
       },
-      "id": "31e0a0ad-cd29-45ce-9f63-16bc4cba4ab4",
+      "id": "78b54625-44d1-46fb-8b74-8204efacf955",
       "name": "Return QA Results",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1648,
-        992
+        -624,
+        1104
       ],
       "notesInFlow": true,
       "notes": "Returns envelope with bin.generated and slimmed payload"
@@ -735,10 +734,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1872,
-        992
+        -400,
+        1104
       ],
-      "id": "fd699551-5a4d-486f-bea5-8dd61fde8ff0",
+      "id": "ee9ce7b4-e6df-402c-9330-5bc786b931f5",
       "name": "Freeze Passing Image"
     },
     {
@@ -830,10 +829,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1664,
-        1008
+        -3936,
+        1120
       ],
-      "id": "83b975d3-f001-4f84-ac35-f1cecaf69e95",
+      "id": "be705b57-df31-4fa5-a21c-4d4a4f9164b0",
       "name": "Set (Return Envelope)"
     },
     {
@@ -845,10 +844,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1424,
-        992
+        -848,
+        1104
       ],
-      "id": "0d247167-1045-46d3-b4a5-249bcf325b8d",
+      "id": "ee8fd18c-1941-4f42-9158-892fe39c0b03",
       "name": "Merge1"
     }
   ],
@@ -1336,10 +1335,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "ec53ab75-6262-4511-ae9a-1251029d2afc",
+  "versionId": "4acdec16-dddd-4fc3-8a29-bb4106ad7e7b",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },
-  "id": "QC9w6XxCzDQndJxC",
+  "id": "HMXLhoiMQvy8hhNV",
   "tags": []
 }

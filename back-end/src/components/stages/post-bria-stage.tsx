@@ -75,54 +75,83 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   };
 
   const handleReplace = async (assetId: string, file: File) => {
-    console.log('[PostBriaStage] Starting replace for:', assetId, 'file:', file.name);
+    console.log('[PostBriaStage] handleReplace called with assetId:', assetId, 'file:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    
+    console.log('[PostBriaStage] Setting isReplacing state to:', assetId);
     setIsReplacing(assetId);
+    
     try {
       // Extract pose number from assetId (e.g., "pose01" -> 1)
       const match = assetId.match(/pose(\d+)/);
       if (!match) {
-        console.error('Could not determine poseNumber for:', assetId);
+        console.error('[PostBriaStage] Could not determine poseNumber for:', assetId);
         alert('Invalid asset ID');
+        setIsReplacing(null);
         return;
       }
 
       const poseNumber = parseInt(match[1], 10);
+      console.log('[PostBriaStage] Extracted poseNumber:', poseNumber);
 
       // Create form data
+      console.log('[PostBriaStage] Creating FormData...');
       const formData = new FormData();
       formData.append('poseNumber', poseNumber.toString());
       formData.append('stage', 'postBria');
       formData.append('file', file);
+      console.log('[PostBriaStage] FormData created, file appended:', file.name);
       // replacedBy is optional - will be added when auth is implemented
 
       // Call API endpoint
-      const response = await fetch(`/api/orders/${orderId}/replace-image`, {
+      const apiUrl = `/api/orders/${orderId}/replace-image`;
+      console.log('[PostBriaStage] Calling API:', apiUrl);
+      console.log('[PostBriaStage] FormData entries:', {
+        poseNumber: formData.get('poseNumber'),
+        stage: formData.get('stage'),
+        file: formData.get('file') ? 'present' : 'missing'
+      });
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         body: formData,
       });
+
+      console.log('[PostBriaStage] API response status:', response.status, response.statusText);
 
       if (!response.ok) {
         let errorMessage = 'Failed to replace image';
         try {
           const error = await response.json();
           errorMessage = error.error || errorMessage;
+          console.error('[PostBriaStage] API error response:', error);
         } catch {
           errorMessage = `Server error: ${response.status} ${response.statusText}`;
+          console.error('[PostBriaStage] Failed to parse error response');
         }
         throw new Error(errorMessage);
       }
 
       const result = await response.json();
-      console.log('Image replaced successfully:', result);
+      console.log('[PostBriaStage] Image replaced successfully:', result);
 
       // Refresh the order data to show updated image
       if (onRefresh) {
+        console.log('[PostBriaStage] Calling onRefresh...');
         await onRefresh();
+        console.log('[PostBriaStage] onRefresh completed');
+      } else {
+        console.warn('[PostBriaStage] No onRefresh callback provided');
       }
     } catch (error: any) {
-      console.error('Replace failed:', error);
+      console.error('[PostBriaStage] Replace failed with error:', error);
+      console.error('[PostBriaStage] Error stack:', error.stack);
       alert(error.message || 'Failed to replace image');
     } finally {
+      console.log('[PostBriaStage] Clearing isReplacing state');
       setIsReplacing(null);
     }
   };

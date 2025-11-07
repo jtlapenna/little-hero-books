@@ -46,19 +46,34 @@ export function AssetGrid({
   const isReplacing = externalIsReplacing !== undefined ? externalIsReplacing : internalIsReplacing;
 
   const handleFileReplace = (assetId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[AssetGrid] handleFileReplace called for:', assetId, 'files length:', event.target.files?.length);
     const file = event.target.files?.[0];
     if (file) {
-      console.log('[AssetGrid] File selected for replacement:', assetId, file.name);
-      // Don't clear loading state here - let the parent component's handleReplace manage it
-      // The parent will set isReplacing via the prop, or we'll keep it until upload completes
-      onReplace(assetId, file);
-      // Reset the input value so the same file can be selected again
-      // But do this after a small delay to ensure the change event is fully processed
-      setTimeout(() => {
-        event.target.value = '';
-      }, 100);
+      console.log('[AssetGrid] File selected for replacement:', assetId, 'file:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
+      console.log('[AssetGrid] Calling onReplace callback with assetId:', assetId, 'file:', file.name);
+      try {
+        // Don't clear loading state here - let the parent component's handleReplace manage it
+        // The parent will set isReplacing via the prop, or we'll keep it until upload completes
+        onReplace(assetId, file);
+        console.log('[AssetGrid] onReplace callback completed');
+        // Reset the input value so the same file can be selected again
+        // But do this after a small delay to ensure the change event is fully processed
+        setTimeout(() => {
+          event.target.value = '';
+        }, 100);
+      } catch (error) {
+        console.error('[AssetGrid] Error in onReplace callback:', error);
+        // Clear loading state on error
+        if (externalIsReplacing === undefined) {
+          setInternalIsReplacing(null);
+        }
+      }
     } else {
-      console.log('[AssetGrid] No file selected, clearing loading state');
+      console.log('[AssetGrid] No file selected (user cancelled), clearing loading state');
       // If no file was selected (user cancelled), clear the loading state
       if (externalIsReplacing === undefined) {
         setInternalIsReplacing(null);
@@ -132,22 +147,31 @@ export function AssetGrid({
                 </button>
                 <button
                   onClick={(e) => {
+                    console.log('[AssetGrid] Replace button clicked for:', asset.id);
                     e.stopPropagation();
                     e.preventDefault();
                     if (disabledReplaceIds.includes(asset.id)) {
+                      console.log('[AssetGrid] Replace disabled for:', asset.id);
                       return;
                     }
                     if (isReplacing === asset.id) {
+                      console.log('[AssetGrid] Already replacing:', asset.id);
                       return; // Already replacing
                     }
+                    console.log('[AssetGrid] Setting loading state and triggering file input');
                     if (externalIsReplacing === undefined) {
                       setInternalIsReplacing(asset.id);
+                      console.log('[AssetGrid] Set internal isReplacing to:', asset.id);
                     }
                     // Use setTimeout to ensure the click happens after event propagation is stopped
                     setTimeout(() => {
                       const fileInput = document.getElementById(`replace-${asset.id}`) as HTMLInputElement;
+                      console.log('[AssetGrid] Looking for file input:', `replace-${asset.id}`, 'found:', !!fileInput);
                       if (fileInput) {
+                        console.log('[AssetGrid] Clicking file input programmatically');
                         fileInput.click();
+                      } else {
+                        console.error('[AssetGrid] File input not found!');
                       }
                     }, 0);
                   }}

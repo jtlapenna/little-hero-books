@@ -115,60 +115,90 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   };
 
   const handleReplace = async (assetId: string, file: File) => {
+    console.log('[PreBriaStage] handleReplace called with assetId:', assetId, 'file:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    
     // Disable base-character replacement (not tracked in manifest)
     if (assetId === 'base-character') {
+      console.log('[PreBriaStage] Base character replacement blocked');
       alert('Base character replacement is not yet supported');
       return;
     }
 
-    console.log('[PreBriaStage] Starting replace for:', assetId, 'file:', file.name);
+    console.log('[PreBriaStage] Setting isReplacing state to:', assetId);
     setIsReplacing(assetId);
+    
     try {
       // Extract pose number from assetId (e.g., "pose01" -> 1)
       const match = assetId.match(/pose(\d+)/);
       if (!match) {
-        console.error('Could not determine poseNumber for:', assetId);
+        console.error('[PreBriaStage] Could not determine poseNumber for:', assetId);
         alert('Invalid asset ID');
+        setIsReplacing(null);
         return;
       }
 
       const poseNumber = parseInt(match[1], 10);
+      console.log('[PreBriaStage] Extracted poseNumber:', poseNumber);
 
       // Create form data
+      console.log('[PreBriaStage] Creating FormData...');
       const formData = new FormData();
       formData.append('poseNumber', poseNumber.toString());
       formData.append('stage', 'preBria');
       formData.append('file', file);
+      console.log('[PreBriaStage] FormData created, file appended:', file.name);
       // replacedBy is optional - will be added when auth is implemented
 
       // Call API endpoint
-      const response = await fetch(`/api/orders/${orderId}/replace-image`, {
+      const apiUrl = `/api/orders/${orderId}/replace-image`;
+      console.log('[PreBriaStage] Calling API:', apiUrl);
+      console.log('[PreBriaStage] FormData entries:', {
+        poseNumber: formData.get('poseNumber'),
+        stage: formData.get('stage'),
+        file: formData.get('file') ? 'present' : 'missing'
+      });
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         body: formData,
       });
+
+      console.log('[PreBriaStage] API response status:', response.status, response.statusText);
 
       if (!response.ok) {
         let errorMessage = 'Failed to replace image';
         try {
           const error = await response.json();
           errorMessage = error.error || errorMessage;
+          console.error('[PreBriaStage] API error response:', error);
         } catch {
           errorMessage = `Server error: ${response.status} ${response.statusText}`;
+          console.error('[PreBriaStage] Failed to parse error response');
         }
         throw new Error(errorMessage);
       }
 
       const result = await response.json();
-      console.log('Image replaced successfully:', result);
+      console.log('[PreBriaStage] Image replaced successfully:', result);
 
       // Refresh the order data to show updated image
       if (onRefresh) {
+        console.log('[PreBriaStage] Calling onRefresh...');
         await onRefresh();
+        console.log('[PreBriaStage] onRefresh completed');
+      } else {
+        console.warn('[PreBriaStage] No onRefresh callback provided');
       }
     } catch (error: any) {
-      console.error('Replace failed:', error);
+      console.error('[PreBriaStage] Replace failed with error:', error);
+      console.error('[PreBriaStage] Error stack:', error.stack);
       alert(error.message || 'Failed to replace image');
     } finally {
+      console.log('[PreBriaStage] Clearing isReplacing state');
       setIsReplacing(null);
     }
   };
