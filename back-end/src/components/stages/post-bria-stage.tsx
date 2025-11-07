@@ -34,8 +34,14 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const prevKeyRef = useRef<string>('');
   
   useEffect(() => {
-    // Calculate stable key from actual data
-    const currentKey = JSON.stringify(posesBgRemoved.map(p => ({ poseNumber: p.poseNumber, url: p.url, isMissing: p.isMissing })));
+    // Calculate stable key from actual data - include isFlagged and needsReview to detect flag changes
+    const currentKey = JSON.stringify(posesBgRemoved.map(p => ({ 
+      poseNumber: p.poseNumber, 
+      url: p.url, 
+      isMissing: p.isMissing,
+      isFlagged: p.isFlagged,
+      needsReview: p.needsReview
+    })));
     
     // Only update if the key actually changed
     if (currentKey === prevKeyRef.current) {
@@ -48,11 +54,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       setPoses(posesBgRemoved.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
         const isMissing = pose.isMissing || !pose.url;
+        // Set isFlagged based on isFlagged, needsReview, or isMissing
+        const isFlagged = pose.isFlagged || pose.needsReview || isMissing || false;
         return {
           id: `pose${String(poseNumber).padStart(2, '0')}-bg-removed`,
           name: `Pose ${poseNumber} (BG Removed)${isMissing ? ' (Missing)' : ''}`,
           url: pose.url || '',
-          isFlagged: pose.isFlagged || isMissing || false, // Auto-flag missing poses
+          isFlagged: isFlagged, // Auto-flag missing poses and poses needing review
           hasTransparentBackground: true,
           isMissing: isMissing,
           status: pose.status,
@@ -257,8 +265,14 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     }
   };
 
+  // Un-confirm approval when flags are set (same as Pre-Bria)
   useEffect(() => {
     setFlaggedCount(orderId, 'postBria', flaggedCount);
+    
+    // If any asset is flagged, un-confirm approval
+    if (flaggedCount > 0) {
+      setApproveStageConfirmed(false);
+    }
   }, [orderId, flaggedCount]);
 
   return (
