@@ -251,6 +251,13 @@ async function getOrder(
   }
   
   // Post-Bria poses: all "background-removed" type images including pose0 (poseNumber >= 0)
+  // Only create placeholders if workflow 2B has been run (loadedStage is '2b' or '3', or workflow.currentStage is '2B-complete' or later)
+  const workflow2BHasRun = loadedStage === '2b' || loadedStage === '3' || 
+                            manifest?.workflow?.currentStage === '2B-complete' || 
+                            manifest?.workflow?.currentStage === '3-complete';
+  
+  console.log(`[GET /api/orders/[orderId]] Workflow 2B has run: ${workflow2BHasRun}, loadedStage: ${loadedStage}, currentStage: ${manifest?.workflow?.currentStage}`);
+  
   const existingPostBriaPoses = characterAssets
     .filter(a => a.assetType === 'background-removed' && a.poseNumber >= 0)
     .sort((a, b) => a.poseNumber - b.poseNumber)
@@ -264,43 +271,49 @@ async function getOrder(
   // Create map of existing post-Bria poses by poseNumber
   const existingPostBriaMap = new Map(existingPostBriaPoses.map(p => [p.poseNumber, p]));
   
-  // Build complete list of post-Bria poses, including placeholders for missing ones
+  // Build complete list of post-Bria poses
   const postBriaPoses: any[] = [];
   
-  // If we have existing poses but no manifest entries, just use the existing poses (fallback)
-  if (existingPostBriaPoses.length > 0 && manifestEntries.length === 0) {
-    console.log(`[GET /api/orders/[orderId]] No manifest entries found, using existing post-Bria poses only`);
+  // If workflow 2B hasn't run yet, only return existing poses (if any) - don't create placeholders
+  if (!workflow2BHasRun) {
+    console.log(`[GET /api/orders/[orderId]] Workflow 2B has not run yet, returning only existing post-Bria poses (no placeholders)`);
     postBriaPoses.push(...existingPostBriaPoses);
   } else {
-    // Normal flow: build complete list including placeholders
-    for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
-      const existingPose = existingPostBriaMap.get(poseNum);
-      const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
-      
-      if (existingPose) {
-        // Pose exists in R2
-        postBriaPoses.push(existingPose);
-      } else {
-        // Pose is missing - create placeholder
-        // For post-Bria, check if the pre-Bria pose was approved (bg removal might not have run yet)
-        const preBriaEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
-        const isExhausted = preBriaEntry?.status === 'exhausted' || preBriaEntry?.status === 'failed';
-        const needsReview = preBriaEntry?.needsReview || isExhausted;
-        const reviewReason = preBriaEntry?.reviewReason || (isExhausted ? 'missing' : 'not_processed');
+    // Workflow 2B has run - build complete list including placeholders for missing ones
+    // If we have existing poses but no manifest entries, just use the existing poses (fallback)
+    if (existingPostBriaPoses.length > 0 && manifestEntries.length === 0) {
+      console.log(`[GET /api/orders/[orderId]] No manifest entries found, using existing post-Bria poses only`);
+      postBriaPoses.push(...existingPostBriaPoses);
+    } else {
+      // Normal flow: build complete list including placeholders
+      for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
+        const existingPose = existingPostBriaMap.get(poseNum);
+        const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
         
-        postBriaPoses.push({
-          poseNumber: poseNum,
-          url: '', // No URL - will show placeholder in UI
-          assetType: 'background-removed',
-          characterHash: order.characterHash,
-          isMissing: true,
-          isFlagged: true, // Automatically flag missing poses
-          status: preBriaEntry?.status || 'missing',
-          needsReview: needsReview,
-          reviewReason: reviewReason,
-          attempts: preBriaEntry?.attempts || 0,
-          approved: false
-        });
+        if (existingPose) {
+          // Pose exists in R2
+          postBriaPoses.push(existingPose);
+        } else {
+          // Pose is missing - create placeholder (only if workflow 2B has run)
+          const preBriaEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
+          const isExhausted = preBriaEntry?.status === 'exhausted' || preBriaEntry?.status === 'failed';
+          const needsReview = preBriaEntry?.needsReview || isExhausted;
+          const reviewReason = preBriaEntry?.reviewReason || (isExhausted ? 'missing' : 'not_processed');
+          
+          postBriaPoses.push({
+            poseNumber: poseNum,
+            url: '', // No URL - will show placeholder in UI
+            assetType: 'background-removed',
+            characterHash: order.characterHash,
+            isMissing: true,
+            isFlagged: true, // Automatically flag missing poses
+            status: preBriaEntry?.status || 'missing',
+            needsReview: needsReview,
+            reviewReason: reviewReason,
+            attempts: preBriaEntry?.attempts || 0,
+            approved: false
+          });
+        }
       }
     }
   }
