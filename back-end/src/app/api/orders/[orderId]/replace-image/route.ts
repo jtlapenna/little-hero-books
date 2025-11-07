@@ -115,29 +115,71 @@ export async function POST(
       );
     }
 
-    // Get the R2 key to replace
+    // Get the R2 key to replace, or construct it if missing (for exhausted/failed poses)
     let r2Key = stage === 'preBria' ? entry.approvedKey : entry.bgRemovedKey;
-    if (!r2Key) {
-      return NextResponse.json(
-        { error: `No ${stage === 'preBria' ? 'approvedKey' : 'bgRemovedKey'} found for pose ${poseNumber}` },
-        { status: 404 }
-      );
+    const isMissingPose = !r2Key;
+    
+    if (isMissingPose) {
+      // Construct the expected R2 key for missing poses
+      // Format: book-mvp-simple-adventure/order-generated-assets/characters/{characterHash}/poses/pose{NN}.png
+      const characterHash = manifest.characterHash || manifest.order?.characterHash;
+      if (!characterHash) {
+        return NextResponse.json(
+          { error: 'Cannot upload missing pose: characterHash not found in manifest' },
+          { status: 400 }
+        );
+      }
+      
+      const poseNN = String(poseNumber).padStart(2, '0');
+      if (stage === 'preBria') {
+        // Pre-Bria: original image in poses/ directory
+        r2Key = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/poses/pose${poseNN}.png`;
+      } else {
+        // Post-Bria: background-removed image in parent directory
+        r2Key = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/pose${poseNN}-nobg.png`;
+      }
+      
+      console.log(`[Replace Image API] Missing pose detected, constructing R2 key: ${r2Key}`);
     }
 
     // CRITICAL: Strip retry suffixes from the key to upload to the original filename
     // Retry suffixes can be: _r1, _r2, _TRY01, _TRY02, etc.
     // We want to overwrite the original file (e.g., pose03.png), not the retry file (e.g., pose03_r2.png)
-    const originalKey = r2Key.replace(/_r\d+\.png$/i, '.png')  // Remove _r1, _r2, etc.
-                             .replace(/_TRY\d+\.png$/i, '.png'); // Remove _TRY01, _TRY02, etc.
+    // For missing poses, r2Key is already the original key (no retry suffix)
+    const originalKey = isMissingPose 
+      ? r2Key  // Already constructed without retry suffix
+      : r2Key.replace(/_r\d+\.png$/i, '.png')  // Remove _r1, _r2, etc.
+             .replace(/_TRY\d+\.png$/i, '.png'); // Remove _TRY01, _TRY02, etc.
     
     console.log(`[Replace Image API] Original key from manifest: ${r2Key}`);
-    console.log(`[Replace Image API] Stripped retry suffix, using key: ${originalKey}`);
+    if (!isMissingPose) {
+      console.log(`[Replace Image API] Stripped retry suffix, using key: ${originalKey}`);
+    }
     
     // Update the manifest entry to point to the original key (without retry suffix)
+    // For missing poses, this will create/update the entry
     if (stage === 'preBria') {
       entry.approvedKey = originalKey;
+      entry.approvedFilename = `pose${String(poseNumber).padStart(2, '0')}.png`;
+      entry.approved = true;
+      entry.status = 'approved';
+      entry.needsReview = false;
+      entry.reviewReason = null;
+      // Update publicUrl if publicR2Url is available
+      const publicR2Url = manifest.order?.publicR2Url;
+      if (publicR2Url) {
+        entry.publicUrl = `${publicR2Url}/${originalKey}`;
+      }
     } else {
       entry.bgRemovedKey = originalKey;
+      entry.bgRemovedFilename = `pose${String(poseNumber).padStart(2, '0')}-nobg.png`;
+      entry.bgRemoved = true;
+      entry.bgRemovedStatus = 'completed';
+      // Update publicUrl if publicR2Url is available
+      const publicR2Url = manifest.order?.publicR2Url;
+      if (publicR2Url) {
+        entry.bgRemovedPublicUrl = `${publicR2Url}/${originalKey}`;
+      }
     }
 
     // Determine bucket (character assets are in public bucket)

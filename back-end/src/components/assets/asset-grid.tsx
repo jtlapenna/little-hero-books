@@ -194,10 +194,8 @@ export function AssetGrid({
                     console.log('[AssetGrid] Replace button clicked for:', asset.id);
                     e.stopPropagation();
                     e.preventDefault();
-                    if (asset.isMissing || !asset.url) {
-                      console.log('[AssetGrid] Replace disabled for missing asset:', asset.id);
-                      return; // Don't allow replace for missing assets
-                    }
+                    // Allow replace for missing assets - this will upload the missing image
+                    // The API will handle creating the entry and uploading to the correct location
                     if (disabledReplaceIds.includes(asset.id)) {
                       console.log('[AssetGrid] Replace disabled for:', asset.id);
                       return;
@@ -225,19 +223,19 @@ export function AssetGrid({
                       }
                     }, 0);
                   }}
-                  disabled={isReplacing === asset.id || disabledReplaceIds.includes(asset.id) || asset.isMissing || !asset.url}
+                  disabled={isReplacing === asset.id || disabledReplaceIds.includes(asset.id)}
                   className={`p-2 rounded-full transition-colors ${
-                    isReplacing === asset.id || disabledReplaceIds.includes(asset.id) || asset.isMissing || !asset.url
+                    isReplacing === asset.id || disabledReplaceIds.includes(asset.id)
                       ? 'text-gray-400 cursor-not-allowed'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                   title={
-                    asset.isMissing || !asset.url
-                      ? 'Replace not available (missing image)'
-                      : disabledReplaceIds.includes(asset.id)
+                    disabledReplaceIds.includes(asset.id)
                       ? 'Replace not available'
                       : isReplacing === asset.id
                       ? 'Replacing...'
+                      : asset.isMissing || !asset.url
+                      ? 'Upload missing image'
                       : 'Replace'
                   }
                 >
