@@ -144,10 +144,20 @@ export async function POST(
     const isCharacterAsset = originalKey.includes('/characters/');
     const bucket = isCharacterAsset ? R2_PUBLIC_BUCKET : R2_ORDERS_BUCKET;
 
-    // Delete the old file (the one from manifest, which might have retry suffix)
-    // This ensures we don't have duplicates (e.g., both pose03.png and pose03_r2.png)
+    // IMPORTANT: Only delete the file that's currently in the manifest entry
+    // We do NOT delete other retry files (e.g., pose03_r1.png) that might exist but aren't
+    // referenced in the manifest. Workflows may have created multiple retry files, and we
+    // should only remove the one that's being replaced.
+    // 
+    // Example scenario:
+    // - Manifest has approvedKey: "pose03_r2.png" (current active file)
+    // - R2 might also have: pose03.png, pose03_r1.png, pose03_r2.png
+    // - We delete ONLY pose03_r2.png (the one in manifest)
+    // - We upload to pose03.png (canonical name)
+    // - pose03_r1.png is left untouched (legitimate workflow retry file)
     if (r2Key !== originalKey) {
-      console.log(`[Replace Image API] Deleting old file with retry suffix: ${bucket}/${r2Key}`);
+      console.log(`[Replace Image API] Deleting old file from manifest (may have retry suffix): ${bucket}/${r2Key}`);
+      console.log(`[Replace Image API] Note: Only deleting the file referenced in manifest entry. Other retry files (if any) will remain untouched.`);
       try {
         await deleteObject(bucket, r2Key);
         console.log(`[Replace Image API] Old file ${r2Key} deleted successfully`);
@@ -161,25 +171,13 @@ export async function POST(
           // Continue with upload even if delete fails
         }
       }
+    } else {
+      console.log(`[Replace Image API] Manifest key matches original key (${r2Key}), no old file to delete`);
     }
 
-    // Also check if there's already a file at the originalKey location and delete it
-    // This handles the case where the original file exists and we want to replace it
-    console.log(`[Replace Image API] Checking if original file exists: ${bucket}/${originalKey}`);
-    try {
-      // Try to get the object to see if it exists
-      const existingFileCheck = await getObject(bucket, originalKey);
-      if (existingFileCheck.ok) {
-        console.log(`[Replace Image API] Original file ${originalKey} exists, will be overwritten by upload`);
-      }
-    } catch (checkError: any) {
-      // File doesn't exist, which is fine - we'll create it
-      if (checkError.message?.includes('404') || checkError.message?.includes('Not Found')) {
-        console.log(`[Replace Image API] Original file ${originalKey} does not exist, will be created`);
-      } else {
-        console.error(`[Replace Image API] Error checking for original file:`, checkError);
-      }
-    }
+    // Note: We don't need to explicitly delete the file at originalKey location because
+    // putObject will overwrite it. We also don't search for or delete other retry files
+    // (e.g., pose03_r1.png) that might exist - those are legitimate workflow artifacts.
 
     // Upload new file (overwrites existing original file, not retry file)
     console.log(`[Replace Image API] Uploading new file to ${bucket}/${originalKey}`);
