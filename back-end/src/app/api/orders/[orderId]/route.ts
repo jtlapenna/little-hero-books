@@ -224,9 +224,21 @@ async function getOrder(
     const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
     
     if (existingPose) {
-      // Pose exists in R2
-      console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found existing pose with URL`);
-      preBriaPoses.push(existingPose);
+      // Pose exists in R2 - merge manifest entry's review flags if present
+      const needsReview = manifestEntry?.needsReview || false;
+      const reviewReason = manifestEntry?.reviewReason || null;
+      const isFlagged = needsReview || existingPose.isFlagged || false;
+      
+      preBriaPoses.push({
+        ...existingPose,
+        needsReview: needsReview,
+        reviewReason: reviewReason,
+        isFlagged: isFlagged,
+        status: manifestEntry?.status || existingPose.status,
+        attempts: manifestEntry?.attempts ?? existingPose.attempts,
+        approved: manifestEntry?.approved ?? existingPose.approved
+      });
+      console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found existing pose with URL, needsReview=${needsReview}, reviewReason=${reviewReason || 'null'}`);
     } else {
       // Pose is missing - create placeholder
       console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Creating placeholder (existingPose: ${!!existingPose}, manifestEntry: ${!!manifestEntry})`);
@@ -297,10 +309,22 @@ async function getOrder(
         console.log(`[GET /api/orders/[orderId]] Processing pose ${poseNum}: existingPose=${!!existingPose}, manifestEntry=${!!manifestEntry}, hasBgRemovedKey=${hasBgRemovedKey}, manifestEntry.poseNumber=${manifestEntry?.poseNumber}, manifestEntry.bgRemovedKey=${manifestEntry?.bgRemovedKey || 'null'}`);
         
         if (existingPose) {
-          // File exists in R2 - show it (even if manifest doesn't have bgRemovedKey yet)
+          // File exists in R2 - merge manifest entry's review flags if present
           // This handles cases where the file was uploaded but manifest wasn't updated
-          postBriaPoses.push(existingPose);
-          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found in R2, hasBgRemovedKey in manifest: ${hasBgRemovedKey}`);
+          const needsReview = manifestEntry?.needsReview || false;
+          const reviewReason = manifestEntry?.reviewReason || null;
+          const isFlagged = needsReview || existingPose.isFlagged || false;
+          
+          postBriaPoses.push({
+            ...existingPose,
+            needsReview: needsReview,
+            reviewReason: reviewReason,
+            isFlagged: isFlagged,
+            status: manifestEntry?.status || existingPose.status,
+            attempts: manifestEntry?.attempts ?? existingPose.attempts,
+            approved: manifestEntry?.approved ?? existingPose.approved
+          });
+          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found in R2, needsReview=${needsReview}, reviewReason=${reviewReason || 'null'}`);
         } else if (hasBgRemovedKey) {
           // Manifest says it should exist but file not found in R2 - this is unexpected
           // Construct URL from manifest's bgRemovedKey
@@ -308,20 +332,24 @@ async function getOrder(
           const publicUrl = manifestEntry.bgRemovedImageUrl || (order.publicR2Url ? `${order.publicR2Url}/${r2Key}` : null);
           const proxyUrl = publicUrl ? `/api/assets/${r2Key}` : '';
           
+          // Use manifest entry's needsReview and reviewReason (e.g., transparency_fail)
+          const needsReview = manifestEntry?.needsReview || !proxyUrl;
+          const reviewReason = manifestEntry?.reviewReason || (!proxyUrl ? 'file_not_found_in_r2' : null);
+          
           postBriaPoses.push({
             poseNumber: poseNum,
             url: proxyUrl,
             assetType: 'background-removed',
             characterHash: order.characterHash,
             isMissing: !proxyUrl,
-            isFlagged: !proxyUrl,
+            isFlagged: needsReview || !proxyUrl,
             status: manifestEntry?.status || 'missing',
-            needsReview: !proxyUrl,
-            reviewReason: !proxyUrl ? 'file_not_found_in_r2' : null,
+            needsReview: needsReview,
+            reviewReason: reviewReason,
             attempts: manifestEntry?.attempts || 0,
             approved: manifestEntry?.approved || false
           });
-          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Manifest has bgRemovedKey but file not in R2 map, constructed URL: ${proxyUrl ? 'present' : 'missing'}`);
+          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Manifest has bgRemovedKey but file not in R2 map, constructed URL: ${proxyUrl ? 'present' : 'missing'}, needsReview=${needsReview}, reviewReason=${reviewReason || 'null'}`);
         } else {
           // Pose is missing - create placeholder
           const isExhausted = manifestEntry?.status === 'exhausted' || manifestEntry?.status === 'failed';
