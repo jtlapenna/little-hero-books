@@ -207,7 +207,6 @@ async function getOrder(
   // Post-Bria poses: all "background-removed" type images including pose0 (poseNumber >= 0)
   // Accept any number of poses, sorted by poseNumber
   // Add cache-busting timestamp to ensure images refresh when overwritten in R2
-  const cacheBuster = Date.now();
   const postBriaPoses = characterAssets
     .filter(a => a.assetType === 'background-removed' && a.poseNumber >= 0)
     .sort((a, b) => a.poseNumber - b.poseNumber)
