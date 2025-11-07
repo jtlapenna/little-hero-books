@@ -261,7 +261,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   const allPosesExist = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0 && !pose.isMissing);
   
   // Can approve stage only if all images exist, none are missing, and none are flagged
-  const canApproveStage = flaggedCount === 0 && hasAllImages && missingCount === 0;
+  const canApproveStage = flaggedCount === 0 && baseCharacterExists && allPosesExist && missingCount === 0;
   
   // Can trigger background removal if approve stage is confirmed
   const canTriggerBackgroundRemoval = approveStageConfirmed && canApproveStage;
