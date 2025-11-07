@@ -120,12 +120,14 @@ async function getOrder(
     throw createValidationError('Invalid order ID provided');
   }
   
-  // Try to load manifest for this order (same as orders list route)
+  // Try to load manifest for this order
+  // Prefer 2b over 2a because 2b contains Post-Bria QA results (e.g., transparency_fail)
+  // 2b manifest includes all 2a data plus additional Post-Bria processing results
   let manifest: any = null;
   let manifestKey = '';
   let loadedStage: string | null = null;
   
-  for (const stage of ['2a', '2b', '3'] as const) {
+  for (const stage of ['2b', '2a', '3'] as const) {
     try {
       manifestKey = buildManifestKey(orderId, stage);
       console.log(`[GET /api/orders/[orderId]] Trying to load manifest: ${manifestKey}`);
