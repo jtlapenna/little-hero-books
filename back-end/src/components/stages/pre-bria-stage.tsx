@@ -368,7 +368,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         <div>
           <h4 className="text-lg font-medium text-gray-900 mb-4">Stage Actions</h4>
           <p className="text-sm text-gray-600 mb-4">
-            {!hasAllImages
+            {!baseCharacterExists || !allPosesExist || missingCount > 0
               ? 'All images must be available before approving. Please wait for character generation to complete.'
               : flaggedCount > 0
               ? `Please address ${flaggedCount} flagged item${flaggedCount !== 1 ? 's' : ''} before approving.`
