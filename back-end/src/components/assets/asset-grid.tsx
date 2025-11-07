@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Download, Upload, Flag, CheckCircle, Eye } from 'lucide-react';
 import { ImageLightbox } from './image-lightbox';
 
@@ -44,6 +44,8 @@ export function AssetGrid({
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [internalIsReplacing, setInternalIsReplacing] = useState<string | null>(null);
   const isReplacing = externalIsReplacing !== undefined ? externalIsReplacing : internalIsReplacing;
+  // Use refs to track file inputs for more reliable access
+  const fileInputRefs = useRef<Record<string, HTMLInputElement>>({});
 
   const handleFileReplace = (assetId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     console.log('[AssetGrid] handleFileReplace called for:', assetId, 'files length:', event.target.files?.length);
@@ -165,13 +167,15 @@ export function AssetGrid({
                     }
                     // Use setTimeout to ensure the click happens after event propagation is stopped
                     setTimeout(() => {
-                      const fileInput = document.getElementById(`replace-${asset.id}`) as HTMLInputElement;
+                      // Try ref first, then fallback to getElementById
+                      const fileInput = fileInputRefs.current[asset.id] || 
+                                       document.getElementById(`replace-${asset.id}`) as HTMLInputElement;
                       console.log('[AssetGrid] Looking for file input:', `replace-${asset.id}`, 'found:', !!fileInput);
                       if (fileInput) {
                         console.log('[AssetGrid] Clicking file input programmatically');
                         fileInput.click();
                       } else {
-                        console.error('[AssetGrid] File input not found!');
+                        console.error('[AssetGrid] File input not found! Available refs:', Object.keys(fileInputRefs.current));
                       }
                     }, 0);
                   }}
@@ -223,6 +227,14 @@ export function AssetGrid({
             <input
               type="file"
               accept="image/*"
+              ref={(el) => {
+                if (el) {
+                  fileInputRefs.current[asset.id] = el;
+                  console.log('[AssetGrid] File input ref registered for:', asset.id);
+                } else {
+                  delete fileInputRefs.current[asset.id];
+                }
+              }}
               onChange={(e) => {
                 console.log('[AssetGrid] File input onChange fired for:', asset.id, 'files:', e.target.files?.length);
                 e.stopPropagation();
