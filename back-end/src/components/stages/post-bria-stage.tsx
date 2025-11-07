@@ -193,10 +193,11 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   };
 
   const flaggedCount = poses.filter(asset => asset.isFlagged).length;
-  const hasImages = poses.length > 0;
+  const missingCount = poses.filter(pose => pose.isMissing || !pose.url).length;
+  const hasImages = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0 && !pose.isMissing);
   // Post‑Bria approval rule: if 2B populated images and none are flagged, allow approval
   const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
-  const canApprove = flaggedCount === 0 && hasImages;
+  const canApprove = flaggedCount === 0 && hasImages && missingCount === 0;
   const isApprovedEffective = approveStageConfirmed || isApproved;
   const canTriggerAssembly = isApprovedEffective && hasImages;
 

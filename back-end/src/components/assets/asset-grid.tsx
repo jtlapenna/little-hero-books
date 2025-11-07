@@ -217,13 +217,21 @@ export function AssetGrid({
                       }
                     }, 0);
                   }}
-                  disabled={isReplacing === asset.id || disabledReplaceIds.includes(asset.id)}
+                  disabled={isReplacing === asset.id || disabledReplaceIds.includes(asset.id) || asset.isMissing || !asset.url}
                   className={`p-2 rounded-full transition-colors ${
-                    isReplacing === asset.id || disabledReplaceIds.includes(asset.id)
+                    isReplacing === asset.id || disabledReplaceIds.includes(asset.id) || asset.isMissing || !asset.url
                       ? 'text-gray-400 cursor-not-allowed'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
-                  title={disabledReplaceIds.includes(asset.id) ? 'Replace not available' : isReplacing === asset.id ? 'Replacing...' : 'Replace'}
+                  title={
+                    asset.isMissing || !asset.url
+                      ? 'Replace not available (missing image)'
+                      : disabledReplaceIds.includes(asset.id)
+                      ? 'Replace not available'
+                      : isReplacing === asset.id
+                      ? 'Replacing...'
+                      : 'Replace'
+                  }
                 >
                   {isReplacing === asset.id ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700"></div>
