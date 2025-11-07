@@ -26,7 +26,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   }, [isApproved]);
   
   // Initialize with empty state - will be populated from R2 data
-  const [poses, setPoses] = useState([]);
+  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
 
   // Update state when order data changes - use actual poseNumber from data to support any number of poses (including pose0)
