@@ -179,8 +179,11 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         return;
       }
 
+      // TypeScript assertion: imageUrl is guaranteed to be a string at this point
+      let finalImageUrl: string = imageUrl;
+
       // Check if URL is a data URL (from previous flip) - if so, we need to fetch the original from R2
-      if (imageUrl.startsWith('data:')) {
+      if (finalImageUrl.startsWith('data:')) {
         // Data URL from previous flip - we need to get the original image from the API
         console.log('[PostBriaStage] URL is a data URL, fetching original from API');
         // Fetch the original image URL from the order data
@@ -193,13 +196,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         if (!originalPose || !originalPose.url) {
           throw new Error('Original image URL not found in order data');
         }
-        imageUrl = originalPose.url;
-        console.log('[PostBriaStage] Using original URL:', imageUrl);
+        finalImageUrl = originalPose.url;
+        console.log('[PostBriaStage] Using original URL:', finalImageUrl);
       }
 
       // Ensure URL is absolute if it's a relative path
-      if (imageUrl.startsWith('/')) {
-        imageUrl = window.location.origin + imageUrl;
+      if (finalImageUrl.startsWith('/')) {
+        finalImageUrl = window.location.origin + finalImageUrl;
       }
 
       // Load the image - try Image element first, fallback to fetch if CORS fails
@@ -225,13 +228,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
             console.warn('[PostBriaStage] Image element load failed, will try fetch:', error);
             reject(new Error('Image element failed'));
           };
-          img.src = imageUrl;
+          img.src = finalImageUrl;
         });
       } catch (imageError) {
         // Fallback: fetch the image as a blob and create Image from blob URL
         console.log('[PostBriaStage] Image element failed, trying fetch API...');
         try {
-          const response = await fetch(imageUrl);
+          const response = await fetch(finalImageUrl);
           if (!response.ok) {
             throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
           }
