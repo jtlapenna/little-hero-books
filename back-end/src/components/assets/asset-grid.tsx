@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Download, Upload, Flag, CheckCircle, Eye } from 'lucide-react';
 import { ImageLightbox } from './image-lightbox';
 
