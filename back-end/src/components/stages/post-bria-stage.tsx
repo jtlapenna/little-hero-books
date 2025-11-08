@@ -32,6 +32,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   // Update state when R2 assets change - use ref to track previous key and prevent infinite loops
   const posesBgRemoved = order?.r2Assets?.posesBgRemoved || [];
   const prevKeyRef = useRef<string>('');
+  // Track poses that the user has manually unflagged (persist across re-renders)
+  const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
+  
+  // Reset manually unflagged set when order changes
+  useEffect(() => {
+    manuallyUnflaggedRef.current.clear();
+  }, [orderId]);
   
   useEffect(() => {
     // Calculate stable key from actual data - include isFlagged and needsReview to detect flag changes
@@ -53,14 +60,21 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     if (posesBgRemoved.length > 0) {
       setPoses(posesBgRemoved.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
+        const poseId = `pose${String(poseNumber).padStart(2, '0')}-bg-removed`;
         const isMissing = pose.isMissing || !pose.url;
+        
+        // Check if user has manually unflagged this pose - if so, respect that decision
+        const isManuallyUnflagged = manuallyUnflaggedRef.current.has(poseId);
+        
         // Set isFlagged based on isFlagged, needsReview, or isMissing
-        const isFlagged = pose.isFlagged || pose.needsReview || isMissing || false;
+        // BUT: if user manually unflagged it, don't re-flag it (unless it's missing)
+        const shouldBeFlagged = isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
+        
         return {
-          id: `pose${String(poseNumber).padStart(2, '0')}-bg-removed`,
+          id: poseId,
           name: `Pose ${poseNumber} (BG Removed)${isMissing ? ' (Missing)' : ''}`,
           url: pose.url || '',
-          isFlagged: isFlagged, // Auto-flag missing poses and poses needing review
+          isFlagged: shouldBeFlagged, // Respect user unflag decisions
           hasTransparentBackground: true,
           isMissing: isMissing,
           status: pose.status,
@@ -199,8 +213,22 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
 
   const handleFlag = (assetId: string) => {
     setPoses(prev => {
+      const currentPose = prev.find(p => p.id === assetId);
+      if (!currentPose) return prev;
+      
+      const newFlaggedState = !currentPose.isFlagged;
+      
+      // Track user's manual unflag decision
+      if (!newFlaggedState) {
+        // User is unflagging - add to manually unflagged set
+        manuallyUnflaggedRef.current.add(assetId);
+      } else {
+        // User is flagging - remove from manually unflagged set (they changed their mind)
+        manuallyUnflaggedRef.current.delete(assetId);
+      }
+      
       const updated = prev.map(pose => 
-        pose.id === assetId ? { ...pose, isFlagged: !pose.isFlagged } : pose
+        pose.id === assetId ? { ...pose, isFlagged: newFlaggedState } : pose
       );
       // Update flag count after state change
       setTimeout(() => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AssetGrid } from '@/components/assets/asset-grid';
 import { CheckCircle, Play, X } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
@@ -27,6 +27,14 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
   const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
+  
+  // Track poses that the user has manually unflagged (persist across re-renders)
+  const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
+  
+  // Reset manually unflagged set when order changes
+  useEffect(() => {
+    manuallyUnflaggedRef.current.clear();
+  }, [orderId]);
 
   // Two-step workflow state
   const [approveStageConfirmed, setApproveStageConfirmed] = useState(false);
@@ -38,7 +46,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   const r2AssetsKey = r2Assets ? JSON.stringify({
     baseCharacterUrl: r2Assets.baseCharacter?.url || '',
     posesCount: r2Assets.poses?.length || 0,
-    poses: r2Assets.poses?.map(p => ({ poseNumber: p.poseNumber, url: p.url, isMissing: p.isMissing })) || []
+    poses: r2Assets.poses?.map(p => ({ poseNumber: p.poseNumber, url: p.url, isMissing: p.isMissing, isFlagged: p.isFlagged, needsReview: p.needsReview })) || []
   }) : '';
   
   useEffect(() => {
@@ -79,12 +87,21 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     if (posesData.length > 0) {
       const mappedPoses = posesData.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
+        const poseId = `pose${String(poseNumber).padStart(2, '0')}`;
         const isMissing = pose.isMissing || !pose.url;
+        
+        // Check if user has manually unflagged this pose - if so, respect that decision
+        const isManuallyUnflagged = manuallyUnflaggedRef.current.has(poseId);
+        
+        // Set isFlagged based on isFlagged, needsReview, or isMissing
+        // BUT: if user manually unflagged it, don't re-flag it (unless it's missing)
+        const shouldBeFlagged = isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview || false));
+        
         return {
-          id: `pose${String(poseNumber).padStart(2, '0')}`,
+          id: poseId,
           name: `Pose ${poseNumber}${isMissing ? ' (Missing)' : ''}`,
           url: pose.url || '',
-          isFlagged: pose.isFlagged || isMissing || false, // Auto-flag missing poses
+          isFlagged: shouldBeFlagged, // Respect user unflag decisions
           hasTransparentBackground: false,
           isMissing: isMissing,
           status: pose.status,
@@ -234,8 +251,22 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       });
     } else {
       setPoses(prev => {
+        const currentPose = prev.find(p => p.id === assetId);
+        if (!currentPose) return prev;
+        
+        const newFlaggedState = !currentPose.isFlagged;
+        
+        // Track user's manual unflag decision
+        if (!newFlaggedState) {
+          // User is unflagging - add to manually unflagged set
+          manuallyUnflaggedRef.current.add(assetId);
+        } else {
+          // User is flagging - remove from manually unflagged set (they changed their mind)
+          manuallyUnflaggedRef.current.delete(assetId);
+        }
+        
         const updated = prev.map(pose => 
-          pose.id === assetId ? { ...pose, isFlagged: !pose.isFlagged } : pose
+          pose.id === assetId ? { ...pose, isFlagged: newFlaggedState } : pose
         );
         // Update flag count after state change
         setTimeout(() => {
