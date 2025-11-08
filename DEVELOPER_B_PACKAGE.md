@@ -3120,7 +3120,7 @@ Set up Amazon Custom listing with all required fields, images, and configuration
    - [ ] Test end-to-end order flow
    - [ ] Verify SP-API integration works
 
-9. **Preview Notification Messaging (New)**
+9. **Preview Notification Messaging & Soft Launch Prep (New)**
    - [x] Wire Next.js API route `/api/notifications/preview/amazon` that calls `back-end/src/lib/notifications/amazon-message-center.ts`
    - [x] Implement Amazon Message Center helper (LWA token, Uploads API encryption, `confirmCustomizationDetails` sender)
    - [ ] Add `customer_contacts` table + API (`/api/preview/contact`) to capture email/name/reason/payload (enforce 1 correction limit)
@@ -3128,6 +3128,11 @@ Set up Amazon Custom listing with all required fields, images, and configuration
    - [ ] Surface “You have 1 correction available” state; disable form after submission
    - [ ] Build lightweight n8n task/cron to flag pending approvals >72h for manual follow-up
    - [ ] Document ops response templates + future automation (SendGrid/Help Scout, reminder cadence, feedback_tickets) in docs
+   - [ ] Amazon listing prep (friends & family launch):
+     - Listing copy/assets ready (7 images + optional 30s video)
+     - Customization field cheat sheet derived from `Customization_Source_of_Truth.md`
+     - Manual fulfillment SOP + tracking spreadsheet
+     - Draft Amazon Message Center templates + F&F onboarding email
 
 #### **Files to Reference**
 - `docs/AMAZON_INTEGRATION.md` - Complete setup guide

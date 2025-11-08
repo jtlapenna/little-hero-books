@@ -368,6 +368,48 @@ Dedication Message (Optional): Text area, max 500 characters
 10. **Notify**: Slack/Email: "Created POD job for Amazon order …"
 11. **Preview Messaging**: Trigger Next.js `/api/notifications/preview/amazon` once preview is approved → Amazon Message Center sends secure link (single send for MVP) → customer submits structured correction (1 allowed) via preview page contact form (see `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md`)
 
+---
+
+## 📦 Friends & Family Soft Launch Checklist
+
+Use this when the seller account is pending or newly active. These steps should be completed before inviting friends and family to order.
+
+### 1. Listing Content & Assets
+- [ ] Finalize listing title, bullets, description, and backend keywords (`docs/AMAZON_LISTING_FINAL.md`, `docs/amazon/amazon-custom-listing-spec.md`)
+- [ ] Gather 7 product images (main cover + interior spreads/customization callouts)
+- [ ] Draft/record a 15–30 second product video walkthrough
+- [ ] Confirm all assets meet Amazon image/video requirements (1000x1000px min, white background main image)
+
+### 2. Customization Field QA
+- [ ] Review `Customization_Source_of_Truth.md` and build a quick reference sheet of:
+  - Field labels, input types (text, dropdown), and allowed options
+  - Help text/tooltips you’ll paste into Amazon’s customization UI
+- [ ] Prepare validation checklist to verify Amazon Custom field mapping during listing creation
+
+### 3. Manual Fulfillment SOP (Temporary)
+- [ ] Write step-by-step SOP for processing early orders:
+  1. Monitor Seller Central for new order email/notifications
+  2. Run existing n8n workflow or manual script to generate PDFs
+  3. Submit PDFs to Lulu (or chosen POD) manually
+  4. Log progress in a shared sheet (order ID, customer name, status, tracking)
+- [ ] Create a simple spreadsheet template (columns: Amazon Order ID, Child Name, Status, Proof Sent, Print Submitted, Tracking, Notes)
+
+### 4. Messaging Templates
+- [ ] Draft Amazon Message Center templates:
+  - Initial proof ready notification (for friends & family phase)
+  - Follow-up / reminder script (manual until automations return)
+  - Out-of-policy response (when a request is outside preset options)
+- [ ] Draft a friends & family onboarding email explaining:
+  - How to order (step-by-step)
+  - Expected timeline (proof, printing, shipping)
+  - How to reach out if something looks off
+
+### 5. Preview Page Forward Work (Optional)
+- [ ] Sketch structured correction form (reason dropdown, preset values) for later implementation
+- [ ] List the canonical option arrays (hair styles, colors, etc.) so UI implementation is quick when prioritized
+
+Keep this checklist updated as we learn from the initial orders; migrate recurring tasks into SOP docs once the seller account is live.
+
 #### Flow B — Tracking & Shipment Confirmation (Cron 30–60 min)
 
 1. **Trigger**: Cron

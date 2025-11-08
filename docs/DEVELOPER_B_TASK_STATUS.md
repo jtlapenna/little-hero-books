@@ -108,7 +108,8 @@ None currently.
 - ✅ Documented hybrid MVP plan (single Amazon message + email follow-up) in `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md`
 - ✅ Added Amazon Message Center helper + endpoint (`back-end/src/lib/notifications/amazon-message-center.ts`, `/api/notifications/preview/amazon`)
 - ✅ Updated Developer B package Step 9 with hybrid tasks (customer_contacts table, preview page capture, manual ops flow)
-- ⏳ Next: Build contact capture (table + `/api/preview/contact`), update preview UI with mailto/form, set up simple n8n reminder for ops follow-up
+- ✅ Added friends & family Amazon storefront prep checklist to `docs/AMAZON_INTEGRATION.md`
+- ⏳ Next: Build contact capture UI (`/api/preview/contact` form), implement one-correction UX, set up ops reminder job, and finalize listing assets/templates for soft launch
 
 **Note**: Can run in parallel with Task 4 placeholder.
 
