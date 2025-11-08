@@ -142,7 +142,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     
     try {
       // Use the URL passed as parameter, or try to find it from current poses state
-      let imageUrl = imageUrlParam;
+      let imageUrl: string | undefined = imageUrlParam;
       
       if (!imageUrl || imageUrl.trim() === '') {
         // Fallback: try to find from current poses state
@@ -170,6 +170,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         } else {
           imageUrl = currentPose.url;
         }
+      }
+
+      // At this point, imageUrl should be defined, but TypeScript doesn't know that
+      if (!imageUrl || imageUrl.trim() === '') {
+        alert(`Image URL is missing for pose ${poseNumber}. The image may not have been generated yet.`);
+        setFlippingPoseId(null);
+        return;
       }
 
       // Check if URL is a data URL (from previous flip) - if so, we need to fetch the original from R2
