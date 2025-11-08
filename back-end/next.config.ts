@@ -15,27 +15,43 @@ const nextConfig: NextConfig = {
   // For Cloudflare Pages
   trailingSlash: false,
   distDir: '.next',
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, webpack }) => {
     // Exclude native modules from bundling (they should only be loaded at runtime)
     // This prevents webpack from trying to bundle binary files like .node modules
     if (isServer) {
-      config.externals = config.externals || [];
-      
       // Make sharp and canvas external (not bundled, loaded at runtime)
-      const externals = Array.isArray(config.externals) ? config.externals : [config.externals];
-      externals.push({
-        'sharp': 'commonjs sharp',
-        '@napi-rs/canvas': 'commonjs @napi-rs/canvas',
-      });
-      config.externals = externals;
+      if (Array.isArray(config.externals)) {
+        config.externals.push({
+          'sharp': 'commonjs sharp',
+          '@napi-rs/canvas': 'commonjs @napi-rs/canvas',
+        });
+      } else if (typeof config.externals === 'function') {
+        const originalExternals = config.externals;
+        config.externals = [
+          originalExternals,
+          {
+            'sharp': 'commonjs sharp',
+            '@napi-rs/canvas': 'commonjs @napi-rs/canvas',
+          },
+        ];
+      } else {
+        config.externals = [
+          config.externals || {},
+          {
+            'sharp': 'commonjs sharp',
+            '@napi-rs/canvas': 'commonjs @napi-rs/canvas',
+          },
+        ];
+      }
+      
+      // Ignore .node files (native binaries) using IgnorePlugin
+      config.plugins = config.plugins || [];
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /\.node$/,
+        })
+      );
     }
-    
-    // Ignore .node files (native binaries) - webpack will skip them
-    config.resolve = config.resolve || {};
-    config.resolve.extensionAlias = {
-      ...config.resolve.extensionAlias,
-      '.node': false, // Don't try to resolve .node files
-    };
     
     return config;
   },
