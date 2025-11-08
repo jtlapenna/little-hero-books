@@ -119,32 +119,28 @@ export async function POST(
     const imageBufferNode = Buffer.from(imageBuffer);
 
     // Flip image horizontally using sharp
-    // Note: If sharp is not available, we'll need to install it or use an alternative
+    // Note: sharp must be installed as a dependency for this to work
     let flippedBuffer: Buffer;
     try {
-      // Dynamic import to handle case where sharp might not be installed
-      const sharp = await import('sharp').catch(() => null);
+      // Use dynamic import with string literal to prevent Next.js from bundling at build time
+      // This ensures the import only happens at runtime
+      const sharp = await import('sharp');
       
-      if (!sharp) {
-        // Fallback: Use canvas API if sharp is not available
-        const { createCanvas, loadImage } = await import('@napi-rs/canvas');
-        const img = await loadImage(imageBufferNode);
-        const canvas = createCanvas(img.width, img.height);
-        const ctx = canvas.getContext('2d');
-        
-        // Flip horizontally by scaling and translating
-        ctx.scale(-1, 1);
-        ctx.drawImage(img, -img.width, 0);
-        
-        flippedBuffer = Buffer.from(canvas.toBuffer('image/png'));
-      } else {
-        // Use sharp for flipping
-        flippedBuffer = await sharp.default(imageBufferNode)
-          .flop() // Horizontal flip
-          .toBuffer();
-      }
+      // Use sharp for flipping
+      flippedBuffer = await sharp.default(imageBufferNode)
+        .flop() // Horizontal flip
+        .toBuffer();
     } catch (error: any) {
       console.error('[Flip Image API] Failed to flip image:', error);
+      
+      // Check if the error is because sharp is not installed
+      if (error.message?.includes('Cannot find module') || error.code === 'MODULE_NOT_FOUND') {
+        return NextResponse.json(
+          { error: 'Image flipping requires sharp package. Please install sharp: npm install sharp' },
+          { status: 500 }
+        );
+      }
+      
       return NextResponse.json(
         { error: `Failed to flip image: ${error.message || 'Unknown error'}` },
         { status: 500 }
