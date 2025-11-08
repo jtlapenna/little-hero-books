@@ -178,26 +178,68 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         imageUrl = window.location.origin + imageUrl;
       }
 
-      // Load the image
-      const img = new Image();
-      img.crossOrigin = 'anonymous'; // Allow CORS if needed
+      // Load the image - try Image element first, fallback to fetch if CORS fails
+      let img: HTMLImageElement;
+      let imageBlob: Blob | null = null;
       
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Image load timeout'));
-        }, 30000); // 30 second timeout
+      try {
+        // First, try loading via Image element (faster, works if CORS is configured)
+        img = new Image();
+        img.crossOrigin = 'anonymous';
         
-        img.onload = () => {
-          clearTimeout(timeout);
-          resolve(null);
-        };
-        img.onerror = (error) => {
-          clearTimeout(timeout);
-          console.error('[PostBriaStage] Image load error:', error, 'URL:', imageUrl);
-          reject(new Error(`Failed to load image from ${imageUrl}. This may be a CORS issue or the image may not exist.`));
-        };
-        img.src = imageUrl;
-      });
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Image load timeout'));
+          }, 10000); // 10 second timeout for Image element
+          
+          img.onload = () => {
+            clearTimeout(timeout);
+            resolve(null);
+          };
+          img.onerror = (error) => {
+            clearTimeout(timeout);
+            console.warn('[PostBriaStage] Image element load failed, will try fetch:', error);
+            reject(new Error('Image element failed'));
+          };
+          img.src = imageUrl;
+        });
+      } catch (imageError) {
+        // Fallback: fetch the image as a blob and create Image from blob URL
+        console.log('[PostBriaStage] Image element failed, trying fetch API...');
+        try {
+          const response = await fetch(imageUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+          }
+          imageBlob = await response.blob();
+          const blobUrl = URL.createObjectURL(imageBlob);
+          
+          // Create new Image from blob URL
+          img = new Image();
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error('Image load from blob timeout'));
+            }, 10000);
+            
+            img.onload = () => {
+              clearTimeout(timeout);
+              resolve(null);
+            };
+            img.onerror = (error) => {
+              clearTimeout(timeout);
+              URL.revokeObjectURL(blobUrl); // Clean up
+              reject(new Error('Failed to load image from blob'));
+            };
+            img.src = blobUrl;
+          });
+          
+          // Clean up blob URL after loading (will be revoked after canvas operations)
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        } catch (fetchError: any) {
+          console.error('[PostBriaStage] Both Image element and fetch failed:', fetchError);
+          throw new Error(`Failed to load image: ${fetchError.message || 'Unknown error'}. URL: ${imageUrl}`);
+        }
+      }
 
       // Create canvas and flip the image horizontally
       const canvas = document.createElement('canvas');
