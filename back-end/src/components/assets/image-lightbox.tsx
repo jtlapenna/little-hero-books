@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Download, Upload, Flag, CheckCircle } from 'lucide-react';
 
 interface ImageLightboxProps {
@@ -31,6 +31,7 @@ export function ImageLightbox({
   showBlackBackground = false
 }: ImageLightboxProps) {
   const [isReplacing, setIsReplacing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle keyboard events
   useEffect(() => {
@@ -64,7 +65,17 @@ export function ImageLightbox({
   const handleFileReplace = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setIsReplacing(true);
       onReplace(file);
+      // Reset the input value so the same file can be selected again
+      setTimeout(() => {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        setIsReplacing(false);
+      }, 100);
+    } else {
+      // User cancelled file picker
       setIsReplacing(false);
     }
   };
@@ -133,7 +144,10 @@ export function ImageLightbox({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <button
-                onClick={onDownload}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownload();
+                }}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <Download className="h-4 w-4 mr-2" />
@@ -141,15 +155,42 @@ export function ImageLightbox({
               </button>
 
               <button
-                onClick={() => setIsReplacing(true)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isReplacing) return;
+                  setIsReplacing(true);
+                  // Trigger file input click
+                  setTimeout(() => {
+                    if (fileInputRef.current) {
+                      fileInputRef.current.click();
+                    }
+                  }, 0);
+                }}
+                disabled={isReplacing}
+                className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  isReplacing
+                    ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
+                    : 'text-gray-700 bg-white hover:bg-gray-50'
+                }`}
               >
-                <Upload className="h-4 w-4 mr-2" />
-                Replace
+                {isReplacing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700 mr-2"></div>
+                    Replacing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Replace
+                  </>
+                )}
               </button>
 
               <button
-                onClick={onFlag}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFlag();
+                }}
                 className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
                   isFlagged
                     ? 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100'
@@ -170,7 +211,9 @@ export function ImageLightbox({
           <input
             type="file"
             accept="image/*"
+            ref={fileInputRef}
             onChange={handleFileReplace}
+            onClick={(e) => e.stopPropagation()}
             className="hidden"
             id="image-replace-input"
           />
