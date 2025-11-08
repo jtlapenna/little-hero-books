@@ -1,0 +1,152 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getObject, putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { buildManifestKey } from '@/lib/r2-service';
+
+// Helper to parse JSON safely
+async function readJsonSafe<T = any>(res: Response): Promise<T> {
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { throw new Error('Invalid JSON in manifest'); }
+}
+
+/**
+ * Unflag an image in an order (persist unflagging decision to manifest)
+ * POST /api/orders/[orderId]/unflag
+ * 
+ * Body (JSON):
+ * - poseNumber: number (required)
+ * - stage: 'preBria' | 'postBria' (required)
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ orderId: string }> }
+) {
+  try {
+    console.log('[Unflag API] Request received');
+    const { orderId } = await params;
+    console.log('[Unflag API] OrderId:', orderId);
+    
+    if (!orderId) {
+      console.error('[Unflag API] Missing orderId');
+      return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
+    }
+
+    // Parse JSON body
+    const body = await request.json();
+    const { poseNumber, stage } = body;
+
+    console.log('[Unflag API] Extracted values:', { poseNumber, stage });
+
+    // Validation
+    if (typeof poseNumber !== 'number' || poseNumber < 0) {
+      return NextResponse.json(
+        { error: 'Invalid poseNumber' },
+        { status: 400 }
+      );
+    }
+
+    if (stage !== 'preBria' && stage !== 'postBria') {
+      return NextResponse.json(
+        { error: 'Invalid stage. Must be "preBria" or "postBria"' },
+        { status: 400 }
+      );
+    }
+
+    // Determine which manifest to use
+    const manifestType = stage === 'preBria' ? '2a' : '2b';
+    let manifestKey = buildManifestKey(orderId, manifestType);
+    
+    // For Post-Bria, try 2b first, fallback to 2a if not found
+    let manifest: any = null;
+    if (stage === 'postBria') {
+      try {
+        const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
+        manifest = await readJsonSafe<any>(manifestRes);
+        console.log(`[Unflag API] Loaded 2b manifest for Post-Bria unflag`);
+      } catch (error: any) {
+        // If 2b manifest doesn't exist, try 2a (for manually uploaded images)
+        if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+          console.log(`[Unflag API] 2b manifest not found, trying 2a manifest...`);
+          const manifestKey2a = buildManifestKey(orderId, '2a');
+          try {
+            const manifestRes2a = await getObject(R2_ORDERS_BUCKET, manifestKey2a);
+            manifest = await readJsonSafe<any>(manifestRes2a);
+            console.log(`[Unflag API] Loaded 2a manifest for Post-Bria unflag (fallback)`);
+            // Use 2a manifest key for saving
+            manifestKey = manifestKey2a;
+          } catch (error2a: any) {
+            return NextResponse.json(
+              { error: 'Manifest not found' },
+              { status: 404 }
+            );
+          }
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      // Pre-Bria: use 2a manifest
+      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
+      manifest = await readJsonSafe<any>(manifestRes);
+      console.log(`[Unflag API] Loaded 2a manifest for Pre-Bria unflag`);
+    }
+
+    if (!manifest || !manifest.entries || !Array.isArray(manifest.entries)) {
+      return NextResponse.json(
+        { error: 'Invalid manifest structure' },
+        { status: 400 }
+      );
+    }
+
+    // Find the entry for this pose
+    let entry = manifest.entries.find((e: any) => e.poseNumber === poseNumber);
+    
+    if (!entry) {
+      return NextResponse.json(
+        { error: `Pose ${poseNumber} not found in manifest` },
+        { status: 404 }
+      );
+    }
+
+    // Update entry to clear review flags
+    // This persists the admin's unflagging decision
+    entry.needsReview = false;
+    entry.reviewReason = null;
+    
+    // Add unflag history for audit trail
+    if (!entry.unflagHistory) {
+      entry.unflagHistory = [];
+    }
+    entry.unflagHistory.push({
+      unflaggedAt: new Date().toISOString(),
+      unflaggedBy: null // TODO: Add admin identifier when auth is implemented
+    });
+
+    // Save updated manifest back to R2
+    const updatedManifestJson = JSON.stringify(manifest, null, 2);
+    await putObject(
+      R2_ORDERS_BUCKET,
+      manifestKey,
+      updatedManifestJson,
+      'application/json'
+    );
+
+    console.log(`[Unflag API] Successfully unflagged pose ${poseNumber} in ${stage} stage`);
+
+    return NextResponse.json({
+      success: true,
+      orderId,
+      poseNumber,
+      stage,
+      needsReview: false,
+      reviewReason: null
+    });
+
+  } catch (error: any) {
+    console.error('[Unflag API] Error:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+

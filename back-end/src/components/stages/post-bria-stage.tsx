@@ -211,17 +211,47 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     }
   };
 
-  const handleFlag = (assetId: string) => {
+  const handleFlag = async (assetId: string) => {
     setPoses(prev => {
       const currentPose = prev.find(p => p.id === assetId);
       if (!currentPose) return prev;
       
       const newFlaggedState = !currentPose.isFlagged;
       
-      // Track user's manual unflag decision
-      if (!newFlaggedState) {
-        // User is unflagging - add to manually unflagged set
-        manuallyUnflaggedRef.current.add(assetId);
+      // Extract poseNumber from assetId (e.g., "pose05-bg-removed" -> 5)
+      const poseNumberMatch = assetId.match(/pose(\d+)/);
+      const poseNumber = poseNumberMatch ? parseInt(poseNumberMatch[1], 10) : null;
+      
+      // If unflagging, persist the decision to the manifest
+      if (!newFlaggedState && poseNumber !== null) {
+        // User is unflagging - persist to manifest via API
+        fetch(`/api/orders/${orderId}/unflag`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            poseNumber,
+            stage: 'postBria'
+          })
+        }).then(response => {
+          if (!response.ok) {
+            console.error('[PostBriaStage] Failed to persist unflagging:', response.statusText);
+            // Revert the flag state if API call failed
+            setPoses(prevPoses => prevPoses.map(pose => 
+              pose.id === assetId ? { ...pose, isFlagged: true } : pose
+            ));
+          } else {
+            // Successfully persisted - add to manually unflagged set for this session
+            manuallyUnflaggedRef.current.add(assetId);
+          }
+        }).catch(error => {
+          console.error('[PostBriaStage] Error persisting unflagging:', error);
+          // Revert the flag state if API call failed
+          setPoses(prevPoses => prevPoses.map(pose => 
+            pose.id === assetId ? { ...pose, isFlagged: true } : pose
+          ));
+        });
       } else {
         // User is flagging - remove from manually unflagged set (they changed their mind)
         manuallyUnflaggedRef.current.delete(assetId);
