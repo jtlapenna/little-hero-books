@@ -170,6 +170,66 @@ The main `status` field should be calculated based on:
 - Flag indicator shows when revision needed
 - Production status shows when in Lulu/system
 
+---
+
+## Customer Order Status Page (Friends & Family MVP)
+
+**Route**: `littleherolabs.com/order-status/[orderId]` (Astro, SSR `prerender = false`)  
+**Purpose**: Give customers a quick, trustworthy view of where their book is without exposing internal tooling.
+
+### Layout Outline
+1. **Header Card**
+   - Order code (Amazon order ID if available)
+   - Friendly title (`Adventure Compass for {ChildName}`)
+   - Status badge + one-line explainer (“We’re printing your book now”)
+   - Optional ETA if `shippedAt`/`deliveredAt` present
+
+2. **Timeline**
+   - Four milestone nodes (desktop horizontal, mobile vertical):
+     1. `proof_ready` → Preview approved (shows `customer_approval_approved_at`)
+     2. `print_submitted` → Sent to print (workflow 4 start)
+     3. `in_production` → Printing in progress (Lulu status)
+     4. `shipped` / `delivered` → Tracking info available
+   - Each node displays state (complete/current/upcoming), timestamp, and short copy
+
+3. **Detail Sections**
+   - **What happens next**: dynamic copy keyed off main status
+   - **Tracking panel**: carrier + tracking URL when available, fallback “We’ll email you when it ships”
+   - **Need help?** CTA linking back to Amazon Message Center (with order ID prefilled)
+
+### API Contract (Read-Only)
+Endpoint: `GET /api/order-status/[orderId]` (Next.js route, CORS-enabled for Astro)
+
+```jsonc
+{
+  "orderId": "AMZ-123",
+  "childName": "Avery",
+  "status": "in_production",
+  "friendlyStatus": "Printing your book",
+  "timeline": [
+    {"id": "proof_ready", "title": "Preview Approved", "completed": true, "timestamp": "2025-11-08T18:42:11.000Z"},
+    {"id": "print_submitted", "title": "Sent to Print", "completed": true, "timestamp": "2025-11-08T19:05:44.000Z"},
+    {"id": "in_production", "title": "Printing", "completed": true, "timestamp": "2025-11-09T12:02:10.000Z"},
+    {"id": "shipped", "title": "On the way", "completed": false, "timestamp": null}
+  ],
+  "tracking": {
+    "number": "1Z999AA10123456784",
+    "carrier": "UPS",
+    "url": "https://ups.com/track?num=1Z999AA10123456784",
+    "shippedAt": "2025-11-10T15:20:00.000Z",
+    "deliveredAt": null
+  },
+  "lastUpdated": "2025-11-09T12:02:10.000Z"
+}
+```
+
+Implementation notes:
+- Data pulled from Supabase (`orders`, shipping fields, status utilities).
+- Map internal statuses to friendly labels using `statuses.ts`.
+- MVP auth: require preview token query param or short-lived signature; future versions can leverage email + order lookup.
+
+---
+
 ## Questions to Resolve
 
 1. **Customer Approval**: Do we need customer approval step, or is admin approval sufficient?

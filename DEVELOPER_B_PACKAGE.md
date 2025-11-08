@@ -2953,65 +2953,40 @@ After customer approval, seamlessly transition to an order status page where cus
 
 #### **Implementation Steps**
 
-1. **Create Order Status Page**
-   - [ ] Create page route: `frontend/src/pages/order-status/[orderId]/[token].astro`
-   - [ ] Design status page layout with:
-     - Order timeline/progress bar
-     - Current status display
-     - Estimated delivery date
-     - Shipping information (when available)
-     - Tracking number/link (when available)
-   - [ ] Use same token system as preview page
+1. **Document & Design (current)**
+   - [x] Capture layout + timeline spec in `docs/ORDER_STATUS_SYSTEM.md` (header card, 4-node timeline, support CTA)
+   - [x] Define read-only API contract (`GET /api/order-status/[orderId]`) with example payload
+   - [ ] Finalize friendly status copy + icon set
 
-2. **Implement Status Timeline Component**
-   - [ ] Create timeline component showing:
-     - Order received
-     - Book generated
-     - Preview ready
-     - Customer approved
-     - In production
-     - Shipped
-     - Delivered
-   - [ ] Highlight current status
-   - [ ] Show estimated dates for upcoming steps
+2. **Build Customer Page (MVP)**
+   - [ ] Add route: `frontend/src/pages/order-status/[orderId]/[token].astro`
+   - [ ] Implement timeline component with milestones: Preview Approved → Sent to Print → Printing → Shipped/Delivered
+   - [ ] Surface tracking block + “What happens next” copy
+   - [ ] Reuse preview token system for gated access (token param or signed link)
 
-3. **Integrate with Lulu API for Production Status**
-   - [ ] Query Lulu API for print job status
-   - [ ] Update order status based on Lulu status
-   - [ ] Display production status to customer
-   - [ ] Handle production delays gracefully
+3. **Back-End Endpoint**
+   - [ ] Create `/api/order-status/[orderId]` Next.js route
+   - [ ] Fetch Supabase order + tracking fields, map to timeline structure/friendly labels
+  - [ ] Handle missing tracking gracefully (return `null` timestamps with helpful copy)
 
-4. **Integrate Shipping Tracking**
-   - [ ] Query shipping carrier API for tracking info
-   - [ ] Display tracking number and link
-   - [ ] Show shipping progress on map (optional)
-   - [ ] Update delivery status when package delivered
-
-5. **Create Status Update Webhooks**
-   - [ ] Create webhook endpoint for Lulu status updates
-   - [ ] Create webhook endpoint for shipping updates
-   - [ ] Update order status in real-time
-   - [ ] Notify customer of status changes (optional)
-
-6. **Add Email Notifications**
-   - [ ] Send email when order ships
-   - [ ] Send email when order is delivered
-   - [ ] Include tracking information in emails
+4. **Preview Flow Integration**
+   - [ ] Redirect approval confirmation to `/order-status/...`
+   - [ ] Include order status link in Amazon Message + follow-up email templates
+   - [ ] Add verification tests (token mismatch → 403)
 
 7. **Testing & Validation**
    - [ ] Test status page displays correctly
-   - [ ] Test status transitions
-   - [ ] Test Lulu integration
-   - [ ] Test shipping tracking integration
-   - [ ] Test email notifications
+   - [ ] Test timeline mapping for each stage
+   - [ ] Test tracking panel with and without data
+   - [ ] Test access with valid vs. invalid tokens
 
 #### **Files to Create**
 - `frontend/src/pages/order-status/[orderId]/[token].astro`
 - `frontend/src/components/OrderStatus/Timeline.astro`
 - `frontend/src/components/OrderStatus/StatusCard.astro`
 - `back-end/src/app/api/order-status/[orderId]/route.ts`
-- `back-end/src/app/api/webhooks/lulu-status/route.ts` (new)
-- `back-end/src/app/api/webhooks/shipping-status/route.ts` (new)
+- *(Future)* `back-end/src/app/api/webhooks/lulu-status/route.ts`
+- *(Future)* `back-end/src/app/api/webhooks/shipping-status/route.ts`
 
 #### **Files to Modify**
 - `back-end/src/app/api/webhooks/workflow-4-complete/route.ts` (update status after print submission)
@@ -3020,10 +2995,9 @@ After customer approval, seamlessly transition to an order status page where cus
 #### **Acceptance Criteria**
 - ✅ Status page loads after approval
 - ✅ Status timeline displays correctly
-- ✅ Production status updates from Lulu
-- ✅ Shipping tracking displays correctly
-- ✅ Status updates in real-time
-- ✅ Email notifications sent for major status changes
+- ✅ Shipping tracking displays when available (graceful fallback when missing)
+- ✅ Status link included in approval confirmation
+- ✅ Access requires valid token
 
 ---
 

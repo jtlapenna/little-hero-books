@@ -90,9 +90,13 @@ None currently.
 - **Priority**: P1 (High - Improves customer experience)
 - **Estimated Time**: 2-3 days
 - **Dependencies**: Task 4 (Placeholder) ✅
-- **Status**: ⏳ **WAITING FOR TASK 4 PLACEHOLDER**
+- **Status**: ✏️ **SPEC DRAFTED**
 
-**Note**: Can start after Task 4 placeholder is complete, doesn't require full preview implementation.
+**Highlights**:
+- Layout + timeline + API contract captured in `docs/ORDER_STATUS_SYSTEM.md`
+- Next steps: implement Astro page, `/api/order-status/[orderId]`, timeline component, and integrate redirect after approval
+
+**Note**: Build can proceed once preview page updates are underway; no additional dependencies on Developer A.
 
 ---
 

@@ -235,6 +235,59 @@ All inputs must map to canonical IDs (hair, skin, colors, animals, clothing) def
 - Ops receives notification (email/Slack) and replies from shared inbox.
 - If request is out of bounds (e.g., new hairstyle not listed), respond with template listing available presets.
 
+### **Frontend Schema Reference**
+
+Expose the reasons + field configs to the Astro page via a static JSON definition for quick iteration:
+
+```jsonc
+{
+  "reasons": [
+    {
+      "id": "name_typo",
+      "label": "Name spelling is wrong",
+      "fields": [
+        {"id": "newName", "type": "text", "maxLength": 20, "required": true}
+      ]
+    },
+    {
+      "id": "hairStyle_wrong",
+      "label": "Hair style is wrong",
+      "fields": [
+        {"id": "hairStyle", "type": "select", "options": ["afro","bun","curly-long","curly-medium","curly-short","pigtails","pom-poms","ponytail","side-part","straight-long","straight-medium","straight-short"], "required": true}
+      ]
+    },
+    {
+      "id": "hairColor_wrong",
+      "label": "Hair color is wrong",
+      "fields": [
+        {"id": "hairColor", "type": "select", "options": ["blonde","strawberry-blonde","light-brown","medium-brown","dark-brown","auburn","black","red"], "required": true}
+      ]
+    },
+    {
+      "id": "visual_issue",
+      "label": "Something looks off (printing or color issue)",
+      "fields": [
+        {"id": "visualIssue", "type": "select", "options": ["blurry","missing-element","odd-colors","layout-cutoff","other-visual"], "required": true},
+        {"id": "details", "type": "text", "maxLength": 120, "required": false}
+      ]
+    },
+    {
+      "id": "other",
+      "label": "Other (limited)",
+      "banner": "We can fix details you selected on your order. Custom art or new styles aren't available.",
+      "fields": [
+        {"id": "details", "type": "text", "maxLength": 120, "required": true}
+      ]
+    }
+  ]
+}
+```
+
+Implementation tips:
+- Render dropdown first, load field controls dynamically based on `reason`.
+- Disable submit until required fields are filled and checkbox “I understand this is the one correction” is checked.
+- After successful POST, persist correction in local state to hide the form and show instructions to reply via email for follow-up.
+
 ### **Future Automation**
 - Add `feedback_tickets` table + Supabase trigger for n8n to auto-route corrections.
 - Automate renderer updates by reason (text fixes vs. character tweaks).
