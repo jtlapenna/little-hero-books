@@ -183,13 +183,18 @@ export async function POST(
         entry.publicUrl = `${publicR2Url}/${originalKey}`;
       }
     } else {
+      // Post-Bria: update background-removed image fields
       entry.bgRemovedKey = originalKey;
       entry.bgRemovedFilename = `pose${String(poseNumber).padStart(2, '0')}-nobg.png`;
       entry.bgRemoved = true;
       entry.bgRemovedStatus = 'completed';
+      // Clear review flags since image was manually uploaded/approved
+      entry.needsReview = false;
+      entry.reviewReason = null;
       // Update publicUrl if publicR2Url is available
       const publicR2Url = manifest.order?.publicR2Url;
       if (publicR2Url) {
+        entry.bgRemovedImageUrl = `${publicR2Url}/${originalKey}`;
         entry.bgRemovedPublicUrl = `${publicR2Url}/${originalKey}`;
       }
     }

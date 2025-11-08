@@ -303,10 +303,43 @@ async function getOrder(
   // Build complete list of post-Bria poses
   const postBriaPoses: any[] = [];
   
-  // If workflow 2B hasn't run yet, only return existing poses (if any) - don't create placeholders
+  // If workflow 2B hasn't run yet, return existing poses from R2 AND any from manifest (manually uploaded)
+  // This allows manually uploaded images to appear even if workflow 2B hasn't run
   if (!workflow2BHasRun) {
-    console.log(`[GET /api/orders/[orderId]] Workflow 2B has not run yet, returning only existing post-Bria poses (no placeholders)`);
-    postBriaPoses.push(...existingPostBriaPoses);
+    console.log(`[GET /api/orders/[orderId]] Workflow 2B has not run yet, checking R2 and manifest for post-Bria poses`);
+    
+    // Start with existing poses from R2
+    const poseMap = new Map(existingPostBriaPoses.map(p => [p.poseNumber, p]));
+    
+    // Also check manifest for manually uploaded images (have bgRemovedKey but might not be in R2 yet)
+    manifestEntries.forEach((entry: any) => {
+      if (entry.bgRemovedKey && entry.bgRemovedKey.length > 0) {
+        const poseNum = entry.poseNumber;
+        // Only add if not already in map (R2 takes precedence)
+        if (!poseMap.has(poseNum)) {
+          const r2Key = entry.bgRemovedKey;
+          const publicUrl = entry.bgRemovedImageUrl || entry.bgRemovedPublicUrl || (order.publicR2Url ? `${order.publicR2Url}/${r2Key}` : null);
+          const proxyUrl = publicUrl ? `/api/assets/${r2Key}` : '';
+          
+          poseMap.set(poseNum, {
+            poseNumber: poseNum,
+            url: proxyUrl,
+            assetType: 'background-removed',
+            characterHash: order.characterHash,
+            isMissing: !proxyUrl,
+            isFlagged: entry.needsReview || false,
+            status: entry.status || 'approved',
+            needsReview: entry.needsReview || false,
+            reviewReason: entry.reviewReason || null,
+            attempts: entry.attempts || 0,
+            approved: entry.approved || false
+          });
+        }
+      }
+    });
+    
+    postBriaPoses.push(...Array.from(poseMap.values()).sort((a, b) => a.poseNumber - b.poseNumber));
+    console.log(`[GET /api/orders/[orderId]] Found ${postBriaPoses.length} post-Bria poses (${existingPostBriaPoses.length} from R2, ${postBriaPoses.length - existingPostBriaPoses.length} from manifest)`);
   } else {
     // Workflow 2B has run - build complete list including placeholders for missing ones
     // If we have existing poses but no manifest entries, just use the existing poses (fallback)

@@ -13,18 +13,6 @@ function toAssetProxyUrl(storageKey: string): string {
   return `${base}/api/assets/${storageKey}`;
 }
 
-// Helper to identify missing poses for error message
-function getMissingPoses(processedImages: any[]): string {
-  const presentPoses = new Set(processedImages.map((pi: any) => Number(pi.poseNumber)));
-  const missing: number[] = [];
-  for (let i = 1; i <= 12; i++) {
-    if (!presentPoses.has(i)) {
-      missing.push(i);
-    }
-  }
-  return missing.length > 0 ? missing.join(', ') : 'none';
-}
-
 export async function POST(req: NextRequest, { params }: { params: { orderId: string } }) {
   try {
     // Auth: require Bearer token (same as other admin endpoints)
@@ -52,12 +40,10 @@ export async function POST(req: NextRequest, { params }: { params: { orderId: st
     }
 
     // Build processedImages list expected by Workflow 3
-    // NOTE: Workflow 3 only uses poses 1-12 (not pose0), so we filter out pose0
+    // Include all poses with bgRemovedKey (including pose0 if it exists)
+    // Note: Images uploaded via backend may have bgRemovedKey even if workflow 2B didn't run
     const processedImages = (entries || [])
-      .filter((e: any) => {
-        const poseNum = Number(e.poseNumber);
-        return Number.isFinite(poseNum) && poseNum >= 1 && poseNum <= 12 && e.bgRemovedKey;
-      })
+      .filter((e: any) => Number.isFinite(Number(e.poseNumber)) && e.bgRemovedKey)
       .sort((a: any, b: any) => a.poseNumber - b.poseNumber)
       .map((e: any) => {
         const fileName = e.bgRemovedKey.split('/').pop() || `pose${String(e.poseNumber).padStart(2,'0')}_nobg.png`;
@@ -72,12 +58,18 @@ export async function POST(req: NextRequest, { params }: { params: { orderId: st
         };
       });
 
-    if (processedImages.length !== 12) {
+    // Workflow 3 expects at least poses 1-12, but may have more (e.g., pose0)
+    const requiredPoses = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const presentPoseNumbers = new Set(processedImages.map((pi: any) => Number(pi.poseNumber)));
+    const missingRequiredPoses = requiredPoses.filter(p => !presentPoseNumbers.has(p));
+    
+    if (missingRequiredPoses.length > 0) {
       return NextResponse.json({ 
         error: 'Background-removed images incomplete', 
         count: processedImages.length,
         expected: 12,
-        message: `Expected 12 background-removed images (poses 1-12), found ${processedImages.length}. Missing poses: ${getMissingPoses(processedImages)}`
+        missingPoses: missingRequiredPoses,
+        message: `Expected background-removed images for poses 1-12, but missing: ${missingRequiredPoses.join(', ')}`
       }, { status: 400 });
     }
 
