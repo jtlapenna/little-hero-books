@@ -78,7 +78,7 @@ None currently.
 **Key Decisions**:
 - ✅ Amazon Message Center only for MVP (Amazon sends email notifications automatically)
 - ✅ Auto-approval after 3 days (reminders at 1 day and 2 days)
-- ✅ 2 free revisions with countdown display
+- ✅ Single structured correction with policy guardrails
 - ✅ Single-use tokens (3-day expiration)
 - ✅ Last revision acknowledgment checkbox
 
@@ -98,11 +98,17 @@ None currently.
 
 ### **Phase 4: Infrastructure (Week 3)** — P0-P1
 
-#### **Task 6: Setup Amazon Custom** ⏳ **CAN RUN IN PARALLEL**
+#### **Task 6: Setup Amazon Custom** ⏳ **FOUNDATION IN PROGRESS**
 - **Priority**: P1 (High - Required for launch)
 - **Estimated Time**: 3-5 days
 - **Dependencies**: None
-- **Status**: ⏳ **NOT STARTED**
+- **Status**: 🚧 **FOUNDATION STARTED**
+
+**Progress Highlights**:
+- ✅ Documented hybrid MVP plan (single Amazon message + email follow-up) in `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md`
+- ✅ Added Amazon Message Center helper + endpoint (`back-end/src/lib/notifications/amazon-message-center.ts`, `/api/notifications/preview/amazon`)
+- ✅ Updated Developer B package Step 9 with hybrid tasks (customer_contacts table, preview page capture, manual ops flow)
+- ⏳ Next: Build contact capture (table + `/api/preview/contact`), update preview UI with mailto/form, set up simple n8n reminder for ops follow-up
 
 **Note**: Can run in parallel with Task 4 placeholder.
 

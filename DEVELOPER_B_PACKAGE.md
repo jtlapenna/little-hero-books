@@ -2792,7 +2792,7 @@ Create a customer-facing page where customers can preview their book and approve
 - ✅ Tokenized secure links: `/approve/[orderId]-[token]` (single-use, 3-day expiration)
 - ✅ **Amazon Message Center only** for MVP (Amazon sends email notifications automatically)
 - ✅ Auto-approval after **3 days** with reminders at 1 day and 2 days
-- ✅ Revision limit: **2 free revisions** with countdown display
+- ✅ Revision limit: **1 structured correction** with clear policy banner
 - ✅ **Revision countdown**: Show "Revisions remaining: [X]" on preview page
 - ✅ **Last revision acknowledgment**: Checkbox "This is your last revision - I understand this will go to print directly when I click OK"
 - ✅ Clone Developer A's PDF previewer when ready (Phase 3)
@@ -3120,6 +3120,15 @@ Set up Amazon Custom listing with all required fields, images, and configuration
    - [ ] Test end-to-end order flow
    - [ ] Verify SP-API integration works
 
+9. **Preview Notification Messaging (New)**
+   - [x] Wire Next.js API route `/api/notifications/preview/amazon` that calls `back-end/src/lib/notifications/amazon-message-center.ts`
+   - [x] Implement Amazon Message Center helper (LWA token, Uploads API encryption, `confirmCustomizationDetails` sender)
+   - [ ] Add `customer_contacts` table + API (`/api/preview/contact`) to capture email/name/reason/payload (enforce 1 correction limit)
+   - [ ] Update preview page with mailto button + structured correction form (reason dropdown, canonical options, policy banner)
+   - [ ] Surface “You have 1 correction available” state; disable form after submission
+   - [ ] Build lightweight n8n task/cron to flag pending approvals >72h for manual follow-up
+   - [ ] Document ops response templates + future automation (SendGrid/Help Scout, reminder cadence, feedback_tickets) in docs
+
 #### **Files to Reference**
 - `docs/AMAZON_INTEGRATION.md` - Complete setup guide
 - `docs/AMAZON_LISTING_FINAL.md` - Listing copy and specifications
@@ -3129,6 +3138,8 @@ Set up Amazon Custom listing with all required fields, images, and configuration
 #### **Files to Modify** (after Amazon setup)
 - `back-end/.env.local` - Add SP-API credentials
 - `docs/n8n-workflow-files/n8n-new/1-order-intake-validation.json` - Update to use real SP-API
+- `back-end/src/lib/notifications/amazon-message-center.ts` - Plug into real SP-API client once credentials live
+- `back-end/src/app/api/notifications/preview/amazon/route.ts` - **New** route (to be created) that n8n will call
 
 #### **Acceptance Criteria**
 - ✅ Amazon Seller account active and verified

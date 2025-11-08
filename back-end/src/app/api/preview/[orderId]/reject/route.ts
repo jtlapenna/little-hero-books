@@ -69,9 +69,9 @@ export async function POST(
       );
     }
 
-    // Check revision limit (2 free revisions)
+    // Check revision limit (single correction allowed)
     const currentRevisionCount = order.revision_count || 0;
-    if (currentRevisionCount >= 2) {
+    if (currentRevisionCount >= 1) {
       return NextResponse.json(
         { error: 'Maximum revision limit reached. Please contact customer service.' },
         { 

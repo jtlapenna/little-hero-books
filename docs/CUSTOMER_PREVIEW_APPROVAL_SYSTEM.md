@@ -86,35 +86,24 @@ This document outlines the complete plan for building the customer-facing previe
 
 ### **Decision 5: Notification Strategy** ⚠️ **CRITICAL**
 **Status**: ✅ **DECIDED**  
-**Decision**: Use Amazon Message Center only (via SP-API) for MVP
+**Decision**: Hybrid MVP — single automated Amazon Message Center send, manual email follow-up after customer replies
 
-**Primary Channel**: Amazon Message Center (via SP-API)
-- ✅ Most reliable (Amazon's system)
-- ✅ Appears in customer's Amazon account
-- ✅ Customers are already logged into Amazon
-- ✅ Less likely to be marked as spam
-- ✅ Amazon handles email validation
-- ✅ **Amazon sends email notification to customer** when message is received
-- ✅ **Always send** (most reliable)
-- ✅ **Simpler implementation** - no SendGrid setup needed for MVP
+**Primary Channel (MVP)**: Amazon Message Center (via SP-API)
+- ✅ Deliver first preview link through Amazon to stay compliant
+- ✅ Amazon automatically mirrors messages to the buyer’s email
+- ✅ No dependence on SendGrid or additional tooling to launch
 
-**Future Enhancement**: Email (SendGrid)
-- ⏳ Will be added later when we capture orders on our website
-- ⏳ Not needed for MVP (Amazon Message Center is sufficient)
-- ⏳ Can include rich formatting
-- ⏳ Works if customer checks email
+**Secondary Channel (MVP)**: Manual direct email once customer replies from preview page
+- ✅ Customer clicks “Request a revision” → their email client opens with pre-filled subject/body
+- ✅ Preview page also captures email + order info via lightweight form (`customer_contacts` table)
+- ✅ Ops replies from shared inbox and continues conversation outside Amazon
 
-**Fallback**: Admin Manual Notification
-- ✅ Admin dashboard shows notification status
-- ✅ Can regenerate token and resend
-- ✅ Can contact customer via Amazon if needed
+**Future Enhancements (Post-MVP)**:
+- ⏳ Add SendGrid or Help Scout to automate replies, log threads, and templated messaging
+- ⏳ Layer reminder sends (Day 1 / Day 2) and auto-approval confirmation via Amazon + email
+- ⏳ Develop a self-service portal so customers can submit revisions without email back-and-forth
 
-**Rationale**:
-- Amazon Message Center is sufficient for MVP
-- Amazon automatically sends email notification to customer when message is received
-- Simpler implementation - no SendGrid setup needed now
-- Can add SendGrid later when we have direct website orders
-- Addresses all concerns: reliable delivery, email notifications, customer awareness
+**Fallback**: Admin can always resend the Amazon message manually if the initial send fails.
 
 ### **Decision 6: Revision Routing**
 **Status**: ✅ **DECIDED**  
@@ -128,33 +117,33 @@ This document outlines the complete plan for building the customer-facing previe
 **Rationale**: Efficient - only regenerate what needs fixing
 
 ### **Decision 7: Revision Limits**
-**Status**: ✅ **DECIDED**  
-**Decision**: 2 free revisions, then require customer service contact
+**Status**: ✅ **DECIDED (Hybrid MVP)**  
+**Decision**: One structured revision per order (bounded corrections only)
 
 **Implementation**:
-- Store revision count in `orders.revision_count` field
-- **Show revision countdown to customers** on preview page
-- Display: "Revisions remaining: [X]" prominently
-- **On second revision**: Show checkbox "This is your last revision - I understand this will go to print directly when I click OK"
-- After limit, set `customer_approval_status = 'revision_limit_reached'`
-- Require manual intervention for additional revisions
-- Admin can override limit if justified
+- Track revision usage via `customer_contacts.revision_count` and `orders.revision_count`
+- Preview page displays: "You have 1 correction available" and hides the form once a ticket exists
+- All requests must map to predefined categories (hair, skin, name, etc.); no open-ended art changes
+- If a second submission arrives, show banner: "We can only support one correction—reply to the email thread for follow-up."
 
 **User Experience**:
-- First revision: "Revisions remaining: 1"
-- Second revision: "Revisions remaining: 0" + checkbox acknowledging last revision
-- After second: "No revisions remaining - please contact customer service"
+- Customer submits one structured correction card
+- Ops replies via email with the updated proof
+- Additional creative requests receive policy template explaining available presets only
 
 ### **Decision 8: Auto-Approval Timeline**
-**Status**: ✅ **DECIDED**  
-**Decision**: 3 days before auto-approval
+**Status**: ✅ **DECIDED (Hybrid MVP)**  
+**Decision**: Manual follow-up at 3 days for MVP; automated reminders/auto-approval deferred
 
-**Reminder Schedule**:
-- 1 day: Send reminder (Amazon Message Center)
-- 2 days: Send final reminder (Amazon Message Center)
-- 3 days: Auto-approve if no response
+**MVP Handling**:
+- Ops dashboard (or lightweight n8n cron) flags orders pending >72 hours
+- Human reviews the order, reaches out via captured email, and either approves or extends timeline
+- Document manual approval in `customer_contacts` / order notes
 
-**Rationale**: Industry standard timeline that balances customer needs with production timeline
+**Future Automation**:
+- Add Day 1 / Day 2 reminder sends via Amazon + email once messaging stack is ready
+- Implement automatic Day 3 approval job with audit logging and confirmation message
+- Optional: let customers extend deadline via portal button (post-MVP)
 
 ### **Decision 9: Disclaimer and Checkbox**
 **Status**: ✅ **DECIDED**  
@@ -168,6 +157,88 @@ This document outlines the complete plan for building the customer-facing previe
 - "• By approving, you confirm the book is correct and ready for printing"
 
 **Checkbox**: Customer must check "I understand and agree to the terms above" before approval button is enabled
+
+---
+
+## 🔁 **Hybrid MVP Flow (November 2025)**
+
+1. **Amazon Order Intake**  
+   - Customer submits order + customization fields through Amazon Custom  
+   - Internal workflows generate art, assemble PDF, and complete human QA
+
+2. **Preview Token & Amazon Message**  
+   - When review passes, backend creates single-use token (`preview_tokens`) and marks order `pending`  
+   - `/api/notifications/preview/amazon` sends *one* Amazon Message Center note with the secure preview link  
+   - `notification_logs` stores the attempt/result
+
+3. **Customer Reviews on littleherolabs.com**  
+   - Preview page shows placeholder (until full viewer cloned) and “Need a revision? Email us” panel  
+   - `mailto:` button opens buyer’s email client with subject/body containing order + token  
+   - Embedded contact form posts to `/api/preview/contact` to capture name/email/message into `customer_contacts` table (opt-in checkbox available)
+
+4. **Manual Email Loop**  
+   - Ops receives the email, replies directly, performs revisions, and sends new link via normal email thread  
+   - New preview tokens generated as needed and shared via direct email (Amazon only used for first touch)
+
+5. **Completion & Print Submission**  
+   - After customer approves (or ops manually approves after 3 days of no response), order progresses to Lulu submission  
+   - Contact table retains email for future marketing (if opted in) and audit trail
+
+**Why this works for MVP**: single automated Amazon message keeps us compliant; everything else uses familiar email workflows, minimizing build time while still capturing customer contact info for future automation.
+
+---
+
+## 🧭 **Bounded Feedback System**
+
+### **Customer Experience**
+1. Customer opens preview → sees “Need a correction?” card.
+2. Selects a reason from predefined list (derived from `Customization_Source_of_Truth`).
+3. Only the relevant input fields appear (e.g., choose new hair color from presets).
+4. Optional checkbox: “Keep me posted on new titles and promos.”
+5. Guardrail copy below submit:  
+   *“We can adjust details to match the options you selected (name spelling, preset hair styles/colors, skin tone, etc.). We aren’t able to create brand-new artwork or styles outside the choices shown.”*
+6. Submit button disabled after one correction is filed; banner directs them to continue via email thread.
+
+### **Allowed Reasons (single select)**
+- `name_typo`
+- `hairStyle_wrong`
+- `hairColor_wrong`
+- `skinTone_wrong`
+- `pronouns_wrong`
+- `animalGuide_wrong`
+- `favoriteColor_wrong`
+- `clothingStyle_wrong`
+- `dedication_fix`
+- `hometown_fix`
+- `favoriteFood_fix`
+- `age_wrong`
+- `visual_issue` (sub‑options: blurry, missing-element, odd-colors, layout-cutoff, other-visual + optional note ≤120 chars)
+- `other` (requires text ≤120 chars; shows banner reiterating policy)
+
+All inputs must map to canonical IDs (hair, skin, colors, animals, clothing) defined in `docs/new-planning/Customization_Source_of_Truth.md`.
+
+### **Backend Handling (MVP)**
+- POST `/api/preview/contact`  
+  ```json
+  {
+    "orderId": "TEST-ORDER-016",
+    "token": "TEST-ORDER-016-4f8dce12",
+    "amazonOrderId": "AMZ-123",
+    "email": "buyer@example.com",
+    "name": "Stephanie Lin",
+    "reason": "hairColor_wrong",
+    "fields": { "hairColor": "dark-brown" },
+    "marketingOptIn": true
+  }
+  ```
+- API validates token ↔ order, enforces one correction limit, canonicalizes fields, and stores record in `customer_contacts`.
+- Ops receives notification (email/Slack) and replies from shared inbox.
+- If request is out of bounds (e.g., new hairstyle not listed), respond with template listing available presets.
+
+### **Future Automation**
+- Add `feedback_tickets` table + Supabase trigger for n8n to auto-route corrections.
+- Automate renderer updates by reason (text fixes vs. character tweaks).
+- SLA cron: surface corrections pending >72h.
 
 ---
 
@@ -196,24 +267,23 @@ This document outlines the complete plan for building the customer-facing previe
   - **Email**: Amazon automatically sends email notification to customer when message is received
   - **Fallback**: Admin can manually send link
 
-**Implementation Flow**:
+**Implementation Flow (Hybrid MVP)**:
 ```
-Workflow 3 Completes
+Workflow 3 Completes (book approved internally)
   ↓
-Webhook: /api/webhooks/workflow-3-complete
+Generate secure token + store in preview_tokens (expires + single-use)
   ↓
-1. Generate secure token (crypto.randomBytes + hash)
-2. Store in preview_tokens table (order_id, token, expires_at = now + 3 days)
-3. Update order: 
-   - customer_approval_status = 'pending'
-   - customer_approval_requested_at = now()
-4. Send notification:
-   a. Amazon Message Center via SP-API (ALWAYS - Amazon sends email notification to customer)
-   b. Log attempt in notification_logs table
-5. Set reminder jobs:
-   - 1 day: Send reminder via Amazon Message Center
-   - 2 days: Send final reminder via Amazon Message Center
-   - 3 days: Auto-approve if no response
+Update order: customer_approval_status = 'pending', customer_approval_requested_at = now()
+  ↓
+Call /api/notifications/preview/amazon → send ONE Amazon Message Center notification
+  ↓
+Log attempt in notification_logs
+  ↓
+Customer receives Amazon message + email mirror → clicks preview link
+  ↓
+If they need changes, they email us from the preview page (mailto + capture form)
+  ↓
+Ops team continues conversation via direct email (outside Amazon)
 ```
 
 ### **Q2: Revision Requested → Process Feedback → New Preview** ✅ **ANSWERED**
@@ -232,11 +302,9 @@ Webhook: /api/webhooks/workflow-3-complete
     - **Background removal issues** → Workflow 2B (background removal)
     - **Text/content issues** → Workflow 3 (book assembly - partial page rebuild)
 - **Revision Limits**:
-  - **✅ DECIDED**: 2 free revisions, then require customer service contact
-  - Store revision count in `orders.revision_count` field
-  - After limit, set `customer_approval_status = 'revision_limit_reached'`
-  - Require manual intervention for additional revisions
-  - Admin can override limit if needed
+  - **✅ DECIDED**: One structured correction per order; limit stored in `customer_contacts` and `orders.revision_count`
+  - After the correction is used, show policy banner and direct customer to continue via existing email thread
+  - Ops can override manually in edge cases (documented in order notes)
 
 **Implementation Flow**:
 ```
@@ -303,27 +371,18 @@ Customer reviews again →
 ```
 Workflow 3 Completes (Book Assembly)
   ↓
-Backend: Generate Preview Token
+Generate preview token + update order (pending)
   ↓
-Store Token in Supabase (preview_tokens table)
+Send single Amazon Message Center notification
   ↓
-Update Order: customer_approval_status = 'pending'
+Log attempt in notification_logs
   ↓
-Send Notifications (Multi-Channel):
-  ├─→ Amazon Message Center (SP-API) [ALWAYS]
-  └─→ Email (SendGrid) [IF EMAIL VALID]
+Customer opens preview page on littleherolabs.com
+  ├─ Approve → update order → trigger Workflow 4 (Print)
+  └─ Need changes → email request (mailto + contact form) → ops follows up via inbox
+       └─ Ops generates new preview token + emails fresh link
   ↓
-Log All Attempts (notification_logs table)
-  ↓
-Customer Clicks Link → Preview Page
-  ↓
-Customer Reviews Book
-  ↓
-[If Issues] → Flag Issue → Store Feedback → Trigger Revision
-  ↓
-[If Approved] → Update Status → Trigger Print Workflow
-  ↓
-[If No Response] → Auto-Approve After 3 Days
+If idle >3 days → ops manually reviews/approves
 ```
 
 ### **Status Flow**
@@ -350,6 +409,16 @@ customer_approval_requested_at = now()
                             → Send notification via Amazon Message Center
                             → Trigger Workflow 4 (Print)
 ```
+
+---
+
+## 🚀 **Future Enhancements (Post-MVP Roadmap)**
+
+- **Messaging Automation**: Integrate SendGrid or Help Scout to manage replies, templates, and logging without leaving the inbox.  
+- **Reminder Engine**: Re-introduce Day 1 / Day 2 reminders and automated Day 3 approval once outbound email stack is in place.  
+- **Self-Service Portal**: Replace email loop with authenticated review portal (issue flagging, live revision counter, opt-in toggles).  
+- **Analytics & Reporting**: Dashboard showing response times, revision stats, and drop-off to refine SLA targets.  
+- **Marketing Opt-Ins**: Use captured emails (with consent) for seasonal promos and cross-sell campaigns.
 
 ---
 
@@ -408,6 +477,33 @@ CREATE INDEX idx_notification_logs_status ON notification_logs(status);
 CREATE INDEX idx_notification_logs_type ON notification_logs(notification_type);
 ```
 
+### **customer_contacts Table** (Hybrid MVP contact capture)
+```sql
+CREATE TABLE IF NOT EXISTS customer_contacts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  order_id VARCHAR(50) NOT NULL,
+  amazon_order_id VARCHAR(50),
+  token VARCHAR(255),
+  email VARCHAR(255) NOT NULL,
+  name VARCHAR(150),
+  reason VARCHAR(50),
+  payload JSONB,
+  message TEXT,
+  revision_requested BOOLEAN DEFAULT FALSE,
+  revision_count INTEGER DEFAULT 0,
+  marketing_opt_in BOOLEAN DEFAULT FALSE,
+  last_contacted_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_customer_contacts_order_id ON customer_contacts(order_id);
+CREATE INDEX idx_customer_contacts_amazon_order_id ON customer_contacts(amazon_order_id);
+CREATE INDEX idx_customer_contacts_email ON customer_contacts(email);
+CREATE INDEX idx_customer_contacts_reason ON customer_contacts(reason);
+```
+
+**Migration File**: `database/migration-customer-contacts.sql`
+
 ### **Orders Table Updates** (Already in migration)
 - `customer_approval_status` ✅ (already exists)
 - `customer_approval_required` ✅ (already exists)
@@ -453,20 +549,20 @@ CREATE INDEX idx_notification_logs_type ON notification_logs(notification_type);
 - [ ] Mark token as used
 - [ ] Basic approval logic
 
-#### **Step 5: Rejection/Feedback Workflow**
-- [ ] Create API endpoint: `/api/preview/[orderId]/reject`
-- [ ] Store feedback in `customer_feedback` table
-- [ ] Update order status to `customer_revision_requested`
-- [ ] Basic feedback form
+#### **Step 5: Structured Feedback Workflow**
+- [ ] Create API endpoint: `/api/preview/contact` (structured correction intake)
+- [ ] Persist submissions in `customer_contacts` (reason, payload, opt-in)
+- [ ] Enforce one correction per order (check existing entries)
+- [ ] Display policy guardrails + preset pickers on preview page
+- [ ] Notify ops (email/Slack) when new correction arrives
 
 **Deliverables**:
 - ✅ Route structure established
-- ✅ Token system working
-- ✅ Basic UI template (placeholder - will be replaced with Developer A's previewer)
-- ✅ Database schema ready
-- ✅ Approval/rejection saves to database
-- ✅ Revision countdown display
-- ✅ Last revision acknowledgment checkbox
+- ✅ Token + approval APIs working
+- ✅ Basic preview UI in place (placeholder viewer)
+- ✅ Structured correction intake (bounded categories, guardrails)
+- ✅ Supabase tables ready (`preview_tokens`, `customer_contacts`, `notification_logs`)
+- ✅ Ops notified for each correction; one correction limit enforced
 
 **After Completion**: Developer B will move to Task 5, 6, 7 while waiting for Developer A's previewer. Full implementation (Phase 3) will happen after Developer A completes admin previewer.
 
@@ -475,8 +571,9 @@ CREATE INDEX idx_notification_logs_type ON notification_logs(notification_type);
 - `back-end/src/lib/preview-tokens.ts`
 - `back-end/src/app/api/preview/generate-token/route.ts`
 - `back-end/src/app/api/preview/[orderId]/approve/route.ts`
-- `back-end/src/app/api/preview/[orderId]/reject/route.ts`
+- `back-end/src/app/api/preview/contact/route.ts`
 - `database/migration-preview-system.sql`
+- `database/migration-customer-contacts.sql`
 
 ---
 
@@ -551,8 +648,8 @@ CREATE INDEX idx_notification_logs_type ON notification_logs(notification_type);
 - [ ] Issue type selection
 - [ ] Description textarea
 - [ ] Visual feedback for flagged pages
-- [ ] **Show revision countdown**: "Revisions remaining: [X]"
-- [ ] **On second revision**: Show checkbox "This is your last revision - I understand this will go to print directly when I click OK"
+- [ ] Display single correction notice: "You have 1 correction available"
+- [ ] Hide correction form once a ticket is submitted; direct customers to reply via email for any follow-up
 
 #### **Step 3: Disclaimer & Terms**
 - [ ] Create disclaimer modal
@@ -561,10 +658,10 @@ CREATE INDEX idx_notification_logs_type ON notification_logs(notification_type);
 - [ ] Store agreement timestamp
 
 #### **Step 4: Auto-Approval System**
-- [ ] Background job to check for expired approvals
-- [ ] Auto-approve after 14 days
-- [ ] Send notification email
-- [ ] Log auto-approval in audit_logs
+- [ ] Background job to check for pending approvals older than 3 days
+- [ ] Send reminder to ops (manual approval or escalate)
+- [ ] (Future) Auto-approve after 3 days once full automation is enabled
+- [ ] Log auto-approval / manual overrides in audit_logs
 
 **Deliverables**:
 - ✅ Full PDF preview experience
@@ -629,35 +726,76 @@ export async function validatePreviewToken(token: string): Promise<{ valid: bool
 
 ### **Amazon Message Center Integration**
 
-**SP-API Endpoint**: `POST /messaging/v1/orders/{amazonOrderId}/messages/legacy`
+**Messaging Workflow (SP-API)**  
+1. **Determine Allowed Message Types**  
+   - `GET /messaging/v1/orders/{amazonOrderId}` → expect `confirmCustomizationDetails` when order is `Unshipped`.  
+   - Fallback path: if Amazon denies messaging, raise manual notification task.
+
+2. **Upload Message Body (Document API)**  
+   - `POST /messaging/v1/orders/{amazonOrderId}/messages/confirmCustomizationDetails` requires an attachment ID.  
+   - Create HTML document with preview CTA → upload using `POST /uploads/v1/documents` (resource = `MESSAGING`).  
+   - Amazon returns `uploadDestinationId` + signed S3 URL → `PUT` HTML payload.  
+   - Store `documentId` for message payload.
+
+3. **Send Preview Message (Initial + Reminders)**  
+   - Endpoint: `POST /messaging/v1/orders/{amazonOrderId}/messages/confirmCustomizationDetails`  
+   - Payload:
 
 ```typescript
-// Send message via Amazon SP-API (PRIMARY - ALWAYS SEND)
-async function sendAmazonMessage(orderId: string, previewLink: string) {
-  const message = {
-    subject: 'Your personalized book preview is ready',
-    body: `Hi! Your personalized book is ready for preview. Please review at: ${previewLink}\n\nYou have 3 days to review. If we don't hear from you, we'll automatically approve and print your book.`
-  };
-  
-  // Use Amazon SP-API messaging endpoint
-  const response = await fetch(
-    `https://sellingpartnerapi-na.amazon.com/messaging/v1/orders/${orderId}/messages/legacy`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${amazonAccessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(message)
-    }
-  );
-  
-  // Log attempt
-  await logNotification(orderId, 'amazon_message', response.ok ? 'sent' : 'failed', orderId, response.ok ? null : await response.text());
-  
-  return response.ok;
+interface ConfirmCustomizationMessage {
+  attachments: Array<{
+    attachmentType: 'CUSTOMIZATION_DETAILS';
+    fileName: string;
+    contentType: 'text/html';
+    documentId: string;
+  }>;
 }
 ```
+
+   - HTML template includes:
+     - Hero headline + child's name
+     - Unique preview URL (`${CUSTOMER_SITE_URL}/approve/${token}`)
+     - Revision countdown (2 revisions remaining → dynamic)
+     - Reminder about 3-day auto-approval + contact instructions (Amazon Message Center + hello@littleherobooks.com)
+
+4. **Reminder Cadence**  
+   - Initial send when preview ready  
+   - Reminder Day 1 (regenerated HTML with updated countdown)  
+   - Reminder Day 2 (final warning)  
+   - Auto-approval Day 3 → send confirmation message using same endpoint noting automatic approval
+
+5. **Logging & Observability**  
+   - Persist Amazon response `messageId` + `documentId` to `notification_logs`  
+   - Store structured payload for audit (JSONB column or S3 reference)  
+   - n8n monitors for failures → manual follow-up task
+
+**Required Credentials & Scopes**  
+- LWA Client ID/Secret (`AMZ_APP_CLIENT_ID`, `AMZ_APP_CLIENT_SECRET`)  
+- LWA Refresh Token (`AMZ_REFRESH_TOKEN`)  
+- Seller ID & Marketplace (`AMZ_SELLER_ID`, `AMZ_MARKETPLACE_ID`)  
+- AWS keys for Signature V4 (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`)  
+- IAM role with `sellingpartnerapi::messaging` + `sellingpartnerapi::notifications` scope  
+- Optional: `AMZ_MESSAGING_SNS_ARN` for delivery failure alerts (future)
+
+**Code Location (Placeholder Implementation)**  
+- `back-end/src/lib/notifications/amazon-message-center.ts`  
+  - Zod-validated config loader for SP-API + HTML template builder  
+  - Implements LWA token exchange, Uploads API (document encryption + PUT), and `confirmCustomizationDetails` call  
+- `back-end/src/app/api/notifications/preview/amazon/route.ts`  
+  - Validates request, fetches order data, composes preview URL, calls helper, logs result to `notification_logs`  
+  - Returns structured JSON for n8n (success vs retry/manual follow-up)  
+- n8n workflow: `Preview Notification Dispatcher` (initial + reminders) will call this endpoint
+
+**n8n Integration Points**  
+- Workflow: *Preview Notification Dispatcher*  
+  - Input: `orderId`, `token`, `reminderType`  
+  - Calls Next.js API `/api/notifications/preview/amazon` (to be built)  
+  - Retries with exponential backoff (max 3 attempts)  
+  - Logs success/failure to Supabase (via REST or RPC)  
+- Workflow: *Auto-Approval Cron*  
+  - Detects pending approvals older than 72h  
+  - Marks order as `auto_approved`  
+  - Sends final Amazon message and writes log entry
 
 ### **Email Integration (SendGrid)** ⏳ **FUTURE**
 

@@ -366,6 +366,7 @@ Dedication Message (Optional): Text area, max 500 characters
 8. **POD Order**: POST POD /orders with PDFs + ship‑to; receive `podOrderId`
 9. **Persist**: Upsert to DB/Sheet: `orderId, podOrderId, status=submitted, pdfs, inputs`
 10. **Notify**: Slack/Email: "Created POD job for Amazon order …"
+11. **Preview Messaging**: Trigger Next.js `/api/notifications/preview/amazon` once preview is approved → Amazon Message Center sends secure link (single send for MVP) → customer submits structured correction (1 allowed) via preview page contact form (see `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md`)
 
 #### Flow B — Tracking & Shipment Confirmation (Cron 30–60 min)
 
