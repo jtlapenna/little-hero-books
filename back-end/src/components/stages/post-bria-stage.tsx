@@ -141,15 +141,21 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     setFlippingPoseId(assetId);
     
     try {
-      // Find the current pose to get its URL
-      const currentPose = poses.find(p => p.id === assetId);
+      // Find the current pose by poseNumber (more reliable than assetId which might change)
+      let currentPose = poses.find(p => p.poseNumber === poseNumber);
       if (!currentPose) {
-        alert(`Pose ${assetId} not found in current poses list`);
-        setFlippingPoseId(null);
-        return;
+        // Fallback: try finding by assetId
+        currentPose = poses.find(p => p.id === assetId);
+        if (!currentPose) {
+          console.error('[PostBriaStage] Pose not found. Available poses:', poses.map(p => ({ id: p.id, poseNumber: p.poseNumber })));
+          alert(`Pose ${poseNumber} not found. Please refresh the page and try again.`);
+          setFlippingPoseId(null);
+          return;
+        }
       }
+      
       if (!currentPose.url || currentPose.url.trim() === '') {
-        alert(`Image URL is missing for pose ${assetId}. The image may not have been generated yet.`);
+        alert(`Image URL is missing for pose ${poseNumber}. The image may not have been generated yet.`);
         setFlippingPoseId(null);
         return;
       }
