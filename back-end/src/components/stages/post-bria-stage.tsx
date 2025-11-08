@@ -149,14 +149,49 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         return;
       }
 
+      // Check if URL is a data URL (from previous flip) - if so, we need to fetch the original from R2
+      let imageUrl = currentPose.url;
+      if (imageUrl.startsWith('data:')) {
+        // Data URL from previous flip - we need to get the original image from the API
+        console.log('[PostBriaStage] URL is a data URL, fetching original from API');
+        // Fetch the original image URL from the order data
+        const orderResponse = await fetch(`/api/orders/${orderId}`);
+        if (!orderResponse.ok) {
+          throw new Error('Failed to fetch order data');
+        }
+        const orderData = await orderResponse.json();
+        const originalPose = orderData.r2Assets?.posesBgRemoved?.find((p: any) => p.poseNumber === poseNumber);
+        if (!originalPose || !originalPose.url) {
+          throw new Error('Original image URL not found in order data');
+        }
+        imageUrl = originalPose.url;
+        console.log('[PostBriaStage] Using original URL:', imageUrl);
+      }
+
+      // Ensure URL is absolute if it's a relative path
+      if (imageUrl.startsWith('/')) {
+        imageUrl = window.location.origin + imageUrl;
+      }
+
       // Load the image
       const img = new Image();
       img.crossOrigin = 'anonymous'; // Allow CORS if needed
       
       await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = currentPose.url;
+        const timeout = setTimeout(() => {
+          reject(new Error('Image load timeout'));
+        }, 30000); // 30 second timeout
+        
+        img.onload = () => {
+          clearTimeout(timeout);
+          resolve(null);
+        };
+        img.onerror = (error) => {
+          clearTimeout(timeout);
+          console.error('[PostBriaStage] Image load error:', error, 'URL:', imageUrl);
+          reject(new Error(`Failed to load image from ${imageUrl}. This may be a CORS issue or the image may not exist.`));
+        };
+        img.src = imageUrl;
       });
 
       // Create canvas and flip the image horizontally
