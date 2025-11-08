@@ -26,8 +26,9 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   }, [isApproved]);
   
   // Initialize with empty state - will be populated from R2 data
-  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number }>>([]);
+  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number; comparisonMode?: 'reference' | 'background' | null; comparisonImageUrl?: string; comparisonLabel?: string; poseNumber?: number; pageNumber?: number; onFlip?: () => void; isFlipping?: boolean }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
+  const [flippingPoseId, setFlippingPoseId] = useState<string | null>(null);
 
   // Update state when R2 assets change - use ref to track previous key and prevent infinite loops
   const posesBgRemoved = order?.r2Assets?.posesBgRemoved || [];
@@ -70,6 +71,43 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         // BUT: if user manually unflagged it, don't re-flag it (unless it's missing)
         const shouldBeFlagged = isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
         
+        // Map pose to page number (first page that uses this pose)
+        const poseToFirstPage: Record<number, number> = {
+          0: 0,  1: 1,  2: 2,  3: 3,  4: 4,  5: 5,  6: 6,
+          7: 8,  8: 9,  9: 10, 10: 11, 11: 12, 12: 14
+        };
+        const pageNumber = poseToFirstPage[poseNumber] ?? null;
+        
+        // Build background URL
+        let backgroundUrl: string | null = null;
+        if (pageNumber !== null) {
+          const sceneSlugs = [
+            'dedication',        // page00
+            'twilight-walk',    // page01
+            'night-forest',     // page02
+            'magic-doorway',    // page03
+            'courage-leap',     // page04
+            'morning-meadow',   // page05
+            'tall-forest',      // page06
+            'mountain-vista',   // page07
+            'picnic-surprise',  // page08
+            'beach-discovery',  // page09
+            'crystal-cave',     // page10
+            'giant-flowers',    // page11
+            'almost-there',     // page12
+            'animal-reveal',    // page13
+            'flying-home'       // page14
+          ];
+          
+          if (pageNumber === 0) {
+            backgroundUrl = '/api/assets/book-mvp-simple-adventure/backgrounds/page00-dedication.png';
+          } else if (pageNumber >= 1 && pageNumber <= 14) {
+            const slug = sceneSlugs[pageNumber];
+            const padded = String(pageNumber).padStart(2, '0');
+            backgroundUrl = `/api/assets/book-mvp-simple-adventure/backgrounds/page${padded}-${slug}.png`;
+          }
+        }
+        
         return {
           id: poseId,
           name: `Pose ${poseNumber} (BG Removed)${isMissing ? ' (Missing)' : ''}`,
@@ -79,14 +117,72 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           isMissing: isMissing,
           status: pose.status,
           reviewReason: pose.reviewReason,
-          attempts: pose.attempts
+          attempts: pose.attempts,
+          // Comparison mode data for Post-Bria
+          comparisonMode: backgroundUrl ? 'background' as const : null,
+          comparisonImageUrl: backgroundUrl ?? undefined,
+          comparisonLabel: 'Page Background',
+          poseNumber: poseNumber,
+          pageNumber: pageNumber ?? undefined,
+          // Flip handler
+          onFlip: () => handleFlip(poseId, poseNumber),
+          isFlipping: flippingPoseId === poseId
         };
       }));
     } else {
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [posesBgRemoved, orderId]); // Depend on the array directly, but use ref to prevent unnecessary updates
+  }, [posesBgRemoved, orderId, flippingPoseId]); // Include flippingPoseId to update isFlipping state
+
+  const handleFlip = async (assetId: string, poseNumber: number) => {
+    console.log('[PostBriaStage] handleFlip called with assetId:', assetId, 'poseNumber:', poseNumber);
+    
+    setFlippingPoseId(assetId);
+    
+    try {
+      const response = await fetch(`/api/orders/${orderId}/flip-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          poseNumber: poseNumber,
+          stage: 'postBria'
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to flip image';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+          console.error('[PostBriaStage] API error response:', error);
+        } catch {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        alert(errorMessage);
+        setFlippingPoseId(null);
+        return;
+      }
+
+      const result = await response.json();
+      console.log('[PostBriaStage] Flip successful:', result);
+
+      // Refresh the order data to show the flipped image
+      if (onRefresh) {
+        await onRefresh();
+      } else {
+        // Fallback: reload the page
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('[PostBriaStage] Error flipping image:', error);
+      alert('Failed to flip image. Please try again.');
+    } finally {
+      setFlippingPoseId(null);
+    }
+  };
 
   const handleDownload = async (assetId: string) => {
     try {
