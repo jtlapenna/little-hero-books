@@ -17,7 +17,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPhase, setSelectedPhase] = useState<OrderPhase | null>(null);
-  const [viewMode, setViewMode] = useState<'buckets' | 'table'>('buckets');
+  const [viewMode, setViewMode] = useState<'buckets' | 'table'>('table');
 
   useEffect(() => {
     // Fetch orders from API

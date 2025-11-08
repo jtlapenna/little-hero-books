@@ -19,7 +19,7 @@ export default function ReviewPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'orderDate' | 'firstName' | 'lastName' | 'platform'>('orderDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [viewMode, setViewMode] = useState<'cards' | 'list' | 'stages'>('stages');
+  const [viewMode, setViewMode] = useState<'cards' | 'list' | 'stages'>('cards');
 
   useEffect(() => {
     // Fetch orders from API

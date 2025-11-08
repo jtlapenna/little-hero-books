@@ -16,11 +16,11 @@ function manifestToOrder(orderId: string, manifest: any): Order {
   // Determine status from workflow stage
   let status = OrderStatus.QUEUED_FOR_PROCESSING;
   if (workflow.currentStage === '2A-complete') {
-    status = OrderStatus.AI_GENERATION_IN_PROGRESS;
+    status = OrderStatus.PENDING_BASE_REVIEW;
   } else if (workflow.currentStage === '2B-complete') {
-    status = OrderStatus.PENDING_ASSEMBLY; // Maps to bria_processing_complete -> pending_assembly
+    status = OrderStatus.PENDING_BG_REMOVAL_REVIEW;
   } else if (workflow.currentStage === '3-complete') {
-    status = OrderStatus.PENDING_ASSEMBLY_REVIEW; // Maps to book_assembly_completed -> pending_assembly_review
+    status = OrderStatus.PENDING_ASSEMBLY_REVIEW;
   }
   
   // Extract customer name from order data
