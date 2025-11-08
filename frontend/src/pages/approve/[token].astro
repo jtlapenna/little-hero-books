@@ -72,10 +72,10 @@ if (!token) {
                 Review your personalized book for <span id="child-name" class="font-semibold">your child</span>
               </p>
             </div>
-            <svg class="preview-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-            </svg>
+            <div class="header-actions">
+              <button id="revision-btn" class="btn btn-outline btn-revision" type="button">I need a correction</button>
+              <button id="approve-btn" class="btn btn-primary btn-approve" disabled>Approve Book</button>
+            </div>
           </div>
         </div>
 
@@ -112,15 +112,6 @@ if (!token) {
               <p class="detail-label">Age</p>
               <p id="age-value" class="detail-value"></p>
             </div>
-          </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="preview-card">
-          <div class="action-buttons">
-            <button id="approve-btn" class="btn btn-primary" disabled>
-              Approve Book
-            </button>
           </div>
         </div>
 
@@ -274,6 +265,8 @@ if (!token) {
   const contactEmailInput = document.getElementById('contact-email');
   const contactNameInput = document.getElementById('contact-name');
   const mailtoLink = document.getElementById('mailto-link');
+  const revisionBtn = document.getElementById('revision-btn');
+  const correctionCard = document.getElementById('correction-card');
 
   function populateReasonOptions() {
     reasonSelect.innerHTML = '<option value="">Select a correction</option>';
@@ -359,9 +352,11 @@ if (!token) {
       correctionAvailability.classList.add('correction-used');
       correctionForm.style.display = 'none';
       correctionLocked.style.display = 'block';
-      correctionSuccess.style.display = 'none';
+      correctionSuccess.style.display = 'block';
       lastRevisionContainer.style.display = 'block';
       approvalConfirmBtn.disabled = !acknowledgeCheckbox.checked;
+      revisionBtn.textContent = 'View correction details';
+      revisionBtn.classList.add('correction-used');
     } else {
       correctionAvailability.textContent = 'You have 1 correction available.';
       correctionAvailability.classList.remove('correction-used');
@@ -373,6 +368,8 @@ if (!token) {
       lastRevisionContainer.style.display = 'none';
       acknowledgeCheckbox.checked = false;
       approvalConfirmBtn.disabled = false;
+      revisionBtn.textContent = 'I need a correction';
+      revisionBtn.classList.remove('correction-used');
     }
   }
 
@@ -592,6 +589,14 @@ if (!token) {
 
   approvalConfirmBtn.addEventListener('click', handleApprove);
 
+  revisionBtn.addEventListener('click', () => {
+    if (correctionCard) {
+      correctionCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      correctionCard.classList.add('jump-highlight');
+      setTimeout(() => correctionCard.classList.remove('jump-highlight'), 800);
+    }
+  });
+
   acknowledgeCheckbox.addEventListener('change', () => {
     approvalConfirmBtn.disabled = correctionUsed && !acknowledgeCheckbox.checked;
   });
@@ -602,7 +607,7 @@ if (!token) {
 <style>
   .preview-container {
     min-height: 100vh;
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
+    background: linear-gradient(180deg, #f5f0ff 0%, #ffffff 60%);
   }
 
   .loading-content,
@@ -653,22 +658,23 @@ if (!token) {
   }
 
   .preview-header {
-    background: white;
+    background: linear-gradient(135deg, #ffffff 0%, #f5f0ff 100%);
     border-bottom: 1px solid #e5e7eb;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    padding: var(--spacing-md) 0;
+    box-shadow: 0 12px 30px rgba(125, 89, 255, 0.08);
+    padding: var(--spacing-lg) 0;
   }
 
   .header-content {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: var(--spacing-lg);
   }
 
   .header-brand {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-md);
   }
 
   .header-icon {
@@ -676,38 +682,101 @@ if (!token) {
   }
 
   .header-title {
-    font-size: 1.25rem;
+    font-size: 1.75rem;
     font-weight: 700;
     color: var(--color-navy-midnight);
     margin: 0;
   }
 
   .header-subtitle {
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     color: var(--color-soft-charcoal);
     margin: 0;
   }
 
-  .preview-main {
-    padding: var(--spacing-lg) 0;
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: none;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #7c3aed 0%, #f97316 100%);
+    color: #ffffff;
+    box-shadow: 0 12px 24px rgba(124, 58, 237, 0.2);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 32px rgba(124, 58, 237, 0.25);
+  }
+
+  .btn-secondary {
+    background: #ef4444;
+    color: white;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: #dc2626;
+  }
+
+  .btn-secondary:disabled {
+    background: #d1d5db;
+  }
+
+  .btn-outline {
+    background: rgba(124, 58, 237, 0.08);
+    color: var(--color-navy-midnight);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+  }
+
+  .btn-outline:hover {
+    background: rgba(124, 58, 237, 0.12);
+    transform: translateY(-1px);
+  }
+
+  .btn-revision {
+    color: #3f3d56;
+  }
+
+  .btn-revision.correction-used {
+    opacity: 0.6;
   }
 
   .preview-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 10px 40px rgba(79, 70, 229, 0.08);
     padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
   }
 
   .preview-card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: var(--spacing-lg);
+    flex-wrap: wrap;
   }
 
   .preview-title {
-    font-size: 1.875rem;
+    font-size: 2rem;
     font-weight: 700;
     color: var(--color-navy-midnight);
     margin-bottom: var(--spacing-sm);
@@ -788,6 +857,7 @@ if (!token) {
     justify-content: space-between;
     gap: var(--spacing-md);
     margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
   }
 
   .correction-availability {
@@ -805,21 +875,21 @@ if (!token) {
   }
 
   .reason-banner {
-    background: #fff7ed;
-    border: 1px solid #fb923c;
-    color: #9a3412;
-    border-radius: 8px;
+    background: rgba(249, 115, 22, 0.1);
+    border: 1px solid rgba(249, 115, 22, 0.4);
+    color: #a04c12;
+    border-radius: 10px;
     padding: var(--spacing-sm) var(--spacing-md);
     margin-bottom: var(--spacing-md);
     font-size: 0.9rem;
   }
 
   .policy-box {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: rgba(124, 58, 237, 0.06);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 12px;
     padding: var(--spacing-md);
-    color: #1e293b;
+    color: #3f3d56;
     font-size: 0.95rem;
     margin-top: var(--spacing-md);
   }
@@ -842,20 +912,20 @@ if (!token) {
   }
 
   .success-banner {
-    background: #ecfdf5;
-    border: 1px solid #34d399;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
     color: #047857;
-    border-radius: 8px;
+    border-radius: 10px;
     padding: var(--spacing-sm) var(--spacing-md);
     margin-bottom: var(--spacing-md);
     font-size: 0.95rem;
   }
 
   .locked-banner {
-    background: #f1f5f9;
-    border: 1px solid #cbd5f5;
+    background: rgba(15, 23, 42, 0.05);
+    border: 1px solid rgba(148, 163, 184, 0.4);
     color: #334155;
-    border-radius: 8px;
+    border-radius: 10px;
     padding: var(--spacing-sm) var(--spacing-md);
     margin-bottom: var(--spacing-md);
     font-size: 0.95rem;
@@ -881,53 +951,6 @@ if (!token) {
     display: flex;
     gap: var(--spacing-md);
     justify-content: center;
-  }
-
-  .btn {
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: none;
-  }
-
-  .btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .btn-primary {
-    background: #10b981;
-    color: white;
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background: #059669;
-  }
-
-  .btn-secondary {
-    background: #ef4444;
-    color: white;
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: #dc2626;
-  }
-
-  .btn-secondary:disabled {
-    background: #d1d5db;
-  }
-
-  .btn-outline {
-    background: white;
-    color: var(--color-navy-midnight);
-    border: 1px solid #d1d5db;
-  }
-
-  .btn-outline:hover {
-    background: #f9fafb;
   }
 
   .modal {
@@ -1054,6 +1077,16 @@ if (!token) {
     outline: none;
     border-color: var(--color-hero-coral);
     box-shadow: 0 0 0 3px rgba(249, 120, 107, 0.1);
+  }
+
+  .correction-card.jump-highlight {
+    animation: correctionPulse 0.7s ease;
+  }
+
+  @keyframes correctionPulse {
+    0% { box-shadow: 0 0 0 rgba(124, 58, 237, 0.0); }
+    50% { box-shadow: 0 0 30px rgba(124, 58, 237, 0.25); }
+    100% { box-shadow: 0 10px 40px rgba(79, 70, 229, 0.08); }
   }
 
   @media (max-width: 768px) {
