@@ -12,12 +12,10 @@ interface PreBriaStageProps {
   isApproved: boolean;
   onApprove: () => void;
   onInitiateWorkflow: () => void;
+  onRefresh?: () => void;
 }
 
-export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow }: PreBriaStageProps) {
-  // Debug: Check if order has R2 assets
-  console.log('PreBriaStage rendered with order:', order?.orderId, 'R2 assets:', !!order?.r2Assets);
-  
+export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PreBriaStageProps) {
   // Initialize with empty state - will be populated from R2 data
   const [baseCharacter, setBaseCharacter] = useState({
     id: 'base-character',
@@ -27,32 +25,43 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     hasTransparentBackground: false
   });
 
-  const [poses, setPoses] = useState([]);
+  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number }>>([]);
+  const [isReplacing, setIsReplacing] = useState<string | null>(null);
 
   // Two-step workflow state
   const [approveStageConfirmed, setApproveStageConfirmed] = useState(false);
   const [triggerBackgroundRemovalConfirmed, setTriggerBackgroundRemovalConfirmed] = useState(false);
 
-  // Update state when order data changes
+  // Update state when R2 assets change - use JSON stringify for stable comparison
+  // This prevents infinite loops when order object reference changes but data is the same
+  const r2Assets = order?.r2Assets;
+  const r2AssetsKey = r2Assets ? JSON.stringify({
+    baseCharacterUrl: r2Assets.baseCharacter?.url || '',
+    posesCount: r2Assets.poses?.length || 0,
+    poses: r2Assets.poses?.map(p => ({ poseNumber: p.poseNumber, url: p.url, isMissing: p.isMissing })) || []
+  }) : '';
+  
   useEffect(() => {
-    if (!order?.r2Assets) {
-      console.log('PreBriaStage: No R2 assets available');
+    console.log('[PreBriaStage] useEffect triggered, r2AssetsKey length:', r2AssetsKey?.length);
+    if (!r2Assets) {
+      console.log('[PreBriaStage] No r2Assets, returning early');
       return;
     }
-
-    console.log('PreBriaStage: Updating with R2 data:', order.r2Assets);
+    
+    console.log('[PreBriaStage] Processing r2Assets, poses count:', r2Assets.poses?.length);
     
     // Update base character if available
-    if (order.r2Assets.baseCharacter && order.r2Assets.baseCharacter.url) {
-      console.log('PreBriaStage: Setting base character from R2');
+    if (r2Assets.baseCharacter && r2Assets.baseCharacter.url) {
+      console.log('[PreBriaStage] Setting base character:', r2Assets.baseCharacter.url.substring(0, 60));
       setBaseCharacter({
         id: 'base-character',
         name: 'Base Character',
-        url: order.r2Assets.baseCharacter.url,
+        url: r2Assets.baseCharacter.url,
         isFlagged: false,
         hasTransparentBackground: false
       });
     } else {
+      console.log('[PreBriaStage] No base character URL, resetting');
       // Reset base character if no R2 data
       setBaseCharacter({
         id: 'base-character',
@@ -64,32 +73,151 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     }
 
     // Update poses if available - use actual poseNumber from data to support any number of poses (including pose0)
-    if (order.r2Assets.poses && order.r2Assets.poses.length > 0) {
-      console.log('PreBriaStage: Setting poses from R2:', order.r2Assets.poses.length, 'poses');
-      setPoses(order.r2Assets.poses.map((pose) => {
+    // Include missing/exhausted poses as placeholders
+    const posesData = r2Assets.poses || [];
+    console.log('[PreBriaStage] posesData length:', posesData.length, 'sample:', posesData.slice(0, 2).map(p => ({ poseNumber: p.poseNumber, url: p.url?.substring(0, 50) })));
+    if (posesData.length > 0) {
+      const mappedPoses = posesData.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
+        const isMissing = pose.isMissing || !pose.url;
         return {
           id: `pose${String(poseNumber).padStart(2, '0')}`,
-          name: `Pose ${poseNumber}`,
-          url: pose.url,
-          isFlagged: false,
-          hasTransparentBackground: false
+          name: `Pose ${poseNumber}${isMissing ? ' (Missing)' : ''}`,
+          url: pose.url || '',
+          isFlagged: pose.isFlagged || isMissing || false, // Auto-flag missing poses
+          hasTransparentBackground: false,
+          isMissing: isMissing,
+          status: pose.status,
+          reviewReason: pose.reviewReason,
+          attempts: pose.attempts
         };
-      }));
+      });
+      console.log('[PreBriaStage] Mapped poses count:', mappedPoses.length, 'sample:', mappedPoses.slice(0, 2).map(p => ({ id: p.id, url: p.url?.substring(0, 50) })));
+      setPoses(mappedPoses);
     } else {
+      console.log('[PreBriaStage] No poses data, resetting poses array');
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [order]);
+  }, [r2AssetsKey, orderId]); // Use stable key instead of object reference
 
-  const handleDownload = (assetId: string) => {
-    console.log('Downloading asset:', assetId);
-    // In real implementation, this would trigger a download
+  const handleDownload = async (assetId: string) => {
+    try {
+      // Find the asset URL
+      let assetUrl: string | null = null;
+      if (assetId === 'base-character') {
+        assetUrl = baseCharacter.url;
+      } else {
+        const pose = poses.find(p => p.id === assetId);
+        assetUrl = pose?.url || null;
+      }
+
+      if (!assetUrl) {
+        console.error('Asset URL not found for:', assetId);
+        alert('Asset not found');
+        return;
+      }
+
+      // Trigger download by creating a temporary link
+      const link = document.createElement('a');
+      link.href = assetUrl;
+      link.download = `${assetId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download asset');
+    }
   };
 
-  const handleReplace = (assetId: string, file: File) => {
-    console.log('Replacing asset:', assetId, file.name);
-    // In real implementation, this would upload the new file to R2
+  const handleReplace = async (assetId: string, file: File) => {
+    console.log('[PreBriaStage] handleReplace called with assetId:', assetId, 'file:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    
+    // Disable base-character replacement (not tracked in manifest)
+    if (assetId === 'base-character') {
+      console.log('[PreBriaStage] Base character replacement blocked');
+      alert('Base character replacement is not yet supported');
+      return;
+    }
+
+    console.log('[PreBriaStage] Setting isReplacing state to:', assetId);
+    setIsReplacing(assetId);
+    
+    try {
+      // Extract pose number from assetId (e.g., "pose01" -> 1)
+      const match = assetId.match(/pose(\d+)/);
+      if (!match) {
+        console.error('[PreBriaStage] Could not determine poseNumber for:', assetId);
+        alert('Invalid asset ID');
+        setIsReplacing(null);
+        return;
+      }
+
+      const poseNumber = parseInt(match[1], 10);
+      console.log('[PreBriaStage] Extracted poseNumber:', poseNumber);
+
+      // Create form data
+      console.log('[PreBriaStage] Creating FormData...');
+      const formData = new FormData();
+      formData.append('poseNumber', poseNumber.toString());
+      formData.append('stage', 'preBria');
+      formData.append('file', file);
+      console.log('[PreBriaStage] FormData created, file appended:', file.name);
+      // replacedBy is optional - will be added when auth is implemented
+
+      // Call API endpoint
+      const apiUrl = `/api/orders/${orderId}/replace-image`;
+      console.log('[PreBriaStage] Calling API:', apiUrl);
+      console.log('[PreBriaStage] FormData entries:', {
+        poseNumber: formData.get('poseNumber'),
+        stage: formData.get('stage'),
+        file: formData.get('file') ? 'present' : 'missing'
+      });
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      console.log('[PreBriaStage] API response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to replace image';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+          console.error('[PreBriaStage] API error response:', error);
+        } catch {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+          console.error('[PreBriaStage] Failed to parse error response');
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('[PreBriaStage] Image replaced successfully:', result);
+
+      // Refresh the order data to show updated image
+      if (onRefresh) {
+        console.log('[PreBriaStage] Calling onRefresh...');
+        await onRefresh();
+        console.log('[PreBriaStage] onRefresh completed');
+      } else {
+        console.warn('[PreBriaStage] No onRefresh callback provided');
+      }
+    } catch (error: any) {
+      console.error('[PreBriaStage] Replace failed with error:', error);
+      console.error('[PreBriaStage] Error stack:', error.stack);
+      alert(error.message || 'Failed to replace image');
+    } finally {
+      console.log('[PreBriaStage] Clearing isReplacing state');
+      setIsReplacing(null);
+    }
   };
 
   const handleFlag = (assetId: string) => {
@@ -122,14 +250,18 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
   const allAssets = [baseCharacter, ...poses];
   const flaggedCount = allAssets.filter(asset => asset.isFlagged).length;
+  const missingCount = poses.filter(pose => pose.isMissing || !pose.url).length;
   
-  // Check that all images exist and have URLs
+  // Check that we have some images to display (even if some are missing/placeholders)
   const baseCharacterExists = baseCharacter.url && baseCharacter.url.length > 0;
-  const allPosesExist = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0);
-  const hasAllImages = baseCharacterExists && allPosesExist;
+  const hasSomePoses = poses.length > 0;
+  const hasAllImages = baseCharacterExists && hasSomePoses; // Changed: allow rendering even if some poses are missing (they'll show as placeholders)
   
-  // Can approve stage only if all images exist and none are flagged
-  const canApproveStage = flaggedCount === 0 && hasAllImages;
+  // Separate check for whether ALL poses exist (for approval logic)
+  const allPosesExist = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0 && !pose.isMissing);
+  
+  // Can approve stage only if all images exist, none are missing, and none are flagged
+  const canApproveStage = flaggedCount === 0 && baseCharacterExists && allPosesExist && missingCount === 0;
   
   // Can trigger background removal if approve stage is confirmed
   const canTriggerBackgroundRemoval = approveStageConfirmed && canApproveStage;
@@ -183,6 +315,8 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             onApprove={() => {}} // Base character doesn't need separate approval
             canApprove={false}
             isApproved={true}
+            isReplacing={isReplacing}
+            disabledReplaceIds={['base-character']}
           />
 
           {/* Poses Section */}
@@ -196,6 +330,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             onApprove={onApprove}
             canApprove={true}
             isApproved={isApproved}
+            isReplacing={isReplacing}
           />
         </>
       ) : (
@@ -233,7 +368,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         <div>
           <h4 className="text-lg font-medium text-gray-900 mb-4">Stage Actions</h4>
           <p className="text-sm text-gray-600 mb-4">
-            {!hasAllImages
+            {!baseCharacterExists || !allPosesExist || missingCount > 0
               ? 'All images must be available before approving. Please wait for character generation to complete.'
               : flaggedCount > 0
               ? `Please address ${flaggedCount} flagged item${flaggedCount !== 1 ? 's' : ''} before approving.`

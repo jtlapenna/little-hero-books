@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AssetGrid } from '@/components/assets/asset-grid';
 import { CheckCircle, Play, Eye, RefreshCw } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
@@ -26,41 +26,158 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   }, [isApproved]);
   
   // Initialize with empty state - will be populated from R2 data
-  const [poses, setPoses] = useState([]);
+  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number }>>([]);
+  const [isReplacing, setIsReplacing] = useState<string | null>(null);
 
-  // Update state when order data changes - use actual poseNumber from data to support any number of poses (including pose0)
+  // Update state when R2 assets change - use ref to track previous key and prevent infinite loops
+  const posesBgRemoved = order?.r2Assets?.posesBgRemoved || [];
+  const prevKeyRef = useRef<string>('');
+  
   useEffect(() => {
-    if (order.r2Assets?.posesBgRemoved && order.r2Assets.posesBgRemoved.length > 0) {
-      console.log('PostBriaStage: Setting poses from R2:', order.r2Assets.posesBgRemoved.length, 'poses');
-      setPoses(order.r2Assets.posesBgRemoved.map((pose) => {
+    // Calculate stable key from actual data - include isFlagged and needsReview to detect flag changes
+    const currentKey = JSON.stringify(posesBgRemoved.map(p => ({ 
+      poseNumber: p.poseNumber, 
+      url: p.url, 
+      isMissing: p.isMissing,
+      isFlagged: p.isFlagged,
+      needsReview: p.needsReview
+    })));
+    
+    // Only update if the key actually changed
+    if (currentKey === prevKeyRef.current) {
+      return;
+    }
+    
+    prevKeyRef.current = currentKey;
+    
+    if (posesBgRemoved.length > 0) {
+      setPoses(posesBgRemoved.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
+        const isMissing = pose.isMissing || !pose.url;
+        // Set isFlagged based on isFlagged, needsReview, or isMissing
+        const isFlagged = pose.isFlagged || pose.needsReview || isMissing || false;
         return {
           id: `pose${String(poseNumber).padStart(2, '0')}-bg-removed`,
-          name: `Pose ${poseNumber} (BG Removed)`,
-          url: pose.url,
-          isFlagged: false,
-          hasTransparentBackground: true
+          name: `Pose ${poseNumber} (BG Removed)${isMissing ? ' (Missing)' : ''}`,
+          url: pose.url || '',
+          isFlagged: isFlagged, // Auto-flag missing poses and poses needing review
+          hasTransparentBackground: true,
+          isMissing: isMissing,
+          status: pose.status,
+          reviewReason: pose.reviewReason,
+          attempts: pose.attempts
         };
       }));
     } else {
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [order]);
+  }, [posesBgRemoved, orderId]); // Depend on the array directly, but use ref to prevent unnecessary updates
 
-  const handleDownload = (assetId: string) => {
-    console.log('Downloading asset:', assetId);
-    // In real implementation, this would trigger a download
+  const handleDownload = async (assetId: string) => {
+    try {
+      // Find the asset URL
+      const pose = poses.find(p => p.id === assetId);
+      const assetUrl = pose?.url || null;
+
+      if (!assetUrl) {
+        console.error('Asset URL not found for:', assetId);
+        alert('Asset not found');
+        return;
+      }
+
+      // Trigger download by creating a temporary link
+      const link = document.createElement('a');
+      link.href = assetUrl;
+      link.download = `${assetId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download asset');
+    }
   };
 
-  const handleReplace = (assetId: string, file: File) => {
-    console.log('Replacing asset:', assetId, file.name);
-    // In real implementation, this would upload the new file to R2
-    // After replacement, refresh to show updated image
+  const handleReplace = async (assetId: string, file: File) => {
+    console.log('[PostBriaStage] handleReplace called with assetId:', assetId, 'file:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    
+    console.log('[PostBriaStage] Setting isReplacing state to:', assetId);
+    setIsReplacing(assetId);
+    
+    try {
+      // Extract pose number from assetId (e.g., "pose01" -> 1)
+      const match = assetId.match(/pose(\d+)/);
+      if (!match) {
+        console.error('[PostBriaStage] Could not determine poseNumber for:', assetId);
+        alert('Invalid asset ID');
+        setIsReplacing(null);
+        return;
+      }
+
+      const poseNumber = parseInt(match[1], 10);
+      console.log('[PostBriaStage] Extracted poseNumber:', poseNumber);
+
+      // Create form data
+      console.log('[PostBriaStage] Creating FormData...');
+      const formData = new FormData();
+      formData.append('poseNumber', poseNumber.toString());
+      formData.append('stage', 'postBria');
+      formData.append('file', file);
+      console.log('[PostBriaStage] FormData created, file appended:', file.name);
+      // replacedBy is optional - will be added when auth is implemented
+
+      // Call API endpoint
+      const apiUrl = `/api/orders/${orderId}/replace-image`;
+      console.log('[PostBriaStage] Calling API:', apiUrl);
+      console.log('[PostBriaStage] FormData entries:', {
+        poseNumber: formData.get('poseNumber'),
+        stage: formData.get('stage'),
+        file: formData.get('file') ? 'present' : 'missing'
+      });
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      console.log('[PostBriaStage] API response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to replace image';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+          console.error('[PostBriaStage] API error response:', error);
+        } catch {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+          console.error('[PostBriaStage] Failed to parse error response');
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('[PostBriaStage] Image replaced successfully:', result);
+
+      // Refresh the order data to show updated image
     if (onRefresh) {
-      setTimeout(() => {
-        handleRefresh();
-      }, 1000); // Wait 1 second for upload to complete
+        console.log('[PostBriaStage] Calling onRefresh...');
+        await onRefresh();
+        console.log('[PostBriaStage] onRefresh completed');
+      } else {
+        console.warn('[PostBriaStage] No onRefresh callback provided');
+      }
+    } catch (error: any) {
+      console.error('[PostBriaStage] Replace failed with error:', error);
+      console.error('[PostBriaStage] Error stack:', error.stack);
+      alert(error.message || 'Failed to replace image');
+    } finally {
+      console.log('[PostBriaStage] Clearing isReplacing state');
+      setIsReplacing(null);
     }
   };
 
@@ -95,10 +212,11 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   };
 
   const flaggedCount = poses.filter(asset => asset.isFlagged).length;
-  const hasImages = poses.length > 0;
+  const missingCount = poses.filter(pose => pose.isMissing || !pose.url).length;
+  const hasImages = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0 && !pose.isMissing);
   // Post‑Bria approval rule: if 2B populated images and none are flagged, allow approval
   const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
-  const canApprove = flaggedCount === 0 && hasImages;
+  const canApprove = flaggedCount === 0 && hasImages && missingCount === 0;
   const isApprovedEffective = approveStageConfirmed || isApproved;
   const canTriggerAssembly = isApprovedEffective && hasImages;
 
@@ -147,8 +265,14 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     }
   };
 
+  // Un-confirm approval when flags are set (same as Pre-Bria)
   useEffect(() => {
     setFlaggedCount(orderId, 'postBria', flaggedCount);
+    
+    // If any asset is flagged, un-confirm approval
+    if (flaggedCount > 0) {
+      setApproveStageConfirmed(false);
+    }
   }, [orderId, flaggedCount]);
 
   return (
@@ -199,6 +323,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           canApprove={true}
           isApproved={isApproved}
           showBlackBackground={showBlackBackground}
+          isReplacing={isReplacing}
         />
       ) : (
         <div className="bg-gray-50 rounded-lg p-8 text-center">

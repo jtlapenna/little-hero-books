@@ -11,6 +11,7 @@ interface PostPdfStageProps {
   isApproved: boolean;
   onApprove: () => void;
   onInitiateWorkflow: () => void;
+  onRefresh?: () => void;
 }
 
 interface PageData {
@@ -45,7 +46,7 @@ function createSpreads(pages: PageData[]): SpreadData[] {
   return spreads;
 }
 
-export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow }: PostPdfStageProps) {
+export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PostPdfStageProps) {
   const [pdfAsset, setPdfAsset] = useState({
     id: 'compiled-pdf',
     name: 'Compiled PDF',
@@ -351,7 +352,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           /* Simulated white page - no image needed */
         }
       `}} />
-      <div className="space-y-8">
+    <div className="space-y-8">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -474,20 +475,20 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             <div className="bg-gray-100 flex items-center justify-center p-8 relative">
               {((currentSpread.leftPage && imageLoading.left) || (currentSpread.rightPage && imageLoading.right)) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-                  <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
-                </div>
-              )}
-              
+                      <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+                    </div>
+                  )}
+                  
               {(imageError.left || imageError.right) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-                  <div className="text-center">
-                    <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                      <div className="text-center">
+                        <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
                     <p className="text-red-600 text-sm">
                       {imageError.left || imageError.right}
                     </p>
-                  </div>
-                </div>
-              )}
+                      </div>
+                    </div>
+                  )}
 
               <div className="spread-container w-full max-w-full">
                 <div className="two-page-spread">
@@ -540,44 +541,44 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     <img
                       src={currentSpread.rightPage.previewImageUrl}
                       alt={`Page ${currentSpread.rightPage.pageNumber}`}
-                      onLoad={() => {
+                    onLoad={() => {
                         console.log(`[Spreads] ✓ Right image loaded successfully for page ${currentSpread.rightPage!.pageNumber}`);
                         setImageLoading(prev => ({ ...prev, right: false }));
                         setImageError(prev => ({ ...prev, right: null }));
-                      }}
-                      onError={async (e) => {
-                        const img = e.currentTarget;
+                    }}
+                    onError={async (e) => {
+                      const img = e.currentTarget;
                         const url = currentSpread.rightPage!.previewImageUrl;
-                        
-                        try {
-                          const response = await fetch(url, { method: 'HEAD' });
+                      
+                      try {
+                        const response = await fetch(url, { method: 'HEAD' });
                           console.error(`[Spreads] ✗ Right image failed to load for page ${currentSpread.rightPage!.pageNumber}:`, {
-                            url,
-                            httpStatus: response.status,
-                            httpStatusText: response.statusText,
-                            error: e
-                          });
-                        } catch (fetchError) {
+                          url,
+                          httpStatus: response.status,
+                          httpStatusText: response.statusText,
+                          error: e
+                        });
+                      } catch (fetchError) {
                           console.error(`[Spreads] ✗ Right image fetch error for page ${currentSpread.rightPage!.pageNumber}:`, {
-                            url,
-                            fetchError,
-                            error: e
-                          });
-                        }
-                        
+                          url,
+                          fetchError,
+                          error: e
+                        });
+                      }
+                      
                         setImageLoading(prev => ({ ...prev, right: false }));
                         setImageError(prev => ({ ...prev, right: `Failed to load page ${currentSpread.rightPage!.pageNumber}` }));
-                      }}
+                    }}
                       className={`transition-opacity duration-200 ${
                         imageLoading.right ? 'opacity-0' : 'opacity-100'
-                      }`}
-                      style={{
+                    }`}
+                    style={{
                         display: imageError.right ? 'none' : 'block'
-                      }}
-                    />
+                    }}
+                  />
                   ) : (
                     <div className="white-page" />
-                  )}
+              )}
                 </div>
               </div>
             </div>

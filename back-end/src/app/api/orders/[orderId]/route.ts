@@ -120,12 +120,14 @@ async function getOrder(
     throw createValidationError('Invalid order ID provided');
   }
   
-  // Try to load manifest for this order (same as orders list route)
+  // Try to load manifest for this order
+  // Prefer 2b over 2a because 2b contains Post-Bria QA results (e.g., transparency_fail)
+  // 2b manifest includes all 2a data plus additional Post-Bria processing results
   let manifest: any = null;
   let manifestKey = '';
   let loadedStage: string | null = null;
   
-  for (const stage of ['2a', '2b', '3'] as const) {
+  for (const stage of ['2b', '2a', '3'] as const) {
     try {
       manifestKey = buildManifestKey(orderId, stage);
       console.log(`[GET /api/orders/[orderId]] Trying to load manifest: ${manifestKey}`);
@@ -185,10 +187,19 @@ async function getOrder(
   const pose0Url = pose0Asset?.url?.toLowerCase() || '';
   const isBaseCharacterSameAsPose0 = baseCharacterUrl && pose0Url && baseCharacterUrl === pose0Url;
   
+  // Get manifest entries to determine expected poses and identify missing/exhausted ones
+  const manifestEntries = manifest?.entries || [];
+  const expectedPoseCount = manifest?.poses?.total || manifestEntries.length || 13; // Default to 13 if not specified
+  
+  console.log(`[GET /api/orders/[orderId]] Expected pose count: ${expectedPoseCount}, Manifest entries: ${manifestEntries.length}, Character assets: ${characterAssets.length}`);
+  console.log(`[GET /api/orders/[orderId]] Character assets sample:`, characterAssets.slice(0, 3).map(a => ({ poseNumber: a.poseNumber, assetType: a.assetType, url: a.url?.substring(0, 50) })));
+  
+  // Create a map of existing assets by pose number for quick lookup
+  const cacheBuster = Date.now();
+  
   // Pre-Bria poses: all "original" type images including pose0 (poseNumber >= 0)
   // But exclude base-character.png from poses (it's shown in Base Character section)
-  // Accept any number of poses, sorted by poseNumber
-  const preBriaPoses = characterAssets
+  const existingPreBriaPoses = characterAssets
     .filter(a => {
       if (a.assetType !== 'original' || a.poseNumber < 0) return false;
       // Always exclude base-character.png from poses (it's shown separately in Base Character section)
@@ -196,19 +207,195 @@ async function getOrder(
       if (url.includes('base-character')) return false;
       return true;
     })
-    .sort((a, b) => a.poseNumber - b.poseNumber);
+    .sort((a, b) => a.poseNumber - b.poseNumber)
+    .map(pose => ({
+      ...pose,
+      url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
+    }));
+  
+  console.log(`[GET /api/orders/[orderId]] Found ${existingPreBriaPoses.length} existing pre-Bria poses:`, existingPreBriaPoses.map(p => ({ poseNumber: p.poseNumber, url: p.url?.substring(0, 60) })));
+  
+  // Create map of existing poses by poseNumber
+  const existingPreBriaMap = new Map(existingPreBriaPoses.map(p => [p.poseNumber, p]));
+  console.log(`[GET /api/orders/[orderId]] Pre-Bria map keys:`, Array.from(existingPreBriaMap.keys()));
+  
+  // Build complete list of pre-Bria poses, including placeholders for missing/exhausted ones
+  const preBriaPoses: any[] = [];
+  for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
+    const existingPose = existingPreBriaMap.get(poseNum);
+    const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
+    
+    if (existingPose) {
+      // Pose exists in R2 - merge manifest entry's review flags if present
+      // IMPORTANT: Only use Pre-Bria review reasons (exclude Post-Bria-specific like transparency_fail)
+      const postBriaSpecificReasons = ['transparency_fail', 'file_not_found_in_r2', 'not_processed'];
+      const reviewReason = manifestEntry?.reviewReason || null;
+      const isPostBriaReason = reviewReason && postBriaSpecificReasons.includes(reviewReason);
+      
+      // Only flag Pre-Bria if the review reason is NOT Post-Bria-specific
+      const needsReview = manifestEntry?.needsReview && !isPostBriaReason ? manifestEntry.needsReview : false;
+      const preBriaReviewReason = isPostBriaReason ? null : reviewReason;
+      const isFlagged = needsReview || existingPose.isFlagged || false;
+      
+      preBriaPoses.push({
+        ...existingPose,
+        needsReview: needsReview,
+        reviewReason: preBriaReviewReason,
+        isFlagged: isFlagged,
+        status: manifestEntry?.status || existingPose.status,
+        attempts: manifestEntry?.attempts ?? existingPose.attempts,
+        approved: manifestEntry?.approved ?? existingPose.approved
+      });
+      console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found existing pose with URL, needsReview=${needsReview}, reviewReason=${preBriaReviewReason || 'null'} (filtered Post-Bria: ${isPostBriaReason})`);
+    } else {
+      // Pose is missing - create placeholder
+      console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Creating placeholder (existingPose: ${!!existingPose}, manifestEntry: ${!!manifestEntry})`);
+      const isExhausted = manifestEntry?.status === 'exhausted' || manifestEntry?.status === 'failed';
+      
+      // Filter out Post-Bria-specific review reasons for Pre-Bria placeholders
+      const postBriaSpecificReasons = ['transparency_fail', 'file_not_found_in_r2', 'not_processed'];
+      const manifestReviewReason = manifestEntry?.reviewReason || null;
+      const isPostBriaReason = manifestReviewReason && postBriaSpecificReasons.includes(manifestReviewReason);
+      
+      // Only use Pre-Bria review reasons (exhausted/missing/not_generated)
+      const needsReview = isExhausted || (manifestEntry?.needsReview && !isPostBriaReason);
+      const reviewReason = isPostBriaReason 
+        ? (isExhausted ? 'missing' : 'not_generated')
+        : (manifestReviewReason || (isExhausted ? 'missing' : 'not_generated'));
+      
+      preBriaPoses.push({
+        poseNumber: poseNum,
+        url: '', // No URL - will show placeholder in UI
+        assetType: 'original',
+        characterHash: order.characterHash,
+        isMissing: true,
+        isFlagged: true, // Automatically flag missing poses
+        status: manifestEntry?.status || 'missing',
+        needsReview: needsReview,
+        reviewReason: reviewReason,
+        attempts: manifestEntry?.attempts || 0,
+        approved: false
+      });
+    }
+  }
   
   // Post-Bria poses: all "background-removed" type images including pose0 (poseNumber >= 0)
-  // Accept any number of poses, sorted by poseNumber
-  // Add cache-busting timestamp to ensure images refresh when overwritten in R2
-  const cacheBuster = Date.now();
-  const postBriaPoses = characterAssets
+  // Only create placeholders if workflow 2B has been run (loadedStage is '2b' or '3', or workflow.currentStage is '2B-complete' or later)
+  const workflow2BHasRun = loadedStage === '2b' || loadedStage === '3' || 
+                            manifest?.workflow?.currentStage === '2B-complete' || 
+                            manifest?.workflow?.currentStage === '3-complete';
+  
+  console.log(`[GET /api/orders/[orderId]] Workflow 2B has run: ${workflow2BHasRun}, loadedStage: ${loadedStage}, currentStage: ${manifest?.workflow?.currentStage}`);
+  
+  const existingPostBriaPoses = characterAssets
     .filter(a => a.assetType === 'background-removed' && a.poseNumber >= 0)
     .sort((a, b) => a.poseNumber - b.poseNumber)
     .map(pose => ({
       ...pose,
       url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
     }));
+  
+  console.log(`[GET /api/orders/[orderId]] Found ${existingPostBriaPoses.length} existing post-Bria poses:`, existingPostBriaPoses.map(p => ({ poseNumber: p.poseNumber, url: p.url })));
+  
+  // Create map of existing post-Bria poses by poseNumber
+  const existingPostBriaMap = new Map(existingPostBriaPoses.map(p => [p.poseNumber, p]));
+  
+  // Build complete list of post-Bria poses
+  const postBriaPoses: any[] = [];
+  
+  // If workflow 2B hasn't run yet, only return existing poses (if any) - don't create placeholders
+  if (!workflow2BHasRun) {
+    console.log(`[GET /api/orders/[orderId]] Workflow 2B has not run yet, returning only existing post-Bria poses (no placeholders)`);
+    postBriaPoses.push(...existingPostBriaPoses);
+  } else {
+    // Workflow 2B has run - build complete list including placeholders for missing ones
+    // If we have existing poses but no manifest entries, just use the existing poses (fallback)
+    if (existingPostBriaPoses.length > 0 && manifestEntries.length === 0) {
+      console.log(`[GET /api/orders/[orderId]] No manifest entries found, using existing post-Bria poses only`);
+      postBriaPoses.push(...existingPostBriaPoses);
+    } else {
+      // Normal flow: build complete list including placeholders
+      console.log(`[GET /api/orders/[orderId]] Building post-Bria poses list, expectedPoseCount: ${expectedPoseCount}, existingPostBriaMap size: ${existingPostBriaMap.size}`);
+      for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
+        const existingPose = existingPostBriaMap.get(poseNum);
+        const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
+        
+        // Check if manifest has bgRemovedKey
+        const hasBgRemovedKey = manifestEntry?.bgRemovedKey && manifestEntry.bgRemovedKey.length > 0;
+        
+        console.log(`[GET /api/orders/[orderId]] Processing pose ${poseNum}: existingPose=${!!existingPose}, manifestEntry=${!!manifestEntry}, hasBgRemovedKey=${hasBgRemovedKey}, manifestEntry.poseNumber=${manifestEntry?.poseNumber}, manifestEntry.bgRemovedKey=${manifestEntry?.bgRemovedKey || 'null'}`);
+        
+        if (existingPose) {
+          // File exists in R2 - merge manifest entry's review flags if present
+          // This handles cases where the file was uploaded but manifest wasn't updated
+          const needsReview = manifestEntry?.needsReview || false;
+          const reviewReason = manifestEntry?.reviewReason || null;
+          const isFlagged = needsReview || existingPose.isFlagged || false;
+          
+          postBriaPoses.push({
+            ...existingPose,
+            needsReview: needsReview,
+            reviewReason: reviewReason,
+            isFlagged: isFlagged,
+            status: manifestEntry?.status || existingPose.status,
+            attempts: manifestEntry?.attempts ?? existingPose.attempts,
+            approved: manifestEntry?.approved ?? existingPose.approved
+          });
+          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found in R2, needsReview=${needsReview}, reviewReason=${reviewReason || 'null'}`);
+        } else if (hasBgRemovedKey) {
+          // Manifest says it should exist but file not found in R2 - this is unexpected
+          // Construct URL from manifest's bgRemovedKey
+          const r2Key = manifestEntry.bgRemovedKey;
+          const publicUrl = manifestEntry.bgRemovedImageUrl || (order.publicR2Url ? `${order.publicR2Url}/${r2Key}` : null);
+          const proxyUrl = publicUrl ? `/api/assets/${r2Key}` : '';
+          
+          // Use manifest entry's needsReview and reviewReason (e.g., transparency_fail)
+          const needsReview = manifestEntry?.needsReview || !proxyUrl;
+          const reviewReason = manifestEntry?.reviewReason || (!proxyUrl ? 'file_not_found_in_r2' : null);
+          
+          postBriaPoses.push({
+            poseNumber: poseNum,
+            url: proxyUrl,
+            assetType: 'background-removed',
+            characterHash: order.characterHash,
+            isMissing: !proxyUrl,
+            isFlagged: needsReview || !proxyUrl,
+            status: manifestEntry?.status || 'missing',
+            needsReview: needsReview,
+            reviewReason: reviewReason,
+            attempts: manifestEntry?.attempts || 0,
+            approved: manifestEntry?.approved || false
+          });
+          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Manifest has bgRemovedKey but file not in R2 map, constructed URL: ${proxyUrl ? 'present' : 'missing'}, needsReview=${needsReview}, reviewReason=${reviewReason || 'null'}`);
+        } else {
+          // Pose is missing - create placeholder
+          const isExhausted = manifestEntry?.status === 'exhausted' || manifestEntry?.status === 'failed';
+          const needsReview = manifestEntry?.needsReview || isExhausted;
+          // If manifest entry exists but no bgRemovedKey, it means workflow 2B didn't process it
+          const reviewReason = manifestEntry && !hasBgRemovedKey 
+            ? 'not_processed' 
+            : (isExhausted ? 'missing' : 'not_processed');
+          
+          const placeholder = {
+            poseNumber: poseNum,
+            url: '', // No URL - will show placeholder in UI
+            assetType: 'background-removed',
+            characterHash: order.characterHash,
+            isMissing: true,
+            isFlagged: true, // Automatically flag missing poses
+            status: manifestEntry?.status || 'missing',
+            needsReview: needsReview,
+            reviewReason: reviewReason,
+            attempts: manifestEntry?.attempts || 0,
+            approved: false
+          };
+          postBriaPoses.push(placeholder);
+          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Missing (no file in R2, no bgRemovedKey in manifest), created placeholder:`, JSON.stringify(placeholder));
+        }
+      }
+      console.log(`[GET /api/orders/[orderId]] Final postBriaPoses count: ${postBriaPoses.length}, poseNumbers: [${postBriaPoses.map(p => p.poseNumber).join(', ')}]`);
+    }
+  }
   
   // Use the selected base character asset
   const baseCharacter = baseCharacterAsset;

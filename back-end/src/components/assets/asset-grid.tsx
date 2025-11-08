@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Download, Upload, Flag, CheckCircle, Eye } from 'lucide-react';
 import { ImageLightbox } from './image-lightbox';
 
@@ -10,6 +10,10 @@ interface Asset {
   url: string;
   isFlagged: boolean;
   hasTransparentBackground?: boolean;
+  isMissing?: boolean;
+  status?: string;
+  reviewReason?: string;
+  attempts?: number;
 }
 
 interface AssetGridProps {
@@ -23,6 +27,8 @@ interface AssetGridProps {
   canApprove: boolean;
   isApproved: boolean;
   showBlackBackground?: boolean;
+  isReplacing?: string | null;
+  disabledReplaceIds?: string[];
 }
 
 export function AssetGrid({
@@ -35,16 +41,40 @@ export function AssetGrid({
   onApprove,
   canApprove,
   isApproved,
-  showBlackBackground = false
+  showBlackBackground = false,
+  isReplacing: externalIsReplacing,
+  disabledReplaceIds = []
 }: AssetGridProps) {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [isReplacing, setIsReplacing] = useState<string | null>(null);
+  const [internalIsReplacing, setInternalIsReplacing] = useState<string | null>(null);
+  const isReplacing = externalIsReplacing !== undefined ? externalIsReplacing : internalIsReplacing;
+  // Use refs to track file inputs for more reliable access
+  const fileInputRefs = useRef<Record<string, HTMLInputElement>>({});
 
   const handleFileReplace = (assetId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      onReplace(assetId, file);
-      setIsReplacing(null);
+      try {
+        // Don't clear loading state here - let the parent component's handleReplace manage it
+        // The parent will set isReplacing via the prop, or we'll keep it until upload completes
+        onReplace(assetId, file);
+        // Reset the input value so the same file can be selected again
+        // But do this after a small delay to ensure the change event is fully processed
+        setTimeout(() => {
+          event.target.value = '';
+        }, 100);
+      } catch (error) {
+        console.error('[AssetGrid] Error in onReplace callback:', error);
+        // Clear loading state on error
+        if (externalIsReplacing === undefined) {
+          setInternalIsReplacing(null);
+        }
+      }
+    } else {
+      // If no file was selected (user cancelled), clear the loading state
+      if (externalIsReplacing === undefined) {
+        setInternalIsReplacing(null);
+      }
     }
   };
 
@@ -76,22 +106,52 @@ export function AssetGrid({
             className="relative group bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => setSelectedAsset(asset)}
           >
-            {/* Image */}
+            {/* Image or Placeholder */}
             <div 
               className={`w-full aspect-square flex items-center justify-center ${
                 showBlackBackground && asset.hasTransparentBackground ? 'bg-black' : 'bg-gray-50'
-              }`}
+              } ${asset.isMissing ? 'bg-red-50 border-2 border-red-300 border-dashed' : ''}`}
             >
+              {asset.isMissing || !asset.url ? (
+                <div className="flex flex-col items-center justify-center p-4 text-center">
+                  <div className="text-4xl mb-2">⚠️</div>
+                  <div className="text-sm font-medium text-red-600 mb-1">Missing</div>
+                  {asset.status && (
+                    <div className="text-xs text-gray-500 capitalize">{asset.status}</div>
+                  )}
+                  {asset.reviewReason && (
+                    <div className="text-xs text-gray-500 mt-1">{asset.reviewReason.replace(/_/g, ' ')}</div>
+                  )}
+                  {asset.attempts !== undefined && asset.attempts > 0 && (
+                    <div className="text-xs text-gray-500 mt-1">{asset.attempts} attempt{asset.attempts !== 1 ? 's' : ''}</div>
+                  )}
+                </div>
+              ) : (
               <img
                 src={asset.url}
                 alt={asset.name}
                 className="max-w-full max-h-full object-contain"
+                  onError={(e) => {
+                    // Fallback to placeholder if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent && !parent.querySelector('.missing-placeholder')) {
+                      parent.innerHTML = `
+                        <div class="missing-placeholder flex flex-col items-center justify-center p-4 text-center">
+                          <div class="text-4xl mb-2">⚠️</div>
+                          <div class="text-sm font-medium text-red-600">Image not found</div>
+                        </div>
+                      `;
+                    }
+                  }}
               />
+              )}
             </div>
 
             {/* Overlay Actions */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none group-hover:pointer-events-auto">
-              <div className="flex space-x-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 shadow-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="flex space-x-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 shadow-lg" onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -105,22 +165,69 @@ export function AssetGrid({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (asset.isMissing || !asset.url) {
+                      return; // Don't allow download for missing assets
+                    }
                     onDownload(asset.id);
                   }}
-                  className="p-2 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
-                  title="Download"
+                  className={`p-2 rounded-full transition-colors ${
+                    asset.isMissing || !asset.url
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title={asset.isMissing || !asset.url ? 'Download not available' : 'Download'}
+                  disabled={asset.isMissing || !asset.url}
                 >
                   <Download className="h-4 w-4" />
                 </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setIsReplacing(asset.id);
+                    e.preventDefault();
+                    // Allow replace for missing assets - this will upload the missing image
+                    // The API will handle creating the entry and uploading to the correct location
+                    if (disabledReplaceIds.includes(asset.id)) {
+                      return;
+                    }
+                    if (isReplacing === asset.id) {
+                      return; // Already replacing
+                    }
+                    if (externalIsReplacing === undefined) {
+                      setInternalIsReplacing(asset.id);
+                    }
+                    // Use setTimeout to ensure the click happens after event propagation is stopped
+                    setTimeout(() => {
+                      // Try ref first, then fallback to getElementById
+                      const fileInput = fileInputRefs.current[asset.id] || 
+                                       document.getElementById(`replace-${asset.id}`) as HTMLInputElement;
+                      if (fileInput) {
+                        fileInput.click();
+                      } else {
+                        console.error('[AssetGrid] File input not found! Available refs:', Object.keys(fileInputRefs.current));
+                      }
+                    }, 0);
                   }}
-                  className="p-2 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
-                  title="Replace"
+                  disabled={isReplacing === asset.id || disabledReplaceIds.includes(asset.id)}
+                  className={`p-2 rounded-full transition-colors ${
+                    isReplacing === asset.id || disabledReplaceIds.includes(asset.id)
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title={
+                    disabledReplaceIds.includes(asset.id)
+                      ? 'Replace not available'
+                      : isReplacing === asset.id
+                      ? 'Replacing...'
+                      : asset.isMissing || !asset.url
+                      ? 'Upload missing image'
+                      : 'Replace'
+                  }
                 >
+                  {isReplacing === asset.id ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700"></div>
+                  ) : (
                   <Upload className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -156,7 +263,21 @@ export function AssetGrid({
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => handleFileReplace(asset.id, e)}
+              ref={(el) => {
+                if (el) {
+                  fileInputRefs.current[asset.id] = el;
+                } else {
+                  delete fileInputRefs.current[asset.id];
+                }
+              }}
+              onChange={(e) => {
+                e.stopPropagation();
+                // Don't preventDefault on change - it might interfere with file reading
+                handleFileReplace(asset.id, e);
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
               className="hidden"
               id={`replace-${asset.id}`}
             />
