@@ -102,22 +102,33 @@ export async function POST(
     }
 
     // Find the entry for this pose
-    // NOTE: Base character (poseNumber 0) may not be in manifest entries if it's a separate file
-    // This will need special handling if base-character replacement is required
-    const entry = manifest.entries.find((e: any) => e.poseNumber === poseNumber);
-    if (!entry) {
-      const errorMsg = poseNumber === 0 
-        ? 'Base character replacement not yet supported (base-character.png is not tracked in manifest entries)'
-        : `Pose ${poseNumber} not found in manifest`;
-      return NextResponse.json(
-        { error: errorMsg },
-        { status: 404 }
-      );
+    // NOTE: poseNumber 0 is a valid pose (pose00.png), not the base character (base-character.png)
+    // Base character replacement would be a separate feature and is not handled here
+    let entry = manifest.entries.find((e: any) => e.poseNumber === poseNumber);
+    
+    // If entry doesn't exist, it means the pose is missing/exhausted - we'll create a new entry
+    // This is valid for any pose number, including pose0
+    const isNewEntry = !entry;
+    if (isNewEntry) {
+      console.log(`[Replace Image API] Pose ${poseNumber} not found in manifest entries - will create new entry for missing pose`);
+      // Create a new entry for this pose
+      entry = {
+        poseNumber: poseNumber,
+        attempts: 0,
+        status: 'approved',
+        approved: false,
+        needsReview: false,
+        reviewReason: null
+      };
+      // Add it to the manifest entries
+      manifest.entries.push(entry);
+      // Sort entries by poseNumber to maintain order
+      manifest.entries.sort((a: any, b: any) => a.poseNumber - b.poseNumber);
     }
 
     // Get the R2 key to replace, or construct it if missing (for exhausted/failed poses)
     let r2Key = stage === 'preBria' ? entry.approvedKey : entry.bgRemovedKey;
-    const isMissingPose = !r2Key;
+    const isMissingPose = !r2Key || isNewEntry;
     
     if (isMissingPose) {
       // Construct the expected R2 key for missing poses
@@ -136,7 +147,8 @@ export async function POST(
         r2Key = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/poses/pose${poseNN}.png`;
       } else {
         // Post-Bria: background-removed image in parent directory
-        r2Key = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/pose${poseNN}-nobg.png`;
+        // Format: characters/{hash}/characters_{hash}_pose{NN}_nobg.png
+        r2Key = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/characters_${characterHash}_pose${poseNN}_nobg.png`;
       }
       
       console.log(`[Replace Image API] Missing pose detected, constructing R2 key: ${r2Key}`);
