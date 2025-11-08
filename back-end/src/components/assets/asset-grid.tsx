@@ -14,6 +14,14 @@ interface Asset {
   status?: string;
   reviewReason?: string;
   attempts?: number;
+  // Comparison mode data
+  comparisonMode?: 'reference' | 'background' | null;
+  comparisonImageUrl?: string;
+  comparisonLabel?: string;
+  poseNumber?: number;
+  pageNumber?: number;
+  onFlip?: () => void;
+  isFlipping?: boolean;
 }
 
 interface AssetGridProps {
@@ -298,6 +306,13 @@ export function AssetGrid({
           isFlagged={selectedAsset.isFlagged}
           hasTransparentBackground={selectedAsset.hasTransparentBackground}
           showBlackBackground={showBlackBackground}
+          comparisonMode={selectedAsset.comparisonMode}
+          comparisonImageUrl={selectedAsset.comparisonImageUrl}
+          comparisonLabel={selectedAsset.comparisonLabel}
+          poseNumber={selectedAsset.poseNumber}
+          pageNumber={selectedAsset.pageNumber}
+          onFlip={selectedAsset.onFlip}
+          isFlipping={selectedAsset.isFlipping}
         />
       )}
     </div>

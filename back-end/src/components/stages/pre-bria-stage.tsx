@@ -25,7 +25,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     hasTransparentBackground: false
   });
 
-  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number }>>([]);
+  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number; comparisonMode?: 'reference' | 'background' | null; comparisonImageUrl?: string; comparisonLabel?: string; poseNumber?: number }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
   
   // Track poses that the user has manually unflagged (persist across re-renders)
@@ -97,6 +97,10 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         // BUT: if user manually unflagged it, don't re-flag it (unless it's missing)
         const shouldBeFlagged = isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview || false));
         
+        // Build reference pose URL for comparison
+        const paddedPoseNumber = String(poseNumber).padStart(2, '0');
+        const referencePoseUrl = `/api/assets/book-mvp-simple-adventure/characters/poses/pose${paddedPoseNumber}.png`;
+        
         return {
           id: poseId,
           name: `Pose ${poseNumber}${isMissing ? ' (Missing)' : ''}`,
@@ -106,7 +110,12 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
           isMissing: isMissing,
           status: pose.status,
           reviewReason: pose.reviewReason,
-          attempts: pose.attempts
+          attempts: pose.attempts,
+          // Comparison mode data for Pre-Bria
+          comparisonMode: 'reference' as const,
+          comparisonImageUrl: referencePoseUrl,
+          comparisonLabel: 'Reference Pose',
+          poseNumber: poseNumber
         };
       });
       console.log('[PreBriaStage] Mapped poses count:', mappedPoses.length, 'sample:', mappedPoses.slice(0, 2).map(p => ({ id: p.id, url: p.url?.substring(0, 50) })));
