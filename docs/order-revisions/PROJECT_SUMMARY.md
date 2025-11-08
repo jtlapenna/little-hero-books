@@ -160,11 +160,29 @@ This project enables admins to edit order details (child's name, character specs
 - Basic edit history logging
 - Tag old assets with `_superseded_` suffix
 
+**Complexity Rating**: 5/10  
+**Difficulty Rating**: 4/10  
+**Time Estimate**: 6/10 (1-2 weeks)  
+**Risk of Failure**: 3/10  
+
+**Rationale**: Straightforward React patterns and API endpoint creation. Main challenges are integrating with existing order data structure and ensuring proper state updates. Low risk because scope is limited to one field initially.
+
+---
+
 ### Phase 2: Smart Regeneration
 - Add editing for all character specs and book specs
 - Implement impact assessment logic
 - Determine minimum stage reversion
 - Show detailed impact preview in confirmation dialog
+
+**Complexity Rating**: 8/10  
+**Difficulty Rating**: 8/10  
+**Time Estimate**: 8/10 (2-3 weeks)  
+**Risk of Failure**: 6/10  
+
+**Rationale**: Complex dependency analysis required. Need to map every field change to affected assets and stages. Many edge cases (e.g., "what if only hair color changes but name doesn't?"). High complexity in determining minimum stage reversion. Medium-high risk due to logic complexity, but well-defined rules help.
+
+---
 
 ### Phase 3: Order Linking & Duplication
 - Add "Create Revision Order" functionality
@@ -172,11 +190,44 @@ This project enables admins to edit order details (child's name, character specs
 - UI to view linked orders
 - Handle order number generation for revisions
 
+**Complexity Rating**: 7/10  
+**Difficulty Rating**: 6/10  
+**Time Estimate**: 7/10 (2 weeks)  
+**Risk of Failure**: 5/10  
+
+**Rationale**: Database schema changes required. Order number generation logic needs careful design. Relationship management between orders adds complexity. UI for viewing linked orders is straightforward. Medium risk due to database changes, but well-scoped feature.
+
+---
+
 ### Phase 4: Advanced Features
 - Batch editing (multiple fields at once)
 - Undo/rollback capability
 - Preview of changes before confirming
 - Automated cleanup job for superseded assets
+
+**Complexity Rating**: 9/10  
+**Difficulty Rating**: 9/10  
+**Time Estimate**: 9/10 (3-4 weeks)  
+**Risk of Failure**: 7/10  
+
+**Rationale**: Very complex state management for batch operations and undo/rollback. Preview system requires simulating changes without applying them. Cleanup job needs careful scheduling and error handling. Many edge cases and interaction points. High risk due to complexity, but can be broken into smaller sub-features to mitigate.
+
+---
+
+## Phase Comparison Summary
+
+| Phase | Complexity | Difficulty | Time | Risk | Overall Priority |
+|-------|-----------|------------|------|------|------------------|
+| Phase 1 | 5/10 | 4/10 | 6/10 | 3/10 | **HIGH** - Start here |
+| Phase 2 | 8/10 | 8/10 | 8/10 | 6/10 | **HIGH** - Core functionality |
+| Phase 3 | 7/10 | 6/10 | 7/10 | 5/10 | **MEDIUM** - Important but can wait |
+| Phase 4 | 9/10 | 9/10 | 9/10 | 7/10 | **LOW** - Nice to have |
+
+**Recommended Approach**: 
+- Start with Phase 1 to establish foundation and patterns
+- Move to Phase 2 for core value
+- Phase 3 can be done in parallel or after Phase 2
+- Phase 4 is optional enhancement, can be deferred
 
 ## Success Criteria
 
