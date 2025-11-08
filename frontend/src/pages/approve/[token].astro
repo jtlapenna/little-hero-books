@@ -79,25 +79,6 @@ if (!token) {
           </div>
         </div>
 
-        <!-- Revision Countdown -->
-        <div id="revision-warning" class="preview-card revision-warning" style="display: none;">
-          <div class="revision-content">
-            <svg class="revision-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            <div class="revision-text">
-              <p class="revision-title">
-                Revisions Remaining: <span id="revisions-remaining" class="revision-count">2</span>
-              </p>
-              <p id="revision-message" class="revision-subtitle" style="display: none;">
-                This is your last revision. After this, your book will go directly to print.
-              </p>
-            </div>
-          </div>
-        </div>
-
         <!-- Preview Area (Placeholder) -->
         <div class="preview-card preview-area">
           <div class="preview-placeholder">
@@ -137,13 +118,58 @@ if (!token) {
         <!-- Action Buttons -->
         <div class="preview-card">
           <div class="action-buttons">
-            <button id="reject-btn" class="btn btn-secondary" disabled>
-              Request Revision
-            </button>
             <button id="approve-btn" class="btn btn-primary" disabled>
               Approve Book
             </button>
           </div>
+        </div>
+
+        <!-- Correction Request -->
+        <div id="correction-card" class="preview-card correction-card">
+          <div class="correction-header">
+            <div>
+              <h3 class="card-title">Need a correction?</h3>
+              <p id="correction-availability" class="correction-availability">You have 1 correction available.</p>
+            </div>
+            <a id="mailto-link" href="mailto:hello@littleherobooks.com" class="btn btn-outline mailto-btn">
+              Email from your inbox
+            </a>
+          </div>
+          <div id="correction-locked" class="locked-banner" style="display: none;">
+            We already received your correction. If you need more help, reply to our email thread and our team will assist.
+          </div>
+          <div id="correction-success" class="success-banner" style="display: none;">
+            Thank you! We received your correction. We’ll review it and follow up by email shortly.
+          </div>
+          <form id="correction-form" class="correction-form">
+            <div class="form-group">
+              <label class="form-label" for="contact-email">Your email</label>
+              <input type="email" id="contact-email" class="form-input" placeholder="you@example.com" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="contact-name">Your name (optional)</label>
+              <input type="text" id="contact-name" class="form-input" placeholder="Name that Amazon order is under" maxlength="150" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="reason-select">What needs fixing?</label>
+              <select id="reason-select" class="form-input" required>
+                <option value="">Select a correction</option>
+              </select>
+            </div>
+            <div id="reason-banner" class="reason-banner" style="display: none;"></div>
+            <div id="reason-fields" class="reason-fields"></div>
+            <div id="correction-error" class="correction-error" style="display: none;"></div>
+            <label class="checkbox-label marketing-opt">
+              <input type="checkbox" id="marketing-opt-in" />
+              <span>Keep me posted on new titles and promos for Little Hero Books.</span>
+            </label>
+            <div id="policy-box" class="policy-box">
+              We can adjust details to match the options you selected (name spelling, preset hair style/color, skin tone, pronouns, etc.). We can’t create brand-new art or styles beyond the choices shown.
+            </div>
+            <div class="correction-actions">
+              <button type="submit" id="correction-submit" class="btn btn-primary">Send correction</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -162,10 +188,10 @@ if (!token) {
               <li>By approving, you confirm the book is correct and ready for printing</li>
             </ul>
           </div>
-          <div id="last-revision-checkbox-container" style="display: none;">
+          <div id="last-revision-checkbox-container" class="checkbox-container" style="display: none;">
             <label class="checkbox-label">
               <input type="checkbox" id="acknowledge-last-revision" />
-              <span>This is your last revision - I understand this will go to print directly when I click OK</span>
+              <span>I confirm the book is correct and ready to print immediately.</span>
             </label>
           </div>
         </div>
@@ -176,57 +202,51 @@ if (!token) {
       </div>
     </div>
 
-    <!-- Reject Modal -->
-    <div id="reject-modal" class="modal" style="display: none;">
-      <div class="modal-content">
-        <h3 class="modal-title">Request Revision</h3>
-        <p class="modal-subtitle">
-          Please let us know what needs to be changed. We'll process your revision and send you a new preview link.
-        </p>
-        <form id="reject-form" class="reject-form">
-          <div class="form-group">
-            <label class="form-label">Page Number</label>
-            <input type="number" id="page-number" min="1" max="16" value="1" class="form-input" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Issue Type</label>
-            <select id="issue-type" class="form-input" required>
-              <option value="image">Image/Art Issue</option>
-              <option value="text">Text/Content Issue</option>
-              <option value="character">Character Issue</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Description</label>
-            <textarea id="description" rows="4" class="form-input" placeholder="Please describe what needs to be changed..." required></textarea>
-          </div>
-          <div id="last-revision-checkbox-reject" class="checkbox-container" style="display: none;">
-            <label class="checkbox-label">
-              <input type="checkbox" id="acknowledge-last-revision-reject" required />
-              <span>This is your last revision - I understand this will go to print directly when I click OK</span>
-            </label>
-          </div>
-          <div class="form-actions">
-            <button type="button" id="reject-cancel" class="btn btn-outline">Cancel</button>
-            <button type="submit" id="reject-submit" class="btn btn-danger">Submit Revision Request</button>
-          </div>
-        </form>
-      </div>
-    </div>
   </div>
 </Layout>
 
 <script define:vars={{ token }} is:inline>
-  // API base URL - points to back-end API
-  // In production, this should be: https://admin.littleherolabs.com
-  // For now, using localhost for development
   const API_BASE = 'http://localhost:3000';
-  let orderData = null;
-  let revisionsRemaining = 2;
-  let isLastRevision = false;
+  const HAIR_STYLES = ['afro', 'bun', 'curly-long', 'curly-medium', 'curly-short', 'pigtails', 'pom-poms', 'ponytail', 'side-part', 'straight-long', 'straight-medium', 'straight-short'];
+  const HAIR_COLORS = ['blonde', 'strawberry-blonde', 'light-brown', 'medium-brown', 'dark-brown', 'auburn', 'black', 'red'];
+  const SKIN_TONES = ['skin-light', 'skin-medium', 'skin-tan', 'skin-brown-light', 'skin-brown-deep'];
+  const PRONOUNS = ['she/her', 'he/him', 'they/them'];
+  const ANIMAL_GUIDES = ['dog', 'cat', 'owl', 'lion', 'tiger', 'penguin', 't-rex', 'unicorn'];
+  const FAVORITE_COLORS = ['red', 'orange', 'yellow', 'green', 'blue', 'pink', 'purple', 'brown', 'black'];
+  const CLOTHING_STYLES = ['tee-shorts', 'dress'];
 
-  // DOM elements
+  const REASON_DEFINITIONS = [
+    { id: 'name_typo', label: 'Name spelling is wrong', fields: [{ id: 'newName', label: 'Correct spelling', type: 'text', maxLength: 20, required: true, placeholder: 'Updated spelling' }] },
+    { id: 'hairStyle_wrong', label: 'Hair style is wrong', fields: [{ id: 'hairStyle', label: 'Choose the hair style you selected', type: 'select', options: HAIR_STYLES, required: true }] },
+    { id: 'hairColor_wrong', label: 'Hair color is wrong', fields: [{ id: 'hairColor', label: 'Pick the hair color you wanted', type: 'select', options: HAIR_COLORS, required: true }] },
+    { id: 'skinTone_wrong', label: 'Skin tone is wrong', fields: [{ id: 'skinTone', label: 'Pick the skin tone you selected', type: 'select', options: SKIN_TONES, required: true }] },
+    { id: 'pronouns_wrong', label: 'Pronouns are wrong', fields: [{ id: 'pronouns', label: 'Choose the pronouns you wanted', type: 'select', options: PRONOUNS, required: true }] },
+    { id: 'animalGuide_wrong', label: 'Animal guide is wrong', fields: [{ id: 'animalGuide', label: 'Pick the animal guide you selected', type: 'select', options: ANIMAL_GUIDES, required: true }] },
+    { id: 'favoriteColor_wrong', label: 'Favorite color is wrong', fields: [{ id: 'favoriteColor', label: 'Pick the favorite color you selected', type: 'select', options: FAVORITE_COLORS, required: true }] },
+    { id: 'clothingStyle_wrong', label: 'Clothing style is wrong', fields: [{ id: 'clothingStyle', label: 'Choose the clothing style you selected', type: 'select', options: CLOTHING_STYLES, required: true }] },
+    { id: 'dedication_fix', label: 'Dedication text needs a fix', fields: [{ id: 'dedication', label: 'Updated dedication message', type: 'textarea', maxLength: 200, required: true, rows: 4, placeholder: 'Enter the corrected dedication text' }] },
+    { id: 'hometown_fix', label: 'Hometown text needs a fix', fields: [{ id: 'hometown', label: 'Updated hometown', type: 'text', maxLength: 50, required: true, placeholder: 'City, State' }] },
+    { id: 'favoriteFood_fix', label: 'Favorite food text needs a fix', fields: [{ id: 'favoriteFood', label: 'Updated favorite food', type: 'text', maxLength: 30, required: true, placeholder: 'Favorite food' }] },
+    { id: 'age_wrong', label: 'Age is wrong', fields: [{ id: 'age', label: 'Correct age (3-8)', type: 'number', min: 3, max: 8, required: true }] },
+    {
+      id: 'visual_issue',
+      label: 'Something looks off (printing or color issue)',
+      fields: [
+        { id: 'visualIssue', label: 'What kind of issue?', type: 'select', options: ['blurry', 'missing-element', 'odd-colors', 'layout-cutoff', 'other-visual'], required: true },
+        { id: 'details', label: 'Any details? (optional)', type: 'text', maxLength: 120, placeholder: 'Brief description' }
+      ]
+    },
+    {
+      id: 'other',
+      label: 'Other (limited)',
+      banner: 'We can fix details you selected on your order. Custom art or new styles aren’t available.',
+      fields: [{ id: 'details', label: 'Describe the issue', type: 'text', maxLength: 120, required: true, placeholder: 'Short description (max 120 characters)' }]
+    }
+  ];
+
+  let orderData = null;
+  let correctionUsed = false;
+
   const loadingState = document.getElementById('loading-state');
   const errorState = document.getElementById('error-state');
   const errorMessage = document.getElementById('error-message');
@@ -235,19 +255,47 @@ if (!token) {
   const orderIdEl = document.getElementById('order-id');
   const ageDetail = document.getElementById('age-detail');
   const ageValue = document.getElementById('age-value');
-  const revisionWarning = document.getElementById('revision-warning');
-  const revisionsRemainingEl = document.getElementById('revisions-remaining');
-  const revisionMessage = document.getElementById('revision-message');
   const approveBtn = document.getElementById('approve-btn');
-  const rejectBtn = document.getElementById('reject-btn');
   const approvalModal = document.getElementById('approval-modal');
-  const rejectModal = document.getElementById('reject-modal');
   const acknowledgeCheckbox = document.getElementById('acknowledge-last-revision');
-  const acknowledgeCheckboxReject = document.getElementById('acknowledge-last-revision-reject');
   const lastRevisionContainer = document.getElementById('last-revision-checkbox-container');
-  const lastRevisionContainerReject = document.getElementById('last-revision-checkbox-reject');
+  const approvalConfirmBtn = document.getElementById('approval-confirm');
 
-  // Load and validate token
+  const correctionAvailability = document.getElementById('correction-availability');
+  const correctionForm = document.getElementById('correction-form');
+  const correctionSuccess = document.getElementById('correction-success');
+  const correctionLocked = document.getElementById('correction-locked');
+  const correctionSubmit = document.getElementById('correction-submit');
+  const correctionError = document.getElementById('correction-error');
+  const reasonSelect = document.getElementById('reason-select');
+  const reasonBanner = document.getElementById('reason-banner');
+  const reasonFieldsContainer = document.getElementById('reason-fields');
+  const marketingOptIn = document.getElementById('marketing-opt-in');
+  const contactEmailInput = document.getElementById('contact-email');
+  const contactNameInput = document.getElementById('contact-name');
+  const mailtoLink = document.getElementById('mailto-link');
+
+  function populateReasonOptions() {
+    reasonSelect.innerHTML = '<option value="">Select a correction</option>';
+    REASON_DEFINITIONS.forEach((reason) => {
+      const option = document.createElement('option');
+      option.value = reason.id;
+      option.textContent = reason.label;
+      reasonSelect.appendChild(option);
+    });
+  }
+
+  function showError(message) {
+    loadingState.style.display = 'none';
+    errorState.style.display = 'flex';
+    errorMessage.textContent = message;
+  }
+
+  function showPreview() {
+    loadingState.style.display = 'none';
+    previewContent.style.display = 'block';
+  }
+
   async function loadPreview() {
     try {
       const response = await fetch(`${API_BASE}/api/preview/validate-token`, {
@@ -271,7 +319,6 @@ if (!token) {
       orderData = data.order;
       displayOrder(orderData);
       showPreview();
-
     } catch (error) {
       console.error('Error loading preview:', error);
       showError(error.message || 'Failed to load preview');
@@ -279,60 +326,231 @@ if (!token) {
   }
 
   function displayOrder(order) {
-    // Display child name
     const childName = order.characterSpecs?.childName || 'your child';
     childNameEl.textContent = childName;
 
-    // Display order ID
-    orderIdEl.textContent = order.amazonOrderId || order.orderId;
+    const displayOrderId = order.amazonOrderId || order.orderId;
+    orderIdEl.textContent = displayOrderId;
 
-    // Display age if available
     if (order.characterSpecs?.age) {
       ageDetail.style.display = 'block';
       ageValue.textContent = `${order.characterSpecs.age} years old`;
     }
 
-    // Calculate revisions
-    const revisionCount = order.revisionCount || 0;
-    revisionsRemaining = Math.max(0, 2 - revisionCount);
-    isLastRevision = revisionsRemaining === 0;
+    setupMailtoLink(displayOrderId, childName);
+    updateCorrectionState(order);
 
-    // Update revision display
-    if (revisionsRemaining >= 0) {
-      revisionWarning.style.display = 'block';
-      revisionsRemainingEl.textContent = revisionsRemaining;
-      
-      if (isLastRevision) {
-        revisionWarning.classList.add('revision-warning-last');
-        revisionMessage.style.display = 'block';
-        lastRevisionContainer.style.display = 'block';
-        lastRevisionContainerReject.style.display = 'block';
-      }
+    approveBtn.disabled = false;
+  }
+
+  function setupMailtoLink(orderId, childName) {
+    const subject = encodeURIComponent(`Order ${orderId} - Correction request`);
+    const body = encodeURIComponent(
+      `Hi Little Hero Books,\n\nI'd like to correct my book for ${childName}.\n\nOrder ID: ${orderId}\nPreview link: https://littleherolabs.com/approve/${token}\n\nDetails:\n`
+    );
+    mailtoLink.href = `mailto:hello@littleherobooks.com?subject=${subject}&body=${body}`;
+  }
+
+  function updateCorrectionState(order) {
+    correctionUsed = (order.revisionCount || 0) >= 1;
+
+    if (correctionUsed) {
+      correctionAvailability.textContent = 'Correction already submitted';
+      correctionAvailability.classList.add('correction-used');
+      correctionForm.style.display = 'none';
+      correctionLocked.style.display = 'block';
+      correctionSuccess.style.display = 'none';
+      lastRevisionContainer.style.display = 'block';
+      approvalConfirmBtn.disabled = !acknowledgeCheckbox.checked;
+    } else {
+      correctionAvailability.textContent = 'You have 1 correction available.';
+      correctionAvailability.classList.remove('correction-used');
+      correctionForm.style.display = 'block';
+      correctionLocked.style.display = 'none';
+      correctionSuccess.style.display = 'none';
+      reasonFieldsContainer.innerHTML = '';
+      reasonBanner.style.display = 'none';
+      lastRevisionContainer.style.display = 'none';
+      acknowledgeCheckbox.checked = false;
+      approvalConfirmBtn.disabled = false;
+    }
+  }
+
+  function renderReasonFields(reasonId) {
+    reasonFieldsContainer.innerHTML = '';
+    correctionError.style.display = 'none';
+
+    const reason = REASON_DEFINITIONS.find((r) => r.id === reasonId);
+    if (!reason) {
+      reasonBanner.style.display = 'none';
+      return;
     }
 
-    // Enable buttons
-    approveBtn.disabled = false;
-    rejectBtn.disabled = revisionsRemaining <= 0;
+    if (reason.banner) {
+      reasonBanner.textContent = reason.banner;
+      reasonBanner.style.display = 'block';
+    } else {
+      reasonBanner.style.display = 'none';
+    }
+
+    reason.fields.forEach((field) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'form-group';
+
+      const label = document.createElement('label');
+      label.className = 'form-label';
+      label.htmlFor = `field-${field.id}`;
+      label.textContent = field.label;
+
+      let input;
+      if (field.type === 'select') {
+        input = document.createElement('select');
+        input.className = 'form-input';
+        input.id = `field-${field.id}`;
+        input.required = !!field.required;
+        input.innerHTML = '<option value="">Select an option</option>';
+        field.options.forEach((optionValue) => {
+          const option = document.createElement('option');
+          option.value = optionValue;
+          option.textContent = optionValue;
+          input.appendChild(option);
+        });
+      } else if (field.type === 'textarea') {
+        input = document.createElement('textarea');
+        input.className = 'form-input';
+        input.id = `field-${field.id}`;
+        input.rows = field.rows || 4;
+        input.maxLength = field.maxLength || 500;
+        input.placeholder = field.placeholder || '';
+        if (field.required) input.required = true;
+      } else {
+        input = document.createElement('input');
+        input.className = 'form-input';
+        input.id = `field-${field.id}`;
+        input.type = field.type === 'number' ? 'number' : 'text';
+        if (field.type === 'number') {
+          if (typeof field.min === 'number') input.min = field.min;
+          if (typeof field.max === 'number') input.max = field.max;
+        }
+        if (field.maxLength) input.maxLength = field.maxLength;
+        if (field.placeholder) input.placeholder = field.placeholder;
+        if (field.required) input.required = true;
+      }
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(input);
+      reasonFieldsContainer.appendChild(wrapper);
+    });
   }
 
-  function showError(message) {
-    loadingState.style.display = 'none';
-    errorState.style.display = 'flex';
-    errorMessage.textContent = message;
+  function collectFieldValues(reason) {
+    const values = {};
+    if (!reason) return values;
+
+    reason.fields.forEach((field) => {
+      const input = document.getElementById(`field-${field.id}`);
+      if (!input) return;
+
+      if (field.type === 'number') {
+        const numericValue = input.value ? Number(input.value) : null;
+        if (numericValue !== null && !Number.isNaN(numericValue)) {
+          values[field.id] = numericValue;
+        }
+      } else {
+        const value = input.value.trim();
+        if (value) {
+          values[field.id] = value;
+        }
+      }
+    });
+
+    return values;
   }
 
-  function showPreview() {
-    loadingState.style.display = 'none';
-    previewContent.style.display = 'block';
+  async function handleCorrectionSubmit(event) {
+    event.preventDefault();
+    correctionError.style.display = 'none';
+
+    if (!orderData) return;
+    if (correctionUsed) {
+      correctionError.textContent = 'You have already used your correction for this order.';
+      correctionError.style.display = 'block';
+      return;
+    }
+
+    const reasonId = reasonSelect.value;
+    const reason = REASON_DEFINITIONS.find((r) => r.id === reasonId);
+    if (!reason) {
+      correctionError.textContent = 'Please select what needs fixing.';
+      correctionError.style.display = 'block';
+      return;
+    }
+
+    const email = contactEmailInput.value.trim();
+    if (!email) {
+      correctionError.textContent = 'Please enter your email address.';
+      correctionError.style.display = 'block';
+      return;
+    }
+
+    const name = contactNameInput.value.trim();
+    const fields = collectFieldValues(reason);
+
+    const missingField = reason.fields.find((field) => field.required && !fields[field.id]);
+    if (missingField) {
+      correctionError.textContent = 'Please fill out the required fields.';
+      correctionError.style.display = 'block';
+      return;
+    }
+
+    correctionSubmit.disabled = true;
+    correctionSubmit.textContent = 'Sending...';
+
+    try {
+      const response = await fetch(`${API_BASE}/api/preview/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: orderData.orderId,
+          amazonOrderId: orderData.amazonOrderId || null,
+          token,
+          email,
+          name: name || null,
+          reason: reasonId,
+          fields,
+          marketingOptIn: marketingOptIn.checked
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to send correction');
+      }
+
+      correctionForm.reset();
+      reasonFieldsContainer.innerHTML = '';
+      reasonBanner.style.display = 'none';
+
+      orderData.revisionCount = (orderData.revisionCount || 0) + 1;
+      updateCorrectionState(orderData);
+      correctionSuccess.style.display = 'block';
+      correctionLocked.style.display = 'none';
+    } catch (error) {
+      console.error('Error submitting correction:', error);
+      correctionError.textContent = error.message || 'Failed to send correction. Please try again or email us.';
+      correctionError.style.display = 'block';
+    } finally {
+      correctionSubmit.disabled = false;
+      correctionSubmit.textContent = 'Send correction';
+    }
   }
 
-  // Approval handler
   async function handleApprove() {
     if (!orderData || !token) return;
 
-    const requiresAck = isLastRevision && !acknowledgeCheckbox.checked;
-    if (requiresAck) {
-      alert('Please acknowledge that this is your last revision');
+    if (correctionUsed && !acknowledgeCheckbox.checked) {
+      alert('Please confirm you are ready to send your book to print.');
       return;
     }
 
@@ -351,7 +569,6 @@ if (!token) {
         throw new Error(error.error || 'Failed to approve');
       }
 
-      // Redirect to order status page (or home for now)
       window.location.href = `/order-status/${orderData.orderId}?token=${token}`;
     } catch (error) {
       console.error('Error approving:', error);
@@ -361,86 +578,24 @@ if (!token) {
     }
   }
 
-  // Rejection handler
-  async function handleReject(e) {
-    e.preventDefault();
+  populateReasonOptions();
+  reasonSelect.addEventListener('change', (event) => renderReasonFields(event.target.value));
+  correctionForm.addEventListener('submit', handleCorrectionSubmit);
 
-    if (!orderData || !token) return;
-
-    if (revisionsRemaining <= 0) {
-      alert('You have reached the maximum number of revisions. Please contact customer service.');
-      return;
-    }
-
-    const requiresAck = isLastRevision && !acknowledgeCheckboxReject.checked;
-    if (requiresAck) {
-      alert('Please acknowledge that this is your last revision');
-      return;
-    }
-
-    const feedback = {
-      pageNumber: parseInt(document.getElementById('page-number').value) || 1,
-      issueType: document.getElementById('issue-type').value,
-      description: document.getElementById('description').value
-    };
-
-    const submitBtn = document.getElementById('reject-submit');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Submitting...';
-
-    try {
-      const response = await fetch(`${API_BASE}/api/preview/${orderData.orderId}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, feedback })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to submit feedback');
-      }
-
-      alert('Thank you for your feedback! We will process your revision request and send you a new preview link.');
-      rejectModal.style.display = 'none';
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Error rejecting:', error);
-      alert(error.message || 'Failed to submit feedback. Please try again.');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Submit Revision Request';
-    }
-  }
-
-  // Event listeners
   approveBtn.addEventListener('click', () => {
     approvalModal.style.display = 'flex';
-  });
-
-  rejectBtn.addEventListener('click', () => {
-    rejectModal.style.display = 'flex';
   });
 
   document.getElementById('approval-cancel').addEventListener('click', () => {
     approvalModal.style.display = 'none';
   });
 
-  document.getElementById('reject-cancel').addEventListener('click', () => {
-    rejectModal.style.display = 'none';
-  });
+  approvalConfirmBtn.addEventListener('click', handleApprove);
 
-  document.getElementById('approval-confirm').addEventListener('click', handleApprove);
-
-  document.getElementById('reject-form').addEventListener('submit', handleReject);
-
-  // Update approve button state based on checkbox
   acknowledgeCheckbox.addEventListener('change', () => {
-    const confirmBtn = document.getElementById('approval-confirm');
-    if (isLastRevision) {
-      confirmBtn.disabled = !acknowledgeCheckbox.checked;
-    }
+    approvalConfirmBtn.disabled = correctionUsed && !acknowledgeCheckbox.checked;
   });
 
-  // Load preview on page load
   loadPreview();
 </script>
 
@@ -567,41 +722,6 @@ if (!token) {
     color: var(--color-hero-coral);
   }
 
-  .revision-warning {
-    border: 2px solid #fbbf24;
-  }
-
-  .revision-warning-last {
-    border-color: #f97316;
-  }
-
-  .revision-content {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-  }
-
-  .revision-icon {
-    color: var(--color-hero-coral);
-    flex-shrink: 0;
-  }
-
-  .revision-title {
-    font-weight: 600;
-    color: var(--color-navy-midnight);
-    margin: 0 0 var(--spacing-xs) 0;
-  }
-
-  .revision-count {
-    color: var(--color-hero-coral);
-  }
-
-  .revision-subtitle {
-    font-size: 0.875rem;
-    color: var(--color-soft-charcoal);
-    margin: 0;
-  }
-
   .preview-area {
     min-height: 600px;
     display: flex;
@@ -656,6 +776,93 @@ if (!token) {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: var(--spacing-md);
+  }
+
+  .correction-card .card-title {
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .correction-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .correction-availability {
+    color: var(--color-soft-charcoal);
+    margin: 0;
+  }
+
+  .correction-availability.correction-used {
+    color: #f97316;
+    font-weight: 600;
+  }
+
+  .correction-form .form-group {
+    margin-bottom: var(--spacing-md);
+  }
+
+  .reason-banner {
+    background: #fff7ed;
+    border: 1px solid #fb923c;
+    color: #9a3412;
+    border-radius: 8px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.9rem;
+  }
+
+  .policy-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: var(--spacing-md);
+    color: #1e293b;
+    font-size: 0.95rem;
+    margin-top: var(--spacing-md);
+  }
+
+  .correction-actions {
+    margin-top: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .correction-error {
+    background: #fee2e2;
+    border: 1px solid #ef4444;
+    border-radius: 8px;
+    color: #991b1b;
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.9rem;
+  }
+
+  .success-banner {
+    background: #ecfdf5;
+    border: 1px solid #34d399;
+    color: #047857;
+    border-radius: 8px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.95rem;
+  }
+
+  .locked-banner {
+    background: #f1f5f9;
+    border: 1px solid #cbd5f5;
+    color: #334155;
+    border-radius: 8px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.95rem;
+  }
+
+  .mailto-btn {
+    white-space: nowrap;
   }
 
   .detail-label {
@@ -721,15 +928,6 @@ if (!token) {
 
   .btn-outline:hover {
     background: #f9fafb;
-  }
-
-  .btn-danger {
-    background: #ef4444;
-    color: white;
-  }
-
-  .btn-danger:hover:not(:disabled) {
-    background: #dc2626;
   }
 
   .modal {
@@ -830,12 +1028,6 @@ if (!token) {
   .modal-actions .btn,
   .form-actions .btn {
     flex: 1;
-  }
-
-  .reject-form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
   }
 
   .form-group {
