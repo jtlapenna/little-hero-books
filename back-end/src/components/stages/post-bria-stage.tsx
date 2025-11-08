@@ -143,8 +143,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     try {
       // Find the current pose to get its URL
       const currentPose = poses.find(p => p.id === assetId);
-      if (!currentPose || !currentPose.url) {
-        alert('Image not found');
+      if (!currentPose) {
+        alert(`Pose ${assetId} not found in current poses list`);
+        setFlippingPoseId(null);
+        return;
+      }
+      if (!currentPose.url || currentPose.url.trim() === '') {
+        alert(`Image URL is missing for pose ${assetId}. The image may not have been generated yet.`);
         setFlippingPoseId(null);
         return;
       }
