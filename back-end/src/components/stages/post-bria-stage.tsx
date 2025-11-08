@@ -141,19 +141,62 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     setFlippingPoseId(assetId);
     
     try {
-      const response = await fetch(`/api/orders/${orderId}/flip-image`, {
+      // Find the current pose to get its URL
+      const currentPose = poses.find(p => p.id === assetId);
+      if (!currentPose || !currentPose.url) {
+        alert('Image not found');
+        setFlippingPoseId(null);
+        return;
+      }
+
+      // Load the image
+      const img = new Image();
+      img.crossOrigin = 'anonymous'; // Allow CORS if needed
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = currentPose.url;
+      });
+
+      // Create canvas and flip the image horizontally
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+
+      // Flip horizontally by scaling and translating
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, -img.width, 0);
+
+      // Convert canvas to blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to convert canvas to blob'));
+          }
+        }, 'image/png');
+      });
+
+      // Create FormData and upload the flipped image
+      const formData = new FormData();
+      formData.append('poseNumber', poseNumber.toString());
+      formData.append('stage', 'postBria');
+      formData.append('file', blob, `pose${String(poseNumber).padStart(2, '0')}-nobg.png`);
+
+      const response = await fetch(`/api/orders/${orderId}/replace-image`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          poseNumber: poseNumber,
-          stage: 'postBria'
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
-        let errorMessage = 'Failed to flip image';
+        let errorMessage = 'Failed to upload flipped image';
         try {
           const error = await response.json();
           errorMessage = error.error || errorMessage;
@@ -167,18 +210,31 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       }
 
       const result = await response.json();
-      console.log('[PostBriaStage] Flip successful:', result);
+      console.log('[PostBriaStage] Flip and upload successful:', result);
 
-      // Refresh the order data to show the flipped image
+      // Create a data URL from the flipped canvas for immediate display
+      const flippedDataUrl = canvas.toDataURL('image/png');
+      
+      // Update the local state immediately to show the flipped image
+      setPoses(prev => prev.map(pose => {
+        if (pose.id === assetId) {
+          // Use data URL for immediate visual feedback, then refresh will get the R2 version
+          return {
+            ...pose,
+            url: flippedDataUrl,
+            _isFlipped: true // Flag to indicate this is a temporary flipped version
+          };
+        }
+        return pose;
+      }));
+
+      // Refresh the order data to get the updated image from R2
       if (onRefresh) {
         await onRefresh();
-      } else {
-        // Fallback: reload the page
-        window.location.reload();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[PostBriaStage] Error flipping image:', error);
-      alert('Failed to flip image. Please try again.');
+      alert(`Failed to flip image: ${error.message || 'Unknown error'}`);
     } finally {
       setFlippingPoseId(null);
     }

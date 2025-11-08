@@ -161,7 +161,7 @@ function createSpreads(pages: PageData[]): SpreadData[] {
     {/* Left page */}
     {spread.leftPage ? (
       <img src={spread.leftPage.previewImageUrl} alt={`Page ${spread.leftPage.pageNumber}`} />
-    ) : (
+  ) : (
       <div className="white-page" /> // Simulated white page (CSS, not image)
     )}
     
@@ -171,7 +171,7 @@ function createSpreads(pages: PageData[]): SpreadData[] {
     ) : (
       <div className="white-page" /> // Simulated white page (CSS, not image)
     )}
-  </div>
+    </div>
 </div>
 ```
 
