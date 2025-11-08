@@ -124,8 +124,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           comparisonLabel: 'Page Background',
           poseNumber: poseNumber,
           pageNumber: pageNumber ?? undefined,
-          // Flip handler
-          onFlip: () => handleFlip(poseId, poseNumber),
+          // Flip handler - pass the URL directly to avoid stale closure issues
+          onFlip: () => handleFlip(poseId, poseNumber, pose.url || ''),
           isFlipping: flippingPoseId === poseId
         };
       }));
@@ -135,33 +135,44 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     }
   }, [posesBgRemoved, orderId, flippingPoseId]); // Include flippingPoseId to update isFlipping state
 
-  const handleFlip = async (assetId: string, poseNumber: number) => {
-    console.log('[PostBriaStage] handleFlip called with assetId:', assetId, 'poseNumber:', poseNumber);
+  const handleFlip = async (assetId: string, poseNumber: number, imageUrlParam?: string) => {
+    console.log('[PostBriaStage] handleFlip called with assetId:', assetId, 'poseNumber:', poseNumber, 'imageUrlParam:', imageUrlParam);
     
     setFlippingPoseId(assetId);
     
     try {
-      // Find the current pose by poseNumber (more reliable than assetId which might change)
-      let currentPose = poses.find(p => p.poseNumber === poseNumber);
-      if (!currentPose) {
-        // Fallback: try finding by assetId
-        currentPose = poses.find(p => p.id === assetId);
-        if (!currentPose) {
-          console.error('[PostBriaStage] Pose not found. Available poses:', poses.map(p => ({ id: p.id, poseNumber: p.poseNumber })));
-          alert(`Pose ${poseNumber} not found. Please refresh the page and try again.`);
-          setFlippingPoseId(null);
-          return;
-        }
-      }
+      // Use the URL passed as parameter, or try to find it from current poses state
+      let imageUrl = imageUrlParam;
       
-      if (!currentPose.url || currentPose.url.trim() === '') {
-        alert(`Image URL is missing for pose ${poseNumber}. The image may not have been generated yet.`);
-        setFlippingPoseId(null);
-        return;
+      if (!imageUrl || imageUrl.trim() === '') {
+        // Fallback: try to find from current poses state
+        let currentPose = poses.find(p => p.poseNumber === poseNumber);
+        if (!currentPose) {
+          // Fallback: try finding by assetId
+          currentPose = poses.find(p => p.id === assetId);
+        }
+        
+        if (!currentPose || !currentPose.url || currentPose.url.trim() === '') {
+          // Last resort: fetch from API
+          console.log('[PostBriaStage] URL not provided and not found in state, fetching from API...');
+          const orderResponse = await fetch(`/api/orders/${orderId}`);
+          if (!orderResponse.ok) {
+            throw new Error('Failed to fetch order data');
+          }
+          const orderData = await orderResponse.json();
+          const apiPose = orderData.r2Assets?.posesBgRemoved?.find((p: any) => p.poseNumber === poseNumber);
+          if (!apiPose || !apiPose.url) {
+            alert(`Image URL is missing for pose ${poseNumber}. The image may not have been generated yet.`);
+            setFlippingPoseId(null);
+            return;
+          }
+          imageUrl = apiPose.url;
+        } else {
+          imageUrl = currentPose.url;
+        }
       }
 
       // Check if URL is a data URL (from previous flip) - if so, we need to fetch the original from R2
-      let imageUrl = currentPose.url;
       if (imageUrl.startsWith('data:')) {
         // Data URL from previous flip - we need to get the original image from the API
         console.log('[PostBriaStage] URL is a data URL, fetching original from API');
