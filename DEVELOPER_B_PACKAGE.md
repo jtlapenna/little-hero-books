@@ -2815,9 +2815,10 @@ Create a customer-facing page where customers can preview their book and approve
 3. **Basic Preview Route (Placeholder)** ✅ **MOVED TO CUSTOMER-FACING SITE**
    - ✅ Create route: `frontend/src/pages/approve/[token].astro` (converted from React to Astro)
    - ✅ Token validation logic
-   - ✅ Basic UI layout (branded, matches site)
+   - ✅ Basic UI layout (branded, matches site) with buyer greeting pulled from `orders.customer_name`
    - ✅ **Placeholder for PDF preview area** (will be replaced with Developer A's previewer)
    - ✅ Approve/Reject buttons (save to Supabase)
+   - ✅ **Single bounded correction form** with required email + confirm email fields (no separate mailto CTA)
    - ✅ **Show revision countdown**: "Revisions remaining: [X]"
    - ✅ **Last revision checkbox**: "This is your last revision - I understand this will go to print directly when I click OK"
 
@@ -2832,7 +2833,7 @@ Create a customer-facing page where customers can preview their book and approve
    - ✅ Store feedback in `customer_feedback` table
    - ✅ Update order status to `customer_revision_requested`
    - ✅ Increment revision count
-   - ✅ Basic feedback form
+   - ✅ Structured reason picker driving canonical payload saved via `/api/preview/contact`
 
 **After Phase 1 Completion**: Move to Tasks 5, 6, 7 while waiting for Developer A's previewer.
 
@@ -2961,7 +2962,7 @@ After customer approval, seamlessly transition to an order status page where cus
 2. **Build Customer Page (MVP)**
    - [ ] Add route: `frontend/src/pages/order-status/[orderId]/[token].astro`
    - [ ] Implement timeline component with milestones: Preview Approved → Sent to Print → Printing → Shipped/Delivered
-   - [ ] Surface tracking block + “What happens next” copy
+   - [ ] Surface tracking block + "What happens next" copy
    - [ ] Reuse preview token system for gated access (token param or signed link)
 
 3. **Back-End Endpoint**
@@ -3097,9 +3098,9 @@ Set up Amazon Custom listing with all required fields, images, and configuration
 9. **Preview Notification Messaging & Soft Launch Prep (New)**
    - [x] Wire Next.js API route `/api/notifications/preview/amazon` that calls `back-end/src/lib/notifications/amazon-message-center.ts`
    - [x] Implement Amazon Message Center helper (LWA token, Uploads API encryption, `confirmCustomizationDetails` sender)
-   - [ ] Add `customer_contacts` table + API (`/api/preview/contact`) to capture email/name/reason/payload (enforce 1 correction limit)
-   - [ ] Update preview page with mailto button + structured correction form (reason dropdown, canonical options, policy banner)
-   - [ ] Surface “You have 1 correction available” state; disable form after submission
+   - [x] Add `customer_contacts` table + API (`/api/preview/contact`) to capture email + canonical payload (enforce single correction)
+   - [x] Update preview page with bounded correction form (reason dropdown, canonical options, policy banner, double email entry)
+   - [x] Surface "You have 1 correction available" state; lock form after submission and remove redundant name input
    - [ ] Build lightweight n8n task/cron to flag pending approvals >72h for manual follow-up
    - [ ] Document ops response templates + future automation (SendGrid/Help Scout, reminder cadence, feedback_tickets) in docs
    - [ ] Amazon listing prep (friends & family launch):

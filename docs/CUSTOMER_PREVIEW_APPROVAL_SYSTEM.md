@@ -93,10 +93,10 @@ This document outlines the complete plan for building the customer-facing previe
 - ✅ Amazon automatically mirrors messages to the buyer’s email
 - ✅ No dependence on SendGrid or additional tooling to launch
 
-**Secondary Channel (MVP)**: Manual direct email once customer replies from preview page
-- ✅ Customer clicks “Request a revision” → their email client opens with pre-filled subject/body
-- ✅ Preview page also captures email + order info via lightweight form (`customer_contacts` table)
-- ✅ Ops replies from shared inbox and continues conversation outside Amazon
+**Secondary Channel (MVP)**: One structured correction form that also captures a verified reply-to address
+- ✅ Preview page now requires the customer to enter and confirm their email before submitting a correction
+- ✅ Submission writes directly into `customer_contacts` with the bounded payload and opt-in flag
+- ✅ Ops receives the saved request (and notification) and continues the conversation using the captured address outside Amazon
 
 **Future Enhancements (Post-MVP)**:
 - ⏳ Add SendGrid or Help Scout to automate replies, log threads, and templated messaging
@@ -172,13 +172,12 @@ This document outlines the complete plan for building the customer-facing previe
    - `notification_logs` stores the attempt/result
 
 3. **Customer Reviews on littleherolabs.com**  
-   - Preview page shows placeholder (until full viewer cloned) and “Need a revision? Email us” panel  
-   - `mailto:` button opens buyer’s email client with subject/body containing order + token  
-   - Embedded contact form posts to `/api/preview/contact` to capture name/email/message into `customer_contacts` table (opt-in checkbox available)
-
-4. **Manual Email Loop**  
-   - Ops receives the email, replies directly, performs revisions, and sends new link via normal email thread  
-   - New preview tokens generated as needed and shared via direct email (Amazon only used for first touch)
+   - Preview page greets the buyer by Amazon display name and shows the placeholder viewer (until full viewer is cloned)  
+   - “Need a correction?” card contains a single bounded form; customer must enter and confirm their email before selecting a reason  
+   - Form submission posts to `/api/preview/contact`, storing the canonical payload (reason + preset fields) and the verified email/opt-in in `customer_contacts`
+4. **Ops Follow-Up Loop**  
+   - Ops (or n8n) is alerted from the saved contact record, replies from the shared inbox using the captured address, performs revisions, and issues a new preview link if required  
+   - Subsequent preview tokens are distributed via direct email; Amazon Message Center remains only for the first touch
 
 5. **Completion & Print Submission**  
    - After customer approves (or ops manually approves after 3 days of no response), order progresses to Lulu submission  
@@ -191,13 +190,14 @@ This document outlines the complete plan for building the customer-facing previe
 ## 🧭 **Bounded Feedback System**
 
 ### **Customer Experience**
-1. Customer opens preview → sees “Need a correction?” card.
-2. Selects a reason from predefined list (derived from `Customization_Source_of_Truth`).
-3. Only the relevant input fields appear (e.g., choose new hair color from presets).
-4. Optional checkbox: “Keep me posted on new titles and promos.”
-5. Guardrail copy below submit:  
+1. Customer opens preview → sees “Need a correction?” card pre-filled with their Amazon buyer name in the heading.
+2. Enters their email **twice** (primary + confirm) so we capture a valid reply-to address before anything else.
+3. Selects a reason from the predefined list (derived from `Customization_Source_of_Truth`).
+4. Only the relevant input fields appear (e.g., choose new hair color from presets).
+5. Optional checkbox: “Keep me posted on new titles and promos.”
+6. Guardrail copy below submit:  
    *“We can adjust details to match the options you selected (name spelling, preset hair styles/colors, skin tone, etc.). We aren’t able to create brand-new artwork or styles outside the choices shown.”*
-6. Submit button disabled after one correction is filed; banner directs them to continue via email thread.
+7. After submission the form locks (only one correction per order) and a success banner confirms ops will follow up via email.
 
 ### **Allowed Reasons (single select)**
 - `name_typo`
@@ -334,7 +334,7 @@ Log attempt in notification_logs
   ↓
 Customer receives Amazon message + email mirror → clicks preview link
   ↓
-If they need changes, they email us from the preview page (mailto + capture form)
+If they need changes, they submit the structured correction form (with confirmed email)
   ↓
 Ops team continues conversation via direct email (outside Amazon)
 ```
@@ -432,7 +432,7 @@ Log attempt in notification_logs
   ↓
 Customer opens preview page on littleherolabs.com
   ├─ Approve → update order → trigger Workflow 4 (Print)
-  └─ Need changes → email request (mailto + contact form) → ops follows up via inbox
+  └─ Need changes → structured correction form (email captured + bounded payload) → ops follows up via inbox
        └─ Ops generates new preview token + emails fresh link
   ↓
 If idle >3 days → ops manually reviews/approves
@@ -1091,48 +1091,6 @@ Little Hero Labs
 - ✅ Issue flagging functional
 - ✅ Disclaimer and terms implemented
 - ✅ Complete customer experience
-
----
-
-## ❓ **Outstanding Questions**
-
-### **Question 1: Token Reuse Policy**
-**Question**: Should preview tokens be single-use (marked as used after approval) or reusable until expiration?
-
-**Options**:
-- **Option A**: Single-use (token marked as used after approval/rejection)
-- **Option B**: Reusable until expiration (customer can view multiple times)
-
-**Recommendation**: Option A - Single-use for security, but allow viewing before approval
-
-**Decision Needed**: [ ] Single-use or [ ] Reusable
-
----
-
-### **Question 2: Preview Link in Order Confirmation**
-**Question**: Should we include the preview link in the initial Amazon order confirmation email, or only send it when preview is ready?
-
-**Options**:
-- **Option A**: Only send when preview is ready (current plan)
-- **Option B**: Include in order confirmation with "coming soon" message
-
-**Recommendation**: Option A - Only send when ready to avoid confusion
-
-**Decision Needed**: [ ] Only when ready or [ ] Include in confirmation
-
----
-
-### **Question 3: Customer Service Contact Method**
-**Question**: When revision limit is reached, how should customers contact customer service?
-
-**Options**:
-- **Option A**: Amazon Message Center (via SP-API)
-- **Option B**: Email address (support@littleherolabs.com)
-- **Option C**: Both (Amazon Message Center + Email)
-
-**Recommendation**: Option C - Both channels for maximum reachability
-
-**Decision Needed**: [ ] Amazon Message Center or [ ] Email or [ ] Both
 
 ---
 

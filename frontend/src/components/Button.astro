@@ -4,9 +4,18 @@ interface Props {
   variant?: 'primary' | 'secondary';
   size?: 'sm' | 'md' | 'lg';
   class?: string;
+  type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
 }
 
-const { href, variant = 'primary', size = 'md', class: className = '' } = Astro.props;
+const {
+  href,
+  variant = 'primary',
+  size = 'md',
+  class: className = '',
+  type = 'button',
+  disabled = false
+} = Astro.props;
 ---
 
 {href ? (
@@ -14,7 +23,7 @@ const { href, variant = 'primary', size = 'md', class: className = '' } = Astro.
     <slot />
   </a>
 ) : (
-  <button class={`btn btn-${variant} btn-${size} ${className}`}>
+  <button class={`btn btn-${variant} btn-${size} ${className}`} type={type} disabled={disabled}>
     <slot />
   </button>
 )}

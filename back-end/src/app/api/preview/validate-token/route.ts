@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
       order: {
         orderId: validation.orderId,
         amazonOrderId: order.amazon_order_id || order.orderId,
+        customerName: order.customer_name || null,
         characterSpecs: order.character_specs,
         revisionCount: order.revision_count || 0,
         customerApprovalStatus: order.customer_approval_status,

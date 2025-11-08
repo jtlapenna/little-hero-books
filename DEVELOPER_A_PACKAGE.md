@@ -46,12 +46,13 @@
 ---
 
 ### **Developer A (Your Work) - Database Integration Required**
-**Note**: Human-in-the-Loop Asset Review System is now LIVE and operational. Your workflows need to integrate with the review system.
+> **Ownership reminder**: Developer A is responsible for n8n Workflows **2A, 2B, and 3** (generation → assembly). Developer B maintains Workflow 1 intake, downstream Workflows 4-8, and the customer preview/approval frontend. Any workflow changes tied to generation/background removal/PDF assembly fall to Developer A; intake or notification adjustments (e.g., storing buyer names, preview contact capture) live with Developer B.
 - 🔄 **Workflow 2A**: AI Character Generation (Bria AI Integration) - `2.A.-bria-submit.json`
 - 🔄 **Workflow 2B**: AI Character Generation (Background Removal) - `2.B.-bria-retrieve.json`  
 - 🔄 **Workflow 3**: Book Assembly & PDF Generation - `3-book-assembly-production.json`
 
 ### **Developer B (Completed) - Ready for Integration**
+> Developer B also owns the customer preview experience (single structured correction form with email confirmation) and the Amazon Message Center notification flow described in `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md`.
 - ✅ **Workflow 1**: Order Intake & Validation - `1-order-intake-validation.json`
 - ✅ **Human-in-the-Loop Asset Review System** - COMPLETE & OPERATIONAL
   - ✅ Real-time monitoring dashboard at `/monitoring`

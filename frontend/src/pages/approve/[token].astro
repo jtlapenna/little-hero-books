@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import Button from '../../components/Button.astro';
 
 // This is a server-rendered dynamic route (not pre-rendered)
 // We need to validate tokens at runtime, so we can't use static generation
@@ -14,13 +15,6 @@ if (!token) {
 ---
 
 <Layout title="Book Preview - Little Hero Labs" description="Preview your personalized children's book">
-  <!-- Hide header and footer navigation for preview page (secure link, no need for nav) -->
-  <style is:global>
-    #main-header,
-    footer {
-      display: none;
-    }
-  </style>
   <div id="preview-app">
     <!-- Loading State -->
     <div id="loading-state" class="preview-container">
@@ -40,41 +34,25 @@ if (!token) {
         </svg>
         <h1 class="error-title">Unable to Load Preview</h1>
         <p id="error-message" class="error-text"></p>
-        <a href="/" class="btn btn-primary">Return Home</a>
+        <Button href="/" variant="primary" size="md">Return Home</Button>
       </div>
     </div>
 
     <!-- Main Preview Content -->
     <div id="preview-content" class="preview-container" style="display: none;">
-      <!-- Header -->
-      <header class="preview-header">
-        <div class="container">
-          <div class="header-content">
-            <div class="header-brand">
-              <svg class="header-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-              </svg>
-              <h1 class="header-title">Little Hero Labs</h1>
-            </div>
-            <p class="header-subtitle">Book Preview</p>
-          </div>
-        </div>
-      </header>
-
       <div class="container preview-main">
         <!-- Page Header -->
         <div class="preview-card">
           <div class="preview-card-header">
             <div>
-              <h2 class="preview-title">Your Book Preview</h2>
+              <h2 class="preview-title">Hi, <span id="buyer-name" class="buyer-name">there</span>!</h2>
               <p class="preview-subtitle">
                 Review your personalized book for <span id="child-name" class="font-semibold">your child</span>
               </p>
             </div>
             <div class="header-actions">
-              <button id="revision-btn" class="btn btn-outline btn-revision" type="button">I need a correction</button>
-              <button id="approve-btn" class="btn btn-primary btn-approve" disabled>Approve Book</button>
+              <Button variant="secondary" size="lg" class="btn-revision" type="button">I need a correction</Button>
+              <Button size="lg" class="btn-approve" type="button">Approve Book</Button>
             </div>
           </div>
         </div>
@@ -101,7 +79,7 @@ if (!token) {
         </div>
 
         <!-- Order Details -->
-        <div class="preview-card">
+        <div id="order-details-card" class="preview-card">
           <h3 class="card-title">Order Details</h3>
           <div class="order-details-grid">
             <div>
@@ -122,15 +100,12 @@ if (!token) {
               <h3 class="card-title">Need a correction?</h3>
               <p id="correction-availability" class="correction-availability">You have 1 correction available.</p>
             </div>
-            <a id="mailto-link" href="mailto:hello@littleherobooks.com" class="btn btn-outline mailto-btn">
-              Email from your inbox
-            </a>
           </div>
           <div id="correction-locked" class="locked-banner" style="display: none;">
             We already received your correction. If you need more help, reply to our email thread and our team will assist.
           </div>
           <div id="correction-success" class="success-banner" style="display: none;">
-            Thank you! We received your correction. We’ll review it and follow up by email shortly.
+            Thank you! We received your correction. We’ll review it and follow up shortly.
           </div>
           <form id="correction-form" class="correction-form">
             <div class="form-group">
@@ -138,8 +113,8 @@ if (!token) {
               <input type="email" id="contact-email" class="form-input" placeholder="you@example.com" required />
             </div>
             <div class="form-group">
-              <label class="form-label" for="contact-name">Your name (optional)</label>
-              <input type="text" id="contact-name" class="form-input" placeholder="Name that Amazon order is under" maxlength="150" />
+              <label class="form-label" for="contact-email-confirm">Confirm email</label>
+              <input type="email" id="contact-email-confirm" class="form-input" placeholder="Re-enter your email" required />
             </div>
             <div class="form-group">
               <label class="form-label" for="reason-select">What needs fixing?</label>
@@ -152,13 +127,13 @@ if (!token) {
             <div id="correction-error" class="correction-error" style="display: none;"></div>
             <label class="checkbox-label marketing-opt">
               <input type="checkbox" id="marketing-opt-in" />
-              <span>Keep me posted on new titles and promos for Little Hero Books.</span>
+              <span>Keep me posted on new titles and promos for Little Hero Labs.</span>
             </label>
             <div id="policy-box" class="policy-box">
               We can adjust details to match the options you selected (name spelling, preset hair style/color, skin tone, pronouns, etc.). We can’t create brand-new art or styles beyond the choices shown.
             </div>
             <div class="correction-actions">
-              <button type="submit" id="correction-submit" class="btn btn-primary">Send correction</button>
+              <Button size="md" class="correction-submit-btn" type="submit">Send correction</Button>
             </div>
           </form>
         </div>
@@ -187,12 +162,11 @@ if (!token) {
           </div>
         </div>
         <div class="modal-actions">
-          <button id="approval-cancel" class="btn btn-outline">Cancel</button>
-          <button id="approval-confirm" class="btn btn-primary" disabled>Approve Book</button>
+          <Button variant="secondary" size="md" class="modal-cancel" type="button">Cancel</Button>
+          <Button size="md" class="btn-approval-confirm" type="button" disabled>Approve Book</Button>
         </div>
       </div>
     </div>
-
   </div>
 </Layout>
 
@@ -246,27 +220,28 @@ if (!token) {
   const orderIdEl = document.getElementById('order-id');
   const ageDetail = document.getElementById('age-detail');
   const ageValue = document.getElementById('age-value');
-  const approveBtn = document.getElementById('approve-btn');
+  const approveBtn = document.querySelector('.btn-approve');
   const approvalModal = document.getElementById('approval-modal');
   const acknowledgeCheckbox = document.getElementById('acknowledge-last-revision');
   const lastRevisionContainer = document.getElementById('last-revision-checkbox-container');
-  const approvalConfirmBtn = document.getElementById('approval-confirm');
+  const approvalConfirmBtn = document.querySelector('.btn-approval-confirm');
 
   const correctionAvailability = document.getElementById('correction-availability');
   const correctionForm = document.getElementById('correction-form');
   const correctionSuccess = document.getElementById('correction-success');
   const correctionLocked = document.getElementById('correction-locked');
-  const correctionSubmit = document.getElementById('correction-submit');
+  const correctionSubmit = document.querySelector('.correction-submit-btn');
   const correctionError = document.getElementById('correction-error');
   const reasonSelect = document.getElementById('reason-select');
   const reasonBanner = document.getElementById('reason-banner');
   const reasonFieldsContainer = document.getElementById('reason-fields');
   const marketingOptIn = document.getElementById('marketing-opt-in');
   const contactEmailInput = document.getElementById('contact-email');
-  const contactNameInput = document.getElementById('contact-name');
-  const mailtoLink = document.getElementById('mailto-link');
-  const revisionBtn = document.getElementById('revision-btn');
+  const contactEmailConfirmInput = document.getElementById('contact-email-confirm');
+  const revisionBtn = document.querySelector('.btn-revision');
   const correctionCard = document.getElementById('correction-card');
+  const orderDetailsCard = document.getElementById('order-details-card');
+  const buyerNameEl = document.getElementById('buyer-name');
 
   function populateReasonOptions() {
     reasonSelect.innerHTML = '<option value="">Select a correction</option>';
@@ -320,6 +295,8 @@ if (!token) {
 
   function displayOrder(order) {
     const childName = order.characterSpecs?.childName || 'your child';
+    const buyerName = order.customerName || 'there';
+    buyerNameEl.textContent = buyerName;
     childNameEl.textContent = childName;
 
     const displayOrderId = order.amazonOrderId || order.orderId;
@@ -330,18 +307,11 @@ if (!token) {
       ageValue.textContent = `${order.characterSpecs.age} years old`;
     }
 
-    setupMailtoLink(displayOrderId, childName);
     updateCorrectionState(order);
 
-    approveBtn.disabled = false;
-  }
-
-  function setupMailtoLink(orderId, childName) {
-    const subject = encodeURIComponent(`Order ${orderId} - Correction request`);
-    const body = encodeURIComponent(
-      `Hi Little Hero Books,\n\nI'd like to correct my book for ${childName}.\n\nOrder ID: ${orderId}\nPreview link: https://littleherolabs.com/approve/${token}\n\nDetails:\n`
-    );
-    mailtoLink.href = `mailto:hello@littleherobooks.com?subject=${subject}&body=${body}`;
+    if (approveBtn) {
+      approveBtn.disabled = false;
+    }
   }
 
   function updateCorrectionState(order) {
@@ -354,9 +324,13 @@ if (!token) {
       correctionLocked.style.display = 'block';
       correctionSuccess.style.display = 'block';
       lastRevisionContainer.style.display = 'block';
-      approvalConfirmBtn.disabled = !acknowledgeCheckbox.checked;
-      revisionBtn.textContent = 'View correction details';
-      revisionBtn.classList.add('correction-used');
+      if (approvalConfirmBtn) {
+        approvalConfirmBtn.disabled = !acknowledgeCheckbox.checked;
+      }
+      if (revisionBtn) {
+        revisionBtn.textContent = 'View correction details';
+        revisionBtn.classList.add('correction-used');
+      }
     } else {
       correctionAvailability.textContent = 'You have 1 correction available.';
       correctionAvailability.classList.remove('correction-used');
@@ -367,9 +341,13 @@ if (!token) {
       reasonBanner.style.display = 'none';
       lastRevisionContainer.style.display = 'none';
       acknowledgeCheckbox.checked = false;
-      approvalConfirmBtn.disabled = false;
-      revisionBtn.textContent = 'I need a correction';
-      revisionBtn.classList.remove('correction-used');
+      if (approvalConfirmBtn) {
+        approvalConfirmBtn.disabled = false;
+      }
+      if (revisionBtn) {
+        revisionBtn.textContent = 'I need a correction';
+        revisionBtn.classList.remove('correction-used');
+      }
     }
   }
 
@@ -469,28 +447,27 @@ if (!token) {
     correctionError.style.display = 'none';
 
     if (!orderData) return;
+    if (!correctionSubmit) return;
     if (correctionUsed) {
       correctionError.textContent = 'You have already used your correction for this order.';
       correctionError.style.display = 'block';
       return;
     }
 
-    const reasonId = reasonSelect.value;
-    const reason = REASON_DEFINITIONS.find((r) => r.id === reasonId);
-    if (!reason) {
-      correctionError.textContent = 'Please select what needs fixing.';
-      correctionError.style.display = 'block';
-      return;
-    }
-
     const email = contactEmailInput.value.trim();
-    if (!email) {
-      correctionError.textContent = 'Please enter your email address.';
+    const emailConfirm = contactEmailConfirmInput.value.trim();
+    if (!email || !emailConfirm) {
+      correctionError.textContent = 'Please enter and confirm your email address.';
       correctionError.style.display = 'block';
       return;
     }
 
-    const name = contactNameInput.value.trim();
+    if (email.toLowerCase() !== emailConfirm.toLowerCase()) {
+      correctionError.textContent = 'Email addresses do not match. Please re-type them.';
+      correctionError.style.display = 'block';
+      return;
+    }
+
     const fields = collectFieldValues(reason);
 
     const missingField = reason.fields.find((field) => field.required && !fields[field.id]);
@@ -512,7 +489,7 @@ if (!token) {
           amazonOrderId: orderData.amazonOrderId || null,
           token,
           email,
-          name: name || null,
+          name: orderData.customerName || null,
           reason: reasonId,
           fields,
           marketingOptIn: marketingOptIn.checked
@@ -528,11 +505,11 @@ if (!token) {
       correctionForm.reset();
       reasonFieldsContainer.innerHTML = '';
       reasonBanner.style.display = 'none';
+      correctionSuccess.style.display = 'block';
+      correctionLocked.style.display = 'none';
 
       orderData.revisionCount = (orderData.revisionCount || 0) + 1;
       updateCorrectionState(orderData);
-      correctionSuccess.style.display = 'block';
-      correctionLocked.style.display = 'none';
     } catch (error) {
       console.error('Error submitting correction:', error);
       correctionError.textContent = error.message || 'Failed to send correction. Please try again or email us.';
@@ -551,8 +528,10 @@ if (!token) {
       return;
     }
 
-    approveBtn.disabled = true;
-    approveBtn.textContent = 'Approving...';
+    if (approveBtn) {
+      approveBtn.disabled = true;
+      approveBtn.textContent = 'Approving...';
+    }
 
     try {
       const response = await fetch(`${API_BASE}/api/preview/${orderData.orderId}/approve`, {
@@ -570,8 +549,10 @@ if (!token) {
     } catch (error) {
       console.error('Error approving:', error);
       alert(error.message || 'Failed to approve book. Please try again.');
-      approveBtn.disabled = false;
-      approveBtn.textContent = 'Approve Book';
+      if (approveBtn) {
+        approveBtn.disabled = false;
+        approveBtn.textContent = 'Approve Book';
+      }
     }
   }
 
@@ -579,26 +560,38 @@ if (!token) {
   reasonSelect.addEventListener('change', (event) => renderReasonFields(event.target.value));
   correctionForm.addEventListener('submit', handleCorrectionSubmit);
 
-  approveBtn.addEventListener('click', () => {
-    approvalModal.style.display = 'flex';
-  });
+  if (approveBtn) {
+    approveBtn.addEventListener('click', () => {
+      approvalModal.style.display = 'flex';
+    });
+  }
 
-  document.getElementById('approval-cancel').addEventListener('click', () => {
-    approvalModal.style.display = 'none';
-  });
+  const modalCancelBtn = document.querySelector('.modal-cancel');
+  if (modalCancelBtn) {
+    modalCancelBtn.addEventListener('click', () => {
+      approvalModal.style.display = 'none';
+    });
+  }
 
-  approvalConfirmBtn.addEventListener('click', handleApprove);
+  if (approvalConfirmBtn) {
+    approvalConfirmBtn.addEventListener('click', handleApprove);
+  }
 
-  revisionBtn.addEventListener('click', () => {
-    if (correctionCard) {
-      correctionCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      correctionCard.classList.add('jump-highlight');
-      setTimeout(() => correctionCard.classList.remove('jump-highlight'), 800);
-    }
-  });
+  if (revisionBtn) {
+    revisionBtn.addEventListener('click', () => {
+      const target = orderDetailsCard || correctionCard;
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        target.classList.add('jump-highlight');
+        setTimeout(() => target.classList.remove('jump-highlight'), 800);
+      }
+    });
+  }
 
   acknowledgeCheckbox.addEventListener('change', () => {
-    approvalConfirmBtn.disabled = correctionUsed && !acknowledgeCheckbox.checked;
+    if (approvalConfirmBtn) {
+      approvalConfirmBtn.disabled = correctionUsed && !acknowledgeCheckbox.checked;
+    }
   });
 
   loadPreview();
@@ -657,108 +650,6 @@ if (!token) {
     margin-bottom: var(--spacing-lg);
   }
 
-  .preview-header {
-    background: linear-gradient(135deg, var(--color-soft-teal) 0%, rgba(90, 198, 177, 0.12) 65%, #ffffff 100%);
-    border-bottom: 1px solid rgba(45, 49, 66, 0.08);
-    box-shadow: 0 16px 40px rgba(90, 198, 177, 0.15);
-    padding: var(--spacing-lg) 0;
-  }
-
-  .header-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--spacing-lg);
-  }
-
-  .header-brand {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-  }
-
-  .header-icon {
-    color: var(--color-hero-coral);
-  }
-
-  .header-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--color-navy-midnight);
-    margin: 0;
-  }
-
-  .header-subtitle {
-    font-size: 0.95rem;
-    color: var(--color-soft-charcoal);
-    margin: 0;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    flex-wrap: wrap;
-  }
-
-  .btn {
-    padding: 0.75rem 1.5rem;
-    border-radius: 999px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border: none;
-  }
-
-  .btn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, var(--color-hero-coral) 0%, rgba(249, 187, 58, 0.85) 100%);
-    color: #ffffff;
-    box-shadow: 0 14px 32px rgba(249, 120, 107, 0.25);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 18px 36px rgba(249, 120, 107, 0.28);
-  }
-
-  .btn-secondary {
-    background: #ef4444;
-    color: white;
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: #dc2626;
-  }
-
-  .btn-secondary:disabled {
-    background: #d1d5db;
-  }
-
-  .btn-outline {
-    background: rgba(90, 198, 177, 0.12);
-    color: var(--color-navy-midnight);
-    border: 1px solid rgba(90, 198, 177, 0.45);
-  }
-
-  .btn-outline:hover {
-    background: rgba(90, 198, 177, 0.18);
-    transform: translateY(-1px);
-  }
-
-  .btn-revision {
-    color: #3f3d56;
-  }
-
-  .btn-revision.correction-used {
-    opacity: 0.6;
-  }
-
   .preview-card {
     background: #ffffff;
     border-radius: 20px;
@@ -776,13 +667,19 @@ if (!token) {
   }
 
   .preview-title {
+    font-family: var(--font-heading);
     font-size: 2rem;
     font-weight: 700;
     color: var(--color-navy-midnight);
     margin-bottom: var(--spacing-sm);
   }
 
+  .buyer-name {
+    color: var(--color-hero-coral);
+  }
+
   .preview-subtitle {
+    font-family: var(--font-ui);
     color: var(--color-soft-charcoal);
     margin: 0;
   }
@@ -835,6 +732,7 @@ if (!token) {
   }
 
   .card-title {
+    font-family: var(--font-heading);
     font-size: 1.125rem;
     font-weight: 600;
     color: var(--color-navy-midnight);
@@ -861,8 +759,10 @@ if (!token) {
   }
 
   .correction-availability {
+    font-family: var(--font-ui);
     color: var(--color-soft-charcoal);
     margin: 0;
+    font-weight: 500;
   }
 
   .correction-availability.correction-used {
@@ -875,6 +775,7 @@ if (!token) {
   }
 
   .reason-banner {
+    font-family: var(--font-ui);
     background: rgba(249, 120, 107, 0.12);
     border: 1px solid rgba(249, 120, 107, 0.35);
     color: #b64c32;
@@ -884,7 +785,25 @@ if (!token) {
     font-size: 0.9rem;
   }
 
+  :global(.reason-fields) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+  }
+
+  :global(.reason-fields .form-group) {
+    width: 100%;
+  }
+
+  :global(.reason-fields .form-input) {
+    width: 100%;
+    display: block;
+  }
+
   .policy-box {
+    font-family: var(--font-ui);
     background: rgba(249, 187, 58, 0.12);
     border: 1px solid rgba(249, 187, 58, 0.35);
     border-radius: 14px;
@@ -902,16 +821,18 @@ if (!token) {
   }
 
   .correction-error {
-    background: #fee2e2;
-    border: 1px solid #ef4444;
-    border-radius: 8px;
-    color: #991b1b;
+    font-family: var(--font-ui);
+    background: rgba(249, 120, 107, 0.15);
+    border: 1px solid rgba(249, 120, 107, 0.4);
+    border-radius: 12px;
+    color: #a03f29;
     padding: var(--spacing-sm) var(--spacing-md);
     margin-bottom: var(--spacing-md);
     font-size: 0.9rem;
   }
 
   .success-banner {
+    font-family: var(--font-ui);
     background: rgba(90, 198, 177, 0.16);
     border: 1px solid rgba(90, 198, 177, 0.45);
     color: #1b7a6a;
@@ -922,6 +843,7 @@ if (!token) {
   }
 
   .locked-banner {
+    font-family: var(--font-ui);
     background: rgba(45, 49, 66, 0.06);
     border: 1px solid rgba(45, 49, 66, 0.15);
     color: var(--color-navy-midnight);
@@ -929,154 +851,6 @@ if (!token) {
     padding: var(--spacing-sm) var(--spacing-md);
     margin-bottom: var(--spacing-md);
     font-size: 0.95rem;
-  }
-
-  .mailto-btn {
-    white-space: nowrap;
-  }
-
-  .detail-label {
-    font-size: 0.875rem;
-    color: var(--color-soft-charcoal);
-    margin-bottom: var(--spacing-xs);
-  }
-
-  .detail-value {
-    font-weight: 500;
-    color: var(--color-navy-midnight);
-    margin: 0;
-  }
-
-  .action-buttons {
-    display: flex;
-    gap: var(--spacing-md);
-    justify-content: center;
-  }
-
-  .modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-    padding: var(--spacing-md);
-  }
-
-  .modal-content {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    max-width: 28rem;
-    width: 100%;
-    padding: var(--spacing-lg);
-  }
-
-  .modal-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--color-navy-midnight);
-    margin-bottom: var(--spacing-md);
-  }
-
-  .modal-subtitle {
-    font-size: 0.875rem;
-    color: var(--color-soft-charcoal);
-    margin-bottom: var(--spacing-md);
-  }
-
-  .modal-body {
-    margin-bottom: var(--spacing-lg);
-  }
-
-  .warning-box {
-    background: #fef3c7;
-    border: 1px solid #fbbf24;
-    border-radius: 8px;
-    padding: var(--spacing-md);
-  }
-
-  .warning-title {
-    font-weight: 600;
-    color: #92400e;
-    margin-bottom: var(--spacing-sm);
-  }
-
-  .warning-list {
-    font-size: 0.875rem;
-    color: #78350f;
-    list-style: disc;
-    list-style-position: inside;
-    margin: 0;
-    padding: 0;
-  }
-
-  .warning-list li {
-    margin-bottom: var(--spacing-xs);
-  }
-
-  .checkbox-label {
-    display: flex;
-    align-items: start;
-    gap: var(--spacing-sm);
-    font-size: 0.875rem;
-    color: var(--color-soft-charcoal);
-    cursor: pointer;
-  }
-
-  .checkbox-label input[type="checkbox"] {
-    margin-top: 0.125rem;
-    cursor: pointer;
-  }
-
-  .checkbox-container {
-    background: #fff7ed;
-    border: 1px solid #fb923c;
-    border-radius: 8px;
-    padding: var(--spacing-md);
-    margin-top: var(--spacing-md);
-  }
-
-  .checkbox-container .checkbox-label {
-    color: #9a3412;
-  }
-
-  .modal-actions,
-  .form-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-  }
-
-  .modal-actions .btn,
-  .form-actions .btn {
-    flex: 1;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .form-label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-navy-midnight);
-    margin-bottom: var(--spacing-xs);
-  }
-
-  .form-input {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: border-color 0.2s;
-  }
-
-  .form-input:focus {
-    outline: none;
-    border-color: var(--color-hero-coral);
-    box-shadow: 0 0 0 3px rgba(249, 120, 107, 0.1);
   }
 
   .correction-card.jump-highlight {
@@ -1087,6 +861,85 @@ if (!token) {
     0% { box-shadow: 0 0 0 rgba(249, 120, 107, 0.0); }
     50% { box-shadow: 0 0 32px rgba(249, 120, 107, 0.24); }
     100% { box-shadow: 0 12px 36px rgba(45, 49, 66, 0.08); }
+  }
+
+  .preview-main {
+    padding: var(--spacing-lg) 0 var(--spacing-xl);
+    margin-top: var(--spacing-xl);
+  }
+
+  .spacer {
+    height: var(--spacing-lg);
+  }
+
+  .preview-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-lg);
+    flex-wrap: wrap;
+  }
+
+  .detail-label {
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+    color: var(--color-soft-charcoal);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .detail-value {
+    font-family: var(--font-ui);
+    font-weight: 500;
+    color: var(--color-navy-midnight);
+    margin: 0;
+  }
+
+  .warning-title {
+    font-family: var(--font-ui);
+    font-weight: 600;
+    color: #92400e;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .warning-list {
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+    color: #78350f;
+    list-style: disc;
+  }
+
+  :global(.checkbox-label) {
+    font-family: var(--font-ui);
+    display: flex;
+    align-items: start;
+    gap: var(--spacing-sm);
+  }
+
+  :global(.form-group) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  :global(.form-label) {
+    display: block;
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-navy-midnight);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  :global(.form-input) {
+    font-family: var(--font-ui);
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+  }
+
+  :global(.form-input:focus) {
+    outline: none;
+    border-color: var(--color-hero-coral);
+    box-shadow: 0 0 0 3px rgba(249, 120, 107, 0.1);
   }
 
   @media (max-width: 768px) {
@@ -1102,6 +955,42 @@ if (!token) {
       flex-direction: column;
       align-items: flex-start;
       gap: var(--spacing-md);
+    }
+
+    .header-actions {
+      width: 100%;
+    }
+
+    .header-actions :global(.btn) {
+      width: 100%;
+      text-align: center;
+    }
+
+    .correction-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .correction-actions {
+      width: 100%;
+    }
+
+    .correction-actions :global(.btn) {
+      width: 100%;
+    }
+
+    .preview-title {
+      font-size: 1.75rem;
+    }
+
+    .preview-subtitle {
+      font-family: var(--font-ui);
+      font-size: 0.95rem;
+    }
+
+    .detail-value {
+      font-family: var(--font-ui);
+      font-size: 1rem;
     }
   }
 </style>
