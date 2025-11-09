@@ -315,7 +315,41 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               || manifest3?.bookAssembly?.pagePreviewImages 
               || [];
             
-            // Fallback: Build from pngGeneration.storyImages if pagePreviewImages doesn't exist
+            // Fallback: Build from pngGeneration.pages (R2 keys stored as strings: pages.p01 = "r2/key/path")
+            if (!previewImages || previewImages.length === 0) {
+              const pagesObj = manifest3?.pngGeneration?.pages 
+                || manifest3?.manifest?.pngGeneration?.pages 
+                || {};
+              
+              if (pagesObj && typeof pagesObj === 'object' && Object.keys(pagesObj).length > 0) {
+                console.log('[Pages] Building pagePreviewImages from pngGeneration.pages');
+                // Convert pages object (p01: "r2/key", p02: "r2/key", etc.) to array format
+                previewImages = Object.entries(pagesObj).map(([key, r2Key]: [string, any]) => {
+                  // Parse page number from key: p00_dedication -> 0, p01 -> 1, p02 -> 2, etc.
+                  let pageNumber = 0;
+                  if (key === 'p00_dedication') {
+                    pageNumber = 0;
+                  } else if (key.startsWith('p')) {
+                    const numStr = key.substring(1);
+                    const num = parseInt(numStr, 10);
+                    if (!isNaN(num)) {
+                      pageNumber = num;
+                    }
+                  }
+                  
+                  return {
+                    pageNumber,
+                    r2Key: typeof r2Key === 'string' ? r2Key : null,
+                    imageUrl: null,
+                    filename: null
+                  };
+                }).filter((img: any) => img.r2Key !== null); // Filter out entries without r2Key
+                
+                console.log(`[Pages] Built ${previewImages.length} pages from pngGeneration.pages`);
+              }
+            }
+            
+            // Fallback: Build from pngGeneration.storyImages if pagePreviewImages still doesn't exist
             if (!previewImages || previewImages.length === 0) {
               const storyImages = manifest3?.pngGeneration?.storyImages 
                 || manifest3?.manifest?.pngGeneration?.storyImages 
@@ -356,6 +390,25 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                 pngGenKeys: manifest3?.pngGeneration ? Object.keys(manifest3.pngGeneration) : null,
                 manifestPngGenKeys: manifest3?.manifest?.pngGeneration ? Object.keys(manifest3.manifest.pngGeneration) : null
               });
+              
+              // Log what's actually in pngGeneration
+              if (manifest3?.pngGeneration) {
+                console.log('[Pages] pngGeneration structure:', {
+                  keys: Object.keys(manifest3.pngGeneration),
+                  pages: manifest3.pngGeneration.pages ? Object.keys(manifest3.pngGeneration.pages).slice(0, 5) : null,
+                  storyImages: manifest3.pngGeneration.storyImages ? `Array(${manifest3.pngGeneration.storyImages.length})` : null,
+                  pagesWithCloudflare: manifest3.pngGeneration.pagesWithCloudflare ? Object.keys(manifest3.pngGeneration.pagesWithCloudflare).slice(0, 5) : null
+                });
+              }
+              
+              // Check if top-level 'pages' contains the data
+              if (manifest3?.pages) {
+                console.log('[Pages] Top-level pages structure:', {
+                  type: Array.isArray(manifest3.pages) ? 'array' : typeof manifest3.pages,
+                  keys: typeof manifest3.pages === 'object' && !Array.isArray(manifest3.pages) ? Object.keys(manifest3.pages).slice(0, 10) : null,
+                  length: Array.isArray(manifest3.pages) ? manifest3.pages.length : null
+                });
+              }
             }
             
             if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
