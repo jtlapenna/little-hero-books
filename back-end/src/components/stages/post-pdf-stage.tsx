@@ -135,11 +135,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const imagesFoundRef = useRef(false);
   // Track last loaded pages data to prevent unnecessary re-renders
   const lastPagesDataRef = useRef<string>('');
+  // Track spreads length for keyboard navigation to avoid stale closures
+  const spreadsLengthRef = useRef(0);
 
   // Reset ref and spread index when orderId changes
   useEffect(() => {
     imagesFoundRef.current = false;
     lastPagesDataRef.current = '';
+    spreadsLengthRef.current = 0;
     setCoverImageUrl(null);
     setCoverImageDataUrl(null);
     setCurrentSpreadIndex(0); // Always start at first spread when viewing a new order
@@ -303,14 +306,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   const newCoverUrl = coverPreviewUrl;
                   setCoverImageUrl(newCoverUrl);
                   setCoverImageLoading(false);
-                  // Update spreads with new cover URL
-                  setSpreads(prev => {
-                    // Use current pages state if available, otherwise use pageData from this load
-                    const currentPages = pages.length > 0 ? pages : pageData;
+                  // Update spreads with new cover URL - use functional update to get latest pages
+                  setPages(currentPages => {
                     if (currentPages.length > 0) {
-                      return createSpreads(currentPages, newCoverUrl);
+                      const newSpreads = createSpreads(currentPages, newCoverUrl);
+                      setSpreads(newSpreads);
+                      spreadsLengthRef.current = newSpreads.length;
                     }
-                    return prev; // Don't update if no pages yet
+                    return currentPages; // Don't change pages
                   });
                 } else {
                   // Convert PDF to image using PDF.js
@@ -321,14 +324,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     setCoverImageDataUrl(dataUrl);
                     setCoverImageUrl(coverPdfUrl); // Keep PDF URL for reference
                     setCoverImageLoading(false);
-                    // Update spreads with new cover data URL
-                    setSpreads(prev => {
-                      // Use current pages state if available, otherwise use pageData from this load
-                      const currentPages = pages.length > 0 ? pages : pageData;
+                    // Update spreads with new cover data URL - use functional update to get latest pages
+                    setPages(currentPages => {
                       if (currentPages.length > 0) {
-                        return createSpreads(currentPages, dataUrl);
+                        const newSpreads = createSpreads(currentPages, dataUrl);
+                        setSpreads(newSpreads);
+                        spreadsLengthRef.current = newSpreads.length;
                       }
-                      return prev; // Don't update if no pages yet
+                      return currentPages; // Don't change pages
                     });
                   } catch (pdfError) {
                     if (!isMounted) return;
@@ -347,14 +350,12 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   setCoverImageDataUrl(dataUrl);
                   setCoverImageUrl(coverPdfUrl);
                   setCoverImageLoading(false);
-                  // Update spreads with new cover data URL
-                  setSpreads(prev => {
-                    // Use current pages state if available, otherwise use pageData from this load
-                    const currentPages = pages.length > 0 ? pages : pageData;
+                  // Update spreads with new cover data URL - use functional update to get latest pages
+                  setPages(currentPages => {
                     if (currentPages.length > 0) {
-                      return createSpreads(currentPages, dataUrl);
+                      setSpreads(createSpreads(currentPages, dataUrl));
                     }
-                    return prev; // Don't update if no pages yet
+                    return currentPages; // Don't change pages
                   });
                 } catch (pdfError) {
                   if (!isMounted) return;
@@ -407,6 +408,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         // Always update spreads (even if pages haven't changed, cover might have)
         // This ensures spreads are always in sync with current data
         setSpreads(newSpreads);
+        spreadsLengthRef.current = newSpreads.length;
         
         // If we found images in the manifest, stop polling
         if (foundInManifest && pageData.length > 0) {
@@ -480,10 +482,19 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   // Reset image loading state when spread changes
   useEffect(() => {
     const currentSpread = spreads[currentSpreadIndex];
+    if (!currentSpread) {
+      setImageLoading({ left: false, right: false });
+      setImageError({ left: null, right: null });
+      return;
+    }
+    
     // Set loading to true if there's a page or cover to load
+    const hasLeft = !!(currentSpread.leftPage || (currentSpread.coverData && currentSpread.coverData.isBackCover));
+    const hasRight = !!(currentSpread.rightPage || (currentSpread.coverData && currentSpread.coverData.isFrontCover));
+    
     setImageLoading({ 
-      left: (currentSpread?.leftPage || (currentSpread?.coverData && currentSpread.coverData.isBackCover)) ? true : false, 
-      right: (currentSpread?.rightPage || (currentSpread?.coverData && currentSpread.coverData.isFrontCover)) ? true : false 
+      left: hasLeft, 
+      right: hasRight
     });
     setImageError({ left: null, right: null });
   }, [currentSpreadIndex, spreads]);
@@ -527,19 +538,27 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     }
   };
 
-  // Keyboard navigation
+  // Keyboard navigation - use ref to avoid stale closures
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' && currentSpreadIndex > 0) {
-        setCurrentSpreadIndex(currentSpreadIndex - 1);
-      } else if (e.key === 'ArrowRight' && currentSpreadIndex < totalSpreads - 1) {
-        setCurrentSpreadIndex(currentSpreadIndex + 1);
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        setCurrentSpreadIndex(prevIndex => {
+          const maxIndex = spreadsLengthRef.current > 0 ? spreadsLengthRef.current - 1 : 0;
+          
+          // Update index based on key and bounds
+          if (e.key === 'ArrowLeft' && prevIndex > 0) {
+            return prevIndex - 1;
+          } else if (e.key === 'ArrowRight' && prevIndex < maxIndex) {
+            return prevIndex + 1;
+          }
+          return prevIndex;
+        });
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentSpreadIndex, totalSpreads]);
+  }, []); // Empty deps - use ref instead of state
 
   return (
     <>
@@ -587,6 +606,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           height: 100%;
           object-fit: cover;
           object-position: center;
+          display: block;
         }
 
         .cover-image-container.front-cover img {
@@ -749,6 +769,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     // Back cover: show left half of cover image
                     <div className="cover-image-container back-cover">
                       <img
+                        key={`back-cover-${orderId}-${currentSpreadIndex}`}
                         src={currentSpread.coverData.fullImageUrl}
                         alt="Back Cover"
                         onLoad={() => {
@@ -771,6 +792,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     </div>
                   ) : currentSpread.leftPage ? (
                     <img
+                      key={`left-page-${orderId}-${currentSpread.leftPage.pageNumber}-${currentSpreadIndex}`}
                       src={currentSpread.leftPage.previewImageUrl}
                       alt={`Page ${currentSpread.leftPage.pageNumber}`}
                       onLoad={() => {
@@ -817,6 +839,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     // Front cover: show right half of cover image
                     <div className="cover-image-container front-cover">
                       <img
+                        key={`front-cover-${orderId}-${currentSpreadIndex}`}
                         src={currentSpread.coverData.fullImageUrl}
                         alt="Front Cover"
                         onLoad={() => {
@@ -839,46 +862,47 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     </div>
                   ) : currentSpread.rightPage ? (
                     <img
+                      key={`right-page-${orderId}-${currentSpread.rightPage.pageNumber}-${currentSpreadIndex}`}
                       src={currentSpread.rightPage.previewImageUrl}
                       alt={`Page ${currentSpread.rightPage.pageNumber}`}
-                    onLoad={() => {
+                      onLoad={() => {
                         console.log(`[Spreads] ✓ Right image loaded successfully for page ${currentSpread.rightPage!.pageNumber}`);
                         setImageLoading(prev => ({ ...prev, right: false }));
                         setImageError(prev => ({ ...prev, right: null }));
-                    }}
-                    onError={async (e) => {
-                      const img = e.currentTarget;
+                      }}
+                      onError={async (e) => {
+                        const img = e.currentTarget;
                         const url = currentSpread.rightPage!.previewImageUrl;
-                      
-                      try {
-                        const response = await fetch(url, { method: 'HEAD' });
+                        
+                        try {
+                          const response = await fetch(url, { method: 'HEAD' });
                           console.error(`[Spreads] ✗ Right image failed to load for page ${currentSpread.rightPage!.pageNumber}:`, {
-                          url,
-                          httpStatus: response.status,
-                          httpStatusText: response.statusText,
-                          error: e
-                        });
-                      } catch (fetchError) {
+                            url,
+                            httpStatus: response.status,
+                            httpStatusText: response.statusText,
+                            error: e
+                          });
+                        } catch (fetchError) {
                           console.error(`[Spreads] ✗ Right image fetch error for page ${currentSpread.rightPage!.pageNumber}:`, {
-                          url,
-                          fetchError,
-                          error: e
-                        });
-                      }
-                      
+                            url,
+                            fetchError,
+                            error: e
+                          });
+                        }
+                        
                         setImageLoading(prev => ({ ...prev, right: false }));
                         setImageError(prev => ({ ...prev, right: `Failed to load page ${currentSpread.rightPage!.pageNumber}` }));
-                    }}
+                      }}
                       className={`transition-opacity duration-200 ${
                         imageLoading.right ? 'opacity-0' : 'opacity-100'
-                    }`}
-                    style={{
+                      }`}
+                      style={{
                         display: imageError.right ? 'none' : 'block'
-                    }}
-                  />
+                      }}
+                    />
                   ) : (
                     <div className="white-page" />
-              )}
+                  )}
                 </div>
               </div>
             </div>
