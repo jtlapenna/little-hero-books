@@ -4,18 +4,20 @@
 
 const cloudflareResponse = $input.all();
 
-// Get the original page data from R2 upload node
-// Adjust node name if your R2 upload node has a different name
-const r2NodeName = 'Upload Page Preview Image to R2';
+// Get the original page data from upstream nodes
+// Try "Carry Page Keys Forward" node first (has R2 keys), then R2 upload node
 let pageData = [];
 try {
-  pageData = $items(r2NodeName).all();
+  pageData = $items('Carry Page Keys Forward').all();
 } catch (e) {
-  // Fallback: try to get from current input if R2 node name doesn't match
-  console.warn('Could not find R2 upload node, using input data');
-  // Try to extract from previous nodes
-  const allItems = $input.all();
-  pageData = allItems.map(item => item.json);
+  try {
+    pageData = $items('Upload Page Preview Image to R2').all();
+  } catch (e2) {
+    // Fallback: try to get from current input
+    console.warn('Could not find upstream nodes, using input data');
+    const allItems = $input.all();
+    pageData = allItems.map(item => item.json);
+  }
 }
 
 const results = [];
@@ -28,6 +30,15 @@ for (let i = 0; i < pageData.length; i++) {
   // Extract Cloudflare Images ID from response
   let cloudflareImageId = null;
   let cloudflareImageUrl = null;
+  
+  // Extract pageNumber and orderId from Cloudflare response metadata (most reliable source)
+  let pageNumberFromMetadata = null;
+  let orderIdFromMetadata = null;
+  
+  if (cloudflare && cloudflare.json && cloudflare.json.result && cloudflare.json.result.meta) {
+    pageNumberFromMetadata = cloudflare.json.result.meta.pageNumber;
+    orderIdFromMetadata = cloudflare.json.result.meta.orderId;
+  }
   
   if (cloudflare && cloudflare.json) {
     // Log the full response for debugging
@@ -74,15 +85,23 @@ for (let i = 0; i < pageData.length; i++) {
   
   // Combine page data with Cloudflare Images data
   // Exclude reserved keys like 'error' that n8n doesn't allow
-  const { error, ...pageDataWithoutError } = page;
+  const { error, ...pageDataWithoutError } = page || {};
+  
+  // Use pageNumber from metadata first (most reliable), then from page data, then fallback
+  const finalPageNumber = pageNumberFromMetadata !== null && pageNumberFromMetadata !== undefined
+    ? pageNumberFromMetadata
+    : (page.pageNumber || page.pageNum || i);
+  
+  // Use orderId from metadata first, then from page data
+  const finalOrderId = orderIdFromMetadata || page.orderId || page.amazonOrderId || null;
   
   results.push({
-    pageNumber: page.pageNumber || page.pageNum || i + 1,
+    pageNumber: finalPageNumber,
     r2Key: page.pageImageR2Key || page.r2Key || page.fileName || null,
     cloudflareImageId: cloudflareImageId,
     cloudflareImageUrl: cloudflareImageUrl,
     // Keep all other page data
-    orderId: page.orderId || page.amazonOrderId || null,
+    orderId: finalOrderId,
     imageUrl: page.imageUrl || null,
     // Preserve any other fields (excluding reserved keys)
     ...pageDataWithoutError
