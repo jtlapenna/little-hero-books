@@ -141,6 +141,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const lastSpreadIndexRef = useRef<number | null>(null);
   // Track last spread key to detect if current spread actually changed
   const lastSpreadKeyRef = useRef<string>('');
+  // Track previous spreads to detect actual content changes
+  const previousSpreadsRef = useRef<SpreadData[]>([]);
 
   // Reset ref and spread index when orderId changes
   useEffect(() => {
@@ -149,6 +151,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     spreadsLengthRef.current = 0;
     lastSpreadIndexRef.current = null;
     lastSpreadKeyRef.current = '';
+    previousSpreadsRef.current = [];
     setCoverImageUrl(null);
     setCoverImageDataUrl(null);
     setCurrentSpreadIndex(0); // Always start at first spread when viewing a new order
@@ -496,11 +499,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       }
       lastSpreadIndexRef.current = currentSpreadIndex;
       lastSpreadKeyRef.current = '';
+      previousSpreadsRef.current = spreads;
       return;
     }
     
+    // Compare current spread with previous spread at the same index
+    const prevSpread = previousSpreadsRef.current[currentSpreadIndex];
+    
     // Create a stable unique key for this spread to detect if it actually changed
-    // Use page numbers and cover data to create a stable identifier
     const leftPageNum = currentSpread.leftPage?.pageNumber ?? null;
     const rightPageNum = currentSpread.rightPage?.pageNumber ?? null;
     const coverType = currentSpread.coverData 
@@ -508,13 +514,19 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       : null;
     const spreadKey = `${currentSpreadIndex}-${leftPageNum}-${rightPageNum}-${coverType}`;
     
-    // Only reset loading state if the spread actually changed
-    // Check both index and content to avoid unnecessary resets
+    // Check if spread actually changed by comparing with previous
     const indexChanged = lastSpreadIndexRef.current !== currentSpreadIndex;
-    const contentChanged = lastSpreadKeyRef.current !== spreadKey;
-    const spreadChanged = indexChanged || contentChanged;
+    const prevLeftPageNum = prevSpread?.leftPage?.pageNumber ?? null;
+    const prevRightPageNum = prevSpread?.rightPage?.pageNumber ?? null;
+    const prevCoverType = prevSpread?.coverData 
+      ? (prevSpread.coverData.isFrontCover ? 'front' : prevSpread.coverData.isBackCover ? 'back' : 'cover')
+      : null;
+    const contentChanged = leftPageNum !== prevLeftPageNum || 
+                          rightPageNum !== prevRightPageNum || 
+                          coverType !== prevCoverType;
     
-    if (spreadChanged) {
+    // Only reset loading state if spread index changed OR content actually changed
+    if (indexChanged || contentChanged) {
       // Set loading to true if there's a page or cover to load
       const hasLeft = !!(currentSpread.leftPage || (currentSpread.coverData && currentSpread.coverData.isBackCover));
       const hasRight = !!(currentSpread.rightPage || (currentSpread.coverData && currentSpread.coverData.isFrontCover));
@@ -529,7 +541,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       lastSpreadIndexRef.current = currentSpreadIndex;
       lastSpreadKeyRef.current = spreadKey;
     }
-    // If spread hasn't changed, don't reset loading state (images may already be loaded)
+    // Update previous spreads ref for next comparison
+    previousSpreadsRef.current = spreads;
   }, [currentSpreadIndex, spreads]);
 
   const handleDownload = () => {

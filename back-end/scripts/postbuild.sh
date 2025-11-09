@@ -188,11 +188,19 @@ fi
 # Copy public directory files to output root (for static assets like PDF worker)
 echo "📦 Copying public directory files"
 if [ -d "public" ]; then
-  # Copy all files from public/ to output root
-  cp -r public/* "$OUTPUT_DIR/" 2>/dev/null || {
-    # If cp fails, try copying files individually
-    find public -type f -exec cp {} "$OUTPUT_DIR/" \;
-  }
+  # Copy all files from public/ to output root, preserving directory structure
+  # Use find to copy files individually to handle edge cases
+  find public -type f -exec sh -c 'src="$1"; dest_base="$2"; dest_path="${src#public/}"; dest="$dest_base/$dest_path"; mkdir -p "$(dirname "$dest")" && cp "$src" "$dest"' _ {} "$OUTPUT_DIR" \;
+  
+  # Verify critical files were copied
+  if [ -f "public/pdf.worker.min.mjs" ]; then
+    if [ -f "$OUTPUT_DIR/pdf.worker.min.mjs" ]; then
+      echo "✅ Copied pdf.worker.min.mjs to output root"
+    else
+      echo "❌ ERROR: pdf.worker.min.mjs not found in output directory!"
+      exit 1
+    fi
+  fi
   echo "✅ Copied public directory files"
 else
   echo "⚠️  WARNING: public directory not found (may be OK if no public files)"
