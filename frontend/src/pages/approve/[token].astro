@@ -8,6 +8,13 @@ export const prerender = false;
 
 // Get token from URL params
 const { token } = Astro.params;
+const rawRequireEmail = import.meta.env.PUBLIC_REQUIRE_CUSTOMER_EMAIL;
+const requireEmail =
+  rawRequireEmail !== undefined
+    ? !['false', '0'].includes(String(rawRequireEmail).toLowerCase())
+    : Astro.site?.hostname
+    ? true
+    : import.meta.env.MODE === 'production';
 
 if (!token) {
   return Astro.redirect('/');
@@ -109,12 +116,12 @@ if (!token) {
           </div>
           <form id="correction-form" class="correction-form">
             <div class="form-group">
-              <label class="form-label" for="contact-email">Your email</label>
-              <input type="email" id="contact-email" class="form-input" placeholder="you@example.com" required />
+              <label class="form-label" for="contact-email">{requireEmail ? 'Your email' : 'Your email (optional)'}</label>
+              <input type="email" id="contact-email" class="form-input" placeholder="you@example.com" required={requireEmail ? true : undefined} />
             </div>
             <div class="form-group">
-              <label class="form-label" for="contact-email-confirm">Confirm email</label>
-              <input type="email" id="contact-email-confirm" class="form-input" placeholder="Re-enter your email" required />
+              <label class="form-label" for="contact-email-confirm">{requireEmail ? 'Confirm email' : 'Confirm email (optional)'}</label>
+              <input type="email" id="contact-email-confirm" class="form-input" placeholder="Re-enter your email" required={requireEmail ? true : undefined} />
             </div>
             <div class="form-group">
               <label class="form-label" for="reason-select">What needs fixing?</label>
@@ -170,7 +177,7 @@ if (!token) {
   </div>
 </Layout>
 
-<script define:vars={{ token }} is:inline>
+<script define:vars={{ token, requireEmail }} is:inline>
   const API_BASE = 'http://localhost:3000';
   const HAIR_STYLES = ['afro', 'bun', 'curly-long', 'curly-medium', 'curly-short', 'pigtails', 'pom-poms', 'ponytail', 'side-part', 'straight-long', 'straight-medium', 'straight-short'];
   const HAIR_COLORS = ['blonde', 'strawberry-blonde', 'light-brown', 'medium-brown', 'dark-brown', 'auburn', 'black', 'red'];
@@ -454,18 +461,48 @@ if (!token) {
       return;
     }
 
-    const email = contactEmailInput.value.trim();
-    const emailConfirm = contactEmailConfirmInput.value.trim();
-    if (!email || !emailConfirm) {
-      correctionError.textContent = 'Please enter and confirm your email address.';
+    const reasonId = reasonSelect.value;
+    const reason = REASON_DEFINITIONS.find((r) => r.id === reasonId);
+
+    if (!reasonId || !reason) {
+      correctionError.textContent = 'Please choose what needs fixing.';
       correctionError.style.display = 'block';
       return;
     }
 
-    if (email.toLowerCase() !== emailConfirm.toLowerCase()) {
-      correctionError.textContent = 'Email addresses do not match. Please re-type them.';
-      correctionError.style.display = 'block';
-      return;
+    const emailRaw = contactEmailInput.value.trim();
+    const emailConfirmRaw = contactEmailConfirmInput.value.trim();
+    let emailToSend = null;
+
+    if (requireEmail) {
+      if (!emailRaw || !emailConfirmRaw) {
+        correctionError.textContent = 'Please enter and confirm your email address.';
+        correctionError.style.display = 'block';
+        return;
+      }
+
+      if (emailRaw.toLowerCase() !== emailConfirmRaw.toLowerCase()) {
+        correctionError.textContent = 'Email addresses do not match. Please re-type them.';
+        correctionError.style.display = 'block';
+        return;
+      }
+
+      emailToSend = emailRaw;
+    } else if (emailRaw || emailConfirmRaw) {
+      if (!emailRaw || !emailConfirmRaw) {
+        correctionError.textContent =
+          'Please enter and confirm your email address, or leave both fields blank.';
+        correctionError.style.display = 'block';
+        return;
+      }
+
+      if (emailRaw.toLowerCase() !== emailConfirmRaw.toLowerCase()) {
+        correctionError.textContent = 'Email addresses do not match. Please re-type them.';
+        correctionError.style.display = 'block';
+        return;
+      }
+
+      emailToSend = emailRaw;
     }
 
     const fields = collectFieldValues(reason);
@@ -481,19 +518,31 @@ if (!token) {
     correctionSubmit.textContent = 'Sending...';
 
     try {
+      /** @type {Record<string, unknown>} */
+      const payload = {
+        orderId: orderData.orderId,
+        token,
+        reason: reasonId,
+        fields,
+        marketingOptIn: marketingOptIn.checked
+      };
+
+      if (orderData.amazonOrderId) {
+        payload.amazonOrderId = orderData.amazonOrderId;
+      }
+
+      if (orderData.customerName && orderData.customerName.trim().length > 0) {
+        payload.name = orderData.customerName;
+      }
+
+      if (emailToSend && emailToSend.trim().length > 0) {
+        payload.email = emailToSend.trim();
+      }
+
       const response = await fetch(`${API_BASE}/api/preview/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: orderData.orderId,
-          amazonOrderId: orderData.amazonOrderId || null,
-          token,
-          email,
-          name: orderData.customerName || null,
-          reason: reasonId,
-          fields,
-          marketingOptIn: marketingOptIn.checked
-        })
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
@@ -557,7 +606,12 @@ if (!token) {
   }
 
   populateReasonOptions();
-  reasonSelect.addEventListener('change', (event) => renderReasonFields(event.target.value));
+  reasonSelect.addEventListener('change', (event) => {
+    const target = event.target;
+    const value =
+      target && target instanceof HTMLSelectElement ? target.value : '';
+    renderReasonFields(value);
+  });
   correctionForm.addEventListener('submit', handleCorrectionSubmit);
 
   if (approveBtn) {
