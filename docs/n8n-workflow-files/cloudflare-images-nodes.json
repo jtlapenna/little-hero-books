@@ -22,7 +22,7 @@
           "parameters": [
             {
               "name": "file",
-              "value": "data",
+              "value": "={{ $binary.data }}",
               "parameterType": "file"
             },
             {
