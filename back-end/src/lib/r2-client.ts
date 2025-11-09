@@ -3,14 +3,29 @@ import { XMLParser } from 'fast-xml-parser';
 
 // R2 configuration from environment
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
-const ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
-const SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
+const ACCESS_KEY_ID =
+  process.env.R2_ACCESS_KEY_ID ||
+  process.env.R2_ACCESS_ID_KEY ||
+  process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
+  process.env.CLOUDFLARE_R2_ACCESS_KEY;
+const SECRET_ACCESS_KEY =
+  process.env.R2_SECRET_ACCESS_KEY ||
+  process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
+  process.env.CLOUDFLARE_R2_SECRET_KEY;
 
 // Validate required environment variables
 const missingVars: string[] = [];
 if (!ACCOUNT_ID) missingVars.push('CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID');
-if (!ACCESS_KEY_ID) missingVars.push('R2_ACCESS_KEY_ID');
-if (!SECRET_ACCESS_KEY) missingVars.push('R2_SECRET_ACCESS_KEY');
+if (!ACCESS_KEY_ID) {
+  missingVars.push(
+    'R2_ACCESS_KEY_ID (or CLOUDFLARE_R2_ACCESS_KEY_ID / CLOUDFLARE_R2_ACCESS_KEY / R2_ACCESS_ID_KEY)'
+  );
+}
+if (!SECRET_ACCESS_KEY) {
+  missingVars.push(
+    'R2_SECRET_ACCESS_KEY (or CLOUDFLARE_R2_SECRET_ACCESS_KEY / CLOUDFLARE_R2_SECRET_KEY)'
+  );
+}
 
 // Create aws4fetch client for R2 (Cloudflare Workers compatible)
 export const r2Client = new AwsClient({
@@ -235,6 +250,47 @@ export async function getObject(bucket: string, key: string): Promise<Response> 
     throw new Error(`R2 getObject failed: ${response.status} ${response.statusText} - ${errorText}`);
   }
   
+  return response;
+}
+
+/**
+ * Issue a HEAD request for an object in R2 to retrieve metadata without downloading the file
+ * @param bucket - Bucket name
+ * @param key - Object key
+ * @returns Response containing headers (Content-Type, Content-Length, etc.)
+ */
+export async function headObject(bucket: string, key: string): Promise<Response> {
+  if (!ACCOUNT_ID) {
+    throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
+  }
+
+  const encodedKey = encodeS3Key(key);
+  const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodedKey}`;
+  const urlObj = new URL(url);
+
+  const unsignedRequest = new Request(url, {
+    method: 'HEAD',
+    headers: {
+      'Host': urlObj.hostname,
+    },
+  });
+
+  const signedRequest = await r2Client.sign(unsignedRequest);
+  const response = await fetch(signedRequest);
+
+  console.log('[R2 headObject] Response:', {
+    status: response.status,
+    statusText: response.statusText,
+    ok: response.ok,
+    headers: Object.fromEntries(response.headers.entries()),
+    bucket,
+    key,
+  });
+
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`R2 headObject failed: ${response.status} ${response.statusText} - ${bucket}/${key}`);
+  }
+
   return response;
 }
 

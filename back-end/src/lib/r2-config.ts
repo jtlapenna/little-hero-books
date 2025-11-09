@@ -7,14 +7,29 @@ import { FetchHttpHandler } from '@smithy/fetch-http-handler';
 // - R2_ACCESS_KEY_ID
 // - R2_SECRET_ACCESS_KEY
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
-const ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
-const SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
+const ACCESS_KEY_ID =
+  process.env.R2_ACCESS_KEY_ID ||
+  process.env.R2_ACCESS_ID_KEY ||
+  process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
+  process.env.CLOUDFLARE_R2_ACCESS_KEY;
+const SECRET_ACCESS_KEY =
+  process.env.R2_SECRET_ACCESS_KEY ||
+  process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
+  process.env.CLOUDFLARE_R2_SECRET_KEY;
 
 // Validate required environment variables
 const missingVars: string[] = [];
 if (!ACCOUNT_ID) missingVars.push('CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID');
-if (!ACCESS_KEY_ID) missingVars.push('R2_ACCESS_KEY_ID');
-if (!SECRET_ACCESS_KEY) missingVars.push('R2_SECRET_ACCESS_KEY');
+if (!ACCESS_KEY_ID) {
+  missingVars.push(
+    'R2_ACCESS_KEY_ID (or CLOUDFLARE_R2_ACCESS_KEY_ID / CLOUDFLARE_R2_ACCESS_KEY / R2_ACCESS_ID_KEY)'
+  );
+}
+if (!SECRET_ACCESS_KEY) {
+  missingVars.push(
+    'R2_SECRET_ACCESS_KEY (or CLOUDFLARE_R2_SECRET_ACCESS_KEY / CLOUDFLARE_R2_SECRET_KEY)'
+  );
+}
 
 // Create R2 client - configured for Cloudflare Workers runtime
 // Use FetchHttpHandler (Web Fetch API) instead of Node.js HTTP to avoid filesystem access
