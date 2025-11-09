@@ -92,7 +92,7 @@ for (let i = 0; i < pageData.length; i++) {
     ? pageNumberFromMetadata
     : (page.pageNumber || page.pageNum || i);
   
-  // Use orderId from metadata first, then from page data
+  // Use orderId from metadata first, then from page data (check amazonOrderId too)
   const finalOrderId = orderIdFromMetadata || page.orderId || page.amazonOrderId || null;
   
   results.push({

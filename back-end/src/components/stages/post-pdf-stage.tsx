@@ -340,7 +340,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   return {
                     pageNumber,
                     r2Key: typeof r2Key === 'string' ? r2Key : null,
-                    imageUrl: null,
+                    imageUrl: typeof r2Key === 'string' ? `/api/assets/${r2Key}` : null, // Construct URL immediately for R2 fallback
                     filename: null
                   };
                 }).filter((img: any) => img.r2Key !== null); // Filter out entries without r2Key
