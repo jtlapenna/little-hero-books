@@ -137,12 +137,18 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const lastPagesDataRef = useRef<string>('');
   // Track spreads length for keyboard navigation to avoid stale closures
   const spreadsLengthRef = useRef(0);
+  // Track last spread index to prevent unnecessary loading state resets
+  const lastSpreadIndexRef = useRef<number | null>(null);
+  // Track last spread key to detect if current spread actually changed
+  const lastSpreadKeyRef = useRef<string>('');
 
   // Reset ref and spread index when orderId changes
   useEffect(() => {
     imagesFoundRef.current = false;
     lastPagesDataRef.current = '';
     spreadsLengthRef.current = 0;
+    lastSpreadIndexRef.current = null;
+    lastSpreadKeyRef.current = '';
     setCoverImageUrl(null);
     setCoverImageDataUrl(null);
     setCurrentSpreadIndex(0); // Always start at first spread when viewing a new order
@@ -479,24 +485,38 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     };
   }, [orderId, pdfUrl]); // Removed coverImageUrl and coverImageDataUrl to prevent reload loops
 
-  // Reset image loading state when spread changes
+  // Reset image loading state when spread changes (only if spread actually changed)
   useEffect(() => {
     const currentSpread = spreads[currentSpreadIndex];
     if (!currentSpread) {
       setImageLoading({ left: false, right: false });
       setImageError({ left: null, right: null });
+      lastSpreadIndexRef.current = currentSpreadIndex;
+      lastSpreadKeyRef.current = '';
       return;
     }
     
-    // Set loading to true if there's a page or cover to load
-    const hasLeft = !!(currentSpread.leftPage || (currentSpread.coverData && currentSpread.coverData.isBackCover));
-    const hasRight = !!(currentSpread.rightPage || (currentSpread.coverData && currentSpread.coverData.isFrontCover));
+    // Create a unique key for this spread to detect if it actually changed
+    const spreadKey = `${currentSpreadIndex}-${currentSpread.spreadNumber}-${currentSpread.leftPage?.pageNumber || 'none'}-${currentSpread.rightPage?.pageNumber || 'none'}-${currentSpread.coverData ? 'cover' : 'nocover'}`;
     
-    setImageLoading({ 
-      left: hasLeft, 
-      right: hasRight
-    });
-    setImageError({ left: null, right: null });
+    // Only reset loading state if the spread actually changed
+    const spreadChanged = lastSpreadIndexRef.current !== currentSpreadIndex || lastSpreadKeyRef.current !== spreadKey;
+    
+    if (spreadChanged) {
+      // Set loading to true if there's a page or cover to load
+      const hasLeft = !!(currentSpread.leftPage || (currentSpread.coverData && currentSpread.coverData.isBackCover));
+      const hasRight = !!(currentSpread.rightPage || (currentSpread.coverData && currentSpread.coverData.isFrontCover));
+      
+      setImageLoading({ 
+        left: hasLeft, 
+        right: hasRight
+      });
+      setImageError({ left: null, right: null });
+      
+      // Update refs to track current spread
+      lastSpreadIndexRef.current = currentSpreadIndex;
+      lastSpreadKeyRef.current = spreadKey;
+    }
   }, [currentSpreadIndex, spreads]);
 
   const handleDownload = () => {
@@ -704,20 +724,25 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">
                   Spread {currentSpreadNumber} of {totalSpreads}
-                  {currentSpread.isCover && (
+                  {currentSpread.coverData && currentSpread.coverData.isFrontCover && (
                     <span className="text-gray-500 ml-2">(Front Cover)</span>
                   )}
-                  {currentSpread.isBackCover && (
+                  {currentSpread.coverData && currentSpread.coverData.isBackCover && (
                     <span className="text-gray-500 ml-2">(Back Cover)</span>
                   )}
-                  {!currentSpread.isCover && !currentSpread.isBackCover && currentSpread.leftPage && currentSpread.rightPage && (
+                  {!currentSpread.coverData && currentSpread.leftPage && currentSpread.rightPage && (
                     <span className="text-gray-500 ml-2">
                       (Pages {currentSpread.leftPage.pageNumber} & {currentSpread.rightPage.pageNumber})
                     </span>
                   )}
-                  {!currentSpread.isCover && !currentSpread.isBackCover && currentSpread.leftPage && !currentSpread.rightPage && (
+                  {!currentSpread.coverData && currentSpread.leftPage && !currentSpread.rightPage && (
                     <span className="text-gray-500 ml-2">
                       (Page {currentSpread.leftPage.pageNumber})
+                    </span>
+                  )}
+                  {!currentSpread.coverData && !currentSpread.leftPage && currentSpread.rightPage && (
+                    <span className="text-gray-500 ml-2">
+                      (Page {currentSpread.rightPage.pageNumber})
                     </span>
                   )}
                 </span>
