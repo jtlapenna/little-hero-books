@@ -709,11 +709,20 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           // Store the current pages data to prevent re-renders
           lastPagesDataRef.current = currentPagesData;
           
-          // Always start at the first spread (index 0) when pages are first loaded
-          // This ensures we start with the first available page, not blank placeholders
+          // Always start at the first spread with actual pages when pages are first loaded
+          // Skip cover spreads (which have no leftPage/rightPage) to ensure we show actual content
           if (isInitialLoad) {
-            // First time loading pages - always start at first spread
-            setCurrentSpreadIndex(0);
+            // Find first spread with actual pages (not just cover)
+            const firstSpreadWithPages = newSpreads.findIndex(s => s.leftPage || s.rightPage);
+            const initialIndex = firstSpreadWithPages >= 0 ? firstSpreadWithPages : 0;
+            console.log('[Pages] Setting initial spread index:', {
+              totalSpreads: newSpreads.length,
+              firstSpreadWithPagesIndex: firstSpreadWithPages,
+              initialIndex,
+              firstSpreadIsCover: newSpreads[0]?.isCover,
+              firstSpreadHasPages: !!(newSpreads[0]?.leftPage || newSpreads[0]?.rightPage)
+            });
+            setCurrentSpreadIndex(initialIndex);
           } else {
             // Refreshing pages - preserve current spread index, but clamp to valid range
             const maxIndex = newSpreads.length > 0 ? newSpreads.length - 1 : 0;
@@ -820,6 +829,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     
     const currentSpread = spreads[currentSpreadIndex];
     if (!currentSpread) {
+      console.warn('[Spreads] No current spread at index:', currentSpreadIndex, 'Total spreads:', spreads.length);
       // Only reset if we actually had a spread before
       if (lastSpreadIndexRef.current !== null) {
         setImageLoading({ left: false, right: false });
@@ -831,6 +841,17 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         if (loadingTimeout) clearTimeout(loadingTimeout);
       };
     }
+    
+    console.log('[Spreads] Current spread:', {
+      index: currentSpreadIndex,
+      hasLeftPage: !!currentSpread.leftPage,
+      hasRightPage: !!currentSpread.rightPage,
+      isCover: currentSpread.isCover,
+      leftPageNumber: currentSpread.leftPage?.pageNumber,
+      rightPageNumber: currentSpread.rightPage?.pageNumber,
+      leftPageUrl: currentSpread.leftPage?.previewImageUrl?.substring(0, 60),
+      rightPageUrl: currentSpread.rightPage?.previewImageUrl?.substring(0, 60),
+    });
     
     // Create a stable unique key for this spread based on its content
     // Include cover URL in key so we detect when cover actually loads (not just when spread is created)
