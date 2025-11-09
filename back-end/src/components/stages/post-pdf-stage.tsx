@@ -6,9 +6,22 @@ import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure PDF.js worker
+// Configure PDF.js worker - try local first, fallback to CDN
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+  // Try to use local worker file, but fallback to unpkg CDN if not available
+  // This ensures PDF conversion works even if the worker file isn't deployed yet
+  const workerPath = '/pdf.worker.min.mjs';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerPath;
+  
+  // Verify worker file exists, fallback to CDN if not
+  fetch(workerPath, { method: 'HEAD' })
+    .catch(() => {
+      // If local worker fails, use unpkg CDN as fallback
+      const version = '5.4.394';
+      const cdnUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
+      console.warn('[PDF.js] Local worker not found, using CDN fallback:', cdnUrl);
+      pdfjsLib.GlobalWorkerOptions.workerSrc = cdnUrl;
+    });
 }
 
 interface PostPdfStageProps {
@@ -489,6 +502,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   }, [orderId, pdfUrl]); // Removed coverImageUrl and coverImageDataUrl to prevent reload loops
 
   // Reset image loading state when spread changes (only if spread actually changed)
+  // Compare spread key to prevent unnecessary resets when spreads array is recreated
   useEffect(() => {
     const currentSpread = spreads[currentSpreadIndex];
     if (!currentSpread) {
@@ -499,14 +513,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       }
       lastSpreadIndexRef.current = currentSpreadIndex;
       lastSpreadKeyRef.current = '';
-      previousSpreadsRef.current = spreads;
       return;
     }
     
-    // Compare current spread with previous spread at the same index
-    const prevSpread = previousSpreadsRef.current[currentSpreadIndex];
-    
-    // Create a stable unique key for this spread to detect if it actually changed
+    // Create a stable unique key for this spread based on its content
     const leftPageNum = currentSpread.leftPage?.pageNumber ?? null;
     const rightPageNum = currentSpread.rightPage?.pageNumber ?? null;
     const coverType = currentSpread.coverData 
@@ -514,19 +524,13 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       : null;
     const spreadKey = `${currentSpreadIndex}-${leftPageNum}-${rightPageNum}-${coverType}`;
     
-    // Check if spread actually changed by comparing with previous
+    // Only reset loading state if spread index changed OR spread key changed
+    // This prevents resets when spreads array is recreated with same content during polling
     const indexChanged = lastSpreadIndexRef.current !== currentSpreadIndex;
-    const prevLeftPageNum = prevSpread?.leftPage?.pageNumber ?? null;
-    const prevRightPageNum = prevSpread?.rightPage?.pageNumber ?? null;
-    const prevCoverType = prevSpread?.coverData 
-      ? (prevSpread.coverData.isFrontCover ? 'front' : prevSpread.coverData.isBackCover ? 'back' : 'cover')
-      : null;
-    const contentChanged = leftPageNum !== prevLeftPageNum || 
-                          rightPageNum !== prevRightPageNum || 
-                          coverType !== prevCoverType;
+    const keyChanged = lastSpreadKeyRef.current !== spreadKey;
     
-    // Only reset loading state if spread index changed OR content actually changed
-    if (indexChanged || contentChanged) {
+    // Only reset if something actually changed
+    if (indexChanged || keyChanged) {
       // Set loading to true if there's a page or cover to load
       const hasLeft = !!(currentSpread.leftPage || (currentSpread.coverData && currentSpread.coverData.isBackCover));
       const hasRight = !!(currentSpread.rightPage || (currentSpread.coverData && currentSpread.coverData.isFrontCover));
@@ -541,8 +545,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       lastSpreadIndexRef.current = currentSpreadIndex;
       lastSpreadKeyRef.current = spreadKey;
     }
-    // Update previous spreads ref for next comparison
-    previousSpreadsRef.current = spreads;
+    // If spread hasn't changed (same index and same key), don't reset loading state
+    // This prevents loading state from resetting when spreads are recreated during polling
   }, [currentSpreadIndex, spreads]);
 
   const handleDownload = () => {
