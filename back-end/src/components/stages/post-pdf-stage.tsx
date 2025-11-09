@@ -183,8 +183,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       const pdf = await loadingTask.promise;
       const page = await pdf.getPage(1); // Get first page
       
-      // Set scale for high quality (2x for retina displays)
-      const scale = 2;
+      // Use 1.5x scale for previews (balance between quality and file size)
+      // 1x would be too low quality, 2x creates huge files (4x the pixels)
+      // 1.5x is a good compromise: 2.25x the pixels, ~60% smaller than 2x
+      const scale = 1.5;
       const viewport = page.getViewport({ scale });
       
       // Create canvas
@@ -203,8 +205,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         viewport: viewport
       }).promise;
       
-      // Convert canvas to data URL
-      const dataUrl = canvas.toDataURL('image/png');
+      // Convert canvas to JPEG with 85% quality for much smaller file size
+      // PNG is lossless but creates huge files (especially for photos/gradients)
+      // JPEG at 85% quality is visually identical but ~70-80% smaller
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       return dataUrl;
     };
     
@@ -564,12 +568,15 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     }
     
     // Create a stable unique key for this spread based on its content
+    // Include cover URL in key so we detect when cover actually loads (not just when spread is created)
     const leftPageNum = currentSpread.leftPage?.pageNumber ?? null;
     const rightPageNum = currentSpread.rightPage?.pageNumber ?? null;
     const coverType = currentSpread.coverData 
       ? (currentSpread.coverData.isFrontCover ? 'front' : currentSpread.coverData.isBackCover ? 'back' : 'cover')
       : null;
-    const spreadKey = `${currentSpreadIndex}-${leftPageNum}-${rightPageNum}-${coverType}`;
+    const coverUrl = currentSpread.coverData?.fullImageUrl ?? null;
+    // Include cover URL in key to detect when cover loads (URL changes from undefined to actual URL)
+    const spreadKey = `${currentSpreadIndex}-${leftPageNum}-${rightPageNum}-${coverType}-${coverUrl ? 'hasCover' : 'noCover'}`;
     
     // Only reset loading state if spread index changed OR spread key changed
     // This prevents resets when spreads array is recreated with same content during polling
@@ -579,8 +586,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     // Only reset if something actually changed
     if (indexChanged || keyChanged) {
       // Set loading to true if there's a page or cover to load
-      const hasLeft = !!(currentSpread.leftPage || (currentSpread.coverData && currentSpread.coverData.isBackCover));
-      const hasRight = !!(currentSpread.rightPage || (currentSpread.coverData && currentSpread.coverData.isFrontCover));
+      // For cover, only set loading if cover URL actually exists (cover has loaded)
+      const hasLeft = !!(currentSpread.leftPage || 
+                        (currentSpread.coverData && currentSpread.coverData.isBackCover && currentSpread.coverData.fullImageUrl));
+      const hasRight = !!(currentSpread.rightPage || 
+                         (currentSpread.coverData && currentSpread.coverData.isFrontCover && currentSpread.coverData.fullImageUrl));
       
       setImageLoading({ 
         left: hasLeft, 
@@ -869,10 +879,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   {/* Left page - can be regular page or back cover */}
                   {currentSpread.coverData && currentSpread.coverData.isBackCover ? (
                     // Back cover: show left half of cover image
-                    <div className="cover-image-container back-cover">
-                      <img
-                        key={`back-cover-${orderId}-${currentSpreadIndex}`}
-                        src={currentSpread.coverData.fullImageUrl}
+                    currentSpread.coverData.fullImageUrl ? (
+                      <div className="cover-image-container back-cover">
+                        <img
+                          key={`back-cover-${orderId}-${currentSpreadIndex}-${currentSpread.coverData.fullImageUrl.startsWith('data:') ? 'data' : 'url'}-${currentSpread.coverData.fullImageUrl.length}`}
+                          src={currentSpread.coverData.fullImageUrl}
                         alt="Back Cover"
                         onLoad={() => {
                           console.log('[Spreads] ✓ Back cover image loaded successfully');
@@ -892,6 +903,12 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                         }}
                       />
                     </div>
+                    ) : (
+                      // Cover URL not available yet - show loading
+                      <div className="white-page flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+                      </div>
+                    )
                   ) : currentSpread.leftPage ? (
                     <img
                       key={`left-page-${orderId}-${currentSpread.leftPage.pageNumber}-${currentSpreadIndex}`}
@@ -939,29 +956,39 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   {/* Right page - can be regular page or front cover */}
                   {currentSpread.coverData && currentSpread.coverData.isFrontCover ? (
                     // Front cover: show right half of cover image
-                    <div className="cover-image-container front-cover">
-                      <img
-                        key={`front-cover-${orderId}-${currentSpreadIndex}`}
-                        src={currentSpread.coverData.fullImageUrl}
-                        alt="Front Cover"
-                        onLoad={() => {
-                          console.log('[Spreads] ✓ Front cover image loaded successfully');
-                          setImageLoading(prev => ({ ...prev, right: false }));
-                          setImageError(prev => ({ ...prev, right: null }));
-                        }}
-                        onError={(e) => {
-                          console.error('[Spreads] ✗ Front cover image failed to load:', e);
-                          setImageLoading(prev => ({ ...prev, right: false }));
-                          setImageError(prev => ({ ...prev, right: 'Failed to load front cover' }));
-                        }}
-                        className={`transition-opacity duration-200 ${
-                          imageLoading.right ? 'opacity-0' : 'opacity-100'
-                        }`}
-                        style={{
-                          display: imageError.right ? 'none' : 'block'
-                        }}
-                      />
-                    </div>
+                    currentSpread.coverData.fullImageUrl ? (
+                      <div className="cover-image-container front-cover">
+                        <img
+                          key={`front-cover-${orderId}-${currentSpreadIndex}-${currentSpread.coverData.fullImageUrl.startsWith('data:') ? 'data' : 'url'}-${currentSpread.coverData.fullImageUrl.length}`}
+                          src={currentSpread.coverData.fullImageUrl}
+                          alt="Front Cover"
+                          onLoad={() => {
+                            console.log('[Spreads] ✓ Front cover image loaded successfully');
+                            setImageLoading(prev => ({ ...prev, right: false }));
+                            setImageError(prev => ({ ...prev, right: null }));
+                          }}
+                          onError={(e) => {
+                            console.error('[Spreads] ✗ Front cover image failed to load:', e, {
+                              url: currentSpread.coverData?.fullImageUrl,
+                              isDataUrl: currentSpread.coverData?.fullImageUrl?.startsWith('data:')
+                            });
+                            setImageLoading(prev => ({ ...prev, right: false }));
+                            setImageError(prev => ({ ...prev, right: 'Failed to load front cover' }));
+                          }}
+                          className={`transition-opacity duration-200 ${
+                            imageLoading.right ? 'opacity-0' : 'opacity-100'
+                          }`}
+                          style={{
+                            display: imageError.right ? 'none' : 'block'
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      // Cover URL not available yet - show loading
+                      <div className="white-page flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+                      </div>
+                    )
                   ) : currentSpread.rightPage ? (
                     <img
                       key={`right-page-${orderId}-${currentSpread.rightPage.pageNumber}-${currentSpreadIndex}`}
