@@ -869,10 +869,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           </div>
         )}
 
-        {/* Show "Preview Images Pending" if:
-            - No pages loaded yet, OR
-            - Using fallback URLs (images not in manifest) and all images have finished loading (failed silently) */}
-        {!loadingPages && !pagesError && (pages.length === 0 || (usingFallbackUrls && spreads.length > 0 && !imageLoading.left && !imageLoading.right && !imageError.left && !imageError.right)) && (
+        {/* Show "Preview Images Pending" only if no spreads exist yet */}
+        {!loadingPages && !pagesError && pages.length === 0 && spreads.length === 0 && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="h-[800px] bg-gray-50 flex items-center justify-center">
               <div className="text-center max-w-md">
