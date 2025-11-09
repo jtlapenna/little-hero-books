@@ -129,6 +129,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
   const [loadingPages, setLoadingPages] = useState(false);
   const [pagesError, setPagesError] = useState<string | null>(null);
+  // Track if we're using fallback URLs (images not in manifest yet)
+  const [usingFallbackUrls, setUsingFallbackUrls] = useState(false);
   const [imageLoading, setImageLoading] = useState({ left: true, right: true });
   const [imageError, setImageError] = useState<{ left: string | null; right: string | null }>({ left: null, right: null });
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
@@ -338,8 +340,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         }
         
         // Fallback: Construct image URLs directly from R2 path pattern
+        // This means images aren't in manifest yet (workflow 3 hasn't completed)
         if (pageData.length === 0) {
-          console.log('[Pages] Constructing preview image URLs from R2 path pattern');
+          console.log('[Pages] Constructing preview image URLs from R2 path pattern (images not in manifest yet)');
+          setUsingFallbackUrls(true); // Mark that we're using fallback URLs (images not available yet)
           // Images are stored at: book-mvp-simple-adventure/orders/{orderId}/preview-images/p{pageNumber}.png
           // Format: p00.png (dedication), p01.png (page 1), p02.png (page 2), ..., p15.png (page 15)
           pageData = Array.from({ length: 16 }, (_, i) => {
@@ -351,6 +355,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               previewImageUrl: `/api/assets/${r2Key}` // Use relative URL
             };
           });
+        } else {
+          // Images found in manifest - clear fallback flag
+          setUsingFallbackUrls(false);
         }
         
         if (!isMounted) return;
@@ -606,6 +613,43 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     // This prevents loading state from resetting when spreads are recreated during polling
   }, [currentSpreadIndex, spreads]);
 
+  // Check if cover image is already loaded when cover URL changes
+  // This handles the case where the cover loads asynchronously and the image is cached
+  useEffect(() => {
+    const currentSpread = spreads[currentSpreadIndex];
+    if (!currentSpread) return;
+
+    // Check front cover
+    if (currentSpread.coverData?.isFrontCover && currentSpread.coverData.fullImageUrl && imageLoading.right) {
+      const img = new Image();
+      img.onload = () => {
+        console.log('[Spreads] ✓ Front cover image verified as loaded');
+        setImageLoading(prev => ({ ...prev, right: false }));
+        setImageError(prev => ({ ...prev, right: null }));
+      };
+      img.onerror = () => {
+        // Image failed to load - let onError handler deal with it
+      };
+      // Set src to trigger load check (will use cache if available)
+      img.src = currentSpread.coverData.fullImageUrl;
+    }
+
+    // Check back cover
+    if (currentSpread.coverData?.isBackCover && currentSpread.coverData.fullImageUrl && imageLoading.left) {
+      const img = new Image();
+      img.onload = () => {
+        console.log('[Spreads] ✓ Back cover image verified as loaded');
+        setImageLoading(prev => ({ ...prev, left: false }));
+        setImageError(prev => ({ ...prev, left: null }));
+      };
+      img.onerror = () => {
+        // Image failed to load - let onError handler deal with it
+      };
+      // Set src to trigger load check (will use cache if available)
+      img.src = currentSpread.coverData.fullImageUrl;
+    }
+  }, [currentSpreadIndex, spreads, imageLoading.left, imageLoading.right]);
+
   const handleDownload = () => {
     if (pdfAsset.exists && pdfAsset.url) {
       const link = document.createElement('a');
@@ -787,7 +831,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           </div>
         )}
 
-        {!loadingPages && !pagesError && pages.length === 0 && (
+        {/* Show "Preview Images Pending" if:
+            - No pages loaded yet, OR
+            - Using fallback URLs (images not in manifest) and all images have finished loading (failed silently) */}
+        {!loadingPages && !pagesError && (pages.length === 0 || (usingFallbackUrls && spreads.length > 0 && !imageLoading.left && !imageLoading.right && !imageError.left && !imageError.right)) && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="h-[800px] bg-gray-50 flex items-center justify-center">
               <div className="text-center max-w-md">
@@ -863,7 +910,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     </div>
                   ) : null}
                   
-              {(imageError.left || imageError.right) && (
+              {/* Only show error if not using fallback URLs (images from manifest that actually failed) */}
+              {(imageError.left || imageError.right) && !usingFallbackUrls && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
                       <div className="text-center">
                         <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
@@ -885,6 +933,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                           key={`back-cover-${orderId}-${currentSpreadIndex}-${currentSpread.coverData.fullImageUrl.startsWith('data:') ? 'data' : 'url'}-${currentSpread.coverData.fullImageUrl.length}`}
                           src={currentSpread.coverData.fullImageUrl}
                         alt="Back Cover"
+                        ref={(img) => {
+                          // Check if image is already loaded (cached) when element is created
+                          if (img && img.complete && img.naturalHeight !== 0) {
+                            console.log('[Spreads] ✓ Back cover image already loaded (cached)');
+                            setImageLoading(prev => ({ ...prev, left: false }));
+                            setImageError(prev => ({ ...prev, left: null }));
+                          }
+                        }}
                         onLoad={() => {
                           console.log('[Spreads] ✓ Back cover image loaded successfully');
                           setImageLoading(prev => ({ ...prev, left: false }));
@@ -923,6 +979,15 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                         const img = e.currentTarget;
                         const url = currentSpread.leftPage!.previewImageUrl;
                         
+                        // If using fallback URLs, images aren't available yet - don't show error
+                        if (usingFallbackUrls) {
+                          console.log(`[Spreads] Image not available yet for page ${currentSpread.leftPage!.pageNumber} (using fallback URLs)`);
+                          setImageLoading(prev => ({ ...prev, left: false }));
+                          // Don't set error - images just aren't available yet
+                          return;
+                        }
+                        
+                        // Only show error if we have images from manifest and they fail
                         try {
                           const response = await fetch(url, { method: 'HEAD' });
                           console.error(`[Spreads] ✗ Left image failed to load for page ${currentSpread.leftPage!.pageNumber}:`, {
@@ -962,6 +1027,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                           key={`front-cover-${orderId}-${currentSpreadIndex}-${currentSpread.coverData.fullImageUrl.startsWith('data:') ? 'data' : 'url'}-${currentSpread.coverData.fullImageUrl.length}`}
                           src={currentSpread.coverData.fullImageUrl}
                           alt="Front Cover"
+                          ref={(img) => {
+                            // Check if image is already loaded (cached) when element is created
+                            if (img && img.complete && img.naturalHeight !== 0) {
+                              console.log('[Spreads] ✓ Front cover image already loaded (cached)');
+                              setImageLoading(prev => ({ ...prev, right: false }));
+                              setImageError(prev => ({ ...prev, right: null }));
+                            }
+                          }}
                           onLoad={() => {
                             console.log('[Spreads] ✓ Front cover image loaded successfully');
                             setImageLoading(prev => ({ ...prev, right: false }));
@@ -1003,6 +1076,15 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                         const img = e.currentTarget;
                         const url = currentSpread.rightPage!.previewImageUrl;
                         
+                        // If using fallback URLs, images aren't available yet - don't show error
+                        if (usingFallbackUrls) {
+                          console.log(`[Spreads] Image not available yet for page ${currentSpread.rightPage!.pageNumber} (using fallback URLs)`);
+                          setImageLoading(prev => ({ ...prev, right: false }));
+                          // Don't set error - images just aren't available yet
+                          return;
+                        }
+                        
+                        // Only show error if we have images from manifest and they fail
                         try {
                           const response = await fetch(url, { method: 'HEAD' });
                           console.error(`[Spreads] ✗ Right image failed to load for page ${currentSpread.rightPage!.pageNumber}:`, {
