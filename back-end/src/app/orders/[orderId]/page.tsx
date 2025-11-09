@@ -14,6 +14,18 @@ import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
 import { ArrowLeft, User, Calendar, Package, Flag } from 'lucide-react';
 
+interface FinalApprovalResult {
+  previewUrl: string;
+  token: string;
+  requestedAt?: string;
+  notification?: {
+    attempted: boolean;
+    sent: boolean;
+    reason?: string;
+    response?: unknown;
+  };
+}
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -21,6 +33,9 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeStage, setActiveStage] = useState<ReviewStage>('preBria' as unknown as ReviewStage);
   const [flagCounts, setFlagCounts] = useStateReact({ preBria: 0, postBria: 0, postPdf: 0 });
+  const [finalApprovalResult, setFinalApprovalResult] = useState<FinalApprovalResult | null>(null);
+  const [finalApprovalError, setFinalApprovalError] = useState<string | null>(null);
+  const [finalApprovalLoading, setFinalApprovalLoading] = useState(false);
 
   // Fetch order data from API
   const fetchOrder = async (orderId: string) => {
@@ -51,6 +66,9 @@ export default function OrderDetailPage() {
   useEffect(() => {
     const orderId = params.orderId as string;
     if (orderId) {
+      setFinalApprovalResult(null);
+      setFinalApprovalError(null);
+      setFinalApprovalLoading(false);
       fetchOrder(orderId);
     }
   }, [params.orderId]);
@@ -236,6 +254,51 @@ export default function OrderDetailPage() {
         console.error('Error triggering background removal workflow:', error);
         alert(`Failed to trigger background removal: ${error?.message || error}`);
       }
+
+      return;
+    }
+
+    if (stage === ('postPdf' as unknown as ReviewStage)) {
+      try {
+        setFinalApprovalError(null);
+        setFinalApprovalLoading(true);
+
+        const response = await fetch(`/api/orders/${order.orderId}/final-approval`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            reviewer: 'Admin reviewer'
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result?.error || 'Failed to initiate customer preview.');
+        }
+
+        setFinalApprovalResult({
+          previewUrl: result.previewUrl,
+          token: result.token,
+          requestedAt: result.order?.customerApprovalRequestedAt || new Date().toISOString(),
+          notification: result.notification
+        });
+
+        if (result.order) {
+          setOrder(result.order);
+        } else {
+          await fetchOrder(order.orderId);
+        }
+      } catch (error: any) {
+        console.error('Error sending preview to customer:', error);
+        setFinalApprovalError(error?.message || 'Failed to create customer preview.');
+      } finally {
+        setFinalApprovalLoading(false);
+      }
+
+      return;
     }
   };
 
@@ -479,6 +542,9 @@ export default function OrderDetailPage() {
                   onApprove={async () => await handleStageApprove('postPdf' as unknown as ReviewStage)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postPdf' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
+                  finalApprovalResult={finalApprovalResult}
+                  finalApprovalError={finalApprovalError}
+                  finalApprovalLoading={finalApprovalLoading}
                 />
               )}
             </div>

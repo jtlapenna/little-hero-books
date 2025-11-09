@@ -268,3 +268,27 @@ export async function createOrderInSupabase(order: any) {
   return data;
 }
 
+export async function listOrdersFromSupabase(options: { limit?: number } = {}) {
+  try {
+    let query = supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('[Supabase] Error listing orders:', error);
+    throw error;
+  }
+}
+

@@ -104,6 +104,13 @@
   - **Budget Tracking**: 56% daily budget utilization
   - **Recommendations**: 4 optimization recommendations generated
   - **Cost Analysis**: Real database cost data analysis working perfectly
+- ✅ **Customer Preview MVP (Hybrid)**  
+  - **Token Lifecycle**: `/api/preview/generate-token` writes to `preview_tokens`; `/api/preview/[orderId]/approve` marks `used_at` and timestamps customer approval
+  - **Amazon Message Center Delivery**: `/api/notifications/preview/amazon` (Next.js) posts the first secure link; all attempts stored in `notification_logs`
+  - **Customer-Facing Page**: `frontend/src/pages/approve/[token].astro` (Astro) handles disclaimer modal, doubled email confirmation, and bounded correction form mapped to canonical presets
+  - **Correction Capture**: `/api/preview/contact` normalises payload, enforces single revision, stores in `customer_contacts`, and surfaces to ops via n8n alert
+  - **Bounded Schema**: Reasons + preset options mirror `Customization_Source_of_Truth`; marketing opt-in captured for future flows
+  - **Viewer Status**: Placeholder messaging today – PDF viewer will be swapped in once Developer A ships the final admin component
 
 ---
 

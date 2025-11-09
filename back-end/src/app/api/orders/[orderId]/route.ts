@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCharacterAssets, downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { Order } from '@/types/order';
-import { getOrderById } from '@/lib/mock-data';
-import { getStageStatus } from '@/lib/approval-store';
-import { withErrorHandling, getRequestContext } from '@/lib/api-wrapper';
+import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
+import { getOrderFromSupabase } from '@/lib/supabase-client';
+import { mapSupabaseOrderToOrder } from '@/lib/order-mapper';
 
 /**
  * Convert manifest data to Order type (same as orders list route)
@@ -111,7 +111,6 @@ async function getOrder(
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   const { orderId } = await params;
-  const context = getRequestContext(request);
   
   console.log('[GET /api/orders/[orderId]] Fetching order:', orderId);
   
@@ -120,9 +119,30 @@ async function getOrder(
     throw createValidationError('Invalid order ID provided');
   }
   
-  // Try to load manifest for this order
-  // Prefer 2b over 2a because 2b contains Post-Bria QA results (e.g., transparency_fail)
-  // 2b manifest includes all 2a data plus additional Post-Bria processing results
+  let supabaseOrderRecord: any = null;
+  try {
+    supabaseOrderRecord = await getOrderFromSupabase(orderId);
+  } catch (error: any) {
+    console.warn(
+      `[GET /api/orders/[orderId]] Supabase lookup failed for ${orderId}:`,
+      error?.message || error
+    );
+  }
+
+  let supabaseOrder: Order | null = null;
+  if (supabaseOrderRecord) {
+    try {
+      supabaseOrder = await mapSupabaseOrderToOrder(supabaseOrderRecord);
+      console.log('[GET /api/orders/[orderId]] Supabase order loaded:', orderId);
+    } catch (error: any) {
+      console.error(
+        `[GET /api/orders/[orderId]] Failed to map Supabase order ${orderId}:`,
+        error?.message || error
+      );
+    }
+  }
+
+  // Try to load manifest for this order for asset details / fallback data
   let manifest: any = null;
   let manifestKey = '';
   let loadedStage: string | null = null;
@@ -134,20 +154,30 @@ async function getOrder(
       manifest = await downloadManifest(manifestKey);
       loadedStage = stage;
       console.log(`[GET /api/orders/[orderId]] ✅ Loaded ${stage}-manifest for order ${orderId}`);
-      break; // Successfully loaded, use this manifest
+      break;
     } catch (err: any) {
-      console.log(`[GET /api/orders/[orderId]] ❌ Failed to load ${stage}-manifest: ${err?.message || err}`);
-      continue;
+      console.log(
+        `[GET /api/orders/[orderId]] ❌ Failed to load ${stage}-manifest for ${orderId}:`,
+        err?.message || err
+      );
     }
   }
   
-  if (!manifest) {
-    console.warn(`[GET /api/orders/[orderId]] ⚠️ No manifest found for order ${orderId}`);
+  if (!manifest && !supabaseOrder) {
+    console.warn(`[GET /api/orders/[orderId]] ⚠️ No Supabase record or manifest found for ${orderId}`);
     throw createNotFoundError(`Order ${orderId} not found`);
   }
   
-  // Convert manifest to order
-  const order = manifestToOrder(orderId, manifest);
+  const manifestOrder = manifest ? manifestToOrder(orderId, manifest) : null;
+
+  let order: Order;
+  if (supabaseOrder) {
+    order = mergeOrderData(supabaseOrder, manifestOrder);
+  } else if (manifestOrder) {
+    order = manifestOrder;
+  } else {
+    throw createNotFoundError(`Order ${orderId} not found`);
+  }
   
   // Get character assets if characterHash is available
   let characterAssets: any[] = [];
@@ -160,6 +190,20 @@ async function getOrder(
       console.error(`[GET /api/orders/[orderId]] Error fetching character assets:`, error?.message || error);
       // Continue without assets rather than failing
     }
+  }
+  
+  if (!manifest) {
+    if (characterAssets.length > 0) {
+      const baseCharacter = characterAssets.find((asset) => asset.assetType === 'original') || characterAssets[0];
+      order.r2Assets = {
+        characterHash: order.characterHash || '',
+        baseCharacter: baseCharacter || null,
+        poses: characterAssets,
+        baseCharacterBgRemoved: null,
+        posesBgRemoved: [],
+      };
+    }
+    return NextResponse.json(order);
   }
   
   // Add R2 assets to order
@@ -449,3 +493,64 @@ async function getOrder(
 }
 
 export const GET = withErrorHandling(getOrder);
+
+function mergeOrderData(primary: Order, fallback: Order | null): Order {
+  if (!fallback) {
+    return { ...primary };
+  }
+
+  const merged: Order = { ...primary };
+
+  merged.customer = {
+    firstName: isUnknownName(primary.customer.firstName)
+      ? fallback.customer.firstName
+      : primary.customer.firstName,
+    lastName: isUnknownName(primary.customer.lastName)
+      ? fallback.customer.lastName
+      : primary.customer.lastName,
+    email: primary.customer.email || fallback.customer.email,
+  };
+
+  if (!merged.customerEmail && fallback.customerEmail) {
+    merged.customerEmail = fallback.customerEmail;
+  }
+
+  if (!merged.characterHash && fallback.characterHash) {
+    merged.characterHash = fallback.characterHash;
+  }
+  if (!merged.characterPath && fallback.characterPath) {
+    merged.characterPath = fallback.characterPath;
+  }
+  if (!merged.templatePath && fallback.templatePath) {
+    merged.templatePath = fallback.templatePath;
+  }
+  if (!merged.assetPrefix && fallback.assetPrefix) {
+    merged.assetPrefix = fallback.assetPrefix;
+  }
+
+  if (!merged.characterSpecs || Object.keys(merged.characterSpecs).length === 0) {
+    merged.characterSpecs = fallback.characterSpecs;
+  }
+  if (!merged.bookSpecs || Object.keys(merged.bookSpecs).length === 0) {
+    merged.bookSpecs = fallback.bookSpecs;
+  }
+
+  merged.orderDetails = {
+    ...fallback.orderDetails,
+    ...merged.orderDetails,
+  };
+
+  merged.reviewStages = merged.reviewStages || fallback.reviewStages;
+
+  if (!merged.webhooks?.onApprove && fallback.webhooks?.onApprove) {
+    merged.webhooks = { onApprove: fallback.webhooks.onApprove };
+  }
+
+  return merged;
+}
+
+function isUnknownName(name: string) {
+  if (!name) return true;
+  const normalized = name.toLowerCase();
+  return normalized === 'unknown' || normalized === 'customer' || normalized === 'customer pending';
+}

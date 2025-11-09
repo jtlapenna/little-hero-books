@@ -60,6 +60,13 @@
   - ✅ R2 asset integration with Cloudflare storage
   - ✅ Error handling and monitoring system
   - ✅ File-based approval persistence
+- ✅ **Customer Preview MVP** - LIVE (Placeholder viewer until Developer A ships final component)
+  - ✅ Secure tokens issued via `/api/preview/generate-token` (stored in Supabase `preview_tokens`)
+  - ✅ Amazon Message Center notification pipeline (`/api/notifications/preview/amazon`) sends the first link and logs outcome
+  - ✅ Customer-facing page (`frontend/src/pages/approve/[token].astro`) handles disclaimer, single structured correction form, and confirmed email capture
+  - ✅ Corrections persist through `/api/preview/contact` → `customer_contacts`; one revision enforced per order
+  - ✅ Approval endpoint `/api/preview/[orderId]/approve` marks tokens used, timestamps `customer_approval_*`
+  - ⏳ PDF viewer will be cloned from Developer A’s admin previewer (current UI shows “preview coming soon” messaging)
 - 🔄 **Workflow 4**: Print & Fulfillment - `4-print-fulfillment.json` (ready for integration)
 - 🔄 **Workflow 5**: Error Recovery - `5-error-recovery.json`
 - 🔄 **Workflow 6**: Monitoring & Alerts - `6-monitoring-alerts.json`

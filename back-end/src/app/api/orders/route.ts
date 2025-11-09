@@ -3,7 +3,9 @@ import { getAvailableCharacterHashes, getCharacterAssets, getAvailableOrderIds, 
 import { Order } from '@/types/order';
 import { withErrorHandling, getRequestContext } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
-import { OrderStatus, WorkflowStep } from '@/constants/statuses';
+import { OrderStatus } from '@/constants/statuses';
+import { listOrdersFromSupabase } from '@/lib/supabase-client';
+import { mapSupabaseOrderToOrder } from '@/lib/order-mapper';
 
 /**
  * Convert manifest data to Order type
@@ -77,179 +79,179 @@ function manifestToOrder(orderId: string, manifest: any): Order {
   };
 }
 
-async function getOrders(request: NextRequest) {
-  console.log('[GET /api/orders] Starting orders fetch...');
-  
-  // First, try to get orders from the orders bucket (preferred method)
+async function getOrders(_request: NextRequest) {
+  console.log('[GET /api/orders] Starting orders fetch (Supabase first)...');
+
+  try {
+    const supabaseRecords = await listOrdersFromSupabase();
+
+    if (supabaseRecords.length > 0) {
+      console.log('[GET /api/orders] Supabase returned', supabaseRecords.length, 'orders');
+      const orders = await Promise.all(
+        supabaseRecords.map((record) => mapSupabaseOrderToOrder(record))
+      );
+      return NextResponse.json(orders);
+    }
+
+    console.warn('[GET /api/orders] Supabase returned 0 orders. Falling back to R2 manifests.');
+  } catch (error) {
+    console.error('[GET /api/orders] Error loading orders from Supabase. Falling back to R2 manifests.', error);
+  }
+
+  const fallback = await buildOrdersFromR2();
+
+  const response = NextResponse.json(fallback.orders);
+
+  if (fallback.debugInfo) {
+    response.headers.set('X-Debug-Info', JSON.stringify(fallback.debugInfo));
+  }
+
+  return response;
+}
+
+export const GET = withErrorHandling(getOrders);
+
+async function buildOrdersFromR2(): Promise<{
+  orders: Order[];
+  debugInfo?: {
+    orderIdsFound: number;
+    characterHashesFound: number;
+    orderIds: string[];
+    characterHashes: string[];
+  };
+}> {
   let orderIds: string[] = [];
+  let characterHashes: string[] = [];
+
   try {
     orderIds = await getAvailableOrderIds();
-    console.log('[GET /api/orders] Found', orderIds.length, 'order IDs from orders bucket:', orderIds.slice(0, 5));
-    console.log('[GET /api/orders] All order IDs:', orderIds);
+    console.log('[GET /api/orders] (fallback) Found', orderIds.length, 'order IDs from orders bucket');
   } catch (error: any) {
-    console.error('[GET /api/orders] Error fetching order IDs from orders bucket:', {
-      message: error?.message,
-      name: error?.name,
-      code: error?.$metadata?.httpStatusCode,
-      stack: error?.stack
-    });
-    // Fall back to character hashes method
+    console.error('[GET /api/orders] (fallback) Error fetching order IDs from orders bucket:', error?.message || error);
   }
-  
-  // Fallback: Get available character hashes from R2 if no order IDs found
-  let characterHashes: string[] = [];
+
   if (orderIds.length === 0) {
     try {
       characterHashes = await getAvailableCharacterHashes();
-      console.log('[GET /api/orders] Found', characterHashes.length, 'character hashes:', characterHashes.slice(0, 5));
+      console.log('[GET /api/orders] (fallback) Found', characterHashes.length, 'character hashes');
     } catch (error: any) {
-      console.error('[GET /api/orders] Error fetching character hashes:', error?.message || error);
+      console.error('[GET /api/orders] (fallback) Error fetching character hashes:', error?.message || error);
     }
   }
   
-  // If no orders or character hashes found (R2 not configured or error), return empty array
-  // The frontend will fall back to mock data
   if (orderIds.length === 0 && characterHashes.length === 0) {
-    console.warn('[GET /api/orders] No orders or character hashes found. Returning empty array. Frontend will use mock data.');
-    return NextResponse.json([]);
+    console.warn('[GET /api/orders] (fallback) No orders found in R2.');
+    return { orders: [], debugInfo: { orderIdsFound: 0, characterHashesFound: 0, orderIds: [], characterHashes: [] } };
   }
   
-  // Load orders from manifests if we have order IDs
   const orders: Order[] = [];
   
   if (orderIds.length > 0) {
-    console.log('[GET /api/orders] Loading manifests for', orderIds.length, 'orders');
-    
-    // Try to load 2a manifest for each order (most recent workflow stage)
     for (const orderId of orderIds) {
-      console.log(`[GET /api/orders] Processing order: ${orderId}`);
       try {
-        // Try 2a first (most common), then 2b, then 3
-        let manifest: any = null;
-        let manifestKey = '';
-        let loadedStage: string | null = null;
-        const errors: string[] = [];
-        
-        for (const stage of ['2a', '2b', '3'] as const) {
-          try {
-            manifestKey = buildManifestKey(orderId, stage);
-            console.log(`[GET /api/orders] Trying to load manifest: ${manifestKey}`);
-            manifest = await downloadManifest(manifestKey);
-            loadedStage = stage;
-            console.log(`[GET /api/orders] ✅ Loaded ${stage}-manifest for order ${orderId}`);
-            break; // Successfully loaded, use this manifest
-          } catch (err: any) {
-            const errorMsg = `Failed to load ${stage}-manifest: ${err?.message || err}`;
-            errors.push(errorMsg);
-            console.log(`[GET /api/orders] ❌ ${errorMsg}`);
-            // Continue to next stage
-            continue;
-          }
-        }
-        
-        if (manifest) {
-          console.log(`[GET /api/orders] Converting manifest to order for ${orderId} (stage: ${loadedStage})`);
-          const order = manifestToOrder(orderId, manifest);
-          orders.push(order);
-          console.log(`[GET /api/orders] ✅ Added order ${orderId} to results`);
+        const order = await buildOrderFromManifest(orderId);
+        orders.push(order);
+      } catch (error: any) {
+        console.error(`[GET /api/orders] (fallback) Error loading manifest for order ${orderId}:`, error?.message || error);
+      }
+    }
         } else {
-          console.warn(`[GET /api/orders] ⚠️ No manifest found for order ${orderId}`, {
-            triedStages: ['2a', '2b', '3'],
-            errors
-          });
-          // Create a basic order entry if manifest is missing
-          orders.push({
-            orderId,
+    orders.push(
+      ...characterHashes.map((hash, index) => ({
+        orderId: `book-${String(index + 1).padStart(3, '0')}-20250116-${hash.substring(0, 6)}`,
             platform: 'amazon',
-            amazonOrderId: orderId,
-            project: 'book-mvp-simple-adventure',
+        amazonOrderId: `TEST-ORDER-${String(index + 1).padStart(3, '0')}`,
+        project: 'personalized-book',
             customer: {
-              firstName: 'Unknown',
-              lastName: 'Customer',
-              email: 'unknown@example.com'
+          firstName: `Customer${index + 1}`,
+          lastName: 'Test',
+          email: `customer${index + 1}@example.com`,
             },
-            customerEmail: 'unknown@example.com',
-            orderDate: new Date().toISOString(),
-            status: 'queued_for_processing',
+        customerEmail: `customer${index + 1}@example.com`,
+        orderDate: new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString(),
+        status: OrderStatus.QUEUED_FOR_PROCESSING,
+        characterHash: hash,
+        characterPath: `characters/${hash}`,
             templatePath: 'templates',
             characterSpecs: {},
             bookSpecs: {},
             orderDetails: {
               quantity: 1,
               pages: 16,
-              format: '8.5x8.5_softcover'
+          format: '8.5x8.5_softcover',
             },
-            assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
+        assetPrefix: `book-mvp-simple-adventure/orders/book-${String(index + 1).padStart(3, '0')}/`,
             reviewStages: {
               preBria: { status: 'pending' },
               postBria: { status: 'pending' },
-              postPdf: { status: 'pending' }
+          postPdf: { status: 'pending' },
             },
             webhooks: {
-              onApprove: 'https://n8n.example.com/webhook/approve'
-            }
-          });
+          onApprove: 'https://n8n.example.com/webhook/approve',
+        },
+      }))
+    );
         }
+
+  return {
+    orders,
+    debugInfo: {
+      orderIdsFound: orderIds.length,
+      characterHashesFound: characterHashes.length,
+      orderIds: orderIds.slice(0, 10),
+      characterHashes: characterHashes.slice(0, 10),
+    },
+  };
+}
+
+async function buildOrderFromManifest(orderId: string): Promise<Order> {
+  let manifest: any = null;
+
+  for (const stage of ['2a', '2b', '3'] as const) {
+    try {
+      const manifestKey = buildManifestKey(orderId, stage);
+      manifest = await downloadManifest(manifestKey);
+      console.log(`[GET /api/orders] (fallback) Loaded ${stage} manifest for order ${orderId}`);
+      break;
       } catch (error: any) {
-        console.error(`[GET /api/orders] Error loading manifest for order ${orderId}:`, error?.message || error);
-        // Continue with other orders
+      console.log(`[GET /api/orders] (fallback) Failed to load ${stage} manifest for ${orderId}:`, error?.message || error);
       }
     }
-  } else {
-    // Fallback: Create orders from character hashes (legacy behavior)
-    console.log('[GET /api/orders] Creating orders from character hashes (fallback mode)');
-    orders.push(...characterHashes.map((hash, index) => ({
-      orderId: `book-${String(index + 1).padStart(3, '0')}-20250116-${hash.substring(0, 6)}`,
+
+  if (!manifest) {
+    console.warn(`[GET /api/orders] (fallback) No manifest found for ${orderId}. Returning placeholder order.`);
+    return {
+      orderId,
       platform: 'amazon',
-      amazonOrderId: `TEST-ORDER-${String(index + 1).padStart(3, '0')}`,
-      project: 'personalized-book',
+      amazonOrderId: orderId,
+      project: 'book-mvp-simple-adventure',
       customer: {
-        firstName: `Customer${index + 1}`,
-        lastName: 'Test',
-        email: `customer${index + 1}@example.com`
+        firstName: 'Unknown',
+        lastName: 'Customer',
+        email: 'unknown@example.com',
       },
-      customerEmail: `customer${index + 1}@example.com`,
-      orderDate: new Date(Date.now() - (index * 24 * 60 * 60 * 1000)).toISOString(),
-      status: 'queued_for_processing',
-      characterHash: hash,
-      characterPath: `characters/${hash}`,
+      customerEmail: 'unknown@example.com',
+      orderDate: new Date().toISOString(),
+      status: OrderStatus.QUEUED_FOR_PROCESSING,
       templatePath: 'templates',
       characterSpecs: {},
       bookSpecs: {},
       orderDetails: {
         quantity: 1,
         pages: 16,
-        format: '8.5x8.5_softcover'
+        format: '8.5x8.5_softcover',
       },
-      assetPrefix: `book-mvp-simple-adventure/orders/book-${String(index + 1).padStart(3, '0')}/`,
+      assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
       reviewStages: {
         preBria: { status: 'pending' },
         postBria: { status: 'pending' },
-        postPdf: { status: 'pending' }
+        postPdf: { status: 'pending' },
       },
       webhooks: {
-        onApprove: 'https://n8n.example.com/webhook/approve'
-      }
-    })));
+        onApprove: 'https://n8n.example.com/webhook/approve',
+      },
+    };
   }
 
-  console.log('[GET /api/orders] Returning', orders.length, 'orders');
-  
-  // Include debug info in response if no orders found
-  if (orders.length === 0) {
-    return NextResponse.json(orders, {
-      headers: {
-        'X-Debug-Info': JSON.stringify({
-          orderIdsFound: orderIds.length,
-          characterHashesFound: characterHashes.length,
-          orderIds: orderIds.slice(0, 10),
-          characterHashes: characterHashes.slice(0, 10)
-        })
-      }
-    });
+  return manifestToOrder(orderId, manifest);
   }
-  
-  return NextResponse.json(orders);
-}
-
-export const GET = withErrorHandling(getOrders);

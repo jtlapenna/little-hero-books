@@ -23,6 +23,7 @@ export interface Order {
   orderDate: string;
   status: string;
   aiGenerationStartedAt?: string;
+  aiGenerationCompletedAt?: string;
   characterHash?: string;
   characterPath?: string;
   templatePath?: string;
@@ -35,6 +36,18 @@ export interface Order {
     postBria: ReviewStage;
     postPdf: ReviewStage;
   };
+  customerApprovalStatus?: string;
+  customerApprovalRequestedAt?: string;
+  customerApprovalApprovedAt?: string;
+  revisionCount?: number;
+  hasFlags?: boolean;
+  flags?: Record<string, any>;
+  finalBookUrl?: string;
+  finalCoverUrl?: string;
+  workflowStep?: string;
+  luluStatus?: string;
+  createdAt?: string;
+  updatedAt?: string;
   webhooks: {
     onApprove: string;
   };
