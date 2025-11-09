@@ -445,19 +445,33 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               const manifest3Res = await fetch(`/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`);
               if (manifest3Res.ok) {
                 const manifest3 = await manifest3Res.json();
+                // Check multiple possible locations for cover data
+                const pngGen = manifest3?.pngGeneration || manifest3?.manifest?.pngGeneration || {};
+                
                 // Check for Cloudflare Images cover URL first
-                if (manifest3?.pngGeneration?.coverCloudflareImageUrl) {
-                  coverUrlToUse = manifest3.pngGeneration.coverCloudflareImageUrl;
+                if (pngGen.coverCloudflareImageUrl) {
+                  coverUrlToUse = pngGen.coverCloudflareImageUrl;
                   console.log('[Cover] Using Cloudflare Images URL from manifest');
                 }
-                // Fallback to R2 cover preview
-                else if (manifest3?.pngGeneration?.coverSpreadImage) {
-                  coverUrlToUse = `/api/assets/${manifest3.pngGeneration.coverSpreadImage}`;
-                  console.log('[Cover] Using R2 cover from manifest');
+                // Fallback to R2 cover preview (could be string or object with r2Key)
+                else if (pngGen.coverSpreadImage) {
+                  const coverR2Key = typeof pngGen.coverSpreadImage === 'string' 
+                    ? pngGen.coverSpreadImage 
+                    : pngGen.coverSpreadImage?.r2Key;
+                  if (coverR2Key) {
+                    coverUrlToUse = `/api/assets/${coverR2Key}`;
+                    console.log('[Cover] Using R2 cover from manifest:', coverR2Key);
+                  } else {
+                    console.warn('[Cover] coverSpreadImage found but no r2Key:', pngGen.coverSpreadImage);
+                  }
+                } else {
+                  console.log('[Cover] No cover image found in manifest pngGeneration');
                 }
+              } else {
+                console.log('[Cover] Manifest 3 not found or not OK:', manifest3Res.status);
               }
             } catch (e) {
-              console.log('[Cover] Could not fetch cover from manifest, using fallback');
+              console.log('[Cover] Could not fetch cover from manifest, using fallback:', e);
             }
             
             // If we found a cover URL from manifest, use it
