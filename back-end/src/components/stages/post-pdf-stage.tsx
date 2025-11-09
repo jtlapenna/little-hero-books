@@ -6,22 +6,17 @@ import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure PDF.js worker - try local first, fallback to CDN
+// Configure PDF.js worker - use CDN by default for reliability
+// The async fetch check doesn't work because PDF.js loads the worker synchronously
+// when getDocument() is called, before the fetch check can complete
+// Using CDN ensures the worker is always available, even if local file isn't deployed
 if (typeof window !== 'undefined') {
-  // Try to use local worker file, but fallback to unpkg CDN if not available
-  // This ensures PDF conversion works even if the worker file isn't deployed yet
-  const workerPath = '/pdf.worker.min.mjs';
-  pdfjsLib.GlobalWorkerOptions.workerSrc = workerPath;
-  
-  // Verify worker file exists, fallback to CDN if not
-  fetch(workerPath, { method: 'HEAD' })
-    .catch(() => {
-      // If local worker fails, use unpkg CDN as fallback
-      const version = '5.4.394';
-      const cdnUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
-      console.warn('[PDF.js] Local worker not found, using CDN fallback:', cdnUrl);
-      pdfjsLib.GlobalWorkerOptions.workerSrc = cdnUrl;
-    });
+  const version = '5.4.394';
+  // Use CDN directly - more reliable than local file which may not be deployed correctly
+  // The local file often 404s on Cloudflare Pages, so CDN is the safer default
+  const cdnUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = cdnUrl;
+  console.log('[PDF.js] Using CDN worker:', cdnUrl);
 }
 
 interface PostPdfStageProps {
@@ -148,6 +143,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const imagesFoundRef = useRef(false);
   // Track last loaded pages data to prevent unnecessary re-renders
   const lastPagesDataRef = useRef<string>('');
+  // Track if pages have been loaded (to prevent loading state during polling)
+  const pagesLoadedRef = useRef(false);
   // Track spreads length for keyboard navigation to avoid stale closures
   const spreadsLengthRef = useRef(0);
   // Track last spread index to prevent unnecessary loading state resets
@@ -161,6 +158,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   useEffect(() => {
     imagesFoundRef.current = false;
     lastPagesDataRef.current = '';
+    pagesLoadedRef.current = false;
     spreadsLengthRef.current = 0;
     lastSpreadIndexRef.current = null;
     lastSpreadKeyRef.current = '';
@@ -173,8 +171,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   // Helper function to convert PDF to image using PDF.js
   // Use useCallback to prevent function recreation on every render
   const convertPdfToImage = useCallback(async (pdfUrl: string): Promise<string> => {
-    try {
-      console.log('[Pages] Converting PDF to image:', pdfUrl);
+    const attemptConversion = async (workerUrl: string | null = null): Promise<string> => {
+      // If worker URL is provided, update it before attempting conversion
+      if (workerUrl && typeof window !== 'undefined') {
+        const previousWorkerSrc = pdfjsLib.GlobalWorkerOptions.workerSrc;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+        console.log('[Pages] Using worker URL:', workerUrl);
+      }
+      
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdf = await loadingTask.promise;
       const page = await pdf.getPage(1); // Get first page
@@ -201,11 +205,41 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       
       // Convert canvas to data URL
       const dataUrl = canvas.toDataURL('image/png');
+      return dataUrl;
+    };
+    
+    try {
+      console.log('[Pages] Converting PDF to image:', pdfUrl);
+      // Try conversion with current worker configuration
+      const dataUrl = await attemptConversion();
       console.log('[Pages] ✓ PDF converted to image successfully');
       return dataUrl;
-    } catch (error) {
-      console.error('[Pages] Error converting PDF to image:', error);
-      throw error;
+    } catch (error: any) {
+      // Check if error is related to worker loading (404, network error, etc.)
+      const errorMessage = error?.message || String(error);
+      const isWorkerError = errorMessage.includes('worker') || 
+                           errorMessage.includes('404') ||
+                           errorMessage.includes('Failed to fetch') ||
+                           errorMessage.includes('NetworkError');
+      
+      if (isWorkerError && typeof window !== 'undefined') {
+        // Retry with CDN worker URL
+        const version = '5.4.394';
+        const cdnUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
+        console.warn('[Pages] Worker error detected, retrying with CDN worker:', cdnUrl);
+        
+        try {
+          const dataUrl = await attemptConversion(cdnUrl);
+          console.log('[Pages] ✓ PDF converted to image successfully with CDN worker');
+          return dataUrl;
+        } catch (retryError) {
+          console.error('[Pages] Error converting PDF to image even with CDN worker:', retryError);
+          throw retryError;
+        }
+      } else {
+        console.error('[Pages] Error converting PDF to image:', error);
+        throw error;
+      }
     }
   }, []);
 
@@ -225,7 +259,15 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         return;
       }
 
-      // Only set loading if we're actually going to load
+      // Prevent loading state from resetting during polling when pages/images already exist
+      // Use ref to avoid stale closure issues
+      if (pagesLoadedRef.current) {
+        console.log('[Pages] Pages already loaded, skipping loading state during polling');
+        setLoadingPages(false);
+        return;
+      }
+
+      // Only set loading if we're actually going to load new data
       setLoadingPages(true);
       setPagesError(null);
 
@@ -407,6 +449,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         if (pagesChanged || isInitialLoad) {
           // Update pages first
           setPages(pageData);
+          
+          // Mark pages as loaded to prevent loading state during polling
+          if (pageData.length > 0) {
+            pagesLoadedRef.current = true;
+          }
           
           // Store the current pages data to prevent re-renders
           lastPagesDataRef.current = currentPagesData;

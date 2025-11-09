@@ -1,0 +1,800 @@
+{
+  "name": "LHB - 4 - PRINT FULlFILMENT",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "w4-intake",
+        "options": {
+          "responseData": "allEntries"
+        }
+      },
+      "id": "ea6c0aab-d41b-494a-9ed4-3b588d4e0a76",
+      "name": "Webhook (W4 Intake)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -3088,
+        -96
+      ],
+      "webhookId": "87f25028-678d-4033-bbf6-00ede7daf47c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Centralized configuration & secrets (hardcoded per request)\nconst CONFIG = {\n  pdfMonkey: {\n    token: '2zpxHdmsse2ECXgVVtVR',\n    templateId: '5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172' // interior template (pages_html)\n  },\n  lulu: {\n    apiBase: 'https://api.lulu.com',        // set sandbox base if needed\n    basicAuth: 'Basic OWIzODhhYWEtZjBjOS00NDhkLWIzZDEtODU2MWE4Y2YyMDk0OjNmc1laN0diYlh2ZFFoc09TeHN0eklicWRiZEpNTXRT'\n  },\n  supabase: {\n    projectUrl: 'https://YOUR_PROJECT.supabase.co',\n    serviceRoleKey: 'PASTE_YOUR_SUPABASE_SERVICE_ROLE_KEY'\n  },\n  r2: {\n    bucket: 'little-hero-orders',\n    endpointHost: 'YOUR_ACCOUNT_ID.r2.cloudflarestorage.com',\n    region: 'auto',\n    accessKeyId: 'PASTE_R2_ACCESS_KEY_ID',\n    secretAccessKey: 'PASTE_R2_SECRET_KEY'\n  },\n  defaults: {\n    trimIn: { w: 8.5, h: 8.5 },\n    bleedIn: { w: 8.75, h: 8.75 },\n    print: { color: 'premium-color', stock: '80#-text', binding: 'perfect-bound', coverFinish: 'matte' },\n    quantity: 1,\n    shippingLevel: 'STANDARD'\n  }\n};\n\nreturn [{ json: { CONFIG } }];\n"
+      },
+      "id": "0daaadf0-4430-4c6f-8ae8-a87b57a53f9f",
+      "name": "Config (W4)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2896,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate & normalize W4 intake payload + attach CONFIG\n// Input sources: Webhook (payload) + Config (W4)\n\n// Utility to collect latest item from a named node (if present), else use current\nfunction latestFrom(nodeName) {\n  try {\n    const items = $items(nodeName, 0, $runIndex);\n    if (items && items.length) return items[0].json;\n  } catch {}\n  return null;\n}\n\nconst cfg = latestFrom('Config (W4)')?.CONFIG || ($json.CONFIG || {});\nconst body = latestFrom('Webhook (W4 Intake)') || $json || {};\n\n// Expected fields from W3 → W4\nconst orderId = body.orderId || body.amazonOrderId || body.AmazonOrderId;\nconst pageImageUrls = Array.isArray(body.pageImageUrls) ? body.pageImageUrls : [];\nconst coverPdfR2Key = body.coverPdfR2Key || null;\nconst coverPdfUrl   = body.coverPdfUrl || null;\n\n// Optional context\nconst shippingAddress = body.shippingAddress || body.shipping_address || {};\nconst customer = body.customer || { email: body.customer_email, name: body.customer_name };\nconst title = body.title || 'Little Hero Book';\n\nif (!orderId) throw new Error('Missing orderId from W3 → W4');\nif (pageImageUrls.length === 0) throw new Error('pageImageUrls[] is required and cannot be empty');\nif (!(coverPdfR2Key || coverPdfUrl)) throw new Error('coverPdfR2Key or coverPdfUrl must be provided');\n\n// Interior PDF filename/key\nconst pdfFilename = `interior_${orderId}.pdf`;\nconst pdfR2Key = `book-mvp-simple-adventure/orders/${orderId}/${pdfFilename}`;\n\nreturn [{\n  json: {\n    CONFIG: cfg,\n    orderId,\n    pageImageUrls,\n    coverPdfR2Key,\n    coverPdfUrl,\n    shippingAddress,\n    customer,\n    title,\n    pdfFilename,\n    pdfR2Key\n  }\n}];\n"
+      },
+      "id": "e3eece47-53d6-48fe-9b27-8399899cd665",
+      "name": "Validate & Normalize W4 Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2704,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$json.CONFIG.supabase.projectUrl}}/rest/v1/orders?or=(amazon_order_id.eq.{{$json.orderId}},orderId.eq.{{$json.orderId}})",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{$json.CONFIG.supabase.serviceRoleKey}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$json.CONFIG.supabase.serviceRoleKey}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": {
+          "status": "print_fulfillment_in_progress",
+          "workflow_step": "4-print-fulfillment",
+          "print_fulfillment_started_at": "={{new Date().toISOString()}}",
+          "updated_at": "={{new Date().toISOString()}}"
+        },
+        "options": {}
+      },
+      "id": "95bd22dc-a541-4636-b891-d9de2aa124cf",
+      "name": "Supabase: mark start",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2432,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json || {};\nconsole.log('W4 Intake Ack →', {\n  orderId: j.orderId,\n  pages: j.pageImageUrls?.length || 0,\n  coverSource: j.coverPdfR2Key ? 'R2 key' : (j.coverPdfUrl ? 'URL' : 'missing')\n});\nreturn [{ json: j }];\n"
+      },
+      "id": "9bd0d5c0-daed-4d9d-a009-72709179fa95",
+      "name": "Ack (Phase 0–1)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2240,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build pages_html for PDFMonkey at 8.75×8.75 in (bleed) from pageImageUrls\nconst j = $input.first().json || {};\nconst pages = Array.isArray(j.pageImageUrls) ? j.pageImageUrls : [];\nif (pages.length === 0) throw new Error('No pageImageUrls to build pages_html');\n\nconst css = `\n  <style>\n    @page { size: 8.75in 8.75in; margin: 0; }\n    html, body { margin:0; padding:0; }\n    .page { width:8.75in; height:8.75in; page-break-after: always; }\n    .bg { width:100%; height:100%; object-fit: cover; display:block; }\n  </style>\n`;\n\nconst pagesHtml = pages.map(url => {\n  return `<section class=\"page\"><img class=\"bg\" src=\"${url}\" alt=\"\" /></section>`;\n}).join('\\n');\n\nreturn [{\n  json: {\n    ...j,\n    pages_html: `${css}\\n${pagesHtml}`\n  }\n}];\n"
+      },
+      "id": "05c8c25b-5c36-4076-8335-74d8e0e49d7b",
+      "name": "Build Pages HTML (8.75in)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2032,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst tpl = d.CONFIG?.pdfMonkey?.templateId;\nif (!tpl || tpl === 'REPLACE_WITH_PDFMONKEY_TEMPLATE_ID') {\n  throw new Error('Missing PDFMonkey templateId in Config (W4). Please set CONFIG.pdfMonkey.templateId');\n}\nreturn [{\n  json: {\n    ...d,\n    document: {\n      document_template_id: tpl,\n      status: 'pending',\n      meta: { _filename: d.pdfFilename },\n      payload: { pages_html: d.pages_html }\n    }\n  }\n}];\n"
+      },
+      "id": "1786bae1-bfb1-40a5-94cb-c294c682fec2",
+      "name": "Prepare PDFMonkey Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1840,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdfmonkey.io/api/v1/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$json.CONFIG.pdfMonkey.token}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.document }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "79fdd192-a2f9-4f21-b415-6a74270f15f9",
+      "name": "Generate PDF with PDFMonkey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1616,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 25
+      },
+      "id": "6b96f3a1-b3fd-4c69-b61b-9331c3ded183",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1440,
+        -96
+      ],
+      "webhookId": "5e328aab-bf6c-4443-9316-8de68456042a"
+    },
+    {
+      "parameters": {
+        "jsCode": "const createResp = $input.first().json;\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc.id || doc.data?.id;\nif (!docId) throw new Error('PDFMonkey create response missing id');\n\nconst http = this.helpers.httpRequest;\nconst token = ($json.CONFIG && $json.CONFIG.pdfMonkey && $json.CONFIG.pdfMonkey.token) || '2zpxHdmsse2ECXgVVtVR';\nconst AUTH_HEADER = { Authorization: `Bearer ${token}` };\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nwhile (attempts < 15) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method:'GET', url:`https://api.pdfmonkey.io/api/v1/documents/${docId}`, json:true, headers: AUTH_HEADER });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++; await sleep(2000);\n}\nif (status !== 'success' || !downloadUrl) throw new Error(`PDF not ready (status=${status})`);\n\nconst orderId = $json.orderId;\nconst pdfFilename = $json.pdfFilename || `interior_${orderId}.pdf`;\nconst pdfR2Key = `book-mvp-simple-adventure/orders/${orderId}/${pdfFilename}`;\nreturn [{ json: { ...$json, pdfMonkeyDocumentId: docId, pdfDownloadUrl: downloadUrl, pdfR2Key } }];\n"
+      },
+      "id": "c7ce239b-285d-4def-a4a1-09a763b32af4",
+      "name": "Poll PDFMonkey until ready",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1264,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.pdfDownloadUrl}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "93f6a1eb-d40f-454f-9518-769ee9780c34",
+      "name": "Download PDF from PDFMonkey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1024,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-orders",
+        "fileName": "={{ $json.pdfR2Key }}",
+        "additionalFields": {}
+      },
+      "id": "5b611279-f84b-429b-be35-3ead0600d5ff",
+      "name": "Upload PDF to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -784,
+        -208
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$json.CONFIG.supabase.projectUrl}}/rest/v1/orders?or=(amazon_order_id.eq.{{$json.orderId}},orderId.eq.{{$json.orderId}})",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{$json.CONFIG.supabase.serviceRoleKey}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$json.CONFIG.supabase.serviceRoleKey}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": {
+          "bookPdfUrl": "={{$json.pdfR2Key}}",
+          "print_fulfillment_pdf_generated_at": "={{new Date().toISOString()}}",
+          "updated_at": "={{new Date().toISOString()}}"
+        },
+        "options": {}
+      },
+      "id": "7d694171-5d34-497a-a683-3642d26290d5",
+      "name": "Supabase: set interior PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        48,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$json.CONFIG.supabase.projectUrl}}/rest/v1/orders?or=(amazon_order_id.eq.{{$json.orderId}},orderId.eq.{{$json.orderId}})",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{$json.CONFIG.supabase.serviceRoleKey}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$json.CONFIG.supabase.serviceRoleKey}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": {
+          "coverPdfUrl": "={{$json.coverPdfR2Key || $json.coverPdfUrl}}",
+          "updated_at": "={{new Date().toISOString()}}"
+        },
+        "options": {}
+      },
+      "id": "796b20bb-5fd5-4aa1-b104-038fd45c86cd",
+      "name": "Supabase: set cover PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        48,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Prepare PDF Metadata for downstream (no binary)\n */\nconst input = $input.first().json;\nconst { orderId, pdfFilename, pdfR2Key } = input;\nif (!orderId || !pdfFilename || !pdfR2Key) {\n  throw new Error('Missing required PDF metadata: orderId, pdfFilename, or pdfR2Key');\n}\nconsole.log(`✓ PDF uploaded to R2: ${pdfR2Key}`);\nreturn [{ json: { ...input, pdfComplete: true, pdfUploadedAt: new Date().toISOString() } }];\n"
+      },
+      "id": "e5e6f2b1-1ef9-4081-b19d-2a0da6db773c",
+      "name": "Prepare PDF Metadata for Merge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        -304
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "id": "69789e1b-ebc6-4cb6-8451-4d1850285241",
+      "name": "Merge (after interior + meta)",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -256,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst j = $input.first().json || {};\nconst cfg = j.CONFIG || {};\nconst { bucket, endpointHost, region, accessKeyId, secretAccessKey } = cfg.r2 || {};\nif (!bucket || !endpointHost || !accessKeyId || !secretAccessKey) {\n  throw new Error('R2 config incomplete: bucket/endpointHost/accessKeyId/secretAccessKey required');\n}\nconst now = new Date();\nconst amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\\..+/, '') + 'Z';\nconst date = amzDate.slice(0, 8);\nconst service = 's3';\nconst rgn = region || 'auto';\nfunction hmac(key, data){ return require('crypto').createHmac('sha256', key).update(data).digest(); }\nfunction sha256Hex(data){ return require('crypto').createHash('sha256').update(data).digest('hex'); }\nfunction toHex(buffer){ return buffer.toString('hex'); }\nfunction presign(key, expires=3600){\n  const host = endpointHost;\n  const objectKey = encodeURIComponent(key).replace(/%2F/g,'/');\n  const method = 'GET';\n  const canonicalUri = `/${bucket}/${objectKey}`;\n  const credentialScope = `${date}/${rgn}/${service}/aws4_request`;\n  const credential = `${accessKeyId}/${credentialScope}`;\n  const signedHeaders = 'host';\n  const q = new URLSearchParams({\n    'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',\n    'X-Amz-Credential': credential,\n    'X-Amz-Date': amzDate,\n    'X-Amz-Expires': String(expires),\n    'X-Amz-SignedHeaders': signedHeaders,\n  });\n  const canonicalQueryString = q.toString();\n  const canonicalHeaders = `host:${host}\\n`;\n  const payloadHash = 'UNSIGNED-PAYLOAD';\n  const canonicalRequest = [method, canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaders, payloadHash].join('\\n');\n  const stringToSign = ['AWS4-HMAC-SHA256', amzDate, credentialScope, sha256Hex(canonicalRequest)].join('\\n');\n  const kDate = hmac(Buffer.from('AWS4'+secretAccessKey, 'utf8'), date);\n  const kRegion = hmac(kDate, rgn);\n  const kService = hmac(kRegion, service);\n  const kSigning = hmac(kService, 'aws4_request');\n  const signature = toHex(hmac(kSigning, stringToSign));\n  const url = `https://${host}/${bucket}/${objectKey}?${canonicalQueryString}&X-Amz-Signature=${signature}`;\n  return url;\n}\nconst interiorKey = j.pdfR2Key || j.bookPdfUrl;\nconst coverKey = j.coverPdfR2Key || j.coverPdfUrl;\nif (!interiorKey || !coverKey) throw new Error('Missing R2 keys for interior or cover');\nconst interiorSignedUrl = presign(interiorKey, 3600);\nconst coverSignedUrl = presign(coverKey, 3600);\nreturn [{ json: { ...j, interiorSignedUrl, coverSignedUrl } }];\n"
+      },
+      "id": "997a4368-ea6c-457c-bced-230a3997bb1d",
+      "name": "Generate Signed URLs (R2 GET)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json || {};\nconst dflt = j.CONFIG.defaults || {};\nconst qty = j.printOptions?.quantity || dflt.quantity || 1;\nconst shippingLevel = j.printOptions?.shippingLevel || dflt.shippingLevel || 'STANDARD';\nconst productConfig = {\n  trim_size: `${dflt.trimIn.w}x${dflt.trimIn.h}`,\n  interior_color: j.printOptions?.color || dflt.print.color,\n  interior_paper: j.printOptions?.stock || dflt.print.stock,\n  binding: j.printOptions?.binding || dflt.print.binding,\n  cover_finish: j.printOptions?.coverFinish || dflt.print.coverFinish\n};\nconst files = { interior: j.interiorSignedUrl, cover: j.coverSignedUrl };\nconst shippingAddress = j.shippingAddress || {};\nconst payload = {\n  quantity: qty,\n  shipping_level: shippingLevel,\n  contact_email: j.customer?.email || 'orders@littleherolabs.com',\n  address: shippingAddress,\n  line_items: [ { title: j.title || 'Little Hero Book', print_options: productConfig, files } ]\n};\nreturn [{ json: { ...j, luluPayload: payload } }];\n"
+      },
+      "id": "5cf49420-6291-44ac-ba1e-fe7b835cdbc1",
+      "name": "Build Lulu Print Job Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.CONFIG.lulu.apiBase}}/print-jobs/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{$json.CONFIG.lulu.basicAuth}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.luluPayload}}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "656f3e4c-0f12-4892-9690-236c0eaf9cb4",
+      "name": "Submit Lulu Print Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        912,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge Lulu response with upstream context from Build Lulu Print Job Payload\nconst upstream = $items('Build Lulu Print Job Payload', 0, $runIndex)?.[0]?.json || {};\nconst resp = $input.first().json || {};\nconst jobId = resp.id || resp.job_id || resp.data?.id;\nconst status = resp.status || resp.data?.status || 'CREATED';\nconst cost = resp.cost || resp.data?.cost || null;\nconst eta = resp.estimated_ship_date || resp.data?.estimated_ship_date || null;\nreturn [{ json: { ...upstream, luluJobId: jobId, luluStatus: status, luluCost: cost, estimatedShipDate: eta } }];\n"
+      },
+      "id": "c12531e4-0b5f-4cf4-9542-ce64b0ecaf8b",
+      "name": "Process Lulu Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$json.CONFIG.supabase.projectUrl}}/rest/v1/orders?or=(amazon_order_id.eq.{{$json.orderId}},orderId.eq.{{$json.orderId}})",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{$json.CONFIG.supabase.serviceRoleKey}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$json.CONFIG.supabase.serviceRoleKey}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": {
+          "status": "print_submitted",
+          "podOrderId": "={{$json.luluJobId}}",
+          "lulu_status": "={{$json.luluStatus}}",
+          "lulu_job_id": "={{$json.luluJobId}}",
+          "lulu_estimated_ship_date": "={{$json.estimatedShipDate}}",
+          "lulu_cost": "={{$json.luluCost}}",
+          "print_fulfillment_submitted_at": "={{new Date().toISOString()}}",
+          "updated_at": "={{new Date().toISOString()}}"
+        },
+        "options": {}
+      },
+      "id": "19cfd61a-5105-4850-bc13-f9bc91952ed9",
+      "name": "Supabase: mark submitted",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1312,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json || {};\nconst manifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  stage: '4-print-fulfillment',\n  createdAt: new Date().toISOString(),\n  orderId: j.orderId,\n  artifacts: {\n    interiorPdfR2Key: j.pdfR2Key || j.bookPdfUrl,\n    coverPdfR2Key: j.coverPdfR2Key\n  },\n  lulu: {\n    jobId: j.luluJobId,\n    status: j.luluStatus,\n    cost: j.luluCost,\n    estimatedShipDate: j.estimatedShipDate\n  }\n};\nconst key = `book-mvp-simple-adventure/orders/${j.orderId}/manifests/4-manifest.json`;\nreturn [{ json: { ...j, manifestKey: key, _manifest: manifest } }];\n"
+      },
+      "id": "4b4c472f-edc2-4fee-8df9-fae602367b7b",
+      "name": "Build 4-Manifest JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-orders",
+        "fileName": "={{ $json.manifestKey }}",
+        "binaryData": false,
+        "additionalFields": {}
+      },
+      "id": "b47e3ffa-752b-43ec-a83c-436e30cd321b",
+      "name": "Upload 4-Manifest to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        -80
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        368,
+        -80
+      ],
+      "id": "36d6b3d1-717f-48d2-bb86-aa2b40f6b013",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3088,
+        -256
+      ],
+      "id": "b119184b-2c2c-49b8-a03c-37822e3e5a7b",
+      "name": "Simulate Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook (W4 Intake)": {
+      "main": [
+        [
+          {
+            "node": "Config (W4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (W4)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Normalize W4 Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Normalize W4 Input": {
+      "main": [
+        [
+          {
+            "node": "Supabase: mark start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: mark start": {
+      "main": [
+        [
+          {
+            "node": "Ack (Phase 0–1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ack (Phase 0–1)": {
+      "main": [
+        [
+          {
+            "node": "Build Pages HTML (8.75in)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Pages HTML (8.75in)": {
+      "main": [
+        [
+          {
+            "node": "Prepare PDFMonkey Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare PDFMonkey Data": {
+      "main": [
+        [
+          {
+            "node": "Generate PDF with PDFMonkey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate PDF with PDFMonkey": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Poll PDFMonkey until ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll PDFMonkey until ready": {
+      "main": [
+        [
+          {
+            "node": "Download PDF from PDFMonkey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF from PDFMonkey": {
+      "main": [
+        [
+          {
+            "node": "Upload PDF to R2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge (after interior + meta)",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Upload PDF to R2": {
+      "main": [
+        [
+          {
+            "node": "Prepare PDF Metadata for Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge (after interior + meta)",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge (after interior + meta)": {
+      "main": [
+        [
+          {
+            "node": "Supabase: set interior PDF",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase: set cover PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: set interior PDF": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: set cover PDF": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Generate Signed URLs (R2 GET)": {
+      "main": [
+        [
+          {
+            "node": "Build Lulu Print Job Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Lulu Print Job Payload": {
+      "main": [
+        [
+          {
+            "node": "Submit Lulu Print Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit Lulu Print Job": {
+      "main": [
+        [
+          {
+            "node": "Process Lulu Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Lulu Response": {
+      "main": [
+        [
+          {
+            "node": "Supabase: mark submitted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: mark submitted": {
+      "main": [
+        [
+          {
+            "node": "Build 4-Manifest JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build 4-Manifest JSON": {
+      "main": [
+        [
+          {
+            "node": "Upload 4-Manifest to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare PDF Metadata for Merge": {
+      "main": [
+        [
+          {
+            "node": "Merge (after interior + meta)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Generate Signed URLs (R2 GET)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c7746a35-ac95-483a-83bc-7377e39dff78",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "tGZCS0EWmhNtULNZ",
+  "tags": []
+}
