@@ -337,8 +337,19 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               hasPngGenerationStoryImages: !!(manifest3?.pngGeneration?.storyImages || manifest3?.manifest?.pngGeneration?.storyImages),
               previewImagesCount: previewImages.length,
               pagesWithCloudflareCount: Object.keys(pagesWithCloudflare).length,
-              manifestStructure: Object.keys(manifest3 || {}).slice(0, 10)
+              manifestStructure: Object.keys(manifest3 || {}).slice(0, 10),
+              samplePagePreviewImage: previewImages[0] || null
             });
+            
+            // Debug: Log the actual manifest structure if pagePreviewImages is not found
+            if (!previewImages || previewImages.length === 0) {
+              console.warn('[Pages] ⚠️ pagePreviewImages not found in manifest. Available keys:', {
+                topLevel: Object.keys(manifest3 || {}),
+                manifestKeys: manifest3?.manifest ? Object.keys(manifest3.manifest) : null,
+                pngGenKeys: manifest3?.pngGeneration ? Object.keys(manifest3.pngGeneration) : null,
+                manifestPngGenKeys: manifest3?.manifest?.pngGeneration ? Object.keys(manifest3.manifest.pngGeneration) : null
+              });
+            }
             
             if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
               foundInManifest = true;
@@ -419,22 +430,26 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         // Fallback: Construct image URLs directly from R2 path pattern
         // This means images aren't in manifest yet (workflow 3 hasn't completed)
         if (pageData.length === 0) {
-          console.log('[Pages] Constructing preview image URLs from R2 path pattern (images not in manifest yet)');
+          console.warn('[Pages] ⚠️ No pagePreviewImages found in manifest, using fallback R2 path pattern');
+          console.warn('[Pages] This means either: 1) Workflow 3 hasn\'t completed, or 2) Manifest structure is unexpected');
           setUsingFallbackUrls(true); // Mark that we're using fallback URLs (images not available yet)
           // Images are stored at: book-mvp-simple-adventure/orders/{orderId}/preview-images/p{pageNumber}.png
           // Format: p00.png (dedication), p01.png (page 1), p02.png (page 2), ..., p15.png (page 15)
+          // NOTE: Using NEW format (p01.png), NOT old format (page-01_preview.png)
           pageData = Array.from({ length: 16 }, (_, i) => {
             const pageNum = i; // 0-15 (0 is dedication, 1-15 are story pages)
-            const filename = `p${String(pageNum).padStart(2, '0')}.png`;
+            const filename = `p${String(pageNum).padStart(2, '0')}.png`; // NEW format: p01.png
             const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`;
             return {
               pageNumber: pageNum,
               previewImageUrl: `/api/assets/${r2Key}` // Use relative URL
             };
           });
+          console.log('[Pages] Fallback: Constructed', pageData.length, 'page URLs using format p00.png, p01.png, etc.');
         } else {
           // Images found in manifest - clear fallback flag
           setUsingFallbackUrls(false);
+          console.log('[Pages] ✓ Successfully loaded', pageData.length, 'pages from manifest');
         }
         
         if (!isMounted) return;

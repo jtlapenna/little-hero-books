@@ -1,0 +1,735 @@
+{
+  "name": "LHB - 1.1- Queue Manager and Router",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds"
+            }
+          ]
+        }
+      },
+      "id": "162b68c5-9f0d-455d-b16f-7a79ecfe9d80",
+      "name": "Every 30 Seconds",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2960,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize router\nconst maxConcurrent = 5;\n\nconsole.log('=== ROUTER CYCLE START ===');\nconsole.log(`Max concurrent: ${maxConcurrent}`);\n\nreturn [{ json: { maxConcurrent } }];"
+      },
+      "id": "94d73759-3455-4375-b635-c6fc072896d1",
+      "name": "Initialize Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2752,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/rpc/get_queue_status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6b65fac9-bb0a-4036-b4f5-a8f875f58958",
+      "name": "Check Current Capacity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2528,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate available slots\nconst response = $input.first().json;\nconst currentProcessing = response.processing_count || 0;\nconst maxConcurrent = $('Initialize Router').first().json.maxConcurrent;\nconst availableSlots = Math.max(0, maxConcurrent - currentProcessing);\nconst queuedCount = response.queued_count || 0;\n\nconsole.log(`Currently processing: ${currentProcessing}/${maxConcurrent}`);\nconsole.log(`Available slots: ${availableSlots}`);\nconsole.log(`Queued orders: ${queuedCount}`);\n\nif (availableSlots === 0) {\n  console.log('⏸️ At capacity - will check false path');\n}\n\nreturn [{\n  json: {\n    availableSlots: availableSlots,\n    currentProcessing: currentProcessing,\n    queuedCount: queuedCount,\n    shouldFetchOrders: availableSlots > 0\n  }\n}];"
+      },
+      "id": "52240b79-19da-4cbb-b0e2-6a6be9e76dfa",
+      "name": "Calculate Available Slots",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2304,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.shouldFetchOrders }}",
+              "value2": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0a78a34f-fc42-44a5-8e91-d234ad6f6944",
+      "name": "Has Capacity?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2096,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// FALSE PATH - At Capacity\nconst data = $input.first().json;\nconst queuedCount = data.queuedCount || 0;\n\nconsole.log('=== AT CAPACITY ===');\nconsole.log(`Queued: ${queuedCount} orders waiting`);\nconsole.log('Next check in 30 seconds');\n\n// Use workflow static data to persist counters across executions\nconst s = this.getWorkflowStaticData('global');\nconst capacityFullCycles = (s.capacityFullCycles || 0) + 1;\ns.capacityFullCycles = capacityFullCycles;\ns.lastCapacityCheckAt = new Date().toISOString();\nconsole.log(`Capacity full for ${capacityFullCycles} consecutive cycles`);\n\n// Trigger stuck check after 5 cycles\nif (capacityFullCycles >= 5) {\n  return [{\n    json: {\n      shouldCheckStuck: true,\n      capacityFullCycles,\n      queuedCount\n    }\n  }];\n}\n\n// Normal case - just log and exit\nreturn [];"
+      },
+      "id": "ef888dbd-a85e-4aee-816e-4081d35d8ce7",
+      "name": "At Capacity - Monitor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1744,
+        144
+      ],
+      "notes": "Logs when at capacity and tracks cycles"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check for stuck workflows\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nif (!supabaseUrl || !supabaseKey) {\n  console.warn('⚠️ Supabase not configured - skipping stuck workflow check');\n  return [];\n}\n\n// Query for workflows running > 30 minutes\nconst thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();\n\ntry {\n  const response = await fetch(\n    `${supabaseUrl}/rest/v1/orders?execution_status=eq.processing&started_at=lt.${thirtyMinutesAgo}&select=amazon_order_id,current_workflow,started_at`,\n    {\n      headers: {\n        'apikey': supabaseKey,\n        'Authorization': `Bearer ${supabaseKey}`\n      }\n    }\n  );\n  \n  const stuckOrders = await response.json();\n  \n  if (!Array.isArray(stuckOrders) || stuckOrders.length === 0) {\n    console.log('✅ No stuck workflows detected');\n    \n    // Reset capacity counter since everything is processing normally\n    this.getWorkflowStaticData('global').capacityFullCycles = 0;\n    \n    return [];\n  }\n  \n  // Found stuck workflows!\n  console.error(`🚨 ALERT: ${stuckOrders.length} stuck workflows detected!`);\n  \n  const alerts = stuckOrders.map(order => {\n    const startedAt = new Date(order.started_at);\n    const runningMinutes = Math.floor((Date.now() - startedAt.getTime()) / 1000 / 60);\n    \n    console.error(`  - Order ${order.amazon_order_id}: ${order.current_workflow} running for ${runningMinutes} minutes`);\n    \n    return {\n      orderId: order.amazon_order_id,\n      workflow: order.current_workflow,\n      runningMinutes: runningMinutes,\n      startedAt: order.started_at\n    };\n  });\n  \n  // Return alerts for notification\n  return [{\n    json: {\n      alert: true,\n      level: 'critical',\n      type: 'stuck_workflows',\n      count: stuckOrders.length,\n      workflows: alerts,\n      message: `${stuckOrders.length} workflow(s) have been running for more than 30 minutes`,\n      action: 'Check n8n execution logs. Consider manually marking as failed in Supabase.',\n      recommendation: `UPDATE orders SET execution_status='failed', error_message='Workflow timeout' WHERE amazon_order_id IN (${alerts.map(a => `'${a.orderId}'`).join(', ')})`\n    }\n  }];\n  \n} catch (error) {\n  console.error('❌ Error checking for stuck workflows:', error);\n  return [];\n}"
+      },
+      "id": "003bd4f7-2808-4a31-9892-98ae3a9504d4",
+      "name": "Check for Stuck Workflows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1536,
+        144
+      ],
+      "notes": "Detects workflows running > 30 minutes"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log alert (you can replace this with Slack/Email node)\nconst alertData = $input.first().json;\n\nif (!alertData.alert) {\n  return [];\n}\n\nconsole.log('=== STUCK WORKFLOW ALERT ===');\nconsole.log(`Level: ${alertData.level}`);\nconsole.log(`Message: ${alertData.message}`);\nconsole.log(`Count: ${alertData.count}`);\nconsole.log('Workflows:');\nalertData.workflows.forEach(w => {\n  console.log(`  - ${w.orderId}: ${w.workflow} (${w.runningMinutes} min)`);\n});\nconsole.log(`Action: ${alertData.action}`);\nconsole.log(`SQL: ${alertData.recommendation}`);\n\n// TODO: Send to Slack/Email\n// For now just logging\n\nreturn [{ json: alertData }];"
+      },
+      "id": "a6a0aea1-d0dd-4630-ba74-8fd8808f47e4",
+      "name": "Log Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1312,
+        144
+      ],
+      "notes": "Replace with Slack/Email node if desired"
+    },
+    {
+      "parameters": {
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "execution_status",
+              "value": "eq.ready_for_processing"
+            },
+            {
+              "name": "order",
+              "value": "priority.desc,queued_at.asc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $json.availableSlots }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "239841d1-0328-4fde-85b8-f2f4941c9943",
+      "name": "Fetch Ready Orders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1520,
+        -160
+      ],
+      "notes": "Gets next N orders ready for ANY workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reset capacity counter when we have capacity\nif ($execution.customData) {\n  $execution.customData.capacityFullCycles = 0;\n}\n\n// Route order to correct workflow based on next_workflow field\nconst orders = $input.all();\n\nif (!orders || orders.length === 0) {\n  console.log('No orders to route');\n  return [];\n}\n\nconst routed = {\n  workflow2A: [],\n  workflow2B: [],\n  workflow3: []\n};\n\nfor (const item of orders) {\n  const order = item.json;\n  const nextWorkflow = order.next_workflow;\n  \n  console.log(`Order ${order.amazon_order_id}: Route to ${nextWorkflow}`);\n  \n  if (nextWorkflow === '2A') {\n    routed.workflow2A.push(order);\n  } else if (nextWorkflow === '2B') {\n    routed.workflow2B.push(order);\n  } else if (nextWorkflow === '3') {\n    routed.workflow3.push(order);\n  } else {\n    console.warn(`⚠️ Unknown workflow: ${nextWorkflow} for order ${order.amazon_order_id}`);\n  }\n}\n\nconsole.log(`Routing summary:`);\nconsole.log(`  2A: ${routed.workflow2A.length} orders`);\nconsole.log(`  2B: ${routed.workflow2B.length} orders`);\nconsole.log(`  3: ${routed.workflow3.length} orders`);\n\nreturn [{ json: routed }];"
+      },
+      "id": "9ac3ab72-c830-44a6-846e-d8bd126440ee",
+      "name": "Route Orders by Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1328,
+        -160
+      ],
+      "notes": "Separates orders by workflow type"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process 2A orders\nconst routing = $input.first().json;\nconst orders2A = routing.workflow2A || [];\n\nif (orders2A.length === 0) {\n  console.log('No orders for 2A');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2A.length} ORDERS FOR 2A ===`);\n\nreturn orders2A.map(order => ({\n  json: {\n    orderId: order.amazon_order_id,\n    characterHash: order.character_hash,\n    characterSpecs: order.character_specs,\n    bookSpecs: order.book_specs,\n    orderDbId: order.id,\n    workflow: '2A'\n  }\n}));"
+      },
+      "id": "2ecc9a4e-4378-4905-b8b2-ad870f3b9844",
+      "name": "Prep 2A Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Process 2B orders\nconst routing = $input.first().json;\nconst orders2B = routing.workflow2B || [];\n\nif (orders2B.length === 0) {\n  console.log('No orders for 2B');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2B.length} ORDERS FOR 2B ===`);\n\n// Keep payload minimal; W2B will pull any needed URLs or keys itself\nreturn orders2B.map(order => ({\n  json: {\n    orderId: order.amazon_order_id,\n    characterHash: order.character_hash,\n    orderDbId: order.id,\n    workflow: '2B'\n  }\n}));\n"
+      },
+      "id": "472eec30-4c93-415d-bc87-3a22201ddd6e",
+      "name": "Prep 2B Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Process Workflow 3 orders\nconst routing = $input.first().json;\nconst orders3 = routing.workflow3 || [];\n\nif (orders3.length === 0) {\n  console.log('No orders for Workflow 3');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders3.length} ORDERS FOR WORKFLOW 3 ===`);\n\nconst prefix = 'book-mvp-simple-adventure/orders';\n\nreturn orders3.map(order => ({\n  json: {\n    orderId: order.amazon_order_id,\n    // Durable key (bucket is private). Router will exchange this for a signed GET URL.\n    oneManifestKey: `${prefix}/${order.amazon_order_id}/manifests/1-manifest.json`,\n    characterHash: order.character_hash,\n    orderDbId: order.id,\n    workflow: '3'\n  }\n}));\n"
+      },
+      "id": "ce35b26d-3b59-429b-97ac-51d800f70956",
+      "name": "Prep Workflow 3 Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "eq.{{ $json.orderDbId }}"
+            },
+            {
+              "name": "execution_status",
+              "value": "eq.ready_for_processing"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+        "options": {}
+      },
+      "id": "a576efaf-b7b0-41ba-8dac-a5b144323b45",
+      "name": "Mark as Processing (2A)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -368,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "eq.{{ $json.orderDbId }}"
+            },
+            {
+              "name": "execution_status",
+              "value": "eq.ready_for_processing"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+        "options": {}
+      },
+      "id": "922f350e-0886-41d8-80c1-02615fcd2544",
+      "name": "Mark as Processing (2B)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -368,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "eq.{{ $json.orderDbId }}"
+            },
+            {
+              "name": "execution_status",
+              "value": "eq.ready_for_processing"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+        "options": {}
+      },
+      "id": "9170acd3-9468-486a-9deb-9754a21d27e3",
+      "name": "Mark as Processing (3)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -368,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WORKFLOW_2A_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/2a-start' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.orderId + '-' + $json.workflow }}"
+            }
+          ]
+        }
+      },
+      "id": "58bf06ae-c7e2-4551-b309-b42470f48e7a",
+      "name": "Trigger 2A Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -144,
+        -352
+      ],
+      "notes": "Update webhook URL in environment or here"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WORKFLOW_2B_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.orderId + '-' + $json.workflow }}"
+            }
+          ]
+        }
+      },
+      "id": "df8b67ab-ecb4-4c0f-a0d6-6fd9702dc730",
+      "name": "Trigger 2B Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -144,
+        -160
+      ],
+      "notes": "Update webhook URL in environment or here"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WORKFLOW_3_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/compile-book' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.orderId + '-' + $json.workflow }}"
+            }
+          ]
+        }
+      },
+      "id": "c14063b2-7bcd-4afe-90e2-b25c2e7c6ef4",
+      "name": "Trigger Workflow 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -144,
+        48
+      ],
+      "notes": "Update webhook URL in environment or here"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -1104,
+        144
+      ],
+      "id": "2c14788c-5ccf-45b0-8d99-8bc31a0106cc",
+      "name": "Send a message",
+      "webhookId": "5bec6b2f-1fc7-480a-b35e-4be75015bf70"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Fetch a signed GET URL for oneManifestKey via backend\nconst item = $input.first().json;\nconst endpoint = process.env.R2_SIGNED_URL_ENDPOINT || 'https://admin.littleherolabs.com/api/r2/signed-url';\nconst token = process.env.BACKEND_API_TOKEN || '';\nconst ttl = Number(process.env.R2_SIGNED_URL_TTL || 600);\n\nif (!item.oneManifestKey) {\n  throw new Error('Missing oneManifestKey');\n}\n\nconst res = await this.helpers.request({\n  method: 'GET',\n  uri: endpoint,\n  qs: { key: item.oneManifestKey, bucket: 'little-hero-orders', expiresIn: ttl },\n  headers: token ? { Authorization: `Bearer ${token}` } : {},\n  json: true\n});\n\nconst oneManifestUrl = res.url || res.data?.url || res.json?.url || res.result?.url;\nif (!oneManifestUrl) {\n  throw new Error('Signed URL endpoint did not return a URL');\n}\n\nreturn [{ json: { ...item, oneManifestUrl } }];\n"
+      },
+      "id": "get-signed-url-w3",
+      "name": "Get Signed URL (1‑manifest)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        240
+      ],
+      "notes": "Uses BACKEND_API_TOKEN and R2_SIGNED_URL_ENDPOINT env vars"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 30 Seconds": {
+      "main": [
+        [
+          {
+            "node": "Initialize Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Router": {
+      "main": [
+        [
+          {
+            "node": "Check Current Capacity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Current Capacity": {
+      "main": [
+        [
+          {
+            "node": "Calculate Available Slots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Available Slots": {
+      "main": [
+        [
+          {
+            "node": "Has Capacity?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Capacity?": {
+      "main": [
+        [
+          {
+            "node": "Fetch Ready Orders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "At Capacity - Monitor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "At Capacity - Monitor": {
+      "main": [
+        [
+          {
+            "node": "Check for Stuck Workflows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Stuck Workflows": {
+      "main": [
+        [
+          {
+            "node": "Log Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Ready Orders": {
+      "main": [
+        [
+          {
+            "node": "Route Orders by Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Orders by Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prep 2A Orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prep 2B Orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prep Workflow 3 Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep 2A Orders": {
+      "main": [
+        [
+          {
+            "node": "Mark as Processing (2A)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep 2B Orders": {
+      "main": [
+        [
+          {
+            "node": "Mark as Processing (2B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Workflow 3 Orders": {
+      "main": [
+        [
+          {
+            "node": "Get Signed URL (1‑manifest)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Processing (2A)": {
+      "main": [
+        [
+          {
+            "node": "Trigger 2A Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Processing (2B)": {
+      "main": [
+        [
+          {
+            "node": "Trigger 2B Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Processing (3)": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Alert": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Signed URL (1‑manifest)": {
+      "main": [
+        [
+          {
+            "node": "Mark as Processing (3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3230bdcf-9616-4ec6-b863-15b2e940dad1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "ns0VEFCo9Vyv0ifT",
+  "tags": []
+}
