@@ -26,8 +26,9 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   }, [isApproved]);
   
   // Initialize with empty state - will be populated from R2 data
-  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number }>>([]);
+  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number; comparisonMode?: 'reference' | 'background' | null; comparisonImageUrl?: string; comparisonLabel?: string; poseNumber?: number; pageNumber?: number; onFlip?: () => void; isFlipping?: boolean }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
+  const [flippingPoseId, setFlippingPoseId] = useState<string | null>(null);
 
   // Update state when R2 assets change - use ref to track previous key and prevent infinite loops
   const posesBgRemoved = order?.r2Assets?.posesBgRemoved || [];
@@ -70,6 +71,43 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         // BUT: if user manually unflagged it, don't re-flag it (unless it's missing)
         const shouldBeFlagged = isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
         
+        // Map pose to page number (first page that uses this pose)
+        const poseToFirstPage: Record<number, number> = {
+          0: 0,  1: 1,  2: 2,  3: 3,  4: 4,  5: 5,  6: 6,
+          7: 8,  8: 9,  9: 10, 10: 11, 11: 12, 12: 14
+        };
+        const pageNumber = poseToFirstPage[poseNumber] ?? null;
+        
+        // Build background URL
+        let backgroundUrl: string | null = null;
+        if (pageNumber !== null) {
+          const sceneSlugs = [
+            'dedication',        // page00
+            'twilight-walk',    // page01
+            'night-forest',     // page02
+            'magic-doorway',    // page03
+            'courage-leap',     // page04
+            'morning-meadow',   // page05
+            'tall-forest',      // page06
+            'mountain-vista',   // page07
+            'picnic-surprise',  // page08
+            'beach-discovery',  // page09
+            'crystal-cave',     // page10
+            'giant-flowers',    // page11
+            'almost-there',     // page12
+            'animal-reveal',    // page13
+            'flying-home'       // page14
+          ];
+          
+          if (pageNumber === 0) {
+            backgroundUrl = '/api/assets/book-mvp-simple-adventure/backgrounds/page00-dedication.png';
+          } else if (pageNumber >= 1 && pageNumber <= 14) {
+            const slug = sceneSlugs[pageNumber];
+            const padded = String(pageNumber).padStart(2, '0');
+            backgroundUrl = `/api/assets/book-mvp-simple-adventure/backgrounds/page${padded}-${slug}.png`;
+          }
+        }
+        
         return {
           id: poseId,
           name: `Pose ${poseNumber} (BG Removed)${isMissing ? ' (Missing)' : ''}`,
@@ -79,14 +117,237 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           isMissing: isMissing,
           status: pose.status,
           reviewReason: pose.reviewReason,
-          attempts: pose.attempts
+          attempts: pose.attempts,
+          // Comparison mode data for Post-Bria
+          comparisonMode: backgroundUrl ? 'background' as const : null,
+          comparisonImageUrl: backgroundUrl ?? undefined,
+          comparisonLabel: 'Page Background',
+          poseNumber: poseNumber,
+          pageNumber: pageNumber ?? undefined,
+          // Flip handler - pass the URL directly to avoid stale closure issues
+          onFlip: () => handleFlip(poseId, poseNumber, pose.url || ''),
+          isFlipping: flippingPoseId === poseId
         };
       }));
     } else {
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [posesBgRemoved, orderId]); // Depend on the array directly, but use ref to prevent unnecessary updates
+  }, [posesBgRemoved, orderId, flippingPoseId]); // Include flippingPoseId to update isFlipping state
+
+  const handleFlip = async (assetId: string, poseNumber: number, imageUrlParam?: string) => {
+    console.log('[PostBriaStage] handleFlip called with assetId:', assetId, 'poseNumber:', poseNumber, 'imageUrlParam:', imageUrlParam);
+    
+    setFlippingPoseId(assetId);
+    
+    try {
+      // Use the URL passed as parameter, or try to find it from current poses state
+      let imageUrl: string | undefined = imageUrlParam;
+      
+      if (!imageUrl || imageUrl.trim() === '') {
+        // Fallback: try to find from current poses state
+        let currentPose = poses.find(p => p.poseNumber === poseNumber);
+        if (!currentPose) {
+          // Fallback: try finding by assetId
+          currentPose = poses.find(p => p.id === assetId);
+        }
+        
+        if (!currentPose || !currentPose.url || currentPose.url.trim() === '') {
+          // Last resort: fetch from API
+          console.log('[PostBriaStage] URL not provided and not found in state, fetching from API...');
+          const orderResponse = await fetch(`/api/orders/${orderId}`);
+          if (!orderResponse.ok) {
+            throw new Error('Failed to fetch order data');
+          }
+          const orderData = await orderResponse.json();
+          const apiPose = orderData.r2Assets?.posesBgRemoved?.find((p: any) => p.poseNumber === poseNumber);
+          if (!apiPose || !apiPose.url) {
+            alert(`Image URL is missing for pose ${poseNumber}. The image may not have been generated yet.`);
+            setFlippingPoseId(null);
+            return;
+          }
+          imageUrl = apiPose.url;
+        } else {
+          imageUrl = currentPose.url;
+        }
+      }
+
+      // At this point, imageUrl should be defined, but TypeScript doesn't know that
+      if (!imageUrl || imageUrl.trim() === '') {
+        alert(`Image URL is missing for pose ${poseNumber}. The image may not have been generated yet.`);
+        setFlippingPoseId(null);
+        return;
+      }
+
+      // TypeScript assertion: imageUrl is guaranteed to be a string at this point
+      let finalImageUrl: string = imageUrl;
+
+      // Check if URL is a data URL (from previous flip) - if so, we need to fetch the original from R2
+      if (finalImageUrl.startsWith('data:')) {
+        // Data URL from previous flip - we need to get the original image from the API
+        console.log('[PostBriaStage] URL is a data URL, fetching original from API');
+        // Fetch the original image URL from the order data
+        const orderResponse = await fetch(`/api/orders/${orderId}`);
+        if (!orderResponse.ok) {
+          throw new Error('Failed to fetch order data');
+        }
+        const orderData = await orderResponse.json();
+        const originalPose = orderData.r2Assets?.posesBgRemoved?.find((p: any) => p.poseNumber === poseNumber);
+        if (!originalPose || !originalPose.url) {
+          throw new Error('Original image URL not found in order data');
+        }
+        finalImageUrl = originalPose.url;
+        console.log('[PostBriaStage] Using original URL:', finalImageUrl);
+      }
+
+      // Ensure URL is absolute if it's a relative path
+      if (finalImageUrl.startsWith('/')) {
+        finalImageUrl = window.location.origin + finalImageUrl;
+      }
+
+      // Load the image - try Image element first, fallback to fetch if CORS fails
+      let img: HTMLImageElement;
+      let imageBlob: Blob | null = null;
+      
+      try {
+        // First, try loading via Image element (faster, works if CORS is configured)
+        img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Image load timeout'));
+          }, 10000); // 10 second timeout for Image element
+          
+          img.onload = () => {
+            clearTimeout(timeout);
+            resolve(null);
+          };
+          img.onerror = (error) => {
+            clearTimeout(timeout);
+            console.warn('[PostBriaStage] Image element load failed, will try fetch:', error);
+            reject(new Error('Image element failed'));
+          };
+          img.src = finalImageUrl;
+        });
+      } catch (imageError) {
+        // Fallback: fetch the image as a blob and create Image from blob URL
+        console.log('[PostBriaStage] Image element failed, trying fetch API...');
+        try {
+          const response = await fetch(finalImageUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+          }
+          imageBlob = await response.blob();
+          const blobUrl = URL.createObjectURL(imageBlob);
+          
+          // Create new Image from blob URL
+          img = new Image();
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error('Image load from blob timeout'));
+            }, 10000);
+            
+            img.onload = () => {
+              clearTimeout(timeout);
+              resolve(null);
+            };
+            img.onerror = (error) => {
+              clearTimeout(timeout);
+              URL.revokeObjectURL(blobUrl); // Clean up
+              reject(new Error('Failed to load image from blob'));
+            };
+            img.src = blobUrl;
+          });
+          
+          // Clean up blob URL after loading (will be revoked after canvas operations)
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        } catch (fetchError: any) {
+          console.error('[PostBriaStage] Both Image element and fetch failed:', fetchError);
+          throw new Error(`Failed to load image: ${fetchError.message || 'Unknown error'}. URL: ${imageUrl}`);
+        }
+      }
+
+      // Create canvas and flip the image horizontally
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+
+      // Flip horizontally by scaling and translating
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, -img.width, 0);
+
+      // Convert canvas to blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to convert canvas to blob'));
+          }
+        }, 'image/png');
+      });
+
+      // Create FormData and upload the flipped image
+      const formData = new FormData();
+      formData.append('poseNumber', poseNumber.toString());
+      formData.append('stage', 'postBria');
+      formData.append('file', blob, `pose${String(poseNumber).padStart(2, '0')}-nobg.png`);
+
+      const response = await fetch(`/api/orders/${orderId}/replace-image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to upload flipped image';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+          console.error('[PostBriaStage] API error response:', error);
+        } catch {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        alert(errorMessage);
+        setFlippingPoseId(null);
+        return;
+      }
+
+      const result = await response.json();
+      console.log('[PostBriaStage] Flip and upload successful:', result);
+
+      // Create a data URL from the flipped canvas for immediate display
+      const flippedDataUrl = canvas.toDataURL('image/png');
+      
+      // Update the local state immediately to show the flipped image
+      setPoses(prev => prev.map(pose => {
+        if (pose.id === assetId) {
+          // Use data URL for immediate visual feedback, then refresh will get the R2 version
+          return {
+            ...pose,
+            url: flippedDataUrl,
+            _isFlipped: true // Flag to indicate this is a temporary flipped version
+          };
+        }
+        return pose;
+      }));
+
+      // Refresh the order data to get the updated image from R2
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error: any) {
+      console.error('[PostBriaStage] Error flipping image:', error);
+      alert(`Failed to flip image: ${error.message || 'Unknown error'}`);
+    } finally {
+      setFlippingPoseId(null);
+    }
+  };
 
   const handleDownload = async (assetId: string) => {
     try {

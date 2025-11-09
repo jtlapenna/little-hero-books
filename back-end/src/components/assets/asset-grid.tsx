@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Download, Upload, Flag, CheckCircle, Eye } from 'lucide-react';
 import { ImageLightbox } from './image-lightbox';
 
@@ -14,6 +14,14 @@ interface Asset {
   status?: string;
   reviewReason?: string;
   attempts?: number;
+  // Comparison mode data
+  comparisonMode?: 'reference' | 'background' | null;
+  comparisonImageUrl?: string;
+  comparisonLabel?: string;
+  poseNumber?: number;
+  pageNumber?: number;
+  onFlip?: () => void;
+  isFlipping?: boolean;
 }
 
 interface AssetGridProps {
@@ -46,6 +54,17 @@ export function AssetGrid({
   disabledReplaceIds = []
 }: AssetGridProps) {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+
+  // Update selectedAsset when the corresponding asset in the assets array changes
+  // This ensures the modal shows the updated image after operations like flip
+  useEffect(() => {
+    if (selectedAsset) {
+      const updatedAsset = assets.find(a => a.id === selectedAsset.id);
+      if (updatedAsset && updatedAsset.url !== selectedAsset.url) {
+        setSelectedAsset(updatedAsset);
+      }
+    }
+  }, [assets, selectedAsset]);
   const [internalIsReplacing, setInternalIsReplacing] = useState<string | null>(null);
   const isReplacing = externalIsReplacing !== undefined ? externalIsReplacing : internalIsReplacing;
   // Use refs to track file inputs for more reliable access
@@ -298,6 +317,13 @@ export function AssetGrid({
           isFlagged={selectedAsset.isFlagged}
           hasTransparentBackground={selectedAsset.hasTransparentBackground}
           showBlackBackground={showBlackBackground}
+          comparisonMode={selectedAsset.comparisonMode}
+          comparisonImageUrl={selectedAsset.comparisonImageUrl}
+          comparisonLabel={selectedAsset.comparisonLabel}
+          poseNumber={selectedAsset.poseNumber}
+          pageNumber={selectedAsset.pageNumber}
+          onFlip={selectedAsset.onFlip}
+          isFlipping={selectedAsset.isFlipping}
         />
       )}
     </div>
