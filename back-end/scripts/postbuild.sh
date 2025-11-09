@@ -185,6 +185,19 @@ else
   echo "✅ Copied static files"
 fi
 
+# Copy public directory files to output root (for static assets like PDF worker)
+echo "📦 Copying public directory files"
+if [ -d "public" ]; then
+  # Copy all files from public/ to output root
+  cp -r public/* "$OUTPUT_DIR/" 2>/dev/null || {
+    # If cp fails, try copying files individually
+    find public -type f -exec cp {} "$OUTPUT_DIR/" \;
+  }
+  echo "✅ Copied public directory files"
+else
+  echo "⚠️  WARNING: public directory not found (may be OK if no public files)"
+fi
+
 # Create _routes.json for static asset routing
 echo "📝 Creating _routes.json"
 cat > "$OUTPUT_DIR/_routes.json" << 'EOF'

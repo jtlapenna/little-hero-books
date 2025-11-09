@@ -489,18 +489,30 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   useEffect(() => {
     const currentSpread = spreads[currentSpreadIndex];
     if (!currentSpread) {
-      setImageLoading({ left: false, right: false });
-      setImageError({ left: null, right: null });
+      // Only reset if we actually had a spread before
+      if (lastSpreadIndexRef.current !== null) {
+        setImageLoading({ left: false, right: false });
+        setImageError({ left: null, right: null });
+      }
       lastSpreadIndexRef.current = currentSpreadIndex;
       lastSpreadKeyRef.current = '';
       return;
     }
     
-    // Create a unique key for this spread to detect if it actually changed
-    const spreadKey = `${currentSpreadIndex}-${currentSpread.spreadNumber}-${currentSpread.leftPage?.pageNumber || 'none'}-${currentSpread.rightPage?.pageNumber || 'none'}-${currentSpread.coverData ? 'cover' : 'nocover'}`;
+    // Create a stable unique key for this spread to detect if it actually changed
+    // Use page numbers and cover data to create a stable identifier
+    const leftPageNum = currentSpread.leftPage?.pageNumber ?? null;
+    const rightPageNum = currentSpread.rightPage?.pageNumber ?? null;
+    const coverType = currentSpread.coverData 
+      ? (currentSpread.coverData.isFrontCover ? 'front' : currentSpread.coverData.isBackCover ? 'back' : 'cover')
+      : null;
+    const spreadKey = `${currentSpreadIndex}-${leftPageNum}-${rightPageNum}-${coverType}`;
     
     // Only reset loading state if the spread actually changed
-    const spreadChanged = lastSpreadIndexRef.current !== currentSpreadIndex || lastSpreadKeyRef.current !== spreadKey;
+    // Check both index and content to avoid unnecessary resets
+    const indexChanged = lastSpreadIndexRef.current !== currentSpreadIndex;
+    const contentChanged = lastSpreadKeyRef.current !== spreadKey;
+    const spreadChanged = indexChanged || contentChanged;
     
     if (spreadChanged) {
       // Set loading to true if there's a page or cover to load
@@ -517,6 +529,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       lastSpreadIndexRef.current = currentSpreadIndex;
       lastSpreadKeyRef.current = spreadKey;
     }
+    // If spread hasn't changed, don't reset loading state (images may already be loaded)
   }, [currentSpreadIndex, spreads]);
 
   const handleDownload = () => {
