@@ -154,16 +154,35 @@ export default function OrderDetailPage() {
       console.log('Stage approval result:', result);
 
       // Re-fetch the order data to get the updated status from the server
+      // This is a best-effort refresh - don't fail approval if it fails
       try {
         const orderResponse = await fetch(`/api/orders/${order.orderId}`);
         if (orderResponse.ok) {
           const updatedOrder = await orderResponse.json();
           setOrder(updatedOrder);
           console.log('Order data refreshed after approval:', updatedOrder.reviewStages);
+        } else {
+          // Re-fetch failed but approval succeeded - update local state
+          console.warn('Failed to re-fetch order data after approval, updating local state');
+          setOrder(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              reviewStages: {
+                ...prev.reviewStages,
+                [stage as unknown as string]: {
+                  ...prev.reviewStages[stage as unknown as keyof typeof prev.reviewStages],
+                  status: 'approved',
+                  reviewedAt: new Date().toISOString(),
+                  reviewer: 'system'
+                }
+              }
+            }
+          });
         }
       } catch (fetchError) {
-        console.error('Error re-fetching order data:', fetchError);
-        // Fallback to local state update if re-fetch fails
+        // Re-fetch failed but approval succeeded - update local state
+        console.warn('Error re-fetching order data after approval (non-critical):', fetchError);
         setOrder(prev => {
           if (!prev) return prev;
           return {
@@ -174,7 +193,7 @@ export default function OrderDetailPage() {
                 ...prev.reviewStages[stage as unknown as keyof typeof prev.reviewStages],
                 status: 'approved',
                 reviewedAt: new Date().toISOString(),
-                reviewer: 'jeff@thepeakbeyond.com'
+                reviewer: 'system'
               }
             }
           }
