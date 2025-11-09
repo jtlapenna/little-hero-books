@@ -60,6 +60,7 @@
   - ✅ R2 asset integration with Cloudflare storage
   - ✅ Error handling and monitoring system
   - ✅ File-based approval persistence
+- ✅ Stage approvals are now persisted in **Supabase `orders`** keyed by `amazon_order_id`. If your workflow only writes R2 manifests, the first manual approval will create a skeleton row with `review_stages` so downstream steps have a single source of truth. Please continue using `amazon_order_id` when reading/updating review state.
 - ✅ **Customer Preview MVP** - LIVE (Placeholder viewer until Developer A ships final component)
   - ✅ Secure tokens issued via `/api/preview/generate-token` (stored in Supabase `preview_tokens`)
   - ✅ Amazon Message Center notification pipeline (`/api/notifications/preview/amazon`) sends the first link and logs outcome

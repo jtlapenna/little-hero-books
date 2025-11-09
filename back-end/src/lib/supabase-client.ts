@@ -3,6 +3,25 @@ import { createClient } from '@supabase/supabase-js';
 let supabaseClient: ReturnType<typeof createClient> | null = null;
 let initializationError: Error | null = null;
 
+function createNoopQueryBuilder() {
+  const builder: any = {};
+
+  builder.select = () => builder;
+  builder.eq = () => builder;
+  builder.order = () => builder;
+  builder.limit = () => builder;
+  builder.range = () => builder;
+  builder.single = () => Promise.resolve({ data: null, error: null });
+  builder.maybeSingle = () => Promise.resolve({ data: null, error: null });
+  builder.insert = () => Promise.resolve({ data: null, error: null });
+  builder.update = () => builder;
+  builder.delete = () => Promise.resolve({ data: null, error: null });
+  builder.upsert = () => Promise.resolve({ data: null, error: null });
+  builder.then = undefined;
+
+  return builder;
+}
+
 function getSupabaseClient() {
   // Return cached client if available
   if (supabaseClient) {
@@ -81,6 +100,9 @@ export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
       const client = getSupabaseClient();
       // If client is null (client-side, Supabase not available), return no-op
       if (!client) {
+        if (prop === 'from') {
+          return () => createNoopQueryBuilder();
+        }
         return () => Promise.resolve({ data: null, error: null });
       }
       const value = client[prop as keyof ReturnType<typeof createClient>];
@@ -94,6 +116,9 @@ export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
       if (typeof window !== 'undefined') {
         // Return a no-op function for methods, undefined for properties
         // This prevents errors during React module evaluation
+        if (prop === 'from') {
+          return () => createNoopQueryBuilder();
+        }
         return () => Promise.resolve({ data: null, error: null });
       }
       // On server side, we want to know about the error
@@ -234,6 +259,32 @@ export async function updateOrderInSupabase(orderId: string, updates: any) {
   }
   
   if (error) {
+    if (
+      error.code === 'PGRST116' ||
+      (typeof error.message === 'string' && error.message.toLowerCase().includes('results contain 0 rows'))
+    ) {
+      const insertPayload: any = {
+        amazon_order_id: orderId,
+        status: updateData.status || 'pending_processing',
+        created_at: new Date().toISOString(),
+        updated_at: updateData.updated_at,
+        ...updateData
+      };
+
+      const { data: insertData, error: insertError } = await supabase
+        .from('orders')
+        .insert(insertPayload)
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error(`[Supabase] Error inserting order ${orderId}:`, insertError);
+        throw insertError;
+      }
+
+      return insertData;
+    }
+
     console.error(`[Supabase] Error updating order ${orderId}:`, error);
     throw error;
   }

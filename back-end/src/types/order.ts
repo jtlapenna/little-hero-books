@@ -48,6 +48,13 @@ export interface Order {
   luluStatus?: string;
   createdAt?: string;
   updatedAt?: string;
+  customerPreview?: {
+    token: string;
+    url: string;
+    requestedAt?: string;
+    expiresAt?: string;
+    usedAt?: string;
+  };
   webhooks: {
     onApprove: string;
   };

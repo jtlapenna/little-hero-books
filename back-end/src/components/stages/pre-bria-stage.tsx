@@ -10,7 +10,7 @@ interface PreBriaStageProps {
   orderId: string;
   order: Order;
   isApproved: boolean;
-  onApprove: () => void;
+  onApprove: (nextStatus: 'approved' | 'pending') => void;
   onInitiateWorkflow: () => void;
   onRefresh?: () => void;
 }
@@ -37,8 +37,15 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   }, [orderId]);
 
   // Two-step workflow state
-  const [approveStageConfirmed, setApproveStageConfirmed] = useState(false);
+  const [approveStageConfirmed, setApproveStageConfirmed] = useState(!!isApproved);
   const [triggerBackgroundRemovalConfirmed, setTriggerBackgroundRemovalConfirmed] = useState(false);
+
+  useEffect(() => {
+    setApproveStageConfirmed(!!isApproved);
+    if (!isApproved) {
+      setTriggerBackgroundRemovalConfirmed(false);
+    }
+  }, [isApproved]);
 
   // Update state when R2 assets change - use JSON stringify for stable comparison
   // This prevents infinite loops when order object reference changes but data is the same
@@ -350,8 +357,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   // Handle approve stage
   const handleApproveStage = () => {
     setApproveStageConfirmed(true);
-    // Call the actual approval API
-    onApprove();
+    onApprove('approved');
   };
 
   // Handle un-confirm approve stage (only if trigger is not confirmed)
@@ -359,6 +365,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     // Can only un-confirm if trigger is not confirmed
     if (!triggerBackgroundRemovalConfirmed) {
       setApproveStageConfirmed(false);
+      onApprove('pending');
     }
   };
 
@@ -451,7 +458,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             <div className="flex items-center gap-2">
               <button
                 onClick={approveStageConfirmed ? handleUnconfirmApproveStage : handleApproveStage}
-                disabled={!canApproveStage || (approveStageConfirmed && triggerBackgroundRemovalConfirmed)}
+                disabled={approveStageConfirmed ? false : !canApproveStage || triggerBackgroundRemovalConfirmed}
                 className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all ${
                   approveStageConfirmed
                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 focus:ring-emerald-500'

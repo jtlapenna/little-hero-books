@@ -1,9 +1,11 @@
-import { getOrderFromSupabase } from './supabase-client';
+import { getOrderFromSupabase, supabase } from './supabase-client';
 import { updateOrderStatus } from './status-service';
 
 export interface ApprovalResult {
   reviewer: string;
   approvedAt: string;
+  status: StageStatus['status'];
+  reviewStages: Record<string, any>;
 }
 
 export interface StageStatus {
@@ -14,48 +16,121 @@ export interface StageStatus {
   comments?: string;
 }
 
+const DEFAULT_REVIEW_STAGES: Record<string, StageStatus> = {
+  preBria: { stage: 'preBria', status: 'pending' },
+  postBria: { stage: 'postBria', status: 'pending' },
+  postPdf: { stage: 'postPdf', status: 'pending' }
+};
+
+function sanitizeReviewStages(reviewStages: Record<string, any> | null | undefined) {
+  const merged: Record<string, any> = {
+    preBria: { status: 'pending' },
+    postBria: { status: 'pending' },
+    postPdf: { status: 'pending' }
+  };
+
+  if (reviewStages && typeof reviewStages === 'object') {
+    for (const [key, value] of Object.entries(reviewStages)) {
+      if (merged[key]) {
+        merged[key] = {
+          status: value?.status || merged[key].status,
+          reviewedAt: value?.reviewedAt || value?.reviewed_at,
+          reviewer: value?.reviewer,
+          comments: value?.comments
+        };
+      } else {
+        merged[key] = {
+          status: value?.status || 'pending',
+          reviewedAt: value?.reviewedAt || value?.reviewed_at,
+          reviewer: value?.reviewer,
+          comments: value?.comments
+        };
+      }
+    }
+  }
+
+  return merged;
+}
+
 /**
- * Approve a review stage
- * Updates Supabase and triggers status recalculation
- * Note: If order doesn't exist in Supabase, this will fail silently
- * (orders are stored in R2 manifests, Supabase is optional for status tracking)
+ * Approve or reset a review stage.
+ * Persists to Supabase (creating a lightweight record if necessary) and recalculates status.
  */
-export async function approveStage(orderId: string, stage: string): Promise<ApprovalResult> {
-  const reviewer = 'system'; // TODO: Get from auth context
+export async function approveStage(
+  orderId: string,
+  stage: string,
+  nextStatus: StageStatus['status'] = 'approved'
+): Promise<ApprovalResult> {
+  const reviewer = 'system'; // TODO: auth context
   const approvedAt = new Date().toISOString();
-  
-  // Try to get current order from Supabase (may not exist if order is only in R2)
-  const order = await getOrderFromSupabase(orderId).catch(() => null);
-  
-  if (order) {
-    // Order exists in Supabase - update it
-    const reviewStages = order.review_stages || {};
-    
-    // Update specific stage
+
+  // Load existing order if present
+  const existingOrder = await getOrderFromSupabase(orderId).catch(() => null);
+  const reviewStages = sanitizeReviewStages(existingOrder?.review_stages);
+
+  if (!reviewStages[stage]) {
+    reviewStages[stage] = { status: 'pending' };
+  }
+
+  if (nextStatus === 'approved') {
     reviewStages[stage] = {
-      ...reviewStages[stage],
+      ...(reviewStages[stage] || {}),
       status: 'approved',
       reviewedAt: approvedAt,
       reviewer
     };
-    
-    // Update Supabase (using review_stages field name)
-    // Don't throw if this fails - approval can still succeed without Supabase update
-    try {
-      await updateOrderStatus(orderId, {
-        review_stages: reviewStages
-      });
-    } catch (updateError) {
-      console.warn(`[approveStage] Failed to update Supabase for order ${orderId}, but approval succeeded:`, updateError);
-      // Don't throw - approval is still valid even if Supabase update fails
-    }
   } else {
-    // Order doesn't exist in Supabase - that's okay, approval is still valid
-    // Orders are primarily stored in R2 manifests, Supabase is optional
-    console.log(`[approveStage] Order ${orderId} not found in Supabase (may only exist in R2 manifest). Approval still valid.`);
+    reviewStages[stage] = {
+      status: 'pending'
+    };
   }
-  
-  return { reviewer, approvedAt };
+
+  const nowIso = new Date().toISOString();
+
+  const shouldClearCustomerRevision =
+    existingOrder?.customer_approval_status === 'revision_requested';
+
+  try {
+    await updateOrderStatus(orderId, {
+      review_stages: reviewStages,
+      ...(shouldClearCustomerRevision
+        ? {
+            customer_approval_status: null,
+            customer_approval_required: false,
+            customer_approval_requested_at: null,
+            customer_approval_approved_at: null
+          }
+        : {})
+    });
+  } catch (updateError) {
+    console.warn(`[approveStage] Failed to update order status for ${orderId}:`, updateError);
+  }
+
+  if (!existingOrder) {
+    try {
+      await supabase
+        .from('orders')
+        .insert({
+          amazon_order_id: orderId,
+          status: 'pending_processing',
+          review_stages: reviewStages,
+          customer_approval_status: 'pending',
+          created_at: nowIso,
+          updated_at: nowIso
+        })
+        .select()
+        .single();
+    } catch (error) {
+      console.warn(`[approveStage] Insert failed for order ${orderId}:`, error);
+    }
+  }
+
+  return {
+    reviewer,
+    approvedAt,
+    status: nextStatus,
+    reviewStages
+  };
 }
 
 /**

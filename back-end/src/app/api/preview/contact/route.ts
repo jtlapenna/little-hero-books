@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { supabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 import { validatePreviewToken } from '@/lib/preview-tokens';
+import { updateOrderStatus } from '@/lib/status-service';
+import { ReviewStageStatus } from '@/constants/statuses';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,19 +29,132 @@ const allowedReasons = [
   'other'
 ] as const;
 
-const contactSchema = z.object({
-  orderId: z.string().min(1, 'orderId is required'),
-  token: z.string().min(1, 'token is required'),
-  email: z.string().email('Valid email required'),
-  name: z.string().trim().min(1).max(150).optional(),
-  reason: z.enum(allowedReasons, { required_error: 'reason is required' }),
-  fields: z.record(z.any()).optional(),
-  message: z.string().trim().max(2000).optional(),
-  marketingOptIn: z.boolean().optional(),
-  amazonOrderId: z.string().optional()
-});
+type ReviewStageKey = 'preBria' | 'postBria' | 'postPdf';
 
-type ContactPayload = z.infer<typeof contactSchema>;
+const reasonStageMap: Record<(typeof allowedReasons)[number], ReviewStageKey> = {
+  name_typo: 'postPdf',
+  hairStyle_wrong: 'preBria',
+  hairColor_wrong: 'preBria',
+  skinTone_wrong: 'preBria',
+  pronouns_wrong: 'postPdf',
+  animalGuide_wrong: 'preBria',
+  favoriteColor_wrong: 'preBria',
+  clothingStyle_wrong: 'preBria',
+  dedication_fix: 'postPdf',
+  hometown_fix: 'postPdf',
+  favoriteFood_fix: 'postPdf',
+  age_wrong: 'postPdf',
+  visual_issue: 'postPdf',
+  other: 'postPdf'
+};
+
+function buildReviewStage(stage: any) {
+  const rawStatus =
+    stage?.status ||
+    stage?.Status ||
+    stage?.reviewStatus ||
+    stage?.review_status ||
+    stage?.currentStatus ||
+    ReviewStageStatus.PENDING;
+
+  let normalized: ReviewStageStatus = ReviewStageStatus.PENDING;
+  const normalizedRaw =
+    typeof rawStatus === 'string' ? rawStatus.toLowerCase() : 'pending';
+
+  switch (normalizedRaw) {
+    case 'approved':
+      normalized = ReviewStageStatus.APPROVED;
+      break;
+    case 'in-review':
+    case 'in_review':
+    case 'in review':
+      normalized = ReviewStageStatus.IN_REVIEW;
+      break;
+    case 'rejected':
+      normalized = ReviewStageStatus.REJECTED;
+      break;
+    default:
+      normalized = ReviewStageStatus.PENDING;
+      break;
+  }
+
+  return {
+    status: normalized,
+    reviewedAt: stage?.reviewedAt || stage?.reviewed_at || null,
+    reviewer: stage?.reviewer || stage?.reviewed_by || null,
+    comments: stage?.comments || stage?.notes || null
+  };
+}
+
+function resetStagesForRevision(
+  existingStages: any,
+  targetStage: ReviewStageKey
+) {
+  const normalizedStages = {
+    preBria: buildReviewStage(existingStages?.preBria ?? existingStages?.pre_bria),
+    postBria: buildReviewStage(existingStages?.postBria ?? existingStages?.post_bria),
+    postPdf: buildReviewStage(existingStages?.postPdf ?? existingStages?.post_pdf)
+  };
+
+  const stagesToReset: ReviewStageKey[] =
+    targetStage === 'preBria'
+      ? ['preBria', 'postBria', 'postPdf']
+      : targetStage === 'postBria'
+      ? ['postBria', 'postPdf']
+      : ['postPdf'];
+
+  for (const stageKey of stagesToReset) {
+    normalizedStages[stageKey] = {
+      ...normalizedStages[stageKey],
+      status: ReviewStageStatus.PENDING,
+      reviewedAt: null,
+      reviewer: null,
+      comments: undefined
+    };
+  }
+
+  return normalizedStages;
+}
+
+function resolveStrictMode() {
+  const mode = process.env.CUSTOMER_REVIEW_STRICT_MODE;
+  if (mode === 'true') return true;
+  if (mode === 'false') return false;
+  return process.env.NODE_ENV === 'production';
+}
+
+function buildContactSchema(strictMode: boolean) {
+  const emailSchema = strictMode
+    ? z.string().trim().email('Valid email required')
+    : z
+        .union([
+          z.string().trim().email('Valid email required'),
+          z.undefined(),
+          z.null()
+        ])
+        .transform((value) => (value === null ? undefined : value));
+
+  return z
+    .object({
+      orderId: z.string().min(1, 'orderId is required'),
+      token: z.string().min(1, 'token is required'),
+      email: emailSchema,
+      name: z.string().trim().min(1).max(150).optional(),
+      reason: z.enum(allowedReasons, { required_error: 'reason is required' }),
+      fields: z.any().optional(),
+      message: z.string().trim().max(2000).optional(),
+      marketingOptIn: z.boolean().optional(),
+      amazonOrderId: z.string().optional()
+    })
+    .transform((payload) => {
+      if (!strictMode && payload.email === '') {
+        return { ...payload, email: undefined };
+      }
+      return payload;
+    });
+}
+
+type ContactPayload = z.infer<ReturnType<typeof buildContactSchema>>;
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -50,7 +165,14 @@ export async function OPTIONS() {
 
 export async function POST(request: NextRequest) {
   try {
+    const strictMode = resolveStrictMode();
+    const contactSchema = buildContactSchema(strictMode);
+
     const body = await request.json();
+    if (!strictMode && body && (body.email === null || body.email === '')) {
+      delete body.email;
+    }
+
     const parsed = contactSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -67,26 +189,19 @@ export async function POST(request: NextRequest) {
     const payload: ContactPayload = parsed.data;
 
     // Basic field validation per reason
-    if (payload.reason !== 'other') {
-      if (!payload.fields || Object.keys(payload.fields).length === 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Structured correction requires at least one field value'
-          },
-          { status: 400, headers: corsHeaders }
-        );
-      }
-    } else {
-      if (!payload.message || payload.message.trim().length === 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Please provide a short description for Other corrections'
-          },
-          { status: 400, headers: corsHeaders }
-        );
-      }
+    const structuredFields =
+      payload.fields && typeof payload.fields === 'object'
+        ? (payload.fields as Record<string, unknown>)
+        : {};
+
+    if (Object.keys(structuredFields).length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Structured correction requires at least one field value'
+        },
+        { status: 400, headers: corsHeaders }
+      );
     }
 
     // Validate token and make sure it matches the order
@@ -119,14 +234,24 @@ export async function POST(request: NextRequest) {
       .eq('revision_requested', true);
 
     if (countError) {
-      console.error('[API] Error counting existing corrections', countError);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Failed to verify correction limit'
-        },
-        { status: 500, headers: corsHeaders }
-      );
+      if (
+        countError.code === 'PGRST205' ||
+        countError.code === '42P01' ||
+        countError.message?.toLowerCase().includes('could not find the table')
+      ) {
+        console.warn(
+          '[API] customer_contacts table not found when counting corrections; continuing with zero corrections.'
+        );
+      } else {
+        console.error('[API] Error counting existing corrections', countError);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Failed to verify correction limit'
+          },
+          { status: 500, headers: corsHeaders }
+        );
+      }
     }
 
     if ((count ?? 0) >= 1) {
@@ -139,32 +264,107 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedEmail =
+      typeof payload.email === 'string' && payload.email.trim().length > 0
+        ? payload.email.trim()
+        : null;
+
+    const targetStage = reasonStageMap[payload.reason] ?? 'postPdf';
+    const orderRecord = await getOrderFromSupabase(payload.orderId).catch(
+      () => null
+    );
+
+    const nextReviewStages = resetStagesForRevision(
+      orderRecord?.review_stages,
+      targetStage
+    );
+
+    const newRevisionCount = Math.max(
+      (orderRecord?.revision_count ?? 0) + 1,
+      (count ?? 0) + 1
+    );
+
+    try {
+      await updateOrderStatus(payload.orderId, {
+        review_stages: nextReviewStages,
+        workflow_step: 'customer_revision',
+        customer_approval_status: 'revision_requested',
+        customer_approval_required: true,
+        customer_approval_approved_at: null,
+        revision_count: newRevisionCount
+      });
+    } catch (updateError) {
+      console.error(
+        '[API] Error updating order review state after correction request',
+        updateError
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Failed to update order status'
+        },
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
+    if (strictMode) {
+      const nowIso = new Date().toISOString();
+      try {
+        await supabase
+          .from('preview_tokens')
+          .update({ used_at: nowIso })
+          .eq('order_id', payload.orderId)
+          .is('used_at', null);
+      } catch (tokenError) {
+        console.error(
+          '[API] Failed to invalidate existing preview tokens after correction',
+          tokenError
+        );
+      }
+    } else {
+      console.info(
+        '[API] (dev mode) Skipping preview token invalidation after correction.'
+      );
+    }
+
     const insertPayload = {
       order_id: payload.orderId,
       amazon_order_id: payload.amazonOrderId || null,
       token: payload.token,
-      email: payload.email,
+      email: normalizedEmail,
       name: payload.name || null,
       reason: payload.reason,
-      payload: payload.fields || null,
+      payload: Object.keys(structuredFields).length > 0 ? structuredFields : null,
       message: payload.message || null,
       revision_requested: true,
-      revision_count: (count ?? 0) + 1,
+      revision_count: newRevisionCount,
       marketing_opt_in: payload.marketingOptIn ?? false,
       last_contacted_at: new Date().toISOString()
     };
 
-    const { error } = await supabase.from('customer_contacts').insert(insertPayload);
+    const { error } = await supabase
+      .from('customer_contacts')
+      .insert(insertPayload);
 
     if (error) {
-      console.error('[API] Error saving customer contact', error);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Failed to save contact details'
-        },
-        { status: 500, headers: corsHeaders }
-      );
+      if (
+        error.code === 'PGRST205' ||
+        error.code === '42P01' ||
+        error.message?.toLowerCase().includes('could not find the table')
+      ) {
+        console.warn(
+          '[API] customer_contacts table not found when saving contact; skipping persistence for this environment.'
+        );
+      } else {
+        console.error('[API] Error saving customer contact', error);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Failed to save contact details'
+          },
+          { status: 500, headers: corsHeaders }
+        );
+      }
     }
 
     return NextResponse.json(

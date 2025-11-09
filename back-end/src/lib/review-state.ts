@@ -88,8 +88,8 @@ export async function getOrderFlagSummaryById(orderId: string): Promise<FlagSumm
  * Set flagged count for a stage
  */
 export async function setFlaggedCount(orderId: string, stage: string, count: number): Promise<void> {
-  const order = await getOrderFromSupabase(orderId);
-  const flags = order.flags || {};
+  const order = await getOrderFromSupabase(orderId).catch(() => null);
+  const flags = order?.flags ? { ...order.flags } : {};
   
   // Update specific stage
   const stageKey = stage === 'preBria' ? 'preBria' : 

@@ -10,6 +10,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validatePreviewToken } from '@/lib/preview-tokens';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
+import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
+import { buildManifestKey, downloadManifest } from '@/lib/r2-service';
+import { Order } from '@/types/order';
 
 // Handle CORS preflight requests
 export async function OPTIONS() {
@@ -76,34 +79,81 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch order data
-    const order = await getOrderFromSupabase(validation.orderId);
-    
-    if (!order) {
+    const orderId = validation.orderId;
+
+    let supabaseRecord: any = null;
+    let supabaseOrder: Order | null = null;
+
+    try {
+      supabaseRecord = await getOrderFromSupabase(orderId);
+      if (supabaseRecord) {
+        supabaseOrder = await mapSupabaseOrderToOrder(supabaseRecord);
+      }
+    } catch (error: any) {
+      console.warn(
+        '[API] Preview token validation - failed to load order from Supabase:',
+        error?.message || error
+      );
+    }
+
+    let manifestOrder: Order | null = null;
+    const manifestStages: Array<'2b' | '2a' | '3'> = ['2b', '2a', '3'];
+
+    for (const stage of manifestStages) {
+      try {
+        const key = buildManifestKey(orderId, stage);
+        const manifest = await downloadManifest(key);
+        manifestOrder = mapManifestToOrder(orderId, manifest);
+        break;
+      } catch (error: any) {
+        console.log(
+          `[API] Preview token validation - manifest ${stage} not found for ${orderId}:`,
+          error?.message || error
+        );
+      }
+    }
+
+    if (!supabaseOrder && !manifestOrder) {
       return NextResponse.json(
         { error: 'Order not found' },
-        { 
+        {
           status: 404,
           headers: corsHeaders,
         }
       );
     }
 
-    // Return order information (sanitized for customer view)
-    return NextResponse.json({
-      valid: true,
-      order: {
-        orderId: validation.orderId,
-        amazonOrderId: order.amazon_order_id || order.orderId,
-        customerName: order.customer_name || null,
-        characterSpecs: order.character_specs,
-        revisionCount: order.revision_count || 0,
-        customerApprovalStatus: order.customer_approval_status,
-        finalBookUrl: order.final_book_url
+    const mergedOrder = supabaseOrder
+      ? mergeOrderData(supabaseOrder, manifestOrder)
+      : (manifestOrder as Order);
+
+    const customerName = mergedOrder.customer
+      ? `${mergedOrder.customer.firstName || ''} ${mergedOrder.customer.lastName || ''}`.trim() || null
+      : null;
+
+    return NextResponse.json(
+      {
+        valid: true,
+        order: {
+          orderId: mergedOrder.orderId,
+          amazonOrderId: mergedOrder.amazonOrderId || mergedOrder.orderId,
+          customerName: customerName,
+          characterSpecs: mergedOrder.characterSpecs || null,
+          revisionCount:
+            typeof mergedOrder.revisionCount === 'number'
+              ? mergedOrder.revisionCount
+              : supabaseRecord?.revision_count || 0,
+          customerApprovalStatus:
+            mergedOrder.customerApprovalStatus ||
+            supabaseRecord?.customer_approval_status ||
+            null,
+          finalBookUrl: mergedOrder.finalBookUrl || supabaseRecord?.final_book_url || null,
+        },
+      },
+      {
+        headers: corsHeaders,
       }
-    }, {
-      headers: corsHeaders,
-    });
+    );
 
   } catch (error: any) {
     console.error('[API] Error validating token:', error);

@@ -4,107 +4,9 @@ import { Order } from '@/types/order';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
-import { mapSupabaseOrderToOrder } from '@/lib/order-mapper';
+import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
+import { getActivePreviewToken } from '@/lib/preview-tokens';
 
-/**
- * Convert manifest data to Order type (same as orders list route)
- */
-function manifestToOrder(orderId: string, manifest: any): Order {
-  const orderData = manifest?.order || {};
-  const workflow = manifest?.workflow || {};
-  const characterHash = manifest?.characterHash;
-  
-  // Determine status from workflow stage
-  let status = 'queued_for_processing';
-  if (workflow.currentStage === '2A-complete') {
-    status = 'ai_generation_in_progress';
-  } else if (workflow.currentStage === '2B-complete') {
-    status = 'bria_processing_complete';
-  } else if (workflow.currentStage === '3-complete') {
-    status = 'book_compiled';
-  }
-  
-  // Extract customer name from order data (check both top-level and characterSpecs)
-  const childName = orderData.childName || orderData.characterSpecs?.childName || 'Unknown';
-  const nameParts = childName.split(' ');
-  const firstName = nameParts[0] || 'Unknown';
-  const lastName = nameParts.slice(1).join(' ') || 'Customer';
-  
-  // Extract characterSpecs with fallbacks from top-level orderData fields
-  // Character specs might be in orderData.characterSpecs or as top-level fields
-  const characterSpecs = {
-    childName: orderData.characterSpecs?.childName || orderData.childName || undefined,
-    age: orderData.characterSpecs?.age || orderData.age || undefined,
-    skinTone: orderData.characterSpecs?.skinTone || orderData.skinTone || undefined,
-    hairColor: orderData.characterSpecs?.hairColor || orderData.hairColor || undefined,
-    hairStyle: orderData.characterSpecs?.hairStyle || orderData.hairStyle || undefined,
-    animalGuide: orderData.characterSpecs?.animalGuide || orderData.animalGuide || orderData.characterSpecs?.favoriteAnimal || orderData.favoriteAnimal || undefined,
-    clothingStyle: orderData.characterSpecs?.clothingStyle || orderData.clothingStyle || undefined,
-    favoriteColor: orderData.characterSpecs?.favoriteColor || orderData.favoriteColor || undefined,
-    favoriteFood: orderData.characterSpecs?.favoriteFood || orderData.favoriteFood || undefined,
-    ...(orderData.characterSpecs || {})  // Include any other characterSpecs fields
-  };
-  
-  // Extract bookSpecs with fallbacks and construct title if missing
-  const extractedChildName = characterSpecs.childName || childName;
-  const bookTitle = orderData.bookSpecs?.title || 
-                   orderData.bookTitle || 
-                   (extractedChildName && extractedChildName !== 'Unknown' ? `${extractedChildName} and the Adventure Compass` : undefined);
-  
-  const bookSpecs = {
-    title: bookTitle,
-    totalPages: orderData.bookSpecs?.totalPages || orderData.totalPages || 16,
-    format: orderData.bookSpecs?.format || orderData.format || '8.5x8.5_softcover',
-    ...(orderData.bookSpecs || {})  // Include any other bookSpecs fields
-  };
-  
-  // Determine review stage status from manifest
-  // Default to 'pending' - approval should be explicit, not inferred from workflow stage
-  // Workflow stage completion means the process ran, not that it was human-approved
-  const reviewStages = {
-    preBria: { 
-      status: 'pending' as const
-    },
-    postBria: { 
-      status: 'pending' as const
-    },
-    postPdf: { 
-      status: 'pending' as const
-    }
-  };
-  
-  return {
-    orderId: orderData.orderId || orderId,
-    platform: 'amazon',
-    amazonOrderId: orderData.amazonOrderId || orderId,
-    project: orderData.project || 'book-mvp-simple-adventure',
-    customer: {
-      firstName,
-      lastName,
-      email: orderData.customerEmail || `customer@example.com`
-    },
-    customerEmail: orderData.customerEmail || `customer@example.com`,
-    orderDate: manifest?.generatedAt || manifest?.runStamp || new Date().toISOString(),
-    status,
-    aiGenerationStartedAt: manifest?.runStamp || manifest?.generatedAt,
-    characterHash,
-    characterPath: characterHash ? `characters/${characterHash}` : undefined,
-    templatePath: 'templates',
-    characterSpecs,
-    bookSpecs,
-    orderDetails: {
-      quantity: orderData.quantity || 1,
-      pages: bookSpecs.totalPages,
-      format: bookSpecs.format,
-      shippingAddress: orderData.shippingAddress || {}
-    },
-    assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
-    reviewStages,
-    webhooks: {
-      onApprove: orderData.webhookUrl || 'https://n8n.example.com/webhook/approve'
-    }
-  };
-}
 
 async function getOrder(
   request: NextRequest,
@@ -168,7 +70,7 @@ async function getOrder(
     throw createNotFoundError(`Order ${orderId} not found`);
   }
   
-  const manifestOrder = manifest ? manifestToOrder(orderId, manifest) : null;
+  const manifestOrder = manifest ? mapManifestToOrder(orderId, manifest) : null;
 
   let order: Order;
   if (supabaseOrder) {
@@ -177,6 +79,28 @@ async function getOrder(
     order = manifestOrder;
   } else {
     throw createNotFoundError(`Order ${orderId} not found`);
+  }
+
+  try {
+    const previewToken = await getActivePreviewToken(order.orderId);
+    if (previewToken) {
+      const customerSiteUrl =
+        process.env.CUSTOMER_SITE_URL?.replace(/\/+$/, '') ||
+        'http://localhost:4321';
+      order.customerPreview = {
+        token: previewToken.token,
+        url: `${customerSiteUrl}/approve/${previewToken.token}`,
+        requestedAt:
+          order.customerApprovalRequestedAt || previewToken.createdAt,
+        expiresAt: previewToken.expiresAt,
+        usedAt: previewToken.usedAt || undefined,
+      };
+    }
+  } catch (error: any) {
+    console.error(
+      `[GET /api/orders/[orderId]] Error fetching preview token for ${order.orderId}:`,
+      error?.message || error
+    );
   }
   
   // Get character assets if characterHash is available
@@ -493,64 +417,3 @@ async function getOrder(
 }
 
 export const GET = withErrorHandling(getOrder);
-
-function mergeOrderData(primary: Order, fallback: Order | null): Order {
-  if (!fallback) {
-    return { ...primary };
-  }
-
-  const merged: Order = { ...primary };
-
-  merged.customer = {
-    firstName: isUnknownName(primary.customer.firstName)
-      ? fallback.customer.firstName
-      : primary.customer.firstName,
-    lastName: isUnknownName(primary.customer.lastName)
-      ? fallback.customer.lastName
-      : primary.customer.lastName,
-    email: primary.customer.email || fallback.customer.email,
-  };
-
-  if (!merged.customerEmail && fallback.customerEmail) {
-    merged.customerEmail = fallback.customerEmail;
-  }
-
-  if (!merged.characterHash && fallback.characterHash) {
-    merged.characterHash = fallback.characterHash;
-  }
-  if (!merged.characterPath && fallback.characterPath) {
-    merged.characterPath = fallback.characterPath;
-  }
-  if (!merged.templatePath && fallback.templatePath) {
-    merged.templatePath = fallback.templatePath;
-  }
-  if (!merged.assetPrefix && fallback.assetPrefix) {
-    merged.assetPrefix = fallback.assetPrefix;
-  }
-
-  if (!merged.characterSpecs || Object.keys(merged.characterSpecs).length === 0) {
-    merged.characterSpecs = fallback.characterSpecs;
-  }
-  if (!merged.bookSpecs || Object.keys(merged.bookSpecs).length === 0) {
-    merged.bookSpecs = fallback.bookSpecs;
-  }
-
-  merged.orderDetails = {
-    ...fallback.orderDetails,
-    ...merged.orderDetails,
-  };
-
-  merged.reviewStages = merged.reviewStages || fallback.reviewStages;
-
-  if (!merged.webhooks?.onApprove && fallback.webhooks?.onApprove) {
-    merged.webhooks = { onApprove: fallback.webhooks.onApprove };
-  }
-
-  return merged;
-}
-
-function isUnknownName(name: string) {
-  if (!name) return true;
-  const normalized = name.toLowerCase();
-  return normalized === 'unknown' || normalized === 'customer' || normalized === 'customer pending';
-}

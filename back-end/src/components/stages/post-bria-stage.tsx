@@ -10,7 +10,7 @@ interface PostBriaStageProps {
   orderId: string;
   order: Order;
   isApproved: boolean;
-  onApprove: () => void;
+  onApprove: (nextStatus: 'approved' | 'pending') => Promise<void> | void;
   onInitiateWorkflow: () => void;
   onRefresh?: () => void;
 }
@@ -542,10 +542,10 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const [isTriggering, setIsTriggering] = useState(false);
 
   const handleApproveStage = async () => {
-    if (approveStageConfirmed) return;
+    const targetStatus = approveStageConfirmed ? 'pending' : 'approved';
     try {
-      await onApprove();
-      setApproveStageConfirmed(true);
+      await onApprove(targetStatus);
+      setApproveStageConfirmed(targetStatus === 'approved');
       // Optional refresh to reflect server state
       if (onRefresh) {
         setTimeout(() => {
@@ -706,8 +706,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           <div className="flex items-center gap-3 flex-wrap">
             {/* Approve Stage (always visible, mirrors first tab styles) */}
               <button
-              onClick={handleApproveStage}
-              disabled={approveStageConfirmed || !canApprove}
+              onClick={() => handleApproveStage()}
+              disabled={approveStageConfirmed ? false : !canApprove}
               className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all ${
                 approveStageConfirmed
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 focus:ring-emerald-500'

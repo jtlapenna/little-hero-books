@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
-import { generatePreviewToken } from '@/lib/preview-tokens';
+import { ensureActivePreviewToken } from '@/lib/preview-tokens';
 import { updateOrderStatus } from '@/lib/status-service';
 import { ReviewStageStatus } from '@/constants/statuses';
 import { mapSupabaseOrderToOrder } from '@/lib/order-mapper';
@@ -45,6 +45,9 @@ async function handleFinalApproval(
   }
 
   const nowIso = new Date().toISOString();
+  const existingRequestedAt: string | undefined =
+    orderRecord.customer_approval_requested_at || undefined;
+  const requestedAt = existingRequestedAt || nowIso;
 
   const existingStages = orderRecord.review_stages || {};
 
@@ -69,18 +72,30 @@ async function handleFinalApproval(
     workflow_step: 'customer_approval',
     customer_approval_required: true,
     customer_approval_status: 'pending',
-    customer_approval_requested_at: nowIso
+    customer_approval_requested_at: requestedAt
   });
 
-  const token = await generatePreviewToken(orderId);
+  const { record: previewToken, created: tokenCreated } =
+    await ensureActivePreviewToken(orderId);
   const customerSiteUrl =
     process.env.CUSTOMER_SITE_URL?.replace(/\/+$/, '') || 'http://localhost:4321';
-  const previewUrl = `${customerSiteUrl}/approve/${token}`;
+  const previewUrl = `${customerSiteUrl}/approve/${previewToken.token}`;
 
   const updatedOrderRecord = await getOrderFromSupabase(orderId);
   const mappedOrder = updatedOrderRecord
     ? await mapSupabaseOrderToOrder(updatedOrderRecord)
     : null;
+
+  if (mappedOrder) {
+    mappedOrder.customerApprovalRequestedAt =
+      mappedOrder.customerApprovalRequestedAt || requestedAt;
+    mappedOrder.customerPreview = {
+      token: previewToken.token,
+      url: previewUrl,
+      requestedAt,
+      expiresAt: previewToken.expiresAt,
+    };
+  }
 
   const notificationsEnabled =
     process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED === 'true';
@@ -108,6 +123,9 @@ async function handleFinalApproval(
     notificationResult.reason = 'Order is missing amazon_order_id.';
   } else if (!mappedOrder) {
     notificationResult.reason = 'Unable to map order for notification.';
+  } else if (!tokenCreated) {
+    notificationResult.reason =
+      'Preview token already active; skipping new notification.';
   } else {
     notificationResult.attempted = true;
 
@@ -168,10 +186,14 @@ async function handleFinalApproval(
 
   return NextResponse.json({
     success: true,
-    message: 'Final approval recorded and preview token generated.',
+    message: tokenCreated
+      ? 'Final approval recorded and preview token generated.'
+      : 'Final approval already recorded; reusing existing preview token.',
     orderId,
-    token,
+    token: previewToken.token,
     previewUrl,
+    requestedAt,
+    tokenCreated,
     order: mappedOrder,
     notification: notificationResult
   });

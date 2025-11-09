@@ -1,4 +1,4 @@
-import { ReviewStageStatus } from '@/constants/statuses';
+import { OrderStatus, ReviewStageStatus } from '@/constants/statuses';
 import { Order, ReviewStage } from '@/types/order';
 import { calculateOrderStatus } from './status-service';
 
@@ -133,6 +133,200 @@ export async function mapSupabaseOrderToOrder(
   return order;
 }
 
+export function mapManifestToOrder(orderId: string, manifest: any): Order {
+  const orderData = manifest?.order || {};
+  const workflow = manifest?.workflow || {};
+  const characterHash = manifest?.characterHash;
+
+  let status = OrderStatus.QUEUED_FOR_PROCESSING;
+  if (workflow.currentStage === '2A-complete') {
+    status = OrderStatus.AI_GENERATION_IN_PROGRESS;
+  } else if (workflow.currentStage === '2B-complete') {
+    status = OrderStatus.PENDING_BG_REMOVAL_REVIEW;
+  } else if (workflow.currentStage === '3-complete') {
+    status = OrderStatus.PENDING_ASSEMBLY_REVIEW;
+  }
+
+  const manifestCharacterSpecs = {
+    ...(orderData.characterSpecs || {}),
+    childName:
+      orderData.characterSpecs?.childName ||
+      orderData.childName ||
+      orderData.child_name,
+    age:
+      orderData.characterSpecs?.age ||
+      orderData.age,
+    skinTone:
+      orderData.characterSpecs?.skinTone ||
+      orderData.skinTone,
+    hairColor:
+      orderData.characterSpecs?.hairColor ||
+      orderData.hairColor,
+    hairStyle:
+      orderData.characterSpecs?.hairStyle ||
+      orderData.hairStyle,
+    animalGuide:
+      orderData.characterSpecs?.animalGuide ||
+      orderData.animalGuide ||
+      orderData.characterSpecs?.favoriteAnimal ||
+      orderData.favoriteAnimal,
+    clothingStyle:
+      orderData.characterSpecs?.clothingStyle ||
+      orderData.clothingStyle,
+    favoriteColor:
+      orderData.characterSpecs?.favoriteColor ||
+      orderData.favoriteColor,
+    favoriteFood:
+      orderData.characterSpecs?.favoriteFood ||
+      orderData.favoriteFood,
+  };
+
+  const childName =
+    manifestCharacterSpecs.childName ||
+    extractChildNameFromCustomer(orderData.customerName);
+
+  const { firstName, lastName } = splitName(
+    orderData.customerName,
+    childName || 'Customer Unknown'
+  );
+
+  const bookSpecs = {
+    ...(orderData.bookSpecs || {}),
+    title:
+      orderData.bookSpecs?.title ||
+      orderData.bookTitle ||
+      (childName ? `${childName} and the Adventure Compass` : undefined),
+    totalPages:
+      orderData.bookSpecs?.totalPages ||
+      orderData.totalPages ||
+      16,
+    format:
+      orderData.bookSpecs?.format ||
+      orderData.format ||
+      '8.5x8.5_softcover',
+  };
+
+  const reviewStages = {
+    preBria: { status: ReviewStageStatus.PENDING },
+    postBria: { status: ReviewStageStatus.PENDING },
+    postPdf: { status: ReviewStageStatus.PENDING },
+  };
+
+  return {
+    orderId: orderData.orderId || orderId,
+    platform: 'amazon',
+    amazonOrderId: orderData.amazonOrderId || orderId,
+    project: orderData.project || 'book-mvp-simple-adventure',
+    customer: {
+      firstName,
+      lastName,
+      email: orderData.customerEmail || 'customer@example.com',
+    },
+    customerEmail: orderData.customerEmail || 'customer@example.com',
+    orderDate:
+      manifest?.generatedAt ||
+      manifest?.runStamp ||
+      new Date().toISOString(),
+    status,
+    aiGenerationStartedAt: manifest?.runStamp || manifest?.generatedAt,
+    aiGenerationCompletedAt: undefined,
+    characterHash: characterHash,
+    characterPath: characterHash ? `characters/${characterHash}` : undefined,
+    templatePath: 'templates',
+    characterSpecs: manifestCharacterSpecs,
+    bookSpecs,
+    orderDetails: {
+      quantity: orderData.quantity || 1,
+      pages: bookSpecs.totalPages,
+      format: bookSpecs.format,
+      shippingAddress: orderData.shippingAddress || {},
+      ...orderData.orderDetails,
+    },
+    assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
+    reviewStages,
+    customerApprovalStatus: undefined,
+    customerApprovalRequestedAt: undefined,
+    customerApprovalApprovedAt: undefined,
+    revisionCount: 0,
+    hasFlags: false,
+    flags: undefined,
+    finalBookUrl: undefined,
+    finalCoverUrl: undefined,
+    workflowStep: undefined,
+    luluStatus: undefined,
+    createdAt: undefined,
+    updatedAt: undefined,
+    webhooks: {
+      onApprove: orderData.webhookUrl || 'https://n8n.example.com/webhook/approve',
+    },
+  };
+}
+
+export function mergeOrderData(primary: Order, fallback: Order | null): Order {
+  if (!fallback) {
+    return { ...primary };
+  }
+
+  const merged: Order = { ...primary };
+
+  merged.customer = {
+    firstName: isUnknownName(primary.customer.firstName)
+      ? fallback.customer.firstName
+      : primary.customer.firstName,
+    lastName: isUnknownName(primary.customer.lastName)
+      ? fallback.customer.lastName
+      : primary.customer.lastName,
+    email: primary.customer.email || fallback.customer.email,
+  };
+
+  if (!merged.customerEmail && fallback.customerEmail) {
+    merged.customerEmail = fallback.customerEmail;
+  }
+
+  if (!merged.characterHash && fallback.characterHash) {
+    merged.characterHash = fallback.characterHash;
+  }
+  if (!merged.characterPath && fallback.characterPath) {
+    merged.characterPath = fallback.characterPath;
+  }
+  if (!merged.templatePath && fallback.templatePath) {
+    merged.templatePath = fallback.templatePath;
+  }
+  if (!merged.assetPrefix && fallback.assetPrefix) {
+    merged.assetPrefix = fallback.assetPrefix;
+  }
+
+  if (
+    !merged.characterSpecs ||
+    Object.keys(merged.characterSpecs).length === 0
+  ) {
+    merged.characterSpecs = fallback.characterSpecs;
+  }
+  if (!merged.bookSpecs || Object.keys(merged.bookSpecs).length === 0) {
+    merged.bookSpecs = fallback.bookSpecs;
+  }
+
+  merged.orderDetails = {
+    ...fallback.orderDetails,
+    ...merged.orderDetails,
+  };
+
+  merged.reviewStages = merged.reviewStages || fallback.reviewStages;
+
+  if (!merged.webhooks?.onApprove && fallback.webhooks?.onApprove) {
+    merged.webhooks = { onApprove: fallback.webhooks.onApprove };
+  }
+
+  if (!merged.finalBookUrl && fallback.finalBookUrl) {
+    merged.finalBookUrl = fallback.finalBookUrl;
+  }
+  if (!merged.finalCoverUrl && fallback.finalCoverUrl) {
+    merged.finalCoverUrl = fallback.finalCoverUrl;
+  }
+
+  return merged;
+}
+
 function buildReviewStages(data: any): Order['reviewStages'] {
   const preBria = normalizeReviewStage(data?.preBria ?? data?.pre_bria);
   const postBria = normalizeReviewStage(data?.postBria ?? data?.post_bria);
@@ -222,5 +416,15 @@ function toIsoString(value?: string | null) {
     return undefined;
   }
   return date.toISOString();
+}
+
+function isUnknownName(name: string) {
+  if (!name) return true;
+  const normalized = name.toLowerCase();
+  return (
+    normalized === 'unknown' ||
+    normalized === 'customer' ||
+    normalized === 'customer pending'
+  );
 }
 

@@ -48,9 +48,11 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
   }
   
   // 3. Check customer approval
-  if (order.customer_approval_status === 'pending') return OrderStatus.PENDING_CUSTOMER_APPROVAL;
-  if (order.customer_approval_status === 'approved') return OrderStatus.CUSTOMER_APPROVED;
-  if (order.customer_approval_status === 'revision_requested') return OrderStatus.CUSTOMER_REVISION_REQUESTED;
+  if (order.customer_approval_required) {
+    if (order.customer_approval_status === 'pending') return OrderStatus.PENDING_CUSTOMER_APPROVAL;
+    if (order.customer_approval_status === 'approved') return OrderStatus.CUSTOMER_APPROVED;
+    if (order.customer_approval_status === 'revision_requested') return OrderStatus.CUSTOMER_REVISION_REQUESTED;
+  }
   
   // 4. Check review stages
   const reviewStages = order.review_stages || {};

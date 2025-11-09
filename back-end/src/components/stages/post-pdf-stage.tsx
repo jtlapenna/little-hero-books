@@ -16,7 +16,7 @@ interface PostPdfStageProps {
   orderId: string;
   order: Order;
   isApproved: boolean;
-  onApprove: () => void;
+  onApprove: (nextStatus: 'approved' | 'pending') => void;
   onInitiateWorkflow: () => void;
   onRefresh?: () => void;
   finalApprovalResult?: FinalApprovalStateProps | null;
@@ -148,6 +148,8 @@ export function PostPdfStage({
   const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
   const [loadingPages, setLoadingPages] = useState(false);
   const [pagesError, setPagesError] = useState<string | null>(null);
+  const [previewImagesAvailable, setPreviewImagesAvailable] = useState(true);
+  const [previewImagesChecked, setPreviewImagesChecked] = useState(false);
   const [imageLoading, setImageLoading] = useState({ left: true, right: true });
   const [imageError, setImageError] = useState<{ left: string | null; right: string | null }>({ left: null, right: null });
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
@@ -155,6 +157,22 @@ export function PostPdfStage({
   const [coverImageDataUrl, setCoverImageDataUrl] = useState<string | null>(null); // For PDFs converted to images
   const coverCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
+  const pdfCheckCompleteRef = useRef(false);
+
+  const previewUrl =
+    finalApprovalResult?.previewUrl || order.customerPreview?.url || '';
+  const previewToken =
+    finalApprovalResult?.token || order.customerPreview?.token;
+  const previewRequestedAt =
+    finalApprovalResult?.requestedAt ||
+    order.customerPreview?.requestedAt ||
+    order.customerApprovalRequestedAt;
+  const previewExpiresAt = order.customerPreview?.expiresAt;
+  const previewAlreadySent = Boolean(previewUrl);
+
+  useEffect(() => {
+    setCopied(false);
+  }, [previewUrl]);
 
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
@@ -171,6 +189,9 @@ export function PostPdfStage({
     setCoverImageUrl(null);
     setCoverImageDataUrl(null);
     setCurrentSpreadIndex(0); // Always start at first spread when viewing a new order
+    setPreviewImagesAvailable(true);
+    setPreviewImagesChecked(false);
+    setImageError({ left: null, right: null });
   }, [orderId]);
 
   // Helper function to convert PDF to image using PDF.js
@@ -214,8 +235,29 @@ export function PostPdfStage({
 
   // Load preview images from 3-manifest or construct directly from R2
   useEffect(() => {
+    pdfCheckCompleteRef.current = false;
+    setPdfAsset(prev => ({
+      ...prev,
+      exists: false,
+      loading: true,
+      error: null,
+      url: '',
+    }));
+  }, [pdfUrl]);
+
+  useEffect(() => {
     let isMounted = true;
     let intervalId: NodeJS.Timeout | null = null;
+
+    if (previewImagesChecked && !previewImagesAvailable && !imagesFoundRef.current) {
+      setLoadingPages(false);
+      return () => {
+        isMounted = false;
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+      };
+    }
 
     const loadPages = async () => {
       if (!isMounted) return;
@@ -311,6 +353,31 @@ export function PostPdfStage({
         }
         
         if (!isMounted) return;
+
+        if (pageData.length > 0 && !previewImagesChecked) {
+          try {
+            const headRes = await fetch(pageData[0].previewImageUrl, {
+              method: 'HEAD'
+            });
+            if (!headRes.ok) {
+              console.warn(
+                `[Pages] Preview image not yet available (status ${headRes.status}).`,
+                pageData[0].previewImageUrl
+              );
+              setPreviewImagesAvailable(false);
+            } else {
+              setPreviewImagesAvailable(true);
+            }
+          } catch (headError) {
+            console.warn('[Pages] Preview image HEAD request failed:', headError);
+            setPreviewImagesAvailable(false);
+          } finally {
+            setPreviewImagesChecked(true);
+          }
+        } else if (!previewImagesChecked && pageData.length === 0) {
+          setPreviewImagesAvailable(false);
+          setPreviewImagesChecked(true);
+        }
         
         // Try to load cover PDF image if not already loaded
         // Load cover separately to avoid blocking page loading
@@ -445,33 +512,6 @@ export function PostPdfStage({
             console.log('[Pages] Images found in manifest, stopping auto-refresh');
           }
         }
-        
-        // Check if PDF exists for download
-        try {
-          const pdfRes = await fetch(pdfUrl, { method: 'HEAD' });
-          if (pdfRes.ok) {
-            const jsonRes = await fetch(`${pdfUrl}?format=json`);
-            if (jsonRes.ok) {
-              const data = await jsonRes.json();
-              setPdfAsset(prev => ({
-                ...prev,
-                url: data.signedUrl || pdfUrl,
-                exists: true,
-                loading: false,
-                error: null
-              }));
-            }
-          } else {
-            setPdfAsset(prev => ({
-              ...prev,
-              exists: false,
-              loading: false,
-              error: 'PDF not yet generated'
-            }));
-          }
-        } catch (e) {
-          console.error('[Pages] Error checking PDF:', e);
-        }
       } catch (error: any) {
         if (!isMounted) return;
         console.error('[Pages] Error loading pages:', error);
@@ -503,7 +543,89 @@ export function PostPdfStage({
         intervalId = null;
       }
     };
+<<<<<<< Updated upstream
   }, [orderId, pdfUrl]); // Removed coverImageUrl and coverImageDataUrl to prevent reload loops
+=======
+  }, [orderId, pdfUrl, previewImagesAvailable, previewImagesChecked]);
+
+  useEffect(() => {
+    let isMounted = true;
+    let intervalId: NodeJS.Timeout | null = null;
+
+    const checkPdf = async (isInitial = false) => {
+      if (!isMounted || pdfCheckCompleteRef.current) {
+        return;
+      }
+
+      try {
+        const headRes = await fetch(pdfUrl, { method: 'HEAD' });
+
+        if (!isMounted || pdfCheckCompleteRef.current) {
+          return;
+        }
+
+        if (headRes.ok) {
+          try {
+            const jsonRes = await fetch(`${pdfUrl}?format=json`);
+            if (!isMounted || pdfCheckCompleteRef.current) {
+              return;
+            }
+
+            if (jsonRes.ok) {
+              const data = await jsonRes.json();
+              pdfCheckCompleteRef.current = true;
+              if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+                console.log('[Pages] PDF located, stopping PDF polling');
+              }
+              setPdfAsset(prev => ({
+                ...prev,
+                url: data.signedUrl || pdfUrl,
+                exists: true,
+                loading: false,
+                error: null,
+              }));
+            } else {
+              console.warn('[Pages] Unable to fetch signed PDF URL, response not ok');
+            }
+          } catch (jsonError) {
+            console.error('[Pages] Error fetching signed PDF URL:', jsonError);
+          }
+        } else if (isInitial) {
+          setPdfAsset(prev => ({
+            ...prev,
+            exists: false,
+            loading: false,
+            error: 'PDF not yet generated',
+          }));
+        }
+      } catch (error) {
+        if (isInitial) {
+          console.error('[Pages] Error checking PDF:', error);
+          setPdfAsset(prev => ({
+            ...prev,
+            exists: false,
+            loading: false,
+            error: 'Failed to check PDF status',
+          }));
+        } else {
+          console.warn('[Pages] PDF check failed, will retry:', error);
+        }
+      }
+    };
+
+    checkPdf(true);
+    intervalId = setInterval(() => checkPdf(false), 15000);
+
+    return () => {
+      isMounted = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [pdfUrl]);
+>>>>>>> Stashed changes
 
   // Reset image loading state when spread changes
   useEffect(() => {
@@ -536,11 +658,17 @@ export function PostPdfStage({
     setFlaggedCount(orderId, 'postPdf', pdfAsset.isFlagged ? 1 : 0);
   }, [orderId, pdfAsset.isFlagged]);
 
+  const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
   const isPostBriaApproved = order.reviewStages.postBria.status === 'approved';
-  const canApprove = !pdfAsset.isFlagged && isPostBriaApproved;
-
   const currentSpread = spreads[currentSpreadIndex];
   const totalSpreads = spreads.length;
+  const canApprove =
+    pdfAsset.exists &&
+    totalSpreads > 0 &&
+    !pdfAsset.isFlagged &&
+    isPreBriaApproved &&
+    isPostBriaApproved;
+
   const currentSpreadNumber = currentSpreadIndex + 1;
 
   const handlePreviousSpread = () => {
@@ -752,14 +880,20 @@ export function PostPdfStage({
 
             {/* Spread Display Area */}
             <div className="bg-gray-100 flex items-center justify-center p-8 relative">
+<<<<<<< Updated upstream
               {((currentSpread.leftPage || (currentSpread.coverData && currentSpread.coverData.isBackCover)) && imageLoading.left) || 
                 ((currentSpread.rightPage || (currentSpread.coverData && currentSpread.coverData.isFrontCover)) && imageLoading.right) ? (
+=======
+              {previewImagesAvailable &&
+                ((currentSpread.leftPage && imageLoading.left) ||
+                  (currentSpread.rightPage && imageLoading.right)) && (
+>>>>>>> Stashed changes
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
                       <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
                     </div>
                   ) : null}
                   
-              {(imageError.left || imageError.right) && (
+              {previewImagesAvailable && (imageError.left || imageError.right) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
                       <div className="text-center">
                         <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
@@ -770,8 +904,21 @@ export function PostPdfStage({
                     </div>
                   )}
 
+              {!previewImagesAvailable && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-2 text-center px-6">
+                  <AlertCircle className="h-8 w-8 text-gray-400 mx-auto" />
+                  <p className="text-sm font-medium text-gray-700">
+                    Preview spreads not available
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Download the compiled PDF to review. Spread previews appear here once the rendering workflow uploads them to R2.
+                  </p>
+                </div>
+              )}
+
               <div className="spread-container w-full max-w-full">
                 <div className="two-page-spread">
+<<<<<<< Updated upstream
                   {/* Left page - can be regular page or back cover */}
                   {currentSpread.coverData && currentSpread.coverData.isBackCover ? (
                     // Back cover: show left half of cover image
@@ -798,6 +945,10 @@ export function PostPdfStage({
                       />
                     </div>
                   ) : currentSpread.leftPage ? (
+=======
+                  {/* Left page */}
+                  {currentSpread.leftPage && previewImagesAvailable ? (
+>>>>>>> Stashed changes
                     <img
                       src={currentSpread.leftPage.previewImageUrl}
                       alt={`Page ${currentSpread.leftPage.pageNumber}`}
@@ -806,28 +957,17 @@ export function PostPdfStage({
                         setImageLoading(prev => ({ ...prev, left: false }));
                         setImageError(prev => ({ ...prev, left: null }));
                       }}
-                      onError={async (e) => {
-                        const img = e.currentTarget;
+                      onError={() => {
                         const url = currentSpread.leftPage!.previewImageUrl;
-                        
-                        try {
-                          const response = await fetch(url, { method: 'HEAD' });
-                          console.error(`[Spreads] ✗ Left image failed to load for page ${currentSpread.leftPage!.pageNumber}:`, {
-                            url,
-                            httpStatus: response.status,
-                            httpStatusText: response.statusText,
-                            error: e
-                          });
-                        } catch (fetchError) {
-                          console.error(`[Spreads] ✗ Left image fetch error for page ${currentSpread.leftPage!.pageNumber}:`, {
-                            url,
-                            fetchError,
-                            error: e
-                          });
-                        }
-                        
+
+                        console.warn(
+                          `[Spreads] ✗ Left image failed to load for page ${currentSpread.leftPage!.pageNumber}:`,
+                          { url }
+                        );
+                        setPreviewImagesAvailable(false);
+                        setPreviewImagesChecked(true);
                         setImageLoading(prev => ({ ...prev, left: false }));
-                        setImageError(prev => ({ ...prev, left: `Failed to load page ${currentSpread.leftPage!.pageNumber}` }));
+                        setImageError(prev => ({ ...prev, left: null }));
                       }}
                       className={`transition-opacity duration-200 ${
                         imageLoading.left ? 'opacity-0' : 'opacity-100'
@@ -840,6 +980,7 @@ export function PostPdfStage({
                     <div className="white-page" />
                   )}
                   
+<<<<<<< Updated upstream
                   {/* Right page - can be regular page or front cover */}
                   {currentSpread.coverData && currentSpread.coverData.isFrontCover ? (
                     // Front cover: show right half of cover image
@@ -866,6 +1007,10 @@ export function PostPdfStage({
                       />
                     </div>
                   ) : currentSpread.rightPage ? (
+=======
+                  {/* Right page */}
+                  {currentSpread.rightPage && previewImagesAvailable ? (
+>>>>>>> Stashed changes
                     <img
                       src={currentSpread.rightPage.previewImageUrl}
                       alt={`Page ${currentSpread.rightPage.pageNumber}`}
@@ -874,29 +1019,18 @@ export function PostPdfStage({
                         setImageLoading(prev => ({ ...prev, right: false }));
                         setImageError(prev => ({ ...prev, right: null }));
                     }}
-                    onError={async (e) => {
-                      const img = e.currentTarget;
+                      onError={() => {
                         const url = currentSpread.rightPage!.previewImageUrl;
-                      
-                      try {
-                        const response = await fetch(url, { method: 'HEAD' });
-                          console.error(`[Spreads] ✗ Right image failed to load for page ${currentSpread.rightPage!.pageNumber}:`, {
-                          url,
-                          httpStatus: response.status,
-                          httpStatusText: response.statusText,
-                          error: e
-                        });
-                      } catch (fetchError) {
-                          console.error(`[Spreads] ✗ Right image fetch error for page ${currentSpread.rightPage!.pageNumber}:`, {
-                          url,
-                          fetchError,
-                          error: e
-                        });
-                      }
-                      
+
+                        console.warn(
+                          `[Spreads] ✗ Right image failed to load for page ${currentSpread.rightPage!.pageNumber}:`,
+                          { url }
+                        );
+                        setPreviewImagesAvailable(false);
+                        setPreviewImagesChecked(true);
                         setImageLoading(prev => ({ ...prev, right: false }));
-                        setImageError(prev => ({ ...prev, right: `Failed to load page ${currentSpread.rightPage!.pageNumber}` }));
-                    }}
+                        setImageError(prev => ({ ...prev, right: null }));
+                      }}
                       className={`transition-opacity duration-200 ${
                         imageLoading.right ? 'opacity-0' : 'opacity-100'
                     }`}
@@ -967,14 +1101,15 @@ export function PostPdfStage({
           <div>
             <h4 className="text-lg font-medium text-gray-900">Final Approval</h4>
             <p className="text-sm text-gray-600 mt-1">
-              {isApproved 
+              {isApproved
                 ? 'This order has been fully approved and is ready for production.'
+                : !isPreBriaApproved
+                ? 'The Pre-Bria stage must be approved before final PDF review can begin.'
                 : !isPostBriaApproved
                 ? 'The Post-Bria stage must be approved before final PDF review can begin.'
                 : pdfAsset.isFlagged
                 ? 'Please address the flagged issues before final approval.'
-                : 'Review the compiled PDF and approve when ready for production.'
-              }
+                : 'Review the compiled PDF and approve when ready for production.'}
             </p>
           </div>
           
@@ -982,23 +1117,31 @@ export function PostPdfStage({
             {isApproved ? (
               <button
                 onClick={onInitiateWorkflow}
-                disabled={finalApprovalLoading}
-                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                disabled={finalApprovalLoading || previewAlreadySent}
+                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   finalApprovalLoading
-                    ? 'bg-green-500/70 text-white cursor-wait'
-                    : 'bg-green-600 text-white hover:bg-green-700'
+                    ? 'bg-green-500/70 text-white cursor-wait focus:ring-green-500'
+                    : previewAlreadySent
+                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed focus:ring-gray-400'
+                    : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
                 }`}
               >
                 {finalApprovalLoading ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : previewAlreadySent ? (
+                  <CheckCircle className="h-4 w-4 mr-2" />
                 ) : (
                   <Play className="h-4 w-4 mr-2" />
                 )}
-                {finalApprovalLoading ? 'Sending Preview...' : 'Send to Production'}
+                {previewAlreadySent
+                  ? 'Preview Sent'
+                  : finalApprovalLoading
+                  ? 'Sending Preview...'
+                  : 'Send to Production'}
               </button>
             ) : (
               <button
-                onClick={onApprove}
+                onClick={() => onApprove('approved')}
                 disabled={!canApprove}
                 className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   !canApprove
@@ -1048,10 +1191,10 @@ export function PostPdfStage({
                 </span>
               </div>
 
-              {order.customerApprovalRequestedAt && (
+              {previewRequestedAt && (
                 <p>
                   <span className="font-medium">Requested:</span>{' '}
-                  {formatDate(order.customerApprovalRequestedAt)}
+                  {formatDate(previewRequestedAt)}
                 </p>
               )}
               {order.customerApprovalApprovedAt && (
@@ -1068,19 +1211,22 @@ export function PostPdfStage({
               )}
             </div>
 
-            {(finalApprovalResult || finalApprovalLoading) && (
+            {(previewAlreadySent || finalApprovalResult || finalApprovalLoading) && (
               <div className="mt-4 space-y-3 rounded-md bg-gray-50 p-3 text-sm text-gray-800 border border-gray-200">
                 <div className="flex items-center justify-between gap-3">
                   <div className="space-y-1">
                     <p className="font-medium text-gray-900">Preview Link</p>
                     <p className="text-xs text-gray-600">
-                      Share this URL with the customer if Amazon messaging is unavailable.
+                      {previewAlreadySent
+                        ? 'Preview generated and awaiting customer response.'
+                        : 'Share this URL with the customer if Amazon messaging is unavailable.'}
                     </p>
                   </div>
-                  {finalApprovalResult?.previewUrl && (
+                  {previewUrl && (
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(finalApprovalResult.previewUrl);
+                        if (!previewUrl) return;
+                        navigator.clipboard.writeText(previewUrl);
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2500);
                       }}
@@ -1093,8 +1239,36 @@ export function PostPdfStage({
                 </div>
 
                 <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 break-all">
-                  {finalApprovalResult?.previewUrl || 'Generating preview link...'}
+                  {previewUrl ||
+                    (finalApprovalLoading
+                      ? 'Generating preview link...'
+                      : 'Preview link not yet created.')}
                 </div>
+
+                {previewExpiresAt && (
+                  <p className="text-xs text-gray-500">
+                    Expires {formatDate(previewExpiresAt)}
+                  </p>
+                )}
+
+                {previewToken && (
+                  <p className="text-xs text-gray-500 break-all">
+                    Token: <code>{previewToken}</code>
+                  </p>
+                )}
+
+                {previewAlreadySent &&
+                  order.customerApprovalStatus === 'pending' && (
+                    <p className="text-xs text-gray-500">
+                      Use the copy button above if you need to resend manually.
+                    </p>
+                  )}
+
+                {finalApprovalResult?.tokenCreated === false && (
+                  <p className="text-xs text-gray-500">
+                    Existing preview token reused for this customer.
+                  </p>
+                )}
 
                 {finalApprovalResult?.notification && (
                   <div className="space-y-1 text-xs">

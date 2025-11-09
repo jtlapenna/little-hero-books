@@ -15,8 +15,10 @@ CREATE TABLE orders (
     
     -- Order Status & Workflow Tracking
     status VARCHAR(50) DEFAULT 'pending_validation',
+    execution_status VARCHAR(50) DEFAULT 'ready_for_processing',
     workflow_step VARCHAR(50) DEFAULT 'order_intake',
     next_workflow VARCHAR(50),
+    current_workflow VARCHAR(50),
     
     -- Amazon Order Data
     order_status VARCHAR(20),
@@ -44,6 +46,7 @@ CREATE TABLE orders (
     -- Timestamps
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
+    started_at TIMESTAMP,
     queued_at TIMESTAMP,
     validated_at TIMESTAMP,
     
@@ -55,6 +58,7 @@ CREATE TABLE orders (
     human_reviewed_at TIMESTAMP,
     human_reviewer VARCHAR(100),
     qa_notes TEXT,
+    dedication_text TEXT,
     
     -- Regeneration & Feedback System
     regeneration_attempt INTEGER DEFAULT 0,
@@ -67,6 +71,7 @@ CREATE TABLE orders (
     final_book_url TEXT,
     cover_image_url TEXT,
     thumbnail_url TEXT,
+    one_manifest_url TEXT,
     
     -- Print & Fulfillment
     lulu_job_id VARCHAR(100),
@@ -236,6 +241,8 @@ CREATE TABLE workflow_execution_logs (
 
 -- Orders table indexes
 CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_execution_status_priority_queued ON orders(execution_status, priority DESC NULLS LAST, queued_at ASC);
+CREATE INDEX idx_orders_ready_for_processing ON orders(priority DESC NULLS LAST, queued_at ASC) WHERE execution_status = 'ready_for_processing';
 CREATE INDEX idx_orders_amazon_order_id ON orders(amazon_order_id);
 CREATE INDEX idx_orders_character_hash ON orders(character_hash);
 CREATE INDEX idx_orders_created_at ON orders(created_at);

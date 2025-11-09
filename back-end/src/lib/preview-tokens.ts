@@ -8,6 +8,73 @@
 import crypto from 'crypto';
 import { supabase } from './supabase-client';
 
+interface PreviewTokenRow {
+  token: string;
+  order_id: string;
+  created_at?: string | null;
+  expires_at: string;
+  used_at?: string | null;
+}
+
+export interface PreviewTokenInfo {
+  token: string;
+  orderId: string;
+  createdAt?: string;
+  expiresAt: string;
+  usedAt?: string | null;
+}
+
+export interface EnsurePreviewTokenResult {
+  record: PreviewTokenInfo;
+  created: boolean;
+}
+
+function mapPreviewTokenRow(row: PreviewTokenRow): PreviewTokenInfo {
+  return {
+    token: row.token,
+    orderId: row.order_id,
+    createdAt: row.created_at || undefined,
+    expiresAt: row.expires_at,
+    usedAt: row.used_at || undefined,
+  };
+}
+
+async function createPreviewTokenRecord(
+  orderId: string,
+  createdBy: string = 'system'
+): Promise<PreviewTokenInfo> {
+  const randomBytes = crypto.randomBytes(32);
+  const hash = crypto.createHash('sha256').update(randomBytes).digest('hex');
+  const token = `${orderId}-${hash.substring(0, 16)}`;
+
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 3);
+  const expiresAtIso = expiresAt.toISOString();
+
+  const { data, error } = await supabase
+    .from('preview_tokens')
+    .insert({
+      order_id: orderId,
+      token,
+      expires_at: expiresAtIso,
+      created_by: createdBy,
+    })
+    .select('token, order_id, created_at, expires_at, used_at')
+    .single();
+
+  if (error || !data) {
+    console.error(
+      `[Preview Tokens] Error generating token for order ${orderId}:`,
+      error
+    );
+    throw new Error(
+      `Failed to generate preview token: ${error?.message || 'Unknown error'}`
+    );
+  }
+
+  return mapPreviewTokenRow(data as PreviewTokenRow);
+}
+
 export interface TokenValidationResult {
   valid: boolean;
   orderId?: string;
@@ -23,31 +90,8 @@ export interface TokenValidationResult {
  * @returns The generated token (format: [orderId]-[hash])
  */
 export async function generatePreviewToken(orderId: string): Promise<string> {
-  // Generate secure token: orderId + random hash
-  const randomBytes = crypto.randomBytes(32);
-  const hash = crypto.createHash('sha256').update(randomBytes).digest('hex');
-  const token = `${orderId}-${hash.substring(0, 16)}`;
-  
-  // Calculate expiration (3 days from now)
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 3);
-  
-  // Store in database
-  const { error } = await supabase
-    .from('preview_tokens')
-    .insert({
-      order_id: orderId,
-      token: token,
-      expires_at: expiresAt.toISOString(),
-      created_by: 'system'
-    });
-  
-  if (error) {
-    console.error(`[Preview Tokens] Error generating token for order ${orderId}:`, error);
-    throw new Error(`Failed to generate preview token: ${error.message}`);
-  }
-  
-  return token;
+  const record = await createPreviewTokenRecord(orderId);
+  return record.token;
 }
 
 /**
@@ -157,5 +201,52 @@ export async function getTokensForOrder(orderId: string) {
   }
   
   return data || [];
+}
+
+export async function getActivePreviewToken(
+  orderId: string
+): Promise<PreviewTokenInfo | null> {
+  const { data, error } = await supabase
+    .from('preview_tokens')
+    .select('token, order_id, created_at, expires_at, used_at')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  if (error) {
+    console.error(
+      `[Preview Tokens] Error fetching active token for order ${orderId}:`,
+      error
+    );
+    return null;
+  }
+
+  const rows = (data || []) as PreviewTokenRow[];
+  const now = new Date();
+
+  const activeRow = rows.find((row) => {
+    if (row.used_at) return false;
+    const expires = new Date(row.expires_at);
+    return expires > now;
+  });
+
+  if (!activeRow) {
+    return null;
+  }
+
+  return mapPreviewTokenRow(activeRow);
+}
+
+export async function ensureActivePreviewToken(
+  orderId: string
+): Promise<EnsurePreviewTokenResult> {
+  const existing = await getActivePreviewToken(orderId);
+
+  if (existing) {
+    return { record: existing, created: false };
+  }
+
+  const record = await createPreviewTokenRecord(orderId);
+  return { record, created: true };
 }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { getObject, headObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getSignedUrlForObject } from '@/lib/r2-service';
 
 /**
@@ -34,116 +34,121 @@ async function handleRequest(
       method
     });
     
-    // Fetch object from R2 orders bucket
-    let response: Response;
-    try {
-      console.log(`[${method} /api/pdf] Calling getObject(${R2_ORDERS_BUCKET}, ${key})`);
-      response = await getObject(R2_ORDERS_BUCKET, key);
-      console.log(`[${method} /api/pdf] getObject response:`, {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-    } catch (error: any) {
-      // getObject throws an error if response is not ok
-      // Check if it's a 404 (NoSuchKey)
-      const errorMessage = error?.message || '';
-      console.error(`[${method} /api/pdf] getObject error:`, {
-        error,
-        message: errorMessage,
-        key,
-        bucket: R2_ORDERS_BUCKET
-      });
-      if (errorMessage.includes('404') || errorMessage.includes('NoSuchKey') || errorMessage.includes('Not Found')) {
-        console.log(`[${method} /api/pdf] PDF not found (404): ${key}`);
+    // For GET requests, check if we should proxy (stream) or return signed URL
+    const { searchParams } = new URL(request.url);
+    const format = searchParams.get('format');
+    const wantsJsonMetadata = format === 'json';
+    const shouldProxy = searchParams.get('proxy') === 'true' || wantsJsonMetadata;
+
+    const ensureExists = async () => {
+      try {
+        console.log(`[${method} /api/pdf] Calling headObject(${R2_ORDERS_BUCKET}, ${key})`);
+        const headResponse = await headObject(R2_ORDERS_BUCKET, key);
+        if (headResponse.status === 404) {
+          console.log(`[${method} /api/pdf] PDF not found (404): ${key}`);
+          return { ok: false as const, status: 404, response: headResponse };
+        }
+
+        if (!headResponse.ok) {
+          console.error(`[${method} /api/pdf] headObject returned status ${headResponse.status} for ${key}`);
+          return { ok: false as const, status: headResponse.status, response: headResponse };
+        }
+
+        const contentType = headResponse.headers.get('content-type') || 'application/pdf';
+        const contentLength = headResponse.headers.get('content-length');
+
+        return {
+          ok: true as const,
+          response: headResponse,
+          contentType,
+          contentLength,
+        };
+      } catch (error: any) {
+        const message = error?.message || '';
+        console.error(`[${method} /api/pdf] headObject error:`, {
+          error,
+          message,
+          key,
+          bucket: R2_ORDERS_BUCKET,
+        });
+        return { ok: false as const, status: 500, error };
+      }
+    };
+
+    if (method === 'HEAD') {
+      const metadata = await ensureExists();
+      if (!metadata.ok) {
+        if (metadata.status === 404) {
+          return NextResponse.json({ error: 'PDF not found' }, { status: 404 });
+        }
+
         return NextResponse.json(
-          { error: 'PDF not found' },
-          { status: 404 }
+          { error: 'Failed to fetch PDF metadata' },
+          { status: metadata.status ?? 500 }
         );
       }
-      // Re-throw other errors
-      throw error;
-    }
-    
-    if (!response.ok) {
-      console.error(`[${method} /api/pdf] Response not OK:`, {
-        status: response.status,
-        statusText: response.statusText,
-        key
-      });
-      // Return appropriate status code (404 for not found, etc.)
-      return NextResponse.json(
-        { error: `Failed to fetch PDF: ${response.statusText}` },
-        { status: response.status }
-      );
-    }
 
-    // Get content type from response or default to PDF
-    const contentType = response.headers.get('content-type') || 'application/pdf';
-    const contentLength = response.headers.get('content-length');
-    
-    console.log(`[${method} /api/pdf] Successfully fetched PDF:`, {
-      key,
-      contentType,
-      contentLength,
-      status: response.status
-    });
-    
-    // For HEAD requests, return headers only
-    if (method === 'HEAD') {
       console.log(`[${method} /api/pdf] Returning HEAD response for: ${key}`);
       return new NextResponse(null, {
         status: 200,
         headers: {
-          'Content-Type': contentType,
+          'Content-Type': metadata.contentType,
           'Content-Disposition': `inline; filename="${key.split('/').pop()}"`,
+          ...(metadata.contentLength ? { 'Content-Length': metadata.contentLength } : {}),
           'Cache-Control': 'public, max-age=3600, s-maxage=3600',
           'Access-Control-Allow-Origin': '*',
         },
       });
     }
-    
-    // For GET requests, check if we should proxy (stream) or return signed URL
-    const { searchParams } = new URL(request.url);
-    const shouldProxy = searchParams.get('proxy') === 'true' || searchParams.get('format') === 'json';
-    
-    // If format=json, return signed URL (for initial fetch)
-    // Otherwise, proxy the PDF through backend to avoid CORS issues
-    if (shouldProxy && searchParams.get('format') === 'json') {
-      // Return JSON with signed URL for initial fetch
-      console.log(`[${method} /api/pdf] Generating signed URL for: ${key} (${contentLength} bytes)`);
-      
+
+    if (wantsJsonMetadata) {
+      const metadata = await ensureExists();
+      if (!metadata.ok) {
+        if (metadata.status === 404) {
+          return NextResponse.json({ error: 'PDF not found' }, { status: 404 });
+        }
+
+        return NextResponse.json(
+          { error: 'Failed to fetch PDF metadata' },
+          { status: metadata.status ?? 500 }
+        );
+      }
+
+      console.log(`[${method} /api/pdf] Generating signed URL for: ${key} (${metadata.contentLength || 'unknown'} bytes)`);
+
       try {
         const expiresIn = 3600;
         const signedUrl = await getSignedUrlForObject(key, R2_ORDERS_BUCKET, expiresIn);
-        
+
         console.log(`[${method} /api/pdf] Generated signed URL successfully:`, {
           key,
           expiresIn,
           signedUrlPrefix: signedUrl.substring(0, 50) + '...',
           signedUrlLength: signedUrl.length,
-          isR2Url: signedUrl.includes('.r2.cloudflarestorage.com') || signedUrl.includes('.r2.dev')
+          isR2Url: signedUrl.includes('.r2.cloudflarestorage.com') || signedUrl.includes('.r2.dev'),
         });
-        
-        return NextResponse.json({
-          signedUrl,
-          expiresIn,
-          contentType,
-          contentLength: contentLength ? parseInt(contentLength, 10) : null,
-          filename: key.split('/').pop()
-        }, {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate, private',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-            'Vary': 'Accept',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, HEAD',
+
+        return NextResponse.json(
+          {
+            signedUrl,
+            expiresIn,
+            contentType: metadata.contentType,
+            contentLength: metadata.contentLength ? parseInt(metadata.contentLength, 10) : null,
+            filename: key.split('/').pop(),
           },
-        });
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate, private',
+              Pragma: 'no-cache',
+              Expires: '0',
+              Vary: 'Accept',
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, HEAD',
+            },
+          }
+        );
       } catch (error: any) {
         console.error(`[${method} /api/pdf] Error generating signed URL:`, error);
         return NextResponse.json(
@@ -152,10 +157,58 @@ async function handleRequest(
         );
       }
     }
-    
+
+    // Fetch object from R2 orders bucket for streaming
+    let response: Response;
+    try {
+      console.log(`[${method} /api/pdf] Calling getObject(${R2_ORDERS_BUCKET}, ${key})`);
+      response = await getObject(R2_ORDERS_BUCKET, key);
+      console.log(`[${method} /api/pdf] getObject response:`, {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+    } catch (error: any) {
+      const errorMessage = error?.message || '';
+      console.error(`[${method} /api/pdf] getObject error:`, {
+        error,
+        message: errorMessage,
+        key,
+        bucket: R2_ORDERS_BUCKET,
+      });
+      if (errorMessage.includes('404') || errorMessage.includes('NoSuchKey') || errorMessage.includes('Not Found')) {
+        console.log(`[${method} /api/pdf] PDF not found (404): ${key}`);
+        return NextResponse.json({ error: 'PDF not found' }, { status: 404 });
+      }
+      throw error;
+    }
+
+    if (!response.ok) {
+      console.error(`[${method} /api/pdf] Response not OK:`, {
+        status: response.status,
+        statusText: response.statusText,
+        key,
+      });
+      return NextResponse.json(
+        { error: `Failed to fetch PDF: ${response.statusText}` },
+        { status: response.status }
+      );
+    }
+
+    const contentType = response.headers.get('content-type') || 'application/pdf';
+    const contentLength = response.headers.get('content-length');
+
+    console.log(`[${method} /api/pdf] Successfully fetched PDF for streaming:`, {
+      key,
+      contentType,
+      contentLength,
+      status: response.status,
+    });
+
     // Proxy mode: Fetch from R2 and stream to frontend (avoids CORS issues)
     // Support Range requests for PDF.js to load large PDFs efficiently
-    console.log(`[${method} /api/pdf] Proxying PDF stream: ${key} (${contentLength} bytes)`);
+    console.log(`[${method} /api/pdf] Proxying PDF stream: ${key} (${contentLength || 'unknown'} bytes)`);
     
     // Check for Range request header (PDF.js uses this for partial content)
     const rangeHeader = request.headers.get('range');

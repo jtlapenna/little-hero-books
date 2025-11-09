@@ -1,4 +1,51 @@
 import type { NextConfig } from "next";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const currentDir = fileURLToPath(new URL(".", import.meta.url));
+
+const rootEnvPath = resolve(currentDir, "../.env");
+
+if (existsSync(rootEnvPath)) {
+  try {
+    const content = readFileSync(rootEnvPath, "utf-8");
+    const lines = content.split(/\r?\n/);
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      const separatorIndex = trimmed.indexOf("=");
+      if (separatorIndex === -1) continue;
+
+      const key = trimmed.slice(0, separatorIndex).trim();
+      if (!key || key in process.env) continue;
+
+      let value = trimmed.slice(separatorIndex + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+
+      process.env[key] = value;
+    }
+
+    console.log("[env debug]", {
+      accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+      accessKey: process.env.CLOUDFLARE_R2_ACCESS_KEY,
+      accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
+      keys: Object.keys(process.env).filter((k) => k.includes("R2")),
+    });
+  } catch (error) {
+    console.warn(
+      "[next.config.ts] Failed to load root .env file. Environment variables may be missing.",
+      error
+    );
+  }
+}
 
 const nextConfig: NextConfig = {
   /* config options here */

@@ -9,14 +9,24 @@ async function approveOrderStage(
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   const { orderId } = await params;
-  const { stage } = await request.json();
+  const body = await request.json().catch(() => ({}));
 
-  console.log(`API: Approving stage ${stage} for order ${orderId}`);
+  const inputStage = body?.stage;
+  const requestedStatus = (body?.status || 'approved').toString().toLowerCase();
+
+  console.log(`API: Updating stage ${inputStage} to ${requestedStatus} for order ${orderId}`);
 
   // Validate stage
+  if (!inputStage || typeof inputStage !== 'string') {
+    throw createValidationError('Stage is required');
+  }
   const validStages = ['preBria', 'postBria', 'postPdf'];
-  if (!validStages.includes(stage)) {
-    throw createValidationError(`Invalid stage: ${stage}. Must be one of: ${validStages.join(', ')}`);
+  if (!validStages.includes(inputStage)) {
+    throw createValidationError(`Invalid stage: ${inputStage}. Must be one of: ${validStages.join(', ')}`);
+  }
+
+  if (!['approved', 'pending'].includes(requestedStatus)) {
+    throw createValidationError(`Invalid status: ${requestedStatus}. Must be 'approved' or 'pending'.`);
   }
 
   // Validate order ID
@@ -25,10 +35,10 @@ async function approveOrderStage(
   }
 
   // Approve the stage
-  const approval = await approveStage(orderId, stage);
+  const approval = await approveStage(orderId, inputStage, requestedStatus as any);
 
   // Trigger Workflow 2B when preBria is approved
-  if (stage === 'preBria') {
+  if (requestedStatus === 'approved' && inputStage === 'preBria') {
     const n8nUrl = process.env.N8N_2B_WEBHOOK_URL;
     if (n8nUrl) {
       const manifestKey = buildManifestKey(orderId, '2a');
@@ -60,11 +70,15 @@ async function approveOrderStage(
 
   return NextResponse.json({ 
     success: true, 
-    message: `Stage ${stage} approved successfully`,
+    message: requestedStatus === 'approved'
+      ? `Stage ${inputStage} approved successfully`
+      : `Stage ${inputStage} reset to pending`,
     orderId,
-    stage,
+    stage: inputStage,
+    status: requestedStatus,
     approvedAt: approval.approvedAt,
-    reviewer: approval.reviewer
+    reviewer: approval.reviewer,
+    reviewStages: approval.reviewStages
   });
 }
 

@@ -5,6 +5,12 @@
 **Owner**: Developer B  
 **Dependencies**: Task 1 ✅, Task 2 ✅, Task 3 ✅
 
+> **Status Update — November 10, 2025**  
+> - Stage approvals now persist in Supabase for `preBria`, `postBria`, and `postPdf`, and re-approving a stage clears the “Customer Revision Requested” flag until a new preview is sent.  
+> - “Final Approval” generates reusable preview tokens, stores the URL on the order, and prevents duplicate sends once a link exists.  
+> - Customer correction form is live with structured reason fields and optional email in dev (`CUSTOMER_REVIEW_STRICT_MODE=false`), mapping revision requests back into the review pipeline.  
+> - Remaining gaps before full sign-off: reconnect Cloudflare R2 credentials locally (manifests drive customer/child metadata and previews) and port the full PDF viewer from the admin Post-PDF stage.
+
 > **This is the single source of truth for the customer preview and approval system.** All decisions, architecture, and implementation details are documented here.
 
 ---

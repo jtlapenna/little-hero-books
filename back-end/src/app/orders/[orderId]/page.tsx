@@ -18,6 +18,7 @@ interface FinalApprovalResult {
   previewUrl: string;
   token: string;
   requestedAt?: string;
+  tokenCreated?: boolean;
   notification?: {
     attempted: boolean;
     sent: boolean;
@@ -151,77 +152,46 @@ export default function OrderDetailPage() {
     }
   ];
 
-  const handleStageApprove = async (stage: ReviewStage) => {
+  const handleStageApprove = async (stage: ReviewStage, explicitStatus?: 'approved' | 'pending') => {
     if (!order) return;
 
     try {
-      // Call the API to approve the stage
+      const stageKey = stage as unknown as keyof typeof order.reviewStages;
+      const currentStatus = order.reviewStages[stageKey]?.status || 'pending';
+      const nextStatus = explicitStatus || (currentStatus === 'approved' ? 'pending' : 'approved');
+
       const response = await fetch(`/api/orders/${order.orderId}/approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ stage }),
+        body: JSON.stringify({ stage, status: nextStatus }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to approve stage');
+        const error = await response.json().catch(() => ({ error: 'Failed to update stage' }));
+        throw new Error(error?.error || 'Failed to update stage');
       }
 
       const result = await response.json();
       console.log('Stage approval result:', result);
 
-      // Re-fetch the order data to get the updated status from the server
-      // This is a best-effort refresh - don't fail approval if it fails
-      try {
-        const orderResponse = await fetch(`/api/orders/${order.orderId}`);
-        if (orderResponse.ok) {
-          const updatedOrder = await orderResponse.json();
-          setOrder(updatedOrder);
-          console.log('Order data refreshed after approval:', updatedOrder.reviewStages);
-        } else {
-          // Re-fetch failed but approval succeeded - update local state
-          console.warn('Failed to re-fetch order data after approval, updating local state');
-          setOrder(prev => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              reviewStages: {
-                ...prev.reviewStages,
-                [stage as unknown as string]: {
-                  ...prev.reviewStages[stage as unknown as keyof typeof prev.reviewStages],
-                  status: 'approved',
-                  reviewedAt: new Date().toISOString(),
-                  reviewer: 'system'
-                }
-              }
-            }
-          });
-        }
-      } catch (fetchError) {
-        // Re-fetch failed but approval succeeded - update local state
-        console.warn('Error re-fetching order data after approval (non-critical):', fetchError);
-        setOrder(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            reviewStages: {
-              ...prev.reviewStages,
-              [stage as unknown as string]: {
-                ...prev.reviewStages[stage as unknown as keyof typeof prev.reviewStages],
-                status: 'approved',
-                reviewedAt: new Date().toISOString(),
-                reviewer: 'system'
-              }
-            }
+      setOrder(prev => {
+        if (!prev) return prev;
+        const updated = {
+          ...prev,
+          reviewStages: {
+            ...prev.reviewStages,
+            ...(result?.reviewStages || prev.reviewStages),
           }
-        });
-      }
+        };
+        return updated;
+      });
 
     } catch (error) {
       console.error('Error approving stage:', error);
       // You could add a toast notification here to show the error
-      alert('Failed to approve stage. Please try again.');
+      alert((error as Error)?.message || 'Failed to update stage. Please try again.');
     }
   };
 
@@ -282,7 +252,11 @@ export default function OrderDetailPage() {
         setFinalApprovalResult({
           previewUrl: result.previewUrl,
           token: result.token,
-          requestedAt: result.order?.customerApprovalRequestedAt || new Date().toISOString(),
+          requestedAt:
+            result.requestedAt ||
+            result.order?.customerApprovalRequestedAt ||
+            new Date().toISOString(),
+          tokenCreated: result.tokenCreated,
           notification: result.notification
         });
 
@@ -517,7 +491,7 @@ export default function OrderDetailPage() {
                   orderId={order.orderId}
                   order={order}
                   isApproved={order.reviewStages.preBria.status === ReviewStageStatus.APPROVED}
-                  onApprove={async () => await handleStageApprove('preBria' as unknown as ReviewStage)}
+                  onApprove={async (status) => await handleStageApprove('preBria' as unknown as ReviewStage, status)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('preBria' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
                 />
@@ -528,7 +502,7 @@ export default function OrderDetailPage() {
                   orderId={order.orderId}
                   order={order}
                   isApproved={order.reviewStages.postBria.status === ReviewStageStatus.APPROVED}
-                  onApprove={async () => await handleStageApprove('postBria' as unknown as ReviewStage)}
+                  onApprove={async (status) => await handleStageApprove('postBria' as unknown as ReviewStage, status)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postBria' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
                 />
@@ -539,7 +513,7 @@ export default function OrderDetailPage() {
                   orderId={order.orderId}
                   order={order}
                   isApproved={order.reviewStages.postPdf.status === ReviewStageStatus.APPROVED}
-                  onApprove={async () => await handleStageApprove('postPdf' as unknown as ReviewStage)}
+                  onApprove={async (status) => await handleStageApprove('postPdf' as unknown as ReviewStage, status)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postPdf' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
                   finalApprovalResult={finalApprovalResult}
