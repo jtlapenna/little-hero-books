@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
@@ -131,7 +131,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   }, [orderId]);
 
   // Helper function to convert PDF to image using PDF.js
-  const convertPdfToImage = async (pdfUrl: string): Promise<string> => {
+  // Use useCallback to prevent function recreation on every render
+  const convertPdfToImage = useCallback(async (pdfUrl: string): Promise<string> => {
     try {
       console.log('[Pages] Converting PDF to image:', pdfUrl);
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
@@ -166,7 +167,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       console.error('[Pages] Error converting PDF to image:', error);
       throw error;
     }
-  };
+  }, []);
 
   // Load preview images from 3-manifest or construct directly from R2
   useEffect(() => {
@@ -179,9 +180,12 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       // Don't reload if we already have images from the manifest
       if (imagesFoundRef.current) {
         console.log('[Pages] Images already found, skipping reload');
+        // Make sure loading state is false if we're skipping
+        setLoadingPages(false);
         return;
       }
 
+      // Only set loading if we're actually going to load
       setLoadingPages(true);
       setPagesError(null);
 
@@ -266,7 +270,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         if (!isMounted) return;
         
         // Try to load cover PDF image if not already loaded
-        if (!coverImageUrl && !coverImageDataUrl) {
+        // Load cover separately to avoid blocking page loading
+        if (!coverImageUrl && !coverImageDataUrl && !coverImageLoading) {
           setCoverImageLoading(true);
           try {
             // Cover PDF path: book-mvp-simple-adventure/orders/{orderId}/cover_{orderId}.pdf
@@ -278,37 +283,64 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             // Check if cover preview exists, otherwise convert PDF to image
             fetch(coverPreviewUrl, { method: 'HEAD' })
               .then(async res => {
+                if (!isMounted) return;
                 if (res.ok) {
-                  setCoverImageUrl(coverPreviewUrl);
+                  const newCoverUrl = coverPreviewUrl;
+                  setCoverImageUrl(newCoverUrl);
                   setCoverImageLoading(false);
+                  // Update spreads with new cover URL
+                  setSpreads(prev => {
+                    const currentPages = pages.length > 0 ? pages : pageData;
+                    return createSpreads(currentPages, newCoverUrl);
+                  });
                 } else {
                   // Convert PDF to image using PDF.js
                   const coverPdfUrl = `/api/pdf/${coverPdfPath}`;
                   try {
                     const dataUrl = await convertPdfToImage(coverPdfUrl);
+                    if (!isMounted) return;
                     setCoverImageDataUrl(dataUrl);
                     setCoverImageUrl(coverPdfUrl); // Keep PDF URL for reference
                     setCoverImageLoading(false);
+                    // Update spreads with new cover data URL
+                    setSpreads(prev => {
+                      // Use current pages state if available, otherwise use pageData from this load
+                      const currentPages = pages.length > 0 ? pages : pageData;
+                      if (currentPages.length > 0) {
+                        return createSpreads(currentPages, dataUrl);
+                      }
+                      return prev; // Don't update if no pages yet
+                    });
                   } catch (pdfError) {
+                    if (!isMounted) return;
                     console.error('[Pages] Failed to convert cover PDF to image:', pdfError);
                     setCoverImageLoading(false);
                   }
                 }
               })
               .catch(async () => {
+                if (!isMounted) return;
                 // Fallback: try to convert PDF to image
                 const coverPdfUrl = `/api/pdf/${coverPdfPath}`;
                 try {
                   const dataUrl = await convertPdfToImage(coverPdfUrl);
+                  if (!isMounted) return;
                   setCoverImageDataUrl(dataUrl);
                   setCoverImageUrl(coverPdfUrl);
                   setCoverImageLoading(false);
+                  // Update spreads with new cover data URL
+                  setSpreads(prev => {
+                    const currentPages = pages.length > 0 ? pages : pageData;
+                    return createSpreads(currentPages, dataUrl);
+                  });
                 } catch (pdfError) {
+                  if (!isMounted) return;
                   console.error('[Pages] Failed to convert cover PDF to image:', pdfError);
                   setCoverImageLoading(false);
                 }
               });
           } catch (e) {
+            if (!isMounted) return;
             console.log('[Pages] Cover image not available:', e);
             setCoverImageLoading(false);
           }
