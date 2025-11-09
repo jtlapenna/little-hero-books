@@ -377,16 +377,13 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         // Determine which cover URL to use (prefer data URL from PDF conversion, fallback to image URL)
         const effectiveCoverUrl = coverImageDataUrl || coverImageUrl || undefined;
         
-        // Only update state if pages have actually changed (not just cover state)
-        // This prevents re-renders when cover loads but pages haven't changed
+        // Always create spreads with current data (pages + cover)
+        const newSpreads = createSpreads(pageData, effectiveCoverUrl);
+        
+        // Only update pages state if pages actually changed
         if (pagesChanged || isInitialLoad) {
-          const newSpreads = createSpreads(pageData, effectiveCoverUrl);
-          
           // Update pages first
           setPages(pageData);
-          
-          // Update spreads
-          setSpreads(newSpreads);
           
           // Store the current pages data to prevent re-renders
           lastPagesDataRef.current = currentPagesData;
@@ -405,14 +402,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           // Only set loading to false when pages actually change
           // This prevents the loading state from being reset when cover loads separately
           setLoadingPages(false);
-        } else {
-          // Pages haven't changed, but cover might have - update spreads only if cover changed
-          // This allows cover to appear without re-rendering pages or resetting loading state
-          if (effectiveCoverUrl) {
-            const newSpreads = createSpreads(pageData, effectiveCoverUrl);
-            setSpreads(newSpreads);
-          }
         }
+        
+        // Always update spreads (even if pages haven't changed, cover might have)
+        // This ensures spreads are always in sync with current data
+        setSpreads(newSpreads);
         
         // If we found images in the manifest, stop polling
         if (foundInManifest && pageData.length > 0) {
