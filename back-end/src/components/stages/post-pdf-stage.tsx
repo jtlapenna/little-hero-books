@@ -296,10 +296,13 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           const manifest3Res = await fetch(manifest3Url);
           
           if (manifest3Res.ok) {
-            const manifest3 = await manifest3Res.json();
+            const manifest3Raw = await manifest3Res.json();
+            
+            // Handle array response (manifest might be wrapped in array)
+            const manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
             
             // Check multiple possible locations for pagePreviewImages
-            // Try top-level first, then nested in manifest, then bookAssembly
+            // Try top-level first (most common), then nested in manifest, then bookAssembly
             let previewImages = manifest3?.pagePreviewImages 
               || manifest3?.manifest?.pagePreviewImages
               || manifest3?.bookAssembly?.pagePreviewImages 
@@ -327,12 +330,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               || {};
             
             console.log('[Pages] Manifest check:', {
+              isArray: Array.isArray(manifest3Raw),
               hasPagePreviewImages: !!manifest3?.pagePreviewImages,
               hasManifestPagePreviewImages: !!manifest3?.manifest?.pagePreviewImages,
               hasBookAssemblyPagePreviewImages: !!manifest3?.bookAssembly?.pagePreviewImages,
               hasPngGenerationStoryImages: !!(manifest3?.pngGeneration?.storyImages || manifest3?.manifest?.pngGeneration?.storyImages),
               previewImagesCount: previewImages.length,
-              pagesWithCloudflareCount: Object.keys(pagesWithCloudflare).length
+              pagesWithCloudflareCount: Object.keys(pagesWithCloudflare).length,
+              manifestStructure: Object.keys(manifest3 || {}).slice(0, 10)
             });
             
             if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
@@ -444,7 +449,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             try {
               const manifest3Res = await fetch(`/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`);
               if (manifest3Res.ok) {
-                const manifest3 = await manifest3Res.json();
+                const manifest3Raw = await manifest3Res.json();
+                // Handle array response (manifest might be wrapped in array)
+                const manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
                 // Check multiple possible locations for cover data
                 const pngGen = manifest3?.pngGeneration || manifest3?.manifest?.pngGeneration || {};
                 
