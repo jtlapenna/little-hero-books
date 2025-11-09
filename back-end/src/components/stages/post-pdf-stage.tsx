@@ -155,6 +155,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const lastSpreadKeyRef = useRef<string>('');
   // Track previous spreads to detect actual content changes
   const previousSpreadsRef = useRef<SpreadData[]>([]);
+  // Track if ref callback has already handled cached image to prevent multiple calls
+  const coverImageRefHandledRef = useRef<{ front: boolean; back: boolean }>({ front: false, back: false });
 
   // Reset ref and spread index when orderId changes
   useEffect(() => {
@@ -605,6 +607,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       });
       setImageError({ left: null, right: null });
       
+      // Reset ref callback flags when spread changes
+      if (indexChanged) {
+        coverImageRefHandledRef.current = { front: false, back: false };
+      }
+      
       // Update refs to track current spread
       lastSpreadIndexRef.current = currentSpreadIndex;
       lastSpreadKeyRef.current = spreadKey;
@@ -966,10 +973,19 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                         alt="Back Cover"
                           ref={(img) => {
                             // Check if image is already loaded (cached) when element is created
-                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0) {
+                            // Use setTimeout to defer state update to avoid React error #185
+                            // Also check if we've already handled this to prevent multiple calls
+                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0 && !coverImageRefHandledRef.current.back) {
+                              coverImageRefHandledRef.current.back = true;
                               console.log('[Spreads] ✓ Back cover image already loaded (cached)');
-                              setImageLoading(prev => ({ ...prev, left: false }));
-                              setImageError(prev => ({ ...prev, left: null }));
+                              // Defer state update to avoid updating during render
+                              setTimeout(() => {
+                                setImageLoading(prev => ({ ...prev, left: false }));
+                                setImageError(prev => ({ ...prev, left: null }));
+                              }, 0);
+                            } else if (!img) {
+                              // Reset flag when image is unmounted
+                              coverImageRefHandledRef.current.back = false;
                             }
                           }}
                         onLoad={() => {
@@ -1060,10 +1076,19 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                           alt="Front Cover"
                           ref={(img) => {
                             // Check if image is already loaded (cached) when element is created
-                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0) {
+                            // Use setTimeout to defer state update to avoid React error #185
+                            // Also check if we've already handled this to prevent multiple calls
+                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0 && !coverImageRefHandledRef.current.front) {
+                              coverImageRefHandledRef.current.front = true;
                               console.log('[Spreads] ✓ Front cover image already loaded (cached)');
-                              setImageLoading(prev => ({ ...prev, right: false }));
-                              setImageError(prev => ({ ...prev, right: null }));
+                              // Defer state update to avoid updating during render
+                              setTimeout(() => {
+                                setImageLoading(prev => ({ ...prev, right: false }));
+                                setImageError(prev => ({ ...prev, right: null }));
+                              }, 0);
+                            } else if (!img) {
+                              // Reset flag when image is unmounted
+                              coverImageRefHandledRef.current.front = false;
                             }
                           }}
                           onLoad={() => {

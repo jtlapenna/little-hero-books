@@ -22,10 +22,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// Centralized configuration & secrets (hardcoded per request)\n// TODO: USE N8N CREDENTIALS for tokens/keys in production\n/* SANDBOX CONFIG */\nconst CONFIG = {\n  pdfMonkey: {\n    token: '2zpxHdmsse2ECXgVVtVR',\n    // interior template (expects pages_html)\n    templateId: '5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172'\n  },\n  lulu: {\n    apiBase: 'https://api.sandbox.lulu.com',\n    clientKey: '9b388aaa-f0c9-448d-b3d1-8561a8cf2094',\n    clientSecret: '3fsYZ7GbbXvdQhsOSxstzIbqdbdJMMtS',\n    basicAuth: 'Basic OWIzODhhYWEtZjBjOS00NDhkLWIzZDEtODU2MWE4Y2YyMDk0OjNmc1laN0diYlh2ZFFoc09TeHN0eklicWRiZEpNTXRT'\n  },\n  supabase: {\n    projectUrl: 'https://mdnthwpcnphjnnblbvxk.supabase.co',\n    serviceRoleKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs'\n  },\n  r2: {\n    bucket: 'little-hero-orders',\n    endpointHost: '3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com',\n    region: 'auto',\n    accessKeyId: '320e3b8228c5ff7bd2395043886f03d3',\n    secretAccessKey: 'a1ba025ddbe2d8ef7032d2d6635dce3b6fbc4bdbf9c19c68d0b0bd566c989572'\n  },\n  defaults: {\n    debug: false,\n    testMode: false,\n    // 🔑 Lulu POD package (8.5x8.5, premium-color, perfect-bound, 80# text, matte)\n    podPackageId: '0850X0850FCPREPB080CW444MXX',\n    trimIn: {\n      w: 8.5, h: 8.5,\n      assetBase: 'https://admin.littleherolabs.com/api/assets/',\n      podPackageId: null // kept null; top-level defaults.podPackageId is source of truth\n    },\n    bleedIn: { w: 8.75, h: 8.75 },\n    print: {\n      color: 'premium-color',\n      stock: '80#-text',\n      binding: 'perfect-bound',\n      coverFinish: 'matte'\n    },\n    quantity: 1,\n    shippingLevel: 'STANDARD'\n  }\n};\n\nreturn [{ json: { CONFIG } }];\n"
+        "jsCode": "// Centralized configuration & secrets (hardcoded per request)\n// TODO: USE N8N CREDENTIALS for tokens/keys in production\n/* SANDBOX CONFIG */\nconst CONFIG = {\n  pdfMonkey: {\n    token: '2zpxHdmsse2ECXgVVtVR',\n    // interior template (expects pages_html)\n    templateId: '5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172'\n  },\n  lulu: {\n    apiBase: 'https://api.sandbox.lulu.com',\n    clientKey: '9b388aaa-f0c9-448d-b3d1-8561a8cf2094',\n    clientSecret: '3fsYZ7GbbXvdQhsOSxstzIbqdbdJMMtS',\n    basicAuth: null\n  },\n  supabase: {\n    projectUrl: 'https://mdnthwpcnphjnnblbvxk.supabase.co',\n    serviceRoleKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs'\n  },\n  r2: {\n    bucket: 'little-hero-orders',\n    endpointHost: '3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com',\n    region: 'auto',\n    accessKeyId: '320e3b8228c5ff7bd2395043886f03d3',\n    secretAccessKey: 'a1ba025ddbe2d8ef7032d2d6635dce3b6fbc4bdbf9c19c68d0b0bd566c989572'\n  },\n  defaults: {\n    debug: false,\n    testMode: false,\n    // \ud83d\udd11 Lulu POD package (8.5x8.5, premium-color, perfect-bound, 80# text, matte)\n    podPackageId: '0850X0850FCPREPB080CW444MXX',\n    trimIn: {\n      w: 8.5, h: 8.5,\n      assetBase: 'https://admin.littleherolabs.com/api/assets/',\n      podPackageId: null // kept null; top-level defaults.podPackageId is source of truth\n    },\n    bleedIn: { w: 8.75, h: 8.75 },\n    print: {\n      color: 'premium-color',\n      stock: '80#-text',\n      binding: 'perfect-bound',\n      coverFinish: 'matte'\n    },\n    quantity: 1,\n    shippingLevel: 'STANDARD'\n  }\n};\n\n// --- derive basicAuth from client credentials (computed here to avoid expression quirks) ---\ntry {\n  const k = CONFIG?.lulu?.clientKey || '';\n  const s = CONFIG?.lulu?.clientSecret || '';\n  const b = Buffer.from(`${k}:${s}`).toString('base64');\n  if (!CONFIG.lulu) CONFIG.lulu = {};\n  CONFIG.lulu.basicAuth = 'Basic ' + b;\n} catch (e) {\n  // leave basicAuth as-is if Buffer not available (should be available in Code nodes)\n}\n\n\nreturn [{ json: { CONFIG } }];\n"
       },
       "id": "99539748-8dbe-4ace-add1-17d38923442c",
-      "name": "Config (W4) — SANDBOX",
+      "name": "Config (W4) \u2014 SANDBOX",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -35,7 +35,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate & normalize W4 intake payload + attach CONFIG\n// Robust to multiple inbound items (simulator + config); tolerant of amazonOrderId variants.\n\n// --- helpers ---\nfunction latestFrom(nodeName){\n  // Try without runIndex (latest), then with current runIndex as fallback\n  try {\n    const arr = $items(nodeName) || [];\n    if (Array.isArray(arr) && arr.length) return arr[arr.length - 1].json || null;\n  } catch {}\n  try {\n    const arr = $items(nodeName, 0, $runIndex) || [];\n    if (Array.isArray(arr) && arr.length) return arr[arr.length - 1].json || null;\n  } catch {}\n  return null;\n}\nfunction firstNonEmpty(...vals){\n  for (const v of vals){\n    if (v === undefined || v === null) continue;\n    const s = typeof v === 'string' ? v.trim() : v;\n    if (s !== '' && s !== undefined && s !== null) return s;\n  }\n  return undefined;\n}\nfunction looksLikeW4(o){\n  if (!o || typeof o !== 'object') return false;\n  return !!(o.orderId || o.amazonOrderId || o.AmazonOrderId || o.amazon_order_id || o.meta?.orderId);\n}\n\n// --- collect all inbound JSONs (any wiring order) ---\nlet inbound = [];\ntry { inbound = $input.all().flat().map(it => it?.json || {}); } catch {}\nconst named = [\n  latestFrom('Simulate Webhook'),\n  latestFrom('Webhook (W4 Intake)'),\n].filter(Boolean);\n\nconst allJsons = [...inbound, ...named, ($json || {})];\n\n// --- resolve CONFIG from any source (merge for safety) ---\nconst cfgCandidates = [];\nconst cfgInboundHit = allJsons.find(o => o && o.CONFIG);\nif (cfgInboundHit?.CONFIG) cfgCandidates.push(cfgInboundHit.CONFIG);\nconst cfgSandbox = latestFrom('Config (W4) — SANDBOX')?.CONFIG;\nif (cfgSandbox) cfgCandidates.push(cfgSandbox);\nconst cfgProd = latestFrom('Config (W4) — PRODUCTION')?.CONFIG;\nif (cfgProd) cfgCandidates.push(cfgProd);\nif ($json.CONFIG) cfgCandidates.push($json.CONFIG);\n\n// Merge in order; later candidates can fill gaps\nconst cfg = Object.assign({}, ...cfgCandidates);\n\n// --- pick the payload that actually has an order id ---\nconst candidate = allJsons.find(looksLikeW4) || {};\n\n// --- normalize core fields ---\nconst orderId = String(firstNonEmpty(\n  candidate.orderId,\n  candidate.amazonOrderId,\n  candidate.AmazonOrderId,\n  candidate.amazon_order_id,\n  candidate.meta?.orderId\n) || '').trim();\n\nlet pageImageUrls = Array.isArray(candidate.pageImageUrls) ? candidate.pageImageUrls : [];\nconst coverPdfR2Key = firstNonEmpty(candidate.coverPdfR2Key) || null;\nconst coverPdfUrl   = firstNonEmpty(candidate.coverPdfUrl)   || null;\n\n// --- optional context ---\nconst shippingAddress = candidate.shippingAddress || candidate.shipping_address || {};\nconst customer = candidate.customer || {\n  email: candidate.customer_email,\n  name:  candidate.customer_name\n};\nconst title = firstNonEmpty(candidate.title, 'Little Hero Book');\n\n// --- validations ---\nif (!orderId) {\n  const inboundSummary = allJsons.map((o, i) => ({ idx: i, keys: Object.keys(o || {}) }));\n  throw new Error(`W4 validation: Missing orderId from W3 → W4. Debug: ${JSON.stringify(inboundSummary)}`);\n}\nif (!Array.isArray(pageImageUrls)) {\n  throw new Error('W4 validation: pageImageUrls must be an array');\n}\nif (pageImageUrls.length !== 15) {\n  throw new Error(`W4 validation: expected exactly 15 pageImageUrls (p00..p14); received ${pageImageUrls.length}`);\n}\n\n// --- normalize + add cache-buster so PDFMonkey fetches latest bytes ---\nconst bustSeed = firstNonEmpty(candidate.runStamp, candidate.runId, cfg.runStamp, orderId, Date.now());\nconst BUST = encodeURIComponent(String(bustSeed));\npageImageUrls = pageImageUrls.map((u, i) => {\n  const s = String(u || '').trim();\n  if (!s) throw new Error(`W4 validation: pageImageUrls[${i}] is empty`);\n  return s + (s.includes('?') ? '&' : '?') + 'v=' + BUST;\n});\n\n// --- derived keys for interior PDF output ---\nconst pdfFilename = `interior_${orderId}.pdf`;\nconst pdfR2Key    = `book-mvp-simple-adventure/orders/${orderId}/${pdfFilename}`;\n\n// --- output ---\nreturn [{\n  json: {\n    CONFIG: cfg,\n    orderId,\n    pageImageUrls,\n    coverPdfR2Key,\n    coverPdfUrl,\n    shippingAddress,\n    customer,\n    title,\n    pdfFilename,\n    pdfR2Key\n  }\n}];\n"
+        "jsCode": "// Validate & normalize W4 intake payload + attach CONFIG\n// Robust to multiple inbound items (simulator + config); tolerant of amazonOrderId variants.\n\n// --- helpers ---\nfunction latestFrom(nodeName){\n  // Try without runIndex (latest), then with current runIndex as fallback\n  try {\n    const arr = $items(nodeName) || [];\n    if (Array.isArray(arr) && arr.length) return arr[arr.length - 1].json || null;\n  } catch {}\n  try {\n    const arr = $items(nodeName, 0, $runIndex) || [];\n    if (Array.isArray(arr) && arr.length) return arr[arr.length - 1].json || null;\n  } catch {}\n  return null;\n}\nfunction firstNonEmpty(...vals){\n  for (const v of vals){\n    if (v === undefined || v === null) continue;\n    const s = typeof v === 'string' ? v.trim() : v;\n    if (s !== '' && s !== undefined && s !== null) return s;\n  }\n  return undefined;\n}\nfunction looksLikeW4(o){\n  if (!o || typeof o !== 'object') return false;\n  return !!(o.orderId || o.amazonOrderId || o.AmazonOrderId || o.amazon_order_id || o.meta?.orderId);\n}\n\n// --- collect all inbound JSONs (any wiring order) ---\nlet inbound = [];\ntry { inbound = $input.all().flat().map(it => it?.json || {}); } catch {}\nconst named = [\n  latestFrom('Simulate Webhook'),\n  latestFrom('Webhook (W4 Intake)'),\n].filter(Boolean);\n\nconst allJsons = [...inbound, ...named, ($json || {})];\n\n// --- resolve CONFIG from any source (merge for safety) ---\nconst cfgCandidates = [];\nconst cfgInboundHit = allJsons.find(o => o && o.CONFIG);\nif (cfgInboundHit?.CONFIG) cfgCandidates.push(cfgInboundHit.CONFIG);\nconst cfgSandbox = latestFrom('Config (W4) \u2014 SANDBOX')?.CONFIG;\nif (cfgSandbox) cfgCandidates.push(cfgSandbox);\nconst cfgProd = latestFrom('Config (W4) \u2014 PRODUCTION')?.CONFIG;\nif (cfgProd) cfgCandidates.push(cfgProd);\nif ($json.CONFIG) cfgCandidates.push($json.CONFIG);\n\n// Merge in order; later candidates can fill gaps\nconst cfg = Object.assign({}, ...cfgCandidates);\n\n// --- pick the payload that actually has an order id ---\nconst candidate = allJsons.find(looksLikeW4) || {};\n\n// --- normalize core fields ---\nconst orderId = String(firstNonEmpty(\n  candidate.orderId,\n  candidate.amazonOrderId,\n  candidate.AmazonOrderId,\n  candidate.amazon_order_id,\n  candidate.meta?.orderId\n) || '').trim();\n\nlet pageImageUrls = Array.isArray(candidate.pageImageUrls) ? candidate.pageImageUrls : [];\nconst coverPdfR2Key = firstNonEmpty(candidate.coverPdfR2Key) || null;\nconst coverPdfUrl   = firstNonEmpty(candidate.coverPdfUrl)   || null;\n\n// --- optional context ---\nconst shippingAddress = candidate.shippingAddress || candidate.shipping_address || {};\nconst customer = candidate.customer || {\n  email: candidate.customer_email,\n  name:  candidate.customer_name\n};\nconst title = firstNonEmpty(candidate.title, 'Little Hero Book');\n\n// --- validations ---\nif (!orderId) {\n  const inboundSummary = allJsons.map((o, i) => ({ idx: i, keys: Object.keys(o || {}) }));\n  throw new Error(`W4 validation: Missing orderId from W3 \u2192 W4. Debug: ${JSON.stringify(inboundSummary)}`);\n}\nif (!Array.isArray(pageImageUrls)) {\n  throw new Error('W4 validation: pageImageUrls must be an array');\n}\nif (pageImageUrls.length !== 15) {\n  throw new Error(`W4 validation: expected exactly 15 pageImageUrls (p00..p14); received ${pageImageUrls.length}`);\n}\n\n// --- normalize + add cache-buster so PDFMonkey fetches latest bytes ---\nconst bustSeed = firstNonEmpty(candidate.runStamp, candidate.runId, cfg.runStamp, orderId, Date.now());\nconst BUST = encodeURIComponent(String(bustSeed));\npageImageUrls = pageImageUrls.map((u, i) => {\n  const s = String(u || '').trim();\n  if (!s) throw new Error(`W4 validation: pageImageUrls[${i}] is empty`);\n  return s + (s.includes('?') ? '&' : '?') + 'v=' + BUST;\n});\n\n// --- derived keys for interior PDF output ---\nconst pdfFilename = `interior_${orderId}.pdf`;\nconst pdfR2Key    = `book-mvp-simple-adventure/orders/${orderId}/${pdfFilename}`;\n\n// --- output ---\nreturn [{\n  json: {\n    CONFIG: cfg,\n    orderId,\n    pageImageUrls,\n    coverPdfR2Key,\n    coverPdfUrl,\n    shippingAddress,\n    customer,\n    title,\n    pdfFilename,\n    pdfR2Key\n  }\n}];\n"
       },
       "id": "e40e4d25-942c-44c4-9af4-06c3af5f5690",
       "name": "Validate & Normalize W4 Input",
@@ -89,7 +89,7 @@
         "jsCode": "const j = $input.first().json || {};\nreturn [{ json: { ...j, ackPhase: true } }];"
       },
       "id": "8a9fa951-21bd-4701-a158-b1386e8dc8bd",
-      "name": "Ack (Phase 0–1)",
+      "name": "Ack (Phase 0\u20131)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -99,7 +99,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build pages_html for PDFMonkey at 8.75×8.75 in (bleed) from pageImageUrls\nconst j = $input.first().json || {};\nconst pages = Array.isArray(j.pageImageUrls) ? j.pageImageUrls : [];\nif (pages.length === 0) throw new Error('No pageImageUrls to build pages_html');\n\nconst css = `\n  <style>\n    @page { size: 8.75in 8.75in; margin: 0; }\n    html, body { margin:0; padding:0; }\n    .page { width:8.75in; height:8.75in; page-break-after: always; }\n    .bg { width:100%; height:100%; object-fit: cover; display:block; }\n  </style>\n`;\n\nconst pagesHtml = pages.map(url => {\n  return `<section class=\"page\"><img class=\"bg\" src=\"${url}\" alt=\"\" /></section>`;\n}).join('\\n');\n\n// Preserve upstream context and attach pages_html at top-level\nconst ctx = $input.first().json || {};\nreturn [{\n  json: {\n    ...ctx,\n    pages_html: `${css}\\n${pagesHtml}`\n  }\n}];"
+        "jsCode": "// Build pages_html for PDFMonkey at 8.75\u00d78.75 in (bleed) from pageImageUrls\nconst j = $input.first().json || {};\nconst pages = Array.isArray(j.pageImageUrls) ? j.pageImageUrls : [];\nif (pages.length === 0) throw new Error('No pageImageUrls to build pages_html');\n\nconst css = `\n  <style>\n    @page { size: 8.75in 8.75in; margin: 0; }\n    html, body { margin:0; padding:0; }\n    .page { width:8.75in; height:8.75in; page-break-after: always; }\n    .bg { width:100%; height:100%; object-fit: cover; display:block; }\n  </style>\n`;\n\nconst pagesHtml = pages.map(url => {\n  return `<section class=\"page\"><img class=\"bg\" src=\"${url}\" alt=\"\" /></section>`;\n}).join('\\n');\n\n// Preserve upstream context and attach pages_html at top-level\nconst ctx = $input.first().json || {};\nreturn [{\n  json: {\n    ...ctx,\n    pages_html: `${css}\\n${pagesHtml}`\n  }\n}];"
       },
       "id": "2ebde676-7262-4ef0-955e-4df936dce189",
       "name": "Build Pages HTML (8.75in)",
@@ -302,7 +302,7 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Prepare PDF Metadata for Merge — resilient to S3 node dropping context\n */\nfunction latest(node) {\n  try { return ($items(node, 0, $runIndex)?.[0]?.json) || null; } catch { return null; }\n}\n\nconst s3Out = $input.first()?.json || {};\n\n// Reattach context from earlier nodes (first hit wins)\nconst ctx =\n  latest('Poll PDFMonkey until ready') ||\n  latest('Reattach Context (PDFM)') ||\n  latest('Build Pages HTML (8.75in)') ||\n  latest('Validate & Normalize W4 Input') ||\n  s3Out || {};\n\nconst orderId     = ctx.orderId || null;\nconst pdfFilename = ctx.pdfFilename || (orderId ? `interior_${orderId}.pdf` : null);\nconst pdfR2Key    = ctx.pdfR2Key || (orderId && pdfFilename\n                    ? `book-mvp-simple-adventure/orders/${orderId}/${pdfFilename}`\n                    : null);\n\nif (!orderId || !pdfFilename || !pdfR2Key) {\n  throw new Error(`Missing required PDF metadata: orderId=${orderId}, pdfFilename=${pdfFilename}, pdfR2Key=${pdfR2Key}`);\n}\n\nreturn [{\n  json: {\n    ...ctx,           // full upstream context (orderId, pdfR2Key, etc.)\n    ...s3Out,         // anything S3 returned\n    pdfComplete: true,\n    pdfUploadedAt: new Date().toISOString()\n  }\n}];\n"
+        "jsCode": "/**\n * Prepare PDF Metadata for Merge \u2014 resilient to S3 node dropping context\n */\nfunction latest(node) {\n  try { return ($items(node, 0, $runIndex)?.[0]?.json) || null; } catch { return null; }\n}\n\nconst s3Out = $input.first()?.json || {};\n\n// Reattach context from earlier nodes (first hit wins)\nconst ctx =\n  latest('Poll PDFMonkey until ready') ||\n  latest('Reattach Context (PDFM)') ||\n  latest('Build Pages HTML (8.75in)') ||\n  latest('Validate & Normalize W4 Input') ||\n  s3Out || {};\n\nconst orderId     = ctx.orderId || null;\nconst pdfFilename = ctx.pdfFilename || (orderId ? `interior_${orderId}.pdf` : null);\nconst pdfR2Key    = ctx.pdfR2Key || (orderId && pdfFilename\n                    ? `book-mvp-simple-adventure/orders/${orderId}/${pdfFilename}`\n                    : null);\n\nif (!orderId || !pdfFilename || !pdfR2Key) {\n  throw new Error(`Missing required PDF metadata: orderId=${orderId}, pdfFilename=${pdfFilename}, pdfR2Key=${pdfR2Key}`);\n}\n\nreturn [{\n  json: {\n    ...ctx,           // full upstream context (orderId, pdfR2Key, etc.)\n    ...s3Out,         // anything S3 returned\n    pdfComplete: true,\n    pdfUploadedAt: new Date().toISOString()\n  }\n}];\n"
       },
       "id": "9e3ba298-e3dd-4dc4-9715-437e5b47ccb2",
       "name": "Prepare PDF Metadata for Merge",
@@ -480,7 +480,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Manual Trigger → Code: Emit W4 test payload from your 3A-manifest\n\n// 1) Paste your manifest JSON here (from W3/W3A):\nconst manifest = {\n  \"schema\":\"lhb.run-manifest@v2.0\",\n  \"amazonOrderId\":\"TEST-ORDER-010\",\n  \"pages\":{\n    \"p01\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p01.png\",\n    \"p02\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p02.png\",\n    \"p03\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p03.png\",\n    \"p04\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p04.png\",\n    \"p05\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p05.png\",\n    \"p06\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p06.png\",\n    \"p07\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p07.png\",\n    \"p08\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p08.png\",\n    \"p09\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p09.png\",\n    \"p10\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p10.png\",\n    \"p11\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p11.png\",\n    \"p12\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p12.png\",\n    \"p13\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p13.png\",\n    \"p14\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p14.png\"\n  },\n  \"pdfGeneration\":{\n    \"coverPdf\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/cover_TEST-ORDER-010.pdf\"\n  },\n  \"assetsUsed\":{\n    \"dedicationBg\":\"book-mvp-simple-adventure/backgrounds/page00-dedication.png\"\n  }\n};\n\n// 2) Build the W4 payload\nconst orderId = manifest.amazonOrderId || manifest.orderId || \"TEST-ORDER-010\";\n\n// This should match the CDN you already use in your templates:\nconst ASSET_BASE = \"https://admin.littleherolabs.com/api/assets/\";\n\n// Collect interior page image URLs, sorted pNN:\nconst keys = Object.keys(manifest.pages || {}).sort(\n  (a,b) => parseInt(a.slice(1),10) - parseInt(b.slice(1),10)\n);\nlet pageImageUrls = keys.map(k => ASSET_BASE + manifest.pages[k]);\n// Build required p00 explicitly (always required)\nconst p00FromDedication = manifest.assetsUsed?.dedicationBg ? (ASSET_BASE + manifest.assetsUsed.dedicationBg) : null;\nconst p00Preview = `${ASSET_BASE}book-mvp-simple-adventure/orders/${orderId}/preview-images/p00.png`;\nconst p00 = p00FromDedication || p00Preview;\npageImageUrls = [p00, ...pageImageUrls];\n\n// If you truly have 15 pages (p00..p14), add p00. Otherwise, we insert a provisional p00.\n// Option A: use the expected preview path for p00:\nconst maybeP00 = `${ASSET_BASE}book-mvp-simple-adventure/orders/${orderId}/preview-images/p00.png`;\n// Option B: use the dedication background as a placeholder instead:\n// const maybeP00 = ASSET_BASE + (manifest.assetsUsed?.dedicationBg || '');\n\nif (pageImageUrls.length === 14) {\n  pageImageUrls = [maybeP00, ...pageImageUrls];\n}\n\n// Cover: prefer R2 key so W4 presigns it\nconst coverPdfR2Key = manifest.pdfGeneration?.coverPdf;\nconst coverPdfUrl   = ASSET_BASE + (manifest.pdfGeneration?.coverPdf || \"\");\n\n// (Optional) customer + shipping for Lulu payload\nconst shippingAddress = {\n  name: \"Test Recipient\",\n  street1: \"123 Test St\",\n  city: \"San Francisco\",\n  state_code: \"CA\",\n  postcode: \"94107\",\n  country_code: \"US\",\n  phone_number: \"555-555-5555\",\n  email: \"test@example.com\"\n};\nconst customer = { name: \"Test Customer\", email: \"test@example.com\" };\n\nreturn [{\n  json: {\n    orderId,\n    title: \"Little Hero Books — Test\",\n    pageImageUrls,\n    coverPdfR2Key,           // preferred for W4\n    // coverPdfUrl,           // uncomment to pass a direct URL instead\n    shippingAddress,\n    customer\n  }\n}];\n"
+        "jsCode": "// Manual Trigger \u2192 Code: Emit W4 test payload from your 3A-manifest\n\n// 1) Paste your manifest JSON here (from W3/W3A):\nconst manifest = {\n  \"schema\":\"lhb.run-manifest@v2.0\",\n  \"amazonOrderId\":\"TEST-ORDER-010\",\n  \"pages\":{\n    \"p01\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p01.png\",\n    \"p02\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p02.png\",\n    \"p03\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p03.png\",\n    \"p04\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p04.png\",\n    \"p05\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p05.png\",\n    \"p06\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p06.png\",\n    \"p07\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p07.png\",\n    \"p08\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p08.png\",\n    \"p09\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p09.png\",\n    \"p10\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p10.png\",\n    \"p11\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p11.png\",\n    \"p12\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p12.png\",\n    \"p13\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p13.png\",\n    \"p14\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/preview-images/p14.png\"\n  },\n  \"pdfGeneration\":{\n    \"coverPdf\":\"book-mvp-simple-adventure/orders/TEST-ORDER-010/cover_TEST-ORDER-010.pdf\"\n  },\n  \"assetsUsed\":{\n    \"dedicationBg\":\"book-mvp-simple-adventure/backgrounds/page00-dedication.png\"\n  }\n};\n\n// 2) Build the W4 payload\nconst orderId = manifest.amazonOrderId || manifest.orderId || \"TEST-ORDER-010\";\n\n// This should match the CDN you already use in your templates:\nconst ASSET_BASE = \"https://admin.littleherolabs.com/api/assets/\";\n\n// Collect interior page image URLs, sorted pNN:\nconst keys = Object.keys(manifest.pages || {}).sort(\n  (a,b) => parseInt(a.slice(1),10) - parseInt(b.slice(1),10)\n);\nlet pageImageUrls = keys.map(k => ASSET_BASE + manifest.pages[k]);\n// Build required p00 explicitly (always required)\nconst p00FromDedication = manifest.assetsUsed?.dedicationBg ? (ASSET_BASE + manifest.assetsUsed.dedicationBg) : null;\nconst p00Preview = `${ASSET_BASE}book-mvp-simple-adventure/orders/${orderId}/preview-images/p00.png`;\nconst p00 = p00FromDedication || p00Preview;\npageImageUrls = [p00, ...pageImageUrls];\n\n// If you truly have 15 pages (p00..p14), add p00. Otherwise, we insert a provisional p00.\n// Option A: use the expected preview path for p00:\nconst maybeP00 = `${ASSET_BASE}book-mvp-simple-adventure/orders/${orderId}/preview-images/p00.png`;\n// Option B: use the dedication background as a placeholder instead:\n// const maybeP00 = ASSET_BASE + (manifest.assetsUsed?.dedicationBg || '');\n\nif (pageImageUrls.length === 14) {\n  pageImageUrls = [maybeP00, ...pageImageUrls];\n}\n\n// Cover: prefer R2 key so W4 presigns it\nconst coverPdfR2Key = manifest.pdfGeneration?.coverPdf;\nconst coverPdfUrl   = ASSET_BASE + (manifest.pdfGeneration?.coverPdf || \"\");\n\n// (Optional) customer + shipping for Lulu payload\nconst shippingAddress = {\n  name: \"Test Recipient\",\n  street1: \"123 Test St\",\n  city: \"San Francisco\",\n  state_code: \"CA\",\n  postcode: \"94107\",\n  country_code: \"US\",\n  phone_number: \"555-555-5555\",\n  email: \"test@example.com\"\n};\nconst customer = { name: \"Test Customer\", email: \"test@example.com\" };\n\nreturn [{\n  json: {\n    orderId,\n    title: \"Little Hero Books \u2014 Test\",\n    pageImageUrls,\n    coverPdfR2Key,           // preferred for W4\n    // coverPdfUrl,           // uncomment to pass a direct URL instead\n    shippingAddress,\n    customer\n  }\n}];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -522,7 +522,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Guard Lulu Submit — skip if an existing Lulu job is already recorded in Supabase\n// Input: JSON from \"Supabase: get existing order\" (HTTP GET, array or object)\n\nfunction latest(name) {\n  try { return ($items(name, 0, $runIndex)?.[0]?.json) || null; } catch { return null; }\n}\n\n// Prefer the most recent full context; fall back to validator\nconst upstream =\n  latest('Build Lulu Print Job Payload') ||\n  latest('Merge (after interior + meta)') ||\n  latest('Validate & Normalize W4 Input') ||\n  $json;\n\n// Normalize Supabase GET result (array → object)\nlet rows = $input.first().json;\nif (Array.isArray(rows)) rows = rows[0] || {};\n\nconst existingJobId  = rows?.luluJobId || rows?.lulu_job_id;\nconst existingStatus = rows?.lulu_status || rows?.status;\n\n// Test mode? Bypass Lulu submit entirely.\nconst testMode = !!(upstream?.CONFIG?.defaults?.testMode || upstream?.testMode);\nif (testMode) {\n  const resp = { id: `TEST-${upstream.orderId || 'ORDER'}`, status: 'TEST_MODE' };\n  return [{ json: { ...upstream, __skipLulu: true, ...resp } }];\n}\n\n// Existing job on record? Bypass and return a synthetic response compatible with downstream.\nif (existingJobId) {\n  const resp = { id: existingJobId, status: existingStatus || 'SUBMITTED' };\n  return [{ json: { ...upstream, __skipLulu: true, ...resp } }];\n}\n\n// No-op (return no items) so the \"bypass\" branch stops here\n// and only the real Lulu submit branch executes.\nreturn [];\n"
+        "jsCode": "// Guard Lulu Submit \u2014 skip if an existing Lulu job is already recorded in Supabase\n// Input: JSON from \"Supabase: get existing order\" (HTTP GET, array or object)\n\nfunction latest(name) {\n  try { return ($items(name, 0, $runIndex)?.[0]?.json) || null; } catch { return null; }\n}\n\n// Prefer the most recent full context; fall back to validator\nconst upstream =\n  latest('Build Lulu Print Job Payload') ||\n  latest('Merge (after interior + meta)') ||\n  latest('Validate & Normalize W4 Input') ||\n  $json;\n\n// Normalize Supabase GET result (array \u2192 object)\nlet rows = $input.first().json;\nif (Array.isArray(rows)) rows = rows[0] || {};\n\nconst existingJobId  = rows?.luluJobId || rows?.lulu_job_id;\nconst existingStatus = rows?.lulu_status || rows?.status;\n\n// Test mode? Bypass Lulu submit entirely.\nconst testMode = !!(upstream?.CONFIG?.defaults?.testMode || upstream?.testMode);\nif (testMode) {\n  const resp = { id: `TEST-${upstream.orderId || 'ORDER'}`, status: 'TEST_MODE' };\n  return [{ json: { ...upstream, __skipLulu: true, ...resp } }];\n}\n\n// Existing job on record? Bypass and return a synthetic response compatible with downstream.\nif (existingJobId) {\n  const resp = { id: existingJobId, status: existingStatus || 'SUBMITTED' };\n  return [{ json: { ...upstream, __skipLulu: true, ...resp } }];\n}\n\n// No-op (return no items) so the \"bypass\" branch stops here\n// and only the real Lulu submit branch executes.\nreturn [];\n"
       },
       "id": "ee82b57d-db93-48d6-b852-e70da405c364",
       "name": "Guard Lulu Submit",
@@ -542,7 +542,7 @@
         768
       ],
       "id": "b73b62fe-3376-42ba-b732-2588c49fb77e",
-      "name": "When clicking ‘Execute workflow’"
+      "name": "When clicking \u2018Execute workflow\u2019"
     },
     {
       "parameters": {
@@ -557,7 +557,7 @@
             },
             {
               "name": "Authorization",
-              "value": "={{ 'Basic ' + base64Encode($json.CONFIG.lulu.clientKey + ':' + $json.CONFIG.lulu.clientSecret) }}"
+              "value": "={{$json.CONFIG.lulu.basicAuth}}"
             }
           ]
         },
@@ -566,6 +566,14 @@
         "specifyBody": "form-urlencoded",
         "options": {
           "timeout": 30000
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            }
+          ]
         }
       },
       "id": "20a4b679-899a-480b-8927-80e496e1a632",
@@ -640,7 +648,7 @@
             },
             {
               "name": "Authorization",
-              "value": "={{ 'Basic ' + base64Encode($json.CONFIG.lulu.clientKey + ':' + $json.CONFIG.lulu.clientSecret) }}"
+              "value": "={{$json.CONFIG.lulu.basicAuth}}"
             }
           ]
         },
@@ -649,6 +657,14 @@
         "specifyBody": "form-urlencoded",
         "options": {
           "timeout": 30000
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            }
+          ]
         }
       },
       "id": "1a6d7ed8-fb72-45fe-ba03-677b7f2fc007",
@@ -711,10 +727,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// Centralized configuration & secrets (hardcoded per request)\n// TODO: USE N8N CREDENTIALS for tokens/keys in production\n/* PRODUCTION CONFIG */\nconst CONFIG = {\n  pdfMonkey: {\n    token: '2zpxHdmsse2ECXgVVtVR', // replace if you use a separate prod PDFMonkey token\n    templateId: '5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172' // interior template (pages_html)\n  },\n  lulu: {\n    apiBase: 'https://api.lulu.com',\n    clientKey: 'REPLACE_WITH_LULU_CLIENT_KEY',\n    clientSecret: 'REPLACE_WITH_LULU_CLIENT_SECRET',\n    // base64(clientKey:clientSecret)\n    basicAuth: 'REPLACE_WITH_BASE64_BASIC'\n  },\n  supabase: {\n    projectUrl: 'https://mdnthwpcnphjnnblbvxk.supabase.co',\n    serviceRoleKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs'\n  },\n  r2: {\n    bucket: 'little-hero-orders',\n    endpointHost: '3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com',\n    region: 'auto',\n    accessKeyId: '320e3b8228c5ff7bd2395043886f03d3',\n    secretAccessKey: 'a1ba025ddbe2d8ef7032d2d6635dce3b6fbc4bdbf9c19c68d0b0bd566c989572'\n  },\n  defaults: {\n    debug: false,\n    testMode: false,\n    // 🔑 Lulu POD package (8.5x8.5, premium-color, perfect-bound, 80# text, matte)\n    podPackageId: '0850X0850FCPREPB080CW444MXX',\n    trimIn: { w: 8.5, h: 8.5 },\n    bleedIn: { w: 8.75, h: 8.75 },\n    print: { color: 'premium-color', stock: '80#-text', binding: 'perfect-bound', coverFinish: 'matte' },\n    quantity: 1,\n    shippingLevel: 'STANDARD'\n  }\n};\n\nreturn [{ json: { CONFIG } }];\n"
+        "jsCode": "// Centralized configuration & secrets (hardcoded per request)\n// TODO: USE N8N CREDENTIALS for tokens/keys in production\n/* PRODUCTION CONFIG */\nconst CONFIG = {\n  pdfMonkey: {\n    token: '2zpxHdmsse2ECXgVVtVR', // replace if you use a separate prod PDFMonkey token\n    templateId: '5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172' // interior template (pages_html)\n  },\n  lulu: {\n    apiBase: 'https://api.lulu.com',\n    clientKey: 'REPLACE_WITH_LULU_CLIENT_KEY',\n    clientSecret: 'REPLACE_WITH_LULU_CLIENT_SECRET',\n    // base64(clientKey:clientSecret)\n    basicAuth: null\n  },\n  supabase: {\n    projectUrl: 'https://mdnthwpcnphjnnblbvxk.supabase.co',\n    serviceRoleKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs'\n  },\n  r2: {\n    bucket: 'little-hero-orders',\n    endpointHost: '3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com',\n    region: 'auto',\n    accessKeyId: '320e3b8228c5ff7bd2395043886f03d3',\n    secretAccessKey: 'a1ba025ddbe2d8ef7032d2d6635dce3b6fbc4bdbf9c19c68d0b0bd566c989572'\n  },\n  defaults: {\n    debug: false,\n    testMode: false,\n    // \ud83d\udd11 Lulu POD package (8.5x8.5, premium-color, perfect-bound, 80# text, matte)\n    podPackageId: '0850X0850FCPREPB080CW444MXX',\n    trimIn: { w: 8.5, h: 8.5 },\n    bleedIn: { w: 8.75, h: 8.75 },\n    print: { color: 'premium-color', stock: '80#-text', binding: 'perfect-bound', coverFinish: 'matte' },\n    quantity: 1,\n    shippingLevel: 'STANDARD'\n  }\n};\n\n// --- derive basicAuth from client credentials (computed here to avoid expression quirks) ---\ntry {\n  const k = CONFIG?.lulu?.clientKey || '';\n  const s = CONFIG?.lulu?.clientSecret || '';\n  const b = Buffer.from(`${k}:${s}`).toString('base64');\n  if (!CONFIG.lulu) CONFIG.lulu = {};\n  CONFIG.lulu.basicAuth = 'Basic ' + b;\n} catch (e) {\n  // leave basicAuth as-is if Buffer not available (should be available in Code nodes)\n}\n\n\nreturn [{ json: { CONFIG } }];\n"
       },
       "id": "3e1d3c29-97f0-4c4a-885b-e102186cad94",
-      "name": "Config (W4) — PRODUCTION",
+      "name": "Config (W4) \u2014 PRODUCTION",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -724,7 +740,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const j = $input.first().json || {};\nconst apiBase = j.CONFIG?.lulu?.apiBase || '';\nconst env = /sandbox/.test(apiBase) ? 'SANDBOX' : (apiBase ? 'PRODUCTION' : 'UNKNOWN');\nlet submitPath = 'UNKNOWN';\nif (j.__skipLulu) submitPath = 'IDEMPOTENT-SKIP';\nelse if (j.luluAccessToken && env==='SANDBOX') submitPath = 'SANDBOX - BEARER';\nelse if (j.luluAccessToken && env==='PRODUCTION') submitPath = 'PRODUCTION - BEARER';\nelse submitPath = 'PRODUCTION - BASIC';\nconst banner = {\n  env,\n  apiBase,\n  submitPath,\n  tokenIssuedAt: j.luluTokenIssuedAt || null,\n  tokenExpiresIn: j.luluTokenExpiresIn || null,\n  orderId: j.orderId,\n  timestamp: new Date().toISOString()\n};\nconsole.log('W4 Status Banner →', banner);\nreturn [{ json: { ...j, _statusBanner: banner } }];"
+        "jsCode": "const j = $input.first().json || {};\nconst apiBase = j.CONFIG?.lulu?.apiBase || '';\nconst env = /sandbox/.test(apiBase) ? 'SANDBOX' : (apiBase ? 'PRODUCTION' : 'UNKNOWN');\nlet submitPath = 'UNKNOWN';\nif (j.__skipLulu) submitPath = 'IDEMPOTENT-SKIP';\nelse if (j.luluAccessToken && env==='SANDBOX') submitPath = 'SANDBOX - BEARER';\nelse if (j.luluAccessToken && env==='PRODUCTION') submitPath = 'PRODUCTION - BEARER';\nelse submitPath = 'PRODUCTION - BASIC';\nconst banner = {\n  env,\n  apiBase,\n  submitPath,\n  tokenIssuedAt: j.luluTokenIssuedAt || null,\n  tokenExpiresIn: j.luluTokenExpiresIn || null,\n  orderId: j.orderId,\n  timestamp: new Date().toISOString()\n};\nconsole.log('W4 Status Banner \u2192', banner);\nreturn [{ json: { ...j, _statusBanner: banner } }];"
       },
       "id": "91295611-b1c0-464a-a08b-a0f7f99f0911",
       "name": "Status Banner (Env & Submit Path)",
@@ -737,10 +753,10 @@
     },
     {
       "parameters": {
-        "content": "🔖 **How to switch SANDBOX ↔ PRODUCTION**\n1) Disconnect **Config (W4) — SANDBOX** → **Validate & Normalize W4 Input**.\n2) Connect **Config (W4) — PRODUCTION** → **Validate & Normalize W4 Input**.\n3) For Lulu submission:\n   • Enable **Lulu PRODUCTION: Get Token → Extract Lulu Access Token (PRODUCTION) → Submit Lulu Print Job (PRODUCTION - BEARER)**.\n   • Disable **Lulu SANDBOX: Get Token → Extract Lulu Access Token (SANDBOX) → Submit Lulu Print Job (SANDBOX - BEARER)**.\n4) (Optional) To use BASIC (not recommended), enable **Submit Lulu Print Job (PRODUCTION - BASIC)**.\nThe **Status Banner** node logs which path ran and token timings.\n\n• Make sure **CONFIG.defaults.podPackageId** is set to the correct Lulu SKU before submitting print jobs.\n"
+        "content": "\ud83d\udd16 **How to switch SANDBOX \u2194 PRODUCTION**\n1) Disconnect **Config (W4) \u2014 SANDBOX** \u2192 **Validate & Normalize W4 Input**.\n2) Connect **Config (W4) \u2014 PRODUCTION** \u2192 **Validate & Normalize W4 Input**.\n3) For Lulu submission:\n   \u2022 Enable **Lulu PRODUCTION: Get Token \u2192 Extract Lulu Access Token (PRODUCTION) \u2192 Submit Lulu Print Job (PRODUCTION - BEARER)**.\n   \u2022 Disable **Lulu SANDBOX: Get Token \u2192 Extract Lulu Access Token (SANDBOX) \u2192 Submit Lulu Print Job (SANDBOX - BEARER)**.\n4) (Optional) To use BASIC (not recommended), enable **Submit Lulu Print Job (PRODUCTION - BASIC)**.\nThe **Status Banner** node logs which path ran and token timings.\n\n\u2022 Make sure **CONFIG.defaults.podPackageId** is set to the correct Lulu SKU before submitting print jobs.\n\n\n**Tip:** When testing token nodes, use *Execute previous nodes* so the node has `$json.CONFIG` to resolve expressions. Otherwise headers may appear as `undefined`."
       },
       "id": "45ff5ae7-362b-4928-b46e-740fc30c29b8",
-      "name": "Sticky: Switch SANDBOX ↔ PRODUCTION",
+      "name": "Sticky: Switch SANDBOX \u2194 PRODUCTION",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -827,7 +843,7 @@
       "main": [
         [
           {
-            "node": "Config (W4) — SANDBOX",
+            "node": "Config (W4) \u2014 SANDBOX",
             "type": "main",
             "index": 0
           },
@@ -848,14 +864,14 @@
             "index": 0
           },
           {
-            "node": "Ack (Phase 0–1)",
+            "node": "Ack (Phase 0\u20131)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Ack (Phase 0–1)": {
+    "Ack (Phase 0\u20131)": {
       "main": [
         [
           {
@@ -1073,7 +1089,7 @@
         ]
       ]
     },
-    "When clicking ‘Execute workflow’": {
+    "When clicking \u2018Execute workflow\u2019": {
       "main": [
         [
           {
@@ -1088,7 +1104,7 @@
       "main": [
         [
           {
-            "node": "Config (W4) — SANDBOX",
+            "node": "Config (W4) \u2014 SANDBOX",
             "type": "main",
             "index": 0
           },
@@ -1133,7 +1149,7 @@
         ]
       ]
     },
-    "Config (W4) — SANDBOX": {
+    "Config (W4) \u2014 SANDBOX": {
       "main": [
         [
           {
