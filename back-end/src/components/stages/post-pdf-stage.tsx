@@ -693,8 +693,28 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         // Determine which cover URL to use (prefer data URL from PDF conversion, fallback to image URL)
         const effectiveCoverUrl = coverImageDataUrl || coverImageUrl || undefined;
         
+        console.log('[Pages] About to create spreads:', {
+          pageDataLength: pageData.length,
+          hasCoverUrl: !!effectiveCoverUrl,
+          coverUrl: effectiveCoverUrl?.substring(0, 60),
+          firstPage: pageData[0] ? {
+            pageNumber: pageData[0].pageNumber,
+            hasPreviewUrl: !!pageData[0].previewImageUrl
+          } : null
+        });
+        
         // Always create spreads with current data (pages + cover)
         const newSpreads = createSpreads(pageData, effectiveCoverUrl);
+        
+        console.log('[Pages] createSpreads returned:', {
+          spreadsCount: newSpreads.length,
+          firstSpread: newSpreads[0] ? {
+            spreadNumber: newSpreads[0].spreadNumber,
+            hasLeft: !!newSpreads[0].leftPage,
+            hasRight: !!newSpreads[0].rightPage,
+            isCover: newSpreads[0].isCover
+          } : null
+        });
         
         // Only update pages state if pages actually changed
         if (pagesChanged || isInitialLoad) {
