@@ -70,10 +70,13 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
   // Track if images have been successfully loaded from manifest (stop polling once found)
   const imagesFoundRef = useRef(false);
+  // Track last loaded pages data to prevent unnecessary re-renders
+  const lastPagesDataRef = useRef<string>('');
 
   // Reset ref and spread index when orderId changes
   useEffect(() => {
     imagesFoundRef.current = false;
+    lastPagesDataRef.current = '';
     setCurrentSpreadIndex(0); // Always start at first spread when viewing a new order
   }, [orderId]);
 
@@ -87,6 +90,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
       // Don't reload if we already have images from the manifest
       if (imagesFoundRef.current) {
+        console.log('[Pages] Images already found, skipping reload');
         return;
       }
 
@@ -169,11 +173,23 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         
         if (!isMounted) return;
         
-        // Always start with first available spread (spread 1, pages 1-2)
-        // When cover/dedication are added later, createSpreads will include them automatically
-        setPages((prevPages) => {
-          const isInitialLoad = prevPages.length === 0;
+        // Check if pages have actually changed to prevent unnecessary re-renders
+        const currentPagesData = JSON.stringify(pageData);
+        const pagesChanged = currentPagesData !== lastPagesDataRef.current;
+        
+        // Only update state if pages have changed
+        if (pagesChanged || lastPagesDataRef.current === '') {
+          const isInitialLoad = lastPagesDataRef.current === '';
           const newSpreads = createSpreads(pageData);
+          
+          // Update pages first
+          setPages(pageData);
+          
+          // Update spreads
+          setSpreads(newSpreads);
+          
+          // Store the current pages data to prevent re-renders
+          lastPagesDataRef.current = currentPagesData;
           
           // Always start at the first spread (index 0) when pages are first loaded
           // This ensures we start with the first available page, not blank placeholders
@@ -182,17 +198,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             setCurrentSpreadIndex(0);
           } else {
             // Refreshing pages - preserve current spread index, but clamp to valid range
-            setCurrentSpreadIndex((prevIndex) => {
-              const maxIndex = newSpreads.length > 0 ? newSpreads.length - 1 : 0;
-              return Math.min(prevIndex, maxIndex);
-            });
+            const maxIndex = newSpreads.length > 0 ? newSpreads.length - 1 : 0;
+            setCurrentSpreadIndex((prevIndex) => Math.min(prevIndex, maxIndex));
           }
-          
-          // Update spreads when pages change
-          setSpreads(newSpreads);
-          
-          return pageData;
-        });
+        }
         
         setLoadingPages(false);
         
@@ -243,14 +252,24 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     loadPages();
 
     // Start polling - will stop automatically once images are found
-    intervalId = setInterval(() => {
-      loadPages();
-    }, 10000);
+    // Only poll if images haven't been found yet
+    if (!imagesFoundRef.current) {
+      intervalId = setInterval(() => {
+        // Double-check ref before polling
+        if (!imagesFoundRef.current && isMounted) {
+          loadPages();
+        } else if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      }, 10000);
+    }
 
     return () => {
       isMounted = false;
       if (intervalId) {
         clearInterval(intervalId);
+        intervalId = null;
       }
     };
   }, [orderId, pdfUrl]);
