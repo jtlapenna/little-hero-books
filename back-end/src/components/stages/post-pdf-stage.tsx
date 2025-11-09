@@ -4,6 +4,12 @@ import { useEffect, useState, useRef } from 'react';
 import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure PDF.js worker
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+}
 
 interface PostPdfStageProps {
   orderId: string;
@@ -104,6 +110,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const [imageError, setImageError] = useState<{ left: string | null; right: string | null }>({ left: null, right: null });
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [coverImageLoading, setCoverImageLoading] = useState(false);
+  const [coverImageDataUrl, setCoverImageDataUrl] = useState<string | null>(null); // For PDFs converted to images
+  const coverCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
@@ -117,8 +125,48 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   useEffect(() => {
     imagesFoundRef.current = false;
     lastPagesDataRef.current = '';
+    setCoverImageUrl(null);
+    setCoverImageDataUrl(null);
     setCurrentSpreadIndex(0); // Always start at first spread when viewing a new order
   }, [orderId]);
+
+  // Helper function to convert PDF to image using PDF.js
+  const convertPdfToImage = async (pdfUrl: string): Promise<string> => {
+    try {
+      console.log('[Pages] Converting PDF to image:', pdfUrl);
+      const loadingTask = pdfjsLib.getDocument(pdfUrl);
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1); // Get first page
+      
+      // Set scale for high quality (2x for retina displays)
+      const scale = 2;
+      const viewport = page.getViewport({ scale });
+      
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error('Could not get canvas context');
+      }
+      
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      
+      // Render PDF page to canvas
+      await page.render({
+        canvasContext: context,
+        viewport: viewport
+      }).promise;
+      
+      // Convert canvas to data URL
+      const dataUrl = canvas.toDataURL('image/png');
+      console.log('[Pages] ✓ PDF converted to image successfully');
+      return dataUrl;
+    } catch (error) {
+      console.error('[Pages] Error converting PDF to image:', error);
+      throw error;
+    }
+  };
 
   // Load preview images from 3-manifest or construct directly from R2
   useEffect(() => {
@@ -214,35 +262,47 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         if (!isMounted) return;
         
         // Try to load cover PDF image if not already loaded
-        if (!coverImageUrl) {
+        if (!coverImageUrl && !coverImageDataUrl) {
           setCoverImageLoading(true);
           try {
             // Cover PDF path: book-mvp-simple-adventure/orders/{orderId}/cover_{orderId}.pdf
             const coverPdfPath = `book-mvp-simple-adventure/orders/${orderId}/cover_${orderId}.pdf`;
-            // Convert PDF to image URL - we'll use a preview image if available, or construct from PDF
-            // For now, try to get a preview image URL (if workflow 3 generates one)
+            // Try to get a preview image URL first (if workflow 3 generates one)
             const coverPreviewPath = `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover_preview.png`;
             const coverPreviewUrl = `/api/assets/${coverPreviewPath}`;
             
-            // Check if cover preview exists, otherwise use PDF (which will need to be converted)
+            // Check if cover preview exists, otherwise convert PDF to image
             fetch(coverPreviewUrl, { method: 'HEAD' })
-              .then(res => {
+              .then(async res => {
                 if (res.ok) {
                   setCoverImageUrl(coverPreviewUrl);
                   setCoverImageLoading(false);
                 } else {
-                  // Fallback: try to use PDF as image (browser may render it)
-                  // Or construct from cover PDF path
+                  // Convert PDF to image using PDF.js
                   const coverPdfUrl = `/api/pdf/${coverPdfPath}`;
-                  setCoverImageUrl(coverPdfUrl);
-                  setCoverImageLoading(false);
+                  try {
+                    const dataUrl = await convertPdfToImage(coverPdfUrl);
+                    setCoverImageDataUrl(dataUrl);
+                    setCoverImageUrl(coverPdfUrl); // Keep PDF URL for reference
+                    setCoverImageLoading(false);
+                  } catch (pdfError) {
+                    console.error('[Pages] Failed to convert cover PDF to image:', pdfError);
+                    setCoverImageLoading(false);
+                  }
                 }
               })
-              .catch(() => {
-                // Fallback to PDF URL
+              .catch(async () => {
+                // Fallback: try to convert PDF to image
                 const coverPdfUrl = `/api/pdf/${coverPdfPath}`;
-                setCoverImageUrl(coverPdfUrl);
-                setCoverImageLoading(false);
+                try {
+                  const dataUrl = await convertPdfToImage(coverPdfUrl);
+                  setCoverImageDataUrl(dataUrl);
+                  setCoverImageUrl(coverPdfUrl);
+                  setCoverImageLoading(false);
+                } catch (pdfError) {
+                  console.error('[Pages] Failed to convert cover PDF to image:', pdfError);
+                  setCoverImageLoading(false);
+                }
               });
           } catch (e) {
             console.log('[Pages] Cover image not available:', e);
@@ -253,12 +313,15 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         // Check if pages have actually changed to prevent unnecessary re-renders
         const currentPagesData = JSON.stringify(pageData);
         const pagesChanged = currentPagesData !== lastPagesDataRef.current;
-        const coverChanged = coverImageUrl !== null;
+        const coverChanged = coverImageUrl !== null || coverImageDataUrl !== null;
+        
+        // Determine which cover URL to use (prefer data URL from PDF conversion, fallback to image URL)
+        const effectiveCoverUrl = coverImageDataUrl || coverImageUrl || undefined;
         
         // Only update state if pages have changed or cover was just loaded
         if (pagesChanged || lastPagesDataRef.current === '' || coverChanged) {
           const isInitialLoad = lastPagesDataRef.current === '';
-          const newSpreads = createSpreads(pageData, coverImageUrl || undefined);
+          const newSpreads = createSpreads(pageData, effectiveCoverUrl);
           
           // Update pages first
           setPages(pageData);
