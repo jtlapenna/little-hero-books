@@ -334,8 +334,12 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   setCoverImageLoading(false);
                   // Update spreads with new cover data URL
                   setSpreads(prev => {
+                    // Use current pages state if available, otherwise use pageData from this load
                     const currentPages = pages.length > 0 ? pages : pageData;
-                    return createSpreads(currentPages, dataUrl);
+                    if (currentPages.length > 0) {
+                      return createSpreads(currentPages, dataUrl);
+                    }
+                    return prev; // Don't update if no pages yet
                   });
                 } catch (pdfError) {
                   if (!isMounted) return;
