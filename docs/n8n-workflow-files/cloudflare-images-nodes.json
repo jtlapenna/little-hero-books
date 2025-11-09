@@ -4,14 +4,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.cloudflare.com/client/v4/accounts/{{ $env.CLOUDFLARE_ACCOUNT_ID }}/images/v1",
-        "authentication": "genericCredentialType",
+        "url": "https://api.cloudflare.com/client/v4/accounts/YOUR_CLOUDFLARE_ACCOUNT_ID_HERE/images/v1",
+        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer {{ $env.CLOUDFLARE_IMAGES_API_TOKEN }}"
+              "value": "Bearer YOUR_CLOUDFLARE_IMAGES_API_TOKEN_HERE"
             }
           ]
         },

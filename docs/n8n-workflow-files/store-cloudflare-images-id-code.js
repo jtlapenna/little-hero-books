@@ -52,7 +52,7 @@ for (let i = 0; i < pageData.length; i++) {
       
       // Construct the delivery URL if we have an ID
       if (cloudflareImageId && accountHash) {
-        cloudflareImageUrl = `https://imagedelivery.net/${accountHash}/${cloudflareImageId}/preview`;
+        cloudflareImageUrl = `https://imagedelivery.net/${accountHash}/${cloudflareImageId}/public`;
       }
     }
     
