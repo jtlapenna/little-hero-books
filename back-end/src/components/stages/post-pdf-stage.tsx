@@ -619,35 +619,66 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     const currentSpread = spreads[currentSpreadIndex];
     if (!currentSpread) return;
 
+    // Only check if loading state is active (prevents unnecessary checks)
+    const needsRightCheck = imageLoading.right && currentSpread.coverData?.isFrontCover && currentSpread.coverData.fullImageUrl;
+    const needsLeftCheck = imageLoading.left && currentSpread.coverData?.isBackCover && currentSpread.coverData.fullImageUrl;
+
+    if (!needsRightCheck && !needsLeftCheck) return;
+
+    let frontCoverImg: HTMLImageElement | null = null;
+    let backCoverImg: HTMLImageElement | null = null;
+    let isMounted = true;
+
     // Check front cover
-    if (currentSpread.coverData?.isFrontCover && currentSpread.coverData.fullImageUrl && imageLoading.right) {
-      const img = new Image();
-      img.onload = () => {
-        console.log('[Spreads] ✓ Front cover image verified as loaded');
-        setImageLoading(prev => ({ ...prev, right: false }));
-        setImageError(prev => ({ ...prev, right: null }));
+    if (needsRightCheck) {
+      frontCoverImg = new Image();
+      
+      frontCoverImg.onload = () => {
+        if (isMounted) {
+          console.log('[Spreads] ✓ Front cover image verified as loaded');
+          setImageLoading(prev => ({ ...prev, right: false }));
+          setImageError(prev => ({ ...prev, right: null }));
+        }
       };
-      img.onerror = () => {
+      frontCoverImg.onerror = () => {
         // Image failed to load - let onError handler deal with it
+        // Don't set error here, let the actual img element's onError handle it
       };
       // Set src to trigger load check (will use cache if available)
-      img.src = currentSpread.coverData.fullImageUrl;
+      frontCoverImg.src = currentSpread.coverData.fullImageUrl;
     }
 
     // Check back cover
-    if (currentSpread.coverData?.isBackCover && currentSpread.coverData.fullImageUrl && imageLoading.left) {
-      const img = new Image();
-      img.onload = () => {
-        console.log('[Spreads] ✓ Back cover image verified as loaded');
-        setImageLoading(prev => ({ ...prev, left: false }));
-        setImageError(prev => ({ ...prev, left: null }));
+    if (needsLeftCheck) {
+      backCoverImg = new Image();
+      
+      backCoverImg.onload = () => {
+        if (isMounted) {
+          console.log('[Spreads] ✓ Back cover image verified as loaded');
+          setImageLoading(prev => ({ ...prev, left: false }));
+          setImageError(prev => ({ ...prev, left: null }));
+        }
       };
-      img.onerror = () => {
+      backCoverImg.onerror = () => {
         // Image failed to load - let onError handler deal with it
+        // Don't set error here, let the actual img element's onError handle it
       };
       // Set src to trigger load check (will use cache if available)
-      img.src = currentSpread.coverData.fullImageUrl;
+      backCoverImg.src = currentSpread.coverData.fullImageUrl;
     }
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      if (frontCoverImg) {
+        frontCoverImg.onload = null;
+        frontCoverImg.onerror = null;
+      }
+      if (backCoverImg) {
+        backCoverImg.onload = null;
+        backCoverImg.onerror = null;
+      }
+    };
   }, [currentSpreadIndex, spreads, imageLoading.left, imageLoading.right]);
 
   const handleDownload = () => {
@@ -933,14 +964,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                           key={`back-cover-${orderId}-${currentSpreadIndex}-${currentSpread.coverData.fullImageUrl.startsWith('data:') ? 'data' : 'url'}-${currentSpread.coverData.fullImageUrl.length}`}
                           src={currentSpread.coverData.fullImageUrl}
                         alt="Back Cover"
-                        ref={(img) => {
-                          // Check if image is already loaded (cached) when element is created
-                          if (img && img.complete && img.naturalHeight !== 0) {
-                            console.log('[Spreads] ✓ Back cover image already loaded (cached)');
-                            setImageLoading(prev => ({ ...prev, left: false }));
-                            setImageError(prev => ({ ...prev, left: null }));
-                          }
-                        }}
+                          ref={(img) => {
+                            // Check if image is already loaded (cached) when element is created
+                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0) {
+                              console.log('[Spreads] ✓ Back cover image already loaded (cached)');
+                              setImageLoading(prev => ({ ...prev, left: false }));
+                              setImageError(prev => ({ ...prev, left: null }));
+                            }
+                          }}
                         onLoad={() => {
                           console.log('[Spreads] ✓ Back cover image loaded successfully');
                           setImageLoading(prev => ({ ...prev, left: false }));
@@ -1029,7 +1060,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                           alt="Front Cover"
                           ref={(img) => {
                             // Check if image is already loaded (cached) when element is created
-                            if (img && img.complete && img.naturalHeight !== 0) {
+                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0) {
                               console.log('[Spreads] ✓ Front cover image already loaded (cached)');
                               setImageLoading(prev => ({ ...prev, right: false }));
                               setImageError(prev => ({ ...prev, right: null }));
