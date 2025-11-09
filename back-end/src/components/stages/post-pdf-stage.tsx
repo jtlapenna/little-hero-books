@@ -19,27 +19,65 @@ interface PageData {
   previewImageUrl: string;
 }
 
+interface CoverData {
+  fullImageUrl: string;
+  isFrontCover?: boolean; // true for front cover (right half), false for back cover (left half)
+  isBackCover?: boolean;
+}
+
 interface SpreadData {
   spreadNumber: number;
   leftPage?: PageData;
   rightPage?: PageData;
+  coverData?: CoverData; // For cover spreads
   isCover: boolean;
   isBackCover: boolean;
 }
 
-// Create spreads from pages (pages 1-14 only, no cover/back cover yet)
-function createSpreads(pages: PageData[]): SpreadData[] {
+// Create spreads from pages, including cover pages if cover image is available
+function createSpreads(pages: PageData[], coverImageUrl?: string): SpreadData[] {
   const spreads: SpreadData[] = [];
   
+  // Add front cover spread (right half of cover image) if cover is available
+  if (coverImageUrl) {
+    spreads.push({
+      spreadNumber: 0,
+      leftPage: undefined,
+      rightPage: undefined,
+      coverData: {
+        fullImageUrl: coverImageUrl,
+        isFrontCover: true,
+        isBackCover: false
+      },
+      isCover: true,
+      isBackCover: false
+    });
+  }
+  
   // Interior spreads (pages 1-14, paired)
-  // Note: Cover, dedication, and back cover not yet implemented
   for (let i = 0; i < pages.length; i += 2) {
     spreads.push({
-      spreadNumber: Math.floor(i / 2) + 1,
+      spreadNumber: spreads.length, // Continue numbering from cover
       leftPage: pages[i],
       rightPage: pages[i + 1] || undefined, // Last spread might have only left page
       isCover: false,
       isBackCover: false
+    });
+  }
+  
+  // Add back cover spread (left half of cover image) if cover is available
+  if (coverImageUrl) {
+    spreads.push({
+      spreadNumber: spreads.length,
+      leftPage: undefined,
+      rightPage: undefined,
+      coverData: {
+        fullImageUrl: coverImageUrl,
+        isFrontCover: false,
+        isBackCover: true
+      },
+      isCover: false,
+      isBackCover: true
     });
   }
   
@@ -64,6 +102,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const [pagesError, setPagesError] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState({ left: true, right: true });
   const [imageError, setImageError] = useState<{ left: string | null; right: string | null }>({ left: null, right: null });
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  const [coverImageLoading, setCoverImageLoading] = useState(false);
 
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
@@ -173,14 +213,52 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         
         if (!isMounted) return;
         
+        // Try to load cover PDF image if not already loaded
+        if (!coverImageUrl) {
+          setCoverImageLoading(true);
+          try {
+            // Cover PDF path: book-mvp-simple-adventure/orders/{orderId}/cover_{orderId}.pdf
+            const coverPdfPath = `book-mvp-simple-adventure/orders/${orderId}/cover_${orderId}.pdf`;
+            // Convert PDF to image URL - we'll use a preview image if available, or construct from PDF
+            // For now, try to get a preview image URL (if workflow 3 generates one)
+            const coverPreviewPath = `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover_preview.png`;
+            const coverPreviewUrl = `/api/assets/${coverPreviewPath}`;
+            
+            // Check if cover preview exists, otherwise use PDF (which will need to be converted)
+            fetch(coverPreviewUrl, { method: 'HEAD' })
+              .then(res => {
+                if (res.ok) {
+                  setCoverImageUrl(coverPreviewUrl);
+                  setCoverImageLoading(false);
+                } else {
+                  // Fallback: try to use PDF as image (browser may render it)
+                  // Or construct from cover PDF path
+                  const coverPdfUrl = `/api/pdf/${coverPdfPath}`;
+                  setCoverImageUrl(coverPdfUrl);
+                  setCoverImageLoading(false);
+                }
+              })
+              .catch(() => {
+                // Fallback to PDF URL
+                const coverPdfUrl = `/api/pdf/${coverPdfPath}`;
+                setCoverImageUrl(coverPdfUrl);
+                setCoverImageLoading(false);
+              });
+          } catch (e) {
+            console.log('[Pages] Cover image not available:', e);
+            setCoverImageLoading(false);
+          }
+        }
+        
         // Check if pages have actually changed to prevent unnecessary re-renders
         const currentPagesData = JSON.stringify(pageData);
         const pagesChanged = currentPagesData !== lastPagesDataRef.current;
+        const coverChanged = coverImageUrl !== null;
         
-        // Only update state if pages have changed
-        if (pagesChanged || lastPagesDataRef.current === '') {
+        // Only update state if pages have changed or cover was just loaded
+        if (pagesChanged || lastPagesDataRef.current === '' || coverChanged) {
           const isInitialLoad = lastPagesDataRef.current === '';
-          const newSpreads = createSpreads(pageData);
+          const newSpreads = createSpreads(pageData, coverImageUrl || undefined);
           
           // Update pages first
           setPages(pageData);
@@ -272,15 +350,15 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         intervalId = null;
       }
     };
-  }, [orderId, pdfUrl]);
+  }, [orderId, pdfUrl, coverImageUrl]);
 
   // Reset image loading state when spread changes
   useEffect(() => {
     const currentSpread = spreads[currentSpreadIndex];
-    // Only set loading to true if there's actually a page to load
+    // Set loading to true if there's a page or cover to load
     setImageLoading({ 
-      left: currentSpread?.leftPage ? true : false, 
-      right: currentSpread?.rightPage ? true : false 
+      left: (currentSpread?.leftPage || (currentSpread?.coverData && currentSpread.coverData.isBackCover)) ? true : false, 
+      right: (currentSpread?.rightPage || (currentSpread?.coverData && currentSpread.coverData.isFrontCover)) ? true : false 
     });
     setImageError({ left: null, right: null });
   }, [currentSpreadIndex, spreads]);
@@ -370,6 +448,29 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           background-color: white;
           /* Simulated white page - no image needed */
         }
+
+        .cover-image-container {
+          width: 50%;
+          aspect-ratio: 1 / 1;
+          overflow: hidden;
+          position: relative;
+          background-color: white;
+        }
+
+        .cover-image-container img {
+          width: 200%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
+        }
+
+        .cover-image-container.front-cover img {
+          object-position: right center;
+        }
+
+        .cover-image-container.back-cover img {
+          object-position: left center;
+        }
       `}} />
     <div className="space-y-8">
       <div className="space-y-6">
@@ -458,12 +559,18 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">
                   Spread {currentSpreadNumber} of {totalSpreads}
-                  {currentSpread.leftPage && currentSpread.rightPage && (
+                  {currentSpread.isCover && (
+                    <span className="text-gray-500 ml-2">(Front Cover)</span>
+                  )}
+                  {currentSpread.isBackCover && (
+                    <span className="text-gray-500 ml-2">(Back Cover)</span>
+                  )}
+                  {!currentSpread.isCover && !currentSpread.isBackCover && currentSpread.leftPage && currentSpread.rightPage && (
                     <span className="text-gray-500 ml-2">
                       (Pages {currentSpread.leftPage.pageNumber} & {currentSpread.rightPage.pageNumber})
                     </span>
                   )}
-                  {currentSpread.leftPage && !currentSpread.rightPage && (
+                  {!currentSpread.isCover && !currentSpread.isBackCover && currentSpread.leftPage && !currentSpread.rightPage && (
                     <span className="text-gray-500 ml-2">
                       (Page {currentSpread.leftPage.pageNumber})
                     </span>
@@ -492,11 +599,12 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
             {/* Spread Display Area */}
             <div className="bg-gray-100 flex items-center justify-center p-8 relative">
-              {((currentSpread.leftPage && imageLoading.left) || (currentSpread.rightPage && imageLoading.right)) && (
+              {((currentSpread.leftPage || (currentSpread.coverData && currentSpread.coverData.isBackCover)) && imageLoading.left) || 
+                ((currentSpread.rightPage || (currentSpread.coverData && currentSpread.coverData.isFrontCover)) && imageLoading.right) ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
                       <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
                     </div>
-                  )}
+                  ) : null}
                   
               {(imageError.left || imageError.right) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
@@ -511,8 +619,32 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
               <div className="spread-container w-full max-w-full">
                 <div className="two-page-spread">
-                  {/* Left page */}
-                  {currentSpread.leftPage ? (
+                  {/* Left page - can be regular page or back cover */}
+                  {currentSpread.coverData && currentSpread.coverData.isBackCover ? (
+                    // Back cover: show left half of cover image
+                    <div className="cover-image-container back-cover">
+                      <img
+                        src={currentSpread.coverData.fullImageUrl}
+                        alt="Back Cover"
+                        onLoad={() => {
+                          console.log('[Spreads] ✓ Back cover image loaded successfully');
+                          setImageLoading(prev => ({ ...prev, left: false }));
+                          setImageError(prev => ({ ...prev, left: null }));
+                        }}
+                        onError={(e) => {
+                          console.error('[Spreads] ✗ Back cover image failed to load:', e);
+                          setImageLoading(prev => ({ ...prev, left: false }));
+                          setImageError(prev => ({ ...prev, left: 'Failed to load back cover' }));
+                        }}
+                        className={`transition-opacity duration-200 ${
+                          imageLoading.left ? 'opacity-0' : 'opacity-100'
+                        }`}
+                        style={{
+                          display: imageError.left ? 'none' : 'block'
+                        }}
+                      />
+                    </div>
+                  ) : currentSpread.leftPage ? (
                     <img
                       src={currentSpread.leftPage.previewImageUrl}
                       alt={`Page ${currentSpread.leftPage.pageNumber}`}
@@ -555,8 +687,32 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     <div className="white-page" />
                   )}
                   
-                  {/* Right page */}
-                  {currentSpread.rightPage ? (
+                  {/* Right page - can be regular page or front cover */}
+                  {currentSpread.coverData && currentSpread.coverData.isFrontCover ? (
+                    // Front cover: show right half of cover image
+                    <div className="cover-image-container front-cover">
+                      <img
+                        src={currentSpread.coverData.fullImageUrl}
+                        alt="Front Cover"
+                        onLoad={() => {
+                          console.log('[Spreads] ✓ Front cover image loaded successfully');
+                          setImageLoading(prev => ({ ...prev, right: false }));
+                          setImageError(prev => ({ ...prev, right: null }));
+                        }}
+                        onError={(e) => {
+                          console.error('[Spreads] ✗ Front cover image failed to load:', e);
+                          setImageLoading(prev => ({ ...prev, right: false }));
+                          setImageError(prev => ({ ...prev, right: 'Failed to load front cover' }));
+                        }}
+                        className={`transition-opacity duration-200 ${
+                          imageLoading.right ? 'opacity-0' : 'opacity-100'
+                        }`}
+                        style={{
+                          display: imageError.right ? 'none' : 'block'
+                        }}
+                      />
+                    </div>
+                  ) : currentSpread.rightPage ? (
                     <img
                       src={currentSpread.rightPage.previewImageUrl}
                       alt={`Page ${currentSpread.rightPage.pageNumber}`}
