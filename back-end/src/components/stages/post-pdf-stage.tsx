@@ -370,6 +370,15 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               || manifest3?.pngGeneration?.pagesWithCloudflare 
               || {};
             
+            // Debug: Log Cloudflare Images data location
+            console.log('[Pages] Cloudflare Images check:', {
+              hasManifestNested: !!manifest3?.manifest?.pngGeneration?.pagesWithCloudflare,
+              hasPngGenTopLevel: !!manifest3?.pngGeneration?.pagesWithCloudflare,
+              pagesWithCloudflareKeys: Object.keys(pagesWithCloudflare),
+              pagesWithCloudflareCount: Object.keys(pagesWithCloudflare).length,
+              samplePage: pagesWithCloudflare['p01'] || pagesWithCloudflare['p00_dedication'] || null
+            });
+            
             console.log('[Pages] Manifest check:', {
               isArray: Array.isArray(manifest3Raw),
               hasPagePreviewImages: !!manifest3?.pagePreviewImages,
@@ -424,6 +433,15 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   const cfData = pagesWithCloudflare[pageKey] || null;
                   const cloudflareImageUrl = img.cloudflareImageUrl || cfData?.cloudflareImageUrl || null;
                   const cloudflareImageId = img.cloudflareImageId || cfData?.cloudflareImageId || null;
+                  
+                  // Debug: Log if Cloudflare data exists for this page
+                  if (cfData) {
+                    console.log(`[Pages] Page ${img.pageNumber} (${pageKey}): Found Cloudflare data:`, {
+                      hasId: !!cfData.cloudflareImageId,
+                      hasUrl: !!cfData.cloudflareImageUrl,
+                      url: cfData.cloudflareImageUrl?.substring(0, 60) + '...' || null
+                    });
+                  }
                   
                   // Helper to validate Cloudflare Images URL
                   const isValidCloudflareUrl = (url: string | null): boolean => {
