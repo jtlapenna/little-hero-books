@@ -293,13 +293,20 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         let foundInManifest = false;
         
         try {
+          console.log('[Pages] Fetching manifest from:', manifest3Url);
           const manifest3Res = await fetch(manifest3Url);
           
           if (manifest3Res.ok) {
             const manifest3Raw = await manifest3Res.json();
             
+            console.log('[Pages] Raw manifest response type:', Array.isArray(manifest3Raw) ? 'array' : 'object');
+            console.log('[Pages] Raw manifest keys (first 20):', manifest3Raw ? Object.keys(manifest3Raw).slice(0, 20) : 'null');
+            
             // Handle array response (manifest might be wrapped in array)
             const manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
+            
+            console.log('[Pages] Processed manifest type:', Array.isArray(manifest3Raw) ? 'array[0]' : 'object');
+            console.log('[Pages] Processed manifest keys (first 20):', manifest3 ? Object.keys(manifest3).slice(0, 20) : 'null');
             
             // Check multiple possible locations for pagePreviewImages
             // Try top-level first (most common), then nested in manifest, then bookAssembly
