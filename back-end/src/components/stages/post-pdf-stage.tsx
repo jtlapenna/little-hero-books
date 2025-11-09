@@ -297,15 +297,43 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           
           if (manifest3Res.ok) {
             const manifest3 = await manifest3Res.json();
+            
             // Check multiple possible locations for pagePreviewImages
-            const previewImages = manifest3?.bookAssembly?.pagePreviewImages 
-              || manifest3?.pagePreviewImages 
+            // Try top-level first, then nested in manifest, then bookAssembly
+            let previewImages = manifest3?.pagePreviewImages 
+              || manifest3?.manifest?.pagePreviewImages
+              || manifest3?.bookAssembly?.pagePreviewImages 
               || [];
+            
+            // Fallback: Build from pngGeneration.storyImages if pagePreviewImages doesn't exist
+            if (!previewImages || previewImages.length === 0) {
+              const storyImages = manifest3?.pngGeneration?.storyImages 
+                || manifest3?.manifest?.pngGeneration?.storyImages 
+                || [];
+              if (storyImages && storyImages.length > 0) {
+                console.log('[Pages] Building pagePreviewImages from pngGeneration.storyImages');
+                previewImages = storyImages.map((img: any) => ({
+                  pageNumber: img.pageNumber || 0,
+                  r2Key: img.r2Key || null,
+                  imageUrl: img.imageUrl || null,
+                  filename: img.filename || null
+                }));
+              }
+            }
             
             // Get Cloudflare Images data from pagesWithCloudflare if available
             const pagesWithCloudflare = manifest3?.manifest?.pngGeneration?.pagesWithCloudflare 
               || manifest3?.pngGeneration?.pagesWithCloudflare 
               || {};
+            
+            console.log('[Pages] Manifest check:', {
+              hasPagePreviewImages: !!manifest3?.pagePreviewImages,
+              hasManifestPagePreviewImages: !!manifest3?.manifest?.pagePreviewImages,
+              hasBookAssemblyPagePreviewImages: !!manifest3?.bookAssembly?.pagePreviewImages,
+              hasPngGenerationStoryImages: !!(manifest3?.pngGeneration?.storyImages || manifest3?.manifest?.pngGeneration?.storyImages),
+              previewImagesCount: previewImages.length,
+              pagesWithCloudflareCount: Object.keys(pagesWithCloudflare).length
+            });
             
             if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
               foundInManifest = true;
