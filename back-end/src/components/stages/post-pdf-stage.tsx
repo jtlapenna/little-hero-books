@@ -313,14 +313,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         // Check if pages have actually changed to prevent unnecessary re-renders
         const currentPagesData = JSON.stringify(pageData);
         const pagesChanged = currentPagesData !== lastPagesDataRef.current;
-        const coverChanged = coverImageUrl !== null || coverImageDataUrl !== null;
+        const isInitialLoad = lastPagesDataRef.current === '';
         
         // Determine which cover URL to use (prefer data URL from PDF conversion, fallback to image URL)
         const effectiveCoverUrl = coverImageDataUrl || coverImageUrl || undefined;
         
-        // Only update state if pages have changed or cover was just loaded
-        if (pagesChanged || lastPagesDataRef.current === '' || coverChanged) {
-          const isInitialLoad = lastPagesDataRef.current === '';
+        // Only update state if pages have actually changed (not just cover state)
+        // This prevents re-renders when cover loads but pages haven't changed
+        if (pagesChanged || isInitialLoad) {
           const newSpreads = createSpreads(pageData, effectiveCoverUrl);
           
           // Update pages first
@@ -342,9 +342,18 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             const maxIndex = newSpreads.length > 0 ? newSpreads.length - 1 : 0;
             setCurrentSpreadIndex((prevIndex) => Math.min(prevIndex, maxIndex));
           }
+          
+          // Only set loading to false when pages actually change
+          // This prevents the loading state from being reset when cover loads separately
+          setLoadingPages(false);
+        } else {
+          // Pages haven't changed, but cover might have - update spreads only if cover changed
+          // This allows cover to appear without re-rendering pages or resetting loading state
+          if (effectiveCoverUrl) {
+            const newSpreads = createSpreads(pageData, effectiveCoverUrl);
+            setSpreads(newSpreads);
+          }
         }
-        
-        setLoadingPages(false);
         
         // If we found images in the manifest, stop polling
         if (foundInManifest && pageData.length > 0) {
@@ -413,7 +422,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         intervalId = null;
       }
     };
-  }, [orderId, pdfUrl, coverImageUrl]);
+  }, [orderId, pdfUrl]); // Removed coverImageUrl and coverImageDataUrl to prevent reload loops
 
   // Reset image loading state when spread changes
   useEffect(() => {
