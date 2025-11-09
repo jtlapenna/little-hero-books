@@ -297,6 +297,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       const formData = new FormData();
       formData.append('poseNumber', poseNumber.toString());
       formData.append('stage', 'postBria');
+      formData.append('isFlipped', 'true'); // Mark this as a flip operation
       formData.append('file', blob, `pose${String(poseNumber).padStart(2, '0')}-nobg.png`);
 
       const response = await fetch(`/api/orders/${orderId}/replace-image`, {

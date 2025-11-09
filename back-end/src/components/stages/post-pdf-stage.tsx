@@ -210,7 +210,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       
       // Render PDF page to canvas
       await page.render({
-        canvasContext: context,
+        canvas: canvas,
         viewport: viewport
       }).promise;
       
@@ -321,9 +321,16 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   const cloudflareImageUrl = img.cloudflareImageUrl || cfData?.cloudflareImageUrl || null;
                   const cloudflareImageId = img.cloudflareImageId || cfData?.cloudflareImageId || null;
                   
-                  // Priority 1: Use Cloudflare Images if available (fastest, WebP, CDN)
+                  // Helper to validate Cloudflare Images URL
+                  const isValidCloudflareUrl = (url: string | null): boolean => {
+                    if (!url || typeof url !== 'string') return false;
+                    // Must be a valid Cloudflare Images URL: https://imagedelivery.net/{accountHash}/{imageId}/{variant}
+                    return url.startsWith('https://imagedelivery.net/') && url.split('/').length >= 5;
+                  };
+                  
+                  // Priority 1: Use Cloudflare Images if available and valid (fastest, WebP, CDN)
                   let imageUrl: string;
-                  if (cloudflareImageUrl) {
+                  if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
                     imageUrl = cloudflareImageUrl;
                     console.log(`[Pages] Page ${img.pageNumber}: Using Cloudflare Images`);
                   }
@@ -331,7 +338,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   else if (img.r2Key) {
                     // Use relative URL so it works with any deployment (production or preview)
                     imageUrl = `/api/assets/${img.r2Key}`;
-                    console.log(`[Pages] Page ${img.pageNumber}: Using R2 fallback`);
+                    if (cloudflareImageUrl && !isValidCloudflareUrl(cloudflareImageUrl)) {
+                      console.warn(`[Pages] Page ${img.pageNumber}: Invalid Cloudflare Images URL, using R2 fallback:`, cloudflareImageUrl);
+                    } else {
+                      console.log(`[Pages] Page ${img.pageNumber}: Using R2 fallback`);
+                    }
                   }
                   // Priority 3: Try to extract r2Key from imageUrl if it's an absolute URL
                   else {
@@ -630,6 +641,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   // Reset image loading state when spread changes (only if spread actually changed)
   // Compare spread key to prevent unnecessary resets when spreads array is recreated
   useEffect(() => {
+    let loadingTimeout: NodeJS.Timeout | null = null;
+    
     const currentSpread = spreads[currentSpreadIndex];
     if (!currentSpread) {
       // Only reset if we actually had a spread before
@@ -639,7 +652,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       }
       lastSpreadIndexRef.current = currentSpreadIndex;
       lastSpreadKeyRef.current = '';
-      return;
+      return () => {
+        if (loadingTimeout) clearTimeout(loadingTimeout);
+      };
     }
     
     // Create a stable unique key for this spread based on its content
@@ -673,6 +688,19 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       });
       setImageError({ left: null, right: null });
       
+      // Safety timeout: clear loading state after 30 seconds to prevent infinite loading
+      // This handles cases where images fail to load but onError doesn't fire
+      loadingTimeout = setTimeout(() => {
+        setImageLoading(prev => {
+          // Only clear if still loading (prev hasn't been cleared by onLoad/onError)
+          if (prev.left || prev.right) {
+            console.warn(`[Spreads] Loading timeout for spread ${currentSpreadIndex}, clearing loading state`);
+            return { left: false, right: false };
+          }
+          return prev;
+        });
+      }, 30000);
+      
       // Reset ref callback flags when spread changes
       if (indexChanged) {
         coverImageRefHandledRef.current = { front: false, back: false };
@@ -684,6 +712,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     }
     // If spread hasn't changed (same index and same key), don't reset loading state
     // This prevents loading state from resetting when spreads are recreated during polling
+    
+    // Cleanup timeout on unmount or when spread changes
+    return () => {
+      if (loadingTimeout) clearTimeout(loadingTimeout);
+    };
   }, [currentSpreadIndex, spreads]);
 
   // Check if cover image is already loaded when cover URL changes
@@ -718,7 +751,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         // Don't set error here, let the actual img element's onError handle it
       };
       // Set src to trigger load check (will use cache if available)
-      frontCoverImg.src = currentSpread.coverData.fullImageUrl;
+      if (currentSpread.coverData?.fullImageUrl) {
+        frontCoverImg.src = currentSpread.coverData.fullImageUrl;
+      }
     }
 
     // Check back cover
@@ -737,7 +772,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         // Don't set error here, let the actual img element's onError handle it
       };
       // Set src to trigger load check (will use cache if available)
-      backCoverImg.src = currentSpread.coverData.fullImageUrl;
+      if (currentSpread.coverData?.fullImageUrl) {
+        backCoverImg.src = currentSpread.coverData.fullImageUrl;
+      }
     }
 
     // Cleanup function
@@ -1036,7 +1073,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           </div>
         )}
 
-        {!loadingPages && !pagesError && spreads.length > 0 && currentSpread && (
+        {!pagesError && spreads.length > 0 && currentSpread && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
             {/* Viewer Header */}
             <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
@@ -1181,6 +1218,17 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                           return;
                         }
                         
+                        // If Cloudflare Images URL failed, try to fall back to R2
+                        const pageData = currentSpread.leftPage;
+                        if (url.startsWith('https://imagedelivery.net/') && pageData?.r2Key) {
+                          console.warn(`[Spreads] Cloudflare Images URL failed for page ${currentSpread.leftPage!.pageNumber}, falling back to R2:`, url);
+                          // Update the page data to use R2 URL instead
+                          const r2Url = `/api/assets/${pageData.r2Key}`;
+                          img.src = r2Url;
+                          // Don't set error yet - let R2 URL try to load
+                          return;
+                        }
+                        
                         // Only show error if we have images from manifest and they fail
                         try {
                           const response = await fetch(url, { method: 'HEAD' });
@@ -1284,6 +1332,17 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                           console.log(`[Spreads] Image not available yet for page ${currentSpread.rightPage!.pageNumber} (using fallback URLs)`);
                           setImageLoading(prev => ({ ...prev, right: false }));
                           // Don't set error - images just aren't available yet
+                          return;
+                        }
+                        
+                        // If Cloudflare Images URL failed, try to fall back to R2
+                        const pageData = currentSpread.rightPage;
+                        if (url.startsWith('https://imagedelivery.net/') && pageData?.r2Key) {
+                          console.warn(`[Spreads] Cloudflare Images URL failed for page ${currentSpread.rightPage!.pageNumber}, falling back to R2:`, url);
+                          // Update the page data to use R2 URL instead
+                          const r2Url = `/api/assets/${pageData.r2Key}`;
+                          img.src = r2Url;
+                          // Don't set error yet - let R2 URL try to load
                           return;
                         }
                         
