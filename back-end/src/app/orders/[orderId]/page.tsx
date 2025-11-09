@@ -12,7 +12,7 @@ import { PostPdfStage } from '@/components/stages/post-pdf-stage';
 import { getStageFlaggedCount, getOrderFlagSummary } from '@/lib/review-state';
 import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
-import { ArrowLeft, User, Calendar, Package, Flag } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2 } from 'lucide-react';
 
 interface FinalApprovalResult {
   previewUrl: string;
@@ -37,6 +37,10 @@ export default function OrderDetailPage() {
   const [finalApprovalResult, setFinalApprovalResult] = useState<FinalApprovalResult | null>(null);
   const [finalApprovalError, setFinalApprovalError] = useState<string | null>(null);
   const [finalApprovalLoading, setFinalApprovalLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const enableResetButton =
+    (process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET || 'false') === 'true' ||
+    process.env.NODE_ENV !== 'production';
 
   // Fetch order data from API
   const fetchOrder = async (orderId: string) => {
@@ -276,6 +280,44 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleResetOrder = async () => {
+    if (!order) return;
+    const confirmed = window.confirm(
+      'Reset this order to its initial state? This will clear review approvals, customer preview links, and revision history.'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setResetting(true);
+      setFinalApprovalError(null);
+
+      const response = await fetch(`/api/orders/${order.orderId}/reset`, {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        throw new Error(errorBody?.error || 'Failed to reset order');
+      }
+
+      await fetchOrder(order.orderId);
+      setFinalApprovalResult(null);
+      setFinalApprovalError(null);
+      setFinalApprovalLoading(false);
+      setActiveStage('preBria' as unknown as ReviewStage);
+      setFlagCounts({ preBria: 0, postBria: 0, postPdf: 0 });
+
+      alert('Order reset successfully. You can now re-run the review workflow.');
+    } catch (error: any) {
+      console.error('Error resetting order:', error);
+      alert(error?.message || 'Failed to reset order. Please try again.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -289,14 +331,14 @@ export default function OrderDetailPage() {
             Back to Orders
           </button>
           
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="min-w-0 flex-1">
               <h1 className="text-3xl font-bold text-gray-900 truncate">{order.orderId}</h1>
               <p className="text-gray-600 mt-1">
                 {order.customer.firstName} {order.customer.lastName} • {order.platform}
               </p>
             </div>
-            <div className="flex items-center space-x-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
               {flagCounts.preBria + flagCounts.postBria + flagCounts.postPdf > 0 && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 whitespace-nowrap">
                   <Flag className="h-4 w-4 mr-1" />
@@ -314,6 +356,27 @@ export default function OrderDetailPage() {
                 />
               )}
               <StatusBadge status={order.status as any} />
+              {enableResetButton && (
+                <button
+                  type="button"
+                  onClick={handleResetOrder}
+                  disabled={resetting}
+                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+                  title="Reset order to initial state (development only)"
+                >
+                  {resetting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Resetting...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Reset Order (Dev)
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
