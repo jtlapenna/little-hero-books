@@ -730,6 +730,20 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         setSpreads(newSpreads);
         spreadsLengthRef.current = newSpreads.length;
         
+        console.log('[Pages] Created spreads:', {
+          totalSpreads: newSpreads.length,
+          spreadsWithPages: newSpreads.filter(s => s.leftPage || s.rightPage).length,
+          firstSpread: newSpreads[0] ? {
+            hasLeft: !!newSpreads[0].leftPage,
+            hasRight: !!newSpreads[0].rightPage,
+            isCover: newSpreads[0].isCover,
+            leftPageNumber: newSpreads[0].leftPage?.pageNumber,
+            rightPageNumber: newSpreads[0].rightPage?.pageNumber,
+            leftPageUrl: newSpreads[0].leftPage?.previewImageUrl?.substring(0, 60),
+            rightPageUrl: newSpreads[0].rightPage?.previewImageUrl?.substring(0, 60),
+          } : null
+        });
+        
         // If we found images in the manifest, stop polling
         if (foundInManifest && pageData.length > 0) {
           imagesFoundRef.current = true;
