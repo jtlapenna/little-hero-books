@@ -44,11 +44,11 @@ interface SpreadData {
 function createSpreads(pages: PageData[], coverImageUrl?: string): SpreadData[] {
   const spreads: SpreadData[] = [];
   
-  // Add front cover spread (right half of cover image) if cover is available
+  // Add front cover spread (blank left, cover right half) if cover is available
   if (coverImageUrl) {
     spreads.push({
       spreadNumber: 0,
-      leftPage: undefined,
+      leftPage: undefined, // Blank inside cover
       rightPage: undefined,
       coverData: {
         fullImageUrl: coverImageUrl,
@@ -60,23 +60,38 @@ function createSpreads(pages: PageData[], coverImageUrl?: string): SpreadData[] 
     });
   }
   
-  // Interior spreads (pages 1-14, paired)
-  for (let i = 0; i < pages.length; i += 2) {
+  // Find dedication page (page 0) and story pages (pages 1-15)
+  const dedicationPage = pages.find(p => p.pageNumber === 0);
+  const storyPages = pages.filter(p => p.pageNumber >= 1).sort((a, b) => a.pageNumber - b.pageNumber);
+  
+  // Add dedication spread (blank left, page00 right)
+  if (dedicationPage) {
     spreads.push({
-      spreadNumber: spreads.length, // Continue numbering from cover
-      leftPage: pages[i],
-      rightPage: pages[i + 1] || undefined, // Last spread might have only left page
+      spreadNumber: spreads.length,
+      leftPage: undefined, // Blank inside cover
+      rightPage: dedicationPage,
       isCover: false,
       isBackCover: false
     });
   }
   
-  // Add back cover spread (left half of cover image) if cover is available
+  // Interior spreads: pair story pages (1-2, 3-4, 5-6, etc.)
+  for (let i = 0; i < storyPages.length; i += 2) {
+    spreads.push({
+      spreadNumber: spreads.length,
+      leftPage: storyPages[i],
+      rightPage: storyPages[i + 1] || undefined, // Last spread might have only left page (page 15)
+      isCover: false,
+      isBackCover: false
+    });
+  }
+  
+  // Add back cover spread (cover left half, blank right) if cover is available
   if (coverImageUrl) {
     spreads.push({
       spreadNumber: spreads.length,
       leftPage: undefined,
-      rightPage: undefined,
+      rightPage: undefined, // Blank inside back cover
       coverData: {
         fullImageUrl: coverImageUrl,
         isFrontCover: false,
@@ -255,9 +270,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         if (pageData.length === 0) {
           console.log('[Pages] Constructing preview image URLs from R2 path pattern');
           // Images are stored at: book-mvp-simple-adventure/orders/{orderId}/preview-images/p{pageNumber}.png
-          // Format: p00.png (dedication), p01.png (page 1), p02.png (page 2), etc.
-          pageData = Array.from({ length: 15 }, (_, i) => {
-            const pageNum = i; // 0-14 (0 is dedication, 1-14 are story pages)
+          // Format: p00.png (dedication), p01.png (page 1), p02.png (page 2), ..., p15.png (page 15)
+          pageData = Array.from({ length: 16 }, (_, i) => {
+            const pageNum = i; // 0-15 (0 is dedication, 1-15 are story pages)
             const filename = `p${String(pageNum).padStart(2, '0')}.png`;
             const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`;
             return {
