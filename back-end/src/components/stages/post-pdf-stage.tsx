@@ -303,7 +303,21 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             console.log('[Pages] Raw manifest keys (first 20):', manifest3Raw ? Object.keys(manifest3Raw).slice(0, 20) : 'null');
             
             // Handle array response (manifest might be wrapped in array)
-            const manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
+            // If array, unwrap it - the first element should have the data
+            let manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
+            
+            // If the unwrapped object has a nested 'manifest' property, use that instead
+            // This handles cases where the structure is: [{ manifest: {...}, pagePreviewImages: [...] }]
+            if (manifest3?.manifest && typeof manifest3.manifest === 'object') {
+              // Merge manifest properties with top-level properties (pagePreviewImages might be at top level)
+              manifest3 = {
+                ...manifest3.manifest,
+                // Preserve top-level properties that might not be in manifest
+                pagePreviewImages: manifest3.pagePreviewImages || manifest3.manifest.pagePreviewImages,
+                orderId: manifest3.orderId,
+                characterHash: manifest3.characterHash || manifest3.manifest.characterHash,
+              };
+            }
             
             console.log('[Pages] Processed manifest type:', Array.isArray(manifest3Raw) ? 'array[0]' : 'object');
             console.log('[Pages] Processed manifest keys (first 20):', manifest3 ? Object.keys(manifest3).slice(0, 20) : 'null');
@@ -456,7 +470,12 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     imageUrl = cloudflareImageUrl;
                     console.log(`[Pages] Page ${img.pageNumber}: Using Cloudflare Images`);
                   }
-                  // Priority 2: Use R2 proxy URL (fallback)
+                  // Priority 2: Use imageUrl if already constructed (from pngGeneration.pages fallback)
+                  else if (img.imageUrl && img.imageUrl.startsWith('/api/assets/')) {
+                    imageUrl = img.imageUrl;
+                    console.log(`[Pages] Page ${img.pageNumber}: Using pre-constructed imageUrl from manifest`);
+                  }
+                  // Priority 3: Use R2 proxy URL (fallback)
                   else if (img.r2Key) {
                     // Use relative URL so it works with any deployment (production or preview)
                     imageUrl = `/api/assets/${img.r2Key}`;
@@ -466,7 +485,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                       console.log(`[Pages] Page ${img.pageNumber}: Using R2 fallback`);
                     }
                   }
-                  // Priority 3: Try to extract r2Key from imageUrl if it's an absolute URL
+                  // Priority 4: Try to extract r2Key from imageUrl if it's an absolute URL
                   else {
                     const fallbackUrl = img.imageUrl || '';
                     const r2KeyMatch = fallbackUrl.match(/\/api\/assets\/(.+)$/);
