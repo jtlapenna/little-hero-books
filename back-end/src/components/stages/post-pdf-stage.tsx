@@ -31,6 +31,8 @@ interface PostPdfStageProps {
 interface PageData {
   pageNumber: number;
   previewImageUrl: string;
+  cloudflareImageId?: string;
+  r2Key?: string;
 }
 
 interface CoverData {
@@ -157,6 +159,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const previousSpreadsRef = useRef<SpreadData[]>([]);
   // Track if ref callback has already handled cached image to prevent multiple calls
   const coverImageRefHandledRef = useRef<{ front: boolean; back: boolean }>({ front: false, back: false });
+  // Track preloaded images to keep them in browser cache
+  const preloadedImagesRef = useRef<Set<string>>(new Set());
 
   // Reset ref and spread index when orderId changes
   useEffect(() => {
@@ -169,6 +173,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     previousSpreadsRef.current = [];
     setCoverImageUrl(null);
     setCoverImageDataUrl(null);
+    preloadedImagesRef.current.clear(); // Clear preloaded images when order changes
     setCurrentSpreadIndex(0); // Always start at first spread when viewing a new order
   }, [orderId]);
 
@@ -292,7 +297,15 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           
           if (manifest3Res.ok) {
             const manifest3 = await manifest3Res.json();
-            const previewImages = manifest3?.bookAssembly?.pagePreviewImages;
+            // Check multiple possible locations for pagePreviewImages
+            const previewImages = manifest3?.bookAssembly?.pagePreviewImages 
+              || manifest3?.pagePreviewImages 
+              || [];
+            
+            // Get Cloudflare Images data from pagesWithCloudflare if available
+            const pagesWithCloudflare = manifest3?.manifest?.pngGeneration?.pagesWithCloudflare 
+              || manifest3?.pngGeneration?.pagesWithCloudflare 
+              || {};
             
             if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
               foundInManifest = true;
@@ -300,36 +313,54 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               pageData = previewImages
                 .sort((a: any, b: any) => a.pageNumber - b.pageNumber)
                 .map((img: any) => {
-                  // Always construct relative URL from r2Key to ensure preview deployments call their own API
-                  // Ignore imageUrl from manifest as it may contain absolute URLs pointing to production
+                  const pageNum = Number(img.pageNumber || 0);
+                  const pageKey = pageNum === 0 ? 'p00_dedication' : (pageNum < 10 ? `p0${pageNum}` : `p${pageNum}`);
+                  
+                  // Get Cloudflare Images data from pagesWithCloudflare if not in pagePreviewImages
+                  const cfData = pagesWithCloudflare[pageKey] || null;
+                  const cloudflareImageUrl = img.cloudflareImageUrl || cfData?.cloudflareImageUrl || null;
+                  const cloudflareImageId = img.cloudflareImageId || cfData?.cloudflareImageId || null;
+                  
+                  // Priority 1: Use Cloudflare Images if available (fastest, WebP, CDN)
                   let imageUrl: string;
-                  if (img.r2Key) {
+                  if (cloudflareImageUrl) {
+                    imageUrl = cloudflareImageUrl;
+                    console.log(`[Pages] Page ${img.pageNumber}: Using Cloudflare Images`);
+                  }
+                  // Priority 2: Use R2 proxy URL (fallback)
+                  else if (img.r2Key) {
                     // Use relative URL so it works with any deployment (production or preview)
                     imageUrl = `/api/assets/${img.r2Key}`;
-                  } else {
-                    // Fallback: try to extract r2Key from imageUrl if it's an absolute URL
+                    console.log(`[Pages] Page ${img.pageNumber}: Using R2 fallback`);
+                  }
+                  // Priority 3: Try to extract r2Key from imageUrl if it's an absolute URL
+                  else {
                     const fallbackUrl = img.imageUrl || '';
                     const r2KeyMatch = fallbackUrl.match(/\/api\/assets\/(.+)$/);
                     if (r2KeyMatch) {
                       imageUrl = `/api/assets/${r2KeyMatch[1]}`;
+                      console.log(`[Pages] Page ${img.pageNumber}: Using extracted R2 key from imageUrl`);
                     } else {
                       // Last resort: construct from page number using new format (p00.png, p01.png, etc.)
                       const pageNum = img.pageNumber ?? 0;
                       const filename = `p${String(pageNum).padStart(2, '0')}.png`;
                       imageUrl = `/api/assets/book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`;
+                      console.log(`[Pages] Page ${img.pageNumber}: Using constructed fallback URL`);
                     }
                   }
                   
                   console.log(`[Pages] Page ${img.pageNumber}:`, {
-                    hasImageUrl: !!img.imageUrl,
+                    hasCloudflareUrl: !!cloudflareImageUrl,
                     hasR2Key: !!img.r2Key,
-                    constructedUrl: imageUrl,
-                    r2Key: img.r2Key
+                    hasImageUrl: !!img.imageUrl,
+                    finalUrl: imageUrl.substring(0, 80) + '...'
                   });
                   
                   return {
                     pageNumber: img.pageNumber,
-                    previewImageUrl: imageUrl
+                    previewImageUrl: imageUrl,
+                    cloudflareImageId: cloudflareImageId || undefined,
+                    r2Key: img.r2Key || undefined
                   };
                 });
               
@@ -369,9 +400,44 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         if (!coverImageUrl && !coverImageDataUrl && !coverImageLoading) {
           setCoverImageLoading(true);
           try {
-            // Cover PDF path: book-mvp-simple-adventure/orders/{orderId}/cover_{orderId}.pdf
+            // Priority 1: Check manifest for Cloudflare Images cover URL
+            let coverUrlToUse: string | null = null;
+            try {
+              const manifest3Res = await fetch(`/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`);
+              if (manifest3Res.ok) {
+                const manifest3 = await manifest3Res.json();
+                // Check for Cloudflare Images cover URL first
+                if (manifest3?.pngGeneration?.coverCloudflareImageUrl) {
+                  coverUrlToUse = manifest3.pngGeneration.coverCloudflareImageUrl;
+                  console.log('[Cover] Using Cloudflare Images URL from manifest');
+                }
+                // Fallback to R2 cover preview
+                else if (manifest3?.pngGeneration?.coverSpreadImage) {
+                  coverUrlToUse = `/api/assets/${manifest3.pngGeneration.coverSpreadImage}`;
+                  console.log('[Cover] Using R2 cover from manifest');
+                }
+              }
+            } catch (e) {
+              console.log('[Cover] Could not fetch cover from manifest, using fallback');
+            }
+            
+            // If we found a cover URL from manifest, use it
+            if (coverUrlToUse) {
+              setCoverImageUrl(coverUrlToUse);
+              setCoverImageLoading(false);
+              setPages(currentPages => {
+                if (currentPages.length > 0) {
+                  const newSpreads = createSpreads(currentPages, coverUrlToUse!);
+                  setSpreads(newSpreads);
+                  spreadsLengthRef.current = newSpreads.length;
+                }
+                return currentPages;
+              });
+              return; // Exit early if we got cover from manifest
+            }
+            
+            // Fallback: Try R2 cover preview image
             const coverPdfPath = `book-mvp-simple-adventure/orders/${orderId}/cover_${orderId}.pdf`;
-            // Try to get a preview image URL first (if workflow 3 generates one)
             const coverPreviewPath = `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover_preview.png`;
             const coverPreviewUrl = `/api/assets/${coverPreviewPath}`;
             
@@ -687,6 +753,89 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       }
     };
   }, [currentSpreadIndex, spreads, imageLoading.left, imageLoading.right]);
+
+  // Preload images for all spreads in the background
+  // This ensures images are cached before user navigates to them
+  useEffect(() => {
+    if (spreads.length === 0) return;
+
+    const preloadImage = (url: string) => {
+      // Skip if already preloaded
+      if (preloadedImagesRef.current.has(url)) {
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        preloadedImagesRef.current.add(url);
+        console.log('[Preload] ✓ Preloaded image:', url.substring(0, 80) + '...');
+      };
+      img.onerror = () => {
+        // Silently fail - image will load when needed
+        console.log('[Preload] ✗ Failed to preload:', url.substring(0, 80) + '...');
+      };
+      img.src = url;
+    };
+
+    // Preload all page images and cover images
+    spreads.forEach((spread) => {
+      // Preload left page
+      if (spread.leftPage?.previewImageUrl) {
+        preloadImage(spread.leftPage.previewImageUrl);
+      }
+      // Preload right page
+      if (spread.rightPage?.previewImageUrl) {
+        preloadImage(spread.rightPage.previewImageUrl);
+      }
+      // Preload cover image
+      if (spread.coverData?.fullImageUrl) {
+        preloadImage(spread.coverData.fullImageUrl);
+      }
+    });
+
+    // Also preload adjacent spreads (current + next + previous) with higher priority
+    const currentSpread = spreads[currentSpreadIndex];
+    if (currentSpread) {
+      // Preload current spread images first (already handled above, but ensure they're prioritized)
+      if (currentSpread.leftPage?.previewImageUrl) {
+        preloadImage(currentSpread.leftPage.previewImageUrl);
+      }
+      if (currentSpread.rightPage?.previewImageUrl) {
+        preloadImage(currentSpread.rightPage.previewImageUrl);
+      }
+      if (currentSpread.coverData?.fullImageUrl) {
+        preloadImage(currentSpread.coverData.fullImageUrl);
+      }
+
+      // Preload next spread
+      if (currentSpreadIndex < spreads.length - 1) {
+        const nextSpread = spreads[currentSpreadIndex + 1];
+        if (nextSpread.leftPage?.previewImageUrl) {
+          preloadImage(nextSpread.leftPage.previewImageUrl);
+        }
+        if (nextSpread.rightPage?.previewImageUrl) {
+          preloadImage(nextSpread.rightPage.previewImageUrl);
+        }
+        if (nextSpread.coverData?.fullImageUrl) {
+          preloadImage(nextSpread.coverData.fullImageUrl);
+        }
+      }
+
+      // Preload previous spread
+      if (currentSpreadIndex > 0) {
+        const prevSpread = spreads[currentSpreadIndex - 1];
+        if (prevSpread.leftPage?.previewImageUrl) {
+          preloadImage(prevSpread.leftPage.previewImageUrl);
+        }
+        if (prevSpread.rightPage?.previewImageUrl) {
+          preloadImage(prevSpread.rightPage.previewImageUrl);
+        }
+        if (prevSpread.coverData?.fullImageUrl) {
+          preloadImage(prevSpread.coverData.fullImageUrl);
+        }
+      }
+    }
+  }, [spreads, currentSpreadIndex]);
 
   const handleDownload = () => {
     if (pdfAsset.exists && pdfAsset.url) {

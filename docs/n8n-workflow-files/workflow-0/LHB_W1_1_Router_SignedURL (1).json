@@ -1,0 +1,286 @@
+{
+  "name": "W1.1 – Router (Signed URL for 1‑manifest)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-30s",
+      "name": "Every 30 Seconds",
+      "type": "n8n-nodes-base.interval",
+      "typeVersion": 1,
+      "position": [
+        -1180,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Central config (fill tokens in this node after import)\nreturn [{ json: {\n  supabase: {\n    url: \"https://mdnthwpcnphjnnblbvxk.supabase.co\",\n    serviceKey: \"PASTE_SERVICE_KEY\"\n  },\n  r2: {\n    bucket: \"little-hero-orders\",\n    signedUrlEndpoint: \"https://admin.littleherolabs.com/api/r2/signed-url\",\n    apiToken: \"PASTE_BACKEND_API_TOKEN\",\n    expiresIn: 600,\n    keyPrefix: \"book-mvp-simple-adventure/orders\"\n  },\n  routing: {\n    maxConcurrent: 3\n  }\n} }];"
+      },
+      "id": "config",
+      "name": "CONFIG (PRODUCTION)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        80
+      ],
+      "notes": "Fill Supabase serviceKey + BACKEND_API_TOKEN here after import."
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Compute available slots using a simple counter (can swap to RPC later)\nconst cfg = $input.first().json;\nconst maxConcurrent = cfg.routing?.maxConcurrent ?? 3;\nreturn [{ json: { slots: maxConcurrent, cfg } }];\n"
+      },
+      "id": "calc-slots",
+      "name": "Calculate Available Slots",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -760,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Fetch ready orders from Supabase (PostgREST), limit by slots\nconst { slots, cfg } = $input.first().json;\nconst url = `${cfg.supabase.url}/rest/v1/orders?execution_status=eq.ready_for_processing&order=priority.desc,queued_at.asc&limit=${slots}`;\nconst res = await this.helpers.request({\n  method: 'GET',\n  uri: url,\n  headers: {\n    'apikey': cfg.supabase.serviceKey,\n    'Authorization': `Bearer ${cfg.supabase.serviceKey}`\n  },\n  json: true\n});\nreturn [{ json: { cfg, slots, rows: res } }];\n"
+      },
+      "id": "fetch-ready",
+      "name": "Fetch Ready Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Prepare W3 payloads only (this branch shows the signed URL integration)\n// If you also route 2A/2B, replicate pattern below.\nconst { cfg, rows } = $input.first().json;\nconst orders3 = rows.filter(r => (r.next_workflow||'').toString() === '3');\n\nreturn orders3.map(r => ({ json: {\n  cfg,\n  orderDbId: r.id,\n  orderId: r.amazon_order_id,\n  workflow: '3',\n  // R2 manifest key for 1-manifest.json\n  oneManifestKey: `${cfg.r2.keyPrefix}/${r.amazon_order_id}/manifests/1-manifest.json`,\n  // Dedication is stored either directly or in character_specs\n  dedicationText: r.dedication_text || (r.character_specs && r.character_specs.dedication) || ''\n} }));\n"
+      },
+      "id": "prep-w3",
+      "name": "Prep W3 Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -360,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.cfg.r2.signedUrlEndpoint }}",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{ $json.oneManifestKey }}"
+            },
+            {
+              "name": "bucket",
+              "value": "little-hero-orders"
+            },
+            {
+              "name": "expiresIn",
+              "value": "={{ $json.cfg.r2.expiresIn || 600 }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $json.cfg.r2.apiToken }}"
+            }
+          ]
+        }
+      },
+      "id": "signed-url",
+      "name": "Get Signed URL (1‑manifest)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 5,
+      "position": [
+        -160,
+        80
+      ],
+      "notes": "Calls backend to sign 1-manifest GET URL"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Build final W3 trigger payload using signed URL response\nconst input = $input.first().json;\nconst body = {\n  orderId: input.orderId,\n  oneManifestKey: input.oneManifestKey,\n  oneManifestUrl: input.url || input.data?.url || input.json?.url || input.result?.url || input.body?.url,\n  dedicationText: input.dedicationText\n};\nreturn [{ json: body }];\n"
+      },
+      "id": "set-w3-body",
+      "name": "Set W3 Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={ $json.cfg.supabase.url }/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "eq.{{ $json.orderDbId }}"
+            },
+            {
+              "name": "execution_status",
+              "value": "eq.ready_for_processing"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.cfg.supabase.serviceKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $json.cfg.supabase.serviceKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}"
+      },
+      "id": "mark-processing",
+      "name": "Mark as Processing (3)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 5,
+      "position": [
+        240,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WORKFLOW_3_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/compile-book' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}"
+      },
+      "id": "trigger-w3",
+      "name": "Trigger Workflow 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 5,
+      "position": [
+        440,
+        80
+      ]
+    }
+  ],
+  "connections": {
+    "Every 30 Seconds": {
+      "main": [
+        [
+          {
+            "node": "CONFIG (PRODUCTION)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONFIG (PRODUCTION)": {
+      "main": [
+        [
+          {
+            "node": "Calculate Available Slots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Available Slots": {
+      "main": [
+        [
+          {
+            "node": "Fetch Ready Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Ready Orders": {
+      "main": [
+        [
+          {
+            "node": "Prep W3 Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep W3 Items": {
+      "main": [
+        [
+          {
+            "node": "Get Signed URL (1‑manifest)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Signed URL (1‑manifest)": {
+      "main": [
+        [
+          {
+            "node": "Set W3 Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set W3 Payload": {
+      "main": [
+        [
+          {
+            "node": "Mark as Processing (3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Processing (3)": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
