@@ -47,11 +47,18 @@ export async function POST(req: NextRequest, { params }: { params: { orderId: st
       .sort((a: any, b: any) => a.poseNumber - b.poseNumber)
       .map((e: any) => {
         const fileName = e.bgRemovedKey.split('/').pop() || `pose${String(e.poseNumber).padStart(2,'0')}_nobg.png`;
+        // Add cache-busting query parameter if image was flipped to ensure W3 gets the updated version
+        let publicUrl = toAssetProxyUrl(e.bgRemovedKey);
+        if (e.flipped && e.flippedAt) {
+          // Append flippedAt timestamp as cache-buster to force fresh fetch
+          const cacheBuster = new Date(e.flippedAt).getTime();
+          publicUrl = `${publicUrl}?v=${cacheBuster}`;
+        }
         return {
           poseNumber: e.poseNumber,
           fileName,
           r2Path: e.bgRemovedKey,
-          publicUrl: toAssetProxyUrl(e.bgRemovedKey),
+          publicUrl,
           briaProcessed: true,
           briaStatus: 'COMPLETED',
           processingError: false,
