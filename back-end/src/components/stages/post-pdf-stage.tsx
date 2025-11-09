@@ -219,8 +219,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     if (r2KeyMatch) {
                       imageUrl = `/api/assets/${r2KeyMatch[1]}`;
                     } else {
-                      // Last resort: construct from page number
-                      imageUrl = `/api/assets/book-mvp-simple-adventure/orders/${orderId}/preview-images/page-${String(img.pageNumber).padStart(2, '0')}_preview.png`;
+                      // Last resort: construct from page number using new format (p00.png, p01.png, etc.)
+                      const pageNum = img.pageNumber ?? 0;
+                      const filename = `p${String(pageNum).padStart(2, '0')}.png`;
+                      imageUrl = `/api/assets/book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`;
                     }
                   }
                   
@@ -248,10 +250,12 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         // Fallback: Construct image URLs directly from R2 path pattern
         if (pageData.length === 0) {
           console.log('[Pages] Constructing preview image URLs from R2 path pattern');
-          // Images are stored at: book-mvp-simple-adventure/orders/{orderId}/preview-images/page-{pageNumber}_preview.png
-          pageData = Array.from({ length: 14 }, (_, i) => {
-            const pageNum = i + 1;
-            const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/page-${String(pageNum).padStart(2, '0')}_preview.png`;
+          // Images are stored at: book-mvp-simple-adventure/orders/{orderId}/preview-images/p{pageNumber}.png
+          // Format: p00.png (dedication), p01.png (page 1), p02.png (page 2), etc.
+          pageData = Array.from({ length: 15 }, (_, i) => {
+            const pageNum = i; // 0-14 (0 is dedication, 1-14 are story pages)
+            const filename = `p${String(pageNum).padStart(2, '0')}.png`;
+            const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`;
             return {
               pageNumber: pageNum,
               previewImageUrl: `/api/assets/${r2Key}` // Use relative URL
