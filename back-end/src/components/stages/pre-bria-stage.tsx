@@ -404,7 +404,10 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             onDownload={handleDownload}
             onReplace={handleReplace}
             onFlag={handleFlag}
-            onApprove={onApprove}
+            onApprove={() => {
+              // AssetGrid expects () => void, but onApprove takes a status parameter
+              // Since AssetGrid doesn't actually call onApprove, this is a no-op wrapper
+            }}
             canApprove={true}
             isApproved={isApproved}
             isReplacing={isReplacing}

@@ -639,7 +639,10 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           onDownload={handleDownload}
           onReplace={handleReplace}
           onFlag={handleFlag}
-          onApprove={onApprove}
+          onApprove={() => {
+            // AssetGrid expects () => void, but onApprove takes a status parameter
+            // Since AssetGrid doesn't actually call onApprove, this is a no-op wrapper
+          }}
           canApprove={true}
           isApproved={isApproved}
           showBlackBackground={showBlackBackground}

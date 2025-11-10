@@ -339,9 +339,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                 console.log('[Pages] Building pagePreviewImages from pngGeneration.pages');
                 // Convert pages object (p01: "r2/key", p02: "r2/key", etc.) to array format
                 previewImages = Object.entries(pagesObj).map(([key, r2Key]: [string, any]) => {
-                  // Parse page number from key: p00_dedication -> 0, p01 -> 1, p02 -> 2, etc.
+                  // Parse page number from key: p00_dedication -> 0, p00 -> 0, p01 -> 1, p02 -> 2, etc.
                   let pageNumber = 0;
-                  if (key === 'p00_dedication') {
+                  if (key === 'p00_dedication' || key === 'p00') {
                     pageNumber = 0;
                   } else if (key.startsWith('p')) {
                     const numStr = key.substring(1);
@@ -357,7 +357,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     imageUrl: typeof r2Key === 'string' ? `/api/assets/${r2Key}` : null, // Construct URL immediately for R2 fallback
                     filename: null
                   };
-                }).filter((img: any) => img.r2Key !== null); // Filter out entries without r2Key
+                }).filter((img: any) => {
+                  // Don't filter out page 0 (dedication) even if r2Key is missing - we'll construct it
+                  if (img.pageNumber === 0) return true;
+                  return img.r2Key !== null;
+                }); // Filter out entries without r2Key (except page 0)
                 
                 console.log(`[Pages] Built ${previewImages.length} pages from pngGeneration.pages`);
               }
@@ -444,7 +448,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   const pageKey = pageNum === 0 ? 'p00_dedication' : (pageNum < 10 ? `p0${pageNum}` : `p${pageNum}`);
                   
                   // Get Cloudflare Images data from pagesWithCloudflare if not in pagePreviewImages
-                  const cfData = pagesWithCloudflare[pageKey] || null;
+                  // For page 0, check both p00_dedication and p00 keys
+                  const cfData = pageNum === 0 
+                    ? (pagesWithCloudflare['p00_dedication'] || pagesWithCloudflare['p00'] || null)
+                    : (pagesWithCloudflare[pageKey] || null);
                   const cloudflareImageUrl = img.cloudflareImageUrl || cfData?.cloudflareImageUrl || null;
                   const cloudflareImageId = img.cloudflareImageId || cfData?.cloudflareImageId || null;
                   
@@ -518,6 +525,21 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               
               console.log('[Pages] ✓ Loaded preview images from 3-manifest:', pageData.length);
               console.log('[Pages] First page URL:', pageData[0]?.previewImageUrl);
+              
+              // Ensure page 0 (dedication) is always included
+              const hasPage0 = pageData.some(p => p.pageNumber === 0);
+              if (!hasPage0) {
+                console.log('[Pages] Page 0 (dedication) missing from manifest, adding it');
+                const page0Filename = 'p00.png';
+                const page0R2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${page0Filename}`;
+                const page0Data: PageData = {
+                  pageNumber: 0,
+                  previewImageUrl: `/api/assets/${page0R2Key}`
+                };
+                // Insert at the beginning to maintain order
+                pageData = [page0Data, ...pageData];
+                console.log('[Pages] Added page 0 (dedication) to pageData');
+              }
             }
           }
         } catch (e) {
@@ -1597,7 +1619,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             </div>
             <div>
               <span className="text-gray-500">Format:</span>
-              <span className="ml-1 text-gray-900">8×10 Softcover</span>
+              <span className="ml-1 text-gray-900">8.5" × 8.5" Softcover</span>
             </div>
             <div>
               <span className="text-gray-500">Status:</span>
@@ -1626,7 +1648,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             <ul className="space-y-1">
               <li>• Images are high quality and properly positioned</li>
               <li>• No layout issues or text overflow</li>
-              <li>• Print margins are correct for 8×10 format</li>
+              <li>• Print margins are correct for 8.5" × 8.5" format</li>
               <li>• PDF is optimized for print production</li>
             </ul>
           </div>
