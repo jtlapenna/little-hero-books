@@ -680,11 +680,24 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
               console.log('[Cover] Could not fetch cover from manifest, using fallback:', e);
             }
             
-            // If we found a cover URL from manifest, use it
+            // If we found a cover URL from manifest, use it and update spreads
             if (coverUrlToUse) {
               setCoverImageUrl(coverUrlToUse);
               setCoverImageLoading(false);
-              // Don't return early - let the spreads creation code run below with the loaded pageData
+              // Update spreads immediately with the cover URL from manifest
+              // Use pageData directly (from local scope) since pages might not be in state yet
+              if (pageData.length > 0) {
+                const newSpreads = createSpreads(pageData, coverUrlToUse);
+                setSpreads(newSpreads);
+                spreadsLengthRef.current = newSpreads.length;
+                console.log('[Cover] Updated spreads with cover from manifest:', {
+                  spreadsCount: newSpreads.length,
+                  hasFrontCover: newSpreads[0]?.coverData?.isFrontCover,
+                  hasBackCover: newSpreads[newSpreads.length - 1]?.coverData?.isBackCover
+                });
+              }
+              // Don't continue to fallback - we found the cover from manifest
+              // But don't return - let the rest of the function run to set pages state
             }
             
             // Fallback: Try R2 cover preview image
