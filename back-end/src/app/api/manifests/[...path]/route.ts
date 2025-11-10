@@ -77,12 +77,21 @@ export async function GET(
     // Get manifest data
     const text = await r2Response.text();
     
+    // Check for cache-busting query parameter
+    const { searchParams } = new URL(request.url);
+    const cacheBuster = searchParams.get('v');
+    
     // Return manifest with proper headers (including CORS)
+    // If cache-busting parameter is present, disable caching to ensure fresh manifest
+    const cacheControl = cacheBuster
+      ? 'no-cache, no-store, must-revalidate' // Force fresh fetch when cache-busting
+      : 'public, max-age=60, must-revalidate, s-maxage=0'; // Reduced cache time (1 minute, no CDN cache)
+    
     return new NextResponse(text, {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600', // Cache for 1 hour
+        'Cache-Control': cacheControl,
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',

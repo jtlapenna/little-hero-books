@@ -175,6 +175,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const lastPagesDataRef = useRef<string>('');
   // Track if pages have been loaded (to prevent loading state during polling)
   const pagesLoadedRef = useRef(false);
+  // Store loadPages function in ref so it can be called from handlePageReplace
+  const loadPagesRef = useRef<(() => Promise<void>) | null>(null);
   // Track spreads length for keyboard navigation to avoid stale closures
   const spreadsLengthRef = useRef(0);
   // Track last spread index to prevent unnecessary loading state resets
@@ -313,7 +315,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       try {
         // Try 3-manifest first (has preview images with correct URLs)
         const manifest3Key = `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;
-        const manifest3Url = `/api/manifests/${manifest3Key}`; // Use relative URL
+        // Add cache-busting to ensure we get the latest manifest after image replacements
+        const cacheBuster = `?v=${Date.now()}`;
+        const manifest3Url = `/api/manifests/${manifest3Key}${cacheBuster}`; // Use relative URL with cache-busting
         
         let pageData: PageData[] = [];
         let foundInManifest = false;
@@ -321,7 +325,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         
         try {
           console.log('[Pages] Fetching manifest from:', manifest3Url);
-          const manifest3Res = await fetch(manifest3Url);
+          const manifest3Res = await fetch(manifest3Url, {
+            cache: 'no-store', // Ensure we don't use cached manifest
+          });
           
           if (manifest3Res.ok) {
             const manifest3Raw = await manifest3Res.json();
@@ -627,7 +633,11 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             // Priority 1: Check manifest for Cloudflare Images cover URL
             let coverUrlToUse: string | null = null;
             try {
-              const manifest3Res = await fetch(`/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`);
+              // Add cache-busting for cover image manifest fetch
+              const coverManifestUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
+              const manifest3Res = await fetch(coverManifestUrl, {
+                cache: 'no-store', // Ensure we don't use cached manifest
+              });
               if (manifest3Res.ok) {
                 const manifest3Raw = await manifest3Res.json();
                 // Handle array response (manifest might be wrapped in array)
@@ -902,6 +912,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         setLoadingPages(false);
       }
     };
+
+    // Store loadPages in ref so it can be called from outside useEffect
+    loadPagesRef.current = loadPages;
 
     loadPages();
 
@@ -1355,46 +1368,27 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         await onRefresh();
         console.log('[PostPdfStage] onRefresh completed');
         
-        // Force reload of pages to get updated images (with cache busting)
-        // Reset the refs to force a fresh load
+        // Force reload of pages to get updated manifest with new Cloudflare Images data
+        // Reset the refs to force a fresh load from manifest
         imagesFoundRef.current = false;
         pagesLoadedRef.current = false;
         lastPagesDataRef.current = '';
         
-        // Add cache-busting timestamp to image URLs in pageAssets
-        // This ensures the browser fetches the new image instead of using cache
-        const timestamp = Date.now();
-        setPageAssets(prev => prev.map(asset => {
-          if (asset.id === assetId) {
-            // Always use R2 URL for replaced images (not Cloudflare Images)
-            // Add timestamp to force reload, handling existing query params
-            const baseUrl = asset.r2Key ? `/api/assets/${asset.r2Key}` : asset.url.split('?')[0]; // Remove existing query params
-            const r2Url = `${baseUrl}?t=${timestamp}`;
-            return {
-              ...asset,
-              url: r2Url
-            };
-          }
-          return asset;
-        }));
+        // Reload pages from manifest (will fetch fresh manifest with updated Cloudflare Images URLs)
+        // This ensures we get the new Cloudflare Images URL from the updated manifest
+        console.log('[PostPdfStage] Reloading pages from manifest to get updated Cloudflare Images data...');
         
-        // Also update pages array to trigger spread view update
-        setPages(prev => prev.map(page => {
-          const pageKey = `p${String(page.pageNumber).padStart(2, '0')}`;
-          if (pageKey === assetId) {
-            // Always use R2 URL for replaced images (not Cloudflare Images)
-            // Add timestamp to force reload, handling existing query params
-            const baseUrl = page.r2Key ? `/api/assets/${page.r2Key}` : page.previewImageUrl.split('?')[0]; // Remove existing query params
-            const r2Url = `${baseUrl}?t=${timestamp}`;
-            return {
-              ...page,
-              previewImageUrl: r2Url
-            };
-          }
-          return page;
-        }));
-        
-        console.log('[PostPdfStage] Updated image URLs with cache-busting after replacement');
+        // Call loadPages directly to reload from updated manifest
+        if (loadPagesRef.current) {
+          await loadPagesRef.current();
+          console.log('[PostPdfStage] Pages reloaded from manifest');
+        } else {
+          // Fallback: if loadPages not available yet, reload page
+          console.warn('[PostPdfStage] loadPages not available, reloading page');
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        }
       } else {
         console.warn('[PostPdfStage] No onRefresh callback provided');
         // Fallback: reload the page
