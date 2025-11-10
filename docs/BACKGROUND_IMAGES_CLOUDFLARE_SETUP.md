@@ -23,15 +23,23 @@ Background images are currently served directly from R2 as large PNG files. By u
 
 ## Step 1: Upload Background Images to Cloudflare Images
 
-Run the upload endpoint to upload all 15 background images:
+**Option A: Use the local script (recommended)**
+
+Run the upload script from the `back-end` directory:
+
+```bash
+cd back-end
+dotenv -e .env.local -- npx tsx scripts/upload-background-images.ts
+```
+
+This script reads images from `assets/images/` and uploads them to Cloudflare Images using the **"backend" variant** (1500x1500).
+
+**Option B: Use the API endpoint**
+
+The API endpoint accepts file uploads, but the local script is easier for initial setup:
 
 ```bash
 curl -X POST https://your-domain.com/api/backgrounds/upload-to-cloudflare
-```
-
-Or use the browser/Postman to make a POST request to:
-```
-POST /api/backgrounds/upload-to-cloudflare
 ```
 
 **Response:**
@@ -48,14 +56,14 @@ POST /api/backgrounds/upload-to-cloudflare
       "slug": "dedication",
       "success": true,
       "cloudflareImageId": "abc123...",
-      "cloudflareImageUrl": "https://imagedelivery.net/{hash}/abc123.../preview?width=1024"
+      "cloudflareImageUrl": "https://imagedelivery.net/{hash}/abc123.../backend"
     },
     ...
   ],
   "mapping": {
     "0": {
       "cloudflareImageId": "abc123...",
-      "cloudflareImageUrl": "https://imagedelivery.net/{hash}/abc123.../preview?width=1024",
+      "cloudflareImageUrl": "https://imagedelivery.net/{hash}/abc123.../backend",
       "slug": "dedication"
     },
     ...
@@ -77,7 +85,7 @@ Copy the `mapping` object from the response and set it as an environment variabl
 
 **Example value:**
 ```json
-{"0":{"cloudflareImageId":"abc123...","cloudflareImageUrl":"https://imagedelivery.net/{hash}/abc123.../preview?width=1024","slug":"dedication"},"1":{"cloudflareImageId":"def456...","cloudflareImageUrl":"https://imagedelivery.net/{hash}/def456.../preview?width=1024","slug":"twilight-walk"},...}
+{"0":{"cloudflareImageId":"abc123...","cloudflareImageUrl":"https://imagedelivery.net/{hash}/abc123.../backend","slug":"dedication"},"1":{"cloudflareImageId":"def456...","cloudflareImageUrl":"https://imagedelivery.net/{hash}/def456.../backend","slug":"twilight-walk"},...}
 ```
 
 **Important:** The value must be a valid JSON string (minified, no newlines).
