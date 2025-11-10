@@ -23,6 +23,30 @@ interface ImageLightboxProps {
   pageNumber?: number;
   onFlip?: () => void;
   isFlipping?: boolean;
+  // Revision props
+  pendingRevisionUrl?: string;
+  onRevisionBadgeClick?: () => void;
+  // Regeneration props
+  orderId?: string;
+  baseCharacterUrl?: string;
+  onRegenerate?: (data: {
+    poseNumber: number;
+    revisionPrompt: string;
+    includeBaseCharacter: boolean;
+    includePoseReference: boolean;
+    includePreviousOption: boolean;
+    previousOptionR2Key?: string;
+  }) => Promise<void>;
+  onAcceptRevision?: () => Promise<void>;
+  onRejectRevision?: () => Promise<void>;
+  onReviseRevision?: (data: {
+    poseNumber: number;
+    revisionPrompt: string;
+    includeBaseCharacter: boolean;
+    includePoseReference: boolean;
+    includePreviousOption: boolean;
+    previousOptionR2Key?: string;
+  }) => Promise<void>;
 }
 
 export function ImageLightbox({
@@ -43,12 +67,32 @@ export function ImageLightbox({
   poseNumber,
   pageNumber,
   onFlip,
-  isFlipping = false
+  isFlipping = false,
+  pendingRevisionUrl,
+  onRevisionBadgeClick,
+  orderId,
+  baseCharacterUrl,
+  onRegenerate,
+  onAcceptRevision,
+  onRejectRevision,
+  onReviseRevision
 }: ImageLightboxProps) {
   const [isReplacing, setIsReplacing] = useState(false);
   const [comparisonImageLoading, setComparisonImageLoading] = useState(false);
   const [comparisonImageError, setComparisonImageError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Regeneration UI state
+  const [showRegenerateUI, setShowRegenerateUI] = useState(false);
+  const [revisionPrompt, setRevisionPrompt] = useState('');
+  const [includeBaseCharacter, setIncludeBaseCharacter] = useState(false);
+  const [includePoseReference, setIncludePoseReference] = useState(false);
+  const [includePreviousOption, setIncludePreviousOption] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [showNewOption, setShowNewOption] = useState(false); // Toggle between original and new option
+  const [newOptionUrl, setNewOptionUrl] = useState<string | null>(pendingRevisionUrl || null);
+  const [temporaryR2Key, setTemporaryR2Key] = useState<string | null>(null);
 
   // Handle keyboard events
   useEffect(() => {
@@ -74,6 +118,358 @@ export function ImageLightbox({
   const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) {
       onClose();
+    }
+  };
+
+  // Track previous pendingRevisionUrl to detect when it changes
+  // Initialize with current value to ensure accurate comparison
+  const prevPendingRevisionUrlRef = useRef<string | undefined>(pendingRevisionUrl);
+  // Track cache-busting timestamp for image URLs (updates only when URL changes)
+  const imageCacheBusterRef = useRef<number>(Date.now());
+  
+  // Initialize ref on mount or when pendingRevisionUrl first becomes available
+  useEffect(() => {
+    if (pendingRevisionUrl && !prevPendingRevisionUrlRef.current) {
+      console.log('[ImageLightbox] Initializing prevPendingRevisionUrlRef with:', pendingRevisionUrl);
+      prevPendingRevisionUrlRef.current = pendingRevisionUrl;
+    }
+  }, []);
+
+  // Update newOptionUrl when pendingRevisionUrl changes
+  // When a new revision arrives, update the URL and reset the view state
+  useEffect(() => {
+    const prevUrl = prevPendingRevisionUrlRef.current;
+    const currentUrl = pendingRevisionUrl;
+
+    console.log('[ImageLightbox] useEffect triggered:', {
+      prevUrl,
+      currentUrl,
+      isOpen,
+      showNewOption,
+      newOptionUrl,
+      urlsMatch: currentUrl === prevUrl,
+      prevUrlType: typeof prevUrl,
+      currentUrlType: typeof currentUrl,
+      prevUrlLength: prevUrl?.length,
+      currentUrlLength: currentUrl?.length,
+    });
+
+    // Always update the ref to the current value (for next comparison)
+    // But only update state if the URL actually changed
+    // Use strict comparison to catch undefined/null changes
+    const urlChanged = currentUrl !== prevUrl;
+    
+    if (urlChanged) {
+      console.log('[ImageLightbox] Pending revision URL changed - updating state:', {
+        prevUrl,
+        currentUrl,
+        isOpen,
+        wasShowingNewOption: showNewOption,
+        previousNewOptionUrl: newOptionUrl,
+        urlChanged: true,
+        prevUrlString: String(prevUrl),
+        currentUrlString: String(currentUrl),
+      });
+      prevPendingRevisionUrlRef.current = currentUrl;
+
+      if (currentUrl) {
+        // Always update to the latest revision URL
+        // This will cause the image to update if showNewOption is true
+        setNewOptionUrl(currentUrl);
+        
+        // Update cache-buster timestamp when URL changes (forces image reload)
+        imageCacheBusterRef.current = Date.now();
+        
+        // If user is currently viewing a previous revision, keep showing the new option
+        // Use functional update to read current state value
+        setShowNewOption(prevShowNewOption => {
+          // If already showing a revision, keep showing (so new revision appears immediately)
+          // If not showing, keep it false (so "New Option Available" button appears)
+          const shouldShow = prevShowNewOption; // Keep current state
+          console.log('[ImageLightbox] showNewOption state:', {
+            previous: prevShowNewOption,
+            willKeep: shouldShow,
+            reason: shouldShow ? 'User is viewing revision, keep showing new one' : 'User not viewing, show button instead'
+          });
+          return shouldShow;
+        });
+        
+        // Update temporaryR2Key from the URL for revise operations
+        // Handle both /api/assets/ and Cloudflare Images URLs
+        // The URL now includes r2Key as a query parameter for cache-busting
+        let r2Key: string | null = null;
+        
+        // First, try to extract R2 key from query parameter (added by parent for cache-busting)
+        const urlObj = new URL(currentUrl, window.location.origin);
+        const r2KeyParam = urlObj.searchParams.get('r2Key');
+        if (r2KeyParam) {
+          r2Key = decodeURIComponent(r2KeyParam);
+          console.log('[ImageLightbox] Extracted R2 key from query parameter:', r2Key);
+        } else if (currentUrl.includes('/api/assets/')) {
+          // Fallback: extract from path if no query parameter
+          r2Key = currentUrl.replace('/api/assets/', '').split('?')[0]; // Remove query params
+        } else if (currentUrl.includes('imagedelivery.net')) {
+          // For Cloudflare Images URLs, we can't extract the R2 key from the URL path
+          // But the parent should have added it as a query parameter
+          console.warn('[ImageLightbox] Cloudflare Images URL detected, R2 key not found in query parameter');
+        }
+        setTemporaryR2Key(r2Key);
+        console.log('[ImageLightbox] Updated newOptionUrl to latest revision', {
+          r2Key,
+          newOptionUrl: currentUrl,
+          cacheBuster: imageCacheBusterRef.current,
+          showNewOptionWillBe: showNewOption, // Current value before state update
+        });
+      } else {
+        setNewOptionUrl(null);
+        setTemporaryR2Key(null);
+        // If no pending revision, reset to original view
+        setShowNewOption(false);
+        console.log('[ImageLightbox] Cleared newOptionUrl (no pending revision)');
+      }
+    } else {
+      // URLs match, but ensure ref is in sync
+      // Also check if we need to update the cache-buster if the URL is the same but we want to force a reload
+      if (currentUrl && currentUrl === prevUrl && currentUrl === newOptionUrl) {
+        // URL hasn't changed, but if we're showing it, we might need to refresh
+        // This handles the case where the same URL is used but the image content changed
+        console.log('[ImageLightbox] Pending revision URL unchanged, but checking if refresh needed');
+      }
+      prevPendingRevisionUrlRef.current = currentUrl;
+      console.log('[ImageLightbox] Pending revision URL unchanged, ref synced', {
+        currentUrl,
+        prevUrl,
+        newOptionUrl,
+      });
+    }
+  }, [pendingRevisionUrl]); // Removed other dependencies to ensure this runs whenever pendingRevisionUrl changes
+
+  // Determine if this is a first revision (no previous option exists)
+  const isFirstRevision = !pendingRevisionUrl;
+
+  // Set default image selection based on whether it's first or subsequent revision
+  useEffect(() => {
+    if (showRegenerateUI && isFirstRevision) {
+      // First revision: default to base + pose (like original generation)
+      setIncludeBaseCharacter(true);
+      setIncludePoseReference(true);
+      setIncludePreviousOption(false);
+    } else if (showRegenerateUI && !isFirstRevision) {
+      // Subsequent revision: default to previous option only
+      setIncludeBaseCharacter(false);
+      setIncludePoseReference(false);
+      setIncludePreviousOption(true);
+    }
+  }, [showRegenerateUI, isFirstRevision]);
+
+  const handleRegenerate = async () => {
+    // Validate poseNumber (0 is valid, so check for null/undefined explicitly)
+    if (!onRegenerate || poseNumber === null || poseNumber === undefined || !revisionPrompt.trim()) {
+      setGenerationError('Please enter a revision prompt');
+      return;
+    }
+
+    // Validate that at least one image is selected
+    if (!includeBaseCharacter && !includePoseReference && !includePreviousOption) {
+      setGenerationError('Please select at least one image to include in the revision (Base Character, Pose Reference, or Previous Option)');
+      return;
+    }
+
+    // Validate previousOptionR2Key if includePreviousOption is true
+    if (includePreviousOption && !temporaryR2Key && !pendingRevisionUrl) {
+      setGenerationError('Previous option is not available. Please select a different image option.');
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationError(null);
+
+    try {
+      // Extract R2 key from pendingRevisionUrl if temporaryR2Key is not set
+      let previousOptionR2Key = temporaryR2Key;
+      if (includePreviousOption && !previousOptionR2Key && pendingRevisionUrl) {
+        // Extract R2 key from preview URL (e.g., "/api/assets/book-mvp-simple-adventure/..." -> "book-mvp-simple-adventure/...")
+        previousOptionR2Key = pendingRevisionUrl.replace('/api/assets/', '');
+      }
+
+      await onRegenerate({
+        poseNumber,
+        revisionPrompt: revisionPrompt.trim(),
+        includeBaseCharacter,
+        includePoseReference,
+        includePreviousOption,
+        previousOptionR2Key: includePreviousOption ? previousOptionR2Key : undefined,
+      });
+      // Success - the parent component will update pendingRevisionUrl
+      // Close the regenerate UI and show the new option
+      setShowRegenerateUI(false);
+      setRevisionPrompt(''); // Clear prompt after success
+    } catch (error: any) {
+      console.error('[ImageLightbox] Regenerate failed:', error);
+      
+      // Enhanced error handling with user-friendly messages
+      let errorMessage = 'Failed to regenerate image. Please try again.';
+      
+      if (error.message) {
+        if (error.message.includes('Rate limit exceeded')) {
+          errorMessage = error.message;
+          if (error.retryAfter) {
+            const minutes = Math.ceil(error.retryAfter / 60);
+            errorMessage += ` You can try again in approximately ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
+          }
+        } else if (error.message.includes('blocked by Gemini safety filters')) {
+          errorMessage = 'Your revision prompt was blocked by content safety filters. Please try a different prompt.';
+        } else if (error.message.includes('At least one image must be selected')) {
+          errorMessage = 'Please select at least one image to include in the revision (Base Character, Pose Reference, or Previous Option)';
+        } else if (error.message.includes('previousOptionR2Key is required')) {
+          errorMessage = 'Previous option is not available. Please select a different image option.';
+        } else if (error.message.includes('Network error')) {
+          errorMessage = 'Network error: Please check your connection and try again.';
+        } else if (error.message.includes('after') && error.message.includes('attempts')) {
+          errorMessage = 'Service temporarily unavailable. Please try again in a moment.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setGenerationError(errorMessage);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleAccept = async () => {
+    if (!onAcceptRevision) return;
+    
+    // Disable buttons during operation
+    const wasGenerating = isGenerating;
+    setIsGenerating(true);
+    
+    try {
+      await onAcceptRevision();
+      // Clear new option state after acceptance
+      setNewOptionUrl(null);
+      setShowNewOption(false);
+      setTemporaryR2Key(null);
+      // Close regenerate UI if open
+      setShowRegenerateUI(false);
+    } catch (error: any) {
+      console.error('[ImageLightbox] Accept failed:', error);
+      const errorMessage = error.message || 'Failed to accept revision. Please try again.';
+      alert(errorMessage);
+      // Don't clear state on error - let user retry
+    } finally {
+      setIsGenerating(wasGenerating);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!onRejectRevision) return;
+    
+    // Disable buttons during operation
+    const wasGenerating = isGenerating;
+    setIsGenerating(true);
+    
+    try {
+      await onRejectRevision();
+      // Clear new option state after rejection
+      setNewOptionUrl(null);
+      setShowNewOption(false);
+      setTemporaryR2Key(null);
+      // Close regenerate UI if open
+      setShowRegenerateUI(false);
+    } catch (error: any) {
+      console.error('[ImageLightbox] Reject failed:', error);
+      const errorMessage = error.message || 'Failed to reject revision. Please try again.';
+      alert(errorMessage);
+      // Don't clear state on error - let user retry
+    } finally {
+      setIsGenerating(wasGenerating);
+    }
+  };
+
+  const handleRevise = async () => {
+    // Validate poseNumber (0 is valid, so check for null/undefined explicitly)
+    if (!onReviseRevision || poseNumber === null || poseNumber === undefined || !revisionPrompt.trim()) {
+      setGenerationError('Please enter a revision prompt');
+      return;
+    }
+
+    // Validate that at least one image is selected
+    if (!includeBaseCharacter && !includePoseReference && !includePreviousOption) {
+      setGenerationError('Please select at least one image to include in the revision (Base Character, Pose Reference, or Previous Option)');
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationError(null);
+
+    try {
+      // Use temporaryR2Key if available (set when revision arrives)
+      // This ensures we use the most recent revision's R2 key
+      let previousOptionR2Key = temporaryR2Key;
+      if (includePreviousOption && !previousOptionR2Key) {
+        // Fallback: try to extract from newOptionUrl (for R2 URLs only)
+        if (newOptionUrl && newOptionUrl.includes('/api/assets/')) {
+          previousOptionR2Key = newOptionUrl.replace('/api/assets/', '');
+        } else if (pendingRevisionUrl && pendingRevisionUrl.includes('/api/assets/')) {
+          // Last resort: extract from pendingRevisionUrl
+          previousOptionR2Key = pendingRevisionUrl.replace('/api/assets/', '');
+        } else {
+          // If we can't extract the R2 key, log a warning
+          console.warn('[ImageLightbox] Cannot extract R2 key for previous option, temporaryR2Key:', temporaryR2Key);
+        }
+      }
+
+      console.log('[ImageLightbox] handleRevise - previousOptionR2Key:', previousOptionR2Key, {
+        temporaryR2Key,
+        newOptionUrl,
+        pendingRevisionUrl,
+        includePreviousOption,
+      });
+
+      await onReviseRevision({
+        poseNumber,
+        revisionPrompt: revisionPrompt.trim(),
+        includeBaseCharacter,
+        includePoseReference,
+        includePreviousOption,
+        previousOptionR2Key: includePreviousOption ? previousOptionR2Key : undefined,
+      });
+      // Success - the parent component will update pendingRevisionUrl
+      setShowRegenerateUI(false);
+      setRevisionPrompt(''); // Clear prompt after success
+    } catch (error: any) {
+      console.error('[ImageLightbox] Revise failed:', error);
+      
+      // Enhanced error handling with user-friendly messages
+      let errorMessage = 'Failed to revise image. Please try again.';
+      
+      if (error.message) {
+        if (error.message.includes('Rate limit exceeded')) {
+          errorMessage = error.message;
+          if (error.retryAfter) {
+            const minutes = Math.ceil(error.retryAfter / 60);
+            errorMessage += ` You can try again in approximately ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
+          }
+        } else if (error.message.includes('blocked by Gemini safety filters')) {
+          errorMessage = 'Your revision prompt was blocked by content safety filters. Please try a different prompt.';
+        } else if (error.message.includes('At least one image must be selected')) {
+          errorMessage = 'Please select at least one image to include in the revision (Base Character, Pose Reference, or Previous Option)';
+        } else if (error.message.includes('previousOptionR2Key is required')) {
+          errorMessage = 'Previous option is not available. Please select a different image option.';
+        } else if (error.message.includes('Network error')) {
+          errorMessage = 'Network error: Please check your connection and try again.';
+        } else if (error.message.includes('after') && error.message.includes('attempts')) {
+          errorMessage = 'Service temporarily unavailable. Please try again in a moment.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setGenerationError(errorMessage);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -108,11 +504,11 @@ export function ImageLightbox({
       onClick={handleBackdropClick}
     >
       <div 
-        className="relative max-w-4xl max-h-[90vh] w-full mx-4"
+        className="relative max-w-6xl max-h-[90vh] w-full mx-4 flex flex-col bg-white rounded-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between bg-white px-6 py-4 rounded-t-lg">
+        {/* Header - fixed */}
+        <div className="flex items-center justify-between bg-white px-6 py-4 rounded-t-lg flex-shrink-0">
           <div className="flex items-center space-x-4">
             <h3 className="text-lg font-semibold text-gray-900">{imageName}</h3>
             {isFlagged && (
@@ -130,8 +526,201 @@ export function ImageLightbox({
           </button>
         </div>
 
-        {/* Image Container */}
-        <div className="bg-white p-6">
+        {/* Image Container - scrollable */}
+        <div className="bg-white p-6 overflow-y-auto flex-1">
+          {/* Regeneration UI Section */}
+          {showRegenerateUI && poseNumber !== undefined && poseNumber !== null && (
+            <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+              <h4 className="text-sm font-semibold text-indigo-900 mb-3">Regenerate Pose {poseNumber}</h4>
+              
+              {/* Revision Prompt Input */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Revision Prompt
+                </label>
+                <textarea
+                  value={revisionPrompt}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    setRevisionPrompt(e.target.value);
+                  }}
+                  placeholder="Describe the changes you want (e.g., 'Make the hair longer', 'Adjust the arm position')"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 bg-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 placeholder:text-gray-400"
+                  rows={3}
+                  disabled={isGenerating}
+                  onClick={(e) => e.stopPropagation()}
+                  onFocus={(e) => e.stopPropagation()}
+                />
+              </div>
+
+              {/* Image Selection and Buttons - Same Row */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Include Images in Revision
+                </label>
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Image Selection Thumbnails */}
+                  <div className="flex flex-wrap gap-4">
+                    {/* Base Character */}
+                    {baseCharacterUrl && (
+                      <label 
+                        className="flex items-center space-x-3 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={includeBaseCharacter}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setIncludeBaseCharacter(e.target.checked);
+                          }}
+                          disabled={isGenerating}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <div className="flex items-center space-x-2">
+                          <img
+                            src={baseCharacterUrl}
+                            alt="Base Character"
+                            className="w-12 h-12 object-cover rounded border border-gray-300"
+                          />
+                          <span className="text-sm text-gray-700">Base Character</span>
+                        </div>
+                      </label>
+                    )}
+
+                    {/* Pose Reference */}
+                    {comparisonImageUrl && (
+                      <label 
+                        className="flex items-center space-x-3 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={includePoseReference}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setIncludePoseReference(e.target.checked);
+                          }}
+                          disabled={isGenerating}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <div className="flex items-center space-x-2">
+                          <img
+                            src={comparisonImageUrl}
+                            alt="Pose Reference"
+                            className="w-12 h-12 object-cover rounded border border-gray-300"
+                          />
+                          <span className="text-sm text-gray-700">Pose Reference</span>
+                        </div>
+                      </label>
+                    )}
+
+                    {/* Previous Option - Use newOptionUrl if available (current revision), otherwise use pendingRevisionUrl */}
+                    {(newOptionUrl || pendingRevisionUrl) && (
+                      <label 
+                        className="flex items-center space-x-3 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={includePreviousOption}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setIncludePreviousOption(e.target.checked);
+                          }}
+                          disabled={isGenerating}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <div className="flex items-center space-x-2">
+                          <img
+                            src={newOptionUrl || pendingRevisionUrl || ''}
+                            alt="Previous Option"
+                            className="w-12 h-12 object-cover rounded border border-gray-300"
+                          />
+                          <span className="text-sm text-gray-700">Previous Option</span>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Cancel and Generate Buttons */}
+                  <div className="flex items-center space-x-3 ml-auto">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowRegenerateUI(false);
+                        setRevisionPrompt('');
+                        setGenerationError(null);
+                      }}
+                      disabled={isGenerating}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRegenerate();
+                      }}
+                      disabled={isGenerating || !revisionPrompt.trim() || (!includeBaseCharacter && !includePoseReference && !includePreviousOption)}
+                      className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                          Generating...
+                        </>
+                      ) : (
+                        'Generate'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {generationError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-800">{generationError}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab/Toggle for Original vs New Option */}
+          {newOptionUrl && comparisonMode && (
+            <div className="mb-4">
+              <div className="flex items-center space-x-2 border-b border-gray-200">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowNewOption(false);
+                  }}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    !showNewOption
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Original
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowNewOption(true);
+                  }}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    showNewOption
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  New Option
+                </button>
+              </div>
+            </div>
+          )}
+
           {comparisonMode && comparisonImageUrl ? (
             // Comparison mode: side-by-side layout
             <div className="space-y-4">
@@ -143,14 +732,81 @@ export function ImageLightbox({
               
               {/* Images */}
               <div className="flex flex-col md:flex-row gap-4">
-                {/* Left: Generated/Character Image */}
+                {/* Left: Generated/Character Image (with toggle for new option) */}
                 <div className="flex-1">
                   <div 
                     className={`relative w-full aspect-square flex items-center justify-center ${
                       showBlackBackground && hasTransparentBackground ? 'bg-black' : 'bg-gray-50'
                     } rounded-lg overflow-hidden`}
                   >
-                    {imageUrl ? (
+                    {showNewOption && newOptionUrl ? (
+                      // Show new option when toggled
+                      <>
+                        <img
+                          key={`${newOptionUrl}-${imageCacheBusterRef.current}`} // Force re-render when URL or cache-buster changes
+                          src={newOptionUrl} // URL already includes cache-busting parameters from parent
+                          alt="New Option"
+                          className="max-w-full max-h-full object-contain"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                        {/* Accept/Reject/Revise buttons - only visible when new option is shown */}
+                        {showNewOption && (
+                          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-2 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAccept();
+                              }}
+                              className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReject();
+                              }}
+                              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                            >
+                              Reject
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Use temporaryR2Key if available (set when revision arrives)
+                                // Fallback to extracting from URL if not set (for R2 URLs only)
+                                let r2Key = temporaryR2Key;
+                                if (!r2Key && newOptionUrl) {
+                                  // Only try to extract from URL if it's an R2 URL (not Cloudflare Images)
+                                  if (newOptionUrl.includes('/api/assets/')) {
+                                    r2Key = newOptionUrl.replace('/api/assets/', '');
+                                  } else {
+                                    // For Cloudflare Images URLs, we need to get R2 key from pending revisions
+                                    // This should already be set in temporaryR2Key, but if not, log a warning
+                                    console.warn('[ImageLightbox] Cannot extract R2 key from Cloudflare Images URL, using temporaryR2Key:', temporaryR2Key);
+                                  }
+                                }
+                                // Ensure temporaryR2Key is set for the revise operation
+                                if (r2Key) {
+                                  setTemporaryR2Key(r2Key);
+                                }
+                                setShowRegenerateUI(true);
+                                // Keep showing the new option (don't switch back to original)
+                                // This ensures the user can see the current revision while entering a new prompt
+                                setShowNewOption(true);
+                              }}
+                              className="px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-300 rounded-md hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                              Revise
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    ) : imageUrl ? (
+                      // Show original image
                       <img
                         src={imageUrl}
                         alt={imageName}
@@ -251,16 +907,16 @@ export function ImageLightbox({
           )}
         </div>
 
-        {/* Actions */}
-        <div className="bg-white px-6 py-4 rounded-b-lg border-t border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+        {/* Actions - fixed */}
+        <div className="bg-white px-6 py-4 rounded-b-lg border-t border-gray-200 flex-shrink-0">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center space-x-3 flex-nowrap overflow-x-auto min-w-0">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onDownload();
                 }}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center justify-center w-[160px] px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Download
@@ -279,7 +935,7 @@ export function ImageLightbox({
                   }, 0);
                 }}
                 disabled={isReplacing}
-                className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                className={`inline-flex items-center justify-center w-[160px] px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap ${
                   isReplacing
                     ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                     : 'text-gray-700 bg-white hover:bg-gray-50'
@@ -303,7 +959,7 @@ export function ImageLightbox({
                   e.stopPropagation();
                   onFlag();
                 }}
-                className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                className={`inline-flex items-center justify-center w-[160px] px-4 py-2 border rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 whitespace-nowrap ${
                   isFlagged
                     ? 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100'
                     : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
@@ -312,6 +968,38 @@ export function ImageLightbox({
                 <Flag className="h-4 w-4 mr-2" />
                 {isFlagged ? 'Unflag' : 'Flag for Review'}
               </button>
+
+              {/* Regenerate button (only for Tab 1 poses) */}
+              {poseNumber !== undefined && poseNumber !== null && !showNewOption && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowRegenerateUI(!showRegenerateUI);
+                    if (!showRegenerateUI) {
+                      setRevisionPrompt('');
+                      setGenerationError(null);
+                    }
+                  }}
+                  className="inline-flex items-center justify-center w-[160px] px-4 py-2 border border-indigo-300 rounded-md shadow-sm text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 whitespace-nowrap"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Regenerate
+                </button>
+              )}
+
+              {/* New Option Available button (when pending revision exists) */}
+              {newOptionUrl && !showNewOption && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowNewOption(true);
+                  }}
+                  className="inline-flex items-center justify-center w-[160px] px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  New Option Available
+                </button>
+              )}
 
               {/* Flip button (only for Post-Bria background preview) */}
               {comparisonMode === 'background' && onFlip && (
@@ -322,7 +1010,7 @@ export function ImageLightbox({
                     onFlip();
                   }}
                   disabled={isFlipping}
-                  className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  className={`inline-flex items-center justify-center w-[160px] px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap ${
                     isFlipping
                       ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                       : 'text-gray-700 bg-white hover:bg-gray-50'
@@ -343,7 +1031,7 @@ export function ImageLightbox({
               )}
             </div>
 
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 flex-shrink-0 whitespace-nowrap">
               Press Esc or click outside to close
             </div>
           </div>

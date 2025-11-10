@@ -25,15 +25,115 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     hasTransparentBackground: false
   });
 
-  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number; comparisonMode?: 'reference' | 'background' | null; comparisonImageUrl?: string; comparisonLabel?: string; poseNumber?: number }>>([]);
+  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number; comparisonMode?: 'reference' | 'background' | null; comparisonImageUrl?: string; comparisonLabel?: string; poseNumber?: number; pendingRevisionUrl?: string; onRevisionBadgeClick?: () => void }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
+  const [pendingRevisions, setPendingRevisions] = useState<Record<string, { r2Key: string; previewUrl: string }>>({});
   
   // Track poses that the user has manually unflagged (persist across re-renders)
   const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
+  // Track active polling intervals for cleanup
+  const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const pollingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  // Track if an operation is in progress to prevent race conditions
+  const operationInProgressRef = useRef<Set<string>>(new Set());
   
   // Reset manually unflagged set when order changes
   useEffect(() => {
     manuallyUnflaggedRef.current.clear();
+    operationInProgressRef.current.clear();
+  }, [orderId]);
+
+  // Cleanup polling intervals on unmount or order change
+  useEffect(() => {
+    return () => {
+      // Clear all polling intervals
+      pollingIntervalsRef.current.forEach((interval) => {
+        clearInterval(interval);
+      });
+      pollingIntervalsRef.current.clear();
+      
+      // Clear all polling timeouts
+      pollingTimeoutsRef.current.forEach((timeout) => {
+        clearTimeout(timeout);
+      });
+      pollingTimeoutsRef.current.clear();
+    };
+  }, [orderId]);
+
+  // Load pending revisions from manifest
+  useEffect(() => {
+    const loadPendingRevisions = async () => {
+      try {
+        const manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`;
+        const manifestUrl = `/api/manifests/${manifestKey}?v=${Date.now()}`;
+        
+        const response = await fetch(manifestUrl, { cache: 'no-store' });
+        if (!response.ok) {
+          console.log('[PreBriaStage] Manifest not found or error loading:', response.status);
+          // Only clear if no operations are in progress
+          if (operationInProgressRef.current.size === 0) {
+            setPendingRevisions({});
+          }
+          return;
+        }
+
+        const manifest = await response.json();
+        const revisions = manifest?.revisions?.pending || {};
+        
+        // Map pending revisions to pose keys (pose01, pose02, etc.)
+        const revisionsMap: Record<string, { r2Key: string; previewUrl: string }> = {};
+        Object.keys(revisions).forEach((poseKey) => {
+          const revision = revisions[poseKey];
+          if (revision?.r2Key && revision?.status === 'completed') {
+            // Prefer Cloudflare Images URL if available, otherwise use R2 URL
+            const previewUrl = revision.cloudflareImageUrl || `/api/assets/${revision.r2Key}`;
+            revisionsMap[poseKey] = {
+              r2Key: revision.r2Key,
+              previewUrl
+            };
+          }
+        });
+
+        console.log('[PreBriaStage] Loaded pending revisions:', Object.keys(revisionsMap));
+        
+        // Only update state if no operations are in progress for these poses
+        setPendingRevisions(prev => {
+          const updated = { ...prev };
+          Object.keys(revisionsMap).forEach(poseKey => {
+            // Don't overwrite if an operation is in progress for this pose
+            if (!operationInProgressRef.current.has(poseKey)) {
+              updated[poseKey] = revisionsMap[poseKey];
+            }
+          });
+          // Remove poses that are no longer in manifest (unless operation in progress)
+          Object.keys(updated).forEach(poseKey => {
+            if (!revisionsMap[poseKey] && !operationInProgressRef.current.has(poseKey)) {
+              delete updated[poseKey];
+            }
+          });
+          return updated;
+        });
+      } catch (error) {
+        console.error('[PreBriaStage] Error loading pending revisions:', error);
+        // Only clear if no operations are in progress
+        if (operationInProgressRef.current.size === 0) {
+          setPendingRevisions({});
+        }
+      }
+    };
+
+    if (orderId) {
+      loadPendingRevisions();
+      
+      // Periodically refresh pending revisions (every 10 seconds) to detect new completions
+      const refreshInterval = setInterval(() => {
+        loadPendingRevisions();
+      }, 10000);
+      
+      return () => {
+        clearInterval(refreshInterval);
+      };
+    }
   }, [orderId]);
 
   // Two-step workflow state
@@ -108,6 +208,29 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         const paddedPoseNumber = String(poseNumber).padStart(2, '0');
         const referencePoseUrl = `/api/assets/book-mvp-simple-adventure/characters/poses/pose${paddedPoseNumber}.png`;
         
+        // Check for pending revision
+        const revisionKey = `pose${paddedPoseNumber}`;
+        const pendingRevision = pendingRevisions[revisionKey];
+        
+        // Log when pending revision is found
+        if (pendingRevision) {
+          console.log('[PreBriaStage] Found pending revision for pose', poseNumber, {
+            revisionKey,
+            r2Key: pendingRevision.r2Key,
+            previewUrl: pendingRevision.previewUrl,
+          });
+        }
+        
+        // Add cache-busting parameter to pendingRevisionUrl to ensure React detects changes
+        // This is critical when a second revision overwrites the first with the same preview URL
+        let pendingRevisionUrlWithCacheBust: string | undefined = undefined;
+        if (pendingRevision?.previewUrl) {
+          // Add R2 key as cache-buster to ensure uniqueness even if preview URL is the same
+          // This ensures React detects when a new revision arrives with a different R2 key
+          const separator = pendingRevision.previewUrl.includes('?') ? '&' : '?';
+          pendingRevisionUrlWithCacheBust = `${pendingRevision.previewUrl}${separator}r2Key=${encodeURIComponent(pendingRevision.r2Key)}&t=${Date.now()}`;
+        }
+        
         return {
           id: poseId,
           name: `Pose ${poseNumber}${isMissing ? ' (Missing)' : ''}`,
@@ -122,7 +245,17 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
           comparisonMode: 'reference' as const,
           comparisonImageUrl: referencePoseUrl,
           comparisonLabel: 'Reference Pose',
-          poseNumber: poseNumber
+          poseNumber: poseNumber,
+          // Revision data - use cache-busted URL to ensure React detects changes
+          pendingRevisionUrl: pendingRevisionUrlWithCacheBust,
+          onRevisionBadgeClick: pendingRevision ? () => {
+            // Open modal with revision shown in reference area
+            // Find the pose asset and open it in the modal
+            // The modal will detect pendingRevisionUrl and show it appropriately
+            console.log('[PreBriaStage] Revision badge clicked for pose', poseNumber);
+            // Note: The actual modal opening is handled by AssetGrid when the badge is clicked
+            // We just need to ensure the asset has the pendingRevisionUrl set (which it does)
+          } : undefined
         };
       });
       console.log('[PreBriaStage] Mapped poses count:', mappedPoses.length, 'sample:', mappedPoses.slice(0, 2).map(p => ({ id: p.id, url: p.url?.substring(0, 50) })));
@@ -132,7 +265,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [r2AssetsKey, orderId]); // Use stable key instead of object reference
+  }, [r2AssetsKey, orderId, pendingRevisions]); // Include pendingRevisions in dependencies
 
   const handleDownload = async (assetId: string) => {
     try {
@@ -376,6 +509,354 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     onInitiateWorkflow();
   };
 
+  // Handle regeneration with polling support
+  const handleRegenerate = async (data: {
+    poseNumber: number;
+    revisionPrompt: string;
+    includeBaseCharacter: boolean;
+    includePoseReference: boolean;
+    includePreviousOption: boolean;
+    previousOptionR2Key?: string;
+  }) => {
+    try {
+      // If includePreviousOption is true but no previousOptionR2Key provided, get it from pending revisions
+      let previousOptionR2Key = data.previousOptionR2Key;
+      if (data.includePreviousOption && !previousOptionR2Key) {
+        const poseNN = String(data.poseNumber).padStart(2, '0');
+        const revisionKey = `pose${poseNN}`;
+        const pendingRevision = pendingRevisions[revisionKey];
+        if (pendingRevision) {
+          previousOptionR2Key = pendingRevision.r2Key;
+        }
+      }
+
+      const response = await fetch(`/api/orders/${orderId}/regenerate-pose`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          poseNumber: data.poseNumber,
+          revisionPrompt: data.revisionPrompt,
+          includeBaseCharacter: data.includeBaseCharacter,
+          includePoseReference: data.includePoseReference,
+          includePreviousOption: data.includePreviousOption,
+          previousOptionR2Key: previousOptionR2Key,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        const errorObj = new Error(error.error || 'Failed to regenerate pose');
+        // Preserve rate limit info for user-friendly messages
+        if (response.status === 429) {
+          (errorObj as any).retryAfter = error.retryAfter;
+        }
+        throw errorObj;
+      }
+
+      const result = await response.json();
+      console.log('[PreBriaStage] Regenerate response:', result);
+
+      // If status is 'completed', update state immediately
+      if (result.status === 'completed' && result.temporaryR2Key) {
+        const poseNN = String(data.poseNumber).padStart(2, '0');
+        const revisionKey = `pose${poseNN}`;
+        const newPreviewUrl = result.previewUrl || result.cloudflareImageUrl || `/api/assets/${result.temporaryR2Key}`;
+        
+        setPendingRevisions(prev => {
+          const previousRevision = prev[revisionKey];
+          console.log('[PreBriaStage] Updating pending revision (synchronous completion):', {
+            revisionKey,
+            r2Key: result.temporaryR2Key,
+            previewUrl: newPreviewUrl,
+            previousRevisionUrl: previousRevision?.previewUrl,
+            urlChanged: previousRevision?.previewUrl !== newPreviewUrl,
+          });
+          
+          return {
+            ...prev,
+            [revisionKey]: {
+              r2Key: result.temporaryR2Key,
+              previewUrl: newPreviewUrl,
+            },
+          };
+        });
+
+        // Refresh order data to show new pending revision
+        if (onRefresh) {
+          await onRefresh();
+        }
+        return; // Done, no need to poll
+      }
+
+      // If status is 'pending' or 'processing', start polling
+      if (result.jobId && (result.status === 'pending' || result.status === 'processing')) {
+        console.log('[PreBriaStage] Starting polling for jobId:', result.jobId);
+        
+        const poseNN = String(data.poseNumber).padStart(2, '0');
+        const revisionKey = `pose${poseNN}`;
+        
+        // Clean up any existing polling for this pose
+        const existingInterval = pollingIntervalsRef.current.get(revisionKey);
+        if (existingInterval) {
+          clearInterval(existingInterval);
+          pollingIntervalsRef.current.delete(revisionKey);
+        }
+        const existingTimeout = pollingTimeoutsRef.current.get(revisionKey);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+          pollingTimeoutsRef.current.delete(revisionKey);
+        }
+        
+        // Poll every 2-3 seconds (using 2500ms for 2.5 seconds)
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusResponse = await fetch(`/api/orders/${orderId}/regenerate-pose/${result.jobId}`);
+            if (!statusResponse.ok) {
+              console.error('[PreBriaStage] Polling error:', statusResponse.status);
+              clearInterval(pollInterval);
+              pollingIntervalsRef.current.delete(revisionKey);
+              return;
+            }
+
+            const statusResult = await statusResponse.json();
+            console.log('[PreBriaStage] Polling status:', statusResult);
+
+            if (statusResult.status === 'completed') {
+              clearInterval(pollInterval);
+              pollingIntervalsRef.current.delete(revisionKey);
+              
+              // Clear timeout if it exists
+              const timeout = pollingTimeoutsRef.current.get(revisionKey);
+              if (timeout) {
+                clearTimeout(timeout);
+                pollingTimeoutsRef.current.delete(revisionKey);
+              }
+              
+              // Update pending revisions state
+              const newPreviewUrl = statusResult.previewUrl || statusResult.cloudflareImageUrl || `/api/assets/${statusResult.temporaryR2Key}`;
+              
+              // Get current state to compare
+              setPendingRevisions(prev => {
+                const previousRevision = prev[revisionKey];
+                console.log('[PreBriaStage] Updating pending revision after polling completion:', {
+                  revisionKey,
+                  r2Key: statusResult.temporaryR2Key,
+                  previewUrl: newPreviewUrl,
+                  previousRevisionUrl: previousRevision?.previewUrl,
+                  urlChanged: previousRevision?.previewUrl !== newPreviewUrl,
+                });
+                
+                const updated = {
+                  ...prev,
+                  [revisionKey]: {
+                    r2Key: statusResult.temporaryR2Key,
+                    previewUrl: newPreviewUrl,
+                  },
+                };
+                console.log('[PreBriaStage] Updated pendingRevisions state:', Object.keys(updated));
+                return updated;
+              });
+
+              // Force a refresh of the poses array by triggering the useEffect
+              // The poses array depends on pendingRevisions, so it should update automatically
+              // But we'll also refresh order data to ensure everything is in sync
+              if (onRefresh) {
+                await onRefresh();
+              }
+            } else if (statusResult.status === 'failed') {
+              clearInterval(pollInterval);
+              pollingIntervalsRef.current.delete(revisionKey);
+              
+              // Clear timeout if it exists
+              const timeout = pollingTimeoutsRef.current.get(revisionKey);
+              if (timeout) {
+                clearTimeout(timeout);
+                pollingTimeoutsRef.current.delete(revisionKey);
+              }
+              
+              // Don't throw - just log the error (user can see it in the UI if needed)
+              console.error('[PreBriaStage] Regeneration failed:', statusResult.error);
+            }
+            // Continue polling if status is 'pending' or 'processing'
+          } catch (error: any) {
+            console.error('[PreBriaStage] Polling error:', error);
+            clearInterval(pollInterval);
+            pollingIntervalsRef.current.delete(revisionKey);
+            
+            // Clear timeout if it exists
+            const timeout = pollingTimeoutsRef.current.get(revisionKey);
+            if (timeout) {
+              clearTimeout(timeout);
+              pollingTimeoutsRef.current.delete(revisionKey);
+            }
+            
+            // Don't throw - polling errors shouldn't break the UI
+            // The error is logged, and the user can retry if needed
+          }
+        }, 2500); // Poll every 2.5 seconds
+
+        // Store interval for cleanup
+        pollingIntervalsRef.current.set(revisionKey, pollInterval);
+
+        // Stop polling after 5 minutes (safety timeout)
+        const timeout = setTimeout(() => {
+          clearInterval(pollInterval);
+          pollingIntervalsRef.current.delete(revisionKey);
+          pollingTimeoutsRef.current.delete(revisionKey);
+          console.warn('[PreBriaStage] Polling timeout after 5 minutes for pose', data.poseNumber);
+        }, 5 * 60 * 1000);
+        
+        pollingTimeoutsRef.current.set(revisionKey, timeout);
+      } else {
+        // No jobId or unexpected status - refresh anyway
+        if (onRefresh) {
+          await onRefresh();
+        }
+      }
+    } catch (error: any) {
+      console.error('[PreBriaStage] Regenerate failed:', error);
+      throw error;
+    }
+  };
+
+  // Handle accept revision
+  const handleAcceptRevision = async (poseNumber: number) => {
+    const poseNN = String(poseNumber).padStart(2, '0');
+    const revisionKey = `pose${poseNN}`;
+    
+    // Mark operation as in progress
+    operationInProgressRef.current.add(revisionKey);
+    
+    try {
+      // Get current state (use functional update to get latest)
+      const currentPendingRevision = pendingRevisions[revisionKey];
+      if (!currentPendingRevision) {
+        operationInProgressRef.current.delete(revisionKey);
+        throw new Error('Pending revision not found');
+      }
+
+      // Call replace-image endpoint with temporaryR2Key
+      const formData = new FormData();
+      formData.append('poseNumber', poseNumber.toString());
+      formData.append('stage', 'preBria');
+      formData.append('temporaryR2Key', currentPendingRevision.r2Key);
+
+      const response = await fetch(`/api/orders/${orderId}/replace-image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        operationInProgressRef.current.delete(revisionKey);
+        throw new Error(error.error || 'Failed to accept revision');
+      }
+
+      // Remove from pending revisions (use functional update)
+      setPendingRevisions(prev => {
+        const updated = { ...prev };
+        delete updated[revisionKey];
+        return updated;
+      });
+
+      // Mark operation as complete
+      operationInProgressRef.current.delete(revisionKey);
+
+      // Refresh order data
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error: any) {
+      console.error('[PreBriaStage] Accept revision failed:', error);
+      operationInProgressRef.current.delete(revisionKey);
+      throw error;
+    }
+  };
+
+  // Handle reject revision
+  const handleRejectRevision = async (poseNumber: number) => {
+    const poseNN = String(poseNumber).padStart(2, '0');
+    const revisionKey = `pose${poseNN}`;
+    
+    // Mark operation as in progress
+    operationInProgressRef.current.add(revisionKey);
+    
+    try {
+      // Get current state (use functional update to get latest)
+      const currentPendingRevision = pendingRevisions[revisionKey];
+      if (!currentPendingRevision) {
+        operationInProgressRef.current.delete(revisionKey);
+        throw new Error('Pending revision not found');
+      }
+
+      // Call API to delete temporary file and update manifest
+      const response = await fetch(`/api/orders/${orderId}/reject-revision`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          poseNumber,
+          temporaryR2Key: currentPendingRevision.r2Key,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        operationInProgressRef.current.delete(revisionKey);
+        throw new Error(error.error || 'Failed to reject revision');
+      }
+
+      // Remove from pending revisions (use functional update)
+      setPendingRevisions(prev => {
+        const updated = { ...prev };
+        delete updated[revisionKey];
+        return updated;
+      });
+
+      // Mark operation as complete
+      operationInProgressRef.current.delete(revisionKey);
+
+      // Refresh order data
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error: any) {
+      console.error('[PreBriaStage] Reject revision failed:', error);
+      operationInProgressRef.current.delete(revisionKey);
+      throw error;
+    }
+  };
+
+  // Handle revise revision (discard previous and create new)
+  const handleReviseRevision = async (data: {
+    poseNumber: number;
+    revisionPrompt: string;
+    includeBaseCharacter: boolean;
+    includePoseReference: boolean;
+    includePreviousOption: boolean;
+    previousOptionR2Key?: string;
+  }) => {
+    // If includePreviousOption is true but no previousOptionR2Key provided, get it from pending revisions
+    let previousOptionR2Key = data.previousOptionR2Key;
+    if (data.includePreviousOption && !previousOptionR2Key) {
+      const poseNN = String(data.poseNumber).padStart(2, '0');
+      const revisionKey = `pose${poseNN}`;
+      const pendingRevision = pendingRevisions[revisionKey];
+      if (pendingRevision) {
+        previousOptionR2Key = pendingRevision.r2Key;
+      }
+    }
+
+    // Revise is the same as regenerate - it will overwrite the previous pending revision
+    await handleRegenerate({
+      ...data,
+      previousOptionR2Key,
+    });
+  };
+
 
   return (
     <div className="space-y-8">
@@ -411,6 +892,12 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             canApprove={true}
             isApproved={isApproved}
             isReplacing={isReplacing}
+            orderId={orderId}
+            baseCharacterUrl={baseCharacter.url}
+            onRegenerate={handleRegenerate}
+            onAcceptRevision={handleAcceptRevision}
+            onRejectRevision={handleRejectRevision}
+            onReviseRevision={handleReviseRevision}
           />
         </>
       ) : (
