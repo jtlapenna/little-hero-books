@@ -333,6 +333,7 @@ export function PostPdfStage({
 
       await page
         .render({
+          canvas: canvas,
           canvasContext: context,
           viewport,
         })
@@ -1637,6 +1638,7 @@ export function PostPdfStage({
     process.env.NEXT_PUBLIC_ALLOW_APPROVAL_WITHOUT_PDF === 'true';
   const pdfUnavailableForEnv =
     Boolean(pdfAsset.error) &&
+    pdfAsset.error !== null &&
     /environment|credential|not available in this environment/i.test(pdfAsset.error);
   const canApprove =
     !pdfAsset.isFlagged &&
