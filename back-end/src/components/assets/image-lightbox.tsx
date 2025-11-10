@@ -766,13 +766,13 @@ export function ImageLightbox({
         {/* Actions - fixed */}
         <div className="bg-white px-6 py-4 rounded-b-lg border-t border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 flex-wrap">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onDownload();
                 }}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center justify-center w-[160px] px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Download
@@ -791,7 +791,7 @@ export function ImageLightbox({
                   }, 0);
                 }}
                 disabled={isReplacing}
-                className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                className={`inline-flex items-center justify-center w-[160px] px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap ${
                   isReplacing
                     ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                     : 'text-gray-700 bg-white hover:bg-gray-50'
@@ -815,7 +815,7 @@ export function ImageLightbox({
                   e.stopPropagation();
                   onFlag();
                 }}
-                className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                className={`inline-flex items-center justify-center w-[160px] px-4 py-2 border rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 whitespace-nowrap ${
                   isFlagged
                     ? 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100'
                     : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
@@ -836,7 +836,7 @@ export function ImageLightbox({
                       setGenerationError(null);
                     }
                   }}
-                  className="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-md shadow-sm text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="inline-flex items-center justify-center w-[160px] px-4 py-2 border border-indigo-300 rounded-md shadow-sm text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 whitespace-nowrap"
                 >
                   <RotateCcw className="h-4 w-4 mr-2" />
                   Regenerate
@@ -850,7 +850,7 @@ export function ImageLightbox({
                     e.stopPropagation();
                     setShowNewOption(true);
                   }}
-                  className="inline-flex items-center px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="inline-flex items-center justify-center w-[160px] px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   New Option Available
@@ -866,7 +866,7 @@ export function ImageLightbox({
                     onFlip();
                   }}
                   disabled={isFlipping}
-                  className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  className={`inline-flex items-center justify-center w-[160px] px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap ${
                     isFlipping
                       ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                       : 'text-gray-700 bg-white hover:bg-gray-50'
