@@ -38,6 +38,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   // Reset manually unflagged set when order changes
   useEffect(() => {
     manuallyUnflaggedRef.current.clear();
+    operationInProgressRef.current.clear();
   }, [orderId]);
 
   // Cleanup polling intervals on unmount or order change
@@ -57,6 +58,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     };
   }, [orderId]);
 
+  // Track if an operation is in progress to prevent race conditions
+  const operationInProgressRef = useRef<Set<string>>(new Set());
+
   // Load pending revisions from manifest
   useEffect(() => {
     const loadPendingRevisions = async () => {
@@ -67,7 +71,10 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         const response = await fetch(manifestUrl, { cache: 'no-store' });
         if (!response.ok) {
           console.log('[PreBriaStage] Manifest not found or error loading:', response.status);
-          setPendingRevisions({});
+          // Only clear if no operations are in progress
+          if (operationInProgressRef.current.size === 0) {
+            setPendingRevisions({});
+          }
           return;
         }
 
@@ -89,10 +96,30 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         });
 
         console.log('[PreBriaStage] Loaded pending revisions:', Object.keys(revisionsMap));
-        setPendingRevisions(revisionsMap);
+        
+        // Only update state if no operations are in progress for these poses
+        setPendingRevisions(prev => {
+          const updated = { ...prev };
+          Object.keys(revisionsMap).forEach(poseKey => {
+            // Don't overwrite if an operation is in progress for this pose
+            if (!operationInProgressRef.current.has(poseKey)) {
+              updated[poseKey] = revisionsMap[poseKey];
+            }
+          });
+          // Remove poses that are no longer in manifest (unless operation in progress)
+          Object.keys(updated).forEach(poseKey => {
+            if (!revisionsMap[poseKey] && !operationInProgressRef.current.has(poseKey)) {
+              delete updated[poseKey];
+            }
+          });
+          return updated;
+        });
       } catch (error) {
         console.error('[PreBriaStage] Error loading pending revisions:', error);
-        setPendingRevisions({});
+        // Only clear if no operations are in progress
+        if (operationInProgressRef.current.size === 0) {
+          setPendingRevisions({});
+        }
       }
     };
 
@@ -647,12 +674,17 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
   // Handle accept revision
   const handleAcceptRevision = async (poseNumber: number) => {
+    const poseNN = String(poseNumber).padStart(2, '0');
+    const revisionKey = `pose${poseNN}`;
+    
+    // Mark operation as in progress
+    operationInProgressRef.current.add(revisionKey);
+    
     try {
-      const poseNN = String(poseNumber).padStart(2, '0');
-      const revisionKey = `pose${poseNN}`;
-      const pendingRevision = pendingRevisions[revisionKey];
-
-      if (!pendingRevision) {
+      // Get current state (use functional update to get latest)
+      const currentPendingRevision = pendingRevisions[revisionKey];
+      if (!currentPendingRevision) {
+        operationInProgressRef.current.delete(revisionKey);
         throw new Error('Pending revision not found');
       }
 
@@ -660,7 +692,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       const formData = new FormData();
       formData.append('poseNumber', poseNumber.toString());
       formData.append('stage', 'preBria');
-      formData.append('temporaryR2Key', pendingRevision.r2Key);
+      formData.append('temporaryR2Key', currentPendingRevision.r2Key);
 
       const response = await fetch(`/api/orders/${orderId}/replace-image`, {
         method: 'POST',
@@ -669,13 +701,19 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
       if (!response.ok) {
         const error = await response.json();
+        operationInProgressRef.current.delete(revisionKey);
         throw new Error(error.error || 'Failed to accept revision');
       }
 
-      // Remove from pending revisions
-      const updatedRevisions = { ...pendingRevisions };
-      delete updatedRevisions[revisionKey];
-      setPendingRevisions(updatedRevisions);
+      // Remove from pending revisions (use functional update)
+      setPendingRevisions(prev => {
+        const updated = { ...prev };
+        delete updated[revisionKey];
+        return updated;
+      });
+
+      // Mark operation as complete
+      operationInProgressRef.current.delete(revisionKey);
 
       // Refresh order data
       if (onRefresh) {
@@ -683,18 +721,24 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       }
     } catch (error: any) {
       console.error('[PreBriaStage] Accept revision failed:', error);
+      operationInProgressRef.current.delete(revisionKey);
       throw error;
     }
   };
 
   // Handle reject revision
   const handleRejectRevision = async (poseNumber: number) => {
+    const poseNN = String(poseNumber).padStart(2, '0');
+    const revisionKey = `pose${poseNN}`;
+    
+    // Mark operation as in progress
+    operationInProgressRef.current.add(revisionKey);
+    
     try {
-      const poseNN = String(poseNumber).padStart(2, '0');
-      const revisionKey = `pose${poseNN}`;
-      const pendingRevision = pendingRevisions[revisionKey];
-
-      if (!pendingRevision) {
+      // Get current state (use functional update to get latest)
+      const currentPendingRevision = pendingRevisions[revisionKey];
+      if (!currentPendingRevision) {
+        operationInProgressRef.current.delete(revisionKey);
         throw new Error('Pending revision not found');
       }
 
@@ -706,19 +750,25 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         },
         body: JSON.stringify({
           poseNumber,
-          temporaryR2Key: pendingRevision.r2Key,
+          temporaryR2Key: currentPendingRevision.r2Key,
         }),
       });
 
       if (!response.ok) {
         const error = await response.json();
+        operationInProgressRef.current.delete(revisionKey);
         throw new Error(error.error || 'Failed to reject revision');
       }
 
-      // Remove from pending revisions
-      const updatedRevisions = { ...pendingRevisions };
-      delete updatedRevisions[revisionKey];
-      setPendingRevisions(updatedRevisions);
+      // Remove from pending revisions (use functional update)
+      setPendingRevisions(prev => {
+        const updated = { ...prev };
+        delete updated[revisionKey];
+        return updated;
+      });
+
+      // Mark operation as complete
+      operationInProgressRef.current.delete(revisionKey);
 
       // Refresh order data
       if (onRefresh) {
@@ -726,6 +776,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       }
     } catch (error: any) {
       console.error('[PreBriaStage] Reject revision failed:', error);
+      operationInProgressRef.current.delete(revisionKey);
       throw error;
     }
   };

@@ -650,12 +650,19 @@ export async function POST(
     if (temporaryR2Key && manifest.revisions && manifest.revisions.pending) {
       const poseNN = String(poseNumber).padStart(2, '0');
       const poseKey = `pose${poseNN}`;
-      if (manifest.revisions.pending[poseKey]) {
+      const pendingRevision = manifest.revisions.pending[poseKey];
+      
+      if (pendingRevision) {
+        // Verify that the temporaryR2Key matches what's in the manifest
+        if (pendingRevision.r2Key !== temporaryR2Key) {
+          console.warn(`[Replace Image API] R2 key mismatch for pose ${poseNumber}. Expected: ${pendingRevision.r2Key}, Got: ${temporaryR2Key}`);
+          // Don't fail - the file might have been updated, but log the mismatch
+        }
+        
         // Move to history (optional - for tracking)
         if (!manifest.revisions.history) {
           manifest.revisions.history = [];
         }
-        const pendingRevision = manifest.revisions.pending[poseKey];
         manifest.revisions.history.push({
           poseNumber,
           revisionPrompt: pendingRevision.revisionPrompt,

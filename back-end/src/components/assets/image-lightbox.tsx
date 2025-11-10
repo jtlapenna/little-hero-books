@@ -229,6 +229,11 @@ export function ImageLightbox({
 
   const handleAccept = async () => {
     if (!onAcceptRevision) return;
+    
+    // Disable buttons during operation
+    const wasGenerating = isGenerating;
+    setIsGenerating(true);
+    
     try {
       await onAcceptRevision();
       // Clear new option state after acceptance
@@ -241,11 +246,19 @@ export function ImageLightbox({
       console.error('[ImageLightbox] Accept failed:', error);
       const errorMessage = error.message || 'Failed to accept revision. Please try again.';
       alert(errorMessage);
+      // Don't clear state on error - let user retry
+    } finally {
+      setIsGenerating(wasGenerating);
     }
   };
 
   const handleReject = async () => {
     if (!onRejectRevision) return;
+    
+    // Disable buttons during operation
+    const wasGenerating = isGenerating;
+    setIsGenerating(true);
+    
     try {
       await onRejectRevision();
       // Clear new option state after rejection
@@ -258,6 +271,9 @@ export function ImageLightbox({
       console.error('[ImageLightbox] Reject failed:', error);
       const errorMessage = error.message || 'Failed to reject revision. Please try again.';
       alert(errorMessage);
+      // Don't clear state on error - let user retry
+    } finally {
+      setIsGenerating(wasGenerating);
     }
   };
 
