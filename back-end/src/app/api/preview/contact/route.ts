@@ -31,6 +31,51 @@ const allowedReasons = [
 
 type ReviewStageKey = 'preBria' | 'postBria' | 'postPdf';
 
+const reasonIssueTypeMap: Record<
+  (typeof allowedReasons)[number],
+  'image' | 'text' | 'character' | 'other'
+> = {
+  name_typo: 'text',
+  hairStyle_wrong: 'character',
+  hairColor_wrong: 'character',
+  skinTone_wrong: 'character',
+  pronouns_wrong: 'text',
+  animalGuide_wrong: 'character',
+  favoriteColor_wrong: 'character',
+  clothingStyle_wrong: 'character',
+  dedication_fix: 'text',
+  hometown_fix: 'text',
+  favoriteFood_fix: 'text',
+  age_wrong: 'text',
+  visual_issue: 'image',
+  other: 'other'
+};
+
+function buildFeedbackDescription(payload: {
+  reason: string;
+  message: string | null;
+  fields: Record<string, unknown>;
+  email: string | null;
+  name: string | null;
+}): string {
+  try {
+    return JSON.stringify(payload);
+  } catch {
+    return payload.message || payload.reason || 'customer feedback';
+  }
+}
+
+function isTableMissingError(error: any, tableName: string) {
+  if (!error) return false;
+  const message = String(error.message || '').toLowerCase();
+  return (
+    error.code === 'PGRST205' ||
+    error.code === '42P01' ||
+    message.includes(`could not find the table '${tableName}'`) ||
+    message.includes(`relation "${tableName}" does not exist`)
+  );
+}
+
 const reasonStageMap: Record<(typeof allowedReasons)[number], ReviewStageKey> = {
   name_typo: 'postPdf',
   hairStyle_wrong: 'preBria',
@@ -227,34 +272,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Enforce single correction per order
-    const { count, error: countError } = await supabase
-      .from('customer_contacts')
+    const {
+      count: feedbackCount,
+      error: feedbackCountError
+    } = await supabase
+      .from('customer_feedback')
       .select('id', { count: 'exact', head: true })
-      .eq('order_id', payload.orderId)
-      .eq('revision_requested', true);
+      .eq('order_id', payload.orderId);
 
-    if (countError) {
-      if (
-        countError.code === 'PGRST205' ||
-        countError.code === '42P01' ||
-        countError.message?.toLowerCase().includes('could not find the table')
-      ) {
-        console.warn(
-          '[API] customer_contacts table not found when counting corrections; continuing with zero corrections.'
-        );
-      } else {
-        console.error('[API] Error counting existing corrections', countError);
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Failed to verify correction limit'
-          },
-          { status: 500, headers: corsHeaders }
-        );
-      }
+    if (
+      feedbackCountError &&
+      !isTableMissingError(feedbackCountError, 'customer_feedback')
+    ) {
+      console.error('[API] Error counting existing corrections', feedbackCountError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Failed to verify correction limit'
+        },
+        { status: 500, headers: corsHeaders }
+      );
     }
 
-    if ((count ?? 0) >= 1) {
+    const priorCorrections = feedbackCount ?? 0;
+
+    if (strictMode && priorCorrections >= 1) {
       return NextResponse.json(
         {
           success: false,
@@ -281,7 +323,7 @@ export async function POST(request: NextRequest) {
 
     const newRevisionCount = Math.max(
       (orderRecord?.revision_count ?? 0) + 1,
-      (count ?? 0) + 1
+      priorCorrections + 1
     );
 
     try {
@@ -327,36 +369,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const insertPayload = {
-      order_id: payload.orderId,
-      amazon_order_id: payload.amazonOrderId || null,
-      token: payload.token,
-      email: normalizedEmail,
-      name: payload.name || null,
+    const descriptionPayload = {
       reason: payload.reason,
-      payload: Object.keys(structuredFields).length > 0 ? structuredFields : null,
       message: payload.message || null,
-      revision_requested: true,
-      revision_count: newRevisionCount,
-      marketing_opt_in: payload.marketingOptIn ?? false,
-      last_contacted_at: new Date().toISOString()
+      fields: structuredFields,
+      email: normalizedEmail,
+      name: payload.name || null
     };
 
-    const { error } = await supabase
-      .from('customer_contacts')
-      .insert(insertPayload);
+    const feedbackInsert = {
+      order_id: payload.orderId,
+      page_number: 0,
+      issue_type: reasonIssueTypeMap[payload.reason] || 'other',
+      description: buildFeedbackDescription(descriptionPayload),
+      status: 'pending',
+      revision_count: newRevisionCount
+    };
 
-    if (error) {
-      if (
-        error.code === 'PGRST205' ||
-        error.code === '42P01' ||
-        error.message?.toLowerCase().includes('could not find the table')
-      ) {
+    const { error: feedbackInsertError } = await supabase
+      .from('customer_feedback')
+      .insert(feedbackInsert);
+
+    if (feedbackInsertError) {
+      if (isTableMissingError(feedbackInsertError, 'customer_feedback')) {
         console.warn(
-          '[API] customer_contacts table not found when saving contact; skipping persistence for this environment.'
+          '[API] customer_feedback table not found when saving correction; skipping persistence for this environment.'
         );
       } else {
-        console.error('[API] Error saving customer contact', error);
+        console.error('[API] Error saving customer feedback', feedbackInsertError);
         return NextResponse.json(
           {
             success: false,
@@ -370,7 +410,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        correctionNumber: insertPayload.revision_count
+        correctionNumber: newRevisionCount
       },
       { status: 200, headers: corsHeaders }
     );

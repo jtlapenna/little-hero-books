@@ -1,5 +1,6 @@
 import { AwsClient } from 'aws4fetch';
 import { XMLParser } from 'fast-xml-parser';
+import { Buffer } from 'buffer';
 
 // R2 configuration from environment
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
@@ -305,7 +306,7 @@ export async function headObject(bucket: string, key: string): Promise<Response>
 export async function putObject(
   bucket: string,
   key: string,
-  body: Blob | ArrayBuffer | ReadableStream | string,
+  body: Blob | ArrayBuffer | ReadableStream | Uint8Array | string,
   contentType?: string
 ): Promise<Response> {
   // Validate configuration
@@ -328,11 +329,37 @@ export async function putObject(
   });
   
   // Build request with body and content type
-  const headers: HeadersInit = {};
+  const headers: Record<string, string> = {};
   if (contentType) {
     headers['Content-Type'] = contentType;
   }
-  
+
+  let requestBody: BodyInit;
+  let contentLength: number | undefined;
+
+  if (typeof body === 'string') {
+    const buffer = Buffer.from(body);
+    requestBody = buffer;
+    contentLength = buffer.byteLength;
+  } else if (body instanceof Uint8Array) {
+    requestBody = body;
+    contentLength = body.byteLength;
+  } else if (body instanceof ArrayBuffer) {
+    const buffer = Buffer.from(body);
+    requestBody = buffer;
+    contentLength = buffer.byteLength;
+  } else if (typeof Blob !== 'undefined' && body instanceof Blob) {
+    requestBody = body;
+    contentLength = body.size;
+  } else {
+    // For streams we can't determine length ahead of time
+    requestBody = body as BodyInit;
+  }
+
+  if (contentLength !== undefined) {
+    headers['Content-Length'] = contentLength.toString();
+  }
+
   const urlObj = new URL(url);
   const unsignedRequest = new Request(url, {
     method: 'PUT',
@@ -340,7 +367,7 @@ export async function putObject(
       'Host': urlObj.hostname,
       ...headers,
     },
-    body: body,
+    body: requestBody,
   });
   
   // Sign the request

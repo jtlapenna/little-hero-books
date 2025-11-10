@@ -594,6 +594,35 @@ if (!token) {
         throw new Error(error.error || 'Failed to approve');
       }
 
+      /** @type {Error | null} */
+      let printTriggerError = null;
+      try {
+        const printResponse = await fetch(`${API_BASE}/api/orders/${orderData.orderId}/print`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: 'customer-approval' })
+        });
+
+        if (!printResponse.ok) {
+          const error = await printResponse.json().catch(() => null);
+          throw new Error(error?.error || 'Failed to notify print service');
+        }
+      } catch (error) {
+        console.error('Error triggering print workflow:', error);
+        printTriggerError =
+          error instanceof Error
+            ? error
+            : new Error('Failed to notify print service');
+      }
+
+      if (printTriggerError) {
+        alert(
+          `Book approval recorded, but print service could not be notified: ${printTriggerError.message}`
+        );
+      } else {
+        alert('Book Successfully Sent to Print Service');
+      }
+
       window.location.href = `/order-status/${orderData.orderId}?token=${token}`;
     } catch (error) {
       console.error('Error approving:', error);

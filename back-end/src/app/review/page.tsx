@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { OrderListItem } from '@/types/order';
+import { Order, OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDate } from '@/lib/utils';
 import { getOrderListItems } from '@/lib/mock-data';
@@ -11,6 +11,7 @@ import { OrderStatus } from '@/constants/statuses';
 import { PhaseBucket } from '@/components/orders/phase-bucket';
 import { OrderPhase } from '@/constants/phases';
 import { ArrowRight, Clock, AlertCircle, Search, Grid3X3, List, ChevronDown } from 'lucide-react';
+import { buildOrderListItem, getStageBadgeStatus } from '@/lib/status-display';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -30,19 +31,10 @@ export default function ReviewPage() {
         }
         return response.json();
       })
-      .then(data => {
-        // Convert Order[] to OrderListItem[] and filter for pending reviews
+      .then((data: Order[]) => {
         const orderListItems: OrderListItem[] = data
-          .filter((order: any) => order.status !== OrderStatus.COMPLETED)
-          .map((order: any) => ({
-            orderId: order.orderId,
-            platform: order.platform,
-            firstName: order.customer.firstName,
-            lastName: order.customer.lastName,
-            status: order.status,
-            orderDate: order.orderDate,
-            characterHash: order.characterHash
-          }));
+          .filter((order) => order.status !== OrderStatus.COMPLETED)
+          .map((order) => buildOrderListItem(order));
         setOrders(orderListItems);
         setLoading(false);
       })
@@ -50,37 +42,38 @@ export default function ReviewPage() {
         console.error('Error fetching orders:', error);
         // Fallback to mock data
         const allOrders = getOrderListItems();
-        const pendingOrders = allOrders.filter(order => order.status !== OrderStatus.COMPLETED);
+        const pendingOrders = allOrders.filter(order => order.rawStatus !== OrderStatus.COMPLETED);
         setOrders(pendingOrders);
         setLoading(false);
       });
   }, []);
 
   // Group orders by review stage
+  const needsStageReview = (status?: string | null) => {
+    const normalized = (status || '').toLowerCase();
+    return (
+      normalized === 'pending' ||
+      normalized === 'ready' ||
+      normalized === 'in-review' ||
+      normalized === 'flagged' ||
+      normalized === 'rejected'
+    );
+  };
+
   const reviewStages = {
-    preBria: orders.filter(order => 
-      order.status === OrderStatus.PENDING_BASE_REVIEW ||
-      order.status === OrderStatus.REVISION_BASE ||
-      order.status === OrderStatus.AI_GENERATION_COMPLETED
+    preBria: orders.filter(order =>
+      needsStageReview(order.reviewStages?.preBria?.status)
     ),
-    postBria: orders.filter(order => 
-      order.status === OrderStatus.PENDING_BG_REMOVAL_REVIEW ||
-      order.status === OrderStatus.REVISION_BG_REMOVAL
+    postBria: orders.filter(order =>
+      needsStageReview(order.reviewStages?.postBria?.status)
     ),
-    postPdf: orders.filter(order => 
-      order.status === OrderStatus.PENDING_ASSEMBLY_REVIEW ||
-      order.status === OrderStatus.REVISION_ASSEMBLY
+    postPdf: orders.filter(order =>
+      needsStageReview(order.reviewStages?.postPdf?.status)
     ),
-    other: orders.filter(order => 
-      ![
-        OrderStatus.PENDING_BASE_REVIEW,
-        OrderStatus.REVISION_BASE,
-        OrderStatus.AI_GENERATION_COMPLETED,
-        OrderStatus.PENDING_BG_REMOVAL_REVIEW,
-        OrderStatus.REVISION_BG_REMOVAL,
-        OrderStatus.PENDING_ASSEMBLY_REVIEW,
-        OrderStatus.REVISION_ASSEMBLY
-      ].includes(order.status as OrderStatus)
+    other: orders.filter(order =>
+      !needsStageReview(order.reviewStages?.preBria?.status) &&
+      !needsStageReview(order.reviewStages?.postBria?.status) &&
+      !needsStageReview(order.reviewStages?.postPdf?.status)
     )
   };
 
@@ -281,7 +274,7 @@ export default function ReviewPage() {
                           </div>
                         </div>
                         <div className="ml-4">
-                          <StatusBadge status={order.status} />
+                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.preBria?.status)} />
                         </div>
                       </div>
                     </div>
@@ -332,7 +325,7 @@ export default function ReviewPage() {
                           </div>
                         </div>
                         <div className="ml-4">
-                          <StatusBadge status={order.status} />
+                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postBria?.status)} />
                         </div>
                       </div>
                     </div>
@@ -383,7 +376,7 @@ export default function ReviewPage() {
                           </div>
                         </div>
                         <div className="ml-4">
-                          <StatusBadge status={order.status} />
+                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postPdf?.status)} />
                         </div>
                       </div>
                     </div>
@@ -458,7 +451,7 @@ export default function ReviewPage() {
                           {flagSummary.total} {flagSummary.total === 1 ? 'Needs' : 'Need'} Attention
                         </span>
                       )}
-                      <StatusBadge status={order.status as any} />
+                      <StatusBadge status={order.status} />
                     </div>
                   </div>
                   
@@ -531,7 +524,7 @@ export default function ReviewPage() {
                         {order.platform}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge status={order.status as any} />
+                        <StatusBadge status={order.status} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(order.orderDate)}

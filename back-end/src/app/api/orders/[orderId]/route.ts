@@ -3,7 +3,18 @@ import { getCharacterAssets, downloadManifest, buildManifestKey } from '@/lib/r2
 import { Order } from '@/types/order';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
-import { getOrderFromSupabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+function isTableMissingError(error: any, tableName: string) {
+  if (!error) return false;
+  const message = String(error.message || '').toLowerCase();
+  return (
+    error.code === 'PGRST205' ||
+    error.code === '42P01' ||
+    message.includes(`could not find the table '${tableName}'`) ||
+    message.includes(`relation "${tableName}" does not exist`)
+  );
+}
+
 import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
 import { getActivePreviewToken } from '@/lib/preview-tokens';
 
@@ -100,6 +111,96 @@ async function getOrder(
     console.error(
       `[GET /api/orders/[orderId]] Error fetching preview token for ${order.orderId}:`,
       error?.message || error
+    );
+  }
+
+  try {
+    let correctionsTable = 'customer_contacts';
+    const contactsColumns =
+      'reason,message,payload,revision_count,last_contacted_at,created_at,updated_at,email,name,description';
+
+    let { data: corrections, error: correctionsError } = await supabase
+      .from(correctionsTable)
+      .select(contactsColumns)
+      .eq('order_id', order.orderId)
+      .eq('revision_requested', true)
+      .order('last_contacted_at', { ascending: false })
+      .limit(1);
+
+    if (correctionsError && isTableMissingError(correctionsError, 'customer_contacts')) {
+      correctionsTable = 'customer_feedback';
+      const feedbackColumns =
+        'issue_type,description,revision_count,created_at,resolved_at,page_number,status';
+      ({ data: corrections, error: correctionsError } = await supabase
+        .from(correctionsTable)
+        .select(feedbackColumns)
+        .eq('order_id', order.orderId)
+        .order('created_at', { ascending: false })
+        .limit(1));
+    }
+
+    if (correctionsError && !isTableMissingError(correctionsError, correctionsTable)) {
+      console.error(
+        `[GET /api/orders/[orderId]] Error fetching customer correction from ${correctionsTable}:`,
+        correctionsError
+      );
+    }
+
+    console.log(
+      `[GET /api/orders/[orderId]] correction query (${correctionsTable}) for ${order.orderId}:`,
+      { corrections, correctionsError }
+    );
+
+    if (corrections && corrections.length > 0) {
+      const [row] = corrections;
+      let parsedReason: string | null = row.reason ?? row.issue_type ?? null;
+      let parsedMessage: string | null = row.message ?? null;
+      let parsedPayload: Record<string, unknown> | null = row.payload && typeof row.payload === 'object'
+        ? (row.payload as Record<string, unknown>)
+        : null;
+      let parsedEmail: string | null = row.email ?? null;
+      let parsedName: string | null = row.name ?? null;
+
+      if (row.description) {
+        try {
+          const parsed = JSON.parse(row.description);
+          if (!parsedReason && typeof parsed?.reason === 'string') {
+            parsedReason = parsed.reason;
+          }
+          if (!parsedMessage && typeof parsed?.message === 'string') {
+            parsedMessage = parsed.message;
+          }
+          if (!parsedPayload && parsed?.fields && typeof parsed.fields === 'object') {
+            parsedPayload = parsed.fields as Record<string, unknown>;
+          }
+          if (!parsedEmail && typeof parsed?.email === 'string') {
+            parsedEmail = parsed.email;
+          }
+          if (!parsedName && typeof parsed?.name === 'string') {
+            parsedName = parsed.name;
+          }
+        } catch (parseError) {
+          parsedMessage = parsedMessage || row.description || row.message || 'Customer feedback';
+        }
+      }
+
+      order.latestCustomerCorrection = {
+        reason: parsedReason,
+        message: parsedMessage,
+        payload: parsedPayload,
+        revisionCount: (row.revision_count ?? null) ?? 1,
+        submittedAt:
+          row.last_contacted_at ?? row.created_at ?? row.updated_at ?? null,
+        email: parsedEmail,
+        name: parsedName,
+      };
+    } else {
+      order.latestCustomerCorrection = null;
+    }
+  } catch (correctionCatchError) {
+    console.error(
+      `[GET /api/orders/[orderId]] Unexpected error loading customer correction:`,
+      correctionCatchError
     );
   }
   

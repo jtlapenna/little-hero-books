@@ -5,8 +5,8 @@ import { OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDate } from '@/lib/utils';
 import { getOrderFlagSummary } from '@/lib/review-state';
-import { ReviewStageStatus } from '@/constants/statuses';
-import { Search, Filter, ChevronDown } from 'lucide-react';
+import { DisplayStatus } from '@/constants/statuses';
+import { Search, ChevronDown } from 'lucide-react';
 
 interface OrdersTableProps {
   orders: OrderListItem[];
@@ -15,7 +15,7 @@ interface OrdersTableProps {
 
 export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | DisplayStatus>('all');
   const [platformFilter, setPlatformFilter] = useState('all');
 
   const filteredOrders = orders.filter(order => {
@@ -32,14 +32,17 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
     return matchesSearch && matchesStatus && matchesPlatform;
   });
 
-  const getStatusFromOrder = (order: OrderListItem) => {
-    // This would normally come from the order's review stages
-    // For now, we'll use the order status
-    // Map order statuses to review stage statuses for display
-    if (order.status === 'completed' || order.status === 'delivered') return ReviewStageStatus.APPROVED;
-    if (order.status?.includes('review') || order.status === 'in_review') return ReviewStageStatus.IN_REVIEW;
-    return ReviewStageStatus.PENDING;
-  };
+  const statusOptions: { value: DisplayStatus; label: string }[] = [
+    { value: DisplayStatus.NEW, label: 'New' },
+    { value: DisplayStatus.PENDING, label: 'Pending' },
+    { value: DisplayStatus.APPROVED, label: 'Approved' },
+    { value: DisplayStatus.PROOF_SENT, label: 'Proof Sent' },
+    { value: DisplayStatus.CORRECTION_REQUESTED, label: 'Correction Requested' },
+    { value: DisplayStatus.SENT_TO_PRINT, label: 'Sent to Print' },
+    { value: DisplayStatus.SHIPPED, label: 'Shipped' },
+    { value: DisplayStatus.DELIVERED, label: 'Delivered' },
+    { value: DisplayStatus.ACTION_REQUIRED, label: 'Action Required' },
+  ];
 
   return (
     <div className="space-y-4">
@@ -59,13 +62,16 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
         <div className="flex gap-2">
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => setStatusFilter(e.target.value as 'all' | DisplayStatus)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
           >
             <option value="all">All Status</option>
-            <option value={ReviewStageStatus.PENDING}>Pending</option>
-            <option value={ReviewStageStatus.IN_REVIEW}>In Review</option>
-            <option value={ReviewStageStatus.APPROVED}>Approved</option>
+            <option value="all">All Status</option>
+            {statusOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
           
           <select
@@ -108,7 +114,7 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredOrders.map((order) => {
-                const flagSummary = getOrderFlagSummary(order.orderId);
+                const flagSummary = getOrderFlagSummary(order);
                 const needsAttention = flagSummary.total > 0;
                 return (
                   <tr
@@ -133,7 +139,7 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
                       {order.platform}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={getStatusFromOrder(order)} />
+                      <StatusBadge status={order.status} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(order.orderDate)}

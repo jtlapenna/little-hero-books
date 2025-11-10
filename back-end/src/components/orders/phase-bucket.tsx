@@ -27,7 +27,7 @@ interface PhaseBucketProps<T> {
  * @param defaultExpanded - Whether bucket starts expanded (default: true)
  * @param className - Additional CSS classes
  */
-export function PhaseBucket<T extends { status: string }>({
+export function PhaseBucket<T extends { status?: string; phase?: OrderPhase }>({
   phase,
   orders,
   renderOrder,

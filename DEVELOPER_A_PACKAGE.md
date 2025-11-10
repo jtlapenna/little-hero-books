@@ -61,14 +61,14 @@
   - ✅ Error handling and monitoring system
   - ✅ File-based approval persistence
 - ✅ Stage approvals are now persisted in **Supabase `orders`** keyed by `amazon_order_id`. If your workflow only writes R2 manifests, the first manual approval will create a skeleton row with `review_stages` so downstream steps have a single source of truth. Please continue using `amazon_order_id` when reading/updating review state.
-- ✅ **Customer Preview MVP** - LIVE (Placeholder viewer until Developer A ships final component)
+- ✅ **Customer Preview MVP** - LIVE (design polish pending)
   - ✅ Secure tokens issued via `/api/preview/generate-token` (stored in Supabase `preview_tokens`)
   - ✅ Amazon Message Center notification pipeline (`/api/notifications/preview/amazon`) sends the first link and logs outcome
   - ✅ Customer-facing page (`frontend/src/pages/approve/[token].astro`) handles disclaimer, single structured correction form, and confirmed email capture
-  - ✅ Corrections persist through `/api/preview/contact` → `customer_contacts`; one revision enforced per order
-  - ✅ Approval endpoint `/api/preview/[orderId]/approve` marks tokens used, timestamps `customer_approval_*`
-  - ⏳ PDF viewer will be cloned from Developer A’s admin previewer (current UI shows “preview coming soon” messaging)
-- 🔄 **Workflow 4**: Print & Fulfillment - `4-print-fulfillment.json` (ready for integration)
+  - ✅ Corrections persist through `/api/preview/contact` → `customer_feedback`; one revision enforced per order
+  - ✅ Approval endpoint `/api/preview/[orderId]/approve` marks tokens used, timestamps `customer_approval_*`, and now triggers the placeholder print workflow
+  - 🎨 **Design TODO**: When the final admin PDF viewer ships, clone it into the customer page and apply final styling
+- 🔄 **Workflow 4**: Print & Fulfillment - `4-print-fulfillment.json` (UI trigger live, Lulu hookup pending)
 - 🔄 **Workflow 5**: Error Recovery - `5-error-recovery.json`
 - 🔄 **Workflow 6**: Monitoring & Alerts - `6-monitoring-alerts.json`
 - 🔄 **Workflow 7**: Quality Assurance - `7-quality-assurance.json`
@@ -638,7 +638,8 @@ pre_bria_pending → pre_bria_approved → post_bria_pending → post_bria_appro
 ### **To Workflow 4 (Print & Fulfillment)**
 - **Sends**: Orders with `status: 'book_assembly_completed'` and `human_approved: true`
 - **Data Format**: Final book PDF URL and complete order details
-- **Next Step**: Developer B's Workflow 4 submits to Lulu for printing
+- **Current Behavior**: Admin/customer actions now hit `/api/orders/[orderId]/print` placeholder (confirmation popup only)
+- **Next Step**: Swap placeholder for real Lulu submission once Workflow 4 reconnects to the print service
 
 ### **Data Flow**
 ```

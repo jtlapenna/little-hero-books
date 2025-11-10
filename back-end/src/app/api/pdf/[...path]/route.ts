@@ -150,9 +150,28 @@ async function handleRequest(
           }
         );
       } catch (error: any) {
-        console.error(`[${method} /api/pdf] Error generating signed URL:`, error);
+        const message = error?.message || '';
+        console.error(
+          `[${method} /api/pdf] Error generating signed URL:`,
+          error
+        );
+
+        if (
+          message.includes('Missing R2 credentials') ||
+          message.includes('credentials') ||
+          message.includes('ACCESS_KEY')
+        ) {
+          console.warn(
+            `[${method} /api/pdf] R2 credentials missing; returning 404 so UI can fall back gracefully.`
+          );
+          return NextResponse.json(
+            { error: 'PDF not available in this environment' },
+            { status: 404 }
+          );
+        }
+
         return NextResponse.json(
-          { error: 'Failed to generate signed URL', details: error?.message },
+          { error: 'Failed to generate signed URL', details: message },
           { status: 500 }
         );
       }

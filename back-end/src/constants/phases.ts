@@ -7,7 +7,7 @@
  * Last Updated: 2025-01-XX (Task 3)
  */
 
-import { OrderStatus } from './statuses';
+import { DisplayStatus, OrderStatus } from './statuses';
 
 /**
  * Order Phase Enum
@@ -69,6 +69,18 @@ export const STATUS_TO_PHASE: Record<OrderStatus | string, OrderPhase> = {
   [OrderStatus.ACTION_REQUIRED]: OrderPhase.FAILED,
   [OrderStatus.FAILED]: OrderPhase.FAILED,
   [OrderStatus.CANCELLED]: OrderPhase.FAILED
+};
+
+const DISPLAY_STATUS_TO_PHASE: Record<DisplayStatus, OrderPhase> = {
+  [DisplayStatus.NEW]: OrderPhase.GENERATION,
+  [DisplayStatus.PENDING]: OrderPhase.REVIEW,
+  [DisplayStatus.APPROVED]: OrderPhase.REVIEW,
+  [DisplayStatus.PROOF_SENT]: OrderPhase.CUSTOMER_APPROVAL,
+  [DisplayStatus.CORRECTION_REQUESTED]: OrderPhase.CUSTOMER_APPROVAL,
+  [DisplayStatus.SENT_TO_PRINT]: OrderPhase.PRODUCTION,
+  [DisplayStatus.SHIPPED]: OrderPhase.SHIPPING,
+  [DisplayStatus.DELIVERED]: OrderPhase.COMPLETED,
+  [DisplayStatus.ACTION_REQUIRED]: OrderPhase.FAILED
 };
 
 /**
@@ -205,7 +217,7 @@ export function getPhaseColors(phase: OrderPhase) {
 /**
  * Group orders by phase
  */
-export function groupOrdersByPhase<T extends { status: string }>(orders: T[]): Record<OrderPhase, T[]> {
+export function groupOrdersByPhase<T extends { status?: string; phase?: OrderPhase }>(orders: T[]): Record<OrderPhase, T[]> {
   const grouped: Record<OrderPhase, T[]> = {
     [OrderPhase.GENERATION]: [],
     [OrderPhase.REVIEW]: [],
@@ -218,7 +230,16 @@ export function groupOrdersByPhase<T extends { status: string }>(orders: T[]): R
   };
   
   orders.forEach(order => {
-    const phase = getPhaseForStatus(order.status);
+    let phase: OrderPhase;
+    if (order.phase) {
+      phase = order.phase;
+    } else if (order.status && DISPLAY_STATUS_TO_PHASE[order.status as DisplayStatus]) {
+      phase = DISPLAY_STATUS_TO_PHASE[order.status as DisplayStatus];
+    } else if (order.status) {
+      phase = getPhaseForStatus(order.status);
+    } else {
+      phase = OrderPhase.GENERATION;
+    }
     grouped[phase].push(order);
   });
   
@@ -228,7 +249,7 @@ export function groupOrdersByPhase<T extends { status: string }>(orders: T[]): R
 /**
  * Get phase counts
  */
-export function getPhaseCounts<T extends { status: string }>(orders: T[]): Record<OrderPhase, number> {
+export function getPhaseCounts<T extends { status?: string; phase?: OrderPhase }>(orders: T[]): Record<OrderPhase, number> {
   const grouped = groupOrdersByPhase(orders);
   return {
     [OrderPhase.GENERATION]: grouped[OrderPhase.GENERATION].length,

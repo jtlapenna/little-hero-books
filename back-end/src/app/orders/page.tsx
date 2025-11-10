@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import { OrdersTable } from '@/components/orders/orders-table';
 import { PhaseSummary } from '@/components/orders/phase-summary';
 import { PhaseBucket } from '@/components/orders/phase-bucket';
-import { OrderListItem } from '@/types/order';
+import { Order, OrderListItem } from '@/types/order';
 import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
 import { OrderPhase, groupOrdersByPhase, PHASE_ORDER } from '@/constants/phases';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDate } from '@/lib/utils';
+import { buildOrderListItem } from '@/lib/status-display';
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -28,17 +29,10 @@ export default function OrdersPage() {
         }
         return response.json();
       })
-      .then(data => {
-        // Convert Order[] to OrderListItem[]
-        const orderListItems: OrderListItem[] = data.map((order: any) => ({
-          orderId: order.orderId,
-          platform: order.platform,
-          firstName: order.customer.firstName,
-          lastName: order.customer.lastName,
-          status: order.status,
-          orderDate: order.orderDate,
-          characterHash: order.characterHash
-        }));
+      .then((data: Order[]) => {
+        const orderListItems: OrderListItem[] = data.map((order) =>
+          buildOrderListItem(order)
+        );
         setOrders(orderListItems);
         setLoading(false);
       })

@@ -5,7 +5,7 @@ import { withErrorHandling, getRequestContext } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
 import { OrderStatus } from '@/constants/statuses';
 import { listOrdersFromSupabase } from '@/lib/supabase-client';
-import { mapSupabaseOrderToOrder, mapManifestToOrder } from '@/lib/order-mapper';
+import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
 
 async function getOrders(_request: NextRequest) {
   console.log('[GET /api/orders] Starting orders fetch (Supabase first)...');
@@ -15,8 +15,27 @@ async function getOrders(_request: NextRequest) {
 
     if (supabaseRecords.length > 0) {
       console.log('[GET /api/orders] Supabase returned', supabaseRecords.length, 'orders');
-      const orders = await Promise.all(
+      const supabaseOrders = await Promise.all(
         supabaseRecords.map((record) => mapSupabaseOrderToOrder(record))
+      );
+
+      const orders = await Promise.all(
+        supabaseOrders.map(async (order) => {
+          if (!needsCustomerEnrichment(order)) {
+            return order;
+          }
+
+          try {
+            const manifestOrder = await buildOrderFromManifest(order.orderId);
+            return mergeOrderData(order, manifestOrder);
+          } catch (error: any) {
+            console.warn(
+              `[GET /api/orders] Failed to enrich customer data for ${order.orderId}:`,
+              error?.message || error
+            );
+            return order;
+          }
+        })
       );
 
       const existingOrderIds = new Set(
@@ -237,4 +256,25 @@ async function buildOrderFromManifest(orderId: string): Promise<Order> {
   }
 
   return mapManifestToOrder(orderId, manifest);
+}
+
+function needsCustomerEnrichment(order: Order): boolean {
+  if (!order?.customer?.firstName) {
+    return true;
   }
+
+  const first = order.customer.firstName.trim().toLowerCase();
+  const last = (order.customer.lastName || '').trim().toLowerCase();
+  const combined = `${first} ${last}`.trim();
+
+  const placeholderNames = new Set([
+    'customer',
+    'customer customer',
+    'customer unknown',
+    'customer pending',
+    'unknown',
+    'unknown customer',
+  ]);
+
+  return placeholderNames.has(first) || placeholderNames.has(combined);
+}

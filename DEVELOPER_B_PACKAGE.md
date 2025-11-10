@@ -54,10 +54,10 @@
   - **Status**: Needs database integration + human review
   - **Action**: Query database, add quality checks
 
-### **Developer B (Your Work) - ✅ ALL WORKFLOWS COMPLETED & TESTED**
-
-**🎉 ALL WORKFLOWS ARE PRODUCTION-READY AND FULLY TESTED!**
-
+-### **Developer B (Your Work) - ✅ CORE WORKFLOWS COMPLETED & TESTED**
+-
+-**🎉 Core automation is production-ready; Workflow 4 print hand-off now has a UI trigger placeholder awaiting Lulu integration.**
+-
 - ✅ **Workflow 1**: Order Intake & Validation - `1-order-intake-validation.json`
   - **Status**: ✅ PRODUCTION READY - Fully tested and operational
   - **Test Results**: Successfully stored order `TEST-ORDER-1760761931155-632` with ID 8
@@ -66,13 +66,11 @@
   - **Validation**: No validation errors, all checks passed
   - **Status Flow**: Set to `queued_for_processing` with next workflow `2.A.-bria-submit`
 
-- ✅ **Workflow 4**: Print & Fulfillment - `4-print-fulfillment.json`
-  - **Status**: ✅ PRODUCTION READY - Fully tested and operational
-  - **Test Results**: Successfully submitted to Lulu with job ID `LULU-1760762087129`
-  - **Human Approval**: Correctly checks `human_approved: true` before processing
-  - **Cost Tracking**: Recorded fulfillment cost of $12.45
-  - **Customer Notification**: Email sent to customer
-  - **Status Update**: Updated to `print_submission_in_progress`
+- 🔄 **Workflow 4**: Print & Fulfillment - `4-print-fulfillment.json`
+  - **Status**: 🟡 READY FOR LULU HOOKUP - UI trigger in place, backend placeholder live
+  - **Current Behavior**: Admin/customer actions hit `/api/orders/[orderId]/print`, show confirmation popup, log intent
+  - **Next Step**: Replace placeholder endpoint with real Lulu submission once credentials are available
+  - **Human Approval**: Guardrails still enforced (`human_approved: true`)
 
 - ✅ **Workflow 5**: Error Recovery - `5-error-recovery.json`
   - **Status**: ✅ PRODUCTION READY - Fully tested and operational
@@ -107,10 +105,10 @@
 - ✅ **Customer Preview MVP (Hybrid)**  
   - **Token Lifecycle**: `/api/preview/generate-token` writes to `preview_tokens`; `/api/preview/[orderId]/approve` marks `used_at` and timestamps customer approval
   - **Amazon Message Center Delivery**: `/api/notifications/preview/amazon` (Next.js) posts the first secure link; all attempts stored in `notification_logs`
-  - **Customer-Facing Page**: `frontend/src/pages/approve/[token].astro` (Astro) handles disclaimer modal, doubled email confirmation, and bounded correction form mapped to canonical presets
-  - **Correction Capture**: `/api/preview/contact` normalises payload, enforces single revision, stores in `customer_contacts`, and surfaces to ops via n8n alert
-  - **Bounded Schema**: Reasons + preset options mirror `Customization_Source_of_Truth`; marketing opt-in captured for future flows
-  - **Viewer Status**: Placeholder messaging today – PDF viewer will be swapped in once Developer A ships the final admin component
+  - **Customer-Facing Page**: `frontend/src/pages/approve/[token].astro` handles disclaimer modal, double email confirmation, and bounded correction form mapped to canonical presets
+  - **Correction Capture**: `/api/preview/contact` normalises payload, enforces single revision, stores in `customer_feedback`, and surfaces to ops via admin status card
+  - **Post-Correction Flow**: Once the single revision is used, the admin UI automatically swaps “Send Proof” for “Send to Print” and drives the placeholder workflow 4 trigger
+  - **Design TODO**: Re-theme customer page with final illustrations once Developer A ships the admin PDF viewer we plan to clone
 
 ---
 

@@ -4,7 +4,8 @@ export interface Customer {
   email: string;
 }
 
-import { ReviewStageStatus } from '@/constants/statuses';
+import { DisplayStatus, ReviewStageStatus } from '@/constants/statuses';
+import { OrderPhase } from '@/constants/phases';
 
 export interface ReviewStage {
   status: ReviewStageStatus | 'pending' | 'in-review' | 'approved' | 'rejected'; // Support both old and new values during transition
@@ -65,6 +66,7 @@ export interface Order {
     baseCharacterBgRemoved: any;
     posesBgRemoved: any[];
   };
+  latestCustomerCorrection?: CustomerCorrection | null;
 }
 
 export interface OrderListItem {
@@ -72,9 +74,25 @@ export interface OrderListItem {
   platform: string;
   firstName: string;
   lastName: string;
-  status: string;
+  status: DisplayStatus;
+  rawStatus: string;
+  phase: OrderPhase;
   orderDate: string;
   characterHash?: string;
+  reviewStages?: Order['reviewStages'];
+  customerApprovalStatus?: string | null;
+  hasFlags?: boolean;
+  flags?: Record<string, any>;
+}
+
+export interface CustomerCorrection {
+  reason?: string | null;
+  message?: string | null;
+  payload?: Record<string, unknown> | null;
+  revisionCount?: number | null;
+  submittedAt?: string | null;
+  email?: string | null;
+  name?: string | null;
 }
 
 export interface OrdersResponse {

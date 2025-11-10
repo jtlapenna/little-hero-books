@@ -76,6 +76,26 @@ export async function resetOrderToInitialState(orderId: string) {
     });
   }
 
+  // Clear customer feedback/revision history
+  try {
+    const { error: deleteFeedbackError } = await supabase
+      .from('customer_feedback')
+      .delete()
+      .eq('order_id', orderId);
+
+    if (deleteFeedbackError) {
+      console.warn('[OrderReset] Failed to delete customer feedback', {
+        orderId,
+        error: deleteFeedbackError,
+      });
+    }
+  } catch (error) {
+    console.warn('[OrderReset] Unexpected error deleting customer feedback', {
+      orderId,
+      error,
+    });
+  }
+
   await updateOrderStatus(orderId, {
     review_stages: DEFAULT_REVIEW_STAGES,
     flags: DEFAULT_FLAGS,

@@ -59,6 +59,22 @@ export enum OrderStatus {
 }
 
 /**
+ * Display Status
+ * Collapsed lifecycle statuses used for admin-facing badges
+ */
+export enum DisplayStatus {
+  NEW = 'new',
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  PROOF_SENT = 'proof_sent',
+  CORRECTION_REQUESTED = 'correction_requested',
+  SENT_TO_PRINT = 'sent_to_print',
+  SHIPPED = 'shipped',
+  DELIVERED = 'delivered',
+  ACTION_REQUIRED = 'action_required'
+}
+
+/**
  * Review Stage Status
  * These are the statuses for individual review stages (preBria, postBria, postPdf)
  */
@@ -140,6 +156,17 @@ export const StatusLabels: Record<string, string> = {
   [OrderStatus.FAILED]: 'Failed',
   [OrderStatus.CANCELLED]: 'Cancelled',
   [OrderStatus.COMPLETED]: 'Completed',
+
+  // Display-only lifecycle statuses
+  [DisplayStatus.NEW]: 'New',
+  [DisplayStatus.PENDING]: 'Pending',
+  [DisplayStatus.APPROVED]: 'Approved',
+  [DisplayStatus.PROOF_SENT]: 'Proof Sent',
+  [DisplayStatus.CORRECTION_REQUESTED]: 'Correction Requested',
+  [DisplayStatus.SENT_TO_PRINT]: 'Sent to Print',
+  [DisplayStatus.SHIPPED]: 'Shipped',
+  [DisplayStatus.DELIVERED]: 'Delivered',
+  [DisplayStatus.ACTION_REQUIRED]: 'Action Required',
   
   // Review Stage Statuses
   [ReviewStageStatus.PENDING]: 'Pending',
@@ -293,6 +320,23 @@ export const StatusColors: Record<string, {
     bg: 'bg-gray-100',
     text: 'text-gray-800',
     border: 'border-gray-200'
+  },
+
+  // Display-only lifecycle statuses
+  [DisplayStatus.PROOF_SENT]: {
+    bg: 'bg-purple-100',
+    text: 'text-purple-800',
+    border: 'border-purple-200'
+  },
+  [DisplayStatus.CORRECTION_REQUESTED]: {
+    bg: 'bg-orange-100',
+    text: 'text-orange-800',
+    border: 'border-orange-200'
+  },
+  [DisplayStatus.SENT_TO_PRINT]: {
+    bg: 'bg-indigo-100',
+    text: 'text-indigo-800',
+    border: 'border-indigo-200'
   },
   
   // Review Stage Statuses

@@ -3,7 +3,7 @@
 import { OrderPhase, getPhaseLabel, getPhaseColors, getPhaseCounts, PHASE_ORDER } from '@/constants/phases';
 import { cn } from '@/lib/utils';
 
-interface PhaseSummaryProps<T extends { status: string }> {
+interface PhaseSummaryProps<T extends { status?: string; phase?: OrderPhase }> {
   orders: T[];
   onPhaseClick?: (phase: OrderPhase) => void;
   showEmptyPhases?: boolean;
@@ -21,7 +21,7 @@ interface PhaseSummaryProps<T extends { status: string }> {
  * @param showEmptyPhases - Whether to show phases with 0 orders (default: false)
  * @param className - Additional CSS classes
  */
-export function PhaseSummary<T extends { status: string }>({
+export function PhaseSummary<T extends { status?: string; phase?: OrderPhase }>({
   orders,
   onPhaseClick,
   showEmptyPhases = false,
@@ -88,7 +88,7 @@ export function PhaseSummary<T extends { status: string }>({
  * 
  * A more compact version of PhaseSummary for smaller spaces
  */
-export function PhaseSummaryCompact<T extends { status: string }>({
+export function PhaseSummaryCompact<T extends { status?: string; phase?: OrderPhase }>({
   orders,
   onPhaseClick,
   className

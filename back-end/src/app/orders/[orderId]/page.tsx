@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Order, ReviewStage } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -12,7 +12,68 @@ import { PostPdfStage } from '@/components/stages/post-pdf-stage';
 import { getStageFlaggedCount, getOrderFlagSummary } from '@/lib/review-state';
 import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
-import { ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2 } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer } from 'lucide-react';
+import { getDisplayStatusForOrder, getStageBadgeStatus } from '@/lib/status-display';
+
+const correctionReasonLabels: Record<string, string> = {
+  name_typo: 'Name typo',
+  hairStyle_wrong: 'Hair style wrong',
+  hairColor_wrong: 'Hair color wrong',
+  skinTone_wrong: 'Skin tone wrong',
+  pronouns_wrong: 'Pronouns wrong',
+  animalGuide_wrong: 'Animal guide wrong',
+  favoriteColor_wrong: 'Favorite color wrong',
+  clothingStyle_wrong: 'Clothing style wrong',
+  dedication_fix: 'Dedication update',
+  hometown_fix: 'Hometown update',
+  favoriteFood_fix: 'Favorite food update',
+  age_wrong: 'Age incorrect',
+  visual_issue: 'Visual issue',
+  other: 'Other feedback',
+};
+
+function formatReasonLabel(reason?: string | null): string {
+  if (!reason) return 'Correction requested';
+  return (
+    correctionReasonLabels[reason] ||
+    reason
+      .replace(/_/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+  );
+}
+
+function formatFieldLabel(field: string): string {
+  return field
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatCorrectionValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).join(', ');
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  if (typeof value === 'string') {
+    if (value.includes('@') || /^https?:\/\//i.test(value) || /[A-Z]/.test(value)) {
+      return value;
+    }
+    return value
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+  return String(value);
+}
 
 interface FinalApprovalResult {
   previewUrl: string;
@@ -38,9 +99,10 @@ export default function OrderDetailPage() {
   const [finalApprovalError, setFinalApprovalError] = useState<string | null>(null);
   const [finalApprovalLoading, setFinalApprovalLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [manualPrintLoading, setManualPrintLoading] = useState(false);
   const enableResetButton =
-    (process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET || 'false') === 'true' ||
-    process.env.NODE_ENV !== 'production';
+    process.env.NODE_ENV !== 'production' ||
+    (process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET || 'false') === 'true';
 
   // Fetch order data from API
   const fetchOrder = async (orderId: string) => {
@@ -85,6 +147,28 @@ export default function OrderDetailPage() {
       await fetchOrder(orderId);
     }
   };
+
+  const handleSendToPrint = useCallback(
+    async (source: 'manual-admin' | 'post-pdf-stage' | 'customer-approval') => {
+      if (!order) {
+        throw new Error('Order is not loaded');
+      }
+
+      const response = await fetch(`/api/orders/${order.orderId}/print`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ source })
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        throw new Error(errorBody?.error || 'Failed to trigger print workflow');
+      }
+    },
+    [order]
+  );
 
   // Update flag counts when order changes
   useEffectReact(() => {
@@ -156,6 +240,20 @@ export default function OrderDetailPage() {
     }
   ];
 
+  const activeStageKey = activeStage as unknown as keyof typeof order.reviewStages;
+  const lifecycleStatus = getDisplayStatusForOrder(order);
+  const activeStageDisplayStatus = getStageBadgeStatus(
+    order.reviewStages[activeStageKey]?.status
+  );
+  const activeStageDefinition = stages.find(
+    (stage) => stage.key === activeStage
+  );
+  const latestCorrection = order.latestCustomerCorrection || null;
+  const correctionSubmittedAt =
+    latestCorrection?.submittedAt && latestCorrection.submittedAt.length > 0
+      ? formatDate(latestCorrection.submittedAt)
+      : null;
+
   const handleStageApprove = async (stage: ReviewStage, explicitStatus?: 'approved' | 'pending') => {
     if (!order) return;
 
@@ -198,6 +296,29 @@ export default function OrderDetailPage() {
       alert((error as Error)?.message || 'Failed to update stage. Please try again.');
     }
   };
+
+  const handleManualSendToPrint = async () => {
+    if (!order) return;
+
+    const confirmed = window.confirm(
+      'Send this order to print now? This will start production and further changes may not be possible.'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setManualPrintLoading(true);
+      await handleSendToPrint('manual-admin');
+      alert('Book Successfully Sent to Print Service');
+    } catch (error: any) {
+      console.error('Error sending order to print:', error);
+      alert(error?.message || 'Failed to send order to print. Please try again.');
+    } finally {
+      setManualPrintLoading(false);
+    }
+  };
+
 
   const handleInitiateWorkflow = async (stage: ReviewStage) => {
     if (!order) return;
@@ -335,7 +456,8 @@ export default function OrderDetailPage() {
             <div className="min-w-0 flex-1">
               <h1 className="text-3xl font-bold text-gray-900 truncate">{order.orderId}</h1>
               <p className="text-gray-600 mt-1">
-                {order.customer.firstName} {order.customer.lastName} • {order.platform}
+                {order.customer.firstName} {order.customer.lastName} •{' '}
+                {order.platform ? order.platform.charAt(0).toUpperCase() + order.platform.slice(1) : 'Amazon'}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
@@ -347,15 +469,19 @@ export default function OrderDetailPage() {
               )}
               {/* Show stage status badge for current active stage */}
               {order.reviewStages && (
-                <StatusBadge 
-                  status={
-                    order.reviewStages[activeStage as unknown as keyof typeof order.reviewStages]?.status === 'approved' 
-                      ? ReviewStageStatus.APPROVED 
-                      : ReviewStageStatus.PENDING
-                  } 
-                />
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-gray-200 bg-white text-gray-700">
+                  <span className="mr-1 text-[10px] uppercase tracking-wide text-gray-500">
+                    {activeStageDefinition?.label || 'Stage'}
+                  </span>
+                  <StatusBadge status={activeStageDisplayStatus} />
+                </span>
               )}
-              <StatusBadge status={order.status as any} />
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-gray-200 bg-white text-gray-700">
+                <span className="mr-1 text-[10px] uppercase tracking-wide text-gray-500">
+                  Order
+                </span>
+                <StatusBadge status={lifecycleStatus.status} />
+              </span>
               {enableResetButton && (
                 <button
                   type="button"
@@ -377,6 +503,24 @@ export default function OrderDetailPage() {
                   )}
                 </button>
               )}
+              <button
+                type="button"
+                onClick={handleManualSendToPrint}
+                disabled={manualPrintLoading}
+                className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {manualPrintLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Printer className="h-4 w-4 mr-2" />
+                    Send to Print
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -387,8 +531,60 @@ export default function OrderDetailPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Order Status</h2>
-              <StatusBadge status={order.status as any} />
+              <StatusBadge status={lifecycleStatus.status} />
             </div>
+            {latestCorrection && (
+              <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-orange-900">
+                      Correction Requested: {formatReasonLabel(latestCorrection.reason)}
+                    </p>
+                    <p className="text-xs text-orange-800 mt-1">
+                      {correctionSubmittedAt ? correctionSubmittedAt : 'Awaiting admin review'}
+                    </p>
+                    {(latestCorrection.name || latestCorrection.email) && (
+                      <p className="text-xs text-orange-700 mt-1">
+                        {latestCorrection.name && <span>{latestCorrection.name}</span>}
+                        {latestCorrection.name && latestCorrection.email && (
+                          <span className="mx-1">•</span>
+                        )}
+                        {latestCorrection.email && <span>{latestCorrection.email}</span>}
+                      </p>
+                    )}
+                  </div>
+                  {(latestCorrection.revisionCount ?? null) !== null &&
+                    (latestCorrection.revisionCount ?? 0) > 1 && (
+                    <span className="inline-flex items-center rounded-full border border-orange-200 bg-white px-2 py-0.5 text-xs font-semibold text-orange-700">
+                      Revision {latestCorrection.revisionCount}
+                    </span>
+                  )}
+                </div>
+                {latestCorrection.message && (
+                  <p className="mt-3 text-sm text-orange-900 whitespace-pre-wrap">
+                    {latestCorrection.message}
+                  </p>
+                )}
+                {latestCorrection.payload &&
+                  Object.keys(latestCorrection.payload).length > 0 && (
+                    <div className="mt-3 text-xs text-orange-900">
+                      {!latestCorrection.message && (
+                        <p className="text-sm text-orange-900 font-semibold mb-2">
+                          Requested Updates
+                        </p>
+                      )}
+                      <dl className="space-y-1">
+                        {Object.entries(latestCorrection.payload).map(([key, value]) => (
+                          <div key={key} className="flex flex-wrap gap-1">
+                            <dt className="font-semibold">{formatFieldLabel(key)}:</dt>
+                            <dd>{formatCorrectionValue(value)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  )}
+              </div>
+            )}
             
             {order.status === OrderStatus.AI_GENERATION_IN_PROGRESS && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -452,7 +648,11 @@ export default function OrderDetailPage() {
               <div className="space-y-3">
                 <div>
                   <p className="text-sm font-medium text-gray-900">Book Title</p>
-                  <p className="text-sm text-gray-600">{order.bookSpecs?.title || 'N/A'}</p>
+                  <p className="text-sm text-gray-600">
+                    {order.characterSpecs?.childName
+                      ? `${order.characterSpecs.childName}'s Inner Voice`
+                      : 'N/A'}
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -529,12 +729,10 @@ export default function OrderDetailPage() {
                   >
                     <div className="flex items-center space-x-2">
                       <span>{stage.label}</span>
-                      <StatusBadge 
-                        status={
-                          order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status === ReviewStageStatus.APPROVED
-                            ? ReviewStageStatus.APPROVED
-                            : order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status || ReviewStageStatus.PENDING
-                        } 
+                      <StatusBadge
+                        status={getStageBadgeStatus(
+                          order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status
+                        )}
                       />
                       {flagCounts[stage.key as unknown as keyof typeof flagCounts] > 0 && (
                         <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800">
@@ -582,6 +780,7 @@ export default function OrderDetailPage() {
                   finalApprovalResult={finalApprovalResult}
                   finalApprovalError={finalApprovalError}
                   finalApprovalLoading={finalApprovalLoading}
+                  onSendToPrint={() => handleSendToPrint('post-pdf-stage')}
                 />
               )}
             </div>

@@ -1,10 +1,22 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  CheckCircle,
+  Play,
+  Download,
+  Flag,
+  Loader2,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clipboard,
+  Printer,
+} from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 import { AssetGrid } from '@/components/assets/asset-grid';
+import { formatDate } from '@/lib/utils';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker - use CDN by default for reliability
@@ -20,13 +32,30 @@ if (typeof window !== 'undefined') {
   console.log('[PDF.js] Using CDN worker:', cdnUrl);
 }
 
+interface FinalApprovalStateProps {
+  previewUrl: string;
+  token: string;
+  requestedAt?: string;
+  tokenCreated?: boolean;
+  notification?: {
+    attempted: boolean;
+    sent: boolean;
+    reason?: string;
+    response?: unknown;
+  };
+}
+
 interface PostPdfStageProps {
   orderId: string;
   order: Order;
   isApproved: boolean;
-  onApprove: () => void;
+  onApprove: (nextStatus: 'approved' | 'pending') => void;
   onInitiateWorkflow: () => void;
   onRefresh?: () => void;
+  finalApprovalResult?: FinalApprovalStateProps | null;
+  finalApprovalError?: string | null;
+  finalApprovalLoading?: boolean;
+  onSendToPrint?: () => Promise<void> | void;
 }
 
 interface PageData {
@@ -137,7 +166,18 @@ function createSpreads(pages: PageData[], coverImageUrl?: string): SpreadData[] 
   return spreads;
 }
 
-export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PostPdfStageProps) {
+export function PostPdfStage({
+  orderId,
+  order,
+  isApproved,
+  onApprove,
+  onInitiateWorkflow,
+  onRefresh,
+  finalApprovalResult,
+  finalApprovalError,
+  finalApprovalLoading,
+  onSendToPrint,
+}: PostPdfStageProps) {
   const [pdfAsset, setPdfAsset] = useState({
     id: 'compiled-pdf',
     name: 'Compiled PDF',
@@ -165,6 +205,34 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const [coverImageLoading, setCoverImageLoading] = useState(false);
   const [coverImageDataUrl, setCoverImageDataUrl] = useState<string | null>(null); // For PDFs converted to images
   const coverCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [sendingToPrint, setSendingToPrint] = useState(false);
+
+  const previewUrl =
+    finalApprovalResult?.previewUrl || order.customerPreview?.url || null;
+  const previewToken = finalApprovalResult?.token || order.customerPreview?.token;
+  const previewRequestedAt =
+    finalApprovalResult?.requestedAt ||
+    order.customerPreview?.requestedAt ||
+    order.customerApprovalRequestedAt;
+  const previewExpiresAt = order.customerPreview?.expiresAt;
+  const hasExistingPreview = Boolean(order.customerPreview?.url);
+  const previewJustSent = Boolean(finalApprovalResult?.previewUrl);
+  const customerApprovalStatus = order.customerApprovalStatus ?? '';
+  const orderStatus = order.status ?? '';
+  const customerRevisionUsed =
+    typeof order.revisionCount === 'number' && order.revisionCount >= 1;
+
+  const readyForPrint =
+    customerApprovalStatus === 'approved' ||
+    customerRevisionUsed ||
+    customerApprovalStatus === 'revision_requested' ||
+    orderStatus === 'customer_approved' ||
+    orderStatus === 'pending_print' ||
+    orderStatus === 'pending_shipping' ||
+    orderStatus === 'in_production';
+  const showPrintAction = isApproved && readyForPrint;
+  const finalApprovalIsLoading = Boolean(finalApprovalLoading);
 
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
@@ -189,6 +257,16 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const coverImageRefHandledRef = useRef<{ front: boolean; back: boolean }>({ front: false, back: false });
   // Track preloaded images to keep them in browser cache
   const preloadedImagesRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    setCopied(false);
+  }, [previewUrl]);
+
+  useEffect(() => {
+    if (finalApprovalResult && typeof onRefresh === 'function') {
+      onRefresh();
+    }
+  }, [finalApprovalResult, onRefresh]);
 
   // Reset ref and spread index when orderId changes
   useEffect(() => {
@@ -1519,8 +1597,18 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     setFlaggedCount(orderId, 'postPdf', pdfAsset.isFlagged ? 1 : 0);
   }, [orderId, pdfAsset.isFlagged]);
 
+  const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
   const isPostBriaApproved = order.reviewStages.postBria.status === 'approved';
-  const canApprove = !pdfAsset.isFlagged && isPostBriaApproved;
+  const allowApproveWithoutPdf =
+    process.env.NODE_ENV !== 'production' ||
+    process.env.NEXT_PUBLIC_ALLOW_APPROVAL_WITHOUT_PDF === 'true';
+  const canApprove =
+    !pdfAsset.isFlagged &&
+    isPreBriaApproved &&
+    isPostBriaApproved &&
+    (pdfAsset.exists || allowApproveWithoutPdf);
+  const requiresPdfWarning = !pdfAsset.exists && !allowApproveWithoutPdf;
+  const devPdfNotice = !pdfAsset.exists && allowApproveWithoutPdf;
 
   const currentSpread = spreads[currentSpreadIndex];
   const totalSpreads = spreads.length;
@@ -1535,6 +1623,25 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const handleNextSpread = () => {
     if (currentSpreadIndex < totalSpreads - 1) {
       setCurrentSpreadIndex(currentSpreadIndex + 1);
+    }
+  };
+
+  const handleSendToPrintClick = async () => {
+    if (sendingToPrint) {
+      return;
+    }
+
+    try {
+      setSendingToPrint(true);
+      if (onSendToPrint) {
+        await onSendToPrint();
+      }
+      alert('Book Successfully Sent to Print Service');
+    } catch (error: any) {
+      console.error('[PostPdfStage] Failed to send to print:', error);
+      alert(error?.message || 'Failed to send to print. Please try again.');
+    } finally {
+      setSendingToPrint(false);
     }
   };
 
@@ -2077,29 +2184,75 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           <div>
             <h4 className="text-lg font-medium text-gray-900">Final Approval</h4>
             <p className="text-sm text-gray-600 mt-1">
-              {isApproved 
+              {isApproved
                 ? 'This order has been fully approved and is ready for production.'
+                : requiresPdfWarning
+                ? 'The compiled PDF must be generated before final approval can be completed.'
+                : !isPreBriaApproved
+                ? 'The Pre-Bria stage must be approved before final PDF review can begin.'
                 : !isPostBriaApproved
                 ? 'The Post-Bria stage must be approved before final PDF review can begin.'
                 : pdfAsset.isFlagged
                 ? 'Please address the flagged issues before final approval.'
-                : 'Review the compiled PDF and approve when ready for production.'
-              }
+                : 'Review the compiled PDF and approve when ready for production.'}
             </p>
+            {devPdfNotice && (
+              <p className="text-xs text-gray-500 mt-2">
+                PDF not detected; approval is enabled for development testing. Ensure a compiled PDF exists before sending to real customers.
+              </p>
+            )}
           </div>
-          
+
           <div className="flex space-x-3">
             {isApproved ? (
-              <button
-                onClick={onInitiateWorkflow}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Send to Production
-              </button>
+              showPrintAction ? (
+                <button
+                  onClick={handleSendToPrintClick}
+                  disabled={sendingToPrint}
+                  className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    sendingToPrint
+                      ? 'bg-indigo-500/70 text-white cursor-wait focus:ring-indigo-500'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500'
+                  }`}
+                >
+                  {sendingToPrint ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Printer className="h-4 w-4 mr-2" />
+                  )}
+                  {sendingToPrint ? 'Sending...' : 'Send to Print'}
+                </button>
+              ) : (
+                <button
+                  onClick={onInitiateWorkflow}
+                  disabled={finalApprovalIsLoading || previewJustSent}
+                  className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    finalApprovalIsLoading
+                      ? 'bg-green-500/70 text-white cursor-wait focus:ring-green-500'
+                      : previewJustSent
+                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed focus:ring-gray-400'
+                      : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
+                  }`}
+                >
+                  {finalApprovalIsLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : previewJustSent ? (
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                  ) : (
+                    <Play className="h-4 w-4 mr-2" />
+                  )}
+                  {previewJustSent
+                    ? 'Preview Sent'
+                    : finalApprovalIsLoading
+                    ? 'Sending Proof...'
+                    : hasExistingPreview
+                    ? 'Resend Proof'
+                    : 'Send Proof To Customer'}
+                </button>
+              )
             ) : (
               <button
-                onClick={onApprove}
+                onClick={() => onApprove('approved')}
                 disabled={!canApprove}
                 className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   !canApprove
@@ -2114,6 +2267,134 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           </div>
         </div>
       </div>
+
+      {(finalApprovalError || finalApprovalResult || order.customerApprovalStatus || hasExistingPreview) && (
+        <div className="mt-4 space-y-4">
+          {finalApprovalError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-start space-x-3">
+              <AlertCircle className="h-5 w-5 mt-0.5" />
+              <div>
+                <p className="font-medium">Failed to send customer preview</p>
+                <p>{finalApprovalError}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <h5 className="text-sm font-semibold text-gray-900 mb-2">Customer Preview Status</h5>
+            <div className="space-y-2 text-sm text-gray-700">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">Status:</span>
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    order.customerApprovalStatus === 'approved'
+                      ? 'bg-green-100 text-green-800'
+                      : order.customerApprovalStatus === 'revision_requested'
+                      ? 'bg-orange-100 text-orange-800'
+                      : order.customerApprovalStatus === 'pending'
+                      ? 'bg-purple-100 text-purple-800'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {order.customerApprovalStatus ? order.customerApprovalStatus.replace(/_/g, ' ') : 'not requested'}
+                </span>
+              </div>
+
+              {previewRequestedAt && (
+                <p>
+                  <span className="font-medium">Requested:</span>{' '}
+                  {formatDate(previewRequestedAt)}
+                </p>
+              )}
+              {order.customerApprovalApprovedAt && (
+                <p>
+                  <span className="font-medium">Approved:</span>{' '}
+                  {formatDate(order.customerApprovalApprovedAt)}
+                </p>
+              )}
+              {typeof order.revisionCount === 'number' && (
+                <p>
+                  <span className="font-medium">Revisions Used:</span>{' '}
+                  {order.revisionCount} / 1
+                </p>
+              )}
+            </div>
+
+            {(previewJustSent || hasExistingPreview || finalApprovalIsLoading) && (
+              <div className="mt-4 space-y-3 rounded-md bg-gray-50 p-3 text-sm text-gray-800 border border-gray-200">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="font-medium text-gray-900">Preview Link</p>
+                    <p className="text-xs text-gray-600">
+                      {previewJustSent || hasExistingPreview
+                        ? 'Preview generated and awaiting customer response.'
+                        : 'Share this URL with the customer if Amazon messaging is unavailable.'}
+                    </p>
+                  </div>
+                  {previewUrl && (
+                    <button
+                      onClick={() => {
+                        if (!previewUrl) return;
+                        navigator.clipboard.writeText(previewUrl);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2500);
+                      }}
+                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <Clipboard className="h-3.5 w-3.5 mr-1" />
+                      {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                  )}
+                </div>
+
+                <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 break-all">
+                  {previewUrl ||
+                    (finalApprovalIsLoading
+                      ? 'Generating preview link...'
+                      : hasExistingPreview
+                      ? 'Preview link not available. Refresh to retry.'
+                      : 'Preview link not yet created.')}
+                </div>
+
+                {previewExpiresAt && (
+                  <p className="text-xs text-gray-500">
+                    Expires {formatDate(previewExpiresAt)}
+                  </p>
+                )}
+
+                {previewToken && (
+                  <p className="text-xs text-gray-500 break-all">
+                    Token: <code>{previewToken}</code>
+                  </p>
+                )}
+
+                {(previewJustSent || hasExistingPreview) && order.customerApprovalStatus === 'pending' && (
+                  <p className="text-xs text-gray-500">
+                    Use the copy button above if you need to resend manually.
+                  </p>
+                )}
+
+                {finalApprovalResult?.tokenCreated === false && (
+                  <p className="text-xs text-gray-500">
+                    Existing preview token reused for this customer.
+                  </p>
+                )}
+
+                {finalApprovalResult?.notification && (
+                  <div className="space-y-1 text-xs">
+                    <p className="font-medium text-gray-900">Amazon Message Center</p>
+                    <p className="text-gray-700">
+                      {finalApprovalResult.notification.sent
+                        ? 'Preview link sent via Amazon Message Center.'
+                        : finalApprovalResult.notification.reason || 'Amazon messaging not sent (see logs for details).'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
     </>
   );

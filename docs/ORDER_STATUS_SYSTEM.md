@@ -170,6 +170,28 @@ The main `status` field should be calculated based on:
 - Flag indicator shows when revision needed
 - Production status shows when in Lulu/system
 
+## Unified Display Layer (Admin-Friendly Labels)
+
+To keep the admin panels simple while retaining backend fidelity, a helper maps every Supabase order into a small set of lifecycle labels. These labels drive the badges in the orders table, order detail header, stage tabs, and review queues.
+
+| Display Label | When We Show It | Raw Signals (examples) | Notes |
+| --- | --- | --- | --- |
+| `New` | Order just arrived, workflows not started | `status` ∈ {`new`, `pending_processing`, `queued_for_processing`} | Covers the gap between intake and the first automation step |
+| `Pending` | Automation or human review still in progress | `ai_generation_in_progress`, any `pending_*_review`, workflow steps 2A/2B/3 running | Any “not finished yet” internal work collapses here |
+| `Approved` | All internal stages approved, proof not sent yet | `reviewStages.*.status === 'approved'` and `customerApprovalStatus` unset/false | Gives ops a checkpoint before triggering customer preview |
+| `Proof Sent` | Customer preview link/token issued | `customerApprovalStatus === 'pending'` or `status === pending_customer_approval` | Used across list/detail/phase summary under “Customer Approval” |
+| `Correction Requested` | Customer or reviewer flagged changes | `customerApprovalStatus === 'revision_requested'`, review stage `rejected/flagged`, or `flags.total > 0` | Any stage needing re-approval bubbles here |
+| `Sent to Print` | Customer/admin approved; job handed to POD | `customerApprovalStatus === 'approved'`, `status` ∈ {`customer_approved`, `pending_print`, `in_production`, `pending_shipping`} or Lulu “processing” states | Covers production all the way up to shipping hand-off |
+| `Shipped` / `Delivered` | Fulfilment status updates received | `status` ∈ {`shipped`, `delivered`, `completed`} or Lulu equivalents | Future shipping milestones can split here if needed |
+| `Action Required` *(fallback)* | Hard failures or cancellations | `status` ∈ {`failed`, `action_required`, `cancelled`} | Surfaces in dedicated triage widgets/alerts |
+
+### Helper Outputs
+- `displayStatus` – string key (above) consumed by `StatusBadge`
+- `phase` – `OrderPhase` bucket for the “Orders by Phase” widget
+- `reasons` – optional metadata for logging/monitoring (e.g., which raw fields triggered the collapse)
+
+All admin-facing surfaces import this helper so we only define the mapping once. The automation layer continues to set the granular `OrderStatus` enum values; the display map interprets them at render time and keeps the UI consistent.
+
 ---
 
 ## Customer Order Status Page (Friends & Family MVP)
