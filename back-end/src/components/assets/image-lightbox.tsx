@@ -155,10 +155,21 @@ export function ImageLightbox({
         // Always update to the latest revision URL
         // This will cause the image to update if showNewOption is true
         setNewOptionUrl(currentUrl);
-        // If user is currently viewing a previous revision, keep showing the new option (don't change showNewOption)
-        // If they're not viewing a revision, ensure showNewOption is false so they see the "New Option Available" button
-        // Note: We don't change showNewOption here - if it's true, keep it true to show the new revision immediately
-        // If it's false, it stays false so the "New Option Available" button appears
+        
+        // If user is currently viewing a previous revision, keep showing the new option
+        // Use functional update to read current state value
+        setShowNewOption(prevShowNewOption => {
+          // If already showing a revision, keep showing (so new revision appears immediately)
+          // If not showing, keep it false (so "New Option Available" button appears)
+          const shouldShow = prevShowNewOption; // Keep current state
+          console.log('[ImageLightbox] showNewOption state:', {
+            previous: prevShowNewOption,
+            willKeep: shouldShow,
+            reason: shouldShow ? 'User is viewing revision, keep showing new one' : 'User not viewing, show button instead'
+          });
+          return shouldShow;
+        });
+        
         // Update temporaryR2Key from the URL for revise operations
         // Handle both /api/assets/ and Cloudflare Images URLs
         let r2Key: string | null = null;
@@ -174,8 +185,6 @@ export function ImageLightbox({
         console.log('[ImageLightbox] Updated newOptionUrl to latest revision', {
           r2Key,
           newOptionUrl: currentUrl,
-          showNewOption,
-          willShowNewOption: showNewOption, // If already showing, keep showing with new URL
         });
       } else {
         setNewOptionUrl(null);
@@ -674,7 +683,8 @@ export function ImageLightbox({
                       // Show new option when toggled
                       <>
                         <img
-                          src={newOptionUrl}
+                          key={newOptionUrl} // Force re-render when URL changes
+                          src={`${newOptionUrl}${newOptionUrl.includes('?') ? '&' : '?'}t=${Date.now()}`} // Cache-busting
                           alt="New Option"
                           className="max-w-full max-h-full object-contain"
                           onError={(e) => {
