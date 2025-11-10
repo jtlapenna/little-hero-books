@@ -1,0 +1,93 @@
+{
+  "name": "Cloudflare Images Upload Nodes",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudflare.com/client/v4/accounts/YOUR_CLOUDFLARE_ACCOUNT_ID_HERE/images/v1",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_CLOUDFLARE_IMAGES_API_TOKEN_HERE"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "multipart-form-data",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "value": "={{ $binary.data }}",
+              "parameterType": "file"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ JSON.stringify({ orderId: $json.orderId || $json.amazonOrderId || 'UNKNOWN', pageNumber: $json.pageNumber || $json.pageNum || 0 }) }}"
+            }
+          ]
+        },
+        "options": {
+          "continueOnFail": true,
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "cloudflare-images-upload-http",
+      "name": "Upload Preview Image to Cloudflare Images",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Uploads preview images to Cloudflare Images after R2 upload. Place this node AFTER 'Upload Page Preview Image to R2'. Enable 'Continue On Fail' so workflow continues if Cloudflare upload fails."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+          "jsCode": "// Store Cloudflare Images ID\n// Combines page data from R2 upload with Cloudflare Images response\n// Outputs: pageNumber, r2Key, cloudflareImageId, cloudflareImageUrl\n\nconst cloudflareResponse = $input.all();\n\n// Get the original page data from R2 upload node\n// Adjust node name if your R2 upload node has a different name\nconst r2NodeName = 'Upload Page Preview Image to R2';\nlet pageData = [];\ntry {\n  pageData = $items(r2NodeName).all();\n} catch (e) {\n  // Fallback: try to get from current input if R2 node name doesn't match\n  console.warn('Could not find R2 upload node, using input data');\n  // Try to extract from previous nodes\n  const allItems = $input.all();\n  pageData = allItems.map(item => item.json);\n}\n\nconst results = [];\nconst accountHash = 'JE-pa9WKaCMtKxy6dQQG7A';\n\nfor (let i = 0; i < pageData.length; i++) {\n  const page = pageData[i];\n  const cloudflare = cloudflareResponse[i];\n  \n  // Extract Cloudflare Images ID from response\n  let cloudflareImageId = null;\n  let cloudflareImageUrl = null;\n  \n  if (cloudflare && cloudflare.json) {\n    // Log the full response for debugging\n    console.log(`[Cloudflare Images] Page ${i + 1} response:`, JSON.stringify(cloudflare.json, null, 2));\n    \n    // Cloudflare Images API response structure:\n    // { result: { id: '...', variants: [...], ... } }\n    // OR: { result: { images: [{ id: '...', ... }] } } (if multiple images)\n    if (cloudflare.json.result) {\n      // Check for direct id (single image upload)\n      if (cloudflare.json.result.id) {\n        cloudflareImageId = cloudflare.json.result.id;\n      }\n      // Check for images array (multiple images)\n      else if (cloudflare.json.result.images && Array.isArray(cloudflare.json.result.images) && cloudflare.json.result.images.length > 0) {\n        cloudflareImageId = cloudflare.json.result.images[0].id;\n      }\n      // Check if result itself is an object with id\n      else if (typeof cloudflare.json.result === 'object' && cloudflare.json.result.id) {\n        cloudflareImageId = cloudflare.json.result.id;\n      }\n      \n      // Construct the delivery URL if we have an ID\n      if (cloudflareImageId && accountHash) {\n        cloudflareImageUrl = `https://imagedelivery.net/${accountHash}/${cloudflareImageId}/preview`;\n      }\n    }\n    \n    // Check for errors\n    if (cloudflare.json.errors && cloudflare.json.errors.length > 0) {\n      console.error(`[Cloudflare Images] Page ${i + 1} errors:`, cloudflare.json.errors);\n    }\n    \n    // Check if success is false\n    if (cloudflare.json.success === false) {\n      console.warn(`[Cloudflare Images] Page ${i + 1} upload failed:`, cloudflare.json);\n    }\n  } else {\n    console.warn(`[Cloudflare Images] Page ${i + 1} has no response data`);\n  }\n  \n  // Combine page data with Cloudflare Images data\n  // Exclude reserved keys like 'error' that n8n doesn't allow\n  const { error, ...pageDataWithoutError } = page;\n  \n  results.push({\n    pageNumber: page.pageNumber || page.pageNum || i + 1,\n    r2Key: page.pageImageR2Key || page.r2Key || page.fileName || null,\n    cloudflareImageId: cloudflareImageId,\n    cloudflareImageUrl: cloudflareImageUrl,\n    // Keep all other page data\n    orderId: page.orderId || page.amazonOrderId || null,\n    imageUrl: page.imageUrl || null,\n    // Preserve any other fields (excluding reserved keys)\n    ...pageDataWithoutError\n  });\n}\n\nconsole.log(`[Cloudflare Images] Processed ${results.length} pages, ${results.filter(r => r.cloudflareImageId).length} with Cloudflare IDs`);\n\nreturn results;"
+      },
+      "id": "cloudflare-images-store-id",
+      "name": "Store Cloudflare Images ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        0
+      ],
+      "notes": "Extracts Cloudflare Images ID from upload response and combines with page data. Outputs pageNumber, r2Key, cloudflareImageId, and cloudflareImageUrl for manifest building."
+    }
+  ],
+  "connections": {
+    "Upload Preview Image to Cloudflare Images": {
+      "main": [
+        [
+          {
+            "node": "Store Cloudflare Images ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-09T00:00:00.000Z",
+  "versionId": "1"
+}
+

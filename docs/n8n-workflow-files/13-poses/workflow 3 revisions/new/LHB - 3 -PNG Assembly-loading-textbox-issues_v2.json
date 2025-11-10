@@ -1,0 +1,887 @@
+{
+  "name": "LHB - 3 -PNG Assembly",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "/**\n * Extract Manifest URL for Workflow 3 - Normalize webhook data structure\n * Handles both webhook body structure (first pass) and direct fields\n * FIX: Check top-level first (Wait node), then body (webhook), process ALL items\n * Handle null values properly - construct from orderId if manifestUrl is null\n * UPDATED: Uses 2B manifest (not 2A) and includes needed info for Workflow 3\n */\nconst inputs = $input.all();\n\nreturn inputs.map(item => {\n  const input = item.json;\n  \n  // Priority: Check top-level first (Wait node resume), then body (webhook first pass)\n  // Wait node data has manifestUrl at top level, webhook has it in body\n  // Handle null/empty string explicitly\n  let manifestUrl = (input.manifestUrl && input.manifestUrl !== null && input.manifestUrl !== '') ? input.manifestUrl : null;\n  if (!manifestUrl) {\n    manifestUrl = (input.originalManifestUrl && input.originalManifestUrl !== null && input.originalManifestUrl !== '') ? input.originalManifestUrl : null;\n  }\n  \n  let orderId = (input.orderId && input.orderId !== null && input.orderId !== '') ? input.orderId : null;\n  if (!orderId) {\n    orderId = (input.amazonOrderId && input.amazonOrderId !== null && input.amazonOrderId !== '') ? input.amazonOrderId : null;\n  }\n  \n  // Fallback: Extract orderId from manifestKey if available (S3 node might have stripped orderId)\n  if ((!orderId || orderId === null || orderId === '') && input.manifestKey) {\n    const manifestKeyStr = String(input.manifestKey).trim();\n    if (manifestKeyStr && manifestKeyStr !== 'null' && manifestKeyStr !== 'undefined') {\n      // Try multiple patterns: /orders/{orderId}/ or orders/{orderId}/\n      const patterns = [\n        /[\\/]orders[\\/]([^\\/]+)[\\/]/,  // Matches /orders/TEST-ORDER-006/\n        /orders[\\/]([^\\/]+)[\\/]/,     // Matches orders/TEST-ORDER-006/\n      ];\n      \n      for (const pattern of patterns) {\n        const keyMatch = manifestKeyStr.match(pattern);\n        if (keyMatch && keyMatch[1]) {\n          orderId = keyMatch[1];\n          console.log(`✓ Extracted orderId from manifestKey: ${orderId} (pattern matched)`);\n          break;\n        }\n      }\n      \n      if (!orderId) {\n        console.warn(`⚠️ Could not extract orderId from manifestKey: ${manifestKeyStr.substring(0, 100)}`);\n      }\n    }\n  }\n  \n  let webhookUrl = (input.webhookUrl && input.webhookUrl !== null && input.webhookUrl !== '') ? input.webhookUrl : null;\n  \n  // If not found at top level, check body (webhook structure)\n  if (!manifestUrl && input.body && input.body !== input) {\n    manifestUrl = (input.body.manifestUrl && input.body.manifestUrl !== null && input.body.manifestUrl !== '') ? input.body.manifestUrl : null;\n    if (!manifestUrl) {\n      manifestUrl = (input.body.originalManifestUrl && input.body.originalManifestUrl !== null && input.body.originalManifestUrl !== '') ? input.body.originalManifestUrl : null;\n    }\n    if (!orderId) {\n      orderId = (input.body.orderId && input.body.orderId !== null && input.body.orderId !== '') ? input.body.orderId : null;\n      if (!orderId) {\n        orderId = (input.body.amazonOrderId && input.body.amazonOrderId !== null && input.body.amazonOrderId !== '') ? input.body.amazonOrderId : null;\n      }\n    }\n    if (!webhookUrl) {\n      webhookUrl = (input.body.webhookUrl && input.body.webhookUrl !== null && input.body.webhookUrl !== '') ? input.body.webhookUrl : null;\n    }\n  }\n  \n  // If no manifestUrl but we have orderId, construct it\n  // UPDATED: Uses 2B manifest (not 2A) for Workflow 3\n  if ((!manifestUrl || manifestUrl === null || manifestUrl === '') && orderId && orderId !== null && orderId !== '') {\n    // PRODUCTION URL: https://admin.littleherolabs.com\n    // PREVIEW URL: https://387cb69b.little-hero-labs-admin.pages.dev (for testing preview branches)\n    const baseUrl = 'https://admin.littleherolabs.com/api/manifests';\n    manifestUrl = `${baseUrl}/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2b-manifest.json`;\n    console.log(`✓ Constructed manifestUrl from orderId: ${manifestUrl} (orderId was: ${orderId})`);\n  }\n  \n  // Final validation - if still no manifestUrl, we have a problem\n  if (!manifestUrl || manifestUrl === null || manifestUrl === '') {\n    const keys = input ? Object.keys(input).join(', ') : 'no input';\n    const manifestUrlValue = input.manifestUrl;\n    const orderIdValue = orderId;  // Use the extracted orderId, not input.orderId\n    const manifestKeyValue = input.manifestKey || 'not present';\n    console.error(`❌ Cannot resolve manifestUrl. manifestUrl=${manifestUrlValue}, orderId=${orderIdValue}, manifestKey=${manifestKeyValue}, Keys: ${keys}`);\n    throw new Error(`Cannot resolve manifestUrl. manifestUrl=${manifestUrlValue}, orderId=${orderIdValue}, manifestKey=${manifestKeyValue}, Keys: ${keys}`);\n  }\n  \n  // CRITICAL: Detect if this is from webhook (first pass) or Wait node (retry loop)\n  // On webhook: body.webhookUrl exists, isFirstPass is undefined\n  // On Wait node resume: isFirstPass is explicitly false (from Restore JSON After Upload)\n  let isFirstPass = input.isFirstPass;\n  if (isFirstPass === undefined) {\n    // Not set yet - check if this is from webhook (first pass) or Wait node (retry loop)\n    // Check for webhookUrl in body (webhook structure) or top-level (already extracted)\n    const hasWebhookUrl = !!(webhookUrl || (input.body && input.body !== input && input.body.webhookUrl));\n    isFirstPass = hasWebhookUrl ? true : false; // Default to false if we can't determine\n  }\n  \n  // CRITICAL: Preserve all fields from input, especially isFirstPass, statusUrl, etc.\n  // These are essential for routing in the IF node after retry loops\n  // Also include manifestKey for downstream nodes\n  const manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json`;\n  \n  return {\n    json: {\n      ...input,  // Preserve ALL fields from input\n      manifestUrl: manifestUrl,\n      originalManifestUrl: manifestUrl,\n      manifestKey: manifestKey,\n      orderId: orderId || input.orderId || input.amazonOrderId || null,\n      webhookUrl: webhookUrl || input.webhookUrl || null,\n      // Explicitly preserve these critical fields for IF node routing\n      isFirstPass: isFirstPass,\n      statusUrl: input.statusUrl || input.status_url || null,\n      status_url: input.status_url || input.statusUrl || null,\n      requestId: input.requestId || input.request_id || null,\n      request_id: input.request_id || input.requestId || null,\n      poseNumber: input.poseNumber || null,\n      characterHash: input.characterHash || null,\n      // Include backend URL for downstream proxy URL construction\n      backendUrl: 'https://admin.littleherolabs.com'\n    }\n  };\n});\n"
+      },
+      "id": "d4d88473-04dd-4452-9ade-2cc750982f3f",
+      "name": "Extract Manifest URL (3)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1488,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.manifestUrl}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "fb3d6134-599a-4876-b356-2cfd234fca04",
+      "name": "Download 2B Manifest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1296,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Build Assembly Input From Manifest\n * Converts 2B manifest into the payload expected downstream.\n */\nconst input = $input.first().json || {};\nconst manifest = input || {}; // HTTP node passes manifest JSON as item\n\n// Validate manifest schema\nif (!manifest.schema || !manifest.schema.includes('lhb.run-manifest')) {\n  throw new Error(`Invalid or missing manifest schema. Expected 'lhb.run-manifest@v2.0', got: ${manifest.schema || 'undefined'}`);\n}\n\n// Try to get preserved context from Extract node\nlet ctx = {};\ntry { ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst order = manifest.order || {};\nconst entries = Array.isArray(manifest.entries) ? manifest.entries : [];\nconst amazonOrderId = order.amazonOrderId || ctx.orderId || null;\nconst characterHash = manifest.characterHash || order.characterHash || null;\nconst backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n\n// Validate required fields\nif (!amazonOrderId) {\n  throw new Error('Manifest missing required order.amazonOrderId');\n}\nif (!characterHash) {\n  throw new Error('Manifest missing required characterHash');\n}\nif (!Array.isArray(manifest.entries) || manifest.entries.length === 0) {\n  throw new Error('Manifest has no entries (poses)');\n}\n\nconst toProxy = (key) => `${backendUrl}/api/assets/${key}`;\nconst processedImages = entries\n  .filter(e => Number.isFinite(Number(e.poseNumber)) && e.bgRemovedKey)\n  .sort((a,b) => a.poseNumber - b.poseNumber)\n  .map(e => ({\n    poseNumber: e.poseNumber,\n    fileName: (e.bgRemovedKey.split('/').pop()) || `pose${String(e.poseNumber).padStart(2,'0')}_nobg.png`,\n    r2Path: e.bgRemovedKey,\n    publicUrl: toProxy(e.bgRemovedKey),\n    briaProcessed: true,\n    briaStatus: 'COMPLETED',\n    processingError: false,\n  }));\n\nreturn [{ json: {\n  amazonOrderId,\n  characterHash,\n  characterSpecs: order.characterSpecs || {},\n  bookSpecs: order.bookSpecs || {},\n  orderDetails: order.orderDetails || {},\n  publicR2Url: order.publicR2Url || null,\n  backendUrl,\n  processedImages\n} }];\n"
+      },
+      "id": "49ae7e31-d0fd-43dc-bac8-69b1ac72c5c4",
+      "name": "Build Assembly Input From Manifest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get order ready for book assembly (robust Webhook body handling)\n\n// Webhook puts the real payload under .body; if not present, assume it's already flat\nconst input = $input.first().json;\nconst payload = input.body ?? input;\n\n// Pull required fields from either flat or nested orderData\nconst amazonOrderId = payload.amazonOrderId ?? payload.orderData?.amazonOrderId ?? null;\nconst characterHash = payload.characterHash ?? payload.orderData?.characterHash ?? null;\n\n// Optional sections\nconst characterSpecs = payload.characterSpecs ?? payload.orderData?.characterSpecs ?? {};\nconst bookSpecs      = payload.bookSpecs      ?? payload.orderData?.bookSpecs      ?? {};\nconst orderDetails   = payload.orderDetails   ?? payload.orderData?.orderDetails   ?? {};\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url    = payload.publicR2Url    ?? null;\n\n// Processed images come in flat (2B sends them at top level)\nconst processedImages = payload.processedImages ?? [];\n\n// Validate\nif (!amazonOrderId || !characterHash) {\n  throw new Error('Missing required order data: amazonOrderId or characterHash');\n}\nif (!Array.isArray(processedImages) || processedImages.length === 0) {\n  throw new Error('No processed images received from Workflow 2B');\n}\n\n// Optional test gating (limit downstream page generations)\n// testModePages: explicit numeric value OR default to 2 when testMode === true\nconst testMode = payload.testMode === true || payload.testMode === 'true';\nconst testModePages = Number(payload.testModePages ?? (testMode ? 2 : 0)) || 0;\n\n// Normalize/initialize assembly state\nconst assemblingOrder = {\n  status: 'book_assembly_in_progress',\n  assemblyStartedAt: new Date().toISOString(),\n  pagesGenerated: 0,\n  totalPagesRequired: 15,\n  assemblyProgress: 0,\n\n  amazonOrderId,\n  characterHash,\n  characterSpecs,\n  bookSpecs,\n  orderDetails,\n  publicR2Url,\n\n  processedImages,\n\n  // NEW: expose to downstream generators/collectors\n  testModePages\n};\n\nconsole.log(`Starting book assembly for order: ${amazonOrderId} (images: ${processedImages.length}, testModePages=${testModePages})`);\nreturn [{ json: assemblingOrder }];"
+      },
+      "id": "bd8aca17-2125-48a3-9d9a-d9b2d92cae77",
+      "name": "Get Order Ready for Assembly",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -944,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Load story text (v2, 14 pages) + ensure characterImages exists\n * - Uses animalImages.slug (from Assets Loader) to derive trailType, with clean fallbacks.\n * - Synthesizes processedImages if missing (12 poses, canonical keys).\n * - Does NOT touch animalImages/backgroundImages/overlayImages.\n */\nconst order = $input.first().json || {};\nconst childName = order.characterSpecs?.childName;\nconst hometown  = order.characterSpecs?.hometown || 'Seattle';\nif (!childName) throw new Error('Child name required (characterSpecs.childName)');\n\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\nconst publicR2Url = order.publicR2Url || null;\n\n// Character hash (required for canonical pose paths)\nconst hash = order.characterHash || order.orderData?.characterHash;\nif (!hash) throw new Error('Missing characterHash in order payload');\n\n// Resolve backendUrl (for proxy asset URLs)\nlet backendUrl = order.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\n\n// --- Animal name + trailType (prefer assets node outputs) ---\nconst animalSlug = order.animalImages?.slug || String(order.characterSpecs?.animalGuide || '').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();\nfunction displayNameFromSlug(slug) {\n  if (slug === 't-rex') return 'T-Rex';\n  if (!slug) return 'Tiger';\n  return slug.charAt(0).toUpperCase() + slug.slice(1);\n}\nconst animalDisplayName = order.animalImages?.displayName || displayNameFromSlug(animalSlug || 'tiger');\n\n// Map trail type for story copy\nlet trailType = 'footprints';\nif (/(t\\s*-\\s*rex|t\\s*rex|trex|dinosaur)/i.test(animalSlug)) {\n  trailType = 'giant footprints';\n} else if (/(owl|penguin)/i.test(animalSlug)) {\n  trailType = 'feathers';\n} else if (/unicorn/i.test(animalSlug)) {\n  trailType = 'colorful fur';\n} else if (/(lion|tiger|dog|cat)/i.test(animalSlug)) {\n  trailType = 'paw prints';\n}\n\n// --- Story lines (v2) — uses animalDisplayName + trailType ---\nconst lines = [\n  `It was bedtime in ${hometown}. ${childName} closed their eyes and took a soft breath.<br>“Let’s take a dream-walk,” a quiet voice whispered.`,\n  `Outside, the night sparkled with stars.<br>“Look up,” the voice said. “Pause. Breathe. Listen.”`,\n  `A glowing door opened.<br>“Journeys can begin with one breath,” the voice said. “When you’re ready, step through.”`,\n  `${childName} floated among the stars.<br>“When you don’t know how you feel, it’s okay,” the voice said. “Pause. Breathe. Listen close.”`,\n  `${childName} noticed a trail of ${trailType} and felt a tiny yes inside.<br>“You can follow me anytime,” the voice said. Listening helps you find the way.`,\n  `Wind whooshed as ${childName} ran, light and quick.<br>“Listening brings courage,” the voice said. “It can feel like joy.”`,\n  `A wide view appeared.<br>“Sometimes it helps to stop and see how far you’ve come,” the voice said.`,\n  `Lunch was waiting.<br>“Hungry? Let’s eat,” the voice said. “Being kind to your body is listening, too.”`,\n  `“When you look closely, you can find beautiful things,” the voice said.<br>${childName} paused and found a shining shell.`,\n  `A crystal cave glimmered.<br>“Small steps. Watch where your feet go,” the voice said. “Careful can be brave.”`,\n  `Giant flowers stretched overhead. ${childName} gasped in surprise.<br>“You’ll be amazed by what you can grow,” the voice said.`,\n  `The voice felt very close now, and a trail led deeper between the trees.<br>“To hear me clearly, go quiet inside,” it said. “That quiet is your heart.”`,\n  `${animalDisplayName} stepped from the light, warm and bright.<br>“I’ve been with you the whole time,” said ${animalDisplayName}. “I am your quiet inside voice.”`,\n  `“Ready to fly home?” asked ${animalDisplayName}. They whooshed through the stars to ${hometown}.<br>“Wherever you go—pause, breathe, listen—I’m always with you.”`\n];\n\nconst storyTexts = lines.map((text, i) => ({\n  pageNumber: i + 1,\n  text,\n  characterName: childName,\n  hometown,\n  animalGuide: animalDisplayName, // friendly display for downstream use\n  trailType,\n  validated: true,\n}));\n\n// --- Pose names for alt/fallbacks ---\nconst poseNames = [\n  'walking','walking-looking-higher','looking','floating',\n  'walking-looking-down','jogging','looking','sitting-eating',\n  'crouching','crawling-moving-happy','surprised-looking-up','surprised'\n];\n\n// --- Ensure processedImages exists (fallback synthesize) ---\nlet processedImages = Array.isArray(order.processedImages) && order.processedImages.length\n  ? order.processedImages\n  : Array.from({ length: 12 }, (_, i) => {\n      const poseNumber = i + 1;\n      const padded = String(poseNumber).padStart(2, '0');\n      const fileName = `characters_${hash}_pose${padded}_nobg.png`;\n      const r2Path = `${BASE_PREFIX}/${hash}/${fileName}`;\n      const publicUrl = publicR2Url ? `${publicR2Url}/${r2Path}` : null;\n      return {\n        poseNumber,\n        fileName,\n        r2Path,\n        publicUrl,\n        briaProcessed: true,\n        briaStatus: 'COMPLETED',\n        processingError: false,\n      };\n    });\n\n// --- Ensure characterImages from processedImages (idempotent) ---\nif (!order.characterImages || !Array.isArray(order.characterImages.poses)) {\n  const poses = processedImages\n    .filter(pi => Number.isFinite(Number(pi.poseNumber)) && pi.poseNumber >= 1 && pi.poseNumber <= 12)\n    .sort((a, b) => Number(a.poseNumber) - Number(b.poseNumber))\n    .map(pi => {\n      const poseNum = Number(pi.poseNumber);\n      const imagePath = pi.publicUrl || (pi.r2Path ? `${backendUrl}/api/assets/${pi.r2Path}` : null);\n      return {\n        poseNumber: poseNum,\n        poseFilename: poseNames[poseNum - 1] || `pose${String(poseNum).padStart(2, '0')}`,\n        imagePath,\n        pageNumber: poseNum, // 1→1 ... 12→12\n        validated: !pi.processingError,\n      };\n    });\n\n  order.characterImages = {\n    base: `${backendUrl}/api/assets/${BASE_PREFIX}/${hash}/base-character.png`,\n    poses,\n  };\n}\n\n// --- Return merged payload ---\nreturn [{\n  json: {\n    ...order,\n    backendUrl,       // reassert for downstream nodes\n    publicR2Url,\n    storyTexts,\n    processedImages,\n    trailType,        // useful for HTML logic\n    animalDisplayName // handy for alt text\n  }\n}];\n"
+      },
+      "id": "689d032f-ad33-45fb-b91d-83b3e10c461b",
+      "name": "Load Story & Character Poses (3A)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        96
+      ],
+      "notesInFlow": true,
+      "notes": "Canonical story + character pose loader. Ensure interior uses poses 1–12; cover uses pose 13 (outside this node)."
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "// Generate Complete HTML (Interior pages) — Phase 2\n// Parity-safe (no .text-box CSS here) + image preloads to prevent blank/partial renders\nconst order = $input.first().json || {};\n\n// ---- backend base ----\nlet backendUrl = order.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\n\n// ---- upstream inputs & render context ----\nlet inputs = {}, renderCtx = {};\ntry {\n  inputs    = $items('Normalize Inputs (3A Phase 1)', 0, $runIndex)?.[0]?.json?.inputs || {};\n  renderCtx = $items('Resolve Asset Paths (3A Phase 1)', 0, $runIndex)?.[0]?.json?.renderContext || {};\n} catch {}\n\nconst dedicationMessage = String(inputs.dedicationMessage || '').trim();\n\n// Reliability toggle: swap CSS backgrounds for real <img> layers (forces load)\n// Enable via order.useImgBackgrounds = true OR renderCtx.useImgBackgrounds = true\nconst useImgBackgrounds = Boolean(order.useImgBackgrounds ?? renderCtx.useImgBackgrounds ?? true);\n\n// overlays from renderCtx (optional)\nconst p05OverlayKey = renderCtx?.p05Overlay || null;\nconst p12OverlayKey = renderCtx?.p12Overlay || null;\nconst p05OverlayUrl_fromCtx = p05OverlayKey ? `${backendUrl}/api/assets/${p05OverlayKey}` : null;\nconst p12OverlayUrl_fromCtx = p12OverlayKey ? `${backendUrl}/api/assets/${p12OverlayKey}` : null;\n\nconst getTextBoxOverlayUrl = () =>\n  `${backendUrl}/api/assets/book-mvp-simple-adventure/overlays/text-boxes/standard-box.png`;\n\n// ---- URL helpers: normalize -> absolute + cache-bust ----\nconst RUN_BUST = encodeURIComponent(order.runStamp || order.runId || Date.now());\nfunction toAbsoluteAsset(u){\n  const s = String(u || '').trim();\n  if (!s) return '';\n  if (/^https?:\\/\\//i.test(s)) return s;\n  return `${backendUrl}/api/assets/${s.replace(/^\\/+/, '')}`;\n}\nfunction withBust(u){\n  if (!u) return '';\n  const sep = u.includes('?') ? '&' : '?';\n  return `${u}${sep}v=${RUN_BUST}`;\n}\nfunction norm(u){ return withBust(toAbsoluteAsset(u)); }\n\n// ---- helpers to find assets/text ----\nconst findBgRaw  = (i) => order.backgroundImages?.find(b => Number(b.pageNumber) === Number(i))?.imagePath || '';\nconst findBg     = (i) => norm(findBgRaw(i));\nconst findRaw    = (i) => (order.storyTexts?.find(s => Number(s.pageNumber) === Number(i))?.text || '');\n\n// ----- robust value pickers -----\nconst firstStr = (...vals) => vals.find(v => typeof v === 'string' && v.trim().length) || '';\n\nfunction deepFindUrl(obj, keyRegex) {\n  try {\n    const seen = new Set();\n    const stack = [obj];\n    while (stack.length) {\n      const cur = stack.pop();\n      if (!cur || typeof cur !== 'object' || seen.has(cur)) continue;\n      seen.add(cur);\n      for (const [k, v] of Object.entries(cur)) {\n        if (keyRegex.test(String(k))) {\n          if (typeof v === 'string' && v) return v;\n          if (v && typeof v === 'object') {\n            const hit = firstStr(v.imagePath, v.url, v.publicUrl, v.href);\n            if (hit) return hit;\n          }\n        }\n        if (v && typeof v === 'object') stack.push(v);\n      }\n    }\n  } catch {}\n  return '';\n}\n\n// fallback overlay finder (handles cases where renderCtx didn’t include keys)\nfunction findOverlayUrl(i){\n  // Prefer animal-variant / overlayImages first\n  const overlays = order.overlayImages || order.overlays || {};\n  if (Array.isArray(overlays)) {\n    const hit = overlays.find(o => Number(o.pageNumber) === Number(i) && (o.imagePath || o.url || o.publicUrl || o.r2Key));\n    if (hit) return withBust(toAbsoluteAsset(firstStr(hit.imagePath, hit.url, hit.publicUrl, hit.r2Key)));\n  } else if (overlays && typeof overlays === 'object') {\n    const candid = (i === 5)  ? deepFindUrl(overlays, /animal|trail|footprint|p05|page.?5/i)\n                 : (i === 12) ? deepFindUrl(overlays, /sparkle|glow|p12|page.?12/i)\n                 : null;\n    if (candid) return withBust(toAbsoluteAsset(candid));\n  }\n\n  // Then consider explicit renderCtx overrides\n  if (i === 5  && p05OverlayUrl_fromCtx)  return withBust(p05OverlayUrl_fromCtx);\n  if (i === 12 && p12OverlayUrl_fromCtx)  return withBust(p12OverlayUrl_fromCtx);\n\n  // Fallbacks\n  if (i === 5) {\n    const guess = 'book-mvp-simple-adventure/overlays/footprints/footprints.png';\n    return withBust(`${backendUrl}/api/assets/${guess}`);\n  }\n  return null;\n}\n\n;\n  if (Array.isArray(overlays)) {\n    const hit = overlays.find(o => Number(o.pageNumber) === Number(i) && (o.imagePath || o.url || o.publicUrl));\n    if (hit) return withBust(toAbsoluteAsset(firstStr(hit.imagePath, hit.url, hit.publicUrl)));\n  }\n  if (overlays && typeof overlays === 'object') {\n    if (i === 5) {\n      const byKey = deepFindUrl(overlays, /footprint|p05|page.?5/i);\n      if (byKey) return withBust(toAbsoluteAsset(byKey));\n    }\n    if (i === 12) {\n      const byKey = deepFindUrl(overlays, /sparkle|glow|p12|page.?12/i);\n      if (byKey) return withBust(toAbsoluteAsset(byKey));\n    }\n  }\n\n  if (i === 5) {\n    const guess = 'book-mvp-simple-adventure/overlays/footprints/footprints.png';\n    return withBust(`${backendUrl}/api/assets/${guess}`);\n  }\n  return null;\n}\n\n// ---- pose selection (keep p13 animal special-case) ----\nconst PAGE_TO_POSE_MAP = { 1:1,2:2,3:3,4:4,5:5,6:6, 7:3,8:7,9:8,10:9,11:10,12:11, 14:12 };\nconst findPose = (pageNum) => {\n  if (pageNum === 13) return null;\n  const poses = order.characterImages?.poses || [];\n  const n = PAGE_TO_POSE_MAP[pageNum];\n  if (!n) return null;\n  let p = poses.find(p => Number(p.poseNumber) === Number(n));\n  if (!p && pageNum === 14) p = poses.find(p => /fly|flying/i.test(p.poseFilename || p.filename || ''));\n  if (!p) return null;\n\n  const imagePath = norm(p.imagePath || p.url || p.publicUrl || p.href || '');\n  return { ...p, imagePath };\n};\n\n// ---- coordinate system ----\nconst BASE = 2550, PX = 2625, SCALE = PX / BASE;\nconst toPx = (n) => Math.round(Number(n || 0) * SCALE) + 'px';\n\n// ---- character placement tables ----\nconst CHAR = {\n  1:{left:1453,top:1938,w:900,flip:1},  2:{left:1403,top:2091,w:950,flip:1},\n  3:{left:1275,top:2295,w:900,flip:1},  4:{left:1020,top:2142,w:1100,flip:-1},\n  5:{left:1250,top:2066,w:900,flip:-1}, 6:{left:1326,top:2066,w:900,flip:1},\n  7:{left:1199,top:1683,w:900,flip:-1}, 8:{left:1453,top:2040,w:1400,flip:1},\n  9:{left:1352,top:2066,w:1100,flip:-1},10:{left:1275,top:2295,w:1300,flip:-1},\n  11:{left:1964,top:2117,w:500,flip:1}, 12:{left:893, top:2066,w:920, flip:-1},\n  14:{left:893, top:1836,w:1500,flip:-1}\n};\nconst OV3   = { left:1020, top:2142, w:1100, flip:-1, rotate:0 };\nconst OV4   = { left:1530, top:1734, w:1100, flip: 1, rotate:-20 };\nconst OV14C = { left:893,  top:1836, w:1500, flip:-1, rotate:0 };\n\nfunction charStyle(n){\n  if (n === 3) {\n    return [\n      `left:${toPx(OV3.left)}`,\n      `top:${toPx(OV3.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV3.flip})`,\n      `width:${toPx(OV3.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  if (n === 4) {\n    return [\n      `left:${toPx(OV4.left)}`,\n      `top:${toPx(OV4.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV4.flip}) rotate(-20deg)`,\n      `width:${toPx(OV4.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  if (n === 14) {\n    return [\n      `left:${toPx(OV14C.left)}`,\n      `top:${toPx(OV14C.top)}`,\n      `transform:translate(-50%,-100%) scaleX(${OV14C.flip})`,\n      `width:${toPx(OV14C.w)}`,\n      `z-index:11`\n    ].join('; ') + ';';\n  }\n  const c = CHAR[n];\n  if (!c) return '';\n  return [\n    `left:${toPx(c.left)}`,\n    `top:${toPx(c.top)}`,\n    `transform:translate(-50%,-100%) scaleX(${c.flip ?? 1})`,\n    `width:${toPx(c.w)}`,\n    `z-index:11`\n  ].join('; ') + ';';\n}\n\n// ---- animal sprites ----\nfunction getAnimalSrc(kind){\n  const a = order.animalImages || order.animal || {};\n  const direct = kind === 'appears'\n    ? firstStr(a.appears, a.appear, a.page13, a.p13, a.animalAppears, a.appearsImagePath, a.appearsUrl, a.imageAppears)\n    : firstStr(a.flying, a.fly, a.page14, a.p14, a.animalFlying, a.flyingImagePath, a.flyingUrl, a.imageFlying);\n  if (direct) return norm(direct);\n  const regex = kind === 'appears' ? /appear|p13|page.?13/i : /flying|fly|p14|page.?14/i;\n  const deep  = deepFindUrl(a, regex);\n  if (deep) return norm(deep);\n  const deepOrder = deepFindUrl(order, regex);\n  return deepOrder ? norm(deepOrder) : '';\n}\n\nfunction animalHTML(i){\n  const name = order.animalDisplayName || 'Animal';\n  if (i === 13) {\n    const src = getAnimalSrc('appears');\n    if (!src) return `<div class=\"animal missing\" data-missing=\"page13-appears\"></div>`;\n    const leftPx = 1191, topPx = 2104;\n    const wLegacy = Math.round(1100 / (PX / BASE)); // ≈ 1100px at 2625 canvas\n    return `\n      <div class=\"animal\" style=\"\n        left:${toPx(leftPx)};\n        top:${toPx(topPx)};\n        transform:translate(-50%,-100%);\n        width:${toPx(wLegacy)};\n        z-index:9;\">\n        <img class=\"sprite\" src=\"${src}\" alt=\"${name} Appears\">\n      </div>`;\n  }\n  if (i === 14) {\n    const src = getAnimalSrc('flying');\n    if (!src) return `<div class=\"animal missing\" data-missing=\"page14-flying\"></div>`;\n    const left = toPx(1275), top = toPx(1964), w = toPx(1250);\n    return `\n      <div class=\"animal\" style=\"\n        left:${left};\n        top:${top};\n        transform:translate(-50%,-100%);\n        width:${w};\n        z-index:9;\">\n        <img class=\"sprite\" src=\"${src}\" alt=\"${name} Flying\">\n      </div>`;\n  }\n  return '';\n}\n\n// ---- tiny preload helper (prevents blank/partial renders) ----\nfunction preloadHTML(urls){\n  const uniq = Array.from(new Set((urls || []).filter(u => typeof u === 'string' && u)));\n  if (!uniq.length) return '';\n  const imgs = uniq.map(u => `<img src=\"${u}\" width=\"1\" height=\"1\" alt=\"\" loading=\"eager\" decoding=\"sync\">`).join('');\n  return `<div class=\"__preloads\" style=\"position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;opacity:0;visibility:hidden;\">${imgs}</div>`;\n}\n\n// ---- background/overlay layer emitters (CSS bg vs <img> toggle) ----\nfunction bgLayerHTML(url){\n  if (!url) return '';\n  if (!useImgBackgrounds) {\n    return `<div class=\"page-bg\" style=\"background-image:url('${url}');\"></div>`;\n  }\n  return `<div class=\"page-bg\"><img src=\"${url}\" alt=\"\" style=\"position:absolute;inset:0;width:100%;height:100%;object-fit:cover;\"></div>`;\n}\nfunction overlayLayerHTML(url){\n  if (!url) return '';\n  if (!useImgBackgrounds) {\n    return `<div class=\"page-overlay\" style=\"background-image:url('${url}');\"></div>`;\n  }\n  return `<div class=\"page-overlay\"><img src=\"${url}\" alt=\"\" style=\"position:absolute;inset:0;width:100%;height:100%;object-fit:cover;\"></div>`;\n}\n\n// ---- text helpers ----\nfunction prettifyText(raw){\n  const withBr = String(raw || '').replace(/\\n/g, '<br>');\n  const parts = withBr.split('<br>');\n  const widont = (seg) => seg.replace(/\\s+([^\\s<]{1,12})\\s*$/u, '&nbsp;$1');\n  return parts.map(s => widont(s.trim())).join('<br>');\n}\nfunction escapeHtml(s){\n  return String(s).replace(/[&<>\"']/g, (m) => (\n    {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\\'':'&#39;'}[m]\n  ));\n}\n\n// ---- build interior pages HTML ----\nlet pages_html = '';\nconst interiorPagesHTML = [];\n\n// p00 dedication (include preload for bg0)\n{\n  const bg0 = findBg(0);\n  const dedText = dedicationMessage;\n  const p0 = `\n<div class=\"book-page\" id=\"page-0\">\n  ${preloadHTML([bg0])}\n  ${bgLayerHTML(bg0)}\n  ${dedText ? `<div class=\"dedication-wrap\"><div class=\"dedication-text\">${escapeHtml(dedText).replace(/\\n/g,'<br>')}</div></div>` : ''}\n</div>`;\n  pages_html += p0;\n  interiorPagesHTML.push(p0);\n}\n\n// pages 1..14\nfor (let i = 1; i <= 14; i++) {\n  const bg   = findBg(i);\n  const pose = findPose(i);\n  const raw  = findRaw(i);\n  const text = prettifyText(raw);\n  const textBoxOverlay = withBust(getTextBoxOverlayUrl());\n  const overlayUrl = findOverlayUrl(i);\n\n  // animal src for preloading (HTML still built by animalHTML)\n  const animalSrc = (i === 13) ? getAnimalSrc('appears') : (i === 14 ? getAnimalSrc('flying') : '');\n\n  // Text container with overlay variable (styling is defined IN TEMPLATE CSS)\n  const textBlock = `\n  <div class=\"text-box\" style=\"--overlay-url:url('${textBoxOverlay}'); --tb-width:76.5%; --tb-bottom:13%; --tb-opacity:0.92; --tb-radius:96px;\">\n    <div class=\"text-content\">${text || ''}</div>\n  </div>`.trim();\n\n  const block = `\n<div class=\"book-page\" id=\"page-${i}\">\n  ${preloadHTML([bg, overlayUrl, textBoxOverlay, pose?.imagePath, animalSrc])}\n  ${bgLayerHTML(bg)}\n  ${overlayLayerHTML(overlayUrl)}\n  ${textBlock}\n  ${pose ? `<div class=\"character\" style=\"${charStyle(i)}\"><img class=\"sprite\" src=\"${pose.imagePath}\" alt=\"\"></div>` : ''}\n  ${animalHTML(i)}\n</div>`;\n  pages_html += block;\n  interiorPagesHTML.push(block);\n}\n\n// ---- Minimal CSS emitted by this node (no .text-box to avoid conflicts) ----\nconst PX_PER_IN = 96;           // use existing PX above; do NOT redeclare PX\nconst int = (n) => Math.round(n);\n\nconst minimalCss = `\n/* Minimal interior CSS from node — template remains the single source of truth. */\n/* We DO NOT redefine .text-box or .text-content here. */\n\n@page { size: ${PX}px ${PX}px; margin: 0; }\nhtml, body { margin:0; padding:0; width:${PX}px; height:${PX}px; overflow:hidden; }\n.book-page { position: relative; width: ${PX}px; height: ${PX}px; overflow: hidden; display: block; }\n.page-bg, .page-overlay {\n  position: absolute; inset: 0;\n  background-repeat: no-repeat; background-position: center center; background-size: cover;\n}\n/* If useImgBackgrounds=true, the <img> children already force-fit via inline styles */\n\n/* Dedication page only */\n.dedication-wrap{\n  position:absolute;\n  left:${int(0.15*PX)}px; right:${int(0.15*PX)}px;\n  top:${int(0.20*PX)}px;  bottom:${int(0.20*PX)}px;\n  display:flex; align-items:center; justify-content:center; z-index:5;\n}\n.dedication-text{\n  width:100%; text-align:center; font-size:${(26/72)*PX_PER_IN}px; line-height:1.4; letter-spacing:1px; color:#312116;\n  font-family:'CustomBook', Arial, sans-serif;\n}\n\n/* Sprite base (positions come inline via style attrs) */\n.character, .animal { position: absolute; }\n.character img, .animal img { width:100%; height:auto; display:block; }\n`;\n\n// ---- output payload ----\nreturn [{\n  json: {\n    ...order,\n    pages_html,\n    interiorPagesHTML,\n    page_css: minimalCss, // no .text-box rules here — avoid conflicts with template\n    useImgBackgrounds,    // expose flag downstream for debugging/visibility\n    pdfMonkeyTemplateId: (order.pdfMonkeyTemplateId || \"23277725-4AB0-446A-98C5-CB99C21822B3\"),\n    pdfFilename: `complete_book_${order.amazonOrderId || 'ORDER'}.pdf`,\n  }\n}];\n"
+      },
+      "id": "d1d03409-3928-4a63-8402-57eabe100630",
+      "name": "Generate Complete HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "const order = $input.first().json;\nconst pagesGenerated = Array.isArray(order.pagePreviewImages) ? order.pagePreviewImages.length : (order.totalPages || 0);\n\nconst completed = {\n  ...order,\n  status: 'book_assembly_previews_ready',\n  bookAssemblyCompletedAt: new Date().toISOString(),\n  finalBookUrl: undefined,\n  totalAssemblyTime: order.assemblyStartedAt ? (new Date() - new Date(order.assemblyStartedAt)) : null,\n  averageTimePerPage: order.assemblyStartedAt\n    ? Math.round(((new Date() - new Date(order.assemblyStartedAt)) / (order.totalPagesRequired || 15)) / 1000)\n    : null,\n  pagesGenerated\n};\n\nreturn [{ json: completed }];"
+      },
+      "id": "4155e20d-b7c4-49b4-a1ef-66a8e7b7178f",
+      "name": "Mark Previews Ready (3A status)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        2608,
+        336
+      ],
+      "notesInFlow": true,
+      "notes": "Set status to book_assembly_previews_ready; do not set finalBookUrl; record PNG counts + 3A manifest key."
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "const order = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: '3-book-assembly-voice-of-wonder',\n  orderId: order.amazonOrderId,\n  status: order.status,\n  pagesGenerated: order.pagesGenerated,\n  totalPagesRequired: order.totalPagesRequired,\n  assemblyProgress: order.assemblyProgress,\n  finalBookUrl: order.finalBookUrl || 'N/A'\n};\n\nconsole.log('Book Assembly Results:', JSON.stringify(logEntry, null, 2));\nreturn [{ json: logEntry }];\n"
+      },
+      "id": "bbff6a2c-df78-45ad-8e54-993a3d8426ab",
+      "name": "Log Assembly Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        2816,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "book-assembly",
+        "options": {
+          "responseData": "allEntries"
+        }
+      },
+      "id": "49cee6f8-f231-4490-8914-9b6b1058961d",
+      "name": "Webhook Trigger (Book Assembly)1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1680,
+        304
+      ],
+      "webhookId": "ee211ba1-104b-4eb3-a46d-3b42b61c82e3"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Generate Page Preview Images — PARITY (no CSS injected)\n * Emits one item per page for PDFMonkey image template rendering.\n *\n * Output item shape:\n * { pageHtml, pageImageFilename, pageImageR2Key, pdfMonkeyImageTemplateId, pageIndex, pageNumber }\n */\n\nfunction get(obj, path, dflt = null) {\n  try { return path.split('.').reduce((a, k) => (a && a[k] !== undefined) ? a[k] : undefined, obj) ?? dflt; }\n  catch { return dflt; }\n}\n\nconst order = $input.first().json || {};\nconst amazonOrderId = order.amazonOrderId || 'ORDER';\n\n// backendUrl (not strictly needed here but kept for parity/debug)\nconst backendUrl =\n  order.backendUrl ||\n  get($items('Extract Manifest URL (3)', 0, $runIndex), '0.json.backendUrl', 'https://admin.littleherolabs.com');\n\n// --- Collect page fragments ---\n// Prefer array from Phase-2; else extract each <div class=\"book-page\" ...>...</div> from pages_html\nfunction extractFragmentsFromPagesHtml(src) {\n  const html = String(src || '');\n  const re = /<div\\s+class=(['\"])book-page\\1[^>]*>[\\s\\S]*?<\\/div>/gi;\n  const out = [];\n  let m;\n  while ((m = re.exec(html)) !== null) {\n    out.push(m[0]);\n  }\n  // If none matched, fallback to whole string (so we don't silently drop content)\n  return out.length ? out : (html.trim() ? [html] : []);\n}\n\n// Try to read true pageNumber from id=\"page-<N>\"\nfunction getPageNumberFromFragment(frag, fallback) {\n  const m = /id=(['\"])page-(\\d+)\\1/i.exec(String(frag || ''));\n  if (m) return Number(m[2]);\n  return Number(fallback);\n}\n\nlet pages = [];\nif (Array.isArray(order.interiorPagesHTML) && order.interiorPagesHTML.length) {\n  pages = order.interiorPagesHTML.slice();\n} else if (typeof order.pages_html === 'string' && order.pages_html.trim()) {\n  pages = extractFragmentsFromPagesHtml(order.pages_html);\n} else {\n  throw new Error('interiorPagesHTML[] or pages_html is required for generating preview images');\n}\n\n// If we extracted from a big string, ensure natural order by sorting on pageNumber\n// (When coming from interiorPagesHTML [], order is already correct.)\nif (!Array.isArray(order.interiorPagesHTML) && typeof order.pages_html === 'string') {\n  pages = pages\n    .map((frag, idx) => ({ frag, n: getPageNumberFromFragment(frag, idx) }))\n    .sort((a, b) => a.n - b.n)\n    .map(x => x.frag);\n}\n\n// --- Build output items (FRAGMENTS ONLY; template provides all CSS) ---\nconst allItems = [];\nfor (let i = 0; i < pages.length; i++) {\n  const frag = String(pages[i] || '');\n  const pageNumber = getPageNumberFromFragment(frag, i); // 0..14\n  const stem = 'p' + String(pageNumber).padStart(2, '0'); // keep filenames aligned to pageNumber\n  const filename = `${stem}.png`;\n  const r2Key = `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/${filename}`;\n\n  allItems.push({\n    json: {\n      amazonOrderId,\n      backendUrl,\n      pageIndex: i,             // index within this batch\n      pageNumber,               // 0..14 from fragment id when available\n      pageHtml: frag,           // FRAGMENT ONLY (no <html>, no <head>, no <style>)\n      pageImageFilename: filename,\n      pageImageR2Key: r2Key,\n      pdfMonkeyImageTemplateId: '23277725-4AB0-446A-98C5-CB99C21822B3'\n    }\n  });\n}\n\n// --- Test mode filtering ---\n// Accept either:\n//  - testModePages: [1,5,12,13]  (array of pageNumbers)\n//  - testModePages: 4            (number → keep first N pages by ascending pageNumber)\n//  - legacy: from \"Get Order Ready for Assembly\"\nlet testMode = get($items('Get Order Ready for Assembly', 0, $runIndex), '0.json.testModePages', null);\nif (testMode == null) testMode = order.testModePages ?? null;\n\nlet result = allItems;\n\nif (Array.isArray(testMode) && testMode.length) {\n  const set = new Set(testMode.map(n => Number(n)));\n  result = allItems.filter(it => set.has(Number(it.json.pageNumber)));\n} else if (Number.isFinite(Number(testMode)) && Number(testMode) > 0) {\n  // Keep first N by ascending pageNumber for determinism\n  const sorted = [...allItems].sort((a, b) => Number(a.json.pageNumber) - Number(b.json.pageNumber));\n  result = sorted.slice(0, Number(testMode));\n}\n\nreturn result;\n"
+      },
+      "id": "1c50c252-c3ce-4973-bb3a-5317a6f2bfd4",
+      "name": "Generate Page Preview Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        96,
+        96
+      ],
+      "notesInFlow": true,
+      "notes": "3A: Include page-00 (dedication) and set canvas to 2625x2625."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdfmonkey.io/api/v1/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer 2zpxHdmsse2ECXgVVtVR"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"document\": {\n    \"document_template_id\": \"{{ $json.pdfMonkeyImageTemplateId }}\",\n    \"status\": \"pending\",\n    \"meta\": {\n      \"_filename\": \"{{ $json.pageImageFilename }}\",\n      \"_type\": \"png\",\n      \"_width\": 2625,\n      \"_height\": 2625\n    },\n    \"payload\": {\n      \"pages_html\": {{ JSON.stringify($json.pageHtml) }}\n    }\n  }\n}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "328ea76d-893f-4ea5-8981-816248467bfb",
+      "name": "Generate Page Image with PDFMonkey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        320,
+        96
+      ],
+      "executeOnce": false,
+      "notesInFlow": true,
+      "notes": "Security TODO (Phase 6): move Authorization header to n8n credentials. For now, hard-coded token remains to avoid breaking runs."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "JavaScript",
+        "jsCode": "// Poll PDFMonkey until image is ready\n// When running \"Once for Each Item\", use $input.item instead of $input.first()\nconst createResp = $input.item.json;\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc.id || doc.data?.id;\n\nif (!docId) {\n  throw new Error('PDFMonkey create response missing id');\n}\n\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst http = this.helpers.httpRequest;\nconst AUTH_HEADER = { Authorization: 'Bearer 2zpxHdmsse2ECXgVVtVR' };\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nwhile (attempts < 30) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true, headers: AUTH_HEADER });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(1800 + Math.floor(Math.random()*600));\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey image not ready after polling (status=${status})`);\n}\n\n// Preserve ALL input context from the current item\nconst input = $input.item.json;\n\nreturn {\n  json: {\n    ...input,\n    pdfMonkeyImageDocumentId: docId,\n    pageImageDownloadUrl: downloadUrl\n  }\n};"
+      },
+      "id": "9b2e28f6-807d-4156-a069-63e485f47ea5",
+      "name": "Poll PDFMonkey Image until ready",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        512,
+        96
+      ],
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.pageImageDownloadUrl || $items('Poll PDFMonkey Image until ready', 0, $itemIndex)[0].json.pageImageDownloadUrl }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "f6080b6b-2f9f-49ef-bdfb-b39f86efac1f",
+      "name": "Download Page Image from PDFMonkey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        704,
+        96
+      ],
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Collect All Page Preview Images (Run once for all items)\n * - Reads original items from \"Generate Page Preview Images\"\n * - Builds progress counters\n */\nconst SOURCE_NODE = 'Generate Page Preview Images'; // exact node name\n\nconst previews = $items(SOURCE_NODE);\nif (!previews || previews.length === 0) {\n  throw new Error(`No items found from \"${SOURCE_NODE}\". Ensure that node produced per-page items.`);\n}\n\nconst base = previews[0]?.json || {};\nconst amazonOrderId = base.amazonOrderId || 'ORDER';\nconst backendUrl = base.backendUrl || 'https://admin.littleherolabs.com';\nconst publicR2Url = base.publicR2Url || null;\n\n// Helper to form a public URL for an r2Key\nfunction toPublicUrl(r2Key) {\n  if (!r2Key) return null;\n  if (backendUrl) return `${backendUrl}/api/assets/${r2Key}`;\n  if (publicR2Url) return `${publicR2Url.replace(/\\/$/, '')}/${r2Key}`;\n  return null;\n}\n\n// Build page images list from originals\nconst pageImages = previews\n  .map(it => {\n    const j = it.json || {};\n    const pageNumber = Number(j.pageNumber);\n    const r2Key = j.pageImageR2Key;\n    const filename = j.pageImageFilename || (r2Key ? r2Key.split('/').pop() : null);\n    return Number.isFinite(pageNumber) ? {\n      pageNumber, r2Key, filename, imageUrl: toPublicUrl(r2Key),\n    } : null;\n  })\n  .filter(Boolean)\n  .sort((a,b) => a.pageNumber - b.pageNumber);\n\n// Progress counters\nconst pagesGenerated = pageImages.length;\n\n// Derive total pages required from whichever source we have\nconst totalFromStory = Array.isArray(base.storyTexts) ? base.storyTexts.length : 0;\nconst totalFromBackgrounds = Array.isArray(base.backgroundImages) ? base.backgroundImages.length : 0;\nconst totalFromBookSpecs = base.bookSpecs && Number.isFinite(base.bookSpecs.totalPages)\n  ? (base.bookSpecs.totalPages - (base.bookSpecs.frontMatterPages || 2))  // if you use 16 incl. covers, adjust as needed\n  : 0;\n\n// Prefer explicit per-story/page assets; fall back to a reasonable number\nconst totalPagesRequired = Math.max(totalFromStory, totalFromBackgrounds, totalFromBookSpecs, 0) || pageImages.length;\nconst assemblyProgress = totalPagesRequired > 0\n  ? Math.round((pagesGenerated / totalPagesRequired) * 100) / 100\n  : 0;\n\nreturn [{\n  json: {\n    ...base,\n    status: pagesGenerated >= totalPagesRequired ? 'book_assembly_previews_ready' : 'book_assembly_in_progress',\n    assemblyStartedAt: base.assemblyStartedAt || new Date().toISOString(),\n    pagesGenerated,\n    totalPagesRequired,\n    assemblyProgress,\n    pagePreviewImages: pageImages,\n    totalPages: pageImages.length,\n    imagesCollectedAt: new Date().toISOString(),\n    success: pageImages.length > 0,\n  }\n}];\n"
+      },
+      "id": "289d1bee-add5-470b-9ac3-e32a53f58313",
+      "name": "Collect Page Preview Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "\n/** Build 3A Manifest: interiors + cover + assetsUsed (Phase 4) */\nconst base = $input.first().json || {};\n\n// Robust pulls from Phase-1 nodes\nlet inputs    = {};\nlet renderCtx = {};\ntry {\n  inputs    = $items('Normalize Inputs (3A Phase 1)', 0, $runIndex)?.[0]?.json?.inputs || {};\n  renderCtx = $items('Resolve Asset Paths (3A Phase 1)', 0, $runIndex)?.[0]?.json?.renderContext || {};\n} catch {}\n\nconst amazonOrderId = base.amazonOrderId || base.orderId || null;\nif (!amazonOrderId) throw new Error('amazonOrderId/orderId is required');\n\n// Page previews come from the collector\nconst pagePreviewImages = Array.isArray(base.pagePreviewImages) ? base.pagePreviewImages : [];\n\n// Pull prospective cover key from Generate Cover HTML node (deterministic)\nlet coverKey = null;\ntry {\n  coverKey = $items('Generate Cover HTML (3A)', 0, $runIndex)?.[0]?.json?.coverImageR2Key || null;\n} catch {}\n// Fallback to any field that looks like a cover key in current input\nif (!coverKey && typeof base.coverImageR2Key === 'string') coverKey = base.coverImageR2Key;\n\n// Build pages map + flags\nconst pages = {};\npagePreviewImages.forEach(p => {\n  const n = Number(p.pageNumber || p.pageIndex);\n  if (!Number.isFinite(n)) return;\n  const key = p.r2Key || p.imageR2Key || p.key || p.path || null;\n  if (!key) return;\n\n  if (n === 0) {\n    pages.p00_dedication = key;\n  } else if (n >= 1 && n <= 14) {\n    const id = n < 10 ? `p0${n}` : `p${n}`;\n    pages[id] = key;\n  }\n});\n\n// Overlay annotations in `pages` object for p05 and p12\nif (pages.p05) {\n  pages.p05 = { key: pages.p05, overlay: true };\n}\nif (pages.p12) {\n  const useP12 = !!renderCtx?.p12Overlay;\n  pages.p12 = useP12 ? { key: pages.p12, optional: true } : pages.p12;\n}\n\n// Assets used\nconst overlaysUsed = [];\nif (renderCtx?.p05Overlay) overlaysUsed.push(renderCtx.p05Overlay);\nif (renderCtx?.p12Overlay) overlaysUsed.push(renderCtx.p12Overlay);\n\nconst assetsUsed = {\n  font:        renderCtx?.font || 'book-mvp-simple-adventure/fonts/custom-font.ttf',\n  coversBg:    renderCtx?.coversBg || 'book-mvp-simple-adventure/backgrounds/page00-covers.png',\n  dedicationBg:renderCtx?.dedicationBg || 'book-mvp-simple-adventure/backgrounds/page00-dedication.png',\n  pose00:      renderCtx?.pose00 || null,\n  overlays:    overlaysUsed\n};\n\nconst nowIso = new Date().toISOString();\n\nconst manifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp: nowIso,\n  characterHash: base.characterHash || $items('Get Order Ready for Assembly', 0, $runIndex)?.[0]?.json?.characterHash || null,\n  amazonOrderId,\n  pngGeneration: {\n    sizeInterior: { w: 2625, h: 2625 },\n    sizeCover: { w: 5203, h: 2625 },\n    pages,\n    coverSpreadImage: coverKey || null\n  },\n  assetsUsed,\n  pages, // duplicated for convenience until downstream is fully normalized\n  summary: {\n    percentComplete: 100,\n    readyForBook: true,\n    needsHumanReview: true\n  },\n  generatedAt: nowIso\n};\n\nreturn [{\n  json: {\n    manifest,\n    orderId: amazonOrderId,\n    characterHash: manifest.characterHash,\n    pagePreviewImages,\n    coverImage: manifest.pngGeneration.coverSpreadImage\n  }\n}];\n"
+      },
+      "id": "086566b3-a9d2-4ce8-872a-e4f5cdfafb26",
+      "name": "Build 3A Manifest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1728,
+        336
+      ],
+      "notesInFlow": true,
+      "notes": "Refactor: remove PDF fields; include pngGeneration {dedicationImage, storyImages[14], coverSpreadImage}, status=pending_admin_review."
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Prep Manifest Upload (3) - Convert manifest to binary format for R2 upload\n */\nconst data = $input.first().json;\nconst manifest = data.manifest;\nconst orderId = data.orderId;\n\nif (!manifest || !manifest.schema) {\n  throw new Error('Manifest is missing or invalid in Prep Manifest Upload (3)');\n}\n\nif (!orderId) {\n  throw new Error('orderId is required for Prep Manifest Upload (3)');\n}\n\n// Construct R2 key for 3-manifest\nconst manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;\n\nconsole.log(`Preparing to upload 3-manifest to: ${manifestKey}`);\n\n// Convert manifest to buffer for upload\nconst manifestJSON = JSON.stringify(manifest, null, 2);\nconst buffer = Buffer.from(manifestJSON, 'utf-8');\n\nreturn [{\n  json: {\n    ...data,\n    manifestKey: manifestKey,\n    manifestBucket: 'little-hero-orders'\n  },\n  binary: {\n    data: {\n      data: buffer.toString('base64'),\n      mimeType: 'application/json',\n      fileName: '3-manifest.json',\n      fileExtension: 'json'\n    }\n  }\n}];\n"
+      },
+      "id": "835890ad-ac82-43eb-9e37-8219beec1019",
+      "name": "Prep Manifest Upload (3)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        2144,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "={{ $json.manifestBucket }}",
+        "fileName": "={{ $json.manifestKey }}",
+        "additionalFields": {}
+      },
+      "id": "5bfc139b-8fc0-4d54-8097-fc3b07db88aa",
+      "name": "Upload 3 Manifest to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        2384,
+        336
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-orders",
+        "fileName": "={{$items(\"Generate Page Preview Images\")[$itemIndex].json.pageImageR2Key}}",
+        "additionalFields": {}
+      },
+      "id": "441a3a89-00ae-49bd-b231-9669cef62a87",
+      "name": "Upload Page Preview Image to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        928,
+        96
+      ],
+      "executeOnce": false,
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Generate Cover HTML (3A) — structure only\n */\nlet inputs = {};\nlet renderCtx = {};\ntry {\n  inputs    = $items('Normalize Inputs (3A Phase 1)', 0, $runIndex)?.[0]?.json?.inputs || {};\n  renderCtx = $items('Resolve Asset Paths (3A Phase 1)', 0, $runIndex)?.[0]?.json?.renderContext || {};\n} catch {}\n\nconst orderCtx = $input.first().json || {};\n\n// backend\nlet backendUrl = renderCtx.backendUrl || orderCtx.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch { backendUrl = 'https://admin.littleherolabs.com'; }\n}\n\n// background\nconst coversBgKey = renderCtx.coversBg;\nif (!coversBgKey) throw new Error('Generate Cover HTML: renderContext.coversBg is required');\nconst coversBgUrl = `${backendUrl}/api/assets/${coversBgKey}`;\n\n// child/name\nconst childName = (inputs.childName || inputs.name || orderCtx.childName || orderCtx.name || '').trim();\nconst possessive = (n) => !n ? \"[CHILD'S NAME]\" : (/\\s$/i.test(n) ? `${n}'` : `${n}'s`);\n\n// back copy\nconst backTitle = \"About Your Inner Voice.\";\nconst backBody  =\n  \"On a gentle adventure, [CHILD NAME]\\n\" +\n  \"learns to hear the quiet voice inside—\\n\" +\n  \"the one that helps us feel brave, kind and true.\";\nconst tryThisHdr = \"TRY THIS\";\nconst tryThisTxt = \"Hand on heart.\\nBreathe in 4, breathe out 4.\\nWhat is your inner voice saying?\";\nconst madeWith   = \"Made with love for\";\n\n// pose (_nobg)\nconst characterHash = renderCtx.characterHash || orderCtx.characterHash || inputs.characterHash || '';\nif (!characterHash && !renderCtx.pose00Nobg && !renderCtx.pose00) {\n  throw new Error('Generate Cover HTML: Missing characterHash/pose key for sprite.');\n}\nconst poseImgKey = characterHash\n  ? `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/characters_${characterHash}_pose00_nobg.png`\n  : (renderCtx.pose00Nobg || renderCtx.pose00);\nconst poseUrl = `${backendUrl}/api/assets/${poseImgKey}`;\n\n// helpers\nconst esc = (s)=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n\n// HTML (no CSS)\nconst coverHTML = `<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\"></head>\n<body>\n  <div class=\"cover-spread\">\n    <div class=\"bg\" style=\"background-image:url('${esc(coversBgUrl)}');\"></div>\n    <div class=\"half back\"></div>\n    <div class=\"half front\"></div>\n    <div class=\"spine\"></div>\n\n    <!-- BACK COVER (centered) -->\n    <div class=\"back-wrap\">\n      <div class=\"back-h1\">${esc(backTitle)}</div>\n      <div class=\"back-body\">${esc(backBody.replace('[CHILD NAME]', childName || '[CHILD NAME]'))}</div>\n      <div class=\"try-wrap\">\n        <div class=\"try-hdr\">${esc(tryThisHdr)}</div>\n        <div class=\"try-panel\"><div class=\"try-text\">${esc(tryThisTxt)}</div></div>\n      </div>\n      <div class=\"footer\">\n        <span class=\"line\">${esc(madeWith)}</span>\n        <span class=\"name\">${esc(childName || '[CHILD NAME]')}</span>\n      </div>\n    </div>\n\n    <!-- FRONT COVER -->\n    <div class=\"front-title-wrap\">\n      <div class=\"front-title\">\n        <span class=\"name\">${esc(possessive(childName || \"[CHILD'S NAME]\")).replace(/&apos;/g,\"'\").replace(/&#39;/g,\"'\").replace(/&amp;#39;/g,\"'\").replace(/&#x27;/g,\"'\")}</span>\n        <span class=\"label\">INNER VOICE</span>\n      </div>\n    </div>\n    <div class=\"character\"><img src=\"${esc(poseUrl)}\" alt=\"\"></div>\n  </div>\n</body>\n</html>`;\n\n// deterministic outputs\nconst amazonOrderId = renderCtx.orderId || orderCtx.amazonOrderId || orderCtx.orderId || 'ORDER';\nconst coverImageFilename = 'cover-spread.png';\nconst coverImageR2Key    = `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/${coverImageFilename}`;\nconst pdfMonkeyCoverImageTemplateId = \"23277725-4AB0-446A-98C5-CB99C21822B3\";\n\nreturn [{\n  json: {\n    ...orderCtx,\n    backendUrl,\n    coverHTML,\n    coverImageFilename,\n    coverImageR2Key,\n    pdfMonkeyCoverImageTemplateId\n  }\n}];\n"
+      },
+      "id": "48ec0f86-3445-4625-b6ef-6743116b34e4",
+      "name": "Generate Cover HTML (3A)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        448
+      ],
+      "notesInFlow": true,
+      "notes": "Generates a 5203×2625 cover spread with title/subtitle, pose00 on front, and deterministic R2 key."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdfmonkey.io/api/v1/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer 2zpxHdmsse2ECXgVVtVR"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"document\": {\n    \"document_template_id\": \"{{ $json.pdfMonkeyCoverImageTemplateId || $json.pdfMonkeyImageTemplateId }}\",\n    \"status\": \"pending\",\n    \"meta\": { \"_filename\": \"{{ $json.coverImageFilename }}\", \"_type\": \"png\", \"_width\": 5203, \"_height\": 2625 },\n    \"payload\": { \"pages_html\": {{ JSON.stringify($json.coverHTML) }} }\n  }\n}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "id": "09b338c6-4a50-4543-932f-3cc63986c678",
+      "name": "Generate Cover Image with PDFMonkey (3A)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        384,
+        448
+      ],
+      "notesInFlow": true,
+      "notes": "Phase 3: Generate 5203×2625 cover PNG. Security TODO (Phase 6): move Authorization to credentials."
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Poll Cover Image (3A) — v2 Code (runOncePerItem)\n * Input: create response from PDFMonkey\n * Output: merges original json + { pdfMonkeyCoverDocumentId, coverImageDownloadUrl }\n */\nconst createResp = $input.item.json || {};\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc && (doc.id || doc.data?.id);\n\nif (!docId) {\n  throw new Error('PDFMonkey create response missing id (cover)');\n}\n\nconst http = this.helpers.httpRequest;\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst headers = { Authorization: 'Bearer 2zpxHdmsse2ECXgVVtVR' };\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nwhile (attempts < 30) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true, headers });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(1800 + Math.floor(Math.random()*600));\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey cover image not ready after polling (status=${status})`);\n}\n\nconst input = $input.item.json;\nreturn {\n  json: {\n    ...input,\n    pdfMonkeyCoverDocumentId: docId,\n    coverImageDownloadUrl: downloadUrl\n  }\n};"
+      },
+      "id": "9b23604e-7502-4e98-92b5-b1b8ebf797a2",
+      "name": "Poll Cover Image (3A)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        608,
+        448
+      ],
+      "notesInFlow": true,
+      "executeOnce": false,
+      "notes": "3A cover branch placeholder. Implement real logic with credentials and correct fields."
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.coverImageDownloadUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "dffc55e8-6e91-44d5-a0d2-e0f0930c13cb",
+      "name": "Download Cover Image (3A)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        816,
+        448
+      ],
+      "notesInFlow": true,
+      "notes": "3A cover branch placeholder. Implement real logic with credentials and correct fields."
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-orders",
+        "fileName": "={{ $json.coverImageR2Key }}",
+        "additionalFields": {}
+      },
+      "id": "8b44b427-43d3-4a2b-92ee-dde0e0aac870",
+      "name": "Upload Cover Preview Image to R2 (3A)",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        448
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      },
+      "notes": "3A cover branch placeholder. Implement real logic with credentials and correct fields."
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Normalize Inputs (3A Phase 1)\n * - Trims/clamps human text inputs.\n * - Produces a compact `inputs` object for downstream HTML builders.\n * Output: { inputs }\n */\nconst order = $input.first().json || {};\n\nfunction s(v){ return (v == null) ? '' : String(v); }\nfunction trim(v){ return s(v).replace(/\\s+/g,' ').trim(); }\nfunction clamp(str, max){ const t = s(str); return t.length > max ? t.slice(0, max) : t; }\nfunction safeMultiline(str, max){ \n  let out = s(str).replace(/\\r\\n/g, '\\n').replace(/\\r/g, '\\n');\n  if (out.length > max) out = out.slice(0, max);\n  return out;\n}\n\n// Source fields\nconst cs  = order.characterSpecs || {};\nconst bs  = order.bookSpecs || {};\nconst od  = order.orderDetails || {};\n\n// Dedication can come from multiple places (prefer orderDetails)\nconst dedicationRaw = od.dedicationMessage ?? bs.dedicationMessage ?? '';\nconst hometownRaw   = cs.hometown ?? od.shippingAddress?.city ?? '';\n\n// Title/subtitle\nlet title    = trim(bs.title || '');\nlet subtitle = trim(bs.subtitle || '');\n\n// Defaults\nif (!title) title = \"Alex and the Adventure Compass\";\n\n// Core inputs\nconst inputs = {\n  title: clamp(title, 90),\n  subtitle: clamp(subtitle, 120),\n  dedicationMessage: safeMultiline(dedicationRaw, 400),\n  hometown: clamp(hometownRaw, 60),\n  childName: clamp(cs.childName || '', 40),\n};\n\nreturn [{ json: { inputs } }];"
+      },
+      "id": "83f56db4-fa95-477e-8c67-8972315ff5a8",
+      "name": "Normalize Inputs (3A Phase 1)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Resolve Asset Paths (3A Phase 1) — HOTFIX\n * Robustly derives orderId/characterHash from multiple upstream nodes,\n * then emits deterministic R2 keys for cover & page assets.\n * Output: { renderContext }\n */\nfunction pick(...vals){ for (const v of vals){ if (v !== undefined && v !== null && v !== '') return v; } return null; }\nfunction tryItems(name){\n  try { return $items(name, 0, $runIndex)?.[0]?.json || null; } catch { return null; }\n}\n\nconst in0 = $input.first()?.json || null;\nconst fromBuild   = tryItems('Build Assembly Input From Manifest');\nconst fromReady   = tryItems('Get Order Ready for Assembly');\nconst fromManHTTP = (()=>{\n  const m = tryItems('Download 2B Manifest') || {};\n  const o = m.order || {};\n  return {\n    amazonOrderId: o.amazonOrderId,\n    characterHash: m.characterHash || o.characterHash,\n    characterSpecs: o.characterSpecs,\n    bookSpecs: o.bookSpecs,\n    orderDetails: o.orderDetails\n  };\n})();\n\n// Assemble unified context\nconst ctx = {\n  backendUrl: pick(in0?.backendUrl, tryItems('Extract Manifest URL (3)')?.backendUrl, 'https://admin.littleherolabs.com'),\n  amazonOrderId: pick(in0?.amazonOrderId, fromBuild?.amazonOrderId, fromReady?.amazonOrderId, fromManHTTP?.amazonOrderId),\n  characterHash: pick(in0?.characterHash, fromBuild?.characterHash, fromReady?.characterHash, fromManHTTP?.characterHash),\n};\n\nif (!ctx.amazonOrderId || !ctx.characterHash) {\n  const dbg = { have: { in0: !!in0, fromBuild: !!fromBuild, fromReady: !!fromReady, fromManHTTP: !!fromManHTTP },\n                fields: { amazonOrderId: ctx.amazonOrderId, characterHash: ctx.characterHash } };\n  throw new Error('Resolve Asset Paths: unable to derive orderId/characterHash → ' + JSON.stringify(dbg));\n}\n\n// Deterministic R2 keys\nconst fontKey         = 'book-mvp-simple-adventure/fonts/CustomBook.ttf';\nconst coversBgKey     = 'book-mvp-simple-adventure/backgrounds/page00-covers.png';\nconst dedicationBgKey = 'book-mvp-simple-adventure/backgrounds/page00-dedication.png';\nconst p05OverlayKey   = 'book-mvp-simple-adventure/overlays/pages/page05-overlay.png';\nconst p12OverlayKey   = 'book-mvp-simple-adventure/overlays/pages/page12-overlay.png';\nconst pose00Key       = `book-mvp-simple-adventure/order-generated-assets/characters/${ctx.characterHash}/base-character.png`;\n\nconst renderContext = {\n  font: fontKey,\n  coversBg: coversBgKey,\n  dedicationBg: dedicationBgKey,\n  p05Overlay: p05OverlayKey,\n  p12Overlay: p12OverlayKey,\n  pose00: pose00Key,\n  backendUrl: ctx.backendUrl,\n  orderId: ctx.amazonOrderId,\n  characterHash: ctx.characterHash\n};\n\nreturn [{ json: { renderContext } }];"
+      },
+      "id": "0746473d-4392-4737-92fe-244bb32f7ca4",
+      "name": "Resolve Asset Paths (3A Phase 1)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "/**\n * Load Background Images (pages 1..14) + ensure overlays & animal 'appears'/'flying'\n * Backgrounds live at: book-mvp-simple-adventure/backgrounds/pageXX-<slug>.png\n * Page 5 trail overlays: book-mvp-simple-adventure/overlays/animal-tracks/page05-meadow-<variant>.png\n *   Variants: clawprints | fur | owl-feathers | penguin-feathers\n * Animal sprites (pages 13–14):\n *   book-mvp-simple-adventure/characters/animals/<slug>-appears.png\n *   book-mvp-simple-adventure/characters/animals/<slug>-flying.png\n *\n * NOTE: This node is the single source of truth for:\n *   - backgroundImages\n *   - overlayImages (including Page 5 trail variant selection)\n *   - animalImages { slug, displayName, appears, flying }\n * It intentionally does NOT create storyTexts.\n */\nconst order = $input.first().json || {};\n\n// ---- Context / backend URL ----\nlet backendUrl = order.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\n\n// Keep this requirement if you want to enforce real orders; remove if you need previews without an order id.\nif (!order.amazonOrderId) {\n  throw new Error('Amazon Order ID is required for loading background images');\n}\n\n// ---- Backgrounds (unchanged filenames) ----\nconst sceneSlugs = [\n  'twilight-walk','night-forest','magic-doorway','courage-leap','morning-meadow',\n  'tall-forest','mountain-vista','picnic-surprise','beach-discovery','crystal-cave',\n  'giant-flowers','almost-there','animal-reveal','flying-home'\n];\nconst sceneNames = [\n  'twilight_walk','night_forest','magic_doorway','courage_leap','morning_meadow',\n  'tall_forest','mountain_vista','picnic_surprise','beach_discovery','crystal_cave',\n  'giant_flowers','enchanted_grove','animal_reveal','flying_home'\n];\n\nconst dedication = {\n  pageNumber: 0,\n  imagePath: `${backendUrl}/api/assets/book-mvp-simple-adventure/backgrounds/page00-dedication.png`,\n  sceneName: 'dedication',\n  validated: false,\n};\n\nconst backgroundImages = [dedication, ...Array.from({ length: 14 }, (_, i) => {\n  const pageNumber = i + 1;\n  const r2Key = `book-mvp-simple-adventure/backgrounds/page${String(pageNumber).padStart(2,'0')}-${sceneSlugs[i]}.png`;\n  const imagePath = `${backendUrl}/api/assets/${r2Key}`;\n  return { pageNumber, imagePath, sceneName: sceneNames[i], validated: false };\n})];\n\n// ---- Helpers: normalize, title, animal slug, overlay variant ----\nconst animalGuideRaw = order.characterSpecs?.animalGuide || order.animalGuide || '';\nconst aKey = String(animalGuideRaw).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\n\nfunction animalSlugFromKey(k) {\n  if (/^(t\\s*rex|t\\s*-\\s*rex|trex|dinosaur)$/.test(k)) return 't-rex';\n  if (/^owl$/.test(k)) return 'owl';\n  if (/^penguin$/.test(k)) return 'penguin';\n  if (/^unicorn$/.test(k)) return 'unicorn';\n  if (/^lion$/.test(k)) return 'lion';\n  if (/^tiger$/.test(k)) return 'tiger';\n  if (/^dog$/.test(k)) return 'dog';\n  if (/^cat$/.test(k)) return 'cat';\n  // fallback to cat to guarantee an asset exists\n  return 'cat';\n}\n\nfunction displayNameFromSlug(slug) {\n  if (slug === 't-rex') return 'T-Rex';\n  return slug.charAt(0).toUpperCase() + slug.slice(1);\n}\n\nfunction overlayVariantForSlug(slug) {\n  // From your provided files:\n  // page05-meadow-clawprints.png | page05-meadow-fur.png\n  // page05-meadow-owl-feathers.png | page05-meadow-penguin-feathers.png\n  if (slug === 'owl') return 'owl-feathers';\n  if (slug === 'penguin') return 'penguin-feathers';\n  if (slug === 'unicorn') return 'fur';\n  // cats/dogs/lions/tigers/t-rex -> tracks/claws\n  return 'clawprints';\n}\n\nconst animalSlug = animalSlugFromKey(aKey);\nconst animalDisplay = displayNameFromSlug(animalSlug);\n\n// ---- Page 5 overlay selection by animal → variant ----\nconst p5Variant = overlayVariantForSlug(animalSlug);\nconst p5OverlayKey = `book-mvp-simple-adventure/overlays/animal-tracks/page05-meadow-${p5Variant}.png`;\nconst p5OverlayUrl = `${backendUrl}/api/assets/${p5OverlayKey}`;\nconst p5OverlayEntry = {\n  pageNumber: 5,\n  imagePath: p5OverlayUrl,\n  kind: 'trail',\n  variant: p5Variant,\n  r2Key: p5OverlayKey,\n  validated: true,\n};\n\n// Merge into overlayImages (supports array or object), replacing any old Page 5 entry\nlet overlayImages = order.overlayImages ?? order.overlays ?? null;\n\nfunction isP5(o) {\n  const pn = Number(o?.pageNumber);\n  return pn === 5 || /(^|[^0-9])05([^0-9]|$)/.test(String(o?.r2Key || o?.imagePath || ''));\n}\n\nif (Array.isArray(overlayImages)) {\n  overlayImages = overlayImages.filter(o => !isP5(o));\n  overlayImages.push(p5OverlayEntry);\n} else if (overlayImages && typeof overlayImages === 'object') {\n  overlayImages.page05 = p5OverlayEntry;\n  overlayImages.p05 = p5OverlayEntry;\n  overlayImages.trail = p5OverlayEntry;\n} else {\n  overlayImages = [p5OverlayEntry];\n}\n\n// ---- Dynamic Animal images for Pages 13 & 14 (no hardcoding) ----\nconst animalsBase = `book-mvp-simple-adventure/characters/animals`;\nconst appearsKey = `${animalsBase}/${animalSlug}-appears.png`;\nconst flyingKey  = `${animalsBase}/${animalSlug}-flying.png`;\nconst appearsUrl = `${backendUrl}/api/assets/${appearsKey}`;\nconst flyingUrl  = `${backendUrl}/api/assets/${flyingKey}`;\n\nlet animalImages = order.animalImages || {};\nanimalImages = {\n  ...animalImages,\n  slug: animalSlug,\n  displayName: animalImages.displayName || (order.animalDisplayName || animalDisplay),\n  // Appear (Page 13)\n  appearsR2Key: appearsKey,\n  appears: appearsUrl,\n  appearsImagePath: appearsUrl,\n  imageAppears: appearsUrl,\n  // Flying (Page 14)\n  flyingR2Key: flyingKey,\n  flying: flyingUrl,\n  flyingImagePath: flyingUrl,\n  imageFlying: flyingUrl,\n};\n\nconst coverSpreadImagePath = `${backendUrl}/api/assets/book-mvp-simple-adventure/covers/cover-spread.png`;\n\n// ---- Merge and return ----\nreturn [{\n  json: {\n    ...order,\n    backendUrl,\n    backgroundImages,\n    overlayImages,     // includes correct Page 5 trail overlay\n    animalImages,      // dynamic appears + flying tied to animal\n    coverSpreadImagePath,\n  }\n}];\n"
+      },
+      "id": "faa3f949-f0c9-4be1-9cf8-c5d5a037b5fc",
+      "name": "Load Canonical Assets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        96
+      ],
+      "notesInFlow": true,
+      "notes": "This node actually loads backgrounds. Expand to include page-00 dedication backgrounds and (optionally) cover assets."
+    },
+    {
+      "parameters": {
+        "content": "Phase 3 – Cover Branch (connect from Resolve → Generate Cover HTML)” to make the plan obvious on the canvas."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        1808
+      ],
+      "id": "49846c4e-6b1c-48a5-b108-0f0a40b8d5e8",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * QA Gate (3A Phase 4)\n * - Validates the manifest produced by \"Build 3A Manifest\"\n * - Ensures required pages, sizes, assets, and cover are present\n * - Throws with a JSON summary on failure\n * - On pass, attaches `qa` object and forwards\n */\nconst input = $input.first().json || {};\n\n// Try to get manifest from current item or upstream\nlet manifest = input.manifest;\nif (!manifest) {\n  try { manifest = $items('Build 3A Manifest', 0, $runIndex)?.[0]?.json?.manifest || null; } catch {}\n}\nif (!manifest) throw new Error('QA Gate: manifest not found');\n\n// Helpers\nconst asKey = (v) => (typeof v === 'string') ? v : (v && typeof v === 'object' ? (v.key || v.path || v.r2Key || null) : null);\nconst isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);\n\n// Start checks\nconst checks = [];\nfunction check(cond, label, meta={}){\n  checks.push({label, pass: !!cond, ...meta});\n  return !!cond;\n}\n\nconst schemaOk = typeof manifest.schema === 'string' && manifest.schema.startsWith('lhb.run-manifest@');\ncheck(schemaOk, 'schema present & correct', { schema: manifest.schema });\n\nconst sizes = isObj(manifest.pngGeneration) ? manifest.pngGeneration : {};\nconst sizeInteriorOk = isObj(sizes.sizeInterior) && sizes.sizeInterior.w === 2625 && sizes.sizeInterior.h === 2625;\nconst sizeCoverOk    = isObj(sizes.sizeCover)    && sizes.sizeCover.w === 5203 && sizes.sizeCover.h === 2625;\ncheck(sizeInteriorOk, 'interior PNG size is 2625×2625', { sizeInterior: sizes.sizeInterior });\ncheck(sizeCoverOk,    'cover PNG size is 5203×2625',    { sizeCover: sizes.sizeCover });\n\nconst pages = isObj(manifest.pages) ? manifest.pages : (isObj(sizes.pages) ? sizes.pages : {});\n\n// Expect dedication + 14 story pages\nconst expectedKeys = ['p00_dedication', ...Array.from({length:14}, (_,i)=> (i+1<10?`p0${i+1}`:`p${i+1}`))];\nconst missing = [];\nconst nullish = [];\n\nfor (const k of expectedKeys) {\n  const entry = pages[k];\n  if (entry === undefined) { missing.push(k); continue; }\n  const key = asKey(entry);\n  if (!key || key === 'null' || key === 'undefined') nullish.push(k);\n}\ncheck(missing.length === 0, 'all pages present (p00 + p01..p14)', { missing });\ncheck(nullish.length === 0, 'page keys are non-null', { nullish });\n\nconst coverKey = sizes.coverSpreadImage || null;\ncheck(!!coverKey, 'coverSpreadImage present', { coverKey });\n\nconst assets = isObj(manifest.assetsUsed) ? manifest.assetsUsed : {};\nconst fontOk     = !!assets.font;\nconst coversBgOk = !!assets.coversBg;\nconst dedicationBgOk = !!assets.dedicationBg;\ncheck(fontOk, 'font asset present', { font: assets.font });\ncheck(coversBgOk, 'coversBg asset present', { coversBg: assets.coversBg });\ncheck(dedicationBgOk, 'dedicationBg asset present', { dedicationBg: assets.dedicationBg });\n\n// p05 overlay is required; p12 optional\nconst overlays = Array.isArray(assets.overlays) ? assets.overlays : [];\nconst hasP05 = overlays.some(k => /page05|p05/i.test(String(k)));\ncheck(hasP05, 'p05 overlay declared', { overlays });\n\n// Build summary\nconst pass = checks.every(c => c.pass === true);\n\nconst summary = {\n  pass,\n  reasons: checks.filter(c => !c.pass).map(c => c.label),\n  checks,\n  expectedCount: expectedKeys.length,\n  missing,\n  nullish,\n  coverKey,\n};\n\nif (!pass) {\n  // Throw a compact error—keep details in message as JSON for debug\n  throw new Error('QA Gate failed: ' + JSON.stringify(summary));\n}\n\n// On success, attach qa summary\nreturn [{\n  json: {\n    ...input,\n    qa: summary\n  }\n}];"
+      },
+      "id": "e5756657-4ce7-40ed-bb25-341deed93ffe",
+      "name": "QA Gate (3A Phase 4)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        336
+      ],
+      "notesInFlow": true,
+      "notes": "Phase 4 QA: asserts schema, sizes, presence of p00..p14, p05 overlay annotation, cover key, and null-key sanity. Throws with JSON summary on failure."
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Acceptance Tests (3A Phase 5)\n * - Compiles a Markdown report and a machine-readable verdict\n * - Reads manifest from \"Build 3A Manifest\" and page images from \"Collect Page Preview Images\"\n */\n// Gather upstream artifacts\nlet manifest = null;\nlet collector = null;\nlet qa = null;\ntry { manifest  = $items('Build 3A Manifest', 0, $runIndex)?.[0]?.json?.manifest || null; } catch {}\ntry { collector = $items('Collect Page Preview Images', 0, $runIndex)?.[0]?.json || null; } catch {}\ntry { qa = $items('QA Gate (3A Phase 4)', 0, $runIndex)?.[0]?.json?.qa || null; } catch {}\n\nif (!manifest) throw new Error('Acceptance: manifest not found');\n\nconst pages = (manifest.pngGeneration && manifest.pngGeneration.pages) || manifest.pages || {};\nconst pageKeys = Object.keys(pages || {});\nconst expectedKeys = ['p00_dedication', ...Array.from({length:14}, (_,i)=> (i+1<10?`p0${i+1}`:`p${i+1}`))];\nconst missing = expectedKeys.filter(k => !(k in pages));\nconst coverKey = manifest.pngGeneration?.coverSpreadImage || null;\n\n// Verdict booleans\nconst sizesOk = manifest.pngGeneration?.sizeInterior?.w === 2625\n             && manifest.pngGeneration?.sizeInterior?.h === 2625\n             && manifest.pngGeneration?.sizeCover?.w === 5203\n             && manifest.pngGeneration?.sizeCover?.h === 2625;\n\nconst hasAllPages = missing.length === 0\n  && expectedKeys.every(k => {\n    const v = pages[k];\n    return typeof v === 'string' ? !!v : !!(v && (v.key || v.path || v.r2Key));\n  });\n\nconst coverOk = !!coverKey;\nconst qaPass = !!(qa && qa.pass === true);\nconst collectedCount = Number(collector?.pagePreviewImages?.length || 0);\nlet testModePagesFromReady = 0;\ntry { testModePagesFromReady = Number($items('Get Order Ready for Assembly', 0, $runIndex)?.[0]?.json?.testModePages || 0) || 0; } catch {}\n\nconst matchesCollector = hasAllPages && (collectedCount >= (testModePagesFromReady > 0 ? testModePagesFromReady : 15));\n\nconst verdict = {\n  sizesOk,\n  hasAllPages,\n  coverOk,\n  qaPass,\n  matchesCollector,\n  readyToUploadManifest: sizesOk && hasAllPages && coverOk && qaPass\n};\n\n// Markdown report\nfunction badge(ok){ return ok ? '✅' : '❌'; }\nconst lines = [];\nlines.push(`# Workflow 3A — Acceptance Report`);\nlines.push(`Generated: ${new Date().toISOString()}`);\nlines.push('');\nlines.push(`**Order:** ${manifest.amazonOrderId || 'UNKNOWN'}  `);\nlines.push(`**Character Hash:** ${manifest.characterHash || 'UNKNOWN'}  `);\nlines.push('');\nlines.push(`## Summary`);\nlines.push(`- Sizes: ${badge(verdict.sizesOk)} interior 2625×2625; cover 5203×2625`);\nlines.push(`- Pages present: ${badge(verdict.hasAllPages)} (expected 15 incl. dedication)`);\nlines.push(`- Cover image present: ${badge(verdict.coverOk)}`);\nlines.push(`- QA Gate: ${badge(verdict.qaPass)}`);\nlines.push(`- Collector consistency: ${badge(verdict.matchesCollector)} (pages=${collectedCount})`);\nlines.push('');\nif (missing.length) {\n  lines.push(`**Missing pages:** ${missing.join(', ')}`);\n  lines.push('');\n}\nlines.push('## Assets Used');\nconst au = manifest.assetsUsed || {};\nlines.push(`- Font: \\`${au.font || 'n/a'}\\``);\nlines.push(`- Covers BG: \\`${au.coversBg || 'n/a'}\\``);\nlines.push(`- Dedication BG: \\`${au.dedicationBg || 'n/a'}\\``);\nlines.push(`- Overlays: ${Array.isArray(au.overlays) ? au.overlays.map(k => `\\`${k}\\``).join(', ') : 'n/a'}`);\nlines.push('');\nlines.push('## Page Keys');\nexpectedKeys.forEach(k => {\n  const v = pages[k];\n  let val = (typeof v === 'string') ? v : (v && (v.key || v.path || v.r2Key) || 'null');\n  lines.push(`- ${k}: ${val ? '`' + val + '`' : '`null`'}`);\n});\n\nconst reportMd = lines.join('\\n');\n\nreturn [{\n  json: {\n    reportMd,\n    verdict,\n    manifestSummary: {\n      orderId: manifest.amazonOrderId || null,\n      characterHash: manifest.characterHash || null,\n      coverKey\n    }\n  }\n}];"
+      },
+      "id": "a762e55c-b588-4608-b24d-5819a17bc37f",
+      "name": "Acceptance Tests (3A Phase 5)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3024,
+        336
+      ],
+      "notesInFlow": true,
+      "notes": "Phase 5 Acceptance: compiles a Markdown report and machine-readable verdict; inspects QA, page coverage, R2 key shapes, cover key, and manifest target."
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1504,
+        336
+      ],
+      "id": "ff5c3ef5-6a7c-4d60-abc3-85681468ebfa",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Standalone Cover Preview HTML (5203×2625) — no external API\nconst j = $input.first().json || {};\nlet html = String(j.coverHTML || '').trim();\nif (!html) throw new Error('Build Cover Preview: Missing coverHTML from upstream node.');\n\nconst PX_W = 5203, PX_H = 2625;\n\n// This MUST match the PDFMonkey template CSS (single source of truth).\nconst COVER_CSS = `\n/* ==== COVER IMAGE TEMPLATE CSS — 5203×2625 px ==== */\n@font-face {\n  font-family: 'CustomBook';\n  src:\n    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.woff2') format('woff2'),\n    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.ttf') format('truetype');\n  font-display: swap;\n}\n@page { size: 5203px 2625px; margin: 0; }\nhtml, body { margin:0; padding:0; width:5203px; height:2625px; overflow:hidden; -webkit-text-size-adjust:100%; }\n*{ box-sizing:border-box; }\n\n/* shells */\n.cover-spread{ position:relative; width:5203px; height:2625px; }\n.bg{ position:absolute; inset:0; background-position:center; background-size:cover; background-repeat:no-repeat; z-index:0; }\n.half{ position:absolute; top:0; height:2625px; }\n.back{ left:0; width:2601px; }\n.front{ right:0; width:2602px; }\n.spine{ position:absolute; left:2601px; top:0; width:2px; height:100%; background:rgba(0,0,0,0.06); z-index:3; }\n\n/* palette */\n:root{\n  --gold-main:#F4D28B;\n  --gold-body:#F7E3B3;\n  --gold-footer:#F4D28B;\n  --panel-stroke:rgba(255,255,255,0.80);\n  --panel-text:#F7EBD1;\n\n  /* Tunables for front title sizing */\n  --front-name-size: 280px;   /* child's name (bigger) */\n  --front-label-size: 200px;  /* \"INNER VOICE\" (smaller) */\n}\n\n/* ===== FRONT (right) ===== */\n.front-title-wrap{\n  position:absolute;\n  left: calc(5203px * 0.76 - 0px); /* updated anchor position */\n  top: 340px;\n  width: 1800px;\n  text-align:center;\n  z-index:6;\n  transform: translateX(-50%);     /* center block around anchor */\n}\n.front-title{\n  font-family:'CustomBook', Arial, sans-serif;\n  line-height:1.06;\n  letter-spacing:2px;\n  color:var(--gold-main);\n  text-transform:uppercase;\n  -webkit-font-smoothing:antialiased;\n  text-rendering:optimizeLegibility;\n}\n.front-title .name  { display:block; font-size: var(--front-name-size); }\n.front-title .label { display:block; font-size: var(--front-label-size); }\n\n.character{\n  position:absolute;\n  left: calc(5203px * 0.77);\n  top:  calc(2625px * 0.86);\n  transform: translate(-50%,-100%) scaleX(1);\n  width:1200px;\n  z-index:5;\n  filter:drop-shadow(0 6px 12px rgba(0,0,0,0.15));\n}\n.character img{ width:100%; height:auto; display:block; image-rendering:-webkit-optimize-contrast; }\n\n/* ===== BACK (left) — centered ===== */\n.back-wrap{\n  position:absolute;\n  left: 0;\n  top: 370px;\n  width: 2601px;          /* full back width */\n  padding: 0 220px;       /* keep readable line length */\n  z-index:6;\n  text-align:center;      /* center-align title + body */\n  margin: 0 auto;\n}\n.back-h1{\n  font-family:'CustomBook', Arial, sans-serif;\n  font-size:160px;\n  line-height:1.08;\n  letter-spacing:2px;\n  color:var(--gold-main);\n  margin-bottom:80px; /* increased from 40px */\n}\n.back-body{\n  white-space:pre-line;\n  font-family:'CustomBook', Arial, sans-serif;\n  font-size:86px;\n  line-height:1.3;\n  letter-spacing:1px;\n  color:var(--gold-body);\n  margin: 0 auto 80px auto;\n  max-width:2000px;\n}\n\n/* TRY THIS block */\n.try-wrap{\n  position:relative;\n  width:2000px;\n  padding-top:12px;\n  margin: 200px auto 400px auto; /* new margin-top 200px, bottom 400px */\n}\n.try-hdr{\n  font-family:'CustomBook', Arial, sans-serif;\n  font-size:140px;\n  letter-spacing:8px;\n  color:var(--gold-main);\n  text-align:center;\n  margin-bottom:28px;\n}\n.try-panel{\n  margin:0 auto;\n  width:1600px;\n  border:8px solid var(--panel-stroke);\n  border-radius:98px; /* updated radius */\n  padding:40px 60px;\n  text-align:center;\n}\n.try-text{\n  white-space:pre-line;\n  font-family:'CustomBook', Arial, sans-serif;\n  font-size:86px;\n  line-height:1.25;\n  letter-spacing:1px;\n  color:var(--panel-text);\n}\n\n/* Footer (two centered lines) */\n.footer{\n  font-family:'CustomBook', Arial, sans-serif;\n  letter-spacing:2px;\n  color:var(--gold-footer);\n  text-align:center;\n}\n.footer .line { font-size:86px; display:block; }\n.footer .name { font-size:86px; display:block; margin-top:12px; }\n`.trim();\n\nconst isFullDoc = /<\\s*!doctype/i.test(html) || /<\\s*html[\\s>]/i.test(html);\nfunction injectCss(docHtml, cssText){\n  const styleTag = `<style id=\"cover-css\">${cssText}</style>`;\n  if (/<\\s*head[\\s>]/i.test(docHtml)) {\n    return docHtml.replace(/<\\/\\s*head\\s*>/i, `${styleTag}\\n</head>`);\n  }\n  return docHtml.replace(/<\\s*html[^>]*>/i, (m)=>`${m}\\n<head>${styleTag}</head>`);\n}\n\nif (!isFullDoc) {\n  html = `<!doctype html><html><head><meta charset=\"utf-8\"><style>${COVER_CSS}</style></head><body>${html}</body></html>`;\n} else {\n  html = injectCss(html, COVER_CSS);\n}\n\n// Emit as JSON + Binary\nconst data = Buffer.from(html, 'utf8').toString('base64');\nreturn [{\n  json: { ...j, cover_preview_html: html, cover_preview_filename: 'cover-preview.html' },\n  binary: { data: { data, fileName: 'cover-preview.html', mimeType: 'text/html' } }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        992
+      ],
+      "id": "64331c43-f374-445e-8b5d-3727e97ac680",
+      "name": "Build Standalone Cover Preview HTML"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Standalone Interior Preview HTML (2625px) — PDFMonkey-parity preview + debug\n\n// 0) PDFMONKEY CSS (modified per your specs)\nconst PDFMONKEY_TEMPLATE_CSS = `\n/* ==== IMAGE TEMPLATE CSS — 2625×2625px canvas (all px units) ==== */\n\n/* Font */\n@font-face{\n  font-family:'CustomBook';\n  src:\n    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.woff2') format('woff2'),\n    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.ttf') format('truetype');\n  font-display: swap;\n}\n\n:root{\n  --book-font:'CustomBook', Arial, sans-serif;\n  --overlay-tint: rgba(255,255,255,0.20);\n}\n\n/* Fixed canvas */\nhtml, body { margin:0; padding:0; width:2625px; height:2625px; overflow:hidden; }\n* { box-sizing:border-box; }\n\n/* One page */\n.book-page{\n  position:relative;\n  width:2625px; height:2625px;\n  overflow:hidden;\n  display:block;\n}\n\n/* Full-bleed background */\n.page-bg{\n  position:absolute; inset:0;\n  background:no-repeat center / cover;\n  z-index:0;\n}\n\n/* Optional page overlay */\n.page-overlay{\n  position:absolute; inset:0;\n  background:no-repeat center / cover;\n  z-index:1;\n}\n\n/* Text box — 20% larger (W & H), rounded, clipped, full overlay visible */\n.text-box{\n  position:absolute; left:50%; bottom:3%;\n  width:96%;                        /* was 80% → +20% width */\n  transform:translateX(-50%);\n\n  background-image: var(--overlay-url);\n  background-repeat:no-repeat;\n  background-position:center center;\n  background-size:contain;          /* show full overlay art */\n\n  padding:24px 300px;               /* was 20px 250px → +20% */\n  min-height:360px;                 /* was 300px → +20% */\n\n  display:flex; align-items:center; justify-content:center;\n  z-index:5;\n  border-radius:12px;\n  background-color:transparent;\n  background-clip:padding-box;\n  overflow:hidden;\n}\n\n.text-content{\n  font-family:var(--book-font);\n  font-size:50px;\n  line-height:1.35;\n  letter-spacing:1px;\n  color:#312116;\n  text-align:center;\n  text-wrap:balance; hyphens:auto; overflow-wrap:break-word; word-break:normal;\n  widows:2; orphans:2;\n  text-rendering:optimizeLegibility;\n  -webkit-font-smoothing:antialiased;\n}\n\n/* Sprites */\n.character, .animal { position:absolute; }\n.character img, .animal img { width:100%; height:auto; display:block; }\n`.trim();\n\n// 1) Pull data from current input or upstream\nlet src = $input.first()?.json || {};\nlet pagesArr = Array.isArray(src.interiorPagesHTML) ? src.interiorPagesHTML.slice() : [];\nlet pagesHtml = String(src.pages_html || '');\n\n// Try upstream nodes if needed\nfunction pickFromNode(name){\n  try {\n    const it = $items(name, 0, $runIndex);\n    if (!Array.isArray(it) || !it.length) return;\n    const j = it[0]?.json || {};\n    if (!pagesArr.length && Array.isArray(j.interiorPagesHTML)) pagesArr = j.interiorPagesHTML.slice();\n    if (!pagesHtml && j.pages_html) pagesHtml = String(j.pages_html);\n  } catch {}\n}\n[\n  'Generate Complete HTML (Interior pages) — Phase 2',\n  'Generate Complete HTML (Interior pages) - Phase 2',\n  'Generate Complete HTML (Interior pages)',\n].forEach(pickFromNode);\n\n// Last-resort: split big HTML string into page blocks\nif (!pagesArr.length && pagesHtml) {\n  pagesArr = pagesHtml\n    .split(/(?=<div\\s+class=[\"']book-page[\"'][^>]*>)/i)\n    .filter(Boolean);\n}\n\n// Bail if still nothing\nif (!pagesArr.length) {\n  throw new Error('Preview: no pages found (interiorPagesHTML/pages_html empty).');\n}\n\n// 2) PREVIEW CHROME (debug badges)\nconst PX = 2625;\nconst previewCss = `\n  html, body { width:auto !important; height:auto !important; overflow:auto !important; background:#131313 !important; }\n  .stack { width:100%; max-width:${PX + 128}px; margin:24px auto 72px; display:flex; flex-direction:column; gap:24px; align-items:center; }\n  .page-wrap { position:relative; box-shadow:0 10px 30px rgba(0,0,0,.45); border-radius:8px; overflow:hidden; background:#000; }\n  .page-wrap .book-page { width:${PX}px !important; height:${PX}px !important; display:block !important; }\n  .page-wrap::after { content:\"\"; position:absolute; inset:0; outline:1px dashed rgba(255,255,255,.25); pointer-events:none; border-radius:8px; }\n  .page-label { position:absolute; left:10px; top:8px; font:12px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Arial; color:#fff; text-shadow:0 1px 2px #000; background:rgba(0,0,0,.35); padding:4px 6px; border-radius:4px; }\n  .page-wrap.warn { outline:3px solid #ef4444; }\n`.trim();\n\nconst outerChromeCss = `*{box-sizing:border-box;}`;\n\n// Wrap each page with debug flags\nconst wrapped = pagesArr\n  .map((p, idx) => {\n    const hasChar    = /class=[\"']character\\b/i.test(p);\n    const hasAnimal  = /class=[\"']animal\\b/i.test(p);\n    const hasOverlay = /class=[\"']page-overlay\\b/i.test(p);\n    const hasTextBox = /class=[\"']text-box\\b/i.test(p);\n    const hasTextContent = /class=[\"']text-content\\b/i.test(p);\n    const flags = [\n      hasChar ? 'char✔' : 'char✖',\n      hasAnimal ? 'animal✔' : 'animal✖',\n      hasOverlay ? 'overlay✔' : 'overlay✖',\n      hasTextBox ? 'textbox✔' : 'textbox✖',\n      hasTextContent ? 'text-content✔' : 'text-content✖'\n    ].join(' · ');\n    const warn = (!hasChar) || (idx===13 && !hasAnimal) || ((idx===5 || idx===12) && !hasOverlay) || (idx===5 && !hasTextContent);\n    return `<div class=\"page-wrap${warn ? ' warn' : ''}\">\n      ${p}\n      <div class=\"page-label\">Page ${idx} — ${flags}</div>\n    </div>`;\n  })\n  .join('\\n');\n\n// 3) Build HTML\nconst html = `\n<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <title>Interior Preview — ${src.characterSpecs?.childName || 'Book'}</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <style>${outerChromeCss}</style>\n  <style>${PDFMONKEY_TEMPLATE_CSS}</style>\n  <style>${previewCss}</style>\n</head>\n<body>\n  <div class=\"stack\">\n    ${wrapped}\n  </div>\n</body>\n</html>\n`.trim();\n\n// Return as JSON + Binary for download\nconst data = Buffer.from(html, 'utf8').toString('base64');\nreturn [{\n  json: {\n    ...src,\n    preview_html: html,\n    preview_filename: 'interior-preview.html',\n  },\n  binary: {\n    data: {\n      data,\n      fileName: 'interior-preview.html',\n      mimeType: 'text/html',\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -400
+      ],
+      "id": "fc16705c-cd31-4867-891d-b69b08547393",
+      "name": "Build Standalone Preview"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Extract Manifest URL (3)": {
+      "main": [
+        [
+          {
+            "node": "Download 2B Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download 2B Manifest": {
+      "main": [
+        [
+          {
+            "node": "Build Assembly Input From Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Assembly Input From Manifest": {
+      "main": [
+        [
+          {
+            "node": "Get Order Ready for Assembly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Order Ready for Assembly": {
+      "main": [
+        [
+          {
+            "node": "Normalize Inputs (3A Phase 1)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load Canonical Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Story & Character Poses (3A)": {
+      "main": [
+        [
+          {
+            "node": "Generate Complete HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Complete HTML": {
+      "main": [
+        [
+          {
+            "node": "Generate Page Preview Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Previews Ready (3A status)": {
+      "main": [
+        [
+          {
+            "node": "Log Assembly Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Assembly Results": {
+      "main": [
+        [
+          {
+            "node": "Acceptance Tests (3A Phase 5)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger (Book Assembly)1": {
+      "main": [
+        [
+          {
+            "node": "Extract Manifest URL (3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Page Preview Images": {
+      "main": [
+        [
+          {
+            "node": "Generate Page Image with PDFMonkey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Page Image with PDFMonkey": {
+      "main": [
+        [
+          {
+            "node": "Poll PDFMonkey Image until ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll PDFMonkey Image until ready": {
+      "main": [
+        [
+          {
+            "node": "Download Page Image from PDFMonkey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Page Image from PDFMonkey": {
+      "main": [
+        [
+          {
+            "node": "Upload Page Preview Image to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Page Preview Images": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build 3A Manifest": {
+      "main": [
+        [
+          {
+            "node": "QA Gate (3A Phase 4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Manifest Upload (3)": {
+      "main": [
+        [
+          {
+            "node": "Upload 3 Manifest to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload 3 Manifest to R2": {
+      "main": [
+        [
+          {
+            "node": "Mark Previews Ready (3A status)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Page Preview Image to R2": {
+      "main": [
+        [
+          {
+            "node": "Collect Page Preview Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Cover Image with PDFMonkey (3A)": {
+      "main": [
+        [
+          {
+            "node": "Poll Cover Image (3A)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Cover Image (3A)": {
+      "main": [
+        [
+          {
+            "node": "Download Cover Image (3A)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Cover Image (3A)": {
+      "main": [
+        [
+          {
+            "node": "Upload Cover Preview Image to R2 (3A)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Cover Preview Image to R2 (3A)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Normalize Inputs (3A Phase 1)": {
+      "main": [
+        [
+          {
+            "node": "Resolve Asset Paths (3A Phase 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Asset Paths (3A Phase 1)": {
+      "main": [
+        [
+          {
+            "node": "Generate Cover HTML (3A)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Canonical Assets": {
+      "main": [
+        [
+          {
+            "node": "Load Story & Character Poses (3A)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Gate (3A Phase 4)": {
+      "main": [
+        [
+          {
+            "node": "Prep Manifest Upload (3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Build 3A Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bddbca09-fc22-416f-8945-5934dc03e529",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "9o0IfKdeDnnu2NFU",
+  "tags": []
+}

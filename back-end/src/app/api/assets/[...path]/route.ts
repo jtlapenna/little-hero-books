@@ -35,7 +35,12 @@ export async function GET(
     // Reconstruct the key from path segments
     const key = path.join('/');
     
-    console.log(`[GET /api/assets] Fetching image: ${key}`);
+    // Check for cache-busting query parameter (e.g., ?v=1234567890)
+    // This helps ensure fresh images after flips/replacements
+    const { searchParams } = new URL(request.url);
+    const cacheBuster = searchParams.get('v');
+    
+    console.log(`[GET /api/assets] Fetching image: ${key}${cacheBuster ? ` (cache-bust: ${cacheBuster})` : ''}`);
     
     // Determine which bucket to use based on path
     // Orders bucket: book-mvp-simple-adventure/orders/...
@@ -82,9 +87,12 @@ export async function GET(
     const isBackgroundRemoved = key.toLowerCase().includes('nobg') || 
                                 key.toLowerCase().includes('bg-removed') ||
                                 key.toLowerCase().includes('background-removed');
-    const cacheControl = isBackgroundRemoved
-      ? 'public, max-age=60, must-revalidate' // Cache for 1 minute, must revalidate for post-Bria images
-      : 'public, max-age=3600, s-maxage=3600'; // Cache for 1 hour for other images
+    // If cache-busting parameter is present, disable caching to ensure fresh image
+    const cacheControl = cacheBuster
+      ? 'no-cache, no-store, must-revalidate' // Force fresh fetch when cache-busting
+      : isBackgroundRemoved
+        ? 'public, max-age=60, must-revalidate, s-maxage=0' // Cache for 1 minute, no CDN cache for post-Bria images
+        : 'public, max-age=3600, s-maxage=3600'; // Cache for 1 hour for other images
     
     // Return image with proper headers (including CORS)
     const response = new NextResponse(imageBuffer, {

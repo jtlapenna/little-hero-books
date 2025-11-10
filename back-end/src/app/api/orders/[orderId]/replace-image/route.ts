@@ -41,6 +41,7 @@ export async function POST(
     const stage = formData.get('stage')?.toString();
     const file = formData.get('file') as File | null;
     const replacedBy = formData.get('replacedBy')?.toString() || null; // Optional
+    const isFlipped = formData.get('isFlipped')?.toString() === 'true'; // Indicates this is a flip operation
 
     console.log('[Replace Image API] Extracted values:', {
       poseNumberStr,
@@ -191,6 +192,12 @@ export async function POST(
       // Clear review flags since image was manually uploaded/approved
       entry.needsReview = false;
       entry.reviewReason = null;
+      // Mark as flipped if this is a flip operation
+      if (isFlipped) {
+        entry.flipped = true;
+        entry.flippedAt = new Date().toISOString();
+        console.log(`[Replace Image API] Marked pose ${poseNumber} as flipped in manifest`);
+      }
       // Update publicUrl if publicR2Url is available
       const publicR2Url = manifest.order?.publicR2Url;
       if (publicR2Url) {

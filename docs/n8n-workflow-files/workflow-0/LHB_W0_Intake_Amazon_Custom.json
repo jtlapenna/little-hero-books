@@ -1,0 +1,96 @@
+{
+  "name": "W0 – Intake (Amazon Custom) — Skeleton (Builds 1-manifest.json)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Expect either a pushed/normalized payload or paste a test here.\nconst raw = $input.first()?.json || {\n  amazonOrderId: 'TEST-ORDER-011',\n  purchaseDate: new Date().toISOString(),\n  buyer: { name: 'Sample Buyer' },\n  items: [{\n    sku: 'LHB-BOOK-STD',\n    customizations: [{ name: 'Dedication', value: 'To Avery\\nDream big!\\nLove, Mom & Dad' }]\n  }]\n};\n\nfunction extractItems(r){ return Array.isArray(r.items) ? r.items : (Array.isArray(r.lineItems) ? r.lineItems : []); }\nfunction extractOrderId(r){ return r.amazonOrderId || r.orderId || r.id || 'UNKNOWN-ORDER'; }\n\nreturn [{\n  json: {\n    _raw: raw,\n    orderId: extractOrderId(raw),\n    items: extractItems(raw),\n    buyer: raw.buyer || {},\n    purchaseDate: raw.purchaseDate || raw.createdAt || null\n  }\n}];\n"
+      },
+      "id": "code-normalize",
+      "name": "Normalize Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Extract & sanitize dedication\nconst norm = $input.first().json || {};\n\nfunction fromItem(it){\n  const fields = it.customizations || it.customizationFields || it.options || [];\n  for (const f of (fields||[])){\n    const name = (f.name||f.label||f.type||'').toLowerCase();\n    if (name.includes('dedication') || name.includes('message') || name.includes('note')){\n      const v = (f.value||f.text||f.stringValue||'')+'';\n      if (v.trim()) return v;\n    }\n  }\n  return null;\n}\n\nlet found = null;\nfor (const li of (norm.items||[])){ if ((found = fromItem(li))) break; }\nif (!found && norm._raw?.dedication) found = norm._raw.dedication;\n\n// sanitize\nconst MAX_CHARS = 500, MAX_LINES = 6;\nlet t = ( (found || '') + '' )\n  .replace(/[\\u0000-\\u0008\\u000B-\\u001F\\u007F]/g,'')\n  .replace(/\\r\\n?/g,'\\n').replace(/[ \\t]{2,}/g,' ');\nt = t.split('\\n').map(l => l.trimEnd()).join('\\n').trim();\nif (t.length > MAX_CHARS) t = t.slice(0, MAX_CHARS).trim();\nt = t.split('\\n').slice(0, MAX_LINES).join('\\n');\n\nconst escape = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n\nreturn [{ json: { ...norm,\n  dedication: { raw: found || '', text: t, htmlSafe: escape(t) }\n}}];\n"
+      },
+      "id": "code-dedication",
+      "name": "Extract & Validate Dedication",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Build 1-manifest.json (no network calls here)\nconst j = $input.first().json;\nconst manifest = {\n  schema: \"lhb.run-manifest@v2.1\",\n  runStamp: new Date().toISOString(),\n  amazonOrderId: j.orderId,\n  order: { purchaseDate: j.purchaseDate || null, buyer: j.buyer || {}, dedication: j.dedication }\n};\nconst r2Key = `${j.orderId}/1-manifest.json`;\nreturn [{ json: { manifest, r2Key, amazonOrderId: j.orderId } }];\n"
+      },
+      "id": "code-manifest",
+      "name": "Build 1-manifest.json",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        80
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Payload": {
+      "main": [
+        [
+          {
+            "node": "Extract & Validate Dedication",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract & Validate Dedication": {
+      "main": [
+        [
+          {
+            "node": "Build 1-manifest.json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "w0-skeleton-001"
+}

@@ -1,49 +1,38 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle, ChevronLeft, ChevronRight, Clipboard } from 'lucide-react';
+import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
-import { formatDate } from '@/lib/utils';
+import * as pdfjsLib from 'pdfjs-dist';
 
-let pdfjsLibSingleton: typeof import('pdfjs-dist') | null = null;
-let pdfjsLibPromise: Promise<typeof import('pdfjs-dist')> | null = null;
-
-async function loadPdfjs() {
-  if (pdfjsLibSingleton) {
-    return pdfjsLibSingleton;
-  }
-
-  if (typeof window === 'undefined') {
-    throw new Error('PDF.js can only be loaded in the browser');
-  }
-
-  if (!pdfjsLibPromise) {
-    pdfjsLibPromise = import('pdfjs-dist').then((lib) => {
-      lib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
-      pdfjsLibSingleton = lib;
-      return lib;
-    });
-  }
-
-  return pdfjsLibPromise;
+// Configure PDF.js worker - use CDN by default for reliability
+// The async fetch check doesn't work because PDF.js loads the worker synchronously
+// when getDocument() is called, before the fetch check can complete
+// Using CDN ensures the worker is always available, even if local file isn't deployed
+if (typeof window !== 'undefined') {
+  const version = '5.4.394';
+  // Use CDN directly - more reliable than local file which may not be deployed correctly
+  // The local file often 404s on Cloudflare Pages, so CDN is the safer default
+  const cdnUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = cdnUrl;
+  console.log('[PDF.js] Using CDN worker:', cdnUrl);
 }
 
 interface PostPdfStageProps {
   orderId: string;
   order: Order;
   isApproved: boolean;
-  onApprove: (nextStatus: 'approved' | 'pending') => void;
+  onApprove: () => void;
   onInitiateWorkflow: () => void;
   onRefresh?: () => void;
-  finalApprovalResult?: FinalApprovalStateProps | null;
-  finalApprovalError?: string | null;
-  finalApprovalLoading?: boolean;
 }
 
 interface PageData {
   pageNumber: number;
   previewImageUrl: string;
+  cloudflareImageId?: string;
+  r2Key?: string;
 }
 
 interface CoverData {
@@ -59,19 +48,6 @@ interface SpreadData {
   coverData?: CoverData; // For cover spreads
   isCover: boolean;
   isBackCover: boolean;
-}
-
-interface FinalApprovalStateProps {
-  previewUrl: string;
-  token: string;
-  requestedAt?: string;
-  tokenCreated?: boolean;
-  notification?: {
-    attempted: boolean;
-    sent: boolean;
-    reason?: string;
-    response?: unknown;
-  };
 }
 
 // Create spreads from pages, including cover pages if cover image is available
@@ -139,17 +115,7 @@ function createSpreads(pages: PageData[], coverImageUrl?: string): SpreadData[] 
   return spreads;
 }
 
-export function PostPdfStage({
-  orderId,
-  order,
-  isApproved,
-  onApprove,
-  onInitiateWorkflow,
-  onRefresh,
-  finalApprovalResult,
-  finalApprovalError,
-  finalApprovalLoading
-}: PostPdfStageProps) {
+export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PostPdfStageProps) {
   const [pdfAsset, setPdfAsset] = useState({
     id: 'compiled-pdf',
     name: 'Compiled PDF',
@@ -165,39 +131,14 @@ export function PostPdfStage({
   const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
   const [loadingPages, setLoadingPages] = useState(false);
   const [pagesError, setPagesError] = useState<string | null>(null);
-  const [previewImagesAvailable, setPreviewImagesAvailable] = useState(true);
-  const [previewImagesChecked, setPreviewImagesChecked] = useState(false);
+  // Track if we're using fallback URLs (images not in manifest yet)
+  const [usingFallbackUrls, setUsingFallbackUrls] = useState(false);
   const [imageLoading, setImageLoading] = useState({ left: true, right: true });
   const [imageError, setImageError] = useState<{ left: string | null; right: string | null }>({ left: null, right: null });
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [coverImageLoading, setCoverImageLoading] = useState(false);
   const [coverImageDataUrl, setCoverImageDataUrl] = useState<string | null>(null); // For PDFs converted to images
   const coverCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [copied, setCopied] = useState(false);
-  const pdfCheckCompleteRef = useRef(false);
-
-  const previewUrl =
-    finalApprovalResult?.previewUrl ||
-    order.customerPreview?.url ||
-    null;
-  const previewToken =
-    finalApprovalResult?.token || order.customerPreview?.token;
-  const previewRequestedAt =
-    finalApprovalResult?.requestedAt ||
-    order.customerPreview?.requestedAt ||
-    order.customerApprovalRequestedAt;
-  const previewExpiresAt = order.customerPreview?.expiresAt;
-  const previewAlreadySent = Boolean(previewUrl);
-
-  useEffect(() => {
-    setCopied(false);
-  }, [previewUrl]);
-
-  useEffect(() => {
-    if (finalApprovalResult && typeof onRefresh === 'function') {
-      onRefresh();
-    }
-  }, [finalApprovalResult, onRefresh]);
 
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
@@ -206,90 +147,119 @@ export function PostPdfStage({
   const imagesFoundRef = useRef(false);
   // Track last loaded pages data to prevent unnecessary re-renders
   const lastPagesDataRef = useRef<string>('');
+  // Track if pages have been loaded (to prevent loading state during polling)
+  const pagesLoadedRef = useRef(false);
+  // Track spreads length for keyboard navigation to avoid stale closures
+  const spreadsLengthRef = useRef(0);
+  // Track last spread index to prevent unnecessary loading state resets
+  const lastSpreadIndexRef = useRef<number | null>(null);
+  // Track last spread key to detect if current spread actually changed
+  const lastSpreadKeyRef = useRef<string>('');
+  // Track previous spreads to detect actual content changes
+  const previousSpreadsRef = useRef<SpreadData[]>([]);
+  // Track if ref callback has already handled cached image to prevent multiple calls
+  const coverImageRefHandledRef = useRef<{ front: boolean; back: boolean }>({ front: false, back: false });
+  // Track preloaded images to keep them in browser cache
+  const preloadedImagesRef = useRef<Set<string>>(new Set());
 
   // Reset ref and spread index when orderId changes
   useEffect(() => {
     imagesFoundRef.current = false;
     lastPagesDataRef.current = '';
+    pagesLoadedRef.current = false;
+    spreadsLengthRef.current = 0;
+    lastSpreadIndexRef.current = null;
+    lastSpreadKeyRef.current = '';
+    previousSpreadsRef.current = [];
     setCoverImageUrl(null);
     setCoverImageDataUrl(null);
+    preloadedImagesRef.current.clear(); // Clear preloaded images when order changes
     setCurrentSpreadIndex(0); // Always start at first spread when viewing a new order
-    setPreviewImagesAvailable(true);
-    setPreviewImagesChecked(false);
-    setImageError({ left: null, right: null });
   }, [orderId]);
 
   // Helper function to convert PDF to image using PDF.js
   // Use useCallback to prevent function recreation on every render
   const convertPdfToImage = useCallback(async (pdfUrl: string): Promise<string> => {
-    if (typeof window === 'undefined') {
-      throw new Error('PDF to image conversion requires a browser environment');
-    }
-
-    try {
-      const pdfjsLib = await loadPdfjs();
-      console.log('[Pages] Converting PDF to image:', pdfUrl);
+    const attemptConversion = async (workerUrl: string | null = null): Promise<string> => {
+      // If worker URL is provided, update it before attempting conversion
+      if (workerUrl && typeof window !== 'undefined') {
+        const previousWorkerSrc = pdfjsLib.GlobalWorkerOptions.workerSrc;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+        console.log('[Pages] Using worker URL:', workerUrl);
+      }
+      
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdf = await loadingTask.promise;
       const page = await pdf.getPage(1); // Get first page
-
-      // Set scale for high quality (2x for retina displays)
-      const scale = 2;
+      
+      // Use 1.5x scale for previews (balance between quality and file size)
+      // 1x would be too low quality, 2x creates huge files (4x the pixels)
+      // 1.5x is a good compromise: 2.25x the pixels, ~60% smaller than 2x
+      const scale = 1.5;
       const viewport = page.getViewport({ scale });
-
+      
       // Create canvas
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
       if (!context) {
         throw new Error('Could not get canvas context');
       }
-
+      
       canvas.height = viewport.height;
       canvas.width = viewport.width;
-
+      
       // Render PDF page to canvas
-      await page
-        .render({
-          canvasContext: context,
-          viewport: viewport
-        })
-        .promise;
-
-      // Convert canvas to data URL
-      const dataUrl = canvas.toDataURL('image/png');
+      await page.render({
+        canvas: canvas,
+        viewport: viewport
+      }).promise;
+      
+      // Convert canvas to JPEG with 85% quality for much smaller file size
+      // PNG is lossless but creates huge files (especially for photos/gradients)
+      // JPEG at 85% quality is visually identical but ~70-80% smaller
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      return dataUrl;
+    };
+    
+    try {
+      console.log('[Pages] Converting PDF to image:', pdfUrl);
+      // Try conversion with current worker configuration
+      const dataUrl = await attemptConversion();
       console.log('[Pages] ✓ PDF converted to image successfully');
       return dataUrl;
-    } catch (error) {
-      console.error('[Pages] Error converting PDF to image:', error);
-      throw error;
+    } catch (error: any) {
+      // Check if error is related to worker loading (404, network error, etc.)
+      const errorMessage = error?.message || String(error);
+      const isWorkerError = errorMessage.includes('worker') || 
+                           errorMessage.includes('404') ||
+                           errorMessage.includes('Failed to fetch') ||
+                           errorMessage.includes('NetworkError');
+      
+      if (isWorkerError && typeof window !== 'undefined') {
+        // Retry with CDN worker URL
+        const version = '5.4.394';
+        const cdnUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
+        console.warn('[Pages] Worker error detected, retrying with CDN worker:', cdnUrl);
+        
+        try {
+          const dataUrl = await attemptConversion(cdnUrl);
+          console.log('[Pages] ✓ PDF converted to image successfully with CDN worker');
+          return dataUrl;
+        } catch (retryError) {
+          console.error('[Pages] Error converting PDF to image even with CDN worker:', retryError);
+          throw retryError;
+        }
+      } else {
+        console.error('[Pages] Error converting PDF to image:', error);
+        throw error;
+      }
     }
   }, []);
 
   // Load preview images from 3-manifest or construct directly from R2
   useEffect(() => {
-    pdfCheckCompleteRef.current = false;
-    setPdfAsset(prev => ({
-      ...prev,
-      exists: false,
-      loading: true,
-      error: null,
-      url: '',
-    }));
-  }, [pdfUrl]);
-
-  useEffect(() => {
     let isMounted = true;
     let intervalId: NodeJS.Timeout | null = null;
-
-    if (previewImagesChecked && !previewImagesAvailable && !imagesFoundRef.current) {
-      setLoadingPages(false);
-      return () => {
-        isMounted = false;
-        if (intervalId) {
-          clearInterval(intervalId);
-        }
-      };
-    }
 
     const loadPages = async () => {
       if (!isMounted) return;
@@ -302,7 +272,15 @@ export function PostPdfStage({
         return;
       }
 
-      // Only set loading if we're actually going to load
+      // Prevent loading state from resetting during polling when pages/images already exist
+      // Use ref to avoid stale closure issues
+      if (pagesLoadedRef.current) {
+        console.log('[Pages] Pages already loaded, skipping loading state during polling');
+        setLoadingPages(false);
+        return;
+      }
+
+      // Only set loading if we're actually going to load new data
       setLoadingPages(true);
       setPagesError(null);
 
@@ -315,11 +293,146 @@ export function PostPdfStage({
         let foundInManifest = false;
         
         try {
+          console.log('[Pages] Fetching manifest from:', manifest3Url);
           const manifest3Res = await fetch(manifest3Url);
           
           if (manifest3Res.ok) {
-            const manifest3 = await manifest3Res.json();
-            const previewImages = manifest3?.bookAssembly?.pagePreviewImages;
+            const manifest3Raw = await manifest3Res.json();
+            
+            console.log('[Pages] Raw manifest response type:', Array.isArray(manifest3Raw) ? 'array' : 'object');
+            console.log('[Pages] Raw manifest keys (first 20):', manifest3Raw ? Object.keys(manifest3Raw).slice(0, 20) : 'null');
+            
+            // Handle array response (manifest might be wrapped in array)
+            // If array, unwrap it - the first element should have the data
+            let manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
+            
+            // If the unwrapped object has a nested 'manifest' property, use that instead
+            // This handles cases where the structure is: [{ manifest: {...}, pagePreviewImages: [...] }]
+            if (manifest3?.manifest && typeof manifest3.manifest === 'object') {
+              // Merge manifest properties with top-level properties (pagePreviewImages might be at top level)
+              manifest3 = {
+                ...manifest3.manifest,
+                // Preserve top-level properties that might not be in manifest
+                pagePreviewImages: manifest3.pagePreviewImages || manifest3.manifest.pagePreviewImages,
+                orderId: manifest3.orderId,
+                characterHash: manifest3.characterHash || manifest3.manifest.characterHash,
+              };
+            }
+            
+            console.log('[Pages] Processed manifest type:', Array.isArray(manifest3Raw) ? 'array[0]' : 'object');
+            console.log('[Pages] Processed manifest keys (first 20):', manifest3 ? Object.keys(manifest3).slice(0, 20) : 'null');
+            
+            // Check multiple possible locations for pagePreviewImages
+            // Try top-level first (most common), then nested in manifest, then bookAssembly
+            let previewImages = manifest3?.pagePreviewImages 
+              || manifest3?.manifest?.pagePreviewImages
+              || manifest3?.bookAssembly?.pagePreviewImages 
+              || [];
+            
+            // Fallback: Build from pngGeneration.pages (R2 keys stored as strings: pages.p01 = "r2/key/path")
+            if (!previewImages || previewImages.length === 0) {
+              const pagesObj = manifest3?.pngGeneration?.pages 
+                || manifest3?.manifest?.pngGeneration?.pages 
+                || {};
+              
+              if (pagesObj && typeof pagesObj === 'object' && Object.keys(pagesObj).length > 0) {
+                console.log('[Pages] Building pagePreviewImages from pngGeneration.pages');
+                // Convert pages object (p01: "r2/key", p02: "r2/key", etc.) to array format
+                previewImages = Object.entries(pagesObj).map(([key, r2Key]: [string, any]) => {
+                  // Parse page number from key: p00_dedication -> 0, p01 -> 1, p02 -> 2, etc.
+                  let pageNumber = 0;
+                  if (key === 'p00_dedication') {
+                    pageNumber = 0;
+                  } else if (key.startsWith('p')) {
+                    const numStr = key.substring(1);
+                    const num = parseInt(numStr, 10);
+                    if (!isNaN(num)) {
+                      pageNumber = num;
+                    }
+                  }
+                  
+                  return {
+                    pageNumber,
+                    r2Key: typeof r2Key === 'string' ? r2Key : null,
+                    imageUrl: typeof r2Key === 'string' ? `/api/assets/${r2Key}` : null, // Construct URL immediately for R2 fallback
+                    filename: null
+                  };
+                }).filter((img: any) => img.r2Key !== null); // Filter out entries without r2Key
+                
+                console.log(`[Pages] Built ${previewImages.length} pages from pngGeneration.pages`);
+              }
+            }
+            
+            // Fallback: Build from pngGeneration.storyImages if pagePreviewImages still doesn't exist
+            if (!previewImages || previewImages.length === 0) {
+              const storyImages = manifest3?.pngGeneration?.storyImages 
+                || manifest3?.manifest?.pngGeneration?.storyImages 
+                || [];
+              if (storyImages && storyImages.length > 0) {
+                console.log('[Pages] Building pagePreviewImages from pngGeneration.storyImages');
+                previewImages = storyImages.map((img: any) => ({
+                  pageNumber: img.pageNumber || 0,
+                  r2Key: img.r2Key || null,
+                  imageUrl: img.imageUrl || null,
+                  filename: img.filename || null
+                }));
+              }
+            }
+            
+            // Get Cloudflare Images data from pagesWithCloudflare if available
+            const pagesWithCloudflare = manifest3?.manifest?.pngGeneration?.pagesWithCloudflare 
+              || manifest3?.pngGeneration?.pagesWithCloudflare 
+              || {};
+            
+            // Debug: Log Cloudflare Images data location
+            console.log('[Pages] Cloudflare Images check:', {
+              hasManifestNested: !!manifest3?.manifest?.pngGeneration?.pagesWithCloudflare,
+              hasPngGenTopLevel: !!manifest3?.pngGeneration?.pagesWithCloudflare,
+              pagesWithCloudflareKeys: Object.keys(pagesWithCloudflare),
+              pagesWithCloudflareCount: Object.keys(pagesWithCloudflare).length,
+              samplePage: pagesWithCloudflare['p01'] || pagesWithCloudflare['p00_dedication'] || null
+            });
+            
+            console.log('[Pages] Manifest check:', {
+              isArray: Array.isArray(manifest3Raw),
+              hasPagePreviewImages: !!manifest3?.pagePreviewImages,
+              hasManifestPagePreviewImages: !!manifest3?.manifest?.pagePreviewImages,
+              hasBookAssemblyPagePreviewImages: !!manifest3?.bookAssembly?.pagePreviewImages,
+              hasPngGenerationStoryImages: !!(manifest3?.pngGeneration?.storyImages || manifest3?.manifest?.pngGeneration?.storyImages),
+              previewImagesCount: previewImages.length,
+              pagesWithCloudflareCount: Object.keys(pagesWithCloudflare).length,
+              manifestStructure: Object.keys(manifest3 || {}).slice(0, 10),
+              samplePagePreviewImage: previewImages[0] || null
+            });
+            
+            // Debug: Log the actual manifest structure if pagePreviewImages is not found
+            if (!previewImages || previewImages.length === 0) {
+              console.warn('[Pages] ⚠️ pagePreviewImages not found in manifest. Available keys:', {
+                topLevel: Object.keys(manifest3 || {}),
+                manifestKeys: manifest3?.manifest ? Object.keys(manifest3.manifest) : null,
+                pngGenKeys: manifest3?.pngGeneration ? Object.keys(manifest3.pngGeneration) : null,
+                manifestPngGenKeys: manifest3?.manifest?.pngGeneration ? Object.keys(manifest3.manifest.pngGeneration) : null
+              });
+              
+              // Log what's actually in pngGeneration
+              if (manifest3?.pngGeneration) {
+                console.log('[Pages] pngGeneration structure:', {
+                  keys: Object.keys(manifest3.pngGeneration),
+                  pages: manifest3.pngGeneration.pages ? Object.keys(manifest3.pngGeneration.pages).slice(0, 5) : null,
+                  storyImages: manifest3.pngGeneration.storyImages ? `Array(${manifest3.pngGeneration.storyImages.length})` : null,
+                  pagesWithCloudflare: manifest3.pngGeneration.pagesWithCloudflare ? Object.keys(manifest3.pngGeneration.pagesWithCloudflare).slice(0, 5) : null
+                });
+              }
+              
+              // Check if top-level 'pages' contains the data
+              if (manifest3?.pages) {
+                console.log('[Pages] Top-level pages structure:', {
+                  type: Array.isArray(manifest3.pages) ? 'array' : typeof manifest3.pages,
+                  keys: typeof manifest3.pages === 'object' && !Array.isArray(manifest3.pages) ? Object.keys(manifest3.pages).slice(0, 10) : null,
+                  length: Array.isArray(manifest3.pages) ? manifest3.pages.length : null
+                });
+              }
+            }
             
             if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
               foundInManifest = true;
@@ -327,36 +440,79 @@ export function PostPdfStage({
               pageData = previewImages
                 .sort((a: any, b: any) => a.pageNumber - b.pageNumber)
                 .map((img: any) => {
-                  // Always construct relative URL from r2Key to ensure preview deployments call their own API
-                  // Ignore imageUrl from manifest as it may contain absolute URLs pointing to production
+                  const pageNum = Number(img.pageNumber || 0);
+                  const pageKey = pageNum === 0 ? 'p00_dedication' : (pageNum < 10 ? `p0${pageNum}` : `p${pageNum}`);
+                  
+                  // Get Cloudflare Images data from pagesWithCloudflare if not in pagePreviewImages
+                  const cfData = pagesWithCloudflare[pageKey] || null;
+                  const cloudflareImageUrl = img.cloudflareImageUrl || cfData?.cloudflareImageUrl || null;
+                  const cloudflareImageId = img.cloudflareImageId || cfData?.cloudflareImageId || null;
+                  
+                  // Debug: Log if Cloudflare data exists for this page
+                  if (cfData) {
+                    console.log(`[Pages] Page ${img.pageNumber} (${pageKey}): Found Cloudflare data:`, {
+                      hasId: !!cfData.cloudflareImageId,
+                      hasUrl: !!cfData.cloudflareImageUrl,
+                      url: cfData.cloudflareImageUrl?.substring(0, 60) + '...' || null
+                    });
+                  }
+                  
+                  // Helper to validate Cloudflare Images URL
+                  const isValidCloudflareUrl = (url: string | null): boolean => {
+                    if (!url || typeof url !== 'string') return false;
+                    // Must be a valid Cloudflare Images URL: https://imagedelivery.net/{accountHash}/{imageId}/{variant}
+                    return url.startsWith('https://imagedelivery.net/') && url.split('/').length >= 5;
+                  };
+                  
+                  // Priority 1: Use Cloudflare Images if available and valid (fastest, WebP, CDN)
                   let imageUrl: string;
-                  if (img.r2Key) {
+                  if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
+                    imageUrl = cloudflareImageUrl;
+                    console.log(`[Pages] Page ${img.pageNumber}: Using Cloudflare Images`);
+                  }
+                  // Priority 2: Use imageUrl if already constructed (from pngGeneration.pages fallback)
+                  else if (img.imageUrl && img.imageUrl.startsWith('/api/assets/')) {
+                    imageUrl = img.imageUrl;
+                    console.log(`[Pages] Page ${img.pageNumber}: Using pre-constructed imageUrl from manifest`);
+                  }
+                  // Priority 3: Use R2 proxy URL (fallback)
+                  else if (img.r2Key) {
                     // Use relative URL so it works with any deployment (production or preview)
                     imageUrl = `/api/assets/${img.r2Key}`;
-                  } else {
-                    // Fallback: try to extract r2Key from imageUrl if it's an absolute URL
+                    if (cloudflareImageUrl && !isValidCloudflareUrl(cloudflareImageUrl)) {
+                      console.warn(`[Pages] Page ${img.pageNumber}: Invalid Cloudflare Images URL, using R2 fallback:`, cloudflareImageUrl);
+                    } else {
+                      console.log(`[Pages] Page ${img.pageNumber}: Using R2 fallback`);
+                    }
+                  }
+                  // Priority 4: Try to extract r2Key from imageUrl if it's an absolute URL
+                  else {
                     const fallbackUrl = img.imageUrl || '';
                     const r2KeyMatch = fallbackUrl.match(/\/api\/assets\/(.+)$/);
                     if (r2KeyMatch) {
                       imageUrl = `/api/assets/${r2KeyMatch[1]}`;
+                      console.log(`[Pages] Page ${img.pageNumber}: Using extracted R2 key from imageUrl`);
                     } else {
                       // Last resort: construct from page number using new format (p00.png, p01.png, etc.)
                       const pageNum = img.pageNumber ?? 0;
                       const filename = `p${String(pageNum).padStart(2, '0')}.png`;
                       imageUrl = `/api/assets/book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`;
+                      console.log(`[Pages] Page ${img.pageNumber}: Using constructed fallback URL`);
                     }
                   }
                   
                   console.log(`[Pages] Page ${img.pageNumber}:`, {
-                    hasImageUrl: !!img.imageUrl,
+                    hasCloudflareUrl: !!cloudflareImageUrl,
                     hasR2Key: !!img.r2Key,
-                    constructedUrl: imageUrl,
-                    r2Key: img.r2Key
+                    hasImageUrl: !!img.imageUrl,
+                    finalUrl: imageUrl.substring(0, 80) + '...'
                   });
                   
                   return {
                     pageNumber: img.pageNumber,
-                    previewImageUrl: imageUrl
+                    previewImageUrl: imageUrl,
+                    cloudflareImageId: cloudflareImageId || undefined,
+                    r2Key: img.r2Key || undefined
                   };
                 });
               
@@ -369,56 +525,83 @@ export function PostPdfStage({
         }
         
         // Fallback: Construct image URLs directly from R2 path pattern
+        // This means images aren't in manifest yet (workflow 3 hasn't completed)
         if (pageData.length === 0) {
-          console.log('[Pages] Constructing preview image URLs from R2 path pattern');
+          console.warn('[Pages] ⚠️ No pagePreviewImages found in manifest, using fallback R2 path pattern');
+          console.warn('[Pages] This means either: 1) Workflow 3 hasn\'t completed, or 2) Manifest structure is unexpected');
+          setUsingFallbackUrls(true); // Mark that we're using fallback URLs (images not available yet)
           // Images are stored at: book-mvp-simple-adventure/orders/{orderId}/preview-images/p{pageNumber}.png
           // Format: p00.png (dedication), p01.png (page 1), p02.png (page 2), ..., p15.png (page 15)
+          // NOTE: Using NEW format (p01.png), NOT old format (page-01_preview.png)
           pageData = Array.from({ length: 16 }, (_, i) => {
             const pageNum = i; // 0-15 (0 is dedication, 1-15 are story pages)
-            const filename = `p${String(pageNum).padStart(2, '0')}.png`;
+            const filename = `p${String(pageNum).padStart(2, '0')}.png`; // NEW format: p01.png
             const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`;
             return {
               pageNumber: pageNum,
               previewImageUrl: `/api/assets/${r2Key}` // Use relative URL
             };
           });
+          console.log('[Pages] Fallback: Constructed', pageData.length, 'page URLs using format p00.png, p01.png, etc.');
+        } else {
+          // Images found in manifest - clear fallback flag
+          setUsingFallbackUrls(false);
+          console.log('[Pages] ✓ Successfully loaded', pageData.length, 'pages from manifest');
         }
         
         if (!isMounted) return;
-
-        if (pageData.length > 0 && !previewImagesChecked) {
-          try {
-            const headRes = await fetch(pageData[0].previewImageUrl, {
-              method: 'HEAD'
-            });
-            if (!headRes.ok) {
-              console.warn(
-                `[Pages] Preview image not yet available (status ${headRes.status}).`,
-                pageData[0].previewImageUrl
-              );
-              setPreviewImagesAvailable(false);
-            } else {
-              setPreviewImagesAvailable(true);
-            }
-          } catch (headError) {
-            console.warn('[Pages] Preview image HEAD request failed:', headError);
-            setPreviewImagesAvailable(false);
-          } finally {
-            setPreviewImagesChecked(true);
-          }
-        } else if (!previewImagesChecked && pageData.length === 0) {
-          setPreviewImagesAvailable(false);
-          setPreviewImagesChecked(true);
-        }
         
         // Try to load cover PDF image if not already loaded
         // Load cover separately to avoid blocking page loading
         if (!coverImageUrl && !coverImageDataUrl && !coverImageLoading) {
           setCoverImageLoading(true);
           try {
-            // Cover PDF path: book-mvp-simple-adventure/orders/{orderId}/cover_{orderId}.pdf
+            // Priority 1: Check manifest for Cloudflare Images cover URL
+            let coverUrlToUse: string | null = null;
+            try {
+              const manifest3Res = await fetch(`/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`);
+              if (manifest3Res.ok) {
+                const manifest3Raw = await manifest3Res.json();
+                // Handle array response (manifest might be wrapped in array)
+                const manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
+                // Check multiple possible locations for cover data
+                const pngGen = manifest3?.pngGeneration || manifest3?.manifest?.pngGeneration || {};
+                
+                // Check for Cloudflare Images cover URL first
+                if (pngGen.coverCloudflareImageUrl) {
+                  coverUrlToUse = pngGen.coverCloudflareImageUrl;
+                  console.log('[Cover] Using Cloudflare Images URL from manifest');
+                }
+                // Fallback to R2 cover preview (could be string or object with r2Key)
+                else if (pngGen.coverSpreadImage) {
+                  const coverR2Key = typeof pngGen.coverSpreadImage === 'string' 
+                    ? pngGen.coverSpreadImage 
+                    : pngGen.coverSpreadImage?.r2Key;
+                  if (coverR2Key) {
+                    coverUrlToUse = `/api/assets/${coverR2Key}`;
+                    console.log('[Cover] Using R2 cover from manifest:', coverR2Key);
+                  } else {
+                    console.warn('[Cover] coverSpreadImage found but no r2Key:', pngGen.coverSpreadImage);
+                  }
+                } else {
+                  console.log('[Cover] No cover image found in manifest pngGeneration');
+                }
+              } else {
+                console.log('[Cover] Manifest 3 not found or not OK:', manifest3Res.status);
+              }
+            } catch (e) {
+              console.log('[Cover] Could not fetch cover from manifest, using fallback:', e);
+            }
+            
+            // If we found a cover URL from manifest, use it
+            if (coverUrlToUse) {
+              setCoverImageUrl(coverUrlToUse);
+              setCoverImageLoading(false);
+              // Don't return early - let the spreads creation code run below with the loaded pageData
+            }
+            
+            // Fallback: Try R2 cover preview image
             const coverPdfPath = `book-mvp-simple-adventure/orders/${orderId}/cover_${orderId}.pdf`;
-            // Try to get a preview image URL first (if workflow 3 generates one)
             const coverPreviewPath = `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover_preview.png`;
             const coverPreviewUrl = `/api/assets/${coverPreviewPath}`;
             
@@ -430,14 +613,14 @@ export function PostPdfStage({
                   const newCoverUrl = coverPreviewUrl;
                   setCoverImageUrl(newCoverUrl);
                   setCoverImageLoading(false);
-                  // Update spreads with new cover URL
-                  setSpreads(prev => {
-                    // Use current pages state if available, otherwise use pageData from this load
-                    const currentPages = pages.length > 0 ? pages : pageData;
+                  // Update spreads with new cover URL - use functional update to get latest pages
+                  setPages(currentPages => {
                     if (currentPages.length > 0) {
-                      return createSpreads(currentPages, newCoverUrl);
+                      const newSpreads = createSpreads(currentPages, newCoverUrl);
+                      setSpreads(newSpreads);
+                      spreadsLengthRef.current = newSpreads.length;
                     }
-                    return prev; // Don't update if no pages yet
+                    return currentPages; // Don't change pages
                   });
                 } else {
                   // Convert PDF to image using PDF.js
@@ -448,14 +631,14 @@ export function PostPdfStage({
                     setCoverImageDataUrl(dataUrl);
                     setCoverImageUrl(coverPdfUrl); // Keep PDF URL for reference
                     setCoverImageLoading(false);
-                    // Update spreads with new cover data URL
-                    setSpreads(prev => {
-                      // Use current pages state if available, otherwise use pageData from this load
-                      const currentPages = pages.length > 0 ? pages : pageData;
+                    // Update spreads with new cover data URL - use functional update to get latest pages
+                    setPages(currentPages => {
                       if (currentPages.length > 0) {
-                        return createSpreads(currentPages, dataUrl);
+                        const newSpreads = createSpreads(currentPages, dataUrl);
+                        setSpreads(newSpreads);
+                        spreadsLengthRef.current = newSpreads.length;
                       }
-                      return prev; // Don't update if no pages yet
+                      return currentPages; // Don't change pages
                     });
                   } catch (pdfError) {
                     if (!isMounted) return;
@@ -474,14 +657,12 @@ export function PostPdfStage({
                   setCoverImageDataUrl(dataUrl);
                   setCoverImageUrl(coverPdfUrl);
                   setCoverImageLoading(false);
-                  // Update spreads with new cover data URL
-                  setSpreads(prev => {
-                    // Use current pages state if available, otherwise use pageData from this load
-                    const currentPages = pages.length > 0 ? pages : pageData;
+                  // Update spreads with new cover data URL - use functional update to get latest pages
+                  setPages(currentPages => {
                     if (currentPages.length > 0) {
-                      return createSpreads(currentPages, dataUrl);
+                      setSpreads(createSpreads(currentPages, dataUrl));
                     }
-                    return prev; // Don't update if no pages yet
+                    return currentPages; // Don't change pages
                   });
                 } catch (pdfError) {
                   if (!isMounted) return;
@@ -496,6 +677,9 @@ export function PostPdfStage({
           }
         }
         
+        // CRITICAL: Log if we have pageData before creating spreads
+        console.log('[Pages] ⚠️ BEFORE spreads creation - pageData.length:', pageData.length, 'pageData sample:', pageData[0] || 'empty');
+        
         // Check if pages have actually changed to prevent unnecessary re-renders
         const currentPagesData = JSON.stringify(pageData);
         const pagesChanged = currentPagesData !== lastPagesDataRef.current;
@@ -504,13 +688,38 @@ export function PostPdfStage({
         // Determine which cover URL to use (prefer data URL from PDF conversion, fallback to image URL)
         const effectiveCoverUrl = coverImageDataUrl || coverImageUrl || undefined;
         
+        console.log('[Pages] About to create spreads:', {
+          pageDataLength: pageData.length,
+          hasCoverUrl: !!effectiveCoverUrl,
+          coverUrl: effectiveCoverUrl?.substring(0, 60),
+          firstPage: pageData[0] ? {
+            pageNumber: pageData[0].pageNumber,
+            hasPreviewUrl: !!pageData[0].previewImageUrl
+          } : null
+        });
+        
         // Always create spreads with current data (pages + cover)
         const newSpreads = createSpreads(pageData, effectiveCoverUrl);
+        
+        console.log('[Pages] createSpreads returned:', {
+          spreadsCount: newSpreads.length,
+          firstSpread: newSpreads[0] ? {
+            spreadNumber: newSpreads[0].spreadNumber,
+            hasLeft: !!newSpreads[0].leftPage,
+            hasRight: !!newSpreads[0].rightPage,
+            isCover: newSpreads[0].isCover
+          } : null
+        });
         
         // Only update pages state if pages actually changed
         if (pagesChanged || isInitialLoad) {
           // Update pages first
           setPages(pageData);
+          
+          // Mark pages as loaded to prevent loading state during polling
+          if (pageData.length > 0) {
+            pagesLoadedRef.current = true;
+          }
           
           // Store the current pages data to prevent re-renders
           lastPagesDataRef.current = currentPagesData;
@@ -534,6 +743,21 @@ export function PostPdfStage({
         // Always update spreads (even if pages haven't changed, cover might have)
         // This ensures spreads are always in sync with current data
         setSpreads(newSpreads);
+        spreadsLengthRef.current = newSpreads.length;
+        
+        console.log('[Pages] Created spreads:', {
+          totalSpreads: newSpreads.length,
+          spreadsWithPages: newSpreads.filter(s => s.leftPage || s.rightPage).length,
+          firstSpread: newSpreads[0] ? {
+            hasLeft: !!newSpreads[0].leftPage,
+            hasRight: !!newSpreads[0].rightPage,
+            isCover: newSpreads[0].isCover,
+            leftPageNumber: newSpreads[0].leftPage?.pageNumber,
+            rightPageNumber: newSpreads[0].rightPage?.pageNumber,
+            leftPageUrl: newSpreads[0].leftPage?.previewImageUrl?.substring(0, 60),
+            rightPageUrl: newSpreads[0].rightPage?.previewImageUrl?.substring(0, 60),
+          } : null
+        });
         
         // If we found images in the manifest, stop polling
         if (foundInManifest && pageData.length > 0) {
@@ -543,6 +767,33 @@ export function PostPdfStage({
             intervalId = null;
             console.log('[Pages] Images found in manifest, stopping auto-refresh');
           }
+        }
+        
+        // Check if PDF exists for download
+        try {
+          const pdfRes = await fetch(pdfUrl, { method: 'HEAD' });
+          if (pdfRes.ok) {
+            const jsonRes = await fetch(`${pdfUrl}?format=json`);
+            if (jsonRes.ok) {
+              const data = await jsonRes.json();
+              setPdfAsset(prev => ({
+                ...prev,
+                url: data.signedUrl || pdfUrl,
+                exists: true,
+                loading: false,
+                error: null
+              }));
+            }
+          } else {
+            setPdfAsset(prev => ({
+              ...prev,
+              exists: false,
+              loading: false,
+              error: 'PDF not yet generated'
+            }));
+          }
+        } catch (e) {
+          console.error('[Pages] Error checking PDF:', e);
         }
       } catch (error: any) {
         if (!isMounted) return;
@@ -574,97 +825,256 @@ export function PostPdfStage({
         clearInterval(intervalId);
         intervalId = null;
       }
-  };
-  }, [orderId, pdfUrl, previewImagesAvailable, previewImagesChecked]);
+    };
+  }, [orderId, pdfUrl]); // Removed coverImageUrl and coverImageDataUrl to prevent reload loops
 
+  // Reset image loading state when spread changes (only if spread actually changed)
+  // Compare spread key to prevent unnecessary resets when spreads array is recreated
   useEffect(() => {
-    let isMounted = true;
-    let intervalId: NodeJS.Timeout | null = null;
+    let loadingTimeout: NodeJS.Timeout | null = null;
+    
+    const currentSpread = spreads[currentSpreadIndex];
+    if (!currentSpread) {
+      console.warn('[Spreads] No current spread at index:', currentSpreadIndex, 'Total spreads:', spreads.length);
+      // Only reset if we actually had a spread before
+      if (lastSpreadIndexRef.current !== null) {
+        setImageLoading({ left: false, right: false });
+        setImageError({ left: null, right: null });
+      }
+      lastSpreadIndexRef.current = currentSpreadIndex;
+      lastSpreadKeyRef.current = '';
+      return () => {
+        if (loadingTimeout) clearTimeout(loadingTimeout);
+      };
+    }
+    
+    console.log('[Spreads] Current spread:', {
+      index: currentSpreadIndex,
+      hasLeftPage: !!currentSpread.leftPage,
+      hasRightPage: !!currentSpread.rightPage,
+      isCover: currentSpread.isCover,
+      leftPageNumber: currentSpread.leftPage?.pageNumber,
+      rightPageNumber: currentSpread.rightPage?.pageNumber,
+      leftPageUrl: currentSpread.leftPage?.previewImageUrl?.substring(0, 60),
+      rightPageUrl: currentSpread.rightPage?.previewImageUrl?.substring(0, 60),
+    });
+    
+    // Create a stable unique key for this spread based on its content
+    // Include cover URL in key so we detect when cover actually loads (not just when spread is created)
+    const leftPageNum = currentSpread.leftPage?.pageNumber ?? null;
+    const rightPageNum = currentSpread.rightPage?.pageNumber ?? null;
+    const coverType = currentSpread.coverData 
+      ? (currentSpread.coverData.isFrontCover ? 'front' : currentSpread.coverData.isBackCover ? 'back' : 'cover')
+      : null;
+    const coverUrl = currentSpread.coverData?.fullImageUrl ?? null;
+    // Include cover URL in key to detect when cover loads (URL changes from undefined to actual URL)
+    const spreadKey = `${currentSpreadIndex}-${leftPageNum}-${rightPageNum}-${coverType}-${coverUrl ? 'hasCover' : 'noCover'}`;
+    
+    // Only reset loading state if spread index changed OR spread key changed
+    // This prevents resets when spreads array is recreated with same content during polling
+    const indexChanged = lastSpreadIndexRef.current !== currentSpreadIndex;
+    const keyChanged = lastSpreadKeyRef.current !== spreadKey;
+    
+    // Only reset if something actually changed
+    if (indexChanged || keyChanged) {
+      // Set loading to true if there's a page or cover to load
+      // For cover, only set loading if cover URL actually exists (cover has loaded)
+      const hasLeft = !!(currentSpread.leftPage || 
+                        (currentSpread.coverData && currentSpread.coverData.isBackCover && currentSpread.coverData.fullImageUrl));
+      const hasRight = !!(currentSpread.rightPage || 
+                         (currentSpread.coverData && currentSpread.coverData.isFrontCover && currentSpread.coverData.fullImageUrl));
+      
+      setImageLoading({ 
+        left: hasLeft, 
+        right: hasRight
+      });
+      setImageError({ left: null, right: null });
+      
+      // Safety timeout: clear loading state after 30 seconds to prevent infinite loading
+      // This handles cases where images fail to load but onError doesn't fire
+      loadingTimeout = setTimeout(() => {
+        setImageLoading(prev => {
+          // Only clear if still loading (prev hasn't been cleared by onLoad/onError)
+          if (prev.left || prev.right) {
+            console.warn(`[Spreads] Loading timeout for spread ${currentSpreadIndex}, clearing loading state`);
+            return { left: false, right: false };
+          }
+          return prev;
+        });
+      }, 30000);
+      
+      // Reset ref callback flags when spread changes
+      if (indexChanged) {
+        coverImageRefHandledRef.current = { front: false, back: false };
+      }
+      
+      // Update refs to track current spread
+      lastSpreadIndexRef.current = currentSpreadIndex;
+      lastSpreadKeyRef.current = spreadKey;
+    }
+    // If spread hasn't changed (same index and same key), don't reset loading state
+    // This prevents loading state from resetting when spreads are recreated during polling
+    
+    // Cleanup timeout on unmount or when spread changes
+    return () => {
+      if (loadingTimeout) clearTimeout(loadingTimeout);
+    };
+  }, [currentSpreadIndex, spreads]);
 
-    const checkPdf = async (isInitial = false) => {
-      if (!isMounted || pdfCheckCompleteRef.current) {
+  // Check if cover image is already loaded when cover URL changes
+  // This handles the case where the cover loads asynchronously and the image is cached
+  useEffect(() => {
+    const currentSpread = spreads[currentSpreadIndex];
+    if (!currentSpread) return;
+
+    // Only check if loading state is active (prevents unnecessary checks)
+    const needsRightCheck = imageLoading.right && currentSpread.coverData?.isFrontCover && currentSpread.coverData.fullImageUrl;
+    const needsLeftCheck = imageLoading.left && currentSpread.coverData?.isBackCover && currentSpread.coverData.fullImageUrl;
+
+    if (!needsRightCheck && !needsLeftCheck) return;
+
+    let frontCoverImg: HTMLImageElement | null = null;
+    let backCoverImg: HTMLImageElement | null = null;
+    let isMounted = true;
+
+    // Check front cover
+    if (needsRightCheck) {
+      frontCoverImg = new Image();
+      
+      frontCoverImg.onload = () => {
+        if (isMounted) {
+          console.log('[Spreads] ✓ Front cover image verified as loaded');
+          setImageLoading(prev => ({ ...prev, right: false }));
+          setImageError(prev => ({ ...prev, right: null }));
+        }
+      };
+      frontCoverImg.onerror = () => {
+        // Image failed to load - let onError handler deal with it
+        // Don't set error here, let the actual img element's onError handle it
+      };
+      // Set src to trigger load check (will use cache if available)
+      if (currentSpread.coverData?.fullImageUrl) {
+        frontCoverImg.src = currentSpread.coverData.fullImageUrl;
+      }
+    }
+
+    // Check back cover
+    if (needsLeftCheck) {
+      backCoverImg = new Image();
+      
+      backCoverImg.onload = () => {
+        if (isMounted) {
+          console.log('[Spreads] ✓ Back cover image verified as loaded');
+          setImageLoading(prev => ({ ...prev, left: false }));
+          setImageError(prev => ({ ...prev, left: null }));
+        }
+      };
+      backCoverImg.onerror = () => {
+        // Image failed to load - let onError handler deal with it
+        // Don't set error here, let the actual img element's onError handle it
+      };
+      // Set src to trigger load check (will use cache if available)
+      if (currentSpread.coverData?.fullImageUrl) {
+        backCoverImg.src = currentSpread.coverData.fullImageUrl;
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      if (frontCoverImg) {
+        frontCoverImg.onload = null;
+        frontCoverImg.onerror = null;
+      }
+      if (backCoverImg) {
+        backCoverImg.onload = null;
+        backCoverImg.onerror = null;
+      }
+    };
+  }, [currentSpreadIndex, spreads, imageLoading.left, imageLoading.right]);
+
+  // Preload images for all spreads in the background
+  // This ensures images are cached before user navigates to them
+  useEffect(() => {
+    if (spreads.length === 0) return;
+
+    const preloadImage = (url: string) => {
+      // Skip if already preloaded
+      if (preloadedImagesRef.current.has(url)) {
         return;
       }
 
-      try {
-        const headRes = await fetch(pdfUrl, { method: 'HEAD' });
-
-        if (!isMounted || pdfCheckCompleteRef.current) {
-          return;
-        }
-
-        if (headRes.ok) {
-          try {
-            const jsonRes = await fetch(`${pdfUrl}?format=json`);
-            if (!isMounted || pdfCheckCompleteRef.current) {
-              return;
-            }
-
-            if (jsonRes.ok) {
-              const data = await jsonRes.json();
-              pdfCheckCompleteRef.current = true;
-              if (intervalId) {
-                clearInterval(intervalId);
-                intervalId = null;
-                console.log('[Pages] PDF located, stopping PDF polling');
-              }
-              setPdfAsset(prev => ({
-                ...prev,
-                url: data.signedUrl || pdfUrl,
-                exists: true,
-                loading: false,
-                error: null,
-              }));
-            } else {
-              console.warn('[Pages] Unable to fetch signed PDF URL, response not ok');
-            }
-          } catch (jsonError) {
-            console.error('[Pages] Error fetching signed PDF URL:', jsonError);
-          }
-        } else if (isInitial) {
-          setPdfAsset(prev => ({
-            ...prev,
-            exists: false,
-            loading: false,
-            error: 'PDF not yet generated',
-          }));
-        }
-      } catch (error) {
-        if (isInitial) {
-          console.error('[Pages] Error checking PDF:', error);
-          setPdfAsset(prev => ({
-            ...prev,
-            exists: false,
-            loading: false,
-            error: 'Failed to check PDF status',
-          }));
-        } else {
-          console.warn('[Pages] PDF check failed, will retry:', error);
-        }
-      }
+      const img = new Image();
+      img.onload = () => {
+        preloadedImagesRef.current.add(url);
+        console.log('[Preload] ✓ Preloaded image:', url.substring(0, 80) + '...');
+      };
+      img.onerror = () => {
+        // Silently fail - image will load when needed
+        console.log('[Preload] ✗ Failed to preload:', url.substring(0, 80) + '...');
+      };
+      img.src = url;
     };
 
-    checkPdf(true);
-    intervalId = setInterval(() => checkPdf(false), 15000);
-
-    return () => {
-      isMounted = false;
-      if (intervalId) {
-        clearInterval(intervalId);
+    // Preload all page images and cover images
+    spreads.forEach((spread) => {
+      // Preload left page
+      if (spread.leftPage?.previewImageUrl) {
+        preloadImage(spread.leftPage.previewImageUrl);
       }
-    };
-  }, [pdfUrl]);
-
-  // Reset image loading state when spread changes
-  useEffect(() => {
-    const currentSpread = spreads[currentSpreadIndex];
-    // Set loading to true if there's a page or cover to load
-    setImageLoading({ 
-      left: (currentSpread?.leftPage || (currentSpread?.coverData && currentSpread.coverData.isBackCover)) ? true : false, 
-      right: (currentSpread?.rightPage || (currentSpread?.coverData && currentSpread.coverData.isFrontCover)) ? true : false 
+      // Preload right page
+      if (spread.rightPage?.previewImageUrl) {
+        preloadImage(spread.rightPage.previewImageUrl);
+      }
+      // Preload cover image
+      if (spread.coverData?.fullImageUrl) {
+        preloadImage(spread.coverData.fullImageUrl);
+      }
     });
-    setImageError({ left: null, right: null });
-  }, [currentSpreadIndex, spreads]);
+
+    // Also preload adjacent spreads (current + next + previous) with higher priority
+    const currentSpread = spreads[currentSpreadIndex];
+    if (currentSpread) {
+      // Preload current spread images first (already handled above, but ensure they're prioritized)
+      if (currentSpread.leftPage?.previewImageUrl) {
+        preloadImage(currentSpread.leftPage.previewImageUrl);
+      }
+      if (currentSpread.rightPage?.previewImageUrl) {
+        preloadImage(currentSpread.rightPage.previewImageUrl);
+      }
+      if (currentSpread.coverData?.fullImageUrl) {
+        preloadImage(currentSpread.coverData.fullImageUrl);
+      }
+
+      // Preload next spread
+      if (currentSpreadIndex < spreads.length - 1) {
+        const nextSpread = spreads[currentSpreadIndex + 1];
+        if (nextSpread.leftPage?.previewImageUrl) {
+          preloadImage(nextSpread.leftPage.previewImageUrl);
+        }
+        if (nextSpread.rightPage?.previewImageUrl) {
+          preloadImage(nextSpread.rightPage.previewImageUrl);
+        }
+        if (nextSpread.coverData?.fullImageUrl) {
+          preloadImage(nextSpread.coverData.fullImageUrl);
+        }
+      }
+
+      // Preload previous spread
+      if (currentSpreadIndex > 0) {
+        const prevSpread = spreads[currentSpreadIndex - 1];
+        if (prevSpread.leftPage?.previewImageUrl) {
+          preloadImage(prevSpread.leftPage.previewImageUrl);
+        }
+        if (prevSpread.rightPage?.previewImageUrl) {
+          preloadImage(prevSpread.rightPage.previewImageUrl);
+        }
+        if (prevSpread.coverData?.fullImageUrl) {
+          preloadImage(prevSpread.coverData.fullImageUrl);
+        }
+      }
+    }
+  }, [spreads, currentSpreadIndex]);
 
   const handleDownload = () => {
     if (pdfAsset.exists && pdfAsset.url) {
@@ -686,21 +1096,11 @@ export function PostPdfStage({
     setFlaggedCount(orderId, 'postPdf', pdfAsset.isFlagged ? 1 : 0);
   }, [orderId, pdfAsset.isFlagged]);
 
-  const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
   const isPostBriaApproved = order.reviewStages.postBria.status === 'approved';
+  const canApprove = !pdfAsset.isFlagged && isPostBriaApproved;
+
   const currentSpread = spreads[currentSpreadIndex];
   const totalSpreads = spreads.length;
-  const allowApproveWithoutPdf =
-    process.env.NODE_ENV !== 'production' ||
-    process.env.NEXT_PUBLIC_ALLOW_APPROVAL_WITHOUT_PDF === 'true';
-  const canApprove =
-    !pdfAsset.isFlagged &&
-    isPreBriaApproved &&
-    isPostBriaApproved &&
-    (pdfAsset.exists || allowApproveWithoutPdf);
-  const requiresPdfWarning = !pdfAsset.exists && !allowApproveWithoutPdf;
-  const devPdfNotice = !pdfAsset.exists && allowApproveWithoutPdf;
-
   const currentSpreadNumber = currentSpreadIndex + 1;
 
   const handlePreviousSpread = () => {
@@ -715,19 +1115,27 @@ export function PostPdfStage({
     }
   };
 
-  // Keyboard navigation
+  // Keyboard navigation - use ref to avoid stale closures
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' && currentSpreadIndex > 0) {
-        setCurrentSpreadIndex(currentSpreadIndex - 1);
-      } else if (e.key === 'ArrowRight' && currentSpreadIndex < totalSpreads - 1) {
-        setCurrentSpreadIndex(currentSpreadIndex + 1);
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        setCurrentSpreadIndex(prevIndex => {
+          const maxIndex = spreadsLengthRef.current > 0 ? spreadsLengthRef.current - 1 : 0;
+          
+          // Update index based on key and bounds
+          if (e.key === 'ArrowLeft' && prevIndex > 0) {
+            return prevIndex - 1;
+          } else if (e.key === 'ArrowRight' && prevIndex < maxIndex) {
+            return prevIndex + 1;
+          }
+          return prevIndex;
+        });
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentSpreadIndex, totalSpreads]);
+  }, []); // Empty deps - use ref instead of state
 
   return (
     <>
@@ -775,6 +1183,7 @@ export function PostPdfStage({
           height: 100%;
           object-fit: cover;
           object-position: center;
+          display: block;
         }
 
         .cover-image-container.front-cover img {
@@ -848,7 +1257,8 @@ export function PostPdfStage({
           </div>
         )}
 
-        {!loadingPages && !pagesError && pages.length === 0 && (
+        {/* Show "Preview Images Pending" only if no spreads exist yet */}
+        {!loadingPages && !pagesError && pages.length === 0 && spreads.length === 0 && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="h-[800px] bg-gray-50 flex items-center justify-center">
               <div className="text-center max-w-md">
@@ -865,27 +1275,32 @@ export function PostPdfStage({
           </div>
         )}
 
-        {!loadingPages && !pagesError && spreads.length > 0 && currentSpread && (
+        {!pagesError && spreads.length > 0 && currentSpread && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
             {/* Viewer Header */}
             <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">
                   Spread {currentSpreadNumber} of {totalSpreads}
-                  {currentSpread.isCover && (
+                  {currentSpread.coverData && currentSpread.coverData.isFrontCover && (
                     <span className="text-gray-500 ml-2">(Front Cover)</span>
                   )}
-                  {currentSpread.isBackCover && (
+                  {currentSpread.coverData && currentSpread.coverData.isBackCover && (
                     <span className="text-gray-500 ml-2">(Back Cover)</span>
                   )}
-                  {!currentSpread.isCover && !currentSpread.isBackCover && currentSpread.leftPage && currentSpread.rightPage && (
+                  {!currentSpread.coverData && currentSpread.leftPage && currentSpread.rightPage && (
                     <span className="text-gray-500 ml-2">
                       (Pages {currentSpread.leftPage.pageNumber} & {currentSpread.rightPage.pageNumber})
                     </span>
                   )}
-                  {!currentSpread.isCover && !currentSpread.isBackCover && currentSpread.leftPage && !currentSpread.rightPage && (
+                  {!currentSpread.coverData && currentSpread.leftPage && !currentSpread.rightPage && (
                     <span className="text-gray-500 ml-2">
                       (Page {currentSpread.leftPage.pageNumber})
+                    </span>
+                  )}
+                  {!currentSpread.coverData && !currentSpread.leftPage && currentSpread.rightPage && (
+                    <span className="text-gray-500 ml-2">
+                      (Page {currentSpread.rightPage.pageNumber})
                     </span>
                   )}
                 </span>
@@ -912,47 +1327,53 @@ export function PostPdfStage({
 
             {/* Spread Display Area */}
             <div className="bg-gray-100 flex items-center justify-center p-8 relative">
-              {(((currentSpread.leftPage || currentSpread.coverData?.isBackCover) && imageLoading.left) ||
-                ((currentSpread.rightPage || currentSpread.coverData?.isFrontCover) && imageLoading.right) ||
-                (previewImagesAvailable &&
-                  ((currentSpread.leftPage && imageLoading.left) ||
-                    (currentSpread.rightPage && imageLoading.right)))) && (
+              {((currentSpread.leftPage || (currentSpread.coverData && currentSpread.coverData.isBackCover)) && imageLoading.left) || 
+                ((currentSpread.rightPage || (currentSpread.coverData && currentSpread.coverData.isFrontCover)) && imageLoading.right) ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-                  <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
-                </div>
-              )}
-
-              {previewImagesAvailable && (imageError.left || imageError.right) && (
+                      <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+                    </div>
+                  ) : null}
+                  
+              {/* Only show error if not using fallback URLs (images from manifest that actually failed) */}
+              {(imageError.left || imageError.right) && !usingFallbackUrls && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-                  <div className="text-center">
-                    <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                      <div className="text-center">
+                        <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
                     <p className="text-red-600 text-sm">
                       {imageError.left || imageError.right}
                     </p>
-                  </div>
-                </div>
-              )}
-
-              {!previewImagesAvailable && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-2 text-center px-6">
-                  <AlertCircle className="h-8 w-8 text-gray-400 mx-auto" />
-                  <p className="text-sm font-medium text-gray-700">
-                    Preview spreads not available
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Download the compiled PDF to review. Spread previews appear here once the rendering workflow uploads them to R2.
-                  </p>
-                </div>
-              )}
+                      </div>
+                    </div>
+                  )}
 
               <div className="spread-container w-full max-w-full">
                 <div className="two-page-spread">
-                  {/* Left page / back cover */}
+                  {/* Left page - can be regular page or back cover */}
                   {currentSpread.coverData && currentSpread.coverData.isBackCover ? (
-                    <div className="cover-image-container back-cover">
-                      <img
-                        src={currentSpread.coverData.fullImageUrl}
+                    // Back cover: show left half of cover image
+                    currentSpread.coverData.fullImageUrl ? (
+                      <div className="cover-image-container back-cover">
+                        <img
+                          key={`back-cover-${orderId}-${currentSpreadIndex}-${currentSpread.coverData.fullImageUrl.startsWith('data:') ? 'data' : 'url'}-${currentSpread.coverData.fullImageUrl.length}`}
+                          src={currentSpread.coverData.fullImageUrl}
                         alt="Back Cover"
+                          ref={(img) => {
+                            // Check if image is already loaded (cached) when element is created
+                            // Use setTimeout to defer state update to avoid React error #185
+                            // Also check if we've already handled this to prevent multiple calls
+                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0 && !coverImageRefHandledRef.current.back) {
+                              coverImageRefHandledRef.current.back = true;
+                              console.log('[Spreads] ✓ Back cover image already loaded (cached)');
+                              // Defer state update to avoid updating during render
+                              setTimeout(() => {
+                                setImageLoading(prev => ({ ...prev, left: false }));
+                                setImageError(prev => ({ ...prev, left: null }));
+                              }, 0);
+                            } else if (!img) {
+                              // Reset flag when image is unmounted
+                              coverImageRefHandledRef.current.back = false;
+                            }
+                          }}
                         onLoad={() => {
                           console.log('[Spreads] ✓ Back cover image loaded successfully');
                           setImageLoading(prev => ({ ...prev, left: false }));
@@ -971,28 +1392,64 @@ export function PostPdfStage({
                         }}
                       />
                     </div>
-                  ) : currentSpread.leftPage && previewImagesAvailable ? (
+                    ) : (
+                      // Cover URL not available yet - show loading
+                      <div className="white-page flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+                      </div>
+                    )
+                  ) : currentSpread.leftPage ? (
                     <img
+                      key={`left-page-${orderId}-${currentSpread.leftPage.pageNumber}-${currentSpreadIndex}`}
                       src={currentSpread.leftPage.previewImageUrl}
                       alt={`Page ${currentSpread.leftPage.pageNumber}`}
                       onLoad={() => {
-                        console.log(
-                          `[Spreads] ✓ Left image loaded successfully for page ${currentSpread.leftPage!.pageNumber}`
-                        );
+                        console.log(`[Spreads] ✓ Left image loaded successfully for page ${currentSpread.leftPage!.pageNumber}`);
                         setImageLoading(prev => ({ ...prev, left: false }));
                         setImageError(prev => ({ ...prev, left: null }));
                       }}
-                      onError={() => {
+                      onError={async (e) => {
+                        const img = e.currentTarget;
                         const url = currentSpread.leftPage!.previewImageUrl;
-
-                        console.warn(
-                          `[Spreads] ✗ Left image failed to load for page ${currentSpread.leftPage!.pageNumber}:`,
-                          { url }
-                        );
-                        setPreviewImagesAvailable(false);
-                        setPreviewImagesChecked(true);
+                        
+                        // If using fallback URLs, images aren't available yet - don't show error
+                        if (usingFallbackUrls) {
+                          console.log(`[Spreads] Image not available yet for page ${currentSpread.leftPage!.pageNumber} (using fallback URLs)`);
+                          setImageLoading(prev => ({ ...prev, left: false }));
+                          // Don't set error - images just aren't available yet
+                          return;
+                        }
+                        
+                        // If Cloudflare Images URL failed, try to fall back to R2
+                        const pageData = currentSpread.leftPage;
+                        if (url.startsWith('https://imagedelivery.net/') && pageData?.r2Key) {
+                          console.warn(`[Spreads] Cloudflare Images URL failed for page ${currentSpread.leftPage!.pageNumber}, falling back to R2:`, url);
+                          // Update the page data to use R2 URL instead
+                          const r2Url = `/api/assets/${pageData.r2Key}`;
+                          img.src = r2Url;
+                          // Don't set error yet - let R2 URL try to load
+                          return;
+                        }
+                        
+                        // Only show error if we have images from manifest and they fail
+                        try {
+                          const response = await fetch(url, { method: 'HEAD' });
+                          console.error(`[Spreads] ✗ Left image failed to load for page ${currentSpread.leftPage!.pageNumber}:`, {
+                            url,
+                            httpStatus: response.status,
+                            httpStatusText: response.statusText,
+                            error: e
+                          });
+                        } catch (fetchError) {
+                          console.error(`[Spreads] ✗ Left image fetch error for page ${currentSpread.leftPage!.pageNumber}:`, {
+                            url,
+                            fetchError,
+                            error: e
+                          });
+                        }
+                        
                         setImageLoading(prev => ({ ...prev, left: false }));
-                        setImageError(prev => ({ ...prev, left: null }));
+                        setImageError(prev => ({ ...prev, left: `Failed to load page ${currentSpread.leftPage!.pageNumber}` }));
                       }}
                       className={`transition-opacity duration-200 ${
                         imageLoading.left ? 'opacity-0' : 'opacity-100'
@@ -1004,53 +1461,112 @@ export function PostPdfStage({
                   ) : (
                     <div className="white-page" />
                   )}
-
-                  {/* Right page / front cover */}
+                  
+                  {/* Right page - can be regular page or front cover */}
                   {currentSpread.coverData && currentSpread.coverData.isFrontCover ? (
-                    <div className="cover-image-container front-cover">
-                      <img
-                        src={currentSpread.coverData.fullImageUrl}
-                        alt="Front Cover"
-                        onLoad={() => {
-                          console.log('[Spreads] ✓ Front cover image loaded successfully');
-                          setImageLoading(prev => ({ ...prev, right: false }));
-                          setImageError(prev => ({ ...prev, right: null }));
-                        }}
-                        onError={(e) => {
-                          console.error('[Spreads] ✗ Front cover image failed to load:', e);
-                          setImageLoading(prev => ({ ...prev, right: false }));
-                          setImageError(prev => ({ ...prev, right: 'Failed to load front cover' }));
-                        }}
-                        className={`transition-opacity duration-200 ${
-                          imageLoading.right ? 'opacity-0' : 'opacity-100'
-                        }`}
-                        style={{
-                          display: imageError.right ? 'none' : 'block'
-                        }}
-                      />
-                    </div>
-                  ) : currentSpread.rightPage && previewImagesAvailable ? (
+                    // Front cover: show right half of cover image
+                    currentSpread.coverData.fullImageUrl ? (
+                      <div className="cover-image-container front-cover">
+                        <img
+                          key={`front-cover-${orderId}-${currentSpreadIndex}-${currentSpread.coverData.fullImageUrl.startsWith('data:') ? 'data' : 'url'}-${currentSpread.coverData.fullImageUrl.length}`}
+                          src={currentSpread.coverData.fullImageUrl}
+                          alt="Front Cover"
+                          ref={(img) => {
+                            // Check if image is already loaded (cached) when element is created
+                            // Use setTimeout to defer state update to avoid React error #185
+                            // Also check if we've already handled this to prevent multiple calls
+                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0 && !coverImageRefHandledRef.current.front) {
+                              coverImageRefHandledRef.current.front = true;
+                              console.log('[Spreads] ✓ Front cover image already loaded (cached)');
+                              // Defer state update to avoid updating during render
+                              setTimeout(() => {
+                                setImageLoading(prev => ({ ...prev, right: false }));
+                                setImageError(prev => ({ ...prev, right: null }));
+                              }, 0);
+                            } else if (!img) {
+                              // Reset flag when image is unmounted
+                              coverImageRefHandledRef.current.front = false;
+                            }
+                          }}
+                          onLoad={() => {
+                            console.log('[Spreads] ✓ Front cover image loaded successfully');
+                            setImageLoading(prev => ({ ...prev, right: false }));
+                            setImageError(prev => ({ ...prev, right: null }));
+                          }}
+                          onError={(e) => {
+                            console.error('[Spreads] ✗ Front cover image failed to load:', e, {
+                              url: currentSpread.coverData?.fullImageUrl,
+                              isDataUrl: currentSpread.coverData?.fullImageUrl?.startsWith('data:')
+                            });
+                            setImageLoading(prev => ({ ...prev, right: false }));
+                            setImageError(prev => ({ ...prev, right: 'Failed to load front cover' }));
+                          }}
+                          className={`transition-opacity duration-200 ${
+                            imageLoading.right ? 'opacity-0' : 'opacity-100'
+                          }`}
+                          style={{
+                            display: imageError.right ? 'none' : 'block'
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      // Cover URL not available yet - show loading
+                      <div className="white-page flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+                      </div>
+                    )
+                  ) : currentSpread.rightPage ? (
                     <img
+                      key={`right-page-${orderId}-${currentSpread.rightPage.pageNumber}-${currentSpreadIndex}`}
                       src={currentSpread.rightPage.previewImageUrl}
                       alt={`Page ${currentSpread.rightPage.pageNumber}`}
                       onLoad={() => {
-                        console.log(
-                          `[Spreads] ✓ Right image loaded successfully for page ${currentSpread.rightPage!.pageNumber}`
-                        );
+                        console.log(`[Spreads] ✓ Right image loaded successfully for page ${currentSpread.rightPage!.pageNumber}`);
                         setImageLoading(prev => ({ ...prev, right: false }));
                         setImageError(prev => ({ ...prev, right: null }));
                       }}
-                      onError={() => {
+                      onError={async (e) => {
+                        const img = e.currentTarget;
                         const url = currentSpread.rightPage!.previewImageUrl;
-
-                        console.warn(
-                          `[Spreads] ✗ Right image failed to load for page ${currentSpread.rightPage!.pageNumber}:`,
-                          { url }
-                        );
-                        setPreviewImagesAvailable(false);
-                        setPreviewImagesChecked(true);
+                        
+                        // If using fallback URLs, images aren't available yet - don't show error
+                        if (usingFallbackUrls) {
+                          console.log(`[Spreads] Image not available yet for page ${currentSpread.rightPage!.pageNumber} (using fallback URLs)`);
+                          setImageLoading(prev => ({ ...prev, right: false }));
+                          // Don't set error - images just aren't available yet
+                          return;
+                        }
+                        
+                        // If Cloudflare Images URL failed, try to fall back to R2
+                        const pageData = currentSpread.rightPage;
+                        if (url.startsWith('https://imagedelivery.net/') && pageData?.r2Key) {
+                          console.warn(`[Spreads] Cloudflare Images URL failed for page ${currentSpread.rightPage!.pageNumber}, falling back to R2:`, url);
+                          // Update the page data to use R2 URL instead
+                          const r2Url = `/api/assets/${pageData.r2Key}`;
+                          img.src = r2Url;
+                          // Don't set error yet - let R2 URL try to load
+                          return;
+                        }
+                        
+                        // Only show error if we have images from manifest and they fail
+                        try {
+                          const response = await fetch(url, { method: 'HEAD' });
+                          console.error(`[Spreads] ✗ Right image failed to load for page ${currentSpread.rightPage!.pageNumber}:`, {
+                            url,
+                            httpStatus: response.status,
+                            httpStatusText: response.statusText,
+                            error: e
+                          });
+                        } catch (fetchError) {
+                          console.error(`[Spreads] ✗ Right image fetch error for page ${currentSpread.rightPage!.pageNumber}:`, {
+                            url,
+                            fetchError,
+                            error: e
+                          });
+                        }
+                        
                         setImageLoading(prev => ({ ...prev, right: false }));
-                        setImageError(prev => ({ ...prev, right: null }));
+                        setImageError(prev => ({ ...prev, right: `Failed to load page ${currentSpread.rightPage!.pageNumber}` }));
                       }}
                       className={`transition-opacity duration-200 ${
                         imageLoading.right ? 'opacity-0' : 'opacity-100'
@@ -1122,54 +1638,29 @@ export function PostPdfStage({
           <div>
             <h4 className="text-lg font-medium text-gray-900">Final Approval</h4>
             <p className="text-sm text-gray-600 mt-1">
-              {isApproved
+              {isApproved 
                 ? 'This order has been fully approved and is ready for production.'
-                  : requiresPdfWarning
-                  ? 'The compiled PDF must be generated before final approval can be completed.'
-                : !isPreBriaApproved
-                ? 'The Pre-Bria stage must be approved before final PDF review can begin.'
                 : !isPostBriaApproved
                 ? 'The Post-Bria stage must be approved before final PDF review can begin.'
                 : pdfAsset.isFlagged
                 ? 'Please address the flagged issues before final approval.'
-                : 'Review the compiled PDF and approve when ready for production.'}
+                : 'Review the compiled PDF and approve when ready for production.'
+              }
             </p>
-              {devPdfNotice && (
-                <p className="text-xs text-gray-500 mt-2">
-                  PDF not detected; approval is enabled for development testing. Ensure a compiled PDF exists before sending to real customers.
-                </p>
-              )}
           </div>
           
           <div className="flex space-x-3">
             {isApproved ? (
               <button
                 onClick={onInitiateWorkflow}
-                disabled={finalApprovalLoading || previewAlreadySent}
-                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                  finalApprovalLoading
-                    ? 'bg-green-500/70 text-white cursor-wait focus:ring-green-500'
-                    : previewAlreadySent
-                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed focus:ring-gray-400'
-                    : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
-                }`}
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
-                {finalApprovalLoading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : previewAlreadySent ? (
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                ) : (
-                  <Play className="h-4 w-4 mr-2" />
-                )}
-                {previewAlreadySent
-                  ? 'Preview Sent'
-                  : finalApprovalLoading
-                  ? 'Sending Preview...'
-                  : 'Send to Production'}
+                <Play className="h-4 w-4 mr-2" />
+                Send to Production
               </button>
             ) : (
               <button
-                onClick={() => onApprove('approved')}
+                onClick={onApprove}
                 disabled={!canApprove}
                 className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   !canApprove
@@ -1184,136 +1675,6 @@ export function PostPdfStage({
           </div>
         </div>
       </div>
-
-      {(finalApprovalError || finalApprovalResult || order.customerApprovalStatus) && (
-        <div className="mt-4 space-y-4">
-          {finalApprovalError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-start space-x-3">
-              <AlertCircle className="h-5 w-5 mt-0.5" />
-              <div>
-                <p className="font-medium">Failed to send customer preview</p>
-                <p>{finalApprovalError}</p>
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h5 className="text-sm font-semibold text-gray-900 mb-2">Customer Preview Status</h5>
-            <div className="space-y-2 text-sm text-gray-700">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">Status:</span>
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    order.customerApprovalStatus === 'approved'
-                      ? 'bg-green-100 text-green-800'
-                      : order.customerApprovalStatus === 'revision_requested'
-                      ? 'bg-orange-100 text-orange-800'
-                      : order.customerApprovalStatus === 'pending'
-                      ? 'bg-purple-100 text-purple-800'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {order.customerApprovalStatus
-                    ? order.customerApprovalStatus.replace(/_/g, ' ')
-                    : 'not requested'}
-                </span>
-              </div>
-
-              {previewRequestedAt && (
-                <p>
-                  <span className="font-medium">Requested:</span>{' '}
-                  {formatDate(previewRequestedAt)}
-                </p>
-              )}
-              {order.customerApprovalApprovedAt && (
-                <p>
-                  <span className="font-medium">Approved:</span>{' '}
-                  {formatDate(order.customerApprovalApprovedAt)}
-                </p>
-              )}
-              {typeof order.revisionCount === 'number' && (
-                <p>
-                  <span className="font-medium">Revisions Used:</span>{' '}
-                  {order.revisionCount} / 1
-                </p>
-              )}
-            </div>
-
-            {(previewAlreadySent || finalApprovalResult || finalApprovalLoading) && (
-              <div className="mt-4 space-y-3 rounded-md bg-gray-50 p-3 text-sm text-gray-800 border border-gray-200">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="font-medium text-gray-900">Preview Link</p>
-                    <p className="text-xs text-gray-600">
-                      {previewAlreadySent
-                        ? 'Preview generated and awaiting customer response.'
-                        : 'Share this URL with the customer if Amazon messaging is unavailable.'}
-                    </p>
-                  </div>
-                  {previewUrl && (
-                    <button
-                      onClick={() => {
-                        if (!previewUrl) return;
-                        navigator.clipboard.writeText(previewUrl);
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2500);
-                      }}
-                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      <Clipboard className="h-3.5 w-3.5 mr-1" />
-                      {copied ? 'Copied!' : 'Copy'}
-                    </button>
-                  )}
-                </div>
-
-                <div className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 break-all">
-                  {previewUrl ||
-                    (finalApprovalLoading
-                      ? 'Generating preview link...'
-                      : 'Preview link not yet created.')}
-                </div>
-
-                {previewExpiresAt && (
-                  <p className="text-xs text-gray-500">
-                    Expires {formatDate(previewExpiresAt)}
-                  </p>
-                )}
-
-                {previewToken && (
-                  <p className="text-xs text-gray-500 break-all">
-                    Token: <code>{previewToken}</code>
-                  </p>
-                )}
-
-                {previewAlreadySent &&
-                  order.customerApprovalStatus === 'pending' && (
-                    <p className="text-xs text-gray-500">
-                      Use the copy button above if you need to resend manually.
-                    </p>
-                  )}
-
-                {finalApprovalResult?.tokenCreated === false && (
-                  <p className="text-xs text-gray-500">
-                    Existing preview token reused for this customer.
-                  </p>
-                )}
-
-                {finalApprovalResult?.notification && (
-                  <div className="space-y-1 text-xs">
-                    <p className="font-medium text-gray-900">Amazon Message Center</p>
-                    <p className="text-gray-700">
-                      {finalApprovalResult.notification.sent
-                        ? 'Preview link sent via Amazon Message Center.'
-                        : finalApprovalResult.notification.reason ||
-                          'Amazon messaging not sent (see logs for details).'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
     </>
   );
