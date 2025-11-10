@@ -505,24 +505,28 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   };
                   
                   // Priority 1: Use Cloudflare Images if available and valid (fastest, WebP, CDN)
+                  // IMPORTANT: Frontend should always use Cloudflare Images WebP for display (not R2 PNG)
                   let imageUrl: string;
                   if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
                     imageUrl = cloudflareImageUrl;
-                    console.log(`[Pages] Page ${img.pageNumber}: Using Cloudflare Images`);
+                    console.log(`[Pages] Page ${img.pageNumber}: ✅ Using Cloudflare Images WebP URL:`, cloudflareImageUrl.substring(0, 80) + '...');
                   }
                   // Priority 2: Use imageUrl if already constructed (from pngGeneration.pages fallback)
-                  else if (img.imageUrl && img.imageUrl.startsWith('/api/assets/')) {
+                  // Only use this if it's NOT a Cloudflare Images URL (shouldn't happen, but safety check)
+                  else if (img.imageUrl && img.imageUrl.startsWith('/api/assets/') && !img.imageUrl.includes('imagedelivery.net')) {
                     imageUrl = img.imageUrl;
-                    console.log(`[Pages] Page ${img.pageNumber}: Using pre-constructed imageUrl from manifest`);
+                    console.warn(`[Pages] Page ${img.pageNumber}: ⚠️ Using R2 URL (Cloudflare Images not available):`, img.imageUrl);
                   }
-                  // Priority 3: Use R2 proxy URL (fallback)
+                  // Priority 3: Use R2 proxy URL (fallback - only if Cloudflare Images not available)
                   else if (img.r2Key) {
                     // Use relative URL so it works with any deployment (production or preview)
                     imageUrl = `/api/assets/${img.r2Key}`;
                     if (cloudflareImageUrl && !isValidCloudflareUrl(cloudflareImageUrl)) {
-                      console.warn(`[Pages] Page ${img.pageNumber}: Invalid Cloudflare Images URL, using R2 fallback:`, cloudflareImageUrl);
+                      console.warn(`[Pages] Page ${img.pageNumber}: ⚠️ Invalid Cloudflare Images URL, using R2 fallback:`, cloudflareImageUrl);
+                    } else if (!cloudflareImageUrl) {
+                      console.warn(`[Pages] Page ${img.pageNumber}: ⚠️ No Cloudflare Images URL found, using R2 fallback:`, imageUrl);
                     } else {
-                      console.log(`[Pages] Page ${img.pageNumber}: Using R2 fallback`);
+                      console.warn(`[Pages] Page ${img.pageNumber}: ⚠️ Using R2 fallback (unexpected)`);
                     }
                   }
                   // Priority 4: Try to extract r2Key from imageUrl if it's an absolute URL
@@ -541,11 +545,16 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     }
                   }
                   
-                  console.log(`[Pages] Page ${img.pageNumber}:`, {
+                  // Log final URL type for debugging
+                  const isCloudflareUrl = imageUrl.startsWith('https://imagedelivery.net/');
+                  const isR2Url = imageUrl.startsWith('/api/assets/');
+                  console.log(`[Pages] Page ${img.pageNumber}: Final URL type:`, {
+                    type: isCloudflareUrl ? 'Cloudflare Images (WebP)' : isR2Url ? 'R2 (PNG)' : 'Unknown',
                     hasCloudflareUrl: !!cloudflareImageUrl,
                     hasR2Key: !!img.r2Key,
                     hasImageUrl: !!img.imageUrl,
-                    finalUrl: imageUrl.substring(0, 80) + '...'
+                    finalUrl: imageUrl.substring(0, 80) + '...',
+                    isUsingCloudflare: isCloudflareUrl
                   });
                   
                   // Ensure r2Key is always set (for download/replace operations)
