@@ -121,15 +121,37 @@ export function ImageLightbox({
     }
   };
 
+  // Track previous pendingRevisionUrl to detect when it changes
+  const prevPendingRevisionUrlRef = useRef<string | undefined>(undefined);
+
   // Update newOptionUrl when pendingRevisionUrl changes
-  // Don't auto-show - let user choose when to view the new option
+  // When a new revision arrives, update the URL and reset the view state
   useEffect(() => {
-    if (pendingRevisionUrl) {
-      setNewOptionUrl(pendingRevisionUrl);
-      // Don't auto-show - user should click the badge or button to view
-      // setShowNewOption(true);
-    } else {
-      setNewOptionUrl(null);
+    const prevUrl = prevPendingRevisionUrlRef.current;
+    const currentUrl = pendingRevisionUrl;
+
+    // Only update if the URL actually changed (new revision arrived)
+    if (currentUrl !== prevUrl) {
+      console.log('[ImageLightbox] Pending revision URL changed:', { prevUrl, currentUrl });
+      prevPendingRevisionUrlRef.current = currentUrl;
+
+      if (currentUrl) {
+        // Always update to the latest revision URL
+        setNewOptionUrl(currentUrl);
+        // Reset to original view when a new revision arrives
+        // This ensures the latest revision is visible when they click "New Option Available"
+        // User can then click "New Option Available" to see the new revision
+        setShowNewOption(false);
+        // Update temporaryR2Key from the URL for revise operations
+        const r2Key = currentUrl.replace('/api/assets/', '');
+        setTemporaryR2Key(r2Key);
+        console.log('[ImageLightbox] Updated newOptionUrl to latest revision, reset view to original');
+      } else {
+        setNewOptionUrl(null);
+        setTemporaryR2Key(null);
+        // If no pending revision, reset to original view
+        setShowNewOption(false);
+      }
     }
   }, [pendingRevisionUrl]);
 
