@@ -83,6 +83,10 @@ export async function POST(
       );
     }
 
+    // Format pose number for use throughout the function
+    const poseNN = String(poseNumber).padStart(2, '0');
+    const poseKey = `pose${poseNN}`;
+
     // Load manifest (2a-manifest.json)
     const manifestKey = buildManifestKey(orderId, '2a');
     console.log(`[Regenerate Pose API] Loading manifest: ${manifestKey}`);
@@ -129,8 +133,6 @@ export async function POST(
     }).length;
 
     // Count revisions for this pose in the last hour (from pending - exclude current pose if it exists)
-    const poseNN = String(poseNumber).padStart(2, '0');
-    const poseKey = `pose${poseNN}`;
     const currentPendingRevision = manifest.revisions.pending[poseKey];
     const poseRevisionsFromPending = currentPendingRevision && isWithinLastHour(currentPendingRevision) ? 1 : 0;
 
@@ -200,7 +202,6 @@ export async function POST(
     }
 
     // Get pose reference key (static template)
-    const poseNN = String(poseNumber).padStart(2, '0');
     const poseRefKey = `book-mvp-simple-adventure/characters/poses/pose${poseNN}.png`;
 
     // Get base character key
@@ -492,7 +493,6 @@ export async function POST(
     console.log(`[Regenerate Pose API] Extracted image from Gemini response: ${imageBuffer.length} bytes`);
 
     // Store temporarily in R2
-    const poseNN = String(poseNumber).padStart(2, '0');
     const temporaryR2Key = `book-mvp-simple-adventure/orders/${orderId}/revisions/pending/pose${poseNN}-option.png`;
     
     console.log(`[Regenerate Pose API] Storing temporary image at: ${temporaryR2Key}`);
@@ -567,7 +567,6 @@ export async function POST(
       manifest.revisions.pending = {};
     }
 
-    const poseKey = `pose${poseNN}`;
     const requestedAt = new Date().toISOString();
     const completedAt = new Date().toISOString();
     manifest.revisions.pending[poseKey] = {
