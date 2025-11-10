@@ -245,17 +245,13 @@ export async function POST(
     }
 
     // Check for Gemini API key
-    // Try multiple possible environment variable names
-    const geminiApiKey = process.env.GOOGLE_GEMINI_API_KEY || 
-                         process.env.GEMINI_API_KEY ||
-                         process.env['GOOGLE_GEMINI_API_KEY'];
+    const geminiApiKey = process.env.GOOGLE_GEMINI_API_KEY;
     
     console.log('[Regenerate Pose API] Checking for Gemini API key:', {
       hasKey: !!geminiApiKey,
       keyLength: geminiApiKey?.length || 0,
       keyPrefix: geminiApiKey?.substring(0, 10) || 'N/A',
       allEnvKeys: Object.keys(process.env).filter(k => k.includes('GEMINI') || k.includes('GOOGLE')).join(', '),
-      sampleEnvKeys: Object.keys(process.env).slice(0, 20).join(', '), // First 20 env keys for debugging
     });
     
     if (!geminiApiKey) {
