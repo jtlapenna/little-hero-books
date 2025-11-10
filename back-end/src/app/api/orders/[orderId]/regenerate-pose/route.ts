@@ -183,13 +183,25 @@ export async function POST(
       );
     }
 
-    // Find the entry for this pose
-    const entry = manifest.entries.find((e: any) => e.poseNumber === poseNumber);
+    // Find the entry for this pose, or create it if missing (for missing/exhausted poses)
+    let entry = manifest.entries.find((e: any) => e.poseNumber === poseNumber);
+    const isMissingPose = !entry || !entry.approvedKey;
+    
     if (!entry) {
-      return NextResponse.json(
-        { error: `Pose ${poseNumber} not found in manifest entries` },
-        { status: 404 }
-      );
+      console.log(`[Regenerate Pose API] Entry not found for pose ${poseNumber}, creating new entry for missing pose`);
+      // Create a new entry for missing poses
+      entry = {
+        poseNumber: poseNumber,
+        attempts: 0,
+        status: 'pending',
+        approved: false,
+        needsReview: false,
+        reviewReason: null,
+      };
+      // Add it to the manifest entries
+      manifest.entries.push(entry);
+      // Sort entries by poseNumber to maintain order
+      manifest.entries.sort((a: any, b: any) => a.poseNumber - b.poseNumber);
     }
 
     // Extract character hash and pose reference key
