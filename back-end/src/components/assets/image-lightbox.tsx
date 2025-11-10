@@ -189,7 +189,7 @@ export function ImageLightbox({
       prevPendingRevisionUrlRef.current = currentUrl;
       console.log('[ImageLightbox] Pending revision URL unchanged, ref synced');
     }
-  }, [pendingRevisionUrl, isOpen, showNewOption, newOptionUrl]);
+  }, [pendingRevisionUrl, isOpen]);
 
   // Determine if this is a first revision (no previous option exists)
   const isFirstRevision = !pendingRevisionUrl;
