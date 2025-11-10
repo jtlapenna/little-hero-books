@@ -399,7 +399,7 @@ export function ImageLightbox({
       onClick={handleBackdropClick}
     >
       <div 
-        className="relative max-w-5xl max-h-[90vh] w-full mx-4 flex flex-col bg-white rounded-lg overflow-hidden"
+        className="relative max-w-6xl max-h-[90vh] w-full mx-4 flex flex-col bg-white rounded-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - fixed */}
@@ -788,7 +788,7 @@ export function ImageLightbox({
         {/* Actions - fixed */}
         <div className="bg-white px-6 py-4 rounded-b-lg border-t border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 flex-wrap">
+            <div className="flex items-center space-x-3 flex-nowrap">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
