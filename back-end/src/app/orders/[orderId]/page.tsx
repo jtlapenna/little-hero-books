@@ -100,9 +100,11 @@ export default function OrderDetailPage() {
   const [finalApprovalLoading, setFinalApprovalLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [manualPrintLoading, setManualPrintLoading] = useState(false);
+  const rawResetToggle = process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET;
   const enableResetButton =
-    process.env.NODE_ENV !== 'production' ||
-    (process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET || 'false') === 'true';
+    rawResetToggle === undefined
+      ? true
+      : !['false', '0', 'off'].includes(String(rawResetToggle).toLowerCase());
 
   // Fetch order data from API
   const fetchOrder = async (orderId: string) => {
