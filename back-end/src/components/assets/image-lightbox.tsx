@@ -196,18 +196,22 @@ export function ImageLightbox({
         
         // Update temporaryR2Key from the URL for revise operations
         // Handle both /api/assets/ and Cloudflare Images URLs
-        // For Cloudflare Images URLs, we need to get the R2 key from the parent component
-        // The parent should pass it via the pendingRevision data
+        // The URL now includes r2Key as a query parameter for cache-busting
         let r2Key: string | null = null;
-        if (currentUrl.includes('/api/assets/')) {
-          r2Key = currentUrl.replace('/api/assets/', '');
+        
+        // First, try to extract R2 key from query parameter (added by parent for cache-busting)
+        const urlObj = new URL(currentUrl, window.location.origin);
+        const r2KeyParam = urlObj.searchParams.get('r2Key');
+        if (r2KeyParam) {
+          r2Key = decodeURIComponent(r2KeyParam);
+          console.log('[ImageLightbox] Extracted R2 key from query parameter:', r2Key);
+        } else if (currentUrl.includes('/api/assets/')) {
+          // Fallback: extract from path if no query parameter
+          r2Key = currentUrl.replace('/api/assets/', '').split('?')[0]; // Remove query params
         } else if (currentUrl.includes('imagedelivery.net')) {
-          // For Cloudflare Images URLs, we can't extract the R2 key from the URL
-          // The parent component should provide it via the pendingRevision data
-          // For now, we'll leave it null and rely on the parent to provide it
-          console.warn('[ImageLightbox] Cloudflare Images URL detected, R2 key extraction not possible from URL');
-          // We'll need to get the R2 key from the parent component's pendingRevisions state
-          // This is handled by the parent component passing the correct temporaryR2Key
+          // For Cloudflare Images URLs, we can't extract the R2 key from the URL path
+          // But the parent should have added it as a query parameter
+          console.warn('[ImageLightbox] Cloudflare Images URL detected, R2 key not found in query parameter');
         }
         setTemporaryR2Key(r2Key);
         console.log('[ImageLightbox] Updated newOptionUrl to latest revision', {
@@ -740,7 +744,7 @@ export function ImageLightbox({
                       <>
                         <img
                           key={`${newOptionUrl}-${imageCacheBusterRef.current}`} // Force re-render when URL or cache-buster changes
-                          src={`${newOptionUrl}${newOptionUrl.includes('?') ? '&' : '?'}t=${imageCacheBusterRef.current}`} // Cache-busting with stable timestamp
+                          src={newOptionUrl} // URL already includes cache-busting parameters from parent
                           alt="New Option"
                           className="max-w-full max-h-full object-contain"
                           onError={(e) => {

@@ -221,6 +221,16 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
           });
         }
         
+        // Add cache-busting parameter to pendingRevisionUrl to ensure React detects changes
+        // This is critical when a second revision overwrites the first with the same preview URL
+        let pendingRevisionUrlWithCacheBust: string | undefined = undefined;
+        if (pendingRevision?.previewUrl) {
+          // Add R2 key as cache-buster to ensure uniqueness even if preview URL is the same
+          // This ensures React detects when a new revision arrives with a different R2 key
+          const separator = pendingRevision.previewUrl.includes('?') ? '&' : '?';
+          pendingRevisionUrlWithCacheBust = `${pendingRevision.previewUrl}${separator}r2Key=${encodeURIComponent(pendingRevision.r2Key)}&t=${Date.now()}`;
+        }
+        
         return {
           id: poseId,
           name: `Pose ${poseNumber}${isMissing ? ' (Missing)' : ''}`,
@@ -236,8 +246,8 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
           comparisonImageUrl: referencePoseUrl,
           comparisonLabel: 'Reference Pose',
           poseNumber: poseNumber,
-          // Revision data
-          pendingRevisionUrl: pendingRevision?.previewUrl,
+          // Revision data - use cache-busted URL to ensure React detects changes
+          pendingRevisionUrl: pendingRevisionUrlWithCacheBust,
           onRevisionBadgeClick: pendingRevision ? () => {
             // Open modal with revision shown in reference area
             // Find the pose asset and open it in the modal
