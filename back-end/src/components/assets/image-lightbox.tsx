@@ -150,6 +150,8 @@ export function ImageLightbox({
       urlsMatch: currentUrl === prevUrl,
       prevUrlType: typeof prevUrl,
       currentUrlType: typeof currentUrl,
+      prevUrlLength: prevUrl?.length,
+      currentUrlLength: currentUrl?.length,
     });
 
     // Always update the ref to the current value (for next comparison)
@@ -165,6 +167,8 @@ export function ImageLightbox({
         wasShowingNewOption: showNewOption,
         previousNewOptionUrl: newOptionUrl,
         urlChanged: true,
+        prevUrlString: String(prevUrl),
+        currentUrlString: String(currentUrl),
       });
       prevPendingRevisionUrlRef.current = currentUrl;
 
@@ -192,14 +196,18 @@ export function ImageLightbox({
         
         // Update temporaryR2Key from the URL for revise operations
         // Handle both /api/assets/ and Cloudflare Images URLs
+        // For Cloudflare Images URLs, we need to get the R2 key from the parent component
+        // The parent should pass it via the pendingRevision data
         let r2Key: string | null = null;
         if (currentUrl.includes('/api/assets/')) {
           r2Key = currentUrl.replace('/api/assets/', '');
         } else if (currentUrl.includes('imagedelivery.net')) {
-          // For Cloudflare Images URLs, we need to get the R2 key from the manifest
-          // For now, we'll extract what we can or leave it null
-          // The parent component should provide the R2 key separately if needed
-          console.warn('[ImageLightbox] Cloudflare Images URL detected, R2 key extraction not implemented');
+          // For Cloudflare Images URLs, we can't extract the R2 key from the URL
+          // The parent component should provide it via the pendingRevision data
+          // For now, we'll leave it null and rely on the parent to provide it
+          console.warn('[ImageLightbox] Cloudflare Images URL detected, R2 key extraction not possible from URL');
+          // We'll need to get the R2 key from the parent component's pendingRevisions state
+          // This is handled by the parent component passing the correct temporaryR2Key
         }
         setTemporaryR2Key(r2Key);
         console.log('[ImageLightbox] Updated newOptionUrl to latest revision', {
@@ -230,7 +238,7 @@ export function ImageLightbox({
         newOptionUrl,
       });
     }
-  }, [pendingRevisionUrl, isOpen, showNewOption, newOptionUrl]);
+  }, [pendingRevisionUrl]); // Removed other dependencies to ensure this runs whenever pendingRevisionUrl changes
 
   // Determine if this is a first revision (no previous option exists)
   const isFirstRevision = !pendingRevisionUrl;
@@ -782,7 +790,9 @@ export function ImageLightbox({
                                   setTemporaryR2Key(r2Key);
                                 }
                                 setShowRegenerateUI(true);
-                                setShowNewOption(false); // Switch back to original view while showing regenerate UI
+                                // Keep showing the new option (don't switch back to original)
+                                // This ensures the user can see the current revision while entering a new prompt
+                                setShowNewOption(true);
                               }}
                               className="px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-300 rounded-md hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                             >
