@@ -212,6 +212,15 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         const revisionKey = `pose${paddedPoseNumber}`;
         const pendingRevision = pendingRevisions[revisionKey];
         
+        // Log when pending revision is found
+        if (pendingRevision) {
+          console.log('[PreBriaStage] Found pending revision for pose', poseNumber, {
+            revisionKey,
+            r2Key: pendingRevision.r2Key,
+            previewUrl: pendingRevision.previewUrl,
+          });
+        }
+        
         return {
           id: poseId,
           name: `Pose ${poseNumber}${isMissing ? ' (Missing)' : ''}`,
