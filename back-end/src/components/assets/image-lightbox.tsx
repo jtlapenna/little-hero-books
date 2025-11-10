@@ -426,92 +426,128 @@ export function ImageLightbox({
                 />
               </div>
 
-              {/* Image Selection */}
+              {/* Image Selection and Buttons - Same Row */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Include Images in Revision
                 </label>
-                <div className="flex flex-wrap gap-4">
-                  {/* Base Character */}
-                  {baseCharacterUrl && (
-                    <label 
-                      className="flex items-center space-x-3 cursor-pointer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={includeBaseCharacter}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setIncludeBaseCharacter(e.target.checked);
-                        }}
-                        disabled={isGenerating}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <div className="flex items-center space-x-2">
-                        <img
-                          src={baseCharacterUrl}
-                          alt="Base Character"
-                          className="w-12 h-12 object-cover rounded border border-gray-300"
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Image Selection Thumbnails */}
+                  <div className="flex flex-wrap gap-4">
+                    {/* Base Character */}
+                    {baseCharacterUrl && (
+                      <label 
+                        className="flex items-center space-x-3 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={includeBaseCharacter}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setIncludeBaseCharacter(e.target.checked);
+                          }}
+                          disabled={isGenerating}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
-                        <span className="text-sm text-gray-700">Base Character</span>
-                      </div>
-                    </label>
-                  )}
+                        <div className="flex items-center space-x-2">
+                          <img
+                            src={baseCharacterUrl}
+                            alt="Base Character"
+                            className="w-12 h-12 object-cover rounded border border-gray-300"
+                          />
+                          <span className="text-sm text-gray-700">Base Character</span>
+                        </div>
+                      </label>
+                    )}
 
-                  {/* Pose Reference */}
-                  {comparisonImageUrl && (
-                    <label 
-                      className="flex items-center space-x-3 cursor-pointer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={includePoseReference}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setIncludePoseReference(e.target.checked);
-                        }}
-                        disabled={isGenerating}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <div className="flex items-center space-x-2">
-                        <img
-                          src={comparisonImageUrl}
-                          alt="Pose Reference"
-                          className="w-12 h-12 object-cover rounded border border-gray-300"
+                    {/* Pose Reference */}
+                    {comparisonImageUrl && (
+                      <label 
+                        className="flex items-center space-x-3 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={includePoseReference}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setIncludePoseReference(e.target.checked);
+                          }}
+                          disabled={isGenerating}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
-                        <span className="text-sm text-gray-700">Pose Reference</span>
-                      </div>
-                    </label>
-                  )}
+                        <div className="flex items-center space-x-2">
+                          <img
+                            src={comparisonImageUrl}
+                            alt="Pose Reference"
+                            className="w-12 h-12 object-cover rounded border border-gray-300"
+                          />
+                          <span className="text-sm text-gray-700">Pose Reference</span>
+                        </div>
+                      </label>
+                    )}
 
-                  {/* Previous Option */}
-                  {pendingRevisionUrl && (
-                    <label 
-                      className="flex items-center space-x-3 cursor-pointer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={includePreviousOption}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setIncludePreviousOption(e.target.checked);
-                        }}
-                        disabled={isGenerating}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <div className="flex items-center space-x-2">
-                        <img
-                          src={pendingRevisionUrl}
-                          alt="Previous Option"
-                          className="w-12 h-12 object-cover rounded border border-gray-300"
+                    {/* Previous Option */}
+                    {pendingRevisionUrl && (
+                      <label 
+                        className="flex items-center space-x-3 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={includePreviousOption}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setIncludePreviousOption(e.target.checked);
+                          }}
+                          disabled={isGenerating}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
-                        <span className="text-sm text-gray-700">Previous Option</span>
-                      </div>
-                    </label>
-                  )}
+                        <div className="flex items-center space-x-2">
+                          <img
+                            src={pendingRevisionUrl}
+                            alt="Previous Option"
+                            className="w-12 h-12 object-cover rounded border border-gray-300"
+                          />
+                          <span className="text-sm text-gray-700">Previous Option</span>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Cancel and Generate Buttons */}
+                  <div className="flex items-center space-x-3 ml-auto">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowRegenerateUI(false);
+                        setRevisionPrompt('');
+                        setGenerationError(null);
+                      }}
+                      disabled={isGenerating}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRegenerate();
+                      }}
+                      disabled={isGenerating || !revisionPrompt.trim() || (!includeBaseCharacter && !includePoseReference && !includePreviousOption)}
+                      className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                          Generating...
+                        </>
+                      ) : (
+                        'Generate'
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -521,39 +557,6 @@ export function ImageLightbox({
                   <p className="text-sm text-red-800">{generationError}</p>
                 </div>
               )}
-
-              {/* Generate Button */}
-              <div className="flex items-center justify-end space-x-3">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowRegenerateUI(false);
-                    setRevisionPrompt('');
-                    setGenerationError(null);
-                  }}
-                  disabled={isGenerating}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRegenerate();
-                  }}
-                  disabled={isGenerating || !revisionPrompt.trim() || (!includeBaseCharacter && !includePoseReference && !includePreviousOption)}
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isGenerating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
-                      Generating...
-                    </>
-                  ) : (
-                    'Generate'
-                  )}
-                </button>
-              </div>
             </div>
           )}
 
