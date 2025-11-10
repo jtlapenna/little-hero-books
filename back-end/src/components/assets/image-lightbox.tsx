@@ -122,10 +122,14 @@ export function ImageLightbox({
   };
 
   // Update newOptionUrl when pendingRevisionUrl changes
+  // Don't auto-show - let user choose when to view the new option
   useEffect(() => {
     if (pendingRevisionUrl) {
       setNewOptionUrl(pendingRevisionUrl);
-      setShowNewOption(true); // Auto-show new option when it becomes available
+      // Don't auto-show - user should click the badge or button to view
+      // setShowNewOption(true);
+    } else {
+      setNewOptionUrl(null);
     }
   }, [pendingRevisionUrl]);
 

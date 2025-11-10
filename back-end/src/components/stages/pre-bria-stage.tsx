@@ -31,10 +31,30 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   
   // Track poses that the user has manually unflagged (persist across re-renders)
   const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
+  // Track active polling intervals for cleanup
+  const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const pollingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   
   // Reset manually unflagged set when order changes
   useEffect(() => {
     manuallyUnflaggedRef.current.clear();
+  }, [orderId]);
+
+  // Cleanup polling intervals on unmount or order change
+  useEffect(() => {
+    return () => {
+      // Clear all polling intervals
+      pollingIntervalsRef.current.forEach((interval) => {
+        clearInterval(interval);
+      });
+      pollingIntervalsRef.current.clear();
+      
+      // Clear all polling timeouts
+      pollingTimeoutsRef.current.forEach((timeout) => {
+        clearTimeout(timeout);
+      });
+      pollingTimeoutsRef.current.clear();
+    };
   }, [orderId]);
 
   // Load pending revisions from manifest
@@ -78,6 +98,15 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
     if (orderId) {
       loadPendingRevisions();
+      
+      // Periodically refresh pending revisions (every 10 seconds) to detect new completions
+      const refreshInterval = setInterval(() => {
+        loadPendingRevisions();
+      }, 10000);
+      
+      return () => {
+        clearInterval(refreshInterval);
+      };
     }
   }, [orderId]);
 
@@ -507,6 +536,21 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       if (result.jobId && (result.status === 'pending' || result.status === 'processing')) {
         console.log('[PreBriaStage] Starting polling for jobId:', result.jobId);
         
+        const poseNN = String(data.poseNumber).padStart(2, '0');
+        const revisionKey = `pose${poseNN}`;
+        
+        // Clean up any existing polling for this pose
+        const existingInterval = pollingIntervalsRef.current.get(revisionKey);
+        if (existingInterval) {
+          clearInterval(existingInterval);
+          pollingIntervalsRef.current.delete(revisionKey);
+        }
+        const existingTimeout = pollingTimeoutsRef.current.get(revisionKey);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+          pollingTimeoutsRef.current.delete(revisionKey);
+        }
+        
         // Poll every 2-3 seconds (using 2500ms for 2.5 seconds)
         const pollInterval = setInterval(async () => {
           try {
@@ -514,6 +558,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             if (!statusResponse.ok) {
               console.error('[PreBriaStage] Polling error:', statusResponse.status);
               clearInterval(pollInterval);
+              pollingIntervalsRef.current.delete(revisionKey);
               return;
             }
 
@@ -522,10 +567,16 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
             if (statusResult.status === 'completed') {
               clearInterval(pollInterval);
+              pollingIntervalsRef.current.delete(revisionKey);
+              
+              // Clear timeout if it exists
+              const timeout = pollingTimeoutsRef.current.get(revisionKey);
+              if (timeout) {
+                clearTimeout(timeout);
+                pollingTimeoutsRef.current.delete(revisionKey);
+              }
               
               // Update pending revisions state
-              const poseNN = String(data.poseNumber).padStart(2, '0');
-              const revisionKey = `pose${poseNN}`;
               setPendingRevisions(prev => ({
                 ...prev,
                 [revisionKey]: {
@@ -540,21 +591,48 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
               }
             } else if (statusResult.status === 'failed') {
               clearInterval(pollInterval);
-              throw new Error(statusResult.error || 'Regeneration failed');
+              pollingIntervalsRef.current.delete(revisionKey);
+              
+              // Clear timeout if it exists
+              const timeout = pollingTimeoutsRef.current.get(revisionKey);
+              if (timeout) {
+                clearTimeout(timeout);
+                pollingTimeoutsRef.current.delete(revisionKey);
+              }
+              
+              // Don't throw - just log the error (user can see it in the UI if needed)
+              console.error('[PreBriaStage] Regeneration failed:', statusResult.error);
             }
             // Continue polling if status is 'pending' or 'processing'
           } catch (error: any) {
             console.error('[PreBriaStage] Polling error:', error);
             clearInterval(pollInterval);
-            throw error;
+            pollingIntervalsRef.current.delete(revisionKey);
+            
+            // Clear timeout if it exists
+            const timeout = pollingTimeoutsRef.current.get(revisionKey);
+            if (timeout) {
+              clearTimeout(timeout);
+              pollingTimeoutsRef.current.delete(revisionKey);
+            }
+            
+            // Don't throw - polling errors shouldn't break the UI
+            // The error is logged, and the user can retry if needed
           }
         }, 2500); // Poll every 2.5 seconds
 
+        // Store interval for cleanup
+        pollingIntervalsRef.current.set(revisionKey, pollInterval);
+
         // Stop polling after 5 minutes (safety timeout)
-        setTimeout(() => {
+        const timeout = setTimeout(() => {
           clearInterval(pollInterval);
-          console.warn('[PreBriaStage] Polling timeout after 5 minutes');
+          pollingIntervalsRef.current.delete(revisionKey);
+          pollingTimeoutsRef.current.delete(revisionKey);
+          console.warn('[PreBriaStage] Polling timeout after 5 minutes for pose', data.poseNumber);
         }, 5 * 60 * 1000);
+        
+        pollingTimeoutsRef.current.set(revisionKey, timeout);
       } else {
         // No jobId or unexpected status - refresh anyway
         if (onRefresh) {
