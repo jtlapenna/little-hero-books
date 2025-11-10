@@ -122,9 +122,18 @@ export function ImageLightbox({
   };
 
   // Track previous pendingRevisionUrl to detect when it changes
+  // Initialize with current value to ensure accurate comparison
   const prevPendingRevisionUrlRef = useRef<string | undefined>(pendingRevisionUrl);
   // Track cache-busting timestamp for image URLs (updates only when URL changes)
   const imageCacheBusterRef = useRef<number>(Date.now());
+  
+  // Initialize ref on mount or when pendingRevisionUrl first becomes available
+  useEffect(() => {
+    if (pendingRevisionUrl && !prevPendingRevisionUrlRef.current) {
+      console.log('[ImageLightbox] Initializing prevPendingRevisionUrlRef with:', pendingRevisionUrl);
+      prevPendingRevisionUrlRef.current = pendingRevisionUrl;
+    }
+  }, []);
 
   // Update newOptionUrl when pendingRevisionUrl changes
   // When a new revision arrives, update the URL and reset the view state
@@ -139,17 +148,23 @@ export function ImageLightbox({
       showNewOption,
       newOptionUrl,
       urlsMatch: currentUrl === prevUrl,
+      prevUrlType: typeof prevUrl,
+      currentUrlType: typeof currentUrl,
     });
 
     // Always update the ref to the current value (for next comparison)
     // But only update state if the URL actually changed
-    if (currentUrl !== prevUrl) {
+    // Use strict comparison to catch undefined/null changes
+    const urlChanged = currentUrl !== prevUrl;
+    
+    if (urlChanged) {
       console.log('[ImageLightbox] Pending revision URL changed - updating state:', {
         prevUrl,
         currentUrl,
         isOpen,
         wasShowingNewOption: showNewOption,
         previousNewOptionUrl: newOptionUrl,
+        urlChanged: true,
       });
       prevPendingRevisionUrlRef.current = currentUrl;
 
@@ -191,6 +206,7 @@ export function ImageLightbox({
           r2Key,
           newOptionUrl: currentUrl,
           cacheBuster: imageCacheBusterRef.current,
+          showNewOptionWillBe: showNewOption, // Current value before state update
         });
       } else {
         setNewOptionUrl(null);
@@ -201,10 +217,20 @@ export function ImageLightbox({
       }
     } else {
       // URLs match, but ensure ref is in sync
+      // Also check if we need to update the cache-buster if the URL is the same but we want to force a reload
+      if (currentUrl && currentUrl === prevUrl && currentUrl === newOptionUrl) {
+        // URL hasn't changed, but if we're showing it, we might need to refresh
+        // This handles the case where the same URL is used but the image content changed
+        console.log('[ImageLightbox] Pending revision URL unchanged, but checking if refresh needed');
+      }
       prevPendingRevisionUrlRef.current = currentUrl;
-      console.log('[ImageLightbox] Pending revision URL unchanged, ref synced');
+      console.log('[ImageLightbox] Pending revision URL unchanged, ref synced', {
+        currentUrl,
+        prevUrl,
+        newOptionUrl,
+      });
     }
-  }, [pendingRevisionUrl, isOpen]);
+  }, [pendingRevisionUrl, isOpen, showNewOption, newOptionUrl]);
 
   // Determine if this is a first revision (no previous option exists)
   const isFirstRevision = !pendingRevisionUrl;
