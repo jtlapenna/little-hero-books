@@ -587,8 +587,8 @@ export function ImageLightbox({
                       </label>
                     )}
 
-                    {/* Previous Option */}
-                    {pendingRevisionUrl && (
+                    {/* Previous Option - Use newOptionUrl if available (current revision), otherwise use pendingRevisionUrl */}
+                    {(newOptionUrl || pendingRevisionUrl) && (
                       <label 
                         className="flex items-center space-x-3 cursor-pointer"
                         onClick={(e) => e.stopPropagation()}
@@ -605,7 +605,7 @@ export function ImageLightbox({
                         />
                         <div className="flex items-center space-x-2">
                           <img
-                            src={pendingRevisionUrl}
+                            src={newOptionUrl || pendingRevisionUrl || ''}
                             alt="Previous Option"
                             className="w-12 h-12 object-cover rounded border border-gray-300"
                           />
@@ -748,9 +748,23 @@ export function ImageLightbox({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // Extract R2 key from preview URL
-                                const r2Key = newOptionUrl ? newOptionUrl.replace('/api/assets/', '') : null;
-                                setTemporaryR2Key(r2Key);
+                                // Use temporaryR2Key if available (set when revision arrives)
+                                // Fallback to extracting from URL if not set (for R2 URLs only)
+                                let r2Key = temporaryR2Key;
+                                if (!r2Key && newOptionUrl) {
+                                  // Only try to extract from URL if it's an R2 URL (not Cloudflare Images)
+                                  if (newOptionUrl.includes('/api/assets/')) {
+                                    r2Key = newOptionUrl.replace('/api/assets/', '');
+                                  } else {
+                                    // For Cloudflare Images URLs, we need to get R2 key from pending revisions
+                                    // This should already be set in temporaryR2Key, but if not, log a warning
+                                    console.warn('[ImageLightbox] Cannot extract R2 key from Cloudflare Images URL, using temporaryR2Key:', temporaryR2Key);
+                                  }
+                                }
+                                // Ensure temporaryR2Key is set for the revise operation
+                                if (r2Key) {
+                                  setTemporaryR2Key(r2Key);
+                                }
                                 setShowRegenerateUI(true);
                                 setShowNewOption(false); // Switch back to original view while showing regenerate UI
                               }}
