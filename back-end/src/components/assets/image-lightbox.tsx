@@ -393,12 +393,28 @@ export function ImageLightbox({
     setGenerationError(null);
 
     try {
-      // Extract R2 key from newOptionUrl if temporaryR2Key is not set
+      // Use temporaryR2Key if available (set when revision arrives)
+      // This ensures we use the most recent revision's R2 key
       let previousOptionR2Key = temporaryR2Key;
-      if (includePreviousOption && !previousOptionR2Key && newOptionUrl) {
-        // Extract R2 key from preview URL
-        previousOptionR2Key = newOptionUrl.replace('/api/assets/', '');
+      if (includePreviousOption && !previousOptionR2Key) {
+        // Fallback: try to extract from newOptionUrl (for R2 URLs only)
+        if (newOptionUrl && newOptionUrl.includes('/api/assets/')) {
+          previousOptionR2Key = newOptionUrl.replace('/api/assets/', '');
+        } else if (pendingRevisionUrl && pendingRevisionUrl.includes('/api/assets/')) {
+          // Last resort: extract from pendingRevisionUrl
+          previousOptionR2Key = pendingRevisionUrl.replace('/api/assets/', '');
+        } else {
+          // If we can't extract the R2 key, log a warning
+          console.warn('[ImageLightbox] Cannot extract R2 key for previous option, temporaryR2Key:', temporaryR2Key);
+        }
       }
+
+      console.log('[ImageLightbox] handleRevise - previousOptionR2Key:', previousOptionR2Key, {
+        temporaryR2Key,
+        newOptionUrl,
+        pendingRevisionUrl,
+        includePreviousOption,
+      });
 
       await onReviseRevision({
         poseNumber,
