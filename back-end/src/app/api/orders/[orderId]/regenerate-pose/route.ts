@@ -246,7 +246,15 @@ export async function POST(
 
     // Check for Gemini API key
     const geminiApiKey = process.env.GOOGLE_GEMINI_API_KEY;
+    console.log('[Regenerate Pose API] Checking for Gemini API key:', {
+      hasKey: !!geminiApiKey,
+      keyLength: geminiApiKey?.length || 0,
+      keyPrefix: geminiApiKey?.substring(0, 10) || 'N/A',
+      allEnvKeys: Object.keys(process.env).filter(k => k.includes('GEMINI') || k.includes('GOOGLE')).join(', '),
+    });
+    
     if (!geminiApiKey) {
+      console.error('[Regenerate Pose API] Gemini API key not found in process.env');
       return NextResponse.json(
         { error: 'Gemini API key not configured' },
         { status: 500 }
