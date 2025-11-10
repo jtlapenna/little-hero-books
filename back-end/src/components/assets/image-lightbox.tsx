@@ -787,8 +787,8 @@ export function ImageLightbox({
 
         {/* Actions - fixed */}
         <div className="bg-white px-6 py-4 rounded-b-lg border-t border-gray-200 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 flex-nowrap">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center space-x-3 flex-nowrap overflow-x-auto min-w-0">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -909,7 +909,7 @@ export function ImageLightbox({
               )}
             </div>
 
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 flex-shrink-0 whitespace-nowrap">
               Press Esc or click outside to close
             </div>
           </div>
