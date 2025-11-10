@@ -38,6 +38,7 @@ export async function POST(
     console.log('[Replace Image API] FormData keys:', Array.from(formData.keys()));
     
     const poseNumberStr = formData.get('poseNumber')?.toString();
+    const pageNumberStr = formData.get('pageNumber')?.toString();
     const stage = formData.get('stage')?.toString();
     const file = formData.get('file') as File | null;
     const replacedBy = formData.get('replacedBy')?.toString() || null; // Optional
@@ -45,28 +46,54 @@ export async function POST(
 
     console.log('[Replace Image API] Extracted values:', {
       poseNumberStr,
+      pageNumberStr,
       stage,
       file: file ? { name: file.name, size: file.size, type: file.type } : null,
       replacedBy
     });
 
     // Validation
-    if (!poseNumberStr || !stage || !file) {
+    if ((!poseNumberStr && !pageNumberStr) || !stage || !file) {
       console.error('[Replace Image API] Missing required fields:', {
         hasPoseNumber: !!poseNumberStr,
+        hasPageNumber: !!pageNumberStr,
         hasStage: !!stage,
         hasFile: !!file
       });
       return NextResponse.json(
-        { error: 'Missing required fields: poseNumber, stage, or file' },
+        { error: 'Missing required fields: poseNumber or pageNumber, stage, and file' },
         { status: 400 }
       );
     }
 
-    const poseNumber = parseInt(poseNumberStr, 10);
-    if (isNaN(poseNumber) || poseNumber < 0) {
+    // Validate that we have exactly one of poseNumber or pageNumber
+    if (poseNumberStr && pageNumberStr) {
+      return NextResponse.json(
+        { error: 'Cannot specify both poseNumber and pageNumber' },
+        { status: 400 }
+      );
+    }
+
+    if (!poseNumberStr && !pageNumberStr) {
+      return NextResponse.json(
+        { error: 'Must specify either poseNumber or pageNumber' },
+        { status: 400 }
+      );
+    }
+
+    const poseNumber = poseNumberStr ? parseInt(poseNumberStr, 10) : null;
+    const pageNumber = pageNumberStr ? parseInt(pageNumberStr, 10) : null;
+
+    if (poseNumber !== null && (isNaN(poseNumber) || poseNumber < 0)) {
       return NextResponse.json(
         { error: 'Invalid poseNumber' },
+        { status: 400 }
+      );
+    }
+
+    if (pageNumber !== null && (isNaN(pageNumber) || pageNumber < 0)) {
+      return NextResponse.json(
+        { error: 'Invalid pageNumber' },
         { status: 400 }
       );
     }
@@ -79,13 +106,135 @@ export async function POST(
       );
     }
 
-    if (stage !== 'preBria' && stage !== 'postBria') {
+    if (stage !== 'preBria' && stage !== 'postBria' && stage !== 'postPdf') {
       return NextResponse.json(
-        { error: 'Invalid stage. Must be "preBria" or "postBria"' },
+        { error: 'Invalid stage. Must be "preBria", "postBria", or "postPdf"' },
         { status: 400 }
       );
     }
 
+    // Validate stage matches number type
+    if (stage === 'postPdf' && poseNumber !== null) {
+      return NextResponse.json(
+        { error: 'postPdf stage requires pageNumber, not poseNumber' },
+        { status: 400 }
+      );
+    }
+
+    if ((stage === 'preBria' || stage === 'postBria') && pageNumber !== null) {
+      return NextResponse.json(
+        { error: `${stage} stage requires poseNumber, not pageNumber` },
+        { status: 400 }
+      );
+    }
+
+    // Handle postPdf stage (pages) separately from preBria/postBria (poses)
+    if (stage === 'postPdf' && pageNumber !== null) {
+      // Load 3-manifest for pages
+      const manifestKey = buildManifestKey(orderId, '3');
+      console.log(`[Replace Image] Loading 3-manifest: ${manifestKey}`);
+      
+      let manifest: any;
+      try {
+        const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
+        manifest = await readJsonSafe<any>(manifestRes);
+      } catch (error: any) {
+        if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+          return NextResponse.json(
+            { error: 'Manifest not found. Please ensure Workflow 3 has completed.' },
+            { status: 404 }
+          );
+        }
+        console.error('[Replace Image API] Error loading manifest:', error);
+        return NextResponse.json(
+          { error: 'Failed to load manifest' },
+          { status: 500 }
+        );
+      }
+
+      if (!manifest || !manifest.pngGeneration || !manifest.pngGeneration.pages) {
+        return NextResponse.json(
+          { error: 'Invalid manifest structure - missing pngGeneration.pages' },
+          { status: 400 }
+        );
+      }
+
+      // Get page key (e.g., "p01", "p00")
+      const pageKey = `p${String(pageNumber).padStart(2, '0')}`;
+      const pages = manifest.pngGeneration.pages;
+      
+      // Get R2 key for this page
+      let r2Key = pages[pageKey];
+      
+      if (!r2Key || typeof r2Key !== 'string') {
+        // Construct R2 key if not in manifest
+        r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${pageKey}.png`;
+        console.log(`[Replace Image API] Page ${pageNumber} not found in manifest, constructing R2 key: ${r2Key}`);
+        // Add to manifest
+        pages[pageKey] = r2Key;
+      }
+
+      console.log(`[Replace Image API] Page ${pageNumber} (${pageKey}) R2 key: ${r2Key}`);
+
+      // Determine bucket (pages are in orders bucket)
+      const bucket = R2_ORDERS_BUCKET;
+
+      // Upload new file (overwrites existing file at same key)
+      console.log(`[Replace Image API] Uploading new file to ${bucket}/${r2Key}`);
+      const fileBuffer = await file.arrayBuffer();
+      const contentType = file.type || 'image/png';
+      
+      await putObject(bucket, r2Key, fileBuffer, contentType);
+      console.log(`[Replace Image API] putObject completed successfully`);
+
+      // Update pagesMetadata with replacement history
+      if (!manifest.pngGeneration.pagesMetadata) {
+        manifest.pngGeneration.pagesMetadata = {};
+      }
+      
+      const pageMetadata = manifest.pngGeneration.pagesMetadata[pageKey] || {};
+      const replacedAt = new Date().toISOString();
+      const replacementCount = (pageMetadata.replacementCount || 0) + 1;
+      
+      // Update metadata
+      manifest.pngGeneration.pagesMetadata[pageKey] = {
+        ...pageMetadata,
+        replacedAt,
+        replacementCount,
+        replacedBy: replacedBy || null,
+        replacementHistory: [
+          ...(pageMetadata.replacementHistory || []),
+          {
+            replacedAt,
+            replacedBy: replacedBy || null,
+          }
+        ]
+      };
+
+      // Save updated manifest back to R2
+      const updatedManifestJson = JSON.stringify(manifest, null, 2);
+      await putObject(
+        R2_ORDERS_BUCKET,
+        manifestKey,
+        updatedManifestJson,
+        'application/json'
+      );
+
+      console.log(`[Replace Image] Successfully replaced page ${pageNumber} in postPdf stage`);
+
+      return NextResponse.json({
+        success: true,
+        orderId,
+        pageNumber,
+        stage,
+        r2Key,
+        replacedAt,
+        replacementCount,
+        replacedBy: replacedBy || null,
+      });
+    }
+
+    // Handle preBria/postBria stages (poses)
     // Determine which manifest to use
     const manifestType = stage === 'preBria' ? '2a' : '2b';
     const manifestKey = buildManifestKey(orderId, manifestType);

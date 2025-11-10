@@ -32,23 +32,112 @@ export async function POST(
 
     // Parse JSON body
     const body = await request.json();
-    const { poseNumber, stage } = body;
+    const { poseNumber, pageNumber, stage } = body;
 
-    console.log('[Unflag API] Extracted values:', { poseNumber, stage });
+    console.log('[Unflag API] Extracted values:', { poseNumber, pageNumber, stage });
 
     // Validation
-    if (typeof poseNumber !== 'number' || poseNumber < 0) {
+    if ((poseNumber === undefined && pageNumber === undefined) || (poseNumber !== undefined && pageNumber !== undefined)) {
+      return NextResponse.json(
+        { error: 'Must specify exactly one of poseNumber or pageNumber' },
+        { status: 400 }
+      );
+    }
+
+    if (poseNumber !== undefined && (typeof poseNumber !== 'number' || poseNumber < 0)) {
       return NextResponse.json(
         { error: 'Invalid poseNumber' },
         { status: 400 }
       );
     }
 
-    if (stage !== 'preBria' && stage !== 'postBria') {
+    if (pageNumber !== undefined && (typeof pageNumber !== 'number' || pageNumber < 0)) {
       return NextResponse.json(
-        { error: 'Invalid stage. Must be "preBria" or "postBria"' },
+        { error: 'Invalid pageNumber' },
         { status: 400 }
       );
+    }
+
+    if (stage !== 'preBria' && stage !== 'postBria' && stage !== 'postPdf') {
+      return NextResponse.json(
+        { error: 'Invalid stage. Must be "preBria", "postBria", or "postPdf"' },
+        { status: 400 }
+      );
+    }
+
+    // Validate stage matches number type
+    if (stage === 'postPdf' && poseNumber !== undefined) {
+      return NextResponse.json(
+        { error: 'postPdf stage requires pageNumber, not poseNumber' },
+        { status: 400 }
+      );
+    }
+
+    if ((stage === 'preBria' || stage === 'postBria') && pageNumber !== undefined) {
+      return NextResponse.json(
+        { error: `${stage} stage requires poseNumber, not pageNumber` },
+        { status: 400 }
+      );
+    }
+
+    // Handle postPdf stage (pages) separately
+    if (stage === 'postPdf' && pageNumber !== undefined) {
+      const manifestKey = buildManifestKey(orderId, '3');
+      console.log(`[Unflag API] Loading 3-manifest: ${manifestKey}`);
+      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
+      const manifest = await readJsonSafe<any>(manifestRes);
+
+      if (!manifest || !manifest.pngGeneration) {
+        return NextResponse.json(
+          { error: 'Invalid manifest structure - missing pngGeneration' },
+          { status: 400 }
+        );
+      }
+
+      // Get page key (e.g., "p01", "p00")
+      const pageKey = `p${String(pageNumber).padStart(2, '0')}`;
+
+      // Initialize pagesMetadata if it doesn't exist
+      if (!manifest.pngGeneration.pagesMetadata) {
+        manifest.pngGeneration.pagesMetadata = {};
+      }
+
+      const pageMetadata = manifest.pngGeneration.pagesMetadata[pageKey] || {};
+
+      // Update metadata to clear review flags
+      manifest.pngGeneration.pagesMetadata[pageKey] = {
+        ...pageMetadata,
+        isFlagged: false,
+        needsReview: false,
+        reviewReason: null,
+        unflagHistory: [
+          ...(pageMetadata.unflagHistory || []),
+          {
+            unflaggedAt: new Date().toISOString(),
+            unflaggedBy: null // TODO: Add admin identifier when auth is implemented
+          }
+        ]
+      };
+
+      // Save updated manifest back to R2
+      const updatedManifestJson = JSON.stringify(manifest, null, 2);
+      await putObject(
+        R2_ORDERS_BUCKET,
+        manifestKey,
+        updatedManifestJson,
+        'application/json'
+      );
+
+      console.log(`[Unflag API] Successfully unflagged page ${pageNumber} in postPdf stage`);
+
+      return NextResponse.json({
+        success: true,
+        orderId,
+        pageNumber,
+        stage,
+        needsReview: false,
+        reviewReason: null
+      });
     }
 
     // Determine which manifest to use
@@ -98,7 +187,7 @@ export async function POST(
     }
 
     // Find the entry for this pose
-    let entry = manifest.entries.find((e: any) => e.poseNumber === poseNumber);
+    let entry = manifest.entries.find((e: any) => e.poseNumber === poseNumber!);
     
     if (!entry) {
       return NextResponse.json(
@@ -130,12 +219,12 @@ export async function POST(
       'application/json'
     );
 
-    console.log(`[Unflag API] Successfully unflagged pose ${poseNumber} in ${stage} stage`);
+    console.log(`[Unflag API] Successfully unflagged pose ${poseNumber!} in ${stage} stage`);
 
     return NextResponse.json({
       success: true,
       orderId,
-      poseNumber,
+      poseNumber: poseNumber!,
       stage,
       needsReview: false,
       reviewReason: null

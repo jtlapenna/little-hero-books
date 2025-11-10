@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { CheckCircle, Play, Download, Flag, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
+import { AssetGrid } from '@/components/assets/asset-grid';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker - use CDN by default for reliability
@@ -48,6 +49,27 @@ interface SpreadData {
   coverData?: CoverData; // For cover spreads
   isCover: boolean;
   isBackCover: boolean;
+}
+
+// Asset interface for AssetGrid component
+interface Asset {
+  id: string;
+  name: string;
+  url: string;
+  isFlagged: boolean;
+  hasTransparentBackground?: boolean;
+  isMissing?: boolean;
+  status?: string;
+  reviewReason?: string;
+  attempts?: number;
+  comparisonMode?: 'reference' | 'background' | null;
+  comparisonImageUrl?: string;
+  comparisonLabel?: string;
+  poseNumber?: number;
+  pageNumber?: number;
+  onFlip?: () => void;
+  isFlipping?: boolean;
+  r2Key?: string; // R2 key for replacement operations
 }
 
 // Create spreads from pages, including cover pages if cover image is available
@@ -131,6 +153,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
   const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
   const [loadingPages, setLoadingPages] = useState(false);
   const [pagesError, setPagesError] = useState<string | null>(null);
+  const [pageAssets, setPageAssets] = useState<Asset[]>([]);
+  const [isReplacing, setIsReplacing] = useState<string | null>(null);
+  // Track pages that the user has manually unflagged (persist across re-renders)
+  const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
   // Track if we're using fallback URLs (images not in manifest yet)
   const [usingFallbackUrls, setUsingFallbackUrls] = useState(false);
   const [imageLoading, setImageLoading] = useState({ left: true, right: true });
@@ -291,6 +317,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         
         let pageData: PageData[] = [];
         let foundInManifest = false;
+        let manifest3: any = null; // Store at function scope for reuse
         
         try {
           console.log('[Pages] Fetching manifest from:', manifest3Url);
@@ -304,7 +331,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             
             // Handle array response (manifest might be wrapped in array)
             // If array, unwrap it - the first element should have the data
-            let manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
+            manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
             
             // If the unwrapped object has a nested 'manifest' property, use that instead
             // This handles cases where the structure is: [{ manifest: {...}, pagePreviewImages: [...] }]
@@ -561,7 +588,8 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`;
             return {
               pageNumber: pageNum,
-              previewImageUrl: `/api/assets/${r2Key}` // Use relative URL
+              previewImageUrl: `/api/assets/${r2Key}`, // Use relative URL
+              r2Key: r2Key // Include r2Key for replacement operations
             };
           });
           console.log('[Pages] Fallback: Constructed', pageData.length, 'page URLs using format p00.png, p01.png, etc.');
@@ -733,10 +761,38 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           } : null
         });
         
+        // Extract flagged pages from manifest (reuse manifest3 from earlier)
+        let flaggedPagesSet = new Set<string>();
+        if (manifest3) {
+          try {
+            // Check for flagged pages in pagesMetadata
+            const pagesMetadata = manifest3?.pngGeneration?.pagesMetadata 
+              || manifest3?.manifest?.pngGeneration?.pagesMetadata 
+              || {};
+            
+            // Build set of flagged page IDs (e.g., "p01", "p02")
+            Object.keys(pagesMetadata).forEach((pageKey) => {
+              const metadata = pagesMetadata[pageKey];
+              if (metadata?.isFlagged || metadata?.needsReview) {
+                flaggedPagesSet.add(pageKey);
+              }
+            });
+            
+            console.log('[Pages] Found flagged pages:', Array.from(flaggedPagesSet));
+          } catch (e) {
+            console.log('[Pages] Could not extract flagged pages from manifest:', e);
+          }
+        }
+        
         // Only update pages state if pages actually changed
         if (pagesChanged || isInitialLoad) {
           // Update pages first
           setPages(pageData);
+          
+          // Transform pages to assets for AssetGrid
+          const assets = transformPagesToAssets(pageData, flaggedPagesSet);
+          setPageAssets(assets);
+          console.log('[Pages] Transformed', pageData.length, 'pages to', assets.length, 'assets');
           
           // Mark pages as loaded to prevent loading state during polling
           if (pageData.length > 0) {
@@ -760,6 +816,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           // Only set loading to false when pages actually change
           // This prevents the loading state from being reset when cover loads separately
           setLoadingPages(false);
+        } else {
+          // Even if pages haven't changed, update assets if flagged state might have changed
+          const assets = transformPagesToAssets(pageData, flaggedPagesSet);
+          setPageAssets(assets);
         }
         
         // Always update spreads (even if pages haven't changed, cover might have)
@@ -1098,6 +1158,207 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
     }
   }, [spreads, currentSpreadIndex]);
 
+  // Transform PageData to Asset format for AssetGrid
+  const transformPagesToAssets = useCallback((pagesData: PageData[], flaggedPages: Set<string> = new Set()): Asset[] => {
+    return pagesData.map((page) => {
+      const pageNum = page.pageNumber;
+      const assetId = `p${String(pageNum).padStart(2, '0')}`;
+      const isManuallyUnflagged = manuallyUnflaggedRef.current.has(assetId);
+      const shouldBeFlagged = !isManuallyUnflagged && flaggedPages.has(assetId);
+      
+      return {
+        id: assetId,
+        name: pageNum === 0 ? 'Page 0 (Dedication)' : `Page ${pageNum}`,
+        url: page.previewImageUrl,
+        isFlagged: shouldBeFlagged,
+        hasTransparentBackground: false,
+        isMissing: false,
+        pageNumber: pageNum,
+        r2Key: page.r2Key
+      };
+    });
+  }, []);
+
+  // Handler for downloading individual page images
+  const handlePageDownload = async (assetId: string) => {
+    try {
+      // Extract page number from assetId (e.g., "p01" -> 1)
+      const match = assetId.match(/p(\d+)/);
+      if (!match) {
+        console.error('[PostPdfStage] Could not determine pageNumber for:', assetId);
+        alert('Invalid asset ID');
+        return;
+      }
+
+      const pageNumber = parseInt(match[1], 10);
+      const page = pages.find(p => p.pageNumber === pageNumber);
+      
+      if (!page || !page.previewImageUrl) {
+        console.error('[PostPdfStage] Page not found or URL missing:', assetId);
+        alert('Page not found');
+        return;
+      }
+
+      // Use previewImageUrl or construct from r2Key
+      const imageUrl = page.previewImageUrl || (page.r2Key ? `/api/assets/${page.r2Key}` : null);
+      
+      if (!imageUrl) {
+        alert('Image URL not available');
+        return;
+      }
+
+      // Trigger download by creating a temporary link
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = `${assetId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('[PostPdfStage] Download failed:', error);
+      alert('Failed to download page image');
+    }
+  };
+
+  // Handler for replacing individual page images
+  const handlePageReplace = async (assetId: string, file: File) => {
+    console.log('[PostPdfStage] handlePageReplace called with assetId:', assetId, 'file:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    
+    setIsReplacing(assetId);
+    
+    try {
+      // Extract page number from assetId (e.g., "p01" -> 1)
+      const match = assetId.match(/p(\d+)/);
+      if (!match) {
+        console.error('[PostPdfStage] Could not determine pageNumber for:', assetId);
+        alert('Invalid asset ID');
+        setIsReplacing(null);
+        return;
+      }
+
+      const pageNumber = parseInt(match[1], 10);
+      console.log('[PostPdfStage] Extracted pageNumber:', pageNumber);
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('pageNumber', pageNumber.toString());
+      formData.append('stage', 'postPdf');
+      formData.append('file', file);
+      console.log('[PostPdfStage] FormData created, file appended:', file.name);
+
+      // Call API endpoint
+      const apiUrl = `/api/orders/${orderId}/replace-image`;
+      console.log('[PostPdfStage] Calling API:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      console.log('[PostPdfStage] API response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to replace image';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+          console.error('[PostPdfStage] API error response:', error);
+        } catch {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+          console.error('[PostPdfStage] Failed to parse error response');
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('[PostPdfStage] Image replaced successfully:', result);
+
+      // Refresh the order data to show updated image
+      if (onRefresh) {
+        console.log('[PostPdfStage] Calling onRefresh...');
+        await onRefresh();
+        console.log('[PostPdfStage] onRefresh completed');
+      } else {
+        console.warn('[PostPdfStage] No onRefresh callback provided');
+      }
+    } catch (error: any) {
+      console.error('[PostPdfStage] Replace failed with error:', error);
+      console.error('[PostPdfStage] Error stack:', error.stack);
+      alert(error.message || 'Failed to replace image');
+    } finally {
+      console.log('[PostPdfStage] Clearing isReplacing state');
+      setIsReplacing(null);
+    }
+  };
+
+  // Handler for flagging/unflagging individual pages
+  const handlePageFlag = async (assetId: string) => {
+    setPageAssets(prev => {
+      const currentPage = prev.find(p => p.id === assetId);
+      if (!currentPage) return prev;
+      
+      const newFlaggedState = !currentPage.isFlagged;
+      
+      // Extract pageNumber from assetId (e.g., "p01" -> 1)
+      const pageNumberMatch = assetId.match(/p(\d+)/);
+      const pageNumber = pageNumberMatch ? parseInt(pageNumberMatch[1], 10) : null;
+      
+      // If unflagging, persist the decision to the manifest
+      if (!newFlaggedState && pageNumber !== null) {
+        // User is unflagging - persist to manifest via API
+        fetch(`/api/orders/${orderId}/unflag`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            pageNumber,
+            stage: 'postPdf'
+          })
+        }).then(response => {
+          if (!response.ok) {
+            console.error('[PostPdfStage] Failed to persist unflagging:', response.statusText);
+            // Revert the flag state if API call failed
+            setPageAssets(prevPoses => prevPoses.map(page => 
+              page.id === assetId ? { ...page, isFlagged: true } : page
+            ));
+          } else {
+            // Successfully persisted - add to manually unflagged set for this session
+            manuallyUnflaggedRef.current.add(assetId);
+          }
+        }).catch(error => {
+          console.error('[PostPdfStage] Error persisting unflagging:', error);
+          // Revert the flag state if API call failed
+          setPageAssets(prevPoses => prevPoses.map(page => 
+            page.id === assetId ? { ...page, isFlagged: true } : page
+          ));
+        });
+      } else {
+        // User is flagging - remove from manually unflagged set (they changed their mind)
+        manuallyUnflaggedRef.current.delete(assetId);
+      }
+      
+      const updated = prev.map(page => 
+        page.id === assetId ? { ...page, isFlagged: newFlaggedState } : page
+      );
+      // Update flag count after state change
+      setTimeout(() => {
+        const newFlaggedCount = updated.filter(asset => asset.isFlagged).length;
+        setFlaggedCount(orderId, 'postPdf', newFlaggedCount);
+      }, 0);
+      return updated;
+    });
+  };
+
+  // Reset manually unflagged set when order changes
+  useEffect(() => {
+    manuallyUnflaggedRef.current.clear();
+  }, [orderId]);
+
   const handleDownload = () => {
     if (pdfAsset.exists && pdfAsset.url) {
       const link = document.createElement('a');
@@ -1255,6 +1516,22 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             </button>
           </div>
         </div>
+
+        {/* Page Preview Images Grid */}
+        {pageAssets.length > 0 && (
+          <AssetGrid
+            title="Page Preview Images"
+            description="Individual page previews - review, download, replace, or flag pages as needed"
+            assets={pageAssets}
+            onDownload={handlePageDownload}
+            onReplace={handlePageReplace}
+            onFlag={handlePageFlag}
+            onApprove={() => {}}
+            canApprove={false}
+            isApproved={false}
+            isReplacing={isReplacing}
+          />
+        )}
 
         {/* PDF Viewer - Page Preview */}
         {loadingPages && (
