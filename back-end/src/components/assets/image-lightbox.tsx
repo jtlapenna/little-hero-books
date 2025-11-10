@@ -130,18 +130,35 @@ export function ImageLightbox({
     const prevUrl = prevPendingRevisionUrlRef.current;
     const currentUrl = pendingRevisionUrl;
 
-    // Only update if the URL actually changed (new revision arrived)
+    console.log('[ImageLightbox] useEffect triggered:', {
+      prevUrl,
+      currentUrl,
+      isOpen,
+      showNewOption,
+      newOptionUrl,
+      urlsMatch: currentUrl === prevUrl,
+    });
+
+    // Always update the ref to the current value (for next comparison)
+    // But only update state if the URL actually changed
     if (currentUrl !== prevUrl) {
-      console.log('[ImageLightbox] Pending revision URL changed:', { prevUrl, currentUrl, isOpen });
+      console.log('[ImageLightbox] Pending revision URL changed - updating state:', {
+        prevUrl,
+        currentUrl,
+        isOpen,
+        wasShowingNewOption: showNewOption,
+        previousNewOptionUrl: newOptionUrl,
+      });
       prevPendingRevisionUrlRef.current = currentUrl;
 
       if (currentUrl) {
         // Always update to the latest revision URL
+        // This will cause the image to update if showNewOption is true
         setNewOptionUrl(currentUrl);
-        // Reset to original view when a new revision arrives
-        // This ensures the latest revision is visible when they click "New Option Available"
-        // User can then click "New Option Available" to see the new revision
-        setShowNewOption(false);
+        // If user is currently viewing a previous revision, keep showing the new option (don't change showNewOption)
+        // If they're not viewing a revision, ensure showNewOption is false so they see the "New Option Available" button
+        // Note: We don't change showNewOption here - if it's true, keep it true to show the new revision immediately
+        // If it's false, it stays false so the "New Option Available" button appears
         // Update temporaryR2Key from the URL for revise operations
         // Handle both /api/assets/ and Cloudflare Images URLs
         let r2Key: string | null = null;
@@ -154,15 +171,25 @@ export function ImageLightbox({
           console.warn('[ImageLightbox] Cloudflare Images URL detected, R2 key extraction not implemented');
         }
         setTemporaryR2Key(r2Key);
-        console.log('[ImageLightbox] Updated newOptionUrl to latest revision, reset view to original', { r2Key });
+        console.log('[ImageLightbox] Updated newOptionUrl to latest revision', {
+          r2Key,
+          newOptionUrl: currentUrl,
+          showNewOption,
+          willShowNewOption: showNewOption, // If already showing, keep showing with new URL
+        });
       } else {
         setNewOptionUrl(null);
         setTemporaryR2Key(null);
         // If no pending revision, reset to original view
         setShowNewOption(false);
+        console.log('[ImageLightbox] Cleared newOptionUrl (no pending revision)');
       }
+    } else {
+      // URLs match, but ensure ref is in sync
+      prevPendingRevisionUrlRef.current = currentUrl;
+      console.log('[ImageLightbox] Pending revision URL unchanged, ref synced');
     }
-  }, [pendingRevisionUrl, isOpen]);
+  }, [pendingRevisionUrl, isOpen, showNewOption, newOptionUrl]);
 
   // Determine if this is a first revision (no previous option exists)
   const isFirstRevision = !pendingRevisionUrl;
