@@ -22,6 +22,9 @@ interface Asset {
   pageNumber?: number;
   onFlip?: () => void;
   isFlipping?: boolean;
+  // Revision data
+  pendingRevisionUrl?: string;
+  onRevisionBadgeClick?: () => void;
 }
 
 interface AssetGridProps {
@@ -37,6 +40,27 @@ interface AssetGridProps {
   showBlackBackground?: boolean;
   isReplacing?: string | null;
   disabledReplaceIds?: string[];
+  // Regeneration props (passed to ImageLightbox)
+  orderId?: string;
+  baseCharacterUrl?: string;
+  onRegenerate?: (data: {
+    poseNumber: number;
+    revisionPrompt: string;
+    includeBaseCharacter: boolean;
+    includePoseReference: boolean;
+    includePreviousOption: boolean;
+    previousOptionR2Key?: string;
+  }) => Promise<void>;
+  onAcceptRevision?: (poseNumber: number) => Promise<void>;
+  onRejectRevision?: (poseNumber: number) => Promise<void>;
+  onReviseRevision?: (data: {
+    poseNumber: number;
+    revisionPrompt: string;
+    includeBaseCharacter: boolean;
+    includePoseReference: boolean;
+    includePreviousOption: boolean;
+    previousOptionR2Key?: string;
+  }) => Promise<void>;
 }
 
 export function AssetGrid({
@@ -51,7 +75,13 @@ export function AssetGrid({
   isApproved,
   showBlackBackground = false,
   isReplacing: externalIsReplacing,
-  disabledReplaceIds = []
+  disabledReplaceIds = [],
+  orderId,
+  baseCharacterUrl,
+  onRegenerate,
+  onAcceptRevision,
+  onRejectRevision,
+  onReviseRevision
 }: AssetGridProps) {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
@@ -126,7 +156,14 @@ export function AssetGrid({
           <div
             key={asset.id}
             className="relative group bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-            onClick={() => setSelectedAsset(asset)}
+            onClick={(e) => {
+              // Don't open modal if clicking on the revision badge (it has its own handler)
+              const target = e.target as HTMLElement;
+              if (target.closest('.revision-badge-container')) {
+                return; // Badge click is handled separately
+              }
+              setSelectedAsset(asset);
+            }}
           >
             {/* Image or Placeholder */}
             <div 
@@ -269,6 +306,58 @@ export function AssetGrid({
               </div>
             )}
 
+            {/* Revision Indicator Badge (40x40px) - Top-right, distinct from flag */}
+            {asset.pendingRevisionUrl && (
+              <div 
+                className="revision-badge-container absolute top-2 right-2 z-20 cursor-pointer"
+                style={{ 
+                  marginRight: asset.isFlagged ? '2.5rem' : '0.5rem' // Offset if flag is present
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (asset.onRevisionBadgeClick) {
+                    asset.onRevisionBadgeClick();
+                  } else {
+                    // Fallback: open modal normally (will show revision option in modal)
+                    setSelectedAsset(asset);
+                  }
+                }}
+                title="New revision available - Click to view"
+              >
+                <div className="w-10 h-10 bg-blue-500 rounded-lg border-2 border-white shadow-lg overflow-hidden hover:ring-2 hover:ring-blue-300 transition-all">
+                  {asset.pendingRevisionUrl ? (
+                    <img
+                      src={asset.pendingRevisionUrl}
+                      alt="Revision preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback to icon if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `
+                            <div class="w-full h-full flex items-center justify-center bg-blue-500">
+                              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                            </div>
+                          `;
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-blue-500">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Asset Name + Flag (contracted view control) */}
             <div className="p-3 flex items-center justify-between relative z-10">
               <p className="text-sm font-medium text-gray-900 truncate">{asset.name}</p>
@@ -333,6 +422,32 @@ export function AssetGrid({
           pageNumber={selectedAsset.pageNumber}
           onFlip={selectedAsset.onFlip}
           isFlipping={selectedAsset.isFlipping}
+          pendingRevisionUrl={selectedAsset.pendingRevisionUrl}
+          onRevisionBadgeClick={selectedAsset.onRevisionBadgeClick}
+          orderId={orderId}
+          baseCharacterUrl={baseCharacterUrl}
+          onRegenerate={selectedAsset.poseNumber !== undefined ? async (data) => {
+            if (onRegenerate) {
+              await onRegenerate(data);
+              // Refresh the page data to show new pending revision
+              // This will be handled by the parent component's onRefresh
+            }
+          } : undefined}
+          onAcceptRevision={selectedAsset.poseNumber !== undefined ? async () => {
+            if (onAcceptRevision && selectedAsset.poseNumber !== undefined) {
+              await onAcceptRevision(selectedAsset.poseNumber);
+            }
+          } : undefined}
+          onRejectRevision={selectedAsset.poseNumber !== undefined ? async () => {
+            if (onRejectRevision && selectedAsset.poseNumber !== undefined) {
+              await onRejectRevision(selectedAsset.poseNumber);
+            }
+          } : undefined}
+          onReviseRevision={selectedAsset.poseNumber !== undefined ? async (data) => {
+            if (onReviseRevision) {
+              await onReviseRevision(data);
+            }
+          } : undefined}
         />
       )}
     </div>

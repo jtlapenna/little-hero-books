@@ -23,6 +23,30 @@ interface ImageLightboxProps {
   pageNumber?: number;
   onFlip?: () => void;
   isFlipping?: boolean;
+  // Revision props
+  pendingRevisionUrl?: string;
+  onRevisionBadgeClick?: () => void;
+  // Regeneration props
+  orderId?: string;
+  baseCharacterUrl?: string;
+  onRegenerate?: (data: {
+    poseNumber: number;
+    revisionPrompt: string;
+    includeBaseCharacter: boolean;
+    includePoseReference: boolean;
+    includePreviousOption: boolean;
+    previousOptionR2Key?: string;
+  }) => Promise<void>;
+  onAcceptRevision?: () => Promise<void>;
+  onRejectRevision?: () => Promise<void>;
+  onReviseRevision?: (data: {
+    poseNumber: number;
+    revisionPrompt: string;
+    includeBaseCharacter: boolean;
+    includePoseReference: boolean;
+    includePreviousOption: boolean;
+    previousOptionR2Key?: string;
+  }) => Promise<void>;
 }
 
 export function ImageLightbox({
@@ -43,12 +67,32 @@ export function ImageLightbox({
   poseNumber,
   pageNumber,
   onFlip,
-  isFlipping = false
+  isFlipping = false,
+  pendingRevisionUrl,
+  onRevisionBadgeClick,
+  orderId,
+  baseCharacterUrl,
+  onRegenerate,
+  onAcceptRevision,
+  onRejectRevision,
+  onReviseRevision
 }: ImageLightboxProps) {
   const [isReplacing, setIsReplacing] = useState(false);
   const [comparisonImageLoading, setComparisonImageLoading] = useState(false);
   const [comparisonImageError, setComparisonImageError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Regeneration UI state
+  const [showRegenerateUI, setShowRegenerateUI] = useState(false);
+  const [revisionPrompt, setRevisionPrompt] = useState('');
+  const [includeBaseCharacter, setIncludeBaseCharacter] = useState(false);
+  const [includePoseReference, setIncludePoseReference] = useState(false);
+  const [includePreviousOption, setIncludePreviousOption] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [showNewOption, setShowNewOption] = useState(false); // Toggle between original and new option
+  const [newOptionUrl, setNewOptionUrl] = useState<string | null>(pendingRevisionUrl || null);
+  const [temporaryR2Key, setTemporaryR2Key] = useState<string | null>(null);
 
   // Handle keyboard events
   useEffect(() => {
@@ -74,6 +118,169 @@ export function ImageLightbox({
   const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) {
       onClose();
+    }
+  };
+
+  // Update newOptionUrl when pendingRevisionUrl changes
+  useEffect(() => {
+    if (pendingRevisionUrl) {
+      setNewOptionUrl(pendingRevisionUrl);
+      setShowNewOption(true); // Auto-show new option when it becomes available
+    }
+  }, [pendingRevisionUrl]);
+
+  // Determine if this is a first revision (no previous option exists)
+  const isFirstRevision = !pendingRevisionUrl;
+
+  // Set default image selection based on whether it's first or subsequent revision
+  useEffect(() => {
+    if (showRegenerateUI && isFirstRevision) {
+      // First revision: default to base + pose (like original generation)
+      setIncludeBaseCharacter(true);
+      setIncludePoseReference(true);
+      setIncludePreviousOption(false);
+    } else if (showRegenerateUI && !isFirstRevision) {
+      // Subsequent revision: default to previous option only
+      setIncludeBaseCharacter(false);
+      setIncludePoseReference(false);
+      setIncludePreviousOption(true);
+    }
+  }, [showRegenerateUI, isFirstRevision]);
+
+  const handleRegenerate = async () => {
+    if (!onRegenerate || !poseNumber || poseNumber === null || !revisionPrompt.trim()) {
+      setGenerationError('Please enter a revision prompt');
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationError(null);
+
+    try {
+      await onRegenerate({
+        poseNumber,
+        revisionPrompt: revisionPrompt.trim(),
+        includeBaseCharacter,
+        includePoseReference,
+        includePreviousOption,
+        previousOptionR2Key: includePreviousOption && temporaryR2Key ? temporaryR2Key : undefined,
+      });
+      // Success - the parent component will update pendingRevisionUrl
+      // Close the regenerate UI and show the new option
+      setShowRegenerateUI(false);
+      setRevisionPrompt(''); // Clear prompt after success
+    } catch (error: any) {
+      console.error('[ImageLightbox] Regenerate failed:', error);
+      
+      // Enhanced error handling with user-friendly messages
+      let errorMessage = 'Failed to regenerate image. Please try again.';
+      
+      if (error.message) {
+        if (error.message.includes('Rate limit exceeded')) {
+          errorMessage = error.message;
+          if (error.retryAfter) {
+            const minutes = Math.ceil(error.retryAfter / 60);
+            errorMessage += ` You can try again in approximately ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
+          }
+        } else if (error.message.includes('blocked by Gemini safety filters')) {
+          errorMessage = 'Your revision prompt was blocked by content safety filters. Please try a different prompt.';
+        } else if (error.message.includes('Network error')) {
+          errorMessage = 'Network error: Please check your connection and try again.';
+        } else if (error.message.includes('after') && error.message.includes('attempts')) {
+          errorMessage = 'Service temporarily unavailable. Please try again in a moment.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setGenerationError(errorMessage);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleAccept = async () => {
+    if (!onAcceptRevision) return;
+    try {
+      await onAcceptRevision();
+      // Clear new option state after acceptance
+      setNewOptionUrl(null);
+      setShowNewOption(false);
+      setTemporaryR2Key(null);
+      // Close regenerate UI if open
+      setShowRegenerateUI(false);
+    } catch (error: any) {
+      console.error('[ImageLightbox] Accept failed:', error);
+      const errorMessage = error.message || 'Failed to accept revision. Please try again.';
+      alert(errorMessage);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!onRejectRevision) return;
+    try {
+      await onRejectRevision();
+      // Clear new option state after rejection
+      setNewOptionUrl(null);
+      setShowNewOption(false);
+      setTemporaryR2Key(null);
+      // Close regenerate UI if open
+      setShowRegenerateUI(false);
+    } catch (error: any) {
+      console.error('[ImageLightbox] Reject failed:', error);
+      const errorMessage = error.message || 'Failed to reject revision. Please try again.';
+      alert(errorMessage);
+    }
+  };
+
+  const handleRevise = async () => {
+    if (!onReviseRevision || !poseNumber || poseNumber === null || !revisionPrompt.trim()) {
+      setGenerationError('Please enter a revision prompt');
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationError(null);
+
+    try {
+      await onReviseRevision({
+        poseNumber,
+        revisionPrompt: revisionPrompt.trim(),
+        includeBaseCharacter,
+        includePoseReference,
+        includePreviousOption,
+        previousOptionR2Key: temporaryR2Key || undefined,
+      });
+      // Success - the parent component will update pendingRevisionUrl
+      setShowRegenerateUI(false);
+      setRevisionPrompt(''); // Clear prompt after success
+    } catch (error: any) {
+      console.error('[ImageLightbox] Revise failed:', error);
+      
+      // Enhanced error handling with user-friendly messages
+      let errorMessage = 'Failed to revise image. Please try again.';
+      
+      if (error.message) {
+        if (error.message.includes('Rate limit exceeded')) {
+          errorMessage = error.message;
+          if (error.retryAfter) {
+            const minutes = Math.ceil(error.retryAfter / 60);
+            errorMessage += ` You can try again in approximately ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
+          }
+        } else if (error.message.includes('blocked by Gemini safety filters')) {
+          errorMessage = 'Your revision prompt was blocked by content safety filters. Please try a different prompt.';
+        } else if (error.message.includes('Network error')) {
+          errorMessage = 'Network error: Please check your connection and try again.';
+        } else if (error.message.includes('after') && error.message.includes('attempts')) {
+          errorMessage = 'Service temporarily unavailable. Please try again in a moment.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setGenerationError(errorMessage);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -132,6 +339,173 @@ export function ImageLightbox({
 
         {/* Image Container */}
         <div className="bg-white p-6">
+          {/* Regeneration UI Section */}
+          {showRegenerateUI && poseNumber !== undefined && poseNumber !== null && (
+            <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+              <h4 className="text-sm font-semibold text-indigo-900 mb-3">Regenerate Pose {poseNumber}</h4>
+              
+              {/* Revision Prompt Input */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Revision Prompt
+                </label>
+                <textarea
+                  value={revisionPrompt}
+                  onChange={(e) => setRevisionPrompt(e.target.value)}
+                  placeholder="Describe the changes you want (e.g., 'Make the hair longer', 'Adjust the arm position')"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  rows={3}
+                  disabled={isGenerating}
+                />
+              </div>
+
+              {/* Image Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Include Images in Revision
+                </label>
+                <div className="space-y-2">
+                  {/* Base Character */}
+                  {baseCharacterUrl && (
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeBaseCharacter}
+                        onChange={(e) => setIncludeBaseCharacter(e.target.checked)}
+                        disabled={isGenerating}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <div className="flex items-center space-x-2 flex-1">
+                        <img
+                          src={baseCharacterUrl}
+                          alt="Base Character"
+                          className="w-12 h-12 object-cover rounded border border-gray-300"
+                        />
+                        <span className="text-sm text-gray-700">Base Character</span>
+                      </div>
+                    </label>
+                  )}
+
+                  {/* Pose Reference */}
+                  {comparisonImageUrl && (
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includePoseReference}
+                        onChange={(e) => setIncludePoseReference(e.target.checked)}
+                        disabled={isGenerating}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <div className="flex items-center space-x-2 flex-1">
+                        <img
+                          src={comparisonImageUrl}
+                          alt="Pose Reference"
+                          className="w-12 h-12 object-cover rounded border border-gray-300"
+                        />
+                        <span className="text-sm text-gray-700">Pose Reference</span>
+                      </div>
+                    </label>
+                  )}
+
+                  {/* Previous Option */}
+                  {pendingRevisionUrl && (
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includePreviousOption}
+                        onChange={(e) => setIncludePreviousOption(e.target.checked)}
+                        disabled={isGenerating}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <div className="flex items-center space-x-2 flex-1">
+                        <img
+                          src={pendingRevisionUrl}
+                          alt="Previous Option"
+                          className="w-12 h-12 object-cover rounded border border-gray-300"
+                        />
+                        <span className="text-sm text-gray-700">Previous Option</span>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {generationError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-800">{generationError}</p>
+                </div>
+              )}
+
+              {/* Generate Button */}
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowRegenerateUI(false);
+                    setRevisionPrompt('');
+                    setGenerationError(null);
+                  }}
+                  disabled={isGenerating}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRegenerate();
+                  }}
+                  disabled={isGenerating || !revisionPrompt.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGenerating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    'Generate'
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tab/Toggle for Original vs New Option */}
+          {newOptionUrl && comparisonMode && (
+            <div className="mb-4">
+              <div className="flex items-center space-x-2 border-b border-gray-200">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowNewOption(false);
+                  }}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    !showNewOption
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Original
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowNewOption(true);
+                  }}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    showNewOption
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  New Option
+                </button>
+              </div>
+            </div>
+          )}
+
           {comparisonMode && comparisonImageUrl ? (
             // Comparison mode: side-by-side layout
             <div className="space-y-4">
@@ -143,14 +517,64 @@ export function ImageLightbox({
               
               {/* Images */}
               <div className="flex flex-col md:flex-row gap-4">
-                {/* Left: Generated/Character Image */}
+                {/* Left: Generated/Character Image (with toggle for new option) */}
                 <div className="flex-1">
                   <div 
                     className={`relative w-full aspect-square flex items-center justify-center ${
                       showBlackBackground && hasTransparentBackground ? 'bg-black' : 'bg-gray-50'
                     } rounded-lg overflow-hidden`}
                   >
-                    {imageUrl ? (
+                    {showNewOption && newOptionUrl ? (
+                      // Show new option when toggled
+                      <>
+                        <img
+                          src={newOptionUrl}
+                          alt="New Option"
+                          className="max-w-full max-h-full object-contain"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                        {/* Accept/Reject/Revise buttons - only visible when new option is shown */}
+                        {showNewOption && (
+                          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-2 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAccept();
+                              }}
+                              className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReject();
+                              }}
+                              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                            >
+                              Reject
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Extract R2 key from preview URL
+                                const r2Key = newOptionUrl ? newOptionUrl.replace('/api/assets/', '') : null;
+                                setTemporaryR2Key(r2Key);
+                                setShowRegenerateUI(true);
+                                setShowNewOption(false); // Switch back to original view while showing regenerate UI
+                              }}
+                              className="px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-300 rounded-md hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                              Revise
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    ) : imageUrl ? (
+                      // Show original image
                       <img
                         src={imageUrl}
                         alt={imageName}
@@ -312,6 +736,38 @@ export function ImageLightbox({
                 <Flag className="h-4 w-4 mr-2" />
                 {isFlagged ? 'Unflag' : 'Flag for Review'}
               </button>
+
+              {/* Regenerate button (only for Tab 1 poses) */}
+              {poseNumber !== undefined && poseNumber !== null && !showNewOption && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowRegenerateUI(!showRegenerateUI);
+                    if (!showRegenerateUI) {
+                      setRevisionPrompt('');
+                      setGenerationError(null);
+                    }
+                  }}
+                  className="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-md shadow-sm text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Regenerate
+                </button>
+              )}
+
+              {/* New Option Available button (when pending revision exists) */}
+              {newOptionUrl && !showNewOption && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowNewOption(true);
+                  }}
+                  className="inline-flex items-center px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  New Option Available
+                </button>
+              )}
 
               {/* Flip button (only for Post-Bria background preview) */}
               {comparisonMode === 'background' && onFlip && (

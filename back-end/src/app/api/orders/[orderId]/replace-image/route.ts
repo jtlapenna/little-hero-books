@@ -43,25 +43,37 @@ export async function POST(
     const file = formData.get('file') as File | null;
     const replacedBy = formData.get('replacedBy')?.toString() || null; // Optional
     const isFlipped = formData.get('isFlipped')?.toString() === 'true'; // Indicates this is a flip operation
+    const temporaryR2Key = formData.get('temporaryR2Key')?.toString(); // Optional: for accepting revisions
 
     console.log('[Replace Image API] Extracted values:', {
       poseNumberStr,
       pageNumberStr,
       stage,
       file: file ? { name: file.name, size: file.size, type: file.type } : null,
+      temporaryR2Key,
       replacedBy
     });
 
     // Validation
-    if ((!poseNumberStr && !pageNumberStr) || !stage || !file) {
+    // Either file OR temporaryR2Key must be provided
+    if ((!poseNumberStr && !pageNumberStr) || !stage || (!file && !temporaryR2Key)) {
       console.error('[Replace Image API] Missing required fields:', {
         hasPoseNumber: !!poseNumberStr,
         hasPageNumber: !!pageNumberStr,
         hasStage: !!stage,
-        hasFile: !!file
+        hasFile: !!file,
+        hasTemporaryR2Key: !!temporaryR2Key
       });
       return NextResponse.json(
-        { error: 'Missing required fields: poseNumber or pageNumber, stage, and file' },
+        { error: 'Missing required fields: poseNumber or pageNumber, stage, and (file or temporaryR2Key)' },
+        { status: 400 }
+      );
+    }
+
+    // Cannot have both file and temporaryR2Key
+    if (file && temporaryR2Key) {
+      return NextResponse.json(
+        { error: 'Cannot specify both file and temporaryR2Key' },
         { status: 400 }
       );
     }
@@ -98,8 +110,8 @@ export async function POST(
       );
     }
 
-    // Validate file type
-    if (!file.type || !file.type.startsWith('image/')) {
+    // Validate file type (only if file is provided, not if temporaryR2Key is used)
+    if (file && (!file.type || !file.type.startsWith('image/'))) {
       return NextResponse.json(
         { error: 'File must be an image' },
         { status: 400 }
@@ -179,13 +191,50 @@ export async function POST(
       // Determine bucket (pages are in orders bucket)
       const bucket = R2_ORDERS_BUCKET;
 
-      // Upload new file (overwrites existing file at same key)
-      console.log(`[Replace Image API] Uploading new file to ${bucket}/${r2Key}`);
-      const fileBuffer = await file.arrayBuffer();
-      const contentType = file.type || 'image/png';
-      
-      await putObject(bucket, r2Key, fileBuffer, contentType);
-      console.log(`[Replace Image API] putObject completed successfully`);
+      // Handle file upload: either from form data or copy from temporary location
+      let fileBuffer: ArrayBuffer;
+      let contentType: string;
+
+      if (temporaryR2Key) {
+        // Copy from temporary location (little-hero-orders bucket) to final location
+        console.log(`[Replace Image API] Copying from temporary location: ${temporaryR2Key}`);
+        
+        // Read file from temporary location
+        const tempFileRes = await getObject(R2_ORDERS_BUCKET, temporaryR2Key);
+        fileBuffer = await tempFileRes.arrayBuffer();
+        contentType = tempFileRes.headers.get('content-type') || 'image/png';
+        
+        console.log(`[Replace Image API] Copied file size:`, fileBuffer.byteLength, 'bytes');
+        console.log(`[Replace Image API] Content type:`, contentType);
+        
+        // Upload to final location
+        console.log(`[Replace Image API] Uploading to final location: ${bucket}/${r2Key}`);
+        await putObject(bucket, r2Key, fileBuffer, contentType);
+        console.log(`[Replace Image API] File copied successfully`);
+        
+        // Delete temporary file
+        try {
+          await deleteObject(R2_ORDERS_BUCKET, temporaryR2Key);
+          console.log(`[Replace Image API] Temporary file deleted: ${temporaryR2Key}`);
+        } catch (deleteError: any) {
+          console.warn(`[Replace Image API] Error deleting temporary file (may not exist):`, deleteError);
+          // Continue even if delete fails
+        }
+      } else if (file) {
+        // Upload new file from form data (overwrites existing file at same key)
+        console.log(`[Replace Image API] Uploading new file to ${bucket}/${r2Key}`);
+        fileBuffer = await file.arrayBuffer();
+        contentType = file.type || 'image/png';
+        
+        await putObject(bucket, r2Key, fileBuffer, contentType);
+        console.log(`[Replace Image API] putObject completed successfully`);
+      } else {
+        // This should never happen due to validation, but TypeScript needs it
+        return NextResponse.json(
+          { error: 'Either file or temporaryR2Key must be provided' },
+          { status: 400 }
+        );
+      }
 
       // Upload to Cloudflare Images for WebP conversion
       let cloudflareImageId: string | null = null;
@@ -199,10 +248,10 @@ export async function POST(
           console.log(`[Replace Image API] Uploading to Cloudflare Images for page ${pageNumber}`);
           
           // Create FormData for multipart/form-data upload
-          const formData = new FormData();
+          const cloudflareFormData = new FormData();
           const blob = new Blob([fileBuffer], { type: contentType });
-          formData.append('file', blob, `p${String(pageNumber).padStart(2, '0')}.png`);
-          formData.append('metadata', JSON.stringify({
+          cloudflareFormData.append('file', blob, `p${String(pageNumber).padStart(2, '0')}.png`);
+          cloudflareFormData.append('metadata', JSON.stringify({
             orderId: orderId,
             pageNumber: pageNumber,
             replacedAt: new Date().toISOString(),
@@ -216,7 +265,7 @@ export async function POST(
               headers: {
                 'Authorization': `Bearer ${apiToken}`,
               },
-              body: formData,
+              body: cloudflareFormData,
             }
           );
 
@@ -523,22 +572,59 @@ export async function POST(
     // putObject will overwrite it. We also don't search for or delete other retry files
     // (e.g., pose03_r1.png) that might exist - those are legitimate workflow artifacts.
 
-    // Upload new file (overwrites existing original file, not retry file)
-    console.log(`[Replace Image API] Uploading new file to ${bucket}/${originalKey}`);
-    console.log(`[Replace Image API] File details:`, {
-      name: file.name,
-      size: file.size,
-      type: file.type
-    });
-    
-    const fileBuffer = await file.arrayBuffer();
-    console.log(`[Replace Image API] File buffer size:`, fileBuffer.byteLength, 'bytes');
-    const contentType = file.type || 'image/png';
-    console.log(`[Replace Image API] Content type:`, contentType);
-    
-    console.log(`[Replace Image API] Calling putObject...`);
-    await putObject(bucket, originalKey, fileBuffer, contentType);
-    console.log(`[Replace Image API] putObject completed successfully`);
+    // Handle file upload: either from form data or copy from temporary location
+    let fileBuffer: ArrayBuffer;
+    let contentType: string;
+
+    if (temporaryR2Key) {
+      // Copy from temporary location (little-hero-orders bucket) to final location
+      console.log(`[Replace Image API] Copying from temporary location: ${temporaryR2Key}`);
+      
+      // Read file from temporary location
+      const tempFileRes = await getObject(R2_ORDERS_BUCKET, temporaryR2Key);
+      fileBuffer = await tempFileRes.arrayBuffer();
+      contentType = tempFileRes.headers.get('content-type') || 'image/png';
+      
+      console.log(`[Replace Image API] Copied file size:`, fileBuffer.byteLength, 'bytes');
+      console.log(`[Replace Image API] Content type:`, contentType);
+      
+      // Upload to final location
+      console.log(`[Replace Image API] Uploading to final location: ${bucket}/${originalKey}`);
+      await putObject(bucket, originalKey, fileBuffer, contentType);
+      console.log(`[Replace Image API] File copied successfully`);
+      
+      // Delete temporary file
+      try {
+        await deleteObject(R2_ORDERS_BUCKET, temporaryR2Key);
+        console.log(`[Replace Image API] Temporary file deleted: ${temporaryR2Key}`);
+      } catch (deleteError: any) {
+        console.warn(`[Replace Image API] Error deleting temporary file (may not exist):`, deleteError);
+        // Continue even if delete fails
+      }
+    } else if (file) {
+      // Upload new file from form data (overwrites existing original file, not retry file)
+      console.log(`[Replace Image API] Uploading new file to ${bucket}/${originalKey}`);
+      console.log(`[Replace Image API] File details:`, {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
+      
+      fileBuffer = await file.arrayBuffer();
+      console.log(`[Replace Image API] File buffer size:`, fileBuffer.byteLength, 'bytes');
+      contentType = file.type || 'image/png';
+      console.log(`[Replace Image API] Content type:`, contentType);
+      
+      console.log(`[Replace Image API] Calling putObject...`);
+      await putObject(bucket, originalKey, fileBuffer, contentType);
+      console.log(`[Replace Image API] putObject completed successfully`);
+    } else {
+      // This should never happen due to validation, but TypeScript needs it
+      return NextResponse.json(
+        { error: 'Either file or temporaryR2Key must be provided' },
+        { status: 400 }
+      );
+    }
 
     // Update manifest entry with replacement history
     const replacedAt = new Date().toISOString();
@@ -559,6 +645,65 @@ export async function POST(
       replacedAt,
       replacedBy: replacedBy || null,
     });
+
+    // If this was an accepted revision (temporaryR2Key provided), remove from pending revisions
+    if (temporaryR2Key && manifest.revisions && manifest.revisions.pending) {
+      const poseNN = String(poseNumber).padStart(2, '0');
+      const poseKey = `pose${poseNN}`;
+      if (manifest.revisions.pending[poseKey]) {
+        // Move to history (optional - for tracking)
+        if (!manifest.revisions.history) {
+          manifest.revisions.history = [];
+        }
+        const pendingRevision = manifest.revisions.pending[poseKey];
+        manifest.revisions.history.push({
+          poseNumber,
+          revisionPrompt: pendingRevision.revisionPrompt,
+          requestedAt: pendingRevision.requestedAt,
+          completedAt: replacedAt,
+          status: 'accepted',
+          replacedAt,
+          jobId: pendingRevision.jobId,
+        });
+        
+        // Clean up Cloudflare Images entry if it exists (since we're accepting, we don't need the temporary preview)
+        if (pendingRevision.cloudflareImageId) {
+          try {
+            const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+            const apiToken = process.env.CLOUDFLARE_IMAGES_API_TOKEN;
+
+            if (accountId && apiToken) {
+              console.log(`[Replace Image API] Deleting temporary Cloudflare Images entry: ${pendingRevision.cloudflareImageId}`);
+              
+              const deleteResponse = await fetch(
+                `https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1/${pendingRevision.cloudflareImageId}`,
+                {
+                  method: 'DELETE',
+                  headers: {
+                    'Authorization': `Bearer ${apiToken}`,
+                  },
+                }
+              );
+
+              if (deleteResponse.ok) {
+                console.log(`[Replace Image API] ✅ Successfully deleted temporary Cloudflare Images entry`);
+              } else {
+                const errorText = await deleteResponse.text();
+                console.warn(`[Replace Image API] Cloudflare Images delete failed (${deleteResponse.status}): ${errorText}`);
+                // Continue - file replacement was successful
+              }
+            }
+          } catch (error: any) {
+            console.warn(`[Replace Image API] Error deleting Cloudflare Images entry:`, error);
+            // Continue - file replacement was successful
+          }
+        }
+        
+        // Remove from pending
+        delete manifest.revisions.pending[poseKey];
+        console.log(`[Replace Image API] Moved revision from pending to history for pose ${poseNumber}`);
+      }
+    }
 
     // Save updated manifest back to R2
     const updatedManifestJson = JSON.stringify(manifest, null, 2);

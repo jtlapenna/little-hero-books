@@ -25,8 +25,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     hasTransparentBackground: false
   });
 
-  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number; comparisonMode?: 'reference' | 'background' | null; comparisonImageUrl?: string; comparisonLabel?: string; poseNumber?: number }>>([]);
+  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number; comparisonMode?: 'reference' | 'background' | null; comparisonImageUrl?: string; comparisonLabel?: string; poseNumber?: number; pendingRevisionUrl?: string; onRevisionBadgeClick?: () => void }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
+  const [pendingRevisions, setPendingRevisions] = useState<Record<string, { r2Key: string; previewUrl: string }>>({});
   
   // Track poses that the user has manually unflagged (persist across re-renders)
   const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
@@ -34,6 +35,50 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   // Reset manually unflagged set when order changes
   useEffect(() => {
     manuallyUnflaggedRef.current.clear();
+  }, [orderId]);
+
+  // Load pending revisions from manifest
+  useEffect(() => {
+    const loadPendingRevisions = async () => {
+      try {
+        const manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`;
+        const manifestUrl = `/api/manifests/${manifestKey}?v=${Date.now()}`;
+        
+        const response = await fetch(manifestUrl, { cache: 'no-store' });
+        if (!response.ok) {
+          console.log('[PreBriaStage] Manifest not found or error loading:', response.status);
+          setPendingRevisions({});
+          return;
+        }
+
+        const manifest = await response.json();
+        const revisions = manifest?.revisions?.pending || {};
+        
+        // Map pending revisions to pose keys (pose01, pose02, etc.)
+        const revisionsMap: Record<string, { r2Key: string; previewUrl: string }> = {};
+        Object.keys(revisions).forEach((poseKey) => {
+          const revision = revisions[poseKey];
+          if (revision?.r2Key && revision?.status === 'completed') {
+            // Prefer Cloudflare Images URL if available, otherwise use R2 URL
+            const previewUrl = revision.cloudflareImageUrl || `/api/assets/${revision.r2Key}`;
+            revisionsMap[poseKey] = {
+              r2Key: revision.r2Key,
+              previewUrl
+            };
+          }
+        });
+
+        console.log('[PreBriaStage] Loaded pending revisions:', Object.keys(revisionsMap));
+        setPendingRevisions(revisionsMap);
+      } catch (error) {
+        console.error('[PreBriaStage] Error loading pending revisions:', error);
+        setPendingRevisions({});
+      }
+    };
+
+    if (orderId) {
+      loadPendingRevisions();
+    }
   }, [orderId]);
 
   // Two-step workflow state
@@ -108,6 +153,10 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         const paddedPoseNumber = String(poseNumber).padStart(2, '0');
         const referencePoseUrl = `/api/assets/book-mvp-simple-adventure/characters/poses/pose${paddedPoseNumber}.png`;
         
+        // Check for pending revision
+        const revisionKey = `pose${paddedPoseNumber}`;
+        const pendingRevision = pendingRevisions[revisionKey];
+        
         return {
           id: poseId,
           name: `Pose ${poseNumber}${isMissing ? ' (Missing)' : ''}`,
@@ -122,7 +171,17 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
           comparisonMode: 'reference' as const,
           comparisonImageUrl: referencePoseUrl,
           comparisonLabel: 'Reference Pose',
-          poseNumber: poseNumber
+          poseNumber: poseNumber,
+          // Revision data
+          pendingRevisionUrl: pendingRevision?.previewUrl,
+          onRevisionBadgeClick: pendingRevision ? () => {
+            // Open modal with revision shown in reference area
+            // Find the pose asset and open it in the modal
+            // The modal will detect pendingRevisionUrl and show it appropriately
+            console.log('[PreBriaStage] Revision badge clicked for pose', poseNumber);
+            // Note: The actual modal opening is handled by AssetGrid when the badge is clicked
+            // We just need to ensure the asset has the pendingRevisionUrl set (which it does)
+          } : undefined
         };
       });
       console.log('[PreBriaStage] Mapped poses count:', mappedPoses.length, 'sample:', mappedPoses.slice(0, 2).map(p => ({ id: p.id, url: p.url?.substring(0, 50) })));
@@ -132,7 +191,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [r2AssetsKey, orderId]); // Use stable key instead of object reference
+  }, [r2AssetsKey, orderId, pendingRevisions]); // Include pendingRevisions in dependencies
 
   const handleDownload = async (assetId: string) => {
     try {
@@ -376,6 +435,250 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     onInitiateWorkflow();
   };
 
+  // Handle regeneration with polling support
+  const handleRegenerate = async (data: {
+    poseNumber: number;
+    revisionPrompt: string;
+    includeBaseCharacter: boolean;
+    includePoseReference: boolean;
+    includePreviousOption: boolean;
+    previousOptionR2Key?: string;
+  }) => {
+    try {
+      // If includePreviousOption is true but no previousOptionR2Key provided, get it from pending revisions
+      let previousOptionR2Key = data.previousOptionR2Key;
+      if (data.includePreviousOption && !previousOptionR2Key) {
+        const poseNN = String(data.poseNumber).padStart(2, '0');
+        const revisionKey = `pose${poseNN}`;
+        const pendingRevision = pendingRevisions[revisionKey];
+        if (pendingRevision) {
+          previousOptionR2Key = pendingRevision.r2Key;
+        }
+      }
+
+      const response = await fetch(`/api/orders/${orderId}/regenerate-pose`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          poseNumber: data.poseNumber,
+          revisionPrompt: data.revisionPrompt,
+          includeBaseCharacter: data.includeBaseCharacter,
+          includePoseReference: data.includePoseReference,
+          includePreviousOption: data.includePreviousOption,
+          previousOptionR2Key: previousOptionR2Key,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        const errorObj = new Error(error.error || 'Failed to regenerate pose');
+        // Preserve rate limit info for user-friendly messages
+        if (response.status === 429) {
+          (errorObj as any).retryAfter = error.retryAfter;
+        }
+        throw errorObj;
+      }
+
+      const result = await response.json();
+      console.log('[PreBriaStage] Regenerate response:', result);
+
+      // If status is 'completed', update state immediately
+      if (result.status === 'completed' && result.temporaryR2Key) {
+        const poseNN = String(data.poseNumber).padStart(2, '0');
+        const revisionKey = `pose${poseNN}`;
+        setPendingRevisions(prev => ({
+          ...prev,
+          [revisionKey]: {
+            r2Key: result.temporaryR2Key,
+            previewUrl: result.previewUrl || result.cloudflareImageUrl || `/api/assets/${result.temporaryR2Key}`,
+          },
+        }));
+
+        // Refresh order data to show new pending revision
+        if (onRefresh) {
+          await onRefresh();
+        }
+        return; // Done, no need to poll
+      }
+
+      // If status is 'pending' or 'processing', start polling
+      if (result.jobId && (result.status === 'pending' || result.status === 'processing')) {
+        console.log('[PreBriaStage] Starting polling for jobId:', result.jobId);
+        
+        // Poll every 2-3 seconds (using 2500ms for 2.5 seconds)
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusResponse = await fetch(`/api/orders/${orderId}/regenerate-pose/${result.jobId}`);
+            if (!statusResponse.ok) {
+              console.error('[PreBriaStage] Polling error:', statusResponse.status);
+              clearInterval(pollInterval);
+              return;
+            }
+
+            const statusResult = await statusResponse.json();
+            console.log('[PreBriaStage] Polling status:', statusResult);
+
+            if (statusResult.status === 'completed') {
+              clearInterval(pollInterval);
+              
+              // Update pending revisions state
+              const poseNN = String(data.poseNumber).padStart(2, '0');
+              const revisionKey = `pose${poseNN}`;
+              setPendingRevisions(prev => ({
+                ...prev,
+                [revisionKey]: {
+                  r2Key: statusResult.temporaryR2Key,
+                  previewUrl: statusResult.previewUrl || statusResult.cloudflareImageUrl || `/api/assets/${statusResult.temporaryR2Key}`,
+                },
+              }));
+
+              // Refresh order data to show new pending revision
+              if (onRefresh) {
+                await onRefresh();
+              }
+            } else if (statusResult.status === 'failed') {
+              clearInterval(pollInterval);
+              throw new Error(statusResult.error || 'Regeneration failed');
+            }
+            // Continue polling if status is 'pending' or 'processing'
+          } catch (error: any) {
+            console.error('[PreBriaStage] Polling error:', error);
+            clearInterval(pollInterval);
+            throw error;
+          }
+        }, 2500); // Poll every 2.5 seconds
+
+        // Stop polling after 5 minutes (safety timeout)
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          console.warn('[PreBriaStage] Polling timeout after 5 minutes');
+        }, 5 * 60 * 1000);
+      } else {
+        // No jobId or unexpected status - refresh anyway
+        if (onRefresh) {
+          await onRefresh();
+        }
+      }
+    } catch (error: any) {
+      console.error('[PreBriaStage] Regenerate failed:', error);
+      throw error;
+    }
+  };
+
+  // Handle accept revision
+  const handleAcceptRevision = async (poseNumber: number) => {
+    try {
+      const poseNN = String(poseNumber).padStart(2, '0');
+      const revisionKey = `pose${poseNN}`;
+      const pendingRevision = pendingRevisions[revisionKey];
+
+      if (!pendingRevision) {
+        throw new Error('Pending revision not found');
+      }
+
+      // Call replace-image endpoint with temporaryR2Key
+      const formData = new FormData();
+      formData.append('poseNumber', poseNumber.toString());
+      formData.append('stage', 'preBria');
+      formData.append('temporaryR2Key', pendingRevision.r2Key);
+
+      const response = await fetch(`/api/orders/${orderId}/replace-image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to accept revision');
+      }
+
+      // Remove from pending revisions
+      const updatedRevisions = { ...pendingRevisions };
+      delete updatedRevisions[revisionKey];
+      setPendingRevisions(updatedRevisions);
+
+      // Refresh order data
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error: any) {
+      console.error('[PreBriaStage] Accept revision failed:', error);
+      throw error;
+    }
+  };
+
+  // Handle reject revision
+  const handleRejectRevision = async (poseNumber: number) => {
+    try {
+      const poseNN = String(poseNumber).padStart(2, '0');
+      const revisionKey = `pose${poseNN}`;
+      const pendingRevision = pendingRevisions[revisionKey];
+
+      if (!pendingRevision) {
+        throw new Error('Pending revision not found');
+      }
+
+      // Call API to delete temporary file and update manifest
+      const response = await fetch(`/api/orders/${orderId}/reject-revision`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          poseNumber,
+          temporaryR2Key: pendingRevision.r2Key,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to reject revision');
+      }
+
+      // Remove from pending revisions
+      const updatedRevisions = { ...pendingRevisions };
+      delete updatedRevisions[revisionKey];
+      setPendingRevisions(updatedRevisions);
+
+      // Refresh order data
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error: any) {
+      console.error('[PreBriaStage] Reject revision failed:', error);
+      throw error;
+    }
+  };
+
+  // Handle revise revision (discard previous and create new)
+  const handleReviseRevision = async (data: {
+    poseNumber: number;
+    revisionPrompt: string;
+    includeBaseCharacter: boolean;
+    includePoseReference: boolean;
+    includePreviousOption: boolean;
+    previousOptionR2Key?: string;
+  }) => {
+    // If includePreviousOption is true but no previousOptionR2Key provided, get it from pending revisions
+    let previousOptionR2Key = data.previousOptionR2Key;
+    if (data.includePreviousOption && !previousOptionR2Key) {
+      const poseNN = String(data.poseNumber).padStart(2, '0');
+      const revisionKey = `pose${poseNN}`;
+      const pendingRevision = pendingRevisions[revisionKey];
+      if (pendingRevision) {
+        previousOptionR2Key = pendingRevision.r2Key;
+      }
+    }
+
+    // Revise is the same as regenerate - it will overwrite the previous pending revision
+    await handleRegenerate({
+      ...data,
+      previousOptionR2Key,
+    });
+  };
+
 
   return (
     <div className="space-y-8">
@@ -411,6 +714,12 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             canApprove={true}
             isApproved={isApproved}
             isReplacing={isReplacing}
+            orderId={orderId}
+            baseCharacterUrl={baseCharacter.url}
+            onRegenerate={handleRegenerate}
+            onAcceptRevision={handleAcceptRevision}
+            onRejectRevision={handleRejectRevision}
+            onReviseRevision={handleReviseRevision}
           />
         </>
       ) : (
