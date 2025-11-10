@@ -7,10 +7,13 @@ async function resetOrder(
   _request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
-  if (
-    process.env.NODE_ENV === 'production' &&
-    process.env.ENABLE_ORDER_RESET !== 'true'
-  ) {
+  const rawResetToggle = process.env.ENABLE_ORDER_RESET;
+  const resetAllowed =
+    rawResetToggle === undefined
+      ? true
+      : !['false', '0', 'off'].includes(rawResetToggle.toLowerCase());
+
+  if (process.env.NODE_ENV === 'production' && !resetAllowed) {
     return NextResponse.json(
       {
         error:
