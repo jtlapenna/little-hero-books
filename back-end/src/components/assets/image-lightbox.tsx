@@ -123,6 +123,8 @@ export function ImageLightbox({
 
   // Track previous pendingRevisionUrl to detect when it changes
   const prevPendingRevisionUrlRef = useRef<string | undefined>(pendingRevisionUrl);
+  // Track cache-busting timestamp for image URLs (updates only when URL changes)
+  const imageCacheBusterRef = useRef<number>(Date.now());
 
   // Update newOptionUrl when pendingRevisionUrl changes
   // When a new revision arrives, update the URL and reset the view state
@@ -156,6 +158,9 @@ export function ImageLightbox({
         // This will cause the image to update if showNewOption is true
         setNewOptionUrl(currentUrl);
         
+        // Update cache-buster timestamp when URL changes (forces image reload)
+        imageCacheBusterRef.current = Date.now();
+        
         // If user is currently viewing a previous revision, keep showing the new option
         // Use functional update to read current state value
         setShowNewOption(prevShowNewOption => {
@@ -185,6 +190,7 @@ export function ImageLightbox({
         console.log('[ImageLightbox] Updated newOptionUrl to latest revision', {
           r2Key,
           newOptionUrl: currentUrl,
+          cacheBuster: imageCacheBusterRef.current,
         });
       } else {
         setNewOptionUrl(null);
@@ -683,8 +689,8 @@ export function ImageLightbox({
                       // Show new option when toggled
                       <>
                         <img
-                          key={newOptionUrl} // Force re-render when URL changes
-                          src={`${newOptionUrl}${newOptionUrl.includes('?') ? '&' : '?'}t=${Date.now()}`} // Cache-busting
+                          key={`${newOptionUrl}-${imageCacheBusterRef.current}`} // Force re-render when URL or cache-buster changes
+                          src={`${newOptionUrl}${newOptionUrl.includes('?') ? '&' : '?'}t=${imageCacheBusterRef.current}`} // Cache-busting with stable timestamp
                           alt="New Option"
                           className="max-w-full max-h-full object-contain"
                           onError={(e) => {
