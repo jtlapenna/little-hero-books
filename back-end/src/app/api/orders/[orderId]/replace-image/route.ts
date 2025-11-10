@@ -187,6 +187,63 @@ export async function POST(
       await putObject(bucket, r2Key, fileBuffer, contentType);
       console.log(`[Replace Image API] putObject completed successfully`);
 
+      // Upload to Cloudflare Images for WebP conversion
+      let cloudflareImageId: string | null = null;
+      let cloudflareImageUrl: string | null = null;
+      try {
+        const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+        const apiToken = process.env.CLOUDFLARE_IMAGES_API_TOKEN;
+        const accountHash = process.env.CLOUDFLARE_IMAGES_ACCOUNT_HASH || process.env.NEXT_PUBLIC_CLOUDFLARE_IMAGES_ACCOUNT_HASH;
+
+        if (accountId && apiToken && accountHash) {
+          console.log(`[Replace Image API] Uploading to Cloudflare Images for page ${pageNumber}`);
+          
+          // Create FormData for multipart/form-data upload
+          const formData = new FormData();
+          const blob = new Blob([fileBuffer], { type: contentType });
+          formData.append('file', blob, `p${String(pageNumber).padStart(2, '0')}.png`);
+          formData.append('metadata', JSON.stringify({
+            orderId: orderId,
+            pageNumber: pageNumber,
+            replacedAt: new Date().toISOString(),
+          }));
+
+          // Upload to Cloudflare Images API
+          const cloudflareResponse = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${apiToken}`,
+              },
+              body: formData,
+            }
+          );
+
+          if (cloudflareResponse.ok) {
+            const cloudflareData = await cloudflareResponse.json();
+            if (cloudflareData.success && cloudflareData.result?.id) {
+              cloudflareImageId = cloudflareData.result.id;
+              // Construct Cloudflare Images URL with optimized width for previews
+              // Using width=1024 for admin preview (balance between quality and file size)
+              cloudflareImageUrl = `https://imagedelivery.net/${accountHash}/${cloudflareImageId}/preview?width=1024`;
+              console.log(`[Replace Image API] ✅ Successfully uploaded to Cloudflare Images: ${cloudflareImageId}`);
+            } else {
+              console.warn(`[Replace Image API] Cloudflare Images upload succeeded but no image ID in response:`, cloudflareData);
+            }
+          } else {
+            const errorText = await cloudflareResponse.text();
+            console.warn(`[Replace Image API] Cloudflare Images upload failed (${cloudflareResponse.status}): ${errorText}`);
+            // Continue without Cloudflare Images - R2 upload was successful
+          }
+        } else {
+          console.warn(`[Replace Image API] Cloudflare Images credentials not configured, skipping upload`);
+        }
+      } catch (error: any) {
+        console.error(`[Replace Image API] Error uploading to Cloudflare Images:`, error);
+        // Continue without Cloudflare Images - R2 upload was successful
+      }
+
       // Update pagesMetadata with replacement history
       if (!manifest.pngGeneration.pagesMetadata) {
         manifest.pngGeneration.pagesMetadata = {};
@@ -211,6 +268,72 @@ export async function POST(
         ]
       };
 
+      // Update Cloudflare Images URLs in pagePreviewImages with new upload
+      // If Cloudflare upload succeeded, update with new data; otherwise clear old data
+      const updateCloudflareInPagePreview = (previewImages: any[]) => {
+        if (!Array.isArray(previewImages)) return previewImages;
+        return previewImages.map((img: any) => {
+          if (Number(img.pageNumber) === pageNumber) {
+            const updated: any = {
+              ...img,
+              // Always update r2Key to ensure it's current
+              r2Key: r2Key,
+            };
+            
+            // Update Cloudflare Images data if upload succeeded
+            if (cloudflareImageId && cloudflareImageUrl) {
+              updated.cloudflareImageId = cloudflareImageId;
+              updated.cloudflareImageUrl = cloudflareImageUrl;
+            } else {
+              // If Cloudflare upload failed, remove old data to force R2 usage
+              // Use delete to ensure properties are removed (undefined might not serialize correctly)
+              delete updated.cloudflareImageId;
+              delete updated.cloudflareImageUrl;
+            }
+            
+            return updated;
+          }
+          return img;
+        });
+      };
+
+      // Check multiple possible locations for pagePreviewImages
+      if (manifest.pagePreviewImages && Array.isArray(manifest.pagePreviewImages)) {
+        manifest.pagePreviewImages = updateCloudflareInPagePreview(manifest.pagePreviewImages);
+        console.log(`[Replace Image API] Updated Cloudflare Images data in pagePreviewImages for page ${pageNumber}`);
+      }
+      if (manifest.manifest?.pagePreviewImages && Array.isArray(manifest.manifest.pagePreviewImages)) {
+        manifest.manifest.pagePreviewImages = updateCloudflareInPagePreview(manifest.manifest.pagePreviewImages);
+        console.log(`[Replace Image API] Updated Cloudflare Images data in manifest.pagePreviewImages for page ${pageNumber}`);
+      }
+      if (manifest.bookAssembly?.pagePreviewImages && Array.isArray(manifest.bookAssembly.pagePreviewImages)) {
+        manifest.bookAssembly.pagePreviewImages = updateCloudflareInPagePreview(manifest.bookAssembly.pagePreviewImages);
+        console.log(`[Replace Image API] Updated Cloudflare Images data in bookAssembly.pagePreviewImages for page ${pageNumber}`);
+      }
+
+      // Update pagesWithCloudflare if it exists
+      if (manifest.pngGeneration?.pagesWithCloudflare && typeof manifest.pngGeneration.pagesWithCloudflare === 'object') {
+        const pagesWithCloudflare = manifest.pngGeneration.pagesWithCloudflare;
+        // Check both p00 and p00_dedication for page 0
+        const keysToUpdate = pageNumber === 0 ? [pageKey, 'p00_dedication'] : [pageKey];
+        keysToUpdate.forEach(key => {
+          if (cloudflareImageId && cloudflareImageUrl) {
+            // Update with new Cloudflare Images data
+            pagesWithCloudflare[key] = {
+              cloudflareImageId: cloudflareImageId,
+              cloudflareImageUrl: cloudflareImageUrl,
+            };
+            console.log(`[Replace Image API] Updated ${key} in pagesWithCloudflare with new Cloudflare Images data`);
+          } else {
+            // Remove if Cloudflare upload failed
+            if (pagesWithCloudflare[key]) {
+              delete pagesWithCloudflare[key];
+              console.log(`[Replace Image API] Removed ${key} from pagesWithCloudflare (Cloudflare upload failed)`);
+            }
+          }
+        });
+      }
+
       // Save updated manifest back to R2
       const updatedManifestJson = JSON.stringify(manifest, null, 2);
       await putObject(
@@ -231,6 +354,8 @@ export async function POST(
         replacedAt,
         replacementCount,
         replacedBy: replacedBy || null,
+        cloudflareImageId: cloudflareImageId || null,
+        cloudflareImageUrl: cloudflareImageUrl || null,
       });
     }
 
