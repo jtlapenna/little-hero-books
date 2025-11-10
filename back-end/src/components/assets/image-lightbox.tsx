@@ -79,18 +79,23 @@ export function ImageLightbox({
 
   if (!isOpen) return null;
 
-  const handleFileReplace = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileReplace = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setIsReplacing(true);
-      onReplace(file);
-      // Reset the input value so the same file can be selected again
-      setTimeout(() => {
+      try {
+        // onReplace is async, wait for it to complete
+        await onReplace(file);
+      } catch (error) {
+        console.error('[ImageLightbox] Replace failed:', error);
+        // Error handling is done in the parent component
+      } finally {
+        // Reset the input value so the same file can be selected again
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
         setIsReplacing(false);
-      }, 100);
+      }
     } else {
       // User cancelled file picker
       setIsReplacing(false);

@@ -56,12 +56,15 @@ export function AssetGrid({
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
   // Update selectedAsset when the corresponding asset in the assets array changes
-  // This ensures the modal shows the updated image after operations like flip
+  // This ensures the modal shows the updated image after operations like flip or flag
   useEffect(() => {
     if (selectedAsset) {
       const updatedAsset = assets.find(a => a.id === selectedAsset.id);
-      if (updatedAsset && updatedAsset.url !== selectedAsset.url) {
-        setSelectedAsset(updatedAsset);
+      if (updatedAsset) {
+        // Update if URL changed (for flip/replace) or if flagged state changed
+        if (updatedAsset.url !== selectedAsset.url || updatedAsset.isFlagged !== selectedAsset.isFlagged) {
+          setSelectedAsset(updatedAsset);
+        }
       }
     }
   }, [assets, selectedAsset]);

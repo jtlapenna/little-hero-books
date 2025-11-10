@@ -542,11 +542,27 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                     finalUrl: imageUrl.substring(0, 80) + '...'
                   });
                   
+                  // Ensure r2Key is always set (for download/replace operations)
+                  // Extract r2Key from imageUrl if not already present
+                  let r2Key = img.r2Key;
+                  if (!r2Key && imageUrl) {
+                    // Try to extract from /api/assets/ path
+                    const r2KeyMatch = imageUrl.match(/\/api\/assets\/(.+)$/);
+                    if (r2KeyMatch) {
+                      r2Key = r2KeyMatch[1];
+                    } else {
+                      // Fallback: construct from page number
+                      const pageNum = img.pageNumber ?? 0;
+                      const pageKey = pageNum === 0 ? 'p00' : (pageNum < 10 ? `p0${pageNum}` : `p${pageNum}`);
+                      r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${pageKey}.png`;
+                    }
+                  }
+                  
                   return {
                     pageNumber: img.pageNumber,
                     previewImageUrl: imageUrl,
                     cloudflareImageId: cloudflareImageId || undefined,
-                    r2Key: img.r2Key || undefined
+                    r2Key: r2Key || undefined
                   };
                 });
               
@@ -1193,27 +1209,43 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       const pageNumber = parseInt(match[1], 10);
       const page = pages.find(p => p.pageNumber === pageNumber);
       
-      if (!page || !page.previewImageUrl) {
-        console.error('[PostPdfStage] Page not found or URL missing:', assetId);
+      if (!page) {
+        console.error('[PostPdfStage] Page not found:', assetId);
         alert('Page not found');
         return;
       }
 
-      // Use previewImageUrl or construct from r2Key
-      const imageUrl = page.previewImageUrl || (page.r2Key ? `/api/assets/${page.r2Key}` : null);
-      
-      if (!imageUrl) {
-        alert('Image URL not available');
-        return;
+      // Always use R2 URL for download (not Cloudflare Images WebP)
+      // Construct R2 URL from r2Key, or fallback to constructing from page number
+      let imageUrl: string;
+      if (page.r2Key) {
+        imageUrl = `/api/assets/${page.r2Key}`;
+      } else {
+        // Fallback: construct R2 key from page number
+        const pageKey = `p${String(pageNumber).padStart(2, '0')}`;
+        const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${pageKey}.png`;
+        imageUrl = `/api/assets/${r2Key}`;
       }
 
+      // Fetch the image as a blob to ensure proper download
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
       // Trigger download by creating a temporary link
       const link = document.createElement('a');
-      link.href = imageUrl;
+      link.href = blobUrl;
       link.download = `${assetId}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up blob URL
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
     } catch (error) {
       console.error('[PostPdfStage] Download failed:', error);
       alert('Failed to download page image');
@@ -1282,8 +1314,47 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         console.log('[PostPdfStage] Calling onRefresh...');
         await onRefresh();
         console.log('[PostPdfStage] onRefresh completed');
+        
+        // Force reload of pages to get updated images (with cache busting)
+        // Reset the refs to force a fresh load
+        imagesFoundRef.current = false;
+        pagesLoadedRef.current = false;
+        lastPagesDataRef.current = '';
+        
+        // Add cache-busting timestamp to image URLs in pageAssets
+        // This ensures the browser fetches the new image instead of using cache
+        setPageAssets(prev => prev.map(asset => {
+          if (asset.id === assetId) {
+            // Add timestamp to force reload
+            const cacheBuster = `?t=${Date.now()}`;
+            const r2Url = asset.r2Key ? `/api/assets/${asset.r2Key}${cacheBuster}` : asset.url + cacheBuster;
+            return {
+              ...asset,
+              url: r2Url
+            };
+          }
+          return asset;
+        }));
+        
+        // Also update pages array to trigger spread view update
+        setPages(prev => prev.map(page => {
+          const pageKey = `p${String(page.pageNumber).padStart(2, '0')}`;
+          if (pageKey === assetId) {
+            const cacheBuster = `?t=${Date.now()}`;
+            const r2Url = page.r2Key ? `/api/assets/${page.r2Key}${cacheBuster}` : page.previewImageUrl + cacheBuster;
+            return {
+              ...page,
+              previewImageUrl: r2Url
+            };
+          }
+          return page;
+        }));
+        
+        console.log('[PostPdfStage] Updated image URLs with cache-busting after replacement');
       } else {
         console.warn('[PostPdfStage] No onRefresh callback provided');
+        // Fallback: reload the page
+        window.location.reload();
       }
     } catch (error: any) {
       console.error('[PostPdfStage] Replace failed with error:', error);
@@ -1297,51 +1368,20 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
 
   // Handler for flagging/unflagging individual pages
   const handlePageFlag = async (assetId: string) => {
+    const currentPage = pageAssets.find(p => p.id === assetId);
+    if (!currentPage) {
+      console.error('[PostPdfStage] Page not found for flagging:', assetId);
+      return;
+    }
+    
+    const newFlaggedState = !currentPage.isFlagged;
+    
+    // Extract pageNumber from assetId (e.g., "p01" -> 1)
+    const pageNumberMatch = assetId.match(/p(\d+)/);
+    const pageNumber = pageNumberMatch ? parseInt(pageNumberMatch[1], 10) : null;
+    
+    // Update state immediately for responsive UI
     setPageAssets(prev => {
-      const currentPage = prev.find(p => p.id === assetId);
-      if (!currentPage) return prev;
-      
-      const newFlaggedState = !currentPage.isFlagged;
-      
-      // Extract pageNumber from assetId (e.g., "p01" -> 1)
-      const pageNumberMatch = assetId.match(/p(\d+)/);
-      const pageNumber = pageNumberMatch ? parseInt(pageNumberMatch[1], 10) : null;
-      
-      // If unflagging, persist the decision to the manifest
-      if (!newFlaggedState && pageNumber !== null) {
-        // User is unflagging - persist to manifest via API
-        fetch(`/api/orders/${orderId}/unflag`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            pageNumber,
-            stage: 'postPdf'
-          })
-        }).then(response => {
-          if (!response.ok) {
-            console.error('[PostPdfStage] Failed to persist unflagging:', response.statusText);
-            // Revert the flag state if API call failed
-            setPageAssets(prevPoses => prevPoses.map(page => 
-              page.id === assetId ? { ...page, isFlagged: true } : page
-            ));
-          } else {
-            // Successfully persisted - add to manually unflagged set for this session
-            manuallyUnflaggedRef.current.add(assetId);
-          }
-        }).catch(error => {
-          console.error('[PostPdfStage] Error persisting unflagging:', error);
-          // Revert the flag state if API call failed
-          setPageAssets(prevPoses => prevPoses.map(page => 
-            page.id === assetId ? { ...page, isFlagged: true } : page
-          ));
-        });
-      } else {
-        // User is flagging - remove from manually unflagged set (they changed their mind)
-        manuallyUnflaggedRef.current.delete(assetId);
-      }
-      
       const updated = prev.map(page => 
         page.id === assetId ? { ...page, isFlagged: newFlaggedState } : page
       );
@@ -1352,6 +1392,46 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
       }, 0);
       return updated;
     });
+    
+    // If unflagging, persist the decision to the manifest
+    if (!newFlaggedState && pageNumber !== null) {
+      try {
+        // User is unflagging - persist to manifest via API
+        const response = await fetch(`/api/orders/${orderId}/unflag`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            pageNumber,
+            stage: 'postPdf'
+          })
+        });
+        
+        if (!response.ok) {
+          console.error('[PostPdfStage] Failed to persist unflagging:', response.statusText);
+          // Revert the flag state if API call failed
+          setPageAssets(prev => prev.map(page => 
+            page.id === assetId ? { ...page, isFlagged: true } : page
+          ));
+          alert('Failed to unflag page. Please try again.');
+        } else {
+          // Successfully persisted - add to manually unflagged set for this session
+          manuallyUnflaggedRef.current.add(assetId);
+          console.log('[PostPdfStage] Successfully unflagged page:', assetId);
+        }
+      } catch (error) {
+        console.error('[PostPdfStage] Error persisting unflagging:', error);
+        // Revert the flag state if API call failed
+        setPageAssets(prev => prev.map(page => 
+          page.id === assetId ? { ...page, isFlagged: true } : page
+        ));
+        alert('Failed to unflag page. Please try again.');
+      }
+    } else {
+      // User is flagging - remove from manually unflagged set (they changed their mind)
+      manuallyUnflaggedRef.current.delete(assetId);
+    }
   };
 
   // Reset manually unflagged set when order changes
