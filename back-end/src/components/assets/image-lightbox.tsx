@@ -377,7 +377,7 @@ export function ImageLightbox({
       onClick={handleBackdropClick}
     >
       <div 
-        className="relative max-w-4xl max-h-[90vh] w-full mx-4 flex flex-col bg-white rounded-lg overflow-hidden"
+        className="relative max-w-5xl max-h-[90vh] w-full mx-4 flex flex-col bg-white rounded-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - fixed */}
