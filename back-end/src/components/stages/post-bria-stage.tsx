@@ -5,6 +5,7 @@ import { AssetGrid } from '@/components/assets/asset-grid';
 import { CheckCircle, Play, Eye, RefreshCw } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
+import { getBackgroundImageUrl } from '@/lib/background-images';
 
 interface PostBriaStageProps {
   orderId: string;
@@ -78,34 +79,10 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         };
         const pageNumber = poseToFirstPage[poseNumber] ?? null;
         
-        // Build background URL
+        // Build background URL - use Cloudflare Images if available, fallback to R2
         let backgroundUrl: string | null = null;
         if (pageNumber !== null) {
-          const sceneSlugs = [
-            'dedication',        // page00
-            'twilight-walk',    // page01
-            'night-forest',     // page02
-            'magic-doorway',    // page03
-            'courage-leap',     // page04
-            'morning-meadow',   // page05
-            'tall-forest',      // page06
-            'mountain-vista',   // page07
-            'picnic-surprise',  // page08
-            'beach-discovery',  // page09
-            'crystal-cave',     // page10
-            'giant-flowers',    // page11
-            'almost-there',     // page12
-            'animal-reveal',    // page13
-            'flying-home'       // page14
-          ];
-          
-          if (pageNumber === 0) {
-            backgroundUrl = '/api/assets/book-mvp-simple-adventure/backgrounds/page00-dedication.png';
-          } else if (pageNumber >= 1 && pageNumber <= 14) {
-            const slug = sceneSlugs[pageNumber];
-            const padded = String(pageNumber).padStart(2, '0');
-            backgroundUrl = `/api/assets/book-mvp-simple-adventure/backgrounds/page${padded}-${slug}.png`;
-          }
+          backgroundUrl = getBackgroundImageUrl(pageNumber);
         }
         
         return {
