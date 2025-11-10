@@ -148,8 +148,21 @@ export function ImageLightbox({
   }, [showRegenerateUI, isFirstRevision]);
 
   const handleRegenerate = async () => {
-    if (!onRegenerate || !poseNumber || poseNumber === null || !revisionPrompt.trim()) {
+    // Validate poseNumber (0 is valid, so check for null/undefined explicitly)
+    if (!onRegenerate || poseNumber === null || poseNumber === undefined || !revisionPrompt.trim()) {
       setGenerationError('Please enter a revision prompt');
+      return;
+    }
+
+    // Validate that at least one image is selected
+    if (!includeBaseCharacter && !includePoseReference && !includePreviousOption) {
+      setGenerationError('Please select at least one image to include in the revision (Base Character, Pose Reference, or Previous Option)');
+      return;
+    }
+
+    // Validate previousOptionR2Key if includePreviousOption is true
+    if (includePreviousOption && !temporaryR2Key && !pendingRevisionUrl) {
+      setGenerationError('Previous option is not available. Please select a different image option.');
       return;
     }
 
@@ -157,13 +170,20 @@ export function ImageLightbox({
     setGenerationError(null);
 
     try {
+      // Extract R2 key from pendingRevisionUrl if temporaryR2Key is not set
+      let previousOptionR2Key = temporaryR2Key;
+      if (includePreviousOption && !previousOptionR2Key && pendingRevisionUrl) {
+        // Extract R2 key from preview URL (e.g., "/api/assets/book-mvp-simple-adventure/..." -> "book-mvp-simple-adventure/...")
+        previousOptionR2Key = pendingRevisionUrl.replace('/api/assets/', '');
+      }
+
       await onRegenerate({
         poseNumber,
         revisionPrompt: revisionPrompt.trim(),
         includeBaseCharacter,
         includePoseReference,
         includePreviousOption,
-        previousOptionR2Key: includePreviousOption && temporaryR2Key ? temporaryR2Key : undefined,
+        previousOptionR2Key: includePreviousOption ? previousOptionR2Key : undefined,
       });
       // Success - the parent component will update pendingRevisionUrl
       // Close the regenerate UI and show the new option
@@ -184,6 +204,10 @@ export function ImageLightbox({
           }
         } else if (error.message.includes('blocked by Gemini safety filters')) {
           errorMessage = 'Your revision prompt was blocked by content safety filters. Please try a different prompt.';
+        } else if (error.message.includes('At least one image must be selected')) {
+          errorMessage = 'Please select at least one image to include in the revision (Base Character, Pose Reference, or Previous Option)';
+        } else if (error.message.includes('previousOptionR2Key is required')) {
+          errorMessage = 'Previous option is not available. Please select a different image option.';
         } else if (error.message.includes('Network error')) {
           errorMessage = 'Network error: Please check your connection and try again.';
         } else if (error.message.includes('after') && error.message.includes('attempts')) {
@@ -234,8 +258,15 @@ export function ImageLightbox({
   };
 
   const handleRevise = async () => {
-    if (!onReviseRevision || !poseNumber || poseNumber === null || !revisionPrompt.trim()) {
+    // Validate poseNumber (0 is valid, so check for null/undefined explicitly)
+    if (!onReviseRevision || poseNumber === null || poseNumber === undefined || !revisionPrompt.trim()) {
       setGenerationError('Please enter a revision prompt');
+      return;
+    }
+
+    // Validate that at least one image is selected
+    if (!includeBaseCharacter && !includePoseReference && !includePreviousOption) {
+      setGenerationError('Please select at least one image to include in the revision (Base Character, Pose Reference, or Previous Option)');
       return;
     }
 
@@ -243,13 +274,20 @@ export function ImageLightbox({
     setGenerationError(null);
 
     try {
+      // Extract R2 key from newOptionUrl if temporaryR2Key is not set
+      let previousOptionR2Key = temporaryR2Key;
+      if (includePreviousOption && !previousOptionR2Key && newOptionUrl) {
+        // Extract R2 key from preview URL
+        previousOptionR2Key = newOptionUrl.replace('/api/assets/', '');
+      }
+
       await onReviseRevision({
         poseNumber,
         revisionPrompt: revisionPrompt.trim(),
         includeBaseCharacter,
         includePoseReference,
         includePreviousOption,
-        previousOptionR2Key: temporaryR2Key || undefined,
+        previousOptionR2Key: includePreviousOption ? previousOptionR2Key : undefined,
       });
       // Success - the parent component will update pendingRevisionUrl
       setShowRegenerateUI(false);
@@ -269,6 +307,10 @@ export function ImageLightbox({
           }
         } else if (error.message.includes('blocked by Gemini safety filters')) {
           errorMessage = 'Your revision prompt was blocked by content safety filters. Please try a different prompt.';
+        } else if (error.message.includes('At least one image must be selected')) {
+          errorMessage = 'Please select at least one image to include in the revision (Base Character, Pose Reference, or Previous Option)';
+        } else if (error.message.includes('previousOptionR2Key is required')) {
+          errorMessage = 'Previous option is not available. Please select a different image option.';
         } else if (error.message.includes('Network error')) {
           errorMessage = 'Network error: Please check your connection and try again.';
         } else if (error.message.includes('after') && error.message.includes('attempts')) {
@@ -479,7 +521,7 @@ export function ImageLightbox({
                     e.stopPropagation();
                     handleRegenerate();
                   }}
-                  disabled={isGenerating || !revisionPrompt.trim()}
+                  disabled={isGenerating || !revisionPrompt.trim() || (!includeBaseCharacter && !includePoseReference && !includePreviousOption)}
                   className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isGenerating ? (
