@@ -597,15 +597,7 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
             if (coverUrlToUse) {
               setCoverImageUrl(coverUrlToUse);
               setCoverImageLoading(false);
-              setPages(currentPages => {
-                if (currentPages.length > 0) {
-                  const newSpreads = createSpreads(currentPages, coverUrlToUse!);
-                  setSpreads(newSpreads);
-                  spreadsLengthRef.current = newSpreads.length;
-                }
-                return currentPages;
-              });
-              return; // Exit early if we got cover from manifest
+              // Don't return early - let the spreads creation code run below with the loaded pageData
             }
             
             // Fallback: Try R2 cover preview image
