@@ -27,7 +27,20 @@ R2_CHARACTERS_PREFIX=book-mvp-simple-adventure/order-generated-assets/characters
 BACKEND_API_TOKEN=<secure-random-token-for-webhook-authentication>
 ```
 
-### 3. Supabase Configuration (Optional for MVP)
+### 3. Gemini API Configuration (Required for Tab 1 revisions)
+Required for the pose regeneration feature:
+
+```
+GOOGLE_GEMINI_API_KEY=<your-google-gemini-api-key>
+```
+
+**How to get your Gemini API key:**
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Sign in with your Google account
+3. Click **Create API Key**
+4. Copy the API key and add it to Cloudflare Pages environment variables
+
+### 4. Supabase Configuration (Optional for MVP)
 These are not strictly required for MVP but will be needed later:
 
 ```
@@ -56,6 +69,9 @@ wrangler pages secret put CLOUDFLARE_ACCOUNT_ID --project-name=little-hero-labs-
 wrangler pages secret put R2_ACCESS_KEY_ID --project-name=little-hero-labs-admin
 wrangler pages secret put R2_SECRET_ACCESS_KEY --project-name=little-hero-labs-admin
 wrangler pages secret put BACKEND_API_TOKEN --project-name=little-hero-labs-admin
+
+# Set Gemini API key (for Tab 1 revisions)
+wrangler pages secret put GOOGLE_GEMINI_API_KEY --project-name=little-hero-labs-admin
 ```
 
 ## Getting Your R2 Credentials
