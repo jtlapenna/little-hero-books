@@ -315,11 +315,11 @@ export function ImageLightbox({
       onClick={handleBackdropClick}
     >
       <div 
-        className="relative max-w-4xl max-h-[90vh] w-full mx-4"
+        className="relative max-w-4xl max-h-[90vh] w-full mx-4 flex flex-col bg-white rounded-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between bg-white px-6 py-4 rounded-t-lg">
+        {/* Header - fixed */}
+        <div className="flex items-center justify-between bg-white px-6 py-4 rounded-t-lg flex-shrink-0">
           <div className="flex items-center space-x-4">
             <h3 className="text-lg font-semibold text-gray-900">{imageName}</h3>
             {isFlagged && (
@@ -337,8 +337,8 @@ export function ImageLightbox({
           </button>
         </div>
 
-        {/* Image Container */}
-        <div className="bg-white p-6">
+        {/* Image Container - scrollable */}
+        <div className="bg-white p-6 overflow-y-auto flex-1">
           {/* Regeneration UI Section */}
           {showRegenerateUI && poseNumber !== undefined && poseNumber !== null && (
             <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
@@ -356,6 +356,8 @@ export function ImageLightbox({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   rows={3}
                   disabled={isGenerating}
+                  onClick={(e) => e.stopPropagation()}
+                  onFocus={(e) => e.stopPropagation()}
                 />
               </div>
 
@@ -364,18 +366,24 @@ export function ImageLightbox({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Include Images in Revision
                 </label>
-                <div className="space-y-2">
+                <div className="flex flex-wrap gap-4">
                   {/* Base Character */}
                   {baseCharacterUrl && (
-                    <label className="flex items-center space-x-3 cursor-pointer">
+                    <label 
+                      className="flex items-center space-x-3 cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <input
                         type="checkbox"
                         checked={includeBaseCharacter}
-                        onChange={(e) => setIncludeBaseCharacter(e.target.checked)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setIncludeBaseCharacter(e.target.checked);
+                        }}
                         disabled={isGenerating}
                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                       />
-                      <div className="flex items-center space-x-2 flex-1">
+                      <div className="flex items-center space-x-2">
                         <img
                           src={baseCharacterUrl}
                           alt="Base Character"
@@ -388,15 +396,21 @@ export function ImageLightbox({
 
                   {/* Pose Reference */}
                   {comparisonImageUrl && (
-                    <label className="flex items-center space-x-3 cursor-pointer">
+                    <label 
+                      className="flex items-center space-x-3 cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <input
                         type="checkbox"
                         checked={includePoseReference}
-                        onChange={(e) => setIncludePoseReference(e.target.checked)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setIncludePoseReference(e.target.checked);
+                        }}
                         disabled={isGenerating}
                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                       />
-                      <div className="flex items-center space-x-2 flex-1">
+                      <div className="flex items-center space-x-2">
                         <img
                           src={comparisonImageUrl}
                           alt="Pose Reference"
@@ -409,15 +423,21 @@ export function ImageLightbox({
 
                   {/* Previous Option */}
                   {pendingRevisionUrl && (
-                    <label className="flex items-center space-x-3 cursor-pointer">
+                    <label 
+                      className="flex items-center space-x-3 cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <input
                         type="checkbox"
                         checked={includePreviousOption}
-                        onChange={(e) => setIncludePreviousOption(e.target.checked)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setIncludePreviousOption(e.target.checked);
+                        }}
                         disabled={isGenerating}
                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                       />
-                      <div className="flex items-center space-x-2 flex-1">
+                      <div className="flex items-center space-x-2">
                         <img
                           src={pendingRevisionUrl}
                           alt="Previous Option"
@@ -675,8 +695,8 @@ export function ImageLightbox({
           )}
         </div>
 
-        {/* Actions */}
-        <div className="bg-white px-6 py-4 rounded-b-lg border-t border-gray-200">
+        {/* Actions - fixed */}
+        <div className="bg-white px-6 py-4 rounded-b-lg border-t border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <button
