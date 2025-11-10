@@ -185,12 +185,18 @@ export function AssetGrid({
                   <Eye className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     if (asset.isMissing || !asset.url) {
                       return; // Don't allow download for missing assets
                     }
-                    onDownload(asset.id);
+                    try {
+                      await onDownload(asset.id);
+                    } catch (error) {
+                      console.error('[AssetGrid] Download error:', error);
+                      // Error is already handled in the download handler
+                    }
                   }}
                   className={`p-2 rounded-full transition-colors ${
                     asset.isMissing || !asset.url

@@ -84,8 +84,24 @@ export async function POST(
     if (stage === 'postPdf' && pageNumber !== undefined) {
       const manifestKey = buildManifestKey(orderId, '3');
       console.log(`[Unflag API] Loading 3-manifest: ${manifestKey}`);
-      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-      const manifest = await readJsonSafe<any>(manifestRes);
+      
+      let manifest: any;
+      try {
+        const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
+        manifest = await readJsonSafe<any>(manifestRes);
+      } catch (error: any) {
+        if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+          return NextResponse.json(
+            { error: 'Manifest not found. Please ensure Workflow 3 has completed.' },
+            { status: 404 }
+          );
+        }
+        console.error('[Unflag API] Error loading manifest:', error);
+        return NextResponse.json(
+          { error: 'Failed to load manifest' },
+          { status: 500 }
+        );
+      }
 
       if (!manifest || !manifest.pngGeneration) {
         return NextResponse.json(

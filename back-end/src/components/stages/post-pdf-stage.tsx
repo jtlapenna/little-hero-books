@@ -546,12 +546,14 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
                   // Extract r2Key from imageUrl if not already present
                   let r2Key = img.r2Key;
                   if (!r2Key && imageUrl) {
-                    // Try to extract from /api/assets/ path
-                    const r2KeyMatch = imageUrl.match(/\/api\/assets\/(.+)$/);
+                    // Try to extract from /api/assets/ path (remove query params if present)
+                    const urlWithoutQuery = imageUrl.split('?')[0]; // Remove query params
+                    const r2KeyMatch = urlWithoutQuery.match(/\/api\/assets\/(.+)$/);
                     if (r2KeyMatch) {
                       r2Key = r2KeyMatch[1];
                     } else {
                       // Fallback: construct from page number
+                      // This handles Cloudflare Images URLs or other formats
                       const pageNum = img.pageNumber ?? 0;
                       const pageKey = pageNum === 0 ? 'p00' : (pageNum < 10 ? `p0${pageNum}` : `p${pageNum}`);
                       r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${pageKey}.png`;
@@ -1227,28 +1229,66 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         imageUrl = `/api/assets/${r2Key}`;
       }
 
+      console.log('[PostPdfStage] Downloading from URL:', imageUrl);
+
       // Fetch the image as a blob to ensure proper download
-      const response = await fetch(imageUrl);
+      // Use cache-busting to ensure we get the latest version
+      const cacheBuster = `?t=${Date.now()}`;
+      const fullUrl = imageUrl.includes('?') ? `${imageUrl}&t=${Date.now()}` : `${imageUrl}${cacheBuster}`;
+      
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        // Ensure we get the full response, not a partial one
+        cache: 'no-store',
+      });
+      
       if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status}`);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error('[PostPdfStage] Fetch failed:', response.status, errorText);
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
       }
       
-      const blob = await response.blob();
+      // Check content length to ensure we're getting the full file
+      const contentLength = response.headers.get('content-length');
+      console.log('[PostPdfStage] Response headers:', {
+        contentType: response.headers.get('content-type'),
+        contentLength,
+        status: response.status
+      });
+      
+      // Read the full response as array buffer first to ensure completeness
+      const arrayBuffer = await response.arrayBuffer();
+      console.log('[PostPdfStage] Downloaded arrayBuffer size:', arrayBuffer.byteLength, 'bytes');
+      
+      if (contentLength && arrayBuffer.byteLength !== parseInt(contentLength, 10)) {
+        console.warn('[PostPdfStage] Content length mismatch:', {
+          expected: contentLength,
+          actual: arrayBuffer.byteLength
+        });
+      }
+      
+      // Create blob from the complete array buffer
+      const blob = new Blob([arrayBuffer], { type: response.headers.get('content-type') || 'image/png' });
       const blobUrl = URL.createObjectURL(blob);
       
       // Trigger download by creating a temporary link
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = `${assetId}.png`;
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
       
-      // Clean up blob URL
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-    } catch (error) {
+      // Clean up after a short delay to ensure download starts
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
+      
+      console.log('[PostPdfStage] Download initiated successfully');
+    } catch (error: any) {
       console.error('[PostPdfStage] Download failed:', error);
-      alert('Failed to download page image');
+      alert(`Failed to download page image: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -1323,11 +1363,13 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         
         // Add cache-busting timestamp to image URLs in pageAssets
         // This ensures the browser fetches the new image instead of using cache
+        const timestamp = Date.now();
         setPageAssets(prev => prev.map(asset => {
           if (asset.id === assetId) {
-            // Add timestamp to force reload
-            const cacheBuster = `?t=${Date.now()}`;
-            const r2Url = asset.r2Key ? `/api/assets/${asset.r2Key}${cacheBuster}` : asset.url + cacheBuster;
+            // Always use R2 URL for replaced images (not Cloudflare Images)
+            // Add timestamp to force reload, handling existing query params
+            const baseUrl = asset.r2Key ? `/api/assets/${asset.r2Key}` : asset.url.split('?')[0]; // Remove existing query params
+            const r2Url = `${baseUrl}?t=${timestamp}`;
             return {
               ...asset,
               url: r2Url
@@ -1340,8 +1382,10 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
         setPages(prev => prev.map(page => {
           const pageKey = `p${String(page.pageNumber).padStart(2, '0')}`;
           if (pageKey === assetId) {
-            const cacheBuster = `?t=${Date.now()}`;
-            const r2Url = page.r2Key ? `/api/assets/${page.r2Key}${cacheBuster}` : page.previewImageUrl + cacheBuster;
+            // Always use R2 URL for replaced images (not Cloudflare Images)
+            // Add timestamp to force reload, handling existing query params
+            const baseUrl = page.r2Key ? `/api/assets/${page.r2Key}` : page.previewImageUrl.split('?')[0]; // Remove existing query params
+            const r2Url = `${baseUrl}?t=${timestamp}`;
             return {
               ...page,
               previewImageUrl: r2Url
