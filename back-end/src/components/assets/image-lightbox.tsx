@@ -122,7 +122,7 @@ export function ImageLightbox({
   };
 
   // Track previous pendingRevisionUrl to detect when it changes
-  const prevPendingRevisionUrlRef = useRef<string | undefined>(undefined);
+  const prevPendingRevisionUrlRef = useRef<string | undefined>(pendingRevisionUrl);
 
   // Update newOptionUrl when pendingRevisionUrl changes
   // When a new revision arrives, update the URL and reset the view state
@@ -132,7 +132,7 @@ export function ImageLightbox({
 
     // Only update if the URL actually changed (new revision arrived)
     if (currentUrl !== prevUrl) {
-      console.log('[ImageLightbox] Pending revision URL changed:', { prevUrl, currentUrl });
+      console.log('[ImageLightbox] Pending revision URL changed:', { prevUrl, currentUrl, isOpen });
       prevPendingRevisionUrlRef.current = currentUrl;
 
       if (currentUrl) {
@@ -143,9 +143,18 @@ export function ImageLightbox({
         // User can then click "New Option Available" to see the new revision
         setShowNewOption(false);
         // Update temporaryR2Key from the URL for revise operations
-        const r2Key = currentUrl.replace('/api/assets/', '');
+        // Handle both /api/assets/ and Cloudflare Images URLs
+        let r2Key: string | null = null;
+        if (currentUrl.includes('/api/assets/')) {
+          r2Key = currentUrl.replace('/api/assets/', '');
+        } else if (currentUrl.includes('imagedelivery.net')) {
+          // For Cloudflare Images URLs, we need to get the R2 key from the manifest
+          // For now, we'll extract what we can or leave it null
+          // The parent component should provide the R2 key separately if needed
+          console.warn('[ImageLightbox] Cloudflare Images URL detected, R2 key extraction not implemented');
+        }
         setTemporaryR2Key(r2Key);
-        console.log('[ImageLightbox] Updated newOptionUrl to latest revision, reset view to original');
+        console.log('[ImageLightbox] Updated newOptionUrl to latest revision, reset view to original', { r2Key });
       } else {
         setNewOptionUrl(null);
         setTemporaryR2Key(null);
@@ -153,7 +162,7 @@ export function ImageLightbox({
         setShowNewOption(false);
       }
     }
-  }, [pendingRevisionUrl]);
+  }, [pendingRevisionUrl, isOpen]);
 
   // Determine if this is a first revision (no previous option exists)
   const isFirstRevision = !pendingRevisionUrl;

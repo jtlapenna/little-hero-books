@@ -543,13 +543,26 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       if (result.status === 'completed' && result.temporaryR2Key) {
         const poseNN = String(data.poseNumber).padStart(2, '0');
         const revisionKey = `pose${poseNN}`;
-        setPendingRevisions(prev => ({
-          ...prev,
-          [revisionKey]: {
+        const newPreviewUrl = result.previewUrl || result.cloudflareImageUrl || `/api/assets/${result.temporaryR2Key}`;
+        
+        setPendingRevisions(prev => {
+          const previousRevision = prev[revisionKey];
+          console.log('[PreBriaStage] Updating pending revision (synchronous completion):', {
+            revisionKey,
             r2Key: result.temporaryR2Key,
-            previewUrl: result.previewUrl || result.cloudflareImageUrl || `/api/assets/${result.temporaryR2Key}`,
-          },
-        }));
+            previewUrl: newPreviewUrl,
+            previousRevisionUrl: previousRevision?.previewUrl,
+            urlChanged: previousRevision?.previewUrl !== newPreviewUrl,
+          });
+          
+          return {
+            ...prev,
+            [revisionKey]: {
+              r2Key: result.temporaryR2Key,
+              previewUrl: newPreviewUrl,
+            },
+          };
+        });
 
         // Refresh order data to show new pending revision
         if (onRefresh) {
@@ -603,15 +616,33 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
               }
               
               // Update pending revisions state
-              setPendingRevisions(prev => ({
-                ...prev,
-                [revisionKey]: {
+              const newPreviewUrl = statusResult.previewUrl || statusResult.cloudflareImageUrl || `/api/assets/${statusResult.temporaryR2Key}`;
+              
+              // Get current state to compare
+              setPendingRevisions(prev => {
+                const previousRevision = prev[revisionKey];
+                console.log('[PreBriaStage] Updating pending revision after polling completion:', {
+                  revisionKey,
                   r2Key: statusResult.temporaryR2Key,
-                  previewUrl: statusResult.previewUrl || statusResult.cloudflareImageUrl || `/api/assets/${statusResult.temporaryR2Key}`,
-                },
-              }));
+                  previewUrl: newPreviewUrl,
+                  previousRevisionUrl: previousRevision?.previewUrl,
+                  urlChanged: previousRevision?.previewUrl !== newPreviewUrl,
+                });
+                
+                const updated = {
+                  ...prev,
+                  [revisionKey]: {
+                    r2Key: statusResult.temporaryR2Key,
+                    previewUrl: newPreviewUrl,
+                  },
+                };
+                console.log('[PreBriaStage] Updated pendingRevisions state:', Object.keys(updated));
+                return updated;
+              });
 
-              // Refresh order data to show new pending revision
+              // Force a refresh of the poses array by triggering the useEffect
+              // The poses array depends on pendingRevisions, so it should update automatically
+              // But we'll also refresh order data to ensure everything is in sync
               if (onRefresh) {
                 await onRefresh();
               }
