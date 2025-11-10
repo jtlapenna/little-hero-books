@@ -34,6 +34,8 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   // Track active polling intervals for cleanup
   const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const pollingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  // Track if an operation is in progress to prevent race conditions
+  const operationInProgressRef = useRef<Set<string>>(new Set());
   
   // Reset manually unflagged set when order changes
   useEffect(() => {
@@ -57,9 +59,6 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       pollingTimeoutsRef.current.clear();
     };
   }, [orderId]);
-
-  // Track if an operation is in progress to prevent race conditions
-  const operationInProgressRef = useRef<Set<string>>(new Set());
 
   // Load pending revisions from manifest
   useEffect(() => {
