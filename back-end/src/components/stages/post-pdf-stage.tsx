@@ -17,19 +17,42 @@ import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 import { AssetGrid } from '@/components/assets/asset-grid';
 import { formatDate } from '@/lib/utils';
-import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure PDF.js worker - use CDN by default for reliability
-// The async fetch check doesn't work because PDF.js loads the worker synchronously
-// when getDocument() is called, before the fetch check can complete
-// Using CDN ensures the worker is always available, even if local file isn't deployed
-if (typeof window !== 'undefined') {
-  const version = '5.4.394';
-  // Use CDN directly - more reliable than local file which may not be deployed correctly
-  // The local file often 404s on Cloudflare Pages, so CDN is the safer default
-  const cdnUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
-  pdfjsLib.GlobalWorkerOptions.workerSrc = cdnUrl;
-  console.log('[PDF.js] Using CDN worker:', cdnUrl);
+const PDFJS_VERSION = '5.4.394';
+let pdfjsLibSingleton: typeof import('pdfjs-dist') | null = null;
+let pdfjsLibPromise: Promise<typeof import('pdfjs-dist')> | null = null;
+
+async function loadPdfjs(workerOverride?: string) {
+  if (pdfjsLibSingleton) {
+    if (workerOverride && typeof window !== 'undefined') {
+      pdfjsLibSingleton.GlobalWorkerOptions.workerSrc = workerOverride;
+    }
+    return pdfjsLibSingleton;
+  }
+
+  if (typeof window === 'undefined') {
+    throw new Error('PDF.js can only be loaded in the browser');
+  }
+
+  if (!pdfjsLibPromise) {
+    pdfjsLibPromise = import('pdfjs-dist').then((lib) => {
+      const workerSrc =
+        workerOverride ??
+        `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`;
+
+      lib.GlobalWorkerOptions.workerSrc = workerSrc;
+      pdfjsLibSingleton = lib;
+      return lib;
+    });
+  }
+
+  const lib = await pdfjsLibPromise;
+
+  if (workerOverride && typeof window !== 'undefined') {
+    lib.GlobalWorkerOptions.workerSrc = workerOverride;
+  }
+
+  return lib;
 }
 
 interface FinalApprovalStateProps {
@@ -286,79 +309,59 @@ export function PostPdfStage({
   // Helper function to convert PDF to image using PDF.js
   // Use useCallback to prevent function recreation on every render
   const convertPdfToImage = useCallback(async (pdfUrl: string): Promise<string> => {
-    const attemptConversion = async (workerUrl: string | null = null): Promise<string> => {
-      // If worker URL is provided, update it before attempting conversion
-      if (workerUrl && typeof window !== 'undefined') {
-        const previousWorkerSrc = pdfjsLib.GlobalWorkerOptions.workerSrc;
-        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-        console.log('[Pages] Using worker URL:', workerUrl);
-      }
-      
+    if (typeof window === 'undefined') {
+      throw new Error('PDF to image conversion requires a browser environment');
+    }
+
+    const attemptConversion = async (workerUrl?: string): Promise<string> => {
+      const pdfjsLib = await loadPdfjs(workerUrl);
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdf = await loadingTask.promise;
-      const page = await pdf.getPage(1); // Get first page
-      
-      // Use 1.5x scale for previews (balance between quality and file size)
-      // 1x would be too low quality, 2x creates huge files (4x the pixels)
-      // 1.5x is a good compromise: 2.25x the pixels, ~60% smaller than 2x
+      const page = await pdf.getPage(1);
+
       const scale = 1.5;
       const viewport = page.getViewport({ scale });
-      
-      // Create canvas
+
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
       if (!context) {
         throw new Error('Could not get canvas context');
       }
-      
+
       canvas.height = viewport.height;
       canvas.width = viewport.width;
-      
-      // Render PDF page to canvas
-      await page.render({
-        canvas: canvas,
-        viewport: viewport
-      }).promise;
-      
-      // Convert canvas to JPEG with 85% quality for much smaller file size
-      // PNG is lossless but creates huge files (especially for photos/gradients)
-      // JPEG at 85% quality is visually identical but ~70-80% smaller
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      return dataUrl;
+
+      await page
+        .render({
+          canvasContext: context,
+          viewport,
+        })
+        .promise;
+
+      return canvas.toDataURL('image/jpeg', 0.85);
     };
-    
+
     try {
       console.log('[Pages] Converting PDF to image:', pdfUrl);
-      // Try conversion with current worker configuration
       const dataUrl = await attemptConversion();
       console.log('[Pages] ✓ PDF converted to image successfully');
       return dataUrl;
     } catch (error: any) {
-      // Check if error is related to worker loading (404, network error, etc.)
       const errorMessage = error?.message || String(error);
-      const isWorkerError = errorMessage.includes('worker') || 
-                           errorMessage.includes('404') ||
-                           errorMessage.includes('Failed to fetch') ||
-                           errorMessage.includes('NetworkError');
-      
-      if (isWorkerError && typeof window !== 'undefined') {
-        // Retry with CDN worker URL
-        const version = '5.4.394';
-        const cdnUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
+      const isWorkerError =
+        typeof window !== 'undefined' &&
+        ['worker', 'Failed to fetch', 'NetworkError', '404'].some((fragment) =>
+          errorMessage.includes(fragment)
+        );
+
+      if (isWorkerError) {
+        const cdnUrl = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`;
         console.warn('[Pages] Worker error detected, retrying with CDN worker:', cdnUrl);
-        
-        try {
-          const dataUrl = await attemptConversion(cdnUrl);
-          console.log('[Pages] ✓ PDF converted to image successfully with CDN worker');
-          return dataUrl;
-        } catch (retryError) {
-          console.error('[Pages] Error converting PDF to image even with CDN worker:', retryError);
-          throw retryError;
-        }
-      } else {
-        console.error('[Pages] Error converting PDF to image:', error);
-        throw error;
+        return attemptConversion(cdnUrl);
       }
+
+      console.error('[Pages] Error converting PDF to image:', error);
+      throw error;
     }
   }, []);
 
