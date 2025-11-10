@@ -685,6 +685,9 @@ export function PostPdfStage({ orderId, order, isApproved, onApprove, onInitiate
           }
         }
         
+        // CRITICAL: Log if we have pageData before creating spreads
+        console.log('[Pages] ⚠️ BEFORE spreads creation - pageData.length:', pageData.length, 'pageData sample:', pageData[0] || 'empty');
+        
         // Check if pages have actually changed to prevent unnecessary re-renders
         const currentPagesData = JSON.stringify(pageData);
         const pagesChanged = currentPagesData !== lastPagesDataRef.current;
