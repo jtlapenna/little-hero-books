@@ -351,9 +351,12 @@ export function ImageLightbox({
                 </label>
                 <textarea
                   value={revisionPrompt}
-                  onChange={(e) => setRevisionPrompt(e.target.value)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    setRevisionPrompt(e.target.value);
+                  }}
                   placeholder="Describe the changes you want (e.g., 'Make the hair longer', 'Adjust the arm position')"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 bg-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 placeholder:text-gray-400"
                   rows={3}
                   disabled={isGenerating}
                   onClick={(e) => e.stopPropagation()}
