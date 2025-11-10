@@ -985,6 +985,8 @@ export function PostPdfStage({
         // Check if PDF exists for download
         try {
           const pdfRes = await fetch(pdfUrl, { method: 'HEAD' });
+          let pdfErrorMessage: string | null = null;
+
           if (pdfRes.ok) {
             const jsonRes = await fetch(`${pdfUrl}?format=json`);
             if (jsonRes.ok) {
@@ -996,17 +998,45 @@ export function PostPdfStage({
                 loading: false,
                 error: null
               }));
+            } else {
+              const errorBody = await jsonRes.json().catch(() => null);
+              pdfErrorMessage =
+                (errorBody?.error as string | undefined) || 'PDF metadata unavailable';
             }
           } else {
+            const jsonRes = await fetch(`${pdfUrl}?format=json`);
+            if (jsonRes.ok) {
+              const data = await jsonRes.json();
+              setPdfAsset(prev => ({
+                ...prev,
+                url: data.signedUrl || pdfUrl,
+                exists: true,
+                loading: false,
+                error: null
+              }));
+            } else {
+              const errorBody = await jsonRes.json().catch(() => null);
+              pdfErrorMessage =
+                (errorBody?.error as string | undefined) || 'PDF not yet generated';
+            }
+          }
+
+          if (pdfErrorMessage) {
             setPdfAsset(prev => ({
               ...prev,
               exists: false,
               loading: false,
-              error: 'PDF not yet generated'
+              error: pdfErrorMessage
             }));
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error('[Pages] Error checking PDF:', e);
+          setPdfAsset(prev => ({
+            ...prev,
+            exists: false,
+            loading: false,
+            error: e?.message || 'Failed to check PDF status'
+          }));
         }
       } catch (error: any) {
         if (!isMounted) return;
@@ -1605,13 +1635,18 @@ export function PostPdfStage({
   const allowApproveWithoutPdf =
     process.env.NODE_ENV !== 'production' ||
     process.env.NEXT_PUBLIC_ALLOW_APPROVAL_WITHOUT_PDF === 'true';
+  const pdfUnavailableForEnv =
+    Boolean(pdfAsset.error) &&
+    /environment|credential|not available in this environment/i.test(pdfAsset.error);
   const canApprove =
     !pdfAsset.isFlagged &&
     isPreBriaApproved &&
     isPostBriaApproved &&
-    (pdfAsset.exists || allowApproveWithoutPdf);
-  const requiresPdfWarning = !pdfAsset.exists && !allowApproveWithoutPdf;
-  const devPdfNotice = !pdfAsset.exists && allowApproveWithoutPdf;
+    (pdfAsset.exists || allowApproveWithoutPdf || pdfUnavailableForEnv);
+  const requiresPdfWarning =
+    !pdfAsset.exists && !allowApproveWithoutPdf && !pdfUnavailableForEnv;
+  const devPdfNotice =
+    !pdfAsset.exists && (allowApproveWithoutPdf || pdfUnavailableForEnv);
 
   const currentSpread = spreads[currentSpreadIndex];
   const totalSpreads = spreads.length;
@@ -2201,7 +2236,7 @@ export function PostPdfStage({
             </p>
             {devPdfNotice && (
               <p className="text-xs text-gray-500 mt-2">
-                PDF not detected; approval is enabled for development testing. Ensure a compiled PDF exists before sending to real customers.
+                PDF not detected ({pdfAsset.error || 'unavailable'}); approval is enabled for testing. Ensure a compiled PDF exists and R2 credentials are configured before sending to real customers.                 
               </p>
             )}
           </div>
