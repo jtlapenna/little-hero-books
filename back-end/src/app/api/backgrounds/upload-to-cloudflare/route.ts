@@ -1,24 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 
 /**
  * Upload background images to Cloudflare Images for WebP conversion
  * POST /api/backgrounds/upload-to-cloudflare
  * 
- * This is a one-time setup endpoint that uploads all 15 background images
- * from R2 to Cloudflare Images and returns a mapping of page numbers to
- * Cloudflare Images IDs and URLs.
+ * This endpoint accepts file uploads in the request body and uploads them
+ * to Cloudflare Images using the "backend" variant (1500x1500).
+ * 
+ * For local development, use the script: npx tsx scripts/upload-background-images.ts
  */
 export async function POST(request: NextRequest) {
   try {
     const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
     const apiToken = process.env.CLOUDFLARE_IMAGES_API_TOKEN;
     const accountHash = process.env.CLOUDFLARE_IMAGES_ACCOUNT_HASH || process.env.NEXT_PUBLIC_CLOUDFLARE_IMAGES_ACCOUNT_HASH;
+    const variant = 'backend'; // Use "backend" variant (1500x1500)
 
     if (!accountId || !apiToken || !accountHash) {
       return NextResponse.json(
         { error: 'Cloudflare Images credentials not configured' },
         { status: 500 }
+      );
+    }
+
+    // Parse form data from request
+    const formData = await request.formData();
+    const files = formData.getAll('files') as File[];
+
+    if (files.length === 0) {
+      return NextResponse.json(
+        { error: 'No files provided. Use the local script: npx tsx scripts/upload-background-images.ts' },
+        { status: 400 }
       );
     }
 
@@ -54,13 +66,23 @@ export async function POST(request: NextRequest) {
     // Upload each background image
     for (const bg of backgrounds) {
       try {
-        const r2Key = `book-mvp-simple-adventure/backgrounds/${bg.filename}`;
-        console.log(`[Background Upload] Fetching ${r2Key} from R2...`);
+        // Find matching file
+        const file = files.find(f => f.name === bg.filename || f.name.endsWith(bg.filename));
+        if (!file) {
+          results.push({
+            pageNumber: bg.pageNumber,
+            filename: bg.filename,
+            slug: bg.slug,
+            success: false,
+            error: 'File not found in upload',
+          });
+          continue;
+        }
 
-        // Fetch image from R2
-        const imageRes = await getObject(R2_PUBLIC_BUCKET, r2Key);
-        const imageBuffer = await imageRes.arrayBuffer();
-        const contentType = imageRes.headers.get('content-type') || 'image/png';
+        console.log(`[Background Upload] Uploading ${bg.filename}...`);
+
+        const imageBuffer = await file.arrayBuffer();
+        const contentType = file.type || 'image/png';
 
         console.log(`[Background Upload] Uploading ${bg.filename} to Cloudflare Images...`);
 
@@ -91,8 +113,8 @@ export async function POST(request: NextRequest) {
           const cloudflareData = await cloudflareResponse.json();
           if (cloudflareData.success && cloudflareData.result?.id) {
             const cloudflareImageId = cloudflareData.result.id;
-            // Construct Cloudflare Images URL with optimized width for previews
-            const cloudflareImageUrl = `https://imagedelivery.net/${accountHash}/${cloudflareImageId}/preview?width=1024`;
+            // Construct Cloudflare Images URL using "backend" variant (1500x1500)
+            const cloudflareImageUrl = `https://imagedelivery.net/${accountHash}/${cloudflareImageId}/${variant}`;
             
             results.push({
               pageNumber: bg.pageNumber,
@@ -102,7 +124,7 @@ export async function POST(request: NextRequest) {
               cloudflareImageId,
               cloudflareImageUrl,
             });
-            console.log(`[Background Upload] ✅ Successfully uploaded ${bg.filename}: ${cloudflareImageId}`);
+            console.log(`[Background Upload] ✅ Successfully uploaded ${bg.filename}: ${cloudflareImageId} (variant: ${variant})`);
           } else {
             results.push({
               pageNumber: bg.pageNumber,

@@ -558,8 +558,8 @@ export async function POST(
           const cloudflareData = await cloudflareResponse.json();
           if (cloudflareData.success && cloudflareData.result?.id) {
             cloudflareImageId = cloudflareData.result.id;
-            // Construct Cloudflare Images URL with optimized width for previews
-            cloudflareImageUrl = `https://imagedelivery.net/${accountHash}/${cloudflareImageId}/preview?width=1024`;
+            // Construct Cloudflare Images URL using "backend" variant (1500x1500)
+            cloudflareImageUrl = `https://imagedelivery.net/${accountHash}/${cloudflareImageId}/backend`;
             console.log(`[Regenerate Pose API] ✅ Successfully uploaded to Cloudflare Images: ${cloudflareImageId}`);
           } else {
             console.warn(`[Regenerate Pose API] Cloudflare Images upload succeeded but no image ID in response:`, cloudflareData);

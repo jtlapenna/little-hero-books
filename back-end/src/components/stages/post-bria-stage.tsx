@@ -5,7 +5,7 @@ import { AssetGrid } from '@/components/assets/asset-grid';
 import { CheckCircle, Play, Eye, RefreshCw } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
-import { getBackgroundImageUrl } from '@/lib/background-images';
+// Note: getBackgroundImageUrl is server-side only, so we'll fetch URLs via API
 
 interface PostBriaStageProps {
   orderId: string;
@@ -42,6 +42,9 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     manuallyUnflaggedRef.current.clear();
   }, [orderId]);
   
+  // Cache for background URLs to avoid repeated API calls
+  const backgroundUrlCache = useRef<Record<number, string>>({});
+  
   useEffect(() => {
     // Calculate stable key from actual data - include isFlagged and needsReview to detect flag changes
     const currentKey = JSON.stringify(posesBgRemoved.map(p => ({ 
@@ -60,7 +63,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     prevKeyRef.current = currentKey;
     
     if (posesBgRemoved.length > 0) {
-      setPoses(posesBgRemoved.map((pose) => {
+      // Map poses and fetch background URLs in parallel
+      const posePromises = posesBgRemoved.map(async (pose) => {
         const poseNumber = pose.poseNumber ?? 0;
         const poseId = `pose${String(poseNumber).padStart(2, '0')}-bg-removed`;
         const isMissing = pose.isMissing || !pose.url;
@@ -79,10 +83,27 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         };
         const pageNumber = poseToFirstPage[poseNumber] ?? null;
         
-        // Build background URL - use Cloudflare Images if available, fallback to R2
+        // Build background URL - fetch from API if not cached
         let backgroundUrl: string | null = null;
         if (pageNumber !== null) {
-          backgroundUrl = getBackgroundImageUrl(pageNumber);
+          // Check cache first
+          if (backgroundUrlCache.current[pageNumber]) {
+            backgroundUrl = backgroundUrlCache.current[pageNumber];
+          } else {
+            // Fetch from API
+            try {
+              const response = await fetch(`/api/backgrounds/get-url?pageNumber=${pageNumber}`);
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.url) {
+                  backgroundUrl = data.url;
+                  backgroundUrlCache.current[pageNumber] = data.url;
+                }
+              }
+            } catch (error) {
+              console.warn(`[PostBriaStage] Failed to fetch background URL for page ${pageNumber}:`, error);
+            }
+          }
         }
         
         return {
@@ -105,7 +126,12 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           onFlip: () => handleFlip(poseId, poseNumber, pose.url || ''),
           isFlipping: flippingPoseId === poseId
         };
-      }));
+      });
+      
+      // Wait for all promises to resolve
+      Promise.all(posePromises).then((mappedPoses) => {
+        setPoses(mappedPoses);
+      });
     } else {
       // Reset poses if no R2 data
       setPoses([]);
