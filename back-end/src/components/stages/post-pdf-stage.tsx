@@ -815,16 +815,23 @@ export function PostPdfStage({
           let coverSpreadLocation = null;
           
           // Check W3 structure: pngGeneration.coverCloudflareImageUrl (direct field)
+          // NEW MANIFEST STRUCTURE: coverCloudflareImageUrl is stored directly in pngGeneration
           if (pngGen.coverCloudflareImageUrl) {
             // W3 stores cover Cloudflare URL directly, not in an array
+            // Ensure URL has variant (add /public if missing)
+            let coverUrl = pngGen.coverCloudflareImageUrl;
+            if (coverUrl && !coverUrl.includes('/public') && !coverUrl.includes('/backend')) {
+              coverUrl = coverUrl.endsWith('/') ? coverUrl + 'public' : coverUrl + '/public';
+            }
+            
             coverSpreadEntry = {
-              cloudflareImageUrl: pngGen.coverCloudflareImageUrl,
+              cloudflareImageUrl: coverUrl,
               cloudflareImageId: pngGen.coverCloudflareImageId || null,
               pageNumber: -1, // Implicit for cover
               pageType: 'cover-spread'
             };
             coverSpreadLocation = 'pngGeneration.coverCloudflareImageUrl';
-            console.log('[Cover] ✅ Found cover Cloudflare URL in W3 structure (pngGeneration.coverCloudflareImageUrl)');
+            console.log('[Cover] ✅ Found cover Cloudflare URL in W3 structure (pngGeneration.coverCloudflareImageUrl):', coverUrl.substring(0, 100) + '...');
           }
           
           // Also check top-level manifest3.coverCloudflareImageUrl (in case structure is different)
