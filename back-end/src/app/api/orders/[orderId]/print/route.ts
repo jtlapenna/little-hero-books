@@ -69,27 +69,40 @@ async function sendToPrint(
       hasPagesWithCloudflare: !!manifest3.pngGeneration?.pagesWithCloudflare
     });
     
-    // Transform manifest to W4 format
-    // The manifest should already be in the correct format, but we'll ensure it has required fields
-    const w4Payload = {
-      schema: manifest3.schema || 'lhb.run-manifest@v2.0',
-      runStamp: manifest3.runStamp || manifest3.generatedAt || new Date().toISOString(),
-      characterHash: manifest3.characterHash || '',
-      amazonOrderId: manifest3.amazonOrderId || manifest3.orderId || orderId,
-      pngGeneration: manifest3.pngGeneration || {},
-      pdfGeneration: manifest3.pdfGeneration || {},
-      assetsUsed: manifest3.assetsUsed || {},
-      pages: manifest3.pages || {},
-      summary: manifest3.summary || {
-        percentComplete: 100,
-        readyForBook: true,
-        needsHumanReview: false
-      },
-      generatedAt: manifest3.generatedAt || manifest3.runStamp || new Date().toISOString()
-    };
+    // Normalize p00_dedication to p00 (W4 requires p00, not p00_dedication)
+    // This ensures compatibility with both naming conventions
+    if (manifest3.pngGeneration?.pages) {
+      const pages = manifest3.pngGeneration.pages;
+      // If p00_dedication exists but p00 doesn't, copy it to p00
+      if (pages.p00_dedication && !pages.p00) {
+        pages.p00 = pages.p00_dedication;
+        console.log('[Workflow4] Normalized p00_dedication to p00 in pages');
+      }
+    }
+    
+    // Also normalize in pagesWithCloudflare if it exists
+    if (manifest3.pngGeneration?.pagesWithCloudflare) {
+      const pagesWithCloudflare = manifest3.pngGeneration.pagesWithCloudflare;
+      // If p00_dedication exists but p00 doesn't, copy it to p00
+      if (pagesWithCloudflare.p00_dedication && !pagesWithCloudflare.p00) {
+        pagesWithCloudflare.p00 = pagesWithCloudflare.p00_dedication;
+        console.log('[Workflow4] Normalized p00_dedication to p00 in pagesWithCloudflare');
+      }
+    }
+    
+    // Validate critical requirement: p00 must exist
+    if (!manifest3.pngGeneration?.pages?.p00) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Missing p00 (dedication page) in manifest. p00 is required for print workflow.'
+        },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
-    if (!w4Payload.characterHash) {
+    if (!manifest3.characterHash) {
       return NextResponse.json(
         { 
           success: false, 
@@ -99,7 +112,7 @@ async function sendToPrint(
       );
     }
 
-    if (!w4Payload.pngGeneration?.pages || Object.keys(w4Payload.pngGeneration.pages).length === 0) {
+    if (!manifest3.pngGeneration?.pages || Object.keys(manifest3.pngGeneration.pages).length === 0) {
       return NextResponse.json(
         { 
           success: false, 
@@ -109,13 +122,30 @@ async function sendToPrint(
       );
     }
 
+    // Send manifest as-is (minimal transformation - W4 will handle URL derivation)
+    // Only ensure required top-level fields exist
+    const w4Payload = {
+      ...manifest3,
+      // Ensure schema exists (fallback only if missing)
+      schema: manifest3.schema || 'lhb.run-manifest@v2.0',
+      // Ensure amazonOrderId exists (use orderId as fallback)
+      amazonOrderId: manifest3.amazonOrderId || manifest3.orderId || orderId,
+      // Ensure summary.readyForBook exists
+      summary: {
+        ...(manifest3.summary || {}),
+        readyForBook: manifest3.summary?.readyForBook ?? true
+      }
+    };
+
     // Send to W4 webhook
     try {
       console.log('[Workflow4] Sending manifest to W4 webhook:', {
         orderId,
         webhookUrl: W4_WEBHOOK_URL,
         payloadSize: JSON.stringify(w4Payload).length,
-        pageCount: Object.keys(w4Payload.pngGeneration.pages).length
+        pageCount: Object.keys(w4Payload.pngGeneration.pages).length,
+        hasP00: !!w4Payload.pngGeneration.pages.p00,
+        hasPagesWithCloudflare: !!w4Payload.pngGeneration.pagesWithCloudflare
       });
 
       const webhookResponse = await fetch(W4_WEBHOOK_URL, {
