@@ -16,7 +16,8 @@
 3. **Ensure proper data flow** between all workflows
 4. **Maintain existing functionality** while adding database integration
 5. **Test integration** with Developer B's workflows
-6. **Persist Supabase order records before resets** – every workflow in the 2A → 2B → 3 chain must upsert the order row (via the provided Supabase node/RPC) as soon as a manifest is available. The admin reset button relies on that row; if your workflow only touches R2, the reset endpoint cannot hydrate the order and will 404. Treat “write order to Supabase with review_stages and manifests” as part of your handoff.
+6. **Persist Supabase order records across the entire pipeline** – starting with Workflow 0 (intake) and flowing through Workflows 1 → 3, every stage must upsert the `orders` row as soon as it has data to contribute (validation results, queue routing, manifests, review stages, etc.). Downstream automations (reset endpoint, status badges, customer proof flow) assume the row exists. If a workflow only touches R2, the admin tooling cannot hydrate the order and will 404.
+7. **Keep downstream workflows (4–8) in Sync** – whenever your n8n automations submit to print, recover from errors, perform QA, or compute costs, update the matching Supabase fields (`status`, Lulu job info, tracking, qa_score, cost fields) so the admin/customer views remain accurate.
 
 **Communication Style**: 
 - Be specific and technical in your guidance
@@ -305,6 +306,26 @@ WHERE status = 'queued_for_processing';
 - ❌ **No database updates**: Not updating order status after processing
 
 ### **Required Changes**
+
+#### **Supabase Upsert Requirements (All Workflows)**
+- **Workflow 0 – Order Intake Validation (`LHB - 0 - ORDER INTAKE VALIDATION.json`)**
+  - After an order passes validation, upsert the Supabase row with core intake data (`amazon_order_id`, `status = 'queued_for_processing'`, `review_stages.* = 'pending'`, customer + character specs).
+  - This becomes the single record that later stages enrich; do not leave creation to 2A.
+- **Workflow 1 – Queue Manager / Router (`LHB - 1.1- Queue Manager and Router.json`)**
+  - When you move an order between queues or set the next workflow, patch Supabase (`status`, `next_workflow`, `updated_at`). Read-only routing is fine, but any routing decision that changes state must be persisted.
+- **Workflows 2A / 2B / 3**
+  - Already covered below: every time you write a manifest or flip a review stage, call Supabase (or the provided RPC) to merge `status`, `review_stages`, `manifest_*_url`, timestamps, etc.
+  - Treat “write Supabase record” as part of the handoff to the admin UI and reset tool.
+- **Workflow 4 – Print & Fulfillment (`LHB - 4 - Print Fulfillment.json`)**
+  - Update print submission metadata (`status` transitions such as `pending_print`, `in_production`, `pending_shipping`), Lulu job IDs, submission timestamps, tracking numbers, and cost fields.
+- **Workflow 5 – Error Recovery**
+  - Log failures back to Supabase (`status = 'action_required'`, set appropriate `flags` or `regeneration_instructions`) so the review UI can triage.
+- **Workflow 6 – Monitoring & Alerts**
+  - Mostly read-only; no upsert needed unless you decide to store heartbeat data.
+- **Workflow 7 – Quality Assurance**
+  - Persist `qa_score`, `qa_notes`, `requires_human_review`, etc., whenever QA logic runs.
+- **Workflow 8 – Cost Optimization**
+  - Patch cost-related columns (savings, adjustments) so reporting stays accurate.
 
 #### **1. Replace Mock Order Generation**
 **Current Code** (lines 6-16 in `2.A.-bria-submit.json`):
