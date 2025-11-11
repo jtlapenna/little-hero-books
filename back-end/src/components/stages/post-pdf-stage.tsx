@@ -453,7 +453,8 @@ export function PostPdfStage({
               if (pagesObj && typeof pagesObj === 'object' && Object.keys(pagesObj).length > 0) {
                 console.log('[Pages] Building pagePreviewImages from pngGeneration.pages');
                 // Convert pages object (p01: "r2/key", p02: "r2/key", etc.) to array format
-                previewImages = Object.entries(pagesObj).map(([key, r2Key]: [string, any]) => {
+                // IMPORTANT: Deduplicate page 0 entries (p00 and p00_dedication both map to pageNumber 0)
+                const allEntries = Object.entries(pagesObj).map(([key, r2Key]: [string, any]) => {
                   // Parse page number from key: p00_dedication -> 0, p00 -> 0, p01 -> 1, p02 -> 2, etc.
                   let pageNumber = 0;
                   if (key === 'p00_dedication' || key === 'p00') {
@@ -468,17 +469,61 @@ export function PostPdfStage({
                   
                   return {
                     pageNumber,
+                    originalKey: key, // Keep track of original key for deduplication
                     r2Key: typeof r2Key === 'string' ? r2Key : null,
                     imageUrl: typeof r2Key === 'string' ? `/api/assets/${r2Key}` : null, // Construct URL immediately for R2 fallback
                     filename: null
                   };
-                }).filter((img: any) => {
-                  // Don't filter out page 0 (dedication) even if r2Key is missing - we'll construct it
-                  if (img.pageNumber === 0) return true;
-                  return img.r2Key !== null;
-                }); // Filter out entries without r2Key (except page 0)
+                });
                 
-                console.log(`[Pages] Built ${previewImages.length} pages from pngGeneration.pages`);
+                // Deduplicate: for page 0, prefer p00_dedication over p00; for other pages, keep first occurrence
+                const pageMap = new Map<number, any>(); // Map pageNumber -> entry
+                
+                // Debug: Log all entries before deduplication
+                const page0Entries = allEntries.filter((e: any) => e.pageNumber === 0);
+                if (page0Entries.length > 1) {
+                  console.log('[Pages] ⚠️ Found multiple page 0 entries before deduplication:', page0Entries.map((e: any) => e.originalKey));
+                }
+                
+                // First pass: collect all entries, preferring p00_dedication for page 0
+                for (const img of allEntries) {
+                  // Filter out entries without r2Key (except page 0)
+                  if (img.pageNumber !== 0 && !img.r2Key) {
+                    continue;
+                  }
+                  
+                  const existing = pageMap.get(img.pageNumber);
+                  if (!existing) {
+                    // First time seeing this page number
+                    pageMap.set(img.pageNumber, img);
+                  } else if (img.pageNumber === 0) {
+                    // Special case for page 0: ALWAYS prefer p00_dedication over p00
+                    if (img.originalKey === 'p00_dedication') {
+                      // p00_dedication always wins, replace whatever is there
+                      pageMap.set(0, img);
+                      console.log('[Pages] ✅ Replaced page 0 entry with p00_dedication');
+                    } else if (img.originalKey === 'p00' && existing.originalKey !== 'p00_dedication') {
+                      // Only keep p00 if we don't already have p00_dedication
+                      // (This case shouldn't happen if p00_dedication exists, but handle it)
+                      console.log('[Pages] ⚠️ Keeping p00 (p00_dedication not found)');
+                    }
+                    // If existing is p00_dedication and this is p00, skip it (already have better one)
+                  }
+                  // For other pages, keep first occurrence (already in map)
+                }
+                
+                // Convert map back to array
+                previewImages = Array.from(pageMap.values());
+                
+                // Debug: Verify deduplication worked
+                const finalPage0Entries = previewImages.filter((e: any) => e.pageNumber === 0);
+                if (finalPage0Entries.length > 1) {
+                  console.error('[Pages] ❌ ERROR: Still have multiple page 0 entries after deduplication:', finalPage0Entries.map((e: any) => e.originalKey));
+                } else if (finalPage0Entries.length === 1) {
+                  console.log('[Pages] ✅ Page 0 deduplication successful, using:', finalPage0Entries[0].originalKey);
+                }
+                
+                console.log(`[Pages] Built ${previewImages.length} pages from pngGeneration.pages (after deduplication)`);
               }
             }
             
@@ -716,83 +761,93 @@ export function PostPdfStage({
         
         if (!isMounted) return;
         
-        // Try to load cover PDF image if not already loaded
-        // Load cover separately to avoid blocking page loading
-        if (!coverImageUrl && !coverImageDataUrl && !coverImageLoading) {
+        // Extract cover PNG from manifest we already loaded (reuse manifest3 from pages loading above)
+        // Cover PDF is now generated in W4, not available at preview time - use PNG from W3 manifest
+        let coverUrlFromManifest: string | null = coverImageUrl || null; // Use existing if already loaded
+        
+        // Extract cover from manifest3 if we have it (from pages loading above)
+        if (manifest3) {
+          const pngGen = manifest3?.pngGeneration || manifest3?.manifest?.pngGeneration || {};
+          
+          console.log('[Cover] Extracting cover from manifest3:', {
+            hasManifest3: !!manifest3,
+            hasPngGen: !!pngGen,
+            topLevelCoverCloudflare: !!manifest3?.coverCloudflareImageUrl,
+            pngGenCoverCloudflare: !!pngGen.coverCloudflareImageUrl,
+            topLevelCoverPngR2Key: !!manifest3?.coverPngR2Key,
+            pngGenCoverSpreadImage: !!pngGen.coverSpreadImage,
+            coverSpreadImageType: typeof pngGen.coverSpreadImage
+          });
+          
+          // Priority 1: Cloudflare Images cover URL (from manifest or top-level)
+          if (manifest3?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl) {
+            coverUrlFromManifest = manifest3.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
+            if (!coverImageUrl && coverUrlFromManifest) {
+              setCoverImageUrl(coverUrlFromManifest);
+            }
+            if (coverUrlFromManifest) {
+              console.log('[Cover] ✅ Using Cloudflare Images URL from manifest:', coverUrlFromManifest.substring(0, 80) + '...');
+            }
+          }
+          // Priority 2: R2 cover PNG key (from manifest or top-level)
+          else {
+            const coverR2Key = 
+              manifest3?.coverPngR2Key ||  // Top-level from Build 3A Manifest output
+              (typeof pngGen.coverSpreadImage === 'string' 
+                ? pngGen.coverSpreadImage 
+                : pngGen.coverSpreadImage?.r2Key);
+            
+            if (coverR2Key) {
+              coverUrlFromManifest = `/api/assets/${coverR2Key}`;
+              if (!coverImageUrl) {
+                setCoverImageUrl(coverUrlFromManifest);
+              }
+              console.log('[Cover] ✅ Using R2 cover PNG from manifest:', coverR2Key);
+            } else {
+              console.warn('[Cover] ⚠️ No cover PNG found in manifest. Expected coverPngR2Key or pngGeneration.coverSpreadImage');
+            }
+          }
+        } else {
+          console.warn('[Cover] ⚠️ manifest3 is null, cannot extract cover');
+        }
+        
+        // If cover wasn't found in manifest and not already loaded, try loading it separately
+        if (!coverUrlFromManifest && !coverImageUrl && !coverImageDataUrl && !coverImageLoading) {
           setCoverImageLoading(true);
           try {
-            // Priority 1: Check manifest for Cloudflare Images cover URL
-            let coverUrlToUse: string | null = null;
-            try {
-              // Add cache-busting for cover image manifest fetch
-              const coverManifestUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
-              const manifest3Res = await fetch(coverManifestUrl, {
-                cache: 'no-store', // Ensure we don't use cached manifest
-              });
-              if (manifest3Res.ok) {
-                const manifest3Raw = await manifest3Res.json();
-                // Handle array response (manifest might be wrapped in array)
-                const manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
-                
-                // Check multiple possible locations for cover data
-                // Cover PNG is now generated in W3, not PDF (PDF generation moved to W4)
-                const pngGen = manifest3?.pngGeneration || manifest3?.manifest?.pngGeneration || {};
-                
-                // Priority 1: Cloudflare Images cover URL (from manifest or top-level)
-                if (manifest3?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl) {
-                  coverUrlToUse = manifest3.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
-                  console.log('[Cover] Using Cloudflare Images URL from manifest');
-                }
-                // Priority 2: R2 cover PNG key (from manifest or top-level)
-                else {
-                  const coverR2Key = 
-                    manifest3?.coverPngR2Key ||  // Top-level from Build 3A Manifest output
-                    (typeof pngGen.coverSpreadImage === 'string' 
-                      ? pngGen.coverSpreadImage 
-                      : pngGen.coverSpreadImage?.r2Key);
-                  
-                  if (coverR2Key) {
-                    coverUrlToUse = `/api/assets/${coverR2Key}`;
-                    console.log('[Cover] Using R2 cover PNG from manifest:', coverR2Key);
-                  } else {
-                    console.warn('[Cover] No cover PNG found in manifest. Expected coverPngR2Key or pngGeneration.coverSpreadImage');
-                  }
-                }
+            // Fetch manifest again (fallback - should rarely happen)
+            const coverManifestUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
+            const manifest3Res = await fetch(coverManifestUrl, {
+              cache: 'no-store',
+            });
+            if (manifest3Res.ok) {
+              const manifest3Raw = await manifest3Res.json();
+              const manifest3ForCover = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
+              const pngGen = manifest3ForCover?.pngGeneration || manifest3ForCover?.manifest?.pngGeneration || {};
+              
+              if (manifest3ForCover?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl) {
+                coverUrlFromManifest = manifest3ForCover.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
+                setCoverImageUrl(coverUrlFromManifest);
+                console.log('[Cover] Using Cloudflare Images URL from manifest (fallback fetch)');
               } else {
-                console.log('[Cover] Manifest 3 not found or not OK:', manifest3Res.status);
+                const coverR2Key = 
+                  manifest3ForCover?.coverPngR2Key ||
+                  (typeof pngGen.coverSpreadImage === 'string' ? pngGen.coverSpreadImage : pngGen.coverSpreadImage?.r2Key);
+                if (coverR2Key) {
+                  coverUrlFromManifest = `/api/assets/${coverR2Key}`;
+                  setCoverImageUrl(coverUrlFromManifest);
+                  console.log('[Cover] Using R2 cover PNG from manifest (fallback fetch):', coverR2Key);
+                }
               }
-            } catch (e) {
-              console.log('[Cover] Could not fetch cover from manifest, using fallback:', e);
             }
-            
-            // If we found a cover URL from manifest, use it and update spreads
-            if (coverUrlToUse) {
-              setCoverImageUrl(coverUrlToUse);
-              setCoverImageLoading(false);
-              // Update spreads immediately with the cover URL from manifest
-              // Use pageData directly (from local scope) since pages might not be in state yet
-              if (pageData.length > 0) {
-                const newSpreads = createSpreads(pageData, coverUrlToUse);
-                setSpreads(newSpreads);
-                spreadsLengthRef.current = newSpreads.length;
-                console.log('[Cover] Updated spreads with cover PNG from manifest:', {
-                  spreadsCount: newSpreads.length,
-                  hasFrontCover: newSpreads[0]?.coverData?.isFrontCover,
-                  hasBackCover: newSpreads[newSpreads.length - 1]?.coverData?.isBackCover,
-                  coverUrl: coverUrlToUse
-                });
-              }
-              // Don't return - let the rest of the function run to set pages state
-            } else {
-              // No cover PNG found in manifest - cover PDF is now generated in W4, not available at preview time
-              console.warn('[Cover] No cover PNG found in manifest. Cover PDF will be generated in W4 (Print Fulfillment) workflow.');
-              setCoverImageLoading(false);
-            }
+            setCoverImageLoading(false);
           } catch (e) {
             if (!isMounted) return;
             console.log('[Pages] Cover image not available:', e);
             setCoverImageLoading(false);
           }
+        } else if (coverUrlFromManifest) {
+          setCoverImageLoading(false);
         }
         
         // CRITICAL: Log if we have pageData before creating spreads
@@ -803,13 +858,15 @@ export function PostPdfStage({
         const pagesChanged = currentPagesData !== lastPagesDataRef.current;
         const isInitialLoad = lastPagesDataRef.current === '';
         
-        // Determine which cover URL to use (coverImageDataUrl is legacy/unused, cover PNG URL is used directly)
-        const effectiveCoverUrl = coverImageDataUrl || coverImageUrl || undefined;
+        // Determine which cover URL to use (prefer coverUrlFromManifest from this load, then state, then legacy)
+        const effectiveCoverUrl = coverUrlFromManifest || coverImageDataUrl || coverImageUrl || undefined;
         
         console.log('[Pages] About to create spreads:', {
           pageDataLength: pageData.length,
           hasCoverUrl: !!effectiveCoverUrl,
-          coverUrl: effectiveCoverUrl?.substring(0, 60),
+          coverUrlFromManifest: coverUrlFromManifest?.substring(0, 60),
+          coverImageUrl: coverImageUrl?.substring(0, 60),
+          effectiveCoverUrl: effectiveCoverUrl?.substring(0, 60),
           firstPage: pageData[0] ? {
             pageNumber: pageData[0].pageNumber,
             hasPreviewUrl: !!pageData[0].previewImageUrl
@@ -825,7 +882,16 @@ export function PostPdfStage({
             spreadNumber: newSpreads[0].spreadNumber,
             hasLeft: !!newSpreads[0].leftPage,
             hasRight: !!newSpreads[0].rightPage,
-            isCover: newSpreads[0].isCover
+            isCover: newSpreads[0].isCover,
+            hasCoverData: !!newSpreads[0].coverData,
+            coverDataIsFrontCover: newSpreads[0].coverData?.isFrontCover,
+            coverDataFullImageUrl: newSpreads[0].coverData?.fullImageUrl?.substring(0, 60)
+          } : null,
+          lastSpread: newSpreads[newSpreads.length - 1] ? {
+            spreadNumber: newSpreads[newSpreads.length - 1].spreadNumber,
+            isBackCover: newSpreads[newSpreads.length - 1].isBackCover,
+            hasCoverData: !!newSpreads[newSpreads.length - 1].coverData,
+            coverDataIsBackCover: newSpreads[newSpreads.length - 1].coverData?.isBackCover
           } : null
         });
         
