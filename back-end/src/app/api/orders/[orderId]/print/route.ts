@@ -191,12 +191,21 @@ async function sendToPrint(
       );
     }
     
+    // Extract cover PNG R2 key from manifest
+    const coverPngR2Key = manifest3.pngGeneration?.coverSpreadImage || null;
+    
+    // Backend URL for building asset URLs
+    const backendUrl = 'https://admin.littleherolabs.com';
+    
     // Build payload - ensure amazonOrderId and orderId are ALWAYS set at top level
     // CRITICAL: Put orderId and amazonOrderId FIRST to ensure they're at the top level
     const w4Payload: any = {
       // CRITICAL: Set orderId and amazonOrderId FIRST (W4 requirement)
       orderId: resolvedAmazonOrderId,
       amazonOrderId: resolvedAmazonOrderId,
+      // New cover fields for W4 (top level for easy access)
+      coverPngR2Key: coverPngR2Key,
+      backendUrl: backendUrl,
       // Then spread the rest of the manifest
       ...manifest3,
       // Override any null/undefined values that might have come from manifest
@@ -248,6 +257,10 @@ async function sendToPrint(
         amazonOrderId: w4Payload.amazonOrderId,
         orderIdInPayload: w4Payload.orderId,
         characterHash: w4Payload.characterHash,
+        // Cover fields for W4
+        coverPngR2Key: w4Payload.coverPngR2Key,
+        backendUrl: w4Payload.backendUrl,
+        hasCoverPng: !!w4Payload.coverPngR2Key,
         // Verify amazonOrderId is actually in the payload
         payloadHasAmazonOrderId: 'amazonOrderId' in w4Payload,
         payloadTopLevelKeys: Object.keys(w4Payload).slice(0, 10) // First 10 keys for debugging

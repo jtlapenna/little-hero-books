@@ -1,9 +1,13 @@
 # W4 Webhook: Missing orderId / amazonOrderId Issue
 
 ## Current Status
-**Issue**: W4 workflow is reporting "Missing orderId / amazonOrderId in manifest payload" error when the "Send to Print" button is triggered from the backend admin interface.
+**Issue**: ✅ **RESOLVED** - W4 workflow was reporting "Missing orderId / amazonOrderId in manifest payload" error when the "Send to Print" button is triggered from the backend admin interface.
 
-**Last Updated**: After implementing enhanced payload validation and logging
+**Root Cause**: The n8n webhook node wraps the POST body in a `body` property, but the validation code was looking for `orderId` at the root level.
+
+**Solution**: Updated validation code to extract payload from `root.body` when present, otherwise use root directly.
+
+**Last Updated**: After fixing validation code to handle webhook body wrapper
 
 ## Problem Description
 
@@ -98,24 +102,43 @@ The backend now logs:
 - `[Workflow4] Payload has amazonOrderId key:` - Boolean check
 - `[Workflow4] Payload has orderId key:` - Boolean check
 
-## Next Steps / Investigation Needed
+## Solution Implemented
 
-1. **Check Cloudflare Pages Logs**: After triggering "Send to Print", review the logs to see:
-   - What the actual payload structure looks like
-   - Whether `amazonOrderId` and `orderId` are present in the logged payload
-   - What values they contain
+**Fix Applied**: Updated the validation code in all W4 workflow files to extract the payload from the `body` property when present.
 
-2. **Check W4 Workflow Configuration**: 
-   - Verify the webhook node is correctly receiving the POST body
-   - Check if there's a merge node that might be overwriting the payload
-   - Verify the validation node is reading from the correct input source
+**Changed Files**:
+- `LHB-W4-PRINT-FULFILLMENT-phase1.json`
+- `LHB-W4-PRINT-FULFILLMENT-phase2.json`
+- `LHB-W4-PRINT-FULFILLMENT-phase3.json`
+- `LHB-W4-PRINT-FULFILLMENT-phase4.json`
+- `LHB-W4-PRINT-FULFILLMENT-phase5.json`
+- `LHB - 4 - PRINT FULlFILMENT.json`
 
-3. **Possible Issues to Investigate**:
-   - **n8n Webhook Parsing**: The webhook might be wrapping the payload in a different structure
-   - **Merge Node**: If W4 uses a merge node to combine webhook payload + CONFIG, the merge might be overwriting fields
-   - **Input Source**: The validation node might be reading from the wrong input (e.g., CONFIG node instead of webhook)
+**Code Change**:
+```javascript
+// OLD CODE:
+const root = $input.first()?.json || {};
+const manifest = { ...root };
+const orderId = String(firstNonEmpty(
+  manifest.orderId,
+  manifest.amazonOrderId,
+  // ...
+) || '').trim();
 
-4. **Test with Direct Payload**: Consider testing the W4 webhook directly with a known-good payload to verify the workflow itself works
+// NEW CODE:
+const root = $input.first()?.json || {};
+// Extract manifest: webhook wraps payload in 'body', otherwise use root directly
+const body = root.body && typeof root.body === 'object' ? root.body : root;
+const manifest = { ...body };
+// Check both body and root for orderId
+const orderId = String(firstNonEmpty(
+  body.orderId,
+  body.amazonOrderId,
+  // ... (also checks root.orderId, root.amazonOrderId, etc.)
+) || '').trim();
+```
+
+**Why This Works**: The n8n webhook node automatically wraps the POST body in a `body` property along with `headers`, `params`, `query`, etc. The validation code now correctly extracts the actual payload from `body` when it exists, making it compatible with both webhook input (wrapped) and direct manifest input (unwrapped).
 
 ## Relevant Files
 
