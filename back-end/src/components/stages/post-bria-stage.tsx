@@ -63,73 +63,92 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     prevKeyRef.current = currentKey;
     
     if (posesBgRemoved.length > 0) {
-      // Map poses and fetch background URLs in parallel
-      const posePromises = posesBgRemoved.map(async (pose) => {
-        const poseNumber = pose.poseNumber ?? 0;
-        const poseId = `pose${String(poseNumber).padStart(2, '0')}-bg-removed`;
-        const isMissing = pose.isMissing || !pose.url;
-        
-        // Check if user has manually unflagged this pose - if so, respect that decision
-        const isManuallyUnflagged = manuallyUnflaggedRef.current.has(poseId);
-        
-        // Set isFlagged based on isFlagged, needsReview, or isMissing
-        // BUT: if user manually unflagged it, don't re-flag it (unless it's missing)
-        const shouldBeFlagged = isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
-        
-        // Map pose to page number (first page that uses this pose)
-        const poseToFirstPage: Record<number, number> = {
-          0: 0,  1: 1,  2: 2,  3: 3,  4: 4,  5: 5,  6: 6,
-          7: 8,  8: 9,  9: 10, 10: 11, 11: 12, 12: 14
-        };
-        const pageNumber = poseToFirstPage[poseNumber] ?? null;
-        
-        // Build background URL - fetch from API if not cached
-        let backgroundUrl: string | null = null;
-        if (pageNumber !== null) {
-          // Check cache first
-          if (backgroundUrlCache.current[pageNumber]) {
-            backgroundUrl = backgroundUrlCache.current[pageNumber];
-          } else {
-            // Fetch from API
-            try {
-              const response = await fetch(`/api/backgrounds/get-url?pageNumber=${pageNumber}`);
-              if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.url) {
-                  backgroundUrl = data.url;
-                  backgroundUrlCache.current[pageNumber] = data.url;
-                }
-              }
-            } catch (error) {
-              console.warn(`[PostBriaStage] Failed to fetch background URL for page ${pageNumber}:`, error);
-            }
-          }
+      // Map poses to page numbers first
+      const poseToFirstPage: Record<number, number> = {
+        0: 0,  1: 1,  2: 2,  3: 3,  4: 4,  5: 5,  6: 6,
+        7: 8,  8: 9,  9: 10, 10: 11, 11: 12, 12: 14
+      };
+      
+      // Collect all unique page numbers that need URLs
+      const pageNumbersNeeded = new Set<number>();
+      posesBgRemoved.forEach((pose) => {
+        const pageNumber = poseToFirstPage[pose.poseNumber ?? 0] ?? null;
+        if (pageNumber !== null && !backgroundUrlCache.current[pageNumber]) {
+          pageNumbersNeeded.add(pageNumber);
         }
-        
-        return {
-          id: poseId,
-          name: `Pose ${poseNumber} (BG Removed)${isMissing ? ' (Missing)' : ''}`,
-          url: pose.url || '',
-          isFlagged: shouldBeFlagged, // Respect user unflag decisions
-          hasTransparentBackground: true,
-          isMissing: isMissing,
-          status: pose.status,
-          reviewReason: pose.reviewReason,
-          attempts: pose.attempts,
-          // Comparison mode data for Post-Bria
-          comparisonMode: backgroundUrl ? 'background' as const : null,
-          comparisonImageUrl: backgroundUrl ?? undefined,
-          comparisonLabel: 'Page Background',
-          poseNumber: poseNumber,
-          pageNumber: pageNumber ?? undefined,
-          // Flip handler - pass the URL directly to avoid stale closure issues
-          onFlip: () => handleFlip(poseId, poseNumber, pose.url || ''),
-          isFlipping: flippingPoseId === poseId
-        };
       });
       
-      // Wait for all promises to resolve
-      Promise.all(posePromises).then((mappedPoses) => {
+      // Fetch all background URLs in a single batch API call
+      const fetchBackgroundUrls = async (): Promise<void> => {
+        if (pageNumbersNeeded.size > 0) {
+          try {
+            const response = await fetch('/api/backgrounds/get-urls', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pageNumbers: Array.from(pageNumbersNeeded) }),
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.urls) {
+                // Cache all URLs
+                Object.entries(data.urls).forEach(([pageNum, url]) => {
+                  const pageNumber = parseInt(pageNum, 10);
+                  if (!isNaN(pageNumber)) {
+                    backgroundUrlCache.current[pageNumber] = url as string;
+                  }
+                });
+              }
+            }
+          } catch (error) {
+            console.warn('[PostBriaStage] Failed to fetch background URLs:', error);
+          }
+        }
+      };
+      
+      // Fetch URLs first, then map poses
+      fetchBackgroundUrls().then(() => {
+        // Now map poses with cached URLs
+        const mappedPoses = posesBgRemoved.map((pose) => {
+          const poseNumber = pose.poseNumber ?? 0;
+          const poseId = `pose${String(poseNumber).padStart(2, '0')}-bg-removed`;
+          const isMissing = pose.isMissing || !pose.url;
+          
+          // Check if user has manually unflagged this pose - if so, respect that decision
+          const isManuallyUnflagged = manuallyUnflaggedRef.current.has(poseId);
+          
+          // Set isFlagged based on isFlagged, needsReview, or isMissing
+          // BUT: if user manually unflagged it, don't re-flag it (unless it's missing)
+          const shouldBeFlagged = isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
+          
+          // Map pose to page number (first page that uses this pose)
+          const pageNumber = poseToFirstPage[poseNumber] ?? null;
+          
+          // Get background URL from cache
+          const backgroundUrl = pageNumber !== null ? (backgroundUrlCache.current[pageNumber] || null) : null;
+          
+          return {
+            id: poseId,
+            name: `Pose ${poseNumber} (BG Removed)${isMissing ? ' (Missing)' : ''}`,
+            url: pose.url || '',
+            isFlagged: shouldBeFlagged, // Respect user unflag decisions
+            hasTransparentBackground: true,
+            isMissing: isMissing,
+            status: pose.status,
+            reviewReason: pose.reviewReason,
+            attempts: pose.attempts,
+            // Comparison mode data for Post-Bria
+            comparisonMode: backgroundUrl ? 'background' as const : null,
+            comparisonImageUrl: backgroundUrl ?? undefined,
+            comparisonLabel: 'Page Background',
+            poseNumber: poseNumber,
+            pageNumber: pageNumber ?? undefined,
+            // Flip handler - pass the URL directly to avoid stale closure issues
+            onFlip: () => handleFlip(poseId, poseNumber, pose.url || ''),
+            isFlipping: flippingPoseId === poseId
+          };
+        });
+        
         setPoses(mappedPoses);
       });
     } else {
