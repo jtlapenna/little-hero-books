@@ -52,8 +52,8 @@ Structure the API route so it can optionally call an n8n webhook for generation,
 12. Right side remains pose reference for comparison
 13. Approve/Reject/Revise buttons appear below left image when viewing option
 14. User can:
-    - Click "Accept" → Replaces original via existing replace-image endpoint
-    - Click "Reject" → Discards new image, can try again
+   - Click "Accept" → Replaces original via existing replace-image endpoint
+   - Click "Reject" → Discards new image, can try again
     - Click "Revise" → Shows prompt field, sends previous attempt + new prompt to Gemini
 ```
 
@@ -457,12 +457,12 @@ little-hero-orders/                          ← Order-specific bucket
     orders/
       {orderId}/
         revisions/
-          ├── pending/
+  ├── pending/
           │   ├── pose01-option.png         ← Temporary Gemini-generated options
           │   ├── pose02-option.png
           │   └── pose12-option.png
-          └── accepted/
-              └── {poseNumber}-{timestamp}.png (optional, for history)
+  └── accepted/
+      └── {poseNumber}-{timestamp}.png (optional, for history)
 ```
 
 **Note**: Temporary revisions are stored in `little-hero-orders` bucket (order-specific), not `little-hero-assets` (character-specific), because revisions are order-specific and temporary.
@@ -508,12 +508,12 @@ Based on existing n8n workflow patterns:
         { inlineData: { mimeType: 'image/png', data: previousOptionBase64 } },
       ] : []),
       ...(includeBaseCharacter ? [
-        { text: 'BASE (appearance lock). Use style/palette from this only.' },
-        { inlineData: { mimeType: 'image/png', data: baseImageBase64 } },
+      { text: 'BASE (appearance lock). Use style/palette from this only.' },
+      { inlineData: { mimeType: 'image/png', data: baseImageBase64 } },
       ] : []),
       ...(includePoseReference ? [
-        { text: 'POSE (pose lock). Use joints/contact only; ignore appearance.' },
-        { inlineData: { mimeType: 'image/png', data: poseImageBase64 } },
+      { text: 'POSE (pose lock). Use joints/contact only; ignore appearance.' },
+      { inlineData: { mimeType: 'image/png', data: poseImageBase64 } },
       ] : []),
       // Optional: hair, skin references
     ]

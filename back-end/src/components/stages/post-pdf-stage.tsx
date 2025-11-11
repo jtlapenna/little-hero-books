@@ -318,30 +318,30 @@ export function PostPdfStage({
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdf = await loadingTask.promise;
       const page = await pdf.getPage(1);
-
+      
       const scale = 1.5;
       const viewport = page.getViewport({ scale });
-
+      
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
       if (!context) {
         throw new Error('Could not get canvas context');
       }
-
+      
       canvas.height = viewport.height;
       canvas.width = viewport.width;
-
+      
       await page
         .render({
-          canvas: canvas,
+        canvas: canvas,
           canvasContext: context,
           viewport,
         })
         .promise;
-
+      
       return canvas.toDataURL('image/jpeg', 0.85);
     };
-
+    
     try {
       console.log('[Pages] Converting PDF to image:', pdfUrl);
       const dataUrl = await attemptConversion();
@@ -354,15 +354,15 @@ export function PostPdfStage({
         ['worker', 'Failed to fetch', 'NetworkError', '404'].some((fragment) =>
           errorMessage.includes(fragment)
         );
-
+      
       if (isWorkerError) {
         const cdnUrl = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`;
         console.warn('[Pages] Worker error detected, retrying with CDN worker:', cdnUrl);
         return attemptConversion(cdnUrl);
       }
 
-      console.error('[Pages] Error converting PDF to image:', error);
-      throw error;
+        console.error('[Pages] Error converting PDF to image:', error);
+        throw error;
     }
   }, []);
 
@@ -2224,7 +2224,7 @@ export function PostPdfStage({
           <div>
             <h4 className="text-lg font-medium text-gray-900">Final Approval</h4>
             <p className="text-sm text-gray-600 mt-1">
-              {isApproved
+              {isApproved 
                 ? 'This order has been fully approved and is ready for production.'
                 : requiresPdfWarning
                 ? 'The compiled PDF must be generated before final approval can be completed.'
@@ -2242,7 +2242,7 @@ export function PostPdfStage({
               </p>
             )}
           </div>
-
+          
           <div className="flex space-x-3">
             {isApproved ? (
               showPrintAction ? (
@@ -2263,8 +2263,8 @@ export function PostPdfStage({
                   {sendingToPrint ? 'Sending...' : 'Send to Print'}
                 </button>
               ) : (
-                <button
-                  onClick={onInitiateWorkflow}
+              <button
+                onClick={onInitiateWorkflow}
                   disabled={finalApprovalIsLoading || previewJustSent}
                   className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     finalApprovalIsLoading
@@ -2279,7 +2279,7 @@ export function PostPdfStage({
                   ) : previewJustSent ? (
                     <CheckCircle className="h-4 w-4 mr-2" />
                   ) : (
-                    <Play className="h-4 w-4 mr-2" />
+                <Play className="h-4 w-4 mr-2" />
                   )}
                   {previewJustSent
                     ? 'Preview Sent'
@@ -2288,7 +2288,7 @@ export function PostPdfStage({
                     : hasExistingPreview
                     ? 'Resend Proof'
                     : 'Send Proof To Customer'}
-                </button>
+              </button>
               )
             ) : (
               <button

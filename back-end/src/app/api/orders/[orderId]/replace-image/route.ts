@@ -603,21 +603,21 @@ export async function POST(
       }
     } else if (file) {
       // Upload new file from form data (overwrites existing original file, not retry file)
-      console.log(`[Replace Image API] Uploading new file to ${bucket}/${originalKey}`);
-      console.log(`[Replace Image API] File details:`, {
-        name: file.name,
-        size: file.size,
-        type: file.type
-      });
-      
+    console.log(`[Replace Image API] Uploading new file to ${bucket}/${originalKey}`);
+    console.log(`[Replace Image API] File details:`, {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    
       fileBuffer = await file.arrayBuffer();
-      console.log(`[Replace Image API] File buffer size:`, fileBuffer.byteLength, 'bytes');
+    console.log(`[Replace Image API] File buffer size:`, fileBuffer.byteLength, 'bytes');
       contentType = file.type || 'image/png';
-      console.log(`[Replace Image API] Content type:`, contentType);
-      
-      console.log(`[Replace Image API] Calling putObject...`);
-      await putObject(bucket, originalKey, fileBuffer, contentType);
-      console.log(`[Replace Image API] putObject completed successfully`);
+    console.log(`[Replace Image API] Content type:`, contentType);
+    
+    console.log(`[Replace Image API] Calling putObject...`);
+    await putObject(bucket, originalKey, fileBuffer, contentType);
+    console.log(`[Replace Image API] putObject completed successfully`);
     } else {
       // This should never happen due to validation, but TypeScript needs it
       return NextResponse.json(

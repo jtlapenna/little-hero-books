@@ -110,43 +110,43 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       fetchBackgroundUrls().then(() => {
         // Now map poses with cached URLs
         const mappedPoses = posesBgRemoved.map((pose) => {
-          const poseNumber = pose.poseNumber ?? 0;
-          const poseId = `pose${String(poseNumber).padStart(2, '0')}-bg-removed`;
-          const isMissing = pose.isMissing || !pose.url;
-          
-          // Check if user has manually unflagged this pose - if so, respect that decision
-          const isManuallyUnflagged = manuallyUnflaggedRef.current.has(poseId);
-          
-          // Set isFlagged based on isFlagged, needsReview, or isMissing
-          // BUT: if user manually unflagged it, don't re-flag it (unless it's missing)
-          const shouldBeFlagged = isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
-          
-          // Map pose to page number (first page that uses this pose)
-          const pageNumber = poseToFirstPage[poseNumber] ?? null;
-          
+        const poseNumber = pose.poseNumber ?? 0;
+        const poseId = `pose${String(poseNumber).padStart(2, '0')}-bg-removed`;
+        const isMissing = pose.isMissing || !pose.url;
+        
+        // Check if user has manually unflagged this pose - if so, respect that decision
+        const isManuallyUnflagged = manuallyUnflaggedRef.current.has(poseId);
+        
+        // Set isFlagged based on isFlagged, needsReview, or isMissing
+        // BUT: if user manually unflagged it, don't re-flag it (unless it's missing)
+        const shouldBeFlagged = isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
+        
+        // Map pose to page number (first page that uses this pose)
+        const pageNumber = poseToFirstPage[poseNumber] ?? null;
+        
           // Get background URL from cache
           const backgroundUrl = pageNumber !== null ? (backgroundUrlCache.current[pageNumber] || null) : null;
-          
-          return {
-            id: poseId,
-            name: `Pose ${poseNumber} (BG Removed)${isMissing ? ' (Missing)' : ''}`,
-            url: pose.url || '',
-            isFlagged: shouldBeFlagged, // Respect user unflag decisions
-            hasTransparentBackground: true,
-            isMissing: isMissing,
-            status: pose.status,
-            reviewReason: pose.reviewReason,
-            attempts: pose.attempts,
-            // Comparison mode data for Post-Bria
-            comparisonMode: backgroundUrl ? 'background' as const : null,
-            comparisonImageUrl: backgroundUrl ?? undefined,
-            comparisonLabel: 'Page Background',
-            poseNumber: poseNumber,
-            pageNumber: pageNumber ?? undefined,
-            // Flip handler - pass the URL directly to avoid stale closure issues
-            onFlip: () => handleFlip(poseId, poseNumber, pose.url || ''),
-            isFlipping: flippingPoseId === poseId
-          };
+        
+        return {
+          id: poseId,
+          name: `Pose ${poseNumber} (BG Removed)${isMissing ? ' (Missing)' : ''}`,
+          url: pose.url || '',
+          isFlagged: shouldBeFlagged, // Respect user unflag decisions
+          hasTransparentBackground: true,
+          isMissing: isMissing,
+          status: pose.status,
+          reviewReason: pose.reviewReason,
+          attempts: pose.attempts,
+          // Comparison mode data for Post-Bria
+          comparisonMode: backgroundUrl ? 'background' as const : null,
+          comparisonImageUrl: backgroundUrl ?? undefined,
+          comparisonLabel: 'Page Background',
+          poseNumber: poseNumber,
+          pageNumber: pageNumber ?? undefined,
+          // Flip handler - pass the URL directly to avoid stale closure issues
+          onFlip: () => handleFlip(poseId, poseNumber, pose.url || ''),
+          isFlipping: flippingPoseId === poseId
+        };
         });
         
         setPoses(mappedPoses);

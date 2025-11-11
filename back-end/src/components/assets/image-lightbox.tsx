@@ -486,7 +486,7 @@ export function ImageLightbox({
         console.error('[ImageLightbox] Replace failed:', error);
         // Error handling is done in the parent component
       } finally {
-        // Reset the input value so the same file can be selected again
+      // Reset the input value so the same file can be selected again
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }

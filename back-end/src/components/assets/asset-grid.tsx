@@ -105,7 +105,7 @@ export function AssetGrid({
             oldPendingRevisionUrl: selectedAsset.pendingRevisionUrl,
             newPendingRevisionUrl: updatedAsset.pendingRevisionUrl,
           });
-          setSelectedAsset(updatedAsset);
+        setSelectedAsset(updatedAsset);
         }
       }
     }
