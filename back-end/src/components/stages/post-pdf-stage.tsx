@@ -763,6 +763,7 @@ export function PostPdfStage({
         
         // Extract cover PNG from manifest we already loaded (reuse manifest3 from pages loading above)
         // Cover PDF is now generated in W4, not available at preview time - use PNG from W3 manifest
+        // W3 structure: cover is in an array with pageNumber: -1, pageType: "cover-spread"
         let coverUrlFromManifest: string | null = coverImageUrl || null; // Use existing if already loaded
         
         // Extract cover from manifest3 if we have it (from pages loading above)
@@ -776,20 +777,78 @@ export function PostPdfStage({
             pngGenCoverCloudflare: !!pngGen.coverCloudflareImageUrl,
             topLevelCoverPngR2Key: !!manifest3?.coverPngR2Key,
             pngGenCoverSpreadImage: !!pngGen.coverSpreadImage,
-            coverSpreadImageType: typeof pngGen.coverSpreadImage
+            coverSpreadImageType: typeof pngGen.coverSpreadImage,
+            // Check for W3 cover-spread structure
+            hasPngGenCoverSpreadArray: Array.isArray(pngGen.coverSpread),
+            pngGenCoverSpreadArrayLength: Array.isArray(pngGen.coverSpread) ? pngGen.coverSpread.length : 0,
+            hasPngGenPagesArray: Array.isArray(pngGen.pages),
+            pngGenPagesArrayLength: Array.isArray(pngGen.pages) ? pngGen.pages.length : 0,
+            hasTopLevelCoverSpreadArray: Array.isArray(manifest3.coverSpread),
+            topLevelCoverSpreadArrayLength: Array.isArray(manifest3.coverSpread) ? manifest3.coverSpread.length : 0,
+            hasTopLevelPagesArray: Array.isArray(manifest3.pages),
+            topLevelPagesArrayLength: Array.isArray(manifest3.pages) ? manifest3.pages.length : 0
           });
           
-          // Priority 1: Cloudflare Images cover URL (from manifest or top-level)
-          if (manifest3?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl) {
+          // Priority 1: Look for cover-spread in W3 structure (pageNumber: -1, pageType: "cover-spread")
+          // Check multiple possible locations:
+          // 1. pngGeneration.coverSpread array
+          // 2. pngGeneration.pages array
+          // 3. Top-level coverSpread array
+          // 4. Top-level pages array
+          let coverSpreadEntry = null;
+          
+          // Check pngGeneration.coverSpread array
+          if (Array.isArray(pngGen.coverSpread)) {
+            coverSpreadEntry = pngGen.coverSpread.find((entry: any) => 
+              entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
+            );
+          }
+          // Check pngGeneration.pages array
+          if (!coverSpreadEntry && Array.isArray(pngGen.pages)) {
+            coverSpreadEntry = pngGen.pages.find((entry: any) => 
+              entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
+            );
+          }
+          // Check top-level coverSpread array
+          if (!coverSpreadEntry && Array.isArray(manifest3.coverSpread)) {
+            coverSpreadEntry = manifest3.coverSpread.find((entry: any) => 
+              entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
+            );
+          }
+          // Check top-level pages array
+          if (!coverSpreadEntry && Array.isArray(manifest3.pages)) {
+            coverSpreadEntry = manifest3.pages.find((entry: any) => 
+              entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
+            );
+          }
+          
+          if (coverSpreadEntry?.cloudflareImageUrl) {
+            coverUrlFromManifest = coverSpreadEntry.cloudflareImageUrl;
+            if (!coverImageUrl && coverUrlFromManifest) {
+              setCoverImageUrl(coverUrlFromManifest);
+            }
+            if (coverUrlFromManifest) {
+              console.log('[Cover] ✅ Using Cloudflare Images URL from W3 cover-spread structure:', {
+                pageNumber: coverSpreadEntry.pageNumber,
+                pageType: coverSpreadEntry.pageType,
+                cloudflareImageId: coverSpreadEntry.cloudflareImageId,
+                url: coverUrlFromManifest.substring(0, 80) + '...'
+              });
+            }
+          } else if (coverSpreadEntry) {
+            console.warn('[Cover] ⚠️ Found cover-spread entry but missing cloudflareImageUrl:', coverSpreadEntry);
+          }
+          // Priority 2: Cloudflare Images cover URL (from manifest or top-level) - legacy fallback
+          if (!coverUrlFromManifest && (manifest3?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl)) {
             coverUrlFromManifest = manifest3.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
             if (!coverImageUrl && coverUrlFromManifest) {
               setCoverImageUrl(coverUrlFromManifest);
             }
             if (coverUrlFromManifest) {
-              console.log('[Cover] ✅ Using Cloudflare Images URL from manifest:', coverUrlFromManifest.substring(0, 80) + '...');
+              console.log('[Cover] ✅ Using Cloudflare Images URL from manifest (legacy):', coverUrlFromManifest.substring(0, 80) + '...');
             }
           }
-          // Priority 2: R2 cover PNG key (from manifest or top-level)
+          // Priority 3: R2 cover PNG key (from manifest or top-level) - fallback
           else {
             const coverR2Key = 
               manifest3?.coverPngR2Key ||  // Top-level from Build 3A Manifest output
@@ -804,7 +863,7 @@ export function PostPdfStage({
               }
               console.log('[Cover] ✅ Using R2 cover PNG from manifest:', coverR2Key);
             } else {
-              console.warn('[Cover] ⚠️ No cover PNG found in manifest. Expected coverPngR2Key or pngGeneration.coverSpreadImage');
+              console.warn('[Cover] ⚠️ No cover PNG found in manifest. Expected cover-spread entry (pageNumber: -1) or coverPngR2Key');
             }
           }
         } else {
