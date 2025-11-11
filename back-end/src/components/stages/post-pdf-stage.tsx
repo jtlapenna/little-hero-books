@@ -277,7 +277,12 @@ export function PostPdfStage({
   // Track previous spreads to detect actual content changes
   const previousSpreadsRef = useRef<SpreadData[]>([]);
   // Track if ref callback has already handled cached image to prevent multiple calls
-  const coverImageRefHandledRef = useRef<{ front: boolean; back: boolean }>({ front: false, back: false });
+  const coverImageRefHandledRef = useRef<{ 
+    front: boolean; 
+    back: boolean; 
+    lastFrontCoverUrl?: string;
+    lastBackCoverUrl?: string;
+  }>({ front: false, back: false });
   // Track preloaded images to keep them in browser cache
   const preloadedImagesRef = useRef<Set<string>>(new Set());
 
@@ -796,30 +801,70 @@ export function PostPdfStage({
           // 3. Top-level coverSpread array
           // 4. Top-level pages array
           let coverSpreadEntry = null;
+          let coverSpreadLocation = null;
           
           // Check pngGeneration.coverSpread array
           if (Array.isArray(pngGen.coverSpread)) {
-            coverSpreadEntry = pngGen.coverSpread.find((entry: any) => 
-              entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
-            );
+            console.log('[Cover] Checking pngGeneration.coverSpread array, length:', pngGen.coverSpread.length);
+            coverSpreadEntry = pngGen.coverSpread.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'pngGeneration.coverSpread';
+              }
+              return matches;
+            });
+            if (!coverSpreadEntry && pngGen.coverSpread.length > 0) {
+              console.log('[Cover] pngGeneration.coverSpread entries:', pngGen.coverSpread.map((e: any) => ({
+                pageNumber: e?.pageNumber,
+                pageType: e?.pageType,
+                hasCloudflareUrl: !!e?.cloudflareImageUrl
+              })));
+            }
           }
           // Check pngGeneration.pages array
           if (!coverSpreadEntry && Array.isArray(pngGen.pages)) {
-            coverSpreadEntry = pngGen.pages.find((entry: any) => 
-              entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
-            );
+            console.log('[Cover] Checking pngGeneration.pages array, length:', pngGen.pages.length);
+            coverSpreadEntry = pngGen.pages.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'pngGeneration.pages';
+              }
+              return matches;
+            });
           }
           // Check top-level coverSpread array
           if (!coverSpreadEntry && Array.isArray(manifest3.coverSpread)) {
-            coverSpreadEntry = manifest3.coverSpread.find((entry: any) => 
-              entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
-            );
+            console.log('[Cover] Checking top-level coverSpread array, length:', manifest3.coverSpread.length);
+            coverSpreadEntry = manifest3.coverSpread.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'manifest3.coverSpread';
+              }
+              return matches;
+            });
           }
           // Check top-level pages array
           if (!coverSpreadEntry && Array.isArray(manifest3.pages)) {
-            coverSpreadEntry = manifest3.pages.find((entry: any) => 
-              entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
-            );
+            console.log('[Cover] Checking top-level pages array, length:', manifest3.pages.length);
+            coverSpreadEntry = manifest3.pages.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'manifest3.pages';
+              }
+              return matches;
+            });
+          }
+          
+          if (coverSpreadEntry) {
+            console.log('[Cover] ✅ Found cover-spread entry in', coverSpreadLocation, ':', {
+              pageNumber: coverSpreadEntry.pageNumber,
+              pageType: coverSpreadEntry.pageType,
+              hasCloudflareImageUrl: !!coverSpreadEntry.cloudflareImageUrl,
+              cloudflareImageUrl: coverSpreadEntry.cloudflareImageUrl?.substring(0, 80) + '...',
+              cloudflareImageId: coverSpreadEntry.cloudflareImageId
+            });
+          } else {
+            console.warn('[Cover] ⚠️ No cover-spread entry found (pageNumber: -1, pageType: "cover-spread") in any checked location');
           }
           
           if (coverSpreadEntry?.cloudflareImageUrl) {
@@ -920,17 +965,28 @@ export function PostPdfStage({
         // Determine which cover URL to use (prefer coverUrlFromManifest from this load, then state, then legacy)
         const effectiveCoverUrl = coverUrlFromManifest || coverImageDataUrl || coverImageUrl || undefined;
         
+        // Check if cover URL matches dedication page URL (which would be wrong)
+        const dedicationPageUrl = pageData.find(p => p.pageNumber === 0)?.previewImageUrl;
+        const coverMatchesDedication = effectiveCoverUrl && dedicationPageUrl && effectiveCoverUrl === dedicationPageUrl;
+        
         console.log('[Pages] About to create spreads:', {
           pageDataLength: pageData.length,
           hasCoverUrl: !!effectiveCoverUrl,
           coverUrlFromManifest: coverUrlFromManifest?.substring(0, 60),
           coverImageUrl: coverImageUrl?.substring(0, 60),
           effectiveCoverUrl: effectiveCoverUrl?.substring(0, 60),
+          dedicationPageUrl: dedicationPageUrl?.substring(0, 60),
+          coverMatchesDedication: coverMatchesDedication,
           firstPage: pageData[0] ? {
             pageNumber: pageData[0].pageNumber,
-            hasPreviewUrl: !!pageData[0].previewImageUrl
+            hasPreviewUrl: !!pageData[0].previewImageUrl,
+            previewImageUrl: pageData[0].previewImageUrl?.substring(0, 60)
           } : null
         });
+        
+        if (coverMatchesDedication) {
+          console.error('[Pages] ❌ ERROR: Cover URL matches dedication page URL! This is wrong. Cover should be from cover-spread entry.');
+        }
         
         // Always create spreads with current data (pages + cover)
         const newSpreads = createSpreads(pageData, effectiveCoverUrl);
@@ -2006,19 +2062,24 @@ export function PostPdfStage({
                         alt="Back Cover"
                           ref={(img) => {
                             // Check if image is already loaded (cached) when element is created
-                            // Use setTimeout to defer state update to avoid React error #185
-                            // Also check if we've already handled this to prevent multiple calls
-                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0 && !coverImageRefHandledRef.current.back) {
-                              coverImageRefHandledRef.current.back = true;
-                              console.log('[Spreads] ✓ Back cover image already loaded (cached)');
-                              // Defer state update to avoid updating during render
-                              setTimeout(() => {
-                                setImageLoading(prev => ({ ...prev, left: false }));
-                                setImageError(prev => ({ ...prev, left: null }));
-                              }, 0);
+                            // Use a more stable check to prevent infinite loops
+                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0) {
+                              // Only log and update if we haven't already handled this specific image URL
+                              const currentCoverUrl = currentSpread.coverData?.fullImageUrl;
+                              const lastHandledUrl = coverImageRefHandledRef.current.lastBackCoverUrl;
+                              if (currentCoverUrl && currentCoverUrl !== lastHandledUrl) {
+                                coverImageRefHandledRef.current.back = true;
+                                coverImageRefHandledRef.current.lastBackCoverUrl = currentCoverUrl;
+                                console.log('[Spreads] ✓ Back cover image already loaded (cached):', currentCoverUrl.substring(0, 80) + '...');
+                                // Defer state update to avoid updating during render
+                                setTimeout(() => {
+                                  setImageLoading(prev => ({ ...prev, left: false }));
+                                  setImageError(prev => ({ ...prev, left: null }));
+                                }, 0);
+                              }
                             } else if (!img) {
-                              // Reset flag when image is unmounted
-                              coverImageRefHandledRef.current.back = false;
+                              // Reset flag when image is unmounted, but keep the URL to prevent re-triggering
+                              // Only reset if we're actually changing spreads
                             }
                           }}
                         onLoad={() => {
@@ -2120,19 +2181,24 @@ export function PostPdfStage({
                           alt="Front Cover"
                           ref={(img) => {
                             // Check if image is already loaded (cached) when element is created
-                            // Use setTimeout to defer state update to avoid React error #185
-                            // Also check if we've already handled this to prevent multiple calls
-                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0 && !coverImageRefHandledRef.current.front) {
-                              coverImageRefHandledRef.current.front = true;
-                              console.log('[Spreads] ✓ Front cover image already loaded (cached)');
-                              // Defer state update to avoid updating during render
-                              setTimeout(() => {
-                                setImageLoading(prev => ({ ...prev, right: false }));
-                                setImageError(prev => ({ ...prev, right: null }));
-                              }, 0);
+                            // Use a more stable check to prevent infinite loops
+                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0) {
+                              // Only log and update if we haven't already handled this specific image URL
+                              const currentCoverUrl = currentSpread.coverData?.fullImageUrl;
+                              const lastHandledUrl = coverImageRefHandledRef.current.lastFrontCoverUrl;
+                              if (currentCoverUrl && currentCoverUrl !== lastHandledUrl) {
+                                coverImageRefHandledRef.current.front = true;
+                                coverImageRefHandledRef.current.lastFrontCoverUrl = currentCoverUrl;
+                                console.log('[Spreads] ✓ Front cover image already loaded (cached):', currentCoverUrl.substring(0, 80) + '...');
+                                // Defer state update to avoid updating during render
+                                setTimeout(() => {
+                                  setImageLoading(prev => ({ ...prev, right: false }));
+                                  setImageError(prev => ({ ...prev, right: null }));
+                                }, 0);
+                              }
                             } else if (!img) {
-                              // Reset flag when image is unmounted
-                              coverImageRefHandledRef.current.front = false;
+                              // Reset flag when image is unmounted, but keep the URL to prevent re-triggering
+                              // Only reset if we're actually changing spreads
                             }
                           }}
                           onLoad={() => {
