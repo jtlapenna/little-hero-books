@@ -66,36 +66,85 @@ async function sendToPrint(
       hasPngGeneration: !!manifest3.pngGeneration,
       hasPdfGeneration: !!manifest3.pdfGeneration,
       hasPages: !!manifest3.pages,
-      hasPagesWithCloudflare: !!manifest3.pngGeneration?.pagesWithCloudflare
+      hasPagesWithCloudflare: !!manifest3.pngGeneration?.pagesWithCloudflare,
+      pageKeys: manifest3.pngGeneration?.pages ? Object.keys(manifest3.pngGeneration.pages) : [],
+      hasP00: !!manifest3.pngGeneration?.pages?.p00,
+      hasP00Dedication: !!manifest3.pngGeneration?.pages?.p00_dedication
     });
     
     // Normalize p00_dedication to p00 (W4 requires p00, not p00_dedication)
     // This ensures compatibility with both naming conventions
     if (manifest3.pngGeneration?.pages) {
       const pages = manifest3.pngGeneration.pages;
+      const hadP00Before = !!pages.p00;
+      const hadP00DedicationBefore = !!pages.p00_dedication;
+      
+      console.log('[Workflow4] Before normalization:', {
+        hasP00: hadP00Before,
+        hasP00Dedication: hadP00DedicationBefore,
+        p00Value: pages.p00 || null,
+        p00DedicationValue: pages.p00_dedication || null
+      });
+      
       // If p00_dedication exists but p00 doesn't, copy it to p00
       if (pages.p00_dedication && !pages.p00) {
         pages.p00 = pages.p00_dedication;
-        console.log('[Workflow4] Normalized p00_dedication to p00 in pages');
+        console.log('[Workflow4] ✅ Normalized p00_dedication to p00 in pages:', {
+          p00Value: pages.p00,
+          source: 'p00_dedication'
+        });
+      } else if (pages.p00 && !pages.p00_dedication) {
+        // Also set p00_dedication if only p00 exists (for backward compatibility)
+        pages.p00_dedication = pages.p00;
+        console.log('[Workflow4] ✅ Set p00_dedication from p00 for backward compatibility');
+      } else if (pages.p00 && pages.p00_dedication) {
+        console.log('[Workflow4] ✅ Both p00 and p00_dedication already exist');
+      } else {
+        console.warn('[Workflow4] ⚠️ Neither p00 nor p00_dedication found in pages');
       }
     }
     
     // Also normalize in pagesWithCloudflare if it exists
     if (manifest3.pngGeneration?.pagesWithCloudflare) {
       const pagesWithCloudflare = manifest3.pngGeneration.pagesWithCloudflare;
+      const hadP00Before = !!pagesWithCloudflare.p00;
+      const hadP00DedicationBefore = !!pagesWithCloudflare.p00_dedication;
+      
+      console.log('[Workflow4] Before normalization (pagesWithCloudflare):', {
+        hasP00: hadP00Before,
+        hasP00Dedication: hadP00DedicationBefore
+      });
+      
       // If p00_dedication exists but p00 doesn't, copy it to p00
       if (pagesWithCloudflare.p00_dedication && !pagesWithCloudflare.p00) {
         pagesWithCloudflare.p00 = pagesWithCloudflare.p00_dedication;
-        console.log('[Workflow4] Normalized p00_dedication to p00 in pagesWithCloudflare');
+        console.log('[Workflow4] ✅ Normalized p00_dedication to p00 in pagesWithCloudflare');
+      } else if (pagesWithCloudflare.p00 && !pagesWithCloudflare.p00_dedication) {
+        // Also set p00_dedication if only p00 exists
+        pagesWithCloudflare.p00_dedication = pagesWithCloudflare.p00;
+        console.log('[Workflow4] ✅ Set p00_dedication from p00 in pagesWithCloudflare');
+      } else if (pagesWithCloudflare.p00 && pagesWithCloudflare.p00_dedication) {
+        console.log('[Workflow4] ✅ Both p00 and p00_dedication already exist in pagesWithCloudflare');
       }
     }
     
     // Validate critical requirement: p00 must exist
-    if (!manifest3.pngGeneration?.pages?.p00) {
+    const finalHasP00 = !!manifest3.pngGeneration?.pages?.p00;
+    console.log('[Workflow4] Final validation check:', {
+      hasP00: finalHasP00,
+      p00Value: manifest3.pngGeneration?.pages?.p00 || null,
+      allPageKeys: manifest3.pngGeneration?.pages ? Object.keys(manifest3.pngGeneration.pages) : []
+    });
+    
+    if (!finalHasP00) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Missing p00 (dedication page) in manifest. p00 is required for print workflow.'
+          error: 'Missing p00 (dedication page) in manifest. p00 is required for print workflow.',
+          details: {
+            availablePageKeys: manifest3.pngGeneration?.pages ? Object.keys(manifest3.pngGeneration.pages) : [],
+            hasP00Dedication: !!manifest3.pngGeneration?.pages?.p00_dedication
+          }
         },
         { status: 400 }
       );
