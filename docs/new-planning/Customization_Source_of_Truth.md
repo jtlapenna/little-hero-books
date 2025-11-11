@@ -1,12 +1,12 @@
 # Customization Source of Truth
 
-Authoritative list of customer-facing personalization fields and allowed values. Keep this file updated when options change.
+Authoritative list of customer-facing personalization fields and allowed values. Keep this file updated when options change.                                    
 
 ## Required Fields
 - **Child's Name**: text, 1–20 chars (letters/spaces/hyphens)
 - **Age**: 3–8 (UI may show 3–7 in some docs; normalize to 3–8)
 - **Hair Style** (from assets/hair-references):
-  - afro, bun, curly-long, curly-medium, curly-short, pigtails, pom-poms, ponytail, side-part, straight-long, straight-medium, straight-short
+  - afro, bun, curly-long, curly-medium, curly-short, pigtails, pom-poms, ponytail, side-part, straight-long, straight-medium, straight-short                   
 - **Hair Color** (IDs and hex):
   - blonde (#D1B26F)
   - strawberry-blonde (#E6A273)
@@ -35,7 +35,7 @@ Authoritative list of customer-facing personalization fields and allowed values.
 
 ## Canonicalization Rules (implementation)
 - Skin Tone input → canonical IDs:
-  - Light → skin-light; Medium → skin-medium; Tan/Olive → skin-tan; Brown/Light → skin-brown-light; Brown/Deep → skin-brown-deep; default = skin-medium
+  - Light → skin-light; Medium → skin-medium; Tan/Olive → skin-tan; Brown/Light → skin-brown-light; Brown/Deep → skin-brown-deep; default = skin-medium         
 - Clothing Style input → canonical IDs:
   - Any dress-like → dress; else → tee‑shorts
 - Favorite Color input → normalized label + hex via renderer color map
@@ -52,7 +52,7 @@ Authoritative list of customer-facing personalization fields and allowed values.
 - Renderer Zod (`renderer/src/schema.ts`)
   - hair: enum [black, brown, blonde, red, other]
   - skin: enum [light, medium, dark, olive, tan]
-  - options: favorite_animal, favorite_food, favorite_color, hometown, occasion, dedication
+  - options: favorite_animal, favorite_food, favorite_color, hometown, occasion, dedication                                                                     
 
 ## Defaults
 - favorite_animal: dog
@@ -63,7 +63,7 @@ Authoritative list of customer-facing personalization fields and allowed values.
 - pronouns: they/them
 
 ## Open Items
-- Ensure renderer Zod enums are updated to reflect new hair colors/skin tone canonical IDs
+- Ensure renderer Zod enums are updated to reflect new hair colors/skin tone canonical IDs                                                                      
 - Confirm any additional hair styles or color variants before launch
 - Validate order ingestion maps to these IDs consistently across workflows
 
@@ -77,3 +77,4 @@ Authoritative list of customer-facing personalization fields and allowed values.
 - data/order-model.js
 - docs/n8n-workflow-files/finals/SW0 - Base Character Generation.json
 - templates/story-template.js
+

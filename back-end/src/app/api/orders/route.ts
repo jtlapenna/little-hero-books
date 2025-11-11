@@ -3,7 +3,7 @@ import { getAvailableCharacterHashes, getCharacterAssets, getAvailableOrderIds, 
 import { Order } from '@/types/order';
 import { withErrorHandling, getRequestContext } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
-import { OrderStatus } from '@/constants/statuses';
+import { OrderStatus, ReviewStageStatus } from '@/constants/statuses';
 import { listOrdersFromSupabase } from '@/lib/supabase-client';
 import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
 
@@ -42,8 +42,8 @@ async function getOrders(_request: NextRequest) {
         orders.map((order) => order.orderId.toLowerCase())
       );
       const existingAmazonIds = new Set(
-        supabaseRecords
-          .map((record) => (record.amazon_order_id || record.orderId || record.order_id || '').toString().toLowerCase())
+        (supabaseRecords as any[])
+          .map((record: any) => (record.amazon_order_id || record.orderId || record.order_id || '').toString().toLowerCase())
           .filter(Boolean)
       );
 
@@ -73,6 +73,121 @@ async function getOrders(_request: NextRequest) {
 }
 
 export const GET = withErrorHandling(getOrders);
+
+// POST /api/orders - Receive Amazon Custom orders and store in Supabase immediately
+// This ensures orders are tracked in the backend even if n8n fails
+async function postOrder(request: NextRequest) {
+  console.log('[POST /api/orders] Received Amazon order');
+
+  try {
+    const json = await request.json();
+    
+    // Extract Amazon order ID (required)
+    const amazonOrderId = json.amazonOrderId || json.AmazonOrderId || json.orderId || json.id;
+    if (!amazonOrderId) {
+      throw createValidationError('Missing amazonOrderId. Required field.');
+    }
+
+    // Normalize Amazon order data to Supabase schema
+    // This matches what W0 expects, but stores immediately without waiting for n8n
+    const orderData: any = {
+      amazon_order_id: amazonOrderId,
+      execution_status: 'ready_for_processing', // Ready for W0 to process
+      next_workflow: '2A', // W0 will process first, then queue for 2A
+      queued_at: new Date().toISOString(),
+      
+      // Store raw Amazon order data for reference
+      order_status: json.OrderStatus || json.orderStatus || 'Unshipped',
+      purchase_date: json.PurchaseDate || json.purchaseDate || json.orderDate || new Date().toISOString(),
+      marketplace_id: json.MarketplaceId || json.marketplaceId || 'ATVPDKIKX0DER',
+      customer_email: json.BuyerInfo?.BuyerEmail || json.buyer?.email || json.customerEmail,
+      customer_name: json.BuyerInfo?.BuyerName || json.buyer?.name || json.shippingAddress?.name,
+      
+      // Shipping address (required for Lulu API)
+      shipping_address: json.ShippingAddress || json.shippingAddress || {
+        name: json.shippingAddress?.name || json.BuyerInfo?.BuyerName,
+        address: json.ShippingAddress?.AddressLine1 || json.shippingAddress?.address,
+        city: json.ShippingAddress?.City || json.shippingAddress?.city,
+        state: json.ShippingAddress?.StateOrRegion || json.shippingAddress?.state,
+        zip: json.ShippingAddress?.PostalCode || json.shippingAddress?.zip,
+        phone: json.ShippingAddress?.Phone || json.shippingAddress?.phone || json.shippingAddress?.phoneNumber || json.shippingAddress?.phone_number,
+        country: json.ShippingAddress?.CountryCode || json.shippingAddress?.country || 'US',
+      },
+      
+      // Character specs from Amazon Custom fields
+      character_specs: json.characterSpecs || json.CharacterSpecs || {
+        childName: json.childName || json.ChildName,
+        age: json.childAge || json.ChildAge,
+        skinTone: json.skinTone || json.SkinTone,
+        hairColor: json.hairColor || json.HairColor,
+        hairStyle: json.hairStyle || json.HairStyle,
+        pronouns: json.pronouns || json.Pronouns,
+        favoriteColor: json.favoriteColor || json.FavoriteColor,
+        animalGuide: json.animalGuide || json.AnimalGuide || json.favoriteAnimal || json.FavoriteAnimal,
+        clothingStyle: json.clothingStyle || json.ClothingStyle,
+        hometown: json.hometown || json.Hometown,
+      },
+      
+      // Book specs
+      book_specs: json.bookSpecs || json.BookSpecs || {
+        title: json.title || json.Title,
+        totalPages: json.totalPages || json.TotalPages || 16,
+        format: json.format || json.Format || '8.5x8.5_softcover',
+        bookType: json.bookType || json.BookType || 'adventure',
+      },
+      
+      // Dedication text
+      dedication_text: json.dedication || json.Dedication || json.dedicationText || null,
+      
+      // Store full raw order data for debugging/reference
+      product_info: json.Items || json.items || json.lineItems || json,
+    };
+
+    // Upsert to Supabase using native upsert (more reliable than update-then-insert)
+    const { supabase } = await import('@/lib/supabase-client');
+
+    // Ensure timestamps are set
+    const now = new Date().toISOString();
+    if (!orderData.created_at) orderData.created_at = now;
+    orderData.updated_at = now;
+
+    // Use upsert with conflict resolution on amazon_order_id
+    const { data: result, error } = await supabase
+      .from('orders')
+      .upsert(orderData, {
+        onConflict: 'amazon_order_id',
+        ignoreDuplicates: false, // Update if exists
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[POST /api/orders] Supabase upsert error:', error);
+      throw new Error(`Failed to store order in Supabase: ${error.message}`);
+    }
+
+    console.log(`[POST /api/orders] ✅ Order ${amazonOrderId} stored in Supabase`);
+
+    return NextResponse.json({
+      success: true,
+      orderId: amazonOrderId,
+      amazonOrderId,
+      message: 'Order received and stored in Supabase',
+      storedAt: new Date().toISOString(),
+      executionStatus: orderData.execution_status,
+      nextWorkflow: orderData.next_workflow,
+    }, { status: 201 });
+
+  } catch (error: any) {
+    console.error('[POST /api/orders] Error storing order:', error);
+    return NextResponse.json({
+      success: false,
+      error: error?.message || 'Failed to store order',
+    }, { status: error?.status || 500 });
+  }
+}
+
+export const POST = withErrorHandling(postOrder);
 
 async function loadMissingOrdersFromR2(
   existingOrderIds: Set<string>,
@@ -184,9 +299,9 @@ async function buildOrdersFromR2(): Promise<{
             },
         assetPrefix: `book-mvp-simple-adventure/orders/book-${String(index + 1).padStart(3, '0')}/`,
             reviewStages: {
-              preBria: { status: 'pending' },
-              postBria: { status: 'pending' },
-          postPdf: { status: 'pending' },
+              preBria: { status: ReviewStageStatus.PENDING },
+              postBria: { status: ReviewStageStatus.PENDING },
+              postPdf: { status: ReviewStageStatus.PENDING },
             },
             webhooks: {
           onApprove: 'https://n8n.example.com/webhook/approve',

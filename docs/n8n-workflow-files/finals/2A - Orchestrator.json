@@ -323,29 +323,34 @@
     },
     {
       "parameters": {
-        "functionCode": "// Get next order from processing queue and extract custom elements\n// In production, this would query a database queue\n// For now, we'll simulate getting an order from the previous workflow\n\nconst inputData = $input.first();\n\nif (!inputData || !inputData.json) {\n  console.log('No input data received');\n  return [];\n}\n\nconst orderData = inputData.json;\n\n// For mock/test mode, skip status check (production would enforce this)\nconst isMockMode = !orderData.status || orderData.status === 'mock';\n\nif (!isMockMode && orderData.status !== 'queued_for_processing') {\n  console.log(`Order ${orderData.amazonOrderId} not ready for processing. Status: ${orderData.status}`);\n  return [];\n}\n\n// Extract and validate custom elements from characterSpecs\nconst characterSpecs = orderData.characterSpecs || {};\n\nconst customElements = {\n  childName: characterSpecs.childName || 'Adventure Hero',\n  skinTone: characterSpecs.skinTone || 'medium',\n  hairColor: characterSpecs.hairColor || 'brown',\n  hairStyle: characterSpecs.hairStyle || 'short/straight',\n  age: parseInt(characterSpecs.age) || 5,\n  pronouns: characterSpecs.pronouns || 'they/them',\n  favoriteColor: characterSpecs.favoriteColor || 'blue',\n  animalGuide: characterSpecs.animalGuide || 'dog',\n  clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts'\n};\n\n// Update order status to processing with custom elements\nconst processingOrder = {\n  ...orderData,\n  characterSpecs: customElements,\n  status: 'ai_generation_in_progress',\n  aiGenerationStartedAt: new Date().toISOString(),\n  posesGenerated: 0,\n  totalPosesRequired: 13,\n  generationProgress: 0\n};\n\nconsole.log(`Starting AI generation for order: ${orderData.amazonOrderId}`);\nconsole.log('Custom elements:', customElements);\n\nreturn [{ json: processingOrder }];"
+        "httpMethod": "POST",
+        "path": "2a-start",
+        "responseMode": "lastNode",
+        "options": {}
       },
-      "id": "13e102d1-378d-4c21-8963-f337d448276b",
-      "name": "Get Next Order from Queue1",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [
-        -2912,
-        -800
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Generate a mock order for testing the AI character generation workflow\n// This simulates an order coming from the order intake workflow\n\nconst mockOrder = {\n  amazonOrderId: 'Prism-TEST',\n  status: 'queued_for_processing',\n  orderDate: new Date().toISOString(),\n  customerEmail: 'jeff.lapenna@gmail.com',\n  characterSpecs: {\n    childName: 'Prism',\n    skinTone: 'tan',\n    hairColor: 'auburn',\n    hairStyle: 'curly-medium',\n    age: 5,\n    pronouns: 'she/her',\n    favoriteColor: 'purple',\n    animalGuide: 'owl',\n    clothingStyle: 'dress'\n  },\n  bookSpecs: {\n    title: 'Lucys Inner Voice',\n    totalPages: 16,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide' // or 'mvp-simple' for different book types\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: 'Jeff LaPenna',\n      address: '12207 Sunset Ave.',\n      city: 'Grass Valley',\n      state: 'CA',\n      zip: '95945'\n    }\n  }\n};\n\nconsole.log('Generated mock order for testing:', mockOrder);\nreturn [{ json: mockOrder }];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "webhook-2a-router",
+      "name": "Webhook (Router)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
       "position": [
         -3136,
         -800
       ],
-      "id": "5edae472-c4f5-4f29-827a-726c3f266898",
-      "name": "Generate Mock Order1"
+      "webhookId": "2a-start",
+      "notes": "Receives orders from W1.1 Router. Router sends: orderId, characterHash, characterSpecs, bookSpecs, orderDbId, workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize Router Payload — Maps router format to 2A expected format\n// Router sends: { orderId, characterHash, characterSpecs, bookSpecs, orderDbId, workflow }\n// 2A expects: { amazonOrderId, characterSpecs, bookSpecs, ... }\n\nconst routerData = $input.first().json || {};\n\n// Normalize field names\nconst normalized = {\n  amazonOrderId: routerData.orderId || routerData.amazonOrderId || null,\n  orderId: routerData.orderId || routerData.amazonOrderId || null,\n  characterHash: routerData.characterHash || null,\n  characterSpecs: routerData.characterSpecs || {},\n  bookSpecs: routerData.bookSpecs || {},\n  orderDetails: routerData.orderDetails || {},\n  orderDbId: routerData.orderDbId || null,\n  workflow: routerData.workflow || '2A',\n  // Preserve any other fields\n  ...routerData\n};\n\nconsole.log('=== ROUTER PAYLOAD NORMALIZED ===');\nconsole.log('amazonOrderId:', normalized.amazonOrderId);\nconsole.log('characterHash:', normalized.characterHash);\n\nreturn [{ json: normalized }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2912,
+        -800
+      ],
+      "id": "normalize-router-payload",
+      "name": "Normalize Router Payload"
     },
     {
       "parameters": {
@@ -880,22 +885,22 @@
         ]
       ]
     },
-    "Get Next Order from Queue1": {
+    "Webhook (Router)": {
       "main": [
         [
           {
-            "node": "Capture Order Context",
+            "node": "Normalize Router Payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate Mock Order1": {
+    "Normalize Router Payload": {
       "main": [
         [
           {
-            "node": "Get Next Order from Queue1",
+            "node": "Capture Order Context",
             "type": "main",
             "index": 0
           }
@@ -926,6 +931,13 @@
     },
     "When clicking 'Execute workflow'": {
       "main": [
+        [
+          {
+            "node": "Capture Order Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "TEST MODE TOGGLE1",
@@ -1023,7 +1035,7 @@
       "main": [
         [
           {
-            "node": "Generate Mock Order1",
+            "node": "Capture Order Context",
             "type": "main",
             "index": 0
           }

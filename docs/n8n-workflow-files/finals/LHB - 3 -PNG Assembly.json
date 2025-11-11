@@ -1,5 +1,5 @@
 {
-  "name": "PDF-SIZING - LHB - 3 - PNG Assembly",
+  "name": "WORKING VERSION -  LHB - 3 - PNG Assembly",
   "nodes": [
     {
       "parameters": {
@@ -332,145 +332,6 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Generate Cover HTML (3A) — Lulu-ready print spread\n * Keeps 5203×2625px internal coords, scales to 17.25\" x 8.75\" via CSS.\n * [OPTION A COMPOSITE]: character composited into .bg via layered backgrounds.\n */\n\nlet inputs = {};\nlet renderCtx = {};\ntry {\n  inputs    = $items('Normalize Inputs (3A Phase 1)', 0, $runIndex)?.[0]?.json?.inputs || {};\n  renderCtx = $items('Resolve Asset Paths (3A Phase 1)', 0, $runIndex)?.[0]?.json?.renderContext || {};\n} catch {}\n\nconst orderCtx = $input.first().json || {};\n\n// ---- backend base ----\nlet backendUrl = renderCtx.backendUrl || orderCtx.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\n\n// ---- background ----\nconst coversBgKey = renderCtx.coversBg;\nif (!coversBgKey) throw new Error('Generate Cover HTML: renderContext.coversBg is required');\nconst coversBgUrl = `${backendUrl}/api/assets/${coversBgKey}`;\n\n// ---- child/name ----\nconst childName = (inputs.childName || inputs.name || orderCtx.childName || orderCtx.name || '').trim();\nconst possessive = (n) => {\n  if (!n) return \"[CHILD'S NAME]\";\n  return /\\s$/i.test(n) ? `${n}'` : `${n}'s`;\n};\n\n// ---- back copy ----\nconst backTitle = \"About Your Inner Voice.\";\nconst backBody  =\n  \"On a gentle adventure, [CHILD NAME]\\n\" +\n  \"learns to hear the quiet voice inside—\\n\" +\n  \"the one that helps us feel brave, kind and true.\";\nconst tryThisHdr = \"TRY THIS\";\nconst tryThisTxt = \"Hand on heart.\\nBreathe in 4, breathe out 4.\\nWhat is your inner voice saying?\";\nconst madeWith   = \"Made with love for\";\n\n// ---- pose (_nobg) ----\nconst characterHash =\n  renderCtx.characterHash ||\n  orderCtx.characterHash ||\n  inputs.characterHash ||\n  '';\n\nif (!characterHash && !renderCtx.pose00Nobg && !renderCtx.pose00) {\n  throw new Error('Generate Cover HTML: Missing characterHash/pose key for sprite.');\n}\n\nconst poseImgKey = characterHash\n  ? `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/characters_${characterHash}_pose00_nobg.png`\n  : (renderCtx.pose00Nobg || renderCtx.pose00);\n\nconst poseUrl = `${backendUrl}/api/assets/${poseImgKey}`;\n\n// ---- helpers ----\nconst esc = (s) =>\n  String(s)\n    .replace(/&/g,'&amp;')\n    .replace(/</g,'&lt;')\n    .replace(/>/g,'&gt;');\n\n// ---- HTML ----\nconst safeChildName = childName || '[CHILD NAME]';\n\nconst coverHTML = `<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\"></head>\n<body>\n  <!-- [LULU FIX COVER] Physical sheet viewport -->\n  <div class=\"cover-viewport\">\n    <!-- [LULU FIX COVER] Scaled px-based canvas -->\n    <div class=\"cover-canvas\">\n      <div class=\"cover-spread\">\n        <!-- [OPTION A COMPOSITE]\n             Top layer: character (poseUrl)\n             Bottom layer: cover background (coversBgUrl)\n        -->\n        <div class=\"bg\"\n             style=\"\n               background-image:\n                 url('${esc(poseUrl)}'),\n                 url('${esc(coversBgUrl)}');\n             \">\n        </div>\n\n        <div class=\"half back\"></div>\n        <div class=\"half front\"></div>\n        <div class=\"spine\"></div>\n\n        <!-- BACK COVER -->\n        <div class=\"back-wrap\">\n          <div class=\"back-h1\">${esc(backTitle)}</div>\n          <div class=\"back-body\">\n            ${esc(backBody.replace('[CHILD NAME]', safeChildName))}\n          </div>\n          <div class=\"try-wrap\">\n            <div class=\"try-hdr\">${esc(tryThisHdr)}</div>\n            <div class=\"try-panel\">\n              <div class=\"try-text\">${esc(tryThisTxt)}</div>\n            </div>\n          </div>\n          <div class=\"footer\">\n            <span class=\"line\">${esc(madeWith)}</span>\n            <span class=\"name\">${esc(safeChildName)}</span>\n          </div>\n        </div>\n\n        <!-- FRONT COVER -->\n        <div class=\"front-title-wrap\">\n          <div class=\"front-title\">\n            <span class=\"name\">${\n              esc(\n                possessive(\n                  childName || \"[CHILD'S NAME]\"\n                )\n              )\n              .replace(/&apos;/g,\"'\")\n              .replace(/&#39;/g,\"'\")\n              .replace(/&amp;#39;/g,\"'\")\n              .replace(/&#x27;/g,\"'\")\n            }</span>\n            <span class=\"label\">INNER VOICE</span>\n          </div>\n        </div>\n\n        <!-- [NOTE] No separate .character div here:\n             character is composited into .bg to avoid Lulu's box artifact. -->\n      </div>\n    </div>\n  </div>\n</body>\n</html>`;\n\n// ---- deterministic outputs ----\nconst amazonOrderId =\n  renderCtx.orderId ||\n  orderCtx.amazonOrderId ||\n  orderCtx.orderId ||\n  'ORDER';\n\nconst coverImageFilename = 'cover-spread.png';\nconst coverImageR2Key =\n  `book-mvp-simple-adventure/orders/${amazonOrderId}/preview-images/${coverImageFilename}`;\n\nconst pdfMonkeyCoverTemplateId = \"B3041972-B9F5-4E82-BA05-7FF4FFC10A43\";\n\nreturn [{\n  json: {\n    ...orderCtx,\n    backendUrl,\n    coverHTML,\n    coverImageFilename,\n    coverImageR2Key,\n    pdfMonkeyCoverTemplateId\n  }\n}];\n"
-      },
-      "id": "f53f1a8e-ca3d-4f19-b8d9-bd70098337ed",
-      "name": "Generate Cover HTML (3A)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        448,
-        2432
-      ],
-      "notesInFlow": true,
-      "notes": "Generates a 5203×2625 cover spread with title/subtitle, pose00 on front, and deterministic R2 key."
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.pdfmonkey.io/api/v1/documents",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer 2zpxHdmsse2ECXgVVtVR"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"document\": {\n    \"document_template_id\": \"D52F14C8-BBC3-4058-929F-195DFC707E75\",\n    \"status\": \"pending\",\n    \"meta\": { \"_filename\": \"{{$json.coverPdfFilename}}\", \"_type\": \"pdf\" },\n    \"payload\": { \"pages_html\": {{ JSON.stringify($json.cover_html || $json.coverHTML) }} }\n  }\n}\n",
-        "options": {
-          "timeout": 90000
-        }
-      },
-      "id": "e4264f08-30a9-40ed-aac1-71316ab742db",
-      "name": "Generate Cover Image with PDFMonkey (3A)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        880,
-        2432
-      ],
-      "notesInFlow": true,
-      "notes": "Phase 3: Generate 5203×2625 cover PNG. Security TODO (Phase 6): move Authorization to credentials."
-    },
-    {
-      "parameters": {
-        "jsCode": "/**\n * Poll Cover Image (3A) — v2 Code (runOncePerItem)\n * Preserve context from Generate Cover HTML (3A)\n */\nconst createResp = $input.item.json || {};\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc && (doc.id || doc.data?.id);\nif (!docId) { throw new Error('PDFMonkey create response missing id (cover)'); }\n\nconst http = this.helpers.httpRequest;\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst headers = { Authorization: 'Bearer 2zpxHdmsse2ECXgVVtVR' };\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nwhile (attempts < 30) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true, headers });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(1800 + Math.floor(Math.random()*600));\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey cover image not ready after polling (status=${status})`);\n}\n\n// Pull original context from Generate Cover HTML (3A)\nconst orig = $items('Generate Cover HTML (3A)', 0, $itemIndex)?.[0]?.json || {};\n\nreturn {\n  json: {\n    ...orig,                   // keeps coverImageR2Key, backendUrl, etc.\n    pdfMonkeyCoverDocumentId: docId,\n    coverImageDownloadUrl: downloadUrl\n  }\n};\n"
-      },
-      "id": "babb1b1e-e9d2-468d-aa21-7777618aa4d9",
-      "name": "Poll Cover Image (3A)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 1,
-      "position": [
-        1088,
-        2432
-      ],
-      "notesInFlow": true,
-      "executeOnce": false,
-      "notes": "3A cover branch placeholder. Implement real logic with credentials and correct fields."
-    },
-    {
-      "parameters": {
-        "url": "={{ $json.coverImageDownloadUrl }}",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "file"
-            }
-          },
-          "timeout": 90000
-        }
-      },
-      "id": "44921714-09d5-464f-af9a-38f87562b988",
-      "name": "Download Cover Image (3A)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        1296,
-        2432
-      ],
-      "notesInFlow": true,
-      "notes": "3A cover branch placeholder. Implement real logic with credentials and correct fields."
-    },
-    {
-      "parameters": {
-        "operation": "upload",
-        "bucketName": "little-hero-orders",
-        "fileName": "={{ $json.coverPdfR2Key }}",
-        "additionalFields": {}
-      },
-      "id": "78281da5-26a2-4f4d-9b22-45bf7a48e7b3",
-      "name": "Upload Cover Preview Image to R2 (3A)",
-      "type": "n8n-nodes-base.s3",
-      "typeVersion": 1,
-      "position": [
-        1712,
-        2432
-      ],
-      "notesInFlow": true,
-      "credentials": {
-        "s3": {
-          "id": "7tJOX9QjL1jqyEjf",
-          "name": "S3 account"
-        }
-      },
-      "notes": "3A cover branch placeholder. Implement real logic with credentials and correct fields."
-    },
-    {
-      "parameters": {
-        "jsCode": "/**\n * Normalize Inputs (3A Phase 1)\n * - Trims/clamps human text inputs.\n * - Produces a compact `inputs` object for downstream HTML builders.\n * Output: { inputs }\n */\nconst order = $input.first().json || {};\n\nfunction s(v){ return (v == null) ? '' : String(v); }\nfunction trim(v){ return s(v).replace(/\\s+/g,' ').trim(); }\nfunction clamp(str, max){ const t = s(str); return t.length > max ? t.slice(0, max) : t; }\nfunction safeMultiline(str, max){ \n  let out = s(str).replace(/\\r\\n/g, '\\n').replace(/\\r/g, '\\n');\n  if (out.length > max) out = out.slice(0, max);\n  return out;\n}\n\n// Source fields\nconst cs  = order.characterSpecs || {};\nconst bs  = order.bookSpecs || {};\nconst od  = order.orderDetails || {};\n\n// Dedication can come from multiple places (prefer orderDetails)\nconst dedicationRaw = od.dedicationMessage ?? bs.dedicationMessage ?? '';\nconst hometownRaw   = cs.hometown ?? od.shippingAddress?.city ?? '';\n\n// Title/subtitle\nlet title    = trim(bs.title || '');\nlet subtitle = trim(bs.subtitle || '');\n\n// Defaults\nif (!title) title = \"Alex and the Adventure Compass\";\n\n// Core inputs\nconst inputs = {\n  title: clamp(title, 90),\n  subtitle: clamp(subtitle, 120),\n  dedicationMessage: safeMultiline(dedicationRaw, 400),\n  hometown: clamp(hometownRaw, 60),\n  childName: clamp(cs.childName || '', 40),\n};\n\nreturn [{ json: { inputs } }];"
-      },
-      "id": "1ec38fdf-56cb-4969-b4ce-b76e1511fcf9",
-      "name": "Normalize Inputs (3A Phase 1)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        64,
-        2432
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "/**\n * Resolve Asset Paths (3A Phase 1) — HOTFIX\n * Robustly derives orderId/characterHash from multiple upstream nodes,\n * then emits deterministic R2 keys for cover & page assets.\n * Output: { renderContext }\n */\nfunction pick(...vals){ for (const v of vals){ if (v !== undefined && v !== null && v !== '') return v; } return null; }\nfunction tryItems(name){\n  try { return $items(name, 0, $runIndex)?.[0]?.json || null; } catch { return null; }\n}\n\nconst in0 = $input.first()?.json || null;\nconst fromBuild   = tryItems('Build Assembly Input From Manifest');\nconst fromReady   = tryItems('Get Order Ready for Assembly');\nconst fromManHTTP = (()=>{\n  const m = tryItems('Download 2B Manifest') || {};\n  const o = m.order || {};\n  return {\n    amazonOrderId: o.amazonOrderId,\n    characterHash: m.characterHash || o.characterHash,\n    characterSpecs: o.characterSpecs,\n    bookSpecs: o.bookSpecs,\n    orderDetails: o.orderDetails\n  };\n})();\n\n// Assemble unified context\nconst ctx = {\n  backendUrl: pick(in0?.backendUrl, tryItems('Extract Manifest URL (3)')?.backendUrl, 'https://admin.littleherolabs.com'),\n  amazonOrderId: pick(in0?.amazonOrderId, fromBuild?.amazonOrderId, fromReady?.amazonOrderId, fromManHTTP?.amazonOrderId),\n  characterHash: pick(in0?.characterHash, fromBuild?.characterHash, fromReady?.characterHash, fromManHTTP?.characterHash),\n};\n\nif (!ctx.amazonOrderId || !ctx.characterHash) {\n  const dbg = { have: { in0: !!in0, fromBuild: !!fromBuild, fromReady: !!fromReady, fromManHTTP: !!fromManHTTP },\n                fields: { amazonOrderId: ctx.amazonOrderId, characterHash: ctx.characterHash } };\n  throw new Error('Resolve Asset Paths: unable to derive orderId/characterHash → ' + JSON.stringify(dbg));\n}\n\n// Deterministic R2 keys\nconst fontKey         = 'book-mvp-simple-adventure/fonts/CustomBook.ttf';\nconst coversBgKey     = 'book-mvp-simple-adventure/backgrounds/page00-covers.png';\nconst dedicationBgKey = 'book-mvp-simple-adventure/backgrounds/page00-dedication.png';\nconst p05OverlayKey   = 'book-mvp-simple-adventure/overlays/pages/page05-overlay.png';\nconst p12OverlayKey   = 'book-mvp-simple-adventure/overlays/pages/page12-overlay.png';\nconst pose00Key       = `book-mvp-simple-adventure/order-generated-assets/characters/${ctx.characterHash}/base-character.png`;\n\nconst renderContext = {\n  font: fontKey,\n  coversBg: coversBgKey,\n  dedicationBg: dedicationBgKey,\n  p05Overlay: p05OverlayKey,\n  p12Overlay: p12OverlayKey,\n  pose00: pose00Key,\n  backendUrl: ctx.backendUrl,\n  orderId: ctx.amazonOrderId,\n  characterHash: ctx.characterHash\n};\n\nreturn [{ json: { renderContext } }];"
-      },
-      "id": "e239954f-a510-4e31-8d45-cb983b022e18",
-      "name": "Resolve Asset Paths (3A Phase 1)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        256,
-        2432
-      ]
-    },
-    {
-      "parameters": {
         "language": "JavaScript",
         "jsCode": "/**\n * Load Background Images (pages 1..14) + ensure overlays & animal 'appears'/'flying'\n * Backgrounds live at: book-mvp-simple-adventure/backgrounds/pageXX-<slug>.png\n * Page 5 trail overlays: book-mvp-simple-adventure/overlays/animal-tracks/page05-meadow-<variant>.png\n *   Variants: clawprints | footprints | fur | owl-feathers | penguin-feathers\n * Animal sprites (pages 13–14):\n *   book-mvp-simple-adventure/characters/animals/<slug>-appears.png\n *   book-mvp-simple-adventure/characters/animals/<slug>-flying.png\n *\n * NOTE: This node is the single source of truth for:\n *   - backgroundImages\n *   - overlayImages (including Page 5 trail variant selection)\n *   - animalImages { slug, displayName, appears, flying }\n * It intentionally does NOT create storyTexts.\n */\nconst order = $input.first().json || {};\n\n// ---- Context / backend URL ----\nlet backendUrl = order.backendUrl;\nif (!backendUrl) {\n  try {\n    const ctx = $items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {};\n    backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\n  } catch {\n    backendUrl = 'https://admin.littleherolabs.com';\n  }\n}\n\n// Keep this requirement if you want to enforce real orders; remove if you need previews without an order id.\nif (!order.amazonOrderId) {\n  throw new Error('Amazon Order ID is required for loading background images');\n}\n\n// ---- Backgrounds (unchanged filenames) ----\nconst sceneSlugs = [\n  'twilight-walk','night-forest','magic-doorway','courage-leap','morning-meadow',\n  'tall-forest','mountain-vista','picnic-surprise','beach-discovery','crystal-cave',\n  'giant-flowers','almost-there','animal-reveal','flying-home'\n];\nconst sceneNames = [\n  'twilight_walk','night_forest','magic_doorway','courage_leap','morning_meadow',\n  'tall_forest','mountain_vista','picnic_surprise','beach_discovery','crystal_cave',\n  'giant_flowers','enchanted_grove','animal_reveal','flying_home'\n];\n\nconst dedication = {\n  pageNumber: 0,\n  imagePath: `${backendUrl}/api/assets/book-mvp-simple-adventure/backgrounds/page00-dedication.png`,\n  sceneName: 'dedication',\n  validated: false,\n};\n\nconst backgroundImages = [dedication, ...Array.from({ length: 14 }, (_, i) => {\n  const pageNumber = i + 1;\n  const r2Key = `book-mvp-simple-adventure/backgrounds/page${String(pageNumber).padStart(2,'0')}-${sceneSlugs[i]}.png`;\n  const imagePath = `${backendUrl}/api/assets/${r2Key}`;\n  return { pageNumber, imagePath, sceneName: sceneNames[i], validated: false };\n})];\n\n// ---- Helpers: normalize, title, animal slug, overlay variant ----\nconst animalGuideRaw = order.characterSpecs?.animalGuide || order.animalGuide || '';\nconst aKey = String(animalGuideRaw).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\n\nfunction animalSlugFromKey(k) {\n  if (/^(t\\s*rex|t\\s*-\\s*rex|trex|dinosaur)$/.test(k)) return 't-rex';\n  if (/^owl$/.test(k)) return 'owl';\n  if (/^penguin$/.test(k)) return 'penguin';\n  if (/^unicorn$/.test(k)) return 'unicorn';\n  if (/^lion$/.test(k)) return 'lion';\n  if (/^tiger$/.test(k)) return 'tiger';\n  if (/^dog$/.test(k)) return 'dog';\n  if (/^cat$/.test(k)) return 'cat';\n  // fallback to cat to guarantee an asset exists\n  return 'cat';\n}\n\nfunction displayNameFromSlug(slug) {\n  if (slug === 't-rex') return 'T-Rex';\n  return slug.charAt(0).toUpperCase() + slug.slice(1);\n}\n\nfunction overlayVariantForSlug(slug) {\n  // T-Rex uses clawprints\n  if (slug === 't-rex') return 'clawprints';\n  // Owl and penguin use feathers\n  if (slug === 'owl') return 'owl-feathers';\n  if (slug === 'penguin') return 'penguin-feathers';\n  // Unicorn uses fur\n  if (slug === 'unicorn') return 'fur';\n  // Cats, dogs, lions, tigers use footprints\n  if (['cat', 'dog', 'lion', 'tiger'].includes(slug)) return 'footprints';\n  // Fallback to footprints\n  return 'footprints';\n}\n\nconst animalSlug = animalSlugFromKey(aKey);\nconst animalDisplay = displayNameFromSlug(animalSlug);\n\n// ---- Page 5 overlay selection by animal → variant ----\nconst p5Variant = overlayVariantForSlug(animalSlug);\nconst p5OverlayKey = `book-mvp-simple-adventure/overlays/animal-tracks/page05-meadow-${p5Variant}.png`;\nconst p5OverlayUrl = `${backendUrl}/api/assets/${p5OverlayKey}`;\nconst p5OverlayEntry = {\n  pageNumber: 5,\n  imagePath: p5OverlayUrl,\n  kind: 'trail',\n  variant: p5Variant,\n  r2Key: p5OverlayKey,\n  validated: true,\n};\n\n// Merge into overlayImages (supports array or object), replacing any old Page 5 entry\nlet overlayImages = order.overlayImages ?? order.overlays ?? null;\n\nfunction isP5(o) {\n  const pn = Number(o?.pageNumber);\n  return pn === 5 || /(^|[^0-9])05([^0-9]|$)/.test(String(o?.r2Key || o?.imagePath || ''));\n}\n\nif (Array.isArray(overlayImages)) {\n  overlayImages = overlayImages.filter(o => !isP5(o));\n  overlayImages.push(p5OverlayEntry);\n} else if (overlayImages && typeof overlayImages === 'object') {\n  overlayImages.page05 = p5OverlayEntry;\n  overlayImages.p05 = p5OverlayEntry;\n  overlayImages.trail = p5OverlayEntry;\n} else {\n  overlayImages = [p5OverlayEntry];\n}\n\n// ---- Dynamic Animal images for Pages 13 & 14 (no hardcoding) ----\nconst animalsBase = `book-mvp-simple-adventure/characters/animals`;\nconst appearsKey = `${animalsBase}/${animalSlug}-appears.png`;\nconst flyingKey  = `${animalsBase}/${animalSlug}-flying.png`;\nconst appearsUrl = `${backendUrl}/api/assets/${appearsKey}`;\nconst flyingUrl  = `${backendUrl}/api/assets/${flyingKey}`;\n\nlet animalImages = order.animalImages || {};\nanimalImages = {\n  ...animalImages,\n  slug: animalSlug,\n  displayName: animalImages.displayName || (order.animalDisplayName || animalDisplay),\n  // Appear (Page 13)\n  appearsR2Key: appearsKey,\n  appears: appearsUrl,\n  appearsImagePath: appearsUrl,\n  imageAppears: appearsUrl,\n  // Flying (Page 14)\n  flyingR2Key: flyingKey,\n  flying: flyingUrl,\n  flyingImagePath: flyingUrl,\n  imageFlying: flyingUrl,\n};\n\nconst coverSpreadImagePath = `${backendUrl}/api/assets/book-mvp-simple-adventure/covers/cover-spread.png`;\n\n// ---- Merge and return ----\nreturn [{\n  json: {\n    ...order,\n    backendUrl,\n    backgroundImages,\n    overlayImages,     // includes correct Page 5 trail overlay\n    animalImages,      // dynamic appears + flying tied to animal\n    coverSpreadImagePath,\n  }\n}];"
       },
@@ -597,32 +458,6 @@
       "id": "1fb44664-4fc6-4e12-81b8-9db1acd63d9d",
       "name": "When clicking ‘Execute workflow’",
       "disabled": true
-    },
-    {
-      "parameters": {
-        "jsCode": "// Keep the binary AND reattach keys needed later\nconst base = $items('Set Cover PDF Filenames/Keys')?.[0]?.json || {};\nreturn [{\n  json: {\n    ...$json,\n    orderId: base.orderId,\n    coverPdfR2Key: base.coverPdfR2Key,\n    coverPdfFilename: base.coverPdfFilename,\n  },\n  // <-- THIS preserves the downloaded file\n  binary: $binary\n}];\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1488,
-        2432
-      ],
-      "id": "cd21d162-0530-4010-a547-a8f6c8a1b4ce",
-      "name": "Carry Cover Keys Forward"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Derive order + target R2 key, and convert full HTML -> fragment for pages_html\nconst j = $json || {};\nconst orderId = j.orderId || j.amazonOrderId || j.renderContext?.orderId || 'ORDER';\nif (!orderId) throw new Error('Missing orderId/amazonOrderId');\n\nconst fileBase = `cover_${orderId}.pdf`;\nconst coverPdfR2Key = `book-mvp-simple-adventure/orders/${orderId}/${fileBase}`;\n\nconst raw = String(j.cover_preview_html || j.coverHTML || j.cover_html || '').trim();\n// extract body innerHTML if a full doc was passed\nconst m = raw.match(/<body[^>]*>([\\s\\S]*?)<\\/body>/i);\nconst cover_html = (m ? m[1] : raw).trim();\n\nreturn [{ json: { ...j, orderId, coverPdfFilename: fileBase, coverPdfR2Key, cover_html } }];\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        656,
-        2432
-      ],
-      "id": "5a8a895f-0d69-4edf-8737-cf89ca5e73b5",
-      "name": "Set Cover PDF Filenames/Keys"
     },
     {
       "parameters": {
@@ -1162,66 +997,6 @@
         ]
       ]
     },
-    "Generate Cover Image with PDFMonkey (3A)": {
-      "main": [
-        [
-          {
-            "node": "Poll Cover Image (3A)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Poll Cover Image (3A)": {
-      "main": [
-        [
-          {
-            "node": "Download Cover Image (3A)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Download Cover Image (3A)": {
-      "main": [
-        [
-          {
-            "node": "Carry Cover Keys Forward",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Upload Cover Preview Image to R2 (3A)": {
-      "main": [
-        []
-      ]
-    },
-    "Normalize Inputs (3A Phase 1)": {
-      "main": [
-        [
-          {
-            "node": "Resolve Asset Paths (3A Phase 1)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Resolve Asset Paths (3A Phase 1)": {
-      "main": [
-        [
-          {
-            "node": "Generate Cover HTML (3A)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Load Canonical Assets": {
       "main": [
         [
@@ -1284,17 +1059,6 @@
         ]
       ]
     },
-    "Generate Cover HTML (3A)": {
-      "main": [
-        [
-          {
-            "node": "Set Cover PDF Filenames/Keys",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "When clicking ‘Execute workflow’": {
       "main": [
         [
@@ -1311,28 +1075,6 @@
         [
           {
             "node": "QA Gate (3A Phase 4)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Carry Cover Keys Forward": {
-      "main": [
-        [
-          {
-            "node": "Upload Cover Preview Image to R2 (3A)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Set Cover PDF Filenames/Keys": {
-      "main": [
-        [
-          {
-            "node": "Generate Cover Image with PDFMonkey (3A)",
             "type": "main",
             "index": 0
           }
@@ -1519,7 +1261,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "ebfdfddb-7176-483e-95fe-8043f3b4908b",
+  "versionId": "5ef14b97-6df2-44c4-90d2-885cafbdd670",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"

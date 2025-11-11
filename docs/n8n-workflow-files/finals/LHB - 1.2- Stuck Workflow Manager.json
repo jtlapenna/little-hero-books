@@ -1,0 +1,331 @@
+{
+  "name": "LHB - 1.2- Stuck Workflow Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "stuck-trigger-001",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-800, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Config for stuck detection\nreturn [{ json: {\n  stuckThresholdMinutes: 30, // Orders processing > 30 min are considered stuck\n  maxRetries: 3,\n  retryBackoffMultiplier: 2, // Exponential backoff: 5min, 10min, 20min\n  baseRetryDelayMinutes: 5\n} }];"
+      },
+      "id": "config-001",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "execution_status",
+              "value": "eq.processing"
+            },
+            {
+              "name": "select",
+              "value": "id,amazon_order_id,current_workflow,started_at,retry_count,error_message"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-processing-001",
+      "name": "Fetch Processing Orders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Detect stuck orders (processing > threshold)\nconst config = $('Config').first().json;\nconst orders = $input.all().map(item => item.json);\nconst thresholdMs = config.stuckThresholdMinutes * 60 * 1000;\nconst now = Date.now();\n\nconst stuckOrders = [];\n\nfor (const order of orders) {\n  if (!order.started_at) continue;\n  \n  const startedAt = new Date(order.started_at).getTime();\n  const runningMs = now - startedAt;\n  const runningMinutes = Math.floor(runningMs / 1000 / 60);\n  \n  if (runningMs > thresholdMs) {\n    stuckOrders.push({\n      ...order,\n      runningMinutes,\n      runningMs\n    });\n  }\n}\n\nconsole.log(`Found ${stuckOrders.length} stuck order(s)`);\n\nif (stuckOrders.length === 0) {\n  return [];\n}\n\nreturn stuckOrders.map(order => ({ json: order }));"
+      },
+      "id": "detect-stuck-001",
+      "name": "Detect Stuck Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-200, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "eq.{{ $json.id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Workflow ${$json.current_workflow} timed out after ${$json.runningMinutes} minutes`,\n  \"last_error_at\": new Date().toISOString()\n} }}",
+        "options": {}
+      },
+      "id": "mark-stuck-error-001",
+      "name": "Mark Stuck as Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/failed_orders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"order_id\": $json.id,\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Workflow ${$json.current_workflow} timed out after ${$json.runningMinutes} minutes`,\n  \"error_details\": {\n    \"workflow\": $json.current_workflow,\n    \"running_minutes\": $json.runningMinutes,\n    \"started_at\": $json.started_at\n  },\n  \"workflow_step\": $json.current_workflow,\n  \"retry_count\": $json.retry_count || 0,\n  \"max_retries\": 3,\n  \"retry_strategy\": \"exponential_backoff\"\n} }}",
+        "options": {}
+      },
+      "id": "log-to-failed-001",
+      "name": "Log to Failed Orders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if order should be retried or requires manual review\nconst order = $input.first().json;\nconst config = $('Config').first().json;\nconst retryCount = order.retry_count || 0;\nconst maxRetries = config.maxRetries;\n\nif (retryCount >= maxRetries) {\n  // Max retries reached - require manual review\n  return [{\n    json: {\n      ...order,\n      action: 'require_manual_review',\n      reason: `Max retries (${maxRetries}) reached`\n    }\n  }];\n}\n\n// Calculate next retry time (exponential backoff)\nconst delayMinutes = config.baseRetryDelayMinutes * Math.pow(config.retryBackoffMultiplier, retryCount);\nconst nextRetryAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();\n\nreturn [{\n  json: {\n    ...order,\n    action: 'schedule_retry',\n    nextRetryAt,\n    delayMinutes,\n    newRetryCount: retryCount + 1\n  }\n}];"
+      },
+      "id": "decide-retry-001",
+      "name": "Decide Retry or Manual Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equals",
+              "value2": "require_manual_review"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "check-action-001",
+      "name": "Check Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "eq.{{ $json.id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_message\": `Max retries reached. ${$json.error_message || 'Workflow timeout'}`\n} }}",
+        "options": {}
+      },
+      "id": "mark-manual-review-001",
+      "name": "Mark for Manual Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 600]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "eq.{{ $json.id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"ready_for_processing\",\n  \"retry_count\": $json.newRetryCount,\n  \"next_retry_at\": $json.nextRetryAt,\n  \"error_message\": null,\n  \"error_type\": null,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "options": {}
+      },
+      "id": "schedule-retry-001",
+      "name": "Schedule Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log alert for manual review\nconst order = $input.first().json;\n\nconsole.error('🚨 MANUAL REVIEW REQUIRED');\nconsole.error(`Order: ${order.amazon_order_id}`);\nconsole.error(`Workflow: ${order.current_workflow}`);\nconsole.error(`Error: ${order.error_message}`);\nconsole.error(`Retry Count: ${order.retry_count}`);\n\n// TODO: Send to Slack/Email\n\nreturn [{ json: order }];"
+      },
+      "id": "alert-manual-001",
+      "name": "Alert: Manual Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 600]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [[{ "node": "Config", "type": "main", "index": 0 }]]
+    },
+    "Config": {
+      "main": [[{ "node": "Fetch Processing Orders", "type": "main", "index": 0 }]]
+    },
+    "Fetch Processing Orders": {
+      "main": [[{ "node": "Detect Stuck Orders", "type": "main", "index": 0 }]]
+    },
+    "Detect Stuck Orders": {
+      "main": [[{ "node": "Mark Stuck as Error", "type": "main", "index": 0 }]]
+    },
+    "Mark Stuck as Error": {
+      "main": [[{ "node": "Log to Failed Orders", "type": "main", "index": 0 }]]
+    },
+    "Log to Failed Orders": {
+      "main": [[{ "node": "Decide Retry or Manual Review", "type": "main", "index": 0 }]]
+    },
+    "Decide Retry or Manual Review": {
+      "main": [[{ "node": "Check Action", "type": "main", "index": 0 }]]
+    },
+    "Check Action": {
+      "main": [
+        [{ "node": "Mark for Manual Review", "type": "main", "index": 0 }],
+        [{ "node": "Schedule Retry", "type": "main", "index": 0 }]
+      ]
+    },
+    "Mark for Manual Review": {
+      "main": [[{ "node": "Alert: Manual Review", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "stuck-manager-v1",
+  "meta": {},
+  "id": "stuck-manager-001",
+  "tags": []
+}
+

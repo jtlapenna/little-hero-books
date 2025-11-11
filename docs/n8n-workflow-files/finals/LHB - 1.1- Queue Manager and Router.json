@@ -35,8 +35,8 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/rpc/get_queue_status",
+        "method": "GET",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/queue_status?select=*",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -59,7 +59,8 @@
       "position": [
         -2224,
         672
-      ]
+      ],
+      "notes": "Queries queue_status view (GET) instead of RPC function. Returns array with one object containing processing_count and queued_count."
     },
     {
       "parameters": {

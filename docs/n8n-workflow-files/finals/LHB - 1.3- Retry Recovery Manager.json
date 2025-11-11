@@ -1,0 +1,177 @@
+{
+  "name": "LHB - 1.3- Retry Recovery Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "retry-trigger-001",
+      "name": "Every 2 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-800, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "execution_status",
+              "value": "eq.error"
+            },
+            {
+              "name": "next_retry_at",
+              "value": "lte.now()"
+            },
+            {
+              "name": "retry_count",
+              "value": "lt.3"
+            },
+            {
+              "name": "select",
+              "value": "id,amazon_order_id,next_workflow,retry_count,error_message,error_type,character_specs,book_specs,one_manifest_url"
+            },
+            {
+              "name": "order",
+              "value": "next_retry_at.asc"
+            },
+            {
+              "name": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-retry-ready-001",
+      "name": "Fetch Orders Ready for Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-600, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Route retry orders back to appropriate workflow\nconst orders = $input.all().map(item => item.json);\n\nif (orders.length === 0) {\n  console.log('No orders ready for retry');\n  return [];\n}\n\nconsole.log(`Found ${orders.length} order(s) ready for retry`);\n\n// Group by next_workflow\nconst byWorkflow = {\n  '2A': [],\n  '2B': [],\n  '3': [],\n  '4': []\n};\n\nfor (const order of orders) {\n  const workflow = order.next_workflow || '2A';\n  if (byWorkflow[workflow]) {\n    byWorkflow[workflow].push(order);\n  }\n}\n\nreturn [{ json: byWorkflow }];"
+      },
+      "id": "route-retries-001",
+      "name": "Route Retries by Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "eq.{{ $json.id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"ready_for_processing\",\n  \"error_message\": null,\n  \"error_type\": null,\n  \"next_retry_at\": null,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "options": {}
+      },
+      "id": "reset-for-retry-001",
+      "name": "Reset Status for Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare order for router (same format as router expects)\nconst order = $input.first().json;\n\nreturn [{\n  json: {\n    orderId: order.amazon_order_id,\n    characterHash: order.character_hash,\n    characterSpecs: order.character_specs,\n    bookSpecs: order.book_specs,\n    orderDbId: order.id,\n    workflow: order.next_workflow || '2A',\n    isRetry: true,\n    retryCount: order.retry_count\n  }\n}];"
+      },
+      "id": "prep-for-router-001",
+      "name": "Prep for Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log retry attempt\nconst order = $input.first().json;\n\nconsole.log(`🔄 Retrying order ${order.orderId} (attempt ${order.retryCount + 1})`);\nconsole.log(`Workflow: ${order.workflow}`);\n\nreturn [{ json: order }];"
+      },
+      "id": "log-retry-001",
+      "name": "Log Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 400]
+    }
+  ],
+  "connections": {
+    "Every 2 Minutes": {
+      "main": [[{ "node": "Fetch Orders Ready for Retry", "type": "main", "index": 0 }]]
+    },
+    "Fetch Orders Ready for Retry": {
+      "main": [[{ "node": "Route Retries by Workflow", "type": "main", "index": 0 }]]
+    },
+    "Route Retries by Workflow": {
+      "main": [[{ "node": "Reset Status for Retry", "type": "main", "index": 0 }]]
+    },
+    "Reset Status for Retry": {
+      "main": [[{ "node": "Prep for Router", "type": "main", "index": 0 }]]
+    },
+    "Prep for Router": {
+      "main": [[{ "node": "Log Retry", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "retry-recovery-v1",
+  "meta": {},
+  "id": "retry-recovery-001",
+  "tags": []
+}
+

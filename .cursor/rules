@@ -1,0 +1,20 @@
+# Documentation Creation Rule
+
+**DO NOT create markdown guides, documentation files, or comprehensive planning documents unless explicitly requested by the user.**
+
+**Default behavior:**
+- Provide simple text summaries in chat responses
+- Only create markdown files when the user explicitly asks for them
+- Keep responses concise and actionable
+- Focus on code changes and direct answers
+
+**When user asks for documentation:**
+- Then create markdown files, guides, or comprehensive documents
+- Use clear, structured formats
+- Include all necessary details
+
+**Examples:**
+- ❌ Don't create: "I've created a comprehensive testing guide..." (unless asked)
+- ✅ Do: "Here's a quick summary: [text summary]"
+- ✅ Do create guides when user says: "create a guide for X" or "document this"
+
