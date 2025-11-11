@@ -775,6 +775,7 @@ export function PostPdfStage({
         if (manifest3) {
           const pngGen = manifest3?.pngGeneration || manifest3?.manifest?.pngGeneration || {};
           
+          // Log the full manifest structure to understand where cover-spread might be
           console.log('[Cover] Extracting cover from manifest3:', {
             hasManifest3: !!manifest3,
             hasPngGen: !!pngGen,
@@ -791,8 +792,30 @@ export function PostPdfStage({
             hasTopLevelCoverSpreadArray: Array.isArray(manifest3.coverSpread),
             topLevelCoverSpreadArrayLength: Array.isArray(manifest3.coverSpread) ? manifest3.coverSpread.length : 0,
             hasTopLevelPagesArray: Array.isArray(manifest3.pages),
-            topLevelPagesArrayLength: Array.isArray(manifest3.pages) ? manifest3.pages.length : 0
+            topLevelPagesArrayLength: Array.isArray(manifest3.pages) ? manifest3.pages.length : 0,
+            // Check for coverSpreadImages or similar
+            hasPngGenCoverSpreadImages: Array.isArray(pngGen.coverSpreadImages),
+            hasPngGenStoryImages: Array.isArray(pngGen.storyImages),
+            pngGenStoryImagesLength: Array.isArray(pngGen.storyImages) ? pngGen.storyImages.length : 0,
+            // Check manifest keys
+            manifest3TopLevelKeys: manifest3 ? Object.keys(manifest3).slice(0, 20) : [],
+            pngGenKeys: pngGen ? Object.keys(pngGen).slice(0, 20) : []
           });
+          
+          // Also check if manifest3 itself is an array (might be wrapped)
+          if (Array.isArray(manifest3)) {
+            console.log('[Cover] ⚠️ manifest3 is an array, checking first element for cover-spread');
+            const firstElement = manifest3[0];
+            if (firstElement && Array.isArray(firstElement)) {
+              console.log('[Cover] First element is also an array, checking for cover-spread entries');
+              const coverInArray = firstElement.find((entry: any) => 
+                entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
+              );
+              if (coverInArray) {
+                console.log('[Cover] ✅ Found cover-spread in nested array structure');
+              }
+            }
+          }
           
           // Priority 1: Look for cover-spread in W3 structure (pageNumber: -1, pageType: "cover-spread")
           // Check multiple possible locations:
@@ -855,6 +878,55 @@ export function PostPdfStage({
             });
           }
           
+          // Check pngGeneration.storyImages array (cover might be mixed in)
+          if (!coverSpreadEntry && Array.isArray(pngGen.storyImages)) {
+            console.log('[Cover] Checking pngGeneration.storyImages array, length:', pngGen.storyImages.length);
+            coverSpreadEntry = pngGen.storyImages.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'pngGeneration.storyImages';
+              }
+              return matches;
+            });
+          }
+          
+          // Check pngGeneration.coverSpreadImages array
+          if (!coverSpreadEntry && Array.isArray(pngGen.coverSpreadImages)) {
+            console.log('[Cover] Checking pngGeneration.coverSpreadImages array, length:', pngGen.coverSpreadImages.length);
+            coverSpreadEntry = pngGen.coverSpreadImages.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'pngGeneration.coverSpreadImages';
+              }
+              return matches;
+            });
+          }
+          
+          // Check if manifest3.manifest exists and has arrays
+          if (!coverSpreadEntry && manifest3?.manifest) {
+            const nestedManifest = manifest3.manifest;
+            if (Array.isArray(nestedManifest.coverSpread)) {
+              console.log('[Cover] Checking manifest3.manifest.coverSpread array');
+              coverSpreadEntry = nestedManifest.coverSpread.find((entry: any) => {
+                const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+                if (matches) {
+                  coverSpreadLocation = 'manifest3.manifest.coverSpread';
+                }
+                return matches;
+              });
+            }
+            if (!coverSpreadEntry && Array.isArray(nestedManifest.pages)) {
+              console.log('[Cover] Checking manifest3.manifest.pages array');
+              coverSpreadEntry = nestedManifest.pages.find((entry: any) => {
+                const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+                if (matches) {
+                  coverSpreadLocation = 'manifest3.manifest.pages';
+                }
+                return matches;
+              });
+            }
+          }
+          
           if (coverSpreadEntry) {
             console.log('[Cover] ✅ Found cover-spread entry in', coverSpreadLocation, ':', {
               pageNumber: coverSpreadEntry.pageNumber,
@@ -884,13 +956,21 @@ export function PostPdfStage({
             console.warn('[Cover] ⚠️ Found cover-spread entry but missing cloudflareImageUrl:', coverSpreadEntry);
           }
           // Priority 2: Cloudflare Images cover URL (from manifest or top-level) - legacy fallback
+          // BUT: Only use if it's NOT the dedication page URL
           if (!coverUrlFromManifest && (manifest3?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl)) {
-            coverUrlFromManifest = manifest3.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
-            if (!coverImageUrl && coverUrlFromManifest) {
-              setCoverImageUrl(coverUrlFromManifest);
-            }
-            if (coverUrlFromManifest) {
-              console.log('[Cover] ✅ Using Cloudflare Images URL from manifest (legacy):', coverUrlFromManifest.substring(0, 80) + '...');
+            const legacyCoverUrl = manifest3.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
+            // Check if this URL matches the dedication page URL (which would be wrong)
+            const dedicationPageUrl = pageData.find(p => p.pageNumber === 0)?.previewImageUrl;
+            if (legacyCoverUrl && dedicationPageUrl && legacyCoverUrl === dedicationPageUrl) {
+              console.warn('[Cover] ⚠️ Legacy cover URL matches dedication page URL, skipping legacy fallback');
+            } else if (legacyCoverUrl) {
+              coverUrlFromManifest = legacyCoverUrl;
+              if (!coverImageUrl && coverUrlFromManifest) {
+                setCoverImageUrl(coverUrlFromManifest);
+              }
+              if (coverUrlFromManifest) {
+                console.log('[Cover] ✅ Using Cloudflare Images URL from manifest (legacy):', coverUrlFromManifest.substring(0, 80) + '...');
+              }
             }
           }
           // Priority 3: R2 cover PNG key (from manifest or top-level) - fallback
