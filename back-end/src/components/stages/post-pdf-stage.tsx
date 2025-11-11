@@ -226,7 +226,7 @@ export function PostPdfStage({
   const [imageError, setImageError] = useState<{ left: string | null; right: string | null }>({ left: null, right: null });
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [coverImageLoading, setCoverImageLoading] = useState(false);
-  const [coverImageDataUrl, setCoverImageDataUrl] = useState<string | null>(null); // For PDFs converted to images
+  const [coverImageDataUrl, setCoverImageDataUrl] = useState<string | null>(null); // Legacy: previously used for PDFs converted to images (now unused, cover PNG used directly)
   const coverCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
   const [sendingToPrint, setSendingToPrint] = useState(false);
@@ -277,7 +277,12 @@ export function PostPdfStage({
   // Track previous spreads to detect actual content changes
   const previousSpreadsRef = useRef<SpreadData[]>([]);
   // Track if ref callback has already handled cached image to prevent multiple calls
-  const coverImageRefHandledRef = useRef<{ front: boolean; back: boolean }>({ front: false, back: false });
+  const coverImageRefHandledRef = useRef<{ 
+    front: boolean; 
+    back: boolean; 
+    lastFrontCoverUrl?: string;
+    lastBackCoverUrl?: string;
+  }>({ front: false, back: false });
   // Track preloaded images to keep them in browser cache
   const preloadedImagesRef = useRef<Set<string>>(new Set());
 
@@ -453,7 +458,8 @@ export function PostPdfStage({
               if (pagesObj && typeof pagesObj === 'object' && Object.keys(pagesObj).length > 0) {
                 console.log('[Pages] Building pagePreviewImages from pngGeneration.pages');
                 // Convert pages object (p01: "r2/key", p02: "r2/key", etc.) to array format
-                previewImages = Object.entries(pagesObj).map(([key, r2Key]: [string, any]) => {
+                // IMPORTANT: Deduplicate page 0 entries (p00 and p00_dedication both map to pageNumber 0)
+                const allEntries = Object.entries(pagesObj).map(([key, r2Key]: [string, any]) => {
                   // Parse page number from key: p00_dedication -> 0, p00 -> 0, p01 -> 1, p02 -> 2, etc.
                   let pageNumber = 0;
                   if (key === 'p00_dedication' || key === 'p00') {
@@ -468,17 +474,61 @@ export function PostPdfStage({
                   
                   return {
                     pageNumber,
+                    originalKey: key, // Keep track of original key for deduplication
                     r2Key: typeof r2Key === 'string' ? r2Key : null,
                     imageUrl: typeof r2Key === 'string' ? `/api/assets/${r2Key}` : null, // Construct URL immediately for R2 fallback
                     filename: null
                   };
-                }).filter((img: any) => {
-                  // Don't filter out page 0 (dedication) even if r2Key is missing - we'll construct it
-                  if (img.pageNumber === 0) return true;
-                  return img.r2Key !== null;
-                }); // Filter out entries without r2Key (except page 0)
+                });
                 
-                console.log(`[Pages] Built ${previewImages.length} pages from pngGeneration.pages`);
+                // Deduplicate: for page 0, prefer p00_dedication over p00; for other pages, keep first occurrence
+                const pageMap = new Map<number, any>(); // Map pageNumber -> entry
+                
+                // Debug: Log all entries before deduplication
+                const page0Entries = allEntries.filter((e: any) => e.pageNumber === 0);
+                if (page0Entries.length > 1) {
+                  console.log('[Pages] ⚠️ Found multiple page 0 entries before deduplication:', page0Entries.map((e: any) => e.originalKey));
+                }
+                
+                // First pass: collect all entries, preferring p00_dedication for page 0
+                for (const img of allEntries) {
+                  // Filter out entries without r2Key (except page 0)
+                  if (img.pageNumber !== 0 && !img.r2Key) {
+                    continue;
+                  }
+                  
+                  const existing = pageMap.get(img.pageNumber);
+                  if (!existing) {
+                    // First time seeing this page number
+                    pageMap.set(img.pageNumber, img);
+                  } else if (img.pageNumber === 0) {
+                    // Special case for page 0: ALWAYS prefer p00_dedication over p00
+                    if (img.originalKey === 'p00_dedication') {
+                      // p00_dedication always wins, replace whatever is there
+                      pageMap.set(0, img);
+                      console.log('[Pages] ✅ Replaced page 0 entry with p00_dedication');
+                    } else if (img.originalKey === 'p00' && existing.originalKey !== 'p00_dedication') {
+                      // Only keep p00 if we don't already have p00_dedication
+                      // (This case shouldn't happen if p00_dedication exists, but handle it)
+                      console.log('[Pages] ⚠️ Keeping p00 (p00_dedication not found)');
+                    }
+                    // If existing is p00_dedication and this is p00, skip it (already have better one)
+                  }
+                  // For other pages, keep first occurrence (already in map)
+                }
+                
+                // Convert map back to array
+                previewImages = Array.from(pageMap.values());
+                
+                // Debug: Verify deduplication worked
+                const finalPage0Entries = previewImages.filter((e: any) => e.pageNumber === 0);
+                if (finalPage0Entries.length > 1) {
+                  console.error('[Pages] ❌ ERROR: Still have multiple page 0 entries after deduplication:', finalPage0Entries.map((e: any) => e.originalKey));
+                } else if (finalPage0Entries.length === 1) {
+                  console.log('[Pages] ✅ Page 0 deduplication successful, using:', finalPage0Entries[0].originalKey);
+                }
+                
+                console.log(`[Pages] Built ${previewImages.length} pages from pngGeneration.pages (after deduplication)`);
               }
             }
             
@@ -716,147 +766,397 @@ export function PostPdfStage({
         
         if (!isMounted) return;
         
-        // Try to load cover PDF image if not already loaded
-        // Load cover separately to avoid blocking page loading
-        if (!coverImageUrl && !coverImageDataUrl && !coverImageLoading) {
+        // Extract cover PNG from manifest we already loaded (reuse manifest3 from pages loading above)
+        // Cover PDF is now generated in W4, not available at preview time - use PNG from W3 manifest
+        // W3 structure: cover is in an array with pageNumber: -1, pageType: "cover-spread"
+        let coverUrlFromManifest: string | null = coverImageUrl || null; // Use existing if already loaded
+        
+        // Extract cover from manifest3 if we have it (from pages loading above)
+        if (manifest3) {
+          const pngGen = manifest3?.pngGeneration || manifest3?.manifest?.pngGeneration || {};
+
+          // Log the full manifest structure to understand where cover-spread might be
+          console.log('[Cover] Extracting cover from manifest3:', {
+            hasManifest3: !!manifest3,
+            hasPngGen: !!pngGen,
+            // W3 ACTUAL STRUCTURE (top-level fields):
+            pngGenCoverCloudflareImageUrl: !!pngGen.coverCloudflareImageUrl,
+            pngGenCoverCloudflareImageId: !!pngGen.coverCloudflareImageId,
+            pngGenCoverSpreadImage: !!pngGen.coverSpreadImage,
+            coverSpreadImageType: typeof pngGen.coverSpreadImage,
+            coverSpreadImageValue: typeof pngGen.coverSpreadImage === 'string' ? pngGen.coverSpreadImage.substring(0, 80) : pngGen.coverSpreadImage,
+            // Also check top-level (in case manifest structure is different)
+            topLevelCoverCloudflare: !!manifest3?.coverCloudflareImageUrl,
+            topLevelCoverPngR2Key: !!manifest3?.coverPngR2Key,
+            // Check manifest keys
+            manifest3TopLevelKeys: manifest3 ? Object.keys(manifest3).slice(0, 20) : [],
+            pngGenKeys: pngGen ? Object.keys(pngGen).slice(0, 20) : []
+          });
+          
+          // Also check if manifest3 itself is an array (might be wrapped)
+          if (Array.isArray(manifest3)) {
+            console.log('[Cover] ⚠️ manifest3 is an array, checking first element for cover-spread');
+            const firstElement = manifest3[0];
+            if (firstElement && Array.isArray(firstElement)) {
+              console.log('[Cover] First element is also an array, checking for cover-spread entries');
+              const coverInArray = firstElement.find((entry: any) => 
+                entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
+              );
+              if (coverInArray) {
+                console.log('[Cover] ✅ Found cover-spread in nested array structure');
+              }
+            }
+          }
+          
+          // Priority 1: W3 ACTUAL STRUCTURE - Check top-level Cloudflare Images URL
+          // W3 stores cover as: pngGeneration.coverCloudflareImageUrl (top-level field)
+          // This is the PRIMARY source for cover Cloudflare Images URL
+          let coverSpreadEntry = null;
+          let coverSpreadLocation = null;
+          
+          // Check W3 structure: pngGeneration.coverCloudflareImageUrl (direct field)
+          // NEW MANIFEST STRUCTURE: coverCloudflareImageUrl is stored directly in pngGeneration
+          if (pngGen.coverCloudflareImageUrl) {
+            // W3 stores cover Cloudflare URL directly, not in an array
+            // Ensure URL has variant (add /public if missing)
+            let coverUrl = pngGen.coverCloudflareImageUrl;
+            if (coverUrl && !coverUrl.includes('/public') && !coverUrl.includes('/backend')) {
+              coverUrl = coverUrl.endsWith('/') ? coverUrl + 'public' : coverUrl + '/public';
+            }
+            
+            coverSpreadEntry = {
+              cloudflareImageUrl: coverUrl,
+              cloudflareImageId: pngGen.coverCloudflareImageId || null,
+              pageNumber: -1, // Implicit for cover
+              pageType: 'cover-spread'
+            };
+            coverSpreadLocation = 'pngGeneration.coverCloudflareImageUrl';
+            console.log('[Cover] ✅ Found cover Cloudflare URL in W3 structure (pngGeneration.coverCloudflareImageUrl):', coverUrl.substring(0, 100) + '...');
+          }
+          
+          // Also check top-level manifest3.coverCloudflareImageUrl (in case structure is different)
+          if (!coverSpreadEntry && manifest3.coverCloudflareImageUrl) {
+            coverSpreadEntry = {
+              cloudflareImageUrl: manifest3.coverCloudflareImageUrl,
+              cloudflareImageId: manifest3.coverCloudflareImageId || null,
+              pageNumber: -1,
+              pageType: 'cover-spread'
+            };
+            coverSpreadLocation = 'manifest3.coverCloudflareImageUrl';
+            console.log('[Cover] ✅ Found cover Cloudflare URL at top-level (manifest3.coverCloudflareImageUrl)');
+          }
+          
+          // Priority 2: Look for cover-spread in array structures (legacy/alternative formats)
+          // Check multiple possible locations for array-based entries:
+          // 1. pngGeneration.coverSpread array
+          // 2. pngGeneration.pages array
+          // 3. Top-level coverSpread array
+          // 4. Top-level pages array
+          
+          // Check pngGeneration.coverSpread array
+          if (Array.isArray(pngGen.coverSpread)) {
+            console.log('[Cover] Checking pngGeneration.coverSpread array, length:', pngGen.coverSpread.length);
+            coverSpreadEntry = pngGen.coverSpread.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'pngGeneration.coverSpread';
+              }
+              return matches;
+            });
+            if (!coverSpreadEntry && pngGen.coverSpread.length > 0) {
+              console.log('[Cover] pngGeneration.coverSpread entries:', pngGen.coverSpread.map((e: any) => ({
+                pageNumber: e?.pageNumber,
+                pageType: e?.pageType,
+                hasCloudflareUrl: !!e?.cloudflareImageUrl
+              })));
+            }
+          }
+          // Check pngGeneration.pages array
+          if (!coverSpreadEntry && Array.isArray(pngGen.pages)) {
+            console.log('[Cover] Checking pngGeneration.pages array, length:', pngGen.pages.length);
+            coverSpreadEntry = pngGen.pages.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'pngGeneration.pages';
+              }
+              return matches;
+            });
+          }
+          // Check top-level coverSpread array
+          if (!coverSpreadEntry && Array.isArray(manifest3.coverSpread)) {
+            console.log('[Cover] Checking top-level coverSpread array, length:', manifest3.coverSpread.length);
+            coverSpreadEntry = manifest3.coverSpread.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'manifest3.coverSpread';
+              }
+              return matches;
+            });
+          }
+          // Check top-level pages array
+          if (!coverSpreadEntry && Array.isArray(manifest3.pages)) {
+            console.log('[Cover] Checking top-level pages array, length:', manifest3.pages.length);
+            coverSpreadEntry = manifest3.pages.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'manifest3.pages';
+              }
+              return matches;
+            });
+          }
+          
+          // Check pngGeneration.storyImages array (cover might be mixed in)
+          if (!coverSpreadEntry && Array.isArray(pngGen.storyImages)) {
+            console.log('[Cover] Checking pngGeneration.storyImages array, length:', pngGen.storyImages.length);
+            coverSpreadEntry = pngGen.storyImages.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'pngGeneration.storyImages';
+              }
+              return matches;
+            });
+          }
+          
+          // Check pngGeneration.coverSpreadImages array
+          if (!coverSpreadEntry && Array.isArray(pngGen.coverSpreadImages)) {
+            console.log('[Cover] Checking pngGeneration.coverSpreadImages array, length:', pngGen.coverSpreadImages.length);
+            coverSpreadEntry = pngGen.coverSpreadImages.find((entry: any) => {
+              const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+              if (matches) {
+                coverSpreadLocation = 'pngGeneration.coverSpreadImages';
+              }
+              return matches;
+            });
+          }
+          
+          // Check pagesWithCloudflare object for cover-spread entry
+          // pagesWithCloudflare is an object mapping keys to Cloudflare data
+          // Cover might be stored with key like 'cover-spread', 'coverSpread', 'cover_spread', etc.
+          if (!coverSpreadEntry && pngGen.pagesWithCloudflare && typeof pngGen.pagesWithCloudflare === 'object') {
+            console.log('[Cover] Checking pagesWithCloudflare object for cover keys');
+            const coverKeys = ['cover-spread', 'coverSpread', 'cover_spread', 'cover', 'p-1', 'p_cover'];
+            for (const key of coverKeys) {
+              const entry = pngGen.pagesWithCloudflare[key];
+              if (entry && (entry.pageNumber === -1 || entry.pageType === 'cover-spread')) {
+                coverSpreadEntry = entry;
+                coverSpreadLocation = `pngGeneration.pagesWithCloudflare.${key}`;
+                console.log('[Cover] ✅ Found cover-spread in pagesWithCloudflare with key:', key);
+                break;
+              }
+            }
+            // Also check all keys in pagesWithCloudflare for entries with pageNumber: -1
+            if (!coverSpreadEntry) {
+              for (const [key, entry] of Object.entries(pngGen.pagesWithCloudflare)) {
+                if (entry && typeof entry === 'object' && (entry as any).pageNumber === -1) {
+                  coverSpreadEntry = entry as any;
+                  coverSpreadLocation = `pngGeneration.pagesWithCloudflare.${key}`;
+                  console.log('[Cover] ✅ Found cover-spread in pagesWithCloudflare with key:', key);
+                  break;
+                }
+              }
+            }
+          }
+          
+          // Check if manifest3.manifest exists and has arrays
+          if (!coverSpreadEntry && manifest3?.manifest) {
+            const nestedManifest = manifest3.manifest;
+            if (Array.isArray(nestedManifest.coverSpread)) {
+              console.log('[Cover] Checking manifest3.manifest.coverSpread array');
+              coverSpreadEntry = nestedManifest.coverSpread.find((entry: any) => {
+                const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+                if (matches) {
+                  coverSpreadLocation = 'manifest3.manifest.coverSpread';
+                }
+                return matches;
+              });
+            }
+            if (!coverSpreadEntry && Array.isArray(nestedManifest.pages)) {
+              console.log('[Cover] Checking manifest3.manifest.pages array');
+              coverSpreadEntry = nestedManifest.pages.find((entry: any) => {
+                const matches = entry?.pageNumber === -1 && entry?.pageType === 'cover-spread';
+                if (matches) {
+                  coverSpreadLocation = 'manifest3.manifest.pages';
+                }
+                return matches;
+              });
+            }
+          }
+          
+          if (coverSpreadEntry) {
+            console.log('[Cover] ✅ Found cover-spread entry in', coverSpreadLocation, ':', {
+              pageNumber: coverSpreadEntry.pageNumber,
+              pageType: coverSpreadEntry.pageType,
+              hasCloudflareImageUrl: !!coverSpreadEntry.cloudflareImageUrl,
+              cloudflareImageUrl: coverSpreadEntry.cloudflareImageUrl?.substring(0, 80) + '...',
+              cloudflareImageId: coverSpreadEntry.cloudflareImageId
+            });
+          } else {
+            console.warn('[Cover] ⚠️ No cover-spread entry found (pageNumber: -1, pageType: "cover-spread") in any checked location');
+          }
+          
+          if (coverSpreadEntry?.cloudflareImageUrl) {
+            // Ensure URL has variant (add /public if missing)
+            let coverUrl = coverSpreadEntry.cloudflareImageUrl;
+            if (coverUrl && !coverUrl.includes('/public') && !coverUrl.includes('/backend')) {
+              coverUrl = coverUrl.endsWith('/') ? coverUrl + 'public' : coverUrl + '/public';
+            }
+            coverUrlFromManifest = coverUrl;
+            if (!coverImageUrl && coverUrlFromManifest) {
+              setCoverImageUrl(coverUrlFromManifest);
+            }
+            if (coverUrlFromManifest) {
+              console.log('[Cover] ✅ Using Cloudflare Images URL from W3 cover-spread structure:', {
+                pageNumber: coverSpreadEntry.pageNumber,
+                pageType: coverSpreadEntry.pageType,
+                cloudflareImageId: coverSpreadEntry.cloudflareImageId,
+                url: coverUrlFromManifest.substring(0, 80) + '...'
+              });
+            }
+          } else if (coverSpreadEntry) {
+            console.warn('[Cover] ⚠️ Found cover-spread entry but missing cloudflareImageUrl:', coverSpreadEntry);
+          }
+          // Priority 2: Cloudflare Images cover URL (from manifest or top-level) - legacy fallback
+          // BUT: Only use if it's NOT the dedication page URL
+          if (!coverUrlFromManifest && (manifest3?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl)) {
+            const legacyCoverUrl = manifest3.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
+            // Check if this URL matches the dedication page URL (which would be wrong)
+            const dedicationPageUrl = pageData.find(p => p.pageNumber === 0)?.previewImageUrl;
+            if (legacyCoverUrl && dedicationPageUrl && legacyCoverUrl === dedicationPageUrl) {
+              console.warn('[Cover] ⚠️ Legacy cover URL matches dedication page URL, skipping legacy fallback');
+            } else if (legacyCoverUrl) {
+              coverUrlFromManifest = legacyCoverUrl;
+              if (!coverImageUrl && coverUrlFromManifest) {
+                setCoverImageUrl(coverUrlFromManifest);
+              }
+              if (coverUrlFromManifest) {
+                console.log('[Cover] ✅ Using Cloudflare Images URL from manifest (legacy):', coverUrlFromManifest.substring(0, 80) + '...');
+              }
+            }
+          }
+          // Priority 3: R2 cover PNG key (from manifest or top-level) - fallback
+          // If cover-spread entry not found, use direct R2 path as fallback
+          if (!coverUrlFromManifest) {
+            const coverR2Key = 
+              manifest3?.coverPngR2Key ||  // Top-level from Build 3A Manifest output
+              (typeof pngGen.coverSpreadImage === 'string' 
+                ? pngGen.coverSpreadImage 
+                : pngGen.coverSpreadImage?.r2Key) ||
+              `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover-spread.png`; // Direct R2 path fallback
+            
+            if (coverR2Key) {
+              coverUrlFromManifest = `/api/assets/${coverR2Key}`;
+              if (!coverImageUrl) {
+                setCoverImageUrl(coverUrlFromManifest);
+              }
+              console.log('[Cover] ✅ Using R2 cover PNG (direct path fallback):', coverR2Key);
+            } else {
+              console.warn('[Cover] ⚠️ No cover PNG found in manifest. Expected cover-spread entry (pageNumber: -1) or coverPngR2Key');
+            }
+          }
+        } else {
+          console.warn('[Cover] ⚠️ manifest3 is null, cannot extract cover');
+        }
+        
+        // If cover wasn't found in manifest and not already loaded, try loading it separately
+        if (!coverUrlFromManifest && !coverImageUrl && !coverImageDataUrl && !coverImageLoading) {
           setCoverImageLoading(true);
           try {
-            // Priority 1: Check manifest for Cloudflare Images cover URL
-            let coverUrlToUse: string | null = null;
-            try {
-              // Add cache-busting for cover image manifest fetch
-              const coverManifestUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
-              const manifest3Res = await fetch(coverManifestUrl, {
-                cache: 'no-store', // Ensure we don't use cached manifest
-              });
-              if (manifest3Res.ok) {
-                const manifest3Raw = await manifest3Res.json();
-                // Handle array response (manifest might be wrapped in array)
-                const manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
-                // Check multiple possible locations for cover data
-                const pngGen = manifest3?.pngGeneration || manifest3?.manifest?.pngGeneration || {};
-                
-                // Check for Cloudflare Images cover URL first
-                if (pngGen.coverCloudflareImageUrl) {
-                  coverUrlToUse = pngGen.coverCloudflareImageUrl;
-                  console.log('[Cover] Using Cloudflare Images URL from manifest');
-                }
-                // Fallback to R2 cover preview (could be string or object with r2Key)
-                else if (pngGen.coverSpreadImage) {
-                  const coverR2Key = typeof pngGen.coverSpreadImage === 'string' 
-                    ? pngGen.coverSpreadImage 
-                    : pngGen.coverSpreadImage?.r2Key;
-                  if (coverR2Key) {
-                    coverUrlToUse = `/api/assets/${coverR2Key}`;
-                    console.log('[Cover] Using R2 cover from manifest:', coverR2Key);
-                  } else {
-                    console.warn('[Cover] coverSpreadImage found but no r2Key:', pngGen.coverSpreadImage);
+            // Fetch manifest again (fallback - should rarely happen)
+            const coverManifestUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
+            const manifest3Res = await fetch(coverManifestUrl, {
+              cache: 'no-store',
+            });
+            if (manifest3Res.ok) {
+              const manifest3Raw = await manifest3Res.json();
+              const manifest3ForCover = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
+              const pngGen = manifest3ForCover?.pngGeneration || manifest3ForCover?.manifest?.pngGeneration || {};
+              
+              // First, try to find cover-spread entry in fallback fetch
+              let coverSpreadEntry = null;
+              const locationsToCheck = [
+                { name: 'pngGen.coverSpread', arr: pngGen.coverSpread },
+                { name: 'pngGen.pages', arr: pngGen.pages },
+                { name: 'pngGen.storyImages', arr: pngGen.storyImages },
+                { name: 'pngGen.coverSpreadImages', arr: pngGen.coverSpreadImages },
+                { name: 'manifest3ForCover.coverSpread', arr: manifest3ForCover.coverSpread },
+                { name: 'manifest3ForCover.pages', arr: manifest3ForCover.pages },
+              ];
+              
+              for (const location of locationsToCheck) {
+                if (Array.isArray(location.arr)) {
+                  coverSpreadEntry = location.arr.find((entry: any) => 
+                    entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
+                  );
+                  if (coverSpreadEntry) {
+                    console.log('[Cover] ✅ Found cover-spread in fallback fetch at', location.name);
+                    break;
                   }
-                } else {
-                  console.log('[Cover] No cover image found in manifest pngGeneration');
+                }
+              }
+              
+              if (coverSpreadEntry?.cloudflareImageUrl) {
+                // Ensure URL has variant (add /public if missing)
+                let coverUrl = coverSpreadEntry.cloudflareImageUrl;
+                if (coverUrl && !coverUrl.includes('/public') && !coverUrl.includes('/backend')) {
+                  coverUrl = coverUrl.endsWith('/') ? coverUrl + 'public' : coverUrl + '/public';
+                }
+                coverUrlFromManifest = coverUrl;
+                if (coverUrlFromManifest) {
+                  setCoverImageUrl(coverUrlFromManifest);
+                  console.log('[Cover] ✅ Using cover-spread Cloudflare Images URL from fallback fetch:', coverUrlFromManifest.substring(0, 80) + '...');
                 }
               } else {
-                console.log('[Cover] Manifest 3 not found or not OK:', manifest3Res.status);
-              }
-            } catch (e) {
-              console.log('[Cover] Could not fetch cover from manifest, using fallback:', e);
-            }
-            
-            // If we found a cover URL from manifest, use it and update spreads
-            if (coverUrlToUse) {
-              setCoverImageUrl(coverUrlToUse);
-              setCoverImageLoading(false);
-              // Update spreads immediately with the cover URL from manifest
-              // Use pageData directly (from local scope) since pages might not be in state yet
-              if (pageData.length > 0) {
-                const newSpreads = createSpreads(pageData, coverUrlToUse);
-                setSpreads(newSpreads);
-                spreadsLengthRef.current = newSpreads.length;
-                console.log('[Cover] Updated spreads with cover from manifest:', {
-                  spreadsCount: newSpreads.length,
-                  hasFrontCover: newSpreads[0]?.coverData?.isFrontCover,
-                  hasBackCover: newSpreads[newSpreads.length - 1]?.coverData?.isBackCover
-                });
-              }
-              // Don't continue to fallback - we found the cover from manifest
-              // But don't return - let the rest of the function run to set pages state
-            }
-            
-            // Fallback: Try R2 cover preview image
-            const coverPdfPath = `book-mvp-simple-adventure/orders/${orderId}/cover_${orderId}.pdf`;
-            const coverPreviewPath = `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover_preview.png`;
-            const coverPreviewUrl = `/api/assets/${coverPreviewPath}`;
-            
-            // Check if cover preview exists, otherwise convert PDF to image
-            fetch(coverPreviewUrl, { method: 'HEAD' })
-              .then(async res => {
-                if (!isMounted) return;
-                if (res.ok) {
-                  const newCoverUrl = coverPreviewUrl;
-                  setCoverImageUrl(newCoverUrl);
-                  setCoverImageLoading(false);
-                  // Update spreads with new cover URL - use functional update to get latest pages
-                  setPages(currentPages => {
-                    if (currentPages.length > 0) {
-                      const newSpreads = createSpreads(currentPages, newCoverUrl);
-                      setSpreads(newSpreads);
-                      spreadsLengthRef.current = newSpreads.length;
-                    }
-                    return currentPages; // Don't change pages
-                  });
+                // Check legacy locations, but skip if it matches dedication page
+                const dedicationPageUrl = pageData.find(p => p.pageNumber === 0)?.previewImageUrl;
+                const legacyCoverUrl = manifest3ForCover?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
+                
+                if (legacyCoverUrl && dedicationPageUrl && legacyCoverUrl === dedicationPageUrl) {
+                  console.warn('[Cover] ⚠️ Legacy cover URL matches dedication page URL in fallback, skipping');
+                } else if (legacyCoverUrl) {
+                  // Ensure URL has variant (add /public if missing)
+                  let coverUrl = legacyCoverUrl;
+                  if (coverUrl && !coverUrl.includes('/public') && !coverUrl.includes('/backend')) {
+                    coverUrl = coverUrl.endsWith('/') ? coverUrl + 'public' : coverUrl + '/public';
+                  }
+                  coverUrlFromManifest = coverUrl;
+                  if (coverUrlFromManifest) {
+                    setCoverImageUrl(coverUrlFromManifest);
+                    console.log('[Cover] Using Cloudflare Images URL from manifest (fallback fetch):', coverUrlFromManifest.substring(0, 80) + '...');
+                  }
                 } else {
-                  // Convert PDF to image using PDF.js
-                  const coverPdfUrl = `/api/pdf/${coverPdfPath}`;
-                  try {
-                    const dataUrl = await convertPdfToImage(coverPdfUrl);
-                    if (!isMounted) return;
-                    setCoverImageDataUrl(dataUrl);
-                    setCoverImageUrl(coverPdfUrl); // Keep PDF URL for reference
-                    setCoverImageLoading(false);
-                    // Update spreads with new cover data URL - use functional update to get latest pages
-                    setPages(currentPages => {
-                      if (currentPages.length > 0) {
-                        const newSpreads = createSpreads(currentPages, dataUrl);
-                        setSpreads(newSpreads);
-                        spreadsLengthRef.current = newSpreads.length;
-                      }
-                      return currentPages; // Don't change pages
-                    });
-                  } catch (pdfError) {
-                    if (!isMounted) return;
-                    console.error('[Pages] Failed to convert cover PDF to image:', pdfError);
-                    setCoverImageLoading(false);
+                  // Try R2 path directly as final fallback
+                  const coverR2Key = 
+                    manifest3ForCover?.coverPngR2Key ||
+                    (typeof pngGen.coverSpreadImage === 'string' ? pngGen.coverSpreadImage : pngGen.coverSpreadImage?.r2Key) ||
+                    `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover-spread.png`; // Direct R2 path fallback
+                  
+                  if (coverR2Key) {
+                    coverUrlFromManifest = `/api/assets/${coverR2Key}`;
+                    setCoverImageUrl(coverUrlFromManifest);
+                    console.log('[Cover] Using R2 cover PNG from manifest (fallback fetch):', coverR2Key);
                   }
                 }
-              })
-              .catch(async () => {
-                if (!isMounted) return;
-                // Fallback: try to convert PDF to image
-                const coverPdfUrl = `/api/pdf/${coverPdfPath}`;
-                try {
-                  const dataUrl = await convertPdfToImage(coverPdfUrl);
-                  if (!isMounted) return;
-                  setCoverImageDataUrl(dataUrl);
-                  setCoverImageUrl(coverPdfUrl);
-                  setCoverImageLoading(false);
-                  // Update spreads with new cover data URL - use functional update to get latest pages
-                  setPages(currentPages => {
-                    if (currentPages.length > 0) {
-                      setSpreads(createSpreads(currentPages, dataUrl));
-                    }
-                    return currentPages; // Don't change pages
-                  });
-                } catch (pdfError) {
-                  if (!isMounted) return;
-                  console.error('[Pages] Failed to convert cover PDF to image:', pdfError);
-                  setCoverImageLoading(false);
-                }
-              });
+              }
+            }
+            setCoverImageLoading(false);
           } catch (e) {
             if (!isMounted) return;
             console.log('[Pages] Cover image not available:', e);
             setCoverImageLoading(false);
           }
+        } else if (coverUrlFromManifest) {
+          setCoverImageLoading(false);
+        }
+        
+        // Final fallback: If still no cover found, use direct R2 path
+        // This ensures we always have a cover URL even if manifest structure is unexpected
+        if (!coverUrlFromManifest) {
+          const directR2Path = `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover-spread.png`;
+          coverUrlFromManifest = `/api/assets/${directR2Path}`;
+          if (!coverImageUrl) {
+            setCoverImageUrl(coverUrlFromManifest);
+          }
+          console.log('[Cover] ✅ Using direct R2 path fallback (final):', directR2Path);
         }
         
         // CRITICAL: Log if we have pageData before creating spreads
@@ -867,18 +1167,34 @@ export function PostPdfStage({
         const pagesChanged = currentPagesData !== lastPagesDataRef.current;
         const isInitialLoad = lastPagesDataRef.current === '';
         
-        // Determine which cover URL to use (prefer data URL from PDF conversion, fallback to image URL)
-        const effectiveCoverUrl = coverImageDataUrl || coverImageUrl || undefined;
+        // Determine which cover URL to use (prefer coverUrlFromManifest from this load, then state, then legacy)
+        const effectiveCoverUrl = coverUrlFromManifest || coverImageDataUrl || coverImageUrl || undefined;
         
+        // Check if cover URL matches dedication page URL (which would be wrong)
+        const dedicationPageUrl = pageData.find(p => p.pageNumber === 0)?.previewImageUrl;
+        const coverMatchesDedication = effectiveCoverUrl && dedicationPageUrl && effectiveCoverUrl === dedicationPageUrl;
+        
+        // Log full URLs (not truncated) to see if they're malformed
         console.log('[Pages] About to create spreads:', {
           pageDataLength: pageData.length,
           hasCoverUrl: !!effectiveCoverUrl,
-          coverUrl: effectiveCoverUrl?.substring(0, 60),
+          coverUrlFromManifest: coverUrlFromManifest || null,
+          coverImageUrl: coverImageUrl || null,
+          effectiveCoverUrl: effectiveCoverUrl || null,
+          dedicationPageUrl: dedicationPageUrl || null,
+          coverMatchesDedication: coverMatchesDedication,
+          coverUrlLength: coverUrlFromManifest?.length || 0,
+          effectiveCoverUrlLength: effectiveCoverUrl?.length || 0,
           firstPage: pageData[0] ? {
             pageNumber: pageData[0].pageNumber,
-            hasPreviewUrl: !!pageData[0].previewImageUrl
+            hasPreviewUrl: !!pageData[0].previewImageUrl,
+            previewImageUrl: pageData[0].previewImageUrl || null
           } : null
         });
+        
+        if (coverMatchesDedication) {
+          console.error('[Pages] ❌ ERROR: Cover URL matches dedication page URL! This is wrong. Cover should be from cover-spread entry.');
+        }
         
         // Always create spreads with current data (pages + cover)
         const newSpreads = createSpreads(pageData, effectiveCoverUrl);
@@ -889,7 +1205,16 @@ export function PostPdfStage({
             spreadNumber: newSpreads[0].spreadNumber,
             hasLeft: !!newSpreads[0].leftPage,
             hasRight: !!newSpreads[0].rightPage,
-            isCover: newSpreads[0].isCover
+            isCover: newSpreads[0].isCover,
+            hasCoverData: !!newSpreads[0].coverData,
+            coverDataIsFrontCover: newSpreads[0].coverData?.isFrontCover,
+            coverDataFullImageUrl: newSpreads[0].coverData?.fullImageUrl?.substring(0, 60)
+          } : null,
+          lastSpread: newSpreads[newSpreads.length - 1] ? {
+            spreadNumber: newSpreads[newSpreads.length - 1].spreadNumber,
+            isBackCover: newSpreads[newSpreads.length - 1].isBackCover,
+            hasCoverData: !!newSpreads[newSpreads.length - 1].coverData,
+            coverDataIsBackCover: newSpreads[newSpreads.length - 1].coverData?.isBackCover
           } : null
         });
         
@@ -1945,19 +2270,24 @@ export function PostPdfStage({
                         alt="Back Cover"
                           ref={(img) => {
                             // Check if image is already loaded (cached) when element is created
-                            // Use setTimeout to defer state update to avoid React error #185
-                            // Also check if we've already handled this to prevent multiple calls
-                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0 && !coverImageRefHandledRef.current.back) {
-                              coverImageRefHandledRef.current.back = true;
-                              console.log('[Spreads] ✓ Back cover image already loaded (cached)');
-                              // Defer state update to avoid updating during render
-                              setTimeout(() => {
-                                setImageLoading(prev => ({ ...prev, left: false }));
-                                setImageError(prev => ({ ...prev, left: null }));
-                              }, 0);
+                            // Use a more stable check to prevent infinite loops
+                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0) {
+                              // Only log and update if we haven't already handled this specific image URL
+                              const currentCoverUrl = currentSpread.coverData?.fullImageUrl;
+                              const lastHandledUrl = coverImageRefHandledRef.current.lastBackCoverUrl;
+                              if (currentCoverUrl && currentCoverUrl !== lastHandledUrl) {
+                                coverImageRefHandledRef.current.back = true;
+                                coverImageRefHandledRef.current.lastBackCoverUrl = currentCoverUrl;
+                                console.log('[Spreads] ✓ Back cover image already loaded (cached):', currentCoverUrl.substring(0, 80) + '...');
+                                // Defer state update to avoid updating during render
+                                setTimeout(() => {
+                                  setImageLoading(prev => ({ ...prev, left: false }));
+                                  setImageError(prev => ({ ...prev, left: null }));
+                                }, 0);
+                              }
                             } else if (!img) {
-                              // Reset flag when image is unmounted
-                              coverImageRefHandledRef.current.back = false;
+                              // Reset flag when image is unmounted, but keep the URL to prevent re-triggering
+                              // Only reset if we're actually changing spreads
                             }
                           }}
                         onLoad={() => {
@@ -2059,19 +2389,24 @@ export function PostPdfStage({
                           alt="Front Cover"
                           ref={(img) => {
                             // Check if image is already loaded (cached) when element is created
-                            // Use setTimeout to defer state update to avoid React error #185
-                            // Also check if we've already handled this to prevent multiple calls
-                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0 && !coverImageRefHandledRef.current.front) {
-                              coverImageRefHandledRef.current.front = true;
-                              console.log('[Spreads] ✓ Front cover image already loaded (cached)');
-                              // Defer state update to avoid updating during render
-                              setTimeout(() => {
-                                setImageLoading(prev => ({ ...prev, right: false }));
-                                setImageError(prev => ({ ...prev, right: null }));
-                              }, 0);
+                            // Use a more stable check to prevent infinite loops
+                            if (img && img.complete && img.naturalHeight !== 0 && img.naturalWidth !== 0) {
+                              // Only log and update if we haven't already handled this specific image URL
+                              const currentCoverUrl = currentSpread.coverData?.fullImageUrl;
+                              const lastHandledUrl = coverImageRefHandledRef.current.lastFrontCoverUrl;
+                              if (currentCoverUrl && currentCoverUrl !== lastHandledUrl) {
+                                coverImageRefHandledRef.current.front = true;
+                                coverImageRefHandledRef.current.lastFrontCoverUrl = currentCoverUrl;
+                                console.log('[Spreads] ✓ Front cover image already loaded (cached):', currentCoverUrl.substring(0, 80) + '...');
+                                // Defer state update to avoid updating during render
+                                setTimeout(() => {
+                                  setImageLoading(prev => ({ ...prev, right: false }));
+                                  setImageError(prev => ({ ...prev, right: null }));
+                                }, 0);
+                              }
                             } else if (!img) {
-                              // Reset flag when image is unmounted
-                              coverImageRefHandledRef.current.front = false;
+                              // Reset flag when image is unmounted, but keep the URL to prevent re-triggering
+                              // Only reset if we're actually changing spreads
                             }
                           }}
                           onLoad={() => {

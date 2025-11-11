@@ -209,8 +209,7 @@ async function sendToPrint(
       // Then spread the rest of the manifest
       ...manifest3,
       // Override any null/undefined values that might have come from manifest
-      orderId: resolvedAmazonOrderId,
-      amazonOrderId: resolvedAmazonOrderId,
+      // (orderId and amazonOrderId already set above, no need to duplicate)
       // Ensure schema exists (fallback only if missing)
       schema: manifest3.schema || 'lhb.run-manifest@v2.0',
       // Ensure summary.readyForBook exists
