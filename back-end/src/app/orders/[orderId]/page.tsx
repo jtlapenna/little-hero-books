@@ -156,6 +156,12 @@ export default function OrderDetailPage() {
         throw new Error('Order is not loaded');
       }
 
+      console.log('[SendToPrint] Initiating print request:', {
+        orderId: order.orderId,
+        source,
+        timestamp: new Date().toISOString()
+      });
+
       const response = await fetch(`/api/orders/${order.orderId}/print`, {
         method: 'POST',
         headers: {
@@ -164,10 +170,22 @@ export default function OrderDetailPage() {
         body: JSON.stringify({ source })
       });
 
+      console.log('[SendToPrint] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
       if (!response.ok) {
         const errorBody = await response.json().catch(() => null);
-        throw new Error(errorBody?.error || 'Failed to trigger print workflow');
+        console.error('[SendToPrint] Error response:', errorBody);
+        throw new Error(errorBody?.error || `Failed to trigger print workflow: ${response.status} ${response.statusText}`);
       }
+
+      const result = await response.json().catch(() => null);
+      console.log('[SendToPrint] Success:', result);
+      return result;
     },
     [order]
   );
