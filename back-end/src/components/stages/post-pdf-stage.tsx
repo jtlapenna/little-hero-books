@@ -940,7 +940,12 @@ export function PostPdfStage({
           }
           
           if (coverSpreadEntry?.cloudflareImageUrl) {
-            coverUrlFromManifest = coverSpreadEntry.cloudflareImageUrl;
+            // Ensure URL has variant (add /public if missing)
+            let coverUrl = coverSpreadEntry.cloudflareImageUrl;
+            if (coverUrl && !coverUrl.includes('/public') && !coverUrl.includes('/backend')) {
+              coverUrl = coverUrl.endsWith('/') ? coverUrl + 'public' : coverUrl + '/public';
+            }
+            coverUrlFromManifest = coverUrl;
             if (!coverImageUrl && coverUrlFromManifest) {
               setCoverImageUrl(coverUrlFromManifest);
             }
@@ -1009,18 +1014,70 @@ export function PostPdfStage({
               const manifest3ForCover = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
               const pngGen = manifest3ForCover?.pngGeneration || manifest3ForCover?.manifest?.pngGeneration || {};
               
-              if (manifest3ForCover?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl) {
-                coverUrlFromManifest = manifest3ForCover.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
-                setCoverImageUrl(coverUrlFromManifest);
-                console.log('[Cover] Using Cloudflare Images URL from manifest (fallback fetch)');
-              } else {
-                const coverR2Key = 
-                  manifest3ForCover?.coverPngR2Key ||
-                  (typeof pngGen.coverSpreadImage === 'string' ? pngGen.coverSpreadImage : pngGen.coverSpreadImage?.r2Key);
-                if (coverR2Key) {
-                  coverUrlFromManifest = `/api/assets/${coverR2Key}`;
+              // First, try to find cover-spread entry in fallback fetch
+              let coverSpreadEntry = null;
+              const locationsToCheck = [
+                { name: 'pngGen.coverSpread', arr: pngGen.coverSpread },
+                { name: 'pngGen.pages', arr: pngGen.pages },
+                { name: 'pngGen.storyImages', arr: pngGen.storyImages },
+                { name: 'pngGen.coverSpreadImages', arr: pngGen.coverSpreadImages },
+                { name: 'manifest3ForCover.coverSpread', arr: manifest3ForCover.coverSpread },
+                { name: 'manifest3ForCover.pages', arr: manifest3ForCover.pages },
+              ];
+              
+              for (const location of locationsToCheck) {
+                if (Array.isArray(location.arr)) {
+                  coverSpreadEntry = location.arr.find((entry: any) => 
+                    entry?.pageNumber === -1 && entry?.pageType === 'cover-spread'
+                  );
+                  if (coverSpreadEntry) {
+                    console.log('[Cover] ✅ Found cover-spread in fallback fetch at', location.name);
+                    break;
+                  }
+                }
+              }
+              
+              if (coverSpreadEntry?.cloudflareImageUrl) {
+                // Ensure URL has variant (add /public if missing)
+                let coverUrl = coverSpreadEntry.cloudflareImageUrl;
+                if (coverUrl && !coverUrl.includes('/public') && !coverUrl.includes('/backend')) {
+                  coverUrl = coverUrl.endsWith('/') ? coverUrl + 'public' : coverUrl + '/public';
+                }
+                coverUrlFromManifest = coverUrl;
+                if (coverUrlFromManifest) {
                   setCoverImageUrl(coverUrlFromManifest);
-                  console.log('[Cover] Using R2 cover PNG from manifest (fallback fetch):', coverR2Key);
+                  console.log('[Cover] ✅ Using cover-spread Cloudflare Images URL from fallback fetch:', coverUrlFromManifest.substring(0, 80) + '...');
+                }
+              } else {
+                // Check legacy locations, but skip if it matches dedication page
+                const dedicationPageUrl = pageData.find(p => p.pageNumber === 0)?.previewImageUrl;
+                const legacyCoverUrl = manifest3ForCover?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
+                
+                if (legacyCoverUrl && dedicationPageUrl && legacyCoverUrl === dedicationPageUrl) {
+                  console.warn('[Cover] ⚠️ Legacy cover URL matches dedication page URL in fallback, skipping');
+                } else if (legacyCoverUrl) {
+                  // Ensure URL has variant (add /public if missing)
+                  let coverUrl = legacyCoverUrl;
+                  if (coverUrl && !coverUrl.includes('/public') && !coverUrl.includes('/backend')) {
+                    coverUrl = coverUrl.endsWith('/') ? coverUrl + 'public' : coverUrl + '/public';
+                  }
+                  coverUrlFromManifest = coverUrl;
+                  if (coverUrlFromManifest) {
+                    setCoverImageUrl(coverUrlFromManifest);
+                    console.log('[Cover] Using Cloudflare Images URL from manifest (fallback fetch):', coverUrlFromManifest.substring(0, 80) + '...');
+                  }
+                } else {
+                  // Try R2 path directly as final fallback
+                  const coverR2Key = 
+                    manifest3ForCover?.coverPngR2Key ||
+                    (typeof pngGen.coverSpreadImage === 'string' ? pngGen.coverSpreadImage : pngGen.coverSpreadImage?.r2Key) ||
+                    `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover-spread.png`; // Direct R2 path fallback
+                  
+                  if (coverR2Key) {
+                    coverUrlFromManifest = `/api/assets/${coverR2Key}`;
+                    setCoverImageUrl(coverUrlFromManifest);
+                    console.log('[Cover] Using R2 cover PNG from manifest (fallback fetch):', coverR2Key);
+                  }
                 }
               }
             }
