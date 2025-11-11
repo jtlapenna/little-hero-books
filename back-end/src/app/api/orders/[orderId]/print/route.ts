@@ -173,18 +173,53 @@ async function sendToPrint(
 
     // Send manifest as-is (minimal transformation - W4 will handle URL derivation)
     // Only ensure required top-level fields exist
+    // CRITICAL: W4 requires amazonOrderId at the top level
+    const resolvedAmazonOrderId = manifest3.amazonOrderId || manifest3.orderId || orderId;
+    
+    if (!resolvedAmazonOrderId) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Missing amazonOrderId. Cannot determine order ID from manifest or request.',
+          details: {
+            manifestHasAmazonOrderId: !!manifest3.amazonOrderId,
+            manifestHasOrderId: !!manifest3.orderId,
+            requestOrderId: orderId
+          }
+        },
+        { status: 400 }
+      );
+    }
+    
     const w4Payload = {
       ...manifest3,
       // Ensure schema exists (fallback only if missing)
       schema: manifest3.schema || 'lhb.run-manifest@v2.0',
-      // Ensure amazonOrderId exists (use orderId as fallback)
-      amazonOrderId: manifest3.amazonOrderId || manifest3.orderId || orderId,
+      // CRITICAL: Ensure amazonOrderId exists at top level (W4 requirement)
+      amazonOrderId: resolvedAmazonOrderId,
+      // Also ensure orderId exists for backward compatibility
+      orderId: resolvedAmazonOrderId,
       // Ensure summary.readyForBook exists
       summary: {
         ...(manifest3.summary || {}),
         readyForBook: manifest3.summary?.readyForBook ?? true
       }
     };
+    
+    // Final validation: Ensure amazonOrderId is present in payload
+    if (!w4Payload.amazonOrderId) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Failed to set amazonOrderId in payload. This should not happen.',
+          details: {
+            resolvedAmazonOrderId,
+            payloadKeys: Object.keys(w4Payload)
+          }
+        },
+        { status: 500 }
+      );
+    }
 
     // Send to W4 webhook
     try {
@@ -196,8 +231,32 @@ async function sendToPrint(
         hasP00: !!w4Payload.pngGeneration.pages.p00,
         hasPagesWithCloudflare: !!w4Payload.pngGeneration.pagesWithCloudflare,
         amazonOrderId: w4Payload.amazonOrderId,
-        characterHash: w4Payload.characterHash
+        orderIdInPayload: w4Payload.orderId,
+        characterHash: w4Payload.characterHash,
+        // Verify amazonOrderId is actually in the payload
+        payloadHasAmazonOrderId: 'amazonOrderId' in w4Payload,
+        payloadTopLevelKeys: Object.keys(w4Payload).slice(0, 10) // First 10 keys for debugging
       });
+      
+      // CRITICAL: Final check before sending - ensure amazonOrderId is present
+      if (!w4Payload.amazonOrderId || w4Payload.amazonOrderId === '') {
+        console.error('[Workflow4] ❌ CRITICAL: amazonOrderId is missing or empty in payload!', {
+          resolvedAmazonOrderId,
+          payloadAmazonOrderId: w4Payload.amazonOrderId,
+          payloadKeys: Object.keys(w4Payload)
+        });
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'amazonOrderId is missing in payload. Cannot send to W4.',
+            details: {
+              resolvedAmazonOrderId,
+              payloadKeys: Object.keys(w4Payload)
+            }
+          },
+          { status: 500 }
+        );
+      }
 
       // Create AbortController for timeout
       const controller = new AbortController();

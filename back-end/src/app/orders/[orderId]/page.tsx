@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Order, ReviewStage } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -100,6 +100,7 @@ export default function OrderDetailPage() {
   const [finalApprovalLoading, setFinalApprovalLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [manualPrintLoading, setManualPrintLoading] = useState(false);
+  const printRequestInProgressRef = useRef(false);
   const rawResetToggle = process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET;
   const enableResetButton =
     rawResetToggle === undefined
@@ -319,6 +320,12 @@ export default function OrderDetailPage() {
 
   const handleManualSendToPrint = async () => {
     if (!order) return;
+    
+    // Prevent duplicate requests
+    if (printRequestInProgressRef.current) {
+      console.warn('[SendToPrint] Request already in progress, ignoring duplicate call');
+      return;
+    }
 
     const confirmed = window.confirm(
       'Send this order to print now? This will start production and further changes may not be possible.'
@@ -328,6 +335,7 @@ export default function OrderDetailPage() {
     }
 
     try {
+      printRequestInProgressRef.current = true;
       setManualPrintLoading(true);
       await handleSendToPrint('manual-admin');
       alert('Book Successfully Sent to Print Service');
@@ -336,6 +344,10 @@ export default function OrderDetailPage() {
       alert(error?.message || 'Failed to send order to print. Please try again.');
     } finally {
       setManualPrintLoading(false);
+      // Reset after a short delay to prevent rapid re-clicks
+      setTimeout(() => {
+        printRequestInProgressRef.current = false;
+      }, 1000);
     }
   };
 
