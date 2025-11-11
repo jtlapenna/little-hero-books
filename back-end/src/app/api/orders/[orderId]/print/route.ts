@@ -191,14 +191,19 @@ async function sendToPrint(
       );
     }
     
-    const w4Payload = {
+    // Build payload - ensure amazonOrderId and orderId are ALWAYS set at top level
+    // CRITICAL: Put orderId and amazonOrderId FIRST to ensure they're at the top level
+    const w4Payload: any = {
+      // CRITICAL: Set orderId and amazonOrderId FIRST (W4 requirement)
+      orderId: resolvedAmazonOrderId,
+      amazonOrderId: resolvedAmazonOrderId,
+      // Then spread the rest of the manifest
       ...manifest3,
+      // Override any null/undefined values that might have come from manifest
+      orderId: resolvedAmazonOrderId,
+      amazonOrderId: resolvedAmazonOrderId,
       // Ensure schema exists (fallback only if missing)
       schema: manifest3.schema || 'lhb.run-manifest@v2.0',
-      // CRITICAL: Ensure amazonOrderId exists at top level (W4 requirement)
-      amazonOrderId: resolvedAmazonOrderId,
-      // Also ensure orderId exists for backward compatibility
-      orderId: resolvedAmazonOrderId,
       // Ensure summary.readyForBook exists
       summary: {
         ...(manifest3.summary || {}),
@@ -206,15 +211,25 @@ async function sendToPrint(
       }
     };
     
+    // Final defensive check: ensure these fields are never null/undefined/empty
+    if (!w4Payload.amazonOrderId || w4Payload.amazonOrderId === '' || w4Payload.amazonOrderId === null || w4Payload.amazonOrderId === undefined) {
+      w4Payload.amazonOrderId = resolvedAmazonOrderId;
+    }
+    if (!w4Payload.orderId || w4Payload.orderId === '' || w4Payload.orderId === null || w4Payload.orderId === undefined) {
+      w4Payload.orderId = resolvedAmazonOrderId;
+    }
+    
     // Final validation: Ensure amazonOrderId is present in payload
-    if (!w4Payload.amazonOrderId) {
+    if (!w4Payload.amazonOrderId || w4Payload.amazonOrderId === '') {
       return NextResponse.json(
         { 
           success: false, 
           error: 'Failed to set amazonOrderId in payload. This should not happen.',
           details: {
             resolvedAmazonOrderId,
-            payloadKeys: Object.keys(w4Payload)
+            payloadKeys: Object.keys(w4Payload),
+            amazonOrderIdValue: w4Payload.amazonOrderId,
+            orderIdValue: w4Payload.orderId
           }
         },
         { status: 500 }
@@ -258,6 +273,15 @@ async function sendToPrint(
         );
       }
 
+      // Log the actual payload structure being sent (first 2000 chars for debugging)
+      const payloadString = JSON.stringify(w4Payload);
+      console.log('[Workflow4] Payload structure (first 2000 chars):', payloadString.substring(0, 2000));
+      console.log('[Workflow4] Payload top-level keys:', Object.keys(w4Payload));
+      console.log('[Workflow4] Payload amazonOrderId value:', w4Payload.amazonOrderId);
+      console.log('[Workflow4] Payload orderId value:', w4Payload.orderId);
+      console.log('[Workflow4] Payload has amazonOrderId key:', 'amazonOrderId' in w4Payload);
+      console.log('[Workflow4] Payload has orderId key:', 'orderId' in w4Payload);
+
       // Create AbortController for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
@@ -269,7 +293,7 @@ async function sendToPrint(
             'Content-Type': 'application/json',
             'User-Agent': 'Little-Hero-Books-Backend/1.0',
           },
-          body: JSON.stringify(w4Payload),
+          body: payloadString,
           signal: controller.signal,
         });
         
