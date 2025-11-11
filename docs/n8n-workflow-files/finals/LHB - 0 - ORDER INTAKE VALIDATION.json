@@ -1,0 +1,228 @@
+{
+  "name": "LHB - 0 - ORDER INTAKE VALIDATION",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ca32625e-ceb8-4617-a74f-14304f54e93e",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1872,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Central config (fill tokens/keys after import)\nreturn [{ json: {\n  supabase: {\n    url: \"https://mdnthwpcnphjnnblbvxk.supabase.co\",\n    serviceKey: \"PASTE_SERVICE_KEY\"\n  },\n  r2: {\n    bucket: \"little-hero-orders\",\n    signedUrlEndpoint: \"https://admin.littleherolabs.com/api/r2/signed-url\",\n    apiToken: \"PASTE_BACKEND_API_TOKEN\",\n    expiresIn: 600,\n    keyPrefix: \"book-mvp-simple-adventure/orders\",\n    useBackendSignedUpload: true  // set false to use S3 node instead\n  },\n  s3: {\n    endpoint: \"https://ACCOUNTID.r2.cloudflarestorage.com\",\n    accessKeyId: \"PASTE_R2_ACCESS_KEY_ID\",\n    secretAccessKey: \"PASTE_R2_SECRET_ACCESS_KEY\",\n    accountId: \"ACCOUNTID\"\n  }\n} }];"
+      },
+      "id": "ad708021-8702-40c1-a9e1-0e491dbedd1c",
+      "name": "CONFIG (PRODUCTION)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1664,
+        -96
+      ],
+      "notes": "Fill Supabase serviceKey + BACKEND_API_TOKEN (for signed URL) and/or S3 credentials (for direct PUT)."
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Accepts many shapes (Amazon Custom / backend forwarder / mock)\n// Normalize core fields and optional specs. Dedication is handled in the next node.\nconst raw = $input.first()?.json || {};\n\nfunction safe(o){ return (o && typeof o === 'object') ? o : {}; }\nfunction coerceStr(v){ return (v==null) ? undefined : String(v); }\nfunction num(v){ const n = Number(v); return Number.isFinite(n) ? n : undefined; }\nfunction extractItems(r){ return Array.isArray(r.items) ? r.items : (Array.isArray(r.lineItems) ? r.lineItems : []); }\nfunction extractOrderId(r){ return r.amazonOrderId || r.orderId || r.id || 'UNKNOWN-ORDER'; }\n\nconst orderId = extractOrderId(raw);\nconst items = extractItems(raw);\n\n// Optional specs\nconst cs = safe(raw.characterSpecs);\nconst bs = safe(raw.bookSpecs);\nconst od = safe(raw.orderDetails);\nconst shipping = safe(od.shippingAddress);\n\nconst characterSpecs = {\n  childName: coerceStr(cs.childName),\n  skinTone: coerceStr(cs.skinTone),\n  hairColor: coerceStr(cs.hairColor),\n  hairStyle: coerceStr(cs.hairStyle),\n  age: num(cs.age),\n  pronouns: coerceStr(cs.pronouns),\n  favoriteColor: coerceStr(cs.favoriteColor),\n  animalGuide: coerceStr(cs.animalGuide),\n  clothingStyle: coerceStr(cs.clothingStyle),\n};\n\nconst bookSpecs = {\n  title: coerceStr(bs.title),\n  totalPages: num(bs.totalPages),\n  format: coerceStr(bs.format),\n  bookType: coerceStr(bs.bookType),\n};\n\nconst orderDetails = {\n  quantity: num(od.quantity) || 1,\n  shippingAddress: {\n    name: coerceStr(shipping.name),\n    address: coerceStr(shipping.address),\n    city: coerceStr(shipping.city),\n    state: coerceStr(shipping.state),\n    zip: coerceStr(shipping.zip),\n  }\n};\n\nreturn [{\n  json: {\n    _raw: raw,\n    orderId,\n    // legacy fields for compatibility\n    buyer: raw.buyer || {},\n    purchaseDate: raw.purchaseDate || raw.createdAt || null,\n    // normalized fields\n    status: coerceStr(raw.status) || 'queued_for_processing',\n    orderDate: coerceStr(raw.orderDate) || new Date().toISOString(),\n    customerEmail: coerceStr(raw.customerEmail),\n    items,\n    characterSpecs,\n    bookSpecs,\n    orderDetails\n  }\n}];\n"
+      },
+      "id": "dbfdb208-451d-415b-8f8a-f5e3785540cb",
+      "name": "Normalize Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1440,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Extract & sanitize dedication from normalized shape\nconst norm = $input.first().json || {};\n\nfunction fromItem(it){\n  const fields = it.customizations || it.customizationFields || it.options || [];\n  for (const f of (fields||[])){\n    const name = (f.name||f.label||f.type||'').toLowerCase();\n    if (name.includes('dedication') || name.includes('message') || name.includes('note')){\n      const v = (f.value||f.text||f.stringValue||'')+'';\n      if (v.trim()) return v;\n    }\n  }\n  return null;\n}\n\nlet found = '';\nif (norm._raw?.dedication) found = String(norm._raw.dedication);\nif (!found && Array.isArray(norm.items)) {\n  for (const li of norm.items){\n    const maybe = fromItem(li);\n    if (maybe){ found = maybe; break; }\n  }\n}\n\n// sanitize\nconst MAX_CHARS = 500, MAX_LINES = 6;\nlet t = (found || '')\n  .replace(/[\\u0000-\\u0008\\u000B-\\u001F\\u007F]/g,'')\n  .replace(/\\r\\n?/g,'\\n').replace(/[ \\t]{2,}/g,' ');\nt = t.split('\\n').map(l => l.trimEnd()).join('\\n').trim();\nif (t.length > MAX_CHARS) t = t.slice(0, MAX_CHARS).trim();\nt = t.split('\\n').slice(0, MAX_LINES).join('\\n');\nconst esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n\nreturn [{\n  json: {\n    ...norm,\n    dedication: { raw: found || '', text: t, htmlSafe: esc(t) }\n  }\n}];\n"
+      },
+      "id": "b4e79bd7-92fb-4ba0-8027-ff94d003d7f6",
+      "name": "Extract & Validate Dedication",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1216,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Build 1‑manifest.json with normalized fields\nconst j = $input.first().json;\nconst r2Key = `book-mvp-simple-adventure/orders/${j.orderId}/manifests/1-manifest.json`;\n\nconst manifest = {\n  schema: \"lhb.run-manifest@v2.1\",\n  runStamp: new Date().toISOString(),\n  amazonOrderId: j.orderId,\n  order: {\n    purchaseDate: j.orderDate || j.purchaseDate || null,\n    buyer: { email: j.customerEmail, ...j.buyer },\n    dedication: j.dedication,\n    characterSpecs: j.characterSpecs,\n    bookSpecs: j.bookSpecs,\n    orderDetails: j.orderDetails\n  }\n};\n\nreturn [{ json: { manifest, r2Key, orderId: j.orderId } }];\n"
+      },
+      "id": "e53b5ec0-4906-4232-8e79-c9912b2954a1",
+      "name": "Build 1‑manifest.json",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1008,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Build fallback (no upload): just pass through r2Key and manifest\nconst { r2Key, manifest } = $input.first().json || {};\nreturn [{ json: { r2Key, manifest } }];\n"
+      },
+      "id": "e207db6d-42c2-4abd-b917-910c21c06353",
+      "name": "Fallback (Skip Upload)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -784,
+        128
+      ],
+      "notes": "Use this path temporarily if signed PUT or S3 creds are not ready."
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Upsert into Supabase orders with execution_status and one_manifest_url (store KEY)\n// Robustly fetch r2Key & manifest from the builder node regardless of upstream branch\nconst cfg = $item(0).$node[\"CONFIG (PRODUCTION)\"].json;\nconst built = $item(0).$node[\"Build 1‑manifest.json\"].json || {};\nconst manifest = built.manifest;\nconst r2Key = built.r2Key;\n\nconst body = {\n  amazon_order_id: manifest.amazonOrderId,\n  execution_status: 'ready_for_processing',\n  next_workflow: '2A',                 // queue 2A first (character creation)\n  one_manifest_url: r2Key,             // store the KEY (durable)\n  dedication_text: manifest.order?.dedication?.text || null,\n  queued_at: new Date().toISOString()\n};\n\nconst res = await this.helpers.request({\n  method: 'POST',\n  uri: `${cfg.supabase.url}/rest/v1/orders`,\n  headers: {\n    'apikey': cfg.supabase.serviceKey,\n    'Authorization': `Bearer ${cfg.supabase.serviceKey}`,\n    'Prefer': 'return=representation',\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify(body)\n});\n\nreturn [{ json: res }];\n"
+      },
+      "id": "fb243bc7-81d0-4aba-94ba-31adce7e349a",
+      "name": "Supabase Upsert (orders)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        128
+      ],
+      "notes": "Stores r2Key in one_manifest_url (key-only). W1.1 will fetch a signed URL at runtime."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create binary 'manifest' from JSON manifest\nconst input = $input.first().json || {};\nconst { manifest, orderId } = input;\n\n// Fallback key if upstream ever omits r2Key\nconst r2Key = input.r2Key \n  || `book-mvp-simple-adventure/orders/${orderId}/manifests/1-manifest.json`;\n\nconst data = Buffer.from(JSON.stringify(manifest), 'utf8');\n\nreturn [{\n  json: { r2Key, orderId },\n  binary: {\n    manifest: {\n      data,\n      mimeType: 'application/json',\n      fileName: '1-manifest.json'\n    }\n  }\n}];\n"
+      },
+      "id": "43e74f45-d82a-4a43-a2f8-cff4174a2ca4",
+      "name": "Create Binary (manifest.json)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -784,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-orders",
+        "fileName": "={{ $json.r2Key }}",
+        "additionalFields": {}
+      },
+      "id": "35f470d2-71d1-4f43-a2ee-edf2b75094da",
+      "name": "Upload 1-manifest.json to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -592,
+        -96
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "CONFIG (PRODUCTION)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONFIG (PRODUCTION)": {
+      "main": [
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Payload": {
+      "main": [
+        [
+          {
+            "node": "Extract & Validate Dedication",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract & Validate Dedication": {
+      "main": [
+        [
+          {
+            "node": "Build 1‑manifest.json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build 1‑manifest.json": {
+      "main": [
+        [
+          {
+            "node": "Create Binary (manifest.json)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fallback (Skip Upload)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback (Skip Upload)": {
+      "main": [
+        [
+          {
+            "node": "Supabase Upsert (orders)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Binary (manifest.json)": {
+      "main": [
+        [
+          {
+            "node": "Upload 1-manifest.json to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "58437c67-ae93-4d80-bd07-5e78995e6c3a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "wbc7jOqnNSQRuTRt",
+  "tags": []
+}
