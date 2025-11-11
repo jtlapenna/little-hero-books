@@ -226,7 +226,7 @@ export function PostPdfStage({
   const [imageError, setImageError] = useState<{ left: string | null; right: string | null }>({ left: null, right: null });
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [coverImageLoading, setCoverImageLoading] = useState(false);
-  const [coverImageDataUrl, setCoverImageDataUrl] = useState<string | null>(null); // For PDFs converted to images
+  const [coverImageDataUrl, setCoverImageDataUrl] = useState<string | null>(null); // Legacy: previously used for PDFs converted to images (now unused, cover PNG used directly)
   const coverCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
   const [sendingToPrint, setSendingToPrint] = useState(false);
@@ -733,27 +733,30 @@ export function PostPdfStage({
                 const manifest3Raw = await manifest3Res.json();
                 // Handle array response (manifest might be wrapped in array)
                 const manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
+                
                 // Check multiple possible locations for cover data
+                // Cover PNG is now generated in W3, not PDF (PDF generation moved to W4)
                 const pngGen = manifest3?.pngGeneration || manifest3?.manifest?.pngGeneration || {};
                 
-                // Check for Cloudflare Images cover URL first
-                if (pngGen.coverCloudflareImageUrl) {
-                  coverUrlToUse = pngGen.coverCloudflareImageUrl;
+                // Priority 1: Cloudflare Images cover URL (from manifest or top-level)
+                if (manifest3?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl) {
+                  coverUrlToUse = manifest3.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
                   console.log('[Cover] Using Cloudflare Images URL from manifest');
                 }
-                // Fallback to R2 cover preview (could be string or object with r2Key)
-                else if (pngGen.coverSpreadImage) {
-                  const coverR2Key = typeof pngGen.coverSpreadImage === 'string' 
-                    ? pngGen.coverSpreadImage 
-                    : pngGen.coverSpreadImage?.r2Key;
+                // Priority 2: R2 cover PNG key (from manifest or top-level)
+                else {
+                  const coverR2Key = 
+                    manifest3?.coverPngR2Key ||  // Top-level from Build 3A Manifest output
+                    (typeof pngGen.coverSpreadImage === 'string' 
+                      ? pngGen.coverSpreadImage 
+                      : pngGen.coverSpreadImage?.r2Key);
+                  
                   if (coverR2Key) {
                     coverUrlToUse = `/api/assets/${coverR2Key}`;
-                    console.log('[Cover] Using R2 cover from manifest:', coverR2Key);
+                    console.log('[Cover] Using R2 cover PNG from manifest:', coverR2Key);
                   } else {
-                    console.warn('[Cover] coverSpreadImage found but no r2Key:', pngGen.coverSpreadImage);
+                    console.warn('[Cover] No cover PNG found in manifest. Expected coverPngR2Key or pngGeneration.coverSpreadImage');
                   }
-                } else {
-                  console.log('[Cover] No cover image found in manifest pngGeneration');
                 }
               } else {
                 console.log('[Cover] Manifest 3 not found or not OK:', manifest3Res.status);
@@ -772,86 +775,19 @@ export function PostPdfStage({
                 const newSpreads = createSpreads(pageData, coverUrlToUse);
                 setSpreads(newSpreads);
                 spreadsLengthRef.current = newSpreads.length;
-                console.log('[Cover] Updated spreads with cover from manifest:', {
+                console.log('[Cover] Updated spreads with cover PNG from manifest:', {
                   spreadsCount: newSpreads.length,
                   hasFrontCover: newSpreads[0]?.coverData?.isFrontCover,
-                  hasBackCover: newSpreads[newSpreads.length - 1]?.coverData?.isBackCover
+                  hasBackCover: newSpreads[newSpreads.length - 1]?.coverData?.isBackCover,
+                  coverUrl: coverUrlToUse
                 });
               }
-              // Don't continue to fallback - we found the cover from manifest
-              // But don't return - let the rest of the function run to set pages state
+              // Don't return - let the rest of the function run to set pages state
+            } else {
+              // No cover PNG found in manifest - cover PDF is now generated in W4, not available at preview time
+              console.warn('[Cover] No cover PNG found in manifest. Cover PDF will be generated in W4 (Print Fulfillment) workflow.');
+              setCoverImageLoading(false);
             }
-            
-            // Fallback: Try R2 cover preview image
-            const coverPdfPath = `book-mvp-simple-adventure/orders/${orderId}/cover_${orderId}.pdf`;
-            const coverPreviewPath = `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover_preview.png`;
-            const coverPreviewUrl = `/api/assets/${coverPreviewPath}`;
-            
-            // Check if cover preview exists, otherwise convert PDF to image
-            fetch(coverPreviewUrl, { method: 'HEAD' })
-              .then(async res => {
-                if (!isMounted) return;
-                if (res.ok) {
-                  const newCoverUrl = coverPreviewUrl;
-                  setCoverImageUrl(newCoverUrl);
-                  setCoverImageLoading(false);
-                  // Update spreads with new cover URL - use functional update to get latest pages
-                  setPages(currentPages => {
-                    if (currentPages.length > 0) {
-                      const newSpreads = createSpreads(currentPages, newCoverUrl);
-                      setSpreads(newSpreads);
-                      spreadsLengthRef.current = newSpreads.length;
-                    }
-                    return currentPages; // Don't change pages
-                  });
-                } else {
-                  // Convert PDF to image using PDF.js
-                  const coverPdfUrl = `/api/pdf/${coverPdfPath}`;
-                  try {
-                    const dataUrl = await convertPdfToImage(coverPdfUrl);
-                    if (!isMounted) return;
-                    setCoverImageDataUrl(dataUrl);
-                    setCoverImageUrl(coverPdfUrl); // Keep PDF URL for reference
-                    setCoverImageLoading(false);
-                    // Update spreads with new cover data URL - use functional update to get latest pages
-                    setPages(currentPages => {
-                      if (currentPages.length > 0) {
-                        const newSpreads = createSpreads(currentPages, dataUrl);
-                        setSpreads(newSpreads);
-                        spreadsLengthRef.current = newSpreads.length;
-                      }
-                      return currentPages; // Don't change pages
-                    });
-                  } catch (pdfError) {
-                    if (!isMounted) return;
-                    console.error('[Pages] Failed to convert cover PDF to image:', pdfError);
-                    setCoverImageLoading(false);
-                  }
-                }
-              })
-              .catch(async () => {
-                if (!isMounted) return;
-                // Fallback: try to convert PDF to image
-                const coverPdfUrl = `/api/pdf/${coverPdfPath}`;
-                try {
-                  const dataUrl = await convertPdfToImage(coverPdfUrl);
-                  if (!isMounted) return;
-                  setCoverImageDataUrl(dataUrl);
-                  setCoverImageUrl(coverPdfUrl);
-                  setCoverImageLoading(false);
-                  // Update spreads with new cover data URL - use functional update to get latest pages
-                  setPages(currentPages => {
-                    if (currentPages.length > 0) {
-                      setSpreads(createSpreads(currentPages, dataUrl));
-                    }
-                    return currentPages; // Don't change pages
-                  });
-                } catch (pdfError) {
-                  if (!isMounted) return;
-                  console.error('[Pages] Failed to convert cover PDF to image:', pdfError);
-                  setCoverImageLoading(false);
-                }
-              });
           } catch (e) {
             if (!isMounted) return;
             console.log('[Pages] Cover image not available:', e);
@@ -867,7 +803,7 @@ export function PostPdfStage({
         const pagesChanged = currentPagesData !== lastPagesDataRef.current;
         const isInitialLoad = lastPagesDataRef.current === '';
         
-        // Determine which cover URL to use (prefer data URL from PDF conversion, fallback to image URL)
+        // Determine which cover URL to use (coverImageDataUrl is legacy/unused, cover PNG URL is used directly)
         const effectiveCoverUrl = coverImageDataUrl || coverImageUrl || undefined;
         
         console.log('[Pages] About to create spreads:', {
