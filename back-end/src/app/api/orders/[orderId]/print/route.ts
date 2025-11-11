@@ -145,56 +145,92 @@ async function sendToPrint(
         payloadSize: JSON.stringify(w4Payload).length,
         pageCount: Object.keys(w4Payload.pngGeneration.pages).length,
         hasP00: !!w4Payload.pngGeneration.pages.p00,
-        hasPagesWithCloudflare: !!w4Payload.pngGeneration.pagesWithCloudflare
+        hasPagesWithCloudflare: !!w4Payload.pngGeneration.pagesWithCloudflare,
+        amazonOrderId: w4Payload.amazonOrderId,
+        characterHash: w4Payload.characterHash
       });
 
-      const webhookResponse = await fetch(W4_WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(w4Payload),
-      });
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      if (!webhookResponse.ok) {
-        const errorText = await webhookResponse.text().catch(() => 'Unknown error');
-        console.error('[Workflow4] W4 webhook returned error:', {
-          orderId,
-          status: webhookResponse.status,
-          statusText: webhookResponse.statusText,
-          error: errorText
+      try {
+        const webhookResponse = await fetch(W4_WEBHOOK_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Little-Hero-Books-Backend/1.0',
+          },
+          body: JSON.stringify(w4Payload),
+          signal: controller.signal,
         });
         
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: `W4 webhook returned error: ${webhookResponse.status} ${webhookResponse.statusText}`,
-            details: errorText.substring(0, 500)
-          },
-          { status: webhookResponse.status }
-        );
+        clearTimeout(timeoutId);
+
+        if (!webhookResponse.ok) {
+          const errorText = await webhookResponse.text().catch(() => 'Unknown error');
+          console.error('[Workflow4] W4 webhook returned error:', {
+            orderId,
+            status: webhookResponse.status,
+            statusText: webhookResponse.statusText,
+            error: errorText,
+            headers: Object.fromEntries(webhookResponse.headers.entries())
+          });
+          
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: `W4 webhook returned error: ${webhookResponse.status} ${webhookResponse.statusText}`,
+              details: errorText.substring(0, 500)
+            },
+            { status: webhookResponse.status }
+          );
+        }
+
+        const webhookResult = await webhookResponse.json().catch(() => ({}));
+        
+        console.info('[Workflow4] Successfully sent to W4 webhook:', {
+          orderId,
+          source,
+          webhookStatus: webhookResponse.status,
+          webhookResponseHeaders: Object.fromEntries(webhookResponse.headers.entries()),
+          webhookResult
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: 'Book Successfully Sent to Print Service',
+          orderId,
+          webhookResponse: webhookResult
+        });
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError.name === 'AbortError') {
+          console.error('[Workflow4] W4 webhook request timed out after 30 seconds:', {
+            orderId,
+            webhookUrl: W4_WEBHOOK_URL
+          });
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: 'Webhook request timed out. The workflow may still be processing.',
+              details: 'Request took longer than 30 seconds to respond'
+            },
+            { status: 504 }
+          );
+        }
+        throw fetchError; // Re-throw to be caught by outer catch
       }
-
-      const webhookResult = await webhookResponse.json().catch(() => ({}));
-      
-      console.info('[Workflow4] Successfully sent to W4 webhook:', {
-        orderId,
-        source,
-        webhookStatus: webhookResponse.status
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: 'Book Successfully Sent to Print Service',
-        orderId,
-        webhookResponse: webhookResult
-      });
     } catch (webhookError: any) {
       // Handle webhook network errors separately from manifest loading errors
       console.error('[Workflow4] Failed to send to W4 webhook:', {
         orderId,
         error: webhookError?.message || webhookError,
-        stack: webhookError?.stack
+        stack: webhookError?.stack,
+        webhookUrl: W4_WEBHOOK_URL,
+        errorName: webhookError?.name,
+        errorCode: webhookError?.code
       });
       
       return NextResponse.json(
