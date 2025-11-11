@@ -169,6 +169,16 @@ export async function getOrderFromSupabase(orderId: string) {
   }
   
   if (error) {
+    const noRows =
+      error.code === 'PGRST116' ||
+      error.code === 'PGRST204' ||
+      (typeof error.message === 'string' &&
+        error.message.toLowerCase().includes('contains 0 rows'));
+
+    if (noRows) {
+      return null;
+    }
+
     console.error(`[Supabase] Error fetching order ${orderId}:`, error);
     throw error;
   }

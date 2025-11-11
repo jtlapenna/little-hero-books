@@ -16,6 +16,7 @@
 3. **Ensure proper data flow** between all workflows
 4. **Maintain existing functionality** while adding database integration
 5. **Test integration** with Developer B's workflows
+6. **Persist Supabase order records before resets** – every workflow in the 2A → 2B → 3 chain must upsert the order row (via the provided Supabase node/RPC) as soon as a manifest is available. The admin reset button relies on that row; if your workflow only touches R2, the reset endpoint cannot hydrate the order and will 404. Treat “write order to Supabase with review_stages and manifests” as part of your handoff.
 
 **Communication Style**: 
 - Be specific and technical in your guidance

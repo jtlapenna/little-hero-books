@@ -35,7 +35,7 @@ async function resetOrder(
   } catch (error: any) {
     if (error instanceof OrderResetError) {
       if (error.message === 'ORDER_NOT_FOUND') {
-        throw createNotFoundError(`Order ${orderId} not found`);
+        return createNotFoundError(`Order ${orderId} not found`);
       }
 
       console.error('[OrderReset] Unexpected reset error', {
