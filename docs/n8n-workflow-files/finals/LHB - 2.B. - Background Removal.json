@@ -5,6 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "bg-removal",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "a5b9147a-4234-4a2b-b016-21bd90e001c3",
@@ -709,6 +710,20 @@
     },
     {
       "parameters": {
+        "jsCode": "/**\n * Fetch and Merge Review Stages\n * Fetches current order from Supabase and merges existing review_stages\n * with new postBria data to preserve preBria and postPdf stages.\n * \n * ISSUE: Supabase's resolution=merge-duplicates does NOT deep-merge JSONB.\n * It replaces the entire review_stages object, losing preBria and postPdf.\n * \n * SOLUTION: Fetch existing review_stages, merge manually, then upsert.\n */\nconst input = $input.first().json || {};\n\nconst amazonOrderId = input.orderId || input.amazonOrderId || input.manifest?.order?.amazonOrderId;\n\nif (!amazonOrderId) {\n  throw new Error('amazonOrderId is required but not found in: ' + JSON.stringify(Object.keys(input || {})));\n}\n\nconst needsReview = input.needsReview === true;\nconst posesSucceeded = input.posesSucceeded ?? 0;\nconst posesFailed = input.posesFailed ?? 0;\n\n// Supabase config\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\n// Fetch current order from Supabase\nlet existingReviewStages = {};\n\ntry {\n  const fetchResponse = await this.helpers.request({\n    method: 'GET',\n    uri: `${supabaseUrl}/rest/v1/orders?amazon_order_id=eq.${encodeURIComponent(amazonOrderId)}&select=review_stages`,\n    headers: {\n      'apikey': supabaseKey,\n      'Authorization': `Bearer ${supabaseKey}`,\n      'Content-Type': 'application/json',\n      'Prefer': 'return=representation'\n    },\n    json: true\n  });\n  \n  // Supabase REST API returns an array\n  const orders = Array.isArray(fetchResponse) ? fetchResponse : (fetchResponse ? [fetchResponse] : []);\n  \n  if (orders.length > 0) {\n    let reviewStages = orders[0].review_stages;\n    \n    // Handle case where review_stages might be a JSON string (PostgreSQL JSONB)\n    if (typeof reviewStages === 'string') {\n      try {\n        reviewStages = JSON.parse(reviewStages);\n      } catch (parseError) {\n        console.warn('⚠️ Failed to parse review_stages JSON string:', parseError.message);\n        reviewStages = null;\n      }\n    }\n    \n    // Only use if it's a valid object (not null, not empty string)\n    if (reviewStages && typeof reviewStages === 'object' && Object.keys(reviewStages).length > 0) {\n      existingReviewStages = reviewStages;\n      console.log('✓ Fetched existing review_stages:', JSON.stringify(existingReviewStages, null, 2));\n    } else {\n      console.log('⚠️ review_stages is null or empty, starting fresh');\n    }\n  } else {\n    console.log('⚠️ No order found in Supabase for:', amazonOrderId);\n  }\n} catch (error) {\n  console.error('❌ Failed to fetch existing review_stages:', error.message);\n  console.error('Error details:', JSON.stringify(error, null, 2));\n  // Continue with empty review_stages - better than losing data\n}\n\n// Build new postBria data\nconst newPostBria = {\n  status: needsReview ? 'in-review' : 'ready',\n  needsHumanReview: needsReview,\n  posesProcessed: posesSucceeded + posesFailed,\n  posesSucceeded,\n  posesFailed,\n};\n\n// Merge: preserve existing preBria and postPdf, update postBria\nconst mergedReviewStages = {\n  ...existingReviewStages,  // Preserve preBria, postPdf, and any other stages\n  postBria: newPostBria     // Update/overwrite postBria\n};\n\nconsole.log('✓ Merged review_stages:', JSON.stringify(mergedReviewStages));\n\n// Pass through all input data + merged review_stages\nreturn [{\n  json: {\n    ...input,\n    // Add merged review_stages for Supabase upsert\n    mergedReviewStages,\n    // Also include individual fields for backward compatibility\n    needsReview,\n    posesSucceeded,\n    posesFailed\n  }\n}];\n"
+      },
+      "id": "fetch-merge-review-stages-2b",
+      "name": "Fetch and Merge Review Stages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        896
+      ],
+      "notes": "Fetches existing review_stages from Supabase and merges with new postBria data to preserve preBria and postPdf"
+    },
+    {
+      "parameters": {
         "numberInputs": 3
       },
       "id": "4de6a1a1-68e2-4eec-8344-00ca6c5c4b75",
@@ -947,17 +962,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/rest/v1/orders?on_conflict=amazon_order_id",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders?on_conflict=amazon_order_id",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "apikey",
-              "value": "e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "Content-type",
@@ -971,7 +986,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n  (() => {\n    const amazonOrderId = $json.orderId || $json.amazonOrderId || $json.manifest?.order?.amazonOrderId;\n    \n    if (!amazonOrderId) {\n      throw new Error('amazonOrderId is required but not found in: ' + JSON.stringify(Object.keys($json || {})));\n    }\n\n    const needsReview = $json.needsReview === true;\n    const posesSucceeded = $json.posesSucceeded ?? 0;\n    const posesFailed = $json.posesFailed ?? 0;\n\n    return {\n      // Required: orderId (NOT NULL constraint)\n      orderId: amazonOrderId,\n      \n      // Required: amazon_order_id (for upsert matching)\n      amazon_order_id: amazonOrderId,\n\n      // 2B manifest URL from Prep Backend Webhook\n      manifest_2b_url: $json.manifestUrl,\n\n      // Overall status for post-Bria stage\n      status: needsReview ? 'post_bria_pending' : 'post_bria_ready',\n\n      // Review stages with post-Bria data\n      review_stages: {\n        postBria: {\n          status: needsReview ? 'needs_review' : 'ready',\n          needsHumanReview: needsReview,\n          posesProcessed: posesSucceeded + posesFailed,\n          posesSucceeded,\n          posesFailed,\n        },\n      },\n\n      requires_human_review: needsReview,\n      workflow_step: '2B-complete',\n      updated_at: new Date().toISOString(),\n    };\n  })()\n}}",
+        "jsonBody": "={{\n  (() => {\n    const amazonOrderId = $json.orderId || $json.amazonOrderId || $json.manifest?.order?.amazonOrderId;\n    \n    if (!amazonOrderId) {\n      throw new Error('amazonOrderId is required but not found in: ' + JSON.stringify(Object.keys($json || {})));\n    }\n\n    const needsReview = $json.needsReview === true;\n    const posesSucceeded = $json.posesSucceeded ?? 0;\n    const posesFailed = $json.posesFailed ?? 0;\n\n    // Use merged review_stages from Fetch and Merge Review Stages node\n    // This preserves preBria and postPdf stages\n    const reviewStages = $json.mergedReviewStages || {\n      postBria: {\n        status: needsReview ? 'in-review' : 'ready',\n        needsHumanReview: needsReview,\n        posesProcessed: posesSucceeded + posesFailed,\n        posesSucceeded,\n        posesFailed,\n      },\n    };\n\n    return {\n      // Required: orderId (NOT NULL constraint)\n      orderId: amazonOrderId,\n      \n      // Required: amazon_order_id (for upsert matching)\n      amazon_order_id: amazonOrderId,\n\n      // 2B manifest URL from Prep Backend Webhook\n      manifest_2b_url: $json.manifestUrl,\n\n      // Overall status for post-Bria stage (matches OrderStatus enum)\n      status: needsReview ? 'pending_bg_removal_review' : 'pending_assembly',\n\n      // Review stages with merged data (preserves preBria and postPdf)\n      review_stages: reviewStages,\n\n      // Always set next_workflow to '3' after 2B completes\n      // Review happens in UI, then approval triggers workflow 3\n      next_workflow: '3',\n\n      // Set execution_status so router can pick up order for workflow 3\n      // If no review needed: ready_for_processing (router picks up automatically)\n      // If review needed: processing (stays until approval, then approval button sets ready_for_processing)\n      execution_status: needsReview ? 'processing' : 'ready_for_processing',\n      \n      // Clear processing state when ready for next workflow\n      ...(needsReview ? {} : {\n        started_at: null,\n        current_workflow: null,\n        queued_at: new Date().toISOString(),\n      }),\n\n      requires_human_review: needsReview,\n      workflow_step: '2B-complete',\n      updated_at: new Date().toISOString(),\n    };\n  })()\n}}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -1687,7 +1702,7 @@
       "main": [
         [
           {
-            "node": "Supabase Upsert 2B",
+            "node": "Fetch and Merge Review Stages",
             "type": "main",
             "index": 0
           },
@@ -1695,6 +1710,17 @@
             "node": "Merge Before Webhook",
             "type": "main",
             "index": 2
+          }
+        ]
+      ]
+    },
+    "Fetch and Merge Review Stages": {
+      "main": [
+        [
+          {
+            "node": "Supabase Upsert 2B",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1898,7 +1924,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "64a9ac3b-4412-4e88-835e-5e43c174b573",
+  "versionId": "53dfe220-54aa-4111-8baa-0ca08851dac1",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
