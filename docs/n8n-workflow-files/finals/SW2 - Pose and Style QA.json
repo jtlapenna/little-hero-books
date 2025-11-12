@@ -1,5 +1,5 @@
 {
-  "name": "PRIVATIZED -- SW2 - Pose and Style QA",
+  "name": "WORKING VERSION -  SW2 - Pose and Style QA",
   "nodes": [
     {
       "parameters": {
@@ -849,6 +849,45 @@
       ],
       "id": "ee8fd18c-1941-4f42-9158-892fe39c0b03",
       "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "content": "Restore Binaries node drops the amazonOrderId\n"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1296,
+        -352
+      ],
+      "id": "06f3979a-0c7c-49fb-819f-bd92edcb0eac",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Set (Return Envelope) has amazonOrderId"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3984,
+        1296
+      ],
+      "id": "fd5a9b56-d531-41d7-b8cd-d41034320b0e",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "missing amazonOrderId"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -960,
+        1296
+      ],
+      "id": "cadf62d7-47cd-48ff-b321-735625325628",
+      "name": "Sticky Note2"
     }
   ],
   "pinData": {
@@ -1335,7 +1374,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "f13664e3-a77e-4ce2-9ff6-11959de5427f",
+  "versionId": "188f2650-d5d4-4535-89fd-3fb7efe58732",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },
