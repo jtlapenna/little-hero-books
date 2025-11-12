@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Order, ReviewStage } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { FlaggedBadge } from '@/components/ui/flagged-badge';
 import { formatDate, getInitials } from '@/lib/utils';
 import { getOrderById } from '@/lib/mock-data';
 import { PreBriaStage } from '@/components/stages/pre-bria-stage';
@@ -116,6 +117,10 @@ export default function OrderDetailPage() {
       }
       const data = await response.json();
       console.log('OrderDetailPage: Received order data:', data);
+      console.log('OrderDetailPage: Review stages:', JSON.stringify(data.reviewStages, null, 2));
+      console.log('OrderDetailPage: PreBria status:', data.reviewStages?.preBria?.status);
+      console.log('OrderDetailPage: PostBria status:', data.reviewStages?.postBria?.status);
+      console.log('OrderDetailPage: PostPdf status:', data.reviewStages?.postPdf?.status);
       console.log('OrderDetailPage: R2 assets:', data.r2Assets);
       console.log('OrderDetailPage: R2 base character:', data.r2Assets?.baseCharacter);
       console.log('OrderDetailPage: R2 poses count:', data.r2Assets?.poses?.length);
@@ -192,15 +197,61 @@ export default function OrderDetailPage() {
   );
 
   // Update flag counts when order changes
+  // Calculate directly from manifests (source of truth) rather than Supabase
   useEffectReact(() => {
     if (order) {
       const updateFlagCounts = async () => {
         try {
-          const [preBria, postBria, postPdf] = await Promise.all([
-            getStageFlaggedCount(order.orderId, 'preBria'),
-            getStageFlaggedCount(order.orderId, 'postBria'),
-            getStageFlaggedCount(order.orderId, 'postPdf')
-          ]);
+          const orderId = order.orderId;
+          let preBria = 0;
+          let postBria = 0;
+          let postPdf = 0;
+          
+          // Load 2a manifest for preBria flags
+          try {
+            const manifest2aUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
+            const res2a = await fetch(manifest2aUrl, { cache: 'no-store' });
+            if (res2a.ok) {
+              const manifest2a = await res2a.json();
+              const entries2a = manifest2a?.entries || [];
+              preBria = entries2a.filter((e: any) => e.isFlagged || e.needsReview).length;
+            }
+          } catch (err) {
+            console.log('[OrderDetailPage] Could not load 2a manifest for flags:', err);
+          }
+          
+          // Load 2b manifest for postBria flags (fallback to 2a if 2b doesn't exist)
+          try {
+            let manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json?v=${Date.now()}`;
+            let res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
+            if (!res2b.ok) {
+              // Fallback to 2a
+              manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
+              res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
+            }
+            if (res2b.ok) {
+              const manifest2b = await res2b.json();
+              const entries2b = manifest2b?.entries || [];
+              postBria = entries2b.filter((e: any) => e.isFlagged || e.needsReview).length;
+            }
+          } catch (err) {
+            console.log('[OrderDetailPage] Could not load 2b/2a manifest for flags:', err);
+          }
+          
+          // Load 3 manifest for postPdf flags
+          try {
+            const manifest3Url = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
+            const res3 = await fetch(manifest3Url, { cache: 'no-store' });
+            if (res3.ok) {
+              const manifest3 = await res3.json();
+              const pagesMetadata = manifest3?.pngGeneration?.pagesMetadata || manifest3?.manifest?.pngGeneration?.pagesMetadata || {};
+              postPdf = Object.values(pagesMetadata).filter((meta: any) => meta.isFlagged || meta.needsReview).length;
+            }
+          } catch (err) {
+            console.log('[OrderDetailPage] Could not load 3 manifest for flags:', err);
+          }
+          
+          console.log(`[OrderDetailPage] Flag counts from manifests: preBria=${preBria}, postBria=${postBria}, postPdf=${postPdf}`);
           setFlagCounts({ preBria, postBria, postPdf });
         } catch (error) {
           console.error('Error updating flag counts:', error);
@@ -209,8 +260,8 @@ export default function OrderDetailPage() {
       
       updateFlagCounts();
       
-      // Set up interval to check for flag count changes
-      const interval = setInterval(updateFlagCounts, 5000); // Increased to 5 seconds to reduce API calls
+      // Set up interval to check for flag count changes (polling for updates)
+      const interval = setInterval(updateFlagCounts, 3000); // Poll every 3 seconds
       return () => clearInterval(interval);
     }
   }, [order]);
@@ -243,31 +294,35 @@ export default function OrderDetailPage() {
     );
   }
 
-  const stages: { key: ReviewStage; label: string; description: string }[] = [
+  const stages: { key: ReviewStage; label: string; description: string; stageKey: 'preBria' | 'postBria' | 'postPdf' }[] = [
     {
       key: 'preBria' as unknown as ReviewStage,
-      label: 'Pre-Bria',
-      description: 'Generated character + poses before background removal'
+      label: 'Review Poses',
+      description: 'Generated character + poses before background removal',
+      stageKey: 'preBria'
     },
     {
       key: 'postBria' as unknown as ReviewStage,
-      label: 'Post-Bria',
-      description: 'Background-removed images from Bria.ai'
+      label: 'Review Backgrounds',
+      description: 'Background-removed images from Bria.ai',
+      stageKey: 'postBria'
     },
     {
       key: 'postPdf' as unknown as ReviewStage,
-      label: 'Post-PDF',
-      description: 'Final compiled PDF ready for production'
+      label: 'Review Pages',
+      description: 'Final compiled PDF ready for production',
+      stageKey: 'postPdf'
     }
   ];
 
   const activeStageKey = activeStage as unknown as keyof typeof order.reviewStages;
   const lifecycleStatus = getDisplayStatusForOrder(order);
-  const activeStageDisplayStatus = getStageBadgeStatus(
-    order.reviewStages[activeStageKey]?.status
-  );
   const activeStageDefinition = stages.find(
     (stage) => stage.key === activeStage
+  );
+  const activeStageDisplayStatus = getStageBadgeStatus(
+    order.reviewStages[activeStageKey]?.status,
+    activeStageDefinition?.stageKey
   );
   const latestCorrection = order.latestCustomerCorrection || null;
   const correctionSubmittedAt =
@@ -283,6 +338,15 @@ export default function OrderDetailPage() {
       const currentStatus = order.reviewStages[stageKey]?.status || 'pending';
       const nextStatus = explicitStatus || (currentStatus === 'approved' ? 'pending' : 'approved');
 
+      // Check for flags before approving (client-side validation)
+      if (nextStatus === 'approved') {
+        const stageFlagCount = flagCounts[stageKey as 'preBria' | 'postBria' | 'postPdf'] || 0;
+        if (stageFlagCount > 0) {
+          alert(`Cannot approve stage: ${stageFlagCount} flagged item${stageFlagCount !== 1 ? 's' : ''} must be resolved first.`);
+          return;
+        }
+      }
+
       const response = await fetch(`/api/orders/${order.orderId}/approve`, {
         method: 'POST',
         headers: {
@@ -292,24 +356,69 @@ export default function OrderDetailPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Failed to update stage' }));
-        throw new Error(error?.error || 'Failed to update stage');
+        const errorText = await response.text().catch(() => 'Unknown error');
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || 'Failed to update stage' };
+        }
+        console.error('[handleStageApprove] API error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        // Handle both error formats: { error: string } or { error: { type, message } }
+        let errorMessage = 'Failed to update stage';
+        if (typeof errorData?.error === 'string') {
+          errorMessage = errorData.error;
+        } else if (errorData?.error?.message) {
+          errorMessage = errorData.error.message;
+        } else if (errorData?.message) {
+          errorMessage = errorData.message;
+        }
+        
+        throw new Error(errorMessage || `Failed to update stage (${response.status})`);
       }
 
       const result = await response.json();
       console.log('Stage approval result:', result);
 
+      // Optimistically update the order with the approval result immediately
+      if (result?.reviewStages) {
       setOrder(prev => {
         if (!prev) return prev;
-        const updated = {
+          return {
           ...prev,
           reviewStages: {
             ...prev.reviewStages,
-            ...(result?.reviewStages || prev.reviewStages),
-          }
-        };
-        return updated;
+              ...result.reviewStages, // Approval result takes precedence
+            }
+          };
+        });
+      }
+
+      // Wait a bit for Supabase to propagate the update, then refresh
+      // This ensures we get the latest data while preserving the approval
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Refresh order data, but preserve the approval status from the result
+      const refreshedOrder = await fetchOrder(order.orderId);
+      if (refreshedOrder && result?.reviewStages) {
+        // Merge the approval result's reviewStages into the refreshed order
+        // This ensures the approval persists even if the API returns stale data
+        setOrder(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            reviewStages: {
+              ...prev.reviewStages,
+              ...result.reviewStages, // Approval result takes precedence over fetched data
+            }
+          };
       });
+      }
 
     } catch (error) {
       console.error('Error approving stage:', error);
@@ -493,26 +602,20 @@ export default function OrderDetailPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-              {flagCounts.preBria + flagCounts.postBria + flagCounts.postPdf > 0 && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 whitespace-nowrap">
-                  <Flag className="h-4 w-4 mr-1" />
-                  {flagCounts.preBria + flagCounts.postBria + flagCounts.postPdf} {flagCounts.preBria + flagCounts.postBria + flagCounts.postPdf === 1 ? 'Needs' : 'Need'} Attention
-                </span>
-              )}
-              {/* Show stage status badge for current active stage */}
+              {/* Show total flagged count across all stages */}
               {order.reviewStages && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-gray-200 bg-white text-gray-700">
                   <span className="mr-1 text-[10px] uppercase tracking-wide text-gray-500">
-                    {activeStageDefinition?.label || 'Stage'}
+                    Total Flags
                   </span>
-                  <StatusBadge status={activeStageDisplayStatus} />
+                  <FlaggedBadge count={(flagCounts.preBria || 0) + (flagCounts.postBria || 0) + (flagCounts.postPdf || 0)} />
                 </span>
               )}
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-gray-200 bg-white text-gray-700">
                 <span className="mr-1 text-[10px] uppercase tracking-wide text-gray-500">
-                  Order
+                  Order Status
                 </span>
-                <StatusBadge status={lifecycleStatus.status} />
+                <StatusBadge status={lifecycleStatus.status} revisionCount={order?.revisionCount} />
               </span>
               {enableResetButton && (
                 <button
@@ -563,7 +666,7 @@ export default function OrderDetailPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Order Status</h2>
-              <StatusBadge status={lifecycleStatus.status} />
+              <StatusBadge status={lifecycleStatus.status} revisionCount={order?.revisionCount} />
             </div>
             {latestCorrection && (
               <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4">
@@ -761,16 +864,60 @@ export default function OrderDetailPage() {
                   >
                     <div className="flex items-center space-x-2">
                       <span>{stage.label}</span>
-                      <StatusBadge
-                        status={getStageBadgeStatus(
-                          order.reviewStages[stage.key as unknown as keyof typeof order.reviewStages]?.status
-                        )}
-                      />
-                      {flagCounts[stage.key as unknown as keyof typeof flagCounts] > 0 && (
-                        <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800">
-                          {flagCounts[stage.key as unknown as keyof typeof flagCounts]}
+                      {(() => {
+                        // Use stageKey to access reviewStages (more reliable than stage.key)
+                        const stageStatus = order.reviewStages[stage.stageKey]?.status;
+                        // Use stageKey (preBria/postBria/postPdf) to look up flag count, not stage.key
+                        const stageFlagCount = flagCounts[stage.stageKey] || 0;
+                        // Compare with string 'approved' to handle both enum and string values
+                        const isApproved = stageStatus === ReviewStageStatus.APPROVED || stageStatus === 'approved';
+                        const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
+                        const isSecondReview = revisionCount >= 1;
+                        
+                        // Check if stage has been reached
+                        // Pre-Bria: always reached if order exists
+                        // Post-Bria: reached if preBria is approved
+                        // Post-PDF: reached if postBria is approved
+                        let hasBeenReached = false;
+                        if (stage.stageKey === 'preBria') {
+                          hasBeenReached = true; // First stage is always reachable
+                        } else if (stage.stageKey === 'postBria') {
+                          hasBeenReached = order.reviewStages.preBria?.status === ReviewStageStatus.APPROVED || order.reviewStages.preBria?.status === 'approved';
+                        } else if (stage.stageKey === 'postPdf') {
+                          hasBeenReached = order.reviewStages.postBria?.status === ReviewStageStatus.APPROVED || order.reviewStages.postBria?.status === 'approved';
+                        }
+                        
+                        // Priority: Approved > Flags > Pending
+                        if (isApproved) {
+                          return (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200">
+                              Approved
+                            </span>
+                          );
+                        } else if (stageFlagCount > 0) {
+                          // Show flags if they exist, regardless of whether stage has been "reached"
+                          // Flags indicate work that needs attention, so always show them
+                          return <FlaggedBadge count={stageFlagCount} />;
+                        } else if (hasBeenReached) {
+                          // Stage reached but no flags - show Pending with appropriate color
+                          // Use yellow colors if in second review, otherwise gray
+                          const pendingColors = isSecondReview 
+                            ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                            : 'bg-gray-100 text-gray-600 border-gray-200';
+                          return (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${pendingColors}`}>
+                              Pending
+                            </span>
+                          );
+                        } else {
+                          // Stage not reached yet - show Pending
+                          return (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-gray-100 text-gray-600 border-gray-200">
+                              Pending
                         </span>
-                      )}
+                          );
+                        }
+                      })()}
                     </div>
                   </button>
                 ))}
@@ -783,7 +930,7 @@ export default function OrderDetailPage() {
                 <PreBriaStage
                   orderId={order.orderId}
                   order={order}
-                  isApproved={order.reviewStages.preBria.status === ReviewStageStatus.APPROVED}
+                  isApproved={order.reviewStages.preBria?.status === ReviewStageStatus.APPROVED || order.reviewStages.preBria?.status === 'approved'}
                   onApprove={async (status) => await handleStageApprove('preBria' as unknown as ReviewStage, status)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('preBria' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
@@ -794,7 +941,7 @@ export default function OrderDetailPage() {
                 <PostBriaStage
                   orderId={order.orderId}
                   order={order}
-                  isApproved={order.reviewStages.postBria.status === ReviewStageStatus.APPROVED}
+                  isApproved={order.reviewStages.postBria?.status === ReviewStageStatus.APPROVED || order.reviewStages.postBria?.status === 'approved'}
                   onApprove={async (status) => await handleStageApprove('postBria' as unknown as ReviewStage, status)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postBria' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
@@ -805,7 +952,7 @@ export default function OrderDetailPage() {
                 <PostPdfStage
                   orderId={order.orderId}
                   order={order}
-                  isApproved={order.reviewStages.postPdf.status === ReviewStageStatus.APPROVED}
+                  isApproved={order.reviewStages.postPdf?.status === ReviewStageStatus.APPROVED || order.reviewStages.postPdf?.status === 'approved'}
                   onApprove={async (status) => await handleStageApprove('postPdf' as unknown as ReviewStage, status)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postPdf' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}

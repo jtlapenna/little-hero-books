@@ -311,7 +311,25 @@ export function mergeOrderData(primary: Order, fallback: Order | null): Order {
     ...merged.orderDetails,
   };
 
-  merged.reviewStages = merged.reviewStages || fallback.reviewStages;
+  // Always preserve reviewStages from primary (Supabase) - never overwrite with fallback (manifest)
+  // Supabase is the source of truth for approval status
+  // Always use primary.reviewStages if it exists, regardless of whether stages are pending or approved
+  if (primary.reviewStages) {
+    // Primary (Supabase) has reviewStages - ALWAYS use them, never overwrite with manifest
+    // Only fill in missing individual stages from fallback if they don't exist in primary
+    merged.reviewStages = {
+      preBria: primary.reviewStages.preBria || fallback?.reviewStages?.preBria || { status: ReviewStageStatus.PENDING },
+      postBria: primary.reviewStages.postBria || fallback?.reviewStages?.postBria || { status: ReviewStageStatus.PENDING },
+      postPdf: primary.reviewStages.postPdf || fallback?.reviewStages?.postPdf || { status: ReviewStageStatus.PENDING },
+    };
+  } else {
+    // Primary has no reviewStages - use fallback
+    merged.reviewStages = fallback?.reviewStages || {
+      preBria: { status: ReviewStageStatus.PENDING },
+      postBria: { status: ReviewStageStatus.PENDING },
+      postPdf: { status: ReviewStageStatus.PENDING },
+    };
+  }
 
   if (!merged.webhooks?.onApprove && fallback.webhooks?.onApprove) {
     merged.webhooks = { onApprove: fallback.webhooks.onApprove };

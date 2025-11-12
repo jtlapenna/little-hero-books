@@ -14,32 +14,34 @@ async function readJsonSafe<T = any>(res: Response): Promise<T> {
 }
 
 /**
- * Unflag an image in an order (persist unflagging decision to manifest)
- * POST /api/orders/[orderId]/unflag
+ * Flag an image in an order (persist flagging decision to manifest and Supabase)
+ * POST /api/orders/[orderId]/flag
  * 
  * Body (JSON):
- * - poseNumber: number (required)
- * - stage: 'preBria' | 'postBria' (required)
+ * - poseNumber: number (optional, for preBria/postBria)
+ * - pageNumber: number (optional, for postPdf)
+ * - stage: 'preBria' | 'postBria' | 'postPdf' (required)
+ * - reason?: string (optional, reason for flagging)
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    console.log('[Unflag API] Request received');
+    console.log('[Flag API] Request received');
     const { orderId } = await params;
-    console.log('[Unflag API] OrderId:', orderId);
+    console.log('[Flag API] OrderId:', orderId);
     
     if (!orderId) {
-      console.error('[Unflag API] Missing orderId');
+      console.error('[Flag API] Missing orderId');
       return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
     }
 
     // Parse JSON body
     const body = await request.json();
-    const { poseNumber, pageNumber, stage } = body;
+    const { poseNumber, pageNumber, stage, reason } = body;
 
-    console.log('[Unflag API] Extracted values:', { poseNumber, pageNumber, stage });
+    console.log('[Flag API] Extracted values:', { poseNumber, pageNumber, stage, reason });
 
     // Validation
     if ((poseNumber === undefined && pageNumber === undefined) || (poseNumber !== undefined && pageNumber !== undefined)) {
@@ -88,7 +90,7 @@ export async function POST(
     // Handle postPdf stage (pages) separately
     if (stage === 'postPdf' && pageNumber !== undefined) {
       const manifestKey = buildManifestKey(orderId, '3');
-      console.log(`[Unflag API] Loading 3-manifest: ${manifestKey}`);
+      console.log(`[Flag API] Loading 3-manifest: ${manifestKey}`);
       
       let manifest: any;
       try {
@@ -101,7 +103,7 @@ export async function POST(
             { status: 404 }
           );
         }
-        console.error('[Unflag API] Error loading manifest:', error);
+        console.error('[Flag API] Error loading manifest:', error);
         return NextResponse.json(
           { error: 'Failed to load manifest' },
           { status: 500 }
@@ -125,19 +127,14 @@ export async function POST(
 
       const pageMetadata = manifest.pngGeneration.pagesMetadata[pageKey] || {};
 
-      // Update metadata to clear review flags
+      // Update metadata to set review flags
       manifest.pngGeneration.pagesMetadata[pageKey] = {
         ...pageMetadata,
-        isFlagged: false,
-        needsReview: false,
-        reviewReason: null,
-        unflagHistory: [
-          ...(pageMetadata.unflagHistory || []),
-          {
-            unflaggedAt: new Date().toISOString(),
-            unflaggedBy: null // TODO: Add admin identifier when auth is implemented
-          }
-        ]
+        isFlagged: true,
+        needsReview: true,
+        reviewReason: reason || 'Flagged by admin',
+        flaggedAt: new Date().toISOString(),
+        flaggedBy: null // TODO: Add admin identifier when auth is implemented
       };
 
       // Save updated manifest back to R2
@@ -156,19 +153,19 @@ export async function POST(
       try {
         await setFlaggedCount(orderId, 'postPdf', flaggedPages);
       } catch (error: any) {
-        console.error('[Unflag API] Error updating flag count in Supabase:', error);
+        console.error('[Flag API] Error updating flag count in Supabase:', error);
         // Don't fail the request if Supabase update fails - manifest is already updated
       }
 
-      console.log(`[Unflag API] Successfully unflagged page ${pageNumber} in postPdf stage`);
+      console.log(`[Flag API] Successfully flagged page ${pageNumber} in postPdf stage`);
 
       return NextResponse.json({
         success: true,
         orderId,
         pageNumber,
         stage,
-        needsReview: false,
-        reviewReason: null
+        needsReview: true,
+        reviewReason: reason || 'Flagged by admin'
       });
     }
 
@@ -182,16 +179,16 @@ export async function POST(
       try {
         const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
         manifest = await readJsonSafe<any>(manifestRes);
-        console.log(`[Unflag API] Loaded 2b manifest for Post-Bria unflag`);
+        console.log(`[Flag API] Loaded 2b manifest for Post-Bria flag`);
       } catch (error: any) {
         // If 2b manifest doesn't exist, try 2a (for manually uploaded images)
         if (error.message?.includes('404') || error.message?.includes('Not Found')) {
-          console.log(`[Unflag API] 2b manifest not found, trying 2a manifest...`);
+          console.log(`[Flag API] 2b manifest not found, trying 2a manifest...`);
           const manifestKey2a = buildManifestKey(orderId, '2a');
           try {
             const manifestRes2a = await getObject(R2_ORDERS_BUCKET, manifestKey2a);
             manifest = await readJsonSafe<any>(manifestRes2a);
-            console.log(`[Unflag API] Loaded 2a manifest for Post-Bria unflag (fallback)`);
+            console.log(`[Flag API] Loaded 2a manifest for Post-Bria flag (fallback)`);
             // Use 2a manifest key for saving
             manifestKey = manifestKey2a;
           } catch (error2a: any) {
@@ -209,7 +206,7 @@ export async function POST(
       try {
         const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
         manifest = await readJsonSafe<any>(manifestRes);
-        console.log(`[Unflag API] Loaded 2a manifest for Pre-Bria unflag`);
+        console.log(`[Flag API] Loaded 2a manifest for Pre-Bria flag`);
       } catch (error: any) {
         if (error.message?.includes('404') || error.message?.includes('Not Found')) {
           return NextResponse.json(
@@ -217,7 +214,7 @@ export async function POST(
             { status: 404 }
           );
         }
-        console.error('[Unflag API] Error loading 2a manifest:', error);
+        console.error('[Flag API] Error loading 2a manifest:', error);
         throw error; // Re-throw to be caught by outer catch
       }
     }
@@ -239,20 +236,12 @@ export async function POST(
       );
     }
 
-    // Update entry to clear review flags
-    // This persists the admin's unflagging decision
-    entry.isFlagged = false;
-    entry.needsReview = false;
-    entry.reviewReason = null;
-    
-    // Add unflag history for audit trail
-    if (!entry.unflagHistory) {
-      entry.unflagHistory = [];
-    }
-    entry.unflagHistory.push({
-      unflaggedAt: new Date().toISOString(),
-      unflaggedBy: null // TODO: Add admin identifier when auth is implemented
-    });
+    // Update entry to set review flags
+    entry.isFlagged = true;
+    entry.needsReview = true;
+    entry.reviewReason = reason || 'Flagged by admin';
+    entry.flaggedAt = new Date().toISOString();
+    entry.flaggedBy = null; // TODO: Add admin identifier when auth is implemented
 
     // Save updated manifest back to R2
     const updatedManifestJson = JSON.stringify(manifest, null, 2);
@@ -269,25 +258,34 @@ export async function POST(
     try {
       await setFlaggedCount(orderId, stage, flaggedPoses);
     } catch (error: any) {
-      console.error('[Unflag API] Error updating flag count in Supabase:', error);
+      console.error('[Flag API] Error updating flag count in Supabase:', error);
       // Don't fail the request if Supabase update fails - manifest is already updated
     }
 
-    console.log(`[Unflag API] Successfully unflagged pose ${poseNumber!} in ${stage} stage`);
+    console.log(`[Flag API] Successfully flagged pose ${poseNumber!} in ${stage} stage`);
 
     return NextResponse.json({
       success: true,
       orderId,
       poseNumber: poseNumber!,
       stage,
-      needsReview: false,
-      reviewReason: null
+      needsReview: true,
+      reviewReason: reason || 'Flagged by admin'
     });
 
   } catch (error: any) {
-    console.error('[Unflag API] Error:', error);
+    console.error('[Flag API] Error:', error);
+    console.error('[Flag API] Error stack:', error?.stack);
+    console.error('[Flag API] Error details:', {
+      message: error?.message,
+      name: error?.name,
+      cause: error?.cause
+    });
     return NextResponse.json(
-      { error: error?.message || 'Internal server error' },
+      { 
+        error: error?.message || 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      },
       { status: 500 }
     );
   }

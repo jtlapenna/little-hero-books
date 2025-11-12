@@ -83,6 +83,7 @@ export interface OrderListItem {
   customerApprovalStatus?: string | null;
   hasFlags?: boolean;
   flags?: Record<string, any>;
+  revisionCount?: number;
 }
 
 export interface CustomerCorrection {

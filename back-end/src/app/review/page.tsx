@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Order, OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { FlaggedBadge } from '@/components/ui/flagged-badge';
 import { formatDate } from '@/lib/utils';
 import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
@@ -261,9 +262,7 @@ export default function ReviewPage() {
                                 ({order.orderId})
                               </span>
                               {needsAttention && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  {flagSummary.total} flag{flagSummary.total !== 1 ? 's' : ''}
-                                </span>
+                                <FlaggedBadge count={flagSummary.total} />
                               )}
                             </div>
                             <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
@@ -273,8 +272,11 @@ export default function ReviewPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.preBria?.status)} />
+                        <div className="ml-4 flex items-center space-x-2">
+                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.preBria?.status, 'preBria')} revisionCount={order.revisionCount} />
+                          {flagSummary.preBria > 0 && (
+                            <FlaggedBadge count={flagSummary.preBria} />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -312,9 +314,7 @@ export default function ReviewPage() {
                                 ({order.orderId})
                               </span>
                               {needsAttention && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  {flagSummary.total} flag{flagSummary.total !== 1 ? 's' : ''}
-                                </span>
+                                <FlaggedBadge count={flagSummary.total} />
                               )}
                             </div>
                             <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
@@ -324,8 +324,11 @@ export default function ReviewPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postBria?.status)} />
+                        <div className="ml-4 flex items-center space-x-2">
+                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postBria?.status, 'postBria')} revisionCount={order.revisionCount} />
+                          {flagSummary.postBria > 0 && (
+                            <FlaggedBadge count={flagSummary.postBria} />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -363,9 +366,7 @@ export default function ReviewPage() {
                                 ({order.orderId})
                               </span>
                               {needsAttention && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  {flagSummary.total} flag{flagSummary.total !== 1 ? 's' : ''}
-                                </span>
+                                <FlaggedBadge count={flagSummary.total} />
                               )}
                             </div>
                             <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
@@ -375,8 +376,11 @@ export default function ReviewPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postPdf?.status)} />
+                        <div className="ml-4 flex items-center space-x-2">
+                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postPdf?.status, 'postPdf')} revisionCount={order.revisionCount} />
+                          {flagSummary.postPdf > 0 && (
+                            <FlaggedBadge count={flagSummary.postPdf} />
+                          )}
                         </div>
                       </div>
                     </div>

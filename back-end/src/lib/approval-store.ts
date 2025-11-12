@@ -103,6 +103,8 @@ export async function approveStage(
   }
 
   try {
+    console.log(`[approveStage] Updating Supabase for order ${orderId}, stage ${stage}, status ${nextStatus}`);
+    console.log(`[approveStage] reviewStages to save:`, JSON.stringify(reviewStages, null, 2));
     await updateOrderStatus(orderId, {
       review_stages: reviewStages,
       // Queue order for router when stage is approved
@@ -124,16 +126,28 @@ export async function approveStage(
           }
         : {})
     });
+    console.log(`[approveStage] ✅ Successfully updated Supabase for order ${orderId}`);
+    
+    // Verify the update was saved
+    const verifyOrder = await getOrderFromSupabase(orderId).catch(() => null);
+    if (verifyOrder) {
+      console.log(`[approveStage] Verified review_stages in Supabase:`, JSON.stringify(verifyOrder.review_stages, null, 2));
+    } else {
+      console.warn(`[approveStage] ⚠️ Could not verify update - order ${orderId} not found in Supabase`);
+    }
   } catch (updateError) {
-    console.warn(`[approveStage] Failed to update order status for ${orderId}:`, updateError);
+    console.error(`[approveStage] ❌ Failed to update order status for ${orderId}:`, updateError);
+    throw updateError; // Re-throw to ensure the error is visible
   }
 
   if (!existingOrder) {
     try {
-      await supabase
+      console.log(`[approveStage] Order ${orderId} not found, creating new record...`);
+      const { data, error: insertError } = await supabase
         .from('orders')
         .insert({
           amazon_order_id: orderId,
+          orderId: orderId, // Ensure orderId is set (required column)
           status: 'pending_processing',
           review_stages: reviewStages,
           customer_approval_status: 'pending',
@@ -142,8 +156,15 @@ export async function approveStage(
         })
         .select()
         .single();
+      
+      if (insertError) {
+        console.error(`[approveStage] Insert error for order ${orderId}:`, insertError);
+        throw insertError;
+      }
+      console.log(`[approveStage] ✅ Successfully created new order record for ${orderId}`);
     } catch (error) {
-      console.warn(`[approveStage] Insert failed for order ${orderId}:`, error);
+      console.error(`[approveStage] ❌ Insert failed for order ${orderId}:`, error);
+      throw error; // Re-throw to ensure the error is visible
     }
   }
 

@@ -216,65 +216,152 @@ export async function updateOrderInSupabase(orderId: string, updates: any) {
   // Always add updated_at timestamp
   updateData.updated_at = new Date().toISOString();
   
-  // Try to find order by id (integer) first, then other fields
-  const numericId = parseInt(orderId);
+  // Try to find order by multiple possible fields
+  // This handles both:
+  // - Real Amazon orders (stored in amazon_order_id)
+  // - Manual/dummy orders (stored in orderId, order_id, or id)
+  // Priority: Try all possible fields to ensure we find the order regardless of type
   let data: any = null;
   let error: any = null;
   
-  if (!isNaN(numericId)) {
-    const result = await supabase
-      .from('orders')
-      .update(updateData)
-      .eq('id', numericId)
-      .select()
-      .single();
-    data = result.data;
-    error = result.error;
-  }
+  // Strategy: Try all possible identifier fields in parallel-friendly order
+  // 1. Try amazon_order_id (for real Amazon orders)
+  const result1 = await supabase
+    .from('orders')
+    .update(updateData)
+    .eq('amazon_order_id', orderId)
+    .select()
+    .single();
+  data = result1.data;
+  error = result1.error;
   
-  // If that fails or not numeric, try camelCase
-  if (error && (error.code === '42703' || error.code === 'PGRST116') || isNaN(numericId)) {
-    const result = await supabase
+  // 2. If that fails, try orderId (camelCase - for manual/dummy orders)
+  if (error && (error.code === '42703' || error.code === 'PGRST116')) {
+    const result2 = await supabase
       .from('orders')
       .update(updateData)
       .eq('orderId', orderId)
       .select()
       .single();
-    data = result.data;
-    error = result.error;
+    data = result2.data;
+    error = result2.error;
   }
   
-  // If that fails, try snake_case
+  // 3. If that fails, try order_id (snake_case - alternative for manual orders)
   if (error && (error.code === '42703' || error.code === 'PGRST116')) {
-    const result = await supabase
+    const result3 = await supabase
       .from('orders')
       .update(updateData)
       .eq('order_id', orderId)
       .select()
       .single();
-    data = result.data;
-    error = result.error;
+    data = result3.data;
+    error = result3.error;
   }
   
-  // If that fails, try amazon_order_id
-  if (error && (error.code === '42703' || error.code === 'PGRST116')) {
-    const result = await supabase
+  // 4. If that fails and orderId is numeric, try id (for numeric IDs)
+  const numericId = parseInt(orderId);
+  if (error && (error.code === '42703' || error.code === 'PGRST116') && !isNaN(numericId)) {
+    const result4 = await supabase
       .from('orders')
       .update(updateData)
-      .eq('amazon_order_id', orderId)
+      .eq('id', numericId)
       .select()
       .single();
-    data = result.data;
-    error = result.error;
+    data = result4.data;
+    error = result4.error;
   }
   
   if (error) {
+    // Only try to insert if the error is "no rows found" (PGRST116)
+    // If it's a different error (like duplicate key), don't try to insert
     if (
       error.code === 'PGRST116' ||
       (typeof error.message === 'string' && error.message.toLowerCase().includes('results contain 0 rows'))
     ) {
+      // Double-check that the order doesn't exist before inserting
+      // Try to find it by all possible identifier fields (supports both Amazon and manual orders)
+      let checkResult = await supabase
+        .from('orders')
+        .select('id, amazon_order_id, orderId, order_id')
+        .eq('amazon_order_id', orderId)
+        .maybeSingle();
+      
+      // If not found by amazon_order_id, try orderId
+      if (!checkResult.data) {
+        checkResult = await supabase
+          .from('orders')
+          .select('id, amazon_order_id, orderId, order_id')
+          .eq('orderId', orderId)
+          .maybeSingle();
+      }
+      
+      // If not found by orderId, try order_id
+      if (!checkResult.data) {
+        checkResult = await supabase
+          .from('orders')
+          .select('id, amazon_order_id, orderId, order_id')
+          .eq('order_id', orderId)
+          .maybeSingle();
+      }
+      
+      // If not found and orderId is numeric, try id
+      if (!checkResult.data && !isNaN(numericId)) {
+        checkResult = await supabase
+          .from('orders')
+          .select('id, amazon_order_id, orderId, order_id')
+          .eq('id', numericId)
+          .maybeSingle();
+      }
+      
+      if (checkResult.data) {
+        // Order exists, determine which field to use for update
+        const order = checkResult.data;
+        let retryResult;
+        
+        if (order.amazon_order_id === orderId) {
+          retryResult = await supabase
+            .from('orders')
+            .update(updateData)
+            .eq('amazon_order_id', orderId)
+            .select()
+            .single();
+        } else if (order.orderId === orderId) {
+          retryResult = await supabase
+            .from('orders')
+            .update(updateData)
+            .eq('orderId', orderId)
+            .select()
+            .single();
+        } else if (order.order_id === orderId) {
+          retryResult = await supabase
+            .from('orders')
+            .update(updateData)
+            .eq('order_id', orderId)
+            .select()
+            .single();
+        } else if (!isNaN(numericId) && order.id === numericId) {
+          retryResult = await supabase
+            .from('orders')
+            .update(updateData)
+            .eq('id', numericId)
+            .select()
+            .single();
+        }
+        
+        if (retryResult?.data) {
+          console.log(`[Supabase] Order ${orderId} found and updated successfully`);
+          return retryResult.data;
+        }
+        // If retry still fails, throw the error
+        console.error(`[Supabase] Retry update failed for order ${orderId}:`, retryResult?.error);
+        throw retryResult?.error || error;
+      }
+      
+      // Order doesn't exist, safe to insert
       const insertPayload: any = {
         amazon_order_id: orderId,
+        orderId: orderId, // Ensure orderId is set (required column)
         status: updateData.status || 'pending_processing',
         created_at: new Date().toISOString(),
         updated_at: updateData.updated_at,
@@ -295,6 +382,7 @@ export async function updateOrderInSupabase(orderId: string, updates: any) {
       return insertData;
     }
 
+    // For other errors (like duplicate key, constraint violations, etc.), just throw
     console.error(`[Supabase] Error updating order ${orderId}:`, error);
     throw error;
   }

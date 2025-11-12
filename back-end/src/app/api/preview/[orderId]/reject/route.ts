@@ -12,6 +12,12 @@ import { validatePreviewToken } from '@/lib/preview-tokens';
 import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 import { supabase } from '@/lib/supabase-client';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { orderId: string } }
@@ -104,10 +110,17 @@ export async function POST(
       );
     }
 
-    // Update order status and increment revision count
+    // Update order status, increment revision count, and reset all review stages to Pending
+    // When customer requests revision, all stages must be re-approved in sequence
+    const existingReviewStages = order.review_stages || {};
     await updateOrderInSupabase(orderId, {
       customer_approval_status: 'revision_requested',
-      revision_count: currentRevisionCount + 1
+      revision_count: currentRevisionCount + 1,
+      review_stages: {
+        preBria: { status: 'pending' },
+        postBria: { status: 'pending' },
+        postPdf: { status: 'pending' }
+      }
     });
 
     return NextResponse.json({

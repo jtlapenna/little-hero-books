@@ -42,17 +42,35 @@ const NEW_STATUSES = new Set<string>([
   OrderStatus.QUEUED_FOR_PROCESSING,
 ]);
 
-const DISPLAY_STATUS_TO_PHASE: Record<DisplayStatus, OrderPhase> = {
-  [DisplayStatus.NEW]: OrderPhase.GENERATION,
-  [DisplayStatus.PENDING]: OrderPhase.REVIEW,
-  [DisplayStatus.APPROVED]: OrderPhase.REVIEW,
-  [DisplayStatus.PROOF_SENT]: OrderPhase.CUSTOMER_APPROVAL,
-  [DisplayStatus.CORRECTION_REQUESTED]: OrderPhase.CUSTOMER_APPROVAL,
-  [DisplayStatus.SENT_TO_PRINT]: OrderPhase.PRODUCTION,
-  [DisplayStatus.SHIPPED]: OrderPhase.SHIPPING,
-  [DisplayStatus.DELIVERED]: OrderPhase.COMPLETED,
-  [DisplayStatus.ACTION_REQUIRED]: OrderPhase.FAILED,
-};
+// Helper function to get phase based on display status and revision count
+function getPhaseForDisplayStatus(displayStatus: DisplayStatus, revisionCount?: number): OrderPhase {
+  const revisionCountNum = typeof revisionCount === 'number' ? revisionCount : 0;
+  const isSecondReview = revisionCountNum >= 1;
+  
+  switch (displayStatus) {
+    case DisplayStatus.IN_QUEUE:
+      return OrderPhase.IN_QUEUE;
+    case DisplayStatus.REVIEW_POSES:
+    case DisplayStatus.REVIEW_BACKGROUNDS:
+    case DisplayStatus.REVIEW_PAGES:
+    case DisplayStatus.PROOF_READY:
+      // If revisionCount >= 1, we're in second review (yellow), otherwise first review (blue)
+      return isSecondReview ? OrderPhase.SECOND_REVIEW : OrderPhase.FIRST_REVIEW;
+    case DisplayStatus.AWAITING_CUSTOMER:
+    case DisplayStatus.NEEDS_REVISION:
+      return OrderPhase.AWAITING_CUSTOMER;
+    case DisplayStatus.READY_TO_PRINT:
+    case DisplayStatus.PRINTING:
+      return OrderPhase.SENT_TO_PRINT;
+    case DisplayStatus.SHIPPED:
+    case DisplayStatus.DELIVERED:
+      return OrderPhase.SENT_TO_PRINT; // Keep in sent to print phase
+    case DisplayStatus.ACTION_REQUIRED:
+      return OrderPhase.IN_QUEUE; // Fallback to in queue for errors
+    default:
+      return OrderPhase.IN_QUEUE;
+  }
+}
 
 function normalizeStageStatus(status?: string | null): string {
   return (status || 'pending').toLowerCase();
@@ -101,107 +119,261 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
 
   const rawStatus = order.status;
   const customerApprovalStatus = order.customerApprovalStatus;
+  const reviewStages = order.reviewStages || {};
 
+  // Check individual stage statuses to determine which review stage we're in
+  const preBriaStatus = normalizeStageStatus(reviewStages.preBria?.status);
+  const postBriaStatus = normalizeStageStatus(reviewStages.postBria?.status);
+  const postPdfStatus = normalizeStageStatus(reviewStages.postPdf?.status);
+
+  const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
+
+  // Handle failure states first
   if (rawStatus && FAILURE_STATUSES.has(rawStatus)) {
+    const displayStatus = DisplayStatus.ACTION_REQUIRED;
     return {
-      status: DisplayStatus.ACTION_REQUIRED,
-      phase: DISPLAY_STATUS_TO_PHASE[DisplayStatus.ACTION_REQUIRED],
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
     };
   }
 
-  if (
-    stageNeedsAttention ||
-    hasFlags ||
-    (rawStatus && REVISION_STATUSES.has(rawStatus)) ||
-    customerApprovalStatus === CustomerApprovalStatus.REVISION_REQUESTED
-  ) {
-    return {
-      status: DisplayStatus.CORRECTION_REQUESTED,
-      phase: DISPLAY_STATUS_TO_PHASE[DisplayStatus.CORRECTION_REQUESTED],
-    };
-  }
-
+  // Handle delivered state
   if (
     rawStatus &&
     (DELIVERED_STATUSES.has(rawStatus) ||
       order.luluStatus === LuluStatus.DELIVERED)
   ) {
+    const displayStatus = DisplayStatus.DELIVERED;
     return {
-      status: DisplayStatus.DELIVERED,
-      phase: DISPLAY_STATUS_TO_PHASE[DisplayStatus.DELIVERED],
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
     };
   }
 
+  // Handle shipped state
   if (
     rawStatus &&
     (SHIPPED_STATUSES.has(rawStatus) ||
       order.luluStatus === LuluStatus.SHIPPED)
   ) {
+    const displayStatus = DisplayStatus.SHIPPED;
     return {
-      status: DisplayStatus.SHIPPED,
-      phase: DISPLAY_STATUS_TO_PHASE[DisplayStatus.SHIPPED],
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
     };
   }
 
+  // Handle customer revision requested (check this early)
   if (
-    rawStatus &&
-    (SENT_TO_PRINT_STATUSES.has(rawStatus) ||
-      order.luluStatus === LuluStatus.ORDER_RECEIVED ||
-      order.luluStatus === LuluStatus.PROCESSING ||
-      order.luluStatus === LuluStatus.FULFILLING)
+    customerApprovalStatus === CustomerApprovalStatus.REVISION_REQUESTED ||
+    (rawStatus && REVISION_STATUSES.has(rawStatus))
   ) {
+    // If customer requested revision, show which stage needs review
+    // Check which stage is not approved to determine where we are in the revision cycle
+    if (!stageIsApproved(preBriaStatus)) {
+      const displayStatus = DisplayStatus.REVIEW_POSES;
+      return {
+        status: displayStatus,
+        phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+      };
+    }
+    if (!stageIsApproved(postBriaStatus)) {
+      const displayStatus = DisplayStatus.REVIEW_BACKGROUNDS;
+      return {
+        status: displayStatus,
+        phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+      };
+    }
+    if (!stageIsApproved(postPdfStatus)) {
+      const displayStatus = DisplayStatus.REVIEW_PAGES;
+      return {
+        status: displayStatus,
+        phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+      };
+    }
+    // Fallback to needs revision if we can't determine stage
+    const displayStatus = DisplayStatus.NEEDS_REVISION;
     return {
-      status: DisplayStatus.SENT_TO_PRINT,
-      phase: DISPLAY_STATUS_TO_PHASE[DisplayStatus.SENT_TO_PRINT],
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
     };
   }
 
+  // Handle proof sent / awaiting customer (check this BEFORE checking allStagesApproved)
+  // This takes priority - if proof was sent to customer, we're awaiting their response
   const proofSent =
     customerApprovalStatus === CustomerApprovalStatus.PENDING ||
     rawStatus === OrderStatus.PENDING_CUSTOMER_APPROVAL ||
     Boolean(order.customerApprovalRequestedAt);
 
   if (proofSent) {
+    const displayStatus = DisplayStatus.AWAITING_CUSTOMER;
     return {
-      status: DisplayStatus.PROOF_SENT,
-      phase: DISPLAY_STATUS_TO_PHASE[DisplayStatus.PROOF_SENT],
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
     };
   }
 
+  // Handle all stages approved - check if ready to print or proof ready
   if (allStagesApproved) {
+    // Check if customer has approved - if so, show "Ready to Print" or "Printing"
+    // (This happens after customer approves and admin clicks "Final Approval" a second time)
+    if (customerApprovalStatus === CustomerApprovalStatus.APPROVED || 
+        rawStatus === OrderStatus.CUSTOMER_APPROVED) {
+      // Check if it's actually been sent to print (lulu_status or PENDING_PRINT)
+      // If it's been sent to print, show "Printing", otherwise "Ready to Print"
+      if (rawStatus === OrderStatus.PENDING_PRINT ||
+          order.luluStatus ||
+          rawStatus === OrderStatus.PRINT_SUBMISSION_IN_PROGRESS ||
+          rawStatus === OrderStatus.PRINT_SUBMISSION_COMPLETED ||
+          rawStatus === OrderStatus.IN_PRODUCTION ||
+          (rawStatus && SENT_TO_PRINT_STATUSES.has(rawStatus))) {
+        const displayStatus = DisplayStatus.PRINTING;
+        return {
+          status: displayStatus,
+          phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+        };
+      }
+      // Customer approved but not yet sent to print
+      const displayStatus = DisplayStatus.READY_TO_PRINT;
+      return {
+        status: displayStatus,
+        phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+      };
+    }
+    // All stages approved but not yet sent to customer (first "Final Approval" not clicked yet)
+    const displayStatus = DisplayStatus.PROOF_READY;
     return {
-      status: DisplayStatus.APPROVED,
-      phase: DISPLAY_STATUS_TO_PHASE[DisplayStatus.APPROVED],
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
     };
   }
 
+  // Handle printing state (in production) - only show if customer has approved
+  // This is a fallback for orders that are in production but don't have all stages approved
+  // (shouldn't normally happen, but handle edge cases)
+  if (
+    (customerApprovalStatus === CustomerApprovalStatus.APPROVED || 
+     rawStatus === OrderStatus.CUSTOMER_APPROVED) &&
+    rawStatus &&
+    (SENT_TO_PRINT_STATUSES.has(rawStatus) ||
+      order.luluStatus === LuluStatus.ORDER_RECEIVED ||
+      order.luluStatus === LuluStatus.PROCESSING ||
+      order.luluStatus === LuluStatus.FULFILLING)
+  ) {
+    const displayStatus = DisplayStatus.PRINTING;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+
+  // Handle review stages - determine which stage needs review
+  // Check in reverse order (postPdf -> postBria -> preBria) to find first unapproved stage
+  if (!stageIsApproved(postPdfStatus) && 
+      stageIsApproved(preBriaStatus) && 
+      stageIsApproved(postBriaStatus)) {
+    const displayStatus = DisplayStatus.REVIEW_PAGES;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+
+  if (!stageIsApproved(postBriaStatus) && stageIsApproved(preBriaStatus)) {
+    const displayStatus = DisplayStatus.REVIEW_BACKGROUNDS;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+
+  if (!stageIsApproved(preBriaStatus)) {
+    const displayStatus = DisplayStatus.REVIEW_POSES;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+
+  // Handle new orders (in queue)
   if (
     rawStatus &&
     NEW_STATUSES.has(rawStatus) &&
     !hasAnyStageProgress &&
     !proofSent
   ) {
+    const displayStatus = DisplayStatus.IN_QUEUE;
     return {
-      status: DisplayStatus.NEW,
-      phase: DISPLAY_STATUS_TO_PHASE[DisplayStatus.NEW],
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
     };
   }
 
+  // Default fallback - show first unapproved stage or in queue
+  if (!stageIsApproved(preBriaStatus)) {
+    const displayStatus = DisplayStatus.REVIEW_POSES;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+
+  const displayStatus = DisplayStatus.IN_QUEUE;
   return {
-    status: DisplayStatus.PENDING,
-    phase: DISPLAY_STATUS_TO_PHASE[DisplayStatus.PENDING],
+    status: displayStatus,
+    phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
   };
 }
 
-export function getStageBadgeStatus(stageStatus?: string | null): DisplayStatus {
+export function getStageBadgeStatus(stageStatus?: string | null, stageKey?: 'preBria' | 'postBria' | 'postPdf'): DisplayStatus {
   const normalized = normalizeStageStatus(stageStatus);
   if (normalized === ReviewStageStatus.APPROVED) {
-    return DisplayStatus.APPROVED;
+    // Map to appropriate review stage based on stageKey, or default to proof ready
+    if (stageKey === 'preBria') {
+      return DisplayStatus.REVIEW_BACKGROUNDS; // After preBria approved, next is postBria
+    }
+    if (stageKey === 'postBria') {
+      return DisplayStatus.REVIEW_PAGES; // After postBria approved, next is postPdf
+    }
+    if (stageKey === 'postPdf') {
+      return DisplayStatus.PROOF_READY; // After postPdf approved, ready for proof
+    }
+    return DisplayStatus.PROOF_READY;
   }
   if (normalized === ReviewStageStatus.REJECTED || normalized === ReviewStageStatus.FLAGGED) {
-    return DisplayStatus.CORRECTION_REQUESTED;
+    // Map to appropriate review stage for correction
+    if (stageKey === 'preBria') {
+      return DisplayStatus.REVIEW_POSES;
+    }
+    if (stageKey === 'postBria') {
+      return DisplayStatus.REVIEW_BACKGROUNDS;
+    }
+    if (stageKey === 'postPdf') {
+      return DisplayStatus.REVIEW_PAGES;
+    }
+    return DisplayStatus.NEEDS_REVISION;
   }
-  return DisplayStatus.PENDING;
+  // Map pending stages to appropriate review stage
+  if (stageKey === 'preBria') {
+    return DisplayStatus.REVIEW_POSES;
+  }
+  if (stageKey === 'postBria') {
+    return DisplayStatus.REVIEW_BACKGROUNDS;
+  }
+  if (stageKey === 'postPdf') {
+    return DisplayStatus.REVIEW_PAGES;
+  }
+  return DisplayStatus.IN_QUEUE;
+}
+
+/**
+ * Get phase for an order (for use in groupOrdersByPhase)
+ * This function considers revisionCount to determine first vs second review
+ */
+export function getPhaseForOrder(order: Order | OrderListItem): OrderPhase {
+  const display = getDisplayStatusForOrder(order as Order);
+  return display.phase;
 }
 
 export function buildOrderListItem(order: Order): OrderListItem {
@@ -220,6 +392,7 @@ export function buildOrderListItem(order: Order): OrderListItem {
     customerApprovalStatus: order.customerApprovalStatus ?? null,
     hasFlags: order.hasFlags ?? false,
     flags: order.flags ?? {},
+    revisionCount: typeof order.revisionCount === 'number' ? order.revisionCount : 0,
   };
 }
 

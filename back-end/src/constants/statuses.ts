@@ -61,14 +61,18 @@ export enum OrderStatus {
 /**
  * Display Status
  * Collapsed lifecycle statuses used for admin-facing badges
+ * These are admin-friendly labels that represent the order's current state
  */
 export enum DisplayStatus {
-  NEW = 'new',
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  PROOF_SENT = 'proof_sent',
-  CORRECTION_REQUESTED = 'correction_requested',
-  SENT_TO_PRINT = 'sent_to_print',
+  IN_QUEUE = 'in_queue',
+  REVIEW_POSES = 'review_poses',
+  REVIEW_BACKGROUNDS = 'review_backgrounds',
+  REVIEW_PAGES = 'review_pages',
+  PROOF_READY = 'proof_ready',
+  AWAITING_CUSTOMER = 'awaiting_customer',
+  NEEDS_REVISION = 'needs_revision',
+  READY_TO_PRINT = 'ready_to_print',
+  PRINTING = 'printing',
   SHIPPED = 'shipped',
   DELIVERED = 'delivered',
   ACTION_REQUIRED = 'action_required'
@@ -157,13 +161,16 @@ export const StatusLabels: Record<string, string> = {
   [OrderStatus.CANCELLED]: 'Cancelled',
   [OrderStatus.COMPLETED]: 'Completed',
 
-  // Display-only lifecycle statuses
-  [DisplayStatus.NEW]: 'New',
-  [DisplayStatus.PENDING]: 'Pending',
-  [DisplayStatus.APPROVED]: 'Approved',
-  [DisplayStatus.PROOF_SENT]: 'Proof Sent',
-  [DisplayStatus.CORRECTION_REQUESTED]: 'Correction Requested',
-  [DisplayStatus.SENT_TO_PRINT]: 'Sent to Print',
+  // Display-only lifecycle statuses (admin-friendly labels)
+  [DisplayStatus.IN_QUEUE]: 'In Queue',
+  [DisplayStatus.REVIEW_POSES]: 'Review Poses',
+  [DisplayStatus.REVIEW_BACKGROUNDS]: 'Review Backgrounds',
+  [DisplayStatus.REVIEW_PAGES]: 'Review Pages',
+  [DisplayStatus.PROOF_READY]: 'Proof Ready',
+  [DisplayStatus.AWAITING_CUSTOMER]: 'Awaiting Customer',
+  [DisplayStatus.NEEDS_REVISION]: 'Needs Revision',
+  [DisplayStatus.READY_TO_PRINT]: 'Ready to Print',
+  [DisplayStatus.PRINTING]: 'Printing',
   [DisplayStatus.SHIPPED]: 'Shipped',
   [DisplayStatus.DELIVERED]: 'Delivered',
   [DisplayStatus.ACTION_REQUIRED]: 'Action Required',
@@ -322,21 +329,69 @@ export const StatusColors: Record<string, {
     border: 'border-gray-200'
   },
 
-  // Display-only lifecycle statuses
-  [DisplayStatus.PROOF_SENT]: {
+  // Display-only lifecycle statuses (admin-friendly labels with varying blue shades)
+  [DisplayStatus.IN_QUEUE]: {
+    bg: 'bg-gray-100',
+    text: 'text-gray-800',
+    border: 'border-gray-200'
+  },
+  // Review Poses: Lightest blue (step 1)
+  [DisplayStatus.REVIEW_POSES]: {
+    bg: 'bg-blue-50',
+    text: 'text-blue-700',
+    border: 'border-blue-200'
+  },
+  // Review Backgrounds: Medium blue (step 2)
+  [DisplayStatus.REVIEW_BACKGROUNDS]: {
+    bg: 'bg-blue-100',
+    text: 'text-blue-800',
+    border: 'border-blue-300'
+  },
+  // Review Pages: Darkest blue (step 3)
+  [DisplayStatus.REVIEW_PAGES]: {
+    bg: 'bg-blue-200',
+    text: 'text-blue-900',
+    border: 'border-blue-400'
+  },
+  [DisplayStatus.PROOF_READY]: {
+    bg: 'bg-green-100',
+    text: 'text-green-800',
+    border: 'border-green-200'
+  },
+  [DisplayStatus.AWAITING_CUSTOMER]: {
     bg: 'bg-purple-100',
     text: 'text-purple-800',
     border: 'border-purple-200'
   },
-  [DisplayStatus.CORRECTION_REQUESTED]: {
+  [DisplayStatus.NEEDS_REVISION]: {
     bg: 'bg-orange-100',
     text: 'text-orange-800',
     border: 'border-orange-200'
   },
-  [DisplayStatus.SENT_TO_PRINT]: {
+  [DisplayStatus.READY_TO_PRINT]: {
+    bg: 'bg-yellow-100',
+    text: 'text-yellow-800',
+    border: 'border-yellow-200'
+  },
+  [DisplayStatus.PRINTING]: {
     bg: 'bg-indigo-100',
     text: 'text-indigo-800',
     border: 'border-indigo-200'
+  },
+  [DisplayStatus.SHIPPED]: {
+    bg: 'bg-green-100',
+    text: 'text-green-800',
+    border: 'border-green-200'
+  },
+  [DisplayStatus.DELIVERED]: {
+    bg: 'bg-emerald-100',
+    text: 'text-emerald-800',
+    border: 'border-emerald-200'
+  },
+  [DisplayStatus.ACTION_REQUIRED]: {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    border: 'border-red-200'
   },
   
   // Review Stage Statuses
@@ -375,14 +430,48 @@ export const StatusColors: Record<string, {
 /**
  * Get status label (human-readable)
  */
-export function getStatusLabel(status: string): string {
-  return StatusLabels[status] || status;
+export function getStatusLabel(status: string, revisionCount?: number): string {
+  const label = StatusLabels[status] || status;
+  
+  // If we're in second review (revisionCount >= 1) and status is PROOF_READY, show "Book Ready" instead
+  if (status === DisplayStatus.PROOF_READY && typeof revisionCount === 'number' && revisionCount >= 1) {
+    return 'Book Ready';
+  }
+  
+  return label;
 }
 
 /**
  * Get status color classes
  */
-export function getStatusColors(status: string): { bg: string; text: string; border: string } {
+export function getStatusColors(status: string, revisionCount?: number): { bg: string; text: string; border: string } {
+  const revisionCountNum = typeof revisionCount === 'number' ? revisionCount : 0;
+  const isSecondReview = revisionCountNum >= 1;
+  
+  // For review stages, use yellow colors if in second review, otherwise use blue
+  if (isSecondReview) {
+    switch (status) {
+      case DisplayStatus.REVIEW_POSES:
+        return {
+          bg: 'bg-yellow-50',
+          text: 'text-yellow-700',
+          border: 'border-yellow-200'
+        };
+      case DisplayStatus.REVIEW_BACKGROUNDS:
+        return {
+          bg: 'bg-yellow-100',
+          text: 'text-yellow-800',
+          border: 'border-yellow-300'
+        };
+      case DisplayStatus.REVIEW_PAGES:
+        return {
+          bg: 'bg-yellow-200',
+          text: 'text-yellow-900',
+          border: 'border-yellow-400'
+        };
+    }
+  }
+  
   return StatusColors[status] || {
     bg: 'bg-gray-100',
     text: 'text-gray-800',
