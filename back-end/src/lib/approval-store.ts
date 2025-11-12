@@ -90,9 +90,31 @@ export async function approveStage(
   const shouldClearCustomerRevision =
     existingOrder?.customer_approval_status === 'revision_requested';
 
+  // Map stage approvals to next workflow for router (W1.1)
+  // When a stage is approved, queue the order for the next workflow
+  let nextWorkflow: string | null = null;
+  if (nextStatus === 'approved') {
+    if (stage === 'preBria') {
+      nextWorkflow = '2B'; // Background removal
+    } else if (stage === 'postBria') {
+      nextWorkflow = '3'; // Book assembly
+    }
+    // postPdf approval doesn't need router - goes directly to print
+  }
+
   try {
     await updateOrderStatus(orderId, {
       review_stages: reviewStages,
+      // Queue order for router when stage is approved
+      ...(nextStatus === 'approved' && nextWorkflow
+        ? {
+            execution_status: 'ready_for_processing',
+            next_workflow: nextWorkflow,
+            queued_at: nowIso,
+            started_at: null, // Clear any previous processing state
+            current_workflow: null
+          }
+        : {}),
       ...(shouldClearCustomerRevision
         ? {
             customer_approval_status: null,

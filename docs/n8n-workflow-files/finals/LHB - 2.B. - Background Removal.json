@@ -1,5 +1,5 @@
 {
-  "name": "PRIVATIZED -- LHB - 2.B. - Background Removal",
+  "name": "WORKING VERSION -  LHB - 2.B. - Background Removal",
   "nodes": [
     {
       "parameters": {
@@ -12,7 +12,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -3328,
+        -3600,
         -144
       ],
       "webhookId": "4bfccdb7-ce6d-4961-85c1-5605f2a14128",
@@ -971,7 +971,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n  (() => {\n    const amazonOrderId = $json.orderId || $json.amazonOrderId || $json.manifest?.order?.amazonOrderId;\n    const needsReview = $json.needsReview === true;\n    const posesSucceeded = $json.posesSucceeded ?? 0;\n    const posesFailed = $json.posesFailed ?? 0;\n\n    return {\n      amazon_order_id: amazonOrderId,\n\n      // 2B manifest URL from Prep Backend Webhook\n      manifest_2b_url: $json.manifestUrl,\n\n      // Overall status for post-Bria stage\n      status: needsReview ? 'post_bria_pending' : 'post_bria_ready',\n\n      review_stages: {\n        postBria: {\n          status: needsReview ? 'needs_review' : 'ready',\n          needsHumanReview: needsReview,\n          posesProcessed: posesSucceeded + posesFailed,\n          posesSucceeded,\n          posesFailed,\n        },\n      },\n\n      requires_human_review: needsReview,\n      workflow_step: '2B-complete',\n      updated_at: new Date().toISOString(),\n    };\n  })()\n}}\n",
+        "jsonBody": "={{\n  (() => {\n    const amazonOrderId = $json.orderId || $json.amazonOrderId || $json.manifest?.order?.amazonOrderId;\n    \n    if (!amazonOrderId) {\n      throw new Error('amazonOrderId is required but not found in: ' + JSON.stringify(Object.keys($json || {})));\n    }\n\n    const needsReview = $json.needsReview === true;\n    const posesSucceeded = $json.posesSucceeded ?? 0;\n    const posesFailed = $json.posesFailed ?? 0;\n\n    return {\n      // Required: orderId (NOT NULL constraint)\n      orderId: amazonOrderId,\n      \n      // Required: amazon_order_id (for upsert matching)\n      amazon_order_id: amazonOrderId,\n\n      // 2B manifest URL from Prep Backend Webhook\n      manifest_2b_url: $json.manifestUrl,\n\n      // Overall status for post-Bria stage\n      status: needsReview ? 'post_bria_pending' : 'post_bria_ready',\n\n      // Review stages with post-Bria data\n      review_stages: {\n        postBria: {\n          status: needsReview ? 'needs_review' : 'ready',\n          needsHumanReview: needsReview,\n          posesProcessed: posesSucceeded + posesFailed,\n          posesSucceeded,\n          posesFailed,\n        },\n      },\n\n      requires_human_review: needsReview,\n      workflow_step: '2B-complete',\n      updated_at: new Date().toISOString(),\n    };\n  })()\n}}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -982,6 +982,23 @@
       ],
       "id": "a4a90318-70ca-4c8a-a391-e130df77c31c",
       "name": "Supabase Upsert 2B"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"accepted\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -3376,
+        -144
+      ],
+      "id": "172643c4-0226-44dd-93a1-c39205e12caf",
+      "name": "Respond to Webhook (Ack)"
     }
   ],
   "pinData": {
@@ -1254,7 +1271,7 @@
       "main": [
         [
           {
-            "node": "Extract Manifest URL",
+            "node": "Respond to Webhook (Ack)",
             "type": "main",
             "index": 0
           }
@@ -1864,13 +1881,24 @@
           }
         ]
       ]
+    },
+    "Respond to Webhook (Ack)": {
+      "main": [
+        [
+          {
+            "node": "Extract Manifest URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "dfa24c66-81df-4c59-a38a-0197d51ea716",
+  "versionId": "64a9ac3b-4412-4e88-835e-5e43c174b573",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
