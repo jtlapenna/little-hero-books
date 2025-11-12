@@ -50,8 +50,8 @@ body {
 /* Dedication page styles (page-0) - PIXEL BASED */
 .dedication-wrap {
   position: absolute;
-  left: 394px;    /* 0.15 * 2625 = 393.75px ≈ 394px */
-  right: 394px;
+  left: 262px;    /* 0.10 * 2625 = 262.5px ≈ 262px (10% margin = 80% width) */
+  right: 262px;
   top: 525px;      /* 0.20 * 2625 = 525px */
   bottom: 525px;
   display: flex;

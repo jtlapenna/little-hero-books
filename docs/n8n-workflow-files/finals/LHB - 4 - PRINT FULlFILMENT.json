@@ -1,20 +1,19 @@
 {
-  "name": "LHB - 4 - PRINT FULlFILMENT",
+  "name": "WORKING VERSION - LHB - 4 - PRINT FULlFILMENT",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "w4-pdf-print",
-        "options": {
-          "responseData": "allEntries"
-        }
+        "responseMode": "responseNode",
+        "options": {}
       },
       "id": "f49580d3-6b67-4bf6-95ac-7d467113acfe",
       "name": "Webhook (W4 Intake)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -2176,
+        -2352,
         688
       ],
       "webhookId": "87f25028-678d-4033-bbf6-00ede7daf47c"
@@ -1279,6 +1278,23 @@
       ],
       "id": "9756a99c-8844-4b7c-85dd-418e1a13cd97",
       "name": "Merge4"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"accepted\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -2144,
+        688
+      ],
+      "id": "5403400c-d0ab-47bd-8bb6-606dd94328fb",
+      "name": "Respond to Webhook (Ack)1"
     }
   ],
   "pinData": {},
@@ -1287,12 +1303,7 @@
       "main": [
         [
           {
-            "node": "Config (W4) — SANDBOX",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Merge1",
+            "node": "Respond to Webhook (Ack)1",
             "type": "main",
             "index": 0
           }
@@ -1969,13 +1980,29 @@
           }
         ]
       ]
+    },
+    "Respond to Webhook (Ack)1": {
+      "main": [
+        [
+          {
+            "node": "Config (W4) — SANDBOX",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "a5d3a8cb-7002-4976-ae56-68d428e145fa",
+  "versionId": "182648df-8544-45af-9b12-db79c2a32bd6",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"

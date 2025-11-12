@@ -1,0 +1,397 @@
+{
+  "schema": "lhb.run-manifest@v2.0",
+  "runStamp": "2025-11-12T03:11:20.165Z",
+  "characterHash": "3a1cf88859d2cfff",
+  "order": {
+    "amazonOrderId": "E2E-002",
+    "childName": "Emma",
+    "characterSpecs": {
+      "age": 5,
+      "pronouns": "she/her",
+      "skinTone": "light",
+      "childName": "Emma",
+      "hairColor": "blonde",
+      "hairStyle": "straight-long",
+      "animalGuide": "penguin",
+      "clothingStyle": "adventure",
+      "favoriteColor": "purple"
+    },
+    "bookSpecs": {},
+    "orderDetails": {
+      "quantity": 1,
+      "shippingAddress": {
+        "zip": "97201",
+        "city": "Portland",
+        "name": "Jane Smith",
+        "phone": "+1-555-123-4567",
+        "state": "OR",
+        "address": "123 Main Street"
+      }
+    },
+    "publicR2Url": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev",
+    "r2BucketName": "little-hero-assets"
+  },
+  "poses": {
+    "total": 13,
+    "approved": 13,
+    "exhausted": 0,
+    "retried": 4,
+    "failed": 0,
+    "needingReview": 0
+  },
+  "entries": [
+    {
+      "poseNumber": 0,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose00.png",
+      "approvedFilename": "pose00.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose00.png",
+      "correlationId": "style-qa-1762916483944-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0.",
+        "style": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0."
+      },
+      "briaRequestId": "f3371db944fc48939d0456f45ffb402e",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/f3371db944fc48939d0456f45ffb402e"
+    },
+    {
+      "poseNumber": 1,
+      "attempts": 1,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose01_r1.png",
+      "approvedFilename": "pose01_r1.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose01_r1.png",
+      "correlationId": "style-qa-1762916546863-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "The output is a perfect match to the base image, skin ΔV≈0.0, ΔS≈0.0",
+        "style": "The output is a perfect match to the base image, skin ΔV≈0.0, ΔS≈0.0"
+      },
+      "retryHistory": [
+        {
+          "attempt": 1,
+          "passed": true,
+          "qaScore": 1,
+          "styleScore": 1,
+          "reasons": null
+        }
+      ],
+      "qaReasons": null,
+      "briaRequestId": "96c1f9a85fba414699bef423ca110249",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/96c1f9a85fba414699bef423ca110249"
+    },
+    {
+      "poseNumber": 2,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose02.png",
+      "approvedFilename": "pose02.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose02.png",
+      "correlationId": "style-qa-1762916585301-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0",
+        "style": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0"
+      },
+      "briaRequestId": "8b0dfae7c8d74c3da6cc4c9c9f0f2567",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/8b0dfae7c8d74c3da6cc4c9c9f0f2567"
+    },
+    {
+      "poseNumber": 3,
+      "attempts": 1,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose03_r1.png",
+      "approvedFilename": "pose03_r1.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose03_r1.png",
+      "correlationId": "style-qa-1762916641900-0",
+      "qaScore": 0.9,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0",
+        "style": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0"
+      },
+      "retryHistory": [
+        {
+          "attempt": 1,
+          "passed": true,
+          "qaScore": 0.9,
+          "styleScore": 1,
+          "reasons": null
+        }
+      ],
+      "qaReasons": null,
+      "briaRequestId": "654b684f9351420bb5b196558f4c59c3",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/654b684f9351420bb5b196558f4c59c3"
+    },
+    {
+      "poseNumber": 4,
+      "attempts": 1,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose04_r1.png",
+      "approvedFilename": "pose04_r1.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose04_r1.png",
+      "correlationId": "style-qa-1762916677704-0",
+      "qaScore": 0.9,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects are an excellent match, skin ΔV≈0.0, ΔS≈0.0.",
+        "style": "All aspects are an excellent match, skin ΔV≈0.0, ΔS≈0.0."
+      },
+      "retryHistory": [
+        {
+          "attempt": 1,
+          "passed": true,
+          "qaScore": 0.9,
+          "styleScore": 1,
+          "reasons": null
+        }
+      ],
+      "qaReasons": null,
+      "briaRequestId": "663ddec819b04b319261f2739d992248",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/663ddec819b04b319261f2739d992248"
+    },
+    {
+      "poseNumber": 5,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose05.png",
+      "approvedFilename": "pose05.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose05.png",
+      "correlationId": "style-qa-1762916769835-0",
+      "qaScore": 0.9,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0",
+        "style": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0"
+      },
+      "replacedAt": "2025-11-12T03:34:30.454Z",
+      "replacementCount": 1,
+      "replacementHistory": [
+        {
+          "replacedAt": "2025-11-12T03:34:30.454Z",
+          "replacedBy": null
+        }
+      ],
+      "briaRequestId": "954025ac18f64720a996062c60f6a6be",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/954025ac18f64720a996062c60f6a6be"
+    },
+    {
+      "poseNumber": 6,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose06.png",
+      "approvedFilename": "pose06.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose06.png",
+      "correlationId": "style-qa-1762916807475-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0",
+        "style": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0"
+      },
+      "briaRequestId": "a4963234e4a740b5b191199ef9406939",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/a4963234e4a740b5b191199ef9406939"
+    },
+    {
+      "poseNumber": 7,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose07.png",
+      "approvedFilename": "pose07.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose07.png",
+      "correlationId": "style-qa-1762916849913-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0",
+        "style": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0"
+      },
+      "briaRequestId": "4f4467589a8348a689063ef685328dc4",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/4f4467589a8348a689063ef685328dc4"
+    },
+    {
+      "poseNumber": 8,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose08.png",
+      "approvedFilename": "pose08.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose08.png",
+      "correlationId": "style-qa-1762916889639-0",
+      "qaScore": 1,
+      "styleScore": 0.95,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "The character's shoes are missing in the output; skin ΔV≈0.0, ΔS≈0.0.",
+        "style": "The character's shoes are missing in the output; skin ΔV≈0.0, ΔS≈0.0."
+      },
+      "briaRequestId": "ce427a802fad472a86e2648f5876c62f",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/ce427a802fad472a86e2648f5876c62f"
+    },
+    {
+      "poseNumber": 9,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose09.png",
+      "approvedFilename": "pose09.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose09.png",
+      "correlationId": "style-qa-1762916926165-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0.",
+        "style": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0."
+      },
+      "briaRequestId": "29126260b6164619a4de1172cbf8d01b",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/29126260b6164619a4de1172cbf8d01b"
+    },
+    {
+      "poseNumber": 10,
+      "attempts": 1,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose10_r1.png",
+      "approvedFilename": "pose10_r1.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose10_r1.png",
+      "correlationId": "style-qa-1762917000788-0",
+      "qaScore": 0.9,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0",
+        "style": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0"
+      },
+      "retryHistory": [
+        {
+          "attempt": 1,
+          "passed": true,
+          "qaScore": 0.9,
+          "styleScore": 1,
+          "reasons": null
+        }
+      ],
+      "qaReasons": null,
+      "briaRequestId": "3f8b50e48d684f8580bb7245e40a2be5",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/3f8b50e48d684f8580bb7245e40a2be5"
+    },
+    {
+      "poseNumber": 11,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose11.png",
+      "approvedFilename": "pose11.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose11.png",
+      "correlationId": "style-qa-1762917035021-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0",
+        "style": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0"
+      },
+      "briaRequestId": "2e7eaab714114cd49ac5e9ca0e0a12fd",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/2e7eaab714114cd49ac5e9ca0e0a12fd"
+    },
+    {
+      "poseNumber": 12,
+      "attempts": 0,
+      "status": "approved",
+      "approved": true,
+      "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose12.png",
+      "approvedFilename": "pose12.png",
+      "publicUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose12.png",
+      "correlationId": "style-qa-1762917069362-0",
+      "qaScore": 1,
+      "styleScore": 1,
+      "needsReview": false,
+      "reviewReason": null,
+      "qaNotes": {
+        "pose": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0",
+        "style": "All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0"
+      },
+      "briaRequestId": "30c0f150e39f4fb1a552dd0d76e5b300",
+      "briaStatusUrl": "https://engine.prod.bria-api.com/v2/status/30c0f150e39f4fb1a552dd0d76e5b300"
+    }
+  ],
+  "reviewQueue": [],
+  "summary": {
+    "percentComplete": 100,
+    "readyForBook": true,
+    "needsHumanReview": false
+  },
+  "workflow": {
+    "currentStage": "2A-complete",
+    "nextWorkflow": "book-generation",
+    "requiresHumanReview": false
+  },
+  "generatedAt": "2025-11-12T03:11:20.167Z",
+  "_debug": {
+    "poseIndexFixes": [
+      {
+        "inputNumeric": 0,
+        "fromPath": 1,
+        "used": 1,
+        "key": "book-mvp-simple-adventure/order-generated-assets/characters/3a1cf88859d2cfff/poses/pose01_r1.png"
+      }
+    ]
+  },
+  "revisions": {
+    "history": [
+      {
+        "poseNumber": 5,
+        "revisionPrompt": "Create this exact same image, character walking mid stride with a smile on their face while gazing at the ground in front of them.",
+        "requestedAt": "2025-11-12T03:34:24.652Z",
+        "completedAt": "2025-11-12T03:34:30.454Z",
+        "status": "accepted",
+        "replacedAt": "2025-11-12T03:34:30.454Z",
+        "jobId": "E2E-002-pose05-1762918464652"
+      }
+    ],
+    "pending": {}
+  },
+  "isFirstPass": true,
+  "manifestUrl": "https://admin.littleherolabs.com/api/manifests/book-mvp-simple-adventure/orders/E2E-002/manifests/2a-manifest.json",
+  "originalManifestUrl": "https://admin.littleherolabs.com/api/manifests/book-mvp-simple-adventure/orders/E2E-002/manifests/2a-manifest.json",
+  "orderId": "E2E-002",
+  "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal",
+  "statusUrl": null,
+  "status_url": null,
+  "requestId": null,
+  "request_id": null
+}
