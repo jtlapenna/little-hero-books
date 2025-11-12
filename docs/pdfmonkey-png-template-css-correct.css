@@ -1,0 +1,177 @@
+/* ==== INTERIOR IMAGE TEMPLATE CSS — WORKFLOW 3 (PNG EXPORT) ==== */
+
+/* This template outputs 2625 × 2625 px images for previews/manual PDFs.
+   NO Lulu scaling, NO .page-viewport, NO .page-canvas here. */
+
+/* Page size for image export (engine renders to these px dimensions) */
+@page {
+  size: 2625px 2625px;
+  margin: 0;
+}
+
+/* Root matches 2625px canvas */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 2625px;
+  height: 2625px;
+  overflow: hidden;
+}
+
+/* Base box-sizing */
+* {
+  box-sizing: border-box;
+}
+
+/* One page = full 2625 × 2625 canvas */
+.book-page {
+  position: relative;
+  width: 2625px;
+  height: 2625px;
+  overflow: hidden;
+  display: block;
+}
+
+/* Full-bleed background */
+.page-bg,
+.page-overlay {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}
+
+.page-bg { z-index: 0; }
+.page-overlay { z-index: 1; }
+
+/* ===== Font ===== */
+@font-face{
+  font-family:'CustomBook';
+  src:
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.woff2') format('woff2'),
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* Root vars (globals). Override per page with --tb-* on .text-box */
+:root{
+  --book-font: 'CustomBook', Arial, sans-serif;
+  /* Position (center-anchored so size changes don't shift it) */
+  --text-box-x: 50%;
+  --text-box-center: 89%;
+  /* Size */
+  --text-box-width: 90%;       /* %, px ok */
+  --text-box-height: 420px;    /* fixed height; 'auto' uses AR */
+  --text-box-ar: 5.25;
+  /* Text insets (defaults) */
+  --text-inset-x: 225px;       /* left/right */
+  --text-inset-y: 22px;        /* top/bottom */
+  --text-inset-top: var(--text-inset-y);
+  --text-inset-bottom: var(--text-inset-y);
+  --text-inset-left: var(--text-inset-x);
+  --text-inset-right: var(--text-inset-x);
+  /* Text vertical alignment within the padded area */
+  --text-vertical-align: center; /* start | center | end */
+}
+
+/* =========================
+   Dedication page (page-0)
+   ========================= */
+.dedication-wrap {
+  position: absolute;
+  left: 394px;    /* 0.15 * 2625 = 393.75px ≈ 394px (15% margin) */
+  right: 394px;
+  top: 525px;     /* 0.20 * 2625 = 525px (20% from top) */
+  bottom: 525px;  /* 0.20 * 2625 = 525px (20% from bottom) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;     /* Above background, below other elements if needed */
+}
+
+.dedication-text {
+  width: 100%;
+  text-align: center;
+  font-size: 35px;             /* (26/72) * 96 = 34.67px ≈ 35px */
+  line-height: 1.4;
+  letter-spacing: 1px;
+  color: #312116;
+  font-family: var(--book-font);
+  white-space: pre-line;       /* respect newlines */
+  text-wrap: balance;
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* =========================
+   Text box (overlay is an <img>)
+   ========================= */
+.text-box {
+  position: absolute;
+  /* center-anchored position (independent of size) */
+  left: var(--tb-x, var(--text-box-x));
+  top:  var(--tb-center, var(--text-box-center));
+  transform: translate(-50%, -50%);
+  /* independent sizing */
+  width:  var(--tb-width,  var(--text-box-width));
+  height: var(--tb-height, var(--text-box-height));
+  aspect-ratio: var(--tb-ar, var(--text-box-ar)); /* used only if height:auto */
+  z-index: 5;
+  background: none !important;
+  border-radius: 0 !important;
+}
+
+/* The PNG overlay fills the box and defines its silhouette */
+.text-box__overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;         /* keep full image, no distortion */
+  display: block;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Text content sits above the overlay image, sized by insets */
+.text-content {
+  position: absolute;
+  top:    var(--tb-inset-top,    var(--text-inset-top));
+  right:  var(--tb-inset-right,  var(--text-inset-right));
+  bottom: var(--tb-inset-bottom, var(--text-inset-bottom));
+  left:   var(--tb-inset-left,   var(--text-inset-left));
+  z-index: 1;
+  display: flex;
+  align-items: var(--tb-text-valign, var(--text-vertical-align));
+  justify-content: center;
+  text-align: center;
+  font-family: var(--book-font);
+  font-size: 50px;
+  line-height: 1.35;
+  letter-spacing: 1px;
+  color: #312116;
+  white-space: pre-line;        /* respect newlines */
+  text-wrap: balance;
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Sprites */
+.character,
+.animal {
+  position: absolute;
+}
+
+.character img,
+.animal img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+

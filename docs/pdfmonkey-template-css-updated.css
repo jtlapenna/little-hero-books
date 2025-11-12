@@ -1,0 +1,72 @@
+/* W4 INTERIOR PDF TEMPLATE — LULU 8.75" x 8.75" */
+
+/* Custom font (optional but recommended to keep consistent) */
+@font-face {
+  font-family: 'CustomBook';
+  src:
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.woff2') format('woff2'),
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.ttf') format('truetype');
+  font-display: swap;
+}
+
+@page {
+  size: 8.75in 8.75in;  /* MUST match Lulu + W4 node */
+  margin: 0;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Classes are duplicated here so things are stable even if inline CSS changes order */
+.page {
+  width: 8.75in;
+  height: 8.75in;
+  page-break-after: always;
+  break-after: page;
+  overflow: hidden;
+}
+
+.bg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+/* Dedication page styles (page-0) */
+.book-page {
+  position: relative;
+  width: 8.75in;
+  height: 8.75in;
+  overflow: hidden;
+}
+
+.dedication-wrap {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  top: 20%;
+  bottom: 20%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.dedication-text {
+  width: 100%;
+  text-align: center;
+  font-size: 0.36in; /* ~26pt at 72dpi, equivalent to (26/72) * 96px = ~34.67px */
+  line-height: 1.4;
+  letter-spacing: 0.01in;
+  color: #312116;
+  font-family: 'CustomBook', Arial, sans-serif;
+}
+

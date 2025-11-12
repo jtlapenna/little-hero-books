@@ -1,0 +1,95 @@
+/* PNG TEMPLATE CSS — 2625x2625px (for template ID: 23277725-4AB0-446A-98C5-CB99C21822B3) */
+/* This is for the PNG image generation template, NOT the PDF template */
+
+/* Custom font */
+@font-face {
+  font-family: 'CustomBook';
+  src:
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.woff2') format('woff2'),
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.ttf') format('truetype');
+  font-display: swap;
+}
+
+@page {
+  size: 2625px 2625px;
+  margin: 0;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 2625px;
+  height: 2625px;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Page container */
+.book-page {
+  position: relative;
+  width: 2625px;
+  height: 2625px;
+  overflow: hidden;
+  display: block;
+}
+
+/* Background and overlay layers */
+.page-bg,
+.page-overlay {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}
+
+/* Dedication page styles (page-0) - PIXEL BASED */
+.dedication-wrap {
+  position: absolute;
+  left: 394px;    /* 0.15 * 2625 = 393.75px ≈ 394px */
+  right: 394px;
+  top: 525px;      /* 0.20 * 2625 = 525px */
+  bottom: 525px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.dedication-text {
+  width: 100%;
+  text-align: center;
+  font-size: 35px; /* (26/72) * 96 = 34.67px ≈ 35px */
+  line-height: 1.4;
+  letter-spacing: 1px;
+  color: #312116;
+  font-family: 'CustomBook', Arial, sans-serif;
+}
+
+/* Character and animal sprites */
+.character,
+.animal {
+  position: absolute;
+}
+
+.character img,
+.animal img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Text box for story pages (if needed) */
+.text-box {
+  position: absolute;
+  z-index: 10;
+}
+
+.text-content {
+  /* Story text styling - adjust as needed */
+}
+
