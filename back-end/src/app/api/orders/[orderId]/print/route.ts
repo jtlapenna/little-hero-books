@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { buildManifestKey, downloadManifest } from '@/lib/r2-service';
+import { updateOrderStatus } from '@/lib/status-service';
 
 const W4_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/w4-pdf-print';
 
@@ -38,6 +39,28 @@ async function sendToPrint(
     orderId,
     source
   });
+
+  // Update Supabase status BEFORE calling webhook (matches production behavior)
+  // This ensures the order shows correct status in UI and matches what W4 workflow would set
+  try {
+    const nowIso = new Date().toISOString();
+    await updateOrderStatus(orderId, {
+      status: 'print_fulfillment_in_progress',
+      workflow_step: '4-print-fulfillment',
+      print_fulfillment_started_at: nowIso,
+      updated_at: nowIso,
+    });
+    console.info('[Workflow4] Updated Supabase status to print_fulfillment_in_progress', {
+      orderId,
+      source
+    });
+  } catch (statusError: any) {
+    // Log error but don't fail - webhook can still be called
+    console.warn('[Workflow4] Failed to update Supabase status (continuing anyway):', {
+      orderId,
+      error: statusError?.message || statusError
+    });
+  }
 
   // Load 3-manifest.json from R2
   let manifest3Raw: any;

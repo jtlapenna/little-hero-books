@@ -515,12 +515,8 @@ export async function POST(
       // Clear review flags since image was manually uploaded/approved
       entry.needsReview = false;
       entry.reviewReason = null;
-      // Mark as flipped if this is a flip operation
-      if (isFlipped) {
-        entry.flipped = true;
-        entry.flippedAt = new Date().toISOString();
-        console.log(`[Replace Image API] Marked pose ${poseNumber} as flipped in manifest`);
-      }
+      // Note: For postBria stage, we no longer set flipped/flippedAt flags
+      // The flipped image overwrites the original, so no state tracking is needed
       // Update publicUrl if publicR2Url is available
       const publicR2Url = manifest.order?.publicR2Url;
       if (publicR2Url) {

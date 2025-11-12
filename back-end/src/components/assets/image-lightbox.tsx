@@ -298,7 +298,7 @@ export function ImageLightbox({
         includeBaseCharacter,
         includePoseReference,
         includePreviousOption,
-        previousOptionR2Key: includePreviousOption ? previousOptionR2Key : undefined,
+        previousOptionR2Key: includePreviousOption ? (previousOptionR2Key || undefined) : undefined,
       });
       // Success - the parent component will update pendingRevisionUrl
       // Close the regenerate UI and show the new option
@@ -434,7 +434,7 @@ export function ImageLightbox({
         includeBaseCharacter,
         includePoseReference,
         includePreviousOption,
-        previousOptionR2Key: includePreviousOption ? previousOptionR2Key : undefined,
+        previousOptionR2Key: includePreviousOption ? (previousOptionR2Key || undefined) : undefined,
       });
       // Success - the parent component will update pendingRevisionUrl
       setShowRegenerateUI(false);
@@ -1001,8 +1001,8 @@ export function ImageLightbox({
                 </button>
               )}
 
-              {/* Flip button (only for Post-Bria background preview) */}
-              {comparisonMode === 'background' && onFlip && (
+              {/* Flip button (for Pre-Bria and Post-Bria) */}
+              {onFlip && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

@@ -380,11 +380,10 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         }, 'image/png');
       });
 
-      // Create FormData and upload the flipped image
+      // Create FormData and upload the flipped image (replaces original - no flip state needed)
       const formData = new FormData();
       formData.append('poseNumber', poseNumber.toString());
-      formData.append('stage', 'postBria');
-      formData.append('isFlipped', 'true'); // Mark this as a flip operation
+      formData.append('stage', 'postBria'); // Post-Bria stage - replaces original bg-removed image
       formData.append('file', blob, `pose${String(poseNumber).padStart(2, '0')}-nobg.png`);
 
       const response = await fetch(`/api/orders/${orderId}/replace-image`, {
