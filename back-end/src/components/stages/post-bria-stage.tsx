@@ -665,23 +665,23 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     if (!canTriggerAssembly || isTriggering) return;
     setIsTriggering(true);
     try {
-      // Call n8n webhook directly (mirrors 2B pattern)
-      const webhookUrl = 'https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly';
-      const resp = await fetch(webhookUrl, {
+      // Queue order for workflow 3 via W1.1 router
+      // This updates Supabase to mark the order as ready for workflow 3
+      // W1.1 will pick it up on its next cycle (every 30 seconds)
+      const resp = await fetch(`/api/orders/${orderId}/queue-workflow-3`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId }),
       });
       if (!resp.ok) {
         const txt = await resp.text();
-        console.error('Trigger assembly failed', resp.status, txt);
-        alert(`Failed to trigger book assembly: ${resp.status} ${txt}`);
+        console.error('Queue workflow 3 failed', resp.status, txt);
+        alert(`Failed to queue order for book assembly: ${resp.status} ${txt}`);
         return;
       }
-      alert('Book assembly triggered');
+      alert('Order queued for book assembly. W1.1 router will process it within 30 seconds.');
     } catch (e) {
-      console.error('Trigger assembly error', e);
-      alert('Error triggering book assembly');
+      console.error('Queue workflow 3 error', e);
+      alert('Error queueing order for book assembly');
     } finally {
       setIsTriggering(false);
     }
@@ -836,7 +836,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
                   ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
-              title={isApproved ? 'Trigger Workflow 3 (Book Assembly)' : 'Approve stage to enable book assembly'}
+              title={isApproved ? 'Queue order for Workflow 3 via W1.1 router' : 'Approve stage to enable book assembly'}
               >
               <Play className="h-4 w-4 mr-2" />
               {isTriggering ? 'Triggering…' : 'Trigger Book Assembly'}
