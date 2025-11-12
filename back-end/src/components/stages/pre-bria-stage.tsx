@@ -31,15 +31,18 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   
   // Track poses that the user has manually unflagged (persist across re-renders)
   const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
+  // Track poses that the user has manually flagged (persist across re-renders)
+  const manuallyFlaggedRef = useRef<Set<string>>(new Set());
   // Track active polling intervals for cleanup
   const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const pollingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   // Track if an operation is in progress to prevent race conditions
   const operationInProgressRef = useRef<Set<string>>(new Set());
   
-  // Reset manually unflagged set when order changes
+  // Reset manually unflagged/flagged sets when order changes
   useEffect(() => {
     manuallyUnflaggedRef.current.clear();
+    manuallyFlaggedRef.current.clear();
     operationInProgressRef.current.clear();
   }, [orderId]);
 
@@ -58,6 +61,55 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       });
       pollingTimeoutsRef.current.clear();
     };
+  }, [orderId]);
+
+  // Load manifest directly to read flags (source of truth)
+  // This ensures flags persist regardless of what order API returns
+  useEffect(() => {
+    const loadManifestFlags = async () => {
+      try {
+        const manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`;
+        const manifestUrl = `/api/manifests/${manifestKey}?v=${Date.now()}`;
+        
+        const response = await fetch(manifestUrl, { cache: 'no-store' });
+        if (!response.ok) {
+          console.log('[PreBriaStage] Manifest not found for flags:', response.status);
+          return;
+        }
+
+        const manifest = await response.json();
+        const entries = manifest?.entries || [];
+        
+        // Clear and repopulate manuallyFlaggedRef from manifest (source of truth)
+        manuallyFlaggedRef.current.clear();
+        
+        entries.forEach((entry: any) => {
+          const poseNumber = entry.poseNumber ?? 0;
+          const poseId = `pose${String(poseNumber).padStart(2, '0')}`;
+          
+          // If entry is flagged in manifest, add to manuallyFlaggedRef
+          if (entry.isFlagged || entry.needsReview) {
+            // Only add if not explicitly unflagged by user
+            if (!manuallyUnflaggedRef.current.has(poseId)) {
+              manuallyFlaggedRef.current.add(poseId);
+              console.log(`[PreBriaStage] Restored flag for ${poseId} from manifest (isFlagged=${entry.isFlagged}, needsReview=${entry.needsReview})`);
+            }
+          }
+        });
+        
+        console.log(`[PreBriaStage] Loaded flags from manifest: ${manuallyFlaggedRef.current.size} flagged items:`, Array.from(manuallyFlaggedRef.current));
+      } catch (error) {
+        console.error('[PreBriaStage] Error loading manifest flags:', error);
+      }
+    };
+    
+    if (orderId) {
+      loadManifestFlags();
+      
+      // Poll for flag changes every 3 seconds
+      const interval = setInterval(loadManifestFlags, 3000);
+      return () => clearInterval(interval);
+    }
   }, [orderId]);
 
   // Load pending revisions from manifest
@@ -189,20 +241,23 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
     // Update poses if available - use actual poseNumber from data to support any number of poses (including pose0)
     // Include missing/exhausted poses as placeholders
+    // Note: Flags are now loaded directly from manifest in a separate useEffect, so we just use manuallyFlaggedRef here
     const posesData = r2Assets.poses || [];
     console.log('[PreBriaStage] posesData length:', posesData.length, 'sample:', posesData.slice(0, 2).map(p => ({ poseNumber: p.poseNumber, url: p.url?.substring(0, 50) })));
     if (posesData.length > 0) {
+      
       const mappedPoses = posesData.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
         const poseId = `pose${String(poseNumber).padStart(2, '0')}`;
         const isMissing = pose.isMissing || !pose.url;
         
-        // Check if user has manually unflagged this pose - if so, respect that decision
+        // Check if user has manually unflagged or flagged this pose - respect those decisions
         const isManuallyUnflagged = manuallyUnflaggedRef.current.has(poseId);
+        const isManuallyFlagged = manuallyFlaggedRef.current.has(poseId);
         
-        // Set isFlagged based on isFlagged, needsReview, or isMissing
-        // BUT: if user manually unflagged it, don't re-flag it (unless it's missing)
-        const shouldBeFlagged = isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview || false));
+        // Set isFlagged based on manual flags, manifest flags, needsReview, or isMissing
+        // Priority: manually flagged > missing > manually unflagged > manifest flags
+        const shouldBeFlagged = isManuallyFlagged || isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview || false));
         
         // Build reference pose URL for comparison
         const paddedPoseNumber = String(poseNumber).padStart(2, '0');
@@ -388,16 +443,14 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
 
   const handleFlag = async (assetId: string) => {
     if (assetId === 'base-character') {
-      setBaseCharacter(prev => {
-        const updated = { ...prev, isFlagged: !prev.isFlagged };
-        // Update flag count after state change
-        setTimeout(() => {
-          const allAssets = [updated, ...poses];
-          const newFlaggedCount = allAssets.filter(asset => asset.isFlagged).length;
-          setFlaggedCount(orderId, 'preBria', newFlaggedCount);
-        }, 0);
-        return updated;
-      });
+      // Base character flagging - update local state and persist
+      const newFlaggedState = !baseCharacter.isFlagged;
+      setBaseCharacter(prev => ({ ...prev, isFlagged: newFlaggedState }));
+      
+      // Update flag count immediately
+      const allAssets = [{ ...baseCharacter, isFlagged: newFlaggedState }, ...poses];
+      const newFlaggedCount = allAssets.filter(asset => asset.isFlagged).length;
+      await setFlaggedCount(orderId, 'preBria', newFlaggedCount);
     } else {
       setPoses(prev => {
         const currentPose = prev.find(p => p.id === assetId);
@@ -409,10 +462,10 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         const poseNumberMatch = assetId.match(/pose(\d+)/);
         const poseNumber = poseNumberMatch ? parseInt(poseNumberMatch[1], 10) : null;
         
-        // If unflagging, persist the decision to the manifest
-        if (!newFlaggedState && poseNumber !== null) {
-          // User is unflagging - persist to manifest via API
-          fetch(`/api/orders/${orderId}/unflag`, {
+        // Persist flagging/unflagging to manifest via API
+        if (poseNumber !== null) {
+          const apiEndpoint = newFlaggedState ? `/api/orders/${orderId}/flag` : `/api/orders/${orderId}/unflag`;
+          fetch(apiEndpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -421,38 +474,54 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
               poseNumber,
               stage: 'preBria'
             })
-          }).then(response => {
+          }).then(async response => {
             if (!response.ok) {
-              console.error('[PreBriaStage] Failed to persist unflagging:', response.statusText);
+              console.error(`[PreBriaStage] Failed to persist ${newFlaggedState ? 'flagging' : 'unflagging'}:`, response.statusText);
               // Revert the flag state if API call failed
               setPoses(prevPoses => prevPoses.map(pose => 
-                pose.id === assetId ? { ...pose, isFlagged: true } : pose
+                pose.id === assetId ? { ...pose, isFlagged: !newFlaggedState } : pose
               ));
             } else {
-              // Successfully persisted - add to manually unflagged set for this session
-              manuallyUnflaggedRef.current.add(assetId);
+              // Successfully persisted
+              if (newFlaggedState) {
+                // User is flagging - add to manually flagged set, remove from unflagged set
+                manuallyFlaggedRef.current.add(assetId);
+                manuallyUnflaggedRef.current.delete(assetId);
+              } else {
+                // User is unflagging - add to manually unflagged set, remove from flagged set
+                manuallyUnflaggedRef.current.add(assetId);
+                manuallyFlaggedRef.current.delete(assetId);
+              }
+              
+              // Update flag count after successful API call
+              const updatedPoses = prev.map(pose => 
+                pose.id === assetId ? { ...pose, isFlagged: newFlaggedState } : pose
+              );
+              const allAssets = [baseCharacter, ...updatedPoses];
+              const newFlaggedCount = allAssets.filter(asset => asset.isFlagged).length;
+              await setFlaggedCount(orderId, 'preBria', newFlaggedCount);
             }
           }).catch(error => {
-            console.error('[PreBriaStage] Error persisting unflagging:', error);
+            console.error(`[PreBriaStage] Error persisting ${newFlaggedState ? 'flagging' : 'unflagging'}:`, error);
             // Revert the flag state if API call failed
             setPoses(prevPoses => prevPoses.map(pose => 
-              pose.id === assetId ? { ...pose, isFlagged: true } : pose
+              pose.id === assetId ? { ...pose, isFlagged: !newFlaggedState } : pose
             ));
           });
-        } else {
-          // User is flagging - remove from manually unflagged set (they changed their mind)
-          manuallyUnflaggedRef.current.delete(assetId);
         }
         
+        // Update local state immediately (optimistic update)
         const updated = prev.map(pose => 
           pose.id === assetId ? { ...pose, isFlagged: newFlaggedState } : pose
         );
-        // Update flag count after state change
-        setTimeout(() => {
-          const allAssets = [baseCharacter, ...updated];
-          const newFlaggedCount = allAssets.filter(asset => asset.isFlagged).length;
-          setFlaggedCount(orderId, 'preBria', newFlaggedCount);
-        }, 0);
+        
+        // Update flag count immediately (optimistic)
+        const allAssets = [baseCharacter, ...updated];
+        const newFlaggedCount = allAssets.filter(asset => asset.isFlagged).length;
+        setFlaggedCount(orderId, 'preBria', newFlaggedCount).catch(err => {
+          console.error('[PreBriaStage] Failed to update flag count:', err);
+        });
+        
         return updated;
       });
     }

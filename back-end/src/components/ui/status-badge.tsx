@@ -5,6 +5,7 @@ interface StatusBadgeProps {
   status: string;
   className?: string;
   showTooltip?: boolean;
+  revisionCount?: number; // Used to determine if we're in second review (yellow) vs first review (blue)
 }
 
 /**
@@ -16,10 +17,11 @@ interface StatusBadgeProps {
  * @param status - Status value (should be from OrderStatus, ReviewStageStatus, etc.)
  * @param className - Additional CSS classes
  * @param showTooltip - Whether to show tooltip on hover (future enhancement)
+ * @param revisionCount - Revision count to determine if we're in second review (yellow) vs first review (blue)
  */
-export function StatusBadge({ status, className, showTooltip = false }: StatusBadgeProps) {
-  const label = getStatusLabel(status);
-  const colors = getStatusColors(status);
+export function StatusBadge({ status, className, showTooltip = false, revisionCount }: StatusBadgeProps) {
+  const label = getStatusLabel(status, revisionCount);
+  const colors = getStatusColors(status, revisionCount);
 
   return (
     <span

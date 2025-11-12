@@ -50,7 +50,7 @@ async function loadPdfjs(workerOverride?: string) {
 
   if (workerOverride && typeof window !== 'undefined') {
     lib.GlobalWorkerOptions.workerSrc = workerOverride;
-  }
+}
 
   return lib;
 }
@@ -220,6 +220,8 @@ export function PostPdfStage({
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
   // Track pages that the user has manually unflagged (persist across re-renders)
   const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
+  // Track pages that the user has manually flagged (persist across re-renders)
+  const manuallyFlaggedRef = useRef<Set<string>>(new Set());
   // Track if we're using fallback URLs (images not in manifest yet)
   const [usingFallbackUrls, setUsingFallbackUrls] = useState(false);
   const [imageLoading, setImageLoading] = useState({ left: true, right: true });
@@ -243,18 +245,19 @@ export function PostPdfStage({
   const previewJustSent = Boolean(finalApprovalResult?.previewUrl);
   const customerApprovalStatus = order.customerApprovalStatus ?? '';
   const orderStatus = order.status ?? '';
-  const customerRevisionUsed =
-    typeof order.revisionCount === 'number' && order.revisionCount >= 1;
+  const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
+  const customerRevisionUsed = revisionCount >= 1;
 
-  const readyForPrint =
-    customerApprovalStatus === 'approved' ||
-    customerRevisionUsed ||
-    customerApprovalStatus === 'revision_requested' ||
-    orderStatus === 'customer_approved' ||
-    orderStatus === 'pending_print' ||
-    orderStatus === 'pending_shipping' ||
-    orderStatus === 'in_production';
-  const showPrintAction = isApproved && readyForPrint;
+  // Button logic:
+  // - First Review (revisionCount === 0): After Final Approval → Show "Send Proof" button
+  // - Second Review (revisionCount >= 1): After Final Approval → Show "Send to Print" button
+  // 
+  // Show "Send to Print" only if:
+  // 1. Stage is approved
+  // 2. We're in second review (revisionCount >= 1)
+  // This ensures we show "Send to Print" after customer has used their revision
+  // On first approval (revisionCount === 0), show "Send Proof" instead
+  const showPrintAction = isApproved && customerRevisionUsed;
   const finalApprovalIsLoading = Boolean(finalApprovalLoading);
 
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
@@ -339,7 +342,7 @@ export function PostPdfStage({
       await page
         .render({
         canvas: canvas,
-          canvasContext: context,
+        canvasContext: context,
           viewport,
         })
         .promise;
@@ -366,8 +369,8 @@ export function PostPdfStage({
         return attemptConversion(cdnUrl);
       }
 
-        console.error('[Pages] Error converting PDF to image:', error);
-        throw error;
+      console.error('[Pages] Error converting PDF to image:', error);
+      throw error;
     }
   }, []);
 
@@ -657,7 +660,7 @@ export function PostPdfStage({
                       console.warn(`[Pages] Page ${img.pageNumber}: ⚠️ Invalid Cloudflare Images URL, using R2 fallback:`, cloudflareImageUrl);
                     } else if (!cloudflareImageUrl) {
                       console.warn(`[Pages] Page ${img.pageNumber}: ⚠️ No Cloudflare Images URL found, using R2 fallback:`, imageUrl);
-                    } else {
+                  } else {
                       console.warn(`[Pages] Page ${img.pageNumber}: ⚠️ Using R2 fallback (unexpected)`);
                     }
                   }
@@ -926,7 +929,7 @@ export function PostPdfStage({
                 coverSpreadLocation = 'pngGeneration.coverSpreadImages';
               }
               return matches;
-            });
+                  });
           }
           
           // Check pagesWithCloudflare object for cover-spread entry
@@ -1104,7 +1107,7 @@ export function PostPdfStage({
                 if (coverUrlFromManifest) {
                   setCoverImageUrl(coverUrlFromManifest);
                   console.log('[Cover] ✅ Using cover-spread Cloudflare Images URL from fallback fetch:', coverUrlFromManifest.substring(0, 80) + '...');
-                }
+                    }
               } else {
                 // Check legacy locations, but skip if it matches dedication page
                 const dedicationPageUrl = pageData.find(p => p.pageNumber === 0)?.previewImageUrl;
@@ -1134,7 +1137,7 @@ export function PostPdfStage({
                     coverUrlFromManifest = `/api/assets/${coverR2Key}`;
                     setCoverImageUrl(coverUrlFromManifest);
                     console.log('[Cover] Using R2 cover PNG from manifest (fallback fetch):', coverR2Key);
-                  }
+                }
                 }
               }
             }
@@ -1228,10 +1231,16 @@ export function PostPdfStage({
               || {};
             
             // Build set of flagged page IDs (e.g., "p01", "p02")
+            // Also populate manuallyFlaggedRef to restore persisted flags
             Object.keys(pagesMetadata).forEach((pageKey) => {
               const metadata = pagesMetadata[pageKey];
               if (metadata?.isFlagged || metadata?.needsReview) {
                 flaggedPagesSet.add(pageKey);
+                // Populate manuallyFlaggedRef to restore flags that were persisted to manifest
+                // Only add if not already in manuallyUnflaggedRef (user explicitly unflagged it)
+                if (!manuallyUnflaggedRef.current.has(pageKey)) {
+                  manuallyFlaggedRef.current.add(pageKey);
+                }
               }
             });
             
@@ -1449,18 +1458,18 @@ export function PostPdfStage({
     
     // Only reset if something actually changed
     if (indexChanged || keyChanged) {
-      // Set loading to true if there's a page or cover to load
+    // Set loading to true if there's a page or cover to load
       // For cover, only set loading if cover URL actually exists (cover has loaded)
       const hasLeft = !!(currentSpread.leftPage || 
                         (currentSpread.coverData && currentSpread.coverData.isBackCover && currentSpread.coverData.fullImageUrl));
       const hasRight = !!(currentSpread.rightPage || 
                          (currentSpread.coverData && currentSpread.coverData.isFrontCover && currentSpread.coverData.fullImageUrl));
       
-      setImageLoading({ 
+    setImageLoading({ 
         left: hasLeft, 
         right: hasRight
-      });
-      setImageError({ left: null, right: null });
+    });
+    setImageError({ left: null, right: null });
       
       // Safety timeout: clear loading state after 30 seconds to prevent infinite loading
       // This handles cases where images fail to load but onError doesn't fire
@@ -1653,8 +1662,13 @@ export function PostPdfStage({
     return pagesData.map((page) => {
       const pageNum = page.pageNumber;
       const assetId = `p${String(pageNum).padStart(2, '0')}`;
+      // Check if user has manually unflagged or flagged this page - respect those decisions
       const isManuallyUnflagged = manuallyUnflaggedRef.current.has(assetId);
-      const shouldBeFlagged = !isManuallyUnflagged && flaggedPages.has(assetId);
+      const isManuallyFlagged = manuallyFlaggedRef.current.has(assetId);
+      
+      // Set isFlagged based on manual flags or manifest flags
+      // Priority: manually flagged > manually unflagged > manifest flags
+      const shouldBeFlagged = isManuallyFlagged || (!isManuallyUnflagged && flaggedPages.has(assetId));
       
       return {
         id: assetId,
@@ -1877,24 +1891,24 @@ export function PostPdfStage({
     const pageNumberMatch = assetId.match(/p(\d+)/);
     const pageNumber = pageNumberMatch ? parseInt(pageNumberMatch[1], 10) : null;
     
-    // Update state immediately for responsive UI
+    // Update state immediately for responsive UI (optimistic update)
     setPageAssets(prev => {
       const updated = prev.map(page => 
         page.id === assetId ? { ...page, isFlagged: newFlaggedState } : page
       );
-      // Update flag count after state change
-      setTimeout(() => {
-        const newFlaggedCount = updated.filter(asset => asset.isFlagged).length;
-        setFlaggedCount(orderId, 'postPdf', newFlaggedCount);
-      }, 0);
+      // Update flag count immediately (optimistic)
+      const newFlaggedCount = updated.filter(asset => asset.isFlagged).length;
+      setFlaggedCount(orderId, 'postPdf', newFlaggedCount).catch(err => {
+        console.error('[PostPdfStage] Failed to update flag count:', err);
+      });
       return updated;
     });
     
-    // If unflagging, persist the decision to the manifest
-    if (!newFlaggedState && pageNumber !== null) {
+    // Persist flagging/unflagging to manifest via API
+    if (pageNumber !== null) {
       try {
-        // User is unflagging - persist to manifest via API
-        const response = await fetch(`/api/orders/${orderId}/unflag`, {
+        const apiEndpoint = newFlaggedState ? `/api/orders/${orderId}/flag` : `/api/orders/${orderId}/unflag`;
+        const response = await fetch(apiEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1906,34 +1920,53 @@ export function PostPdfStage({
         });
         
         if (!response.ok) {
-          console.error('[PostPdfStage] Failed to persist unflagging:', response.statusText);
+          console.error(`[PostPdfStage] Failed to persist ${newFlaggedState ? 'flagging' : 'unflagging'}:`, response.statusText);
           // Revert the flag state if API call failed
           setPageAssets(prev => prev.map(page => 
-            page.id === assetId ? { ...page, isFlagged: true } : page
+            page.id === assetId ? { ...page, isFlagged: !newFlaggedState } : page
           ));
-          alert('Failed to unflag page. Please try again.');
+          alert(`Failed to ${newFlaggedState ? 'flag' : 'unflag'} page. Please try again.`);
         } else {
-          // Successfully persisted - add to manually unflagged set for this session
-          manuallyUnflaggedRef.current.add(assetId);
-          console.log('[PostPdfStage] Successfully unflagged page:', assetId);
+          // Successfully persisted
+          if (newFlaggedState) {
+            // User is flagging - add to manually flagged set, remove from unflagged set
+            manuallyFlaggedRef.current.add(assetId);
+            manuallyUnflaggedRef.current.delete(assetId);
+          } else {
+            // User is unflagging - add to manually unflagged set, remove from flagged set
+            manuallyUnflaggedRef.current.add(assetId);
+            manuallyFlaggedRef.current.delete(assetId);
+          }
+          
+          // Update flag count after successful API call
+          setPageAssets(prev => {
+            const updated = prev.map(page => 
+              page.id === assetId ? { ...page, isFlagged: newFlaggedState } : page
+            );
+            const newFlaggedCount = updated.filter(asset => asset.isFlagged).length;
+            setFlaggedCount(orderId, 'postPdf', newFlaggedCount).catch(err => {
+              console.error('[PostPdfStage] Failed to update flag count:', err);
+            });
+            return updated;
+          });
+          
+          console.log(`[PostPdfStage] Successfully ${newFlaggedState ? 'flagged' : 'unflagged'} page:`, assetId);
         }
       } catch (error) {
-        console.error('[PostPdfStage] Error persisting unflagging:', error);
+        console.error(`[PostPdfStage] Error persisting ${newFlaggedState ? 'flagging' : 'unflagging'}:`, error);
         // Revert the flag state if API call failed
         setPageAssets(prev => prev.map(page => 
-          page.id === assetId ? { ...page, isFlagged: true } : page
+          page.id === assetId ? { ...page, isFlagged: !newFlaggedState } : page
         ));
-        alert('Failed to unflag page. Please try again.');
+        alert(`Failed to ${newFlaggedState ? 'flag' : 'unflag'} page. Please try again.`);
       }
-    } else {
-      // User is flagging - remove from manually unflagged set (they changed their mind)
-      manuallyUnflaggedRef.current.delete(assetId);
     }
   };
 
-  // Reset manually unflagged set when order changes
+  // Reset manually unflagged/flagged sets when order changes
   useEffect(() => {
     manuallyUnflaggedRef.current.clear();
+    manuallyFlaggedRef.current.clear();
   }, [orderId]);
 
   const handleDownload = () => {
@@ -1948,13 +1981,16 @@ export function PostPdfStage({
     }
   };
 
-  const handleFlag = () => {
-    setPdfAsset(prev => ({ ...prev, isFlagged: !prev.isFlagged }));
+  const handleFlag = async () => {
+    const newFlaggedState = !pdfAsset.isFlagged;
+    setPdfAsset(prev => ({ ...prev, isFlagged: newFlaggedState }));
+    
+    // Update flag count immediately
+    await setFlaggedCount(orderId, 'postPdf', newFlaggedState ? 1 : 0);
+    
+    // Note: PDF asset flagging doesn't need manifest persistence since it's a single asset
+    // The flag count in Supabase is sufficient for tracking
   };
-
-  useEffect(() => {
-    setFlaggedCount(orderId, 'postPdf', pdfAsset.isFlagged ? 1 : 0);
-  }, [orderId, pdfAsset.isFlagged]);
 
   const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
   const isPostBriaApproved = order.reviewStages.postBria.status === 'approved';
@@ -1965,8 +2001,12 @@ export function PostPdfStage({
     Boolean(pdfAsset.error) &&
     pdfAsset.error !== null &&
     /environment|credential|not available in this environment/i.test(pdfAsset.error);
+  // Check for flagged pages
+  const flaggedPageCount = pageAssets.filter(asset => asset.isFlagged).length;
+  
   const canApprove =
     !pdfAsset.isFlagged &&
+    flaggedPageCount === 0 && // Cannot approve if any pages are flagged
     isPreBriaApproved &&
     isPostBriaApproved &&
     (pdfAsset.exists || allowApproveWithoutPdf || pdfUnavailableForEnv);
@@ -2091,6 +2131,23 @@ export function PostPdfStage({
       `}} />
     <div className="space-y-8">
       <div className="space-y-6">
+        {/* Page Preview Images Grid */}
+        {pageAssets.length > 0 && (
+          <AssetGrid
+            title="Page Preview Images"
+            description="Individual page previews - review, download, replace, or flag pages as needed"
+            assets={pageAssets}
+            onDownload={handlePageDownload}
+            onReplace={handlePageReplace}
+            onFlag={handlePageFlag}
+            onApprove={() => {}}
+            canApprove={false}
+            isApproved={false}
+            isReplacing={isReplacing}
+          />
+        )}
+
+        {/* Final Compiled PDF Section - Moved below individual images, above PDF preview */}
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-medium text-gray-900">Final Compiled PDF</h3>
@@ -2128,22 +2185,6 @@ export function PostPdfStage({
             </button>
           </div>
         </div>
-
-        {/* Page Preview Images Grid */}
-        {pageAssets.length > 0 && (
-          <AssetGrid
-            title="Page Preview Images"
-            description="Individual page previews - review, download, replace, or flag pages as needed"
-            assets={pageAssets}
-            onDownload={handlePageDownload}
-            onReplace={handlePageReplace}
-            onFlag={handlePageFlag}
-            onApprove={() => {}}
-            canApprove={false}
-            isApproved={false}
-            isReplacing={isReplacing}
-          />
-        )}
 
         {/* PDF Viewer - Page Preview */}
         {loadingPages && (
@@ -2263,10 +2304,10 @@ export function PostPdfStage({
                   {currentSpread.coverData && currentSpread.coverData.isBackCover ? (
                     // Back cover: show left half of cover image
                     currentSpread.coverData.fullImageUrl ? (
-                      <div className="cover-image-container back-cover">
-                        <img
+                    <div className="cover-image-container back-cover">
+                      <img
                           key={`back-cover-${orderId}-${currentSpreadIndex}-${currentSpread.coverData.fullImageUrl.startsWith('data:') ? 'data' : 'url'}-${currentSpread.coverData.fullImageUrl.length}`}
-                          src={currentSpread.coverData.fullImageUrl}
+                        src={currentSpread.coverData.fullImageUrl}
                         alt="Back Cover"
                           ref={(img) => {
                             // Check if image is already loaded (cached) when element is created
@@ -2382,11 +2423,11 @@ export function PostPdfStage({
                   {currentSpread.coverData && currentSpread.coverData.isFrontCover ? (
                     // Front cover: show right half of cover image
                     currentSpread.coverData.fullImageUrl ? (
-                      <div className="cover-image-container front-cover">
-                        <img
+                    <div className="cover-image-container front-cover">
+                      <img
                           key={`front-cover-${orderId}-${currentSpreadIndex}-${currentSpread.coverData.fullImageUrl.startsWith('data:') ? 'data' : 'url'}-${currentSpread.coverData.fullImageUrl.length}`}
-                          src={currentSpread.coverData.fullImageUrl}
-                          alt="Front Cover"
+                        src={currentSpread.coverData.fullImageUrl}
+                        alt="Front Cover"
                           ref={(img) => {
                             // Check if image is already loaded (cached) when element is created
                             // Use a more stable check to prevent infinite loops
@@ -2409,27 +2450,27 @@ export function PostPdfStage({
                               // Only reset if we're actually changing spreads
                             }
                           }}
-                          onLoad={() => {
-                            console.log('[Spreads] ✓ Front cover image loaded successfully');
-                            setImageLoading(prev => ({ ...prev, right: false }));
-                            setImageError(prev => ({ ...prev, right: null }));
-                          }}
-                          onError={(e) => {
+                        onLoad={() => {
+                          console.log('[Spreads] ✓ Front cover image loaded successfully');
+                          setImageLoading(prev => ({ ...prev, right: false }));
+                          setImageError(prev => ({ ...prev, right: null }));
+                        }}
+                        onError={(e) => {
                             console.error('[Spreads] ✗ Front cover image failed to load:', e, {
                               url: currentSpread.coverData?.fullImageUrl,
                               isDataUrl: currentSpread.coverData?.fullImageUrl?.startsWith('data:')
                             });
-                            setImageLoading(prev => ({ ...prev, right: false }));
-                            setImageError(prev => ({ ...prev, right: 'Failed to load front cover' }));
-                          }}
-                          className={`transition-opacity duration-200 ${
-                            imageLoading.right ? 'opacity-0' : 'opacity-100'
-                          }`}
-                          style={{
-                            display: imageError.right ? 'none' : 'block'
-                          }}
-                        />
-                      </div>
+                          setImageLoading(prev => ({ ...prev, right: false }));
+                          setImageError(prev => ({ ...prev, right: 'Failed to load front cover' }));
+                        }}
+                        className={`transition-opacity duration-200 ${
+                          imageLoading.right ? 'opacity-0' : 'opacity-100'
+                        }`}
+                        style={{
+                          display: imageError.right ? 'none' : 'block'
+                        }}
+                      />
+                    </div>
                     ) : (
                       // Cover URL not available yet - show loading
                       <div className="white-page flex items-center justify-center">
@@ -2441,15 +2482,15 @@ export function PostPdfStage({
                       key={`right-page-${orderId}-${currentSpread.rightPage.pageNumber}-${currentSpreadIndex}`}
                       src={currentSpread.rightPage.previewImageUrl}
                       alt={`Page ${currentSpread.rightPage.pageNumber}`}
-                      onLoad={() => {
+                    onLoad={() => {
                         console.log(`[Spreads] ✓ Right image loaded successfully for page ${currentSpread.rightPage!.pageNumber}`);
                         setImageLoading(prev => ({ ...prev, right: false }));
                         setImageError(prev => ({ ...prev, right: null }));
-                      }}
-                      onError={async (e) => {
-                        const img = e.currentTarget;
+                    }}
+                    onError={async (e) => {
+                      const img = e.currentTarget;
                         const url = currentSpread.rightPage!.previewImageUrl;
-                        
+                      
                         // If using fallback URLs, images aren't available yet - don't show error
                         if (usingFallbackUrls) {
                           console.log(`[Spreads] Image not available yet for page ${currentSpread.rightPage!.pageNumber} (using fallback URLs)`);
@@ -2470,35 +2511,35 @@ export function PostPdfStage({
                         }
                         
                         // Only show error if we have images from manifest and they fail
-                        try {
-                          const response = await fetch(url, { method: 'HEAD' });
+                      try {
+                        const response = await fetch(url, { method: 'HEAD' });
                           console.error(`[Spreads] ✗ Right image failed to load for page ${currentSpread.rightPage!.pageNumber}:`, {
-                            url,
-                            httpStatus: response.status,
-                            httpStatusText: response.statusText,
-                            error: e
-                          });
-                        } catch (fetchError) {
+                          url,
+                          httpStatus: response.status,
+                          httpStatusText: response.statusText,
+                          error: e
+                        });
+                      } catch (fetchError) {
                           console.error(`[Spreads] ✗ Right image fetch error for page ${currentSpread.rightPage!.pageNumber}:`, {
-                            url,
-                            fetchError,
-                            error: e
-                          });
-                        }
-                        
+                          url,
+                          fetchError,
+                          error: e
+                        });
+                      }
+                      
                         setImageLoading(prev => ({ ...prev, right: false }));
                         setImageError(prev => ({ ...prev, right: `Failed to load page ${currentSpread.rightPage!.pageNumber}` }));
-                      }}
+                    }}
                       className={`transition-opacity duration-200 ${
                         imageLoading.right ? 'opacity-0' : 'opacity-100'
-                      }`}
-                      style={{
+                    }`}
+                    style={{
                         display: imageError.right ? 'none' : 'block'
-                      }}
-                    />
+                    }}
+                  />
                   ) : (
                     <div className="white-page" />
-                  )}
+              )}
                 </div>
               </div>
             </div>
@@ -2607,22 +2648,22 @@ export function PostPdfStage({
                       : previewJustSent
                       ? 'bg-gray-300 text-gray-600 cursor-not-allowed focus:ring-gray-400'
                       : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
-                  }`}
-                >
+                }`}
+              >
                   {finalApprovalIsLoading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : previewJustSent ? (
                     <CheckCircle className="h-4 w-4 mr-2" />
-                  ) : (
-                <Play className="h-4 w-4 mr-2" />
-                  )}
+                ) : (
+                  <Play className="h-4 w-4 mr-2" />
+                )}
                   {previewJustSent
                     ? 'Preview Sent'
                     : finalApprovalIsLoading
                     ? 'Sending Proof...'
                     : hasExistingPreview
                     ? 'Resend Proof'
-                    : 'Send Proof To Customer'}
+                    : 'Send Proof'}
               </button>
               )
             ) : (

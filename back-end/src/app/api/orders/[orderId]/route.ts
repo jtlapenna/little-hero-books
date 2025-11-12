@@ -35,6 +35,7 @@ async function getOrder(
   let supabaseOrderRecord: any = null;
   try {
     supabaseOrderRecord = await getOrderFromSupabase(orderId);
+    console.log(`[GET /api/orders/[orderId]] Supabase record found for ${orderId}, review_stages:`, JSON.stringify(supabaseOrderRecord?.review_stages || null));
   } catch (error: any) {
     console.warn(
       `[GET /api/orders/[orderId]] Supabase lookup failed for ${orderId}:`,
@@ -46,35 +47,58 @@ async function getOrder(
   if (supabaseOrderRecord) {
     try {
       supabaseOrder = await mapSupabaseOrderToOrder(supabaseOrderRecord);
-      console.log('[GET /api/orders/[orderId]] Supabase order loaded:', orderId);
+      console.log(`[GET /api/orders/[orderId]] Supabase order loaded for ${orderId}`);
+      console.log(`[GET /api/orders/[orderId]] Supabase reviewStages:`, JSON.stringify(supabaseOrder.reviewStages, null, 2));
     } catch (error: any) {
       console.error(
         `[GET /api/orders/[orderId]] Failed to map Supabase order ${orderId}:`,
         error?.message || error
       );
     }
+  } else {
+    console.log(`[GET /api/orders/[orderId]] No Supabase record found for ${orderId}`);
   }
 
-  // Try to load manifest for this order for asset details / fallback data
+  // Try to load manifests for this order for asset details / fallback data
+  // Load all manifests that might exist (2a, 2b, 3) to read flags from all stages
   let manifest: any = null;
   let manifestKey = '';
   let loadedStage: string | null = null;
+  let manifest2a: any = null;
+  let manifest2b: any = null;
+  let manifest3: any = null;
   
-  for (const stage of ['2b', '2a', '3'] as const) {
-    try {
-      manifestKey = buildManifestKey(orderId, stage);
-      console.log(`[GET /api/orders/[orderId]] Trying to load manifest: ${manifestKey}`);
-      manifest = await downloadManifest(manifestKey);
-      loadedStage = stage;
-      console.log(`[GET /api/orders/[orderId]] ✅ Loaded ${stage}-manifest for order ${orderId}`);
-      break;
-    } catch (err: any) {
-      console.log(
-        `[GET /api/orders/[orderId]] ❌ Failed to load ${stage}-manifest for ${orderId}:`,
-        err?.message || err
-      );
-    }
+  // Try to load all manifests in parallel
+  const manifestLoadPromises = [
+    { stage: '2a' as const, promise: downloadManifest(buildManifestKey(orderId, '2a')).catch(() => null) },
+    { stage: '2b' as const, promise: downloadManifest(buildManifestKey(orderId, '2b')).catch(() => null) },
+    { stage: '3' as const, promise: downloadManifest(buildManifestKey(orderId, '3')).catch(() => null) }
+  ];
+  
+  const manifestResults = await Promise.all(manifestLoadPromises.map(m => m.promise));
+  
+  manifest2a = manifestResults[0];
+  manifest2b = manifestResults[1];
+  manifest3 = manifestResults[2];
+  
+  // Determine primary manifest (for backward compatibility)
+  // Priority: 2b > 2a > 3
+  if (manifest2b) {
+    manifest = manifest2b;
+    loadedStage = '2b';
+    console.log(`[GET /api/orders/[orderId]] ✅ Using 2b-manifest as primary for order ${orderId}`);
+  } else if (manifest2a) {
+    manifest = manifest2a;
+    loadedStage = '2a';
+    console.log(`[GET /api/orders/[orderId]] ✅ Using 2a-manifest as primary for order ${orderId}`);
+  } else if (manifest3) {
+    manifest = manifest3;
+    loadedStage = '3';
+    console.log(`[GET /api/orders/[orderId]] ✅ Using 3-manifest as primary for order ${orderId}`);
   }
+  
+  // Log which manifests were loaded
+  console.log(`[GET /api/orders/[orderId]] Loaded manifests: 2a=${!!manifest2a}, 2b=${!!manifest2b}, 3=${!!manifest3}`);
   
   if (!manifest && !supabaseOrder) {
     console.warn(`[GET /api/orders/[orderId]] ⚠️ No Supabase record or manifest found for ${orderId}`);
@@ -82,10 +106,14 @@ async function getOrder(
   }
   
   const manifestOrder = manifest ? mapManifestToOrder(orderId, manifest) : null;
+  if (manifestOrder) {
+    console.log(`[GET /api/orders/[orderId]] Manifest reviewStages:`, JSON.stringify(manifestOrder.reviewStages, null, 2));
+  }
 
   let order: Order;
   if (supabaseOrder) {
     order = mergeOrderData(supabaseOrder, manifestOrder);
+    console.log(`[GET /api/orders/[orderId]] Merged reviewStages:`, JSON.stringify(order.reviewStages, null, 2));
   } else if (manifestOrder) {
     order = manifestOrder;
   } else {
@@ -256,9 +284,19 @@ async function getOrder(
   const pose0Url = pose0Asset?.url?.toLowerCase() || '';
   const isBaseCharacterSameAsPose0 = baseCharacterUrl && pose0Url && baseCharacterUrl === pose0Url;
   
+  // Use the appropriate manifest for each stage
+  // Pre-Bria flags are saved to 2a manifest
+  // Post-Bria flags are saved to 2b manifest (or 2a if 2b doesn't exist)
+  // Post-PDF flags are saved to 3 manifest
+  const preBriaManifest = manifest2a || manifest;
+  const postBriaManifest = manifest2b || manifest2a || manifest;
+  
   // Get manifest entries to determine expected poses and identify missing/exhausted ones
+  // Use preBriaManifest for preBria poses, postBriaManifest for postBria
+  const preBriaManifestEntries = preBriaManifest?.entries || [];
+  const postBriaManifestEntries = postBriaManifest?.entries || [];
   const manifestEntries = manifest?.entries || [];
-  const expectedPoseCount = manifest?.poses?.total || manifestEntries.length || 13; // Default to 13 if not specified
+  const expectedPoseCount = manifest?.poses?.total || manifestEntries.length || preBriaManifestEntries.length || postBriaManifestEntries.length || 13; // Default to 13 if not specified
   
   console.log(`[GET /api/orders/[orderId]] Expected pose count: ${expectedPoseCount}, Manifest entries: ${manifestEntries.length}, Character assets: ${characterAssets.length}`);
   console.log(`[GET /api/orders/[orderId]] Character assets sample:`, characterAssets.slice(0, 3).map(a => ({ poseNumber: a.poseNumber, assetType: a.assetType, url: a.url?.substring(0, 50) })));
@@ -289,10 +327,11 @@ async function getOrder(
   console.log(`[GET /api/orders/[orderId]] Pre-Bria map keys:`, Array.from(existingPreBriaMap.keys()));
   
   // Build complete list of pre-Bria poses, including placeholders for missing/exhausted ones
+  // Use preBriaManifestEntries for flag data (flags are saved to 2a manifest)
   const preBriaPoses: any[] = [];
   for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
     const existingPose = existingPreBriaMap.get(poseNum);
-    const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
+    const manifestEntry = preBriaManifestEntries.find((e: any) => e.poseNumber === poseNum);
     
     if (existingPose) {
       // Pose exists in R2 - merge manifest entry's review flags if present
@@ -304,7 +343,8 @@ async function getOrder(
       // Only flag Pre-Bria if the review reason is NOT Post-Bria-specific
       const needsReview = manifestEntry?.needsReview && !isPostBriaReason ? manifestEntry.needsReview : false;
       const preBriaReviewReason = isPostBriaReason ? null : reviewReason;
-      const isFlagged = needsReview || existingPose.isFlagged || false;
+      // isFlagged should come from manifest entry, not from existingPose (which doesn't have this field)
+      const isFlagged = manifestEntry?.isFlagged || needsReview || false;
       
       preBriaPoses.push({
         ...existingPose,
@@ -381,7 +421,8 @@ async function getOrder(
     const poseMap = new Map(existingPostBriaPoses.map(p => [p.poseNumber, p]));
     
     // Also check manifest for manually uploaded images (have bgRemovedKey but might not be in R2 yet)
-    manifestEntries.forEach((entry: any) => {
+    // Use postBriaManifestEntries to get flags from the correct manifest
+    postBriaManifestEntries.forEach((entry: any) => {
       if (entry.bgRemovedKey && entry.bgRemovedKey.length > 0) {
         const poseNum = entry.poseNumber;
         // Only add if not already in map (R2 takes precedence)
@@ -396,7 +437,7 @@ async function getOrder(
             assetType: 'background-removed',
             characterHash: order.characterHash,
             isMissing: !proxyUrl,
-            isFlagged: entry.needsReview || false,
+            isFlagged: entry.isFlagged || entry.needsReview || false,
             status: entry.status || 'approved',
             needsReview: entry.needsReview || false,
             reviewReason: entry.reviewReason || null,
@@ -412,15 +453,16 @@ async function getOrder(
   } else {
     // Workflow 2B has run - build complete list including placeholders for missing ones
     // If we have existing poses but no manifest entries, just use the existing poses (fallback)
-    if (existingPostBriaPoses.length > 0 && manifestEntries.length === 0) {
+    if (existingPostBriaPoses.length > 0 && postBriaManifestEntries.length === 0) {
       console.log(`[GET /api/orders/[orderId]] No manifest entries found, using existing post-Bria poses only`);
       postBriaPoses.push(...existingPostBriaPoses);
     } else {
       // Normal flow: build complete list including placeholders
+      // Use postBriaManifestEntries to get flags from the correct manifest (2b or 2a)
       console.log(`[GET /api/orders/[orderId]] Building post-Bria poses list, expectedPoseCount: ${expectedPoseCount}, existingPostBriaMap size: ${existingPostBriaMap.size}`);
       for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
         const existingPose = existingPostBriaMap.get(poseNum);
-        const manifestEntry = manifestEntries.find((e: any) => e.poseNumber === poseNum);
+        const manifestEntry = postBriaManifestEntries.find((e: any) => e.poseNumber === poseNum);
         
         // Check if manifest has bgRemovedKey
         const hasBgRemovedKey = manifestEntry?.bgRemovedKey && manifestEntry.bgRemovedKey.length > 0;
@@ -432,7 +474,8 @@ async function getOrder(
           // This handles cases where the file was uploaded but manifest wasn't updated
           const needsReview = manifestEntry?.needsReview || false;
           const reviewReason = manifestEntry?.reviewReason || null;
-          const isFlagged = needsReview || existingPose.isFlagged || false;
+          // isFlagged should come from manifest entry, not from existingPose (which doesn't have this field)
+          const isFlagged = manifestEntry?.isFlagged || needsReview || false;
           
           postBriaPoses.push({
             ...existingPose,
@@ -454,6 +497,8 @@ async function getOrder(
           // Use manifest entry's needsReview and reviewReason (e.g., transparency_fail)
           const needsReview = manifestEntry?.needsReview || !proxyUrl;
           const reviewReason = manifestEntry?.reviewReason || (!proxyUrl ? 'file_not_found_in_r2' : null);
+          // isFlagged should come from manifest entry
+          const isFlagged = manifestEntry?.isFlagged || needsReview || !proxyUrl;
           
           postBriaPoses.push({
             poseNumber: poseNum,
@@ -461,7 +506,7 @@ async function getOrder(
             assetType: 'background-removed',
             characterHash: order.characterHash,
             isMissing: !proxyUrl,
-            isFlagged: needsReview || !proxyUrl,
+            isFlagged: isFlagged,
             status: manifestEntry?.status || 'missing',
             needsReview: needsReview,
             reviewReason: reviewReason,

@@ -7,21 +7,18 @@
  * Last Updated: 2025-01-XX (Task 3)
  */
 
-import { DisplayStatus, OrderStatus } from './statuses';
+import { OrderStatus } from './statuses';
 
 /**
  * Order Phase Enum
- * Logical phases that orders go through in the workflow
+ * Simplified 5-phase system for order lifecycle
  */
 export enum OrderPhase {
-  GENERATION = 'generation', // AI generation, character creation
-  REVIEW = 'review', // Human review, approval
-  ASSEMBLY = 'assembly', // Book assembly, PDF creation
-  CUSTOMER_APPROVAL = 'customer_approval', // Customer preview/approval
-  PRODUCTION = 'production', // Print submission, production
-  SHIPPING = 'shipping', // Shipped, delivered
-  COMPLETED = 'completed', // Delivered, fulfilled
-  FAILED = 'failed' // Failed, cancelled
+  IN_QUEUE = 'in_queue', // In Queue / Generating - Grey
+  FIRST_REVIEW = 'first_review', // First Review - Blue
+  AWAITING_CUSTOMER = 'awaiting_customer', // Awaiting Customer - Purple
+  SECOND_REVIEW = 'second_review', // Second Review - Yellow
+  SENT_TO_PRINT = 'sent_to_print', // Sent to Print - Green
 }
 
 /**
@@ -71,44 +68,29 @@ export const STATUS_TO_PHASE: Record<OrderStatus | string, OrderPhase> = {
   [OrderStatus.CANCELLED]: OrderPhase.FAILED
 };
 
-const DISPLAY_STATUS_TO_PHASE: Record<DisplayStatus, OrderPhase> = {
-  [DisplayStatus.NEW]: OrderPhase.GENERATION,
-  [DisplayStatus.PENDING]: OrderPhase.REVIEW,
-  [DisplayStatus.APPROVED]: OrderPhase.REVIEW,
-  [DisplayStatus.PROOF_SENT]: OrderPhase.CUSTOMER_APPROVAL,
-  [DisplayStatus.CORRECTION_REQUESTED]: OrderPhase.CUSTOMER_APPROVAL,
-  [DisplayStatus.SENT_TO_PRINT]: OrderPhase.PRODUCTION,
-  [DisplayStatus.SHIPPED]: OrderPhase.SHIPPING,
-  [DisplayStatus.DELIVERED]: OrderPhase.COMPLETED,
-  [DisplayStatus.ACTION_REQUIRED]: OrderPhase.FAILED
-};
+// Note: DISPLAY_STATUS_TO_PHASE mapping is now in status-display.ts
+// This file focuses on OrderPhase constants and OrderStatus to OrderPhase mapping
 
 /**
  * Phase Display Labels
  */
 export const PhaseLabels: Record<OrderPhase, string> = {
-  [OrderPhase.GENERATION]: 'Generation',
-  [OrderPhase.REVIEW]: 'Review',
-  [OrderPhase.ASSEMBLY]: 'Assembly',
-  [OrderPhase.CUSTOMER_APPROVAL]: 'Customer Approval',
-  [OrderPhase.PRODUCTION]: 'Production',
-  [OrderPhase.SHIPPING]: 'Shipping',
-  [OrderPhase.COMPLETED]: 'Completed',
-  [OrderPhase.FAILED]: 'Failed'
+  [OrderPhase.IN_QUEUE]: 'In Queue',
+  [OrderPhase.FIRST_REVIEW]: 'First Review',
+  [OrderPhase.AWAITING_CUSTOMER]: 'Awaiting Customer',
+  [OrderPhase.SECOND_REVIEW]: 'Second Review',
+  [OrderPhase.SENT_TO_PRINT]: 'Sent to Print',
 };
 
 /**
  * Phase Descriptions
  */
 export const PhaseDescriptions: Record<OrderPhase, string> = {
-  [OrderPhase.GENERATION]: 'AI character generation and asset creation',
-  [OrderPhase.REVIEW]: 'Human review and quality approval',
-  [OrderPhase.ASSEMBLY]: 'Book assembly and PDF generation',
-  [OrderPhase.CUSTOMER_APPROVAL]: 'Customer preview and approval',
-  [OrderPhase.PRODUCTION]: 'Print submission and production',
-  [OrderPhase.SHIPPING]: 'Order shipped to customer',
-  [OrderPhase.COMPLETED]: 'Order delivered and fulfilled',
-  [OrderPhase.FAILED]: 'Failed or cancelled orders'
+  [OrderPhase.IN_QUEUE]: 'Order submitted, character generation in progress',
+  [OrderPhase.FIRST_REVIEW]: 'First review process - flagging, revising, approving',
+  [OrderPhase.AWAITING_CUSTOMER]: 'Proof sent to customer, awaiting response',
+  [OrderPhase.SECOND_REVIEW]: 'Second review after customer revision request',
+  [OrderPhase.SENT_TO_PRINT]: 'Order sent to print production',
 };
 
 /**
@@ -121,53 +103,35 @@ export const PhaseColors: Record<OrderPhase, {
   border: string;
   icon: string;
 }> = {
-  [OrderPhase.GENERATION]: {
+  [OrderPhase.IN_QUEUE]: {
+    bg: 'bg-gray-50',
+    text: 'text-gray-700',
+    border: 'border-gray-200',
+    icon: '⏳' // Hourglass for in queue
+  },
+  [OrderPhase.FIRST_REVIEW]: {
     bg: 'bg-blue-50',
     text: 'text-blue-700',
     border: 'border-blue-200',
-    icon: '⚡' // Lightning bolt for generation
+    icon: '👁️' // Eye for first review
   },
-  [OrderPhase.REVIEW]: {
+  [OrderPhase.AWAITING_CUSTOMER]: {
     bg: 'bg-purple-50',
     text: 'text-purple-700',
     border: 'border-purple-200',
-    icon: '👁️' // Eye for review
+    icon: '✋' // Hand for awaiting customer
   },
-  [OrderPhase.ASSEMBLY]: {
-    bg: 'bg-indigo-50',
-    text: 'text-indigo-700',
-    border: 'border-indigo-200',
-    icon: '📚' // Books for assembly
-  },
-  [OrderPhase.CUSTOMER_APPROVAL]: {
+  [OrderPhase.SECOND_REVIEW]: {
     bg: 'bg-yellow-50',
     text: 'text-yellow-700',
     border: 'border-yellow-200',
-    icon: '✋' // Hand for customer approval
+    icon: '🔍' // Magnifying glass for second review
   },
-  [OrderPhase.PRODUCTION]: {
-    bg: 'bg-orange-50',
-    text: 'text-orange-700',
-    border: 'border-orange-200',
-    icon: '🏭' // Factory for production
-  },
-  [OrderPhase.SHIPPING]: {
+  [OrderPhase.SENT_TO_PRINT]: {
     bg: 'bg-green-50',
     text: 'text-green-700',
     border: 'border-green-200',
-    icon: '🚚' // Truck for shipping
-  },
-  [OrderPhase.COMPLETED]: {
-    bg: 'bg-emerald-50',
-    text: 'text-emerald-700',
-    border: 'border-emerald-200',
-    icon: '✅' // Checkmark for completed
-  },
-  [OrderPhase.FAILED]: {
-    bg: 'bg-red-50',
-    text: 'text-red-700',
-    border: 'border-red-200',
-    icon: '❌' // X for failed
+    icon: '🖨️' // Printer for sent to print
   }
 };
 
@@ -176,21 +140,20 @@ export const PhaseColors: Record<OrderPhase, {
  * The order in which phases appear in the UI
  */
 export const PHASE_ORDER: OrderPhase[] = [
-  OrderPhase.GENERATION,
-  OrderPhase.REVIEW,
-  OrderPhase.ASSEMBLY,
-  OrderPhase.CUSTOMER_APPROVAL,
-  OrderPhase.PRODUCTION,
-  OrderPhase.SHIPPING,
-  OrderPhase.COMPLETED,
-  OrderPhase.FAILED
+  OrderPhase.IN_QUEUE,
+  OrderPhase.FIRST_REVIEW,
+  OrderPhase.AWAITING_CUSTOMER,
+  OrderPhase.SECOND_REVIEW,
+  OrderPhase.SENT_TO_PRINT,
 ];
 
 /**
  * Get phase for a given status
+ * Note: This is a legacy function. Use getPhaseForOrder in status-display.ts instead
+ * which considers revisionCount to determine first vs second review
  */
 export function getPhaseForStatus(status: string): OrderPhase {
-  return STATUS_TO_PHASE[status] || OrderPhase.GENERATION;
+  return STATUS_TO_PHASE[status] || OrderPhase.IN_QUEUE;
 }
 
 /**
@@ -211,35 +174,27 @@ export function getPhaseDescription(phase: OrderPhase): string {
  * Get phase colors
  */
 export function getPhaseColors(phase: OrderPhase) {
-  return PhaseColors[phase] || PhaseColors[OrderPhase.GENERATION];
+  return PhaseColors[phase] || PhaseColors[OrderPhase.IN_QUEUE];
 }
 
 /**
  * Group orders by phase
+ * Note: Orders should have their phase set by buildOrderListItem which calls getDisplayStatusForOrder
+ * This function uses order.phase if available, otherwise falls back to IN_QUEUE
  */
-export function groupOrdersByPhase<T extends { status?: string; phase?: OrderPhase }>(orders: T[]): Record<OrderPhase, T[]> {
+export function groupOrdersByPhase<T extends { status?: string; phase?: OrderPhase; revisionCount?: number }>(orders: T[]): Record<OrderPhase, T[]> {
   const grouped: Record<OrderPhase, T[]> = {
-    [OrderPhase.GENERATION]: [],
-    [OrderPhase.REVIEW]: [],
-    [OrderPhase.ASSEMBLY]: [],
-    [OrderPhase.CUSTOMER_APPROVAL]: [],
-    [OrderPhase.PRODUCTION]: [],
-    [OrderPhase.SHIPPING]: [],
-    [OrderPhase.COMPLETED]: [],
-    [OrderPhase.FAILED]: []
+    [OrderPhase.IN_QUEUE]: [],
+    [OrderPhase.FIRST_REVIEW]: [],
+    [OrderPhase.AWAITING_CUSTOMER]: [],
+    [OrderPhase.SECOND_REVIEW]: [],
+    [OrderPhase.SENT_TO_PRINT]: [],
   };
   
   orders.forEach(order => {
-    let phase: OrderPhase;
-    if (order.phase) {
-      phase = order.phase;
-    } else if (order.status && DISPLAY_STATUS_TO_PHASE[order.status as DisplayStatus]) {
-      phase = DISPLAY_STATUS_TO_PHASE[order.status as DisplayStatus];
-    } else if (order.status) {
-      phase = getPhaseForStatus(order.status);
-    } else {
-      phase = OrderPhase.GENERATION;
-    }
+    // Use order.phase if available (should be set by buildOrderListItem)
+    // Otherwise fallback to IN_QUEUE
+    const phase = order.phase || OrderPhase.IN_QUEUE;
     grouped[phase].push(order);
   });
   
@@ -249,17 +204,14 @@ export function groupOrdersByPhase<T extends { status?: string; phase?: OrderPha
 /**
  * Get phase counts
  */
-export function getPhaseCounts<T extends { status?: string; phase?: OrderPhase }>(orders: T[]): Record<OrderPhase, number> {
+export function getPhaseCounts<T extends { status?: string; phase?: OrderPhase; revisionCount?: number }>(orders: T[]): Record<OrderPhase, number> {
   const grouped = groupOrdersByPhase(orders);
   return {
-    [OrderPhase.GENERATION]: grouped[OrderPhase.GENERATION].length,
-    [OrderPhase.REVIEW]: grouped[OrderPhase.REVIEW].length,
-    [OrderPhase.ASSEMBLY]: grouped[OrderPhase.ASSEMBLY].length,
-    [OrderPhase.CUSTOMER_APPROVAL]: grouped[OrderPhase.CUSTOMER_APPROVAL].length,
-    [OrderPhase.PRODUCTION]: grouped[OrderPhase.PRODUCTION].length,
-    [OrderPhase.SHIPPING]: grouped[OrderPhase.SHIPPING].length,
-    [OrderPhase.COMPLETED]: grouped[OrderPhase.COMPLETED].length,
-    [OrderPhase.FAILED]: grouped[OrderPhase.FAILED].length
+    [OrderPhase.IN_QUEUE]: grouped[OrderPhase.IN_QUEUE].length,
+    [OrderPhase.FIRST_REVIEW]: grouped[OrderPhase.FIRST_REVIEW].length,
+    [OrderPhase.AWAITING_CUSTOMER]: grouped[OrderPhase.AWAITING_CUSTOMER].length,
+    [OrderPhase.SECOND_REVIEW]: grouped[OrderPhase.SECOND_REVIEW].length,
+    [OrderPhase.SENT_TO_PRINT]: grouped[OrderPhase.SENT_TO_PRINT].length,
   };
 }
 

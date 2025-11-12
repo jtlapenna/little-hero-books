@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Order, OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { FlaggedBadge } from '@/components/ui/flagged-badge';
 import { formatDate } from '@/lib/utils';
 import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
 import { OrderStatus } from '@/constants/statuses';
 import { PhaseBucket } from '@/components/orders/phase-bucket';
 import { OrderPhase } from '@/constants/phases';
+import { DisplayStatus } from '@/constants/statuses';
 import { ArrowRight, Clock, AlertCircle, Search, Grid3X3, List, ChevronDown } from 'lucide-react';
 import { buildOrderListItem, getStageBadgeStatus } from '@/lib/status-display';
 
@@ -34,7 +36,33 @@ export default function ReviewPage() {
       .then((data: Order[]) => {
         const orderListItems: OrderListItem[] = data
           .filter((order) => order.status !== OrderStatus.COMPLETED)
-          .map((order) => buildOrderListItem(order));
+          .map((order) => buildOrderListItem(order))
+          // Filter to only show orders with flags in First Review or Second Review phases
+          .filter((order) => {
+            // Must be in First Review or Second Review phase
+            const isInReviewPhase = order.phase === OrderPhase.FIRST_REVIEW || order.phase === OrderPhase.SECOND_REVIEW;
+            
+            // Exclude orders that are "Proof Ready" or "Book Ready" (all stages approved, ready for customer)
+            // These orders don't need review even if they have stale flag counts
+            const isProofReady = order.status === DisplayStatus.PROOF_READY;
+            if (isProofReady) {
+              return false;
+            }
+            
+            // Check if order has any flags
+            const flagSummary = getOrderFlagSummary(order);
+            const hasFlags = flagSummary.total > 0;
+            
+            // Also check if any stage is not approved (needs review)
+            // If all stages are approved, don't show even if there are stale flag counts
+            const preBriaApproved = order.reviewStages?.preBria?.status === 'approved';
+            const postBriaApproved = order.reviewStages?.postBria?.status === 'approved';
+            const postPdfApproved = order.reviewStages?.postPdf?.status === 'approved';
+            const allStagesApproved = preBriaApproved && postBriaApproved && postPdfApproved;
+            
+            // Only show if in review phase, has flags, AND not all stages approved
+            return isInReviewPhase && hasFlags && !allStagesApproved;
+          });
         setOrders(orderListItems);
         setLoading(false);
       })
@@ -42,39 +70,53 @@ export default function ReviewPage() {
         console.error('Error fetching orders:', error);
         // Fallback to mock data
         const allOrders = getOrderListItems();
-        const pendingOrders = allOrders.filter(order => order.rawStatus !== OrderStatus.COMPLETED);
+        const pendingOrders = allOrders
+          .filter(order => order.rawStatus !== OrderStatus.COMPLETED)
+          // Filter to only show orders with flags in First Review or Second Review phases
+          .filter((order) => {
+            const isInReviewPhase = order.phase === OrderPhase.FIRST_REVIEW || order.phase === OrderPhase.SECOND_REVIEW;
+            
+            // Exclude orders that are "Proof Ready" or "Book Ready" (all stages approved, ready for customer)
+            // These orders don't need review even if they have stale flag counts
+            const isProofReady = order.status === DisplayStatus.PROOF_READY;
+            if (isProofReady) {
+              return false;
+            }
+            
+            // Check if order has any flags
+            const flagSummary = getOrderFlagSummary(order);
+            const hasFlags = flagSummary.total > 0;
+            
+            // Also check if any stage is not approved (needs review)
+            // If all stages are approved, don't show even if there are stale flag counts
+            const preBriaApproved = order.reviewStages?.preBria?.status === 'approved';
+            const postBriaApproved = order.reviewStages?.postBria?.status === 'approved';
+            const postPdfApproved = order.reviewStages?.postPdf?.status === 'approved';
+            const allStagesApproved = preBriaApproved && postBriaApproved && postPdfApproved;
+            
+            // Only show if in review phase, has flags, AND not all stages approved
+            return isInReviewPhase && hasFlags && !allStagesApproved;
+          });
         setOrders(pendingOrders);
         setLoading(false);
       });
   }, []);
 
-  // Group orders by review stage
-  const needsStageReview = (status?: string | null) => {
-    const normalized = (status || '').toLowerCase();
-    return (
-      normalized === 'pending' ||
-      normalized === 'ready' ||
-      normalized === 'in-review' ||
-      normalized === 'flagged' ||
-      normalized === 'rejected'
-    );
-  };
-
+  // Group orders by review stage - only show orders with flags
+  // Orders are already filtered to only include those with flags in First/Second Review phases
   const reviewStages = {
-    preBria: orders.filter(order =>
-      needsStageReview(order.reviewStages?.preBria?.status)
-    ),
-    postBria: orders.filter(order =>
-      needsStageReview(order.reviewStages?.postBria?.status)
-    ),
-    postPdf: orders.filter(order =>
-      needsStageReview(order.reviewStages?.postPdf?.status)
-    ),
-    other: orders.filter(order =>
-      !needsStageReview(order.reviewStages?.preBria?.status) &&
-      !needsStageReview(order.reviewStages?.postBria?.status) &&
-      !needsStageReview(order.reviewStages?.postPdf?.status)
-    )
+    preBria: orders.filter(order => {
+      const flagSummary = getOrderFlagSummary(order);
+      return flagSummary.preBria > 0;
+    }),
+    postBria: orders.filter(order => {
+      const flagSummary = getOrderFlagSummary(order);
+      return flagSummary.postBria > 0;
+    }),
+    postPdf: orders.filter(order => {
+      const flagSummary = getOrderFlagSummary(order);
+      return flagSummary.postPdf > 0;
+    })
   };
 
   // Filter and sort orders
@@ -144,12 +186,12 @@ export default function ReviewPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Pending Reviews</h1>
               <p className="mt-2 text-gray-600">
-                Orders that require human review and approval
+                Orders with flagged items requiring human review (First Review or Second Review phases only)
               </p>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-500">
-                {filteredAndSortedOrders.length} orders
+                {filteredAndSortedOrders.length} {filteredAndSortedOrders.length === 1 ? 'order' : 'orders'} with flags
               </span>
             </div>
           </div>
@@ -232,13 +274,13 @@ export default function ReviewPage() {
 
         {viewMode === 'stages' ? (
           <div className="space-y-4">
-            {/* Pre-Bria Review Stage */}
+            {/* Review Poses Stage */}
             {reviewStages.preBria.length > 0 && (
               <PhaseBucket
-                phase={OrderPhase.REVIEW}
+                phase={reviewStages.preBria[0]?.phase === OrderPhase.SECOND_REVIEW ? OrderPhase.SECOND_REVIEW : OrderPhase.FIRST_REVIEW}
                 orders={reviewStages.preBria}
                 defaultExpanded={true}
-                customLabel="Pre-Bria Review"
+                customLabel="Review Poses"
                 customDescription="Review generated character and poses before background removal"
                 renderOrder={(order, index) => {
                   // getOrderFlagSummary expects order object, not orderId string
@@ -261,9 +303,7 @@ export default function ReviewPage() {
                                 ({order.orderId})
                               </span>
                               {needsAttention && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  {flagSummary.total} flag{flagSummary.total !== 1 ? 's' : ''}
-                                </span>
+                                <FlaggedBadge count={flagSummary.total} />
                               )}
                             </div>
                             <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
@@ -273,8 +313,11 @@ export default function ReviewPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.preBria?.status)} />
+                        <div className="ml-4 flex items-center space-x-2">
+                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.preBria?.status, 'preBria')} revisionCount={order.revisionCount} />
+                          {flagSummary.preBria > 0 && (
+                            <FlaggedBadge count={flagSummary.preBria} />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -283,13 +326,13 @@ export default function ReviewPage() {
               />
             )}
 
-            {/* Post-Bria Review Stage */}
+            {/* Review Backgrounds Stage */}
             {reviewStages.postBria.length > 0 && (
               <PhaseBucket
-                phase={OrderPhase.REVIEW}
+                phase={reviewStages.postBria[0]?.phase === OrderPhase.SECOND_REVIEW ? OrderPhase.SECOND_REVIEW : OrderPhase.FIRST_REVIEW}
                 orders={reviewStages.postBria}
                 defaultExpanded={true}
-                customLabel="Post-Bria Review"
+                customLabel="Review Backgrounds"
                 customDescription="Review background-removed images from Bria.ai"
                 renderOrder={(order, index) => {
                   // getOrderFlagSummary expects order object, not orderId string
@@ -312,9 +355,7 @@ export default function ReviewPage() {
                                 ({order.orderId})
                               </span>
                               {needsAttention && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  {flagSummary.total} flag{flagSummary.total !== 1 ? 's' : ''}
-                                </span>
+                                <FlaggedBadge count={flagSummary.total} />
                               )}
                             </div>
                             <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
@@ -324,8 +365,11 @@ export default function ReviewPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postBria?.status)} />
+                        <div className="ml-4 flex items-center space-x-2">
+                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postBria?.status, 'postBria')} revisionCount={order.revisionCount} />
+                          {flagSummary.postBria > 0 && (
+                            <FlaggedBadge count={flagSummary.postBria} />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -334,13 +378,13 @@ export default function ReviewPage() {
               />
             )}
 
-            {/* Post-PDF Review Stage */}
+            {/* Review Pages Stage */}
             {reviewStages.postPdf.length > 0 && (
               <PhaseBucket
-                phase={OrderPhase.REVIEW}
+                phase={reviewStages.postPdf[0]?.phase === OrderPhase.SECOND_REVIEW ? OrderPhase.SECOND_REVIEW : OrderPhase.FIRST_REVIEW}
                 orders={reviewStages.postPdf}
                 defaultExpanded={true}
-                customLabel="Post-PDF Review"
+                customLabel="Review Pages"
                 customDescription="Review final compiled PDF before production"
                 renderOrder={(order, index) => {
                   // getOrderFlagSummary expects order object, not orderId string
@@ -363,9 +407,7 @@ export default function ReviewPage() {
                                 ({order.orderId})
                               </span>
                               {needsAttention && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  {flagSummary.total} flag{flagSummary.total !== 1 ? 's' : ''}
-                                </span>
+                                <FlaggedBadge count={flagSummary.total} />
                               )}
                             </div>
                             <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
@@ -375,8 +417,11 @@ export default function ReviewPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postPdf?.status)} />
+                        <div className="ml-4 flex items-center space-x-2">
+                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postPdf?.status, 'postPdf')} revisionCount={order.revisionCount} />
+                          {flagSummary.postPdf > 0 && (
+                            <FlaggedBadge count={flagSummary.postPdf} />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -391,10 +436,10 @@ export default function ReviewPage() {
                   <AlertCircle className="h-12 w-12" />
                 </div>
                 <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  No pending reviews
+                  No orders with flagged images
                 </h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  All orders have been reviewed and approved.
+                  All orders have been reviewed or approved.
                 </p>
               </div>
             )}
@@ -405,12 +450,12 @@ export default function ReviewPage() {
               <AlertCircle className="h-12 w-12" />
             </div>
             <h3 className="mt-2 text-sm font-medium text-gray-900">
-              {searchTerm ? 'No orders found' : 'No pending reviews'}
+              {searchTerm ? 'No orders found' : 'No orders with flagged images'}
             </h3>
             <p className="mt-1 text-sm text-gray-500">
               {searchTerm 
                 ? 'Try adjusting your search criteria.'
-                : 'All orders have been reviewed and approved.'
+                : 'All orders have been reviewed or approved.'
               }
             </p>
             <div className="mt-6">
@@ -433,7 +478,7 @@ export default function ReviewPage() {
         ) : viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredAndSortedOrders.map((order) => {
-              const flagSummary = getOrderFlagSummary(order.orderId);
+              const flagSummary = getOrderFlagSummary(order);
               const needsAttention = flagSummary.total > 0;
               return (
                 <div
@@ -451,7 +496,7 @@ export default function ReviewPage() {
                           {flagSummary.total} {flagSummary.total === 1 ? 'Needs' : 'Need'} Attention
                         </span>
                       )}
-                      <StatusBadge status={order.status} />
+                      <StatusBadge status={order.status} revisionCount={order.revisionCount} />
                     </div>
                   </div>
                   
@@ -524,7 +569,7 @@ export default function ReviewPage() {
                         {order.platform}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge status={order.status} />
+                        <StatusBadge status={order.status} revisionCount={order.revisionCount} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(order.orderDate)}
@@ -553,7 +598,7 @@ export default function ReviewPage() {
                 <span className="text-xs font-bold text-blue-800">1</span>
               </div>
               <div>
-                <p className="font-medium">Pre-Bria Review</p>
+                <p className="font-medium">Review Poses</p>
                 <p>Review generated character and poses before background removal</p>
               </div>
             </div>
@@ -562,7 +607,7 @@ export default function ReviewPage() {
                 <span className="text-xs font-bold text-blue-800">2</span>
               </div>
               <div>
-                <p className="font-medium">Post-Bria Review</p>
+                <p className="font-medium">Review Backgrounds</p>
                 <p>Review background-removed images from Bria.ai</p>
               </div>
             </div>
@@ -571,7 +616,7 @@ export default function ReviewPage() {
                 <span className="text-xs font-bold text-blue-800">3</span>
               </div>
               <div>
-                <p className="font-medium">Post-PDF Review</p>
+                <p className="font-medium">Review Pages</p>
                 <p>Review final compiled PDF before production</p>
               </div>
             </div>

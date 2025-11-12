@@ -1,5 +1,7 @@
 # Feature Status – Pending Reviews and Order Review Pages
 
+> **📖 Status System Documentation**: For complete details on status labels, phases, colors, and workflow logic, see [`docs/STATUS_TAGGING_SYSTEM.md`](../../../STATUS_TAGGING_SYSTEM.md). This document focuses on UI/UX features and implementation status.
+
 ## Original Ideas (from user)
 - Pending Reviews page may have large queues → need scalable view
 - Toggle between card and list views

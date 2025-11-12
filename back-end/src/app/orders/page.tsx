@@ -106,6 +106,7 @@ export default function OrdersPage() {
           <PhaseSummary
             orders={orders}
             onPhaseClick={handlePhaseClick}
+            showEmptyPhases={true}
             className="mb-6"
           />
         </div>

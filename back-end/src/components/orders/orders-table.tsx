@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { FlaggedBadge } from '@/components/ui/flagged-badge';
 import { formatDate } from '@/lib/utils';
-import { getOrderFlagSummary } from '@/lib/review-state';
+import { getOrderFlagSummary, getActiveStageFlagCount } from '@/lib/review-state';
 import { DisplayStatus } from '@/constants/statuses';
 import { Search, ChevronDown } from 'lucide-react';
 
@@ -33,12 +34,15 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
   });
 
   const statusOptions: { value: DisplayStatus; label: string }[] = [
-    { value: DisplayStatus.NEW, label: 'New' },
-    { value: DisplayStatus.PENDING, label: 'Pending' },
-    { value: DisplayStatus.APPROVED, label: 'Approved' },
-    { value: DisplayStatus.PROOF_SENT, label: 'Proof Sent' },
-    { value: DisplayStatus.CORRECTION_REQUESTED, label: 'Correction Requested' },
-    { value: DisplayStatus.SENT_TO_PRINT, label: 'Sent to Print' },
+    { value: DisplayStatus.IN_QUEUE, label: 'In Queue' },
+    { value: DisplayStatus.REVIEW_POSES, label: 'Review Poses' },
+    { value: DisplayStatus.REVIEW_BACKGROUNDS, label: 'Review Backgrounds' },
+    { value: DisplayStatus.REVIEW_PAGES, label: 'Review Pages' },
+    { value: DisplayStatus.PROOF_READY, label: 'Proof Ready' },
+    { value: DisplayStatus.AWAITING_CUSTOMER, label: 'Awaiting Customer' },
+    { value: DisplayStatus.NEEDS_REVISION, label: 'Needs Revision' },
+    { value: DisplayStatus.READY_TO_PRINT, label: 'Ready to Print' },
+    { value: DisplayStatus.PRINTING, label: 'Printing' },
     { value: DisplayStatus.SHIPPED, label: 'Shipped' },
     { value: DisplayStatus.DELIVERED, label: 'Delivered' },
     { value: DisplayStatus.ACTION_REQUIRED, label: 'Action Required' },
@@ -65,7 +69,6 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
             onChange={(e) => setStatusFilter(e.target.value as 'all' | DisplayStatus)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
           >
-            <option value="all">All Status</option>
             <option value="all">All Status</option>
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -114,8 +117,9 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredOrders.map((order) => {
-                const flagSummary = getOrderFlagSummary(order);
-                const needsAttention = flagSummary.total > 0;
+                // Get flag count for the active stage (the stage the order is currently in)
+                const activeStageFlagCount = getActiveStageFlagCount(order);
+                const needsAttention = activeStageFlagCount > 0;
                 return (
                   <tr
                     key={order.orderId}
@@ -125,11 +129,6 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       <div className="flex items-center space-x-2 min-w-0">
                         <span className="truncate">{order.orderId}</span>
-                        {needsAttention && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 whitespace-nowrap flex-shrink-0">
-                            {flagSummary.total} {flagSummary.total === 1 ? 'Needs' : 'Need'} Attention
-                          </span>
-                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -139,7 +138,12 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
                       {order.platform}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={order.status} />
+                      <div className="flex items-center space-x-2">
+                        <StatusBadge status={order.status} revisionCount={order.revisionCount} />
+                        {needsAttention && (
+                          <FlaggedBadge count={activeStageFlagCount} />
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(order.orderDate)}

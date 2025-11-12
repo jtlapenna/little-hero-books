@@ -1,5 +1,6 @@
 import { getOrderFromSupabase } from './supabase-client';
 import { updateOrderStatus } from './status-service';
+import { DisplayStatus } from '@/constants/statuses';
 
 export interface FlagSummary {
   preBria: number;
@@ -60,6 +61,32 @@ export function getOrderFlagSummary(order: any): FlagSummary {
 }
 
 /**
+ * Get flag count for the active stage based on the order's DisplayStatus
+ * Returns the flag count for the stage the order is currently in
+ */
+export function getActiveStageFlagCount(order: any): number {
+  if (!order) return 0;
+  
+  const flags = order.flags || {};
+  const status = order.status; // This should be the DisplayStatus enum value
+  
+  // Map DisplayStatus to stage flag keys
+  // REVIEW_POSES = preBria
+  // REVIEW_BACKGROUNDS = postBria
+  // REVIEW_PAGES = postPdf
+  if (status === DisplayStatus.REVIEW_POSES || status === 'review_poses') {
+    return flags.preBria || 0;
+  } else if (status === DisplayStatus.REVIEW_BACKGROUNDS || status === 'review_backgrounds') {
+    return flags.postBria || 0;
+  } else if (status === DisplayStatus.REVIEW_PAGES || status === 'review_pages') {
+    return flags.postPdf || 0;
+  }
+  
+  // If not in a review stage, return 0 (no flags to show)
+  return 0;
+}
+
+/**
  * Get flag summary for an order by orderId (async version)
  */
 export async function getOrderFlagSummaryById(orderId: string): Promise<FlagSummary> {
@@ -88,23 +115,33 @@ export async function getOrderFlagSummaryById(orderId: string): Promise<FlagSumm
  * Set flagged count for a stage
  */
 export async function setFlaggedCount(orderId: string, stage: string, count: number): Promise<void> {
-  const order = await getOrderFromSupabase(orderId).catch(() => null);
-  const flags = order?.flags ? { ...order.flags } : {};
-  
-  // Update specific stage
-  const stageKey = stage === 'preBria' ? 'preBria' : 
-                   stage === 'postBria' ? 'postBria' : 
-                   stage === 'postPdf' ? 'postPdf' : stage;
-  
-  flags[stageKey] = count;
-  
-  // Recalculate total
-  flags.total = (flags.preBria || 0) + (flags.postBria || 0) + (flags.postPdf || 0);
-  
-  // Update Supabase
-  await updateOrderStatus(orderId, {
-    flags: flags,
-    has_flags: flags.total > 0
-  });
+  try {
+    const order = await getOrderFromSupabase(orderId).catch(() => null);
+    const flags = order?.flags ? { ...order.flags } : {};
+    
+    // Update specific stage
+    const stageKey = stage === 'preBria' ? 'preBria' : 
+                     stage === 'postBria' ? 'postBria' : 
+                     stage === 'postPdf' ? 'postPdf' : stage;
+    
+    flags[stageKey] = count;
+    
+    // Recalculate total
+    flags.total = (flags.preBria || 0) + (flags.postBria || 0) + (flags.postPdf || 0);
+    
+    // Update Supabase
+    await updateOrderStatus(orderId, {
+      flags: flags,
+      has_flags: flags.total > 0
+    }).catch((error) => {
+      console.error(`[setFlaggedCount] Error updating Supabase for order ${orderId}:`, error);
+      // Don't throw - allow the function to complete even if Supabase update fails
+      // The manifest update is the source of truth, Supabase is just for UI display
+    });
+  } catch (error) {
+    console.error(`[setFlaggedCount] Unexpected error for order ${orderId}, stage ${stage}:`, error);
+    // Don't throw - allow the function to complete
+    // The manifest update is the source of truth
+  }
 }
 
