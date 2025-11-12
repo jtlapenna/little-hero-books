@@ -3299,6 +3299,116 @@ Set up Cloudflare Access (Zero Trust) authentication for the admin panel to secu
 
 ---
 
+## ⚡ **PERFORMANCE OPTIMIZATION PLAN**
+
+> **📖 COMPLETE PLAN**: See `docs/PERFORMANCE_OPTIMIZATION_MASTER_PLAN.md` - This is the single source of truth for all performance optimizations, including risk assessment, strategic timing, technical solutions, and implementation details.
+
+### **Overview**
+Comprehensive plan to optimize flag and approval state updates for instant, real-time UI updates. Addresses current bottlenecks (400-1500ms perceived latency) through phased improvements.
+
+### **Current Status**
+- **Phase 1 (Nov 11-15)**: 🟢 **READY TO IMPLEMENT** - 3 low-risk changes (2-4 hours)
+- **Phase 2 (Dec 1-7)**: ⏳ **PENDING F&F DATA** - Data-driven optimizations (4-8 hours)
+- **Phase 3 (Jan 2026+)**: ⏳ **POST-HOLIDAY** - Major refactor with Zustand (3-4 weeks)
+
+### **Phase 1: Pre-F&F (Nov 11-15) - NOW** ✅ **READY**
+
+**Goal**: Quick wins, minimal risk
+
+**Tasks** (2-4 hours total):
+1. ✅ Remove 500ms delay in approval flow (5 min)
+2. ✅ Return updated data in API responses (1-2 hours)
+3. ✅ Improve optimistic updates consistency (1-2 hours)
+
+**Risk**: 🟢 Very Low
+**Benefit**: 30-50% faster perceived performance
+**Status**: Ready to implement
+
+**Implementation Checklist**:
+- [ ] Remove `setTimeout(resolve, 500)` from `back-end/src/app/orders/[orderId]/page.tsx`
+- [ ] Update API routes to return `reviewStages` and `flags` in responses
+- [ ] Ensure all flag/approval operations use optimistic updates
+- [ ] Test all workflows after changes
+- [ ] Verify rollback on API failures
+
+### **Phase 2: F&F Week (Nov 16-22) - FREEZE**
+
+**Goal**: Stability, monitoring, data collection
+
+**Action**: ❌ **DO NOTHING** - Freeze all development
+
+**Focus**:
+- Monitor system performance
+- Collect real usage data
+- Document pain points
+- Fix critical bugs only
+
+**Metrics to Track**:
+- Time to flag/approve (actual vs perceived)
+- API response times
+- Error rates
+- Admin workflow pain points
+
+### **Phase 3: Review Week (Nov 23-29) - ANALYSIS**
+
+**Goal**: Analyze F&F data, plan optimizations
+
+**Action**: 📊 **ANALYZE DATA** - No code changes
+
+**Activities**:
+- Review all collected metrics
+- Identify actual bottlenecks
+- Prioritize improvements
+- Plan Dec 1-7 implementation
+
+### **Phase 4: Optimization Window (Dec 1-7) - CRITICAL**
+
+**Goal**: Implement proven improvements before holiday rush
+
+**Tasks** (4-8 hours, based on F&F learnings):
+- Non-blocking Supabase updates (safer than parallel)
+- Additional error handling improvements
+- Data-driven optimizations based on real bottlenecks
+
+**Risk**: 🟡 Medium (mitigated by real data)
+**Benefit**: Address actual pain points
+
+### **Phase 5: Holiday Rush (Dec 8-24) - STABILITY**
+
+**Goal**: Operations, not development
+
+**Action**: 🔒 **FREEZE ALL DEVELOPMENT**
+
+**Focus**:
+- No new features
+- No optimizations
+- Critical fixes only
+- Fulfill orders
+
+### **Phase 6: Post-Holiday (Jan 2026+) - MAJOR IMPROVEMENTS**
+
+**Goal**: Major optimizations based on full season data
+
+**Tasks** (3-4 weeks):
+- Zustand store refactor
+- Batch updates
+- Manifest caching
+
+**Risk**: 🔴 High (but system proven)
+**Benefit**: 80-90% performance improvement
+
+### **Key Documents**
+- **Master Plan**: `docs/PERFORMANCE_OPTIMIZATION_MASTER_PLAN.md` - Complete comprehensive plan
+- **Status System**: `docs/STATUS_TAGGING_SYSTEM.md` - Complete status system documentation (includes implementation decisions and technical architecture)
+
+### **Integration with Current Tasks**
+- **Task 1 & 2**: ✅ Complete - Foundation for optimizations
+- **Task 3**: ✅ Complete - Phase organization supports optimization tracking
+- **Phase 1 Optimizations**: Ready to implement alongside current work
+- **Future Phases**: Tracked in master plan, will be implemented based on timeline
+
+---
+
 ## 🎯 **SUCCESS CRITERIA**
 
 ### **Database & Status System**
@@ -3369,6 +3479,8 @@ Set up Cloudflare Access (Zero Trust) authentication for the admin panel to secu
 - `docs/AMAZON_LISTING_FINAL.md` - Amazon listing copy
 - `database/supabase-setup.md` - Database setup guide
 - `docs/HUMAN_REVIEW_IMPLEMENTATION_GUIDE.md` - Human review system
+- `docs/PERFORMANCE_OPTIMIZATION_MASTER_PLAN.md` - **Performance optimization plan** (risk assessment, timing, technical solutions)
+- `docs/STATUS_TAGGING_SYSTEM.md` - **Complete status system documentation** (includes implementation decisions, technical architecture, and workflow details)
 
 ### **API Documentation**
 - Cloudflare Access: https://developers.cloudflare.com/cloudflare-one/
