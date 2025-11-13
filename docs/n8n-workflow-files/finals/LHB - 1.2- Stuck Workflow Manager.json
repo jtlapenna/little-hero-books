@@ -85,7 +85,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "={{ 'eq.' + String($json.order_id || $json.id) }}"
+              "value": "={{ 'eq.' + String($json.id) }}"
             }
           ]
         },
