@@ -74,7 +74,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Route retry orders back to appropriate workflow\nconst orders = $input.all().map(item => item.json);\n\nif (orders.length === 0) {\n  console.log('No orders ready for retry');\n  return [];\n}\n\nconsole.log(`Found ${orders.length} order(s) ready for retry`);\n\n// Group by next_workflow\nconst byWorkflow = {\n  '2A': [],\n  '2B': [],\n  '3': [],\n  '4': []\n};\n\nfor (const order of orders) {\n  const workflow = order.next_workflow || '2A';\n  if (byWorkflow[workflow]) {\n    byWorkflow[workflow].push(order);\n  }\n}\n\nreturn [{ json: byWorkflow }];"
+        "jsCode": "// Pass through orders for retry (no routing needed - router will handle workflow)\nconst orders = $input.all().map(item => item.json);\n\nif (orders.length === 0) {\n  console.log('No orders ready for retry');\n  return [];\n}\n\nconsole.log(`Found ${orders.length} order(s) ready for retry`);\n\n// Return individual orders (not grouped)\n// The router (W1.1) will handle routing based on next_workflow\nreturn orders.map(order => ({ json: order }));"
       },
       "id": "route-retries-001",
       "name": "Route Retries by Workflow",
