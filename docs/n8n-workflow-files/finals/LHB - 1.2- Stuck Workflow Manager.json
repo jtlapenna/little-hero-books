@@ -253,7 +253,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "={{ 'eq.' + String($json.order_id || $json.id) }}"
+              "value": "={{ 'eq.' + String($json.order_id) }}"
             }
           ]
         },
@@ -287,7 +287,8 @@
       "name": "Schedule Retry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [800, 200]
+      "position": [800, 200],
+      "notes": "CRITICAL: Uses $json.order_id (from failed_orders) not $json.id (failed_orders ID)"
     },
     {
       "parameters": {
