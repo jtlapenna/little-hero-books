@@ -86,7 +86,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "eq.{{ $json.id }}"
+              "value": "={{ 'eq.' + String($json.id) }}"
             }
           ]
         },
