@@ -230,6 +230,9 @@
     },
     "Recover: Reset Processing": {
       "main": [[{ "node": "Alert: Orphaned Orders", "type": "main", "index": 0 }]]
+    },
+    "Alert: Orphaned Orders": {
+      "main": []
     }
   },
   "active": false,
