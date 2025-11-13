@@ -377,9 +377,18 @@ function normalizeReviewStage(stageData: any): ReviewStage {
     case 'approved':
       status = ReviewStageStatus.APPROVED;
       break;
+    case 'needs_review':
+    case 'needs-review':
+      status = ReviewStageStatus.NEEDS_REVIEW;
+      break;
     case 'in-review':
     case 'in_review':
       status = ReviewStageStatus.IN_REVIEW;
+      break;
+    case 'ready':
+      // "ready" means the stage is ready for review but not yet reviewed/approved
+      // Map it to NEEDS_REVIEW so it shows up in the review workflow
+      status = ReviewStageStatus.NEEDS_REVIEW;
       break;
     case 'rejected':
       status = ReviewStageStatus.REJECTED;
