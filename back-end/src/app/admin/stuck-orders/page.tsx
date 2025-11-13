@@ -105,9 +105,9 @@ export default function StuckOrdersPage() {
       case 'no_timestamp':
         return <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded">No Timestamp</span>;
       case 'stuck_over_hour':
-        return <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded">Stuck &gt; 1h</span>;
+        return <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded">Stuck {'>'} 1h</span>;
       case 'stuck_over_30min':
-        return <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded">Stuck &gt; 30m</span>;
+        return <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded">Stuck {'>'} 30m</span>;
       default:
         return <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">Recent</span>;
     }
