@@ -742,7 +742,7 @@
             },
             {
               "name": "next_workflow",
-              "value": "={{ $json.manifest.workflow.nextWorkflow || '2B-retry' }}"
+              "value": "={{ null }}"
             },
             {
               "name": "status",
