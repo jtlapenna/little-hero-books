@@ -131,10 +131,19 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
 
   const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
 
-  // Handle manual review requirement (execution_status = 'error_requires_manual_review')
-  // This takes highest priority - show manual review badge even if status is otherwise normal
+  // Handle error states (execution_status = 'error' or 'error_requires_manual_review')
+  // This takes highest priority - show error badge for ANY error state
   if (executionStatus === 'error_requires_manual_review') {
     const displayStatus = DisplayStatus.MANUAL_REVIEW_REQUIRED;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+  
+  // Handle any error status (not just manual review)
+  if (executionStatus === 'error') {
+    const displayStatus = DisplayStatus.ACTION_REQUIRED;
     return {
       status: displayStatus,
       phase: getPhaseForDisplayStatus(displayStatus, revisionCount),

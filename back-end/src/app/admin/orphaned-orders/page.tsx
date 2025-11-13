@@ -225,6 +225,12 @@ export default function OrphanedOrdersPage() {
                     Orphaned For
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Error Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Error Message
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Last Updated
                   </th>
                 </tr>
@@ -241,7 +247,14 @@ export default function OrphanedOrdersPage() {
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {order.amazon_order_id}
+                      <a 
+                        href={`/orders/${order.amazon_order_id}`}
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {order.amazon_order_id}
+                      </a>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {order.execution_status}
@@ -254,6 +267,12 @@ export default function OrphanedOrdersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {Math.floor(order.minutes_orphaned)} min
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {order.error_type || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-md truncate" title={order.error_message || ''}>
+                      {order.error_message || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(order.updated_at).toLocaleString()}

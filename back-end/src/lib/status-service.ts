@@ -29,6 +29,11 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
     return OrderStatus.ACTION_REQUIRED;
   }
   
+  // Also check for any error status (not just manual review)
+  if (order.execution_status === 'error') {
+    return OrderStatus.ACTION_REQUIRED;
+  }
+  
   // 1. Check flags first (highest priority)
   // Note: getOrderFlagSummary will be async and read from Supabase
   const flags = order.flags || {};
