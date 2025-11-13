@@ -71,7 +71,13 @@ export async function POST(request: NextRequest) {
     }
 
     const customerSiteUrl =
-      process.env.CUSTOMER_SITE_URL?.replace(/\/+$/, '') || 'http://localhost:4321';
+      (() => {
+        // Determine customer site URL based on environment
+        // In production, use littleherolabs.com; in development, use localhost
+        const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+        return process.env.CUSTOMER_SITE_URL?.replace(/\/+$/, '') || 
+          (isProduction ? 'https://littleherolabs.com' : 'http://localhost:4321');
+      })();
 
     const revisionsRemaining = Math.max(0, 2 - (order.revision_count || 0));
 

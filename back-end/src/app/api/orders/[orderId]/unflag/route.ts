@@ -217,9 +217,9 @@ export async function POST(
     } else {
       // Pre-Bria: use 2a manifest
       try {
-        const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-        manifest = await readJsonSafe<any>(manifestRes);
-        console.log(`[Unflag API] Loaded 2a manifest for Pre-Bria unflag`);
+      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
+      manifest = await readJsonSafe<any>(manifestRes);
+      console.log(`[Unflag API] Loaded 2a manifest for Pre-Bria unflag`);
       } catch (error: any) {
         if (error.message?.includes('404') || error.message?.includes('Not Found')) {
           return NextResponse.json(

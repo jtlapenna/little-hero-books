@@ -285,14 +285,14 @@ export async function POST(request: NextRequest) {
       !isTableMissingError(feedbackCountError, 'customer_feedback')
     ) {
       console.error('[API] Error counting existing corrections', feedbackCountError);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Failed to verify correction limit'
-        },
-        { status: 500, headers: corsHeaders }
-      );
-    }
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Failed to verify correction limit'
+          },
+          { status: 500, headers: corsHeaders }
+        );
+      }
 
     const priorCorrections = feedbackCount ?? 0;
 

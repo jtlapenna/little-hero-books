@@ -247,14 +247,19 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     console.log('[PreBriaStage] posesData length:', posesData.length, 'sample:', posesData.slice(0, 2).map(p => ({ poseNumber: p.poseNumber, url: p.url?.substring(0, 50) })));
     if (posesData.length > 0) {
       
-      const mappedPoses = posesData.map((pose) => {
+      const mappedPoses = posesData.map((pose, index) => {
         const poseNumber = pose.poseNumber ?? 0;
-        const poseId = `pose${String(poseNumber).padStart(2, '0')}`;
+        // Base poseId for flag tracking (matches manifest format)
+        const basePoseId = `pose${String(poseNumber).padStart(2, '0')}`;
+        // Unique poseId for React keys (includes index to handle duplicate poseNumbers)
+        // This ensures stable, unique IDs for React keys and prevents re-render issues
+        const poseId = `${basePoseId}-${index}`;
         const isMissing = pose.isMissing || !pose.url;
         
         // Check if user has manually unflagged or flagged this pose - respect those decisions
-        const isManuallyUnflagged = manuallyUnflaggedRef.current.has(poseId);
-        const isManuallyFlagged = manuallyFlaggedRef.current.has(poseId);
+        // Use basePoseId for flag lookups since that's what's stored in the refs
+        const isManuallyUnflagged = manuallyUnflaggedRef.current.has(basePoseId);
+        const isManuallyFlagged = manuallyFlaggedRef.current.has(basePoseId);
         
         // Set isFlagged based on manual flags, manifest flags, needsReview, or isMissing
         // Priority: manually flagged > missing > manually unflagged > manifest flags
@@ -450,7 +455,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       
       // Update flag count immediately
       const allAssets = [{ ...baseCharacter, isFlagged: newFlaggedState }, ...poses];
-      const newFlaggedCount = allAssets.filter(asset => asset.isFlagged).length;
+          const newFlaggedCount = allAssets.filter(asset => asset.isFlagged).length;
       await setFlaggedCount(orderId, 'preBria', newFlaggedCount);
     } else {
       setPoses(prev => {
@@ -459,8 +464,10 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         
         const newFlaggedState = !currentPose.isFlagged;
         
-        // Extract poseNumber from assetId (e.g., "pose05" -> 5)
-        const poseNumberMatch = assetId.match(/pose(\d+)/);
+        // Extract poseNumber from assetId (e.g., "pose05-0" -> 5, "pose05" -> 5)
+        // Handle both old format (pose05) and new format (pose05-0)
+        const basePoseId = assetId.includes('-') ? assetId.split('-').slice(0, -1).join('-') : assetId;
+        const poseNumberMatch = basePoseId.match(/pose(\d+)/);
         const poseNumber = poseNumberMatch ? parseInt(poseNumberMatch[1], 10) : null;
         
         // Persist flagging/unflagging to manifest via API
@@ -485,14 +492,18 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             } else {
               const result = await response.json();
               // Successfully persisted
+              // Extract basePoseId from assetId (remove index suffix if present)
+              // assetId format: "pose00-0" or "pose00-1", basePoseId: "pose00"
+              const basePoseId = assetId.includes('-') ? assetId.split('-').slice(0, -1).join('-') : assetId;
+              
               if (newFlaggedState) {
                 // User is flagging - add to manually flagged set, remove from unflagged set
-                manuallyFlaggedRef.current.add(assetId);
-                manuallyUnflaggedRef.current.delete(assetId);
+                manuallyFlaggedRef.current.add(basePoseId);
+                manuallyUnflaggedRef.current.delete(basePoseId);
               } else {
                 // User is unflagging - add to manually unflagged set, remove from flagged set
-                manuallyUnflaggedRef.current.add(assetId);
-                manuallyFlaggedRef.current.delete(assetId);
+                manuallyUnflaggedRef.current.add(basePoseId);
+                manuallyFlaggedRef.current.delete(basePoseId);
               }
               
               // Update order flags and review stages from API response

@@ -107,6 +107,35 @@ export async function POST(req: NextRequest, { params }: { params: { orderId: st
     }
 
     const json = await resp.json().catch(() => ({}));
+    
+    // Update order status to indicate workflow has been triggered
+    // IMPORTANT: Preserve review_stages when updating to avoid losing approvals
+    const { updateOrderStatus } = await import('@/lib/status-service');
+    const { getOrderFromSupabase } = await import('@/lib/supabase-client');
+    try {
+      // Get current order to preserve review_stages
+      const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
+      const updates: any = {
+        next_workflow: '3',
+        execution_status: 'ready_for_processing',
+        workflow_step: '3-queued', // Mark workflow as queued/triggered
+        queued_at: new Date().toISOString(),
+        started_at: null,
+        current_workflow: null
+      };
+      
+      // Preserve review_stages if they exist (to maintain approvals)
+      if (currentOrder?.review_stages) {
+        updates.review_stages = currentOrder.review_stages;
+      }
+      
+      await updateOrderStatus(orderId, updates);
+      console.log(`[POST /api/orders/[orderId]/trigger-book-assembly] ✅ Queued order for W3`);
+    } catch (statusError: any) {
+      console.warn(`[POST /api/orders/[orderId]/trigger-book-assembly] ⚠️ Failed to update order status (continuing anyway):`, statusError);
+      // Continue even if status update fails
+    }
+    
     return NextResponse.json({ ok: true, job: json, manifestKey, webhookUrl });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Internal error' }, { status: 500 });

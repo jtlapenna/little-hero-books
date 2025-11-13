@@ -600,7 +600,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
               manuallyUnflaggedRef.current.delete(assetId);
             } else {
               // User is unflagging - add to manually unflagged set, remove from flagged set
-              manuallyUnflaggedRef.current.add(assetId);
+            manuallyUnflaggedRef.current.add(assetId);
               manuallyFlaggedRef.current.delete(assetId);
             }
             

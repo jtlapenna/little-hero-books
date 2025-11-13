@@ -123,9 +123,11 @@ async function getOrder(
   try {
     const previewToken = await getActivePreviewToken(order.orderId);
     if (previewToken) {
-      const customerSiteUrl =
-        process.env.CUSTOMER_SITE_URL?.replace(/\/+$/, '') ||
-        'http://localhost:4321';
+      // Determine customer site URL based on environment
+      // In production, use littleherolabs.com; in development, use localhost
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+      const customerSiteUrl = process.env.CUSTOMER_SITE_URL?.replace(/\/+$/, '') || 
+        (isProduction ? 'https://littleherolabs.com' : 'http://localhost:4321');
       order.customerPreview = {
         token: previewToken.token,
         url: `${customerSiteUrl}/approve/${previewToken.token}`,
@@ -246,12 +248,23 @@ async function getOrder(
   }
   
   if (!manifest) {
+    // Always initialize r2Assets, even if no character assets exist yet
+    // This ensures the frontend can handle the empty state gracefully
     if (characterAssets.length > 0) {
       const baseCharacter = characterAssets.find((asset) => asset.assetType === 'original') || characterAssets[0];
       order.r2Assets = {
         characterHash: order.characterHash || '',
         baseCharacter: baseCharacter || null,
         poses: characterAssets,
+        baseCharacterBgRemoved: null,
+        posesBgRemoved: [],
+      };
+    } else {
+      // Initialize with empty arrays so frontend can render empty state
+      order.r2Assets = {
+        characterHash: order.characterHash || '',
+        baseCharacter: null,
+        poses: [],
         baseCharacterBgRemoved: null,
         posesBgRemoved: [],
       };

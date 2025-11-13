@@ -68,6 +68,7 @@ export enum DisplayStatus {
   REVIEW_POSES = 'review_poses',
   REVIEW_BACKGROUNDS = 'review_backgrounds',
   REVIEW_PAGES = 'review_pages',
+  APPROVED = 'approved', // Stage approved but next workflow not triggered yet
   PROOF_READY = 'proof_ready',
   AWAITING_CUSTOMER = 'awaiting_customer',
   NEEDS_REVISION = 'needs_revision',
@@ -84,6 +85,7 @@ export enum DisplayStatus {
  */
 export enum ReviewStageStatus {
   PENDING = 'pending',
+  NEEDS_REVIEW = 'needs_review', // Images exist and need human review
   IN_REVIEW = 'in-review', // Use hyphen for consistency
   READY = 'ready', // Ready for review
   APPROVED = 'approved',
@@ -107,9 +109,13 @@ export enum CustomerApprovalStatus {
  * These match the workflow_step field in the database
  */
 export enum WorkflowStep {
+  ORDER_INTAKE = 'order_intake',
   AI_GENERATION_COMPLETED = 'ai_generation_completed',
+  W2A_COMPLETE = '2A-complete',
   BRIA_PROCESSING_COMPLETE = 'bria_processing_complete',
-  BOOK_ASSEMBLY_COMPLETED = 'book_assembly_completed'
+  W2B_COMPLETE = '2B-complete',
+  BOOK_ASSEMBLY_COMPLETED = 'book_assembly_completed',
+  PRINT_FULFILLMENT = 'print_fulfillment'
 }
 
 /**
@@ -166,6 +172,7 @@ export const StatusLabels: Record<string, string> = {
   [DisplayStatus.REVIEW_POSES]: 'Review Poses',
   [DisplayStatus.REVIEW_BACKGROUNDS]: 'Review Backgrounds',
   [DisplayStatus.REVIEW_PAGES]: 'Review Pages',
+  [DisplayStatus.APPROVED]: 'Approved',
   [DisplayStatus.PROOF_READY]: 'Proof Ready',
   [DisplayStatus.AWAITING_CUSTOMER]: 'Awaiting Customer',
   [DisplayStatus.NEEDS_REVISION]: 'Needs Revision',
@@ -177,6 +184,7 @@ export const StatusLabels: Record<string, string> = {
   
   // Review Stage Statuses
   [ReviewStageStatus.PENDING]: 'Pending',
+  [ReviewStageStatus.NEEDS_REVIEW]: 'Needs Review',
   [ReviewStageStatus.IN_REVIEW]: 'In Review',
   [ReviewStageStatus.READY]: 'Ready',
   [ReviewStageStatus.APPROVED]: 'Approved',
@@ -353,6 +361,11 @@ export const StatusColors: Record<string, {
     text: 'text-blue-900',
     border: 'border-blue-400'
   },
+  [DisplayStatus.APPROVED]: {
+    bg: 'bg-gray-100',
+    text: 'text-gray-800',
+    border: 'border-gray-200'
+  },
   [DisplayStatus.PROOF_READY]: {
     bg: 'bg-green-100',
     text: 'text-green-800',
@@ -399,6 +412,11 @@ export const StatusColors: Record<string, {
     bg: 'bg-gray-100',
     text: 'text-gray-800',
     border: 'border-gray-200'
+  },
+  [ReviewStageStatus.NEEDS_REVIEW]: {
+    bg: 'bg-yellow-100',
+    text: 'text-yellow-800',
+    border: 'border-yellow-200'
   },
   [ReviewStageStatus.IN_REVIEW]: {
     bg: 'bg-blue-100',

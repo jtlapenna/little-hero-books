@@ -79,9 +79,16 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
   // 5. Check workflow step (using workflow_step field from database)
   if (order.workflow_step) {
     const workflowStatusMap: Record<string, OrderStatus> = {
+      // Existing mappings
       'ai_generation_completed': OrderStatus.PENDING_BG_REMOVAL,
       'bria_processing_complete': OrderStatus.PENDING_ASSEMBLY,
-      'book_assembly_completed': OrderStatus.PENDING_ASSEMBLY_REVIEW
+      'book_assembly_completed': OrderStatus.PENDING_ASSEMBLY_REVIEW,
+      
+      // Additional mappings found in database
+      'order_intake': OrderStatus.QUEUED_FOR_PROCESSING,
+      '2A-complete': OrderStatus.PENDING_BG_REMOVAL, // Same as ai_generation_completed
+      '2B-complete': OrderStatus.PENDING_ASSEMBLY, // Same as bria_processing_complete
+      'print_fulfillment': OrderStatus.PENDING_PRINT
     };
     if (workflowStatusMap[order.workflow_step]) {
       return workflowStatusMap[order.workflow_step];

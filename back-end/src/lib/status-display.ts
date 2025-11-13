@@ -5,6 +5,7 @@ import {
   LuluStatus,
   OrderStatus,
   ReviewStageStatus,
+  WorkflowStep,
 } from '@/constants/statuses';
 import { OrderPhase } from '@/constants/phases';
 
@@ -53,9 +54,10 @@ function getPhaseForDisplayStatus(displayStatus: DisplayStatus, revisionCount?: 
     case DisplayStatus.REVIEW_POSES:
     case DisplayStatus.REVIEW_BACKGROUNDS:
     case DisplayStatus.REVIEW_PAGES:
+    case DisplayStatus.APPROVED: // Approved status appears in review phase
     case DisplayStatus.PROOF_READY:
-      // If revisionCount >= 1, we're in second review (yellow), otherwise first review (blue)
-      return isSecondReview ? OrderPhase.SECOND_REVIEW : OrderPhase.FIRST_REVIEW;
+        // If revisionCount >= 1, we're in second review (yellow), otherwise first review (blue)
+        return isSecondReview ? OrderPhase.SECOND_REVIEW : OrderPhase.FIRST_REVIEW;
     case DisplayStatus.AWAITING_CUSTOMER:
     case DisplayStatus.NEEDS_REVISION:
       return OrderPhase.AWAITING_CUSTOMER;
@@ -103,15 +105,27 @@ export interface DisplayStatusMetadata {
 }
 
 export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
+  // Defensive check - handle null/undefined order
+  if (!order) {
+    return {
+      status: DisplayStatus.IN_QUEUE,
+      phase: OrderPhase.IN_QUEUE,
+    };
+  }
+
   const stageStatuses = collectStageStatuses(order);
   const stageNeedsAttention = stageStatuses.some(hasStageAttention);
   const hasFlags =
     order.hasFlags ||
     (typeof order.flags?.total === 'number' && order.flags.total > 0);
+  // Check if any stage has progress (not pending and not undefined)
+  // This includes "needs_review", "in-review", "approved", etc.
   const hasAnyStageProgress = stageStatuses.some(
     (status) =>
       status !== normalizeStageStatus(ReviewStageStatus.PENDING) &&
-      status !== ReviewStageStatus.READY
+      status !== ReviewStageStatus.READY &&
+      status !== undefined &&
+      status !== ''
   );
   const allStagesApproved =
     stageStatuses.length === 3 &&
@@ -127,6 +141,35 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
   const postPdfStatus = normalizeStageStatus(reviewStages.postPdf?.status);
 
   const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
+
+  // Check if images/assets exist for each stage (defined once at the top)
+  // IN_QUEUE = order exists but images haven't been generated yet
+  // Once images exist, we move to review stages and NEVER go back to IN_QUEUE
+  // 
+  // We check multiple indicators because r2Assets might not be populated in list views:
+  // 1. Direct r2Assets check (for individual order views where assets are loaded)
+  // 2. preBria stage progress (if reviewed/approved, images definitely exist)
+  // 3. characterHash + past generation phase (for list views where r2Assets isn't loaded)
+  const isProcessing = rawStatus === OrderStatus.AI_GENERATION_IN_PROGRESS || 
+                       rawStatus === OrderStatus.PENDING_BG_REMOVAL || 
+                       rawStatus === OrderStatus.PENDING_ASSEMBLY;
+  // preBria has progress if status is not "pending" (includes "needs_review", "in-review", "approved", etc.)
+  const preBriaHasProgress = preBriaStatus !== ReviewStageStatus.PENDING && 
+                             preBriaStatus !== undefined &&
+                             preBriaStatus !== '';
+  
+  // Images exist if:
+  // - r2Assets.poses exists and has items (direct check - works in detail views)
+  // - OR preBria stage has progress (status is not "pending" - definitive proof images exist and were reviewed)
+  // 
+  // NOTE: We do NOT check characterHash alone because it can be set in the database
+  // before images are actually generated. We only trust it if preBriaHasProgress is true.
+  // This ensures we only show "Review Poses" when images actually exist.
+  const hasPoses = (order.r2Assets?.poses && Array.isArray(order.r2Assets.poses) && order.r2Assets.poses.length > 0) ||
+                   preBriaHasProgress;
+  const hasBgRemovedPoses = (order.r2Assets?.posesBgRemoved && Array.isArray(order.r2Assets.posesBgRemoved) && order.r2Assets.posesBgRemoved.length > 0) ||
+                            (postBriaStatus !== ReviewStageStatus.PENDING && postBriaStatus !== undefined);
+  const hasPdf = order.reviewStages?.postPdf !== undefined; // If postPdf stage exists, PDF likely exists
 
   // Handle failure states first
   if (rawStatus && FAILURE_STATUSES.has(rawStatus)) {
@@ -170,28 +213,30 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
   ) {
     // If customer requested revision, show which stage needs review
     // Check which stage is not approved to determine where we are in the revision cycle
-    if (!stageIsApproved(preBriaStatus)) {
+    // IMPORTANT: Only show review statuses if images/assets actually exist
+    
+    if (!stageIsApproved(preBriaStatus) && hasPoses) {
       const displayStatus = DisplayStatus.REVIEW_POSES;
       return {
         status: displayStatus,
         phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
       };
     }
-    if (!stageIsApproved(postBriaStatus)) {
+    if (!stageIsApproved(postBriaStatus) && hasBgRemovedPoses) {
       const displayStatus = DisplayStatus.REVIEW_BACKGROUNDS;
       return {
         status: displayStatus,
         phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
       };
     }
-    if (!stageIsApproved(postPdfStatus)) {
+    if (!stageIsApproved(postPdfStatus) && hasPdf) {
       const displayStatus = DisplayStatus.REVIEW_PAGES;
       return {
         status: displayStatus,
         phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
       };
     }
-    // Fallback to needs revision if we can't determine stage
+    // Fallback to needs revision if we can't determine stage or images don't exist
     const displayStatus = DisplayStatus.NEEDS_REVISION;
     return {
       status: displayStatus,
@@ -270,9 +315,53 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
 
   // Handle review stages - determine which stage needs review
   // Check in reverse order (postPdf -> postBria -> preBria) to find first unapproved stage
+  // IMPORTANT: Only show review statuses if images/assets actually exist
+  
+  // Check if workflows have been triggered
+  // Background removal is triggered if:
+  // 1. Background-removed images actually exist (hasBgRemovedPoses), OR
+  // 2. Workflow step indicates 2B has completed (W2B_COMPLETE, BRIA_PROCESSING_COMPLETE), OR
+  // 3. Status is PENDING_BG_REMOVAL AND preBria is approved (workflow has been queued/triggered)
+  // We check PENDING_BG_REMOVAL only when preBria is approved to distinguish from status set before approval
+  const bgRemovalTriggered = hasBgRemovedPoses || 
+                              order.workflowStep === WorkflowStep.W2B_COMPLETE ||
+                              order.workflowStep === WorkflowStep.BRIA_PROCESSING_COMPLETE ||
+                              order.workflowStep === WorkflowStep.BOOK_ASSEMBLY_COMPLETED ||
+                              (rawStatus === OrderStatus.PENDING_BG_REMOVAL && stageIsApproved(preBriaStatus));
+  
+  // Book assembly is triggered ONLY if:
+  // 1. PDF actually exists (hasPdf), OR
+  // 2. Workflow step indicates book assembly has been triggered or completed:
+  //    - '3-queued' (workflow has been explicitly triggered)
+  //    - 'book_assembly_completed' (workflow has completed)
+  // We do NOT check:
+  // - postPdf stage existence (stage can exist before workflow is triggered)
+  // - PENDING_ASSEMBLY status (can be set before workflow is triggered)
+  // - PENDING_ASSEMBLY_REVIEW status (can be set before workflow is triggered)
+  // The workflow must be explicitly triggered via "Trigger Book Assembly" button
+  const bookAssemblyTriggered = hasPdf ||
+                                order.workflowStep === WorkflowStep.BOOK_ASSEMBLY_COMPLETED ||
+                                order.workflowStep === '3-queued';
+  
+  // Priority 1: Check if postPdf stage needs review (book assembly complete)
+  // Only show "Review Pages" if book assembly has been triggered
   if (!stageIsApproved(postPdfStatus) && 
       stageIsApproved(preBriaStatus) && 
-      stageIsApproved(postBriaStatus)) {
+      stageIsApproved(postBriaStatus) &&
+      bookAssemblyTriggered) {
+    const displayStatus = DisplayStatus.REVIEW_PAGES;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+  
+  // Priority 2: If postPdf is approved but "Send Proof" hasn't been clicked yet, stay in "Review Pages"
+  // Don't show "Approved" - keep showing the current stage until workflow is triggered
+  if (stageIsApproved(postPdfStatus) && 
+      stageIsApproved(preBriaStatus) && 
+      stageIsApproved(postBriaStatus) &&
+      !proofSent) {
     const displayStatus = DisplayStatus.REVIEW_PAGES;
     return {
       status: displayStatus,
@@ -280,7 +369,23 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
     };
   }
 
-  if (!stageIsApproved(postBriaStatus) && stageIsApproved(preBriaStatus)) {
+  // Priority 3: Check if postBria stage needs review (background removal complete)
+  // Only show "Review Backgrounds" if bgRemoval has been triggered
+  if (!stageIsApproved(postBriaStatus) && 
+      stageIsApproved(preBriaStatus) &&
+      bgRemovalTriggered) {
+    const displayStatus = DisplayStatus.REVIEW_BACKGROUNDS;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+  
+  // Priority 4: If postBria is approved but "Trigger Book Assembly" hasn't been clicked yet, stay in "Review Backgrounds"
+  // Don't show "Approved" - keep showing the current stage until workflow is triggered
+  if (stageIsApproved(postBriaStatus) && 
+      stageIsApproved(preBriaStatus) &&
+      !bookAssemblyTriggered) {
     const displayStatus = DisplayStatus.REVIEW_BACKGROUNDS;
     return {
       status: displayStatus,
@@ -288,7 +393,19 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
     };
   }
 
-  if (!stageIsApproved(preBriaStatus)) {
+  // Priority 5: Check if preBria stage needs review (images exist)
+  if (!stageIsApproved(preBriaStatus) && hasPoses) {
+    const displayStatus = DisplayStatus.REVIEW_POSES;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+  
+  // Priority 6: If preBria is approved but "Trigger Background Removal" hasn't been clicked yet, stay in "Review Poses"
+  // Don't show "Approved" - keep showing the current stage until workflow is triggered
+  if (stageIsApproved(preBriaStatus) && 
+      !bgRemovalTriggered) {
     const displayStatus = DisplayStatus.REVIEW_POSES;
     return {
       status: displayStatus,
@@ -296,10 +413,16 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
     };
   }
 
-  // Handle new orders (in queue)
+  // Handle new orders (in queue) - ONLY if images don't exist yet
+  // IN_QUEUE is only for orders that are newly submitted and don't have images
+  // IMPORTANT: If hasPoses is true (images exist), we NEVER show IN_QUEUE
   if (
-    rawStatus &&
-    NEW_STATUSES.has(rawStatus) &&
+    !hasPoses && // No images generated yet - this is the primary check
+    (rawStatus === OrderStatus.NEW || 
+     rawStatus === OrderStatus.PENDING_PROCESSING || 
+     rawStatus === OrderStatus.QUEUED_FOR_PROCESSING ||
+     rawStatus === OrderStatus.AI_GENERATION_IN_PROGRESS ||
+     (rawStatus && NEW_STATUSES.has(rawStatus))) &&
     !hasAnyStageProgress &&
     !proofSent
   ) {
@@ -311,7 +434,8 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
   }
 
   // Default fallback - show first unapproved stage or in queue
-  if (!stageIsApproved(preBriaStatus)) {
+  // Only show REVIEW_POSES if images actually exist
+  if (!stageIsApproved(preBriaStatus) && hasPoses) {
     const displayStatus = DisplayStatus.REVIEW_POSES;
     return {
       status: displayStatus,
@@ -319,6 +443,54 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
     };
   }
 
+  // If images exist but we haven't matched any review stage, check if stages are approved
+  // This handles cases where all stages might be approved but we haven't hit PROOF_READY yet
+  if (hasPoses) {
+    // If we have images, we're past the queue stage
+    // Fallback to REVIEW_POSES if preBria is not approved (even if we didn't match above)
+    if (!stageIsApproved(preBriaStatus)) {
+      const displayStatus = DisplayStatus.REVIEW_POSES;
+      return {
+        status: displayStatus,
+        phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+      };
+    }
+    // If all stages are approved but we haven't matched PROOF_READY, show PROOF_READY
+    if (allStagesApproved) {
+      const displayStatus = DisplayStatus.PROOF_READY;
+      return {
+        status: displayStatus,
+        phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+      };
+    }
+  }
+
+  // Only show IN_QUEUE if no images exist AND order is in a new/processing state
+  // This is the true "in queue" state - waiting for character generation
+  // Note: isProcessing is already defined above, so we use it here
+  
+  if (!hasPoses && (
+    (rawStatus && NEW_STATUSES.has(rawStatus)) ||
+    isProcessing
+  )) {
+    const displayStatus = DisplayStatus.IN_QUEUE;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+
+  // Final fallback - if we have images but can't determine status, show REVIEW_POSES
+  // This ensures we never show IN_QUEUE for orders with images
+  if (hasPoses) {
+    const displayStatus = DisplayStatus.REVIEW_POSES;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+
+  // Absolute last fallback - IN_QUEUE only if truly no images and no progress
   const displayStatus = DisplayStatus.IN_QUEUE;
   return {
     status: displayStatus,

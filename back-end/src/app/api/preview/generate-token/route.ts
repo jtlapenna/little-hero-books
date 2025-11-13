@@ -42,9 +42,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Generate preview URL for customer-facing site
-    // In production, this should be: https://littleherolabs.com/approve/${token}
-    // For development, using localhost:4321 (customer-facing Astro site)
-    const customerSiteUrl = process.env.CUSTOMER_SITE_URL || 'http://localhost:4321';
+    // Determine customer site URL based on environment
+    // In production, use littleherolabs.com; in development, use localhost
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+    const customerSiteUrl = process.env.CUSTOMER_SITE_URL?.replace(/\/+$/, '') || 
+      (isProduction ? 'https://littleherolabs.com' : 'http://localhost:4321');
     const previewUrl = `${customerSiteUrl}/approve/${token}`;
 
     return NextResponse.json({
