@@ -74,7 +74,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Pass through orders for retry (no routing needed - router will handle workflow)\nconst orders = $input.all().map(item => item.json);\n\nif (orders.length === 0) {\n  console.log('No orders ready for retry');\n  return [];\n}\n\nconsole.log(`Found ${orders.length} order(s) ready for retry`);\n\n// Return individual orders (not grouped)\n// The router (W1.1) will handle routing based on next_workflow\nreturn orders.map(order => ({ json: order }));"
+        "jsCode": "// Pass through orders for retry (no routing needed - router will handle workflow)\n// Supabase REST API returns an array, which n8n might receive as a single item\nconst inputItems = $input.all();\nconst orders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  // If data is an array, flatten it\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    // If it's a single order object, add it\n    orders.push(data);\n  }\n}\n\nif (orders.length === 0) {\n  console.log('No orders ready for retry');\n  return [];\n}\n\nconsole.log(`Found ${orders.length} order(s) ready for retry`);\n\n// Return individual orders (not grouped)\n// The router (W1.1) will handle routing based on next_workflow\nreturn orders.map(order => ({ json: order }));"
       },
       "id": "route-retries-001",
       "name": "Route Retries by Workflow",
