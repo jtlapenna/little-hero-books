@@ -163,9 +163,6 @@ export const StatusLabels: Record<string, string> = {
   [OrderStatus.PRINT_SUBMISSION_COMPLETED]: 'Print Submission Completed',
   [OrderStatus.IN_PRODUCTION]: 'In Production',
   [OrderStatus.PENDING_SHIPPING]: 'Pending Shipping',
-  [OrderStatus.SHIPPED]: 'Shipped',
-  [OrderStatus.DELIVERED]: 'Delivered',
-  [OrderStatus.ACTION_REQUIRED]: 'Action Required',
   [OrderStatus.FAILED]: 'Failed',
   [OrderStatus.CANCELLED]: 'Cancelled',
   [OrderStatus.COMPLETED]: 'Completed',
@@ -201,10 +198,7 @@ export const StatusLabels: Record<string, string> = {
   [ReviewStageStatus.FLAGGED]: 'Flagged',
   
   // Customer Approval Statuses
-  [CustomerApprovalStatus.PENDING]: 'Pending',
-  [CustomerApprovalStatus.APPROVED]: 'Approved',
-  [CustomerApprovalStatus.REVISION_REQUESTED]: 'Revision Requested',
-  [CustomerApprovalStatus.REJECTED]: 'Rejected'
+  [CustomerApprovalStatus.REVISION_REQUESTED]: 'Revision Requested'
 };
 
 /**
@@ -291,16 +285,6 @@ export const StatusColors: Record<string, {
     text: 'text-green-800',
     border: 'border-green-200'
   },
-  [OrderStatus.SHIPPED]: {
-    bg: 'bg-green-100',
-    text: 'text-green-800',
-    border: 'border-green-200'
-  },
-  [OrderStatus.DELIVERED]: {
-    bg: 'bg-emerald-100',
-    text: 'text-emerald-800',
-    border: 'border-emerald-200'
-  },
   [OrderStatus.COMPLETED]: {
     bg: 'bg-emerald-100',
     text: 'text-emerald-800',
@@ -330,11 +314,6 @@ export const StatusColors: Record<string, {
   },
   
   // Error/Issue states - Red
-  [OrderStatus.ACTION_REQUIRED]: {
-    bg: 'bg-red-100',
-    text: 'text-red-800',
-    border: 'border-red-200'
-  },
   [OrderStatus.FAILED]: {
     bg: 'bg-red-100',
     text: 'text-red-800',
