@@ -165,15 +165,28 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.action }}",
-              "operation": "equals",
-              "value2": "require_manual_review"
+              "id": "check-action-condition-001",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "require_manual_review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
-          ]
+          ],
+          "combinator": "and"
         },
-        "options": {}
+        "options": {
+          "looseTypeValidation": true
+        }
       },
       "id": "check-action-001",
       "name": "Check Action",
