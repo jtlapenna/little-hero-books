@@ -743,26 +743,15 @@ export function PostPdfStage({
           console.log('[Pages] 3-manifest fetch error:', e);
         }
         
-        // Fallback: Construct image URLs directly from R2 path pattern
-        // This means images aren't in manifest yet (workflow 3 hasn't completed)
+        // If no images found in manifest, do NOT create fallback URLs
+        // This will leave pageData empty, which will show "Preview Images Pending" message
+        // instead of "Image not found" placeholders
         if (pageData.length === 0) {
-          console.warn('[Pages] ⚠️ No pagePreviewImages found in manifest, using fallback R2 path pattern');
-          console.warn('[Pages] This means either: 1) Workflow 3 hasn\'t completed, or 2) Manifest structure is unexpected');
-          setUsingFallbackUrls(true); // Mark that we're using fallback URLs (images not available yet)
-          // Images are stored at: book-mvp-simple-adventure/orders/{orderId}/preview-images/p{pageNumber}.png
-          // Format: p00.png (dedication), p01.png (page 1), p02.png (page 2), ..., p15.png (page 15)
-          // NOTE: Using NEW format (p01.png), NOT old format (page-01_preview.png)
-          pageData = Array.from({ length: 16 }, (_, i) => {
-            const pageNum = i; // 0-15 (0 is dedication, 1-15 are story pages)
-            const filename = `p${String(pageNum).padStart(2, '0')}.png`; // NEW format: p01.png
-            const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`;
-            return {
-              pageNumber: pageNum,
-              previewImageUrl: `/api/assets/${r2Key}`, // Use relative URL
-              r2Key: r2Key // Include r2Key for replacement operations
-            };
-          });
-          console.log('[Pages] Fallback: Constructed', pageData.length, 'page URLs using format p00.png, p01.png, etc.');
+          console.warn('[Pages] ⚠️ No pagePreviewImages found in manifest');
+          console.warn('[Pages] This means Workflow 3 (Book Assembly) hasn\'t completed yet');
+          console.warn('[Pages] Leaving pageData empty to show "Preview Images Pending" message');
+          setUsingFallbackUrls(false); // Not using fallback - images simply don't exist yet
+          // Do NOT create fallback URLs - let the UI show the pending message
         } else {
           // Images found in manifest - clear fallback flag
           setUsingFallbackUrls(false);
