@@ -126,6 +126,16 @@ export default function OrderDetailPage() {
       console.log('OrderDetailPage: R2 poses count:', data.r2Assets?.poses?.length);
       console.log('OrderDetailPage: R2 post-Bria poses count:', data.r2Assets?.posesBgRemoved?.length);
       setOrder(data);
+      
+      // Initialize flagCounts from order.flags if available (for immediate UI update)
+      if (data.flags) {
+        setFlagCounts({
+          preBria: data.flags.preBria || 0,
+          postBria: data.flags.postBria || 0,
+          postPdf: data.flags.postPdf || 0,
+        });
+      }
+      
       setLoading(false);
       return data;
     } catch (error) {
@@ -137,6 +147,45 @@ export default function OrderDetailPage() {
       return foundOrder;
     }
   };
+
+  // Callback to update order state and sync flagCounts
+  const handleOrderUpdate = useCallback((updates: Partial<Order>) => {
+    console.log('[handleOrderUpdate] Received updates:', updates);
+    setOrder(prev => {
+      if (!prev) return prev;
+      
+      // Merge updates properly, especially for reviewStages
+      // Create new object references to ensure React detects changes
+      const updatedReviewStages = updates.reviewStages 
+        ? {
+            ...prev.reviewStages,
+            ...updates.reviewStages,
+          }
+        : prev.reviewStages;
+      
+      const updatedOrder: Order = {
+        ...prev,
+        ...(updates.flags && { flags: updates.flags }),
+        reviewStages: updatedReviewStages,
+      };
+      
+      console.log('[handleOrderUpdate] Updated order.reviewStages:', updatedReviewStages);
+      console.log('[handleOrderUpdate] Updated order.flags:', updatedOrder.flags);
+      
+      // Sync flagCounts state with order.flags for immediate UI update
+      if (updates.flags) {
+        const newFlagCounts = {
+          preBria: updates.flags.preBria || 0,
+          postBria: updates.flags.postBria || 0,
+          postPdf: updates.flags.postPdf || 0,
+        };
+        console.log('[handleOrderUpdate] Updating flagCounts:', newFlagCounts);
+        setFlagCounts(newFlagCounts);
+      }
+      
+      return updatedOrder;
+    });
+  }, []);
 
   useEffect(() => {
     const orderId = params.orderId as string;
@@ -387,20 +436,39 @@ export default function OrderDetailPage() {
 
       // Update the order with the approval result immediately (no delay, no refetch)
       if (result?.reviewStages || result?.flags) {
+        console.log('[handleStageApprove] Updating order with result:', { reviewStages: result.reviewStages, flags: result.flags });
         setOrder(prev => {
           if (!prev) return prev;
-          return {
-            ...prev,
-            // Update review stages if provided (from approval or unapproval)
-            ...(result.reviewStages && {
-              reviewStages: {
+          
+          // Create new object references to ensure React detects changes
+          const updatedReviewStages = result.reviewStages
+            ? {
                 ...prev.reviewStages,
                 ...result.reviewStages,
-              },
-            }),
-            // Update flags if provided in response
+              }
+            : prev.reviewStages;
+          
+          const updatedOrder: Order = {
+            ...prev,
+            reviewStages: updatedReviewStages,
             ...(result.flags && { flags: result.flags }),
           };
+          
+          console.log('[handleStageApprove] Updated order.reviewStages:', updatedReviewStages);
+          console.log('[handleStageApprove] Updated order.flags:', updatedOrder.flags);
+          
+          // Sync flagCounts state with order.flags for immediate UI update
+          if (result.flags) {
+            const newFlagCounts = {
+              preBria: result.flags.preBria || 0,
+              postBria: result.flags.postBria || 0,
+              postPdf: result.flags.postPdf || 0,
+            };
+            console.log('[handleStageApprove] Updating flagCounts:', newFlagCounts);
+            setFlagCounts(newFlagCounts);
+          }
+          
+          return updatedOrder;
         });
       }
 
@@ -858,6 +926,11 @@ export default function OrderDetailPage() {
                         const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
                         const isSecondReview = revisionCount >= 1;
                         
+                        // Debug logging for badge state
+                        if (stage.stageKey === 'preBria' || stage.stageKey === 'postBria' || stage.stageKey === 'postPdf') {
+                          console.log(`[Badge ${stage.stageKey}] stageStatus=${stageStatus}, isApproved=${isApproved}, stageFlagCount=${stageFlagCount}`);
+                        }
+                        
                         // Check if stage has been reached
                         // Pre-Bria: always reached if order exists
                         // Post-Bria: reached if preBria is approved
@@ -918,6 +991,7 @@ export default function OrderDetailPage() {
                   onApprove={async (status) => await handleStageApprove('preBria' as unknown as ReviewStage, status)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('preBria' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
+                  onOrderUpdate={handleOrderUpdate}
                 />
               )}
               
@@ -929,6 +1003,7 @@ export default function OrderDetailPage() {
                   onApprove={async (status) => await handleStageApprove('postBria' as unknown as ReviewStage, status)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postBria' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
+                  onOrderUpdate={handleOrderUpdate}
                 />
               )}
               
