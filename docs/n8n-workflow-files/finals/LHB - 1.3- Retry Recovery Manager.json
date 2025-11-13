@@ -144,7 +144,7 @@
     }
   ],
   "connections": {
-    "Every 2 Minutes": {
+    "Every 2 Minutes (Cron)": {
       "main": [[{ "node": "Fetch Orders Ready for Retry", "type": "main", "index": 0 }]]
     },
     "Fetch Orders Ready for Retry": {
