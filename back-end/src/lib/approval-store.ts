@@ -91,16 +91,13 @@ export async function approveStage(
     existingOrder?.customer_approval_status === 'revision_requested';
 
   // Map stage approvals to next workflow for router (W1.1)
-  // NOTE: preBria approval does NOT automatically queue for 2B - admin must click "Trigger Background Removal" button
-  // Only postBria approval automatically queues for W3 (book assembly)
+  // When a stage is approved, queue the order for the next workflow
   let nextWorkflow: string | null = null;
   if (nextStatus === 'approved') {
-    // preBria approval: Do NOT set next_workflow - wait for admin to click "Trigger Background Removal" button
-    // The trigger-background-removal endpoint will set next_workflow='2B' and execution_status='ready_for_processing'
     if (stage === 'preBria') {
-      nextWorkflow = null; // Do not auto-queue - requires manual trigger
+      nextWorkflow = '2B'; // Background removal
     } else if (stage === 'postBria') {
-      nextWorkflow = '3'; // Book assembly - auto-queue after approval
+      nextWorkflow = '3'; // Book assembly
     }
     // postPdf approval doesn't need router - goes directly to print
   }

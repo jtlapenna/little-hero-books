@@ -139,9 +139,6 @@ async function postOrder(request: NextRequest) {
       // Dedication text
       dedication_text: json.dedication || json.Dedication || json.dedicationText || null,
       
-      // Amazon shipping service level (for mapping to Lulu shipping)
-      amazon_shipment_service_level: json.ShipmentServiceLevelCategory || json.ShipServiceLevel || json.shipmentServiceLevelCategory || json.shipServiceLevel || null,
-      
       // Store full raw order data for debugging/reference
       product_info: json.Items || json.items || json.lineItems || json,
     };
