@@ -4,11 +4,16 @@
     {
       "parameters": {
         "rule": {
-          "cronExpression": "*/2 * * * *"
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
         }
       },
       "id": "retry-trigger-001",
-      "name": "Every 2 Minutes (Cron)",
+      "name": "Every 2 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [-800, 400]
@@ -144,7 +149,7 @@
     }
   ],
   "connections": {
-    "Every 2 Minutes (Cron)": {
+    "Every 2 Minutes": {
       "main": [[{ "node": "Fetch Orders Ready for Retry", "type": "main", "index": 0 }]]
     },
     "Fetch Orders Ready for Retry": {

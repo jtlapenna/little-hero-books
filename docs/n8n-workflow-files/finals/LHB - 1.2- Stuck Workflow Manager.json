@@ -4,11 +4,16 @@
     {
       "parameters": {
         "rule": {
-          "cronExpression": "*/5 * * * *"
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
         }
       },
       "id": "stuck-trigger-001",
-      "name": "Every 5 Minutes (Cron)",
+      "name": "Every 5 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [-800, 400]
@@ -296,7 +301,7 @@
     }
   ],
   "connections": {
-    "Every 5 Minutes (Cron)": {
+    "Every 5 Minutes": {
       "main": [[{ "node": "Config", "type": "main", "index": 0 }]]
     },
     "Config": {
@@ -336,4 +341,3 @@
   "id": "stuck-manager-001",
   "tags": []
 }
-
