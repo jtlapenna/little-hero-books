@@ -20,12 +20,8 @@
     },
     {
       "parameters": {
-        "method": "GET",
+        "method": "POST",
         "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/rpc/get_orphaned_orders",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": []
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -59,76 +55,11 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
-          },
-          "conditions": [
-            {
-              "id": "check-action-schedule-retry",
-              "leftValue": "={{ $json.action }}",
-              "rightValue": "schedule_retry",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {
-          "looseTypeValidation": true
-        }
-      },
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
-          },
-          "conditions": [
-            {
-              "id": "check-schedule-retry",
-              "leftValue": "={{ $json.action }}",
-              "rightValue": "schedule_retry",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            },
-            {
-              "id": "check-manual-review",
-              "leftValue": "={{ $json.action }}",
-              "rightValue": "require_manual_review",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            },
-            {
-              "id": "check-reset-processing",
-              "leftValue": "={{ $json.action }}",
-              "rightValue": "reset_to_error_and_retry",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "or"
-        },
-        "options": {
-          "looseTypeValidation": true
-        }
+        "jsCode": "// Route orders by action type\nconst orders = $input.all().map(item => item.json);\n\nconst scheduleRetry = [];\nconst manualReview = [];\nconst resetProcessing = [];\n\nfor (const order of orders) {\n  if (order.action === 'schedule_retry') {\n    scheduleRetry.push(order);\n  } else if (order.action === 'require_manual_review') {\n    manualReview.push(order);\n  } else if (order.action === 'reset_to_error_and_retry') {\n    resetProcessing.push(order);\n  } else {\n    // Default to manual review for unknown actions\n    manualReview.push(order);\n  }\n}\n\n// Return separate arrays for each action type\n// n8n will process each array separately\nreturn [\n  ...scheduleRetry.map(o => ({ json: { ...o, _route: 'schedule_retry' } })),\n  ...manualReview.map(o => ({ json: { ...o, _route: 'manual_review' } })),\n  ...resetProcessing.map(o => ({ json: { ...o, _route: 'reset_processing' } }))\n];"
       },
       "id": "route-by-action-001",
       "name": "Route by Action",
-      "type": "n8n-nodes-base.if",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [-200, 400]
     },
@@ -168,7 +99,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": $json.error_type || 'workflow_timeout',\n  \"error_message\": `Orphaned order recovery: ${$json.error_message || 'Scheduled for retry'}`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "jsonBody": "={{ $json._route === 'schedule_retry' ? {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": $json.error_type || 'workflow_timeout',\n  \"error_message\": `Orphaned order recovery: ${$json.error_message || 'Scheduled for retry'}`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} : {} }}",
         "options": {}
       },
       "id": "recover-schedule-retry-001",
@@ -213,7 +144,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_message\": `Orphaned order: ${$json.error_message || 'Max retries exceeded or stuck'}. Requires manual intervention.`\n} }}",
+        "jsonBody": "={{ $json._route === 'manual_review' ? {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_message\": `Orphaned order: ${$json.error_message || 'Max retries exceeded or stuck'}. Requires manual intervention.`\n} : {} }}",
         "options": {}
       },
       "id": "recover-manual-review-001",
@@ -258,7 +189,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Orphaned processing order recovered: was stuck in processing for ${Math.floor($json.minutes_orphaned || 0)} minutes`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "jsonBody": "={{ $json._route === 'reset_processing' ? {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Orphaned processing order recovered: was stuck in processing for ${Math.floor($json.minutes_orphaned || 0)} minutes`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} : {} }}",
         "options": {}
       },
       "id": "recover-reset-processing-001",
@@ -289,17 +220,13 @@
       "main": [[{ "node": "Route by Action", "type": "main", "index": 0 }]]
     },
     "Route by Action": {
-      "main": [
-        [{ "node": "Recover: Schedule Retry", "type": "main", "index": 0 }],
-        [{ "node": "Recover: Mark for Manual Review", "type": "main", "index": 0 }],
-        [{ "node": "Recover: Reset Processing", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Recover: Schedule Retry", "type": "main", "index": 0 }]]
     },
     "Recover: Schedule Retry": {
-      "main": [[{ "node": "Alert: Orphaned Orders", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Recover: Mark for Manual Review", "type": "main", "index": 0 }]]
     },
     "Recover: Mark for Manual Review": {
-      "main": [[{ "node": "Alert: Orphaned Orders", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Recover: Reset Processing", "type": "main", "index": 0 }]]
     },
     "Recover: Reset Processing": {
       "main": [[{ "node": "Alert: Orphaned Orders", "type": "main", "index": 0 }]]
