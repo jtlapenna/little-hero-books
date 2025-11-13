@@ -4,16 +4,11 @@
     {
       "parameters": {
         "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 2
-            }
-          ]
+          "cronExpression": "*/2 * * * *"
         }
       },
       "id": "retry-trigger-001",
-      "name": "Every 2 Minutes",
+      "name": "Every 2 Minutes (Cron)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [-800, 400]
@@ -165,7 +160,7 @@
       "main": [[{ "node": "Log Retry", "type": "main", "index": 0 }]]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },

@@ -4,16 +4,11 @@
     {
       "parameters": {
         "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 5
-            }
-          ]
+          "cronExpression": "*/5 * * * *"
         }
       },
       "id": "stuck-trigger-001",
-      "name": "Every 5 Minutes",
+      "name": "Every 5 Minutes (Cron)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [-800, 400]
@@ -85,7 +80,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "eq.{{ $json.id }}"
+              "value": "={{ 'eq.' + String($json.id) }}"
             }
           ]
         },
@@ -195,7 +190,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "eq.{{ $json.id }}"
+              "value": "={{ 'eq.' + String($json.id) }}"
             }
           ]
         },
@@ -240,7 +235,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "eq.{{ $json.id }}"
+              "value": "={{ 'eq.' + String($json.id) }}"
             }
           ]
         },
@@ -288,7 +283,7 @@
     }
   ],
   "connections": {
-    "Every 5 Minutes": {
+    "Every 5 Minutes (Cron)": {
       "main": [[{ "node": "Config", "type": "main", "index": 0 }]]
     },
     "Config": {
@@ -319,7 +314,7 @@
       "main": [[{ "node": "Alert: Manual Review", "type": "main", "index": 0 }]]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
