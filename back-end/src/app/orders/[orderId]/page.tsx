@@ -385,39 +385,23 @@ export default function OrderDetailPage() {
       const result = await response.json();
       console.log('Stage approval result:', result);
 
-      // Optimistically update the order with the approval result immediately
-      if (result?.reviewStages) {
-      setOrder(prev => {
-        if (!prev) return prev;
-          return {
-          ...prev,
-          reviewStages: {
-            ...prev.reviewStages,
-              ...result.reviewStages, // Approval result takes precedence
-            }
-          };
-        });
-      }
-
-      // Wait a bit for Supabase to propagate the update, then refresh
-      // This ensures we get the latest data while preserving the approval
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Refresh order data, but preserve the approval status from the result
-      const refreshedOrder = await fetchOrder(order.orderId);
-      if (refreshedOrder && result?.reviewStages) {
-        // Merge the approval result's reviewStages into the refreshed order
-        // This ensures the approval persists even if the API returns stale data
+      // Update the order with the approval result immediately (no delay, no refetch)
+      if (result?.reviewStages || result?.flags) {
         setOrder(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            reviewStages: {
-              ...prev.reviewStages,
-              ...result.reviewStages, // Approval result takes precedence over fetched data
-            }
+            // Update review stages if provided (from approval or unapproval)
+            ...(result.reviewStages && {
+              reviewStages: {
+                ...prev.reviewStages,
+                ...result.reviewStages,
+              },
+            }),
+            // Update flags if provided in response
+            ...(result.flags && { flags: result.flags }),
           };
-      });
+        });
       }
 
     } catch (error) {

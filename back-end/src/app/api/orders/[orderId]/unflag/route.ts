@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { buildManifestKey } from '@/lib/r2-service';
-import { setFlaggedCount } from '@/lib/review-state';
+import { setFlaggedCount, getOrderFlagSummaryById } from '@/lib/review-state';
 
 // Helper to parse JSON safely
 async function readJsonSafe<T = any>(res: Response): Promise<T> {
@@ -162,13 +162,23 @@ export async function POST(
 
       console.log(`[Unflag API] Successfully unflagged page ${pageNumber} in postPdf stage`);
 
+      // Get updated flag counts from Supabase
+      const flagSummary = await getOrderFlagSummaryById(orderId).catch(() => null);
+      const flags = flagSummary ? {
+        preBria: flagSummary.preBria,
+        postBria: flagSummary.postBria,
+        postPdf: flagSummary.postPdf,
+        total: flagSummary.total
+      } : null;
+
       return NextResponse.json({
         success: true,
         orderId,
         pageNumber,
         stage,
         needsReview: false,
-        reviewReason: null
+        reviewReason: null,
+        flags: flags // Return updated flag counts
       });
     }
 
@@ -275,13 +285,23 @@ export async function POST(
 
     console.log(`[Unflag API] Successfully unflagged pose ${poseNumber!} in ${stage} stage`);
 
+    // Get updated flag counts from Supabase
+    const flagSummary = await getOrderFlagSummaryById(orderId).catch(() => null);
+    const flags = flagSummary ? {
+      preBria: flagSummary.preBria,
+      postBria: flagSummary.postBria,
+      postPdf: flagSummary.postPdf,
+      total: flagSummary.total
+    } : null;
+
     return NextResponse.json({
       success: true,
       orderId,
       poseNumber: poseNumber!,
       stage,
       needsReview: false,
-      reviewReason: null
+      reviewReason: null,
+      flags: flags // Return updated flag counts
     });
 
   } catch (error: any) {

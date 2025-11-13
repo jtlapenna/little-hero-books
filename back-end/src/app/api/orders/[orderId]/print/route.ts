@@ -220,10 +220,6 @@ async function sendToPrint(
     // Backend URL for building asset URLs
     const backendUrl = 'https://admin.littleherolabs.com';
     
-    // Construct expected cover PDF R2 key (W4 will generate and save the cover PDF here)
-    // This is a placeholder path - W4 generates the actual PDF and saves it to this location
-    const coverPdfR2Key = `book-mvp-simple-adventure/orders/${resolvedAmazonOrderId}/cover_${resolvedAmazonOrderId}.pdf`;
-    
     // Build payload - ensure amazonOrderId and orderId are ALWAYS set at top level
     // CRITICAL: Put orderId and amazonOrderId FIRST to ensure they're at the top level
     const w4Payload: any = {
@@ -232,7 +228,6 @@ async function sendToPrint(
       amazonOrderId: resolvedAmazonOrderId,
       // New cover fields for W4 (top level for easy access)
       coverPngR2Key: coverPngR2Key,
-      coverPdfR2Key: coverPdfR2Key, // Expected path where W4 will save the generated cover PDF
       backendUrl: backendUrl,
       // Then spread the rest of the manifest
       ...manifest3,
@@ -286,10 +281,8 @@ async function sendToPrint(
         characterHash: w4Payload.characterHash,
         // Cover fields for W4
         coverPngR2Key: w4Payload.coverPngR2Key,
-        coverPdfR2Key: w4Payload.coverPdfR2Key,
         backendUrl: w4Payload.backendUrl,
         hasCoverPng: !!w4Payload.coverPngR2Key,
-        hasCoverPdfR2Key: !!w4Payload.coverPdfR2Key,
         // Verify amazonOrderId is actually in the payload
         payloadHasAmazonOrderId: 'amazonOrderId' in w4Payload,
         payloadTopLevelKeys: Object.keys(w4Payload).slice(0, 10) // First 10 keys for debugging

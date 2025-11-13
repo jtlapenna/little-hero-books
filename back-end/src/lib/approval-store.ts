@@ -224,3 +224,61 @@ export async function rejectStage(orderId: string, stage: string, reason: string
   });
 }
 
+/**
+ * Unapprove a review stage (set status to 'pending')
+ * This is called when flags are added to an approved stage
+ */
+export async function unapproveStageIfNeeded(
+  orderId: string,
+  stage: string,
+  flagCount: number
+): Promise<ApprovalResult | null> {
+  // Only unapprove if there are flags and the stage is currently approved
+  if (flagCount === 0) {
+    return null; // No flags, no need to unapprove
+  }
+
+  // Load existing order
+  const existingOrder = await getOrderFromSupabase(orderId).catch(() => null);
+  if (!existingOrder) {
+    return null; // Order doesn't exist yet
+  }
+
+  const reviewStages = sanitizeReviewStages(existingOrder?.review_stages);
+  const currentStageStatus = reviewStages[stage]?.status;
+
+  // Only unapprove if the stage is currently approved
+  if (currentStageStatus !== 'approved') {
+    return null; // Stage is not approved, no need to change
+  }
+
+  console.log(`[unapproveStageIfNeeded] Unapproving stage ${stage} for order ${orderId} due to ${flagCount} flag(s)`);
+
+  // Set stage status to 'pending'
+  reviewStages[stage] = {
+    status: 'pending'
+    // Remove approvedAt, reviewer, etc. - reset to pending state
+  };
+
+  try {
+    // Update Supabase - just unapprove the stage
+    // Note: We don't clear workflow queue here - if workflow hasn't started yet,
+    // it should check stage approval before starting. If it has started, we don't want to interrupt it.
+    await updateOrderStatus(orderId, {
+      review_stages: reviewStages
+    });
+
+    console.log(`[unapproveStageIfNeeded] ✅ Successfully unapproved stage ${stage} for order ${orderId}`);
+
+    return {
+      reviewer: 'system',
+      approvedAt: new Date().toISOString(),
+      status: 'pending',
+      reviewStages
+    };
+  } catch (error) {
+    console.error(`[unapproveStageIfNeeded] ❌ Failed to unapprove stage ${stage} for order ${orderId}:`, error);
+    return null; // Don't throw - flagging should still succeed even if unapprove fails
+  }
+}
+

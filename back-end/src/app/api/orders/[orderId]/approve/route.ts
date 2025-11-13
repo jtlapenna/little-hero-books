@@ -3,6 +3,7 @@ import { approveStage } from '@/lib/approval-store';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
 import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { getOrderFlagSummaryById } from '@/lib/review-state';
 
 async function approveOrderStage(
   request: NextRequest,
@@ -71,6 +72,15 @@ async function approveOrderStage(
   // Approve the stage
   const approval = await approveStage(orderId, stage, nextStatus as 'approved' | 'pending');
 
+  // Get updated flag counts from Supabase
+  const flagSummary = await getOrderFlagSummaryById(orderId).catch(() => null);
+  const flags = flagSummary ? {
+    preBria: flagSummary.preBria,
+    postBria: flagSummary.postBria,
+    postPdf: flagSummary.postPdf,
+    total: flagSummary.total
+  } : null;
+
   return NextResponse.json({ 
     success: true, 
     message: `Stage ${stage} ${nextStatus === 'approved' ? 'approved' : 'reset'} successfully`,
@@ -79,7 +89,8 @@ async function approveOrderStage(
     status: nextStatus,
     approvedAt: approval.approvedAt,
     reviewer: approval.reviewer,
-    reviewStages: approval.reviewStages
+    reviewStages: approval.reviewStages,
+    flags: flags // Return updated flag counts
   });
 }
 
