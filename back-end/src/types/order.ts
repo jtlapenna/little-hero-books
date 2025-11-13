@@ -47,6 +47,10 @@ export interface Order {
   finalCoverUrl?: string;
   workflowStep?: string;
   luluStatus?: string;
+  executionStatus?: string; // execution_status from Supabase (processing, error, error_requires_manual_review, etc.)
+  errorMessage?: string; // error_message from Supabase
+  errorType?: string; // error_type from Supabase
+  retryCount?: number; // retry_count from Supabase
   createdAt?: string;
   updatedAt?: string;
   customerPreview?: {

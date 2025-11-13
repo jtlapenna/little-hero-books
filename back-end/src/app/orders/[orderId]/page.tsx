@@ -15,6 +15,7 @@ import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
 import { ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer } from 'lucide-react';
 import { getDisplayStatusForOrder, getStageBadgeStatus } from '@/lib/status-display';
+import { ManualReviewAlert } from '@/components/ui/manual-review-alert';
 
 const correctionReasonLabels: Record<string, string> = {
   name_typo: 'Name typo',
@@ -659,6 +660,18 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Manual Review Alert */}
+        {order && (
+          <ManualReviewAlert
+            executionStatus={order.executionStatus || ''}
+            errorMessage={order.errorMessage}
+            errorType={order.errorType}
+            retryCount={order.retryCount}
+            workflowStep={order.workflowStep}
+            currentWorkflow={undefined} // TODO: Add currentWorkflow to Order type if needed
+          />
+        )}
 
         {/* Order Information Banner */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">

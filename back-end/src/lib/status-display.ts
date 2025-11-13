@@ -67,6 +67,8 @@ function getPhaseForDisplayStatus(displayStatus: DisplayStatus, revisionCount?: 
       return OrderPhase.SENT_TO_PRINT; // Keep in sent to print phase
     case DisplayStatus.ACTION_REQUIRED:
       return OrderPhase.IN_QUEUE; // Fallback to in queue for errors
+    case DisplayStatus.MANUAL_REVIEW_REQUIRED:
+      return OrderPhase.FIRST_REVIEW; // Show in review phase for manual intervention
     default:
       return OrderPhase.IN_QUEUE;
   }
@@ -120,6 +122,7 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
   const rawStatus = order.status;
   const customerApprovalStatus = order.customerApprovalStatus;
   const reviewStages = order.reviewStages || {};
+  const executionStatus = order.executionStatus;
 
   // Check individual stage statuses to determine which review stage we're in
   const preBriaStatus = normalizeStageStatus(reviewStages.preBria?.status);
@@ -127,6 +130,16 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
   const postPdfStatus = normalizeStageStatus(reviewStages.postPdf?.status);
 
   const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
+
+  // Handle manual review requirement (execution_status = 'error_requires_manual_review')
+  // This takes highest priority - show manual review badge even if status is otherwise normal
+  if (executionStatus === 'error_requires_manual_review') {
+    const displayStatus = DisplayStatus.MANUAL_REVIEW_REQUIRED;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
 
   // Handle failure states first
   if (rawStatus && FAILURE_STATUSES.has(rawStatus)) {

@@ -75,7 +75,8 @@ export enum DisplayStatus {
   PRINTING = 'printing',
   SHIPPED = 'shipped',
   DELIVERED = 'delivered',
-  ACTION_REQUIRED = 'action_required'
+  ACTION_REQUIRED = 'action_required',
+  MANUAL_REVIEW_REQUIRED = 'manual_review_required'
 }
 
 /**
@@ -174,6 +175,7 @@ export const StatusLabels: Record<string, string> = {
   [DisplayStatus.SHIPPED]: 'Shipped',
   [DisplayStatus.DELIVERED]: 'Delivered',
   [DisplayStatus.ACTION_REQUIRED]: 'Action Required',
+  [DisplayStatus.MANUAL_REVIEW_REQUIRED]: 'Manual Review Required',
   
   // Review Stage Statuses
   [ReviewStageStatus.PENDING]: 'Pending',
@@ -392,6 +394,11 @@ export const StatusColors: Record<string, {
     bg: 'bg-red-100',
     text: 'text-red-800',
     border: 'border-red-200'
+  },
+  [DisplayStatus.MANUAL_REVIEW_REQUIRED]: {
+    bg: 'bg-orange-100',
+    text: 'text-orange-800',
+    border: 'border-orange-200'
   },
   
   // Review Stage Statuses
