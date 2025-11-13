@@ -13,6 +13,7 @@ export function Navigation() {
     { name: 'Orders', href: '/orders', icon: BookOpen },
     { name: 'Review', href: '/review', icon: Users },
     { name: 'Monitoring', href: '/monitoring', icon: Activity },
+    { name: 'Stuck Orders', href: '/admin/stuck-orders', icon: Activity },
   ];
 
   return (
