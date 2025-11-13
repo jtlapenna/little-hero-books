@@ -106,8 +106,9 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json._route === 'schedule_retry' ? {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": $json.error_type || 'workflow_timeout',\n  \"error_message\": `Orphaned order recovery: ${$json.error_message || 'Scheduled for retry'}`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} : {} }}",
-        "options": {}
+        "jsonBody": "={{ $json._route === 'schedule_retry' ? {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": $json.error_type || 'workflow_timeout',\n  \"error_message\": `Orphaned order recovery: ${$json.error_message || 'Scheduled for retry'}`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} : null }}",
+        "options": {},
+        "continueOnFail": true
       },
       "id": "recover-schedule-retry-001",
       "name": "Recover: Schedule Retry",
@@ -151,8 +152,9 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json._route === 'manual_review' ? {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_message\": `Orphaned order: ${$json.error_message || 'Max retries exceeded or stuck'}. Requires manual intervention.`\n} : {} }}",
-        "options": {}
+        "jsonBody": "={{ $json._route === 'manual_review' ? {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_message\": `Orphaned order: ${$json.error_message || 'Max retries exceeded or stuck'}. Requires manual intervention.`\n} : null }}",
+        "options": {},
+        "continueOnFail": true
       },
       "id": "recover-manual-review-001",
       "name": "Recover: Mark for Manual Review",
@@ -196,8 +198,9 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json._route === 'reset_processing' ? {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Orphaned processing order recovered: was stuck in processing for ${Math.floor($json.minutes_orphaned || 0)} minutes`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} : {} }}",
-        "options": {}
+        "jsonBody": "={{ $json._route === 'reset_processing' ? {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Orphaned processing order recovered: was stuck in processing for ${Math.floor($json.minutes_orphaned || 0)} minutes`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} : null }}",
+        "options": {},
+        "continueOnFail": true
       },
       "id": "recover-reset-processing-001",
       "name": "Recover: Reset Processing",
