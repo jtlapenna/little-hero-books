@@ -113,7 +113,16 @@ export default function OrderDetailPage() {
     try {
       const response = await fetch(`/api/orders/${orderId}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch order');
+        const errorText = await response.text();
+        let errorMessage = 'Failed to fetch order';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorJson.message || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        console.error(`[OrderDetailPage] API error (${response.status}):`, errorMessage);
+        throw new Error(errorMessage);
       }
       const data = await response.json();
       console.log('OrderDetailPage: Received order data:', data);
@@ -126,6 +135,16 @@ export default function OrderDetailPage() {
       console.log('OrderDetailPage: R2 poses count:', data.r2Assets?.poses?.length);
       console.log('OrderDetailPage: R2 post-Bria poses count:', data.r2Assets?.posesBgRemoved?.length);
       setOrder(data);
+      
+      // Initialize flagCounts from order.flags if available (for immediate UI update)
+      if (data.flags) {
+        setFlagCounts({
+          preBria: data.flags.preBria || 0,
+          postBria: data.flags.postBria || 0,
+          postPdf: data.flags.postPdf || 0,
+        });
+      }
+      
       setLoading(false);
       return data;
     } catch (error) {
@@ -137,6 +156,45 @@ export default function OrderDetailPage() {
       return foundOrder;
     }
   };
+
+  // Callback to update order state and sync flagCounts
+  const handleOrderUpdate = useCallback((updates: Partial<Order>) => {
+    console.log('[handleOrderUpdate] Received updates:', updates);
+    setOrder(prev => {
+      if (!prev) return prev;
+      
+      // Merge updates properly, especially for reviewStages
+      // Create new object references to ensure React detects changes
+      const updatedReviewStages = updates.reviewStages 
+        ? {
+            ...prev.reviewStages,
+            ...updates.reviewStages,
+          }
+        : prev.reviewStages;
+      
+      const updatedOrder: Order = {
+        ...prev,
+        ...(updates.flags && { flags: updates.flags }),
+        reviewStages: updatedReviewStages,
+      };
+      
+      console.log('[handleOrderUpdate] Updated order.reviewStages:', updatedReviewStages);
+      console.log('[handleOrderUpdate] Updated order.flags:', updatedOrder.flags);
+      
+      // Sync flagCounts state with order.flags for immediate UI update
+      if (updates.flags) {
+        const newFlagCounts = {
+          preBria: updates.flags.preBria || 0,
+          postBria: updates.flags.postBria || 0,
+          postPdf: updates.flags.postPdf || 0,
+        };
+        console.log('[handleOrderUpdate] Updating flagCounts:', newFlagCounts);
+        setFlagCounts(newFlagCounts);
+      }
+      
+      return updatedOrder;
+    });
+  }, []);
 
   useEffect(() => {
     const orderId = params.orderId as string;
@@ -221,11 +279,12 @@ export default function OrderDetailPage() {
           }
           
           // Load 2b manifest for postBria flags (fallback to 2a if 2b doesn't exist)
+          // 404 is expected if workflow hasn't been triggered yet - suppress console errors
           try {
             let manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json?v=${Date.now()}`;
             let res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
-            if (!res2b.ok) {
-              // Fallback to 2a
+            if (!res2b.ok && res2b.status === 404) {
+              // 404 is expected - manifest doesn't exist yet, fallback to 2a
               manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
               res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
             }
@@ -235,10 +294,11 @@ export default function OrderDetailPage() {
               postBria = entries2b.filter((e: any) => e.isFlagged || e.needsReview).length;
             }
           } catch (err) {
-            console.log('[OrderDetailPage] Could not load 2b/2a manifest for flags:', err);
+            // Silently handle - 404 is expected for orders that haven't reached this stage yet
           }
           
           // Load 3 manifest for postPdf flags
+          // 404 is expected if workflow hasn't been triggered yet - suppress console errors
           try {
             const manifest3Url = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
             const res3 = await fetch(manifest3Url, { cache: 'no-store' });
@@ -248,7 +308,7 @@ export default function OrderDetailPage() {
               postPdf = Object.values(pagesMetadata).filter((meta: any) => meta.isFlagged || meta.needsReview).length;
             }
           } catch (err) {
-            console.log('[OrderDetailPage] Could not load 3 manifest for flags:', err);
+            // Silently handle - 404 is expected for orders that haven't reached this stage yet
           }
           
           console.log(`[OrderDetailPage] Flag counts from manifests: preBria=${preBria}, postBria=${postBria}, postPdf=${postPdf}`);
@@ -314,6 +374,18 @@ export default function OrderDetailPage() {
       stageKey: 'postPdf'
     }
   ];
+
+  // Early return if order is not loaded yet
+  if (!order) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400 mb-4" />
+          <p className="text-gray-600">Loading order...</p>
+        </div>
+      </div>
+    );
+  }
 
   const activeStageKey = activeStage as unknown as keyof typeof order.reviewStages;
   const lifecycleStatus = getDisplayStatusForOrder(order);
@@ -385,38 +457,41 @@ export default function OrderDetailPage() {
       const result = await response.json();
       console.log('Stage approval result:', result);
 
-      // Optimistically update the order with the approval result immediately
-      if (result?.reviewStages) {
+      // Update the order with the approval result immediately (no delay, no refetch)
+      if (result?.reviewStages || result?.flags) {
+        console.log('[handleStageApprove] Updating order with result:', { reviewStages: result.reviewStages, flags: result.flags });
       setOrder(prev => {
         if (!prev) return prev;
-          return {
+          
+          // Create new object references to ensure React detects changes
+          const updatedReviewStages = result.reviewStages
+            ? {
+                ...prev.reviewStages,
+                ...result.reviewStages,
+              }
+            : prev.reviewStages;
+          
+          const updatedOrder: Order = {
           ...prev,
-          reviewStages: {
-            ...prev.reviewStages,
-              ...result.reviewStages, // Approval result takes precedence
-            }
+            reviewStages: updatedReviewStages,
+            ...(result.flags && { flags: result.flags }),
           };
-        });
-      }
-
-      // Wait a bit for Supabase to propagate the update, then refresh
-      // This ensures we get the latest data while preserving the approval
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Refresh order data, but preserve the approval status from the result
-      const refreshedOrder = await fetchOrder(order.orderId);
-      if (refreshedOrder && result?.reviewStages) {
-        // Merge the approval result's reviewStages into the refreshed order
-        // This ensures the approval persists even if the API returns stale data
-        setOrder(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            reviewStages: {
-              ...prev.reviewStages,
-              ...result.reviewStages, // Approval result takes precedence over fetched data
-            }
-          };
+          
+          console.log('[handleStageApprove] Updated order.reviewStages:', updatedReviewStages);
+          console.log('[handleStageApprove] Updated order.flags:', updatedOrder.flags);
+          
+          // Sync flagCounts state with order.flags for immediate UI update
+          if (result.flags) {
+            const newFlagCounts = {
+              preBria: result.flags.preBria || 0,
+              postBria: result.flags.postBria || 0,
+              postPdf: result.flags.postPdf || 0,
+            };
+            console.log('[handleStageApprove] Updating flagCounts:', newFlagCounts);
+            setFlagCounts(newFlagCounts);
+          }
+          
+          return updatedOrder;
       });
       }
 
@@ -484,11 +559,45 @@ export default function OrderDetailPage() {
         const result = await response.json();
         console.log('Background removal workflow triggered:', result);
         
+        // Refresh order data to update status (workflow step will change)
+        await handleRefreshOrder();
+        
         // Show success message (you could add a toast notification here)
         alert('Background removal workflow triggered successfully!');
       } catch (error: any) {
         console.error('Error triggering background removal workflow:', error);
         alert(`Failed to trigger background removal: ${error?.message || error}`);
+      }
+
+      return;
+    }
+
+    // Trigger book assembly for postBria stage
+    if (stage === ('postBria' as unknown as ReviewStage)) {
+      try {
+        const response = await fetch(`/api/orders/${order.orderId}/trigger-book-assembly`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(error.error || 'Failed to trigger book assembly workflow');
+        }
+
+        const result = await response.json();
+        console.log('Book assembly workflow triggered:', result);
+        
+        // Refresh order data to update status (workflow step will change)
+        await handleRefreshOrder();
+        
+        // Show success message (you could add a toast notification here)
+        alert('Book assembly workflow triggered successfully!');
+      } catch (error: any) {
+        console.error('Error triggering book assembly workflow:', error);
+        alert(`Failed to trigger book assembly: ${error?.message || error}`);
       }
 
       return;
@@ -666,7 +775,6 @@ export default function OrderDetailPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Order Status</h2>
-              <StatusBadge status={lifecycleStatus.status} revisionCount={order?.revisionCount} />
             </div>
             {latestCorrection && (
               <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4">
@@ -874,6 +982,11 @@ export default function OrderDetailPage() {
                         const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
                         const isSecondReview = revisionCount >= 1;
                         
+                        // Debug logging for badge state
+                        if (stage.stageKey === 'preBria' || stage.stageKey === 'postBria' || stage.stageKey === 'postPdf') {
+                          console.log(`[Badge ${stage.stageKey}] stageStatus=${stageStatus}, isApproved=${isApproved}, stageFlagCount=${stageFlagCount}`);
+                        }
+                        
                         // Check if stage has been reached
                         // Pre-Bria: always reached if order exists
                         // Post-Bria: reached if preBria is approved
@@ -934,6 +1047,7 @@ export default function OrderDetailPage() {
                   onApprove={async (status) => await handleStageApprove('preBria' as unknown as ReviewStage, status)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('preBria' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
+                  onOrderUpdate={handleOrderUpdate}
                 />
               )}
               
@@ -945,6 +1059,7 @@ export default function OrderDetailPage() {
                   onApprove={async (status) => await handleStageApprove('postBria' as unknown as ReviewStage, status)}
                   onInitiateWorkflow={() => handleInitiateWorkflow('postBria' as unknown as ReviewStage)}
                   onRefresh={handleRefreshOrder}
+                  onOrderUpdate={handleOrderUpdate}
                 />
               )}
               

@@ -38,8 +38,8 @@ export default function OrdersPage() {
       })
       .catch(error => {
         console.error('Error fetching orders:', error);
-        // Fallback to mock data
-        setOrders(getOrderListItems());
+        // Don't fallback to mock data - show empty state instead
+        setOrders([]);
         setLoading(false);
       });
   }, []);

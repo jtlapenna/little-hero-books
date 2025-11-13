@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { buildManifestKey } from '@/lib/r2-service';
-import { setFlaggedCount } from '@/lib/review-state';
+import { setFlaggedCount, getOrderFlagSummaryById } from '@/lib/review-state';
+import { unapproveStageIfNeeded } from '@/lib/approval-store';
 
 // Helper to parse JSON safely
 async function readJsonSafe<T = any>(res: Response): Promise<T> {
@@ -159,13 +160,27 @@ export async function POST(
 
       console.log(`[Flag API] Successfully flagged page ${pageNumber} in postPdf stage`);
 
+      // Unapprove stage if it's currently approved (flags added to approved stage)
+      const unapprovalResult = await unapproveStageIfNeeded(orderId, 'postPdf', flaggedPages);
+
+      // Get updated flag counts from Supabase
+      const flagSummary = await getOrderFlagSummaryById(orderId).catch(() => null);
+      const flags = flagSummary ? {
+        preBria: flagSummary.preBria,
+        postBria: flagSummary.postBria,
+        postPdf: flagSummary.postPdf,
+        total: flagSummary.total
+      } : null;
+
       return NextResponse.json({
         success: true,
         orderId,
         pageNumber,
         stage,
         needsReview: true,
-        reviewReason: reason || 'Flagged by admin'
+        reviewReason: reason || 'Flagged by admin',
+        flags: flags, // Return updated flag counts
+        reviewStages: unapprovalResult?.reviewStages || undefined // Return updated review stages if unapproved
       });
     }
 
@@ -264,13 +279,27 @@ export async function POST(
 
     console.log(`[Flag API] Successfully flagged pose ${poseNumber!} in ${stage} stage`);
 
+    // Unapprove stage if it's currently approved (flags added to approved stage)
+    const unapprovalResult = await unapproveStageIfNeeded(orderId, stage, flaggedPoses);
+
+    // Get updated flag counts from Supabase
+    const flagSummary = await getOrderFlagSummaryById(orderId).catch(() => null);
+    const flags = flagSummary ? {
+      preBria: flagSummary.preBria,
+      postBria: flagSummary.postBria,
+      postPdf: flagSummary.postPdf,
+      total: flagSummary.total
+    } : null;
+
     return NextResponse.json({
       success: true,
       orderId,
       poseNumber: poseNumber!,
       stage,
       needsReview: true,
-      reviewReason: reason || 'Flagged by admin'
+      reviewReason: reason || 'Flagged by admin',
+      flags: flags, // Return updated flag counts
+      reviewStages: unapprovalResult?.reviewStages || undefined // Return updated review stages if unapproved
     });
 
   } catch (error: any) {

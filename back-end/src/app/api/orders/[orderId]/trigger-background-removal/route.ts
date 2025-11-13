@@ -67,6 +67,34 @@ async function triggerBackgroundRemoval(
     }
   };
 
+  // CRITICAL: Queue order for W2B via W1.1 router before calling webhook
+  // This ensures the order is properly queued and won't be auto-processed by router
+  // IMPORTANT: Preserve review_stages when updating to avoid losing approvals
+  const { updateOrderStatus } = await import('@/lib/status-service');
+  const { getOrderFromSupabase } = await import('@/lib/supabase-client');
+  try {
+    // Get current order to preserve review_stages
+    const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
+    const updates: any = {
+      next_workflow: '2B',
+      execution_status: 'ready_for_processing',
+      queued_at: new Date().toISOString(),
+      started_at: null,
+      current_workflow: null
+    };
+    
+    // Preserve review_stages if they exist (to maintain approvals)
+    if (currentOrder?.review_stages) {
+      updates.review_stages = currentOrder.review_stages;
+    }
+    
+    await updateOrderStatus(orderId, updates);
+    console.log(`[POST /api/orders/[orderId]/trigger-background-removal] ✅ Queued order for W2B via W1.1 router`);
+  } catch (statusError: any) {
+    console.warn(`[POST /api/orders/[orderId]/trigger-background-removal] ⚠️ Failed to queue order (continuing anyway):`, statusError);
+    // Continue with webhook call even if status update fails
+  }
+
   console.log(`[POST /api/orders/[orderId]/trigger-background-removal] Calling n8n webhook with payload:`, {
     manifestUrl,
     webhookUrl,

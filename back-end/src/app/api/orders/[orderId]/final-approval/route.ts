@@ -77,8 +77,12 @@ async function handleFinalApproval(
 
   const { record: previewToken, created: tokenCreated } =
     await ensureActivePreviewToken(orderId);
-  const customerSiteUrl =
-    process.env.CUSTOMER_SITE_URL?.replace(/\/+$/, '') || 'http://localhost:4321';
+  
+  // Determine customer site URL based on environment
+  // In production, use littleherolabs.com; in development, use localhost
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+  const customerSiteUrl = process.env.CUSTOMER_SITE_URL?.replace(/\/+$/, '') || 
+    (isProduction ? 'https://littleherolabs.com' : 'http://localhost:4321');
   const previewUrl = `${customerSiteUrl}/approve/${previewToken.token}`;
 
   const updatedOrderRecord = await getOrderFromSupabase(orderId);

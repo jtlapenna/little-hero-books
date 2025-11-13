@@ -14,9 +14,10 @@ interface PostBriaStageProps {
   onApprove: (nextStatus: 'approved' | 'pending') => Promise<void> | void;
   onInitiateWorkflow: () => void;
   onRefresh?: () => void;
+  onOrderUpdate?: (updates: Partial<Order>) => void;
 }
 
-export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PostBriaStageProps) {
+export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh, onOrderUpdate }: PostBriaStageProps) {
   const [showBlackBackground, setShowBlackBackground] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [approveStageConfirmed, setApproveStageConfirmed] = useState(!!isApproved);
@@ -380,10 +381,11 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         }, 'image/png');
       });
 
-      // Create FormData and upload the flipped image (replaces original - no flip state needed)
+      // Create FormData and upload the flipped image
       const formData = new FormData();
       formData.append('poseNumber', poseNumber.toString());
-      formData.append('stage', 'postBria'); // Post-Bria stage - replaces original bg-removed image
+      formData.append('stage', 'postBria');
+      formData.append('isFlipped', 'true'); // Mark this as a flip operation
       formData.append('file', blob, `pose${String(poseNumber).padStart(2, '0')}-nobg.png`);
 
       const response = await fetch(`/api/orders/${orderId}/replace-image`, {
@@ -590,6 +592,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
               pose.id === assetId ? { ...pose, isFlagged: !newFlaggedState } : pose
             ));
           } else {
+            const result = await response.json();
             // Successfully persisted
             if (newFlaggedState) {
               // User is flagging - add to manually flagged set, remove from unflagged set
@@ -597,16 +600,23 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
               manuallyUnflaggedRef.current.delete(assetId);
             } else {
               // User is unflagging - add to manually unflagged set, remove from flagged set
-              manuallyUnflaggedRef.current.add(assetId);
+            manuallyUnflaggedRef.current.add(assetId);
               manuallyFlaggedRef.current.delete(assetId);
             }
             
-            // Update flag count after successful API call
-            const updatedPoses = prev.map(pose => 
-              pose.id === assetId ? { ...pose, isFlagged: newFlaggedState } : pose
-            );
-            const newFlaggedCount = updatedPoses.filter(asset => asset.isFlagged).length;
-            await setFlaggedCount(orderId, 'postBria', newFlaggedCount);
+            // Update order flags and review stages from API response
+            if (onOrderUpdate) {
+              const updates: any = {};
+              if (result.flags) {
+                updates.flags = result.flags;
+              }
+              if (result.reviewStages) {
+                updates.reviewStages = result.reviewStages;
+              }
+              if (Object.keys(updates).length > 0) {
+                onOrderUpdate(updates);
+              }
+            }
           }
         }).catch(error => {
           console.error(`[PostBriaStage] Error persisting ${newFlaggedState ? 'flagging' : 'unflagging'}:`, error);
@@ -622,11 +632,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         pose.id === assetId ? { ...pose, isFlagged: newFlaggedState } : pose
       );
       
-      // Update flag count immediately (optimistic)
-      const newFlaggedCount = updated.filter(asset => asset.isFlagged).length;
-      setFlaggedCount(orderId, 'postBria', newFlaggedCount).catch(err => {
-        console.error('[PostBriaStage] Failed to update flag count:', err);
-      });
+      // Optimistic flag count update (will be synced from API response)
+      // No need to call setFlaggedCount - API response will update order.flags
       
       return updated;
     });
@@ -664,23 +671,23 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     if (!canTriggerAssembly || isTriggering) return;
     setIsTriggering(true);
     try {
-      // Queue order for workflow 3 via W1.1 router
-      // This updates Supabase to mark the order as ready for workflow 3
-      // W1.1 will pick it up on its next cycle (every 30 seconds)
-      const resp = await fetch(`/api/orders/${orderId}/queue-workflow-3`, {
+      // Call n8n webhook directly (mirrors 2B pattern)
+      const webhookUrl = 'https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly';
+      const resp = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
       });
       if (!resp.ok) {
         const txt = await resp.text();
-        console.error('Queue workflow 3 failed', resp.status, txt);
-        alert(`Failed to queue order for book assembly: ${resp.status} ${txt}`);
+        console.error('Trigger assembly failed', resp.status, txt);
+        alert(`Failed to trigger book assembly: ${resp.status} ${txt}`);
         return;
       }
-      alert('Order queued for book assembly. W1.1 router will process it within 30 seconds.');
+      alert('Book assembly triggered');
     } catch (e) {
-      console.error('Queue workflow 3 error', e);
-      alert('Error queueing order for book assembly');
+      console.error('Trigger assembly error', e);
+      alert('Error triggering book assembly');
     } finally {
       setIsTriggering(false);
     }
@@ -835,7 +842,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
                   ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
-              title={isApproved ? 'Queue order for Workflow 3 via W1.1 router' : 'Approve stage to enable book assembly'}
+              title={isApproved ? 'Trigger Workflow 3 (Book Assembly)' : 'Approve stage to enable book assembly'}
               >
               <Play className="h-4 w-4 mr-2" />
               {isTriggering ? 'Triggering…' : 'Trigger Book Assembly'}

@@ -227,11 +227,11 @@ export async function updateOrderInSupabase(orderId: string, updates: any) {
   // Strategy: Try all possible identifier fields in parallel-friendly order
   // 1. Try amazon_order_id (for real Amazon orders)
   const result1 = await supabase
-    .from('orders')
-    .update(updateData)
+      .from('orders')
+      .update(updateData)
     .eq('amazon_order_id', orderId)
-    .select()
-    .single();
+      .select()
+      .single();
   data = result1.data;
   error = result1.error;
   

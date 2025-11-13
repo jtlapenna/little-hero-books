@@ -9,20 +9,19 @@ import { formatDate } from '@/lib/utils';
 import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
 import { OrderStatus } from '@/constants/statuses';
-import { PhaseBucket } from '@/components/orders/phase-bucket';
-import { OrderPhase } from '@/constants/phases';
-import { DisplayStatus } from '@/constants/statuses';
 import { ArrowRight, Clock, AlertCircle, Search, Grid3X3, List, ChevronDown } from 'lucide-react';
-import { buildOrderListItem, getStageBadgeStatus } from '@/lib/status-display';
+import { buildOrderListItem } from '@/lib/status-display';
+import { REVIEW_TABS, ReviewTabId, getOrdersForTab } from '@/lib/review-page-tabs';
 
 export default function ReviewPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<OrderListItem[]>([]);
+  const [allOrders, setAllOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<ReviewTabId>('poses');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'orderDate' | 'firstName' | 'lastName' | 'platform'>('orderDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [viewMode, setViewMode] = useState<'cards' | 'list' | 'stages'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
 
   useEffect(() => {
     // Fetch orders from API
@@ -34,93 +33,30 @@ export default function ReviewPage() {
         return response.json();
       })
       .then((data: Order[]) => {
+        // Build order list items - we'll filter by tab later
         const orderListItems: OrderListItem[] = data
           .filter((order) => order.status !== OrderStatus.COMPLETED)
-          .map((order) => buildOrderListItem(order))
-          // Filter to only show orders with flags in First Review or Second Review phases
-          .filter((order) => {
-            // Must be in First Review or Second Review phase
-            const isInReviewPhase = order.phase === OrderPhase.FIRST_REVIEW || order.phase === OrderPhase.SECOND_REVIEW;
-            
-            // Exclude orders that are "Proof Ready" or "Book Ready" (all stages approved, ready for customer)
-            // These orders don't need review even if they have stale flag counts
-            const isProofReady = order.status === DisplayStatus.PROOF_READY;
-            if (isProofReady) {
-              return false;
-            }
-            
-            // Check if order has any flags
-            const flagSummary = getOrderFlagSummary(order);
-            const hasFlags = flagSummary.total > 0;
-            
-            // Also check if any stage is not approved (needs review)
-            // If all stages are approved, don't show even if there are stale flag counts
-            const preBriaApproved = order.reviewStages?.preBria?.status === 'approved';
-            const postBriaApproved = order.reviewStages?.postBria?.status === 'approved';
-            const postPdfApproved = order.reviewStages?.postPdf?.status === 'approved';
-            const allStagesApproved = preBriaApproved && postBriaApproved && postPdfApproved;
-            
-            // Only show if in review phase, has flags, AND not all stages approved
-            return isInReviewPhase && hasFlags && !allStagesApproved;
-          });
-        setOrders(orderListItems);
+          .map((order) => buildOrderListItem(order));
+        
+        setAllOrders(orderListItems);
         setLoading(false);
       })
       .catch(error => {
         console.error('Error fetching orders:', error);
         // Fallback to mock data
-        const allOrders = getOrderListItems();
-        const pendingOrders = allOrders
-          .filter(order => order.rawStatus !== OrderStatus.COMPLETED)
-          // Filter to only show orders with flags in First Review or Second Review phases
-          .filter((order) => {
-            const isInReviewPhase = order.phase === OrderPhase.FIRST_REVIEW || order.phase === OrderPhase.SECOND_REVIEW;
-            
-            // Exclude orders that are "Proof Ready" or "Book Ready" (all stages approved, ready for customer)
-            // These orders don't need review even if they have stale flag counts
-            const isProofReady = order.status === DisplayStatus.PROOF_READY;
-            if (isProofReady) {
-              return false;
-            }
-            
-            // Check if order has any flags
-            const flagSummary = getOrderFlagSummary(order);
-            const hasFlags = flagSummary.total > 0;
-            
-            // Also check if any stage is not approved (needs review)
-            // If all stages are approved, don't show even if there are stale flag counts
-            const preBriaApproved = order.reviewStages?.preBria?.status === 'approved';
-            const postBriaApproved = order.reviewStages?.postBria?.status === 'approved';
-            const postPdfApproved = order.reviewStages?.postPdf?.status === 'approved';
-            const allStagesApproved = preBriaApproved && postBriaApproved && postPdfApproved;
-            
-            // Only show if in review phase, has flags, AND not all stages approved
-            return isInReviewPhase && hasFlags && !allStagesApproved;
-          });
-        setOrders(pendingOrders);
+        const allOrders = getOrderListItems()
+          .filter(order => order.rawStatus !== OrderStatus.COMPLETED);
+        setAllOrders(allOrders);
         setLoading(false);
       });
   }, []);
 
-  // Group orders by review stage - only show orders with flags
-  // Orders are already filtered to only include those with flags in First/Second Review phases
-  const reviewStages = {
-    preBria: orders.filter(order => {
-      const flagSummary = getOrderFlagSummary(order);
-      return flagSummary.preBria > 0;
-    }),
-    postBria: orders.filter(order => {
-      const flagSummary = getOrderFlagSummary(order);
-      return flagSummary.postBria > 0;
-    }),
-    postPdf: orders.filter(order => {
-      const flagSummary = getOrderFlagSummary(order);
-      return flagSummary.postPdf > 0;
-    })
-  };
+  // Get orders for the active tab
+  const tabOrders = getOrdersForTab(allOrders, activeTab);
+  const activeTabConfig = REVIEW_TABS.find(tab => tab.id === activeTab);
 
-  // Filter and sort orders
-  const filteredAndSortedOrders = orders
+  // Filter and sort orders for the active tab
+  const filteredAndSortedOrders = tabOrders
     .filter(order => {
       const searchLower = searchTerm.toLowerCase();
       return (
@@ -184,17 +120,56 @@ export default function ReviewPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Pending Reviews</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Review Orders</h1>
               <p className="mt-2 text-gray-600">
-                Orders with flagged items requiring human review (First Review or Second Review phases only)
+                Orders requiring human review organized by stage
               </p>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-500">
-                {filteredAndSortedOrders.length} {filteredAndSortedOrders.length === 1 ? 'order' : 'orders'} with flags
+                {filteredAndSortedOrders.length} {filteredAndSortedOrders.length === 1 ? 'order' : 'orders'} in {activeTabConfig?.label || 'current tab'}
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="flex space-x-8" aria-label="Review Tabs">
+            {REVIEW_TABS.map((tab) => {
+              const tabOrderCount = getOrdersForTab(allOrders, tab.id).length;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                    ${isActive
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }
+                  `}
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                    {tabOrderCount > 0 && (
+                      <span className={`
+                        ml-2 px-2 py-0.5 rounded-full text-xs font-bold
+                        ${isActive
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-gray-100 text-gray-600'
+                        }
+                      `}>
+                        {tabOrderCount}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
         {/* Search and Controls */}
@@ -236,19 +211,8 @@ export default function ReviewPage() {
             {/* View Toggle */}
             <div className="flex border border-gray-300 rounded-lg overflow-hidden">
               <button
-                onClick={() => setViewMode('stages')}
-                className={`px-3 py-2 flex items-center text-xs ${
-                  viewMode === 'stages'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-                title="Group by Review Stage"
-              >
-                Stages
-              </button>
-              <button
                 onClick={() => setViewMode('cards')}
-                className={`px-3 py-2 flex items-center border-l border-gray-300 ${
+                className={`px-3 py-2 flex items-center ${
                   viewMode === 'cards'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -272,190 +236,18 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        {viewMode === 'stages' ? (
-          <div className="space-y-4">
-            {/* Review Poses Stage */}
-            {reviewStages.preBria.length > 0 && (
-              <PhaseBucket
-                phase={reviewStages.preBria[0]?.phase === OrderPhase.SECOND_REVIEW ? OrderPhase.SECOND_REVIEW : OrderPhase.FIRST_REVIEW}
-                orders={reviewStages.preBria}
-                defaultExpanded={true}
-                customLabel="Review Poses"
-                customDescription="Review generated character and poses before background removal"
-                renderOrder={(order, index) => {
-                  // getOrderFlagSummary expects order object, not orderId string
-                  const flagSummary = getOrderFlagSummary(order);
-                  const needsAttention = flagSummary.total > 0;
-                  return (
-                    <div
-                      key={order.orderId}
-                      onClick={() => handleOrderClick(order.orderId)}
-                      className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4 flex-1 min-w-0">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium text-gray-900 truncate">
-                                {order.firstName} {order.lastName}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                ({order.orderId})
-                              </span>
-                              {needsAttention && (
-                                <FlaggedBadge count={flagSummary.total} />
-                              )}
-                            </div>
-                            <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
-                              <span>{order.platform}</span>
-                              <span>•</span>
-                              <span>{formatDate(order.orderDate)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="ml-4 flex items-center space-x-2">
-                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.preBria?.status, 'preBria')} revisionCount={order.revisionCount} />
-                          {flagSummary.preBria > 0 && (
-                            <FlaggedBadge count={flagSummary.preBria} />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }}
-              />
-            )}
-
-            {/* Review Backgrounds Stage */}
-            {reviewStages.postBria.length > 0 && (
-              <PhaseBucket
-                phase={reviewStages.postBria[0]?.phase === OrderPhase.SECOND_REVIEW ? OrderPhase.SECOND_REVIEW : OrderPhase.FIRST_REVIEW}
-                orders={reviewStages.postBria}
-                defaultExpanded={true}
-                customLabel="Review Backgrounds"
-                customDescription="Review background-removed images from Bria.ai"
-                renderOrder={(order, index) => {
-                  // getOrderFlagSummary expects order object, not orderId string
-                  const flagSummary = getOrderFlagSummary(order);
-                  const needsAttention = flagSummary.total > 0;
-                  return (
-                    <div
-                      key={order.orderId}
-                      onClick={() => handleOrderClick(order.orderId)}
-                      className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4 flex-1 min-w-0">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium text-gray-900 truncate">
-                                {order.firstName} {order.lastName}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                ({order.orderId})
-                              </span>
-                              {needsAttention && (
-                                <FlaggedBadge count={flagSummary.total} />
-                              )}
-                            </div>
-                            <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
-                              <span>{order.platform}</span>
-                              <span>•</span>
-                              <span>{formatDate(order.orderDate)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="ml-4 flex items-center space-x-2">
-                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postBria?.status, 'postBria')} revisionCount={order.revisionCount} />
-                          {flagSummary.postBria > 0 && (
-                            <FlaggedBadge count={flagSummary.postBria} />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }}
-              />
-            )}
-
-            {/* Review Pages Stage */}
-            {reviewStages.postPdf.length > 0 && (
-              <PhaseBucket
-                phase={reviewStages.postPdf[0]?.phase === OrderPhase.SECOND_REVIEW ? OrderPhase.SECOND_REVIEW : OrderPhase.FIRST_REVIEW}
-                orders={reviewStages.postPdf}
-                defaultExpanded={true}
-                customLabel="Review Pages"
-                customDescription="Review final compiled PDF before production"
-                renderOrder={(order, index) => {
-                  // getOrderFlagSummary expects order object, not orderId string
-                  const flagSummary = getOrderFlagSummary(order);
-                  const needsAttention = flagSummary.total > 0;
-                  return (
-                    <div
-                      key={order.orderId}
-                      onClick={() => handleOrderClick(order.orderId)}
-                      className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4 flex-1 min-w-0">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium text-gray-900 truncate">
-                                {order.firstName} {order.lastName}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                ({order.orderId})
-                              </span>
-                              {needsAttention && (
-                                <FlaggedBadge count={flagSummary.total} />
-                              )}
-                            </div>
-                            <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
-                              <span>{order.platform}</span>
-                              <span>•</span>
-                              <span>{formatDate(order.orderDate)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="ml-4 flex items-center space-x-2">
-                          <StatusBadge status={getStageBadgeStatus(order.reviewStages?.postPdf?.status, 'postPdf')} revisionCount={order.revisionCount} />
-                          {flagSummary.postPdf > 0 && (
-                            <FlaggedBadge count={flagSummary.postPdf} />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }}
-              />
-            )}
-
-            {reviewStages.preBria.length === 0 && reviewStages.postBria.length === 0 && reviewStages.postPdf.length === 0 && (
-              <div className="text-center py-12 bg-white rounded-lg">
-                <div className="mx-auto h-12 w-12 text-gray-400">
-                  <AlertCircle className="h-12 w-12" />
-                </div>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  No orders with flagged images
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  All orders have been reviewed or approved.
-                </p>
-              </div>
-            )}
-          </div>
-        ) : filteredAndSortedOrders.length === 0 ? (
+        {filteredAndSortedOrders.length === 0 ? (
           <div className="text-center py-12">
             <div className="mx-auto h-12 w-12 text-gray-400">
               <AlertCircle className="h-12 w-12" />
             </div>
             <h3 className="mt-2 text-sm font-medium text-gray-900">
-              {searchTerm ? 'No orders found' : 'No orders with flagged images'}
+              {searchTerm ? 'No orders found' : `No orders in ${activeTabConfig?.label || 'this tab'}`}
             </h3>
             <p className="mt-1 text-sm text-gray-500">
               {searchTerm 
                 ? 'Try adjusting your search criteria.'
-                : 'All orders have been reviewed or approved.'
+                : activeTabConfig?.description || 'No orders require review in this stage.'
               }
             </p>
             <div className="mt-6">
@@ -478,24 +270,42 @@ export default function ReviewPage() {
         ) : viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredAndSortedOrders.map((order) => {
+              const cardLabel = activeTabConfig?.getCardLabel(order) || 'Pending';
               const flagSummary = getOrderFlagSummary(order);
-              const needsAttention = flagSummary.total > 0;
+              const isReadyForApproval = cardLabel === 'Ready for Approval';
+              const isReadyForNextStage = cardLabel.startsWith('Ready for') && !isReadyForApproval;
+              const isApproved = cardLabel === 'Approved';
+              const hasFlags = cardLabel.includes('Flagged');
+              
+              // Determine card background color based on state
+              let cardBgClass = 'bg-white'; // Default: neutral
+              let cardBorderClass = 'border border-gray-200';
+              
+              if (hasFlags) {
+                // Flagged Items: Yellow card
+                cardBgClass = 'bg-yellow-50';
+                cardBorderClass = 'border-2 border-yellow-200';
+              } else if (isReadyForNextStage || isApproved) {
+                // Approved and ready for next stage: Green card
+                cardBgClass = 'bg-green-50';
+                cardBorderClass = 'border-2 border-green-200';
+              }
+              // Ready for Approval: Neutral (white) - already set as default
+              
               return (
                 <div
                   key={order.orderId}
                   onClick={() => handleOrderClick(order.orderId)}
-                  className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer group"
+                  className={`
+                    ${cardBgClass} rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer group
+                    ${cardBorderClass}
+                  `}
                 >
                   <div className="flex items-start justify-between mb-4 gap-3">
                     <h3 className="text-lg font-semibold text-gray-900 truncate flex-1 min-w-0">
                       {order.orderId}
                     </h3>
                     <div className="flex items-center space-x-1.5 flex-shrink-0">
-                      {needsAttention && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 whitespace-nowrap">
-                          {flagSummary.total} {flagSummary.total === 1 ? 'Needs' : 'Need'} Attention
-                        </span>
-                      )}
                       <StatusBadge status={order.status} revisionCount={order.revisionCount} />
                     </div>
                   </div>
@@ -512,10 +322,33 @@ export default function ReviewPage() {
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Clock className="h-4 w-4 mr-1" />
-                      <span>Needs Review</span>
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div className="flex items-center space-x-2">
+                      {hasFlags ? (
+                        (() => {
+                          // Get flag count for the specific stage
+                          const stageFlagCount = activeTab === 'secondary' 
+                            ? flagSummary.total 
+                            : activeTab === 'poses' 
+                              ? flagSummary.preBria 
+                              : activeTab === 'backgrounds'
+                                ? flagSummary.postBria
+                                : flagSummary.postPdf;
+                          return <FlaggedBadge count={stageFlagCount} />;
+                        })()
+                      ) : isReadyForApproval ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200">
+                          ✓ Ready for Approval
+                        </span>
+                      ) : isReadyForNextStage || isApproved ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200">
+                          ✓ {cardLabel}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-gray-100 text-gray-700 border-gray-200">
+                          {cardLabel}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center text-blue-600 group-hover:text-blue-800">
                       <span className="text-sm font-medium">Review</span>
@@ -545,6 +378,9 @@ export default function ReviewPage() {
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Review Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Order Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -553,75 +389,88 @@ export default function ReviewPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredAndSortedOrders.map((order) => (
-                    <tr
-                      key={order.orderId}
-                      className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() => handleOrderClick(order.orderId)}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {order.orderId}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.firstName} {order.lastName}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
-                        {order.platform}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge status={order.status} revisionCount={order.revisionCount} />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(order.orderDate)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex items-center text-blue-600 hover:text-blue-800">
-                          <span className="text-sm font-medium">Review</span>
-                          <ArrowRight className="h-4 w-4 ml-1" />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredAndSortedOrders.map((order) => {
+                    const cardLabel = activeTabConfig?.getCardLabel(order) || 'Pending';
+                    const flagSummary = getOrderFlagSummary(order);
+                    const isReadyForApproval = cardLabel === 'Ready for Approval';
+                    const isReadyForNextStage = cardLabel.startsWith('Ready for') && !isReadyForApproval;
+                    const isApproved = cardLabel === 'Approved';
+                    const hasFlags = cardLabel.includes('Flagged');
+                    
+                    // Determine row background color based on state
+                    let rowBgClass = 'bg-white'; // Default: neutral
+                    
+                    if (hasFlags) {
+                      // Flagged Items: Yellow row
+                      rowBgClass = 'bg-yellow-50 hover:bg-yellow-100';
+                    } else if (isReadyForNextStage || isApproved) {
+                      // Approved and ready for next stage: Green row
+                      rowBgClass = 'bg-green-50 hover:bg-green-100';
+                    }
+                    // Ready for Approval: Neutral (white) - already set as default
+                    
+                    return (
+                      <tr
+                        key={order.orderId}
+                        className={`${rowBgClass} cursor-pointer`}
+                        onClick={() => handleOrderClick(order.orderId)}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {order.orderId}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {order.firstName} {order.lastName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                          {order.platform}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <StatusBadge status={order.status} revisionCount={order.revisionCount} />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {hasFlags ? (
+                            (() => {
+                              // Get flag count for the specific stage
+                              const stageFlagCount = activeTab === 'secondary' 
+                                ? flagSummary.total 
+                                : activeTab === 'poses' 
+                                  ? flagSummary.preBria 
+                                  : activeTab === 'backgrounds'
+                                    ? flagSummary.postBria
+                                    : flagSummary.postPdf;
+                              return <FlaggedBadge count={stageFlagCount} />;
+                            })()
+                          ) : isReadyForApproval ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200">
+                              ✓ Ready for Approval
+                            </span>
+                          ) : isReadyForNextStage || isApproved ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200">
+                              ✓ {cardLabel}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-gray-100 text-gray-700 border-gray-200">
+                              {cardLabel}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatDate(order.orderDate)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex items-center text-blue-600 hover:text-blue-800">
+                            <span className="text-sm font-medium">Review</span>
+                            <ArrowRight className="h-4 w-4 ml-1" />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
         )}
-
-        <div className="mt-12 bg-blue-50 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-2">
-            Review Process
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-700">
-            <div className="flex items-start">
-              <div className="bg-blue-200 rounded-full p-1 mr-3 mt-0.5">
-                <span className="text-xs font-bold text-blue-800">1</span>
-              </div>
-              <div>
-                <p className="font-medium">Review Poses</p>
-                <p>Review generated character and poses before background removal</p>
-              </div>
-            </div>
-            <div className="flex items-start">
-              <div className="bg-blue-200 rounded-full p-1 mr-3 mt-0.5">
-                <span className="text-xs font-bold text-blue-800">2</span>
-              </div>
-              <div>
-                <p className="font-medium">Review Backgrounds</p>
-                <p>Review background-removed images from Bria.ai</p>
-              </div>
-            </div>
-            <div className="flex items-start">
-              <div className="bg-blue-200 rounded-full p-1 mr-3 mt-0.5">
-                <span className="text-xs font-bold text-blue-800">3</span>
-              </div>
-              <div>
-                <p className="font-medium">Review Pages</p>
-                <p>Review final compiled PDF before production</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

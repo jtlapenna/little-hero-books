@@ -79,6 +79,7 @@ interface PostPdfStageProps {
   finalApprovalError?: string | null;
   finalApprovalLoading?: boolean;
   onSendToPrint?: () => Promise<void> | void;
+  onOrderUpdate?: (updates: Partial<Order>) => void;
 }
 
 interface PageData {
@@ -200,6 +201,7 @@ export function PostPdfStage({
   finalApprovalError,
   finalApprovalLoading,
   onSendToPrint,
+  onOrderUpdate,
 }: PostPdfStageProps) {
   const [pdfAsset, setPdfAsset] = useState({
     id: 'compiled-pdf',
@@ -1891,18 +1893,15 @@ export function PostPdfStage({
     const pageNumberMatch = assetId.match(/p(\d+)/);
     const pageNumber = pageNumberMatch ? parseInt(pageNumberMatch[1], 10) : null;
     
-    // Update state immediately for responsive UI (optimistic update)
-    setPageAssets(prev => {
-      const updated = prev.map(page => 
-        page.id === assetId ? { ...page, isFlagged: newFlaggedState } : page
-      );
-      // Update flag count immediately (optimistic)
-      const newFlaggedCount = updated.filter(asset => asset.isFlagged).length;
-      setFlaggedCount(orderId, 'postPdf', newFlaggedCount).catch(err => {
-        console.error('[PostPdfStage] Failed to update flag count:', err);
+      // Update state immediately for responsive UI (optimistic update)
+      setPageAssets(prev => {
+        const updated = prev.map(page => 
+          page.id === assetId ? { ...page, isFlagged: newFlaggedState } : page
+        );
+        // Optimistic flag count update (will be synced from API response)
+        // No need to call setFlaggedCount - API response will update order.flags
+        return updated;
       });
-      return updated;
-    });
     
     // Persist flagging/unflagging to manifest via API
     if (pageNumber !== null) {
@@ -1927,6 +1926,7 @@ export function PostPdfStage({
           ));
           alert(`Failed to ${newFlaggedState ? 'flag' : 'unflag'} page. Please try again.`);
         } else {
+          const result = await response.json();
           // Successfully persisted
           if (newFlaggedState) {
             // User is flagging - add to manually flagged set, remove from unflagged set
@@ -1938,17 +1938,19 @@ export function PostPdfStage({
             manuallyFlaggedRef.current.delete(assetId);
           }
           
-          // Update flag count after successful API call
-          setPageAssets(prev => {
-            const updated = prev.map(page => 
-              page.id === assetId ? { ...page, isFlagged: newFlaggedState } : page
-            );
-            const newFlaggedCount = updated.filter(asset => asset.isFlagged).length;
-            setFlaggedCount(orderId, 'postPdf', newFlaggedCount).catch(err => {
-              console.error('[PostPdfStage] Failed to update flag count:', err);
-            });
-            return updated;
-          });
+          // Update order flags and review stages from API response
+          if (onOrderUpdate) {
+            const updates: any = {};
+            if (result.flags) {
+              updates.flags = result.flags;
+            }
+            if (result.reviewStages) {
+              updates.reviewStages = result.reviewStages;
+            }
+            if (Object.keys(updates).length > 0) {
+              onOrderUpdate(updates);
+            }
+          }
           
           console.log(`[PostPdfStage] Successfully ${newFlaggedState ? 'flagged' : 'unflagged'} page:`, assetId);
         }

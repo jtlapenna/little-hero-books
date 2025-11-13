@@ -34,6 +34,7 @@ The order lifecycle is organized into **5 distinct phases** with color-coded vis
 | `REVIEW_POSES` | **Review Poses** | Character poses generated, admin review needed before background removal | Blue (first) / Yellow (second) |
 | `REVIEW_BACKGROUNDS` | **Review Backgrounds** | Background removal complete, admin review needed before page assembly | Blue (first) / Yellow (second) |
 | `REVIEW_PAGES` | **Review Pages** | Page assembly complete, admin review needed before finalization | Blue (first) / Yellow (second) |
+| `APPROVED` | **Approved** | Stage approved but next workflow not triggered yet. Order remains in current review bucket until workflow is triggered | Grey |
 | `PROOF_READY` | **Proof Ready** / **Book Ready** | All stages approved, pages finalized, ready to send to customer. Shows "Proof Ready" in first review, "Book Ready" in second review | Green |
 | `AWAITING_CUSTOMER` | **Awaiting Customer** | Proof sent to customer, awaiting their response | Purple |
 | `NEEDS_REVISION` | **Needs Revision** | Customer requested correction, cycle back through review stages | Orange |
@@ -119,20 +120,32 @@ This indicates the order is in the background review stage and has 3 items that 
 ### Normal Flow (First Review)
 
 ```
-1. In Queue (Grey)
+1. Order sent from n8n → IN QUEUE (Grey)
    ↓
-2. First Review Phase (Blue)
-   - Review Poses (lightest blue)
-   - Review Backgrounds (medium blue)
-   - Review Pages (darkest blue)
+2. Images arrive → Review Poses (lightest blue)
    ↓
-3. Proof Ready (Green)
+3. Admin clicks "Approve Stage" but doesn't click "Trigger Background Removal" → Approved (Grey)
+   (Steps 2 and 3 appear in Review Poses bucket on Review page)
    ↓
-4. Awaiting Customer (Purple) - Proof sent to customer
+4. Admin clicks "Trigger Background Removal" → No new label (stays Approved)
    ↓
-5a. Sent to Print (Green) - If customer approved
+5. Background Removal is ready → Review Backgrounds (medium blue)
+   ↓
+6. Admin clicks "Approve Stage" but doesn't click "Trigger Book Assembly" → Approved (Grey)
+   (Steps 5 and 6 appear in Review Backgrounds bucket on Review page)
+   ↓
+7. Admin clicks "Trigger Book Assembly" → No new label (stays Approved)
+   ↓
+8. Book Assembly is ready → Review Pages (darkest blue)
+   ↓
+9. Admin clicks "Final Approval" but doesn't click "Send Proof" → Approved (Grey)
+   (Steps 8 and 9 appear in Review Pages bucket on Review page)
+   ↓
+10. Admin clicks "Send Proof" → Awaiting Customer (Purple)
+   ↓
+11a. Customer sends to print → Sent to Print (Green)
    OR
-5b. Second Review Phase (Yellow) - If customer requested revision
+11b. Customer requests correction → Correction Requested (Orange) → Second Review Phase (Yellow)
 ```
 
 ### Revision Flow (Second Review)
@@ -142,19 +155,21 @@ When a customer requests a correction (`NEEDS_REVISION`), the order cycles back 
 ```
 Awaiting Customer (Purple)
    ↓
-Needs Revision (Orange) - Customer requested correction
+Correction Requested (Orange) - Customer requested correction
    ↓
 Second Review Phase (Yellow) - All stages reset to Pending
-   - Review Poses (lightest yellow)
-   - Review Backgrounds (medium yellow)
-   - Review Pages (darkest yellow)
+   - Review Poses (lightest yellow) → Approved (Grey) → Review Backgrounds (medium yellow)
+   - Review Backgrounds (medium yellow) → Approved (Grey) → Review Pages (darkest yellow)
+   - Review Pages (darkest yellow) → Approved (Grey) → Send to Print
    ↓
-Proof Ready (Green) - After all stages re-approved
-   ↓
-Awaiting Customer (Purple) - Proof sent again
-   ↓
-Sent to Print (Green) - Customer approved (revision used)
+Sent to Print (Green) - After all stages re-approved and customer approved
 ```
+
+**Important**: In the second review phase:
+- All review stage badges use **yellow shades** (not blue)
+- Order appears in **Secondary Review** bucket on Orders page and Review page
+- Admin must approve Character, Backgrounds, and Pages again
+- After Final Approval, "Send to Print" button appears (not "Send Proof")
 
 ### Key Workflow Rules
 
@@ -196,6 +211,7 @@ export enum DisplayStatus {
   REVIEW_POSES = 'review_poses',
   REVIEW_BACKGROUNDS = 'review_backgrounds',
   REVIEW_PAGES = 'review_pages',
+  APPROVED = 'approved', // Stage approved but next workflow not triggered yet
   PROOF_READY = 'proof_ready',
   AWAITING_CUSTOMER = 'awaiting_customer',
   NEEDS_REVISION = 'needs_revision',
@@ -214,13 +230,28 @@ Status is calculated in `back-end/src/lib/status-display.ts`:
 ```typescript
 export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
   // Determines status based on:
-  // - Order status
+  // - Order status (from calculateOrderStatus() which uses review_stages, workflow_step, flags, lulu_status, customer_approval_status)
   // - Review stage statuses (preBria, postBria, postPdf)
   // - Customer approval status
   // - Flags
   // - Lulu status
   // - Revision count (determines first vs second review)
+  // - Image existence (r2Assets.poses or preBriaHasProgress)
 }
+```
+
+**Status Calculation Flow:**
+1. `calculateOrderStatus()` in `status-service.ts` determines `order.status` (rawStatus)
+   - Checks flags first (highest priority)
+   - Checks lulu_status (production status)
+   - Checks customer_approval_status
+   - Checks review_stages (preBria, postBria, postPdf)
+   - Checks workflow_step
+   - Defaults to `OrderStatus.NEW`
+2. `getDisplayStatusForOrder()` uses `rawStatus` plus review stages to determine `DisplayStatus`
+   - Checks if images exist (`hasPoses`) - critical for IN_QUEUE vs REVIEW_POSES
+   - Maps to admin-friendly `DisplayStatus` labels
+   - Determines `OrderPhase` based on `DisplayStatus` and `revisionCount`
 
 // Phase is determined by getPhaseForDisplayStatus():
 function getPhaseForDisplayStatus(displayStatus: DisplayStatus, revisionCount?: number): OrderPhase {
@@ -267,21 +298,62 @@ Status and flagged badges appear together in order lists and detail pages:
 
 ## Database Schema
 
+### Status Fields
+
+The database has multiple status-related fields that serve different purposes:
+
+1. **`status`** (database field): Raw status from workflow system
+   - Values: `"queued_for_processing"`, `"pre_bria_pending"`, `"pending_bg_removal_review"`, `"pending_print"`, `"pending_assembly_review"`, `"revision_base"`, etc.
+   - Used internally by workflow system
+   - **Note**: This is NOT used directly in display status calculation
+
+2. **`execution_status`** (database field): Processing execution state
+   - Values: `"ready_for_processing"`, `"processing"`, `"pending_validation"`
+   - Indicates current execution state
+   - **Note**: This is NOT used directly in display status calculation
+
+3. **`order.status`** (calculated field): Final status from `calculateOrderStatus()`
+   - Returns `OrderStatus` enum values
+   - Calculated based on: `review_stages`, `workflow_step`, `flags`, `lulu_status`, `customer_approval_status`
+   - This is what `getDisplayStatusForOrder()` uses as `rawStatus`
+   - **Note**: This is the source of truth for status calculation
+
+4. **`workflow_step`** (database field): Current workflow step
+   - Values: `"order_intake"`, `"2A-complete"`, `"2B-complete"`, `"book_assembly_completed"`, `"print_fulfillment"`, etc.
+   - Used by `calculateOrderStatus()` to determine status
+   - Maps to `OrderStatus` values in `status-service.ts`
+
 ### Review Stages
 
 Stored in `orders.review_stages` (JSONB):
 ```json
 {
   "preBria": {
-    "status": "pending" | "approved" | "rejected" | "flagged",
+    "status": "pending" | "needs_review" | "in-review" | "ready" | "approved" | "rejected" | "flagged",
     "reviewedAt": "2025-01-15T10:30:00Z",
     "reviewer": "admin@example.com",
-    "comments": "Looks good"
+    "comments": "Looks good",
+    // Optional fields (may be present):
+    "posesTotal": 12,
+    "posesApproved": 11,
+    "needsHumanReview": true,
+    "posesNeedingReview": 2
   },
   "postBria": { ... },
   "postPdf": { ... }
 }
 ```
+
+**Review Stage Status Values:**
+- `"pending"` - Stage not started, no images generated yet
+- `"needs_review"` - Images exist and need human review (found in database)
+- `"in-review"` - Stage currently being reviewed
+- `"ready"` - Stage ready for review
+- `"approved"` - Stage approved
+- `"rejected"` - Stage rejected
+- `"flagged"` - Stage has flagged items
+
+**Important**: The status `"needs_review"` indicates images exist and were generated, but need human review. This is different from `"pending"` which means images don't exist yet.
 
 ### Flags
 
@@ -296,6 +368,46 @@ Stored in `orders.flags` (JSONB):
 ```
 
 Also stored as `orders.has_flags` (boolean) for quick queries.
+
+### Character Hash Timing
+
+**Important Note**: The `character_hash` field can be set in the database **before images are actually generated**. This means:
+
+- `character_hash` exists ≠ images exist
+- To verify images exist, check:
+  1. `r2Assets.poses` has items (direct check - works in detail views)
+  2. `preBriaHasProgress` is true (status is not "pending" - works in list views)
+  3. Do NOT trust `character_hash` alone
+
+This is why the status display logic checks `preBriaHasProgress` rather than just `character_hash`.
+
+### IN_QUEUE Status Logic
+
+**Critical Rule**: An order is `IN_QUEUE` ONLY if images don't exist yet. Once images exist, the order moves to review stages and NEVER goes back to `IN_QUEUE`.
+
+**Image Existence Check:**
+```typescript
+const hasPoses = (order.r2Assets?.poses && Array.isArray(order.r2Assets.poses) && order.r2Assets.poses.length > 0) ||
+                 preBriaHasProgress;
+```
+
+**Logic:**
+1. **Direct Check** (detail views): `r2Assets.poses` has items → images exist
+2. **Stage Progress Check** (list views): `preBriaHasProgress` is true (status is not "pending") → images exist
+
+**Why We Don't Check `character_hash` Alone:**
+- `character_hash` can be set before images are generated
+- Example: JOHN-TEST3 has `character_hash = "7d1000cc"` but `preBria.status = "pending"` (no images yet)
+- We only trust `character_hash` if `preBriaHasProgress` is also true
+
+**IN_QUEUE Conditions:**
+- `hasPoses = false` (no images exist)
+- AND order is in initial processing state (`NEW`, `PENDING_PROCESSING`, `QUEUED_FOR_PROCESSING`, `AI_GENERATION_IN_PROGRESS`)
+- AND no stage progress (`!hasAnyStageProgress`)
+
+**Once Images Exist:**
+- Order moves to `REVIEW_POSES` (or appropriate review stage)
+- Order will NEVER show `IN_QUEUE` again, even if status is reset
 
 ## Best Practices
 
@@ -664,16 +776,90 @@ OrderPhase (IN_QUEUE | FIRST_REVIEW | AWAITING_CUSTOMER | SECOND_REVIEW | SENT_T
 6. Individual review stages
 7. In Queue
 
+## Complete Status Mapping Reference
+
+### Status Value Categories
+
+1. **Database `status` field**: Workflow-specific values (e.g., `"queued_for_processing"`, `"pre_bria_pending"`)
+   - These are NOT `OrderStatus` enum values
+   - Mapped to `OrderStatus` via `calculateOrderStatus()`
+
+2. **Database `execution_status` field**: Processing state (`"ready_for_processing"`, `"processing"`, `"pending_validation"`)
+   - Used for workflow routing, NOT display status
+
+3. **`OrderStatus` enum**: Calculated status from `calculateOrderStatus()` (25+ values)
+   - Source of truth for status calculation
+   - Includes: Initial states, AI generation, review states, processing, revisions, customer approval, production, shipping, errors
+   - See `back-end/src/constants/statuses.ts` for complete list
+
+4. **`DisplayStatus` enum**: Admin-friendly labels (12 values)
+   - Collapsed lifecycle statuses for UI badges
+   - Maps from `OrderStatus` + review stages + image existence
+
+5. **`ReviewStageStatus` enum**: Individual stage statuses (7 values)
+   - `"pending"`, `"needs_review"`, `"in-review"`, `"ready"`, `"approved"`, `"rejected"`, `"flagged"`
+   - `"needs_review"` indicates images exist and need human review
+
+6. **`WorkflowStep` enum**: Workflow step values (7 values)
+   - `"order_intake"`, `"ai_generation_completed"`, `"2A-complete"`, `"bria_processing_complete"`, `"2B-complete"`, `"book_assembly_completed"`, `"print_fulfillment"`
+
+7. **`CustomerApprovalStatus` enum**: Customer approval states (4 values)
+
+8. **`LuluStatus` enum**: Lulu API statuses (8 values)
+   - Mapped to `OrderStatus` in `status-service.ts`
+
+### Status Flow
+
+```
+Database Fields
+  ↓
+calculateOrderStatus() → OrderStatus enum
+  ↓
+getDisplayStatusForOrder() → DisplayStatus enum
+  ↓
+getPhaseForDisplayStatus() → OrderPhase enum
+```
+
+### Key Mappings
+
+**Workflow Step → OrderStatus:**
+- `"order_intake"` → `QUEUED_FOR_PROCESSING`
+- `"ai_generation_completed"` → `PENDING_BG_REMOVAL`
+- `"2A-complete"` → `PENDING_BG_REMOVAL`
+- `"bria_processing_complete"` → `PENDING_ASSEMBLY`
+- `"2B-complete"` → `PENDING_ASSEMBLY`
+- `"book_assembly_completed"` → `PENDING_ASSEMBLY_REVIEW`
+- `"print_fulfillment"` → `PENDING_PRINT`
+
+**Review Stage Status → OrderStatus:**
+- `postPdf.status = "approved"` → `PENDING_CUSTOMER_APPROVAL` or `PENDING_PRINT`
+- `postPdf.status = "ready"` or `"in-review"` → `PENDING_ASSEMBLY_REVIEW`
+- `postBria.status = "approved"` (no postPdf) → `PENDING_ASSEMBLY`
+- `postBria.status = "ready"` or `"in-review"` → `PENDING_BG_REMOVAL_REVIEW`
+- `preBria.status = "approved"` (no postBria) → `PENDING_BG_REMOVAL`
+- `preBria.status = "ready"` or `"in-review"` → `PENDING_BASE_REVIEW`
+
+**Lulu Status → OrderStatus:**
+- `"Order Received"` → `PENDING_PRINT`
+- `"Processing"` → `PENDING_SHIPPING`
+- `"Fulfilling"` → `IN_PRODUCTION`
+- `"Shipped"` → `SHIPPED`
+- `"Delivered"` → `DELIVERED`
+- `"Action Required"` → `ACTION_REQUIRED`
+- `"Canceled"` / `"Refunded"` → `CANCELLED`
+
 ## Related Documentation
 
 - `docs/new-planning/back-end/planning/feature_status_pending_and_order_review.md` - **UI/UX Features**: Card/list views, search, sorting, and review page functionality
 - `docs/new-planning/back-end/human_in_loop_technical_spec.md` - Technical specification for review system
 - `docs/new-planning/back-end/ui_ux_specification.md` - UI/UX specification
+- `docs/dev-mode-status-safety.md` - Developer mode status safety guidelines
+- `docs/developer-mode-workflow-routing.md` - Developer mode workflow routing
 - `database/migration-status-system.sql` - Database schema for status system
-- `DEVELOPER_B_PACKAGE.md` - Developer B workflow documentation
 - `back-end/src/constants/phases.ts` - Phase definitions
-- `back-end/src/constants/statuses.ts` - Status definitions
+- `back-end/src/constants/statuses.ts` - Status definitions (single source of truth)
 - `back-end/src/lib/status-display.ts` - Status calculation logic
+- `back-end/src/lib/status-service.ts` - Status calculation service (`calculateOrderStatus()`)
 
 ## Changelog
 
