@@ -136,18 +136,6 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-
-        <div className="mt-16 text-center">
-          <div className="bg-blue-50 rounded-lg p-6 max-w-2xl mx-auto">
-            <h3 className="text-lg font-semibold text-blue-900 mb-2">
-              Development Status
-            </h3>
-            <p className="text-blue-700">
-              This is a local development build. R2 integration and n8n webhooks
-              will be added in the next phases.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );
