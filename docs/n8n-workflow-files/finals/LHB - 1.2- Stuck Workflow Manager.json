@@ -85,7 +85,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "={{ 'eq.' + String($json.id) }}"
+              "value": "={{ 'eq.' + String($json.order_id || $json.id) }}"
             }
           ]
         },
@@ -159,7 +159,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Check if order should be retried or requires manual review\nconst order = $input.first().json;\nconst config = $('Config').first().json;\nconst retryCount = order.retry_count || 0;\nconst maxRetries = config.maxRetries;\n\nif (retryCount >= maxRetries) {\n  // Max retries reached - require manual review\n  return [{\n    json: {\n      ...order,\n      action: 'require_manual_review',\n      reason: `Max retries (${maxRetries}) reached`\n    }\n  }];\n}\n\n// Calculate next retry time (exponential backoff)\nconst delayMinutes = config.baseRetryDelayMinutes * Math.pow(config.retryBackoffMultiplier, retryCount);\nconst nextRetryAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();\n\nreturn [{\n  json: {\n    ...order,\n    action: 'schedule_retry',\n    nextRetryAt,\n    delayMinutes,\n    newRetryCount: retryCount + 1\n  }\n}];"
+        "jsCode": "// Check if order should be retried or requires manual review\n// Input comes from 'Log to Failed Orders' which returns failed_orders record\n// We need to preserve order_id (the actual order ID) not id (failed_orders ID)\nconst failedOrder = $input.first().json;\nconst config = $('Config').first().json;\nconst retryCount = failedOrder.retry_count || 0;\nconst maxRetries = config.maxRetries;\n\nif (retryCount >= maxRetries) {\n  // Max retries reached - require manual review\n  return [{\n    json: {\n      ...failedOrder,\n      action: 'require_manual_review',\n      reason: `Max retries (${maxRetries}) reached`\n    }\n  }];\n}\n\n// Calculate next retry time (exponential backoff)\nconst delayMinutes = config.baseRetryDelayMinutes * Math.pow(config.retryBackoffMultiplier, retryCount);\nconst nextRetryAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();\n\nreturn [{\n  json: {\n    ...failedOrder,\n    action: 'schedule_retry',\n    nextRetryAt,\n    delayMinutes,\n    newRetryCount: retryCount + 1,\n    // Preserve order_id for Schedule Retry node to use\n    order_id: failedOrder.order_id\n  }\n}];"
       },
       "id": "decide-retry-001",
       "name": "Decide Retry or Manual Review",
@@ -208,7 +208,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "={{ 'eq.' + String($json.id) }}"
+              "value": "={{ 'eq.' + String($json.order_id || $json.id) }}"
             }
           ]
         },
@@ -253,7 +253,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "={{ 'eq.' + String($json.id) }}"
+              "value": "={{ 'eq.' + String($json.order_id || $json.id) }}"
             }
           ]
         },
