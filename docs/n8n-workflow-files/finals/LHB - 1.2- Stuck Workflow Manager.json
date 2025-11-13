@@ -280,7 +280,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"execution_status\": \"ready_for_processing\",\n  \"retry_count\": $json.newRetryCount,\n  \"next_retry_at\": $json.nextRetryAt,\n  \"error_message\": null,\n  \"error_type\": null,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"retry_count\": $json.newRetryCount,\n  \"next_retry_at\": $json.nextRetryAt,\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Scheduled for retry after ${$json.delayMinutes} minutes (attempt ${$json.newRetryCount})`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
         "options": {}
       },
       "id": "schedule-retry-001",
@@ -301,7 +301,7 @@
     }
   ],
   "connections": {
-    "Every 5 Minutes": {
+    "Every 5 Minutes (Cron)": {
       "main": [[{ "node": "Config", "type": "main", "index": 0 }]]
     },
     "Config": {
