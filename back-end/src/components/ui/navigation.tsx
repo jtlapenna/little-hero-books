@@ -14,6 +14,7 @@ export function Navigation() {
     { name: 'Review', href: '/review', icon: Users },
     { name: 'Monitoring', href: '/monitoring', icon: Activity },
     { name: 'Stuck Orders', href: '/admin/stuck-orders', icon: Activity },
+    { name: 'Orphaned Orders', href: '/admin/orphaned-orders', icon: Activity },
   ];
 
   return (

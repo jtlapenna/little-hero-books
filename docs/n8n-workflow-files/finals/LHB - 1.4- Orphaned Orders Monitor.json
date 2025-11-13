@@ -1,0 +1,317 @@
+{
+  "name": "LHB - 1.4- Orphaned Orders Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "id": "monitor-trigger-001",
+      "name": "Every 10 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-800, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/rpc/get_orphaned_orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": []
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-orphaned-001",
+      "name": "Fetch Orphaned Orders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-600, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Classify orphaned orders and determine recovery action\nconst orders = $input.all().map(item => item.json);\n\nif (orders.length === 0) {\n  console.log('No orphaned orders found');\n  return [];\n}\n\nconsole.log(`Found ${orders.length} orphaned order(s)`);\n\nconst classified = orders.map(order => {\n  const reason = order.orphan_reason;\n  let action = null;\n  let priority = 'low';\n  \n  switch (reason) {\n    case 'error_no_retry_scheduled':\n      // Schedule retry if retry_count < 3\n      if ((order.retry_count || 0) < 3) {\n        action = 'schedule_retry';\n        priority = 'high';\n      } else {\n        action = 'require_manual_review';\n        priority = 'medium';\n      }\n      break;\n      \n    case 'error_max_retries_exceeded':\n      // Move to manual review\n      action = 'require_manual_review';\n      priority = 'high';\n      break;\n      \n    case 'processing_stuck_over_hour':\n    case 'processing_no_timestamp':\n      // Reset to error and schedule retry\n      action = 'reset_to_error_and_retry';\n      priority = 'high';\n      break;\n      \n    case 'ready_not_picked_up':\n      // Check if router is running, or reset priority\n      action = 'check_router_or_reset';\n      priority = 'medium';\n      break;\n      \n    default:\n      action = 'manual_review';\n      priority = 'low';\n  }\n  \n  return {\n    ...order,\n    action,\n    priority\n  };\n});\n\nreturn classified.map(order => ({ json: order }));"
+      },
+      "id": "classify-orphans-001",
+      "name": "Classify Orphans",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-action-schedule-retry",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "schedule_retry",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-schedule-retry",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "schedule_retry",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "check-manual-review",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "require_manual_review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "check-reset-processing",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "reset_to_error_and_retry",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "route-by-action-001",
+      "name": "Route by Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-200, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": $json.error_type || 'workflow_timeout',\n  \"error_message\": `Orphaned order recovery: ${$json.error_message || 'Scheduled for retry'}`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "options": {}
+      },
+      "id": "recover-schedule-retry-001",
+      "name": "Recover: Schedule Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_message\": `Orphaned order: ${$json.error_message || 'Max retries exceeded or stuck'}. Requires manual intervention.`\n} }}",
+        "options": {}
+      },
+      "id": "recover-manual-review-001",
+      "name": "Recover: Mark for Manual Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Orphaned processing order recovered: was stuck in processing for ${Math.floor($json.minutes_orphaned || 0)} minutes`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "options": {}
+      },
+      "id": "recover-reset-processing-001",
+      "name": "Recover: Reset Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Alert on orphaned orders\nconst orders = $input.all().map(item => item.json);\n\nif (orders.length === 0) {\n  return [];\n}\n\nconsole.error('🚨 ORPHANED ORDERS DETECTED');\nconsole.error(`Count: ${orders.length}`);\n\nfor (const order of orders) {\n  console.error(`- ${order.amazon_order_id}: ${order.orphan_reason} (${order.action})`);\n}\n\n// TODO: Send to Slack/Email/Dashboard\n\nreturn orders.map(order => ({ json: order }));"
+      },
+      "id": "alert-orphans-001",
+      "name": "Alert: Orphaned Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 400]
+    }
+  ],
+  "connections": {
+    "Every 10 Minutes": {
+      "main": [[{ "node": "Fetch Orphaned Orders", "type": "main", "index": 0 }]]
+    },
+    "Fetch Orphaned Orders": {
+      "main": [[{ "node": "Classify Orphans", "type": "main", "index": 0 }]]
+    },
+    "Classify Orphans": {
+      "main": [[{ "node": "Route by Action", "type": "main", "index": 0 }]]
+    },
+    "Route by Action": {
+      "main": [
+        [{ "node": "Recover: Schedule Retry", "type": "main", "index": 0 }],
+        [{ "node": "Recover: Mark for Manual Review", "type": "main", "index": 0 }],
+        [{ "node": "Recover: Reset Processing", "type": "main", "index": 0 }]
+      ]
+    },
+    "Recover: Schedule Retry": {
+      "main": [[{ "node": "Alert: Orphaned Orders", "type": "main", "index": 0 }]]
+    },
+    "Recover: Mark for Manual Review": {
+      "main": [[{ "node": "Alert: Orphaned Orders", "type": "main", "index": 0 }]]
+    },
+    "Recover: Reset Processing": {
+      "main": [[{ "node": "Alert: Orphaned Orders", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "orphaned-monitor-v1",
+  "meta": {},
+  "id": "orphaned-monitor-001",
+  "tags": []
+}
+
