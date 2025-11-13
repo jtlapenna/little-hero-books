@@ -76,7 +76,15 @@ export enum DisplayStatus {
   SHIPPED = 'shipped',
   DELIVERED = 'delivered',
   ACTION_REQUIRED = 'action_required',
-  MANUAL_REVIEW_REQUIRED = 'manual_review_required'
+  MANUAL_REVIEW_REQUIRED = 'manual_review_required',
+  // Specific error badges
+  MISSING_MANIFEST = 'missing_manifest',
+  MAX_RETRIES = 'max_retries',
+  WORKFLOW_TIMEOUT = 'workflow_timeout',
+  API_ERROR = 'api_error',
+  STUCK_PROCESSING = 'stuck_processing',
+  NOT_PICKED_UP = 'not_picked_up',
+  MULTIPLE_ERRORS = 'multiple_errors'
 }
 
 /**
@@ -176,6 +184,13 @@ export const StatusLabels: Record<string, string> = {
   [DisplayStatus.DELIVERED]: 'Delivered',
   [DisplayStatus.ACTION_REQUIRED]: 'Action Required',
   [DisplayStatus.MANUAL_REVIEW_REQUIRED]: 'Manual Review Required',
+  [DisplayStatus.MISSING_MANIFEST]: 'Missing Manifest',
+  [DisplayStatus.MAX_RETRIES]: 'Max Retries Exceeded',
+  [DisplayStatus.WORKFLOW_TIMEOUT]: 'Workflow Timeout',
+  [DisplayStatus.API_ERROR]: 'API Error',
+  [DisplayStatus.STUCK_PROCESSING]: 'Stuck Processing',
+  [DisplayStatus.NOT_PICKED_UP]: 'Not Picked Up',
+  [DisplayStatus.MULTIPLE_ERRORS]: 'Multiple Errors',
   
   // Review Stage Statuses
   [ReviewStageStatus.PENDING]: 'Pending',
@@ -399,6 +414,41 @@ export const StatusColors: Record<string, {
     bg: 'bg-orange-100',
     text: 'text-orange-800',
     border: 'border-orange-200'
+  },
+  [DisplayStatus.MISSING_MANIFEST]: {
+    bg: 'bg-purple-100',
+    text: 'text-purple-800',
+    border: 'border-purple-200'
+  },
+  [DisplayStatus.MAX_RETRIES]: {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    border: 'border-red-200'
+  },
+  [DisplayStatus.WORKFLOW_TIMEOUT]: {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    border: 'border-red-200'
+  },
+  [DisplayStatus.API_ERROR]: {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    border: 'border-red-200'
+  },
+  [DisplayStatus.STUCK_PROCESSING]: {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    border: 'border-red-200'
+  },
+  [DisplayStatus.NOT_PICKED_UP]: {
+    bg: 'bg-blue-100',
+    text: 'text-blue-800',
+    border: 'border-blue-200'
+  },
+  [DisplayStatus.MULTIPLE_ERRORS]: {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    border: 'border-red-200'
   },
   
   // Review Stage Statuses

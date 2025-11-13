@@ -166,11 +166,13 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Update orders
+    // Update orders - clear error fields when resetting
     const { data, error } = await supabase
       .from('orders')
       .update({
         execution_status: newStatus,
+        error_message: null,
+        error_type: null,
         started_at: null,
         current_workflow: null,
         updated_at: new Date().toISOString()

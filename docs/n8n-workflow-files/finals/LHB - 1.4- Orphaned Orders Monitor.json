@@ -1,5 +1,5 @@
 {
-  "name": "LHB - 1.4- Orphaned Orders Monitor",
+  "name": "LHB - 1.4 - Orphan Orders Monitor",
   "nodes": [
     {
       "parameters": {
@@ -12,11 +12,14 @@
           ]
         }
       },
-      "id": "monitor-trigger-001",
+      "id": "7d65acab-6979-43e8-beb8-a5af821492da",
       "name": "Every 10 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-800, 400]
+      "position": [
+        -624,
+        80
+      ]
     },
     {
       "parameters": {
@@ -44,31 +47,66 @@
         "jsonBody": "={}",
         "options": {}
       },
-      "id": "fetch-orphaned-001",
+      "id": "4b68ccde-55ea-4c87-acef-6b735497c3fe",
       "name": "Fetch Orphaned Orders",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-600, 400]
+      "position": [
+        -352,
+        80
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Classify orphaned orders and determine recovery action\nconst orders = $input.all().map(item => item.json);\n\nif (orders.length === 0) {\n  console.log('No orphaned orders found');\n  return [];\n}\n\nconsole.log(`Found ${orders.length} orphaned order(s)`);\n\nconst classified = orders.map(order => {\n  const reason = order.orphan_reason;\n  let action = null;\n  let priority = 'low';\n  \n  switch (reason) {\n    case 'error_no_retry_scheduled':\n      // Schedule retry if retry_count < 3\n      if ((order.retry_count || 0) < 3) {\n        action = 'schedule_retry';\n        priority = 'high';\n      } else {\n        action = 'require_manual_review';\n        priority = 'medium';\n      }\n      break;\n      \n    case 'error_max_retries_exceeded':\n      // Move to manual review\n      action = 'require_manual_review';\n      priority = 'high';\n      break;\n      \n    case 'processing_stuck_over_hour':\n    case 'processing_no_timestamp':\n      // Reset to error and schedule retry\n      action = 'reset_to_error_and_retry';\n      priority = 'high';\n      break;\n      \n    case 'ready_not_picked_up':\n      // Check if router is running, or reset priority\n      action = 'check_router_or_reset';\n      priority = 'medium';\n      break;\n      \n    default:\n      action = 'manual_review';\n      priority = 'low';\n  }\n  \n  return {\n    ...order,\n    action,\n    priority\n  };\n});\n\nreturn classified.map(order => ({ json: order }));"
+        "jsCode": "// Classify orphaned orders and determine recovery action\nconst orders = $input.all().map(item => item.json);\n\nif (orders.length === 0) {\n  console.log('No orphaned orders found');\n  return [];\n}\n\nconsole.log(`Found ${orders.length} orphaned order(s)`);\n\nconst classified = orders.map(order => {\n  // First check: Missing manifest (highest priority)\n  if (!order.one_manifest_url) {\n    return {\n      ...order,\n      action: 'create_manifest',\n      priority: 'high',\n      orphan_reason: 'missing_manifest'\n    };\n  }\n  \n  const reason = order.orphan_reason;\n  let action = null;\n  let priority = 'low';\n  \n  switch (reason) {\n    case 'error_no_retry_scheduled':\n      // Schedule retry if retry_count < 3\n      if ((order.retry_count || 0) < 3) {\n        action = 'schedule_retry';\n        priority = 'high';\n      } else {\n        action = 'require_manual_review';\n        priority = 'medium';\n      }\n      break;\n      \n    case 'error_max_retries_exceeded':\n      // Move to manual review\n      action = 'require_manual_review';\n      priority = 'high';\n      break;\n      \n    case 'processing_stuck_over_hour':\n    case 'processing_no_timestamp':\n      // Reset to error and schedule retry\n      action = 'reset_to_error_and_retry';\n      priority = 'high';\n      break;\n      \n    case 'ready_not_picked_up':\n      // Check if router is running, or reset priority\n      action = 'check_router_or_reset';\n      priority = 'medium';\n      break;\n      \n    default:\n      action = 'manual_review';\n      priority = 'low';\n  }\n  \n  return {\n    ...order,\n    action,\n    priority\n  };\n});\n\nreturn classified.map(order => ({ json: order }));"
       },
-      "id": "classify-orphans-001",
+      "id": "cdf2c8e5-0d97-471c-88d6-cc24a3293e45",
       "name": "Classify Orphans",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, 400]
+      "position": [
+        -144,
+        80
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Route orders by action type\nconst orders = $input.all().map(item => item.json);\n\nconst scheduleRetry = [];\nconst manualReview = [];\nconst resetProcessing = [];\n\nfor (const order of orders) {\n  if (order.action === 'schedule_retry') {\n    scheduleRetry.push(order);\n  } else if (order.action === 'require_manual_review') {\n    manualReview.push(order);\n  } else if (order.action === 'reset_to_error_and_retry') {\n    resetProcessing.push(order);\n  } else {\n    // Default to manual review for unknown actions\n    manualReview.push(order);\n  }\n}\n\n// Return separate arrays for each action type\n// n8n will process each array separately\nreturn [\n  ...scheduleRetry.map(o => ({ json: { ...o, _route: 'schedule_retry' } })),\n  ...manualReview.map(o => ({ json: { ...o, _route: 'manual_review' } })),\n  ...resetProcessing.map(o => ({ json: { ...o, _route: 'reset_processing' } }))\n];"
+        "jsCode": "// Route orders by action type\nconst orders = $input.all().map(item => item.json);\n\nconst scheduleRetry = [];\nconst manualReview = [];\nconst resetProcessing = [];\nconst createManifest = [];\n\nfor (const order of orders) {\n  if (order.action === 'create_manifest') {\n    createManifest.push(order);\n  } else if (order.action === 'schedule_retry') {\n    scheduleRetry.push(order);\n  } else if (order.action === 'require_manual_review') {\n    manualReview.push(order);\n  } else if (order.action === 'reset_to_error_and_retry') {\n    resetProcessing.push(order);\n  } else {\n    // Default to manual review for unknown actions\n    manualReview.push(order);\n  }\n}\n\n// Return separate arrays for each action type\n// n8n will process each array separately\nreturn [\n  ...createManifest.map(o => ({ json: { ...o, _route: 'create_manifest' } })),\n  ...scheduleRetry.map(o => ({ json: { ...o, _route: 'schedule_retry' } })),\n  ...manualReview.map(o => ({ json: { ...o, _route: 'manual_review' } })),\n  ...resetProcessing.map(o => ({ json: { ...o, _route: 'reset_processing' } }))\n];"
       },
-      "id": "route-by-action-001",
+      "id": "b136743b-6d7a-42bc-95ec-ada6216b4b71",
       "name": "Route by Action",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, 400]
+      "position": [
+        64,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json._route === 'create_manifest' ? ('https://admin.littleherolabs.com/api/admin/orders/' + $json.amazon_order_id + '/create-manifest') : null }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "continueOnFail": true
+        }
+      },
+      "id": "656ba7c5-9937-492b-bd69-1469fbc1324f",
+      "name": "Recover: Create Manifest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        304,
+        80
+      ]
     },
     {
       "parameters": {
@@ -106,15 +144,19 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json._route === 'schedule_retry' ? {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": $json.error_type || 'workflow_timeout',\n  \"error_message\": `Orphaned order recovery: ${$json.error_message || 'Scheduled for retry'}`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} : null }}",
-        "options": {},
-        "continueOnFail": true
+        "jsonBody": "={{ $json._route === 'schedule_retry' ? {\n  \"execution_status\": \"ready_for_processing\",\n  \"error_message\": null,\n  \"error_type\": null,\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"current_workflow\": null,\n  \"started_at\": null\n} : null }}",
+        "options": {
+          "continueOnFail": true
+        }
       },
-      "id": "recover-schedule-retry-001",
+      "id": "cd1d4a02-833d-4386-86d5-09c0aedc7f60",
       "name": "Recover: Schedule Retry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [0, 200]
+      "position": [
+        560,
+        80
+      ]
     },
     {
       "parameters": {
@@ -152,15 +194,19 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json._route === 'manual_review' ? {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_message\": `Orphaned order: ${$json.error_message || 'Max retries exceeded or stuck'}. Requires manual intervention.`\n} : null }}",
-        "options": {},
-        "continueOnFail": true
+        "jsonBody": "={{ $json._route === 'manual_review' ? {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_type\": $json.error_type || 'orphaned_order',\n  \"error_message\": `Orphaned order: ${$json.error_message || 'Max retries exceeded or stuck'}. Requires manual intervention.`\n} : null }}",
+        "options": {
+          "continueOnFail": true
+        }
       },
-      "id": "recover-manual-review-001",
+      "id": "bdfac6d8-c06e-4a13-bf6a-667e60cb32ba",
       "name": "Recover: Mark for Manual Review",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [0, 400]
+      "position": [
+        800,
+        80
+      ]
     },
     {
       "parameters": {
@@ -198,60 +244,134 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json._route === 'reset_processing' ? {\n  \"execution_status\": \"error\",\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Orphaned processing order recovered: was stuck in processing for ${Math.floor($json.minutes_orphaned || 0)} minutes`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} : null }}",
-        "options": {},
-        "continueOnFail": true
+        "jsonBody": "={{ $json._route === 'reset_processing' ? {\n  \"execution_status\": \"ready_for_processing\",\n  \"error_message\": null,\n  \"error_type\": null,\n  \"retry_count\": 0,\n  \"next_retry_at\": null,\n  \"current_workflow\": null,\n  \"started_at\": null\n} : null }}",
+        "options": {
+          "continueOnFail": true
+        }
       },
-      "id": "recover-reset-processing-001",
+      "id": "a1115148-e09e-4ae4-b593-05851af05a35",
       "name": "Recover: Reset Processing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [0, 600]
+      "position": [
+        1040,
+        80
+      ]
     },
     {
       "parameters": {
         "jsCode": "// Alert on orphaned orders\nconst orders = $input.all().map(item => item.json);\n\nif (orders.length === 0) {\n  return [];\n}\n\nconsole.error('🚨 ORPHANED ORDERS DETECTED');\nconsole.error(`Count: ${orders.length}`);\n\nfor (const order of orders) {\n  console.error(`- ${order.amazon_order_id}: ${order.orphan_reason} (${order.action})`);\n}\n\n// TODO: Send to Slack/Email/Dashboard\n\nreturn orders.map(order => ({ json: order }));"
       },
-      "id": "alert-orphans-001",
+      "id": "0ee9d529-5b04-4343-8d74-b45c970d4d06",
       "name": "Alert: Orphaned Orders",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [200, 400]
+      "position": [
+        1328,
+        80
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Every 10 Minutes": {
-      "main": [[{ "node": "Fetch Orphaned Orders", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Orphaned Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Orphaned Orders": {
-      "main": [[{ "node": "Classify Orphans", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Classify Orphans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Classify Orphans": {
-      "main": [[{ "node": "Route by Action", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Route by Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Route by Action": {
-      "main": [[{ "node": "Recover: Schedule Retry", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Recover: Create Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recover: Create Manifest": {
+      "main": [
+        [
+          {
+            "node": "Recover: Schedule Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Recover: Schedule Retry": {
-      "main": [[{ "node": "Recover: Mark for Manual Review", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Recover: Mark for Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Recover: Mark for Manual Review": {
-      "main": [[{ "node": "Recover: Reset Processing", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Recover: Reset Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Recover: Reset Processing": {
-      "main": [[{ "node": "Alert: Orphaned Orders", "type": "main", "index": 0 }]]
-    },
-    "Alert: Orphaned Orders": {
-      "main": []
+      "main": [
+        [
+          {
+            "node": "Alert: Orphaned Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "orphaned-monitor-v1",
-  "meta": {},
-  "id": "orphaned-monitor-001",
+  "versionId": "9eefff2a-ff80-4077-887a-1a6afe2cb8eb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "6jr71x5QDTpEZA6u",
   "tags": []
 }
-

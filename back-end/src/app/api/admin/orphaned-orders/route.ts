@@ -119,13 +119,15 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'schedule_retry':
+        // Set to ready_for_processing and clear error fields
+        // W1.3 will pick it up and schedule retry
         updateData = {
-          execution_status: 'error',
-          retry_count: null, // Will be set by query
-          next_retry_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-          error_type: 'workflow_timeout',
+          execution_status: 'ready_for_processing',
+          error_message: null,
+          error_type: null,
           current_workflow: null,
-          started_at: null
+          started_at: null,
+          next_retry_at: new Date(Date.now() + 5 * 60 * 1000).toISOString()
         };
         // Increment retry_count
         const { data: orders } = await supabase
@@ -147,9 +149,11 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'manual_review':
+        // Keep error_requires_manual_review - this is intentional
         updateData = {
           execution_status: 'error_requires_manual_review',
-          error_message: 'Orphaned order recovered - requires manual intervention'
+          error_message: 'Orphaned order recovered - requires manual intervention',
+          error_type: 'orphaned_order'
         };
         await supabase
           .from('orders')
@@ -158,12 +162,13 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'reset_processing':
+        // Set to ready_for_processing and clear all error fields
         updateData = {
-          execution_status: 'error',
-          retry_count: null,
-          next_retry_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-          error_type: 'workflow_timeout',
-          error_message: 'Orphaned processing order recovered',
+          execution_status: 'ready_for_processing',
+          error_message: null,
+          error_type: null,
+          retry_count: 0,
+          next_retry_at: null,
           current_workflow: null,
           started_at: null
         };
