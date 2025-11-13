@@ -39,7 +39,7 @@
             },
             {
               "name": "select",
-              "value": "id,amazon_order_id,next_workflow,retry_count,error_message,error_type,character_specs,book_specs,one_manifest_url"
+              "value": "id,amazon_order_id,next_workflow,retry_count,error_message,error_type,character_specs,one_manifest_url"
             },
             {
               "name": "order",
@@ -129,7 +129,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare order for router (same format as router expects)\nconst order = $input.first().json;\n\nreturn [{\n  json: {\n    orderId: order.amazon_order_id,\n    characterHash: order.character_hash,\n    characterSpecs: order.character_specs,\n    bookSpecs: order.book_specs,\n    orderDbId: order.id,\n    workflow: order.next_workflow || '2A',\n    isRetry: true,\n    retryCount: order.retry_count\n  }\n}];"
+        "jsCode": "// Prepare order for router (same format as router expects)\nconst order = $input.first().json;\n\nreturn [{\n  json: {\n    orderId: order.amazon_order_id,\n    characterHash: order.character_hash,\n    characterSpecs: order.character_specs,\n    orderDbId: order.id,\n    workflow: order.next_workflow || '2A',\n    isRetry: true,\n    retryCount: order.retry_count\n  }\n}];"
       },
       "id": "prep-for-router-001",
       "name": "Prep for Router",
