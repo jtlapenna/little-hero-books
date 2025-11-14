@@ -479,15 +479,22 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
     };
   }
 
-  // Handle new orders (in queue) - check this BEFORE the fallback REVIEW_POSES
-  // This ensures orders without poses are shown as "New" not "Review Poses"
+  // Handle new orders - check this BEFORE the fallback REVIEW_POSES
+  // Orders that are NEW or QUEUED_FOR_PROCESSING with no progress
+  // An order is "New" if it has no stage progress AND no queued_at (just created, not queued yet)
+  // An order is "In Queue" if it has been queued (queued_at set) but router hasn't picked it up yet
   if (
     rawStatus &&
     NEW_STATUSES.has(rawStatus) &&
     !hasAnyStageProgress &&
     !proofSent
   ) {
-    const displayStatus = DisplayStatus.IN_QUEUE;
+    // If order has execution_status = 'ready_for_processing' and queued_at is set,
+    // it's actually "In Queue" waiting for router
+    // Otherwise, it's "New" (just created, not yet queued for routing)
+    const isActuallyQueued = executionStatus === 'ready_for_processing' && order.queuedAt;
+    const displayStatus = isActuallyQueued ? DisplayStatus.IN_QUEUE : DisplayStatus.NEW;
+    
     return {
       status: displayStatus,
       phase: getPhaseForDisplayStatus(displayStatus, revisionCount),

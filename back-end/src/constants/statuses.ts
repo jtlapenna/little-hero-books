@@ -64,6 +64,7 @@ export enum OrderStatus {
  * These are admin-friendly labels that represent the order's current state
  */
 export enum DisplayStatus {
+  NEW = 'new',
   IN_QUEUE = 'in_queue',
   REVIEW_POSES = 'review_poses',
   REVIEW_BACKGROUNDS = 'review_backgrounds',
@@ -174,6 +175,7 @@ export const StatusLabels: Record<string, string> = {
   [OrderStatus.COMPLETED]: 'Completed',
 
   // Display-only lifecycle statuses (admin-friendly labels)
+  [DisplayStatus.NEW]: 'New',
   [DisplayStatus.IN_QUEUE]: 'In Queue',
   [DisplayStatus.REVIEW_POSES]: 'Review Poses',
   [DisplayStatus.REVIEW_BACKGROUNDS]: 'Review Backgrounds',
