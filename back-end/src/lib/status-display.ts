@@ -464,7 +464,14 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
     };
   }
  
-  if (!stageIsApproved(preBriaStatus)) {
+  // Only show REVIEW_POSES if preBria has progress (poses have been created)
+  // If preBria is still "pending", it means poses haven't been created yet
+  const preBriaHasProgress = preBriaStatus !== normalizeStageStatus(ReviewStageStatus.PENDING) &&
+                             preBriaStatus !== ReviewStageStatus.READY &&
+                             preBriaStatus !== undefined &&
+                             preBriaStatus !== '';
+  
+  if (!stageIsApproved(preBriaStatus) && preBriaHasProgress) {
     const displayStatus = DisplayStatus.REVIEW_POSES;
     return {
       status: displayStatus,
@@ -472,7 +479,8 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
     };
   }
 
-  // Handle new orders (in queue)
+  // Handle new orders (in queue) - check this BEFORE the fallback REVIEW_POSES
+  // This ensures orders without poses are shown as "New" not "Review Poses"
   if (
     rawStatus &&
     NEW_STATUSES.has(rawStatus) &&
@@ -486,8 +494,8 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
     };
   }
 
-  // Default fallback - show first unapproved stage or in queue
-  if (!stageIsApproved(preBriaStatus)) {
+  // Default fallback - only show REVIEW_POSES if preBria has progress
+  if (!stageIsApproved(preBriaStatus) && preBriaHasProgress) {
     const displayStatus = DisplayStatus.REVIEW_POSES;
     return {
       status: displayStatus,
