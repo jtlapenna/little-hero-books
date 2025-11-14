@@ -143,7 +143,9 @@ export async function GET(request: NextRequest) {
           ...order,
           source: 'orphaned',
           timeStuck: order.minutes_orphaned,
-          errorReason: order.orphan_reason
+          errorReason: order.orphan_reason,
+          // Preserve next_retry_at if present
+          next_retry_at: order.next_retry_at || null
         });
       }
     });
@@ -176,13 +178,16 @@ export async function GET(request: NextRequest) {
           errorReason: order.error_type || 'error'
         });
       } else {
-        // Merge error info if order already exists
+        // Merge error info if order already exists, preserving next_retry_at
         const existing = orderMap.get(order.id)!;
         orderMap.set(order.id, {
           ...existing,
           error_type: order.error_type || existing.error_type,
           error_message: order.error_message || existing.error_message,
-          errorReason: order.error_type || existing.errorReason
+          errorReason: order.error_type || existing.errorReason,
+          // Preserve next_retry_at from either source
+          next_retry_at: order.next_retry_at || existing.next_retry_at,
+          retry_count: order.retry_count !== null ? order.retry_count : existing.retry_count
         });
       }
     });
