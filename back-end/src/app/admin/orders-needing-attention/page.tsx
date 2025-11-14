@@ -366,13 +366,12 @@ export default function OrdersNeedingAttentionPage() {
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {order.next_retry_at 
                           ? (
-                            <>
-                              {new Date(order.next_retry_at).toLocaleDateString()}
-                              <br />
-                              <span className="text-gray-400">
+                            <div className="flex flex-col">
+                              <span>{new Date(order.next_retry_at).toLocaleDateString()}</span>
+                              <span className="text-gray-400 text-xs">
                                 {new Date(order.next_retry_at).toLocaleTimeString()}
                               </span>
-                            </>
+                            </div>
                           )
                           : 'N/A'}
                       </td>
