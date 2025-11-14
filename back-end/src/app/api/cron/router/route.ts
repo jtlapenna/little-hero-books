@@ -189,14 +189,18 @@ export async function GET(request: NextRequest) {
       fetchDuration: `${metrics.ordersFetchMs}ms`
     });
 
-    // 5. Update queued_at for all orders being picked up (mark as queued for routing)
+    // 5. Update queued_at and status for all orders being picked up (mark as queued for routing)
     // This ensures queued_at represents when the order was actually queued for routing
+    // and status is set to 'queued_for_processing' when actually queued
     const nowIso = new Date().toISOString();
     const orderIds = orders.map(o => o.id);
     
     const { error: updateError } = await supabase
       .from('orders')
-      .update({ queued_at: nowIso })
+      .update({ 
+        queued_at: nowIso,
+        status: 'queued_for_processing'  // Set status when actually queued by router
+      })
       .in('id', orderIds);
     
     if (updateError) {
