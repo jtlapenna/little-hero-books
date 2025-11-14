@@ -124,11 +124,12 @@ export async function GET(request: NextRequest) {
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id,amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at')
+      .select('id,amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at,updated_at')
       .eq('execution_status', 'ready_for_processing')
       .not('next_workflow', 'is', null)
       .order('priority', { ascending: false, nullsFirst: false })
-      .order('queued_at', { ascending: true })
+      .order('updated_at', { ascending: true, nullsFirst: true }) // Fallback for orders without queued_at
+      .order('queued_at', { ascending: true, nullsFirst: true }) // Primary ordering when queued_at exists
       .limit(availableSlots);
     metrics.ordersFetchMs = Date.now() - ordersFetchStart;
 
