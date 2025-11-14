@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { DisplayStatus, StatusLabels } from '@/constants/statuses';
 
@@ -14,10 +14,13 @@ interface MultipleErrorsBadgeProps {
  * 
  * Shows "Multiple Errors" badge with hover tooltip displaying all error types.
  * On click, expands error details panel (optional).
+ * Tooltip uses fixed positioning to appear above table overflow.
  */
 export function MultipleErrorsBadge({ errors, className = '' }: MultipleErrorsBadgeProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const badgeRef = useRef<HTMLButtonElement>(null);
 
   if (!errors || errors.length === 0) {
     return null;
@@ -37,15 +40,30 @@ export function MultipleErrorsBadge({ errors, className = '' }: MultipleErrorsBa
     [DisplayStatus.MANUAL_REVIEW_REQUIRED]: 'Manual review required',
   } as Record<DisplayStatus, string>;
 
-  const errorList = errors.map(error => ({
+  // Deduplicate errors by type
+  const uniqueErrors = Array.from(new Set(errors));
+  const errorList = uniqueErrors.map(error => ({
     type: error,
     label: StatusLabels[error] || error,
     description: errorDescriptions[error] || 'Error detected'
   }));
 
+  // Calculate tooltip position when showing
+  // Using fixed positioning (relative to viewport), so no need to add scroll offsets
+  useEffect(() => {
+    if ((showTooltip || showDetails) && badgeRef.current) {
+      const rect = badgeRef.current.getBoundingClientRect();
+      setTooltipPosition({
+        top: rect.bottom + 8, // 8px gap below badge
+        left: rect.left
+      });
+    }
+  }, [showTooltip, showDetails]);
+
   return (
     <div className={`relative inline-block ${className}`}>
       <button
+        ref={badgeRef}
         type="button"
         onClick={() => setShowDetails(!showDetails)}
         onMouseEnter={() => setShowTooltip(true)}
@@ -56,9 +74,18 @@ export function MultipleErrorsBadge({ errors, className = '' }: MultipleErrorsBa
         Multiple Errors ({errors.length})
       </button>
 
-      {/* Hover Tooltip */}
+      {/* Hover Tooltip - Fixed positioning to appear above table overflow */}
       {showTooltip && !showDetails && (
-        <div className="absolute z-50 w-64 p-3 mt-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg pointer-events-none">
+        <div 
+          className="fixed z-[99999] w-64 p-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl"
+          style={{
+            top: `${tooltipPosition.top}px`,
+            left: `${tooltipPosition.left}px`,
+            pointerEvents: 'auto'
+          }}
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+        >
           <div className="font-semibold mb-2">Multiple Issues Detected:</div>
           <ul className="space-y-1">
             {errorList.map((error, idx) => (
@@ -69,14 +96,21 @@ export function MultipleErrorsBadge({ errors, className = '' }: MultipleErrorsBa
             ))}
           </ul>
           <div className="mt-2 text-xs text-gray-400 italic">
-            Click to view details
+            Click badge to view details
           </div>
         </div>
       )}
 
-      {/* Expanded Details Panel */}
-      {showDetails && (
-        <div className="absolute z-50 w-80 p-4 mt-2 bg-white border-2 border-red-200 rounded-lg shadow-xl">
+      {/* Expanded Details Panel - Fixed positioning to appear above table overflow */}
+      {showDetails && badgeRef.current && (
+        <div 
+          className="fixed z-[99999] w-80 p-4 bg-white border-2 border-red-200 rounded-lg shadow-xl"
+          style={{
+            top: `${tooltipPosition.top}px`,
+            left: `${tooltipPosition.left}px`,
+            pointerEvents: 'auto'
+          }}
+        >
           <div className="flex items-start justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900">
               Error Details ({errors.length} issues)
