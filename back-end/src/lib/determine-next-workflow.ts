@@ -27,7 +27,9 @@ export interface OrderProgress {
 }
 
 export function determineNextWorkflow(order: OrderProgress): string | null {
-  // Check if order has completed workflow 3 (book assembly)
+  // Priority: Check highest workflow first (3 → 2B → 2A → 1-manifest)
+  
+  // 1. Check if order has completed workflow 3 (book assembly)
   const hasWorkflow3 = !!(
     order.manifest_3_url ||
     order.workflow_step === 'book_assembly_completed'
@@ -43,7 +45,7 @@ export function determineNextWorkflow(order: OrderProgress): string | null {
     return '3';
   }
   
-  // Check if order has completed workflow 2B (background removal)
+  // 2. Check if order has completed workflow 2B (background removal)
   const hasWorkflow2B = !!(
     order.manifest_2b_url ||
     order.workflow_step === 'bria_processing_complete' ||
@@ -60,7 +62,7 @@ export function determineNextWorkflow(order: OrderProgress): string | null {
     return '2B';
   }
   
-  // Check if order has completed workflow 2A (character generation)
+  // 3. Check if order has completed workflow 2A (character generation)
   const hasWorkflow2A = !!(
     order.manifest_2a_url ||
     order.workflow_step === '2A-complete' ||
@@ -77,12 +79,13 @@ export function determineNextWorkflow(order: OrderProgress): string | null {
     return '2A';
   }
   
-  // Check if order has 1-manifest (from W0) but no other progress
+  // 4. Check if order has 1-manifest (from W0) but no other progress
   if (order.one_manifest_url) {
     return '2A';
   }
   
-  // No progress - keep current next_workflow or return null
+  // 5. No progress - keep current next_workflow or return null
+  // This preserves the existing next_workflow if it was set, or returns null
   return order.next_workflow || null;
 }
 
