@@ -1,132 +1,8 @@
 {
-  "name": "LHB - 1.1- Queue Manager and Router (Webhook)",
+  "name": "WORKING VERSION - LHB 1.1 - Queue Manager and Router",
   "nodes": [
     {
       "parameters": {
-        "jsCode": "\n// Fetch a signed GET URL for oneManifestKey via backend\n// NOTE: n8n Cloud doesn't allow env var access in Code nodes, so using defaults\nconst item = $input.first().json;\nconst endpoint = 'https://admin.littleherolabs.com/api/r2/signed-url';\nconst token = ''; // Backend endpoint may not require auth, or auth is handled server-side\nconst ttl = 600;\n\nif (!item.oneManifestKey) {\n  throw new Error('Missing oneManifestKey');\n}\n\nconst res = await this.helpers.request({\n  method: 'GET',\n  uri: endpoint,\n  qs: { key: item.oneManifestKey, bucket: 'little-hero-orders', expiresIn: ttl },\n  headers: token ? { Authorization: `Bearer ${token}` } : {},\n  json: true\n});\n\nconst oneManifestUrl = res.url || res.data?.url || res.json?.url || res.result?.url;\nif (!oneManifestUrl) {\n  throw new Error('Signed URL endpoint did not return a URL');\n}\n\nreturn [{ json: { ...item, oneManifestUrl } }];\n"
-      },
-      "id": "bceee3d5-f9b6-4668-8026-0943adfd6c5f",
-      "name": "Get Signed URL (1‑manifest)-W4",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -352,
-        432
-      ],
-      "notes": "NOTE: n8n Cloud doesn't allow env var access in Code nodes, so using hardcoded defaults"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Verify Order Claimed (3)\n// Check if the PATCH succeeded - if empty array, order was already claimed\n// Input comes from Merge Prep Data node which combines prep data with Supabase response\n\nconst merged = $input.first().json || {};\nconst isArray = Array.isArray(merged);\n\n// CRITICAL: Check if Supabase PATCH actually succeeded\n// If Supabase returned empty array, the order was already claimed\n// The merge node combines prep data with Supabase response, so we need to check\n// if the Supabase response has an 'id' field (which indicates successful PATCH)\nconst supabaseSucceeded = merged.id || (isArray && merged.length > 0 && merged[0]?.id);\n\nif (!supabaseSucceeded) {\n  console.log('⚠️ Order already claimed by another router cycle - Supabase PATCH returned no data');\n  return []; // Empty output stops execution\n}\n\n// Now check if we have valid merged data\nconst hasData = isArray ? merged.length > 0 : (merged && Object.keys(merged).length > 0);\nif (!hasData) {\n  console.log('⚠️ No data after merge - skipping trigger');\n  return [];\n}\n\nconsole.log('✅ Order successfully claimed - proceeding to trigger');\nconst orderData = isArray ? merged[0] : merged;\n\n// Extract prep data from merged result (already merged by previous node)\n// The merged data has all prep fields (orderId, dedicationText, etc.) plus processing status\nconst prepData = {\n  orderId: orderData.orderId || orderData.amazon_order_id || orderData.amazonOrderId,\n  oneManifestKey: orderData.oneManifestKey,\n  characterHash: orderData.characterHash || orderData.character_hash,\n  orderDbId: orderData.id || orderData.orderDbId,\n  workflow: orderData.workflow || '3',\n  dedicationText: orderData.dedicationText || orderData.dedication_text || null,\n  claimedAt: orderData.started_at || orderData.claimedAt\n};\n\nreturn [{\n  json: prepData\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        176,
-        96
-      ],
-      "id": "4919a703-6503-4a1c-b606-a0fcba8c5098",
-      "name": "Verify Order Claimed (3)"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Verify Order Claimed (2B)\n// Check if the PATCH succeeded - if empty array, order was already claimed\n\nconst markResult = $input.first().json || {};\nconst isArray = Array.isArray(markResult);\nconst hasData = isArray ? markResult.length > 0 : (markResult && Object.keys(markResult).length > 0);\n\nif (!hasData) {\n  console.log('⚠️ Order already claimed by another router cycle - skipping trigger');\n  return []; // Empty output stops execution\n}\n\nconsole.log('✅ Order successfully claimed - proceeding to trigger');\nconst orderData = isArray ? markResult[0] : markResult;\n\n// Pass through original routing data\nconst prepData = $('Prep 2B Orders').first().json;\nreturn [{\n  json: {\n    ...prepData,\n    orderDbId: orderData.id || prepData.orderDbId,\n    claimedAt: orderData.started_at\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -144,
-        -160
-      ],
-      "id": "6177dab3-730c-47fe-a2c4-1a2db48bb1d8",
-      "name": "Verify Order Claimed (2B)"
-    },
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "w1-1-router",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "f416c754-bb97-4f32-bab6-e6b05d813b19",
-      "name": "Webhook Trigger",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1.1,
-      "position": [
-        -2960,
-        -48
-      ],
-      "webhookId": "w1-1-router-webhook"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Extract orders from Vercel Cron webhook payload\n// Vercel sends: { orders: [...] }\n// This node extracts the orders array and passes through\nconst webhookData = $input.first().json || {};\nconst orders = webhookData.orders || [];\n\nconsole.log('=== ROUTER WEBHOOK TRIGGERED ===');\nconsole.log(`Received ${orders.length} orders from Vercel Cron`);\n\nif (orders.length === 0) {\n  console.log('No orders in webhook payload - workflow will stop');\n  return [];\n}\n\n// Return orders as individual items for routing\nreturn orders.map(order => ({ json: order }));"
-      },
-      "id": "bc053f21-ed7d-4a4b-9d71-9a903148c8c2",
-      "name": "Extract Orders from Webhook",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -2752,
-        -48
-      ],
-      "notes": "Extracts orders array from Vercel Cron webhook payload. Vercel already checked capacity and filtered orders."
-    },
-    {
-      "parameters": {
-        "jsCode": "// Reset capacity counter when we have capacity\nif ($execution.customData) {\n  $execution.customData.capacityFullCycles = 0;\n}\n\n// Route order to correct workflow based on next_workflow field\nconst orders = $input.all();\n\nif (!orders || orders.length === 0) {\n  console.log('No orders to route');\n  return [];\n}\n\nconst routed = {\n  workflow2A: [],\n  workflow2B: [],\n  workflow3: [],\n  workflow4: []\n};\n\nfor (const item of orders) {\n  const order = item.json;\n  const nextWorkflow = order.next_workflow;\n  \n  console.log(`Order ${order.amazon_order_id}: Route to ${nextWorkflow}`);\n  \n  if (nextWorkflow === '2A') {\n    routed.workflow2A.push(order);\n  } else if (nextWorkflow === '2B') {\n    routed.workflow2B.push(order);\n  } else if (nextWorkflow === '3') {\n    routed.workflow3.push(order);\n  } else if (nextWorkflow === '4') {\n    routed.workflow4.push(order);\n  } else {\n    console.warn(`⚠️ Unknown workflow: ${nextWorkflow} for order ${order.amazon_order_id}`);\n  }\n}\n\nconsole.log(`Routing summary:`);\nconsole.log(`  2A: ${routed.workflow2A.length} orders`);\nconsole.log(`  2B: ${routed.workflow2B.length} orders`);\nconsole.log(`  3: ${routed.workflow3.length} orders`);\nconsole.log(`  4: ${routed.workflow4.length} orders`);\n\nreturn [{ json: routed }];"
-      },
-      "id": "0a218283-3ac2-4926-affc-278256a12cd0",
-      "name": "Route Orders by Workflow",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -1328,
-        -160
-      ],
-      "notes": "Separates orders by workflow type"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Process 2A orders\n// If character_specs is null, fetch from manifest\nconst routing = $input.first().json;\nconst orders2A = routing.workflow2A || [];\n\nif (orders2A.length === 0) {\n  console.log('No orders for 2A');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2A.length} ORDERS FOR 2A ===`);\n\n// Process each order\nconst processed = [];\nfor (const order of orders2A) {\n  let characterSpecs = order.character_specs;\n  let bookSpecs = order.book_specs;\n  let characterHash = order.character_hash;\n  \n  // If character_specs is null but we have a manifest URL, fetch it\n  if (!characterSpecs && order.one_manifest_url) {\n    try {\n      const manifestKey = order.one_manifest_url;\n      const publicR2Url = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n      const manifestUrl = `${publicR2Url}/${manifestKey}`;\n      \n      console.log(`Fetching manifest from: ${manifestUrl}`);\n      \n      const response = await fetch(manifestUrl);\n      if (response.ok) {\n        const manifest = await response.json();\n        \n        // Extract character specs and book specs from manifest\n        if (manifest.order) {\n          characterSpecs = manifest.order.characterSpecs || null;\n          bookSpecs = manifest.order.bookSpecs || null;\n          \n          // Generate character hash if we have character specs but no hash\n          if (characterSpecs && !characterHash && characterSpecs.childName) {\n            // Simple hash generation (n8n code nodes don't have require())\n            const hashInput = `${characterSpecs.childName}-${characterSpecs.skinTone}-${characterSpecs.hairColor}-${characterSpecs.hairStyle}`;\n            // Simple hash: convert string to number, then to hex\n            let hash = 0;\n            for (let i = 0; i < hashInput.length; i++) {\n              const char = hashInput.charCodeAt(i);\n              hash = ((hash << 5) - hash) + char;\n              hash = hash & hash; // Convert to 32-bit integer\n            }\n            characterHash = Math.abs(hash).toString(16).slice(0, 8);\n            console.log(`Generated character hash: ${characterHash}`);\n          }\n          \n          console.log(`✅ Extracted character specs from manifest for order ${order.amazon_order_id}`);\n        } else {\n          console.warn(`⚠️ Manifest missing 'order' field for ${order.amazon_order_id}`);\n        }\n      } else {\n        console.warn(`⚠️ Failed to fetch manifest (${response.status}) for ${order.amazon_order_id}`);\n      }\n    } catch (error) {\n      console.error(`❌ Error fetching manifest for ${order.amazon_order_id}:`, error.message);\n      // Continue with null values - 2A will need to handle this\n    }\n  }\n  \n  processed.push({\n    json: {\n      orderId: order.amazon_order_id,\n      characterHash: characterHash,\n      characterSpecs: characterSpecs,\n      bookSpecs: bookSpecs,\n      orderDbId: order.id,\n      workflow: '2A',\n      // Pass through manifest URL for reference\n      oneManifestUrl: order.one_manifest_url || null\n    }\n  });\n}\n\nreturn processed;"
-      },
-      "id": "9d350cfe-9a23-49b7-bb29-6f19e02a1b93",
-      "name": "Prep 2A Orders",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -576,
-        -352
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\n// Process 2B orders\nconst routing = $input.first().json;\nconst orders2B = routing.workflow2B || [];\n\nif (orders2B.length === 0) {\n  console.log('No orders for 2B');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2B.length} ORDERS FOR 2B ===`);\n\n// Keep payload minimal; W2B will pull any needed URLs or keys itself\nreturn orders2B.map(order => ({\n  json: {\n    orderId: order.amazon_order_id,\n    characterHash: order.character_hash,\n    orderDbId: order.id,\n    workflow: '2B'\n  }\n}));\n"
-      },
-      "id": "1f34092e-bf90-448c-913a-cd48e135152e",
-      "name": "Prep 2B Orders",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -576,
-        -160
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\n// Process Workflow 3 orders\nconst routing = $input.first().json;\nconst orders3 = routing.workflow3 || [];\n\nif (orders3.length === 0) {\n  console.log('No orders for Workflow 3');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders3.length} ORDERS FOR WORKFLOW 3 ===`);\n\nconst prefix = 'book-mvp-simple-adventure/orders';\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nconst processed = [];\nconst skipped = [];\n\nfor (const order of orders3) {\n  // Check if one_manifest_url exists\n  const manifestUrl = order.one_manifest_url || order.oneManifestUrl;\n  \n  if (!manifestUrl) {\n    console.warn(`⚠️ Order ${order.amazon_order_id} missing 1-manifest.json - marking as error`);\n    \n    // Mark order as error in Supabase\n    try {\n      await fetch(\n        `${supabaseUrl}/rest/v1/orders?id=eq.${order.id}`,\n        {\n          method: 'PATCH',\n          headers: {\n            'apikey': supabaseKey,\n            'Authorization': `Bearer ${supabaseKey}`,\n            'Content-Type': 'application/json',\n            'Prefer': 'return=representation'\n          },\n          body: JSON.stringify({\n            execution_status: 'error',\n            error_type: 'missing_manifest',\n            error_message: 'Missing required 1-manifest.json file for Workflow 3',\n            updated_at: new Date().toISOString()\n          })\n        }\n      );\n    } catch (error) {\n      console.error(`Failed to mark order ${order.amazon_order_id} as error:`, error);\n    }\n    \n    skipped.push(order.amazon_order_id);\n    continue;\n  }\n  \n  // Use manifest URL from database, or construct from prefix if it's just a key\n  const oneManifestKey = manifestUrl.startsWith('http') ? manifestUrl : manifestUrl;\n  const finalKey = manifestUrl.includes('/manifests/1-manifest.json') ? manifestUrl : `${prefix}/${order.amazon_order_id}/manifests/1-manifest.json`;\n  \n  processed.push({\n    json: {\n      orderId: order.amazon_order_id,\n      oneManifestKey: finalKey,\n      characterHash: order.character_hash,\n      orderDbId: order.id,\n      workflow: '3',\n      dedicationText: order.dedication_text || null\n    }\n  });\n}\n\nif (skipped.length > 0) {\n  console.log(`⚠️ Skipped ${skipped.length} orders due to missing manifest: ${skipped.join(', ')}`);\n}\n\nconsole.log(`✅ Processed ${processed.length} orders for Workflow 3`);\n\nreturn processed;\n"
-      },
-      "id": "9b8e1fcf-b419-4166-a4e0-38fd52fa9d16",
-      "name": "Prep Workflow 3 Orders",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -576,
-        96
-      ]
-    },
-    {
-      "parameters": {
         "method": "PATCH",
         "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
         "sendQuery": true,
@@ -168,136 +44,32 @@
         "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
         "options": {}
       },
-      "id": "159cd36a-bf99-4dba-abf4-1bd60853593d",
-      "name": "Mark as Processing (2A)",
+      "id": "84ba6297-85cf-4fb9-ab92-cfa88ab81164",
+      "name": "Mark as Processing (4)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -368,
-        -352
+        -192,
+        352
       ]
     },
     {
       "parameters": {
-        "method": "PATCH",
-        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "id",
-              "value": "={{ 'eq.' + String($json.orderDbId) }}"
-            },
-            {
-              "name": "execution_status",
-              "value": "eq.ready_for_processing"
-            }
-          ]
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Prefer",
-              "value": "return=representation"
-            },
-            {
-              "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
-        "options": {}
+        "jsCode": "\n// Process Workflow 4 orders\n// Defensive: Handle various input structures\nconst input = $input.first();\nif (!input || !input.json) {\n  console.log('No input for Workflow 4');\n  return [];\n}\n\nconst routing = input.json;\nif (!routing || typeof routing !== 'object') {\n  console.log('Invalid routing structure for Workflow 4');\n  return [];\n}\n\nconst orders4 = Array.isArray(routing.workflow4) ? routing.workflow4 : [];\n\nif (orders4.length === 0) {\n  console.log('No orders for Workflow 4');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders4.length} ORDERS FOR WORKFLOW 4 ===`);\n\nconst prefix = 'book-mvp-simple-adventure/orders';\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nconst processed = [];\nconst skipped = [];\n\nfor (const order of orders4) {\n  // Check if one_manifest_url exists\n  const manifestUrl = order.one_manifest_url || order.oneManifestUrl;\n  \n  if (!manifestUrl) {\n    console.warn(`⚠️ Order ${order.amazon_order_id} missing 1-manifest.json - marking as error`);\n    \n    // Mark order as error in Supabase\n    try {\n      await fetch(\n        `${supabaseUrl}/rest/v1/orders?id=eq.${order.id}`,\n        {\n          method: 'PATCH',\n          headers: {\n            'apikey': supabaseKey,\n            'Authorization': `Bearer ${supabaseKey}`,\n            'Content-Type': 'application/json',\n            'Prefer': 'return=representation'\n          },\n          body: JSON.stringify({\n            execution_status: 'error',\n            error_type: 'missing_manifest',\n            error_message: 'Missing required 1-manifest.json file for Workflow 4',\n            updated_at: new Date().toISOString()\n          })\n        }\n      );\n    } catch (error) {\n      console.error(`Failed to mark order ${order.amazon_order_id} as error:`, error);\n    }\n    \n    skipped.push(order.amazon_order_id);\n    continue;\n  }\n  \n  // Use manifest URL from database, or construct from prefix if it's just a key\n  const finalKey = manifestUrl.includes('/manifests/1-manifest.json') ? manifestUrl : `${prefix}/${order.amazon_order_id}/manifests/1-manifest.json`;\n  \n  processed.push({\n    json: {\n      orderId: order.amazon_order_id,\n      oneManifestKey: finalKey,\n      characterHash: order.character_hash,\n      orderDbId: order.id,\n      workflow: '4'\n    }\n  });\n}\n\nif (skipped.length > 0) {\n  console.log(`⚠️ Skipped ${skipped.length} orders due to missing manifest: ${skipped.join(', ')}`);\n}\n\nconsole.log(`✅ Processed ${processed.length} orders for Workflow 4`);\n\nreturn processed;\n"
       },
-      "id": "566f2cba-6e5c-4d80-b12d-6c840e0efa2e",
-      "name": "Mark as Processing (2B)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -368,
-        -160
-      ]
-    },
-    {
-      "parameters": {
-        "method": "PATCH",
-        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "id",
-              "value": "={{ 'eq.' + String($json.orderDbId) }}"
-            },
-            {
-              "name": "execution_status",
-              "value": "eq.ready_for_processing"
-            }
-          ]
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Prefer",
-              "value": "return=representation"
-            },
-            {
-              "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
-        "options": {}
-      },
-      "id": "dbe60939-802b-43d2-8650-34e61ebe47da",
-      "name": "Mark as Processing (3)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -336,
-        96
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Merge Prep Data with Supabase Response (3)\n// Combines original prep data (dedicationText, oneManifestKey, etc.) with Supabase response\n\nconst supabaseResponse = $input.first().json || {};\nconst isArray = Array.isArray(supabaseResponse);\nconst supabaseData = isArray ? (supabaseResponse.length > 0 ? supabaseResponse[0] : {}) : supabaseResponse;\n\n// Retrieve original prep data from Prep Workflow 3 Orders node\nlet prepData = {};\ntry {\n  const prepItems = $items('Prep Workflow 3 Orders', 0, $runIndex);\n  if (prepItems && prepItems.length > 0) {\n    // Find the matching item by orderDbId\n    const matchingPrep = prepItems.find(item => \n      item.json.orderDbId === supabaseData.id || \n      item.json.orderDbId === supabaseData.orderDbId\n    ) || prepItems[0]; // Fallback to first item if no match\n    prepData = matchingPrep.json || {};\n  }\n} catch (error) {\n  console.warn('Could not retrieve prep data:', error.message);\n}\n\n// Merge prep data with Supabase response\n// Prefer prep data for fields like dedicationText, oneManifestKey, etc.\n// Use Supabase data for database fields like id, started_at, etc.\nconst merged = {\n  ...prepData, // Original prep data (dedicationText, oneManifestKey, orderId, characterHash, workflow)\n  ...supabaseData, // Supabase response (id, started_at, execution_status, current_workflow)\n  // Ensure critical fields are preserved\n  orderId: prepData.orderId || supabaseData.amazon_order_id || supabaseData.amazonOrderId,\n  oneManifestKey: prepData.oneManifestKey, // Only in prep data\n  dedicationText: prepData.dedicationText, // Only in prep data\n  characterHash: prepData.characterHash || supabaseData.character_hash,\n  workflow: prepData.workflow || supabaseData.current_workflow || '3',\n  orderDbId: supabaseData.id || prepData.orderDbId,\n  claimedAt: supabaseData.started_at\n};\n\nreturn [{ json: merged }];"
-      },
+      "id": "d23e3173-2420-4a10-a52d-025f2632627e",
+      "name": "Prep Workflow 4 Orders",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -80,
-        96
-      ],
-      "id": "3215a9e0-9cbe-4df5-b1be-0096f94fb3ee",
-      "name": "Merge Prep Data with Supabase Response (3)"
+        -640,
+        352
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/2a-start",
+        "url": "={{ $env.WORKFLOW_4_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/compile-book' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -312,41 +84,13 @@
         "jsonBody": "={{$json}}",
         "options": {}
       },
-      "id": "758dc2b8-2098-4e07-bcea-a4f39383579f",
-      "name": "Trigger 2A Workflow",
+      "id": "09ee1dce-96aa-4bdf-90af-ee9b886598e8",
+      "name": "Trigger Workflow ",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -144,
-        -352
-      ],
-      "notes": "Update webhook URL in environment or here"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Idempotency-Key",
-              "value": "={{ $json.orderId + '-' + $json.workflow }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{$json}}",
-        "options": {}
-      },
-      "id": "966208f2-6f7d-4f40-8973-064633e18999",
-      "name": "Trigger 2B Workflow",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        128,
-        -160
+        96,
+        352
       ],
       "notes": "Update webhook URL in environment or here"
     },
@@ -368,35 +112,20 @@
         "jsonBody": "={{$json}}",
         "options": {}
       },
-      "id": "90b65654-bf0d-4570-9477-5f46ccf6dd79",
+      "id": "672d1ab5-60c2-44a4-b797-adcec18f03d0",
       "name": "Trigger Workflow 3",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        368,
-        96
+        320,
+        112
       ],
       "notes": "Update webhook URL in environment or here"
     },
     {
       "parameters": {
-        "options": {}
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [
-        -1104,
-        192
-      ],
-      "id": "c3c20e70-706a-4d30-bb37-fe6a4050d689",
-      "name": "Send a message",
-      "webhookId": "5bec6b2f-1fc7-480a-b35e-4be75015bf70",
-      "disabled": true
-    },
-    {
-      "parameters": {
         "method": "POST",
-        "url": "={{ $env.WORKFLOW_4_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/compile-book' }}",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -411,27 +140,107 @@
         "jsonBody": "={{$json}}",
         "options": {}
       },
-      "id": "b2c9e001-7404-49e9-bb76-a3e9909ed122",
-      "name": "Trigger Workflow ",
+      "id": "94529317-5133-4823-8bae-43d36c55948a",
+      "name": "Trigger 2B Workflow",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        144,
-        432
+        80,
+        -160
       ],
       "notes": "Update webhook URL in environment or here"
     },
     {
       "parameters": {
-        "jsCode": "\n// Process Workflow 4 orders\n// Defensive: Handle various input structures\nconst input = $input.first();\nif (!input || !input.json) {\n  console.log('No input for Workflow 4');\n  return [];\n}\n\nconst routing = input.json;\nif (!routing || typeof routing !== 'object') {\n  console.log('Invalid routing structure for Workflow 4');\n  return [];\n}\n\nconst orders4 = Array.isArray(routing.workflow4) ? routing.workflow4 : [];\n\nif (orders4.length === 0) {\n  console.log('No orders for Workflow 4');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders4.length} ORDERS FOR WORKFLOW 4 ===`);\n\nconst prefix = 'book-mvp-simple-adventure/orders';\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nconst processed = [];\nconst skipped = [];\n\nfor (const order of orders4) {\n  // Check if one_manifest_url exists\n  const manifestUrl = order.one_manifest_url || order.oneManifestUrl;\n  \n  if (!manifestUrl) {\n    console.warn(`⚠️ Order ${order.amazon_order_id} missing 1-manifest.json - marking as error`);\n    \n    // Mark order as error in Supabase\n    try {\n      await fetch(\n        `${supabaseUrl}/rest/v1/orders?id=eq.${order.id}`,\n        {\n          method: 'PATCH',\n          headers: {\n            'apikey': supabaseKey,\n            'Authorization': `Bearer ${supabaseKey}`,\n            'Content-Type': 'application/json',\n            'Prefer': 'return=representation'\n          },\n          body: JSON.stringify({\n            execution_status: 'error',\n            error_type: 'missing_manifest',\n            error_message: 'Missing required 1-manifest.json file for Workflow 4',\n            updated_at: new Date().toISOString()\n          })\n        }\n      );\n    } catch (error) {\n      console.error(`Failed to mark order ${order.amazon_order_id} as error:`, error);\n    }\n    \n    skipped.push(order.amazon_order_id);\n    continue;\n  }\n  \n  // Use manifest URL from database, or construct from prefix if it's just a key\n  const finalKey = manifestUrl.includes('/manifests/1-manifest.json') ? manifestUrl : `${prefix}/${order.amazon_order_id}/manifests/1-manifest.json`;\n  \n  processed.push({\n    json: {\n      orderId: order.amazon_order_id,\n      oneManifestKey: finalKey,\n      characterHash: order.character_hash,\n      orderDbId: order.id,\n      workflow: '4'\n    }\n  });\n}\n\nif (skipped.length > 0) {\n  console.log(`⚠️ Skipped ${skipped.length} orders due to missing manifest: ${skipped.join(', ')}`);\n}\n\nconsole.log(`✅ Processed ${processed.length} orders for Workflow 4`);\n\nreturn processed;\n"
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/2a-start",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.orderId + '-' + $json.workflow }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {}
       },
-      "id": "de35521b-6ffb-4d47-bf78-661c858cf3e8",
-      "name": "Prep Workflow 4 Orders",
+      "id": "4d5e9f26-45a7-4aea-900b-140f15ecccad",
+      "name": "Trigger 2A Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -208,
+        -352
+      ],
+      "notes": "Update webhook URL in environment or here"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge Prep Data with Supabase Response (3)\n// Combines original prep data (dedicationText, oneManifestKey, etc.) with Supabase response\n\nconst supabaseResponse = $input.first().json || {};\nconst isArray = Array.isArray(supabaseResponse);\nconst supabaseData = isArray ? (supabaseResponse.length > 0 ? supabaseResponse[0] : {}) : supabaseResponse;\n\n// Retrieve original prep data from Prep Workflow 3 Orders node\nlet prepData = {};\ntry {\n  const prepItems = $items('Prep Workflow 3 Orders', 0, $runIndex);\n  if (prepItems && prepItems.length > 0) {\n    // Find the matching item by orderDbId\n    const matchingPrep = prepItems.find(item => \n      item.json.orderDbId === supabaseData.id || \n      item.json.orderDbId === supabaseData.orderDbId\n    ) || prepItems[0]; // Fallback to first item if no match\n    prepData = matchingPrep.json || {};\n  }\n} catch (error) {\n  console.warn('Could not retrieve prep data:', error.message);\n}\n\n// Merge prep data with Supabase response\n// Prefer prep data for fields like dedicationText, oneManifestKey, etc.\n// Use Supabase data for database fields like id, started_at, etc.\nconst merged = {\n  ...prepData, // Original prep data (dedicationText, oneManifestKey, orderId, characterHash, workflow)\n  ...supabaseData, // Supabase response (id, started_at, execution_status, current_workflow)\n  // Ensure critical fields are preserved\n  orderId: prepData.orderId || supabaseData.amazon_order_id || supabaseData.amazonOrderId,\n  oneManifestKey: prepData.oneManifestKey, // Only in prep data\n  dedicationText: prepData.dedicationText, // Only in prep data\n  characterHash: prepData.characterHash || supabaseData.character_hash,\n  workflow: prepData.workflow || supabaseData.current_workflow || '3',\n  orderDbId: supabaseData.id || prepData.orderDbId,\n  claimedAt: supabaseData.started_at\n};\n\nreturn [{ json: merged }];"
+      },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -576,
-        432
+        -144,
+        112
+      ],
+      "id": "0d590c57-efb6-4604-a6a6-d50c3759be79",
+      "name": "Merge Prep Data with Supabase Response (3)"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.orderDbId) }}"
+            },
+            {
+              "name": "execution_status",
+              "value": "eq.ready_for_processing"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+        "options": {}
+      },
+      "id": "b76fd83a-58e6-421f-8a06-9dde70d6b511",
+      "name": "Mark as Processing (3)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -400,
+        112
       ]
     },
     {
@@ -477,115 +286,210 @@
         "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
         "options": {}
       },
-      "id": "f41b0ae6-f80b-45bf-af6f-5c4eb13312d6",
-      "name": "Mark as Processing (4)",
+      "id": "cd45bb7c-d920-49ab-b0fd-aa56d2f41840",
+      "name": "Mark as Processing (2B)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -128,
-        432
+        -432,
+        -160
       ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.orderDbId) }}"
+            },
+            {
+              "name": "execution_status",
+              "value": "eq.ready_for_processing"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+        "options": {}
+      },
+      "id": "a344b26c-09ef-4afe-9575-fac27eed3162",
+      "name": "Mark as Processing (2A)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -432,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Process Workflow 3 orders\nconst routing = $input.first().json;\nconst orders3 = routing.workflow3 || [];\n\nif (orders3.length === 0) {\n  console.log('No orders for Workflow 3');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders3.length} ORDERS FOR WORKFLOW 3 ===`);\n\nconst prefix = 'book-mvp-simple-adventure/orders';\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nconst processed = [];\nconst skipped = [];\n\nfor (const order of orders3) {\n  // Check if one_manifest_url exists\n  const manifestUrl = order.one_manifest_url || order.oneManifestUrl;\n  \n  if (!manifestUrl) {\n    console.warn(`⚠️ Order ${order.amazon_order_id} missing 1-manifest.json - marking as error`);\n    \n    // Mark order as error in Supabase\n    try {\n      await fetch(\n        `${supabaseUrl}/rest/v1/orders?id=eq.${order.id}`,\n        {\n          method: 'PATCH',\n          headers: {\n            'apikey': supabaseKey,\n            'Authorization': `Bearer ${supabaseKey}`,\n            'Content-Type': 'application/json',\n            'Prefer': 'return=representation'\n          },\n          body: JSON.stringify({\n            execution_status: 'error',\n            error_type: 'missing_manifest',\n            error_message: 'Missing required 1-manifest.json file for Workflow 3',\n            updated_at: new Date().toISOString()\n          })\n        }\n      );\n    } catch (error) {\n      console.error(`Failed to mark order ${order.amazon_order_id} as error:`, error);\n    }\n    \n    skipped.push(order.amazon_order_id);\n    continue;\n  }\n  \n  // Use manifest URL from database, or construct from prefix if it's just a key\n  const oneManifestKey = manifestUrl.startsWith('http') ? manifestUrl : manifestUrl;\n  const finalKey = manifestUrl.includes('/manifests/1-manifest.json') ? manifestUrl : `${prefix}/${order.amazon_order_id}/manifests/1-manifest.json`;\n  \n  processed.push({\n    json: {\n      orderId: order.amazon_order_id,\n      oneManifestKey: finalKey,\n      characterHash: order.character_hash,\n      orderDbId: order.id,\n      workflow: '3',\n      dedicationText: order.dedication_text || null\n    }\n  });\n}\n\nif (skipped.length > 0) {\n  console.log(`⚠️ Skipped ${skipped.length} orders due to missing manifest: ${skipped.join(', ')}`);\n}\n\nconsole.log(`✅ Processed ${processed.length} orders for Workflow 3`);\n\nreturn processed;\n"
+      },
+      "id": "f2a8dd64-f791-4168-9a36-089dc203cf77",
+      "name": "Prep Workflow 3 Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Process 2B orders\nconst routing = $input.first().json;\nconst orders2B = routing.workflow2B || [];\n\nif (orders2B.length === 0) {\n  console.log('No orders for 2B');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2B.length} ORDERS FOR 2B ===`);\n\n// Keep payload minimal; W2B will pull any needed URLs or keys itself\nreturn orders2B.map(order => ({\n  json: {\n    orderId: order.amazon_order_id,\n    characterHash: order.character_hash,\n    orderDbId: order.id,\n    workflow: '2B'\n  }\n}));\n"
+      },
+      "id": "63307021-7fb6-41b3-89dd-4782b06e524b",
+      "name": "Prep 2B Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process 2A orders\n// If character_specs is null, fetch from manifest\nconst routing = $input.first().json;\nconst orders2A = routing.workflow2A || [];\n\nif (orders2A.length === 0) {\n  console.log('No orders for 2A');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2A.length} ORDERS FOR 2A ===`);\n\n// Process each order\nconst processed = [];\nfor (const order of orders2A) {\n  let characterSpecs = order.character_specs;\n  let bookSpecs = order.book_specs;\n  let characterHash = order.character_hash;\n  \n  // If character_specs is null but we have a manifest URL, fetch it\n  if (!characterSpecs && order.one_manifest_url) {\n    try {\n      const manifestKey = order.one_manifest_url;\n      const publicR2Url = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n      const manifestUrl = `${publicR2Url}/${manifestKey}`;\n      \n      console.log(`Fetching manifest from: ${manifestUrl}`);\n      \n      const response = await fetch(manifestUrl);\n      if (response.ok) {\n        const manifest = await response.json();\n        \n        // Extract character specs and book specs from manifest\n        if (manifest.order) {\n          characterSpecs = manifest.order.characterSpecs || null;\n          bookSpecs = manifest.order.bookSpecs || null;\n          \n          // Generate character hash if we have character specs but no hash\n          if (characterSpecs && !characterHash && characterSpecs.childName) {\n            // Simple hash generation (n8n code nodes don't have require())\n            const hashInput = `${characterSpecs.childName}-${characterSpecs.skinTone}-${characterSpecs.hairColor}-${characterSpecs.hairStyle}`;\n            // Simple hash: convert string to number, then to hex\n            let hash = 0;\n            for (let i = 0; i < hashInput.length; i++) {\n              const char = hashInput.charCodeAt(i);\n              hash = ((hash << 5) - hash) + char;\n              hash = hash & hash; // Convert to 32-bit integer\n            }\n            characterHash = Math.abs(hash).toString(16).slice(0, 8);\n            console.log(`Generated character hash: ${characterHash}`);\n          }\n          \n          console.log(`✅ Extracted character specs from manifest for order ${order.amazon_order_id}`);\n        } else {\n          console.warn(`⚠️ Manifest missing 'order' field for ${order.amazon_order_id}`);\n        }\n      } else {\n        console.warn(`⚠️ Failed to fetch manifest (${response.status}) for ${order.amazon_order_id}`);\n      }\n    } catch (error) {\n      console.error(`❌ Error fetching manifest for ${order.amazon_order_id}:`, error.message);\n      // Continue with null values - 2A will need to handle this\n    }\n  }\n  \n  processed.push({\n    json: {\n      orderId: order.amazon_order_id,\n      characterHash: characterHash,\n      characterSpecs: characterSpecs,\n      bookSpecs: bookSpecs,\n      orderDbId: order.id,\n      workflow: '2A',\n      // Pass through manifest URL for reference\n      oneManifestUrl: order.one_manifest_url || null\n    }\n  });\n}\n\nreturn processed;"
+      },
+      "id": "728103d2-5065-43b1-b57c-4a2441d52fac",
+      "name": "Prep 2A Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reset capacity counter when we have capacity\nif ($execution.customData) {\n  $execution.customData.capacityFullCycles = 0;\n}\n\n// Route order to correct workflow based on next_workflow field\nconst orders = $input.all();\n\nif (!orders || orders.length === 0) {\n  console.log('No orders to route');\n  return [];\n}\n\nconst routed = {\n  workflow2A: [],\n  workflow2B: [],\n  workflow3: [],\n  workflow4: []\n};\n\nfor (const item of orders) {\n  const order = item.json;\n  const nextWorkflow = order.next_workflow;\n  \n  console.log(`Order ${order.amazon_order_id}: Route to ${nextWorkflow}`);\n  \n  if (nextWorkflow === '2A') {\n    routed.workflow2A.push(order);\n  } else if (nextWorkflow === '2B') {\n    routed.workflow2B.push(order);\n  } else if (nextWorkflow === '3') {\n    routed.workflow3.push(order);\n  } else if (nextWorkflow === '4') {\n    routed.workflow4.push(order);\n  } else {\n    console.warn(`⚠️ Unknown workflow: ${nextWorkflow} for order ${order.amazon_order_id}`);\n  }\n}\n\nconsole.log(`Routing summary:`);\nconsole.log(`  2A: ${routed.workflow2A.length} orders`);\nconsole.log(`  2B: ${routed.workflow2B.length} orders`);\nconsole.log(`  3: ${routed.workflow3.length} orders`);\nconsole.log(`  4: ${routed.workflow4.length} orders`);\n\nreturn [{ json: routed }];"
+      },
+      "id": "448aab2f-df47-49bc-a407-fe754622cf2e",
+      "name": "Route Orders by Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1392,
+        -160
+      ],
+      "notes": "Separates orders by workflow type"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract orders from Vercel Cron webhook payload\n// n8n webhook structure: { body: { orders: [...] }, headers: {...}, params: {...}, query: {...} }\n// Vercel sends: { orders: [...] } in the body\n// This node extracts the orders array from body and passes through\nconst webhookData = $input.first().json || {};\n\n// Check body.orders first (n8n webhook structure), then fallback to top-level orders\nconst orders = webhookData.body?.orders || webhookData.orders || [];\n\nconsole.log('=== ROUTER WEBHOOK TRIGGERED ===');\nconsole.log('Webhook data keys:', Object.keys(webhookData));\nconsole.log('Has body:', !!webhookData.body);\nconsole.log('Body keys:', webhookData.body ? Object.keys(webhookData.body) : 'N/A');\nconsole.log(`Received ${orders.length} orders from Vercel Cron`);\n\nif (orders.length === 0) {\n  console.log('No orders in webhook payload - workflow will stop');\n  console.log('Webhook data structure:', JSON.stringify(webhookData, null, 2).substring(0, 500));\n  return [];\n}\n\n// Return orders as individual items for routing\nreturn orders.map(order => ({ json: order }));"
+      },
+      "id": "3f975ebb-0ade-4e7f-bb2f-79ceac63dc92",
+      "name": "Extract Orders from Webhook",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1584,
+        -160
+      ],
+      "notes": "Extracts orders array from Vercel Cron webhook payload. Vercel already checked capacity and filtered orders."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "w1-1-router",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "53814019-6168-4ca4-b8ac-dba4b2e5b88f",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -1792,
+        -160
+      ],
+      "webhookId": "w1-1-router-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verify Order Claimed (2B)\n// Check if the PATCH succeeded - if empty array, order was already claimed\n\nconst markResult = $input.first().json || {};\nconst isArray = Array.isArray(markResult);\nconst hasData = isArray ? markResult.length > 0 : (markResult && Object.keys(markResult).length > 0);\n\nif (!hasData) {\n  console.log('⚠️ Order already claimed by another router cycle - skipping trigger');\n  return []; // Empty output stops execution\n}\n\nconsole.log('✅ Order successfully claimed - proceeding to trigger');\nconst orderData = isArray ? markResult[0] : markResult;\n\n// Pass through original routing data\nconst prepData = $('Prep 2B Orders').first().json;\nreturn [{\n  json: {\n    ...prepData,\n    orderDbId: orderData.id || prepData.orderDbId,\n    claimedAt: orderData.started_at\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        -160
+      ],
+      "id": "c2b6d5cd-eadf-4f48-876a-a559a8e6db60",
+      "name": "Verify Order Claimed (2B)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verify Order Claimed (3)\n// Check if the PATCH succeeded - if empty array, order was already claimed\n// Input comes from Merge Prep Data node which combines prep data with Supabase response\n\nconst merged = $input.first().json || {};\nconst isArray = Array.isArray(merged);\n\n// CRITICAL: Check if Supabase PATCH actually succeeded\n// If Supabase returned empty array, the order was already claimed\n// The merge node combines prep data with Supabase response, so we need to check\n// if the Supabase response has an 'id' field (which indicates successful PATCH)\nconst supabaseSucceeded = merged.id || (isArray && merged.length > 0 && merged[0]?.id);\n\nif (!supabaseSucceeded) {\n  console.log('⚠️ Order already claimed by another router cycle - Supabase PATCH returned no data');\n  return []; // Empty output stops execution\n}\n\n// Now check if we have valid merged data\nconst hasData = isArray ? merged.length > 0 : (merged && Object.keys(merged).length > 0);\nif (!hasData) {\n  console.log('⚠️ No data after merge - skipping trigger');\n  return [];\n}\n\nconsole.log('✅ Order successfully claimed - proceeding to trigger');\nconst orderData = isArray ? merged[0] : merged;\n\n// Extract prep data from merged result (already merged by previous node)\n// The merged data has all prep fields (orderId, dedicationText, etc.) plus processing status\nconst prepData = {\n  orderId: orderData.orderId || orderData.amazon_order_id || orderData.amazonOrderId,\n  oneManifestKey: orderData.oneManifestKey,\n  characterHash: orderData.characterHash || orderData.character_hash,\n  orderDbId: orderData.id || orderData.orderDbId,\n  workflow: orderData.workflow || '3',\n  dedicationText: orderData.dedicationText || orderData.dedication_text || null,\n  claimedAt: orderData.started_at || orderData.claimedAt\n};\n\nreturn [{\n  json: prepData\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        112
+      ],
+      "id": "2275ecd2-073e-4402-9dfd-3d4da203aa72",
+      "name": "Verify Order Claimed (3)"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Fetch a signed GET URL for oneManifestKey via backend\n// NOTE: n8n Cloud doesn't allow env var access in Code nodes, so using defaults\nconst item = $input.first().json;\nconst endpoint = 'https://admin.littleherolabs.com/api/r2/signed-url';\nconst token = ''; // Backend endpoint may not require auth, or auth is handled server-side\nconst ttl = 600;\n\nif (!item.oneManifestKey) {\n  throw new Error('Missing oneManifestKey');\n}\n\nconst res = await this.helpers.request({\n  method: 'GET',\n  uri: endpoint,\n  qs: { key: item.oneManifestKey, bucket: 'little-hero-orders', expiresIn: ttl },\n  headers: token ? { Authorization: `Bearer ${token}` } : {},\n  json: true\n});\n\nconst oneManifestUrl = res.url || res.data?.url || res.json?.url || res.result?.url;\nif (!oneManifestUrl) {\n  throw new Error('Signed URL endpoint did not return a URL');\n}\n\nreturn [{ json: { ...item, oneManifestUrl } }];\n"
+      },
+      "id": "10b3d1a3-973a-4115-8f6c-33e253c19506",
+      "name": "Get Signed URL (1‑manifest)-W4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -416,
+        352
+      ],
+      "notes": "NOTE: n8n Cloud doesn't allow env var access in Code nodes, so using hardcoded defaults"
     }
   ],
   "pinData": {},
   "connections": {
-    "Webhook Trigger": {
+    "Prep Workflow 4 Orders": {
       "main": [
         [
           {
-            "node": "Extract Orders from Webhook",
+            "node": "Get Signed URL (1‑manifest)-W4",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Orders from Webhook": {
+    "Mark as Processing (4)": {
       "main": [
         [
           {
-            "node": "Route Orders by Workflow",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Route Orders by Workflow": {
-      "main": [
-        [
-          {
-            "node": "Prep 2A Orders",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Prep 2B Orders",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Prep Workflow 3 Orders",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Prep Workflow 4 Orders",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prep 2B Orders": {
-      "main": [
-        [
-          {
-            "node": "Mark as Processing (2B)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prep Workflow 3 Orders": {
-      "main": [
-        [
-          {
-            "node": "Mark as Processing (3)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prep 2A Orders": {
-      "main": [
-        [
-          {
-            "node": "Mark as Processing (2A)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Mark as Processing (2B)": {
-      "main": [
-        [
-          {
-            "node": "Verify Order Claimed (2B)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Mark as Processing (3)": {
-      "main": [
-        [
-          {
-            "node": "Merge Prep Data with Supabase Response (3)",
+            "node": "Trigger Workflow ",
             "type": "main",
             "index": 0
           }
@@ -603,11 +507,114 @@
         ]
       ]
     },
+    "Mark as Processing (3)": {
+      "main": [
+        [
+          {
+            "node": "Merge Prep Data with Supabase Response (3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Processing (2B)": {
+      "main": [
+        [
+          {
+            "node": "Verify Order Claimed (2B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Mark as Processing (2A)": {
       "main": [
         [
           {
             "node": "Trigger 2A Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Workflow 3 Orders": {
+      "main": [
+        [
+          {
+            "node": "Mark as Processing (3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep 2B Orders": {
+      "main": [
+        [
+          {
+            "node": "Mark as Processing (2B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep 2A Orders": {
+      "main": [
+        [
+          {
+            "node": "Mark as Processing (2A)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Orders by Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prep Workflow 4 Orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prep Workflow 3 Orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prep 2B Orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prep 2A Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Orders from Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route Orders by Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Orders from Webhook",
             "type": "main",
             "index": 0
           }
@@ -636,44 +643,11 @@
         ]
       ]
     },
-    "Log Alert": {
-      "main": [
-        [
-          {
-            "node": "Send a message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Get Signed URL (1‑manifest)-W4": {
       "main": [
         [
           {
             "node": "Mark as Processing (4)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prep Workflow 4 Orders": {
-      "main": [
-        [
-          {
-            "node": "Get Signed URL (1‑manifest)-W4",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Mark as Processing (4)": {
-      "main": [
-        [
-          {
-            "node": "Trigger Workflow ",
             "type": "main",
             "index": 0
           }
@@ -685,11 +659,11 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "e902c009-e66c-477a-8514-80574ba6a8c7",
+  "versionId": "6443870d-8048-4eb3-b41e-7476721a58ab",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },
-  "id": "ns0VEFCo9Vyv0ifT",
+  "id": "n67NaAC0reqS7YUr",
   "tags": []
 }
