@@ -970,7 +970,8 @@
             "type": "main",
             "index": 0
           }
-        ]
+        ],
+        []
       ]
     },
     "Stuck: Config": {
@@ -1087,7 +1088,8 @@
             "type": "main",
             "index": 0
           }
-        ]
+        ],
+        []
       ]
     },
     "Retry: Validate & Flatten": {
@@ -1142,7 +1144,8 @@
             "type": "main",
             "index": 0
           }
-        ]
+        ],
+        []
       ]
     },
     "Orphaned: Classify Orphans": {
