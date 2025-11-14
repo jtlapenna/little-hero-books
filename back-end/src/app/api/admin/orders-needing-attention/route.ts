@@ -173,7 +173,8 @@ export async function GET(request: NextRequest) {
         orderMap.set(order.id, {
           ...existing,
           ...order,
-          next_retry_at: order.next_retry_at || existing.next_retry_at,
+          // Preserve next_retry_at from either source (use nullish coalescing to handle null values)
+          next_retry_at: order.next_retry_at ?? existing.next_retry_at ?? null,
           retry_count: order.retry_count !== null ? order.retry_count : existing.retry_count
         });
       }
@@ -196,8 +197,8 @@ export async function GET(request: NextRequest) {
           error_type: order.error_type || existing.error_type,
           error_message: order.error_message || existing.error_message,
           errorReason: order.error_type || existing.errorReason,
-          // Preserve next_retry_at from either source
-          next_retry_at: order.next_retry_at || existing.next_retry_at,
+          // Preserve next_retry_at from either source (use nullish coalescing to handle null values)
+          next_retry_at: order.next_retry_at ?? existing.next_retry_at ?? null,
           retry_count: order.retry_count !== null ? order.retry_count : existing.retry_count
         });
       }
@@ -226,7 +227,8 @@ export async function GET(request: NextRequest) {
         const existing = orderMap.get(order.id)!;
         orderMap.set(order.id, {
           ...existing,
-          next_retry_at: order.next_retry_at || existing.next_retry_at,
+          // Preserve next_retry_at from either source (use nullish coalescing to handle null values)
+          next_retry_at: order.next_retry_at ?? existing.next_retry_at ?? null,
           retry_count: order.retry_count !== null ? order.retry_count : existing.retry_count
         });
       }
@@ -234,6 +236,21 @@ export async function GET(request: NextRequest) {
 
     // Convert to array and apply filters
     let orders = Array.from(orderMap.values());
+    
+    // Final pass: Ensure next_retry_at is explicitly included for all orders
+    // This handles cases where the field might be missing from query results
+    orders = orders.map(order => {
+      // If next_retry_at is missing, try to fetch it from the order data
+      if (order.next_retry_at === undefined && order.id) {
+        // The field should already be there from queries, but ensure it's explicitly set
+        // This is a safety net in case any query didn't include it
+        return {
+          ...order,
+          next_retry_at: order.next_retry_at ?? null
+        };
+      }
+      return order;
+    });
 
     // Filter by errorType if specified
     if (errorType) {
