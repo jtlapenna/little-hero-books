@@ -11,10 +11,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -2432,
-        448
+        -1728,
+        416
       ],
-      "id": "f3587033-4bfa-4125-8734-9176869ab440",
+      "id": "d996305d-cc21-46f6-9aa2-ccb4438c71a0",
       "name": "Webhook Trigger",
       "webhookId": "5001d874-d92a-45af-8d72-d9b4aebcc7a4"
     },
@@ -22,26 +22,26 @@
       "parameters": {
         "jsCode": "// Extract work items from webhook payload\n// Expected: {stuck: [], retries: [], orphaned: []}\nconst payload = $input.first().json.body || $input.first().json;\n\nconst stuck = Array.isArray(payload.stuck) ? payload.stuck : [];\nconst retries = Array.isArray(payload.retries) ? payload.retries : [];\nconst orphaned = Array.isArray(payload.orphaned) ? payload.orphaned : [];\n\nconst counts = {\n  stuck: stuck.length,\n  retries: retries.length,\n  orphaned: orphaned.length\n};\n\nconst totalWork = counts.stuck + counts.retries + counts.orphaned;\n\nconsole.log(`[Health Monitor] Received work items: ${counts.stuck} stuck, ${counts.retries} retries, ${counts.orphaned} orphaned (total: ${totalWork})`);\n\nif (totalWork === 0) {\n  console.log('[Health Monitor] No work items - workflow will stop (this is expected)');\n  return [];\n}\n\nreturn [{\n  json: {\n    stuck,\n    retries,\n    orphaned,\n    counts,\n    totalWork\n  }\n}];"
       },
-      "id": "50c8983d-8b35-46c8-a94a-97ddfe7feeb3",
+      "id": "4f05e394-6ad9-4a44-921d-2f8046e03cd7",
       "name": "Extract Work Items",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2240,
-        448
+        -1536,
+        416
       ]
     },
     {
       "parameters": {
         "jsCode": "// Route by work type - separate into parallel streams\nconst workData = $input.first().json;\nconst items = [];\n\n// Add stuck orders with _workType marker\nfor (const order of workData.stuck || []) {\n  items.push({\n    ...order,\n    _workType: 'stuck'\n  });\n}\n\n// Add retry orders with _workType marker\nfor (const order of workData.retries || []) {\n  items.push({\n    ...order,\n    _workType: 'retry'\n  });\n}\n\n// Add orphaned orders with _workType marker\nfor (const order of workData.orphaned || []) {\n  items.push({\n    ...order,\n    _workType: 'orphaned'\n  });\n}\n\nconsole.log(`[Health Monitor] Routed ${items.length} items: ${items.filter(i => i._workType === 'stuck').length} stuck, ${items.filter(i => i._workType === 'retry').length} retry, ${items.filter(i => i._workType === 'orphaned').length} orphaned`);\n\nreturn items.map(item => ({ json: item }));"
       },
-      "id": "13a57d4f-0c27-4fe9-a426-034d5b0fa5b9",
+      "id": "fd0e9aa4-fe6b-4c79-86c6-3a7396e5b868",
       "name": "Route by Work Type",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2032,
-        448
+        -1328,
+        416
       ]
     },
     {
@@ -70,39 +70,39 @@
           "looseTypeValidation": true
         }
       },
-      "id": "b7dc6b42-2e22-4c32-a297-b6b294ced963",
+      "id": "c542d41e-9432-4b02-a78b-f66e214f37dd",
       "name": "Filter: Stuck Orders Only",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1696,
-        240
+        -992,
+        208
       ]
     },
     {
       "parameters": {
         "jsCode": "// Config for stuck detection\nreturn [{ json: {\n  stuckThresholdMinutes: 30,\n  maxRetries: 3,\n  retryBackoffMultiplier: 2,\n  baseRetryDelayMinutes: 5\n} }];"
       },
-      "id": "07e28180-65c6-4f33-b8a5-ce9c08275797",
+      "id": "9f59e5ee-102b-4f4b-83a5-3d4f70fdae0d",
       "name": "Stuck: Config",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1488,
-        240
+        -784,
+        208
       ]
     },
     {
       "parameters": {
         "jsCode": "// Validate stuck orders from Vercel (double-check threshold)\nconst config = $('Stuck: Config').first().json;\nconst inputItems = $input.all();\nconst orders = [];\n\n// Flatten if needed\nfor (const item of inputItems) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    orders.push(data);\n  }\n}\n\nconst thresholdMs = config.stuckThresholdMinutes * 60 * 1000;\nconst now = Date.now();\nconst validatedOrders = [];\n\nfor (const order of orders) {\n  if (!order.started_at) {\n    console.log(`Order ${order.amazon_order_id}: No started_at - skipping`);\n    continue;\n  }\n  \n  const startedAt = new Date(order.started_at).getTime();\n  const runningMs = now - startedAt;\n  const runningMinutes = Math.floor(runningMs / 1000 / 60);\n  \n  if (runningMs > thresholdMs) {\n    validatedOrders.push({\n      ...order,\n      runningMinutes,\n      runningMs\n    });\n  }\n}\n\nconsole.log(`[Stuck Path] Validated ${validatedOrders.length} stuck order(s)`);\n\nif (validatedOrders.length === 0) {\n  return [];\n}\n\nreturn validatedOrders.map(order => ({ json: order }));"
       },
-      "id": "f1f5c672-1279-4f46-9687-a014cd0da07e",
+      "id": "6e92ced4-96ee-46b7-982f-881b7a2ce2d4",
       "name": "Stuck: Detect Stuck Orders",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1296,
-        240
+        -592,
+        208
       ]
     },
     {
@@ -144,13 +144,13 @@
         "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Workflow ${$json.current_workflow} timed out after ${$json.runningMinutes} minutes`,\n  \"last_error_at\": new Date().toISOString()\n} }}",
         "options": {}
       },
-      "id": "c174a2da-24f5-4636-94b5-534c450b0d2f",
+      "id": "897967fd-05b5-4815-9257-2934f458348e",
       "name": "Stuck: Mark as Error",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1088,
-        240
+        -384,
+        208
       ]
     },
     {
@@ -183,26 +183,26 @@
         "jsonBody": "={{ {\n  \"order_id\": $json.id,\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Workflow ${$json.current_workflow} timed out after ${$json.runningMinutes} minutes`,\n  \"error_details\": {\n    \"workflow\": $json.current_workflow,\n    \"running_minutes\": $json.runningMinutes,\n    \"started_at\": $json.started_at\n  },\n  \"workflow_step\": $json.current_workflow,\n  \"retry_count\": $json.retry_count || 0,\n  \"max_retries\": 3,\n  \"retry_strategy\": \"exponential_backoff\"\n} }}",
         "options": {}
       },
-      "id": "319d6a3d-b823-4f55-9af0-3f39f512b323",
+      "id": "ace2978b-a889-4dba-a204-e134cdd6a415",
       "name": "Stuck: Log to Failed Orders",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -896,
-        240
+        -192,
+        208
       ]
     },
     {
       "parameters": {
         "jsCode": "// Check if order should be retried or requires manual review\nconst failedOrder = $input.first().json;\nconst config = $('Stuck: Config').first().json;\nconst retryCount = failedOrder.retry_count || 0;\nconst maxRetries = config.maxRetries;\n\nif (retryCount >= maxRetries) {\n  return [{\n    json: {\n      ...failedOrder,\n      action: 'require_manual_review',\n      reason: `Max retries (${maxRetries}) reached`\n    }\n  }];\n}\n\nconst delayMinutes = config.baseRetryDelayMinutes * Math.pow(config.retryBackoffMultiplier, retryCount);\nconst nextRetryAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();\n\nreturn [{\n  json: {\n    ...failedOrder,\n    action: 'schedule_retry',\n    nextRetryAt,\n    delayMinutes,\n    newRetryCount: retryCount + 1,\n    order_id: failedOrder.order_id\n  }\n}];"
       },
-      "id": "68efcb8f-82d4-4f44-9994-98fe4a192b4c",
+      "id": "60bf27f9-181d-434d-9868-31199005475f",
       "name": "Stuck: Decide Retry or Manual Review",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -688,
-        240
+        16,
+        208
       ]
     },
     {
@@ -231,13 +231,13 @@
           "looseTypeValidation": true
         }
       },
-      "id": "b7ea3938-a9df-4f74-b878-a07c38a63902",
+      "id": "78f37e9c-4160-4c3e-b9c3-2b065a4b310a",
       "name": "Stuck: Check Action",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -496,
-        240
+        208,
+        208
       ]
     },
     {
@@ -279,26 +279,26 @@
         "jsonBody": "={{ {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_message\": `Max retries reached. ${$json.error_message || 'Workflow timeout'}`\n} }}",
         "options": {}
       },
-      "id": "5b74110b-67a0-4b7d-aace-b8fb3a53d500",
+      "id": "c05cab4e-5e0a-4c41-991b-1e1a6993597a",
       "name": "Stuck: Mark for Manual Review",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -288,
-        352
+        416,
+        320
       ]
     },
     {
       "parameters": {
         "jsCode": "// Log alert for manual review\nconst order = $input.first().json;\n\nconsole.error('[Stuck Path] 🚨 MANUAL REVIEW REQUIRED');\nconsole.error(`[Stuck Path] Order: ${order.amazon_order_id || order.orderId || 'unknown'}`);\nconsole.error(`[Stuck Path] Workflow: ${order.current_workflow || 'unknown'}`);\nconsole.error(`[Stuck Path] Error: ${order.error_message || 'Workflow timeout'}`);\nconsole.error(`[Stuck Path] Retry Count: ${order.retry_count || 0}`);\nconsole.error(`[Stuck Path] Running Minutes: ${order.runningMinutes || 'unknown'}`);\n\n// TODO: Send to Slack/Email/Dashboard\n\nreturn [{ json: order }];"
       },
-      "id": "716a21ca-68eb-4738-b256-2de7403eaf28",
+      "id": "0a5a5f90-3eaa-4048-8253-eb58e2e3794f",
       "name": "Stuck: Alert: Manual Review",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        96,
-        144
+        800,
+        112
       ]
     },
     {
@@ -340,13 +340,13 @@
         "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"retry_count\": $json.newRetryCount,\n  \"next_retry_at\": $json.nextRetryAt,\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Scheduled for retry after ${$json.delayMinutes} minutes (attempt ${$json.newRetryCount})`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
         "options": {}
       },
-      "id": "d6695013-9cee-4422-8c91-630e80977a13",
+      "id": "e07b8608-6ef1-4889-b1f8-918d288ba873",
       "name": "Stuck: Schedule Retry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -288,
-        144
+        416,
+        112
       ]
     },
     {
@@ -375,26 +375,26 @@
           "looseTypeValidation": true
         }
       },
-      "id": "59715f08-7464-49ad-9e6d-99c994478474",
+      "id": "01094e05-18f9-486e-a6be-b6c954ae0169",
       "name": "Filter: Retry Orders Only",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1696,
-        448
+        -992,
+        416
       ]
     },
     {
       "parameters": {
         "jsCode": "// Validate & flatten retry orders from Vercel\nconst inputItems = $input.all();\nconst orders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    orders.push(data);\n  }\n}\n\nconst now = new Date().toISOString();\nconst validatedOrders = [];\n\nfor (const order of orders) {\n  // Double-check retry conditions\n  if (order.next_retry_at && order.next_retry_at <= now && (order.retry_count || 0) < 3) {\n    validatedOrders.push(order);\n  }\n}\n\nconsole.log(`[Retry Path] Validated ${validatedOrders.length} retry-ready order(s)`);\n\nif (validatedOrders.length === 0) {\n  return [];\n}\n\nreturn validatedOrders.map(order => ({ json: order }));"
       },
-      "id": "beddcd00-6f8f-48f7-8375-6547df406c46",
+      "id": "fda9eb12-1aab-48ef-921e-eb5f3ce57258",
       "name": "Retry: Validate & Flatten",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1488,
-        448
+        -784,
+        416
       ]
     },
     {
@@ -436,39 +436,39 @@
         "jsonBody": "={{ {\n  \"execution_status\": \"ready_for_processing\",\n  \"error_message\": null,\n  \"error_type\": null,\n  \"next_retry_at\": null,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
         "options": {}
       },
-      "id": "635439d9-caa9-4cdd-a193-a3b641067a0e",
+      "id": "5d6ce0f1-d057-4a0d-9a95-5224f9b902f2",
       "name": "Retry: Reset Status for Retry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1296,
-        448
+        -592,
+        416
       ]
     },
     {
       "parameters": {
         "jsCode": "// Prepare order for router\nconst order = $input.first().json;\n\nreturn [{\n  json: {\n    orderId: order.amazon_order_id,\n    characterHash: order.character_hash || null,\n    characterSpecs: order.character_specs,\n    orderDbId: order.id,\n    workflow: order.next_workflow || '2A',\n    isRetry: true,\n    retryCount: order.retry_count,\n    _workType: order._workType || 'retry' // Preserve for merge node\n  }\n}];"
       },
-      "id": "924a139a-dd95-4365-87fb-d1e2508755df",
+      "id": "ae1ac8a7-7f77-405b-9f84-7a54c18c8224",
       "name": "Retry: Prep for Router",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1088,
-        448
+        -384,
+        416
       ]
     },
     {
       "parameters": {
         "jsCode": "// Log retry attempt\nconst order = $input.first().json;\n\nconsole.log(`[Retry Path] 🔄 Retrying order ${order.orderId || order.amazon_order_id} (attempt ${(order.retryCount || 0) + 1})`);\nconsole.log(`[Retry Path] Workflow: ${order.workflow || order.next_workflow || '2A'}`);\nconsole.log(`[Retry Path] Order DB ID: ${order.orderDbId || order.id}`);\n\nreturn [{ json: order }];"
       },
-      "id": "079dba75-7339-4521-bac8-13311c172e14",
+      "id": "cfb43a6c-42d7-4834-ad09-10b5bbfbab45",
       "name": "Retry: Log Retry",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -896,
-        448
+        -192,
+        416
       ]
     },
     {
@@ -497,39 +497,39 @@
           "looseTypeValidation": true
         }
       },
-      "id": "435c32f2-826a-4e1d-be4b-debf5ec8dd65",
+      "id": "2441c35d-b0f3-4b77-a0b9-9564894a8438",
       "name": "Filter: Orphaned Orders Only",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1696,
-        656
+        -992,
+        624
       ]
     },
     {
       "parameters": {
         "jsCode": "// Classify orphaned orders and determine recovery action\nconst inputItems = $input.all();\nconst orders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    orders.push(data);\n  }\n}\n\nif (orders.length === 0) {\n  return [];\n}\n\nconst classified = orders.map(order => {\n  const reason = order.orphan_reason;\n  let action = null;\n  let priority = 'low';\n  \n  // First, check the orphan_reason to determine the primary action\n  switch (reason) {\n    case 'error_no_retry_scheduled':\n      if ((order.retry_count || 0) < 3) {\n        action = 'schedule_retry';\n        priority = 'high';\n      } else {\n        action = 'require_manual_review';\n        priority = 'medium';\n      }\n      break;\n    case 'error_max_retries_exceeded':\n      action = 'require_manual_review';\n      priority = 'high';\n      break;\n    case 'processing_stuck_over_hour':\n    case 'processing_no_timestamp':\n      action = 'reset_to_error_and_retry';\n      priority = 'high';\n      break;\n    case 'ready_not_picked_up':\n      // Orders ready but not picked up - check if they need manifest or just need router to pick them up\n      // If at workflow 4 and missing manifest, that's a real issue\n      // Otherwise, just reset to let router pick them up\n      if (order.next_workflow === '4' && !order.one_manifest_url) {\n        // At workflow 4 but missing manifest - this is a real problem\n        action = 'require_manual_review';\n        priority = 'high';\n      } else {\n        // Just needs router to pick it up - reset processing status\n        action = 'reset_processing';\n        priority = 'medium';\n      }\n      break;\n    case 'manual_review_pending':\n      // Already in manual review, just needs human attention\n      action = 'require_manual_review';\n      priority = 'medium';\n      break;\n    default:\n      // For unknown reasons, check if missing manifest is the issue\n      if (!order.one_manifest_url && order.next_workflow && ['3', '4'].includes(String(order.next_workflow))) {\n        action = 'create_manifest';\n        priority = 'high';\n      } else {\n        action = 'require_manual_review';\n        priority = 'low';\n      }\n  }\n  \n  return {\n    ...order,\n    action,\n    priority\n  };\n});\n\nreturn classified.map(order => ({ json: order }));"
       },
-      "id": "e41f980b-134d-44b7-a731-67f126d4344d",
+      "id": "8c22ed94-11e1-41a8-85da-5ce470546a03",
       "name": "Orphaned: Classify Orphans",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1488,
-        656
+        -784,
+        624
       ]
     },
     {
       "parameters": {
         "jsCode": "// Route orders by action type\nconst orders = $input.all().map(item => item.json);\n\nconst scheduleRetry = [];\nconst manualReview = [];\nconst resetProcessing = [];\nconst createManifest = [];\n\nfor (const order of orders) {\n  if (order.action === 'create_manifest') {\n    createManifest.push(order);\n  } else if (order.action === 'schedule_retry') {\n    scheduleRetry.push(order);\n  } else if (order.action === 'require_manual_review') {\n    manualReview.push(order);\n  } else if (order.action === 'reset_to_error_and_retry' || order.action === 'reset_processing') {\n    resetProcessing.push(order);\n  } else {\n    // Unknown action - send to manual review\n    manualReview.push(order);\n  }\n}\n\nconsole.log(`[Orphaned Route] Routing ${orders.length} orders: ${createManifest.length} create_manifest, ${scheduleRetry.length} schedule_retry, ${manualReview.length} manual_review, ${resetProcessing.length} reset_processing`);\n\nreturn [\n  ...createManifest.map(o => ({ json: { ...o, _route: 'create_manifest' } })),\n  ...scheduleRetry.map(o => ({ json: { ...o, _route: 'schedule_retry' } })),\n  ...manualReview.map(o => ({ json: { ...o, _route: 'manual_review' } })),\n  ...resetProcessing.map(o => ({ json: { ...o, _route: 'reset_processing' } }))\n];"
       },
-      "id": "666973a5-e87f-480b-95e0-be9c49b2cce3",
+      "id": "931ee3fc-8e4b-4fb1-96ca-c32015f56b6a",
       "name": "Orphaned: Route by Action",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1296,
-        656
+        -592,
+        624
       ]
     },
     {
@@ -557,13 +557,13 @@
           "looseTypeValidation": true
         }
       },
-      "id": "e7725da6-c8f2-4d5f-9b55-90b93c5e08fb",
+      "id": "d9d29820-7846-4591-90e3-4335d05ab1a2",
       "name": "IF: Create Manifest Only",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -944,
-        1168
+        -240,
+        1136
       ]
     },
     {
@@ -581,26 +581,26 @@
         },
         "options": {}
       },
-      "id": "e9bf792e-4b3e-4679-ada1-9998fbdf1677",
+      "id": "608627ee-9183-4d3c-ad5c-689a6e376caa",
       "name": "Orphaned: Recover: Create Manifest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -720,
-        1168
+        -16,
+        1136
       ]
     },
     {
       "parameters": {
         "jsCode": "// Handle Create Manifest - classify successes and failures\n// This node receives ALL items from Create Manifest node (both success and error)\n// With continueOnFail: true, errors are included in main output with error property\nconst inputItems = $input.all();\nconst allOrders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  \n  // Check if this is an error response\n  // n8n marks failed items with item.error or data.errorMessage\n  if (item.error || (data.errorMessage || data.error)) {\n    console.error(`[Create Manifest Failure] Order ${data.amazon_order_id || data.id}: Create manifest failed`);\n    console.error(`  Error: ${data.errorMessage || data.error || 'Unknown error'}`);\n    \n    // Mark for manual review\n    allOrders.push({\n      ...data,\n      _route: 'manual_review',\n      recovery_failed: true,\n      recovery_error: data.errorMessage || data.error || 'Create manifest failed'\n    });\n  } else {\n    // Success - manifest was created\n    console.log(`[Create Manifest Success] Order ${data.amazon_order_id || data.id}: Manifest created successfully`);\n    allOrders.push(data);\n  }\n}\n\nconsole.log(`[Handle Create Manifest] Processed ${allOrders.length} order(s): ${allOrders.filter(o => o._route === 'manual_review').length} failures, ${allOrders.filter(o => !o._route).length} successes`);\n\n// Return all items - IF node will route based on _route property\nreturn allOrders.map(order => ({ json: order }));"
       },
-      "id": "0c19ec1c-f5ee-4aa0-9778-8c071ac8cf14",
+      "id": "fc62f417-610a-46f9-b454-53ba5b8a1720",
       "name": "Orphaned: Handle Create Manifest Failure",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -496,
-        1168
+        208,
+        1136
       ]
     },
     {
@@ -628,13 +628,13 @@
           "looseTypeValidation": true
         }
       },
-      "id": "76bca10f-14f4-4951-b5c6-b621abf405d4",
+      "id": "13be2ebc-dca7-4f33-8358-f1522d1fd6e0",
       "name": "IF: Route Create Manifest Results",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -256,
-        1168
+        448,
+        1136
       ]
     },
     {
@@ -662,13 +662,13 @@
           "looseTypeValidation": true
         }
       },
-      "id": "75d66d5c-64b9-4a72-9b9f-d75136a691fc",
+      "id": "e342c01f-b1ca-4867-8f4a-664ae22fa534",
       "name": "IF: Schedule Retry Only",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -736,
-        672
+        -32,
+        640
       ]
     },
     {
@@ -712,13 +712,13 @@
           "continueOnFail": true
         }
       },
-      "id": "0b3eccbd-a9a5-466c-97cd-8d02a48f070b",
+      "id": "123450b0-c5d4-4383-b59f-828fe055a0bb",
       "name": "Orphaned: Recover: Schedule Retry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -368,
-        656
+        336,
+        624
       ]
     },
     {
@@ -746,13 +746,13 @@
           "looseTypeValidation": true
         }
       },
-      "id": "330fec0f-027b-412e-a4e1-483c0bb1f816",
+      "id": "4ab44184-a9cb-430e-8cf6-184c6b2ea45d",
       "name": "IF: Manual Review Only",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        0,
-        1024
+        704,
+        992
       ]
     },
     {
@@ -796,13 +796,13 @@
           "continueOnFail": true
         }
       },
-      "id": "53ff3f67-07f9-4b99-906d-80722441716a",
+      "id": "6a456152-2306-4f9c-867b-33a66324c30a",
       "name": "Orphaned: Recover: Mark for Manual Review",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        272,
-        1152
+        976,
+        1120
       ]
     },
     {
@@ -830,13 +830,13 @@
           "looseTypeValidation": true
         }
       },
-      "id": "7bdcb9ad-1792-4d2b-aee3-e7315b11a5a8",
+      "id": "a054aeca-080e-4178-a89d-5e4abe8755c7",
       "name": "IF: Reset Processing Only",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -736,
-        864
+        -32,
+        832
       ]
     },
     {
@@ -880,54 +880,39 @@
           "continueOnFail": true
         }
       },
-      "id": "230aa844-8e02-4058-b4bf-9a91425f9063",
+      "id": "0b743a35-b0aa-4462-9834-e06c8d5ca58c",
       "name": "Orphaned: Recover: Reset Processing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -352,
-        848
-      ]
-    },
-    {
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineAll",
-        "options": {}
-      },
-      "id": "f19d0b65-18c4-471b-b9e7-e989ecc4fa8b",
-      "name": "Merge: Orphaned Recovery Results",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
-      "position": [
-        592,
-        672
+        352,
+        816
       ]
     },
     {
       "parameters": {
         "jsCode": "// Merge all results from all three paths with detailed logging\n// Note: HTTP Request nodes return Supabase responses (no _workType)\n// We identify work type by checking which path the item came from\nconst allItems = $input.all();\n\nconsole.log(`\\n[Merge Node] ========================================`);\nconsole.log(`[Merge Node] Starting merge of ${allItems.length} item(s) from all paths`);\nconsole.log(`[Merge Node] Timestamp: ${new Date().toISOString()}`);\n\n// Log raw input structure for debugging\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  console.log(`[Merge Node] Raw input ${i + 1}:`, {\n    hasError: !!item.error,\n    jsonType: Array.isArray(item.json) ? 'array' : typeof item.json,\n    jsonLength: Array.isArray(item.json) ? item.json.length : 'N/A',\n    jsonKeys: Array.isArray(item.json) ? 'array' : Object.keys(item.json || {}).slice(0, 10).join(', ')\n  });\n}\n\nconst stuckProcessed = [];\nconst retriesProcessed = [];\nconst orphanedProcessed = [];\nconst unclassified = [];\n\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  let data = item.json;\n  \n  // Supabase returns arrays with return=representation, extract first element if array\n  // Also handle error items from continueOnFail\n  if (item.error) {\n    console.warn(`[Merge Node] Item ${i + 1} has error:`, item.error.message || item.error);\n    // Try to extract order info from error context\n    const errorData = item.json || {};\n    if (errorData.amazon_order_id || errorData.id) {\n      data = errorData;\n      console.log(`[Merge Node] Extracted order data from error item`);\n    } else {\n      console.warn(`[Merge Node] Skipping error item with no order identifier`);\n      continue;\n    }\n  } else if (Array.isArray(data)) {\n    if (data.length > 0) {\n      data = data[0];\n      console.log(`[Merge Node] Extracted first element from Supabase array response`);\n    } else {\n      console.warn(`[Merge Node] Received empty array, skipping`);\n      continue;\n    }\n  }\n  \n  const orderId = data.amazon_order_id || data.orderId || data.id || 'unknown';\n  \n  console.log(`\\n[Merge Node] Processing item ${i + 1}/${allItems.length}:`);\n  console.log(`  Order ID: ${orderId}`);\n  console.log(`  Has _workType: ${!!data._workType} (value: ${data._workType || 'none'})`);\n  console.log(`  Has isRetry: ${data.isRetry === true}`);\n  console.log(`  Has runningMinutes: ${data.runningMinutes !== undefined} (value: ${data.runningMinutes})`);\n  console.log(`  Has error_type: ${!!data.error_type} (value: ${data.error_type || 'none'})`);\n  console.log(`  Has orphan_reason: ${!!data.orphan_reason} (value: ${data.orphan_reason || 'none'})`);\n  console.log(`  Has action: ${!!data.action} (value: ${data.action || 'none'})`);\n  \n  let classified = false;\n  let classificationReason = '';\n  \n  // Identify work type by data characteristics\n  if (data._workType) {\n    // Explicit marker (from Prep for Router)\n    classificationReason = `Explicit _workType marker: ${data._workType}`;\n    if (data._workType === 'stuck') {\n      stuckProcessed.push(data);\n      classified = true;\n    } else if (data._workType === 'retry') {\n      retriesProcessed.push(data);\n      classified = true;\n    } else if (data._workType === 'orphaned') {\n      orphanedProcessed.push(data);\n      classified = true;\n    }\n  } else if (data.isRetry === true && data.orderId) {\n    // Retry path: Prep for Router output\n    classificationReason = 'Retry path: isRetry=true and orderId present';\n    retriesProcessed.push(data);\n    classified = true;\n  } else if (data.runningMinutes !== undefined || data.error_type === 'workflow_timeout') {\n    // Stuck path: has runningMinutes or workflow_timeout error\n    classificationReason = data.runningMinutes !== undefined \n      ? `Stuck path: runningMinutes=${data.runningMinutes}`\n      : `Stuck path: error_type=workflow_timeout`;\n    stuckProcessed.push(data);\n    classified = true;\n  } else if (data.orphan_reason || data.action) {\n    // Orphaned path: has orphan classification\n    classificationReason = data.orphan_reason \n      ? `Orphaned path: orphan_reason=${data.orphan_reason}`\n      : `Orphaned path: action=${data.action}`;\n    orphanedProcessed.push(data);\n    classified = true;\n  } else if (data.amazon_order_id) {\n    // Fallback: default to orphaned if we can't determine\n    classificationReason = 'Fallback: defaulting to orphaned (has amazon_order_id but no clear markers)';\n    orphanedProcessed.push(data);\n    classified = true;\n  } else {\n    classificationReason = 'UNCLASSIFIED: No identifying markers found';\n    unclassified.push({ orderId, data });\n  }\n  \n  console.log(`  Classification: ${classified ? '✅ CLASSIFIED' : '❌ UNCLASSIFIED'}`);\n  console.log(`  Reason: ${classificationReason}`);\n}\n\nconsole.log(`\\n[Merge Node] Classification Summary:`);\nconsole.log(`  Stuck: ${stuckProcessed.length} item(s)`);\nconsole.log(`  Retries: ${retriesProcessed.length} item(s)`);\nconsole.log(`  Orphaned: ${orphanedProcessed.length} item(s)`);\nconsole.log(`  Unclassified: ${unclassified.length} item(s)`);\n\nif (unclassified.length > 0) {\n  console.error(`\\n[Merge Node] ⚠️  WARNING: ${unclassified.length} unclassified item(s) found!`);\n  for (const unclass of unclassified) {\n    console.error(`  - Order ID: ${unclass.orderId}`);\n    console.error(`    Data keys: ${Object.keys(unclass.data).join(', ')}`);\n  }\n}\n\nconst summary = {\n  timestamp: new Date().toISOString(),\n  stuck: {\n    count: stuckProcessed.length,\n    orders: stuckProcessed.map(o => o.amazon_order_id || o.orderId).filter(Boolean)\n  },\n  retries: {\n    count: retriesProcessed.length,\n    orders: retriesProcessed.map(o => o.amazon_order_id || o.orderId).filter(Boolean)\n  },\n  orphaned: {\n    count: orphanedProcessed.length,\n    orders: orphanedProcessed.map(o => o.amazon_order_id).filter(Boolean)\n  },\n  unclassified: {\n    count: unclassified.length,\n    items: unclassified.map(u => u.orderId)\n  },\n  total: allItems.length\n};\n\nconsole.log(`\\n[Merge Node] Final Summary:`);\nconsole.log(JSON.stringify(summary, null, 2));\nconsole.log(`[Merge Node] ========================================\\n`);\n\nreturn [{ json: summary }];"
       },
-      "id": "80230184-8853-482a-b6a2-fa7bb062be82",
+      "id": "c71c5051-3bfb-4c9c-9fe1-2d7de8da720d",
       "name": "Merge All Results",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        784,
-        464
+        1488,
+        432
       ]
     },
     {
       "parameters": {
         "jsCode": "// Alert: Health Monitor Summary\nconst summary = $input.first().json;\n\nconsole.log('\\n=== HEALTH MONITOR SUMMARY ===');\nconsole.log(`Timestamp: ${summary.timestamp}`);\nconsole.log(`\\nStuck Orders Processed: ${summary.stuck.count}`);\nif (summary.stuck.count > 0) {\n  console.log(`  Orders: ${summary.stuck.orders.join(', ')}`);\n}\nconsole.log(`\\nRetry Orders Processed: ${summary.retries.count}`);\nif (summary.retries.count > 0) {\n  console.log(`  Orders: ${summary.retries.orders.join(', ')}`);\n}\nconsole.log(`\\nOrphaned Orders Processed: ${summary.orphaned.count}`);\nif (summary.orphaned.count > 0) {\n  console.log(`  Orders: ${summary.orphaned.orders.join(', ')}`);\n}\nif (summary.unclassified && summary.unclassified.count > 0) {\n  console.error(`\\n⚠️  UNCLASSIFIED ITEMS: ${summary.unclassified.count}`);\n  console.error(`  Items: ${summary.unclassified.items.join(', ')}`);\n  console.error('  This indicates a potential issue with work type identification!');\n}\nconsole.log(`\\nTotal Items Processed: ${summary.total}`);\nconsole.log('==============================\\n');\n\n// TODO: Send to Slack/Email/Dashboard\n\nreturn [{ json: summary }];"
       },
-      "id": "eb52d78a-7184-445d-82c9-7bfeaf61a3f3",
+      "id": "d4eda327-9474-4620-a754-74bb420360f3",
       "name": "Alert: Health Monitor Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        992,
-        464
+        1696,
+        432
       ]
     }
   ],
@@ -1262,7 +1247,7 @@
       "main": [
         [
           {
-            "node": "Merge: Orphaned Recovery Results",
+            "node": "Merge All Results",
             "type": "main",
             "index": 0
           }
@@ -1284,7 +1269,7 @@
       "main": [
         [
           {
-            "node": "Merge: Orphaned Recovery Results",
+            "node": "Merge All Results",
             "type": "main",
             "index": 0
           }
@@ -1303,17 +1288,6 @@
       ]
     },
     "Orphaned: Recover: Reset Processing": {
-      "main": [
-        [
-          {
-            "node": "Merge: Orphaned Recovery Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge: Orphaned Recovery Results": {
       "main": [
         [
           {
@@ -1340,7 +1314,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "9430c40e-44fd-4914-8d43-385de3ab1e8c",
+  "versionId": "ddc04e91-ea4b-4d8d-9957-a9442b3afd0c",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
