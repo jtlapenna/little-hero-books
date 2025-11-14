@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { determineNextWorkflow } from '@/lib/determine-next-workflow';
 
 export const dynamic = 'force-dynamic';
 
@@ -120,13 +121,25 @@ export async function POST(
       'application/json'
     );
 
+    // Determine correct next_workflow based on order's actual progress
+    // Don't blindly set to '2A' - check if order has already completed 2A, 2B, or 3
+    const nextWorkflow = determineNextWorkflow({
+      one_manifest_url: r2Key, // We just created this
+      manifest_2a_url: order.manifest_2a_url,
+      manifest_2b_url: order.manifest_2b_url,
+      manifest_3_url: order.manifest_3_url,
+      workflow_step: order.workflow_step,
+      review_stages: order.review_stages as any,
+      next_workflow: order.next_workflow
+    });
+
     // Update Supabase with manifest URL (store key, not full URL)
     const { error: updateError } = await supabase
       .from('orders')
       .update({
         one_manifest_url: r2Key,
         execution_status: 'ready_for_processing',
-        next_workflow: '2A',
+        next_workflow: nextWorkflow, // Use determined workflow, not hardcoded '2A'
         error_message: null,
         error_type: null,
         updated_at: new Date().toISOString()

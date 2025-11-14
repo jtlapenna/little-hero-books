@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { determineNextWorkflow } from '@/lib/determine-next-workflow';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,10 +52,10 @@ export async function POST(
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    // Check if order exists
+    // Fetch full order data to determine correct next_workflow
     const { data: order, error: fetchError } = await supabase
       .from('orders')
-      .select('amazon_order_id, next_workflow')
+      .select('amazon_order_id, next_workflow, one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url, workflow_step, review_stages')
       .eq('amazon_order_id', orderId)
       .single();
 
@@ -65,21 +66,17 @@ export async function POST(
       );
     }
 
-    // Determine appropriate next_workflow
-    // If order has 1-manifest.json, start at 2A
-    // Otherwise, keep current next_workflow or default to null
-    let nextWorkflow = order.next_workflow || null;
-    
-    // Check if 1-manifest exists
-    const { data: checkOrder } = await supabase
-      .from('orders')
-      .select('one_manifest_url')
-      .eq('amazon_order_id', orderId)
-      .single();
-    
-    if (checkOrder?.one_manifest_url) {
-      nextWorkflow = '2A';
-    }
+    // Determine appropriate next_workflow based on order's actual progress
+    // Don't blindly set to '2A' - check if order has already completed 2A, 2B, or 3
+    const nextWorkflow = determineNextWorkflow({
+      one_manifest_url: order.one_manifest_url,
+      manifest_2a_url: order.manifest_2a_url,
+      manifest_2b_url: order.manifest_2b_url,
+      manifest_3_url: order.manifest_3_url,
+      workflow_step: order.workflow_step,
+      review_stages: order.review_stages as any,
+      next_workflow: order.next_workflow
+    });
 
     // Reset order to initial state
     const { error: updateError } = await supabase
