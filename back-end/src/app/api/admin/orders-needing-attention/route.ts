@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     
     const { data: stuckData, error: stuckError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, current_workflow, started_at, workflow_step, error_type, error_message, retry_count, updated_at')
+      .select('id, amazon_order_id, execution_status, current_workflow, started_at, workflow_step, error_type, error_message, retry_count, next_retry_at, next_workflow, updated_at')
       .eq('execution_status', 'processing')
       .or(`started_at.lt.${thresholdTime.toISOString()},started_at.is.null`);
 
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     // 3. Get orders with error status
     let errorStatusQuery = supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, updated_at, started_at, current_workflow, workflow_step')
+      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, next_workflow, updated_at, started_at, current_workflow, workflow_step')
       .in('execution_status', ['error', 'error_requires_manual_review']);
 
     if (status) {

@@ -9,6 +9,7 @@ interface OrderNeedingAttention {
   execution_status: string;
   retry_count: number | null;
   next_retry_at: string | null;
+  next_workflow: string | null;
   error_type: string | null;
   error_message: string | null;
   errorReason: string;
@@ -312,6 +313,12 @@ export default function OrdersNeedingAttentionPage() {
                       Retry Count
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Next Retry At
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Next Workflow
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Time Stuck
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -355,6 +362,14 @@ export default function OrdersNeedingAttentionPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {order.retry_count ?? 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {order.next_retry_at 
+                          ? new Date(order.next_retry_at).toLocaleString()
+                          : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {order.next_workflow || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {order.timeStuck !== null ? `${Math.floor(order.timeStuck)} min` : 'N/A'}
