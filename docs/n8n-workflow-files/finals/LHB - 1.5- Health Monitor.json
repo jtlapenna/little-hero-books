@@ -830,7 +830,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_type\": $json.error_type || 'orphaned_order',\n  \"error_message\": `Orphaned order: ${$json.error_message || 'Max retries exceeded or stuck'}. Requires manual intervention.`\n} }}",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"requires_human_review\": true,\n  \"error_type\": $json.error_type || 'orphaned_order',\n  \"error_message\": `Orphaned order: ${$json.error_message || 'Max retries exceeded or stuck'}. Requires manual intervention.`\n} }}",
         "options": {}
       },
       "id": "225e980e-73af-41e3-911b-811464554a5c",
