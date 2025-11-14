@@ -518,7 +518,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Classify orphaned orders and determine recovery action\nconst inputItems = $input.all();\nconst orders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    orders.push(data);\n  }\n}\n\nif (orders.length === 0) {\n  return [];\n}\n\nconst classified = orders.map(order => {\n  if (!order.one_manifest_url) {\n    return {\n      ...order,\n      action: 'create_manifest',\n      priority: 'high',\n      orphan_reason: 'missing_manifest'\n    };\n  }\n  \n  const reason = order.orphan_reason;\n  let action = null;\n  let priority = 'low';\n  \n  switch (reason) {\n    case 'error_no_retry_scheduled':\n      if ((order.retry_count || 0) < 3) {\n        action = 'schedule_retry';\n        priority = 'high';\n      } else {\n        action = 'require_manual_review';\n        priority = 'medium';\n      }\n      break;\n    case 'error_max_retries_exceeded':\n      action = 'require_manual_review';\n      priority = 'high';\n      break;\n    case 'processing_stuck_over_hour':\n    case 'processing_no_timestamp':\n      action = 'reset_to_error_and_retry';\n      priority = 'high';\n      break;\n    case 'ready_not_picked_up':\n      action = 'check_router_or_reset';\n      priority = 'medium';\n      break;\n    case 'manual_review_pending':\n      // Already in manual review, just needs human attention\n      action = 'require_manual_review';\n      priority = 'medium';\n      break;\n    default:\n      action = 'manual_review';\n      priority = 'low';\n  }\n  \n  return {\n    ...order,\n    action,\n    priority\n  };\n});\n\nreturn classified.map(order => ({ json: order }));"
+        "jsCode": "// Classify orphaned orders and determine recovery action\nconst inputItems = $input.all();\nconst orders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    orders.push(data);\n  }\n}\n\nif (orders.length === 0) {\n  return [];\n}\n\nconst classified = orders.map(order => {\n  const reason = order.orphan_reason;\n  let action = null;\n  let priority = 'low';\n  \n  // First, check the orphan_reason to determine the primary action\n  switch (reason) {\n    case 'error_no_retry_scheduled':\n      if ((order.retry_count || 0) < 3) {\n        action = 'schedule_retry';\n        priority = 'high';\n      } else {\n        action = 'require_manual_review';\n        priority = 'medium';\n      }\n      break;\n    case 'error_max_retries_exceeded':\n      action = 'require_manual_review';\n      priority = 'high';\n      break;\n    case 'processing_stuck_over_hour':\n    case 'processing_no_timestamp':\n      action = 'reset_to_error_and_retry';\n      priority = 'high';\n      break;\n    case 'ready_not_picked_up':\n      // Orders ready but not picked up - check if they need manifest or just need router to pick them up\n      // If at workflow 4 and missing manifest, that's a real issue\n      // Otherwise, just reset to let router pick them up\n      if (order.next_workflow === '4' && !order.one_manifest_url) {\n        // At workflow 4 but missing manifest - this is a real problem\n        action = 'require_manual_review';\n        priority = 'high';\n      } else {\n        // Just needs router to pick it up - reset processing status\n        action = 'reset_processing';\n        priority = 'medium';\n      }\n      break;\n    case 'manual_review_pending':\n      // Already in manual review, just needs human attention\n      action = 'require_manual_review';\n      priority = 'medium';\n      break;\n    default:\n      // For unknown reasons, check if missing manifest is the issue\n      if (!order.one_manifest_url && order.next_workflow && ['3', '4'].includes(String(order.next_workflow))) {\n        action = 'create_manifest';\n        priority = 'high';\n      } else {\n        action = 'require_manual_review';\n        priority = 'low';\n      }\n  }\n  \n  return {\n    ...order,\n    action,\n    priority\n  };\n});\n\nreturn classified.map(order => ({ json: order }));"
       },
       "id": "f284c82b-af22-4a59-8fb0-2952819bd52d",
       "name": "Orphaned: Classify Orphans",
@@ -531,7 +531,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Route orders by action type\nconst orders = $input.all().map(item => item.json);\n\nconst scheduleRetry = [];\nconst manualReview = [];\nconst resetProcessing = [];\nconst createManifest = [];\n\nfor (const order of orders) {\n  if (order.action === 'create_manifest') {\n    createManifest.push(order);\n  } else if (order.action === 'schedule_retry') {\n    scheduleRetry.push(order);\n  } else if (order.action === 'require_manual_review') {\n    manualReview.push(order);\n  } else if (order.action === 'reset_to_error_and_retry') {\n    resetProcessing.push(order);\n  } else {\n    manualReview.push(order);\n  }\n}\n\nreturn [\n  ...createManifest.map(o => ({ json: { ...o, _route: 'create_manifest' } })),\n  ...scheduleRetry.map(o => ({ json: { ...o, _route: 'schedule_retry' } })),\n  ...manualReview.map(o => ({ json: { ...o, _route: 'manual_review' } })),\n  ...resetProcessing.map(o => ({ json: { ...o, _route: 'reset_processing' } }))\n];"
+        "jsCode": "// Route orders by action type\nconst orders = $input.all().map(item => item.json);\n\nconst scheduleRetry = [];\nconst manualReview = [];\nconst resetProcessing = [];\nconst createManifest = [];\n\nfor (const order of orders) {\n  if (order.action === 'create_manifest') {\n    createManifest.push(order);\n  } else if (order.action === 'schedule_retry') {\n    scheduleRetry.push(order);\n  } else if (order.action === 'require_manual_review') {\n    manualReview.push(order);\n  } else if (order.action === 'reset_to_error_and_retry' || order.action === 'reset_processing') {\n    resetProcessing.push(order);\n  } else {\n    // Unknown action - send to manual review\n    manualReview.push(order);\n  }\n}\n\nconsole.log(`[Orphaned Route] Routing ${orders.length} orders: ${createManifest.length} create_manifest, ${scheduleRetry.length} schedule_retry, ${manualReview.length} manual_review, ${resetProcessing.length} reset_processing`);\n\nreturn [\n  ...createManifest.map(o => ({ json: { ...o, _route: 'create_manifest' } })),\n  ...scheduleRetry.map(o => ({ json: { ...o, _route: 'schedule_retry' } })),\n  ...manualReview.map(o => ({ json: { ...o, _route: 'manual_review' } })),\n  ...resetProcessing.map(o => ({ json: { ...o, _route: 'reset_processing' } }))\n];"
       },
       "id": "e63d47a6-baa0-425f-a392-eb7eb1cfe8f5",
       "name": "Orphaned: Route by Action",
@@ -566,6 +566,19 @@
       "position": [
         -2624,
         368
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle Create Manifest failures - mark for manual review\n// This node receives items from Create Manifest node\n// If the request failed, mark order for manual review\nconst inputItems = $input.all();\nconst failedOrders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  \n  // Check if this is an error response (n8n error items have error property)\n  if (item.error || (data.errorMessage || data.error)) {\n    console.error(`[Create Manifest Failure] Order ${data.amazon_order_id || data.id}: Create manifest failed`);\n    console.error(`  Error: ${data.errorMessage || data.error || 'Unknown error'}`);\n    \n    // Mark for manual review\n    failedOrders.push({\n      ...data,\n      _route: 'manual_review',\n      recovery_failed: true,\n      recovery_error: data.errorMessage || data.error || 'Create manifest failed'\n    });\n  }\n}\n\nif (failedOrders.length > 0) {\n  console.log(`[Create Manifest Failure] ${failedOrders.length} order(s) failed - routing to manual review`);\n  return failedOrders.map(order => ({ json: order }));\n}\n\n// No failures - return empty to stop execution\nreturn [];"
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Orphaned: Handle Create Manifest Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2432,
+        256
       ]
     },
     {
@@ -998,6 +1011,11 @@
     "Orphaned: Recover: Create Manifest": {
       "main": [
         [
+          {
+            "node": "Orphaned: Handle Create Manifest Failure",
+            "type": "main",
+            "index": 0
+          },
           {
             "node": "Orphaned: Recover: Schedule Retry",
             "type": "main",
