@@ -48,6 +48,19 @@ export async function GET(request: NextRequest) {
     if (orphanedError) {
       console.error('[GET /api/admin/orders-needing-attention] Orphaned orders RPC error:', orphanedError);
     }
+    
+    // Debug: Log if JOHN-TEST4 is in orphaned results
+    if (orphanedData) {
+      const johnTest4 = orphanedData.find((o: any) => o.amazon_order_id === 'JOHN-TEST4');
+      if (johnTest4) {
+        console.log('[DEBUG] JOHN-TEST4 in orphaned results:', {
+          id: johnTest4.id,
+          next_retry_at: johnTest4.next_retry_at,
+          execution_status: johnTest4.execution_status,
+          orphan_reason: johnTest4.orphan_reason
+        });
+      }
+    }
 
     // 2. Get stuck orders (processing > minMinutes)
     const thresholdTime = new Date();
