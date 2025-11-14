@@ -171,7 +171,9 @@ function detectOrderErrors(order: Order): ErrorType[] {
     }
   }
 
-  return errors;
+  // Deduplicate errors (e.g., MISSING_MANIFEST can be detected from both oneManifestUrl and errorType)
+  const uniqueErrors = Array.from(new Set(errors));
+  return uniqueErrors;
 }
 
 /**
