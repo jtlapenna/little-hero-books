@@ -85,6 +85,7 @@ RETURNS TABLE (
   updated_at TIMESTAMP,
   workflow_step VARCHAR(50),
   next_workflow VARCHAR(50),
+  one_manifest_url TEXT,
   orphan_reason TEXT,
   minutes_orphaned NUMERIC
 ) AS $$
@@ -103,6 +104,7 @@ BEGIN
     o.updated_at,
     o.workflow_step,
     o.next_workflow,
+    o.one_manifest_url,
     -- Classification of why it's orphaned
     CASE 
       -- Error orders without retry scheduled
