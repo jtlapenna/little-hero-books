@@ -104,6 +104,18 @@ export async function GET(request: NextRequest) {
       .eq('execution_status', 'ready_for_processing')
       .not('next_retry_at', 'is', null);
     
+    // Debug: Log if JOHN-TEST4 is in scheduled retry results
+    if (scheduledRetryData) {
+      const johnTest4 = scheduledRetryData.find((o: any) => o.amazon_order_id === 'JOHN-TEST4');
+      if (johnTest4) {
+        console.log('[DEBUG] JOHN-TEST4 in scheduled retry results:', {
+          id: johnTest4.id,
+          next_retry_at: johnTest4.next_retry_at,
+          execution_status: johnTest4.execution_status
+        });
+      }
+    }
+    
     // Combine both queries
     const notPickedUpData = [
       ...(notPickedUpOld || []),
@@ -139,13 +151,22 @@ export async function GET(request: NextRequest) {
     // Process orphaned orders
     (orphanedData || []).forEach((order: any) => {
       if ((order.minutes_orphaned || 0) >= minMinutes) {
+        // Debug: Log JOHN-TEST4 processing
+        if (order.amazon_order_id === 'JOHN-TEST4') {
+          console.log('[DEBUG] Processing JOHN-TEST4 from orphaned:', {
+            id: order.id,
+            next_retry_at: order.next_retry_at,
+            orphan_reason: order.orphan_reason,
+            minutes_orphaned: order.minutes_orphaned
+          });
+        }
         orderMap.set(order.id, {
           ...order,
           source: 'orphaned',
           timeStuck: order.minutes_orphaned,
           errorReason: order.orphan_reason,
-          // Preserve next_retry_at if present
-          next_retry_at: order.next_retry_at || null
+          // Preserve next_retry_at if present (explicitly check for null/undefined)
+          next_retry_at: order.next_retry_at !== undefined && order.next_retry_at !== null ? order.next_retry_at : null
         });
       }
     });
@@ -206,6 +227,16 @@ export async function GET(request: NextRequest) {
 
     // Process not picked up orders
     (notPickedUpDataDeduped || []).forEach((order: any) => {
+      // Debug: Log JOHN-TEST4 processing
+      if (order.amazon_order_id === 'JOHN-TEST4') {
+        console.log('[DEBUG] Processing JOHN-TEST4 from not picked up:', {
+          id: order.id,
+          next_retry_at: order.next_retry_at,
+          alreadyInMap: orderMap.has(order.id),
+          existingNextRetryAt: orderMap.has(order.id) ? orderMap.get(order.id)?.next_retry_at : 'N/A'
+        });
+      }
+      
       if (!orderMap.has(order.id)) {
         const queuedAt = order.queued_at ? new Date(order.queued_at) : null;
         const minutesQueued = queuedAt
@@ -220,15 +251,28 @@ export async function GET(request: NextRequest) {
           source: 'orphaned',
           timeStuck: minutesQueued,
           errorReason: errorReason,
-          orphan_reason: errorReason
+          orphan_reason: errorReason,
+          // Explicitly preserve next_retry_at
+          next_retry_at: order.next_retry_at !== undefined && order.next_retry_at !== null ? order.next_retry_at : null
         });
       } else {
         // Merge with existing order, preserving next_retry_at
         const existing = orderMap.get(order.id)!;
+        const mergedNextRetryAt = order.next_retry_at ?? existing.next_retry_at ?? null;
+        
+        // Debug: Log merge for JOHN-TEST4
+        if (order.amazon_order_id === 'JOHN-TEST4') {
+          console.log('[DEBUG] Merging JOHN-TEST4:', {
+            fromOrder: order.next_retry_at,
+            fromExisting: existing.next_retry_at,
+            merged: mergedNextRetryAt
+          });
+        }
+        
         orderMap.set(order.id, {
           ...existing,
           // Preserve next_retry_at from either source (use nullish coalescing to handle null values)
-          next_retry_at: order.next_retry_at ?? existing.next_retry_at ?? null,
+          next_retry_at: mergedNextRetryAt,
           retry_count: order.retry_count !== null ? order.retry_count : existing.retry_count
         });
       }
@@ -240,16 +284,20 @@ export async function GET(request: NextRequest) {
     // Final pass: Ensure next_retry_at is explicitly included for all orders
     // This handles cases where the field might be missing from query results
     orders = orders.map(order => {
-      // If next_retry_at is missing, try to fetch it from the order data
-      if (order.next_retry_at === undefined && order.id) {
-        // The field should already be there from queries, but ensure it's explicitly set
-        // This is a safety net in case any query didn't include it
-        return {
-          ...order,
-          next_retry_at: order.next_retry_at ?? null
-        };
+      // Debug: Log final pass for JOHN-TEST4
+      if (order.amazon_order_id === 'JOHN-TEST4') {
+        console.log('[DEBUG] Final pass for JOHN-TEST4:', {
+          id: order.id,
+          next_retry_at: order.next_retry_at,
+          hasNextRetryAt: 'next_retry_at' in order
+        });
       }
-      return order;
+      
+      // Ensure next_retry_at is explicitly set (even if null)
+      return {
+        ...order,
+        next_retry_at: order.next_retry_at !== undefined ? order.next_retry_at : null
+      };
     });
 
     // Filter by errorType if specified
