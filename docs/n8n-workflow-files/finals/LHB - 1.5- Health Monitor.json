@@ -1299,6 +1299,28 @@
             "index": 0
           },
           {
+            "node": "Merge All Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Handle Create Manifest Failure": {
+      "main": [
+        [
+          {
+            "node": "IF: Manual Review Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Schedule Retry Only": {
+      "main": [
+        [
+          {
             "node": "Orphaned: Recover: Schedule Retry",
             "type": "main",
             "index": 0
@@ -1310,6 +1332,17 @@
       "main": [
         [
           {
+            "node": "Merge All Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Manual Review Only": {
+      "main": [
+        [
+          {
             "node": "Orphaned: Recover: Mark for Manual Review",
             "type": "main",
             "index": 0
@@ -1318,6 +1351,17 @@
       ]
     },
     "Orphaned: Recover: Mark for Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Merge All Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Reset Processing Only": {
       "main": [
         [
           {
