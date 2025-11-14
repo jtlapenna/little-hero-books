@@ -89,11 +89,45 @@ export async function GET(request: NextRequest) {
     const queuedThresholdTime = new Date();
     queuedThresholdTime.setMinutes(queuedThresholdTime.getMinutes() - 60); // 60 minutes for "not picked up"
     
-    const { data: notPickedUpData, error: notPickedUpError } = await supabase
+    // Query 1: Orders queued > 60 minutes ago
+    const { data: notPickedUpOld, error: notPickedUpOldError } = await supabase
       .from('orders')
       .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow')
       .eq('execution_status', 'ready_for_processing')
-      .or('queued_at.lt.' + queuedThresholdTime.toISOString() + ',next_retry_at.not.is.null');
+      .not('queued_at', 'is', null)
+      .lt('queued_at', queuedThresholdTime.toISOString());
+    
+    // Query 2: Orders with next_retry_at set (scheduled for retry)
+    const { data: scheduledRetryData, error: scheduledRetryError } = await supabase
+      .from('orders')
+      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow')
+      .eq('execution_status', 'ready_for_processing')
+      .not('next_retry_at', 'is', null);
+    
+    // Combine both queries
+    const notPickedUpData = [
+      ...(notPickedUpOld || []),
+      ...(scheduledRetryData || [])
+    ];
+    
+    // Deduplicate by id
+    const notPickedUpMap = new Map();
+    notPickedUpData.forEach((order: any) => {
+      if (!notPickedUpMap.has(order.id)) {
+        notPickedUpMap.set(order.id, order);
+      } else {
+        // Merge, preserving next_retry_at if present
+        const existing = notPickedUpMap.get(order.id);
+        notPickedUpMap.set(order.id, {
+          ...existing,
+          ...order,
+          next_retry_at: order.next_retry_at || existing.next_retry_at
+        });
+      }
+    });
+    const notPickedUpDataDeduped = Array.from(notPickedUpMap.values());
+    
+    const notPickedUpError = notPickedUpOldError || scheduledRetryError;
 
     if (notPickedUpError) {
       console.error('[GET /api/admin/orders-needing-attention] Not picked up orders error:', notPickedUpError);
@@ -154,19 +188,30 @@ export async function GET(request: NextRequest) {
     });
 
     // Process not picked up orders
-    (notPickedUpData || []).forEach((order: any) => {
+    (notPickedUpDataDeduped || []).forEach((order: any) => {
       if (!orderMap.has(order.id)) {
         const queuedAt = order.queued_at ? new Date(order.queued_at) : null;
         const minutesQueued = queuedAt
           ? Math.floor((now.getTime() - queuedAt.getTime()) / 1000 / 60)
           : null;
         
+        // Determine error reason based on whether it has next_retry_at
+        const errorReason = order.next_retry_at ? 'scheduled_retry' : 'ready_not_picked_up';
+        
         orderMap.set(order.id, {
           ...order,
           source: 'orphaned',
           timeStuck: minutesQueued,
-          errorReason: 'ready_not_picked_up',
-          orphan_reason: 'ready_not_picked_up'
+          errorReason: errorReason,
+          orphan_reason: errorReason
+        });
+      } else {
+        // Merge with existing order, preserving next_retry_at
+        const existing = orderMap.get(order.id)!;
+        orderMap.set(order.id, {
+          ...existing,
+          next_retry_at: order.next_retry_at || existing.next_retry_at,
+          retry_count: order.retry_count !== null ? order.retry_count : existing.retry_count
         });
       }
     });
