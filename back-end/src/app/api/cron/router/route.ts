@@ -48,19 +48,41 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
+  const executionId = `router-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
+  const metrics = {
+    capacityCheckMs: 0,
+    ordersFetchMs: 0,
+    webhookCallMs: 0,
+    totalMs: 0
+  };
+
+  console.log(`[Cron Router] [${executionId}] Starting execution at ${new Date().toISOString()}`);
 
   try {
     // 1. Check capacity using queue_status view
+    const capacityCheckStart = Date.now();
     const { data: capacityData, error: capacityError } = await supabase
       .from('queue_status')
       .select('*')
       .single();
+    metrics.capacityCheckMs = Date.now() - capacityCheckStart;
 
     if (capacityError) {
-      console.error('[Cron Router] Failed to check capacity:', capacityError);
+      console.error(`[Cron Router] [${executionId}] Failed to check capacity:`, {
+        error: capacityError.message,
+        code: capacityError.code,
+        details: capacityError.details,
+        hint: capacityError.hint,
+        duration: `${metrics.capacityCheckMs}ms`
+      });
       return NextResponse.json(
-        { error: 'Failed to check capacity', details: capacityError.message },
+        { 
+          error: 'Failed to check capacity', 
+          details: capacityError.message,
+          executionId,
+          metrics
+        },
         { status: 500 }
       );
     }
@@ -69,23 +91,37 @@ export async function GET(request: NextRequest) {
     const queuedCount = capacityData?.queued_count || 0;
     const availableSlots = Math.max(0, maxConcurrent - processingCount);
 
+    console.log(`[Cron Router] [${executionId}] Capacity check:`, {
+      processing: processingCount,
+      queued: queuedCount,
+      available: availableSlots,
+      maxConcurrent,
+      duration: `${metrics.capacityCheckMs}ms`
+    });
+
     // 2. If at capacity, return early (0 n8n executions)
     if (availableSlots === 0) {
-      const duration = Date.now() - startTime;
-      console.log(`[Cron Router] At capacity (${processingCount}/${maxConcurrent}) - skipped n8n call`);
+      metrics.totalMs = Date.now() - startTime;
+      console.log(`[Cron Router] [${executionId}] At capacity - skipped n8n call:`, {
+        processing: processingCount,
+        queued: queuedCount,
+        maxConcurrent,
+        totalDuration: `${metrics.totalMs}ms`
+      });
       return NextResponse.json({
         skipped: true,
         reason: 'at_capacity',
+        executionId,
         processingCount,
         maxConcurrent,
         queuedCount,
-        duration: `${duration}ms`,
-        n8nExecutions: 0,
+        metrics,
         timestamp: new Date().toISOString()
       });
     }
 
     // 3. Fetch ready orders (only if capacity available)
+    const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select('id,amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at')
@@ -94,33 +130,67 @@ export async function GET(request: NextRequest) {
       .order('priority', { ascending: false, nullsFirst: false })
       .order('queued_at', { ascending: true })
       .limit(availableSlots);
+    metrics.ordersFetchMs = Date.now() - ordersFetchStart;
 
     if (ordersError) {
-      console.error('[Cron Router] Failed to fetch ready orders:', ordersError);
+      console.error(`[Cron Router] [${executionId}] Failed to fetch ready orders:`, {
+        error: ordersError.message,
+        code: ordersError.code,
+        details: ordersError.details,
+        duration: `${metrics.ordersFetchMs}ms`
+      });
       return NextResponse.json(
-        { error: 'Failed to fetch orders', details: ordersError.message },
+        { 
+          error: 'Failed to fetch orders', 
+          details: ordersError.message,
+          executionId,
+          metrics
+        },
         { status: 500 }
       );
     }
 
     // 4. If no orders, return early (0 n8n executions)
     if (!orders || orders.length === 0) {
-      const duration = Date.now() - startTime;
-      console.log(`[Cron Router] No ready orders found - skipped n8n call`);
+      metrics.totalMs = Date.now() - startTime;
+      console.log(`[Cron Router] [${executionId}] No ready orders found - skipped n8n call:`, {
+        processing: processingCount,
+        available: availableSlots,
+        queued: queuedCount,
+        totalDuration: `${metrics.totalMs}ms`
+      });
       return NextResponse.json({
         skipped: true,
         reason: 'no_orders',
+        executionId,
         processingCount,
         availableSlots,
         queuedCount,
-        duration: `${duration}ms`,
-        n8nExecutions: 0,
+        metrics,
         timestamp: new Date().toISOString()
       });
     }
 
+    // Log order details for diagnostics
+    const ordersByWorkflow = orders.reduce((acc, order) => {
+      const workflow = order.next_workflow || 'unknown';
+      if (!acc[workflow]) acc[workflow] = [];
+      acc[workflow].push(order.amazon_order_id);
+      return acc;
+    }, {} as Record<string, string[]>);
+
+    console.log(`[Cron Router] [${executionId}] Found ${orders.length} ready orders:`, {
+      total: orders.length,
+      byWorkflow: ordersByWorkflow,
+      orderIds: orders.map(o => o.amazon_order_id),
+      oldestQueued: orders[0]?.queued_at,
+      priorities: orders.map(o => ({ id: o.amazon_order_id, priority: o.priority })),
+      fetchDuration: `${metrics.ordersFetchMs}ms`
+    });
+
     // 5. Orders exist - call n8n webhook (1 execution)
-    console.log(`[Cron Router] Found ${orders.length} ready orders - calling n8n webhook`);
+    const webhookStart = Date.now();
+    console.log(`[Cron Router] [${executionId}] Calling n8n webhook: ${n8nWebhookUrl}`);
     
     const webhookResponse = await fetch(n8nWebhookUrl, {
       method: 'POST',
@@ -129,49 +199,78 @@ export async function GET(request: NextRequest) {
       },
       body: JSON.stringify({ orders }),
     });
+    metrics.webhookCallMs = Date.now() - webhookStart;
 
     if (!webhookResponse.ok) {
       const errorText = await webhookResponse.text();
-      console.error('[Cron Router] n8n webhook failed:', {
+      metrics.totalMs = Date.now() - startTime;
+      console.error(`[Cron Router] [${executionId}] n8n webhook failed:`, {
         status: webhookResponse.status,
-        error: errorText
+        statusText: webhookResponse.statusText,
+        error: errorText.substring(0, 500), // Limit error text length
+        ordersAttempted: orders.length,
+        orderIds: orders.map(o => o.amazon_order_id),
+        webhookDuration: `${metrics.webhookCallMs}ms`,
+        totalDuration: `${metrics.totalMs}ms`
       });
       return NextResponse.json(
         {
           error: 'n8n webhook call failed',
+          executionId,
           status: webhookResponse.status,
-          details: errorText,
-          ordersProcessed: orders.length
+          details: errorText.substring(0, 500),
+          ordersProcessed: orders.length,
+          orderIds: orders.map(o => o.amazon_order_id),
+          metrics
         },
         { status: 502 }
       );
     }
 
-    const duration = Date.now() - startTime;
     const webhookData = await webhookResponse.json().catch(() => ({}));
+    metrics.totalMs = Date.now() - startTime;
 
-    console.log(`[Cron Router] Successfully triggered n8n for ${orders.length} orders`);
+    console.log(`[Cron Router] [${executionId}] Successfully triggered n8n:`, {
+      ordersProcessed: orders.length,
+      orderIds: orders.map(o => o.amazon_order_id),
+      byWorkflow: ordersByWorkflow,
+      webhookStatus: webhookResponse.status,
+      webhookDuration: `${metrics.webhookCallMs}ms`,
+      totalDuration: `${metrics.totalMs}ms`,
+      n8nExecutions: 1
+    });
 
     return NextResponse.json({
       success: true,
       message: 'Router triggered',
+      executionId,
       ordersProcessed: orders.length,
       orderIds: orders.map(o => o.amazon_order_id),
+      ordersByWorkflow,
       processingCount,
       availableSlots,
       queuedCount,
-      duration: `${duration}ms`,
+      metrics,
       n8nExecutions: 1,
       timestamp: new Date().toISOString(),
       webhookResponse: webhookData
     });
 
   } catch (error: any) {
-    console.error('[Cron Router] Unexpected error:', error);
+    metrics.totalMs = Date.now() - startTime;
+    console.error(`[Cron Router] [${executionId}] Unexpected error:`, {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      metrics,
+      totalDuration: `${metrics.totalMs}ms`
+    });
     return NextResponse.json(
       {
         error: 'Internal server error',
+        executionId,
         details: error.message,
+        metrics,
         timestamp: new Date().toISOString()
       },
       { status: 500 }
