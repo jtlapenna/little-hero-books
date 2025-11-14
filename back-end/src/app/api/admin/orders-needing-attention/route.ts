@@ -163,7 +163,18 @@ export async function GET(request: NextRequest) {
           ...order,
           source: 'stuck',
           timeStuck: minutesProcessing,
-          errorReason: order.started_at ? `processing_stuck_${minutesProcessing && minutesProcessing > 60 ? 'over_hour' : 'over_30min'}` : 'processing_no_timestamp'
+          errorReason: order.started_at ? `processing_stuck_${minutesProcessing && minutesProcessing > 60 ? 'over_hour' : 'over_30min'}` : 'processing_no_timestamp',
+          // Preserve next_retry_at if present
+          next_retry_at: order.next_retry_at || null
+        });
+      } else {
+        // Merge with existing, preserving next_retry_at
+        const existing = orderMap.get(order.id)!;
+        orderMap.set(order.id, {
+          ...existing,
+          ...order,
+          next_retry_at: order.next_retry_at || existing.next_retry_at,
+          retry_count: order.retry_count !== null ? order.retry_count : existing.retry_count
         });
       }
     });
