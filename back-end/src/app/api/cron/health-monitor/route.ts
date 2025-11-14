@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     const retryQueryStart = Date.now();
     const { data: retryOrders, error: retryError } = await supabase
       .from('orders')
-      .select('id,amazon_order_id,next_workflow,retry_count,error_message,error_type,character_specs,character_hash,one_manifest_url')
+      .select('id,amazon_order_id,next_workflow,retry_count,error_message,error_type,character_specs,character_hash,one_manifest_url,next_retry_at')
       .eq('execution_status', 'error')
       .lte('next_retry_at', new Date().toISOString())
       .lt('retry_count', 3)
