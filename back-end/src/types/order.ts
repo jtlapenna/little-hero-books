@@ -47,6 +47,13 @@ export interface Order {
   finalCoverUrl?: string;
   workflowStep?: string;
   luluStatus?: string;
+  executionStatus?: string; // execution_status from Supabase (processing, error, error_requires_manual_review, etc.)
+  errorMessage?: string; // error_message from Supabase
+  errorType?: string; // error_type from Supabase
+  retryCount?: number; // retry_count from Supabase
+  oneManifestUrl?: string; // one_manifest_url from Supabase
+  startedAt?: string; // started_at from Supabase
+  queuedAt?: string; // queued_at from Supabase
   createdAt?: string;
   updatedAt?: string;
   customerPreview?: {
@@ -84,6 +91,7 @@ export interface OrderListItem {
   hasFlags?: boolean;
   flags?: Record<string, any>;
   revisionCount?: number;
+  errors?: DisplayStatus[]; // Array of errors for multiple errors badge
 }
 
 export interface CustomerCorrection {

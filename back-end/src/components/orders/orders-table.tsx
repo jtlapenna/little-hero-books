@@ -139,7 +139,11 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
-                        <StatusBadge status={order.status} revisionCount={order.revisionCount} />
+                        <StatusBadge 
+                          status={order.status} 
+                          revisionCount={order.revisionCount}
+                          errors={order.errors}
+                        />
                         {needsAttention && (
                           <FlaggedBadge count={activeStageFlagCount} />
                         )}

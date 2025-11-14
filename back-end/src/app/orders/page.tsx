@@ -155,7 +155,10 @@ export default function OrdersPage() {
                           </div>
                         </div>
                         <div className="ml-4">
-                          <StatusBadge status={order.status} />
+                          <StatusBadge 
+                            status={order.status}
+                            errors={order.errors}
+                          />
                         </div>
                       </div>
                     </div>

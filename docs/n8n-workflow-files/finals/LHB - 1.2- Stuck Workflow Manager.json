@@ -68,7 +68,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Detect stuck orders (processing > threshold)\nconst config = $('Config').first().json;\nconst orders = $input.all().map(item => item.json);\nconst thresholdMs = config.stuckThresholdMinutes * 60 * 1000;\nconst now = Date.now();\n\nconst stuckOrders = [];\n\nfor (const order of orders) {\n  if (!order.started_at) continue;\n  \n  const startedAt = new Date(order.started_at).getTime();\n  const runningMs = now - startedAt;\n  const runningMinutes = Math.floor(runningMs / 1000 / 60);\n  \n  if (runningMs > thresholdMs) {\n    stuckOrders.push({\n      ...order,\n      runningMinutes,\n      runningMs\n    });\n  }\n}\n\nconsole.log(`Found ${stuckOrders.length} stuck order(s)`);\n\nif (stuckOrders.length === 0) {\n  return [];\n}\n\nreturn stuckOrders.map(order => ({ json: order }));"
+        "jsCode": "// Detect stuck orders (processing > threshold)\n// Supabase REST API returns an array, which n8n might receive as a single item\nconst config = $('Config').first().json;\nconst inputItems = $input.all();\nconst orders = [];\n\n// Flatten Supabase array response\nfor (const item of inputItems) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    orders.push(data);\n  }\n}\n\nconst thresholdMs = config.stuckThresholdMinutes * 60 * 1000;\nconst now = Date.now();\nconst thresholdMinutes = config.stuckThresholdMinutes;\n\nconsole.log(`Checking ${orders.length} processing order(s) against ${thresholdMinutes}-minute threshold`);\n\nconst stuckOrders = [];\n\nfor (const order of orders) {\n  if (!order.started_at) {\n    console.log(`Order ${order.amazon_order_id}: No started_at timestamp - skipping`);\n    continue;\n  }\n  \n  const startedAt = new Date(order.started_at).getTime();\n  const runningMs = now - startedAt;\n  const runningMinutes = Math.floor(runningMs / 1000 / 60);\n  \n  console.log(`Order ${order.amazon_order_id}: Started at ${order.started_at}, running for ${runningMinutes} minutes (threshold: ${thresholdMinutes} min)`);\n  \n  if (runningMs > thresholdMs) {\n    console.log(`  ✅ DETECTED AS STUCK (${runningMinutes} min > ${thresholdMinutes} min)`);\n    stuckOrders.push({\n      ...order,\n      runningMinutes,\n      runningMs\n    });\n  } else {\n    console.log(`  ⏳ Not stuck yet (${runningMinutes} min <= ${thresholdMinutes} min)`);\n  }\n}\n\nconsole.log(`\n=== RESULT: Found ${stuckOrders.length} stuck order(s) out of ${orders.length} processing orders ===`);\n\nif (stuckOrders.length === 0) {\n  console.log('No stuck orders found - workflow will stop here (this is expected if orders are running normally)');\n  return [];\n}\n\nconsole.log(`Stuck orders: ${stuckOrders.map(o => `${o.amazon_order_id} (${o.runningMinutes} min)`).join(', ')}`);\nreturn stuckOrders.map(order => ({ json: order }));"
       },
       "id": "detect-stuck-001",
       "name": "Detect Stuck Orders",
@@ -85,7 +85,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "eq.{{ $json.id }}"
+              "value": "={{ 'eq.' + String($json.id) }}"
             }
           ]
         },
@@ -113,7 +113,8 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Workflow ${$json.current_workflow} timed out after ${$json.runningMinutes} minutes`,\n  \"last_error_at\": new Date().toISOString()\n} }}",
-        "options": {}
+        "options": {},
+        "continueOnFail": true
       },
       "id": "mark-stuck-error-001",
       "name": "Mark Stuck as Error",
@@ -149,7 +150,8 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ {\n  \"order_id\": $json.id,\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Workflow ${$json.current_workflow} timed out after ${$json.runningMinutes} minutes`,\n  \"error_details\": {\n    \"workflow\": $json.current_workflow,\n    \"running_minutes\": $json.runningMinutes,\n    \"started_at\": $json.started_at\n  },\n  \"workflow_step\": $json.current_workflow,\n  \"retry_count\": $json.retry_count || 0,\n  \"max_retries\": 3,\n  \"retry_strategy\": \"exponential_backoff\"\n} }}",
-        "options": {}
+        "options": {},
+        "continueOnFail": true
       },
       "id": "log-to-failed-001",
       "name": "Log to Failed Orders",
@@ -159,7 +161,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Check if order should be retried or requires manual review\nconst order = $input.first().json;\nconst config = $('Config').first().json;\nconst retryCount = order.retry_count || 0;\nconst maxRetries = config.maxRetries;\n\nif (retryCount >= maxRetries) {\n  // Max retries reached - require manual review\n  return [{\n    json: {\n      ...order,\n      action: 'require_manual_review',\n      reason: `Max retries (${maxRetries}) reached`\n    }\n  }];\n}\n\n// Calculate next retry time (exponential backoff)\nconst delayMinutes = config.baseRetryDelayMinutes * Math.pow(config.retryBackoffMultiplier, retryCount);\nconst nextRetryAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();\n\nreturn [{\n  json: {\n    ...order,\n    action: 'schedule_retry',\n    nextRetryAt,\n    delayMinutes,\n    newRetryCount: retryCount + 1\n  }\n}];"
+        "jsCode": "// Check if order should be retried or requires manual review\n// Input comes from 'Log to Failed Orders' which returns failed_orders record\n// We need to preserve order_id (the actual order ID) not id (failed_orders ID)\nconst failedOrder = $input.first().json;\nconst config = $('Config').first().json;\nconst retryCount = failedOrder.retry_count || 0;\nconst maxRetries = config.maxRetries;\n\nif (retryCount >= maxRetries) {\n  // Max retries reached - require manual review\n  return [{\n    json: {\n      ...failedOrder,\n      action: 'require_manual_review',\n      reason: `Max retries (${maxRetries}) reached`\n    }\n  }];\n}\n\n// Calculate next retry time (exponential backoff)\nconst delayMinutes = config.baseRetryDelayMinutes * Math.pow(config.retryBackoffMultiplier, retryCount);\nconst nextRetryAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();\n\nreturn [{\n  json: {\n    ...failedOrder,\n    action: 'schedule_retry',\n    nextRetryAt,\n    delayMinutes,\n    newRetryCount: retryCount + 1,\n    // Preserve order_id for Schedule Retry node to use\n    order_id: failedOrder.order_id\n  }\n}];"
       },
       "id": "decide-retry-001",
       "name": "Decide Retry or Manual Review",
@@ -170,15 +172,28 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.action }}",
-              "operation": "equals",
-              "value2": "require_manual_review"
+              "id": "check-action-condition-001",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "require_manual_review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
-          ]
+          ],
+          "combinator": "and"
         },
-        "options": {}
+        "options": {
+          "looseTypeValidation": true
+        }
       },
       "id": "check-action-001",
       "name": "Check Action",
@@ -195,7 +210,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "eq.{{ $json.id }}"
+              "value": "={{ 'eq.' + String($json.order_id) }}"
             }
           ]
         },
@@ -223,7 +238,8 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_message\": `Max retries reached. ${$json.error_message || 'Workflow timeout'}`\n} }}",
-        "options": {}
+        "options": {},
+        "continueOnFail": true
       },
       "id": "mark-manual-review-001",
       "name": "Mark for Manual Review",
@@ -240,7 +256,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "eq.{{ $json.id }}"
+              "value": "={{ 'eq.' + String($json.order_id) }}"
             }
           ]
         },
@@ -267,14 +283,23 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"execution_status\": \"ready_for_processing\",\n  \"retry_count\": $json.newRetryCount,\n  \"next_retry_at\": $json.nextRetryAt,\n  \"error_message\": null,\n  \"error_type\": null,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
-        "options": {}
+        "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"retry_count\": $json.newRetryCount,\n  \"next_retry_at\": $json.nextRetryAt,\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Scheduled for retry after ${$json.delayMinutes} minutes (attempt ${$json.newRetryCount})`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "fullResponse": false
+            }
+          }
+        },
+        "continueOnFail": true
       },
       "id": "schedule-retry-001",
       "name": "Schedule Retry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [800, 200]
+      "position": [800, 200],
+      "notes": "CRITICAL: Uses $json.order_id (from failed_orders) not $json.id (failed_orders ID)"
     },
     {
       "parameters": {
@@ -288,7 +313,7 @@
     }
   ],
   "connections": {
-    "Every 5 Minutes": {
+    "Every 5 Minutes (Cron)": {
       "main": [[{ "node": "Config", "type": "main", "index": 0 }]]
     },
     "Config": {
@@ -319,7 +344,7 @@
       "main": [[{ "node": "Alert: Manual Review", "type": "main", "index": 0 }]]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
@@ -328,4 +353,3 @@
   "id": "stuck-manager-001",
   "tags": []
 }
-

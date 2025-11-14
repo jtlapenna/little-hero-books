@@ -115,6 +115,13 @@ export async function mapSupabaseOrderToOrder(
     finalCoverUrl: record.final_cover_url || undefined,
     workflowStep: record.workflow_step || undefined,
     luluStatus: record.lulu_status || undefined,
+    executionStatus: record.execution_status || undefined,
+    errorMessage: record.error_message || undefined,
+    errorType: record.error_type || undefined,
+    retryCount: typeof record.retry_count === 'number' ? record.retry_count : undefined,
+    oneManifestUrl: record.one_manifest_url || undefined,
+    startedAt: toIsoString(record.started_at),
+    queuedAt: toIsoString(record.queued_at),
     createdAt: toIsoString(record.created_at),
     updatedAt: toIsoString(record.updated_at),
     webhooks: {

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Users, Home, Activity } from 'lucide-react';
+import { BookOpen, Users, Home, Activity, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function Navigation() {
@@ -13,6 +13,7 @@ export function Navigation() {
     { name: 'Orders', href: '/orders', icon: BookOpen },
     { name: 'Review', href: '/review', icon: Users },
     { name: 'Monitoring', href: '/monitoring', icon: Activity },
+    { name: 'Orders Needing Attention', href: '/admin/orders-needing-attention', icon: AlertTriangle },
   ];
 
   return (
@@ -28,7 +29,10 @@ export function Navigation() {
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {navigation.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                // Highlight "Orders Needing Attention" when on unified page or redirect pages
+                const isActive = pathname === item.href || 
+                  (item.href === '/admin/orders-needing-attention' && 
+                   (pathname === '/admin/stuck-orders' || pathname === '/admin/orphaned-orders'));
                 
                 return (
                   <Link

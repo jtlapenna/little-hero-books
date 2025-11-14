@@ -632,8 +632,11 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         pose.id === assetId ? { ...pose, isFlagged: newFlaggedState } : pose
       );
       
-      // Optimistic flag count update (will be synced from API response)
-      // No need to call setFlaggedCount - API response will update order.flags
+      // Update flag count immediately (optimistic)
+      const newFlaggedCount = updated.filter(asset => asset.isFlagged).length;
+      setFlaggedCount(orderId, 'postBria', newFlaggedCount).catch(err => {
+        console.error('[PostBriaStage] Failed to update flag count:', err);
+      });
       
       return updated;
     });

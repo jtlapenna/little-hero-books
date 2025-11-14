@@ -32,11 +32,16 @@ export async function POST(request: NextRequest) {
     const finalCoverUrl = manifest?.finalCoverUrl || manifest?.coverUrl || manifest?.order?.finalCoverUrl || null;
 
     // Update Supabase with workflow completion
+    // CRITICAL: Reset execution_status when workflow completes
+    // Workflow 3 doesn't require review, so set to 'done' (workflow complete, not processing anymore)
     await updateOrderStatus(payload.orderId, {
       workflow_step: 'book_assembly_completed',
       manifest_3_url: payload.manifestUrl,
       final_book_url: finalBookUrl,
       final_cover_url: finalCoverUrl,
+      execution_status: 'done', // Workflow complete, not processing anymore
+      started_at: null, // Clear processing timestamp
+      current_workflow: null, // Clear current workflow
       // Status will be recalculated automatically by updateOrderStatus
     });
 

@@ -68,7 +68,16 @@ function getPhaseForDisplayStatus(displayStatus: DisplayStatus, revisionCount?: 
     case DisplayStatus.DELIVERED:
       return OrderPhase.SENT_TO_PRINT; // Keep in sent to print phase
     case DisplayStatus.ACTION_REQUIRED:
-      return OrderPhase.IN_QUEUE; // Fallback to in queue for errors
+    case DisplayStatus.MISSING_MANIFEST:
+    case DisplayStatus.MAX_RETRIES:
+    case DisplayStatus.WORKFLOW_TIMEOUT:
+    case DisplayStatus.API_ERROR:
+    case DisplayStatus.STUCK_PROCESSING:
+    case DisplayStatus.NOT_PICKED_UP:
+    case DisplayStatus.MULTIPLE_ERRORS:
+      return OrderPhase.IN_QUEUE; // All errors show in queue phase
+    case DisplayStatus.MANUAL_REVIEW_REQUIRED:
+      return OrderPhase.FIRST_REVIEW; // Show in review phase for manual intervention
     default:
       return OrderPhase.IN_QUEUE;
   }
@@ -102,6 +111,84 @@ function collectStageStatuses(order: Order | null | undefined): string[] {
 export interface DisplayStatusMetadata {
   status: DisplayStatus;
   phase: OrderPhase;
+  errors?: DisplayStatus[]; // Array of all errors found (for multiple errors badge)
+}
+
+/**
+ * Error type for error detection
+ */
+export type ErrorType = 
+  | DisplayStatus.MISSING_MANIFEST
+  | DisplayStatus.MAX_RETRIES
+  | DisplayStatus.WORKFLOW_TIMEOUT
+  | DisplayStatus.API_ERROR
+  | DisplayStatus.STUCK_PROCESSING
+  | DisplayStatus.NOT_PICKED_UP;
+
+/**
+ * Detect all error conditions for an order
+ * Returns array of error types found
+ */
+function detectOrderErrors(order: Order): ErrorType[] {
+  const errors: ErrorType[] = [];
+
+  // Check for missing manifest
+  if (!order.oneManifestUrl) {
+    errors.push(DisplayStatus.MISSING_MANIFEST);
+  }
+
+  // Check for max retries
+  if (order.retryCount !== null && order.retryCount !== undefined && order.retryCount >= 3) {
+    errors.push(DisplayStatus.MAX_RETRIES);
+  }
+
+  // Check error_type field
+  if (order.errorType) {
+    if (order.errorType === 'workflow_timeout') {
+      errors.push(DisplayStatus.WORKFLOW_TIMEOUT);
+    } else if (order.errorType === 'api_error' || order.errorType === 'api_error') {
+      errors.push(DisplayStatus.API_ERROR);
+    } else if (order.errorType === 'missing_manifest') {
+      errors.push(DisplayStatus.MISSING_MANIFEST);
+    }
+  }
+
+  // Check for stuck processing (execution_status = 'processing' with started_at > 30 min ago)
+  if (order.executionStatus === 'processing' && order.startedAt) {
+    const startedAt = new Date(order.startedAt);
+    const now = new Date();
+    const minutesProcessing = Math.floor((now.getTime() - startedAt.getTime()) / 1000 / 60);
+    if (minutesProcessing > 30) {
+      errors.push(DisplayStatus.STUCK_PROCESSING);
+    }
+  }
+
+  // Check for not picked up (ready_for_processing for extended time)
+  if (order.executionStatus === 'ready_for_processing' && order.queuedAt) {
+    const queuedAt = new Date(order.queuedAt);
+    const now = new Date();
+    const minutesQueued = Math.floor((now.getTime() - queuedAt.getTime()) / 1000 / 60);
+    if (minutesQueued > 60) {
+      errors.push(DisplayStatus.NOT_PICKED_UP);
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Get priority for error type (lower number = higher priority)
+ */
+function getErrorPriority(errorType: ErrorType): number {
+  const priorities: Record<ErrorType, number> = {
+    [DisplayStatus.MAX_RETRIES]: 1,
+    [DisplayStatus.WORKFLOW_TIMEOUT]: 2,
+    [DisplayStatus.MISSING_MANIFEST]: 3,
+    [DisplayStatus.API_ERROR]: 4,
+    [DisplayStatus.STUCK_PROCESSING]: 5,
+    [DisplayStatus.NOT_PICKED_UP]: 6,
+  };
+  return priorities[errorType] || 99;
 }
 
 export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
@@ -134,6 +221,7 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
   const rawStatus = order.status;
   const customerApprovalStatus = order.customerApprovalStatus;
   const reviewStages = order.reviewStages || {};
+  const executionStatus = order.executionStatus;
 
   // Check individual stage statuses to determine which review stage we're in
   const preBriaStatus = normalizeStageStatus(reviewStages.preBria?.status);
@@ -141,6 +229,80 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
   const postPdfStatus = normalizeStageStatus(reviewStages.postPdf?.status);
 
   const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
+
+  // Handle error states (execution_status = 'error' or 'error_requires_manual_review')
+  // This takes highest priority - show error badge for ANY error state
+  // BUT: if execution_status is 'ready_for_processing' and error fields are cleared, don't show error badge
+  
+  // Detect all errors first
+  const detectedErrors = detectOrderErrors(order);
+  
+  if (executionStatus === 'error_requires_manual_review') {
+    // If we have detected errors, include them in the response
+    const displayStatus = DisplayStatus.MANUAL_REVIEW_REQUIRED;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+      errors: detectedErrors.length > 0 ? detectedErrors : undefined
+    };
+  }
+  
+  // Handle error status - but only if error fields are actually set
+  // If execution_status is 'error' but error_message and error_type are null, it was cleared
+  if (executionStatus === 'error') {
+    // Check if error fields are actually set (not cleared)
+    const hasErrorFields = order.errorMessage || order.errorType;
+    if (hasErrorFields) {
+      // If multiple errors detected, show MULTIPLE_ERRORS badge
+      if (detectedErrors.length > 1) {
+        return {
+          status: DisplayStatus.MULTIPLE_ERRORS,
+          phase: getPhaseForDisplayStatus(DisplayStatus.ACTION_REQUIRED, revisionCount),
+          errors: detectedErrors.sort((a, b) => getErrorPriority(a) - getErrorPriority(b))
+        };
+      }
+      // If single error detected, show specific error badge
+      if (detectedErrors.length === 1) {
+        return {
+          status: detectedErrors[0],
+          phase: getPhaseForDisplayStatus(DisplayStatus.ACTION_REQUIRED, revisionCount),
+          errors: detectedErrors
+        };
+      }
+      // Fallback to generic ACTION_REQUIRED if no specific errors detected
+      const displayStatus = DisplayStatus.ACTION_REQUIRED;
+      return {
+        status: displayStatus,
+        phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+      };
+    }
+    // If error status but no error fields, it was cleared - treat as ready_for_processing
+    // Fall through to normal status calculation
+  }
+  
+  // Check for errors even if execution_status is not 'error'
+  // (e.g., missing manifest, stuck processing, etc.)
+  if (detectedErrors.length > 0) {
+    // If multiple errors, show MULTIPLE_ERRORS badge
+    if (detectedErrors.length > 1) {
+      return {
+        status: DisplayStatus.MULTIPLE_ERRORS,
+        phase: getPhaseForDisplayStatus(DisplayStatus.ACTION_REQUIRED, revisionCount),
+        errors: detectedErrors.sort((a, b) => getErrorPriority(a) - getErrorPriority(b))
+      };
+    }
+    // If single error, show specific error badge
+    return {
+      status: detectedErrors[0],
+      phase: getPhaseForDisplayStatus(DisplayStatus.ACTION_REQUIRED, revisionCount),
+      errors: detectedErrors
+    };
+  }
+  
+  // If execution_status is 'ready_for_processing' and error fields are cleared, return normal status
+  if (executionStatus === 'ready_for_processing' && !order.errorMessage && !order.errorType) {
+    // Fall through to normal status calculation - don't show error badge
+  }
 
   // Check if images/assets exist for each stage (defined once at the top)
   // IN_QUEUE = order exists but images haven't been generated yet
@@ -565,6 +727,7 @@ export function buildOrderListItem(order: Order): OrderListItem {
     hasFlags: order.hasFlags ?? false,
     flags: order.flags ?? {},
     revisionCount: typeof order.revisionCount === 'number' ? order.revisionCount : 0,
+    errors: display.errors, // Include errors array for multiple errors badge
   };
 }
 

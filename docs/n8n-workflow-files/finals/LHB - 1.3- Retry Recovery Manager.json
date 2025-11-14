@@ -39,7 +39,7 @@
             },
             {
               "name": "select",
-              "value": "id,amazon_order_id,next_workflow,retry_count,error_message,error_type,character_specs,book_specs,one_manifest_url"
+              "value": "id,amazon_order_id,next_workflow,retry_count,error_message,error_type,character_specs,one_manifest_url"
             },
             {
               "name": "order",
@@ -74,7 +74,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Route retry orders back to appropriate workflow\nconst orders = $input.all().map(item => item.json);\n\nif (orders.length === 0) {\n  console.log('No orders ready for retry');\n  return [];\n}\n\nconsole.log(`Found ${orders.length} order(s) ready for retry`);\n\n// Group by next_workflow\nconst byWorkflow = {\n  '2A': [],\n  '2B': [],\n  '3': [],\n  '4': []\n};\n\nfor (const order of orders) {\n  const workflow = order.next_workflow || '2A';\n  if (byWorkflow[workflow]) {\n    byWorkflow[workflow].push(order);\n  }\n}\n\nreturn [{ json: byWorkflow }];"
+        "jsCode": "// Pass through orders for retry (no routing needed - router will handle workflow)\n// Supabase REST API returns an array, which n8n might receive as a single item\nconst inputItems = $input.all();\nconst orders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  // If data is an array, flatten it\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    // If it's a single order object, add it\n    orders.push(data);\n  }\n}\n\nif (orders.length === 0) {\n  console.log('No orders ready for retry');\n  return [];\n}\n\nconsole.log(`Found ${orders.length} order(s) ready for retry`);\n\n// Return individual orders (not grouped)\n// The router (W1.1) will handle routing based on next_workflow\nreturn orders.map(order => ({ json: order }));"
       },
       "id": "route-retries-001",
       "name": "Route Retries by Workflow",
@@ -91,7 +91,7 @@
           "parameters": [
             {
               "name": "id",
-              "value": "eq.{{ $json.id }}"
+              "value": "={{ 'eq.' + String($json.id) }}"
             }
           ]
         },
@@ -129,7 +129,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare order for router (same format as router expects)\nconst order = $input.first().json;\n\nreturn [{\n  json: {\n    orderId: order.amazon_order_id,\n    characterHash: order.character_hash,\n    characterSpecs: order.character_specs,\n    bookSpecs: order.book_specs,\n    orderDbId: order.id,\n    workflow: order.next_workflow || '2A',\n    isRetry: true,\n    retryCount: order.retry_count\n  }\n}];"
+        "jsCode": "// Prepare order for router (same format as router expects)\nconst order = $input.first().json;\n\nreturn [{\n  json: {\n    orderId: order.amazon_order_id,\n    characterHash: order.character_hash,\n    characterSpecs: order.character_specs,\n    orderDbId: order.id,\n    workflow: order.next_workflow || '2A',\n    isRetry: true,\n    retryCount: order.retry_count\n  }\n}];"
       },
       "id": "prep-for-router-001",
       "name": "Prep for Router",
@@ -165,7 +165,7 @@
       "main": [[{ "node": "Log Retry", "type": "main", "index": 0 }]]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },

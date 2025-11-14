@@ -15,6 +15,7 @@ import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
 import { ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer } from 'lucide-react';
 import { getDisplayStatusForOrder, getStageBadgeStatus } from '@/lib/status-display';
+import { ManualReviewAlert } from '@/components/ui/manual-review-alert';
 
 const correctionReasonLabels: Record<string, string> = {
   name_typo: 'Name typo',
@@ -101,6 +102,8 @@ export default function OrderDetailPage() {
   const [finalApprovalLoading, setFinalApprovalLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [manualPrintLoading, setManualPrintLoading] = useState(false);
+  const [creatingManifest, setCreatingManifest] = useState(false);
+  const [resettingOrder, setResettingOrder] = useState(false);
   const printRequestInProgressRef = useRef(false);
   const rawResetToggle = process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET;
   const enableResetButton =
@@ -651,6 +654,64 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleCreateManifest = async () => {
+    if (!order) return;
+    
+    if (!confirm('Create 1-manifest.json from order data? This will upload the manifest to R2 and reset the order to ready_for_processing.')) {
+      return;
+    }
+
+    setCreatingManifest(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.orderId}/create-manifest`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create manifest');
+      }
+
+      alert('Manifest created successfully! Order has been reset to ready_for_processing.');
+      await fetchOrder(order.orderId);
+    } catch (error: any) {
+      console.error('Error creating manifest:', error);
+      alert(error?.message || 'Failed to create manifest. Please try again.');
+    } finally {
+      setCreatingManifest(false);
+    }
+  };
+
+  const handleResetOrderRecovery = async () => {
+    if (!order) return;
+    
+    if (!confirm('Reset order to initial state? This will clear error fields and reset execution status.')) {
+      return;
+    }
+
+    setResettingOrder(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.orderId}/reset`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reset order');
+      }
+
+      alert('Order reset successfully!');
+      await fetchOrder(order.orderId);
+    } catch (error: any) {
+      console.error('Error resetting order:', error);
+      alert(error?.message || 'Failed to reset order. Please try again.');
+    } finally {
+      setResettingOrder(false);
+    }
+  };
+
   const handleResetOrder = async () => {
     if (!order) return;
     const confirmed = window.confirm(
@@ -724,7 +785,11 @@ export default function OrderDetailPage() {
                 <span className="mr-1 text-[10px] uppercase tracking-wide text-gray-500">
                   Order Status
                 </span>
-                <StatusBadge status={lifecycleStatus.status} revisionCount={order?.revisionCount} />
+                <StatusBadge 
+                  status={lifecycleStatus.status} 
+                  revisionCount={order?.revisionCount}
+                  errors={lifecycleStatus.errors}
+                />
               </span>
               {enableResetButton && (
                 <button
@@ -768,6 +833,65 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Manual Review Alert */}
+        {order && (
+          <ManualReviewAlert
+            executionStatus={order.executionStatus || ''}
+            errorMessage={order.errorMessage}
+            errorType={order.errorType}
+            retryCount={order.retryCount}
+            workflowStep={order.workflowStep}
+            currentWorkflow={undefined} // TODO: Add currentWorkflow to Order type if needed
+          />
+        )}
+
+        {/* Recovery Actions Section */}
+        {order && (lifecycleStatus.errors && lifecycleStatus.errors.length > 0 || !order.oneManifestUrl || order.executionStatus === 'error' || order.executionStatus === 'error_requires_manual_review') && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
+            <h3 className="text-sm font-semibold text-yellow-900 mb-3">Recovery Actions</h3>
+            <div className="flex flex-wrap gap-2">
+              {!order.oneManifestUrl && (
+                <button
+                  type="button"
+                  onClick={handleCreateManifest}
+                  disabled={creatingManifest}
+                  className="inline-flex items-center px-3 py-1.5 border border-yellow-300 rounded-md text-sm font-medium text-yellow-800 bg-white hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {creatingManifest ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      Create Manifest
+                    </>
+                  )}
+                </button>
+              )}
+              {(order.executionStatus === 'error' || order.executionStatus === 'error_requires_manual_review') && (
+                <button
+                  type="button"
+                  onClick={handleResetOrderRecovery}
+                  disabled={resettingOrder}
+                  className="inline-flex items-center px-3 py-1.5 border border-yellow-300 rounded-md text-sm font-medium text-yellow-800 bg-white hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {resettingOrder ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Resetting...
+                    </>
+                  ) : (
+                    <>
+                      Reset Order
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Order Information Banner */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">

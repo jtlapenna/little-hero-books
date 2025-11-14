@@ -6,6 +6,7 @@ import { OrderStatus, LuluStatus } from '@/constants/statuses';
  * This is the SINGLE SOURCE OF TRUTH for status calculation
  * 
  * Priority order:
+ * 0. Execution status → Check execution_status (manual review, errors)
  * 1. Flags exist → Set revision status
  * 2. Production status → Use lulu_status
  * 3. Customer approval → Use customer_approval_status
@@ -21,6 +22,16 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
     // TODO: Fallback to R2 manifest if needed
     // For now, return default status
     return OrderStatus.NEW;
+  }
+  
+  // 0. Check execution_status first (highest priority for manual review/errors)
+  if (order.execution_status === 'error_requires_manual_review') {
+    return OrderStatus.ACTION_REQUIRED;
+  }
+  
+  // Also check for any error status (not just manual review)
+  if (order.execution_status === 'error') {
+    return OrderStatus.ACTION_REQUIRED;
   }
   
   // 1. Check flags first (highest priority)

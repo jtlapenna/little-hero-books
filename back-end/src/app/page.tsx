@@ -1,7 +1,51 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Users, Settings } from 'lucide-react';
+import { ArrowRight, BookOpen, Users, Settings, AlertTriangle } from 'lucide-react';
+import { DisplayStatus } from '@/constants/statuses';
+
+interface ErrorSummary {
+  total: number;
+  byType: Record<string, number>;
+}
 
 export default function HomePage() {
+  const [errorSummary, setErrorSummary] = useState<ErrorSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchErrorSummary = async () => {
+      try {
+        const response = await fetch('/api/admin/orders-needing-attention');
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        const orders = data.orders || [];
+        
+        // Count errors by type
+        const byType: Record<string, number> = {};
+        orders.forEach((order: any) => {
+          const errorType = order.error_type || order.errorReason || 'unknown';
+          byType[errorType] = (byType[errorType] || 0) + 1;
+        });
+        
+        setErrorSummary({
+          total: orders.length,
+          byType
+        });
+      } catch (error) {
+        console.error('Failed to fetch error summary:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchErrorSummary();
+    const interval = setInterval(fetchErrorSummary, 60000); // Refresh every minute
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -13,6 +57,36 @@ export default function HomePage() {
             Review and approve AI-generated assets for personalized children's books
           </p>
         </div>
+
+        {/* Error Summary Badge */}
+        {!loading && errorSummary && errorSummary.total > 0 && (
+          <div className="mb-8 max-w-4xl mx-auto">
+            <Link
+              href="/admin/orders-needing-attention"
+              className="block bg-red-50 border-2 border-red-200 rounded-lg p-4 hover:bg-red-100 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <AlertTriangle className="h-6 w-6 text-red-600 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-red-900">
+                      {errorSummary.total} Order{errorSummary.total !== 1 ? 's' : ''} Needing Attention
+                    </h3>
+                    <p className="text-sm text-red-700 mt-1">
+                      {Object.entries(errorSummary.byType).slice(0, 3).map(([type, count]) => (
+                        <span key={type} className="mr-3">
+                          {type}: {count}
+                        </span>
+                      ))}
+                      {Object.keys(errorSummary.byType).length > 3 && '...'}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-red-600" />
+              </div>
+            </Link>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
           <Link
@@ -60,18 +134,6 @@ export default function HomePage() {
             <div className="flex items-center text-gray-400">
               <span className="text-sm font-medium">Coming Soon</span>
             </div>
-          </div>
-        </div>
-
-        <div className="mt-16 text-center">
-          <div className="bg-blue-50 rounded-lg p-6 max-w-2xl mx-auto">
-            <h3 className="text-lg font-semibold text-blue-900 mb-2">
-              Development Status
-            </h3>
-            <p className="text-blue-700">
-              This is a local development build. R2 integration and n8n webhooks
-              will be added in the next phases.
-            </p>
           </div>
         </div>
       </div>

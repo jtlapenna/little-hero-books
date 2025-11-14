@@ -34,9 +34,15 @@ export async function POST(request: NextRequest) {
            }
 
     // Update Supabase with workflow completion
+    // CRITICAL: Reset execution_status when workflow completes
+    // If needsReview is true, keep 'processing' (wait for approval)
+    // If needsReview is false, set to 'done' (workflow complete, not processing anymore)
     await updateOrderStatus(payload.orderId, {
       workflow_step: 'bria_processing_complete',
       manifest_2b_url: payload.manifestUrl,
+      execution_status: payload.needsReview ? 'processing' : 'done',
+      started_at: null, // Clear processing timestamp
+      current_workflow: null, // Clear current workflow
       // Status will be recalculated automatically by updateOrderStatus
     });
 
