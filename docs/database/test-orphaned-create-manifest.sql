@@ -15,6 +15,7 @@
 -- Use JESSICA-CUNT (ID: 171) for testing
 -- Set to ready_for_processing with old queued_at to get orphan_reason = 'ready_not_picked_up'
 -- This will trigger the classification logic that checks for missing manifest at workflow 4
+-- IMPORTANT: Include character_specs and product_info so Create Manifest endpoint can work
 UPDATE orders
 SET 
   execution_status = 'ready_for_processing',
@@ -27,7 +28,45 @@ SET
   retry_count = 0,
   next_retry_at = NULL,
   queued_at = NOW() - INTERVAL '2 hours',  -- Old enough to be detected as orphaned
-  updated_at = NOW() - INTERVAL '2 hours'
+  updated_at = NOW() - INTERVAL '2 hours',
+  -- Required fields for Create Manifest endpoint
+  character_specs = COALESCE(
+    character_specs,
+    '{
+      "childName": "Jessica",
+      "age": 5,
+      "pronouns": "she/her",
+      "skinTone": "tan",
+      "hairColor": "brown",
+      "hairStyle": "curly-long",
+      "animalGuide": "unicorn",
+      "clothingStyle": "adventure",
+      "favoriteColor": "purple"
+    }'::jsonb
+  ),
+  product_info = COALESCE(
+    product_info,
+    '{
+      "quantity": 1,
+      "bookSpecs": {
+        "title": "Jessica and the Adventure Compass",
+        "totalPages": 16,
+        "format": "8.5x8.5_softcover",
+        "bookType": "adventure"
+      },
+      "shippingAddress": {
+        "name": "Test Customer",
+        "address": "123 Test St",
+        "city": "Portland",
+        "state": "OR",
+        "zip": "97201",
+        "phone": "+1-555-123-4567"
+      }
+    }'::jsonb
+  ),
+  customer_email = COALESCE(customer_email, 'test@littleherolabs.com'),
+  customer_name = COALESCE(customer_name, 'Test Customer'),
+  dedication_text = COALESCE(dedication_text, 'For our little adventurer!')
 WHERE amazon_order_id = 'JESSICA-CUNT';
 
 -- Verify the order setup
