@@ -336,6 +336,11 @@ export const StatusColors: Record<string, {
   },
 
   // Display-only lifecycle statuses (admin-friendly labels with varying blue shades)
+  [DisplayStatus.NEW]: {
+    bg: 'bg-gray-100',
+    text: 'text-gray-800',
+    border: 'border-gray-200'
+  },
   [DisplayStatus.IN_QUEUE]: {
     bg: 'bg-gray-100',
     text: 'text-gray-800',
