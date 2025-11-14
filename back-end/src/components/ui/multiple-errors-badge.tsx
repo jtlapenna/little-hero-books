@@ -88,12 +88,12 @@ export function MultipleErrorsBadge({ errors, className = '' }: MultipleErrorsBa
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
         >
-          <div className="font-semibold mb-2 break-words">Multiple Issues Detected:</div>
-          <ul className="space-y-1">
+          <div className="font-semibold mb-3 break-words">Multiple Issues Detected:</div>
+          <ul className="space-y-3">
             {errorList.map((error, idx) => (
-              <li key={idx} className="flex flex-col break-words">
+              <li key={idx} className="flex flex-col break-words pb-2 border-b border-gray-700 last:border-b-0 last:pb-0">
                 <span className="font-medium break-words">{error.label}</span>
-                <span className="text-xs text-gray-300 mt-0.5 break-words">{error.description}</span>
+                <span className="text-xs text-gray-300 mt-1 break-words">{error.description}</span>
               </li>
             ))}
           </ul>
