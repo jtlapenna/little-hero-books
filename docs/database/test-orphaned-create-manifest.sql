@@ -13,18 +13,21 @@
 -- - Should update Supabase: one_manifest_url, execution_status = 'ready_for_processing', next_workflow = '2A'
 
 -- Use JESSICA-CUNT (ID: 171) for testing
+-- Set to ready_for_processing with old queued_at to get orphan_reason = 'ready_not_picked_up'
+-- This will trigger the classification logic that checks for missing manifest at workflow 4
 UPDATE orders
 SET 
-  execution_status = 'error',
-  error_type = 'missing_manifest',
-  error_message = 'Missing 1-manifest.json - test for create_manifest recovery',
+  execution_status = 'ready_for_processing',
+  error_type = NULL,
+  error_message = NULL,
   next_workflow = '4',
-  one_manifest_url = NULL,
+  one_manifest_url = NULL,  -- Missing manifest - this is the key condition
   current_workflow = NULL,
   started_at = NULL,
   retry_count = 0,
   next_retry_at = NULL,
-  updated_at = NOW()
+  queued_at = NOW() - INTERVAL '2 hours',  -- Old enough to be detected as orphaned
+  updated_at = NOW() - INTERVAL '2 hours'
 WHERE amazon_order_id = 'JESSICA-CUNT';
 
 -- Verify the order setup
@@ -42,8 +45,11 @@ SELECT
   updated_at,
   -- Check if it will be picked up by get_orphaned_orders()
   CASE 
-    WHEN execution_status = 'error' AND one_manifest_url IS NULL AND next_workflow = '4' 
-    THEN '✅ Will trigger create_manifest action'
+    WHEN execution_status = 'ready_for_processing' 
+         AND one_manifest_url IS NULL 
+         AND next_workflow = '4'
+         AND queued_at < NOW() - INTERVAL '30 minutes'
+    THEN '✅ Will trigger create_manifest action (via ready_not_picked_up + missing manifest)'
     ELSE '❌ May not trigger create_manifest action'
   END as expected_action
 FROM orders
