@@ -592,7 +592,9 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "515d61c3-b93c-4fb9-88b1-bea5123dad74",
       "name": "Orphaned: Recover: Create Manifest",
