@@ -133,6 +133,11 @@ BEGIN
            AND o.queued_at < NOW() - INTERVAL '30 minutes'
       THEN 'ready_not_picked_up'::TEXT
       
+      -- Manual review orders that have been waiting too long (should be reviewed)
+      WHEN o.execution_status = 'error_requires_manual_review'
+           AND o.updated_at < NOW() - INTERVAL '24 hours'
+      THEN 'manual_review_pending'::TEXT
+      
       ELSE NULL::TEXT
     END as orphan_reason,
     -- How long orphaned
@@ -148,6 +153,9 @@ BEGIN
     -- Ready but not picked up
     OR (o.execution_status = 'ready_for_processing' 
         AND o.queued_at < NOW() - INTERVAL '30 minutes')
+    -- Manual review orders waiting too long (optional: only if > 24 hours)
+    OR (o.execution_status = 'error_requires_manual_review'
+        AND o.updated_at < NOW() - INTERVAL '24 hours')
   ORDER BY o.updated_at DESC;
 END;
 $$ LANGUAGE plpgsql;

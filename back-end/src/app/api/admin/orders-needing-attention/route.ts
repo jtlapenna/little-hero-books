@@ -83,6 +83,22 @@ export async function GET(request: NextRequest) {
       console.error('[GET /api/admin/orders-needing-attention] Error status orders error:', errorError);
     }
 
+    // 4. Get ready_for_processing orders not picked up (complement to RPC function)
+    // This ensures we catch orders that might not be in the RPC results
+    const queuedThresholdTime = new Date();
+    queuedThresholdTime.setMinutes(queuedThresholdTime.getMinutes() - 60); // 60 minutes for "not picked up"
+    
+    const { data: notPickedUpData, error: notPickedUpError } = await supabase
+      .from('orders')
+      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, updated_at, queued_at, next_workflow')
+      .eq('execution_status', 'ready_for_processing')
+      .not('queued_at', 'is', null)
+      .lt('queued_at', queuedThresholdTime.toISOString());
+
+    if (notPickedUpError) {
+      console.error('[GET /api/admin/orders-needing-attention] Not picked up orders error:', notPickedUpError);
+    }
+
     // Combine and deduplicate orders (by id)
     const orderMap = new Map<number, any>();
 
@@ -133,6 +149,24 @@ export async function GET(request: NextRequest) {
           error_type: order.error_type || existing.error_type,
           error_message: order.error_message || existing.error_message,
           errorReason: order.error_type || existing.errorReason
+        });
+      }
+    });
+
+    // Process not picked up orders
+    (notPickedUpData || []).forEach((order: any) => {
+      if (!orderMap.has(order.id)) {
+        const queuedAt = order.queued_at ? new Date(order.queued_at) : null;
+        const minutesQueued = queuedAt
+          ? Math.floor((now.getTime() - queuedAt.getTime()) / 1000 / 60)
+          : null;
+        
+        orderMap.set(order.id, {
+          ...order,
+          source: 'orphaned',
+          timeStuck: minutesQueued,
+          errorReason: 'ready_not_picked_up',
+          orphan_reason: 'ready_not_picked_up'
         });
       }
     });

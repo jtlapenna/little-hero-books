@@ -1,5 +1,5 @@
 {
-  "name": "WORKING VERSION - LHB - 1.1- Queue Manager and Router",
+  "name": "LHB - 1.1- Queue Manager and Router (Webhook)",
   "nodes": [
     {
       "parameters": {
@@ -43,188 +43,48 @@
     },
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "seconds"
-            }
-          ]
-        }
+        "httpMethod": "POST",
+        "path": "w1-1-router",
+        "responseMode": "responseNode",
+        "options": {}
       },
       "id": "f416c754-bb97-4f32-bab6-e6b05d813b19",
-      "name": "Every 30 Seconds",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
       "position": [
         -2960,
         -48
-      ]
+      ],
+      "webhookId": "w1-1-router-webhook"
     },
     {
       "parameters": {
-        "jsCode": "// Initialize router\nconst maxConcurrent = 5;\n\nconsole.log('=== ROUTER CYCLE START ===');\nconsole.log(`Max concurrent: ${maxConcurrent}`);\n\nreturn [{ json: { maxConcurrent } }];"
+        "jsCode": "// Extract orders from Vercel Cron webhook payload\n// Vercel sends: { orders: [...] }\n// This node extracts the orders array and passes through\nconst webhookData = $input.first().json || {};\nconst orders = webhookData.orders || [];\n\nconsole.log('=== ROUTER WEBHOOK TRIGGERED ===');\nconsole.log(`Received ${orders.length} orders from Vercel Cron`);\n\nif (orders.length === 0) {\n  console.log('No orders in webhook payload - workflow will stop');\n  return [];\n}\n\n// Return orders as individual items for routing\nreturn orders.map(order => ({ json: order }));"
       },
       "id": "bc053f21-ed7d-4a4b-9d71-9a903148c8c2",
-      "name": "Initialize Router",
+      "name": "Extract Orders from Webhook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -2752,
         -48
-      ]
-    },
-    {
-      "parameters": {
-        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/queue_status?select=*",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "46803cab-4c68-4c76-9dce-0d97c5d5601b",
-      "name": "Check Current Capacity",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -2528,
-        -48
       ],
-      "notes": "Queries queue_status view (GET) instead of RPC function. Returns array with one object containing processing_count and queued_count."
+      "notes": "Extracts orders array from Vercel Cron webhook payload. Vercel already checked capacity and filtered orders."
     },
     {
       "parameters": {
-        "jsCode": "// Calculate available slots\nconst response = $input.first().json;\nconst currentProcessing = response.processing_count || 0;\nconst maxConcurrent = $('Initialize Router').first().json.maxConcurrent;\nconst availableSlots = Math.max(0, maxConcurrent - currentProcessing);\nconst queuedCount = response.queued_count || 0;\n\nconsole.log(`Currently processing: ${currentProcessing}/${maxConcurrent}`);\nconsole.log(`Available slots: ${availableSlots}`);\nconsole.log(`Queued orders: ${queuedCount}`);\n\nif (availableSlots === 0) {\n  console.log('⏸️ At capacity - will check false path');\n}\n\nreturn [{\n  json: {\n    availableSlots: availableSlots,\n    currentProcessing: currentProcessing,\n    queuedCount: queuedCount,\n    shouldFetchOrders: availableSlots > 0\n  }\n}];"
-      },
-      "id": "574c067e-b5b2-438f-9b52-ca06a7fcd99a",
-      "name": "Calculate Available Slots",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -2304,
-        -48
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.shouldFetchOrders }}",
-              "value2": true
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "68593dfa-c4e3-459b-8d0e-152c4f6bc3ec",
-      "name": "Has Capacity?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        -2096,
-        -48
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// FALSE PATH - At Capacity\nconst data = $input.first().json;\nconst queuedCount = data.queuedCount || 0;\n\nconsole.log('=== AT CAPACITY ===');\nconsole.log(`Queued: ${queuedCount} orders waiting`);\nconsole.log('Next check in 30 seconds');\n\n// Use workflow static data to persist counters across executions\nconst s = this.getWorkflowStaticData('global');\nconst capacityFullCycles = (s.capacityFullCycles || 0) + 1;\ns.capacityFullCycles = capacityFullCycles;\ns.lastCapacityCheckAt = new Date().toISOString();\nconsole.log(`Capacity full for ${capacityFullCycles} consecutive cycles`);\n\n// Trigger stuck check after 5 cycles\nif (capacityFullCycles >= 5) {\n  return [{\n    json: {\n      shouldCheckStuck: true,\n      capacityFullCycles,\n      queuedCount\n    }\n  }];\n}\n\n// Normal case - just log and exit\nreturn [];"
-      },
-      "id": "2f0eefc0-1111-42f0-9ebf-6c8885f5acea",
-      "name": "At Capacity - Monitor",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -1744,
-        192
-      ],
-      "notes": "Logs when at capacity and tracks cycles"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Check for stuck workflows\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nif (!supabaseUrl || !supabaseKey) {\n  console.warn('⚠️ Supabase not configured - skipping stuck workflow check');\n  return [];\n}\n\n// Query for workflows running > 30 minutes\nconst thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();\n\ntry {\n  const response = await fetch(\n    `${supabaseUrl}/rest/v1/orders?execution_status=eq.processing&started_at=lt.${thirtyMinutesAgo}&select=amazon_order_id,current_workflow,started_at`,\n    {\n      headers: {\n        'apikey': supabaseKey,\n        'Authorization': `Bearer ${supabaseKey}`\n      }\n    }\n  );\n  \n  const stuckOrders = await response.json();\n  \n  if (!Array.isArray(stuckOrders) || stuckOrders.length === 0) {\n    console.log('✅ No stuck workflows detected');\n    \n    // Reset capacity counter since everything is processing normally\n    this.getWorkflowStaticData('global').capacityFullCycles = 0;\n    \n    return [];\n  }\n  \n  // Found stuck workflows!\n  console.error(`🚨 ALERT: ${stuckOrders.length} stuck workflows detected!`);\n  \n  const alerts = stuckOrders.map(order => {\n    const startedAt = new Date(order.started_at);\n    const runningMinutes = Math.floor((Date.now() - startedAt.getTime()) / 1000 / 60);\n    \n    console.error(`  - Order ${order.amazon_order_id}: ${order.current_workflow} running for ${runningMinutes} minutes`);\n    \n    return {\n      orderId: order.amazon_order_id,\n      workflow: order.current_workflow,\n      runningMinutes: runningMinutes,\n      startedAt: order.started_at\n    };\n  });\n  \n  // Return alerts for notification\n  return [{\n    json: {\n      alert: true,\n      level: 'critical',\n      type: 'stuck_workflows',\n      count: stuckOrders.length,\n      workflows: alerts,\n      message: `${stuckOrders.length} workflow(s) have been running for more than 30 minutes`,\n      action: 'Check n8n execution logs. Consider manually marking as failed in Supabase.',\n      recommendation: `UPDATE orders SET execution_status='failed', error_message='Workflow timeout' WHERE amazon_order_id IN (${alerts.map(a => `'${a.orderId}'`).join(', ')})`\n    }\n  }];\n  \n} catch (error) {\n  console.error('❌ Error checking for stuck workflows:', error);\n  return [];\n}"
-      },
-      "id": "2a5dcaff-6691-44a6-90b0-ce58252b6515",
-      "name": "Check for Stuck Workflows",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -1536,
-        192
-      ],
-      "notes": "Detects workflows running > 30 minutes"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Log alert (you can replace this with Slack/Email node)\nconst alertData = $input.first().json;\n\nif (!alertData.alert) {\n  return [];\n}\n\nconsole.log('=== STUCK WORKFLOW ALERT ===');\nconsole.log(`Level: ${alertData.level}`);\nconsole.log(`Message: ${alertData.message}`);\nconsole.log(`Count: ${alertData.count}`);\nconsole.log('Workflows:');\nalertData.workflows.forEach(w => {\n  console.log(`  - ${w.orderId}: ${w.workflow} (${w.runningMinutes} min)`);\n});\nconsole.log(`Action: ${alertData.action}`);\nconsole.log(`SQL: ${alertData.recommendation}`);\n\n// TODO: Send to Slack/Email\n// For now just logging\n\nreturn [{ json: alertData }];"
-      },
-      "id": "23312717-da78-46bf-95f6-786b52b4fde4",
-      "name": "Log Alert",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -1312,
-        192
-      ],
-      "notes": "Replace with Slack/Email node if desired"
-    },
-    {
-      "parameters": {
-        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "execution_status",
-              "value": "eq.ready_for_processing"
-            },
-            {
-              "name": "order",
-              "value": "priority.desc,queued_at.asc"
-            },
-            {
-              "name": "limit",
-              "value": "={{ $json.availableSlots }}"
-            },
-            {
-              "name": "select",
-              "value": "id,amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at"
-            }
-          ]
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Pass through orders from webhook (already fetched by Vercel Cron)\n// Orders come from Extract Orders from Webhook node\nconst orders = $input.all();\n\nif (!orders || orders.length === 0) {\n  console.log('No orders to route');\n  return [];\n}\n\nconsole.log(`Passing through ${orders.length} orders for routing`);\n\n// Return orders as-is (already in correct format from Vercel)\nreturn orders;"
       },
       "id": "6361b924-3566-44d5-b3d2-1eea3121c85b",
-      "name": "Fetch Ready Orders",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "name": "Pass Through Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -1520,
         -160
       ],
-      "notes": "Gets next N orders ready for ANY workflow"
+      "notes": "Passes through orders from Vercel Cron webhook (already fetched and filtered)"
     },
     {
       "parameters": {
@@ -643,91 +503,29 @@
   ],
   "pinData": {},
   "connections": {
-    "Every 30 Seconds": {
+    "Webhook Trigger": {
       "main": [
         [
           {
-            "node": "Initialize Router",
+            "node": "Extract Orders from Webhook",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Initialize Router": {
+    "Extract Orders from Webhook": {
       "main": [
         [
           {
-            "node": "Check Current Capacity",
+            "node": "Pass Through Orders",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Current Capacity": {
-      "main": [
-        [
-          {
-            "node": "Calculate Available Slots",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Calculate Available Slots": {
-      "main": [
-        [
-          {
-            "node": "Has Capacity?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Has Capacity?": {
-      "main": [
-        [
-          {
-            "node": "Fetch Ready Orders",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "At Capacity - Monitor",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "At Capacity - Monitor": {
-      "main": [
-        [
-          {
-            "node": "Check for Stuck Workflows",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check for Stuck Workflows": {
-      "main": [
-        [
-          {
-            "node": "Log Alert",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Ready Orders": {
+    "Pass Through Orders": {
       "main": [
         [
           {

@@ -318,8 +318,6 @@ export default function OrdersNeedingAttentionPage() {
                         <a 
                           href={`/orders/${order.amazon_order_id}`}
                           className="text-blue-600 hover:text-blue-800 hover:underline"
-                          target="_blank"
-                          rel="noopener noreferrer"
                         >
                           {order.amazon_order_id}
                         </a>
