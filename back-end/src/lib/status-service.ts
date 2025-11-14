@@ -89,6 +89,13 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
   
   // 5. Check workflow step (using workflow_step field from database)
   if (order.workflow_step) {
+    // Special handling for 'order_intake': status depends on whether router has picked it up
+    if (order.workflow_step === 'order_intake') {
+      // If queued_at is set, router has picked it up - it's queued for processing
+      // Otherwise, it's just completed W0 and waiting to be queued
+      return order.queued_at ? OrderStatus.QUEUED_FOR_PROCESSING : OrderStatus.NEW;
+    }
+    
     const workflowStatusMap: Record<string, OrderStatus> = {
       // Existing mappings
       'ai_generation_completed': OrderStatus.PENDING_BG_REMOVAL,
@@ -96,8 +103,6 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
       'book_assembly_completed': OrderStatus.PENDING_ASSEMBLY_REVIEW,
       
       // Additional mappings found in database
-      // 'order_intake': Only QUEUED_FOR_PROCESSING if queued_at is set (router has picked it up)
-      // Otherwise, it's NEW or PENDING_PROCESSING (calculated below based on queued_at)
       '2A-complete': OrderStatus.PENDING_BG_REMOVAL, // Same as ai_generation_completed
       '2B-complete': OrderStatus.PENDING_ASSEMBLY, // Same as bria_processing_complete
       'print_fulfillment': OrderStatus.PENDING_PRINT
