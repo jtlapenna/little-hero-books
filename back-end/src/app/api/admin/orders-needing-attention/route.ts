@@ -85,15 +85,15 @@ export async function GET(request: NextRequest) {
 
     // 4. Get ready_for_processing orders not picked up (complement to RPC function)
     // This ensures we catch orders that might not be in the RPC results
+    // Also include orders with next_retry_at set (scheduled for retry)
     const queuedThresholdTime = new Date();
     queuedThresholdTime.setMinutes(queuedThresholdTime.getMinutes() - 60); // 60 minutes for "not picked up"
     
     const { data: notPickedUpData, error: notPickedUpError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, updated_at, queued_at, next_workflow')
+      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow')
       .eq('execution_status', 'ready_for_processing')
-      .not('queued_at', 'is', null)
-      .lt('queued_at', queuedThresholdTime.toISOString());
+      .or('queued_at.lt.' + queuedThresholdTime.toISOString() + ',next_retry_at.not.is.null');
 
     if (notPickedUpError) {
       console.error('[GET /api/admin/orders-needing-attention] Not picked up orders error:', notPickedUpError);
