@@ -128,8 +128,33 @@ export default function OrdersNeedingAttentionPage() {
     }
   };
 
-  // Get unique error types and statuses for filters
-  const errorTypes = Array.from(new Set(orders.map(o => o.error_type).filter(Boolean))) as string[];
+  // Get all possible error types (from DisplayStatus enum and common error reasons)
+  const allPossibleErrorTypes = [
+    'missing_manifest',
+    'max_retries',
+    'workflow_timeout',
+    'api_error',
+    'stuck_processing',
+    'not_picked_up',
+    'error_no_retry_scheduled',
+    'error_max_retries_exceeded',
+    'processing_stuck_over_hour',
+    'processing_stuck_over_30min',
+    'processing_no_timestamp',
+    'ready_not_picked_up',
+    'orphaned_order',
+    'manual_review_required',
+    'error',
+    'multiple_errors'
+  ];
+  
+  // Get unique error types from current orders (for sorting - show existing first)
+  const currentErrorTypes = Array.from(new Set(orders.map(o => o.error_type || o.errorReason).filter(Boolean))) as string[];
+  
+  // Combine: existing error types first, then all possible types
+  const errorTypes = Array.from(new Set([...currentErrorTypes, ...allPossibleErrorTypes]));
+  
+  // Get unique statuses for filters
   const statuses = Array.from(new Set(orders.map(o => o.execution_status))) as string[];
 
   return (
@@ -171,11 +196,11 @@ export default function OrdersNeedingAttentionPage() {
                 <select
                   value={filterErrorType}
                   onChange={(e) => setFilterErrorType(e.target.value)}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 bg-white"
                 >
-                  <option value="">All Error Types</option>
+                  <option value="" className="text-gray-900">All Error Types</option>
                   {errorTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
+                    <option key={type} value={type} className="text-gray-900">{type}</option>
                   ))}
                 </select>
               </div>
@@ -186,11 +211,11 @@ export default function OrdersNeedingAttentionPage() {
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 bg-white"
                 >
-                  <option value="">All Statuses</option>
+                  <option value="" className="text-gray-900">All Statuses</option>
                   {statuses.map(status => (
-                    <option key={status} value={status}>{status}</option>
+                    <option key={status} value={status} className="text-gray-900">{status}</option>
                   ))}
                 </select>
               </div>
