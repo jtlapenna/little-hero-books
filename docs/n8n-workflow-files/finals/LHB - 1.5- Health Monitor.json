@@ -544,8 +544,42 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-create-manifest",
+              "leftValue": "={{ $json._route }}",
+              "rightValue": "create_manifest",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "filter-create-manifest-001",
+      "name": "IF: Create Manifest Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        368
+      ]
+    },
+    {
+      "parameters": {
         "method": "POST",
-        "url": "={{ $json._route === 'create_manifest' ? ('https://admin.littleherolabs.com/api/admin/orders/' + $json.amazon_order_id + '/create-manifest') : null }}",
+        "url": "=https://admin.littleherolabs.com/api/admin/orders/{{ $json.amazon_order_id }}/create-manifest",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -622,13 +656,87 @@
           "continueOnFail": true
         }
       },
+      "id": "filter-schedule-retry-001",
+      "name": "IF: Schedule Retry Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        480
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-schedule-retry",
+              "leftValue": "={{ $json._route }}",
+              "rightValue": "schedule_retry",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"ready_for_processing\",\n  \"error_message\": null,\n  \"error_type\": null,\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "options": {
+          "continueOnFail": true
+        }
+      },
       "id": "fbf03972-3623-4177-bc44-b566d2c7305c",
       "name": "Orphaned: Recover: Schedule Retry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         -2432,
-        368
+        480
       ]
     },
     {
@@ -672,13 +780,87 @@
           "continueOnFail": true
         }
       },
+      "id": "filter-manual-review-001",
+      "name": "IF: Manual Review Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        592
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-manual-review",
+              "leftValue": "={{ $json._route }}",
+              "rightValue": "manual_review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_type\": $json.error_type || 'orphaned_order',\n  \"error_message\": `Orphaned order: ${$json.error_message || 'Max retries exceeded or stuck'}. Requires manual intervention.`\n} }}",
+        "options": {
+          "continueOnFail": true
+        }
+      },
       "id": "97d6fe91-c7c7-474b-8d4f-fc79f308e827",
       "name": "Orphaned: Recover: Mark for Manual Review",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         -2224,
-        368
+        592
       ]
     },
     {
@@ -722,13 +904,87 @@
           "continueOnFail": true
         }
       },
+      "id": "filter-reset-processing-001",
+      "name": "IF: Reset Processing Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        704
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-reset-processing",
+              "leftValue": "={{ $json._route }}",
+              "rightValue": "reset_processing",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"ready_for_processing\",\n  \"error_message\": null,\n  \"error_type\": null,\n  \"retry_count\": 0,\n  \"next_retry_at\": null,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "options": {
+          "continueOnFail": true
+        }
+      },
       "id": "730eb6b8-5aa9-4527-82a8-9425fe7e17c3",
       "name": "Orphaned: Recover: Reset Processing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         -2032,
-        368
+        704
       ]
     },
     {
@@ -998,6 +1254,32 @@
       ]
     },
     "Orphaned: Route by Action": {
+      "main": [
+        [
+          {
+            "node": "IF: Create Manifest Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Schedule Retry Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Manual Review Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Reset Processing Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Create Manifest Only": {
       "main": [
         [
           {
