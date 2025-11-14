@@ -363,9 +363,17 @@ export default function OrdersNeedingAttentionPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {order.retry_count ?? 'N/A'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 text-sm text-gray-500">
                         {order.next_retry_at 
-                          ? new Date(order.next_retry_at).toLocaleString()
+                          ? (
+                            <>
+                              {new Date(order.next_retry_at).toLocaleDateString()}
+                              <br />
+                              <span className="text-gray-400">
+                                {new Date(order.next_retry_at).toLocaleTimeString()}
+                              </span>
+                            </>
+                          )
                           : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
