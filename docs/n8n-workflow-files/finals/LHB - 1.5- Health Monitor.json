@@ -3,7 +3,9 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "health-monitor",
+        "responseMode": "lastNode",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
