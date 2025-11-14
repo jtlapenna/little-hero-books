@@ -71,6 +71,9 @@ GRANT SELECT ON orphaned_orders TO anon;
 COMMENT ON VIEW orphaned_orders IS 'Identifies orders that are stuck/orphaned and not being processed by any workflow';
 
 -- Step 2: Create the function
+-- Drop existing function first (required when changing return type)
+DROP FUNCTION IF EXISTS get_orphaned_orders();
+
 CREATE OR REPLACE FUNCTION get_orphaned_orders()
 RETURNS TABLE (
   id INTEGER,

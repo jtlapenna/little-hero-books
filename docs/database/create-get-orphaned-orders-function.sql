@@ -1,6 +1,9 @@
 -- Create a function to get orphaned orders (for n8n to call via RPC)
 -- This function returns the same data as the orphaned_orders view
 
+-- Drop existing function first (required when changing return type)
+DROP FUNCTION IF EXISTS get_orphaned_orders();
+
 CREATE OR REPLACE FUNCTION get_orphaned_orders()
 RETURNS TABLE (
   id INTEGER,
