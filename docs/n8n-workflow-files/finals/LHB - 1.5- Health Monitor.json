@@ -656,14 +656,6 @@
           "continueOnFail": true
         }
       },
-      "id": "filter-schedule-retry-001",
-      "name": "IF: Schedule Retry Only",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        -2624,
-        480
-      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -687,7 +679,15 @@
         "options": {
           "looseTypeValidation": true
         }
-      }
+      },
+      "id": "filter-schedule-retry-001",
+      "name": "IF: Schedule Retry Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        480
+      ]
     },
     {
       "parameters": {
@@ -780,14 +780,6 @@
           "continueOnFail": true
         }
       },
-      "id": "filter-manual-review-001",
-      "name": "IF: Manual Review Only",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        -2624,
-        592
-      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -811,7 +803,15 @@
         "options": {
           "looseTypeValidation": true
         }
-      }
+      },
+      "id": "filter-manual-review-001",
+      "name": "IF: Manual Review Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        592
+      ]
     },
     {
       "parameters": {
@@ -904,14 +904,6 @@
           "continueOnFail": true
         }
       },
-      "id": "filter-reset-processing-001",
-      "name": "IF: Reset Processing Only",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        -2624,
-        704
-      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -935,7 +927,15 @@
         "options": {
           "looseTypeValidation": true
         }
-      }
+      },
+      "id": "filter-reset-processing-001",
+      "name": "IF: Reset Processing Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        704
+      ]
     },
     {
       "parameters": {
