@@ -9,7 +9,7 @@ import { formatDate } from '@/lib/utils';
 import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
 import { OrderStatus } from '@/constants/statuses';
-import { ArrowRight, Clock, AlertCircle, Search, Grid3X3, List, ChevronDown } from 'lucide-react';
+import { ArrowRight, Clock, AlertCircle, Search, Grid3X3, List, ChevronDown, RefreshCw } from 'lucide-react';
 import { buildOrderListItem } from '@/lib/status-display';
 import { REVIEW_TABS, ReviewTabId, getOrdersForTab } from '@/lib/review-page-tabs';
 
@@ -17,39 +17,51 @@ export default function ReviewPage() {
   const router = useRouter();
   const [allOrders, setAllOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<ReviewTabId>('poses');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'orderDate' | 'firstName' | 'lastName' | 'platform'>('orderDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
 
+  const fetchOrders = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const response = await fetch('/api/orders');
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders');
+      }
+      const data: Order[] = await response.json();
+      // Build order list items - we'll filter by tab later
+      const orderListItems: OrderListItem[] = data
+        .filter((order) => order.status !== OrderStatus.COMPLETED)
+        .map((order) => buildOrderListItem(order));
+      
+      setAllOrders(orderListItems);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      // Fallback to mock data
+      const allOrders = getOrderListItems()
+        .filter(order => order.rawStatus !== OrderStatus.COMPLETED);
+      setAllOrders(allOrders);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    // Fetch orders from API
-    fetch('/api/orders')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Failed to fetch orders');
-        }
-        return response.json();
-      })
-      .then((data: Order[]) => {
-        // Build order list items - we'll filter by tab later
-        const orderListItems: OrderListItem[] = data
-          .filter((order) => order.status !== OrderStatus.COMPLETED)
-          .map((order) => buildOrderListItem(order));
-        
-        setAllOrders(orderListItems);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching orders:', error);
-        // Fallback to mock data
-        const allOrders = getOrderListItems()
-          .filter(order => order.rawStatus !== OrderStatus.COMPLETED);
-        setAllOrders(allOrders);
-        setLoading(false);
-      });
+    fetchOrders();
   }, []);
+
+  const handleRefresh = () => {
+    fetchOrders(true);
+  };
 
   // Get orders for the active tab
   const tabOrders = getOrdersForTab(allOrders, activeTab);
@@ -126,6 +138,15 @@ export default function ReviewPage() {
               </p>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing || loading}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                title="Refresh orders"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
               <span className="text-sm text-gray-500">
                 {filteredAndSortedOrders.length} {filteredAndSortedOrders.length === 1 ? 'order' : 'orders'} in {activeTabConfig?.label || 'current tab'}
               </span>

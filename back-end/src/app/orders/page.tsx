@@ -12,37 +12,50 @@ import { OrderPhase, groupOrdersByPhase, PHASE_ORDER } from '@/constants/phases'
 import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDate } from '@/lib/utils';
 import { buildOrderListItem } from '@/lib/status-display';
+import { RefreshCw } from 'lucide-react';
 
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState<OrderPhase | null>(null);
   const [viewMode, setViewMode] = useState<'buckets' | 'table'>('table');
 
+  const fetchOrders = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const response = await fetch('/api/orders');
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders');
+      }
+      const data: Order[] = await response.json();
+      const orderListItems: OrderListItem[] = data.map((order) =>
+        buildOrderListItem(order)
+      );
+      setOrders(orderListItems);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      // Don't fallback to mock data - show empty state instead
+      setOrders([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    // Fetch orders from API
-    fetch('/api/orders')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Failed to fetch orders');
-        }
-        return response.json();
-      })
-      .then((data: Order[]) => {
-        const orderListItems: OrderListItem[] = data.map((order) =>
-          buildOrderListItem(order)
-        );
-        setOrders(orderListItems);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching orders:', error);
-        // Don't fallback to mock data - show empty state instead
-        setOrders([]);
-        setLoading(false);
-      });
+    fetchOrders();
   }, []);
+
+  const handleRefresh = () => {
+    fetchOrders(true);
+  };
 
   const handleOrderClick = (orderId: string) => {
     router.push(`/orders/${orderId}`);
@@ -79,6 +92,15 @@ export default function OrdersPage() {
           </p>
         </div>
             <div className="flex items-center space-x-2">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing || loading}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                title="Refresh orders"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
               <button
                 onClick={() => setViewMode('buckets')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
