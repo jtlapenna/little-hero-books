@@ -29,7 +29,35 @@ const { title, description = "Little Hero Labs - Become the hero of your own sto
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     
-    <!-- Analytics placeholder - add your analytics script here -->
+    <!-- Google Analytics (GA4) -->
+    {import.meta.env.PUBLIC_GA_MEASUREMENT_ID && (
+      <>
+        <script
+          async
+          src={`https://www.googletagmanager.com/gtag/js?id=${import.meta.env.PUBLIC_GA_MEASUREMENT_ID}`}
+        />
+        <script
+          is:inline
+          define:vars={{ gaId: import.meta.env.PUBLIC_GA_MEASUREMENT_ID }}
+        >
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', gaId);
+        </script>
+      </>
+    )}
+
+    <!-- Google Search Console Verification -->
+    {import.meta.env.PUBLIC_GSC_VERIFICATION && (
+      <meta name="google-site-verification" content={import.meta.env.PUBLIC_GSC_VERIFICATION} />
+    )}
+
+    <!-- Ahrefs Verification -->
+    {import.meta.env.PUBLIC_AHREFS_VERIFICATION && (
+      <meta name="ahrefs-site-verification" content={import.meta.env.PUBLIC_AHREFS_VERIFICATION} />
+    )}
+
     <slot name="head" />
   </head>
   <body>
