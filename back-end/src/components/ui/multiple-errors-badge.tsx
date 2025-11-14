@@ -77,21 +77,23 @@ export function MultipleErrorsBadge({ errors, className = '' }: MultipleErrorsBa
       {/* Hover Tooltip - Fixed positioning to appear above table overflow */}
       {showTooltip && !showDetails && (
         <div 
-          className="fixed z-[99999] w-64 p-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl"
+          className="fixed z-[99999] max-w-md min-w-64 p-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl"
           style={{
             top: `${tooltipPosition.top}px`,
             left: `${tooltipPosition.left}px`,
-            pointerEvents: 'auto'
+            pointerEvents: 'auto',
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word'
           }}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
         >
-          <div className="font-semibold mb-2">Multiple Issues Detected:</div>
+          <div className="font-semibold mb-2 break-words">Multiple Issues Detected:</div>
           <ul className="space-y-1">
             {errorList.map((error, idx) => (
-              <li key={idx} className="flex flex-col">
-                <span className="font-medium">{error.label}</span>
-                <span className="text-xs text-gray-300 mt-0.5">{error.description}</span>
+              <li key={idx} className="flex flex-col break-words">
+                <span className="font-medium break-words">{error.label}</span>
+                <span className="text-xs text-gray-300 mt-0.5 break-words">{error.description}</span>
               </li>
             ))}
           </ul>
@@ -104,11 +106,13 @@ export function MultipleErrorsBadge({ errors, className = '' }: MultipleErrorsBa
       {/* Expanded Details Panel - Fixed positioning to appear above table overflow */}
       {showDetails && badgeRef.current && (
         <div 
-          className="fixed z-[99999] w-80 p-4 bg-white border-2 border-red-200 rounded-lg shadow-xl"
+          className="fixed z-[99999] max-w-lg min-w-80 p-4 bg-white border-2 border-red-200 rounded-lg shadow-xl"
           style={{
             top: `${tooltipPosition.top}px`,
             left: `${tooltipPosition.left}px`,
-            pointerEvents: 'auto'
+            pointerEvents: 'auto',
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word'
           }}
         >
           <div className="flex items-start justify-between mb-3">
@@ -125,9 +129,9 @@ export function MultipleErrorsBadge({ errors, className = '' }: MultipleErrorsBa
           </div>
           <div className="space-y-3">
             {errorList.map((error, idx) => (
-              <div key={idx} className="border-l-4 border-red-400 pl-3">
-                <div className="font-medium text-sm text-gray-900">{error.label}</div>
-                <div className="text-xs text-gray-600 mt-1">{error.description}</div>
+              <div key={idx} className="border-l-4 border-red-400 pl-3 break-words">
+                <div className="font-medium text-sm text-gray-900 break-words">{error.label}</div>
+                <div className="text-xs text-gray-600 mt-1 break-words">{error.description}</div>
               </div>
             ))}
           </div>
