@@ -129,8 +129,21 @@ export async function GET(request: NextRequest) {
     }
 
     // 3. Check for orphaned orders (using RPC function)
+    // Exclude orders that are already in the stuck query to avoid duplicate processing
     const orphanedQueryStart = Date.now();
-    const { data: orphanedOrders, error: orphanedError } = await supabase.rpc('get_orphaned_orders');
+    const { data: orphanedOrdersRaw, error: orphanedError } = await supabase.rpc('get_orphaned_orders');
+    
+    // Filter out orders that are already being processed as stuck
+    // This prevents orders stuck 30-60 minutes from being processed by both paths
+    const stuckOrderIds = new Set((stuckOrders || []).map((o: any) => o.id));
+    const orphanedOrders = (orphanedOrdersRaw || []).filter((o: any) => {
+      // Exclude processing orders that are already in stuck query
+      // (orphaned query catches processing orders > 1 hour, but stuck query catches > 30 minutes)
+      if (o.execution_status === 'processing' && stuckOrderIds.has(o.id)) {
+        return false; // Already being processed as stuck
+      }
+      return true; // Include all other orphaned orders
+    });
     metrics.orphanedQueryMs = Date.now() - orphanedQueryStart;
 
     if (orphanedError) {
