@@ -74,20 +74,6 @@
     },
     {
       "parameters": {
-        "jsCode": "// Pass through orders from webhook (already fetched by Vercel Cron)\n// Orders come from Extract Orders from Webhook node\nconst orders = $input.all();\n\nif (!orders || orders.length === 0) {\n  console.log('No orders to route');\n  return [];\n}\n\nconsole.log(`Passing through ${orders.length} orders for routing`);\n\n// Return orders as-is (already in correct format from Vercel)\nreturn orders;"
-      },
-      "id": "6361b924-3566-44d5-b3d2-1eea3121c85b",
-      "name": "Pass Through Orders",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -1520,
-        -160
-      ],
-      "notes": "Passes through orders from Vercel Cron webhook (already fetched and filtered)"
-    },
-    {
-      "parameters": {
         "jsCode": "// Reset capacity counter when we have capacity\nif ($execution.customData) {\n  $execution.customData.capacityFullCycles = 0;\n}\n\n// Route order to correct workflow based on next_workflow field\nconst orders = $input.all();\n\nif (!orders || orders.length === 0) {\n  console.log('No orders to route');\n  return [];\n}\n\nconst routed = {\n  workflow2A: [],\n  workflow2B: [],\n  workflow3: [],\n  workflow4: []\n};\n\nfor (const item of orders) {\n  const order = item.json;\n  const nextWorkflow = order.next_workflow;\n  \n  console.log(`Order ${order.amazon_order_id}: Route to ${nextWorkflow}`);\n  \n  if (nextWorkflow === '2A') {\n    routed.workflow2A.push(order);\n  } else if (nextWorkflow === '2B') {\n    routed.workflow2B.push(order);\n  } else if (nextWorkflow === '3') {\n    routed.workflow3.push(order);\n  } else if (nextWorkflow === '4') {\n    routed.workflow4.push(order);\n  } else {\n    console.warn(`⚠️ Unknown workflow: ${nextWorkflow} for order ${order.amazon_order_id}`);\n  }\n}\n\nconsole.log(`Routing summary:`);\nconsole.log(`  2A: ${routed.workflow2A.length} orders`);\nconsole.log(`  2B: ${routed.workflow2B.length} orders`);\nconsole.log(`  3: ${routed.workflow3.length} orders`);\nconsole.log(`  4: ${routed.workflow4.length} orders`);\n\nreturn [{ json: routed }];"
       },
       "id": "0a218283-3ac2-4926-affc-278256a12cd0",
@@ -515,17 +501,6 @@
       ]
     },
     "Extract Orders from Webhook": {
-      "main": [
-        [
-          {
-            "node": "Pass Through Orders",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Pass Through Orders": {
       "main": [
         [
           {
