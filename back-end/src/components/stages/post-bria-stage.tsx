@@ -14,10 +14,9 @@ interface PostBriaStageProps {
   onApprove: (nextStatus: 'approved' | 'pending') => Promise<void> | void;
   onInitiateWorkflow: () => void;
   onRefresh?: () => void;
-  onOrderUpdate?: (updates: Partial<Order>) => void;
 }
 
-export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh, onOrderUpdate }: PostBriaStageProps) {
+export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PostBriaStageProps) {
   const [showBlackBackground, setShowBlackBackground] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [approveStageConfirmed, setApproveStageConfirmed] = useState(!!isApproved);
@@ -381,11 +380,10 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         }, 'image/png');
       });
 
-      // Create FormData and upload the flipped image
+      // Create FormData and upload the flipped image (replaces original - no flip state needed)
       const formData = new FormData();
       formData.append('poseNumber', poseNumber.toString());
-      formData.append('stage', 'postBria');
-      formData.append('isFlipped', 'true'); // Mark this as a flip operation
+      formData.append('stage', 'postBria'); // Post-Bria stage - replaces original bg-removed image
       formData.append('file', blob, `pose${String(poseNumber).padStart(2, '0')}-nobg.png`);
 
       const response = await fetch(`/api/orders/${orderId}/replace-image`, {
@@ -604,19 +602,12 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
               manuallyFlaggedRef.current.delete(assetId);
             }
             
-            // Update order flags and review stages from API response
-            if (onOrderUpdate) {
-              const updates: any = {};
-              if (result.flags) {
-                updates.flags = result.flags;
-              }
-              if (result.reviewStages) {
-                updates.reviewStages = result.reviewStages;
-              }
-              if (Object.keys(updates).length > 0) {
-                onOrderUpdate(updates);
-              }
-            }
+            // Update flag count after successful API call
+            const updatedPoses = prev.map(pose => 
+              pose.id === assetId ? { ...pose, isFlagged: newFlaggedState } : pose
+            );
+            const newFlaggedCount = updatedPoses.filter(asset => asset.isFlagged).length;
+            await setFlaggedCount(orderId, 'postBria', newFlaggedCount);
           }
         }).catch(error => {
           console.error(`[PostBriaStage] Error persisting ${newFlaggedState ? 'flagging' : 'unflagging'}:`, error);
@@ -633,7 +624,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       );
       
       // Update flag count immediately (optimistic)
-      const newFlaggedCount = updated.filter(asset => asset.isFlagged).length;
+        const newFlaggedCount = updated.filter(asset => asset.isFlagged).length;
       setFlaggedCount(orderId, 'postBria', newFlaggedCount).catch(err => {
         console.error('[PostBriaStage] Failed to update flag count:', err);
       });
@@ -674,23 +665,23 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     if (!canTriggerAssembly || isTriggering) return;
     setIsTriggering(true);
     try {
-      // Call n8n webhook directly (mirrors 2B pattern)
-      const webhookUrl = 'https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly';
-      const resp = await fetch(webhookUrl, {
+      // Queue order for workflow 3 via W1.1 router
+      // This updates Supabase to mark the order as ready for workflow 3
+      // W1.1 will pick it up on its next cycle (every 30 seconds)
+      const resp = await fetch(`/api/orders/${orderId}/queue-workflow-3`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId }),
       });
       if (!resp.ok) {
         const txt = await resp.text();
-        console.error('Trigger assembly failed', resp.status, txt);
-        alert(`Failed to trigger book assembly: ${resp.status} ${txt}`);
+        console.error('Queue workflow 3 failed', resp.status, txt);
+        alert(`Failed to queue order for book assembly: ${resp.status} ${txt}`);
         return;
       }
-      alert('Book assembly triggered');
+      alert('Order queued for book assembly. W1.1 router will process it within 30 seconds.');
     } catch (e) {
-      console.error('Trigger assembly error', e);
-      alert('Error triggering book assembly');
+      console.error('Queue workflow 3 error', e);
+      alert('Error queueing order for book assembly');
     } finally {
       setIsTriggering(false);
     }
@@ -845,7 +836,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
                   ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
-              title={isApproved ? 'Trigger Workflow 3 (Book Assembly)' : 'Approve stage to enable book assembly'}
+              title={isApproved ? 'Queue order for Workflow 3 via W1.1 router' : 'Approve stage to enable book assembly'}
               >
               <Play className="h-4 w-4 mr-2" />
               {isTriggering ? 'Triggering…' : 'Trigger Book Assembly'}
