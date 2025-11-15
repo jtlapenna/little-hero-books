@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Clipboard,
   Printer,
+  X,
 } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
@@ -203,6 +204,13 @@ export function PostPdfStage({
   onSendToPrint,
   onOrderUpdate,
 }: PostPdfStageProps) {
+  const [approveStageConfirmed, setApproveStageConfirmed] = useState(!!isApproved);
+  
+  // Update approveStageConfirmed when isApproved prop changes
+  useEffect(() => {
+    setApproveStageConfirmed(!!isApproved);
+  }, [isApproved]);
+
   const [pdfAsset, setPdfAsset] = useState({
     id: 'compiled-pdf',
     name: 'Compiled PDF',
@@ -2013,16 +2021,48 @@ export function PostPdfStage({
   // Check for flagged pages
   const flaggedPageCount = pageAssets.filter(asset => asset.isFlagged).length;
   
-  const canApprove =
+  // Can approve stage (for "Approve Stage" button)
+  const canApproveStage =
     !pdfAsset.isFlagged &&
     flaggedPageCount === 0 && // Cannot approve if any pages are flagged
     isPreBriaApproved &&
     isPostBriaApproved &&
     (pdfAsset.exists || allowApproveWithoutPdf || pdfUnavailableForEnv);
+  
+  // Can send for customer approval (requires stage to be approved first)
+  const canApprove =
+    approveStageConfirmed &&
+    canApproveStage;
+  
   const requiresPdfWarning =
     !pdfAsset.exists && !allowApproveWithoutPdf && !pdfUnavailableForEnv;
   const devPdfNotice =
     !pdfAsset.exists && (allowApproveWithoutPdf || pdfUnavailableForEnv);
+  
+  // Handle approve stage
+  const handleApproveStage = async () => {
+    const targetStatus = approveStageConfirmed ? 'pending' : 'approved';
+    try {
+      await onApprove(targetStatus);
+      setApproveStageConfirmed(targetStatus === 'approved');
+      // Optional refresh to reflect server state
+      if (onRefresh) {
+        setTimeout(() => {
+          onRefresh();
+        }, 250);
+      }
+    } catch (e) {
+      console.error('Approve PostPdf failed', e);
+      alert('Failed to approve stage');
+    }
+  };
+  
+  // Un-confirm approval when flags are set
+  useEffect(() => {
+    if (pdfAsset.isFlagged || flaggedPageCount > 0) {
+      setApproveStageConfirmed(false);
+    }
+  }, [pdfAsset.isFlagged, flaggedPageCount]);
 
   const currentSpread = spreads[currentSpreadIndex];
   const totalSpreads = spreads.length;
@@ -2655,6 +2695,8 @@ export function PostPdfStage({
                 ? 'The Post-Bria stage must be approved before final PDF review can begin.'
                 : pdfAsset.isFlagged
                 ? 'Please address the flagged issues before sending for customer approval.'
+                : !approveStageConfirmed
+                ? 'First approve this stage, then send for customer approval.'
                 : 'Review the compiled PDF and approve when ready for production.'}
             </p>
             {devPdfNotice && (
@@ -2712,18 +2754,46 @@ export function PostPdfStage({
               </button>
               )
             ) : (
-              <button
-                onClick={() => onApprove('approved')}
-                disabled={!canApprove}
-                className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                  !canApprove
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
-                }`}
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Send for Customer Approval
-              </button>
+              <>
+                {/* Step 1: Approve Stage */}
+                <button
+                  onClick={handleApproveStage}
+                  disabled={approveStageConfirmed ? false : !canApproveStage}
+                  className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all ${
+                    approveStageConfirmed
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 focus:ring-emerald-500'
+                      : canApproveStage
+                      ? 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 hover:border-slate-400 focus:ring-slate-500'
+                      : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
+                  }`}
+                >
+                  {approveStageConfirmed ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Approve Stage
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Approve Stage
+                    </>
+                  )}
+                </button>
+                
+                {/* Step 2: Send for Customer Approval */}
+                <button
+                  onClick={() => onApprove('approved')}
+                  disabled={!canApprove}
+                  className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    !canApprove
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
+                  }`}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Send for Customer Approval
+                </button>
+              </>
             )}
           </div>
         </div>
