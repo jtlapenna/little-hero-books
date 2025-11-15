@@ -2765,10 +2765,10 @@ export function PostPdfStage({
                   {previewJustSent
                     ? 'Preview Sent'
                     : finalApprovalIsLoading
-                    ? 'Sending Proof...'
+                    ? 'Sending for Customer Approval...'
                     : hasExistingPreview
-                    ? 'Resend Proof'
-                    : 'Send Proof'}
+                    ? 'Resend for Customer Approval'
+                    : 'Send for Customer Approval'}
               </button>
               )
             ) : (
