@@ -2009,8 +2009,8 @@ export function PostPdfStage({
     // The flag count in Supabase is sufficient for tracking
   };
 
-  const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
-  const isPostBriaApproved = order.reviewStages.postBria.status === 'approved';
+  const isPreBriaApproved = order.reviewStages?.preBria?.status === 'approved';
+  const isPostBriaApproved = order.reviewStages?.postBria?.status === 'approved';
   const allowApproveWithoutPdf =
     process.env.NODE_ENV !== 'production' ||
     process.env.NEXT_PUBLIC_ALLOW_APPROVAL_WITHOUT_PDF === 'true';
@@ -2022,12 +2022,30 @@ export function PostPdfStage({
   const flaggedPageCount = pageAssets.filter(asset => asset.isFlagged).length;
   
   // Can approve stage (for "Approve Stage" button)
+  // Note: Only requires PostBria approval (not PreBria) because if workflow 3 completed,
+  // it means the order already passed through PreBria and PostBria stages
   const canApproveStage =
     !pdfAsset.isFlagged &&
     flaggedPageCount === 0 && // Cannot approve if any pages are flagged
-    isPreBriaApproved &&
-    isPostBriaApproved &&
+    isPostBriaApproved && // Only require PostBria approval (workflow 3 completion implies PreBria passed)
     (pdfAsset.exists || allowApproveWithoutPdf || pdfUnavailableForEnv);
+  
+  // Debug logging to help diagnose why button is disabled
+  useEffect(() => {
+    if (!canApproveStage) {
+      console.log('[PostPdfStage] Approve Stage button disabled. Reasons:', {
+        pdfAssetIsFlagged: pdfAsset.isFlagged,
+        flaggedPageCount,
+        isPostBriaApproved,
+        pdfAssetExists: pdfAsset.exists,
+        pdfAssetLoading: pdfAsset.loading,
+        pdfAssetError: pdfAsset.error,
+        allowApproveWithoutPdf,
+        pdfUnavailableForEnv,
+        canApproveStage
+      });
+    }
+  }, [canApproveStage, pdfAsset.isFlagged, flaggedPageCount, isPostBriaApproved, pdfAsset.exists, pdfAsset.loading, pdfAsset.error, allowApproveWithoutPdf, pdfUnavailableForEnv]);
   
   // Can send for customer approval (requires stage to be approved first)
   const canApprove =
@@ -2689,8 +2707,6 @@ export function PostPdfStage({
                 ? 'This order has been fully approved and is ready for production.'
                 : requiresPdfWarning
                 ? 'The compiled PDF must be generated before sending for customer approval.'
-                : !isPreBriaApproved
-                ? 'The Pre-Bria stage must be approved before final PDF review can begin.'
                 : !isPostBriaApproved
                 ? 'The Post-Bria stage must be approved before final PDF review can begin.'
                 : pdfAsset.isFlagged
