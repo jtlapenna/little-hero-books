@@ -152,9 +152,12 @@ BEGIN
     -- Error orders without proper retry setup
     (o.execution_status = 'error' 
      AND (o.next_retry_at IS NULL OR o.retry_count >= 3))
-    -- Processing orders stuck
+    -- Processing orders stuck (BUT exclude orders that have completed their workflow)
+    -- These are waiting for review, not actually stuck
     OR (o.execution_status = 'processing' 
-        AND (o.started_at IS NULL OR o.started_at < NOW() - INTERVAL '1 hour'))
+        AND (o.started_at IS NULL OR o.started_at < NOW() - INTERVAL '1 hour')
+        -- Exclude orders with completed workflow_step (waiting for review, not stuck)
+        AND o.workflow_step NOT IN ('2A-complete', '2B-complete', 'bria_processing_complete', 'book_assembly_completed', 'ai_generation_completed'))
     -- Ready but not picked up
     OR (o.execution_status = 'ready_for_processing' 
         AND o.queued_at < NOW() - INTERVAL '30 minutes')

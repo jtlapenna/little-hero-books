@@ -2024,11 +2024,12 @@ export function PostPdfStage({
   // Can approve stage (for "Approve Stage" button)
   // Note: Only requires PostBria approval (not PreBria) because if workflow 3 completed,
   // it means the order already passed through PreBria and PostBria stages
+  // Use workflow3Completed as a fallback indicator that PDF exists (even if async check hasn't completed)
   const canApproveStage =
     !pdfAsset.isFlagged &&
     flaggedPageCount === 0 && // Cannot approve if any pages are flagged
     isPostBriaApproved && // Only require PostBria approval (workflow 3 completion implies PreBria passed)
-    (pdfAsset.exists || allowApproveWithoutPdf || pdfUnavailableForEnv);
+    (pdfAsset.exists || workflow3Completed || allowApproveWithoutPdf || pdfUnavailableForEnv);
   
   // Debug logging to help diagnose why button is disabled
   useEffect(() => {
@@ -2040,12 +2041,13 @@ export function PostPdfStage({
         pdfAssetExists: pdfAsset.exists,
         pdfAssetLoading: pdfAsset.loading,
         pdfAssetError: pdfAsset.error,
+        workflow3Completed,
         allowApproveWithoutPdf,
         pdfUnavailableForEnv,
         canApproveStage
       });
     }
-  }, [canApproveStage, pdfAsset.isFlagged, flaggedPageCount, isPostBriaApproved, pdfAsset.exists, pdfAsset.loading, pdfAsset.error, allowApproveWithoutPdf, pdfUnavailableForEnv]);
+  }, [canApproveStage, pdfAsset.isFlagged, flaggedPageCount, isPostBriaApproved, pdfAsset.exists, pdfAsset.loading, pdfAsset.error, workflow3Completed, allowApproveWithoutPdf, pdfUnavailableForEnv]);
   
   // Can send for customer approval (requires stage to be approved first)
   const canApprove =

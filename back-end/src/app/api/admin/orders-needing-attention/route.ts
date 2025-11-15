@@ -194,7 +194,29 @@ export async function GET(request: NextRequest) {
     const orderMap = new Map<number, any>();
 
     // Process orphaned orders
-    (orphanedData || []).forEach((order: any) => {
+    // IMPORTANT: Filter out orders that have completed their workflow
+    // These are waiting for review, not actually orphaned
+    const trulyOrphanedData = (orphanedData || []).filter((order: any) => {
+      // Check if workflow has actually completed by checking workflow_step
+      // This is the primary indicator - when workflow completes, workflow_step is set to '2A-complete', etc.
+      const hasCompletedStep = 
+        order.workflow_step === '2A-complete' ||
+        order.workflow_step === '2B-complete' ||
+        order.workflow_step === 'bria_processing_complete' ||
+        order.workflow_step === 'book_assembly_completed' ||
+        order.workflow_step === 'ai_generation_completed';
+      
+      // If workflow completed, exclude from orphaned orders
+      // These orders are waiting for review, not actually orphaned
+      if (hasCompletedStep) {
+        console.log(`[GET /api/admin/orders-needing-attention] Excluding ${order.amazon_order_id} from orphaned orders - workflow completed (workflow_step: ${order.workflow_step})`);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    (trulyOrphanedData || []).forEach((order: any) => {
       if ((order.minutes_orphaned || 0) >= minMinutes) {
         // Debug: Log JOHN-TEST4 processing
         if (order.amazon_order_id === 'JOHN-TEST4') {

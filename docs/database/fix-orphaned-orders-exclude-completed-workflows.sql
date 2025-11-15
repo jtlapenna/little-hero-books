@@ -1,7 +1,9 @@
--- Create a function to get orphaned orders (for n8n to call via RPC)
--- This function returns the same data as the orphaned_orders view
+-- Fix: Exclude completed workflows from orphaned orders detection
+-- This prevents orders that have completed their workflow (waiting for review) 
+-- from being incorrectly classified as "stuck" or "orphaned"
+--
+-- Run this in Supabase SQL Editor to update the get_orphaned_orders() function
 
--- Drop existing function first (required when changing return type)
 DROP FUNCTION IF EXISTS get_orphaned_orders();
 
 CREATE OR REPLACE FUNCTION get_orphaned_orders()
@@ -52,14 +54,20 @@ BEGIN
       THEN 'error_max_retries_exceeded'::TEXT
       
       -- Processing orders stuck too long (should be caught by W1.2)
+      -- BUT exclude orders that have completed their workflow (waiting for review, not stuck)
       WHEN o.execution_status = 'processing' 
            AND o.started_at IS NOT NULL 
            AND o.started_at < NOW() - INTERVAL '1 hour'
+           -- Exclude orders with completed workflow_step (waiting for review, not stuck)
+           AND o.workflow_step NOT IN ('2A-complete', '2B-complete', 'bria_processing_complete', 'book_assembly_completed', 'ai_generation_completed')
       THEN 'processing_stuck_over_hour'::TEXT
       
       -- Processing orders with no timestamp (should be caught by W1.2)
+      -- BUT exclude orders that have completed their workflow
       WHEN o.execution_status = 'processing' 
            AND o.started_at IS NULL
+           -- Exclude orders with completed workflow_step (waiting for review, not stuck)
+           AND o.workflow_step NOT IN ('2A-complete', '2B-complete', 'bria_processing_complete', 'book_assembly_completed', 'ai_generation_completed')
       THEN 'processing_no_timestamp'::TEXT
       
       -- Ready but not being picked up (capacity issue or router not running)
@@ -103,5 +111,5 @@ GRANT EXECUTE ON FUNCTION get_orphaned_orders() TO service_role;
 GRANT EXECUTE ON FUNCTION get_orphaned_orders() TO anon;
 
 -- Add comment
-COMMENT ON FUNCTION get_orphaned_orders() IS 'Returns orders that are stuck/orphaned and not being processed by any workflow. Used by W1.4 Orphaned Orders Monitor.';
+COMMENT ON FUNCTION get_orphaned_orders() IS 'Returns orders that are stuck/orphaned and not being processed by any workflow. Excludes orders that have completed their workflow (waiting for review, not stuck). Used by W1.5 Health Monitor.';
 
