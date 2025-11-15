@@ -251,8 +251,8 @@ export function PostPdfStage({
   const customerRevisionUsed = revisionCount >= 1;
 
   // Button logic:
-  // - First Review (revisionCount === 0): After Final Approval → Show "Send Proof" button
-  // - Second Review (revisionCount >= 1): After Final Approval → Show "Send to Print" button
+  // - First Review (revisionCount === 0): After Send for Customer Approval → Show "Send Proof" button
+  // - Second Review (revisionCount >= 1): After Send for Customer Approval → Show "Send to Print" button
   // 
   // Show "Send to Print" only if:
   // 1. Stage is approved
@@ -264,6 +264,13 @@ export function PostPdfStage({
 
   const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
+
+  // Check if workflow 3 has completed
+  // Workflow 3 is complete if manifest3Url exists or workflowStep is 'book_assembly_completed'
+  const workflow3Completed = !!(
+    order.manifest3Url ||
+    order.workflowStep === 'book_assembly_completed'
+  );
 
   // Track if images have been successfully loaded from manifest (stop polling once found)
   const imagesFoundRef = useRef(false);
@@ -2154,7 +2161,7 @@ export function PostPdfStage({
           <div>
             <h3 className="text-lg font-medium text-gray-900">Final Compiled PDF</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Review the complete personalized book before final approval
+              Review the complete personalized book before sending for customer approval
             </p>
             {pdfAsset.isFlagged && (
               <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -2189,7 +2196,26 @@ export function PostPdfStage({
         </div>
 
         {/* PDF Viewer - Page Preview */}
-        {loadingPages && (
+        {/* Show message if workflow 3 hasn't completed yet */}
+        {!workflow3Completed && (
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="h-[800px] bg-gray-50 flex items-center justify-center">
+              <div className="text-center max-w-md">
+                <Loader2 className="h-12 w-12 text-blue-500 animate-spin mx-auto mb-4" />
+                <h4 className="text-lg font-medium text-gray-900 mb-2">Workflow 3 Not Completed</h4>
+                <p className="text-gray-600 text-sm mb-4">
+                  Book preview will appear here once Workflow 3 (Book Assembly) completes.
+                </p>
+                <p className="text-gray-500 text-xs">
+                  This page will refresh automatically every 10 seconds.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Show loading state only if workflow 3 has completed */}
+        {workflow3Completed && loadingPages && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="h-[800px] bg-gray-50 flex items-center justify-center">
               <div className="text-center">
@@ -2200,7 +2226,8 @@ export function PostPdfStage({
           </div>
         )}
 
-        {pagesError && (
+        {/* Show error state only if workflow 3 has completed */}
+        {workflow3Completed && pagesError && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="h-[800px] bg-gray-50 flex items-center justify-center">
               <div className="text-center">
@@ -2211,15 +2238,15 @@ export function PostPdfStage({
           </div>
         )}
 
-        {/* Show "Preview Images Pending" only if no spreads exist yet */}
-        {!loadingPages && !pagesError && pages.length === 0 && spreads.length === 0 && (
+        {/* Show "Preview Images Pending" only if workflow 3 is completed but no spreads exist yet */}
+        {workflow3Completed && !loadingPages && !pagesError && pages.length === 0 && spreads.length === 0 && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="h-[800px] bg-gray-50 flex items-center justify-center">
               <div className="text-center max-w-md">
                 <Loader2 className="h-12 w-12 text-blue-500 animate-spin mx-auto mb-4" />
                 <h4 className="text-lg font-medium text-gray-900 mb-2">Preview Images Pending</h4>
                 <p className="text-gray-600 text-sm mb-4">
-                  Book preview images will appear here automatically once Workflow 3 (Book Assembly) completes.
+                  Book preview images are being loaded. They will appear here automatically.
                 </p>
                 <p className="text-gray-500 text-xs">
                   This page will refresh automatically every 10 seconds.
@@ -2229,7 +2256,7 @@ export function PostPdfStage({
           </div>
         )}
 
-        {!pagesError && spreads.length > 0 && currentSpread && (
+        {workflow3Completed && !pagesError && spreads.length > 0 && currentSpread && (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
             {/* Viewer Header */}
             <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
@@ -2600,18 +2627,18 @@ export function PostPdfStage({
       <div className="bg-gray-50 rounded-lg p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h4 className="text-lg font-medium text-gray-900">Final Approval</h4>
+            <h4 className="text-lg font-medium text-gray-900">Send for Customer Approval</h4>
             <p className="text-sm text-gray-600 mt-1">
               {isApproved 
                 ? 'This order has been fully approved and is ready for production.'
                 : requiresPdfWarning
-                ? 'The compiled PDF must be generated before final approval can be completed.'
+                ? 'The compiled PDF must be generated before sending for customer approval.'
                 : !isPreBriaApproved
                 ? 'The Pre-Bria stage must be approved before final PDF review can begin.'
                 : !isPostBriaApproved
                 ? 'The Post-Bria stage must be approved before final PDF review can begin.'
                 : pdfAsset.isFlagged
-                ? 'Please address the flagged issues before final approval.'
+                ? 'Please address the flagged issues before sending for customer approval.'
                 : 'Review the compiled PDF and approve when ready for production.'}
             </p>
             {devPdfNotice && (
@@ -2679,7 +2706,7 @@ export function PostPdfStage({
                 }`}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Final Approval
+                Send for Customer Approval
               </button>
             )}
           </div>

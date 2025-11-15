@@ -52,6 +52,7 @@ export interface Order {
   errorType?: string; // error_type from Supabase
   retryCount?: number; // retry_count from Supabase
   oneManifestUrl?: string; // one_manifest_url from Supabase
+  manifest3Url?: string; // manifest_3_url from Supabase
   startedAt?: string; // started_at from Supabase
   queuedAt?: string; // queued_at from Supabase
   createdAt?: string;
