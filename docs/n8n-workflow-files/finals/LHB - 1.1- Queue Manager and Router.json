@@ -459,7 +459,20 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// Fetch a signed GET URL for oneManifestKey via backend\n// NOTE: n8n Cloud doesn't allow env var access in Code nodes, so using defaults\nconst item = $input.first().json;\nconst endpoint = 'https://admin.littleherolabs.com/api/r2/signed-url';\nconst token = ''; // Backend endpoint may not require auth, or auth is handled server-side\nconst ttl = 600;\n\nif (!item.oneManifestKey) {\n  throw new Error('Missing oneManifestKey');\n}\n\nconst res = await this.helpers.request({\n  method: 'GET',\n  uri: endpoint,\n  qs: { key: item.oneManifestKey, bucket: 'little-hero-orders', expiresIn: ttl },\n  headers: token ? { Authorization: `Bearer ${token}` } : {},\n  json: true\n});\n\nconst oneManifestUrl = res.url || res.data?.url || res.json?.url || res.result?.url;\nif (!oneManifestUrl) {\n  throw new Error('Signed URL endpoint did not return a URL');\n}\n\nreturn [{ json: { ...item, oneManifestUrl } }];\n"
+        "jsCode": "// Verify Order Claimed (4)\n// Check if the PATCH succeeded - if empty array, order was already claimed\n\nconst markResult = $input.first().json || {};\nconst isArray = Array.isArray(markResult);\nconst hasData = isArray ? markResult.length > 0 : (markResult && Object.keys(markResult).length > 0);\n\nif (!hasData) {\n  console.log('⚠️ Order already claimed by another router cycle - skipping trigger');\n  return []; // Empty output stops execution\n}\n\nconsole.log('✅ Order successfully claimed - proceeding to trigger');\nconst orderData = isArray ? markResult[0] : markResult;\n\n// Pass through original routing data\nconst prepData = $('Prep Workflow 4 Orders').first().json;\nreturn [{\n  json: {\n    ...prepData,\n    orderDbId: orderData.id || prepData.orderDbId,\n    claimedAt: orderData.started_at,\n    oneManifestUrl: prepData.oneManifestUrl || prepData.oneManifestKey\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        352
+      ],
+      "id": "f4e5d6c7-8901-2345-b678-9c0d1e2f3a4b",
+      "name": "Verify Order Claimed (4)"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Fetch a signed GET URL for oneManifestKey via backend\n// NOTE: n8n Cloud doesn't allow env var access in Code nodes, so using hardcoded token\n// IMPORTANT: This token must match BACKEND_API_TOKEN in Vercel environment variables\nconst item = $input.first().json;\nconst endpoint = 'https://admin.littleherolabs.com/api/r2/signed-url';\n// Backend API token for authentication (from W0 config)\n// Update this if BACKEND_API_TOKEN changes in Vercel\nconst token = 'e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646';\nconst ttl = 600;\n\nif (!item.oneManifestKey) {\n  throw new Error('Missing oneManifestKey');\n}\n\nif (!token || token.trim() === '') {\n  throw new Error('BACKEND_API_TOKEN not configured. Token is required for authentication.');\n}\n\nconsole.log(`[Get Signed URL] Requesting signed URL for: ${item.oneManifestKey}`);\nconsole.log(`[Get Signed URL] Endpoint: ${endpoint}`);\nconsole.log(`[Get Signed URL] Token present: ${!!token} (length: ${token.length})`);\n\ntry {\n  const res = await this.helpers.request({\n    method: 'GET',\n    uri: endpoint,\n    qs: { key: item.oneManifestKey, bucket: 'little-hero-orders', expiresIn: ttl },\n    headers: { \n      'Authorization': `Bearer ${token}`,\n      'Content-Type': 'application/json'\n    },\n    json: true\n  });\n\n  console.log(`[Get Signed URL] Response received:`, {\n    hasUrl: !!res.url,\n    hasData: !!res.data,\n    hasJson: !!res.json,\n    hasResult: !!res.result,\n    responseKeys: Object.keys(res || {})\n  });\n\n  const oneManifestUrl = res.url || res.data?.url || res.json?.url || res.result?.url;\n  \n  if (!oneManifestUrl) {\n    console.error('[Get Signed URL] Response structure:', JSON.stringify(res, null, 2).substring(0, 500));\n    throw new Error('Signed URL endpoint did not return a URL. Check response structure above.');\n  }\n\n  console.log(`[Get Signed URL] ✅ Successfully obtained signed URL (length: ${oneManifestUrl.length})`);\n  return [{ json: { ...item, oneManifestUrl } }];\n} catch (error) {\n  console.error('[Get Signed URL] Request failed:', {\n    message: error.message,\n    status: error.response?.status,\n    statusText: error.response?.statusText,\n    data: error.response?.data\n  });\n  \n  if (error.response?.status === 401) {\n    throw new Error('Authentication failed (401). Check that BACKEND_API_TOKEN in n8n matches the token in Vercel environment variables.');\n  }\n  \n  throw error;\n}\n"
       },
       "id": "10b3d1a3-973a-4115-8f6c-33e253c19506",
       "name": "Get Signed URL (1‑manifest)-W4",
@@ -489,7 +502,7 @@
       "main": [
         [
           {
-            "node": "Trigger Workflow ",
+            "node": "Verify Order Claimed (4)",
             "type": "main",
             "index": 0
           }
@@ -648,6 +661,17 @@
         [
           {
             "node": "Mark as Processing (4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Order Claimed (4)": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow ",
             "type": "main",
             "index": 0
           }
