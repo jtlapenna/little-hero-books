@@ -19,6 +19,7 @@
     "check:migration": "dotenv -e .env.local -- tsx scripts/check-migration-status.ts",
     "test:statuses": "dotenv -e .env.local -- tsx scripts/test-status-constants.ts",
     "test:preview-token": "dotenv -e .env.local -- tsx scripts/test-preview-token.ts",
+    "check:tokens": "dotenv -e .env.local -- tsx scripts/check-preview-tokens.ts",
     "cleanup:orders": "dotenv -e .env.local -- tsx scripts/cleanup-old-orders.ts",
     "cleanup:r2-orders": "dotenv -e .env.local -- tsx scripts/cleanup-r2-orders.ts",
     "fetch:all-orders": "dotenv -e .env.local -- tsx scripts/fetch-all-orders.ts",

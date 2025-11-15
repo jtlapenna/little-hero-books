@@ -141,6 +141,19 @@
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
   }
   
+  /* White text when curtain is visible */
+  .header-curtain-visible .nav-links a,
+  .header-curtain-visible .logo,
+  .header-curtain-visible .logo-text {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  .header-curtain-visible .nav-links a:hover,
+  .header-curtain-visible .logo:hover {
+    color: var(--color-golden-yellow) !important;
+  }
+  
   .nav-links a:hover {
     color: var(--color-hero-coral);
   }

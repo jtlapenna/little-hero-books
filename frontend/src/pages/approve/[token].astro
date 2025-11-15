@@ -80,9 +80,14 @@ if (!token) {
                 Review your personalized book for <span id="child-name" class="font-semibold">your child</span>
               </p>
             </div>
-            <div class="header-actions">
-              <Button variant="secondary" size="lg" class="btn-revision" type="button">I need a correction</Button>
-              <Button size="lg" class="btn-approve" type="button">Approve Book</Button>
+            <div class="order-details-inline">
+              <div class="order-detail-line">
+                <span class="detail-label">Order ID:</span>
+                <span id="order-id" class="detail-value"></span>
+              </div>
+              <div id="age-detail" class="order-detail-line" style="display: none;">
+                <span id="child-name-order" class="font-semibold"></span>, <span id="age-value" class="detail-value"></span>
+              </div>
             </div>
           </div>
         </div>
@@ -126,20 +131,14 @@ if (!token) {
           </div>
         </div>
 
-        <!-- Order Details -->
-        <div id="order-details-card" class="preview-card">
-          <h3 class="card-title">Order Details</h3>
-          <div class="order-details-grid">
-            <div>
-              <p class="detail-label">Order ID</p>
-              <p id="order-id" class="detail-value"></p>
-            </div>
-            <div id="age-detail" style="display: none;">
-              <p class="detail-label">Age</p>
-              <p id="age-value" class="detail-value"></p>
-            </div>
+        <!-- Action Buttons -->
+        <div class="preview-card">
+          <div class="action-buttons">
+            <Button variant="secondary" size="lg" class="btn-revision" type="button">I need a correction</Button>
+            <Button size="lg" class="btn-approve" type="button">Approve Book</Button>
           </div>
         </div>
+
 
         <!-- Correction Request -->
         <div id="correction-card" class="preview-card correction-card">
@@ -274,6 +273,7 @@ if (!token) {
   const orderIdEl = document.getElementById('order-id');
   const ageDetail = document.getElementById('age-detail');
   const ageValue = document.getElementById('age-value');
+  const childNameOrderEl = document.getElementById('child-name-order');
   const approveBtn = document.querySelector('.btn-approve');
   const approvalModal = document.getElementById('approval-modal');
   const acknowledgeCheckbox = document.getElementById('acknowledge-last-revision');
@@ -294,7 +294,6 @@ if (!token) {
   const contactEmailConfirmInput = document.getElementById('contact-email-confirm');
   const revisionBtn = document.querySelector('.btn-revision');
   const correctionCard = document.getElementById('correction-card');
-  const orderDetailsCard = document.getElementById('order-details-card');
   const buyerNameEl = document.getElementById('buyer-name');
   const curtainHero = document.getElementById('curtain-hero');
   const curtainBuyerNameEl = document.getElementById('curtain-buyer-name');
@@ -314,11 +313,15 @@ if (!token) {
     loadingState.style.display = 'none';
     errorState.style.display = 'flex';
     errorMessage.textContent = message;
+    // Error state has light background - keep header text black
+    updateHeaderForCurtain(); // This will check loading state and set to black
   }
 
   function showPreview() {
     loadingState.style.display = 'none';
     previewContent.style.display = 'block';
+    // Update header when preview is shown (curtain will be visible, so text should be white)
+    updateHeaderForCurtain();
   }
 
   async function loadPreview() {
@@ -629,6 +632,7 @@ if (!token) {
     if (order.characterSpecs?.age) {
       ageDetail.style.display = 'block';
       ageValue.textContent = `${order.characterSpecs.age} years old`;
+      if (childNameOrderEl) childNameOrderEl.textContent = childName;
     }
 
     updateCorrectionState(order);
@@ -1016,7 +1020,7 @@ if (!token) {
 
   if (revisionBtn) {
     revisionBtn.addEventListener('click', () => {
-      const target = orderDetailsCard || correctionCard;
+      const target = correctionCard;
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         target.classList.add('jump-highlight');
@@ -1060,9 +1064,41 @@ if (!token) {
   // Curtain reveal scroll effect
   // The curtain scrolls up while page content stays fixed, then page scrolls normally
   const curtainScrollArea = document.getElementById('curtain-scroll-area');
+  const mainHeader = document.getElementById('main-header');
   let curtainScrollPosition = 0; // 0 to 1, represents how much curtain is lifted
   let curtainFullyLifted = false;
   let wheelListenersActive = true;
+  
+  // Update header text color based on loading state
+  function updateHeaderForLoading() {
+    if (!mainHeader) return;
+    const isLoading = loadingState && loadingState.style.display !== 'none';
+    
+    if (isLoading) {
+      // During loading (light background) - make nav text black
+      mainHeader.classList.remove('header-curtain-visible');
+    }
+  }
+  
+  // Update header text color based on curtain visibility
+  function updateHeaderForCurtain() {
+    if (!mainHeader) return;
+    
+    // First check if we're still loading - if so, keep it black
+    const isLoading = loadingState && loadingState.style.display !== 'none';
+    if (isLoading) {
+      mainHeader.classList.remove('header-curtain-visible');
+      return;
+    }
+    
+    if (curtainScrollPosition < 1 && !curtainFullyLifted) {
+      // Curtain is visible - make nav text white
+      mainHeader.classList.add('header-curtain-visible');
+    } else {
+      // Curtain is fully lifted - make nav text black
+      mainHeader.classList.remove('header-curtain-visible');
+    }
+  }
   
   // Helper function to log comprehensive DOM measurements
   function logDOMPositions(label) {
@@ -1096,116 +1132,117 @@ if (!token) {
       height: curtain.style.height || 'none'
     } : null;
     
-    console.log(`[CURTAIN] 📐📐📐 DOM POSITIONS: ${label}`, {
-      timestamp: new Date().toISOString(),
-      
-      // Window/Document measurements
-      windowScrollY: window.pageYOffset?.toFixed(2),
-      windowScrollX: window.pageXOffset?.toFixed(2),
-      windowInnerHeight: window.innerHeight.toFixed(2),
-      windowInnerWidth: window.innerWidth.toFixed(2),
-      documentScrollTop: (html.scrollTop || 0).toFixed(2),
-      documentScrollLeft: (html.scrollLeft || 0).toFixed(2),
-      bodyScrollTop: (body.scrollTop || 0).toFixed(2),
-      bodyScrollLeft: (body.scrollLeft || 0).toFixed(2),
-      documentScrollHeight: html.scrollHeight.toFixed(2),
-      documentClientHeight: html.clientHeight.toFixed(2),
-      bodyScrollHeight: body.scrollHeight.toFixed(2),
-      bodyClientHeight: body.clientHeight.toFixed(2),
-      
-      // Curtain element measurements
-      curtain: curtainRect ? {
-        top: curtainRect.top.toFixed(2),
-        left: curtainRect.left.toFixed(2),
-        right: curtainRect.right.toFixed(2),
-        bottom: curtainRect.bottom.toFixed(2),
-        width: curtainRect.width.toFixed(2),
-        height: curtainRect.height.toFixed(2),
-        x: curtainRect.x.toFixed(2),
-        y: curtainRect.y.toFixed(2)
-      } : 'NOT FOUND',
-      curtainComputed: curtainComputed ? {
-        position: curtainComputed.position,
-        top: curtainComputed.top,
-        left: curtainComputed.left,
-        width: curtainComputed.width,
-        height: curtainComputed.height,
-        transform: curtainComputed.transform,
-        zIndex: curtainComputed.zIndex,
-        display: curtainComputed.display,
-        visibility: curtainComputed.visibility,
-        pointerEvents: curtainComputed.pointerEvents
-      } : 'NOT FOUND',
-      curtainInline: curtainInline || 'NOT FOUND',
-      
-      // Page content element measurements
-      pageContent: pageContentRect ? {
-        top: pageContentRect.top.toFixed(2),
-        left: pageContentRect.left.toFixed(2),
-        right: pageContentRect.right.toFixed(2),
-        bottom: pageContentRect.bottom.toFixed(2),
-        width: pageContentRect.width.toFixed(2),
-        height: pageContentRect.height.toFixed(2),
-        x: pageContentRect.x.toFixed(2),
-        y: pageContentRect.y.toFixed(2)
-      } : 'NOT FOUND',
-      pageContentComputed: pageContentComputed ? {
-        position: pageContentComputed.position,
-        top: pageContentComputed.top,
-        left: pageContentComputed.left,
-        width: pageContentComputed.width,
-        height: pageContentComputed.height,
-        transform: pageContentComputed.transform,
-        zIndex: pageContentComputed.zIndex,
-        display: pageContentComputed.display,
-        marginTop: pageContentComputed.marginTop,
-        marginLeft: pageContentComputed.marginLeft,
-        paddingTop: pageContentComputed.paddingTop,
-        paddingLeft: pageContentComputed.paddingLeft
-      } : 'NOT FOUND',
-      pageContentInline: pageContentInline || 'NOT FOUND',
-      
-      // Scroll area measurements
-      scrollArea: scrollAreaRect ? {
-        top: scrollAreaRect.top.toFixed(2),
-        left: scrollAreaRect.left.toFixed(2),
-        right: scrollAreaRect.right.toFixed(2),
-        bottom: scrollAreaRect.bottom.toFixed(2),
-        width: scrollAreaRect.width.toFixed(2),
-        height: scrollAreaRect.height.toFixed(2),
-        x: scrollAreaRect.x.toFixed(2),
-        y: scrollAreaRect.y.toFixed(2)
-      } : 'NOT FOUND',
-      
-      // State variables
-      curtainScrollPosition: curtainScrollPosition.toFixed(3),
-      curtainFullyLifted,
-      wheelListenersActive,
-      
-      // Visual relationship calculations
-      curtainTopToViewportTop: curtainRect ? (curtainRect.top - 0).toFixed(2) : 'N/A',
-      pageContentTopToViewportTop: pageContentRect ? (pageContentRect.top - 0).toFixed(2) : 'N/A',
-      pageContentTopToCurtainTop: curtainRect && pageContentRect ? (pageContentRect.top - curtainRect.top).toFixed(2) : 'N/A'
-    });
+    // COMMENTED OUT: Verbose DOM position logging - uncomment to debug
+    // console.log(`[CURTAIN] 📐📐📐 DOM POSITIONS: ${label}`, {
+    //   timestamp: new Date().toISOString(),
+    //   
+    //   // Window/Document measurements
+    //   windowScrollY: window.pageYOffset?.toFixed(2),
+    //   windowScrollX: window.pageXOffset?.toFixed(2),
+    //   windowInnerHeight: window.innerHeight.toFixed(2),
+    //   windowInnerWidth: window.innerWidth.toFixed(2),
+    //   documentScrollTop: (html.scrollTop || 0).toFixed(2),
+    //   documentScrollLeft: (html.scrollLeft || 0).toFixed(2),
+    //   bodyScrollTop: (body.scrollTop || 0).toFixed(2),
+    //   bodyScrollLeft: (body.scrollLeft || 0).toFixed(2),
+    //   documentScrollHeight: html.scrollHeight.toFixed(2),
+    //   documentClientHeight: html.clientHeight.toFixed(2),
+    //   bodyScrollHeight: body.scrollHeight.toFixed(2),
+    //   bodyClientHeight: body.clientHeight.toFixed(2),
+    //   
+    //   // Curtain element measurements
+    //   curtain: curtainRect ? {
+    //     top: curtainRect.top.toFixed(2),
+    //     left: curtainRect.left.toFixed(2),
+    //     right: curtainRect.right.toFixed(2),
+    //     bottom: curtainRect.bottom.toFixed(2),
+    //     width: curtainRect.width.toFixed(2),
+    //     height: curtainRect.height.toFixed(2),
+    //     x: curtainRect.x.toFixed(2),
+    //     y: curtainRect.y.toFixed(2)
+    //   } : 'NOT FOUND',
+    //   curtainComputed: curtainComputed ? {
+    //     position: curtainComputed.position,
+    //     top: curtainComputed.top,
+    //     left: curtainComputed.left,
+    //     width: curtainComputed.width,
+    //     height: curtainComputed.height,
+    //     transform: curtainComputed.transform,
+    //     zIndex: curtainComputed.zIndex,
+    //     display: curtainComputed.display,
+    //     visibility: curtainComputed.visibility,
+    //     pointerEvents: curtainComputed.pointerEvents
+    //   } : 'NOT FOUND',
+    //   curtainInline: curtainInline || 'NOT FOUND',
+    //   
+    //   // Page content element measurements
+    //   pageContent: pageContentRect ? {
+    //     top: pageContentRect.top.toFixed(2),
+    //     left: pageContentRect.left.toFixed(2),
+    //     right: pageContentRect.right.toFixed(2),
+    //     bottom: pageContentRect.bottom.toFixed(2),
+    //     width: pageContentRect.width.toFixed(2),
+    //     height: pageContentRect.height.toFixed(2),
+    //     x: pageContentRect.x.toFixed(2),
+    //     y: pageContentRect.y.toFixed(2)
+    //   } : 'NOT FOUND',
+    //   pageContentComputed: pageContentComputed ? {
+    //     position: pageContentComputed.position,
+    //     top: pageContentComputed.top,
+    //     left: pageContentComputed.left,
+    //     width: pageContentComputed.width,
+    //     height: pageContentComputed.height,
+    //     transform: pageContentComputed.transform,
+    //     zIndex: pageContentComputed.zIndex,
+    //     display: pageContentComputed.display,
+    //     marginTop: pageContentComputed.marginTop,
+    //     marginLeft: pageContentComputed.marginLeft,
+    //     paddingTop: pageContentComputed.paddingTop,
+    //     paddingLeft: pageContentComputed.paddingLeft
+    //   } : 'NOT FOUND',
+    //   pageContentInline: pageContentInline || 'NOT FOUND',
+    //   
+    //   // Scroll area measurements
+    //   scrollArea: scrollAreaRect ? {
+    //     top: scrollAreaRect.top.toFixed(2),
+    //     left: scrollAreaRect.left.toFixed(2),
+    //     right: scrollAreaRect.right.toFixed(2),
+    //     bottom: scrollAreaRect.bottom.toFixed(2),
+    //     width: scrollAreaRect.width.toFixed(2),
+    //     height: scrollAreaRect.height.toFixed(2),
+    //     x: scrollAreaRect.x.toFixed(2),
+    //     y: scrollAreaRect.y.toFixed(2)
+    //   } : 'NOT FOUND',
+    //   
+    //   // State variables
+    //   curtainScrollPosition: curtainScrollPosition.toFixed(3),
+    //   curtainFullyLifted,
+    //   wheelListenersActive,
+    //   
+    //   // Visual relationship calculations
+    //   curtainTopToViewportTop: curtainRect ? (curtainRect.top - 0).toFixed(2) : 'N/A',
+    //   pageContentTopToViewportTop: pageContentRect ? (pageContentRect.top - 0).toFixed(2) : 'N/A',
+    //   pageContentTopToCurtainTop: curtainRect && pageContentRect ? (pageContentRect.top - curtainRect.top).toFixed(2) : 'N/A'
+    // });
   }
   
   // Verbose logging
-  console.log('[CURTAIN] Initialized:', {
-    curtainScrollPosition,
-    curtainFullyLifted,
-    wheelListenersActive
-  });
+  // console.log('[CURTAIN] Initialized:', {
+  //   curtainScrollPosition,
+  //   curtainFullyLifted,
+  //   wheelListenersActive
+  // });
 
   function updateCurtainPosition() {
-    console.log('[CURTAIN] 🔧 updateCurtainPosition CALLED', {
-      timestamp: new Date().toISOString(),
-      curtainScrollPosition: curtainScrollPosition.toFixed(3),
-      curtainFullyLifted,
-      hasCurtainHero: !!curtainHero
-    });
+    // console.log('[CURTAIN] 🔧 updateCurtainPosition CALLED', {
+    //   timestamp: new Date().toISOString(),
+    //   curtainScrollPosition: curtainScrollPosition.toFixed(3),
+    //   curtainFullyLifted,
+    //   hasCurtainHero: !!curtainHero
+    // });
     
     // Log DOM positions at start
-    logDOMPositions('updateCurtainPosition START');
+    // logDOMPositions('updateCurtainPosition START');
     
     if (!curtainHero) {
       console.warn('[CURTAIN] ⚠️ updateCurtainPosition: curtainHero not found, ABORTING');
@@ -1216,18 +1253,18 @@ if (!token) {
     const translateY = -100 * curtainScrollPosition;
     curtainHero.style.transform = `translateY(${translateY}%)`;
     
-    console.log('[CURTAIN] 📐 Applied transform to curtain:', {
-      curtainScrollPosition: curtainScrollPosition.toFixed(3),
-      translateY: translateY.toFixed(2) + '%',
-      curtainFullyLifted,
-      scrollTop: (window.pageYOffset || document.documentElement.scrollTop || 0).toFixed(2)
-    });
+    // console.log('[CURTAIN] 📐 Applied transform to curtain:', {
+    //   curtainScrollPosition: curtainScrollPosition.toFixed(3),
+    //   translateY: translateY.toFixed(2) + '%',
+    //   curtainFullyLifted,
+    //   scrollTop: (window.pageYOffset || document.documentElement.scrollTop || 0).toFixed(2)
+    // });
     
     const pageContent = document.getElementById('book-content');
     
     if (curtainScrollPosition < 1) {
       // Curtain is still visible - lock page content in place
-      console.log('[CURTAIN] 👁️ Curtain is VISIBLE (position < 1), locking page content in place');
+      // console.log('[CURTAIN] 👁️ Curtain is VISIBLE (position < 1), locking page content in place');
       
       if (pageContent) {
         const wasFixed = pageContent.style.position === 'fixed';
@@ -1237,32 +1274,38 @@ if (!token) {
         pageContent.style.width = '100%';
         pageContent.style.zIndex = '5';
         
-        if (!wasFixed) {
-          console.log('[CURTAIN] 📌 Changed pageContent to FIXED positioning');
-        } else {
-          console.log('[CURTAIN] 📌 PageContent already FIXED (maintaining)');
-        }
+        // if (!wasFixed) {
+        //   console.log('[CURTAIN] 📌 Changed pageContent to FIXED positioning');
+        // } else {
+        //   console.log('[CURTAIN] 📌 PageContent already FIXED (maintaining)');
+        // }
       } else {
         console.warn('[CURTAIN] ⚠️ pageContent element not found');
       }
       
       if (curtainHero.classList.contains('fully-lifted')) {
-        console.log('[CURTAIN] 🔄 Removing "fully-lifted" class from curtain');
+        // console.log('[CURTAIN] 🔄 Removing "fully-lifted" class from curtain');
         curtainHero.classList.remove('fully-lifted');
       }
       
       if (curtainFullyLifted) {
-        console.log('[CURTAIN] 🔄 Resetting curtainFullyLifted flag (was true, now false)');
+        // console.log('[CURTAIN] 🔄 Resetting curtainFullyLifted flag (was true, now false)');
         curtainFullyLifted = false;
       }
       
-      console.log('[CURTAIN] ✅ Curtain visible - content locked in place');
+      // console.log('[CURTAIN] ✅ Curtain visible - content locked in place');
       // Log DOM positions after setting fixed
-      logDOMPositions('updateCurtainPosition AFTER SETTING FIXED');
+      // logDOMPositions('updateCurtainPosition AFTER SETTING FIXED');
+      
+      // Update header to white text while curtain is visible
+      updateHeaderForCurtain();
     } else {
       // Curtain is fully lifted
-      console.log('[CURTAIN] 🚪 Curtain is FULLY LIFTED (position >= 1)');
+      // console.log('[CURTAIN] 🚪 Curtain is FULLY LIFTED (position >= 1)');
       curtainScrollPosition = Math.min(curtainScrollPosition, 1);
+      
+      // Update header to black text when curtain is lifted
+      updateHeaderForCurtain();
       
       if (!curtainFullyLifted) {
         console.log('[CURTAIN] ⬆️⬆️⬆️ TRANSITION: Curtain fully lifted - starting transition to normal scroll', {
@@ -1272,11 +1315,11 @@ if (!token) {
         });
         
         // Log DOM positions BEFORE transition
-        logDOMPositions('TRANSITION BEFORE - Fixed positioning still active');
+        // logDOMPositions('TRANSITION BEFORE - Fixed positioning still active');
         
         curtainFullyLifted = true;
         curtainHero.classList.add('fully-lifted');
-        console.log('[CURTAIN] ✅ Set curtainFullyLifted = true and added "fully-lifted" class');
+        // console.log('[CURTAIN] ✅ Set curtainFullyLifted = true and added "fully-lifted" class');
         
         // SIMPLIFIED: Transition from fixed to normal flow
         if (pageContent) {
@@ -1302,42 +1345,303 @@ if (!token) {
           pageContent.style.transform = '';
           pageContent.style.willChange = '';
           
-          console.log('[CURTAIN] ✅ Removed fixed positioning (content hidden)');
+          // console.log('[CURTAIN] ✅ Removed fixed positioning (content hidden)');
           
-          // Wait one frame for layout, then measure and adjust scroll
+          // EXTREMELY VERBOSE LOGGING: Log state immediately after removing fixed positioning
+          // const afterRemoveFixed = pageContent.getBoundingClientRect();
+          // const afterRemoveFixedScroll = window.pageYOffset || window.scrollY || document.documentElement.scrollTop || 0;
+          // const computedStyle = window.getComputedStyle(pageContent);
+          // console.log('[CURTAIN] 🔍🔍🔍 CRITICAL STATE: Immediately after removing fixed positioning', {
+          //   timestamp: new Date().toISOString(),
+          //   contentBoundingRect: {
+          //     top: afterRemoveFixed.top.toFixed(2),
+          //     left: afterRemoveFixed.left.toFixed(2),
+          //     width: afterRemoveFixed.width.toFixed(2),
+          //     height: afterRemoveFixed.height.toFixed(2),
+          //     bottom: afterRemoveFixed.bottom.toFixed(2),
+          //     right: afterRemoveFixed.right.toFixed(2)
+          //   },
+          //   windowScrollY: afterRemoveFixedScroll.toFixed(2),
+          //   computedStyles: {
+          //     position: computedStyle.position,
+          //     opacity: computedStyle.opacity,
+          //     transform: computedStyle.transform,
+          //     top: computedStyle.top,
+          //     left: computedStyle.left,
+          //     display: computedStyle.display
+          //   },
+          //   inlineStyles: {
+          //     position: pageContent.style.position || 'none',
+          //     opacity: pageContent.style.opacity || 'none',
+          //     transform: pageContent.style.transform || 'none',
+          //     transition: pageContent.style.transition || 'none'
+          //   },
+          //   documentBodyOverflow: document.body.style.overflow || 'default',
+          //   documentHtmlOverflow: document.documentElement.style.overflow || 'default'
+          // });
+          // logDOMPositions('CRITICAL: After removing fixed positioning (content hidden)');
+          
+          // Hide the curtain-scroll-area so content flows to the top
+          const curtainScrollArea = document.getElementById('curtain-scroll-area');
+          if (curtainScrollArea) {
+            curtainScrollArea.style.display = 'none';
+            // console.log('[CURTAIN] ✅ Hidden curtain-scroll-area to allow content to flow to top');
+          }
+          
+          // Wait one frame for layout, then set scroll to 0 (content at top)
           requestAnimationFrame(() => {
-            const contentRect = pageContent.getBoundingClientRect();
-            const currentScroll = window.pageYOffset || window.scrollY || document.documentElement.scrollTop || 0;
-            const contentTop = contentRect.top;
-            const scrollNeeded = currentScroll + contentTop;
+            // EXTREMELY VERBOSE LOGGING: Before adjusting scroll
+            // const contentRect = pageContent.getBoundingClientRect();
+            // const currentScroll = window.pageYOffset || window.scrollY || document.documentElement.scrollTop || 0;
+            // console.log('[CURTAIN] 🔍🔍🔍 CRITICAL STATE: Frame 1 - BEFORE adjusting scroll', {
+            //   timestamp: new Date().toISOString(),
+            //   contentRect: {
+            //     top: contentRect.top.toFixed(2),
+            //     left: contentRect.left.toFixed(2),
+            //     width: contentRect.width.toFixed(2),
+            //     height: contentRect.height.toFixed(2),
+            //     bottom: contentRect.bottom.toFixed(2),
+            //     right: contentRect.right.toFixed(2)
+            //   },
+            //   currentScroll: currentScroll.toFixed(2),
+            //   computedOpacity: window.getComputedStyle(pageContent).opacity,
+            //   inlineOpacity: pageContent.style.opacity || 'none',
+            //   scrollLocked: document.body.style.overflow === 'hidden'
+            // });
+            // logDOMPositions('CRITICAL: Frame 1 - Before adjusting scroll');
             
-            console.log('[CURTAIN] 📐 Adjusting scroll:', {
-              contentTop: contentTop.toFixed(2),
-              currentScroll: currentScroll.toFixed(2),
-              scrollNeeded: scrollNeeded.toFixed(2)
-            });
+            // console.log('[CURTAIN] 📐 Setting scroll to 0 to anchor content at top of page');
             
-            // Set scroll to bring content to top (still hidden)
-            window.scrollTo({ top: scrollNeeded, left: 0, behavior: 'instant' });
-            document.documentElement.scrollTop = scrollNeeded;
-            document.body.scrollTop = scrollNeeded;
+            // Set scroll to 0 so content starts at the top of the page
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+            
+            // EXTREMELY VERBOSE LOGGING: Immediately after setting scroll
+            // const afterScrollSet = pageContent.getBoundingClientRect();
+            // const afterScrollSetScroll = window.pageYOffset || window.scrollY || document.documentElement.scrollTop || 0;
+            // console.log('[CURTAIN] 🔍🔍🔍 CRITICAL STATE: Frame 1 - IMMEDIATELY after setting scroll to 0', {
+            //   timestamp: new Date().toISOString(),
+            //   scrollSetTo: '0.00',
+            //   actualScrollAfter: afterScrollSetScroll.toFixed(2),
+            //   scrollDifference: Math.abs(afterScrollSetScroll).toFixed(2),
+            //   contentRectAfterScroll: {
+            //     top: afterScrollSet.top.toFixed(2),
+            //     left: afterScrollSet.left.toFixed(2),
+            //     width: afterScrollSet.width.toFixed(2),
+            //     height: afterScrollSet.height.toFixed(2),
+            //     bottom: afterScrollSet.bottom.toFixed(2),
+            //     right: afterScrollSet.right.toFixed(2)
+            //   },
+            //   contentTopAfterScroll: afterScrollSet.top.toFixed(2),
+            //   expectedContentTop: '0.00',
+            //   contentTopDifference: Math.abs(afterScrollSet.top).toFixed(2),
+            //   computedOpacity: window.getComputedStyle(pageContent).opacity,
+            //   inlineOpacity: pageContent.style.opacity || 'none'
+            // });
+            // logDOMPositions('CRITICAL: Frame 1 - Immediately after setting scroll to 0');
             
             // Wait one more frame for scroll to settle, then show content and unlock scroll
             requestAnimationFrame(() => {
-              // Show content now that scroll is correct
-              pageContent.style.opacity = originalOpacity || '1';
-              pageContent.style.transition = ''; // Remove transition
+              // EXTREMELY VERBOSE LOGGING: Frame 2 - BEFORE restoring opacity
+              const beforeRestoreOpacity = pageContent.getBoundingClientRect();
+              const beforeRestoreOpacityScroll = window.pageYOffset || window.scrollY || document.documentElement.scrollTop || 0;
+              // const computedBeforeOpacity = window.getComputedStyle(pageContent);
+              // console.log('[CURTAIN] 🔍🔍🔍 CRITICAL STATE: Frame 2 - BEFORE restoring opacity (CONTENT STILL HIDDEN)', {
+              //   timestamp: new Date().toISOString(),
+              //   contentRect: {
+              //     top: beforeRestoreOpacity.top.toFixed(2),
+              //     left: beforeRestoreOpacity.left.toFixed(2),
+              //     width: beforeRestoreOpacity.width.toFixed(2),
+              //     height: beforeRestoreOpacity.height.toFixed(2),
+              //     bottom: beforeRestoreOpacity.bottom.toFixed(2),
+              //     right: beforeRestoreOpacity.right.toFixed(2)
+              //   },
+              //   windowScrollY: beforeRestoreOpacityScroll.toFixed(2),
+              //   contentTop: beforeRestoreOpacity.top.toFixed(2),
+              //   expectedContentTop: '0.00',
+              //   contentTopDifference: Math.abs(beforeRestoreOpacity.top).toFixed(2),
+              //   computedStyles: {
+              //     position: computedBeforeOpacity.position,
+              //     opacity: computedBeforeOpacity.opacity,
+              //     transform: computedBeforeOpacity.transform,
+              //     display: computedBeforeOpacity.display,
+              //     visibility: computedBeforeOpacity.visibility
+              //   },
+              //   inlineStyles: {
+              //     opacity: pageContent.style.opacity || 'none',
+              //     transition: pageContent.style.transition || 'none',
+              //     position: pageContent.style.position || 'none'
+              //   },
+              //   scrollLocked: document.body.style.overflow === 'hidden'
+              // });
+              // logDOMPositions('CRITICAL: Frame 2 - BEFORE restoring opacity');
               
-              // Restore scroll overflow
+              // CRITICAL FIX: Restore overflow FIRST (while content is still hidden)
+              // This allows us to detect and correct any scroll drift before content becomes visible
               document.body.style.overflow = originalBodyOverflow;
               document.documentElement.style.overflow = originalHtmlOverflow;
               
-              // Disable wheel listeners
-              wheelListenersActive = false;
-              window.removeEventListener('wheel', handleScroll, { passive: false });
-              window.removeEventListener('DOMMouseScroll', handleScroll, { passive: false });
+              // EXTREMELY VERBOSE LOGGING: IMMEDIATELY after restoring overflow (while content hidden)
+              const afterRestoreOverflowHidden = pageContent.getBoundingClientRect();
+              const afterRestoreOverflowScrollHidden = window.pageYOffset || window.scrollY || document.documentElement.scrollTop || 0;
+              const targetScroll = 0; // Content should be anchored at top of page
+              const scrollDrift = afterRestoreOverflowScrollHidden - targetScroll;
+              // console.log('[CURTAIN] 🔍🔍🔍🔍🔍 CRITICAL: IMMEDIATELY after restoring overflow (content still hidden)', {
+              //   timestamp: new Date().toISOString(),
+              //   overflowRestored: {
+              //     body: originalBodyOverflow || 'default',
+              //     html: originalHtmlOverflow || 'default'
+              //   },
+              //   targetScroll: targetScroll.toFixed(2),
+              //   actualScroll: afterRestoreOverflowScrollHidden.toFixed(2),
+              //   scrollDrift: scrollDrift.toFixed(2),
+              //   contentRect: {
+              //     top: afterRestoreOverflowHidden.top.toFixed(2),
+              //     left: afterRestoreOverflowHidden.left.toFixed(2)
+              //   },
+              //   scrollChanged: Math.abs(scrollDrift) > 0.1
+              // });
               
-              console.log('[CURTAIN] ✅✅✅ TRANSITION COMPLETE - Normal scrolling enabled');
+              // If scroll drifted when overflow was restored, correct it NOW (while content is hidden)
+              if (Math.abs(scrollDrift) > 0.1) {
+                console.warn('[CURTAIN] ⚠️ Scroll drifted when overflow restored, correcting while content hidden', {
+                  driftAmount: scrollDrift.toFixed(2),
+                  targetScroll: targetScroll.toFixed(2),
+                  correctingTo: targetScroll.toFixed(2)
+                });
+                window.scrollTo({ top: targetScroll, left: 0, behavior: 'instant' });
+                document.documentElement.scrollTop = targetScroll;
+                document.body.scrollTop = targetScroll;
+                
+                // Wait one frame to ensure correction is applied
+                requestAnimationFrame(() => {
+                  // const correctedScroll = window.pageYOffset || window.scrollY || document.documentElement.scrollTop || 0;
+                  // const correctedRect = pageContent.getBoundingClientRect();
+                  // console.log('[CURTAIN] ✅ Scroll correction applied (while content hidden)', {
+                  //   correctedScroll: correctedScroll.toFixed(2),
+                  //   targetScroll: targetScroll.toFixed(2),
+                  //   scrollDifference: Math.abs(correctedScroll - targetScroll).toFixed(2),
+                  //   contentTop: correctedRect.top.toFixed(2),
+                  //   readyToShowContent: Math.abs(correctedScroll - targetScroll) < 0.1 && Math.abs(correctedRect.top) < 0.1
+                  // });
+                  
+                  // NOW show content (after scroll is corrected)
+                  pageContent.style.opacity = originalOpacity || '1';
+                  pageContent.style.transition = ''; // Remove transition
+                  
+                  // Log final state after showing content
+                  // const finalAfterOpacity = pageContent.getBoundingClientRect();
+                  // const finalAfterOpacityScroll = window.pageYOffset || window.scrollY || document.documentElement.scrollTop || 0;
+                  // console.log('[CURTAIN] 🔍🔍🔍🔍🔍 FINAL: After restoring opacity (scroll already corrected)', {
+                  //   timestamp: new Date().toISOString(),
+                  //   contentRect: {
+                  //     top: finalAfterOpacity.top.toFixed(2),
+                  //     left: finalAfterOpacity.left.toFixed(2)
+                  //   },
+                  //   windowScrollY: finalAfterOpacityScroll.toFixed(2),
+                  //   expectedScroll: targetScroll.toFixed(2),
+                  //   scrollDifference: Math.abs(finalAfterOpacityScroll - targetScroll).toFixed(2),
+                  //   jumpDetected: Math.abs(finalAfterOpacity.top) > 0.1 || Math.abs(finalAfterOpacityScroll - targetScroll) > 0.1
+                  // });
+                  // logDOMPositions('CRITICAL: FINAL - After restoring opacity (scroll corrected)');
+                  
+                  // Disable wheel listeners
+                  wheelListenersActive = false;
+                  window.removeEventListener('wheel', handleScroll, { passive: false });
+                  window.removeEventListener('DOMMouseScroll', handleScroll, { passive: false });
+                  
+                  console.log('[CURTAIN] ✅✅✅ TRANSITION COMPLETE - Normal scrolling enabled');
+                  
+                  // Final state check in next frame
+                  // requestAnimationFrame(() => {
+                  //   const finalState = pageContent.getBoundingClientRect();
+                  //   const finalScroll = window.pageYOffset || window.scrollY || document.documentElement.scrollTop || 0;
+                  //   console.log('[CURTAIN] 🔍🔍🔍 CRITICAL STATE: Frame 3 - FINAL STATE after transition', {
+                  //     timestamp: new Date().toISOString(),
+                  //     contentRect: {
+                  //       top: finalState.top.toFixed(2),
+                  //       left: finalState.left.toFixed(2),
+                  //       width: finalState.width.toFixed(2),
+                  //       height: finalState.height.toFixed(2),
+                  //       bottom: finalState.bottom.toFixed(2),
+                  //       right: finalState.right.toFixed(2)
+                  //     },
+                  //     windowScrollY: finalScroll.toFixed(2),
+                  //     computedStyles: {
+                  //       position: window.getComputedStyle(pageContent).position,
+                  //       opacity: window.getComputedStyle(pageContent).opacity,
+                  //       transform: window.getComputedStyle(pageContent).transform
+                  //     },
+                  //     inlineStyles: {
+                  //       opacity: pageContent.style.opacity || 'none',
+                  //       position: pageContent.style.position || 'none',
+                  //       transition: pageContent.style.transition || 'none'
+                  //     },
+                  //     totalPositionChangeFromHidden: (beforeRestoreOpacity.top - finalState.top).toFixed(2),
+                  //     totalScrollChangeFromHidden: (finalScroll - beforeRestoreOpacityScroll).toFixed(2)
+                  //   });
+                  //   logDOMPositions('CRITICAL: Frame 3 - Final state after transition');
+                  // });
+                });
+              } else {
+                // No drift detected, show content immediately
+                // console.log('[CURTAIN] ✅ No scroll drift detected, showing content immediately');
+                pageContent.style.opacity = originalOpacity || '1';
+                pageContent.style.transition = ''; // Remove transition
+                
+                // Log final state
+                // const finalAfterOpacity = pageContent.getBoundingClientRect();
+                // const finalAfterOpacityScroll = window.pageYOffset || window.scrollY || document.documentElement.scrollTop || 0;
+                // console.log('[CURTAIN] 🔍🔍🔍🔍🔍 FINAL: After restoring opacity (no drift correction needed)', {
+                //   timestamp: new Date().toISOString(),
+                //   contentRect: {
+                //     top: finalAfterOpacity.top.toFixed(2),
+                //     left: finalAfterOpacity.left.toFixed(2)
+                //   },
+                //   windowScrollY: finalAfterOpacityScroll.toFixed(2),
+                //   jumpDetected: Math.abs(finalAfterOpacity.top) > 0.1
+                // });
+                // logDOMPositions('CRITICAL: FINAL - After restoring opacity (no correction)');
+                
+                // Disable wheel listeners
+                wheelListenersActive = false;
+                window.removeEventListener('wheel', handleScroll, { passive: false });
+                window.removeEventListener('DOMMouseScroll', handleScroll, { passive: false });
+                
+                console.log('[CURTAIN] ✅✅✅ TRANSITION COMPLETE - Normal scrolling enabled');
+                
+                // Final state check in next frame
+                // requestAnimationFrame(() => {
+                //   const finalState = pageContent.getBoundingClientRect();
+                //   const finalScroll = window.pageYOffset || window.scrollY || document.documentElement.scrollTop || 0;
+                //   console.log('[CURTAIN] 🔍🔍🔍 CRITICAL STATE: Frame 3 - FINAL STATE after transition', {
+                //     timestamp: new Date().toISOString(),
+                //     contentRect: {
+                //       top: finalState.top.toFixed(2),
+                //       left: finalState.left.toFixed(2),
+                //       width: finalState.width.toFixed(2),
+                //       height: finalState.height.toFixed(2),
+                //       bottom: finalState.bottom.toFixed(2),
+                //       right: finalState.right.toFixed(2)
+                //     },
+                //     windowScrollY: finalScroll.toFixed(2),
+                //     computedStyles: {
+                //       position: window.getComputedStyle(pageContent).position,
+                //       opacity: window.getComputedStyle(pageContent).opacity,
+                //       transform: window.getComputedStyle(pageContent).transform
+                //     },
+                //     inlineStyles: {
+                //       opacity: pageContent.style.opacity || 'none',
+                //       position: pageContent.style.position || 'none',
+                //       transition: pageContent.style.transition || 'none'
+                //     },
+                //     totalPositionChangeFromHidden: (beforeRestoreOpacity.top - finalState.top).toFixed(2),
+                //     totalScrollChangeFromHidden: (finalScroll - beforeRestoreOpacityScroll).toFixed(2)
+                //   });
+                //   logDOMPositions('CRITICAL: Frame 3 - Final state after transition');
+                // });
+              }
             });
           });
         } else {
@@ -1350,19 +1654,19 @@ if (!token) {
     }
     
     // Log DOM positions at end
-    logDOMPositions('updateCurtainPosition END');
-    console.log('[CURTAIN] 🏁 updateCurtainPosition COMPLETE');
+    // logDOMPositions('updateCurtainPosition END');
+    // console.log('[CURTAIN] 🏁 updateCurtainPosition COMPLETE');
   }
 
   function handleScroll(e) {
-    console.log('[CURTAIN] 🎡 handleScroll EVENT TRIGGERED', {
-      timestamp: new Date().toISOString(),
-      eventType: e.type,
-      hasCurtainHero: !!curtainHero,
-      wheelListenersActive,
-      curtainFullyLifted,
-      curtainScrollPosition: curtainScrollPosition.toFixed(3)
-    });
+    // console.log('[CURTAIN] 🎡 handleScroll EVENT TRIGGERED', {
+    //   timestamp: new Date().toISOString(),
+    //   eventType: e.type,
+    //   hasCurtainHero: !!curtainHero,
+    //   wheelListenersActive,
+    //   curtainFullyLifted,
+    //   curtainScrollPosition: curtainScrollPosition.toFixed(3)
+    // });
     
     if (!curtainHero) {
       console.warn('[CURTAIN] ⚠️ handleScroll: curtainHero not found, ABORTING');
@@ -1370,7 +1674,7 @@ if (!token) {
     }
     
     if (!wheelListenersActive) {
-      console.log('[CURTAIN] ⏸️ handleScroll: wheel listeners inactive, IGNORING EVENT');
+      // console.log('[CURTAIN] ⏸️ handleScroll: wheel listeners inactive, IGNORING EVENT');
       return;
     }
     
@@ -1386,38 +1690,38 @@ if (!token) {
     // Update curtain position
     const newPosition = curtainScrollPosition + scrollDelta;
     
-    const scrollDirection = delta > 0 ? '⬇️ DOWN' : delta < 0 ? '⬆️ UP' : '↔️ NONE';
-    console.log('[CURTAIN] 📊 handleScroll: CALCULATED VALUES', {
-      direction: scrollDirection,
-      delta: delta.toFixed(2),
-      scrollDelta: scrollDelta.toFixed(4),
-      windowHeight: windowHeight.toFixed(2),
-      currentPosition: curtainScrollPosition.toFixed(3),
-      newPosition: newPosition.toFixed(3),
-      scrollTop: scrollTop.toFixed(2),
-      curtainFullyLifted,
-      wheelListenersActive
-    });
+    // const scrollDirection = delta > 0 ? '⬇️ DOWN' : delta < 0 ? '⬆️ UP' : '↔️ NONE';
+    // console.log('[CURTAIN] 📊 handleScroll: CALCULATED VALUES', {
+    //   direction: scrollDirection,
+    //   delta: delta.toFixed(2),
+    //   scrollDelta: scrollDelta.toFixed(4),
+    //   windowHeight: windowHeight.toFixed(2),
+    //   currentPosition: curtainScrollPosition.toFixed(3),
+    //   newPosition: newPosition.toFixed(3),
+    //   scrollTop: scrollTop.toFixed(2),
+    //   curtainFullyLifted,
+    //   wheelListenersActive
+    // });
     
     // Handle scrolling down (revealing curtain) or up (hiding curtain)
     if (delta > 0) {
       // Scrolling down - lift curtain
-      console.log('[CURTAIN] ⬇️⬇️⬇️ SCROLLING DOWN - LIFTING CURTAIN', {
-        beforePosition: curtainScrollPosition.toFixed(3),
-        willReachMax: newPosition >= 1
-      });
+      // console.log('[CURTAIN] ⬇️⬇️⬇️ SCROLLING DOWN - LIFTING CURTAIN', {
+      //   beforePosition: curtainScrollPosition.toFixed(3),
+      //   willReachMax: newPosition >= 1
+      // });
       
       if (curtainScrollPosition < 1) {
-        console.log('[CURTAIN] ✅ Curtain not fully lifted yet, PREVENTING DEFAULT and updating position');
+        // console.log('[CURTAIN] ✅ Curtain not fully lifted yet, PREVENTING DEFAULT and updating position');
         e.preventDefault();
         const oldPosition = curtainScrollPosition;
         curtainScrollPosition = Math.max(0, Math.min(1, newPosition));
-        console.log('[CURTAIN] 📈 Position change:', {
-          from: oldPosition.toFixed(3),
-          to: curtainScrollPosition.toFixed(3),
-          change: (curtainScrollPosition - oldPosition).toFixed(3)
-        });
-        console.log('[CURTAIN] 🔄 Calling updateCurtainPosition()');
+        // console.log('[CURTAIN] 📈 Position change:', {
+        //   from: oldPosition.toFixed(3),
+        //   to: curtainScrollPosition.toFixed(3),
+        //   change: (curtainScrollPosition - oldPosition).toFixed(3)
+        // });
+        // console.log('[CURTAIN] 🔄 Calling updateCurtainPosition()');
         updateCurtainPosition();
         
         // If fully lifted, prepare for transition
@@ -1428,62 +1732,40 @@ if (!token) {
           });
         }
       } else {
-        console.log('[CURTAIN] ⚠️ Curtain already at max position (>= 1), this should not happen here', {
-          position: curtainScrollPosition.toFixed(3)
-        });
+        // console.log('[CURTAIN] ⚠️ Curtain already at max position (>= 1), this should not happen here', {
+        //   position: curtainScrollPosition.toFixed(3)
+        // });
       }
     } else if (delta < 0) {
-      // Scrolling up - bring curtain back down
-      console.log('[CURTAIN] ⬆️⬆️⬆️ SCROLLING UP - LOWERING CURTAIN', {
-        scrollTop: scrollTop.toFixed(2),
-        curtainScrollPosition: curtainScrollPosition.toFixed(3),
-        newPosition: newPosition.toFixed(3)
-      });
-      
-      // If we're at the top of the page, bring curtain back down
-      if (scrollTop <= 0 && curtainScrollPosition > 0) {
-        console.log('[CURTAIN] ✅ At top of page (scrollTop <= 0) AND curtain position > 0', {
-          scrollTop: scrollTop.toFixed(2),
-          curtainPosition: curtainScrollPosition.toFixed(3),
-          action: 'Bringing curtain back down'
-        });
-        e.preventDefault();
-        const oldPosition = curtainScrollPosition;
-        curtainScrollPosition = Math.max(0, Math.min(1, newPosition));
-        console.log('[CURTAIN] 📉 Curtain position change (lowering):', {
-          from: oldPosition.toFixed(3),
-          to: curtainScrollPosition.toFixed(3),
-          change: (curtainScrollPosition - oldPosition).toFixed(3)
-        });
-        console.log('[CURTAIN] 🔄 Calling updateCurtainPosition() to lower curtain');
-        updateCurtainPosition();
-      } else if (scrollTop > 0 && curtainScrollPosition >= 1) {
-        // We're scrolled down on the page, let normal scroll handle it
-        console.log('[CURTAIN] 📄 Scrolled down on page (scrollTop > 0) and curtain fully lifted, ALLOWING NORMAL SCROLL', {
-          scrollTop: scrollTop.toFixed(2),
-          curtainPosition: curtainScrollPosition.toFixed(3)
-        });
-        // But if we reach the top, start bringing curtain back
-        return;
+      // Scrolling up - if curtain is fully lifted, allow normal scroll
+      if (curtainScrollPosition >= 1 || curtainFullyLifted) {
+        // Curtain is already fully lifted, allow normal scroll behavior
+        // console.log('[CURTAIN] 📄 Scroll up detected but curtain is fully lifted, ALLOWING NORMAL SCROLL', {
+        //   scrollTop: scrollTop.toFixed(2),
+        //   curtainPosition: curtainScrollPosition.toFixed(3),
+        //   curtainFullyLifted
+        // });
+        return; // Allow normal scroll
       } else {
-        console.log('[CURTAIN] ❌ Scroll up conditions NOT MET:', {
-          scrollTop: scrollTop.toFixed(2),
-          curtainScrollPosition: curtainScrollPosition.toFixed(3),
-          reason: scrollTop > 0 ? 'Not at top of page' : 'Curtain position is 0'
-        });
+        // Curtain is still visible, allow normal scroll (no action needed)
+        // console.log('[CURTAIN] 📄 Scroll up detected while curtain visible, allowing normal scroll', {
+        //   scrollTop: scrollTop.toFixed(2),
+        //   curtainPosition: curtainScrollPosition.toFixed(3)
+        // });
+        return;
       }
     } else {
-      console.log('[CURTAIN] ⚠️ Delta is 0 or undefined, no action taken', { delta });
+      // console.log('[CURTAIN] ⚠️ Delta is 0 or undefined, no action taken', { delta });
     }
     
-    console.log('[CURTAIN] 🏁 handleScroll EVENT COMPLETE');
+    // console.log('[CURTAIN] 🏁 handleScroll EVENT COMPLETE');
   }
 
   function handlePageScroll() {
-    console.log('[CURTAIN] 📜 handlePageScroll EVENT TRIGGERED', {
-      timestamp: new Date().toISOString(),
-      hasCurtainHero: !!curtainHero
-    });
+    // console.log('[CURTAIN] 📜 handlePageScroll EVENT TRIGGERED', {
+    //   timestamp: new Date().toISOString(),
+    //   hasCurtainHero: !!curtainHero
+    // });
     
     if (!curtainHero) {
       console.warn('[CURTAIN] ⚠️ handlePageScroll: curtainHero not found, ABORTING');
@@ -1494,94 +1776,30 @@ if (!token) {
     const windowHeight = window.innerHeight;
     const pageContent = document.getElementById('book-content');
     
-    console.log('[CURTAIN] 📊 handlePageScroll: CURRENT STATE', {
-      scrollTop: scrollTop.toFixed(2),
-      windowHeight: windowHeight.toFixed(2),
-      curtainScrollPosition: curtainScrollPosition.toFixed(3),
-      curtainFullyLifted,
-      wheelListenersActive,
-      isAtTop: scrollTop <= 0,
-      scrollPercentage: (scrollTop / windowHeight).toFixed(2) + '%'
-    });
+    // console.log('[CURTAIN] 📊 handlePageScroll: CURRENT STATE', {
+    //   scrollTop: scrollTop.toFixed(2),
+    //   windowHeight: windowHeight.toFixed(2),
+    //   curtainScrollPosition: curtainScrollPosition.toFixed(3),
+    //   curtainFullyLifted,
+    //   wheelListenersActive,
+    //   isAtTop: scrollTop <= 0,
+    //   scrollPercentage: (scrollTop / windowHeight).toFixed(2) + '%'
+    // });
     
     // Log DOM positions when scroll event fires
-    logDOMPositions('handlePageScroll - Scroll event fired');
+    // logDOMPositions('handlePageScroll - Scroll event fired');
     
-    // If we're at the top of the page and curtain was lifted, restore curtain
-    if (scrollTop <= 0) {
-      console.log('[CURTAIN] 📍 AT TOP OF PAGE (scrollTop <= 0)', {
-        scrollTop: scrollTop.toFixed(2),
-        curtainFullyLifted,
-        curtainScrollPosition: curtainScrollPosition.toFixed(3),
-        shouldRestore: curtainFullyLifted || curtainScrollPosition >= 1
-      });
-      
-      // If curtain was fully lifted, restore it and re-enable curtain scrolling
-      if (curtainFullyLifted || curtainScrollPosition >= 1) {
-        console.log('[CURTAIN] ✅ Conditions met for restoring curtain', {
-          curtainFullyLifted,
-          curtainScrollPosition: curtainScrollPosition.toFixed(3)
-        });
-        
-        // Reset curtain state - fully down (visible)
-        curtainFullyLifted = false;
-        curtainScrollPosition = 0; // Curtain fully down at top of page
-        curtainHero.classList.remove('fully-lifted');
-        
-        console.log('[CURTAIN] 🔄 Reset curtain state:', {
-          curtainFullyLifted: false,
-          curtainScrollPosition: curtainScrollPosition.toFixed(3),
-          fullyLiftedClassRemoved: true,
-          curtainState: 'FULLY DOWN (visible)'
-        });
-        
-        // Ensure scroll is at 0
-        window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-        
-        // Re-enable wheel listeners to handle curtain scrolling
-        if (!wheelListenersActive) {
-          console.log('[CURTAIN] 🔄 RE-ENABLING wheel listeners for curtain scrolling', {
-            wasActive: false,
-            willBeActive: true
-          });
-          wheelListenersActive = true;
-          window.addEventListener('wheel', handleScroll, { passive: false });
-          window.addEventListener('DOMMouseScroll', handleScroll, { passive: false });
-          console.log('[CURTAIN] ✅ Wheel listeners ADDED back');
-        } else {
-          console.log('[CURTAIN] ℹ️ Wheel listeners already active, no change needed');
-        }
-        
-        // Restore fixed positioning on page content
-        if (pageContent) {
-          console.log('[CURTAIN] 🔄 Restoring fixed positioning on page content');
-          pageContent.style.position = 'fixed';
-          pageContent.style.top = '0';
-          pageContent.style.left = '0';
-          pageContent.style.width = '100%';
-          pageContent.style.zIndex = '5';
-          console.log('[CURTAIN] ✅ Page content restored to fixed positioning');
-        }
-        
-        // Update curtain position to reflect current state (fully down)
-        updateCurtainPosition();
-        
-        // Log DOM positions after restoring curtain
-        requestAnimationFrame(() => {
-          logDOMPositions('handlePageScroll - After restoring curtain at top');
-        });
-      } else {
-        console.log('[CURTAIN] ❌ At top but curtain conditions NOT MET', {
-          curtainFullyLifted,
-          curtainScrollPosition: curtainScrollPosition.toFixed(3),
-          reason: 'Curtain not fully lifted and position < 1'
-        });
-      }
+    // Once curtain is fully lifted, it stays up permanently - no action needed
+    if (curtainFullyLifted || curtainScrollPosition >= 1) {
+      // console.log('[CURTAIN] ℹ️ Curtain is fully lifted, allowing normal page scroll', {
+      //   scrollTop: scrollTop.toFixed(2),
+      //   curtainFullyLifted,
+      //   curtainScrollPosition: curtainScrollPosition.toFixed(3)
+      // });
+      return; // No action - curtain stays up
     } else if (scrollTop > 0 && scrollTop < windowHeight && curtainScrollPosition < 1 && !curtainFullyLifted) {
       // If we somehow scrolled without fully lifting curtain, sync position
-      console.log('[CURTAIN] 🔄 Syncing curtain position with scroll (unexpected scroll detected)', {
+      console.warn('[CURTAIN] ⚠️ Syncing curtain position with scroll (unexpected scroll detected)', {
         scrollTop: scrollTop.toFixed(2),
         currentPosition: curtainScrollPosition.toFixed(3),
         curtainFullyLifted,
@@ -1591,11 +1809,11 @@ if (!token) {
       const oldPosition = curtainScrollPosition;
       curtainScrollPosition = Math.min(1, scrollTop / windowHeight);
       
-      console.log('[CURTAIN] 📊 Synced position:', {
-        from: oldPosition.toFixed(3),
-        to: curtainScrollPosition.toFixed(3),
-        change: (curtainScrollPosition - oldPosition).toFixed(3)
-      });
+      // console.log('[CURTAIN] 📊 Synced position:', {
+      //   from: oldPosition.toFixed(3),
+      //   to: curtainScrollPosition.toFixed(3),
+      //   change: (curtainScrollPosition - oldPosition).toFixed(3)
+      // });
       
       updateCurtainPosition();
       
@@ -1606,38 +1824,41 @@ if (!token) {
         // This will trigger the transition in updateCurtainPosition
       }
     } else {
-      console.log('[CURTAIN] ℹ️ handlePageScroll: NO ACTION TAKEN', {
-        scrollTop: scrollTop.toFixed(2),
-        curtainScrollPosition: curtainScrollPosition.toFixed(3),
-        curtainFullyLifted,
-        reason: scrollTop <= 0 
-          ? 'At top but conditions not met' 
-          : curtainScrollPosition >= 1 
-            ? 'Curtain already at max' 
-            : curtainFullyLifted 
-              ? 'Curtain already fully lifted' 
-              : 'Normal scrolling'
-      });
+      // console.log('[CURTAIN] ℹ️ handlePageScroll: NO ACTION TAKEN', {
+      //   scrollTop: scrollTop.toFixed(2),
+      //   curtainScrollPosition: curtainScrollPosition.toFixed(3),
+      //   curtainFullyLifted,
+      //   reason: scrollTop <= 0 
+      //     ? 'At top but conditions not met' 
+      //     : curtainScrollPosition >= 1 
+      //       ? 'Curtain already at max' 
+      //       : curtainFullyLifted 
+      //         ? 'Curtain already fully lifted' 
+      //         : 'Normal scrolling'
+      // });
     }
     
-    console.log('[CURTAIN] 🏁 handlePageScroll EVENT COMPLETE');
+    // console.log('[CURTAIN] 🏁 handlePageScroll EVENT COMPLETE');
   }
 
-  // Initial setup
-  console.log('[CURTAIN] 🚀 Initializing curtain effect');
+  // Initial setup - ensure header is black during loading
+  updateHeaderForLoading();
+  
+  // console.log('[CURTAIN] 🚀 Initializing curtain effect');
   window.scrollTo(0, 0);
   updateCurtainPosition();
+  updateHeaderForCurtain(); // Ensure header is styled correctly on initial load (will check loading state)
   
   // Listen for wheel events to control curtain
-  console.log('[CURTAIN] Adding wheel event listeners');
+  // console.log('[CURTAIN] Adding wheel event listeners');
   window.addEventListener('wheel', handleScroll, { passive: false });
   window.addEventListener('DOMMouseScroll', handleScroll, { passive: false }); // Firefox
   
   // Listen to scroll events to handle bringing curtain back when scrolling up
-  console.log('[CURTAIN] Adding scroll event listener');
+  // console.log('[CURTAIN] Adding scroll event listener');
   window.addEventListener('scroll', handlePageScroll, { passive: true });
   
-  console.log('[CURTAIN] ✅ Initialization complete');
+  // console.log('[CURTAIN] ✅ Initialization complete');
 
   loadPreview();
 </script>
@@ -1714,9 +1935,9 @@ if (!token) {
   }
 
   .curtain-subtitle .child-name-highlight {
-    color: var(--color-teal-explorer);
+    color: var(--color-golden-yellow);
     font-weight: 600;
-    text-shadow: 0 2px 12px rgba(90, 198, 177, 0.4);
+    text-shadow: 0 2px 12px rgba(249, 187, 58, 0.4);
   }
 
   .scroll-indicator {
@@ -1849,6 +2070,13 @@ if (!token) {
     flex-wrap: wrap;
   }
 
+  .action-buttons {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+    align-items: center;
+  }
+
   .preview-title {
     font-family: var(--font-heading);
     font-size: 2rem;
@@ -1864,6 +2092,33 @@ if (!token) {
   .preview-subtitle {
     font-family: var(--font-ui);
     color: var(--color-soft-charcoal);
+    margin: 0;
+  }
+
+  .order-details-inline {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--spacing-xs);
+    text-align: right;
+  }
+
+  .order-detail-line {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-xs);
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+  }
+
+  .order-detail-line .detail-label {
+    color: var(--color-soft-charcoal);
+    margin: 0;
+  }
+
+  .order-detail-line .detail-value {
+    color: var(--color-navy-midnight);
+    font-weight: 500;
     margin: 0;
   }
 
@@ -1983,7 +2238,7 @@ if (!token) {
     max-width: 100%;
     max-height: 100%;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
   }
 
   .cover-image-container {
