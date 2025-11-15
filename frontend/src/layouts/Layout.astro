@@ -6,9 +6,16 @@ import Footer from '../components/Footer.astro';
 interface Props {
   title: string;
   description?: string;
+  image?: string;
 }
 
-const { title, description = "Little Hero Labs - Become the hero of your own story" } = Astro.props;
+const { title, description = "Little Hero Labs - Become the hero of your own story", image } = Astro.props;
+
+// Get current URL for canonical and og:url
+const siteUrl = 'https://www.littleherolabs.com';
+const currentPath = Astro.url.pathname;
+const canonicalUrl = `${siteUrl}${currentPath}`;
+const ogImage = image || `${siteUrl}/og-image.jpg`; // Default OG image
 ---
 
 <!doctype html>
@@ -20,14 +27,25 @@ const { title, description = "Little Hero Labs - Become the hero of your own sto
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
     
+    <!-- Canonical URL - Fixes duplicate pages issue -->
+    <link rel="canonical" href={canonicalUrl} />
+    
     <!-- SEO Meta Tags -->
     <title>{title}</title>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalUrl} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:type" content="website" />
+    <meta property="og:image" content={ogImage} />
+    
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content={canonicalUrl} />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     
     <!-- Google Analytics (GA4) -->
     {import.meta.env.PUBLIC_GA_MEASUREMENT_ID && (
