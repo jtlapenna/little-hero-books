@@ -69,7 +69,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WORKFLOW_4_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/compile-book' }}",
+        "url": "={{ $env.WORKFLOW_4_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/w4-pdf-print' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
