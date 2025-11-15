@@ -152,11 +152,43 @@ function detectOrderErrors(order: Order): ErrorType[] {
   }
 
   // Check for stuck processing (execution_status = 'processing' with started_at > 30 min ago)
+  // IMPORTANT: Exclude orders that have completed their workflow (check workflow_step)
+  // These are waiting for review, not actually stuck
   if (order.executionStatus === 'processing' && order.startedAt) {
-    const startedAt = new Date(order.startedAt);
-    const now = new Date();
-    const minutesProcessing = Math.floor((now.getTime() - startedAt.getTime()) / 1000 / 60);
-    if (minutesProcessing > 30) {
+    // Check if workflow has completed by checking workflow_step
+    // When workflow completes, workflow_step is set to '2A-complete', '2B-complete', etc.
+    const hasCompletedWorkflow = 
+      order.workflowStep === '2A-complete' ||
+      order.workflowStep === '2B-complete' ||
+      order.workflowStep === 'bria_processing_complete' ||
+      order.workflowStep === 'book_assembly_completed' ||
+      order.workflowStep === 'ai_generation_completed';
+    
+    // Only mark as stuck if workflow hasn't completed
+    if (!hasCompletedWorkflow) {
+      const startedAt = new Date(order.startedAt);
+      const now = new Date();
+      const minutesProcessing = Math.floor((now.getTime() - startedAt.getTime()) / 1000 / 60);
+      if (minutesProcessing > 30) {
+        errors.push(DisplayStatus.STUCK_PROCESSING);
+      }
+    }
+  }
+  
+  // Also check for stuck processing when started_at is null but execution_status is 'processing'
+  // This catches orders that were set to processing but never had started_at set
+  // BUT: exclude if workflow has completed (check workflow_step)
+  if (order.executionStatus === 'processing' && !order.startedAt) {
+    // Check if workflow has completed by checking workflow_step
+    const hasCompletedWorkflow = 
+      order.workflowStep === '2A-complete' ||
+      order.workflowStep === '2B-complete' ||
+      order.workflowStep === 'bria_processing_complete' ||
+      order.workflowStep === 'book_assembly_completed' ||
+      order.workflowStep === 'ai_generation_completed';
+    
+    // Only mark as stuck if workflow hasn't completed
+    if (!hasCompletedWorkflow) {
       errors.push(DisplayStatus.STUCK_PROCESSING);
     }
   }

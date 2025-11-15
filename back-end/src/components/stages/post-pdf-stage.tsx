@@ -2140,8 +2140,39 @@ export function PostPdfStage({
       `}} />
     <div className="space-y-8">
       <div className="space-y-6">
-        {/* Page Preview Images Grid */}
-        {pageAssets.length > 0 && (
+        {/* Show message if workflow 3 hasn't completed yet - replaces both page preview and book preview */}
+        {!workflow3Completed && (
+          <div className="bg-gray-50 rounded-lg p-8 text-center">
+            <div className="mx-auto w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Images Found</h3>
+            <p className="text-gray-600 mb-4">
+              Book preview images have not been generated yet. This typically happens when:
+            </p>
+            <ul className="text-sm text-gray-500 text-left max-w-md mx-auto space-y-1">
+              <li>• Workflow 3 (Book Assembly) hasn't been completed yet</li>
+              <li>• The book assembly process is still running</li>
+              <li>• There was an error during the book assembly process</li>
+            </ul>
+            <div className="mt-6">
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh Page
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Page Preview Images Grid - Only show when workflow 3 has completed */}
+        {workflow3Completed && pageAssets.length > 0 && (
           <AssetGrid
             title="Page Preview Images"
             description="Individual page previews - review, download, replace, or flag pages as needed"
@@ -2156,63 +2187,48 @@ export function PostPdfStage({
           />
         )}
 
-        {/* Final Compiled PDF Section - Moved below individual images, above PDF preview */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900">Final Compiled PDF</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Review the complete personalized book before sending for customer approval
-            </p>
-            {pdfAsset.isFlagged && (
-              <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                <Flag className="h-3 w-3 mr-1" />
-                Needs Attention
-              </div>
-            )}
-          </div>
-          
-          <div className="flex space-x-3">
-            {pdfAsset.exists && (
-            <button
-              onClick={handleDownload}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Download PDF
-            </button>
-            )}
-            <button
-              onClick={handleFlag}
-              className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                pdfAsset.isFlagged
-                  ? 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100 focus:ring-red-500'
-                  : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-500'
-              }`}
-            >
-              <Flag className="h-4 w-4 mr-2" />
-              {pdfAsset.isFlagged ? 'Unflag' : 'Flag for Review'}
-            </button>
-          </div>
-        </div>
-
-        {/* PDF Viewer - Page Preview */}
-        {/* Show message if workflow 3 hasn't completed yet */}
-        {!workflow3Completed && (
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="h-[800px] bg-gray-50 flex items-center justify-center">
-              <div className="text-center max-w-md">
-                <Loader2 className="h-12 w-12 text-blue-500 animate-spin mx-auto mb-4" />
-                <h4 className="text-lg font-medium text-gray-900 mb-2">Workflow 3 Not Completed</h4>
-                <p className="text-gray-600 text-sm mb-4">
-                  Book preview will appear here once Workflow 3 (Book Assembly) completes.
-                </p>
-                <p className="text-gray-500 text-xs">
-                  This page will refresh automatically every 10 seconds.
-                </p>
-              </div>
+        {/* Final Compiled PDF Section - Only show when workflow 3 has completed */}
+        {workflow3Completed && (
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Final Compiled PDF</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Review the complete personalized book before sending for customer approval
+              </p>
+              {pdfAsset.isFlagged && (
+                <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  <Flag className="h-3 w-3 mr-1" />
+                  Needs Attention
+                </div>
+              )}
+            </div>
+            
+            <div className="flex space-x-3">
+              {pdfAsset.exists && (
+              <button
+                onClick={handleDownload}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
+              </button>
+              )}
+              <button
+                onClick={handleFlag}
+                className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  pdfAsset.isFlagged
+                    ? 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100 focus:ring-red-500'
+                    : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-500'
+                }`}
+              >
+                <Flag className="h-4 w-4 mr-2" />
+                {pdfAsset.isFlagged ? 'Unflag' : 'Flag for Review'}
+              </button>
             </div>
           </div>
         )}
+
+        {/* PDF Viewer - Page Preview - Only show when workflow 3 has completed */}
 
         {/* Show loading state only if workflow 3 has completed */}
         {workflow3Completed && loadingPages && (

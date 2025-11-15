@@ -63,18 +63,50 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Get stuck orders (processing > minMinutes)
+    // IMPORTANT: Exclude orders that have completed their workflow (have manifest URLs)
+    // These are waiting for review, not actually stuck
     const thresholdTime = new Date();
     thresholdTime.setMinutes(thresholdTime.getMinutes() - minMinutes);
     
     const { data: stuckData, error: stuckError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, current_workflow, started_at, workflow_step, error_type, error_message, retry_count, next_retry_at, next_workflow, updated_at')
+      .select('id, amazon_order_id, execution_status, current_workflow, started_at, workflow_step, error_type, error_message, retry_count, next_retry_at, next_workflow, updated_at, manifest_2a_url, manifest_2b_url, manifest_3_url')
       .eq('execution_status', 'processing')
       .or(`started_at.lt.${thresholdTime.toISOString()},started_at.is.null`);
 
     if (stuckError) {
       console.error('[GET /api/admin/orders-needing-attention] Stuck orders error:', stuckError);
     }
+
+    // Filter out orders that have completed their workflow
+    // These are waiting for review, not actually stuck
+    // When a workflow completes, current_workflow is set to null, so we check workflow_step instead
+    const trulyStuckData = (stuckData || []).filter((order: any) => {
+      // Check if workflow has actually completed by checking workflow_step
+      // This is the primary indicator - when workflow completes, workflow_step is set to '2A-complete', etc.
+      const hasCompletedStep = 
+        order.workflow_step === '2A-complete' ||
+        order.workflow_step === '2B-complete' ||
+        order.workflow_step === 'bria_processing_complete' ||
+        order.workflow_step === 'book_assembly_completed' ||
+        order.workflow_step === 'ai_generation_completed';
+      
+      // Also check for manifest URLs as a secondary indicator
+      // (current_workflow is null when workflow completes, so we can't use it)
+      const hasManifest = 
+        !!order.manifest_2a_url ||
+        !!order.manifest_2b_url ||
+        !!order.manifest_3_url;
+      
+      // If workflow completed (has completed step or manifest), exclude from stuck orders
+      // These orders are waiting for review, not actually stuck
+      if (hasCompletedStep || hasManifest) {
+        console.log(`[GET /api/admin/orders-needing-attention] Excluding ${order.amazon_order_id} from stuck orders - workflow completed (workflow_step: ${order.workflow_step}, has manifest: ${hasManifest})`);
+        return false;
+      }
+      
+      return true;
+    });
 
     // 3. Get orders with error status
     let errorStatusQuery = supabase
@@ -184,9 +216,9 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Process stuck orders
+    // Process stuck orders (using filtered list that excludes completed workflows)
     const now = new Date();
-    (stuckData || []).forEach((order: any) => {
+    (trulyStuckData || []).forEach((order: any) => {
       const startedAt = order.started_at ? new Date(order.started_at) : null;
       const minutesProcessing = startedAt
         ? Math.floor((now.getTime() - startedAt.getTime()) / 1000 / 60)
