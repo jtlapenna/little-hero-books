@@ -36,7 +36,7 @@ export default function AnalyticsFilters({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
         {/* Date Range */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -62,21 +62,21 @@ export default function AnalyticsFilters({
           />
         </div>
 
-        {/* Test/Production Filter */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Order Type
-          </label>
-          <select
-            value={filters.isTest}
-            onChange={(e) => handleTestFilterChange(e.target.value as 'all' | 'test' | 'production')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Orders</option>
-            <option value="test">Test Only</option>
-            <option value="production">Production Only</option>
-          </select>
-        </div>
+        {/* Book ID Filter (if needed) */}
+        {filters.bookId !== undefined && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Book ID
+            </label>
+            <input
+              type="text"
+              value={filters.bookId || ''}
+              onChange={(e) => onFiltersChange({ ...filters, bookId: e.target.value || undefined })}
+              placeholder="Filter by book ID"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        )}
 
         {/* Group By */}
         <div>
