@@ -81,9 +81,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         const manifest = await response.json();
         const entries = manifest?.entries || [];
         
-        // Clear and repopulate manuallyFlaggedRef from manifest (source of truth)
-        manuallyFlaggedRef.current.clear();
-        
+        // Don't clear manuallyFlaggedRef - only add new flags from manifest
+        // This preserves user actions that haven't been persisted yet
+        // Only update flags that aren't in manuallyUnflaggedRef (user explicitly unflagged)
         entries.forEach((entry: any) => {
           const poseNumber = entry.poseNumber ?? 0;
           const poseId = `pose${String(poseNumber).padStart(2, '0')}`;
@@ -93,7 +93,13 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             // Only add if not explicitly unflagged by user
             if (!manuallyUnflaggedRef.current.has(poseId)) {
               manuallyFlaggedRef.current.add(poseId);
-              console.log(`[PreBriaStage] Restored flag for ${poseId} from manifest (isFlagged=${entry.isFlagged}, needsReview=${entry.needsReview})`);
+            }
+          } else {
+            // If entry is not flagged in manifest, remove from manuallyFlaggedRef
+            // BUT only if user hasn't explicitly flagged it (not in manuallyFlaggedRef)
+            // This handles the case where manifest was updated after user unflagged
+            if (!manuallyFlaggedRef.current.has(poseId)) {
+              manuallyUnflaggedRef.current.add(poseId);
             }
           }
         });
@@ -543,7 +549,8 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   };
 
   const allAssets = [baseCharacter, ...poses];
-  const flaggedCount = allAssets.filter(asset => asset.isFlagged).length;
+  // Use order.flags as source of truth for flag count, fallback to local state
+  const flaggedCount = order?.flags?.preBria ?? allAssets.filter(asset => asset.isFlagged).length;
   const missingCount = poses.filter(pose => pose.isMissing || !pose.url).length;
   
   // Check that we have some images to display (even if some are missing/placeholders)

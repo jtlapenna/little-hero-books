@@ -2018,8 +2018,8 @@ export function PostPdfStage({
     Boolean(pdfAsset.error) &&
     pdfAsset.error !== null &&
     /environment|credential|not available in this environment/i.test(pdfAsset.error);
-  // Check for flagged pages
-  const flaggedPageCount = pageAssets.filter(asset => asset.isFlagged).length;
+  // Use order.flags as source of truth for flag count, fallback to local state
+  const flaggedPageCount = order?.flags?.postPdf ?? pageAssets.filter(asset => asset.isFlagged).length;
   
   // Can approve stage (for "Approve Stage" button)
   // Note: Only requires PostBria approval (not PreBria) because if workflow 3 completed,

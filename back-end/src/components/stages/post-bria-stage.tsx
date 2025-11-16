@@ -74,9 +74,9 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         manifest = await response.json();
         const entries = manifest?.entries || [];
         
-        // Clear and repopulate manuallyFlaggedRef from manifest (source of truth)
-        manuallyFlaggedRef.current.clear();
-        
+        // Don't clear manuallyFlaggedRef - only add new flags from manifest
+        // This preserves user actions that haven't been persisted yet
+        // Only update flags that aren't in manuallyUnflaggedRef (user explicitly unflagged)
         entries.forEach((entry: any) => {
           const poseNumber = entry.poseNumber ?? 0;
           const poseId = `pose${String(poseNumber).padStart(2, '0')}-bg-removed`;
@@ -86,7 +86,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
             // Only add if not explicitly unflagged by user
             if (!manuallyUnflaggedRef.current.has(poseId)) {
               manuallyFlaggedRef.current.add(poseId);
-              console.log(`[PostBriaStage] Restored flag for ${poseId} from manifest (isFlagged=${entry.isFlagged}, needsReview=${entry.needsReview})`);
+            }
+          } else {
+            // If entry is not flagged in manifest, remove from manuallyFlaggedRef
+            // BUT only if user hasn't explicitly flagged it (not in manuallyFlaggedRef)
+            // This handles the case where manifest was updated after user unflagged
+            if (!manuallyFlaggedRef.current.has(poseId)) {
+              manuallyUnflaggedRef.current.add(poseId);
             }
           }
         });
@@ -598,11 +604,16 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
               manuallyUnflaggedRef.current.delete(assetId);
             } else {
               // User is unflagging - add to manually unflagged set, remove from flagged set
-            manuallyUnflaggedRef.current.add(assetId);
+              manuallyUnflaggedRef.current.add(assetId);
               manuallyFlaggedRef.current.delete(assetId);
             }
             
-            // Update flag count after successful API call
+            // Update order flags and review stages from API response
+            if (onOrderUpdate && result.flags) {
+              onOrderUpdate({ flags: result.flags });
+            }
+            
+            // Update flag count after successful API call (for consistency)
             const updatedPoses = prev.map(pose => 
               pose.id === assetId ? { ...pose, isFlagged: newFlaggedState } : pose
             );
@@ -633,7 +644,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     });
   };
 
-  const flaggedCount = poses.filter(asset => asset.isFlagged).length;
+  // Use order.flags as source of truth for flag count, fallback to local state
+  const flaggedCount = order?.flags?.postBria ?? poses.filter(asset => asset.isFlagged).length;
   const missingCount = poses.filter(pose => pose.isMissing || !pose.url).length;
   const hasImages = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0 && !pose.isMissing);
   // Post‑Bria approval rule: if 2B populated images and none are flagged, allow approval
