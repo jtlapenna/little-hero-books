@@ -158,8 +158,29 @@ export default function ReviewPage() {
         <div className="mb-6 border-b border-gray-200">
           <nav className="flex space-x-8" aria-label="Review Tabs">
             {REVIEW_TABS.map((tab) => {
-              const tabOrderCount = getOrdersForTab(allOrders, tab.id).length;
+              const tabOrders = getOrdersForTab(allOrders, tab.id);
+              const tabOrderCount = tabOrders.length;
               const isActive = activeTab === tab.id;
+              
+              // Calculate flag count for this specific tab
+              let tabFlagCount = 0;
+              if (tab.id === 'secondary') {
+                // Secondary review shows total flags across all stages
+                tabFlagCount = tabOrders.reduce((sum, order) => {
+                  const flagSummary = getOrderFlagSummary(order);
+                  return sum + (flagSummary.total || 0);
+                }, 0);
+              } else {
+                // Each stage tab shows only flags for that specific stage
+                const stageKey = tab.id === 'poses' ? 'preBria' : 
+                               tab.id === 'backgrounds' ? 'postBria' : 
+                               'postPdf';
+                tabFlagCount = tabOrders.reduce((sum, order) => {
+                  const flagSummary = getOrderFlagSummary(order);
+                  return sum + (flagSummary[stageKey] || 0);
+                }, 0);
+              }
+              
               return (
                 <button
                   key={tab.id}
@@ -185,6 +206,9 @@ export default function ReviewPage() {
                       `}>
                         {tabOrderCount}
                       </span>
+                    )}
+                    {tabFlagCount > 0 && (
+                      <FlaggedBadge count={tabFlagCount} />
                     )}
                   </div>
                 </button>

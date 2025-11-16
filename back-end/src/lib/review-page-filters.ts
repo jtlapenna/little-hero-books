@@ -61,7 +61,7 @@ export function shouldShowAsNew(order: OrderListItem): boolean {
  * - OR order is "new" and needs processing
  */
 export function shouldShowInReviewPoses(order: OrderListItem): boolean {
-  // Include new orders that need processing
+  // Include new orders that need processing - return early without checking other conditions
   if (shouldShowAsNew(order)) {
     return true;
   }
@@ -80,8 +80,10 @@ export function shouldShowInReviewPoses(order: OrderListItem): boolean {
                           order.rawStatus !== OrderStatus.PENDING_ASSEMBLY;
   
   // Must have DisplayStatus of REVIEW_POSES (images are generated and ready for review)
+  // OR must be NEW status (new orders that haven't been processed yet)
   // AND must not be in queue phase or processing
-  const isReviewPosesStatus = order.status === DisplayStatus.REVIEW_POSES &&
+  const isReviewPosesStatus = (order.status === DisplayStatus.REVIEW_POSES || 
+                               order.status === DisplayStatus.NEW) &&
                               order.phase !== OrderPhase.IN_QUEUE;
   
   // Must not be completed
@@ -97,11 +99,15 @@ export function shouldShowInReviewPoses(order: OrderListItem): boolean {
                          order.rawStatus !== OrderStatus.SHIPPED &&
                          order.rawStatus !== OrderStatus.DELIVERED;
   
-  // Must be in FIRST_REVIEW phase (not SECOND_REVIEW)
-  const isFirstReview = order.phase === OrderPhase.FIRST_REVIEW;
+  // Must be in FIRST_REVIEW phase (not SECOND_REVIEW) OR NEW status
+  const isFirstReview = order.phase === OrderPhase.FIRST_REVIEW || 
+                       order.status === DisplayStatus.NEW ||
+                       order.rawStatus === OrderStatus.NEW;
   
   return isInPreBriaStage && isNotInQueue && isNotProcessing && isReviewPosesStatus && isNotCompleted && notSentToPrint && isFirstReview;
 }
+<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
+read_file
 
 /**
  * Check if an order should appear in the Review Backgrounds tab
