@@ -1100,16 +1100,18 @@ export default function OrderDetailPage() {
                         // Use stageKey to access reviewStages (more reliable than stage.key)
                         const stageStatus = order.reviewStages[stage.stageKey]?.status;
                         // Use stageKey (preBria/postBria/postPdf) to look up flag count, not stage.key
+                        // CRITICAL: Only show flags for this specific stage, not all flags
                         const stageFlagCount = flagCounts[stage.stageKey] || 0;
+                        
+                        // Debug logging for badge state and flag counts
+                        if (process.env.NODE_ENV === 'development' && (stage.stageKey === 'preBria' || stage.stageKey === 'postBria' || stage.stageKey === 'postPdf')) {
+                          console.log(`[Badge ${stage.stageKey}] stageStatus=${stageStatus}, stageFlagCount=${stageFlagCount}, allFlagCounts=`, flagCounts, `order.flags=`, order.flags);
+                        }
+                        
                         // Compare with string 'approved' to handle both enum and string values
                         const isApproved = stageStatus === ReviewStageStatus.APPROVED || stageStatus === 'approved';
                         const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
                         const isSecondReview = revisionCount >= 1;
-                        
-                        // Debug logging for badge state
-                        if (stage.stageKey === 'preBria' || stage.stageKey === 'postBria' || stage.stageKey === 'postPdf') {
-                          console.log(`[Badge ${stage.stageKey}] stageStatus=${stageStatus}, isApproved=${isApproved}, stageFlagCount=${stageFlagCount}`);
-                        }
                         
                         // Check if stage has been reached
                         // Pre-Bria: always reached if order exists
