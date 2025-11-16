@@ -140,12 +140,15 @@ export default function OrderDetailPage() {
       setOrder(data);
       
       // Initialize flagCounts from order.flags if available (for immediate UI update)
+      // CRITICAL: Ensure we're reading the correct flag counts for each stage
       if (data.flags) {
-        setFlagCounts({
-          preBria: data.flags.preBria || 0,
-          postBria: data.flags.postBria || 0,
-          postPdf: data.flags.postPdf || 0,
-        });
+        const initialFlagCounts = {
+          preBria: typeof data.flags.preBria === 'number' ? data.flags.preBria : (typeof data.flags.pre_bria === 'number' ? data.flags.pre_bria : 0),
+          postBria: typeof data.flags.postBria === 'number' ? data.flags.postBria : (typeof data.flags.post_bria === 'number' ? data.flags.post_bria : 0),
+          postPdf: typeof data.flags.postPdf === 'number' ? data.flags.postPdf : (typeof data.flags.post_pdf === 'number' ? data.flags.post_pdf : 0),
+        };
+        console.log('[fetchOrder] Initializing flagCounts:', initialFlagCounts, 'from data.flags:', data.flags);
+        setFlagCounts(initialFlagCounts);
       }
       
       setLoading(false);
