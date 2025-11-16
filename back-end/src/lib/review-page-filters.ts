@@ -56,8 +56,6 @@ export function shouldShowAsNew(order: OrderListItem): boolean {
   
   return isNewStatus && isNotQueued && isNotProcessing && isNotCompleted && hasNoStageProgress;
 }
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-read_file
 
 /**
  * Check if an order should appear in the Review Poses tab
