@@ -203,7 +203,15 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         
         // Set isFlagged based on manual flags, manifest flags, needsReview, or isMissing
         // Priority: manually flagged > missing > manually unflagged > manifest flags
-        const shouldBeFlagged = isManuallyFlagged || isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
+        // CRITICAL: If user manually flagged it, ALWAYS keep it flagged (even if manifest doesn't have it yet)
+        // This prevents polling from reverting user actions due to R2 eventual consistency
+        let shouldBeFlagged = isManuallyFlagged || isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
+        
+        // Double-check: If in manuallyFlaggedRef, force it to be flagged
+        // This is a safety net in case the above logic misses it
+        if (manuallyFlaggedRef.current.has(poseId)) {
+          shouldBeFlagged = true;
+        }
         
         // Map pose to page number (first page that uses this pose)
         const pageNumber = poseToFirstPage[poseNumber] ?? null;

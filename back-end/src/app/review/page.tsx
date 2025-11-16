@@ -307,6 +307,11 @@ export default function ReviewPage() {
                     : flagSummary.postPdf;
               const hasAnyFlags = stageFlagCount > 0;
               
+              // Debug logging to help diagnose flag display issues
+              if (process.env.NODE_ENV === 'development' && (order.flags || flagSummary.total > 0)) {
+                console.log(`[ReviewPage] Order ${order.orderId}: flags=`, order.flags, `flagSummary=`, flagSummary, `stageFlagCount=`, stageFlagCount, `hasAnyFlags=`, hasAnyFlags);
+              }
+              
               // Determine card background color based on state
               let cardBgClass = 'bg-white'; // Default: neutral
               let cardBorderClass = 'border border-gray-200';

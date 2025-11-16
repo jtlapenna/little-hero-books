@@ -282,7 +282,15 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         
         // Set isFlagged based on manual flags, manifest flags, needsReview, or isMissing
         // Priority: manually flagged > missing > manually unflagged > manifest flags
-        const shouldBeFlagged = isManuallyFlagged || isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview || false));
+        // CRITICAL: If user manually flagged it, ALWAYS keep it flagged (even if manifest doesn't have it yet)
+        // This prevents polling from reverting user actions due to R2 eventual consistency
+        let shouldBeFlagged = isManuallyFlagged || isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview || false));
+        
+        // Double-check: If in manuallyFlaggedRef, force it to be flagged
+        // This is a safety net in case the above logic misses it
+        if (manuallyFlaggedRef.current.has(basePoseId)) {
+          shouldBeFlagged = true;
+        }
         
         // Build reference pose URL for comparison
         const paddedPoseNumber = String(poseNumber).padStart(2, '0');
