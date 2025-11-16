@@ -8,7 +8,7 @@
 
 import { OrderListItem } from '@/types/order';
 import { LucideIcon } from 'lucide-react';
-import { Sparkles, User, Image, FileText, Search } from 'lucide-react';
+import { Sparkles, User, Image, FileText, Search, List } from 'lucide-react';
 import {
   shouldShowInReviewPoses,
   shouldShowInReviewBackgrounds,
@@ -18,7 +18,7 @@ import {
   getCardLabel,
 } from './review-page-filters';
 
-export type ReviewTabId = 'new' | 'poses' | 'backgrounds' | 'pages' | 'secondary';
+export type ReviewTabId = 'all' | 'new' | 'poses' | 'backgrounds' | 'pages' | 'secondary';
 
 export interface ReviewTab {
   id: ReviewTabId;
@@ -33,6 +33,18 @@ export interface ReviewTab {
  * Tab configuration for the Review Page
  */
 export const REVIEW_TABS: ReviewTab[] = [
+  {
+    id: 'all',
+    label: 'All Orders',
+    description: 'View all orders requiring review',
+    icon: List,
+    filterFunction: () => true, // Show all orders
+    getCardLabel: (order) => {
+      // Use the appropriate label based on the order's stage
+      if (shouldShowAsNew(order)) return 'New';
+      return getCardLabel(order, 'preBria') || getCardLabel(order, 'postBria') || getCardLabel(order, 'postPdf') || getCardLabel(order, 'secondary') || 'Review';
+    },
+  },
   {
     id: 'new',
     label: 'New Orders',

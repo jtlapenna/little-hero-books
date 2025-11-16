@@ -18,7 +18,7 @@ export default function ReviewPage() {
   const [allOrders, setAllOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<ReviewTabId>('new');
+  const [activeTab, setActiveTab] = useState<ReviewTabId>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'orderDate' | 'firstName' | 'lastName' | 'platform'>('orderDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -175,7 +175,13 @@ export default function ReviewPage() {
               
               // Calculate flag count for this specific tab
               let tabFlagCount = 0;
-              if (tab.id === 'new') {
+              if (tab.id === 'all') {
+                // All tab shows total flags across all orders
+                tabFlagCount = tabOrders.reduce((sum, order) => {
+                  const flagSummary = getOrderFlagSummary(order);
+                  return sum + (flagSummary.total || 0);
+                }, 0);
+              } else if (tab.id === 'new') {
                 // New orders don't have flags yet - they haven't been processed
                 tabFlagCount = 0;
               } else if (tab.id === 'secondary') {
