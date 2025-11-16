@@ -18,8 +18,15 @@ interface OverviewData {
     errorRate: number;
     completedOrders: number;
     errorOrders: number;
+    completedPosesPhase: number;
+    completedBackgroundRemovalPhase: number;
+    completedPagesPhase: number;
+    customerApprovalTotal: number;
+    customerApprovedWithRevision: number;
+    customerApprovedWithoutRevision: number;
   };
   statusBreakdown: Record<string, number>;
+  errorBreakdown: Record<string, number>;
   timeSeries: Array<{
     date: string;
     orders: number;
@@ -95,9 +102,15 @@ export default function OverviewTab({ filters }: { filters: AnalyticsFiltersStat
     value
   }));
 
+  // Prepare error breakdown for chart
+  const errorData = Object.entries(data.errorBreakdown || {}).map(([name, value]) => ({
+    name,
+    value
+  })).sort((a, b) => b.value - a.value);
+
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
+      {/* Summary Cards - Row 1 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
           <div className="text-sm font-medium text-blue-600">Total Orders</div>
@@ -118,6 +131,42 @@ export default function OverviewTab({ filters }: { filters: AnalyticsFiltersStat
         <div className="bg-red-50 rounded-lg p-4 border border-red-200">
           <div className="text-sm font-medium text-red-600">Error Rate</div>
           <div className="text-2xl font-bold text-red-900 mt-1">{data.summary.errorRate.toFixed(1)}%</div>
+        </div>
+      </div>
+
+      {/* Summary Cards - Row 2: Workflow Completion */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+          <div className="text-sm font-medium text-blue-600">Completed Orders</div>
+          <div className="text-2xl font-bold text-blue-900 mt-1">{data.summary.completedOrders}</div>
+        </div>
+        <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+          <div className="text-sm font-medium text-indigo-600">Completed Poses Phase</div>
+          <div className="text-2xl font-bold text-indigo-900 mt-1">{data.summary.completedPosesPhase}</div>
+        </div>
+        <div className="bg-cyan-50 rounded-lg p-4 border border-cyan-200">
+          <div className="text-sm font-medium text-cyan-600">Completed Background Removal</div>
+          <div className="text-2xl font-bold text-cyan-900 mt-1">{data.summary.completedBackgroundRemovalPhase}</div>
+        </div>
+        <div className="bg-teal-50 rounded-lg p-4 border border-teal-200">
+          <div className="text-sm font-medium text-teal-600">Completed Pages Phase</div>
+          <div className="text-2xl font-bold text-teal-900 mt-1">{data.summary.completedPagesPhase}</div>
+        </div>
+      </div>
+
+      {/* Summary Cards - Row 3: Customer Approval */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+          <div className="text-sm font-medium text-amber-600">Customer Approval Total</div>
+          <div className="text-2xl font-bold text-amber-900 mt-1">{data.summary.customerApprovalTotal}</div>
+        </div>
+        <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+          <div className="text-sm font-medium text-orange-600">Approved (With Revision)</div>
+          <div className="text-2xl font-bold text-orange-900 mt-1">{data.summary.customerApprovedWithRevision}</div>
+        </div>
+        <div className="bg-lime-50 rounded-lg p-4 border border-lime-200">
+          <div className="text-sm font-medium text-lime-600">Approved (No Revision)</div>
+          <div className="text-2xl font-bold text-lime-900 mt-1">{data.summary.customerApprovedWithoutRevision}</div>
         </div>
       </div>
 
@@ -180,6 +229,22 @@ export default function OverviewTab({ filters }: { filters: AnalyticsFiltersStat
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Error Breakdown */}
+      {errorData.length > 0 && (
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Error Breakdown by Type</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={errorData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis dataKey="name" type="category" width={150} />
+              <Tooltip />
+              <Bar dataKey="value" fill="#ef4444" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }

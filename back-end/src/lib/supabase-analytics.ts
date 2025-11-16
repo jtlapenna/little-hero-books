@@ -29,12 +29,23 @@ export interface OrderRecord {
   character_specs: any;
   book_specs: any;
   one_manifest_url: string | null;
+  manifest_2a_url: string | null;
+  manifest_2b_url: string | null;
+  manifest_3_url: string | null;
   previous_character_images: any[] | null;
   rejection_history: any[] | null;
   workflow_step: string | null;
   current_workflow: string | null;
   next_workflow: string | null;
   lulu_status: string | null;
+  customer_approval_status: string | null;
+  customer_approval_requested_at: string | null;
+  customer_approval_approved_at: string | null;
+  review_stages: {
+    preBria?: { status?: string };
+    postBria?: { status?: string };
+    postPdf?: { status?: string };
+  } | null;
 }
 
 /**
