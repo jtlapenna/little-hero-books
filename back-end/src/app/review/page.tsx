@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Order, OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
+import { CountBadge } from '@/components/ui/count-badge';
+import { FlagBadgeCompact } from '@/components/ui/flag-badge-compact';
 import { formatDate } from '@/lib/utils';
 import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
@@ -166,8 +168,8 @@ export default function ReviewPage() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="mb-6 border-b border-gray-200">
-          <nav className="flex space-x-8" aria-label="Review Tabs">
+        <div className="mb-6">
+          <nav className="flex space-x-1 border-b border-gray-200" aria-label="Review Tabs">
             {REVIEW_TABS.map((tab) => {
               const tabOrders = getOrdersForTab(allOrders, tab.id);
               const tabOrderCount = tabOrders.length;
@@ -206,31 +208,29 @@ export default function ReviewPage() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`
-                    py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                    relative px-4 py-3 text-sm font-medium transition-all duration-200
                     ${isActive
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'text-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
                     }
                   `}
                 >
-                  <div className="flex items-center space-x-2">
-                    <tab.icon className="w-4 h-4" />
+                  <div className="flex items-center gap-2">
+                    <tab.icon className={`w-4 h-4 transition-colors ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
                     <span>{tab.label}</span>
-                    {tabOrderCount > 0 && (
-                      <span className={`
-                        ml-2 px-2 py-0.5 rounded-full text-xs font-bold
-                        ${isActive
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-100 text-gray-600'
-                        }
-                      `}>
-                        {tabOrderCount}
-                      </span>
-                    )}
-                    {tabFlagCount > 0 && (
-                      <FlaggedBadge count={tabFlagCount} />
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {tabOrderCount > 0 && (
+                        <CountBadge count={tabOrderCount} variant={isActive ? 'active' : 'default'} />
+                      )}
+                      {tabFlagCount > 0 && (
+                        <FlagBadgeCompact count={tabFlagCount} variant={isActive ? 'active' : 'default'} />
+                      )}
+                    </div>
                   </div>
+                  {/* Active indicator */}
+                  {isActive && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
+                  )}
                 </button>
               );
             })}
