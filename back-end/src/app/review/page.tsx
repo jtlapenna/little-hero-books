@@ -322,13 +322,20 @@ export default function ReviewPage() {
               const isApproved = cardLabel === 'Approved';
               const hasFlags = cardLabel.includes('Flagged');
               // Get flag count for the specific stage to show badge even if card label doesn't say "Flagged"
-              const stageFlagCount = activeTab === 'secondary' 
-                ? flagSummary.total 
-                : activeTab === 'poses' 
-                  ? flagSummary.preBria 
-                  : activeTab === 'backgrounds'
-                    ? flagSummary.postBria
-                    : flagSummary.postPdf;
+              // CRITICAL: Only show flags for the stage this order is actually in, not all flags
+              let stageFlagCount = 0;
+              if (activeTab === 'secondary') {
+                stageFlagCount = flagSummary.total;
+              } else if (activeTab === 'poses') {
+                // Only show preBria flags for poses tab
+                stageFlagCount = flagSummary.preBria || 0;
+              } else if (activeTab === 'backgrounds') {
+                // Only show postBria flags for backgrounds tab
+                stageFlagCount = flagSummary.postBria || 0;
+              } else if (activeTab === 'pages') {
+                // Only show postPdf flags for pages tab
+                stageFlagCount = flagSummary.postPdf || 0;
+              }
               const hasAnyFlags = stageFlagCount > 0;
               
               // Debug logging to help diagnose flag display issues
@@ -448,13 +455,20 @@ export default function ReviewPage() {
                     const isApproved = cardLabel === 'Approved';
                     const hasFlags = cardLabel.includes('Flagged');
                     // Get flag count for the specific stage to show badge even if card label doesn't say "Flagged"
-                    const stageFlagCount = activeTab === 'secondary' 
-                      ? flagSummary.total 
-                      : activeTab === 'poses' 
-                        ? flagSummary.preBria 
-                        : activeTab === 'backgrounds'
-                          ? flagSummary.postBria
-                          : flagSummary.postPdf;
+                    // CRITICAL: Only show flags for the stage this order is actually in, not all flags
+                    let stageFlagCount = 0;
+                    if (activeTab === 'secondary') {
+                      stageFlagCount = flagSummary.total;
+                    } else if (activeTab === 'poses') {
+                      // Only show preBria flags for poses tab
+                      stageFlagCount = flagSummary.preBria || 0;
+                    } else if (activeTab === 'backgrounds') {
+                      // Only show postBria flags for backgrounds tab
+                      stageFlagCount = flagSummary.postBria || 0;
+                    } else if (activeTab === 'pages') {
+                      // Only show postPdf flags for pages tab
+                      stageFlagCount = flagSummary.postPdf || 0;
+                    }
                     const hasAnyFlags = stageFlagCount > 0;
                     
                     // Determine row background color based on state

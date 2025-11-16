@@ -33,10 +33,12 @@ export function isInWorkflowProcessing(order: OrderListItem): boolean {
  */
 export function shouldShowAsNew(order: OrderListItem): boolean {
   // Must be in NEW status (not queued, not processing, not in any review stage)
+  // Check both display status and raw status to catch all new orders
   const isNewStatus = order.status === DisplayStatus.NEW || 
-                      order.rawStatus === OrderStatus.NEW;
+                      order.rawStatus === OrderStatus.NEW ||
+                      order.rawStatus === OrderStatus.PENDING_PROCESSING;
   
-  // Must not be queued
+  // Must not be queued (but PENDING_PROCESSING is okay - that's still "new")
   const isNotQueued = order.status !== DisplayStatus.IN_QUEUE &&
                       order.phase !== OrderPhase.IN_QUEUE &&
                       order.rawStatus !== OrderStatus.QUEUED_FOR_PROCESSING;
@@ -47,8 +49,15 @@ export function shouldShowAsNew(order: OrderListItem): boolean {
   // Must not be completed
   const isNotCompleted = order.rawStatus !== OrderStatus.COMPLETED;
   
-  return isNewStatus && isNotQueued && isNotProcessing && isNotCompleted;
+  // Must not have any review stage progress (if it has progress, it's not "new")
+  const hasNoStageProgress = !order.reviewStages?.preBria?.status ||
+                             order.reviewStages?.preBria?.status === ReviewStageStatus.PENDING ||
+                             order.reviewStages?.preBria?.status === 'pending';
+  
+  return isNewStatus && isNotQueued && isNotProcessing && isNotCompleted && hasNoStageProgress;
 }
+<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
+read_file
 
 /**
  * Check if an order should appear in the Review Poses tab
