@@ -1,0 +1,89 @@
+/* ==== COVER IMAGE TEMPLATE CSS — px-native for Image engine ==== */
+
+/* Fonts (keep absolute URLs) */
+@font-face{
+  font-family:'CustomBook';
+  src:
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.woff2') format('woff2'),
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.ttf') format('truetype');
+  font-display:swap;
+}
+
+/* 1:1 pixel canvas — no @page, no inches, no transforms */
+html, body {
+  margin:0;
+  padding:0;
+  width:5203px;
+  height:2625px;
+  overflow:hidden;
+  -webkit-text-size-adjust:100%;
+}
+
+* { box-sizing:border-box; }
+
+.cover-viewport,
+.cover-canvas,
+.cover-spread {
+  position:relative;
+  width:5203px;
+  height:2625px;
+}
+
+/* IMPORTANT: remove scaling */
+.cover-canvas { transform:none; }
+
+/* Background (character + full spread bg) */
+.bg{
+  position:absolute; inset:0; z-index:0;
+  background-repeat:no-repeat, no-repeat;
+  background-position:
+    86.5% 80.5%,  /* character */
+    center center;/* background */
+  background-size:
+    1200px auto,  /* character width */
+    cover;        /* background fills spread */
+}
+
+/* Structural guides (unchanged) */
+.half{ position:absolute; top:0; height:2625px; }
+.back{ left:0; width:2601px; }
+.front{ right:0; width:2602px; }
+.spine{ position:absolute; left:2601px; top:0; width:2px; height:100%; background:rgba(0,0,0,0.06); z-index:3; }
+
+/* Palette, titles, panels, etc. (same as yours) */
+:root{
+  --gold-main:#F4D28B;
+  --gold-body:#F7E3B3;
+  --gold-footer:#F4D28B;
+  --panel-stroke:rgba(255,255,255,0.80);
+  --panel-text:#F7EBD1;
+  --front-name-size:280px;
+  --front-label-size:200px;
+}
+
+.front-title-wrap{ position:absolute; left:calc(5203px * 0.76); top:340px; width:1800px; text-align:center; z-index:6; transform:translateX(-50%); }
+.front-title{ font-family:'CustomBook', Arial, sans-serif; line-height:1.06; letter-spacing:2px; color:var(--gold-main); text-transform:uppercase; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+.front-title .name{ display:block; font-size:var(--front-name-size); }
+.front-title .label{ display:block; font-size:var(--front-label-size); }
+
+.back-wrap{ position:absolute; left:0; top:370px; width:2601px; padding:0 220px; z-index:6; text-align:center; margin:0 auto; }
+.back-h1{ font-family:'CustomBook', Arial, sans-serif; font-size:160px; line-height:1.08; letter-spacing:2px; color:var(--gold-main); margin-bottom:80px; }
+.back-body{ white-space:pre-line; font-family:'CustomBook', Arial, sans-serif; font-size:86px; line-height:1.3; letter-spacing:1px; color:var(--gold-body); margin:0 auto 80px; max-width:2000px; }
+
+.try-wrap{ position:relative; width:2000px; padding-top:12px; margin:200px auto 400px; }
+.try-hdr{ font-family:'CustomBook', Arial, sans-serif; font-size:140px; letter-spacing:8px; color:var(--gold-main); text-align:center; margin-bottom:28px; }
+.try-panel{ margin:0 auto; width:1600px; border:8px solid var(--panel-stroke); border-radius:98px; padding:40px 60px; text-align:center; }
+.try-text{ white-space:pre-line; font-family:'CustomBook', Arial, sans-serif; font-size:86px; line-height:1.25; letter-spacing:1px; color:var(--panel-text); }
+
+/* Move only the footer up by ~8% of canvas height (2625px * 0.08 = 210px) */
+.footer{
+  font-family:'CustomBook', Arial, sans-serif;
+  letter-spacing:2px;
+  color:var(--gold-footer);
+  text-align:center;
+  position: relative;
+  top: -210px; /* or: top: calc(-0.08 * 2625px); */
+}
+.footer .line{ font-size:86px; display:block; }
+.footer .name{ font-size:86px; display:block; margin-top:12px; }
+
