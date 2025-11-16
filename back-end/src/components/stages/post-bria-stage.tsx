@@ -97,20 +97,17 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
             return;
           }
           
-          // If entry is flagged in manifest, add to manuallyFlaggedRef
+          // NEVER remove items from manuallyFlaggedRef - user actions are final
+          // Only add flags from manifest if they're not already in manuallyUnflaggedRef
           if (entry.isFlagged || entry.needsReview) {
             // Only add if not explicitly unflagged by user
             if (!manuallyUnflaggedRef.current.has(poseId)) {
               manuallyFlaggedRef.current.add(poseId);
             }
-          } else {
-            // If entry is not flagged in manifest, remove from manuallyFlaggedRef
-            // BUT only if user hasn't explicitly flagged it (not in manuallyFlaggedRef)
-            // This handles the case where manifest was updated after user unflagged
-            if (!manuallyFlaggedRef.current.has(poseId)) {
-              manuallyUnflaggedRef.current.add(poseId);
-            }
           }
+          // Don't remove from manuallyFlaggedRef even if manifest says it's not flagged
+          // This protects against R2 eventual consistency and polling race conditions
+          // User actions take precedence - if they flagged it, keep it flagged
         });
         
         console.log(`[PostBriaStage] Loaded flags from manifest: ${manuallyFlaggedRef.current.size} flagged items:`, Array.from(manuallyFlaggedRef.current));
@@ -588,6 +585,21 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       
       const newFlaggedState = !currentPose.isFlagged;
       
+      // Record timestamp IMMEDIATELY to prevent polling from overwriting
+      // This must happen before the API call to protect against polling that runs during the API call
+      userActionTimestamps.current.set(assetId, Date.now());
+      
+      // Update refs IMMEDIATELY to protect against polling
+      if (newFlaggedState) {
+        // User is flagging - add to manually flagged set, remove from unflagged set
+        manuallyFlaggedRef.current.add(assetId);
+        manuallyUnflaggedRef.current.delete(assetId);
+      } else {
+        // User is unflagging - add to manually unflagged set, remove from flagged set
+        manuallyUnflaggedRef.current.add(assetId);
+        manuallyFlaggedRef.current.delete(assetId);
+      }
+      
       // Extract poseNumber from assetId (e.g., "pose05-bg-removed" -> 5)
       const poseNumberMatch = assetId.match(/pose(\d+)/);
       const poseNumber = poseNumberMatch ? parseInt(poseNumberMatch[1], 10) : null;
@@ -611,21 +623,15 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
             setPoses(prevPoses => prevPoses.map(pose => 
               pose.id === assetId ? { ...pose, isFlagged: !newFlaggedState } : pose
             ));
+            // Also revert refs if API failed
+            if (newFlaggedState) {
+              manuallyFlaggedRef.current.delete(assetId);
+            } else {
+              manuallyUnflaggedRef.current.delete(assetId);
+            }
+            userActionTimestamps.current.delete(assetId);
           } else {
             const result = await response.json();
-            // Successfully persisted
-            if (newFlaggedState) {
-              // User is flagging - add to manually flagged set, remove from unflagged set
-              manuallyFlaggedRef.current.add(assetId);
-              manuallyUnflaggedRef.current.delete(assetId);
-            } else {
-              // User is unflagging - add to manually unflagged set, remove from flagged set
-              manuallyUnflaggedRef.current.add(assetId);
-              manuallyFlaggedRef.current.delete(assetId);
-            }
-            
-            // Record timestamp of user action to prevent polling from overwriting it
-            userActionTimestamps.current.set(assetId, Date.now());
             
             // Update order flags and review stages from API response
             if (onOrderUpdate && result.flags) {
@@ -645,6 +651,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           setPoses(prevPoses => prevPoses.map(pose => 
             pose.id === assetId ? { ...pose, isFlagged: !newFlaggedState } : pose
           ));
+          // Also revert refs if API failed
+          if (newFlaggedState) {
+            manuallyFlaggedRef.current.delete(assetId);
+          } else {
+            manuallyUnflaggedRef.current.delete(assetId);
+          }
+          userActionTimestamps.current.delete(assetId);
         });
       }
       

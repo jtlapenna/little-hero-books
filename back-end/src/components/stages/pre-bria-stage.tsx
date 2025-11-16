@@ -104,20 +104,17 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             return;
           }
           
-          // If entry is flagged in manifest, add to manuallyFlaggedRef
+          // NEVER remove items from manuallyFlaggedRef - user actions are final
+          // Only add flags from manifest if they're not already in manuallyUnflaggedRef
           if (entry.isFlagged || entry.needsReview) {
             // Only add if not explicitly unflagged by user
             if (!manuallyUnflaggedRef.current.has(poseId)) {
               manuallyFlaggedRef.current.add(poseId);
             }
-          } else {
-            // If entry is not flagged in manifest, remove from manuallyFlaggedRef
-            // BUT only if user hasn't explicitly flagged it (not in manuallyFlaggedRef)
-            // This handles the case where manifest was updated after user unflagged
-            if (!manuallyFlaggedRef.current.has(poseId)) {
-              manuallyUnflaggedRef.current.add(poseId);
-            }
           }
+          // Don't remove from manuallyFlaggedRef even if manifest says it's not flagged
+          // This protects against R2 eventual consistency and polling race conditions
+          // User actions take precedence - if they flagged it, keep it flagged
         });
         
         console.log(`[PreBriaStage] Loaded flags from manifest: ${manuallyFlaggedRef.current.size} flagged items:`, Array.from(manuallyFlaggedRef.current));
@@ -486,11 +483,26 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         
         const newFlaggedState = !currentPose.isFlagged;
         
-        // Extract poseNumber from assetId (e.g., "pose05-0" -> 5, "pose05" -> 5)
-        // Handle both old format (pose05) and new format (pose05-0)
+        // Extract basePoseId from assetId (remove index suffix if present)
+        // assetId format: "pose00-0" or "pose00-1", basePoseId: "pose00"
         const basePoseId = assetId.includes('-') ? assetId.split('-').slice(0, -1).join('-') : assetId;
         const poseNumberMatch = basePoseId.match(/pose(\d+)/);
         const poseNumber = poseNumberMatch ? parseInt(poseNumberMatch[1], 10) : null;
+        
+        // Record timestamp IMMEDIATELY to prevent polling from overwriting
+        // This must happen before the API call to protect against polling that runs during the API call
+        userActionTimestamps.current.set(basePoseId, Date.now());
+        
+        // Update refs IMMEDIATELY to protect against polling
+        if (newFlaggedState) {
+          // User is flagging - add to manually flagged set, remove from unflagged set
+          manuallyFlaggedRef.current.add(basePoseId);
+          manuallyUnflaggedRef.current.delete(basePoseId);
+        } else {
+          // User is unflagging - add to manually unflagged set, remove from flagged set
+          manuallyUnflaggedRef.current.add(basePoseId);
+          manuallyFlaggedRef.current.delete(basePoseId);
+        }
         
         // Persist flagging/unflagging to manifest via API
         if (poseNumber !== null) {
@@ -511,25 +523,15 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
               setPoses(prevPoses => prevPoses.map(pose => 
                 pose.id === assetId ? { ...pose, isFlagged: !newFlaggedState } : pose
               ));
+              // Also revert refs if API failed
+              if (newFlaggedState) {
+                manuallyFlaggedRef.current.delete(basePoseId);
+              } else {
+                manuallyUnflaggedRef.current.delete(basePoseId);
+              }
+              userActionTimestamps.current.delete(basePoseId);
             } else {
               const result = await response.json();
-              // Successfully persisted
-              // Extract basePoseId from assetId (remove index suffix if present)
-              // assetId format: "pose00-0" or "pose00-1", basePoseId: "pose00"
-              const basePoseId = assetId.includes('-') ? assetId.split('-').slice(0, -1).join('-') : assetId;
-              
-              if (newFlaggedState) {
-                // User is flagging - add to manually flagged set, remove from unflagged set
-                manuallyFlaggedRef.current.add(basePoseId);
-                manuallyUnflaggedRef.current.delete(basePoseId);
-              } else {
-                // User is unflagging - add to manually unflagged set, remove from flagged set
-                manuallyUnflaggedRef.current.add(basePoseId);
-                manuallyFlaggedRef.current.delete(basePoseId);
-              }
-              
-              // Record timestamp of user action to prevent polling from overwriting it
-              userActionTimestamps.current.set(basePoseId, Date.now());
               
               // Update order flags and review stages from API response
               if (onOrderUpdate) {
@@ -551,6 +553,13 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             setPoses(prevPoses => prevPoses.map(pose => 
               pose.id === assetId ? { ...pose, isFlagged: !newFlaggedState } : pose
             ));
+            // Also revert refs if API failed
+            if (newFlaggedState) {
+              manuallyFlaggedRef.current.delete(basePoseId);
+            } else {
+              manuallyUnflaggedRef.current.delete(basePoseId);
+            }
+            userActionTimestamps.current.delete(basePoseId);
           });
         }
         
