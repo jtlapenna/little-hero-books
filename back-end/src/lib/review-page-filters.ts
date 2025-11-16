@@ -28,6 +28,29 @@ export function isInWorkflowProcessing(order: OrderListItem): boolean {
 }
 
 /**
+ * Check if an order is "new" and needs processing
+ * New orders are those that have been created but not yet queued for routing
+ */
+export function shouldShowAsNew(order: OrderListItem): boolean {
+  // Must be in NEW status (not queued, not processing, not in any review stage)
+  const isNewStatus = order.status === DisplayStatus.NEW || 
+                      order.rawStatus === OrderStatus.NEW;
+  
+  // Must not be queued
+  const isNotQueued = order.status !== DisplayStatus.IN_QUEUE &&
+                      order.phase !== OrderPhase.IN_QUEUE &&
+                      order.rawStatus !== OrderStatus.QUEUED_FOR_PROCESSING;
+  
+  // Must not be processing
+  const isNotProcessing = !isInWorkflowProcessing(order);
+  
+  // Must not be completed
+  const isNotCompleted = order.rawStatus !== OrderStatus.COMPLETED;
+  
+  return isNewStatus && isNotQueued && isNotProcessing && isNotCompleted;
+}
+
+/**
  * Check if an order should appear in the Review Poses tab
  * 
  * Conditions:
@@ -35,8 +58,13 @@ export function isInWorkflowProcessing(order: OrderListItem): boolean {
  * - Order is not in queue or processing
  * - Order has DisplayStatus of REVIEW_POSES (images are generated)
  * - Order is not completed
+ * - OR order is "new" and needs processing
  */
 export function shouldShowInReviewPoses(order: OrderListItem): boolean {
+  // Include new orders that need processing
+  if (shouldShowAsNew(order)) {
+    return true;
+  }
   // Must be in preBria stage (not yet approved)
   const isInPreBriaStage = order.reviewStages?.preBria?.status !== ReviewStageStatus.APPROVED &&
                            order.reviewStages?.preBria?.status !== 'approved';
@@ -236,6 +264,11 @@ export function getCardLabel(
   order: OrderListItem,
   stage: 'preBria' | 'postBria' | 'postPdf' | 'secondary'
 ): string {
+  // Check if order is "new" and needs processing
+  if (shouldShowAsNew(order)) {
+    return 'New';
+  }
+  
   const flagSummary = getOrderFlagSummary(order);
   
   // For secondary review, use total flags and determine active stage

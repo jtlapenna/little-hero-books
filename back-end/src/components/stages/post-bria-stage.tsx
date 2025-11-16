@@ -38,11 +38,15 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
   // Track poses that the user has manually flagged (persist across re-renders)
   const manuallyFlaggedRef = useRef<Set<string>>(new Set());
+  // Track when user actions happened to prevent polling from overwriting recent actions
+  const userActionTimestamps = useRef<Map<string, number>>(new Map());
+  const USER_ACTION_COOLDOWN_MS = 5000; // Don't overwrite user actions for 5 seconds
   
   // Reset manually unflagged/flagged sets when order changes
   useEffect(() => {
     manuallyUnflaggedRef.current.clear();
     manuallyFlaggedRef.current.clear();
+    userActionTimestamps.current.clear();
   }, [orderId]);
 
   // Load manifest directly to read flags (source of truth)
@@ -77,9 +81,21 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         // Don't clear manuallyFlaggedRef - only add new flags from manifest
         // This preserves user actions that haven't been persisted yet
         // Only update flags that aren't in manuallyUnflaggedRef (user explicitly unflagged)
+        // AND haven't been recently modified by the user
         entries.forEach((entry: any) => {
           const poseNumber = entry.poseNumber ?? 0;
           const poseId = `pose${String(poseNumber).padStart(2, '0')}-bg-removed`;
+          
+          // Check if user recently modified this item (within cooldown period)
+          const lastActionTime = userActionTimestamps.current.get(poseId);
+          const now = Date.now();
+          const isRecentlyModified = lastActionTime && (now - lastActionTime) < USER_ACTION_COOLDOWN_MS;
+          
+          // Skip updating if user recently modified this item
+          if (isRecentlyModified) {
+            console.log(`[PostBriaStage] Skipping manifest update for ${poseId} - user action within cooldown`);
+            return;
+          }
           
           // If entry is flagged in manifest, add to manuallyFlaggedRef
           if (entry.isFlagged || entry.needsReview) {
@@ -607,6 +623,9 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
               manuallyUnflaggedRef.current.add(assetId);
               manuallyFlaggedRef.current.delete(assetId);
             }
+            
+            // Record timestamp of user action to prevent polling from overwriting it
+            userActionTimestamps.current.set(assetId, Date.now());
             
             // Update order flags and review stages from API response
             if (onOrderUpdate && result.flags) {

@@ -34,6 +34,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
   // Track poses that the user has manually flagged (persist across re-renders)
   const manuallyFlaggedRef = useRef<Set<string>>(new Set());
+  // Track when user actions happened to prevent polling from overwriting recent actions
+  const userActionTimestamps = useRef<Map<string, number>>(new Map());
+  const USER_ACTION_COOLDOWN_MS = 5000; // Don't overwrite user actions for 5 seconds
   // Track active polling intervals for cleanup
   const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const pollingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -44,6 +47,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   useEffect(() => {
     manuallyUnflaggedRef.current.clear();
     manuallyFlaggedRef.current.clear();
+    userActionTimestamps.current.clear();
     operationInProgressRef.current.clear();
   }, [orderId]);
 
@@ -84,9 +88,21 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         // Don't clear manuallyFlaggedRef - only add new flags from manifest
         // This preserves user actions that haven't been persisted yet
         // Only update flags that aren't in manuallyUnflaggedRef (user explicitly unflagged)
+        // AND haven't been recently modified by the user
         entries.forEach((entry: any) => {
           const poseNumber = entry.poseNumber ?? 0;
           const poseId = `pose${String(poseNumber).padStart(2, '0')}`;
+          
+          // Check if user recently modified this item (within cooldown period)
+          const lastActionTime = userActionTimestamps.current.get(poseId);
+          const now = Date.now();
+          const isRecentlyModified = lastActionTime && (now - lastActionTime) < USER_ACTION_COOLDOWN_MS;
+          
+          // Skip updating if user recently modified this item
+          if (isRecentlyModified) {
+            console.log(`[PreBriaStage] Skipping manifest update for ${poseId} - user action within cooldown`);
+            return;
+          }
           
           // If entry is flagged in manifest, add to manuallyFlaggedRef
           if (entry.isFlagged || entry.needsReview) {
@@ -511,6 +527,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
                 manuallyUnflaggedRef.current.add(basePoseId);
                 manuallyFlaggedRef.current.delete(basePoseId);
               }
+              
+              // Record timestamp of user action to prevent polling from overwriting it
+              userActionTimestamps.current.set(basePoseId, Date.now());
               
               // Update order flags and review stages from API response
               if (onOrderUpdate) {
