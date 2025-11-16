@@ -74,9 +74,10 @@ export function shouldShowAsNew(order: OrderListItem): boolean {
  * - OR order is "new" and needs processing
  */
 export function shouldShowInReviewPoses(order: OrderListItem): boolean {
-  // Include new orders that need processing - return early without checking other conditions
+  // Don't include new orders here - they have their own tab now
+  // New orders should only appear in the "New Orders" tab
   if (shouldShowAsNew(order)) {
-    return true;
+    return false;
   }
   // Must be in preBria stage (not yet approved)
   const isInPreBriaStage = order.reviewStages?.preBria?.status !== ReviewStageStatus.APPROVED &&

@@ -12,10 +12,11 @@ import {
   shouldShowInReviewBackgrounds,
   shouldShowInReviewPages,
   shouldShowInSecondaryReview,
+  shouldShowAsNew,
   getCardLabel,
 } from './review-page-filters';
 
-export type ReviewTabId = 'poses' | 'backgrounds' | 'pages' | 'secondary';
+export type ReviewTabId = 'new' | 'poses' | 'backgrounds' | 'pages' | 'secondary';
 
 export interface ReviewTab {
   id: ReviewTabId;
@@ -30,6 +31,14 @@ export interface ReviewTab {
  * Tab configuration for the Review Page
  */
 export const REVIEW_TABS: ReviewTab[] = [
+  {
+    id: 'new',
+    label: 'New Orders',
+    description: 'Orders that have been created but not yet processed',
+    icon: '🆕',
+    filterFunction: shouldShowAsNew,
+    getCardLabel: (order) => 'New',
+  },
   {
     id: 'poses',
     label: 'Review Poses',

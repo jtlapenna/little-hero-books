@@ -18,7 +18,7 @@ export default function ReviewPage() {
   const [allOrders, setAllOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<ReviewTabId>('poses');
+  const [activeTab, setActiveTab] = useState<ReviewTabId>('new');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'orderDate' | 'firstName' | 'lastName' | 'platform'>('orderDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -324,7 +324,10 @@ export default function ReviewPage() {
               // Get flag count for the specific stage to show badge even if card label doesn't say "Flagged"
               // CRITICAL: Only show flags for the stage this order is actually in, not all flags
               let stageFlagCount = 0;
-              if (activeTab === 'secondary') {
+              if (activeTab === 'new') {
+                // New orders don't have flags yet - they haven't been processed
+                stageFlagCount = 0;
+              } else if (activeTab === 'secondary') {
                 stageFlagCount = flagSummary.total;
               } else if (activeTab === 'poses') {
                 // Only show preBria flags for poses tab
@@ -457,7 +460,10 @@ export default function ReviewPage() {
                     // Get flag count for the specific stage to show badge even if card label doesn't say "Flagged"
                     // CRITICAL: Only show flags for the stage this order is actually in, not all flags
                     let stageFlagCount = 0;
-                    if (activeTab === 'secondary') {
+                    if (activeTab === 'new') {
+                      // New orders don't have flags yet - they haven't been processed
+                      stageFlagCount = 0;
+                    } else if (activeTab === 'secondary') {
                       stageFlagCount = flagSummary.total;
                     } else if (activeTab === 'poses') {
                       // Only show preBria flags for poses tab
