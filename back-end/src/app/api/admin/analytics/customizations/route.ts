@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrdersForAnalytics, AnalyticsFilters } from '@/lib/supabase-analytics';
 import { isTestOrder, getLastNDays } from '@/lib/analytics-helpers';
+import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 
 /**
  * Normalize clothing style to canonical value
@@ -56,21 +57,27 @@ export async function GET(request: NextRequest) {
     
     for (const manifestKey of manifestKeys) {
       try {
-        const manifestUrl = `https://admin.littleherolabs.com/api/manifests/${manifestKey}`;
-        const response = await fetch(manifestUrl, { 
-          cache: 'no-store',
-          signal: AbortSignal.timeout(2000) // 2 second timeout
-        });
+        // Use R2 client directly instead of HTTP fetch
+        const response = await getObject(R2_ORDERS_BUCKET, manifestKey);
+        const manifestText = await response.text();
+        const manifest = JSON.parse(manifestText);
         
-        if (response.ok) {
-          const manifest = await response.json();
-          const manifestClothing = manifest?.order?.characterSpecs?.clothingStyle || 
-                                 manifest?.order?.characterSpecs?.clothingTypeCanonical;
-          const normalized = normalizeClothingStyle(manifestClothing);
-          if (normalized) return normalized;
+        // Check multiple possible locations for clothing style
+        const manifestClothing = manifest?.order?.characterSpecs?.clothingStyle || 
+                                 manifest?.order?.characterSpecs?.clothingTypeCanonical ||
+                                 manifest?.order?.characterSpecs?.clothing_style ||
+                                 manifest?.order?.clothingStyle;
+        const normalized = normalizeClothingStyle(manifestClothing);
+        if (normalized) {
+          console.log(`[Analytics] Found clothing style "${normalized}" for order ${orderId} in ${manifestKey}`);
+          return normalized;
         }
-      } catch (err) {
-        // Silently fail - manifest might not exist or be slow
+      } catch (err: any) {
+        // Manifest might not exist - this is expected for some orders
+        if (err?.message?.includes('404') || err?.message?.includes('NoSuchKey')) {
+          continue;
+        }
+        console.warn(`[Analytics] Error fetching manifest ${manifestKey} for order ${orderId}:`, err?.message);
         continue;
       }
     }
@@ -87,21 +94,27 @@ export async function GET(request: NextRequest) {
     
     for (const manifestKey of manifestKeys) {
       try {
-        const manifestUrl = `https://admin.littleherolabs.com/api/manifests/${manifestKey}`;
-        const response = await fetch(manifestUrl, { 
-          cache: 'no-store',
-          signal: AbortSignal.timeout(2000) // 2 second timeout
-        });
+        // Use R2 client directly instead of HTTP fetch
+        const response = await getObject(R2_ORDERS_BUCKET, manifestKey);
+        const manifestText = await response.text();
+        const manifest = JSON.parse(manifestText);
         
-        if (response.ok) {
-          const manifest = await response.json();
-          const hometown = manifest?.order?.characterSpecs?.hometown || 
-                          manifest?.order?.characterSpecs?.homeTown ||
-                          manifest?.order?.options?.hometown;
-          if (hometown) return String(hometown).trim();
+        // Check multiple possible locations for hometown
+        const hometown = manifest?.order?.characterSpecs?.hometown || 
+                        manifest?.order?.characterSpecs?.homeTown ||
+                        manifest?.order?.options?.hometown ||
+                        manifest?.order?.hometown;
+        if (hometown) {
+          const hometownStr = String(hometown).trim();
+          console.log(`[Analytics] Found hometown "${hometownStr}" for order ${orderId} in ${manifestKey}`);
+          return hometownStr;
         }
-      } catch (err) {
-        // Silently fail - manifest might not exist or be slow
+      } catch (err: any) {
+        // Manifest might not exist - this is expected for some orders
+        if (err?.message?.includes('404') || err?.message?.includes('NoSuchKey')) {
+          continue;
+        }
+        console.warn(`[Analytics] Error fetching manifest ${manifestKey} for order ${orderId}:`, err?.message);
         continue;
       }
     }
