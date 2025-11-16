@@ -7,9 +7,9 @@ export async function GET(request: NextRequest) {
     const status = await monitoringService.runAllHealthChecks();
     
     // Only return 503 for critical system failures, not for expected "not implemented" services
-    // Check if any critical services (R2, File System) are unhealthy
+    // Only check R2 Storage as critical - File System is expected to be unavailable in Cloudflare Workers
     const criticalServices = status.checks.filter(check => 
-      check.service === 'R2 Storage' || check.service === 'File System'
+      check.service === 'R2 Storage'
     );
     const criticalUnhealthy = criticalServices.some(check => check.status === 'unhealthy');
     

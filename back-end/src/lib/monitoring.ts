@@ -59,10 +59,11 @@ export const monitoringService = {
     }
 
     // Check File System (not applicable in Cloudflare Workers)
+    // Mark as degraded instead of unhealthy since it's expected in this runtime
     checks.push({
       service: 'File System',
-      status: 'unhealthy',
-      error: 'Not available in Cloudflare Workers runtime',
+      status: 'degraded',
+      error: 'Not available in Cloudflare Workers runtime (expected)',
       lastChecked: timestamp,
     });
 
