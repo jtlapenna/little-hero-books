@@ -66,6 +66,17 @@ export default function ReviewPage() {
   // Get orders for the active tab
   const tabOrders = getOrdersForTab(allOrders, activeTab);
   const activeTabConfig = REVIEW_TABS.find(tab => tab.id === activeTab);
+  
+  // Debug logging for new orders tab
+  if (process.env.NODE_ENV === 'development' && activeTab === 'new') {
+    console.log('[ReviewPage] New Orders Tab Debug:', {
+      totalOrders: allOrders.length,
+      newTabOrders: tabOrders.length,
+      allOrderIds: allOrders.map(o => o.orderId),
+      newTabOrderIds: tabOrders.map(o => o.orderId),
+      hairTest02: allOrders.find(o => o.orderId === 'hair-test-02'),
+    });
+  }
 
   // Filter and sort orders for the active tab
   const filteredAndSortedOrders = tabOrders

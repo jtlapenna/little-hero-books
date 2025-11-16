@@ -34,20 +34,26 @@ export function isInWorkflowProcessing(order: OrderListItem): boolean {
 export function shouldShowAsNew(order: OrderListItem): boolean {
   // Must be in NEW status (not queued, not processing, not in any review stage)
   // Check both display status and raw status to catch all new orders
+  // Also check if rawStatus is lowercase "new" or contains "new" (case-insensitive)
+  const rawStatusLower = (order.rawStatus || '').toLowerCase();
   const isNewStatus = order.status === DisplayStatus.NEW || 
                       order.rawStatus === OrderStatus.NEW ||
-                      order.rawStatus === OrderStatus.PENDING_PROCESSING;
+                      order.rawStatus === OrderStatus.PENDING_PROCESSING ||
+                      rawStatusLower === 'new' ||
+                      rawStatusLower === 'pending_processing';
   
   // Must not be queued (but PENDING_PROCESSING is okay - that's still "new")
   const isNotQueued = order.status !== DisplayStatus.IN_QUEUE &&
                       order.phase !== OrderPhase.IN_QUEUE &&
-                      order.rawStatus !== OrderStatus.QUEUED_FOR_PROCESSING;
+                      order.rawStatus !== OrderStatus.QUEUED_FOR_PROCESSING &&
+                      rawStatusLower !== 'queued_for_processing';
   
   // Must not be processing
   const isNotProcessing = !isInWorkflowProcessing(order);
   
   // Must not be completed
-  const isNotCompleted = order.rawStatus !== OrderStatus.COMPLETED;
+  const isNotCompleted = order.rawStatus !== OrderStatus.COMPLETED &&
+                         rawStatusLower !== 'completed';
   
   // Must not have any review stage progress (if it has progress, it's not "new")
   // Check all stages - if any stage has progress beyond "pending", it's not "new"
@@ -60,7 +66,25 @@ export function shouldShowAsNew(order: OrderListItem): boolean {
     (!postBriaStatus || postBriaStatus === ReviewStageStatus.PENDING || postBriaStatus === 'pending') &&
     (!postPdfStatus || postPdfStatus === ReviewStageStatus.PENDING || postPdfStatus === 'pending');
   
-  return isNewStatus && isNotQueued && isNotProcessing && isNotCompleted && hasNoStageProgress;
+  const result = isNewStatus && isNotQueued && isNotProcessing && isNotCompleted && hasNoStageProgress;
+  
+  // Debug logging to help diagnose why orders aren't matching
+  if (process.env.NODE_ENV === 'development' && order.orderId === 'hair-test-02') {
+    console.log(`[shouldShowAsNew] Order ${order.orderId}:`, {
+      status: order.status,
+      rawStatus: order.rawStatus,
+      phase: order.phase,
+      isNewStatus,
+      isNotQueued,
+      isNotProcessing,
+      isNotCompleted,
+      hasNoStageProgress,
+      reviewStages: order.reviewStages,
+      result
+    });
+  }
+  
+  return result;
 }
 
 /**
