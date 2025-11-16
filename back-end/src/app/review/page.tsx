@@ -208,7 +208,7 @@ export default function ReviewPage() {
                   `}
                 >
                   <div className="flex items-center space-x-2">
-                    <span className="text-lg">{tab.icon}</span>
+                    <tab.icon className="w-4 h-4" />
                     <span>{tab.label}</span>
                     {tabOrderCount > 0 && (
                       <span className={`

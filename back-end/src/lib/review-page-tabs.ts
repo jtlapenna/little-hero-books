@@ -18,11 +18,14 @@ import {
 
 export type ReviewTabId = 'new' | 'poses' | 'backgrounds' | 'pages' | 'secondary';
 
+import { LucideIcon } from 'lucide-react';
+import { Sparkles, User, Image, FileText, Search } from 'lucide-react';
+
 export interface ReviewTab {
   id: ReviewTabId;
   label: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
   filterFunction: (order: OrderListItem) => boolean;
   getCardLabel: (order: OrderListItem) => string;
 }
@@ -35,7 +38,7 @@ export const REVIEW_TABS: ReviewTab[] = [
     id: 'new',
     label: 'New Orders',
     description: 'Orders that have been created but not yet processed',
-    icon: '🆕',
+    icon: Sparkles,
     filterFunction: shouldShowAsNew,
     getCardLabel: (order) => 'New',
   },
@@ -43,7 +46,7 @@ export const REVIEW_TABS: ReviewTab[] = [
     id: 'poses',
     label: 'Review Poses',
     description: 'Review generated character and poses before background removal',
-    icon: '👤',
+    icon: User,
     filterFunction: shouldShowInReviewPoses,
     getCardLabel: (order) => getCardLabel(order, 'preBria'),
   },
@@ -51,7 +54,7 @@ export const REVIEW_TABS: ReviewTab[] = [
     id: 'backgrounds',
     label: 'Review Backgrounds',
     description: 'Review background-removed images from Bria.ai',
-    icon: '🖼️',
+    icon: Image,
     filterFunction: shouldShowInReviewBackgrounds,
     getCardLabel: (order) => getCardLabel(order, 'postBria'),
   },
@@ -59,7 +62,7 @@ export const REVIEW_TABS: ReviewTab[] = [
     id: 'pages',
     label: 'Review Pages',
     description: 'Review final compiled PDF before production',
-    icon: '📄',
+    icon: FileText,
     filterFunction: shouldShowInReviewPages,
     getCardLabel: (order) => getCardLabel(order, 'postPdf'),
   },
@@ -67,7 +70,7 @@ export const REVIEW_TABS: ReviewTab[] = [
     id: 'secondary',
     label: 'Secondary Review',
     description: 'Review customer revision requests and send to print',
-    icon: '🔍',
+    icon: Search,
     filterFunction: shouldShowInSecondaryReview,
     getCardLabel: (order) => getCardLabel(order, 'secondary'),
   },

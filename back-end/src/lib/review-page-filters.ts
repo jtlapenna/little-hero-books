@@ -66,10 +66,16 @@ export function shouldShowAsNew(order: OrderListItem): boolean {
     (!postBriaStatus || postBriaStatus === ReviewStageStatus.PENDING || postBriaStatus === 'pending') &&
     (!postPdfStatus || postPdfStatus === ReviewStageStatus.PENDING || postPdfStatus === 'pending');
   
-  const result = isNewStatus && isNotQueued && isNotProcessing && isNotCompleted && hasNoStageProgress;
+  // More lenient check: if status is NEW or rawStatus is "new", and it's not queued/processing/completed,
+  // and has no stage progress, it should be considered "new"
+  // Also check if the order has DisplayStatus.NEW even if rawStatus doesn't match exactly
+  const isActuallyNew = (order.status === DisplayStatus.NEW) || 
+                        (isNewStatus && isNotQueued && isNotProcessing && isNotCompleted && hasNoStageProgress);
+  
+  const result = isActuallyNew;
   
   // Debug logging to help diagnose why orders aren't matching
-  if (process.env.NODE_ENV === 'development' && order.orderId === 'hair-test-02') {
+  if (process.env.NODE_ENV === 'development' && (order.orderId === 'hair-test-02' || order.status === DisplayStatus.NEW)) {
     console.log(`[shouldShowAsNew] Order ${order.orderId}:`, {
       status: order.status,
       rawStatus: order.rawStatus,
@@ -80,6 +86,7 @@ export function shouldShowAsNew(order: OrderListItem): boolean {
       isNotCompleted,
       hasNoStageProgress,
       reviewStages: order.reviewStages,
+      isActuallyNew,
       result
     });
   }
