@@ -297,6 +297,15 @@ export default function ReviewPage() {
               const isReadyForNextStage = cardLabel.startsWith('Ready for') && !isReadyForApproval;
               const isApproved = cardLabel === 'Approved';
               const hasFlags = cardLabel.includes('Flagged');
+              // Get flag count for the specific stage to show badge even if card label doesn't say "Flagged"
+              const stageFlagCount = activeTab === 'secondary' 
+                ? flagSummary.total 
+                : activeTab === 'poses' 
+                  ? flagSummary.preBria 
+                  : activeTab === 'backgrounds'
+                    ? flagSummary.postBria
+                    : flagSummary.postPdf;
+              const hasAnyFlags = stageFlagCount > 0;
               
               // Determine card background color based on state
               let cardBgClass = 'bg-white'; // Default: neutral
@@ -345,18 +354,10 @@ export default function ReviewPage() {
 
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                     <div className="flex items-center space-x-2">
-                      {hasFlags ? (
-                        (() => {
-                          // Get flag count for the specific stage
-                          const stageFlagCount = activeTab === 'secondary' 
-                            ? flagSummary.total 
-                            : activeTab === 'poses' 
-                              ? flagSummary.preBria 
-                              : activeTab === 'backgrounds'
-                                ? flagSummary.postBria
-                                : flagSummary.postPdf;
-                          return <FlaggedBadge count={stageFlagCount} />;
-                        })()
+                      {hasAnyFlags ? (
+                        <FlaggedBadge count={stageFlagCount} />
+                      ) : hasFlags ? (
+                        <FlaggedBadge count={stageFlagCount} />
                       ) : isReadyForApproval ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200">
                           ✓ Ready for Approval
@@ -417,6 +418,15 @@ export default function ReviewPage() {
                     const isReadyForNextStage = cardLabel.startsWith('Ready for') && !isReadyForApproval;
                     const isApproved = cardLabel === 'Approved';
                     const hasFlags = cardLabel.includes('Flagged');
+                    // Get flag count for the specific stage to show badge even if card label doesn't say "Flagged"
+                    const stageFlagCount = activeTab === 'secondary' 
+                      ? flagSummary.total 
+                      : activeTab === 'poses' 
+                        ? flagSummary.preBria 
+                        : activeTab === 'backgrounds'
+                          ? flagSummary.postBria
+                          : flagSummary.postPdf;
+                    const hasAnyFlags = stageFlagCount > 0;
                     
                     // Determine row background color based on state
                     let rowBgClass = 'bg-white'; // Default: neutral
@@ -449,18 +459,10 @@ export default function ReviewPage() {
                           <StatusBadge status={order.status} revisionCount={order.revisionCount} />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {hasFlags ? (
-                            (() => {
-                              // Get flag count for the specific stage
-                              const stageFlagCount = activeTab === 'secondary' 
-                                ? flagSummary.total 
-                                : activeTab === 'poses' 
-                                  ? flagSummary.preBria 
-                                  : activeTab === 'backgrounds'
-                                    ? flagSummary.postBria
-                                    : flagSummary.postPdf;
-                              return <FlaggedBadge count={stageFlagCount} />;
-                            })()
+                          {hasAnyFlags ? (
+                            <FlaggedBadge count={stageFlagCount} />
+                          ) : hasFlags ? (
+                            <FlaggedBadge count={stageFlagCount} />
                           ) : isReadyForApproval ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200">
                               ✓ Ready for Approval
