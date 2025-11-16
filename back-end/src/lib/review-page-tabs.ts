@@ -7,6 +7,8 @@
  */
 
 import { OrderListItem } from '@/types/order';
+import { LucideIcon } from 'lucide-react';
+import { Sparkles, User, Image, FileText, Search } from 'lucide-react';
 import {
   shouldShowInReviewPoses,
   shouldShowInReviewBackgrounds,
@@ -17,9 +19,6 @@ import {
 } from './review-page-filters';
 
 export type ReviewTabId = 'new' | 'poses' | 'backgrounds' | 'pages' | 'secondary';
-
-import { LucideIcon } from 'lucide-react';
-import { Sparkles, User, Image, FileText, Search } from 'lucide-react';
 
 export interface ReviewTab {
   id: ReviewTabId;
