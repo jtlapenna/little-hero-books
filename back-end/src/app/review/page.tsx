@@ -344,7 +344,10 @@ export default function ReviewPage() {
               // Get flag count for the specific stage to show badge even if card label doesn't say "Flagged"
               // CRITICAL: Only show flags for the stage this order is actually in, not all flags
               let stageFlagCount = 0;
-              if (activeTab === 'new') {
+              if (activeTab === 'all') {
+                // All tab shows total flags for each order
+                stageFlagCount = flagSummary.total || 0;
+              } else if (activeTab === 'new') {
                 // New orders don't have flags yet - they haven't been processed
                 stageFlagCount = 0;
               } else if (activeTab === 'secondary') {
@@ -480,7 +483,10 @@ export default function ReviewPage() {
                     // Get flag count for the specific stage to show badge even if card label doesn't say "Flagged"
                     // CRITICAL: Only show flags for the stage this order is actually in, not all flags
                     let stageFlagCount = 0;
-                    if (activeTab === 'new') {
+                    if (activeTab === 'all') {
+                      // All tab shows total flags for each order
+                      stageFlagCount = flagSummary.total || 0;
+                    } else if (activeTab === 'new') {
                       // New orders don't have flags yet - they haven't been processed
                       stageFlagCount = 0;
                     } else if (activeTab === 'secondary') {
