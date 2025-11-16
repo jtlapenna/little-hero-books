@@ -164,7 +164,10 @@ export default function ReviewPage() {
               
               // Calculate flag count for this specific tab
               let tabFlagCount = 0;
-              if (tab.id === 'secondary') {
+              if (tab.id === 'new') {
+                // New orders don't have flags yet - they haven't been processed
+                tabFlagCount = 0;
+              } else if (tab.id === 'secondary') {
                 // Secondary review shows total flags across all stages
                 tabFlagCount = tabOrders.reduce((sum, order) => {
                   const flagSummary = getOrderFlagSummary(order);
