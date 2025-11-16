@@ -2,6 +2,37 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOrdersForAnalytics, AnalyticsFilters } from '@/lib/supabase-analytics';
 import { isTestOrder, getLastNDays } from '@/lib/analytics-helpers';
 
+/**
+ * Normalize clothing style to canonical value
+ * Maps labels like "t-shirt and shorts" to "tee-shorts", "dress" stays "dress"
+ */
+function normalizeClothingStyle(value: string | null | undefined): string | null {
+  if (!value) return null;
+  
+  const normalized = String(value).toLowerCase().trim();
+  
+  // Filter out invalid values
+  if (normalized === 'adventure' || normalized === 'book-mvp-simple-adventure') {
+    return null;
+  }
+  
+  // Map labels to canonical values
+  if (normalized.includes('dress')) {
+    return 'dress';
+  }
+  if (normalized.includes('tee') || normalized.includes('t-shirt') || normalized.includes('shorts')) {
+    return 'tee-shorts';
+  }
+  
+  // If already canonical, return as-is
+  if (normalized === 'tee-shorts' || normalized === 'dress') {
+    return normalized;
+  }
+  
+  // Unknown value
+  return null;
+}
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -108,13 +139,10 @@ export async function GET(request: NextRequest) {
     const clothingStyleDistribution = calculateDistribution(
       orders,
       (o) => {
-        // Only get clothingStyle from character_specs, exclude bookType
-        const clothing = o.character_specs?.clothingStyle || o.character_specs?.clothing_style;
-        // Filter out "adventure" which might be coming from bookType
-        if (clothing && clothing !== 'adventure' && clothing !== 'book-mvp-simple-adventure') {
-          return clothing;
-        }
-        return null;
+        // Extract from character_specs and normalize
+        const specs = o.character_specs || {};
+        const clothing = specs.clothingStyle || specs.clothing_style || specs.clothingTypeCanonical;
+        return normalizeClothingStyle(clothing);
       }
     );
 
