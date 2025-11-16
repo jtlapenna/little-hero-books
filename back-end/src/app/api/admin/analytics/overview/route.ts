@@ -170,6 +170,39 @@ export async function GET(request: NextRequest) {
       clothingStyle: getTopChoice(orders, 'clothingStyle', ['clothing_style'])
     };
 
+    // Full customization distributions (all options with counts)
+    const calculateDistribution = (
+      orders: any[],
+      extractValue: (order: any) => string | number | null | undefined
+    ): Array<{ value: string; count: number; percentage: number }> => {
+      const counts: Record<string, number> = {};
+      
+      orders.forEach(order => {
+        const value = extractValue(order);
+        const key = value !== null && value !== undefined ? String(value) : 'unknown';
+        counts[key] = (counts[key] || 0) + 1;
+      });
+
+      return Object.entries(counts)
+        .map(([value, count]) => ({
+          value,
+          count,
+          percentage: totalOrders > 0 ? Math.round((count / totalOrders) * 100 * 100) / 100 : 0
+        }))
+        .sort((a, b) => b.count - a.count);
+    };
+
+    const customizationDistributions = {
+      skinTone: calculateDistribution(orders, (o) => o.character_specs?.skinTone || o.character_specs?.skin_tone),
+      hairColor: calculateDistribution(orders, (o) => o.character_specs?.hairColor || o.character_specs?.hair_color),
+      hairStyle: calculateDistribution(orders, (o) => o.character_specs?.hairStyle || o.character_specs?.hair_style),
+      animalGuide: calculateDistribution(orders, (o) => o.character_specs?.animalGuide || o.character_specs?.animal_guide || o.character_specs?.favoriteAnimal),
+      hometown: calculateDistribution(orders, (o) => o.character_specs?.hometown || o.character_specs?.homeTown),
+      pronouns: calculateDistribution(orders, (o) => o.character_specs?.pronouns),
+      favoriteColor: calculateDistribution(orders, (o) => o.character_specs?.favoriteColor || o.character_specs?.favorite_color),
+      clothingStyle: calculateDistribution(orders, (o) => o.character_specs?.clothingStyle || o.character_specs?.clothing_style)
+    };
+
     // Status breakdown
     const statusBreakdown: Record<string, number> = {};
     orders.forEach(order => {
@@ -228,7 +261,8 @@ export async function GET(request: NextRequest) {
       errorBreakdown,
       statusBreakdown,
       timeSeries,
-      topCustomizations
+      topCustomizations,
+      customizationDistributions
     });
   } catch (error: any) {
     console.error('[Analytics Overview] Error:', error);

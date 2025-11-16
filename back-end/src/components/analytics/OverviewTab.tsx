@@ -43,6 +43,16 @@ interface OverviewData {
     favoriteColor: { value: string; count: number; percentage: number } | null;
     clothingStyle: { value: string; count: number; percentage: number } | null;
   };
+  customizationDistributions: {
+    skinTone: Array<{ value: string; count: number; percentage: number }>;
+    hairColor: Array<{ value: string; count: number; percentage: number }>;
+    hairStyle: Array<{ value: string; count: number; percentage: number }>;
+    animalGuide: Array<{ value: string; count: number; percentage: number }>;
+    hometown: Array<{ value: string; count: number; percentage: number }>;
+    pronouns: Array<{ value: string; count: number; percentage: number }>;
+    favoriteColor: Array<{ value: string; count: number; percentage: number }>;
+    clothingStyle: Array<{ value: string; count: number; percentage: number }>;
+  };
 }
 
 const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899'];
@@ -241,7 +251,7 @@ export default function OverviewTab({ filters }: { filters: AnalyticsFiltersStat
       </div>
 
       {/* Top Customization Choices */}
-      <div className="bg-gray-50 rounded-lg p-4">
+      <div className="bg-gray-50 rounded-lg p-4 mb-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Most Popular Customization Choices</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           {data.topCustomizations.skinTone && (
@@ -300,6 +310,173 @@ export default function OverviewTab({ filters }: { filters: AnalyticsFiltersStat
               <div className="text-xs text-gray-500">{data.topCustomizations.clothingStyle.percentage}%</div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Full Customization Breakdowns */}
+      <div className="space-y-6">
+        <h3 className="text-lg font-semibold text-gray-900">Customization Breakdowns by Trait</h3>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Hair Style Section */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <h4 className="text-md font-semibold text-gray-800 mb-3">Hair Style</h4>
+            <div className="space-y-2">
+              {data.customizationDistributions.hairStyle.length > 0 ? (
+                data.customizationDistributions.hairStyle.map((item) => (
+                  <div key={item.value} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                    <span className="text-sm text-gray-700">{item.value}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-900">{item.count}</span>
+                      <span className="text-xs text-gray-500 w-12 text-right">{item.percentage}%</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-gray-500">No data available</div>
+              )}
+            </div>
+          </div>
+
+          {/* Animal Guide Section */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <h4 className="text-md font-semibold text-gray-800 mb-3">Animal Guide</h4>
+            <div className="space-y-2">
+              {data.customizationDistributions.animalGuide.length > 0 ? (
+                data.customizationDistributions.animalGuide.map((item) => (
+                  <div key={item.value} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                    <span className="text-sm text-gray-700">{item.value}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-900">{item.count}</span>
+                      <span className="text-xs text-gray-500 w-12 text-right">{item.percentage}%</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-gray-500">No data available</div>
+              )}
+            </div>
+          </div>
+
+          {/* Hair Color Section */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <h4 className="text-md font-semibold text-gray-800 mb-3">Hair Color</h4>
+            <div className="space-y-2">
+              {data.customizationDistributions.hairColor.length > 0 ? (
+                data.customizationDistributions.hairColor.map((item) => (
+                  <div key={item.value} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                    <span className="text-sm text-gray-700">{item.value}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-900">{item.count}</span>
+                      <span className="text-xs text-gray-500 w-12 text-right">{item.percentage}%</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-gray-500">No data available</div>
+              )}
+            </div>
+          </div>
+
+          {/* Skin Tone Section */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <h4 className="text-md font-semibold text-gray-800 mb-3">Skin Tone</h4>
+            <div className="space-y-2">
+              {data.customizationDistributions.skinTone.length > 0 ? (
+                data.customizationDistributions.skinTone.map((item) => (
+                  <div key={item.value} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                    <span className="text-sm text-gray-700">{item.value}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-900">{item.count}</span>
+                      <span className="text-xs text-gray-500 w-12 text-right">{item.percentage}%</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-gray-500">No data available</div>
+              )}
+            </div>
+          </div>
+
+          {/* Pronouns Section */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <h4 className="text-md font-semibold text-gray-800 mb-3">Pronouns</h4>
+            <div className="space-y-2">
+              {data.customizationDistributions.pronouns.length > 0 ? (
+                data.customizationDistributions.pronouns.map((item) => (
+                  <div key={item.value} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                    <span className="text-sm text-gray-700">{item.value}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-900">{item.count}</span>
+                      <span className="text-xs text-gray-500 w-12 text-right">{item.percentage}%</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-gray-500">No data available</div>
+              )}
+            </div>
+          </div>
+
+          {/* Favorite Color Section */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <h4 className="text-md font-semibold text-gray-800 mb-3">Favorite Color</h4>
+            <div className="space-y-2">
+              {data.customizationDistributions.favoriteColor.length > 0 ? (
+                data.customizationDistributions.favoriteColor.map((item) => (
+                  <div key={item.value} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                    <span className="text-sm text-gray-700">{item.value}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-900">{item.count}</span>
+                      <span className="text-xs text-gray-500 w-12 text-right">{item.percentage}%</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-gray-500">No data available</div>
+              )}
+            </div>
+          </div>
+
+          {/* Clothing Style Section */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <h4 className="text-md font-semibold text-gray-800 mb-3">Clothing Style</h4>
+            <div className="space-y-2">
+              {data.customizationDistributions.clothingStyle.length > 0 ? (
+                data.customizationDistributions.clothingStyle.map((item) => (
+                  <div key={item.value} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                    <span className="text-sm text-gray-700">{item.value}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-900">{item.count}</span>
+                      <span className="text-xs text-gray-500 w-12 text-right">{item.percentage}%</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-gray-500">No data available</div>
+              )}
+            </div>
+          </div>
+
+          {/* Hometown Section */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <h4 className="text-md font-semibold text-gray-800 mb-3">Hometown</h4>
+            <div className="space-y-2">
+              {data.customizationDistributions.hometown.length > 0 ? (
+                data.customizationDistributions.hometown.map((item) => (
+                  <div key={item.value} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                    <span className="text-sm text-gray-700">{item.value}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-900">{item.count}</span>
+                      <span className="text-xs text-gray-500 w-12 text-right">{item.percentage}%</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-gray-500">No data available</div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
