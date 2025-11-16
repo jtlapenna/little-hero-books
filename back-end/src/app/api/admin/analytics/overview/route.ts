@@ -132,6 +132,44 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Top customization choices (most popular choice for each category)
+    const getTopChoice = (orders: any[], field: string, altFields?: string[]): { value: string; count: number; percentage: number } | null => {
+      const counts: Record<string, number> = {};
+      orders.forEach(order => {
+        const specs = order.character_specs || {};
+        let value = specs[field];
+        if (!value && altFields) {
+          for (const altField of altFields) {
+            if (specs[altField]) {
+              value = specs[altField];
+              break;
+            }
+          }
+        }
+        const key = value !== null && value !== undefined ? String(value) : 'unknown';
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      
+      if (Object.keys(counts).length === 0) return null;
+      
+      const sorted = Object.entries(counts)
+        .map(([value, count]) => ({ value, count, percentage: totalOrders > 0 ? Math.round((count / totalOrders) * 100 * 100) / 100 : 0 }))
+        .sort((a, b) => b.count - a.count);
+      
+      return sorted[0];
+    };
+
+    const topCustomizations = {
+      skinTone: getTopChoice(orders, 'skinTone', ['skin_tone']),
+      hairColor: getTopChoice(orders, 'hairColor', ['hair_color']),
+      hairStyle: getTopChoice(orders, 'hairStyle', ['hair_style']),
+      animalGuide: getTopChoice(orders, 'animalGuide', ['animal_guide', 'favoriteAnimal']),
+      hometown: getTopChoice(orders, 'hometown', ['homeTown']),
+      pronouns: getTopChoice(orders, 'pronouns'),
+      favoriteColor: getTopChoice(orders, 'favoriteColor', ['favorite_color']),
+      clothingStyle: getTopChoice(orders, 'clothingStyle', ['clothing_style'])
+    };
+
     // Status breakdown
     const statusBreakdown: Record<string, number> = {};
     orders.forEach(order => {
@@ -189,7 +227,8 @@ export async function GET(request: NextRequest) {
       },
       errorBreakdown,
       statusBreakdown,
-      timeSeries
+      timeSeries,
+      topCustomizations
     });
   } catch (error: any) {
     console.error('[Analytics Overview] Error:', error);

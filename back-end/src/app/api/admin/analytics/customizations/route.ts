@@ -110,6 +110,11 @@ export async function GET(request: NextRequest) {
       (o) => o.character_specs?.clothingStyle || o.character_specs?.clothing_style
     );
 
+    const hometownDistribution = calculateDistribution(
+      orders,
+      (o) => o.character_specs?.hometown || o.character_specs?.homeTown
+    );
+
     return NextResponse.json({
       metadata: {
         query: {
@@ -129,7 +134,8 @@ export async function GET(request: NextRequest) {
         hairStyle: hairStyleDistribution,
         favoriteColor: favoriteColorDistribution,
         animalGuide: animalGuideDistribution,
-        clothingStyle: clothingStyleDistribution
+        clothingStyle: clothingStyleDistribution,
+        hometown: hometownDistribution
       }
     });
   } catch (error: any) {

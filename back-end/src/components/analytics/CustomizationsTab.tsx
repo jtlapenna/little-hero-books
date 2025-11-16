@@ -19,6 +19,7 @@ interface CustomizationData {
     favoriteColor: Array<{ value: string; count: number; percentage: number }>;
     animalGuide: Array<{ value: string; count: number; percentage: number }>;
     clothingStyle: Array<{ value: string; count: number; percentage: number }>;
+    hometown: Array<{ value: string; count: number; percentage: number }>;
   };
 }
 
@@ -121,6 +122,7 @@ export default function CustomizationsTab({ filters }: { filters: AnalyticsFilte
         <CustomizationChart title="Favorite Color Distribution" data={data.distributions.favoriteColor} />
         <CustomizationChart title="Animal Guide Distribution" data={data.distributions.animalGuide} />
         <CustomizationChart title="Clothing Style Distribution" data={data.distributions.clothingStyle} />
+        <CustomizationChart title="Hometown Distribution" data={data.distributions.hometown} />
       </div>
     </div>
   );
