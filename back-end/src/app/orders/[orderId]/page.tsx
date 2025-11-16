@@ -284,23 +284,21 @@ export default function OrderDetailPage() {
             console.log('[OrderDetailPage] Could not load 2a manifest for flags:', err);
           }
           
-          // Load 2b manifest for postBria flags (fallback to 2a if 2b doesn't exist)
+          // Load 2b manifest for postBria flags
+          // CRITICAL: Do NOT fallback to 2a manifest - that would count Tab 1 flags as Tab 2 flags!
           // 404 is expected if workflow hasn't been triggered yet - suppress console errors
           try {
-            let manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json?v=${Date.now()}`;
-            let res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
-            if (!res2b.ok && res2b.status === 404) {
-              // 404 is expected - manifest doesn't exist yet, fallback to 2a
-              manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
-              res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
-            }
+            const manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json?v=${Date.now()}`;
+            const res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
             if (res2b.ok) {
               const manifest2b = await res2b.json();
               const entries2b = manifest2b?.entries || [];
               postBria = entries2b.filter((e: any) => e.isFlagged || e.needsReview).length;
             }
+            // If 404, that's expected - Tab 2 hasn't been reached yet, so postBria stays 0
           } catch (err) {
             // Silently handle - 404 is expected for orders that haven't reached this stage yet
+            // postBria will remain 0, which is correct
           }
           
           // Load 3 manifest for postPdf flags
@@ -1136,9 +1134,9 @@ export default function OrderDetailPage() {
                               Approved
                             </span>
                           );
-                        } else if (stageFlagCount > 0) {
-                          // Show flags if they exist, regardless of whether stage has been "reached"
-                          // Flags indicate work that needs attention, so always show them
+                        } else if (stageFlagCount > 0 && hasBeenReached) {
+                          // Only show flags if the stage has been reached AND there are flags
+                          // Don't show flags for stages that haven't been reached yet (no images exist)
                           return <FlaggedBadge count={stageFlagCount} />;
                         } else if (hasBeenReached) {
                           // Stage reached but no flags - show Pending with appropriate color

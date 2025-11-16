@@ -50,9 +50,15 @@ export function shouldShowAsNew(order: OrderListItem): boolean {
   const isNotCompleted = order.rawStatus !== OrderStatus.COMPLETED;
   
   // Must not have any review stage progress (if it has progress, it's not "new")
-  const hasNoStageProgress = !order.reviewStages?.preBria?.status ||
-                             order.reviewStages?.preBria?.status === ReviewStageStatus.PENDING ||
-                             order.reviewStages?.preBria?.status === 'pending';
+  // Check all stages - if any stage has progress beyond "pending", it's not "new"
+  const preBriaStatus = order.reviewStages?.preBria?.status;
+  const postBriaStatus = order.reviewStages?.postBria?.status;
+  const postPdfStatus = order.reviewStages?.postPdf?.status;
+  
+  const hasNoStageProgress = 
+    (!preBriaStatus || preBriaStatus === ReviewStageStatus.PENDING || preBriaStatus === 'pending') &&
+    (!postBriaStatus || postBriaStatus === ReviewStageStatus.PENDING || postBriaStatus === 'pending') &&
+    (!postPdfStatus || postPdfStatus === ReviewStageStatus.PENDING || postPdfStatus === 'pending');
   
   return isNewStatus && isNotQueued && isNotProcessing && isNotCompleted && hasNoStageProgress;
 }
