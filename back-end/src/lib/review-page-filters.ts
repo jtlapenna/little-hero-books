@@ -106,8 +106,6 @@ export function shouldShowInReviewPoses(order: OrderListItem): boolean {
   
   return isInPreBriaStage && isNotInQueue && isNotProcessing && isReviewPosesStatus && isNotCompleted && notSentToPrint && isFirstReview;
 }
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-read_file
 
 /**
  * Check if an order should appear in the Review Backgrounds tab
