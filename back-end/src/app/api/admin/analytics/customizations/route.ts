@@ -107,12 +107,26 @@ export async function GET(request: NextRequest) {
 
     const clothingStyleDistribution = calculateDistribution(
       orders,
-      (o) => o.character_specs?.clothingStyle || o.character_specs?.clothing_style
+      (o) => {
+        // Only get clothingStyle from character_specs, exclude bookType
+        const clothing = o.character_specs?.clothingStyle || o.character_specs?.clothing_style;
+        // Filter out "adventure" which might be coming from bookType
+        if (clothing && clothing !== 'adventure' && clothing !== 'book-mvp-simple-adventure') {
+          return clothing;
+        }
+        return null;
+      }
     );
 
     const hometownDistribution = calculateDistribution(
       orders,
-      (o) => o.character_specs?.hometown || o.character_specs?.homeTown
+      (o) => {
+        // Check character_specs first, then book_specs as fallback
+        return o.character_specs?.hometown || 
+               o.character_specs?.homeTown || 
+               o.book_specs?.hometown || 
+               null;
+      }
     );
 
     return NextResponse.json({

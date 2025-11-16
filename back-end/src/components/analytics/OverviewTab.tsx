@@ -211,7 +211,7 @@ export default function OverviewTab({ filters }: { filters: AnalyticsFiltersStat
         </ResponsiveContainer>
       </div>
 
-      {/* Status Breakdown */}
+      {/* Status & Error Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-gray-50 rounded-lg p-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Status Breakdown</h3>
@@ -249,6 +249,22 @@ export default function OverviewTab({ filters }: { filters: AnalyticsFiltersStat
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Error Breakdown */}
+      {errorData.length > 0 && (
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Error Breakdown by Type</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={errorData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis dataKey="name" type="category" width={150} />
+              <Tooltip />
+              <Bar dataKey="value" fill="#ef4444" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Top Customization Choices */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
@@ -479,22 +495,6 @@ export default function OverviewTab({ filters }: { filters: AnalyticsFiltersStat
           </div>
         </div>
       </div>
-
-      {/* Error Breakdown */}
-      {errorData.length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Error Breakdown by Type</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={errorData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis dataKey="name" type="category" width={150} />
-              <Tooltip />
-              <Bar dataKey="value" fill="#ef4444" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
     </div>
   );
 }

@@ -164,10 +164,47 @@ export async function GET(request: NextRequest) {
       hairColor: getTopChoice(orders, 'hairColor', ['hair_color']),
       hairStyle: getTopChoice(orders, 'hairStyle', ['hair_style']),
       animalGuide: getTopChoice(orders, 'animalGuide', ['animal_guide', 'favoriteAnimal']),
-      hometown: getTopChoice(orders, 'hometown', ['homeTown']),
+      hometown: (() => {
+        // Check character_specs first, then book_specs as fallback
+        const counts: Record<string, number> = {};
+        orders.forEach(order => {
+          const hometown = order.character_specs?.hometown || 
+                          order.character_specs?.homeTown || 
+                          order.book_specs?.hometown || 
+                          null;
+          if (hometown) {
+            counts[hometown] = (counts[hometown] || 0) + 1;
+          }
+        });
+        if (Object.keys(counts).length === 0) return null;
+        const sorted = Object.entries(counts)
+          .map(([value, count]) => ({ value, count, percentage: totalOrders > 0 ? Math.round((count / totalOrders) * 100 * 100) / 100 : 0 }))
+          .sort((a, b) => b.count - a.count);
+        return sorted[0] || null;
+      })(),
       pronouns: getTopChoice(orders, 'pronouns'),
       favoriteColor: getTopChoice(orders, 'favoriteColor', ['favorite_color']),
-      clothingStyle: getTopChoice(orders, 'clothingStyle', ['clothing_style'])
+      clothingStyle: (() => {
+        const top = getTopChoice(orders, 'clothingStyle', ['clothing_style']);
+        // Filter out "adventure" which might be coming from bookType
+        if (top && top.value !== 'adventure' && top.value !== 'book-mvp-simple-adventure') {
+          return top;
+        }
+        // Get second choice if first is invalid
+        const counts: Record<string, number> = {};
+        orders.forEach(order => {
+          const specs = order.character_specs || {};
+          const clothing = specs.clothingStyle || specs.clothing_style;
+          if (clothing && clothing !== 'adventure' && clothing !== 'book-mvp-simple-adventure') {
+            counts[clothing] = (counts[clothing] || 0) + 1;
+          }
+        });
+        if (Object.keys(counts).length === 0) return null;
+        const sorted = Object.entries(counts)
+          .map(([value, count]) => ({ value, count, percentage: totalOrders > 0 ? Math.round((count / totalOrders) * 100 * 100) / 100 : 0 }))
+          .sort((a, b) => b.count - a.count);
+        return sorted[0] || null;
+      })()
     };
 
     // Full customization distributions (all options with counts)
@@ -197,10 +234,21 @@ export async function GET(request: NextRequest) {
       hairColor: calculateDistribution(orders, (o) => o.character_specs?.hairColor || o.character_specs?.hair_color),
       hairStyle: calculateDistribution(orders, (o) => o.character_specs?.hairStyle || o.character_specs?.hair_style),
       animalGuide: calculateDistribution(orders, (o) => o.character_specs?.animalGuide || o.character_specs?.animal_guide || o.character_specs?.favoriteAnimal),
-      hometown: calculateDistribution(orders, (o) => o.character_specs?.hometown || o.character_specs?.homeTown),
+      hometown: calculateDistribution(orders, (o) => {
+        // Check character_specs first, then book_specs as fallback
+        return o.character_specs?.hometown || o.character_specs?.homeTown || o.book_specs?.hometown || null;
+      }),
       pronouns: calculateDistribution(orders, (o) => o.character_specs?.pronouns),
       favoriteColor: calculateDistribution(orders, (o) => o.character_specs?.favoriteColor || o.character_specs?.favorite_color),
-      clothingStyle: calculateDistribution(orders, (o) => o.character_specs?.clothingStyle || o.character_specs?.clothing_style)
+      clothingStyle: calculateDistribution(orders, (o) => {
+        // Only get clothingStyle from character_specs, exclude bookType
+        const clothing = o.character_specs?.clothingStyle || o.character_specs?.clothing_style;
+        // Filter out "adventure" which might be coming from bookType
+        if (clothing && clothing !== 'adventure' && clothing !== 'book-mvp-simple-adventure') {
+          return clothing;
+        }
+        return null;
+      })
     };
 
     // Status breakdown

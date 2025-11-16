@@ -46,6 +46,7 @@ export interface OrderRecord {
     postBria?: { status?: string };
     postPdf?: { status?: string };
   } | null;
+  book_specs: any;
 }
 
 /**
