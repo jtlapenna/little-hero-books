@@ -207,11 +207,6 @@ export default function HealthDashboard({ refreshInterval = 30000 }: HealthDashb
                           : 'text-red-700 bg-red-50 p-2 rounded'
                       }`}>
                         {check.error}
-                        {check.error.includes('Cloudflare Workers runtime') && (
-                          <div className="mt-1 text-xs text-blue-600">
-                            ℹ️ This is normal - Cloudflare Workers run in a serverless environment without traditional file system access. Your application uses R2 Storage instead.
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}
