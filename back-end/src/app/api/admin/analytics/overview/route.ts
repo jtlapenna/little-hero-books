@@ -48,6 +48,68 @@ export const dynamic = 'force-dynamic';
  * - groupBy: 'day' | 'week' | 'month' (default: 'day')
  */
 export async function GET(request: NextRequest) {
+  // Helper to extract clothing style from manifest (async, used as fallback)
+  async function extractClothingStyleFromManifest(orderId: string): Promise<string | null> {
+    const manifestKeys = [
+      `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`,
+      `book-mvp-simple-adventure/orders/${orderId}/manifests/1-manifest.json`
+    ];
+    
+    for (const manifestKey of manifestKeys) {
+      try {
+        const manifestUrl = `https://admin.littleherolabs.com/api/manifests/${manifestKey}`;
+        const response = await fetch(manifestUrl, { 
+          cache: 'no-store',
+          signal: AbortSignal.timeout(2000) // 2 second timeout
+        });
+        
+        if (response.ok) {
+          const manifest = await response.json();
+          const manifestClothing = manifest?.order?.characterSpecs?.clothingStyle || 
+                                 manifest?.order?.characterSpecs?.clothingTypeCanonical;
+          const normalized = normalizeClothingStyle(manifestClothing);
+          if (normalized) return normalized;
+        }
+      } catch (err) {
+        // Silently fail - manifest might not exist or be slow
+        continue;
+      }
+    }
+    
+    return null;
+  }
+
+  // Helper to extract hometown from manifest (async, used as fallback)
+  async function extractHometownFromManifest(orderId: string): Promise<string | null> {
+    const manifestKeys = [
+      `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`,
+      `book-mvp-simple-adventure/orders/${orderId}/manifests/1-manifest.json`
+    ];
+    
+    for (const manifestKey of manifestKeys) {
+      try {
+        const manifestUrl = `https://admin.littleherolabs.com/api/manifests/${manifestKey}`;
+        const response = await fetch(manifestUrl, { 
+          cache: 'no-store',
+          signal: AbortSignal.timeout(2000) // 2 second timeout
+        });
+        
+        if (response.ok) {
+          const manifest = await response.json();
+          const hometown = manifest?.order?.characterSpecs?.hometown || 
+                          manifest?.order?.characterSpecs?.homeTown ||
+                          manifest?.order?.options?.hometown;
+          if (hometown) return String(hometown).trim();
+        }
+      } catch (err) {
+        // Silently fail - manifest might not exist or be slow
+        continue;
+      }
+    }
+    
+    return null;
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     
@@ -195,58 +257,112 @@ export async function GET(request: NextRequest) {
       hairColor: getTopChoice(orders, 'hairColor', ['hair_color']),
       hairStyle: getTopChoice(orders, 'hairStyle', ['hair_style']),
       animalGuide: getTopChoice(orders, 'animalGuide', ['animal_guide', 'favoriteAnimal']),
-      hometown: (() => {
-        // Check character_specs first, then book_specs as fallback
-        const counts: Record<string, number> = {};
-        orders.forEach(order => {
-          const hometown = order.character_specs?.hometown || 
-                          order.character_specs?.homeTown || 
-                          order.book_specs?.hometown || 
-                          null;
-          if (hometown) {
-            counts[hometown] = (counts[hometown] || 0) + 1;
-          }
-        });
-        if (Object.keys(counts).length === 0) return null;
-        const sorted = Object.entries(counts)
-          .map(([value, count]) => ({ value, count, percentage: totalOrders > 0 ? Math.round((count / totalOrders) * 100 * 100) / 100 : 0 }))
-          .sort((a, b) => b.count - a.count);
-        return sorted[0] || null;
-      })(),
+      hometown: null, // Will be calculated asynchronously below
       pronouns: getTopChoice(orders, 'pronouns'),
       favoriteColor: getTopChoice(orders, 'favoriteColor', ['favorite_color']),
-      clothingStyle: (() => {
-        // Extract and normalize clothing style from character_specs
-        const counts: Record<string, number> = {};
-        orders.forEach(order => {
-          const specs = order.character_specs || {};
-          const clothing = specs.clothingStyle || specs.clothing_style || specs.clothingTypeCanonical;
-          const normalized = normalizeClothingStyle(clothing);
-          if (normalized) {
-            counts[normalized] = (counts[normalized] || 0) + 1;
-          }
-        });
-        if (Object.keys(counts).length === 0) return null;
-        const sorted = Object.entries(counts)
+      clothingStyle: null // Will be calculated asynchronously below
+    };
+
+    // Extract clothing style and hometown with manifest fallback
+    // First, collect orders that need manifest lookup
+    const ordersNeedingManifestLookup: Array<{ order: any; index: number }> = [];
+    const clothingStyleValues: (string | null)[] = new Array(orders.length);
+    const hometownValues: (string | null)[] = new Array(orders.length);
+
+    // First pass: extract from character_specs
+    orders.forEach((order, index) => {
+      // Clothing style
+      const specs = order.character_specs || {};
+      const clothing = specs.clothingStyle || specs.clothing_style || specs.clothingTypeCanonical;
+      const normalizedClothing = normalizeClothingStyle(clothing);
+      clothingStyleValues[index] = normalizedClothing;
+
+      // Hometown
+      const hometown = order.character_specs?.hometown || 
+                      order.character_specs?.homeTown || 
+                      order.book_specs?.hometown;
+      hometownValues[index] = hometown ? String(hometown).trim() : null;
+
+      // If either is missing, add to lookup list
+      if (!normalizedClothing || !hometownValues[index]) {
+        ordersNeedingManifestLookup.push({ order, index });
+      }
+    });
+
+    // Second pass: fetch manifests for orders missing data (in parallel batches)
+    if (ordersNeedingManifestLookup.length > 0) {
+      // Process in batches of 10 to avoid overwhelming the system
+      const batchSize = 10;
+      for (let i = 0; i < ordersNeedingManifestLookup.length; i += batchSize) {
+        const batch = ordersNeedingManifestLookup.slice(i, i + batchSize);
+        await Promise.all(
+          batch.map(async ({ order, index }) => {
+            const orderId = order.amazon_order_id;
+            if (!orderId) return;
+
+            // Fetch clothing style if missing
+            if (!clothingStyleValues[index]) {
+              const clothing = await extractClothingStyleFromManifest(orderId);
+              if (clothing) clothingStyleValues[index] = clothing;
+            }
+
+            // Fetch hometown if missing
+            if (!hometownValues[index]) {
+              const hometown = await extractHometownFromManifest(orderId);
+              if (hometown) hometownValues[index] = hometown;
+            }
+          })
+        );
+      }
+    }
+
+    // Calculate top customizations with manifest data
+    const clothingStyleCounts: Record<string, number> = {};
+    const hometownCounts: Record<string, number> = {};
+    clothingStyleValues.forEach(value => {
+      if (value) {
+        clothingStyleCounts[value] = (clothingStyleCounts[value] || 0) + 1;
+      }
+    });
+    hometownValues.forEach(value => {
+      if (value) {
+        hometownCounts[value] = (hometownCounts[value] || 0) + 1;
+      }
+    });
+
+    const topClothingStyle = Object.keys(clothingStyleCounts).length > 0
+      ? Object.entries(clothingStyleCounts)
           .map(([value, count]) => ({ 
             value, 
             count, 
             percentage: totalOrders > 0 ? Math.round((count / totalOrders) * 100 * 100) / 100 : 0 
           }))
-          .sort((a, b) => b.count - a.count);
-        return sorted[0] || null;
-      })()
-    };
+          .sort((a, b) => b.count - a.count)[0]
+      : null;
+
+    const topHometown = Object.keys(hometownCounts).length > 0
+      ? Object.entries(hometownCounts)
+          .map(([value, count]) => ({ 
+            value, 
+            count, 
+            percentage: totalOrders > 0 ? Math.round((count / totalOrders) * 100 * 100) / 100 : 0 
+          }))
+          .sort((a, b) => b.count - a.count)[0]
+      : null;
+
+    // Update topCustomizations with calculated values
+    topCustomizations.clothingStyle = topClothingStyle;
+    topCustomizations.hometown = topHometown;
 
     // Full customization distributions (all options with counts)
     const calculateDistribution = (
       orders: any[],
-      extractValue: (order: any) => string | number | null | undefined
+      extractValue: (order: any, index?: number) => string | number | null | undefined
     ): Array<{ value: string; count: number; percentage: number }> => {
       const counts: Record<string, number> = {};
       
-      orders.forEach(order => {
-        const value = extractValue(order);
+      orders.forEach((order, index) => {
+        const value = extractValue(order, index);
         const key = value !== null && value !== undefined ? String(value) : 'unknown';
         counts[key] = (counts[key] || 0) + 1;
       });
@@ -265,17 +381,15 @@ export async function GET(request: NextRequest) {
       hairColor: calculateDistribution(orders, (o) => o.character_specs?.hairColor || o.character_specs?.hair_color),
       hairStyle: calculateDistribution(orders, (o) => o.character_specs?.hairStyle || o.character_specs?.hair_style),
       animalGuide: calculateDistribution(orders, (o) => o.character_specs?.animalGuide || o.character_specs?.animal_guide || o.character_specs?.favoriteAnimal),
-      hometown: calculateDistribution(orders, (o) => {
-        // Check character_specs first, then book_specs as fallback
-        return o.character_specs?.hometown || o.character_specs?.homeTown || o.book_specs?.hometown || null;
+      hometown: calculateDistribution(orders, (o, index) => {
+        // Use the pre-fetched hometown value
+        return hometownValues[index] || null;
       }),
       pronouns: calculateDistribution(orders, (o) => o.character_specs?.pronouns),
       favoriteColor: calculateDistribution(orders, (o) => o.character_specs?.favoriteColor || o.character_specs?.favorite_color),
-      clothingStyle: calculateDistribution(orders, (o) => {
-        // Extract from character_specs and normalize
-        const specs = o.character_specs || {};
-        const clothing = specs.clothingStyle || specs.clothing_style || specs.clothingTypeCanonical;
-        return normalizeClothingStyle(clothing);
+      clothingStyle: calculateDistribution(orders, (o, index) => {
+        // Use the pre-fetched clothing style value
+        return clothingStyleValues[index] || null;
       })
     };
 
