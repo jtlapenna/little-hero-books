@@ -1,7 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
-
+import react from '@astrojs/react';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
@@ -10,10 +10,16 @@ export default defineConfig({
   adapter: cloudflare({
     mode: 'pages',
   }),
+  integrations: [react()],
   session: {
     driver: 'cookie'
   },
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    resolve: {
+      alias: {
+        "@": new URL("./src", import.meta.url).pathname
+      }
+    }
   }
 });

@@ -54,11 +54,13 @@ export async function POST(request: NextRequest) {
       'Access-Control-Allow-Headers': 'Content-Type',
     };
 
-    if (!validation.valid) {
+    // If token is invalid but we have an orderId (token was used or expired),
+    // still fetch and return order data so the page can display customer details
+    if (!validation.valid && !validation.orderId) {
       return NextResponse.json(
         { 
           valid: false,
-          error: validation.error,
+          error: validation.error || 'Invalid token',
           expired: validation.expired,
           used: validation.used
         },
@@ -69,7 +71,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!validation.orderId) {
+    // If token is invalid but we have orderId, continue to fetch order data
+    // This allows the page to display customer details even when token is used/expired
+    const orderId = validation.orderId;
+    
+    if (!orderId) {
       return NextResponse.json(
         { error: 'Token validation failed' },
         { 
@@ -78,8 +84,6 @@ export async function POST(request: NextRequest) {
         }
       );
     }
-
-    const orderId = validation.orderId;
 
     let supabaseRecord: any = null;
     let supabaseOrder: Order | null = null;
@@ -131,9 +135,11 @@ export async function POST(request: NextRequest) {
       ? `${mergedOrder.customer.firstName || ''} ${mergedOrder.customer.lastName || ''}`.trim() || null
       : null;
 
+    // Return order data even if token is invalid (used or expired)
+    // This allows the page to persist customer details after approval
     return NextResponse.json(
       {
-        valid: true,
+        valid: validation.valid, // Return actual validation status
         order: {
           orderId: mergedOrder.orderId,
           amazonOrderId: mergedOrder.amazonOrderId || mergedOrder.orderId,
@@ -149,8 +155,14 @@ export async function POST(request: NextRequest) {
             null,
           finalBookUrl: mergedOrder.finalBookUrl || supabaseRecord?.final_book_url || null,
         },
+        // Include validation info for frontend to handle appropriately
+        expired: validation.expired,
+        used: validation.used,
       },
       {
+        // Return 200 even if token is used/expired, as long as we have order data
+        // Frontend can check `valid` field to determine if token is active
+        status: validation.valid ? 200 : 200,
         headers: corsHeaders,
       }
     );

@@ -1,6 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import Button from '../../components/Button.astro';
+import ConfettiButton from '../../components/ui/confetti-button';
+import SparklesText from '../../components/ui/sparkles-text';
 
 // This is a server-rendered dynamic route (not pre-rendered)
 // We need to validate tokens at runtime, so we can't use static generation
@@ -50,6 +52,18 @@ if (!token) {
       <!-- Curtain Hero Section (overlay on top) -->
       <div id="curtain-hero" class="curtain-hero">
         <div class="curtain-content">
+          <div id="curtain-text-sparkles-wrapper" class="curtain-text-sparkles-wrapper">
+            <SparklesText
+              client:load
+              text="Hi, there. We are so excited to show you your child's book!"
+              className="curtain-text-sparkles"
+              sparklesCount={20}
+              colors={{
+                first: "#F9BB3A",
+                second: "#F9786B"
+              }}
+            />
+          </div>
           <h1 class="curtain-title">
             Hi, <span id="curtain-buyer-name" class="buyer-name">there</span>.
           </h1>
@@ -122,26 +136,37 @@ if (!token) {
             </div>
           </div>
           <div id="preview-placeholder" class="preview-placeholder">
-            <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-            </svg>
             <h3 class="placeholder-title">Loading Preview...</h3>
             <p class="placeholder-text">Loading your book preview...</p>
           </div>
         </div>
 
+        <!-- Success Message (hidden by default, shown when order is approved) -->
+        <div id="success-message" class="preview-card success-message-card" style="display: none;">
+          <div class="success-message-content">
+            <div class="success-icon-wrapper">
+              <svg class="success-icon" xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            </div>
+            <h2 class="success-message-title">Success! Magic is on the way!</h2>
+            <p class="success-message-text">Your book has been approved and will be sent to print. We'll notify you when it ships.</p>
+            <div id="order-status-updates" class="order-status-updates" style="display: none;">
+              <!-- Order status updates will be added here -->
+            </div>
+          </div>
+        </div>
+
         <!-- Action Buttons -->
-        <div class="preview-card">
+        <div id="action-buttons-container" class="preview-card">
           <div class="action-buttons">
             <Button variant="secondary" size="lg" class="btn-revision" type="button">I need a correction</Button>
             <Button size="lg" class="btn-approve" type="button">Approve Book</Button>
           </div>
-        </div>
-
-
-        <!-- Correction Request -->
-        <div id="correction-card" class="preview-card correction-card">
+          
+          <!-- Correction Info (hidden by default, shown when button clicked) -->
+          <div id="correction-info" class="correction-info" style="display: none;">
           <div class="correction-header">
             <div>
               <h3 class="card-title">Need a correction?</h3>
@@ -180,22 +205,19 @@ if (!token) {
               We can adjust details to match the options you selected (name spelling, preset hair style/color, skin tone, pronouns, etc.). We can’t create brand-new art or styles beyond the choices shown.
             </div>
             <div class="correction-actions">
+                <Button variant="secondary" size="md" class="correction-cancel" type="button">Cancel</Button>
               <Button size="md" class="correction-submit-btn" type="submit">Send correction</Button>
             </div>
           </form>
-        </div>
-        </div>
-      </div>
     </div>
 
-    <!-- Approval Modal -->
-    <div id="approval-modal" class="modal" style="display: none;">
-      <div class="modal-content">
-        <h3 class="modal-title">Approve Your Book</h3>
-        <div class="modal-body">
-          <div class="warning-box">
-            <p class="warning-title">⚠️ Important Information:</p>
-            <ul class="warning-list">
+          <!-- Approval Info (hidden by default, shown when button clicked) -->
+          <div id="approval-info" class="approval-info" style="display: none;">
+            <h3 class="card-title">Approve Your Book</h3>
+            <div class="approval-info-content">
+              <div class="info-box">
+                <p class="info-title">Important Information:</p>
+                <ul class="info-list">
               <li>Changes after approval will incur additional charges</li>
               <li>Your book will be printed and shipped within 5-7 business days after approval</li>
               <li>If you do not respond within 3 days, your book will be automatically approved and sent to print</li>
@@ -208,13 +230,24 @@ if (!token) {
               <span>I confirm the book is correct and ready to print immediately.</span>
             </label>
           </div>
+              <div class="approval-actions">
+                <Button variant="secondary" size="lg" class="approval-cancel" type="button">Cancel</Button>
+                <ConfettiButton
+                  client:load
+                  label="Approve Book"
+                  variant="primary"
+                  size="lg"
+                  className="btn-approval-confirm"
+                  id="confetti-approve-btn"
+                />
         </div>
-        <div class="modal-actions">
-          <Button variant="secondary" size="md" class="modal-cancel" type="button">Cancel</Button>
-          <Button size="md" class="btn-approval-confirm" type="button" disabled>Approve Book</Button>
         </div>
       </div>
     </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </Layout>
 
@@ -275,10 +308,10 @@ if (!token) {
   const ageValue = document.getElementById('age-value');
   const childNameOrderEl = document.getElementById('child-name-order');
   const approveBtn = document.querySelector('.btn-approve');
-  const approvalModal = document.getElementById('approval-modal');
+  const approvalInfo = document.getElementById('approval-info');
   const acknowledgeCheckbox = document.getElementById('acknowledge-last-revision');
   const lastRevisionContainer = document.getElementById('last-revision-checkbox-container');
-  const approvalConfirmBtn = document.querySelector('.btn-approval-confirm');
+  // Note: approvalConfirmBtn is now a React component, accessed via querySelector when needed
 
   const correctionAvailability = document.getElementById('correction-availability');
   const correctionForm = document.getElementById('correction-form');
@@ -293,7 +326,7 @@ if (!token) {
   const contactEmailInput = document.getElementById('contact-email');
   const contactEmailConfirmInput = document.getElementById('contact-email-confirm');
   const revisionBtn = document.querySelector('.btn-revision');
-  const correctionCard = document.getElementById('correction-card');
+  const correctionInfo = document.getElementById('correction-info');
   const buyerNameEl = document.getElementById('buyer-name');
   const curtainHero = document.getElementById('curtain-hero');
   const curtainBuyerNameEl = document.getElementById('curtain-buyer-name');
@@ -334,6 +367,40 @@ if (!token) {
 
       const data = await response.json();
 
+      // Backend now returns order data even when token is used/expired
+      // If we have order data, use it regardless of validation status
+      if (data.order) {
+        orderData = data.order;
+        
+        // Cache order data in localStorage so we can retrieve it later if needed
+        if (orderData && orderData.orderId) {
+          try {
+            localStorage.setItem(`order_data_${orderData.orderId}`, JSON.stringify(orderData));
+          } catch (e) {
+            console.warn('[PREVIEW] Failed to cache order data:', e);
+          }
+        }
+        
+        displayOrder(orderData);
+        showPreview();
+        
+        // If token is valid, check order status normally
+        if (data.valid) {
+          checkOrderStatus(orderData);
+        } else {
+          // Token is invalid (used or expired) but we have order data
+          // Show approved state with order data
+          console.log('[PREVIEW] Token invalid but order data available - showing approved state', {
+            valid: data.valid,
+            used: data.used,
+            expired: data.expired
+          });
+          showApprovedState(orderData);
+        }
+        return;
+      }
+
+      // No order data in response - show error
       if (!response.ok || !data.valid) {
         showError(data.error || 'Invalid or expired token');
         return;
@@ -343,14 +410,100 @@ if (!token) {
         showError('Order not found');
         return;
       }
-
-      orderData = data.order;
-      displayOrder(orderData);
-      showPreview();
     } catch (error) {
       console.error('Error loading preview:', error);
       showError(error.message || 'Failed to load preview');
     }
+  }
+
+  function showApprovedState(orderDataFromResponse = null) {
+    // Hide error and loading states
+    loadingState.style.display = 'none';
+    errorState.style.display = 'none';
+    
+    // If we have full order data passed in, use it directly
+    if (orderDataFromResponse && orderDataFromResponse.customerName && orderDataFromResponse.characterSpecs) {
+      orderData = orderDataFromResponse;
+      displayOrder(orderData);
+    } else {
+      // Try to extract order info from token if no order data provided
+      let extractedOrderId = null;
+      if (!orderDataFromResponse && token) {
+        // Token format might be like "E2E-005-5d397e5ff397645b" where first part is order ID
+        const tokenParts = token.split('-');
+        if (tokenParts.length >= 2) {
+          // Try to construct a partial order ID from token
+          extractedOrderId = tokenParts.slice(0, 2).join('-');
+          orderDataFromResponse = {
+            orderId: extractedOrderId,
+            amazonOrderId: extractedOrderId
+          };
+        }
+      }
+      
+      // If we only have partial order data (no customer name, child name, etc.),
+      // try to retrieve full order data from localStorage cache
+      if (orderDataFromResponse && (!orderDataFromResponse.customerName || !orderDataFromResponse.characterSpecs)) {
+        const orderIdToCheck = orderDataFromResponse.orderId || orderDataFromResponse.amazonOrderId || extractedOrderId;
+        if (orderIdToCheck) {
+          try {
+            const cachedOrderData = localStorage.getItem(`order_data_${orderIdToCheck}`);
+            if (cachedOrderData) {
+              const parsedCache = JSON.parse(cachedOrderData);
+              console.log('[PREVIEW] Retrieved cached order data for', orderIdToCheck);
+              // Merge cached data with any partial data we have
+              orderDataFromResponse = {
+                ...parsedCache,
+                ...orderDataFromResponse // Partial data overrides cache (in case order was updated)
+              };
+            }
+          } catch (e) {
+            console.warn('[PREVIEW] Failed to retrieve cached order data:', e);
+          }
+        }
+      }
+      
+      // If we have order data (even partial), try to display it
+      if (orderDataFromResponse) {
+        orderData = orderDataFromResponse;
+        // Call displayOrder if we have at least an order ID
+        if (orderData.orderId || orderData.amazonOrderId) {
+          displayOrder(orderData);
+        }
+      }
+    }
+    
+    // Show preview content
+    showPreview();
+    
+    // Hide curtain and action buttons
+    const curtainHero = document.getElementById('curtain-hero');
+    const curtainScrollArea = document.getElementById('curtain-scroll-area');
+    const actionButtonsContainer = document.getElementById('action-buttons-container');
+    
+    if (curtainHero) curtainHero.style.display = 'none';
+    if (curtainScrollArea) curtainScrollArea.style.display = 'none';
+    if (actionButtonsContainer) actionButtonsContainer.style.display = 'none';
+    
+    // Make sure book content is visible
+    const bookContent = document.getElementById('book-content');
+    if (bookContent) {
+      bookContent.style.position = 'relative';
+      bookContent.style.top = 'auto';
+      bookContent.style.transform = 'none';
+    }
+    
+    // Try to load pages even if we only have partial order data
+    if (orderData && (orderData.orderId || orderData.amazonOrderId)) {
+      const orderId = orderData.orderId || orderData.amazonOrderId;
+      loadPagesAndDisplay(orderId);
+    }
+    
+    // Show success message
+    showSuccessMessage();
+    
+    // Update header
+    updateHeaderForCurtain();
   }
 
   // PDF Viewer state
@@ -689,9 +842,7 @@ if (!token) {
       correctionLocked.style.display = 'block';
       correctionSuccess.style.display = 'block';
       lastRevisionContainer.style.display = 'block';
-      if (approvalConfirmBtn) {
-        approvalConfirmBtn.disabled = !acknowledgeCheckbox.checked;
-      }
+      // Button disabled state is handled by React component in mountConfettiButton()
       if (revisionBtn) {
         revisionBtn.textContent = 'View correction details';
         revisionBtn.classList.add('correction-used');
@@ -706,9 +857,7 @@ if (!token) {
       reasonBanner.style.display = 'none';
       lastRevisionContainer.style.display = 'none';
       acknowledgeCheckbox.checked = false;
-      if (approvalConfirmBtn) {
-        approvalConfirmBtn.disabled = false;
-      }
+      // Button disabled state is handled by React component in mountConfettiButton()
       if (revisionBtn) {
         revisionBtn.textContent = 'I need a correction';
         revisionBtn.classList.remove('correction-used');
@@ -927,20 +1076,32 @@ if (!token) {
     }
   }
 
-  async function handleApprove() {
-    if (!orderData || !token) return;
+  async function handleApprove(event) {
+    console.log('[APPROVE] handleApprove called', { orderData, token, event });
+    
+    if (!orderData || !token) {
+      console.error('[APPROVE] Missing orderData or token', { orderData, token });
+      return;
+    }
 
     if (correctionUsed && !acknowledgeCheckbox.checked) {
       alert('Please confirm you are ready to send your book to print.');
       return;
     }
 
-    if (approveBtn) {
-      approveBtn.disabled = true;
-      approveBtn.textContent = 'Approving...';
+    const confirmBtn = document.querySelector('.btn-approval-confirm button') || 
+                      document.querySelector('.btn-approval-confirm');
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      if (confirmBtn.textContent) {
+        confirmBtn.textContent = 'Approving...';
+      }
     }
 
     try {
+      console.log('[APPROVE] Calling approve API', { orderId: orderData.orderId, token });
+      
+      // Set order status to ready_for_processing - router cron will pick it up and send to w1.1 -> w4
       const response = await fetch(`${API_BASE}/api/preview/${orderData.orderId}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -952,43 +1113,91 @@ if (!token) {
         throw new Error(error.error || 'Failed to approve');
       }
 
-      /** @type {Error | null} */
-      let printTriggerError = null;
-      try {
-        const printResponse = await fetch(`${API_BASE}/api/orders/${orderData.orderId}/print`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source: 'customer-approval' })
-        });
-
-        if (!printResponse.ok) {
-          const error = await printResponse.json().catch(() => null);
-          throw new Error(error?.error || 'Failed to notify print service');
-        }
-      } catch (error) {
-        console.error('Error triggering print workflow:', error);
-        printTriggerError =
-          error instanceof Error
-            ? error
-            : new Error('Failed to notify print service');
-      }
-
-      if (printTriggerError) {
-        alert(
-          `Book approval recorded, but print service could not be notified: ${printTriggerError.message}`
-        );
-      } else {
-        alert('Book Successfully Sent to Print Service');
-      }
-
-      window.location.href = `/order-status/${orderData.orderId}?token=${token}`;
+      console.log('[APPROVE] Approval successful, showing success message');
+      
+      // Show success message by replacing page content
+      showSuccessMessage();
     } catch (error) {
-      console.error('Error approving:', error);
+      console.error('[APPROVE] Error approving:', error);
       alert(error.message || 'Failed to approve book. Please try again.');
-      if (approveBtn) {
-        approveBtn.disabled = false;
-        approveBtn.textContent = 'Approve Book';
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        if (confirmBtn.textContent) {
+          confirmBtn.textContent = 'Approve Book';
+        }
       }
+    }
+  }
+
+  function checkOrderStatus(order) {
+    console.log('[STATUS] Checking order status', { 
+      execution_status: order.execution_status, 
+      next_workflow: order.next_workflow,
+      status: order.status 
+    });
+    
+    // Check if order is approved (execution_status is 'ready_for_processing' or beyond, or if next_workflow is set to 4 or beyond)
+    const isApproved = order.execution_status === 'ready_for_processing' || 
+                      order.execution_status === 'processing' ||
+                      order.execution_status === 'completed' ||
+                      order.execution_status === 'in_progress' ||
+                      (order.next_workflow && parseInt(order.next_workflow) >= 4) ||
+                      order.status === 'approved';
+    
+    if (isApproved) {
+      console.log('[STATUS] Order is already approved, showing success message and hiding actions');
+      showSuccessMessage();
+      
+      // Also skip curtain animation if order is approved
+      const curtainHero = document.getElementById('curtain-hero');
+      const curtainScrollArea = document.getElementById('curtain-scroll-area');
+      if (curtainHero) {
+        curtainHero.style.display = 'none';
+      }
+      if (curtainScrollArea) {
+        curtainScrollArea.style.display = 'none';
+      }
+      
+      // Make sure book content is visible
+      const bookContent = document.getElementById('book-content');
+      if (bookContent) {
+        bookContent.style.position = 'relative';
+        bookContent.style.top = 'auto';
+        bookContent.style.transform = 'none';
+      }
+    }
+  }
+
+  function showSuccessMessage() {
+    console.log('[SUCCESS] showSuccessMessage called');
+    
+    // Hide action buttons
+    const actionButtonsContainer = document.getElementById('action-buttons-container');
+    if (actionButtonsContainer) {
+      actionButtonsContainer.style.display = 'none';
+    }
+    
+    // Hide curtain if still visible
+    const curtainHero = document.getElementById('curtain-hero');
+    if (curtainHero) {
+      curtainHero.style.display = 'none';
+    }
+    
+    const curtainScrollArea = document.getElementById('curtain-scroll-area');
+    if (curtainScrollArea) {
+      curtainScrollArea.style.display = 'none';
+    }
+    
+    // Show success message (placed after preview area)
+    const successMessage = document.getElementById('success-message');
+    if (successMessage) {
+      successMessage.style.display = 'block';
+      // Scroll to success message smoothly
+      setTimeout(() => {
+        successMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+    } else {
+      console.error('[SUCCESS] success-message element not found!');
     }
   }
 
@@ -1003,37 +1212,173 @@ if (!token) {
 
   if (approveBtn) {
     approveBtn.addEventListener('click', () => {
-      approvalModal.style.display = 'flex';
-    });
-  }
-
-  const modalCancelBtn = document.querySelector('.modal-cancel');
-  if (modalCancelBtn) {
-    modalCancelBtn.addEventListener('click', () => {
-      approvalModal.style.display = 'none';
-    });
-  }
-
-  if (approvalConfirmBtn) {
-    approvalConfirmBtn.addEventListener('click', handleApprove);
-  }
-
-  if (revisionBtn) {
-    revisionBtn.addEventListener('click', () => {
-      const target = correctionCard;
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        target.classList.add('jump-highlight');
-        setTimeout(() => target.classList.remove('jump-highlight'), 800);
+      if (approvalInfo) {
+        // Close correction info if open
+        if (correctionInfo) {
+          correctionInfo.style.display = 'none';
+        }
+        approvalInfo.style.display = 'block';
+        // Smooth scroll to show the expanded content
+        approvalInfo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     });
   }
 
-  acknowledgeCheckbox.addEventListener('change', () => {
-    if (approvalConfirmBtn) {
-      approvalConfirmBtn.disabled = correctionUsed && !acknowledgeCheckbox.checked;
+  const approvalCancelBtn = document.querySelector('.approval-cancel');
+  if (approvalCancelBtn) {
+    approvalCancelBtn.addEventListener('click', () => {
+      if (approvalInfo) {
+        approvalInfo.style.display = 'none';
+      }
+    });
+  }
+
+  // Wire up the confetti button after approval info is shown
+  let confettiButtonSetup = false;
+  let confettiButtonHandler = null;
+  
+  function setupConfettiButton() {
+    console.log('[SETUP] setupConfettiButton called', { 
+      retries: setupConfettiButton.retries || 0,
+      alreadySetup: confettiButtonSetup 
+    });
+    
+    // Check if already set up - if so, just update disabled state
+    if (confettiButtonSetup && confettiButtonHandler) {
+      const confettiBtn = document.querySelector('.btn-approval-confirm button') || 
+                         document.getElementById('confetti-approve-btn')?.querySelector('button');
+      if (confettiBtn) {
+        confettiBtn.disabled = correctionUsed && !acknowledgeCheckbox.checked;
+      }
+      return;
     }
-  });
+
+    // Find the button directly - .btn-approval-confirm is on the button itself, not a wrapper
+    const confettiBtn = document.querySelector('.btn-approval-confirm') ||
+                       document.querySelector('button.btn-approval-confirm') ||
+                       document.getElementById('confetti-approve-btn')?.querySelector('button');
+    
+    console.log('[SETUP] Looking for confetti button', { 
+      found: !!confettiBtn,
+      button: confettiBtn,
+      isButton: confettiBtn?.tagName === 'BUTTON'
+    });
+    
+    if (!confettiBtn || confettiBtn.tagName !== 'BUTTON') {
+      // Button not ready yet, try again shortly (max 40 tries = 2 seconds)
+      if (setupConfettiButton.retries === undefined) {
+        setupConfettiButton.retries = 0;
+      }
+      if (setupConfettiButton.retries < 40) {
+        setupConfettiButton.retries++;
+        console.log('[SETUP] Retrying to find button, attempt', setupConfettiButton.retries);
+        setTimeout(setupConfettiButton, 50);
+      } else {
+        console.error('[SETUP] Failed to find confetti button after 40 attempts');
+      }
+      return;
+    }
+
+    // The wrapper is the parent div (from ConfettiButton component)
+    const confettiWrapper = confettiBtn.parentElement;
+
+    // Successfully found button - mark as setup
+    confettiButtonSetup = true;
+    console.log('[SETUP] Found button, setting up handlers', { confettiBtn, confettiWrapper });
+
+    // Set initial disabled state
+    const updateDisabledState = () => {
+      confettiBtn.disabled = correctionUsed && !acknowledgeCheckbox.checked;
+      console.log('[SETUP] Updated disabled state', { disabled: confettiBtn.disabled, correctionUsed, checkboxChecked: acknowledgeCheckbox.checked });
+    };
+    updateDisabledState();
+
+    // Listen for confetti button click event and call handleApprove
+    confettiButtonHandler = (event) => {
+      console.log('[SETUP] Confetti button clicked, calling handleApprove', event);
+      event.stopPropagation(); // Prevent duplicate calls
+      // Small delay to let confetti animation start
+      setTimeout(() => {
+        handleApprove(event);
+      }, 100);
+    };
+    
+    // Attach listener to both wrapper (if exists) and button for reliability
+    if (confettiWrapper) {
+      confettiWrapper.addEventListener('confettiButtonClick', confettiButtonHandler);
+    }
+    confettiBtn.addEventListener('confettiButtonClick', confettiButtonHandler);
+    
+    // Also attach direct click listener as fallback - but only if confetti event doesn't fire
+    let confettiEventFired = false;
+    const confettiEventHandler = () => {
+      confettiEventFired = true;
+    };
+    confettiBtn.addEventListener('confettiButtonClick', confettiEventHandler, { once: true });
+    
+    const directClickHandler = (e) => {
+      console.log('[SETUP] Direct click on confetti button', e);
+      // Wait a bit to see if confetti event fires
+      setTimeout(() => {
+        if (!confettiEventFired) {
+          console.log('[SETUP] Confetti event did not fire, calling handleApprove directly');
+          handleApprove(e);
+  }
+      }, 50);
+    };
+    confettiBtn.addEventListener('click', directClickHandler);
+    
+    console.log('[SETUP] Confetti button setup complete', { 
+      confettiWrapper, 
+      confettiBtn, 
+      hasListener: true,
+      wrapperClass: confettiWrapper.className,
+      buttonClass: confettiBtn.className,
+      listenersAttached: true
+    });
+
+    // Update disabled state when checkbox changes
+    acknowledgeCheckbox.addEventListener('change', updateDisabledState);
+  }
+
+  // Setup confetti button when approval info is shown
+  if (approveBtn) {
+    approveBtn.addEventListener('click', () => {
+      // Reset retries when showing approval info
+      setupConfettiButton.retries = 0;
+      // Reset setup flag to allow re-setup if needed
+      confettiButtonSetup = false;
+      setTimeout(setupConfettiButton, 200);
+    });
+  }
+
+  // Also try to setup immediately after page load (in case approval-info is visible)
+  setTimeout(setupConfettiButton, 300);
+
+  if (revisionBtn) {
+    revisionBtn.addEventListener('click', () => {
+      if (correctionInfo) {
+        // Close approval info if open
+        if (approvalInfo) {
+          approvalInfo.style.display = 'none';
+        }
+        correctionInfo.style.display = 'block';
+        // Smooth scroll to show the expanded content
+        correctionInfo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  }
+
+  const correctionCancelBtn = document.querySelector('.correction-cancel');
+  if (correctionCancelBtn) {
+    correctionCancelBtn.addEventListener('click', () => {
+      if (correctionInfo) {
+        correctionInfo.style.display = 'none';
+      }
+    });
+  }
+
+  // Note: Checkbox change handler for confetti button is handled in mountConfettiButton()
 
   // PDF Viewer navigation
   if (prevSpreadBtn) {
@@ -1893,6 +2238,7 @@ if (!token) {
   }
 
   .curtain-content {
+    position: relative;
     text-align: center;
     padding: var(--spacing-xl);
     max-width: 800px;
@@ -1923,6 +2269,67 @@ if (!token) {
   .curtain-title .buyer-name {
     color: var(--color-golden-yellow);
     text-shadow: 0 2px 12px rgba(249, 187, 58, 0.4);
+  }
+  
+  /* SparklesText wrapper - positions sparkles around the text area */
+  .curtain-text-sparkles-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 1;
+    overflow: visible;
+  }
+  
+  /* SparklesText styling - completely hide the text, show only sparkles */
+  .curtain-text-sparkles {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    max-width: 100%;
+    pointer-events: none;
+    height: auto;
+    min-height: 300px; /* Increased height to cover more of the curtain area */
+    /* Override Tailwind's default text color */
+    color: transparent !important;
+  }
+  
+  /* Hide the SparklesText's text wrapper but keep it for sparkle positioning */
+  .curtain-text-sparkles span.relative {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 300px; /* Increased height to match container */
+  }
+  
+  /* Completely hide the SparklesText's text - invisible but maintains container size */
+  .curtain-text-sparkles strong {
+    position: absolute !important;
+    left: -9999px !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: transparent !important;
+    /* Override any Tailwind text color classes */
+    background: none !important;
+    border: none !important;
+  }
+  
+  /* Ensure title and subtitle appear above sparkles */
+  .curtain-title,
+  .curtain-subtitle {
+    position: relative;
+    z-index: 2;
   }
 
   .curtain-subtitle {
@@ -2075,6 +2482,62 @@ if (!token) {
     gap: var(--spacing-md);
     justify-content: center;
     align-items: center;
+  }
+
+  .approval-info,
+  .correction-info {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid rgba(45, 49, 66, 0.1);
+  }
+
+  .approval-info-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .info-box {
+    font-family: var(--font-ui);
+    background: rgba(249, 187, 58, 0.12);
+    border: 1px solid rgba(249, 187, 58, 0.35);
+    border-radius: 14px;
+    padding: var(--spacing-md);
+    color: var(--color-navy-midnight);
+  }
+
+  .info-title {
+    font-family: var(--font-ui);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-navy-midnight);
+    margin-bottom: var(--spacing-sm);
+    margin-top: 0;
+  }
+
+  .info-list {
+    font-family: var(--font-ui);
+    font-size: 0.95rem;
+    color: var(--color-navy-midnight);
+    margin: 0;
+    padding-left: var(--spacing-lg);
+    line-height: 1.6;
+  }
+
+  .info-list li {
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .info-list li:last-child {
+    margin-bottom: 0;
+  }
+
+  .approval-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: var(--spacing-sm);
   }
 
   .preview-title {
@@ -2304,11 +2767,6 @@ if (!token) {
     }
   }
 
-  .placeholder-icon {
-    color: #d1d5db;
-    margin-bottom: var(--spacing-md);
-  }
-
   .placeholder-title {
     font-size: 1.5rem;
     font-weight: 600;
@@ -2350,7 +2808,7 @@ if (!token) {
     gap: var(--spacing-md);
   }
 
-  .correction-card .card-title {
+  .correction-info .card-title {
     margin-bottom: var(--spacing-xs);
   }
 
@@ -2447,6 +2905,110 @@ if (!token) {
     font-size: 0.95rem;
   }
 
+  .success-message-card {
+    text-align: center;
+    padding: var(--spacing-xl);
+  }
+
+  .success-message-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .success-icon-wrapper {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-teal-explorer) 0%, #4ab099 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .success-icon {
+    width: 48px;
+    height: 48px;
+    color: white;
+    stroke-width: 2.5;
+  }
+
+  .success-message-title {
+    font-family: var(--font-heading);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-navy-midnight);
+    margin: 0;
+  }
+
+  .success-message-text {
+    font-family: var(--font-ui);
+    font-size: 1.125rem;
+    color: var(--color-soft-charcoal);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .order-status-updates {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid rgba(45, 49, 66, 0.1);
+    width: 100%;
+  }
+
+  /* Apply same styles as btn btn-primary btn-lg to confetti button */
+  :global(.btn-approval-confirm) {
+    display: inline-block;
+  }
+
+  :global(.btn-approval-confirm),
+  :global(.btn-approval-confirm button),
+  :global(.btn-approval-confirm button[class*="bg-"]),
+  :global(.btn-approval-confirm button[class*="hover:"]),
+  :global(.btn-approval-confirm button.h-10),
+  :global(.btn-approval-confirm button.px-4),
+  :global(.btn-approval-confirm button.py-2) {
+    /* Base btn styles */
+    display: inline-block !important;
+    padding: 1rem 2.5rem !important; /* btn-lg */
+    border-radius: 12px !important;
+    font-family: var(--font-display) !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    font-size: 1.125rem !important; /* btn-lg */
+    
+    /* btn-primary styles - override Tailwind */
+    background: var(--color-hero-coral) !important;
+    background-color: var(--color-hero-coral) !important;
+    color: #FFFFFF !important;
+    min-height: auto !important;
+    height: auto !important;
+  }
+
+  :global(.btn-approval-confirm button:hover:not(:disabled)),
+  :global(.btn-approval-confirm button:hover[class*="bg-"]),
+  :global(.btn-approval-confirm button:hover[class*="hover:"]) {
+    background: color-mix(in srgb, var(--color-hero-coral) 85%, black) !important;
+    background-color: color-mix(in srgb, var(--color-hero-coral) 85%, black) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-hero-coral) 40%, transparent) !important;
+    color: #FFFFFF !important;
+  }
+
+  :global(.btn-approval-confirm button:disabled) {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+  }
+
   .locked-banner {
     font-family: var(--font-ui);
     background: rgba(45, 49, 66, 0.06);
@@ -2458,7 +3020,7 @@ if (!token) {
     font-size: 0.95rem;
   }
 
-  .correction-card.jump-highlight {
+  .correction-info.jump-highlight {
     animation: correctionPulse 0.7s ease;
   }
 
@@ -2554,6 +3116,15 @@ if (!token) {
 
     .action-buttons {
       flex-direction: column;
+    }
+
+    .approval-actions {
+      flex-direction: column;
+      justify-content: stretch;
+    }
+
+    .approval-actions :global(.btn) {
+      width: 100%;
     }
 
     .preview-card-header {

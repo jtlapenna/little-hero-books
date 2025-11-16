@@ -115,12 +115,15 @@ export async function validatePreviewToken(token: string): Promise<TokenValidati
     };
   }
   
+  const orderId = data.order_id;
+  
   // Check if token has been used
   if (data.used_at) {
     return { 
       valid: false, 
       error: 'Token already used',
-      used: true
+      used: true,
+      orderId: orderId // Return orderId even when token is used
     };
   }
   
@@ -132,13 +135,14 @@ export async function validatePreviewToken(token: string): Promise<TokenValidati
     return { 
       valid: false, 
       error: 'Token expired',
-      expired: true
+      expired: true,
+      orderId: orderId // Return orderId even when token is expired
     };
   }
   
   return { 
     valid: true, 
-    orderId: data.order_id 
+    orderId: orderId 
   };
 }
 
