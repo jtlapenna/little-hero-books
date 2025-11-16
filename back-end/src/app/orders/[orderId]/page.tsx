@@ -185,14 +185,14 @@ export default function OrderDetailPage() {
       console.log('[handleOrderUpdate] Updated order.flags:', updatedOrder.flags);
       
       // Sync flagCounts state with order.flags for immediate UI update
+      // CRITICAL: Only update the specific stage's flag count, preserve others
       if (updates.flags) {
-        const newFlagCounts = {
-          preBria: updates.flags.preBria || 0,
-          postBria: updates.flags.postBria || 0,
-          postPdf: updates.flags.postPdf || 0,
-        };
-        console.log('[handleOrderUpdate] Updating flagCounts:', newFlagCounts);
-        setFlagCounts(newFlagCounts);
+        setFlagCounts(prev => ({
+          preBria: typeof updates.flags.preBria === 'number' ? updates.flags.preBria : (prev.preBria || 0),
+          postBria: typeof updates.flags.postBria === 'number' ? updates.flags.postBria : (prev.postBria || 0),
+          postPdf: typeof updates.flags.postPdf === 'number' ? updates.flags.postPdf : (prev.postPdf || 0),
+        }));
+        console.log('[handleOrderUpdate] Updated flagCounts from updates.flags:', updates.flags);
       }
       
       return updatedOrder;
@@ -484,14 +484,14 @@ export default function OrderDetailPage() {
           console.log('[handleStageApprove] Updated order.flags:', updatedOrder.flags);
           
           // Sync flagCounts state with order.flags for immediate UI update
+          // CRITICAL: Only update the specific stage's flag count, preserve others
           if (result.flags) {
-            const newFlagCounts = {
-              preBria: result.flags.preBria || 0,
-              postBria: result.flags.postBria || 0,
-              postPdf: result.flags.postPdf || 0,
-            };
-            console.log('[handleStageApprove] Updating flagCounts:', newFlagCounts);
-            setFlagCounts(newFlagCounts);
+            setFlagCounts(prev => ({
+              preBria: typeof result.flags.preBria === 'number' ? result.flags.preBria : (prev.preBria || 0),
+              postBria: typeof result.flags.postBria === 'number' ? result.flags.postBria : (prev.postBria || 0),
+              postPdf: typeof result.flags.postPdf === 'number' ? result.flags.postPdf : (prev.postPdf || 0),
+            }));
+            console.log('[handleStageApprove] Updated flagCounts from result.flags:', result.flags);
           }
           
           return updatedOrder;
