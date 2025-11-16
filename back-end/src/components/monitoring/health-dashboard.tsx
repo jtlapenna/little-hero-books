@@ -132,16 +132,20 @@ export default function HealthDashboard({ refreshInterval = 30000 }: HealthDashb
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{formatUptime(status.uptime)}</div>
-            <div className="text-sm text-gray-500">Uptime</div>
+            <div className="text-2xl font-bold text-gray-900">{status.checks.length}</div>
+            <div className="text-sm text-gray-500">Services Monitored</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{status.errorStats.total}</div>
-            <div className="text-sm text-gray-500">Total Errors</div>
+            <div className="text-2xl font-bold text-gray-900">
+              {status.checks.filter(c => c.status === 'healthy').length}
+            </div>
+            <div className="text-sm text-gray-500">Healthy Services</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{status.errorStats.unresolved}</div>
-            <div className="text-sm text-gray-500">Unresolved</div>
+            <div className="text-2xl font-bold text-gray-900">
+              {status.checks.filter(c => c.status === 'unhealthy').length}
+            </div>
+            <div className="text-sm text-gray-500">Unhealthy Services</div>
           </div>
         </div>
       </div>
@@ -174,44 +178,31 @@ export default function HealthDashboard({ refreshInterval = 30000 }: HealthDashb
         </div>
       </div>
 
-      {/* Performance Metrics */}
+      {/* Service Status Summary */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <h4 className="font-medium text-gray-700 mb-2">Memory Usage</h4>
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">RSS:</span>
-                <span className="text-gray-900 font-medium">{formatMemory(status.performance.memoryUsage.rss)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Heap Used:</span>
-                <span className="text-gray-900 font-medium">{formatMemory(status.performance.memoryUsage.heapUsed)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Heap Total:</span>
-                <span className="text-gray-900 font-medium">{formatMemory(status.performance.memoryUsage.heapTotal)}</span>
-              </div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Status Summary</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center p-4 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">
+              {status.checks.filter(c => c.status === 'healthy').length}
             </div>
+            <div className="text-sm text-gray-600 mt-1">Healthy</div>
           </div>
-          <div>
-            <h4 className="font-medium text-gray-700 mb-2">Error Statistics</h4>
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Critical:</span>
-                <span className="text-red-600 font-medium">{status.errorStats.critical}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Recent (24h):</span>
-                <span className="text-yellow-600 font-medium">{status.errorStats.recent}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Unresolved:</span>
-                <span className="text-orange-600 font-medium">{status.errorStats.unresolved}</span>
-              </div>
+          <div className="text-center p-4 bg-yellow-50 rounded-lg">
+            <div className="text-2xl font-bold text-yellow-600">
+              {status.checks.filter(c => c.status === 'degraded').length}
             </div>
+            <div className="text-sm text-gray-600 mt-1">Degraded</div>
           </div>
+          <div className="text-center p-4 bg-red-50 rounded-lg">
+            <div className="text-2xl font-bold text-red-600">
+              {status.checks.filter(c => c.status === 'unhealthy').length}
+            </div>
+            <div className="text-sm text-gray-600 mt-1">Unhealthy</div>
+          </div>
+        </div>
+        <div className="mt-4 text-sm text-gray-500">
+          Last checked: {new Date(status.timestamp).toLocaleString()}
         </div>
       </div>
     </div>

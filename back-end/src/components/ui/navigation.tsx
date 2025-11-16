@@ -12,9 +12,9 @@ export function Navigation() {
     { name: 'Home', href: '/', icon: Home },
     { name: 'Orders', href: '/orders', icon: BookOpen },
     { name: 'Review', href: '/review', icon: Users },
-    { name: 'Monitoring', href: '/monitoring', icon: Activity },
-    { name: 'Analytics', href: '/admin/analytics', icon: BarChart },
     { name: 'Orders Needing Attention', href: '/admin/orders-needing-attention', icon: AlertTriangle },
+    { name: 'Analytics', href: '/admin/analytics', icon: BarChart },
+    { name: 'Monitoring', href: '/monitoring', icon: Activity },
   ];
 
   return (
