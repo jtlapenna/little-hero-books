@@ -103,10 +103,32 @@ const SparklesText: React.FC<SparklesTextProps> = ({
     return () => clearInterval(interval);
   }, [colors.first, colors.second, sparklesCount]);
 
+  // Only render after mounting to avoid SSR issues
+  if (!isMounted) {
+    return (
+      <div
+        className={cn("text-6xl font-bold", className)}
+        style={
+          {
+            "--sparkles-first-color": `${colors.first}`,
+            "--sparkles-second-color": `${colors.second}`,
+          } as CSSProperties
+          }
+      >
+        <span className="relative inline-block">
+          <strong>{text}</strong>
+        </span>
+      </div>
+    );
+  }
+
+  // Filter out any non-standard props that might cause rendering issues
+  const { text: _, colors: __, sparklesCount: ___, className: ____, ...safeProps } = props as any;
+
   return (
     <div
       className={cn("text-6xl font-bold", className)}
-      {...props}
+      {...safeProps}
       style={
         {
           "--sparkles-first-color": `${colors.first}`,
@@ -115,7 +137,7 @@ const SparklesText: React.FC<SparklesTextProps> = ({
       }
     >
       <span className="relative inline-block">
-        {isMounted && sparkles.map((sparkle) => (
+        {sparkles.map((sparkle) => (
           <Sparkle key={sparkle.id} {...sparkle} />
         ))}
         <strong>{text}</strong>
