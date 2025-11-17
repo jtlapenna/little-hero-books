@@ -61,8 +61,9 @@ export default defineConfig({
   integrations: [react()],
   vite: {
     plugins: [
-      tailwindcss(),
-      cloudflarePolyfillPlugin()
+      tailwindcss()
+      // Temporarily disabled polyfill plugin to test if it's causing [object Object] issue
+      // cloudflarePolyfillPlugin()
     ],
     resolve: {
       alias: {

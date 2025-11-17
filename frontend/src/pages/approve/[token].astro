@@ -386,20 +386,22 @@ if (!token) {
         return;
       }
 
-      // No order data in response - show error
-      if (!response.ok || !data.valid) {
-        showError(data.error || 'Invalid or expired token');
-        return;
-      }
+          // No order data in response - show error
+          if (!response.ok || !data.valid) {
+            const errorMsg = typeof data.error === 'string' ? data.error : 'Invalid or expired token';
+            showError(errorMsg);
+            return;
+          }
 
-      if (!data.order) {
-        showError('Order not found');
-        return;
-      }
-    } catch (error) {
-      console.error('Error loading preview:', error);
-      showError(error.message || 'Failed to load preview');
-    }
+          if (!data.order) {
+            showError('Order not found');
+            return;
+          }
+        } catch (error) {
+          console.error('Error loading preview:', error);
+          const errorMsg = error instanceof Error ? error.message : String(error || 'Failed to load preview');
+          showError(errorMsg);
+        }
   }
 
   function showApprovedState(orderDataFromResponse = null) {
@@ -1095,8 +1097,9 @@ if (!token) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to approve');
+        const errorData = await response.json();
+        const errorMsg = typeof errorData?.error === 'string' ? errorData.error : 'Failed to approve';
+        throw new Error(errorMsg);
       }
 
       console.log('[APPROVE] Approval successful, showing success message');
@@ -1105,7 +1108,8 @@ if (!token) {
       showSuccessMessage();
     } catch (error) {
       console.error('[APPROVE] Error approving:', error);
-      alert(error.message || 'Failed to approve book. Please try again.');
+      const errorMsg = error instanceof Error ? error.message : String(error || 'Failed to approve book. Please try again.');
+      alert(errorMsg);
       if (confirmBtn) {
         confirmBtn.disabled = false;
         if (confirmBtn.textContent) {
