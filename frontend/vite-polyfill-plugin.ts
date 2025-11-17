@@ -1,9 +1,5 @@
-// @ts-check
-import { defineConfig } from 'astro/config';
-import cloudflare from '@astrojs/cloudflare';
-import react from '@astrojs/react';
-import tailwindcss from '@tailwindcss/vite';
-import { cloudflarePolyfillPlugin } from './vite-polyfill-plugin.js';
+// Vite plugin to inject MessageChannel polyfill for Cloudflare Workers
+import type { Plugin } from 'vite';
 
 const MESSAGECHANNEL_POLYFILL = `
 // MessageChannel polyfill for Cloudflare Workers
@@ -52,34 +48,40 @@ if (typeof globalThis.MessageChannel === 'undefined') {
 }
 `;
 
-// https://astro.build/config
-export default defineConfig({
-  output: 'server',
-  adapter: cloudflare({
-    mode: 'pages',
-  }),
-  integrations: [react()],
-  vite: {
-    plugins: [
-      tailwindcss(),
-      cloudflarePolyfillPlugin()
-    ],
-    resolve: {
-      alias: {
-        "@": new URL("./src", import.meta.url).pathname
+export function cloudflarePolyfillPlugin(): Plugin {
+  return {
+    name: 'cloudflare-polyfill',
+    renderChunk(code, chunk, options) {
+      // Inject polyfill into all SSR chunks (format: 'es') that might use React
+      // This includes renderer chunks and worker entry files
+      if (options.format === 'es') {
+        // Check if this chunk contains React/renderer code or is a worker entry
+        const hasReactRenderer = 
+          chunk.isEntry || // Entry chunks need the polyfill
+          chunk.fileName.includes('renderers') ||
+          chunk.fileName.includes('_worker') ||
+          chunk.fileName.includes('astro') ||
+          (chunk.moduleIds && chunk.moduleIds.some(id => 
+            id.includes('@astrojs') || 
+            id.includes('react-dom') || 
+            id.includes('renderers')
+          )) ||
+          code.includes('react-dom/server') ||
+          code.includes('requireReactDomServer') ||
+          code.includes('requireServer_browser');
+        
+        if (hasReactRenderer) {
+          // Only inject once per chunk - check if already present
+          if (!code.includes('MessageChannel polyfill')) {
+            return {
+              code: MESSAGECHANNEL_POLYFILL + '\n' + code,
+              map: null
+            };
+          }
+        }
       }
-    },
-    ssr: {
-      noExternal: ['framer-motion'],
-      optimizeDeps: {
-        include: ['react', 'react-dom', 'framer-motion']
-      },
-      resolve: {
-        conditions: ['worker', 'import']
-      }
-    },
-    define: {
-      global: 'globalThis'
+      return null;
     }
-  }
-});
+  };
+}
+
