@@ -70,9 +70,8 @@ export default defineConfig({
       }
     },
     ssr: {
-      noExternal: ['framer-motion'],
       optimizeDeps: {
-        include: ['react', 'react-dom', 'framer-motion']
+        include: ['react', 'react-dom']
       },
       resolve: {
         conditions: ['worker', 'import']

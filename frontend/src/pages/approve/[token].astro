@@ -1,8 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import Button from '../../components/Button.astro';
-import ConfettiButton from '../../components/ui/confetti-button';
-import SparklesText from '../../components/ui/sparkles-text';
 
 // This is a server-rendered dynamic route (not pre-rendered)
 // We need to validate tokens at runtime, so we can't use static generation
@@ -52,18 +50,6 @@ if (!token) {
       <!-- Curtain Hero Section (overlay on top) -->
       <div id="curtain-hero" class="curtain-hero">
         <div class="curtain-content">
-          <div id="curtain-text-sparkles-wrapper" class="curtain-text-sparkles-wrapper">
-            <SparklesText
-              client:only="react"
-              text="Hi, there. We are so excited to show you your child's book!"
-              className="curtain-text-sparkles"
-              sparklesCount={20}
-              colors={{
-                first: "#F9BB3A",
-                second: "#F9786B"
-              }}
-            />
-          </div>
           <h1 class="curtain-title">
             Hi, <span id="curtain-buyer-name" class="buyer-name">there</span>.
           </h1>
@@ -842,7 +828,7 @@ if (!token) {
       correctionLocked.style.display = 'block';
       correctionSuccess.style.display = 'block';
       lastRevisionContainer.style.display = 'block';
-      // Button disabled state is handled by React component in mountConfettiButton()
+      // Button disabled state is handled by setupApprovalButton()
       if (revisionBtn) {
         revisionBtn.textContent = 'View correction details';
         revisionBtn.classList.add('correction-used');
@@ -857,7 +843,7 @@ if (!token) {
       reasonBanner.style.display = 'none';
       lastRevisionContainer.style.display = 'none';
       acknowledgeCheckbox.checked = false;
-      // Button disabled state is handled by React component in mountConfettiButton()
+      // Button disabled state is handled by setupApprovalButton()
       if (revisionBtn) {
         revisionBtn.textContent = 'I need a correction';
         revisionBtn.classList.remove('correction-used');
@@ -1382,7 +1368,7 @@ if (!token) {
     });
   }
 
-  // Note: Checkbox change handler for confetti button is handled in mountConfettiButton()
+  // Note: Checkbox change handler for approval button is handled in setupApprovalButton()
 
   // PDF Viewer navigation
   if (prevSpreadBtn) {
@@ -2969,53 +2955,14 @@ if (!token) {
     width: 100%;
   }
 
-  /* Apply same styles as btn btn-primary btn-lg to confetti button */
-  :global(.btn-approval-confirm) {
-    display: inline-block;
+  /* Approval confirm button styling */
+  .btn-approval-confirm {
+    /* Button styles are handled by Button.astro component */
   }
 
-  :global(.btn-approval-confirm),
-  :global(.btn-approval-confirm button),
-  :global(.btn-approval-confirm button[class*="bg-"]),
-  :global(.btn-approval-confirm button[class*="hover:"]),
-  :global(.btn-approval-confirm button.h-10),
-  :global(.btn-approval-confirm button.px-4),
-  :global(.btn-approval-confirm button.py-2) {
-    /* Base btn styles */
-    display: inline-block !important;
-    padding: 1rem 2.5rem !important; /* btn-lg */
-    border-radius: 12px !important;
-    font-family: var(--font-display) !important;
-    font-weight: 700 !important;
-    text-align: center !important;
-    text-decoration: none !important;
-    border: none !important;
-    cursor: pointer !important;
-    transition: all 0.3s ease !important;
-    font-size: 1.125rem !important; /* btn-lg */
-    
-    /* btn-primary styles - override Tailwind */
-    background: var(--color-hero-coral) !important;
-    background-color: var(--color-hero-coral) !important;
-    color: #FFFFFF !important;
-    min-height: auto !important;
-    height: auto !important;
-  }
-
-  :global(.btn-approval-confirm button:hover:not(:disabled)),
-  :global(.btn-approval-confirm button:hover[class*="bg-"]),
-  :global(.btn-approval-confirm button:hover[class*="hover:"]) {
-    background: color-mix(in srgb, var(--color-hero-coral) 85%, black) !important;
-    background-color: color-mix(in srgb, var(--color-hero-coral) 85%, black) !important;
-    transform: translateY(-2px) !important;
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-hero-coral) 40%, transparent) !important;
-    color: #FFFFFF !important;
-  }
-
-  :global(.btn-approval-confirm button:disabled) {
-    opacity: 0.5 !important;
-    cursor: not-allowed !important;
-    transform: none !important;
+  .btn-approval-confirm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .locked-banner {
