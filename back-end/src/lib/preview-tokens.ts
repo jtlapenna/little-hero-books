@@ -115,12 +115,17 @@ export async function validatePreviewToken(token: string): Promise<TokenValidati
     };
   }
   
+  // Always include orderId in response, even if token is invalid
+  // This allows the API to fetch order data for used/expired tokens
+  const orderId = data.order_id;
+  
   // Check if token has been used
   if (data.used_at) {
     return { 
       valid: false, 
       error: 'Token already used',
-      used: true
+      used: true,
+      orderId: orderId // Include orderId so we can still fetch order data
     };
   }
   
@@ -132,13 +137,14 @@ export async function validatePreviewToken(token: string): Promise<TokenValidati
     return { 
       valid: false, 
       error: 'Token expired',
-      expired: true
+      expired: true,
+      orderId: orderId // Include orderId so we can still fetch order data
     };
   }
   
   return { 
     valid: true, 
-    orderId: data.order_id 
+    orderId: orderId 
   };
 }
 
