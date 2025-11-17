@@ -14,7 +14,7 @@ const rawRequireEmail = import.meta.env.PUBLIC_REQUIRE_CUSTOMER_EMAIL;
 const requireEmail =
   rawRequireEmail !== undefined
     ? !['false', '0'].includes(String(rawRequireEmail).toLowerCase())
-    : Astro.site?.hostname
+    : (Astro.site && typeof Astro.site === 'object' && Astro.site.hostname)
     ? true
     : import.meta.env.MODE === 'production';
 
