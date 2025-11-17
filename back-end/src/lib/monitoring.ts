@@ -58,13 +58,8 @@ export const monitoringService = {
       });
     }
 
-    // Check File System (not applicable in Cloudflare Workers)
-    checks.push({
-      service: 'File System',
-      status: 'unhealthy',
-      error: 'Not available in Cloudflare Workers runtime',
-      lastChecked: timestamp,
-    });
+    // File System check removed - not applicable for Cloudflare Pages/Workers runtime
+    // Application uses R2 Storage instead of traditional file system
 
     // Determine overall status
     const hasUnhealthy = checks.some(c => c.status === 'unhealthy');

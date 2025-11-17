@@ -140,12 +140,15 @@ export default function OrderDetailPage() {
       setOrder(data);
       
       // Initialize flagCounts from order.flags if available (for immediate UI update)
+      // CRITICAL: Ensure we're reading the correct flag counts for each stage
       if (data.flags) {
-        setFlagCounts({
-          preBria: data.flags.preBria || 0,
-          postBria: data.flags.postBria || 0,
-          postPdf: data.flags.postPdf || 0,
-        });
+        const initialFlagCounts = {
+          preBria: typeof data.flags.preBria === 'number' ? data.flags.preBria : (typeof data.flags.pre_bria === 'number' ? data.flags.pre_bria : 0),
+          postBria: typeof data.flags.postBria === 'number' ? data.flags.postBria : (typeof data.flags.post_bria === 'number' ? data.flags.post_bria : 0),
+          postPdf: typeof data.flags.postPdf === 'number' ? data.flags.postPdf : (typeof data.flags.post_pdf === 'number' ? data.flags.post_pdf : 0),
+        };
+        console.log('[fetchOrder] Initializing flagCounts:', initialFlagCounts, 'from data.flags:', data.flags);
+        setFlagCounts(initialFlagCounts);
       }
       
       setLoading(false);
@@ -185,14 +188,14 @@ export default function OrderDetailPage() {
       console.log('[handleOrderUpdate] Updated order.flags:', updatedOrder.flags);
       
       // Sync flagCounts state with order.flags for immediate UI update
+      // CRITICAL: Only update the specific stage's flag count, preserve others
       if (updates.flags) {
-        const newFlagCounts = {
-          preBria: updates.flags.preBria || 0,
-          postBria: updates.flags.postBria || 0,
-          postPdf: updates.flags.postPdf || 0,
-        };
-        console.log('[handleOrderUpdate] Updating flagCounts:', newFlagCounts);
-        setFlagCounts(newFlagCounts);
+        setFlagCounts(prev => ({
+          preBria: typeof updates.flags.preBria === 'number' ? updates.flags.preBria : (prev.preBria || 0),
+          postBria: typeof updates.flags.postBria === 'number' ? updates.flags.postBria : (prev.postBria || 0),
+          postPdf: typeof updates.flags.postPdf === 'number' ? updates.flags.postPdf : (prev.postPdf || 0),
+        }));
+        console.log('[handleOrderUpdate] Updated flagCounts from updates.flags:', updates.flags);
       }
       
       return updatedOrder;
@@ -281,23 +284,21 @@ export default function OrderDetailPage() {
             console.log('[OrderDetailPage] Could not load 2a manifest for flags:', err);
           }
           
-          // Load 2b manifest for postBria flags (fallback to 2a if 2b doesn't exist)
+          // Load 2b manifest for postBria flags
+          // CRITICAL: Do NOT fallback to 2a manifest - that would count Tab 1 flags as Tab 2 flags!
           // 404 is expected if workflow hasn't been triggered yet - suppress console errors
           try {
-            let manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json?v=${Date.now()}`;
-            let res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
-            if (!res2b.ok && res2b.status === 404) {
-              // 404 is expected - manifest doesn't exist yet, fallback to 2a
-              manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
-              res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
-            }
+            const manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json?v=${Date.now()}`;
+            const res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
             if (res2b.ok) {
               const manifest2b = await res2b.json();
               const entries2b = manifest2b?.entries || [];
               postBria = entries2b.filter((e: any) => e.isFlagged || e.needsReview).length;
             }
+            // If 404, that's expected - Tab 2 hasn't been reached yet, so postBria stays 0
           } catch (err) {
             // Silently handle - 404 is expected for orders that haven't reached this stage yet
+            // postBria will remain 0, which is correct
           }
           
           // Load 3 manifest for postPdf flags
@@ -484,14 +485,14 @@ export default function OrderDetailPage() {
           console.log('[handleStageApprove] Updated order.flags:', updatedOrder.flags);
           
           // Sync flagCounts state with order.flags for immediate UI update
+          // CRITICAL: Only update the specific stage's flag count, preserve others
           if (result.flags) {
-            const newFlagCounts = {
-              preBria: result.flags.preBria || 0,
-              postBria: result.flags.postBria || 0,
-              postPdf: result.flags.postPdf || 0,
-            };
-            console.log('[handleStageApprove] Updating flagCounts:', newFlagCounts);
-            setFlagCounts(newFlagCounts);
+            setFlagCounts(prev => ({
+              preBria: typeof result.flags.preBria === 'number' ? result.flags.preBria : (prev.preBria || 0),
+              postBria: typeof result.flags.postBria === 'number' ? result.flags.postBria : (prev.postBria || 0),
+              postPdf: typeof result.flags.postPdf === 'number' ? result.flags.postPdf : (prev.postPdf || 0),
+            }));
+            console.log('[handleStageApprove] Updated flagCounts from result.flags:', result.flags);
           }
           
           return updatedOrder;
@@ -1100,16 +1101,18 @@ export default function OrderDetailPage() {
                         // Use stageKey to access reviewStages (more reliable than stage.key)
                         const stageStatus = order.reviewStages[stage.stageKey]?.status;
                         // Use stageKey (preBria/postBria/postPdf) to look up flag count, not stage.key
+                        // CRITICAL: Only show flags for this specific stage, not all flags
                         const stageFlagCount = flagCounts[stage.stageKey] || 0;
+                        
+                        // Debug logging for badge state and flag counts
+                        if (process.env.NODE_ENV === 'development' && (stage.stageKey === 'preBria' || stage.stageKey === 'postBria' || stage.stageKey === 'postPdf')) {
+                          console.log(`[Badge ${stage.stageKey}] stageStatus=${stageStatus}, stageFlagCount=${stageFlagCount}, allFlagCounts=`, flagCounts, `order.flags=`, order.flags);
+                        }
+                        
                         // Compare with string 'approved' to handle both enum and string values
                         const isApproved = stageStatus === ReviewStageStatus.APPROVED || stageStatus === 'approved';
                         const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
                         const isSecondReview = revisionCount >= 1;
-                        
-                        // Debug logging for badge state
-                        if (stage.stageKey === 'preBria' || stage.stageKey === 'postBria' || stage.stageKey === 'postPdf') {
-                          console.log(`[Badge ${stage.stageKey}] stageStatus=${stageStatus}, isApproved=${isApproved}, stageFlagCount=${stageFlagCount}`);
-                        }
                         
                         // Check if stage has been reached
                         // Pre-Bria: always reached if order exists
@@ -1131,9 +1134,9 @@ export default function OrderDetailPage() {
                               Approved
                             </span>
                           );
-                        } else if (stageFlagCount > 0) {
-                          // Show flags if they exist, regardless of whether stage has been "reached"
-                          // Flags indicate work that needs attention, so always show them
+                        } else if (stageFlagCount > 0 && hasBeenReached) {
+                          // Only show flags if the stage has been reached AND there are flags
+                          // Don't show flags for stages that haven't been reached yet (no images exist)
                           return <FlaggedBadge count={stageFlagCount} />;
                         } else if (hasBeenReached) {
                           // Stage reached but no flags - show Pending with appropriate color

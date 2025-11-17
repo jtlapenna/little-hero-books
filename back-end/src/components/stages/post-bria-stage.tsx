@@ -38,11 +38,15 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
   // Track poses that the user has manually flagged (persist across re-renders)
   const manuallyFlaggedRef = useRef<Set<string>>(new Set());
+  // Track when user actions happened to prevent polling from overwriting recent actions
+  const userActionTimestamps = useRef<Map<string, number>>(new Map());
+  const USER_ACTION_COOLDOWN_MS = 5000; // Don't overwrite user actions for 5 seconds
   
   // Reset manually unflagged/flagged sets when order changes
   useEffect(() => {
     manuallyUnflaggedRef.current.clear();
     manuallyFlaggedRef.current.clear();
+    userActionTimestamps.current.clear();
   }, [orderId]);
 
   // Load manifest directly to read flags (source of truth)
@@ -74,21 +78,36 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         manifest = await response.json();
         const entries = manifest?.entries || [];
         
-        // Clear and repopulate manuallyFlaggedRef from manifest (source of truth)
-        manuallyFlaggedRef.current.clear();
-        
+        // Don't clear manuallyFlaggedRef - only add new flags from manifest
+        // This preserves user actions that haven't been persisted yet
+        // Only update flags that aren't in manuallyUnflaggedRef (user explicitly unflagged)
+        // AND haven't been recently modified by the user
         entries.forEach((entry: any) => {
           const poseNumber = entry.poseNumber ?? 0;
           const poseId = `pose${String(poseNumber).padStart(2, '0')}-bg-removed`;
           
-          // If entry is flagged in manifest, add to manuallyFlaggedRef
+          // Check if user recently modified this item (within cooldown period)
+          const lastActionTime = userActionTimestamps.current.get(poseId);
+          const now = Date.now();
+          const isRecentlyModified = lastActionTime && (now - lastActionTime) < USER_ACTION_COOLDOWN_MS;
+          
+          // Skip updating if user recently modified this item
+          if (isRecentlyModified) {
+            console.log(`[PostBriaStage] Skipping manifest update for ${poseId} - user action within cooldown`);
+            return;
+          }
+          
+          // NEVER remove items from manuallyFlaggedRef - user actions are final
+          // Only add flags from manifest if they're not already in manuallyUnflaggedRef
           if (entry.isFlagged || entry.needsReview) {
             // Only add if not explicitly unflagged by user
             if (!manuallyUnflaggedRef.current.has(poseId)) {
               manuallyFlaggedRef.current.add(poseId);
-              console.log(`[PostBriaStage] Restored flag for ${poseId} from manifest (isFlagged=${entry.isFlagged}, needsReview=${entry.needsReview})`);
             }
           }
+          // Don't remove from manuallyFlaggedRef even if manifest says it's not flagged
+          // This protects against R2 eventual consistency and polling race conditions
+          // User actions take precedence - if they flagged it, keep it flagged
         });
         
         console.log(`[PostBriaStage] Loaded flags from manifest: ${manuallyFlaggedRef.current.size} flagged items:`, Array.from(manuallyFlaggedRef.current));
@@ -184,7 +203,15 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         
         // Set isFlagged based on manual flags, manifest flags, needsReview, or isMissing
         // Priority: manually flagged > missing > manually unflagged > manifest flags
-        const shouldBeFlagged = isManuallyFlagged || isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
+        // CRITICAL: If user manually flagged it, ALWAYS keep it flagged (even if manifest doesn't have it yet)
+        // This prevents polling from reverting user actions due to R2 eventual consistency
+        let shouldBeFlagged = isManuallyFlagged || isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
+        
+        // Double-check: If in manuallyFlaggedRef, force it to be flagged
+        // This is a safety net in case the above logic misses it
+        if (manuallyFlaggedRef.current.has(poseId)) {
+          shouldBeFlagged = true;
+        }
         
         // Map pose to page number (first page that uses this pose)
         const pageNumber = poseToFirstPage[poseNumber] ?? null;
@@ -566,6 +593,21 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       
       const newFlaggedState = !currentPose.isFlagged;
       
+      // Record timestamp IMMEDIATELY to prevent polling from overwriting
+      // This must happen before the API call to protect against polling that runs during the API call
+      userActionTimestamps.current.set(assetId, Date.now());
+      
+      // Update refs IMMEDIATELY to protect against polling
+      if (newFlaggedState) {
+        // User is flagging - add to manually flagged set, remove from unflagged set
+        manuallyFlaggedRef.current.add(assetId);
+        manuallyUnflaggedRef.current.delete(assetId);
+      } else {
+        // User is unflagging - add to manually unflagged set, remove from flagged set
+        manuallyUnflaggedRef.current.add(assetId);
+        manuallyFlaggedRef.current.delete(assetId);
+      }
+      
       // Extract poseNumber from assetId (e.g., "pose05-bg-removed" -> 5)
       const poseNumberMatch = assetId.match(/pose(\d+)/);
       const poseNumber = poseNumberMatch ? parseInt(poseNumberMatch[1], 10) : null;
@@ -589,20 +631,22 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
             setPoses(prevPoses => prevPoses.map(pose => 
               pose.id === assetId ? { ...pose, isFlagged: !newFlaggedState } : pose
             ));
+            // Also revert refs if API failed
+            if (newFlaggedState) {
+              manuallyFlaggedRef.current.delete(assetId);
+            } else {
+              manuallyUnflaggedRef.current.delete(assetId);
+            }
+            userActionTimestamps.current.delete(assetId);
           } else {
             const result = await response.json();
-            // Successfully persisted
-            if (newFlaggedState) {
-              // User is flagging - add to manually flagged set, remove from unflagged set
-              manuallyFlaggedRef.current.add(assetId);
-              manuallyUnflaggedRef.current.delete(assetId);
-            } else {
-              // User is unflagging - add to manually unflagged set, remove from flagged set
-            manuallyUnflaggedRef.current.add(assetId);
-              manuallyFlaggedRef.current.delete(assetId);
+            
+            // Update order flags and review stages from API response
+            if (onOrderUpdate && result.flags) {
+              onOrderUpdate({ flags: result.flags });
             }
             
-            // Update flag count after successful API call
+            // Update flag count after successful API call (for consistency)
             const updatedPoses = prev.map(pose => 
               pose.id === assetId ? { ...pose, isFlagged: newFlaggedState } : pose
             );
@@ -615,6 +659,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           setPoses(prevPoses => prevPoses.map(pose => 
             pose.id === assetId ? { ...pose, isFlagged: !newFlaggedState } : pose
           ));
+          // Also revert refs if API failed
+          if (newFlaggedState) {
+            manuallyFlaggedRef.current.delete(assetId);
+          } else {
+            manuallyUnflaggedRef.current.delete(assetId);
+          }
+          userActionTimestamps.current.delete(assetId);
         });
       }
       
@@ -633,7 +684,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     });
   };
 
-  const flaggedCount = poses.filter(asset => asset.isFlagged).length;
+  // Use order.flags as source of truth for flag count, fallback to local state
+  const flaggedCount = order?.flags?.postBria ?? poses.filter(asset => asset.isFlagged).length;
   const missingCount = poses.filter(pose => pose.isMissing || !pose.url).length;
   const hasImages = poses.length > 0 && poses.every(pose => pose.url && pose.url.length > 0 && !pose.isMissing);
   // Post‑Bria approval rule: if 2B populated images and none are flagged, allow approval

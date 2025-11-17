@@ -28,6 +28,73 @@ export function isInWorkflowProcessing(order: OrderListItem): boolean {
 }
 
 /**
+ * Check if an order is "new" and needs processing
+ * New orders are those that have been created but not yet queued for routing
+ */
+export function shouldShowAsNew(order: OrderListItem): boolean {
+  // Must be in NEW status (not queued, not processing, not in any review stage)
+  // Check both display status and raw status to catch all new orders
+  // Also check if rawStatus is lowercase "new" or contains "new" (case-insensitive)
+  const rawStatusLower = (order.rawStatus || '').toLowerCase();
+  const isNewStatus = order.status === DisplayStatus.NEW || 
+                      order.rawStatus === OrderStatus.NEW ||
+                      order.rawStatus === OrderStatus.PENDING_PROCESSING ||
+                      rawStatusLower === 'new' ||
+                      rawStatusLower === 'pending_processing';
+  
+  // Must not be queued (but PENDING_PROCESSING is okay - that's still "new")
+  const isNotQueued = order.status !== DisplayStatus.IN_QUEUE &&
+                      order.phase !== OrderPhase.IN_QUEUE &&
+                      order.rawStatus !== OrderStatus.QUEUED_FOR_PROCESSING &&
+                      rawStatusLower !== 'queued_for_processing';
+  
+  // Must not be processing
+  const isNotProcessing = !isInWorkflowProcessing(order);
+  
+  // Must not be completed
+  const isNotCompleted = order.rawStatus !== OrderStatus.COMPLETED &&
+                         rawStatusLower !== 'completed';
+  
+  // Must not have any review stage progress (if it has progress, it's not "new")
+  // Check all stages - if any stage has progress beyond "pending", it's not "new"
+  const preBriaStatus = order.reviewStages?.preBria?.status;
+  const postBriaStatus = order.reviewStages?.postBria?.status;
+  const postPdfStatus = order.reviewStages?.postPdf?.status;
+  
+  const hasNoStageProgress = 
+    (!preBriaStatus || preBriaStatus === ReviewStageStatus.PENDING || preBriaStatus === 'pending') &&
+    (!postBriaStatus || postBriaStatus === ReviewStageStatus.PENDING || postBriaStatus === 'pending') &&
+    (!postPdfStatus || postPdfStatus === ReviewStageStatus.PENDING || postPdfStatus === 'pending');
+  
+  // More lenient check: if status is NEW or rawStatus is "new", and it's not queued/processing/completed,
+  // and has no stage progress, it should be considered "new"
+  // Also check if the order has DisplayStatus.NEW even if rawStatus doesn't match exactly
+  const isActuallyNew = (order.status === DisplayStatus.NEW) || 
+                        (isNewStatus && isNotQueued && isNotProcessing && isNotCompleted && hasNoStageProgress);
+  
+  const result = isActuallyNew;
+  
+  // Debug logging to help diagnose why orders aren't matching
+  if (process.env.NODE_ENV === 'development' && (order.orderId === 'hair-test-02' || order.status === DisplayStatus.NEW)) {
+    console.log(`[shouldShowAsNew] Order ${order.orderId}:`, {
+      status: order.status,
+      rawStatus: order.rawStatus,
+      phase: order.phase,
+      isNewStatus,
+      isNotQueued,
+      isNotProcessing,
+      isNotCompleted,
+      hasNoStageProgress,
+      reviewStages: order.reviewStages,
+      isActuallyNew,
+      result
+    });
+  }
+  
+  return result;
+}
+
+/**
  * Check if an order should appear in the Review Poses tab
  * 
  * Conditions:
@@ -35,8 +102,14 @@ export function isInWorkflowProcessing(order: OrderListItem): boolean {
  * - Order is not in queue or processing
  * - Order has DisplayStatus of REVIEW_POSES (images are generated)
  * - Order is not completed
+ * - OR order is "new" and needs processing
  */
 export function shouldShowInReviewPoses(order: OrderListItem): boolean {
+  // Don't include new orders here - they have their own tab now
+  // New orders should only appear in the "New Orders" tab
+  if (shouldShowAsNew(order)) {
+    return false;
+  }
   // Must be in preBria stage (not yet approved)
   const isInPreBriaStage = order.reviewStages?.preBria?.status !== ReviewStageStatus.APPROVED &&
                            order.reviewStages?.preBria?.status !== 'approved';
@@ -52,8 +125,10 @@ export function shouldShowInReviewPoses(order: OrderListItem): boolean {
                           order.rawStatus !== OrderStatus.PENDING_ASSEMBLY;
   
   // Must have DisplayStatus of REVIEW_POSES (images are generated and ready for review)
+  // OR must be NEW status (new orders that haven't been processed yet)
   // AND must not be in queue phase or processing
-  const isReviewPosesStatus = order.status === DisplayStatus.REVIEW_POSES &&
+  const isReviewPosesStatus = (order.status === DisplayStatus.REVIEW_POSES || 
+                               order.status === DisplayStatus.NEW) &&
                               order.phase !== OrderPhase.IN_QUEUE;
   
   // Must not be completed
@@ -69,8 +144,10 @@ export function shouldShowInReviewPoses(order: OrderListItem): boolean {
                          order.rawStatus !== OrderStatus.SHIPPED &&
                          order.rawStatus !== OrderStatus.DELIVERED;
   
-  // Must be in FIRST_REVIEW phase (not SECOND_REVIEW)
-  const isFirstReview = order.phase === OrderPhase.FIRST_REVIEW;
+  // Must be in FIRST_REVIEW phase (not SECOND_REVIEW) OR NEW status
+  const isFirstReview = order.phase === OrderPhase.FIRST_REVIEW || 
+                       order.status === DisplayStatus.NEW ||
+                       order.rawStatus === OrderStatus.NEW;
   
   return isInPreBriaStage && isNotInQueue && isNotProcessing && isReviewPosesStatus && isNotCompleted && notSentToPrint && isFirstReview;
 }
@@ -236,6 +313,11 @@ export function getCardLabel(
   order: OrderListItem,
   stage: 'preBria' | 'postBria' | 'postPdf' | 'secondary'
 ): string {
+  // Check if order is "new" and needs processing
+  if (shouldShowAsNew(order)) {
+    return 'New';
+  }
+  
   const flagSummary = getOrderFlagSummary(order);
   
   // For secondary review, use total flags and determine active stage

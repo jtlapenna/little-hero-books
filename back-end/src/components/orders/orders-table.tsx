@@ -119,7 +119,12 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
               {filteredOrders.map((order) => {
                 // Get flag count for the active stage (the stage the order is currently in)
                 const activeStageFlagCount = getActiveStageFlagCount(order);
-                const needsAttention = activeStageFlagCount > 0;
+                // Also get total flags as fallback
+                const flagSummary = getOrderFlagSummary(order);
+                const totalFlags = flagSummary.total || 0;
+                // Show flags if active stage has flags OR total flags > 0
+                const needsAttention = activeStageFlagCount > 0 || totalFlags > 0;
+                const displayFlagCount = activeStageFlagCount > 0 ? activeStageFlagCount : totalFlags;
                 return (
                   <tr
                     key={order.orderId}
@@ -145,7 +150,7 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
                           errors={order.errors}
                         />
                         {needsAttention && (
-                          <FlaggedBadge count={activeStageFlagCount} />
+                          <FlaggedBadge count={displayFlagCount} />
                         )}
                       </div>
                     </td>

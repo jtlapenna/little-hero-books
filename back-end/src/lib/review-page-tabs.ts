@@ -7,21 +7,24 @@
  */
 
 import { OrderListItem } from '@/types/order';
+import { LucideIcon } from 'lucide-react';
+import { Sparkles, User, Image, FileText, Search, List } from 'lucide-react';
 import {
   shouldShowInReviewPoses,
   shouldShowInReviewBackgrounds,
   shouldShowInReviewPages,
   shouldShowInSecondaryReview,
+  shouldShowAsNew,
   getCardLabel,
 } from './review-page-filters';
 
-export type ReviewTabId = 'poses' | 'backgrounds' | 'pages' | 'secondary';
+export type ReviewTabId = 'all' | 'new' | 'poses' | 'backgrounds' | 'pages' | 'secondary';
 
 export interface ReviewTab {
   id: ReviewTabId;
   label: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
   filterFunction: (order: OrderListItem) => boolean;
   getCardLabel: (order: OrderListItem) => string;
 }
@@ -31,10 +34,30 @@ export interface ReviewTab {
  */
 export const REVIEW_TABS: ReviewTab[] = [
   {
+    id: 'all',
+    label: 'All Orders',
+    description: 'View all orders requiring review',
+    icon: List,
+    filterFunction: () => true, // Show all orders
+    getCardLabel: (order) => {
+      // Use the appropriate label based on the order's stage
+      if (shouldShowAsNew(order)) return 'New';
+      return getCardLabel(order, 'preBria') || getCardLabel(order, 'postBria') || getCardLabel(order, 'postPdf') || getCardLabel(order, 'secondary') || 'Review';
+    },
+  },
+  {
+    id: 'new',
+    label: 'New Orders',
+    description: 'Orders that have been created but not yet processed',
+    icon: Sparkles,
+    filterFunction: shouldShowAsNew,
+    getCardLabel: (order) => 'New',
+  },
+  {
     id: 'poses',
     label: 'Review Poses',
     description: 'Review generated character and poses before background removal',
-    icon: '👤',
+    icon: User,
     filterFunction: shouldShowInReviewPoses,
     getCardLabel: (order) => getCardLabel(order, 'preBria'),
   },
@@ -42,7 +65,7 @@ export const REVIEW_TABS: ReviewTab[] = [
     id: 'backgrounds',
     label: 'Review Backgrounds',
     description: 'Review background-removed images from Bria.ai',
-    icon: '🖼️',
+    icon: Image,
     filterFunction: shouldShowInReviewBackgrounds,
     getCardLabel: (order) => getCardLabel(order, 'postBria'),
   },
@@ -50,7 +73,7 @@ export const REVIEW_TABS: ReviewTab[] = [
     id: 'pages',
     label: 'Review Pages',
     description: 'Review final compiled PDF before production',
-    icon: '📄',
+    icon: FileText,
     filterFunction: shouldShowInReviewPages,
     getCardLabel: (order) => getCardLabel(order, 'postPdf'),
   },
@@ -58,7 +81,7 @@ export const REVIEW_TABS: ReviewTab[] = [
     id: 'secondary',
     label: 'Secondary Review',
     description: 'Review customer revision requests and send to print',
-    icon: '🔍',
+    icon: Search,
     filterFunction: shouldShowInSecondaryReview,
     getCardLabel: (order) => getCardLabel(order, 'secondary'),
   },

@@ -52,11 +52,21 @@ export function getOrderFlagSummary(order: any): FlagSummary {
   // This works on both client and server side
   const flags = order.flags || {};
   
+  // Debug logging to help diagnose flag display issues
+  if (process.env.NODE_ENV === 'development' && Object.keys(flags).length > 0) {
+    console.log(`[getOrderFlagSummary] Order ${order.orderId}: flags=`, flags);
+  }
+  
+  const preBria = typeof flags.preBria === 'number' ? flags.preBria : (flags.pre_bria || 0);
+  const postBria = typeof flags.postBria === 'number' ? flags.postBria : (flags.post_bria || 0);
+  const postPdf = typeof flags.postPdf === 'number' ? flags.postPdf : (flags.post_pdf || 0);
+  const total = typeof flags.total === 'number' ? flags.total : (preBria + postBria + postPdf);
+  
   return {
-    preBria: flags.preBria || 0,
-    postBria: flags.postBria || 0,
-    postPdf: flags.postPdf || 0,
-    total: flags.total || 0
+    preBria,
+    postBria,
+    postPdf,
+    total
   };
 }
 

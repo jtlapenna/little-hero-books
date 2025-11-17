@@ -6,10 +6,10 @@ export async function GET(request: NextRequest) {
   try {
     const status = await monitoringService.runAllHealthChecks();
     
-    // Only return 503 for critical system failures, not for expected "not implemented" services
-    // Check if any critical services (R2, File System) are unhealthy
+    // Only return 503 for critical system failures
+    // R2 Storage is the only critical service (file system not used)
     const criticalServices = status.checks.filter(check => 
-      check.service === 'R2 Storage' || check.service === 'File System'
+      check.service === 'R2 Storage'
     );
     const criticalUnhealthy = criticalServices.some(check => check.status === 'unhealthy');
     

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Order, OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
+import { CountBadge } from '@/components/ui/count-badge';
+import { FlagBadgeCompact } from '@/components/ui/flag-badge-compact';
 import { formatDate } from '@/lib/utils';
 import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
@@ -18,7 +20,7 @@ export default function ReviewPage() {
   const [allOrders, setAllOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<ReviewTabId>('poses');
+  const [activeTab, setActiveTab] = useState<ReviewTabId>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'orderDate' | 'firstName' | 'lastName' | 'platform'>('orderDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -66,6 +68,17 @@ export default function ReviewPage() {
   // Get orders for the active tab
   const tabOrders = getOrdersForTab(allOrders, activeTab);
   const activeTabConfig = REVIEW_TABS.find(tab => tab.id === activeTab);
+  
+  // Debug logging for new orders tab
+  if (process.env.NODE_ENV === 'development' && activeTab === 'new') {
+    console.log('[ReviewPage] New Orders Tab Debug:', {
+      totalOrders: allOrders.length,
+      newTabOrders: tabOrders.length,
+      allOrderIds: allOrders.map(o => o.orderId),
+      newTabOrderIds: tabOrders.map(o => o.orderId),
+      hairTest02: allOrders.find(o => o.orderId === 'hair-test-02'),
+    });
+  }
 
   // Filter and sort orders for the active tab
   const filteredAndSortedOrders = tabOrders
@@ -155,38 +168,69 @@ export default function ReviewPage() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="mb-6 border-b border-gray-200">
-          <nav className="flex space-x-8" aria-label="Review Tabs">
+        <div className="mb-6">
+          <nav className="flex space-x-1 border-b border-gray-200" aria-label="Review Tabs">
             {REVIEW_TABS.map((tab) => {
-              const tabOrderCount = getOrdersForTab(allOrders, tab.id).length;
+              const tabOrders = getOrdersForTab(allOrders, tab.id);
+              const tabOrderCount = tabOrders.length;
               const isActive = activeTab === tab.id;
+              
+              // Calculate flag count for this specific tab
+              let tabFlagCount = 0;
+              if (tab.id === 'all') {
+                // All tab shows total flags across all orders
+                tabFlagCount = tabOrders.reduce((sum, order) => {
+                  const flagSummary = getOrderFlagSummary(order);
+                  return sum + (flagSummary.total || 0);
+                }, 0);
+              } else if (tab.id === 'new') {
+                // New orders don't have flags yet - they haven't been processed
+                tabFlagCount = 0;
+              } else if (tab.id === 'secondary') {
+                // Secondary review shows total flags across all stages
+                tabFlagCount = tabOrders.reduce((sum, order) => {
+                  const flagSummary = getOrderFlagSummary(order);
+                  return sum + (flagSummary.total || 0);
+                }, 0);
+              } else {
+                // Each stage tab shows only flags for that specific stage
+                const stageKey = tab.id === 'poses' ? 'preBria' : 
+                               tab.id === 'backgrounds' ? 'postBria' : 
+                               'postPdf';
+                tabFlagCount = tabOrders.reduce((sum, order) => {
+                  const flagSummary = getOrderFlagSummary(order);
+                  return sum + (flagSummary[stageKey] || 0);
+                }, 0);
+              }
+              
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`
-                    py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                    relative px-4 py-3 text-sm font-medium transition-all duration-200
                     ${isActive
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'text-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
                     }
                   `}
                 >
-                  <div className="flex items-center space-x-2">
-                    <span className="text-lg">{tab.icon}</span>
+                  <div className="flex items-center gap-2">
+                    <tab.icon className={`w-4 h-4 transition-colors ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
                     <span>{tab.label}</span>
-                    {tabOrderCount > 0 && (
-                      <span className={`
-                        ml-2 px-2 py-0.5 rounded-full text-xs font-bold
-                        ${isActive
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-100 text-gray-600'
-                        }
-                      `}>
-                        {tabOrderCount}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {tabOrderCount > 0 && (
+                        <CountBadge count={tabOrderCount} variant={isActive ? 'active' : 'default'} />
+                      )}
+                      {tabFlagCount > 0 && (
+                        <FlagBadgeCompact count={tabFlagCount} variant={isActive ? 'active' : 'default'} />
+                      )}
+                    </div>
                   </div>
+                  {/* Active indicator */}
+                  {isActive && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
+                  )}
                 </button>
               );
             })}
@@ -297,6 +341,33 @@ export default function ReviewPage() {
               const isReadyForNextStage = cardLabel.startsWith('Ready for') && !isReadyForApproval;
               const isApproved = cardLabel === 'Approved';
               const hasFlags = cardLabel.includes('Flagged');
+              // Get flag count for the specific stage to show badge even if card label doesn't say "Flagged"
+              // CRITICAL: Only show flags for the stage this order is actually in, not all flags
+              let stageFlagCount = 0;
+              if (activeTab === 'all') {
+                // All tab shows total flags for each order
+                stageFlagCount = flagSummary.total || 0;
+              } else if (activeTab === 'new') {
+                // New orders don't have flags yet - they haven't been processed
+                stageFlagCount = 0;
+              } else if (activeTab === 'secondary') {
+                stageFlagCount = flagSummary.total;
+              } else if (activeTab === 'poses') {
+                // Only show preBria flags for poses tab
+                stageFlagCount = flagSummary.preBria || 0;
+              } else if (activeTab === 'backgrounds') {
+                // Only show postBria flags for backgrounds tab
+                stageFlagCount = flagSummary.postBria || 0;
+              } else if (activeTab === 'pages') {
+                // Only show postPdf flags for pages tab
+                stageFlagCount = flagSummary.postPdf || 0;
+              }
+              const hasAnyFlags = stageFlagCount > 0;
+              
+              // Debug logging to help diagnose flag display issues
+              if (process.env.NODE_ENV === 'development' && (order.flags || flagSummary.total > 0)) {
+                console.log(`[ReviewPage] Order ${order.orderId}: flags=`, order.flags, `flagSummary=`, flagSummary, `stageFlagCount=`, stageFlagCount, `hasAnyFlags=`, hasAnyFlags);
+              }
               
               // Determine card background color based on state
               let cardBgClass = 'bg-white'; // Default: neutral
@@ -345,18 +416,10 @@ export default function ReviewPage() {
 
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                     <div className="flex items-center space-x-2">
-                      {hasFlags ? (
-                        (() => {
-                          // Get flag count for the specific stage
-                          const stageFlagCount = activeTab === 'secondary' 
-                            ? flagSummary.total 
-                            : activeTab === 'poses' 
-                              ? flagSummary.preBria 
-                              : activeTab === 'backgrounds'
-                                ? flagSummary.postBria
-                                : flagSummary.postPdf;
-                          return <FlaggedBadge count={stageFlagCount} />;
-                        })()
+                      {hasAnyFlags ? (
+                        <FlaggedBadge count={stageFlagCount} />
+                      ) : hasFlags ? (
+                        <FlaggedBadge count={stageFlagCount} />
                       ) : isReadyForApproval ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200">
                           ✓ Ready for Approval
@@ -417,6 +480,28 @@ export default function ReviewPage() {
                     const isReadyForNextStage = cardLabel.startsWith('Ready for') && !isReadyForApproval;
                     const isApproved = cardLabel === 'Approved';
                     const hasFlags = cardLabel.includes('Flagged');
+                    // Get flag count for the specific stage to show badge even if card label doesn't say "Flagged"
+                    // CRITICAL: Only show flags for the stage this order is actually in, not all flags
+                    let stageFlagCount = 0;
+                    if (activeTab === 'all') {
+                      // All tab shows total flags for each order
+                      stageFlagCount = flagSummary.total || 0;
+                    } else if (activeTab === 'new') {
+                      // New orders don't have flags yet - they haven't been processed
+                      stageFlagCount = 0;
+                    } else if (activeTab === 'secondary') {
+                      stageFlagCount = flagSummary.total;
+                    } else if (activeTab === 'poses') {
+                      // Only show preBria flags for poses tab
+                      stageFlagCount = flagSummary.preBria || 0;
+                    } else if (activeTab === 'backgrounds') {
+                      // Only show postBria flags for backgrounds tab
+                      stageFlagCount = flagSummary.postBria || 0;
+                    } else if (activeTab === 'pages') {
+                      // Only show postPdf flags for pages tab
+                      stageFlagCount = flagSummary.postPdf || 0;
+                    }
+                    const hasAnyFlags = stageFlagCount > 0;
                     
                     // Determine row background color based on state
                     let rowBgClass = 'bg-white'; // Default: neutral
@@ -449,18 +534,10 @@ export default function ReviewPage() {
                           <StatusBadge status={order.status} revisionCount={order.revisionCount} />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {hasFlags ? (
-                            (() => {
-                              // Get flag count for the specific stage
-                              const stageFlagCount = activeTab === 'secondary' 
-                                ? flagSummary.total 
-                                : activeTab === 'poses' 
-                                  ? flagSummary.preBria 
-                                  : activeTab === 'backgrounds'
-                                    ? flagSummary.postBria
-                                    : flagSummary.postPdf;
-                              return <FlaggedBadge count={stageFlagCount} />;
-                            })()
+                          {hasAnyFlags ? (
+                            <FlaggedBadge count={stageFlagCount} />
+                          ) : hasFlags ? (
+                            <FlaggedBadge count={stageFlagCount} />
                           ) : isReadyForApproval ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200">
                               ✓ Ready for Approval

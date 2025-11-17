@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Users, Home, Activity, AlertTriangle } from 'lucide-react';
+import { BookOpen, Users, Home, Activity, AlertTriangle, BarChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function Navigation() {
@@ -12,8 +12,9 @@ export function Navigation() {
     { name: 'Home', href: '/', icon: Home },
     { name: 'Orders', href: '/orders', icon: BookOpen },
     { name: 'Review', href: '/review', icon: Users },
-    { name: 'Monitoring', href: '/monitoring', icon: Activity },
     { name: 'Orders Needing Attention', href: '/admin/orders-needing-attention', icon: AlertTriangle },
+    { name: 'Analytics', href: '/admin/analytics', icon: BarChart },
+    { name: 'Monitoring', href: '/monitoring', icon: Activity },
   ];
 
   return (
@@ -30,9 +31,11 @@ export function Navigation() {
               {navigation.map((item) => {
                 const Icon = item.icon;
                 // Highlight "Orders Needing Attention" when on unified page or redirect pages
+                // Highlight "Analytics" when on analytics page
                 const isActive = pathname === item.href || 
                   (item.href === '/admin/orders-needing-attention' && 
-                   (pathname === '/admin/stuck-orders' || pathname === '/admin/orphaned-orders'));
+                   (pathname === '/admin/stuck-orders' || pathname === '/admin/orphaned-orders')) ||
+                  (item.href === '/admin/analytics' && pathname?.startsWith('/admin/analytics'));
                 
                 return (
                   <Link
