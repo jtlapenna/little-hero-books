@@ -35,13 +35,6 @@ export default function ConfettiButton({
   const [isMounted, setIsMounted] = React.useState(false)
 
   React.useEffect(() => {
-    console.log('[CONFETTI] Component mounting on client', {
-      label: typeof label === 'string' ? label : typeof label,
-      variant: typeof variant === 'string' ? variant : typeof variant,
-      size: typeof size === 'string' ? size : typeof size,
-      disabled: typeof disabled === 'boolean' ? disabled : typeof disabled,
-      hasOnClick: typeof onClick === 'function'
-    });
     setIsMounted(true)
     if (buttonRef.current) setButtonWidth(buttonRef.current.offsetWidth)
   }, [buttonRef.current])

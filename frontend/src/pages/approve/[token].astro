@@ -18,17 +18,7 @@ const requireEmail =
     ? true
     : import.meta.env.MODE === 'production';
 
-// Debug logging for SSR
-console.log('[SSR] Approve page loading', {
-  token: token ? 'present' : 'missing',
-  requireEmail: typeof requireEmail === 'boolean' ? requireEmail : 'NOT_BOOLEAN',
-  astroSite: Astro.site ? typeof Astro.site : 'undefined',
-  astroSiteHostname: Astro.site?.hostname || 'undefined',
-  mode: import.meta.env.MODE
-});
-
 if (!token) {
-  console.log('[SSR] No token, redirecting');
   return Astro.redirect('/');
 }
 ---
@@ -243,7 +233,7 @@ if (!token) {
               <div class="approval-actions">
                 <Button variant="secondary" size="lg" class="approval-cancel" type="button">Cancel</Button>
                 <ConfettiButton
-                  client:load
+                  client:only="react"
                   label="Approve Book"
                   variant="primary"
                   size="lg"
@@ -262,13 +252,6 @@ if (!token) {
 </Layout>
 
 <script define:vars={{ token, requireEmail }} is:inline>
-  // Client-side debug logging
-  console.log('[CLIENT] Approve page script loaded', {
-    token: typeof token === 'string' ? 'present' : typeof token,
-    requireEmail: typeof requireEmail === 'boolean' ? requireEmail : typeof requireEmail,
-    windowLocation: window.location.href
-  });
-  
   // Determine API base URL based on environment
   // In production, use the live backend; in development, use localhost
   const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';

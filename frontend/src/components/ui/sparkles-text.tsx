@@ -69,12 +69,6 @@ const SparklesText: React.FC<SparklesTextProps> = ({
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    console.log('[SPARKLES] Component mounting on client', {
-      text: typeof text === 'string' ? text : typeof text,
-      colors: colors ? 'present' : 'missing',
-      sparklesCount: typeof sparklesCount === 'number' ? sparklesCount : typeof sparklesCount,
-      className: typeof className === 'string' ? className : typeof className
-    });
     setIsMounted(true);
     const generateStar = (): Sparkle => {
       const starX = `${Math.random() * 100}%`;
@@ -109,42 +103,33 @@ const SparklesText: React.FC<SparklesTextProps> = ({
     return () => clearInterval(interval);
   }, [colors.first, colors.second, sparklesCount]);
 
-  // Only render after mounting to avoid SSR issues
+  // SSR fallback - return safe HTML without framer-motion
   if (!isMounted) {
-    console.log('[SPARKLES] Rendering SSR fallback (no sparkles yet)');
     return (
       <div
-        className={cn("text-6xl font-bold", className)}
+        className={cn("text-6xl font-bold", className || "")}
         style={
           {
-            "--sparkles-first-color": `${colors.first}`,
-            "--sparkles-second-color": `${colors.second}`,
+            "--sparkles-first-color": `${colors.first || "#9E7AFF"}`,
+            "--sparkles-second-color": `${colors.second || "#FE8BBB"}`,
           } as CSSProperties
-          }
+        }
       >
         <span className="relative inline-block">
-          <strong>{text}</strong>
+          <strong>{String(text || "")}</strong>
         </span>
       </div>
     );
   }
 
-  // Filter out any non-standard props that might cause rendering issues
-  const { text: _, colors: __, sparklesCount: ___, className: ____, ...safeProps } = props as any;
-  
-  console.log('[SPARKLES] Rendering client-side with sparkles', {
-    sparklesCount: sparkles.length,
-    safePropsKeys: Object.keys(safeProps || {})
-  });
-
+  // Client-side rendering with sparkles
   return (
     <div
-      className={cn("text-6xl font-bold", className)}
-      {...safeProps}
+      className={cn("text-6xl font-bold", className || "")}
       style={
         {
-          "--sparkles-first-color": `${colors.first}`,
-          "--sparkles-second-color": `${colors.second}`,
+          "--sparkles-first-color": `${colors.first || "#9E7AFF"}`,
+          "--sparkles-second-color": `${colors.second || "#FE8BBB"}`,
         } as CSSProperties
       }
     >
@@ -152,7 +137,7 @@ const SparklesText: React.FC<SparklesTextProps> = ({
         {sparkles.map((sparkle) => (
           <Sparkle key={sparkle.id} {...sparkle} />
         ))}
-        <strong>{text}</strong>
+        <strong>{String(text || "")}</strong>
       </span>
     </div>
   );
