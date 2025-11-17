@@ -269,7 +269,7 @@ export default function OverviewTab({ filters }: { filters: AnalyticsFiltersStat
       {/* Top Customization Choices */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Most Popular Customization Choices</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+        <div className="flex flex-wrap gap-4">
           {data.topCustomizations.skinTone && (
             <div className="bg-white rounded-lg p-3 border border-gray-200">
               <div className="text-xs font-medium text-gray-600 mb-1">Skin Tone</div>
