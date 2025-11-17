@@ -58,10 +58,13 @@ export function cloudflarePolyfillPlugin(): Plugin {
       // The polyfill must be at the very top of the chunk, before any React code
       if (options.format === 'es') {
         // Only inject once per chunk - check if already present
-        if (!code.includes('MessageChannel polyfill')) {
-          // Inject at the absolute top of the chunk
+        // Check for both the comment and the actual class name to avoid duplicates
+        if (!code.includes('MessageChannel polyfill') && !code.includes('MessageChannelPolyfill')) {
+          // Inject at the absolute top of the chunk with proper formatting
+          // Ensure it's valid JavaScript that won't cause rendering issues
+          const polyfillCode = MESSAGECHANNEL_POLYFILL.trim();
           return {
-            code: MESSAGECHANNEL_POLYFILL.trim() + '\n\n' + code,
+            code: polyfillCode + '\n\n' + code,
             map: null
           };
         }
