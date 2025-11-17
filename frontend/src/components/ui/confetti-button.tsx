@@ -78,43 +78,57 @@ export default function ConfettiButton({
     setTimeout(() => setParticles([]), 800)
   }
 
-  return (
-    <div className="relative inline-block">
+  // SSR fallback - return button without animations
+  if (!isMounted) {
+    return (
       <Button
-        ref={buttonRef}
-        className={`relative overflow-hidden ${className}`}
+        className={className || ""}
         onClick={fireConfetti}
         variant={variant}
         size={size}
         disabled={disabled}
       >
-        {label}
+        {String(label || "Submit")}
+      </Button>
+    );
+  }
+
+  // Client-side rendering with confetti animations
+  return (
+    <div className="relative inline-block">
+      <Button
+        ref={buttonRef}
+        className={`relative overflow-hidden ${className || ""}`}
+        onClick={fireConfetti}
+        variant={variant}
+        size={size}
+        disabled={disabled}
+      >
+        {String(label || "Submit")}
       </Button>
 
-      {isMounted && (
-        <AnimatePresence>
-          {particles.map((p) => (
-            <motion.div
-              key={p.id}
-              className="absolute w-2 h-2 rounded-full bottom-0"
-              style={{
-                backgroundColor: p.color,
-                left: buttonWidth / 2,
-                transform: "translateX(-50%)",
-              }}
-              initial={{ x: 0, y: 0, scale: 1, opacity: 1, rotate: p.rotate }}
-              animate={{
-                x: (Math.random() - 0.5) * 100, // horizontal spread
-                y: -Math.random() * 100,        // vertical spread
-                scale: 0,
-                opacity: 0,
-                rotate: p.rotate + Math.random() * 360,
-              }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            />
-          ))}
-        </AnimatePresence>
-      )}
+      <AnimatePresence>
+        {particles.map((p) => (
+          <motion.div
+            key={p.id}
+            className="absolute w-2 h-2 rounded-full bottom-0"
+            style={{
+              backgroundColor: p.color,
+              left: buttonWidth / 2,
+              transform: "translateX(-50%)",
+            }}
+            initial={{ x: 0, y: 0, scale: 1, opacity: 1, rotate: p.rotate }}
+            animate={{
+              x: (Math.random() - 0.5) * 100,
+              y: -Math.random() * 100,
+              scale: 0,
+              opacity: 0,
+              rotate: p.rotate + Math.random() * 360,
+            }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          />
+        ))}
+      </AnimatePresence>
     </div>
   )
 }
