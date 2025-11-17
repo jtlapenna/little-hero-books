@@ -52,32 +52,18 @@ export function cloudflarePolyfillPlugin(): Plugin {
   return {
     name: 'cloudflare-polyfill',
     renderChunk(code, chunk, options) {
-      // Inject polyfill into all SSR chunks (format: 'es') that might use React
-      // This includes renderer chunks and worker entry files
+      // Inject polyfill into ALL SSR chunks (format: 'es') unconditionally
+      // This ensures MessageChannel is available before React SSR code runs
+      // Cloudflare Workers don't have MessageChannel, so this is required
+      // The polyfill must be at the very top of the chunk, before any React code
       if (options.format === 'es') {
-        // Check if this chunk contains React/renderer code or is a worker entry
-        const hasReactRenderer = 
-          chunk.isEntry || // Entry chunks need the polyfill
-          chunk.fileName.includes('renderers') ||
-          chunk.fileName.includes('_worker') ||
-          chunk.fileName.includes('astro') ||
-          (chunk.moduleIds && chunk.moduleIds.some(id => 
-            id.includes('@astrojs') || 
-            id.includes('react-dom') || 
-            id.includes('renderers')
-          )) ||
-          code.includes('react-dom/server') ||
-          code.includes('requireReactDomServer') ||
-          code.includes('requireServer_browser');
-        
-        if (hasReactRenderer) {
-          // Only inject once per chunk - check if already present
-          if (!code.includes('MessageChannel polyfill')) {
-            return {
-              code: MESSAGECHANNEL_POLYFILL + '\n' + code,
-              map: null
-            };
-          }
+        // Only inject once per chunk - check if already present
+        if (!code.includes('MessageChannel polyfill')) {
+          // Inject at the absolute top of the chunk
+          return {
+            code: MESSAGECHANNEL_POLYFILL.trim() + '\n\n' + code,
+            map: null
+          };
         }
       }
       return null;
