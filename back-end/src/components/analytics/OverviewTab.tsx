@@ -271,56 +271,56 @@ export default function OverviewTab({ filters }: { filters: AnalyticsFiltersStat
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Most Popular Customization Choices</h3>
         <div className="flex flex-wrap gap-4">
           {data.topCustomizations.skinTone && (
-            <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <div className="flex-1 min-w-[120px] bg-white rounded-lg p-3 border border-gray-200">
               <div className="text-xs font-medium text-gray-600 mb-1">Skin Tone</div>
               <div className="text-lg font-bold text-gray-900">{data.topCustomizations.skinTone.value}</div>
               <div className="text-xs text-gray-500">{data.topCustomizations.skinTone.percentage}%</div>
             </div>
           )}
           {data.topCustomizations.hairColor && (
-            <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <div className="flex-1 min-w-[120px] bg-white rounded-lg p-3 border border-gray-200">
               <div className="text-xs font-medium text-gray-600 mb-1">Hair Color</div>
               <div className="text-lg font-bold text-gray-900">{data.topCustomizations.hairColor.value}</div>
               <div className="text-xs text-gray-500">{data.topCustomizations.hairColor.percentage}%</div>
             </div>
           )}
           {data.topCustomizations.hairStyle && (
-            <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <div className="flex-1 min-w-[120px] bg-white rounded-lg p-3 border border-gray-200">
               <div className="text-xs font-medium text-gray-600 mb-1">Hair Style</div>
               <div className="text-lg font-bold text-gray-900">{data.topCustomizations.hairStyle.value}</div>
               <div className="text-xs text-gray-500">{data.topCustomizations.hairStyle.percentage}%</div>
             </div>
           )}
           {data.topCustomizations.animalGuide && (
-            <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <div className="flex-1 min-w-[120px] bg-white rounded-lg p-3 border border-gray-200">
               <div className="text-xs font-medium text-gray-600 mb-1">Animal Guide</div>
               <div className="text-lg font-bold text-gray-900">{data.topCustomizations.animalGuide.value}</div>
               <div className="text-xs text-gray-500">{data.topCustomizations.animalGuide.percentage}%</div>
             </div>
           )}
           {data.topCustomizations.hometown && (
-            <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <div className="flex-1 min-w-[120px] bg-white rounded-lg p-3 border border-gray-200">
               <div className="text-xs font-medium text-gray-600 mb-1">Hometown</div>
               <div className="text-lg font-bold text-gray-900">{data.topCustomizations.hometown.value}</div>
               <div className="text-xs text-gray-500">{data.topCustomizations.hometown.percentage}%</div>
             </div>
           )}
           {data.topCustomizations.pronouns && (
-            <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <div className="flex-1 min-w-[120px] bg-white rounded-lg p-3 border border-gray-200">
               <div className="text-xs font-medium text-gray-600 mb-1">Pronouns</div>
               <div className="text-lg font-bold text-gray-900">{data.topCustomizations.pronouns.value}</div>
               <div className="text-xs text-gray-500">{data.topCustomizations.pronouns.percentage}%</div>
             </div>
           )}
           {data.topCustomizations.favoriteColor && (
-            <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <div className="flex-1 min-w-[120px] bg-white rounded-lg p-3 border border-gray-200">
               <div className="text-xs font-medium text-gray-600 mb-1">Favorite Color</div>
               <div className="text-lg font-bold text-gray-900">{data.topCustomizations.favoriteColor.value}</div>
               <div className="text-xs text-gray-500">{data.topCustomizations.favoriteColor.percentage}%</div>
             </div>
           )}
           {data.topCustomizations.clothingStyle && (
-            <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <div className="flex-1 min-w-[120px] bg-white rounded-lg p-3 border border-gray-200">
               <div className="text-xs font-medium text-gray-600 mb-1">Clothing Style</div>
               <div className="text-lg font-bold text-gray-900">{data.topCustomizations.clothingStyle.value}</div>
               <div className="text-xs text-gray-500">{data.topCustomizations.clothingStyle.percentage}%</div>
