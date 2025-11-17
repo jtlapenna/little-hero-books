@@ -353,7 +353,7 @@ if (!token) {
   function showPreview() {
     loadingState.style.display = 'none';
     previewContent.style.display = 'block';
-    // Update header when preview is shown (curtain will be visible, so text should be white)
+    // Update header when preview is shown - will check if curtain is actually visible
     updateHeaderForCurtain();
   }
 
@@ -485,6 +485,9 @@ if (!token) {
     if (curtainScrollArea) curtainScrollArea.style.display = 'none';
     if (actionButtonsContainer) actionButtonsContainer.style.display = 'none';
     
+    // Update header to black immediately since curtain is hidden
+    updateHeaderForCurtain();
+    
     // Make sure book content is visible
     const bookContent = document.getElementById('book-content');
     if (bookContent) {
@@ -501,9 +504,6 @@ if (!token) {
     
     // Show success message
     showSuccessMessage();
-    
-    // Update header
-    updateHeaderForCurtain();
   }
 
   // PDF Viewer state
@@ -1146,7 +1146,6 @@ if (!token) {
     
     if (isApproved) {
       console.log('[STATUS] Order is already approved, showing success message and hiding actions');
-      showSuccessMessage();
       
       // Also skip curtain animation if order is approved
       const curtainHero = document.getElementById('curtain-hero');
@@ -1158,6 +1157,9 @@ if (!token) {
         curtainScrollArea.style.display = 'none';
       }
       
+      // Update header to black immediately since curtain is hidden
+      updateHeaderForCurtain();
+      
       // Make sure book content is visible
       const bookContent = document.getElementById('book-content');
       if (bookContent) {
@@ -1165,6 +1167,8 @@ if (!token) {
         bookContent.style.top = 'auto';
         bookContent.style.transform = 'none';
       }
+      
+      showSuccessMessage();
     }
   }
 
@@ -1436,11 +1440,16 @@ if (!token) {
       return;
     }
     
-    if (curtainScrollPosition < 1 && !curtainFullyLifted) {
+    // Check if curtain element is actually visible in the DOM
+    const curtainIsVisible = curtainHero && 
+                             curtainHero.style.display !== 'none' && 
+                             getComputedStyle(curtainHero).display !== 'none';
+    
+    if (curtainIsVisible && curtainScrollPosition < 1 && !curtainFullyLifted) {
       // Curtain is visible - make nav text white
       mainHeader.classList.add('header-curtain-visible');
     } else {
-      // Curtain is fully lifted - make nav text black
+      // Curtain is hidden or fully lifted - make nav text black
       mainHeader.classList.remove('header-curtain-visible');
     }
   }

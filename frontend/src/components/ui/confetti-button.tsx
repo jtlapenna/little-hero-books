@@ -32,8 +32,10 @@ export default function ConfettiButton({
   const [particles, setParticles] = React.useState<ConfettiParticle[]>([])
   const buttonRef = React.useRef<HTMLButtonElement | null>(null)
   const [buttonWidth, setButtonWidth] = React.useState(0)
+  const [isMounted, setIsMounted] = React.useState(false)
 
   React.useEffect(() => {
+    setIsMounted(true)
     if (buttonRef.current) setButtonWidth(buttonRef.current.offsetWidth)
   }, [buttonRef.current])
 
@@ -89,28 +91,30 @@ export default function ConfettiButton({
         {label}
       </Button>
 
-      <AnimatePresence>
-        {particles.map((p) => (
-          <motion.div
-            key={p.id}
-            className="absolute w-2 h-2 rounded-full bottom-0"
-            style={{
-              backgroundColor: p.color,
-              left: buttonWidth / 2,
-              transform: "translateX(-50%)",
-            }}
-            initial={{ x: 0, y: 0, scale: 1, opacity: 1, rotate: p.rotate }}
-            animate={{
-              x: (Math.random() - 0.5) * 100, // horizontal spread
-              y: -Math.random() * 100,        // vertical spread
-              scale: 0,
-              opacity: 0,
-              rotate: p.rotate + Math.random() * 360,
-            }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-          />
-        ))}
-      </AnimatePresence>
+      {isMounted && (
+        <AnimatePresence>
+          {particles.map((p) => (
+            <motion.div
+              key={p.id}
+              className="absolute w-2 h-2 rounded-full bottom-0"
+              style={{
+                backgroundColor: p.color,
+                left: buttonWidth / 2,
+                transform: "translateX(-50%)",
+              }}
+              initial={{ x: 0, y: 0, scale: 1, opacity: 1, rotate: p.rotate }}
+              animate={{
+                x: (Math.random() - 0.5) * 100, // horizontal spread
+                y: -Math.random() * 100,        // vertical spread
+                scale: 0,
+                opacity: 0,
+                rotate: p.rotate + Math.random() * 360,
+              }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+          ))}
+        </AnimatePresence>
+      )}
     </div>
   )
 }
