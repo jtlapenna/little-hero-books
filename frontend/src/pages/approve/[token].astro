@@ -262,6 +262,13 @@ if (!token) {
 </Layout>
 
 <script define:vars={{ token, requireEmail }} is:inline>
+  // Client-side debug logging
+  console.log('[CLIENT] Approve page script loaded', {
+    token: typeof token === 'string' ? 'present' : typeof token,
+    requireEmail: typeof requireEmail === 'boolean' ? requireEmail : typeof requireEmail,
+    windowLocation: window.location.href
+  });
+  
   // Determine API base URL based on environment
   // In production, use the live backend; in development, use localhost
   const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';

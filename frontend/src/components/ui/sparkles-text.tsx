@@ -69,6 +69,12 @@ const SparklesText: React.FC<SparklesTextProps> = ({
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    console.log('[SPARKLES] Component mounting on client', {
+      text: typeof text === 'string' ? text : typeof text,
+      colors: colors ? 'present' : 'missing',
+      sparklesCount: typeof sparklesCount === 'number' ? sparklesCount : typeof sparklesCount,
+      className: typeof className === 'string' ? className : typeof className
+    });
     setIsMounted(true);
     const generateStar = (): Sparkle => {
       const starX = `${Math.random() * 100}%`;
