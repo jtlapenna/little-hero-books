@@ -112,6 +112,12 @@ a:hover {
   padding: 0 var(--spacing-lg);
 }
 
+@media (max-width: 768px) {
+  .container {
+    padding: 0 var(--spacing-md); /* Reduce padding on mobile */
+  }
+}
+
 /* Utility Classes */
 .text-center {
   text-align: center;
@@ -124,6 +130,11 @@ a:hover {
 @media (max-width: 768px) {
   .section-padding {
     padding: var(--spacing-lg) 0;
+  }
+  
+  /* Increase horizontal padding for content sections on mobile */
+  .content-section {
+    padding: 0 var(--spacing-lg); /* Add more left/right padding on mobile */
   }
   
   h1 {

@@ -248,10 +248,35 @@ import Button from '../components/Button.astro';
   @media (max-width: 768px) {
     .features-grid {
       grid-template-columns: 1fr;
+      gap: var(--spacing-lg);
+      padding: 0 var(--spacing-lg); /* Add more left/right padding on mobile */
+    }
+    
+    .latest-book-content {
+      padding: 0 var(--spacing-lg); /* Add more left/right padding on mobile */
     }
     
     .steps-preview {
       grid-template-columns: 1fr;
+      gap: var(--spacing-md);
+    }
+
+    .section-text {
+      font-size: 1rem;
+    }
+
+    .feature-card {
+      padding: var(--spacing-md);
+    }
+
+    .step {
+      padding: var(--spacing-md);
+    }
+
+    /* Ensure buttons are full-width on mobile */
+    .button-container :global(.btn) {
+      width: 100%;
+      max-width: 100%;
     }
   }
 </style>

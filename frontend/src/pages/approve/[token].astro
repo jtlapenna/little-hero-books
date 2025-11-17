@@ -121,14 +121,6 @@ if (!token) {
               </div>
             </div>
           </div>
-          <div id="preview-placeholder" class="preview-placeholder">
-            <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-            </svg>
-            <h3 class="placeholder-title">Loading Preview...</h3>
-            <p class="placeholder-text">Loading your book preview...</p>
-          </div>
         </div>
 
         <!-- Action Buttons -->
@@ -136,23 +128,23 @@ if (!token) {
           <div class="action-buttons">
             <Button variant="secondary" size="lg" class="btn-revision" type="button">I need a correction</Button>
             <Button size="lg" class="btn-approve" type="button">Approve Book</Button>
-          </div>
-          
+        </div>
+
           <!-- Correction Info (hidden by default, shown when button clicked) -->
           <div id="correction-info" class="correction-info" style="display: none;">
-            <div class="correction-header">
-              <div>
-                <h3 class="card-title">Need a correction?</h3>
-                <p id="correction-availability" class="correction-availability">You have 1 correction available.</p>
-              </div>
+          <div class="correction-header">
+            <div>
+              <h3 class="card-title">Need a correction?</h3>
+              <p id="correction-availability" class="correction-availability">You have 1 correction available.</p>
             </div>
-            <div id="correction-locked" class="locked-banner" style="display: none;">
-              We already received your correction. If you need more help, reply to our email thread and our team will assist.
-            </div>
-            <div id="correction-success" class="success-banner" style="display: none;">
+          </div>
+          <div id="correction-locked" class="locked-banner" style="display: none;">
+            We already received your correction. If you need more help, reply to our email thread and our team will assist.
+          </div>
+          <div id="correction-success" class="success-banner" style="display: none;">
               Thank you! We received your correction. We'll review it and follow up shortly.
-            </div>
-            <form id="correction-form" class="correction-form">
+          </div>
+          <form id="correction-form" class="correction-form">
             <div class="form-group">
               <label class="form-label" for="contact-email">{requireEmail ? 'Your email' : 'Your email (optional)'}</label>
               <input type="email" id="contact-email" class="form-input" placeholder="you@example.com" required={requireEmail ? true : undefined} />
@@ -181,9 +173,9 @@ if (!token) {
               <Button variant="secondary" size="md" class="correction-cancel" type="button">Cancel</Button>
               <Button size="md" class="correction-submit-btn" type="submit">Send correction</Button>
             </div>
-            </form>
-          </div>
-          
+          </form>
+    </div>
+
           <!-- Approval Info (hidden by default, shown when button clicked) -->
           <div id="approval-info" class="approval-info" style="display: none;">
             <h3 class="card-title">Approve Your Book</h3>
@@ -191,18 +183,18 @@ if (!token) {
               <div class="info-box">
                 <p class="info-title">Important Information:</p>
                 <ul class="info-list">
-                  <li>Changes after approval will incur additional charges</li>
-                  <li>Your book will be printed and shipped within 5-7 business days after approval</li>
-                  <li>If you do not respond within 3 days, your book will be automatically approved and sent to print</li>
-                  <li>By approving, you confirm the book is correct and ready for printing</li>
-                </ul>
-              </div>
-              <div id="last-revision-checkbox-container" class="checkbox-container" style="display: none;">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="acknowledge-last-revision" />
-                  <span>I confirm the book is correct and ready to print immediately.</span>
-                </label>
-              </div>
+              <li>Changes after approval will incur additional charges</li>
+              <li>Your book will be printed and shipped within 5-7 business days after approval</li>
+              <li>If you do not respond within 3 days, your book will be automatically approved and sent to print</li>
+              <li>By approving, you confirm the book is correct and ready for printing</li>
+            </ul>
+          </div>
+          <div id="last-revision-checkbox-container" class="checkbox-container" style="display: none;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="acknowledge-last-revision" />
+              <span>I confirm the book is correct and ready to print immediately.</span>
+            </label>
+          </div>
               <div class="approval-actions">
                 <Button variant="secondary" size="lg" class="approval-cancel" type="button">Cancel</Button>
                 <Button
@@ -213,7 +205,7 @@ if (!token) {
                 >
                   Approve Book
                 </Button>
-              </div>
+        </div>
             </div>
           </div>
         </div>
@@ -232,9 +224,9 @@ if (!token) {
             </p>
             <div id="order-status-updates" class="order-status-updates">
               {/* Order status updates will go here */}
-            </div>
-          </div>
         </div>
+      </div>
+    </div>
   </div>
 </Layout>
 
@@ -338,7 +330,7 @@ if (!token) {
   }
 
   function showPreview() {
-    loadingState.style.display = 'none';
+    // Don't hide loading state yet - keep it visible until PDF is ready
     previewContent.style.display = 'block';
     // Update header when preview is shown (curtain will be visible, so text should be white)
     updateHeaderForCurtain();
@@ -409,7 +401,6 @@ if (!token) {
   let spreads = [];
   let currentSpreadIndex = 0;
   const pdfViewerContainer = document.getElementById('pdf-viewer-container');
-  const previewPlaceholder = document.getElementById('preview-placeholder');
   const spreadContent = document.getElementById('spread-content');
   const currentSpreadEl = document.getElementById('current-spread');
   const totalSpreadsEl = document.getElementById('total-spreads');
@@ -702,10 +693,9 @@ if (!token) {
       const { pages, coverImageUrl } = await loadPages(orderId);
       
       if (pages.length === 0) {
-        // No pages available yet, keep showing placeholder
-        if (previewPlaceholder) {
-          previewPlaceholder.querySelector('.placeholder-title').textContent = 'Preview Not Ready';
-          previewPlaceholder.querySelector('.placeholder-text').textContent = 'The book preview is being generated. Please check back soon.';
+        // No pages available yet, update loading message
+        if (loadingState && loadingState.querySelector('.loading-text')) {
+          loadingState.querySelector('.loading-text').textContent = 'Preview Not Ready. The book preview is being generated. Please check back soon.';
         }
         return;
       }
@@ -715,11 +705,16 @@ if (!token) {
       
       if (spreads.length === 0) {
         console.warn('[Preview] No spreads created from pages');
+        if (loadingState && loadingState.querySelector('.loading-text')) {
+          loadingState.querySelector('.loading-text').textContent = 'Unable to load preview. Please try again later.';
+        }
         return;
       }
       
-      // Hide placeholder and show viewer
-      if (previewPlaceholder) previewPlaceholder.style.display = 'none';
+      // Hide loading state now that PDF is ready
+      if (loadingState) loadingState.style.display = 'none';
+      
+      // Show viewer
       if (pdfViewerContainer) pdfViewerContainer.style.display = 'block';
       
       // Render first spread
@@ -727,7 +722,10 @@ if (!token) {
       renderSpread(spreads[0]);
     } catch (error) {
       console.error('[Preview] Error loading pages:', error);
-      // Keep placeholder visible on error
+      // Show error in loading state
+      if (loadingState && loadingState.querySelector('.loading-text')) {
+        loadingState.querySelector('.loading-text').textContent = 'Unable to load preview. Please try again later.';
+      }
     }
   }
 
@@ -1114,7 +1112,7 @@ if (!token) {
       
       // Show success message
       showSuccessMessage();
-    } catch (error) {
+      } catch (error) {
       console.error('[APPROVE] Error approving:', error);
       const errorMsg = error instanceof Error ? error.message : String(error || 'Failed to approve book. Please try again.');
       alert(errorMsg);
@@ -1200,9 +1198,9 @@ if (!token) {
 
     // Set initial disabled state
     const updateDisabledState = () => {
-      if (approvalConfirmBtn) {
+  if (approvalConfirmBtn) {
         approvalConfirmBtn.disabled = correctionUsed && !acknowledgeCheckbox.checked;
-      }
+  }
     };
     updateDisabledState();
 
@@ -2333,10 +2331,6 @@ if (!token) {
     flex-direction: column;
   }
 
-  .preview-placeholder {
-    text-align: center;
-  }
-
   /* PDF Viewer Styles */
   #pdf-viewer-container {
     width: 100%;
@@ -2505,37 +2499,6 @@ if (!token) {
     }
   }
 
-  .placeholder-icon {
-    color: #d1d5db;
-    margin-bottom: var(--spacing-md);
-  }
-
-  .placeholder-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--color-soft-charcoal);
-    margin-bottom: var(--spacing-sm);
-  }
-
-  .placeholder-text {
-    color: var(--color-soft-charcoal);
-    margin-bottom: var(--spacing-md);
-  }
-
-  .placeholder-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    background: #f3f4f6;
-    border-radius: 8px;
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-size: 0.875rem;
-    color: var(--color-soft-charcoal);
-  }
-
-  .badge-icon {
-    color: var(--color-soft-charcoal);
-  }
 
   .card-title {
     font-family: var(--font-heading);
@@ -2740,6 +2703,10 @@ if (!token) {
     padding: 0.5rem 0.75rem;
     border: 1px solid #d1d5db;
     border-radius: 8px;
+    font-size: 16px; /* Prevent zoom on iOS */
+    min-height: 44px; /* Touch-friendly minimum height */
+    width: 100%;
+    box-sizing: border-box;
   }
 
   :global(.form-input:focus) {
@@ -2801,20 +2768,57 @@ if (!token) {
 
     .curtain-content {
       padding: var(--spacing-md);
+      max-width: 100%; /* Ensure content doesn't overflow on mobile */
     }
 
     .curtain-title {
       font-size: clamp(2rem, 5vw, 2.5rem);
       margin-bottom: var(--spacing-md);
+      word-wrap: break-word; /* Prevent text overflow */
     }
 
     .curtain-subtitle {
       font-size: clamp(1rem, 2.5vw, 1.25rem);
       margin-bottom: var(--spacing-lg);
+      word-wrap: break-word; /* Prevent text overflow */
     }
 
     .scroll-indicator {
       font-size: 0.75rem;
+    }
+
+    /* Ensure form inputs are mobile-friendly */
+    :global(.form-input) {
+      font-size: 16px; /* Prevent zoom on iOS */
+      min-height: 44px; /* Touch-friendly minimum height */
+    }
+
+    /* Improve button spacing on mobile */
+    .action-buttons :global(.btn) {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .approval-actions :global(.btn),
+    .correction-actions :global(.btn) {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    /* Improve PDF viewer on mobile */
+    .spread-viewer {
+      padding: 1rem;
+    }
+
+    .spread-container {
+      max-width: 100%;
+    }
+
+    /* Ensure images are responsive */
+    .page-image,
+    .cover-image {
+      max-width: 100%;
+      height: auto;
     }
   }
 

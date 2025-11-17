@@ -15,6 +15,8 @@ import Button from '../components/Button.astro';
       <!-- Left-side stars near character's head -->
       <img src="/stars1.webp" alt="Stars 1" class="hiw-stars hiw-stars-1" />
       <img src="/stars2.webp" alt="Stars 2" class="hiw-stars hiw-stars-2" />
+      <!-- Mobile fallback static image -->
+      <img src="/how-it-works-hero-mobile.webp" alt="How It Works - Little Hero Labs" class="hiw-mobile" />
       <div class="hiw-hero-content">
         <div class="container">
           <h1 class="hiw-title">How to Create Your Personalized Children's Book</h1>
@@ -24,8 +26,6 @@ import Button from '../components/Button.astro';
           </div>
         </div>
       </div>
-      <!-- Mobile fallback static image -->
-      <img src="/how-it-works-hero-mobile.webp" alt="How It Works - Little Hero Labs" class="hiw-mobile" />
     </div>
   </section>
   
@@ -274,17 +274,53 @@ import Button from '../components/Button.astro';
   .hiw-mobile { display: none; }
 
   @media (max-width: 768px) {
+    /* Clear fixed header on mobile */
+    .hiw-hero {
+      margin-top: 80px; /* Header height + some padding */
+    }
+    
     .hiw-hero-image-container {
       aspect-ratio: auto;
       min-height: auto;
+      position: relative;
     }
-    .hiw-mobile { display: block; width: 100%; height: auto; position: relative; z-index: 1; }
+    
+    .hiw-mobile { 
+      display: block; 
+      width: 100%; 
+      height: auto; 
+      position: relative; 
+      z-index: 1; 
+    }
+    
     .hiw-bg,
     .hiw-propeller,
     .hiw-air,
-    .hiw-stars { display: none; }
-    .hiw-title { font-size: 2rem; }
-    .hiw-hero-content { max-width: 90%; padding: 0 var(--spacing-md); }
+    .hiw-stars { 
+      display: none; 
+    }
+    
+    /* Move hero content below image on mobile instead of overlaying */
+    .hiw-hero-content {
+      position: relative;
+      top: auto;
+      left: auto;
+      transform: none;
+      width: 100%;
+      max-width: 100%;
+      padding: var(--spacing-lg) var(--spacing-md);
+      background: var(--color-off-white);
+      text-align: center;
+      z-index: 2;
+    }
+    
+    .hiw-title { 
+      font-size: 2rem; 
+    }
+    
+    .hiw-subtitle {
+      font-size: 1rem;
+    }
   }
   
   .section-title {
@@ -406,6 +442,7 @@ import Button from '../components/Button.astro';
     .step-item.reverse {
       grid-template-columns: 1fr;
       text-align: center;
+      padding: var(--spacing-md);
     }
     
     .step-item.reverse .step-visual,
@@ -415,6 +452,28 @@ import Button from '../components/Button.astro';
     
     .step-icon-wrapper {
       margin: 0 auto;
+    }
+
+    .step-content h3 {
+      font-size: 1.5rem;
+    }
+
+    .step-content p {
+      font-size: 1rem;
+    }
+
+    .cta-section {
+      padding: var(--spacing-lg);
+    }
+
+    .button-container {
+      margin-top: var(--spacing-md);
+    }
+
+    /* Ensure buttons are full-width on mobile */
+    .button-container :global(.btn) {
+      width: 100%;
+      max-width: 100%;
     }
   }
 </style>

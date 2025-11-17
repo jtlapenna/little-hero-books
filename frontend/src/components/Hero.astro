@@ -503,10 +503,11 @@ const isLayered = bgImage && characterA && characterB;
   }
   
   @media (max-width: 768px) {
-    .hero-content {
-      max-width: 90%;
-      padding: 0 var(--spacing-md);
+    /* Clear fixed header on mobile */
+    .hero {
+      margin-top: 80px; /* Header height + some padding */
     }
+    
     /* On mobile, show static image and hide layered elements */
     .mobile-hero {
       display: block;
@@ -520,6 +521,21 @@ const isLayered = bgImage && characterA && characterB;
     .hero-image-container {
       aspect-ratio: auto;
       min-height: auto;
+    }
+    
+    /* Move hero content below image on mobile instead of overlaying */
+    .hero-content {
+      position: relative;
+      top: auto;
+      left: auto;
+      transform: none;
+      width: 100%;
+      max-width: 100%;
+      padding: var(--spacing-lg) var(--spacing-md);
+      background: var(--color-off-white);
+      text-align: center;
+      pointer-events: auto;
+      z-index: 1;
     }
     
     .hero-title {

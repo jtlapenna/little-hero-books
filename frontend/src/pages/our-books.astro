@@ -27,7 +27,8 @@ import Button from '../components/Button.astro';
         <div class="books-grid">
           <div class="book-card">
             <div class="book-image-placeholder">
-              <img src="/assets/icon_book.png" alt="Book" class="book-icon" />
+              <img src="/emma-inner-voice.png" alt="Emma's Inner Voice Book Cover" class="book-cover-image book-cover-image-left" />
+              <img src="/emmas-inner-voice-insert.png" alt="Emma's Inner Voice Book Insert" class="book-cover-image book-cover-image-right" />
             </div>
             <div class="book-content">
               <h3>[Your Child's] Inner Voice</h3>
@@ -111,6 +112,13 @@ import Button from '../components/Button.astro';
 </Layout>
 
 <style>
+  /* Move hero content up on desktop only for our-books page */
+  @media (min-width: 769px) {
+    :global(.hero-content) {
+      top: 40% !important; /* Move up from 50% to 40% */
+    }
+  }
+
   .content-section {
     max-width: 1000px;
     margin: 0 auto;
@@ -150,17 +158,37 @@ import Button from '../components/Button.astro';
   
   .book-image-placeholder {
     width: 100%;
-    height: 300px;
+    height: 500px; /* Increased height to show the whole book cover */
     background: linear-gradient(135deg, var(--color-soft-teal) 0%, var(--color-sage-green) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+    gap: 0; /* No gap between images on desktop */
   }
   
-  .book-icon {
-    width: 120px;
-    height: auto;
-    opacity: 0.8;
+  .book-cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Show the whole image without cropping */
+    display: block;
+  }
+
+  /* Desktop: Display two images side by side */
+  @media (min-width: 769px) {
+    .book-cover-image {
+      width: 50%; /* Each image takes up half the width */
+    }
+
+    .book-cover-image-left {
+      object-fit: contain;
+      object-position: right center; /* Align to right edge */
+    }
+
+    .book-cover-image-right {
+      object-fit: contain;
+      object-position: left center; /* Align to left edge */
+    }
   }
   
   .book-content {
@@ -300,10 +328,46 @@ import Button from '../components/Button.astro';
   @media (max-width: 768px) {
     .books-grid {
       grid-template-columns: 1fr;
+      gap: var(--spacing-lg);
     }
     
     .features-grid {
       grid-template-columns: 1fr;
+      gap: var(--spacing-lg);
+    }
+
+    /* Remove top/bottom padding on mobile - fill container completely */
+    .book-image-placeholder {
+      padding: 0; /* Remove any padding */
+      flex-direction: column; /* Stack images vertically on mobile if needed */
+    }
+
+    /* Mobile: Show only the first image (hide second image) */
+    .book-cover-image-right {
+      display: none; /* Hide second image on mobile */
+    }
+
+    .book-cover-image-left {
+      width: 100%; /* Full width on mobile */
+      object-fit: cover; /* Fill container completely on mobile */
+    }
+
+    .book-content h3 {
+      font-size: 1.5rem;
+    }
+
+    .book-description {
+      font-size: 0.95rem;
+    }
+
+    .coming-soon-section {
+      padding: var(--spacing-lg);
+    }
+
+    /* Ensure buttons are full-width on mobile */
+    .book-cta :global(.btn) {
+      width: 100%;
+      max-width: 100%;
     }
   }
 </style>
