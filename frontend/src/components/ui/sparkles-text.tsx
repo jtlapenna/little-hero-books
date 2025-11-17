@@ -105,6 +105,7 @@ const SparklesText: React.FC<SparklesTextProps> = ({
 
   // Only render after mounting to avoid SSR issues
   if (!isMounted) {
+    console.log('[SPARKLES] Rendering SSR fallback (no sparkles yet)');
     return (
       <div
         className={cn("text-6xl font-bold", className)}
@@ -124,6 +125,11 @@ const SparklesText: React.FC<SparklesTextProps> = ({
 
   // Filter out any non-standard props that might cause rendering issues
   const { text: _, colors: __, sparklesCount: ___, className: ____, ...safeProps } = props as any;
+  
+  console.log('[SPARKLES] Rendering client-side with sparkles', {
+    sparklesCount: sparkles.length,
+    safePropsKeys: Object.keys(safeProps || {})
+  });
 
   return (
     <div

@@ -18,7 +18,17 @@ const requireEmail =
     ? true
     : import.meta.env.MODE === 'production';
 
+// Debug logging for SSR
+console.log('[SSR] Approve page loading', {
+  token: token ? 'present' : 'missing',
+  requireEmail: typeof requireEmail === 'boolean' ? requireEmail : 'NOT_BOOLEAN',
+  astroSite: Astro.site ? typeof Astro.site : 'undefined',
+  astroSiteHostname: Astro.site?.hostname || 'undefined',
+  mode: import.meta.env.MODE
+});
+
 if (!token) {
+  console.log('[SSR] No token, redirecting');
   return Astro.redirect('/');
 }
 ---

@@ -11,6 +11,15 @@ interface Props {
 
 const { title, description = "Little Hero Labs - Become the hero of your own story", image } = Astro.props;
 
+// Debug logging for SSR
+console.log('[SSR] Layout rendering', {
+  title: typeof title === 'string' ? title : 'NOT_STRING',
+  description: typeof description === 'string' ? description : 'NOT_STRING',
+  image: image ? typeof image : 'undefined',
+  astroGenerator: Astro.generator ? typeof Astro.generator : 'undefined',
+  astroGeneratorString: String(Astro.generator || 'astro')
+});
+
 // Get current URL for canonical and og:url
 const siteUrl = 'https://www.littleherolabs.com';
 const currentPath = Astro.url.pathname;
@@ -86,6 +95,10 @@ const ogImage = image || `${siteUrl}/og-image.jpg`; // Default OG image
     <slot name="head" />
   </head>
   <body>
+    <!-- SSR Debug -->
+    <script is:inline>
+      console.log('[CLIENT] Page loaded in browser');
+    </script>
     <Header />
     <main>
       <slot />
