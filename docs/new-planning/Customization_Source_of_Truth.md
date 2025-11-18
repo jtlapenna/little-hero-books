@@ -16,10 +16,19 @@ Authoritative list of customer-facing personalization fields and allowed values.
   - auburn (#8B3F2C)
   - black (#2B2B2B)
   - red (#C25E2E)
-- **Skin Tone** (canonical IDs inferred from base assets):
+- **Skin Tone** (canonical IDs inferred from base assets; uses image swatches, not hex codes):
   - skin-light, skin-medium, skin-tan, skin-brown-light, skin-brown-deep
+  - Note: Skin tones are handled via image swatches in the workflow rather than hex codes. If hex codes are needed for reference, they should be extracted from the base character images.
 - **Favorite Color** (for clothing accents; renderer map exists):
-  - red, orange, yellow, green, blue, pink, purple, brown, black
+  - red (#C83f3C)
+  - orange (#DB8A2B)
+  - yellow (#E2C351)
+  - green (#76A355)
+  - blue (#4575A5)
+  - pink (#D77A8B)
+  - purple (#6E5A93)
+  - brown (#6B4E38)
+  - black (#212327)
 - **Animal Guide** (confirmed from assets/poses/animals):
   - dog, cat, owl, lion, tiger, penguin, t-rex, unicorn
 

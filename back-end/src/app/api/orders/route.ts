@@ -90,11 +90,14 @@ async function postOrder(request: NextRequest) {
 
     // Normalize Amazon order data to Supabase schema
     // This matches what W0 expects, but stores immediately without waiting for n8n
+    // Allow caller to specify execution_status (default: 'ready_for_processing')
+    // Amazon cron will use 'pending_w0' to prevent router from picking up orders before W0 processes them
+    const requestedStatus = json.execution_status || json.executionStatus;
     const orderData: any = {
       amazon_order_id: amazonOrderId,
-      execution_status: 'ready_for_processing', // Ready for W0 to process
-      next_workflow: '2A', // W0 will process first, then queue for 2A
-      queued_at: new Date().toISOString(),
+      execution_status: requestedStatus || 'ready_for_processing', // Default or caller-specified
+      next_workflow: requestedStatus === 'pending_w0' ? null : (json.next_workflow || json.nextWorkflow || '2A'), // W0 will set to '2A' if pending_w0
+      queued_at: requestedStatus === 'pending_w0' ? null : new Date().toISOString(), // Don't queue if pending W0
       
       // Store raw Amazon order data for reference
       order_status: json.OrderStatus || json.orderStatus || 'Unshipped',

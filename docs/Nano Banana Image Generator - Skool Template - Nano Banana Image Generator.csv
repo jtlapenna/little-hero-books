@@ -1,0 +1,253 @@
+Manual Prompt,Prompt,Prompt (lookup),Aspect Ratio,Google Drive Folder ID,Reference Image_1,Image 1 Preview,Reference Image_2,Image 2 Preview,Reference Image_3,Image 3 Preview,Final Prompt,Output Image,Drive File URL,Drive File ID,Image Preview,API JSON
+create an image of a grungy and emo vibe influencer in her 20s wearing this shirt and holding this can.,Hair Color,Create a version of the hair style using the color hex.  Do not change anything about the image aside from the hair color.,1:1,1PbSZRRDxMyHNkmHozu8KNpwMEajhnhQ0,https://drive.google.com/file/d/1v9uXRDKxXLmFVFiAJy7WJ1DiCR0bYBB1/view?usp=sharing,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=600",,,,"Create a version of the hair style using the color hex.  Do not change anything about the image aside from the hair color. Reference image 1:https://drive.google.com/file/d/1v9uXRDKxXLmFVFiAJy7WJ1DiCR0bYBB1/view?usp=sharing Reference Image 2:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=600 Reference image 3: aspect ratio:1:1",,https://drive.google.com/file/d/1xx9NEwiveuUjt1aful9tXX9unY1hz1xQ/view?usp=drivesdk,1xx9NEwiveuUjt1aful9tXX9unY1hz1xQ,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 1576797,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""nq54g6Ls"",
+  ""imgbbUrl"": ""https://i.ibb.co/rK1q7FwG/gemini-2-5-flash-1756924879716-2.png"",
+  ""displayUrl"": ""https://i.ibb.co/fVPZ1qxY/gemini-2-5-flash-1756924879716-2.png"",
+  ""deleteUrl"": ""https://ibb.co/nq54g6Ls/3cc8928f1afd147d66f42d091034201c"",
+  ""driveFileId"": ""1xx9NEwiveuUjt1aful9tXX9unY1hz1xQ"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1xx9NEwiveuUjt1aful9tXX9unY1hz1xQ/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T18:41:43.017Z""
+}"
+create an image of a grungy and emo vibe influencer in her 20s wearing this shirt and holding this can.,Hair Color,Create a version of the hair style using the color hex.  Do not change anything about the image aside from the hair color.,1:1,1PbSZRRDxMyHNkmHozu8KNpwMEajhnhQ0,https://drive.google.com/file/d/1ez4mY_dq1cXt-S8EB4qvhFuSKYc3Df6g/view?usp=sharing,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=601",,,,"Create a version of the hair style using the color hex.  Do not change anything about the image aside from the hair color. Reference image 1:https://drive.google.com/file/d/1ez4mY_dq1cXt-S8EB4qvhFuSKYc3Df6g/view?usp=sharing Reference Image 2:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=601 Reference image 3: aspect ratio:1:1",https://i.ibb.co/0y0yCTHG/gemini-2-5-flash-1756924879726-3.png,https://drive.google.com/file/d/1S6BVut6Cz4UCGRRnO8SNI9-aaDlgfVkV/view?usp=drivesdk,1S6BVut6Cz4UCGRRnO8SNI9-aaDlgfVkV,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2247039,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""r2B2xYDw"",
+  ""imgbbUrl"": ""https://i.ibb.co/0y0yCTHG/gemini-2-5-flash-1756924879726-3.png"",
+  ""displayUrl"": ""https://i.ibb.co/RTXT3fRD/gemini-2-5-flash-1756924879726-3.png"",
+  ""deleteUrl"": ""https://ibb.co/r2B2xYDw/1376fe56a661a8bb10eff0c6c31aa16f"",
+  ""driveFileId"": ""1S6BVut6Cz4UCGRRnO8SNI9-aaDlgfVkV"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1S6BVut6Cz4UCGRRnO8SNI9-aaDlgfVkV/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T18:41:48.264Z""
+}"
+create an image of a grungy and emo vibe influencer in her 20s wearing this shirt and holding this can.,,,1:1,1PbSZRRDxMyHNkmHozu8KNpwMEajhnhQ0,https://shop.tinybuild.com/cdn/shop/products/all-over-print-mens-crew-neck-t-shirt-white-front-60397d6ddd5a3_1024x1024@2x.jpg?v=1614380407,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=602",,,,"create an image of a grungy and emo vibe influencer in her 20s wearing this shirt and holding this can. Reference image 1:https://shop.tinybuild.com/cdn/shop/products/all-over-print-mens-crew-neck-t-shirt-white-front-60397d6ddd5a3_1024x1024@2x.jpg?v=1614380407 Reference Image 2:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=602 Reference image 3: aspect ratio:1:1",https://i.ibb.co/HDTLPWTm/gemini-2-5-flash-1756924879741-4.png,https://drive.google.com/file/d/1fVtMvwYgaTl6-4MI8Bfg-5386vU1oL8g/view?usp=drivesdk,1fVtMvwYgaTl6-4MI8Bfg-5386vU1oL8g,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2427477,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""nsMq1HMh"",
+  ""imgbbUrl"": ""https://i.ibb.co/HDTLPWTm/gemini-2-5-flash-1756924879741-4.png"",
+  ""displayUrl"": ""https://i.ibb.co/fYdVNhdm/gemini-2-5-flash-1756924879741-4.png"",
+  ""deleteUrl"": ""https://ibb.co/nsMq1HMh/cb7c3efd25180a462f86f93591eb90b9"",
+  ""driveFileId"": ""1fVtMvwYgaTl6-4MI8Bfg-5386vU1oL8g"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1fVtMvwYgaTl6-4MI8Bfg-5386vU1oL8g/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T18:41:55.516Z""
+}"
+create an image of a grungy and emo vibe influencer in her 20s wearing this shirt and holding this can.,,,1:1,1PbSZRRDxMyHNkmHozu8KNpwMEajhnhQ0,https://shop.tinybuild.com/cdn/shop/products/all-over-print-mens-crew-neck-t-shirt-white-front-60397d6ddd5a3_1024x1024@2x.jpg?v=1614380408,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603",,,,"create an image of a grungy and emo vibe influencer in her 20s wearing this shirt and holding this can. Reference image 1:https://shop.tinybuild.com/cdn/shop/products/all-over-print-mens-crew-neck-t-shirt-white-front-60397d6ddd5a3_1024x1024@2x.jpg?v=1614380408 Reference Image 2:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603 Reference image 3: aspect ratio:1:1",https://i.ibb.co/n8g3j9ts/gemini-2-5-flash-1756924879752-5.png,https://drive.google.com/file/d/1fdwBWvRvzDlxT8pzDKoLwgMI5EH7b09W/view?usp=drivesdk,1fdwBWvRvzDlxT8pzDKoLwgMI5EH7b09W,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2095413,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""dJWbDFx0"",
+  ""imgbbUrl"": ""https://i.ibb.co/n8g3j9ts/gemini-2-5-flash-1756924879752-5.png"",
+  ""displayUrl"": ""https://i.ibb.co/R4vhcfdp/gemini-2-5-flash-1756924879752-5.png"",
+  ""deleteUrl"": ""https://ibb.co/dJWbDFx0/96afafb564d7a4805a0fdbff6e4648a7"",
+  ""driveFileId"": ""1fdwBWvRvzDlxT8pzDKoLwgMI5EH7b09W"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1fdwBWvRvzDlxT8pzDKoLwgMI5EH7b09W/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T18:42:00.684Z""
+}"
+create an image of a influencer in her 20s wearing this shirt and holding this can. Also have her wearing the hat.,,,1:1,1PbSZRRDxMyHNkmHozu8KNpwMEajhnhQ0,https://shop.tinybuild.com/cdn/shop/products/all-over-print-mens-crew-neck-t-shirt-white-front-60397d6ddd5a3_1024x1024@2x.jpg?v=1614380408,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603",,https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit,,"create an image of a influencer in her 20s wearing this shirt and holding this can. Also have her wearing the hat. Reference image 1:https://shop.tinybuild.com/cdn/shop/products/all-over-print-mens-crew-neck-t-shirt-white-front-60397d6ddd5a3_1024x1024@2x.jpg?v=1614380408 Reference Image 2:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603 Reference image 3:https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit aspect ratio:1:1",https://i.ibb.co/zh1Rp5ws/gemini-2-5-flash-1756924879760-6.png,https://drive.google.com/file/d/12De5X8trF-j1L2mUFISjwzhr7AmaRsiP/view?usp=drivesdk,12De5X8trF-j1L2mUFISjwzhr7AmaRsiP,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2036169,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""Y76kmWG2"",
+  ""imgbbUrl"": ""https://i.ibb.co/zh1Rp5ws/gemini-2-5-flash-1756924879760-6.png"",
+  ""displayUrl"": ""https://i.ibb.co/nsTc90Sr/gemini-2-5-flash-1756924879760-6.png"",
+  ""deleteUrl"": ""https://ibb.co/Y76kmWG2/5574649fea2c7018e71b8bff7b40fee4"",
+  ""driveFileId"": ""12De5X8trF-j1L2mUFISjwzhr7AmaRsiP"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/12De5X8trF-j1L2mUFISjwzhr7AmaRsiP/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T18:42:05.609Z""
+}"
+create an image of a influencer in her 20s wearing this shirt and holding this can. Also have her wearing the hat.,,,1:1,1PbSZRRDxMyHNkmHozu8KNpwMEajhnhQ0,https://shop.tinybuild.com/cdn/shop/products/all-over-print-mens-crew-neck-t-shirt-white-front-60397d6ddd5a3_1024x1024@2x.jpg?v=1614380408,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603",,https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit,,"create an image of a influencer in her 20s wearing this shirt and holding this can. Also have her wearing the hat. Reference image 1:https://shop.tinybuild.com/cdn/shop/products/all-over-print-mens-crew-neck-t-shirt-white-front-60397d6ddd5a3_1024x1024@2x.jpg?v=1614380408 Reference Image 2:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603 Reference image 3:https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit aspect ratio:1:1",https://i.ibb.co/NgQJRYJJ/gemini-2-5-flash-1756924879774-7.png,https://drive.google.com/file/d/1ywXHIcFpQuvyvEHiKNQojnCKCrJ6ryxl/view?usp=drivesdk,1ywXHIcFpQuvyvEHiKNQojnCKCrJ6ryxl,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2235111,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""fVByJ0yy"",
+  ""imgbbUrl"": ""https://i.ibb.co/NgQJRYJJ/gemini-2-5-flash-1756924879774-7.png"",
+  ""displayUrl"": ""https://i.ibb.co/ZRtF9TFF/gemini-2-5-flash-1756924879774-7.png"",
+  ""deleteUrl"": ""https://ibb.co/fVByJ0yy/027fbece02d707d479cfdedff8614aff"",
+  ""driveFileId"": ""1ywXHIcFpQuvyvEHiKNQojnCKCrJ6ryxl"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1ywXHIcFpQuvyvEHiKNQojnCKCrJ6ryxl/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T18:42:10.731Z""
+}"
+create an image of a influencer in her 20s wearing this shirt and holding this can. Also have her wearing the hat.,,,1:1,1PbSZRRDxMyHNkmHozu8KNpwMEajhnhQ0,https://shop.tinybuild.com/cdn/shop/products/all-over-print-mens-crew-neck-t-shirt-white-front-60397d6ddd5a3_1024x1024@2x.jpg?v=1614380408,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603",,https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit,,"create an image of a influencer in her 20s wearing this shirt and holding this can. Also have her wearing the hat. Reference image 1:https://shop.tinybuild.com/cdn/shop/products/all-over-print-mens-crew-neck-t-shirt-white-front-60397d6ddd5a3_1024x1024@2x.jpg?v=1614380408 Reference Image 2:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603 Reference image 3:https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit aspect ratio:1:1",https://i.ibb.co/GQSstc5s/gemini-2-5-flash-1756924879787-8.png,https://drive.google.com/file/d/1BI3ahnmwd5Lg24MiU1tnwedCnd4OWAI1/view?usp=drivesdk,1BI3ahnmwd5Lg24MiU1tnwedCnd4OWAI1,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 1998831,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""HT8NxnHN"",
+  ""imgbbUrl"": ""https://i.ibb.co/GQSstc5s/gemini-2-5-flash-1756924879787-8.png"",
+  ""displayUrl"": ""https://i.ibb.co/s9Y56yV5/gemini-2-5-flash-1756924879787-8.png"",
+  ""deleteUrl"": ""https://ibb.co/HT8NxnHN/df0596781540fe45f5a86a22b0a635a0"",
+  ""driveFileId"": ""1BI3ahnmwd5Lg24MiU1tnwedCnd4OWAI1"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1BI3ahnmwd5Lg24MiU1tnwedCnd4OWAI1/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T18:42:15.631Z""
+}"
+create an image of a influencer in her 20s wearing a banana costume sitting in the car from image 1 and holding this can. Also have her wearing the hat.,,,1:1,1PbSZRRDxMyHNkmHozu8KNpwMEajhnhQ0,https://di-uploads-pod12.dealerinspire.com/beavertoyotaofcumming/uploads/2019/06/2019-Toyota-RAV4-interior-with-upgraded-seats.jpeg,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603",,https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit,,"create an image of a influencer in her 20s wearing a banana costume sitting in the car from image 1 and holding this can. Also have her wearing the hat. Reference image 1:https://di-uploads-pod12.dealerinspire.com/beavertoyotaofcumming/uploads/2019/06/2019-Toyota-RAV4-interior-with-upgraded-seats.jpeg Reference Image 2:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603 Reference image 3:https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit aspect ratio:1:1",https://i.ibb.co/0pLz4Pn3/gemini-2-5-flash-1756924879806-9.png,https://drive.google.com/file/d/1rYmh8o1vor-d7QG3rTDUiv6PFlgOKbzH/view?usp=drivesdk,1rYmh8o1vor-d7QG3rTDUiv6PFlgOKbzH,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2347653,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""CpySCxwF"",
+  ""imgbbUrl"": ""https://i.ibb.co/0pLz4Pn3/gemini-2-5-flash-1756924879806-9.png"",
+  ""displayUrl"": ""https://i.ibb.co/p6TkVC1p/gemini-2-5-flash-1756924879806-9.png"",
+  ""deleteUrl"": ""https://ibb.co/CpySCxwF/da073165a2c774a08e3faae4ed139d6f"",
+  ""driveFileId"": ""1rYmh8o1vor-d7QG3rTDUiv6PFlgOKbzH"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1rYmh8o1vor-d7QG3rTDUiv6PFlgOKbzH/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T18:42:20.708Z""
+}"
+create an image of a influencer in her 20s wearing a banana costume sitting in the car from image 1 and holding this can. Also have her wearing the hat.,,,1:1,1PbSZRRDxMyHNkmHozu8KNpwMEajhnhQ0,https://di-uploads-pod12.dealerinspire.com/beavertoyotaofcumming/uploads/2019/06/2019-Toyota-RAV4-interior-with-upgraded-seats.jpeg,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603",,https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit,,"create an image of a influencer in her 20s wearing a banana costume sitting in the car from image 1 and holding this can. Also have her wearing the hat. Reference image 1:https://di-uploads-pod12.dealerinspire.com/beavertoyotaofcumming/uploads/2019/06/2019-Toyota-RAV4-interior-with-upgraded-seats.jpeg Reference Image 2:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603 Reference image 3:https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit aspect ratio:1:1",https://i.ibb.co/gZ0rXvkj/gemini-2-5-flash-1756924490911-10.png,https://drive.google.com/file/d/1rYLXa5HI8p4VvRfRhuLzgSaVMxQp-HRU/view?usp=drivesdk,1rYLXa5HI8p4VvRfRhuLzgSaVMxQp-HRU,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2307177,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""Swk61QFs"",
+  ""imgbbUrl"": ""https://i.ibb.co/gZ0rXvkj/gemini-2-5-flash-1756924490911-10.png"",
+  ""displayUrl"": ""https://i.ibb.co/CKjwXJR1/gemini-2-5-flash-1756924490911-10.png"",
+  ""deleteUrl"": ""https://ibb.co/Swk61QFs/46470921e0576ddff9b7b219070af7f6"",
+  ""driveFileId"": ""1rYLXa5HI8p4VvRfRhuLzgSaVMxQp-HRU"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1rYLXa5HI8p4VvRfRhuLzgSaVMxQp-HRU/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T18:35:01.747Z""
+}"
+create an image of a influencer in her 20s wearing a banana costume sitting in the car from image 1 and holding this can. Also have her wearing the hat.,,,1:1,1PbSZRRDxMyHNkmHozu8KNpwMEajhnhQ0,https://di-uploads-pod12.dealerinspire.com/beavertoyotaofcumming/uploads/2019/06/2019-Toyota-RAV4-interior-with-upgraded-seats.jpeg,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603",,https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit,,"create an image of a influencer in her 20s wearing a banana costume sitting in the car from image 1 and holding this can. Also have her wearing the hat. Reference image 1:https://di-uploads-pod12.dealerinspire.com/beavertoyotaofcumming/uploads/2019/06/2019-Toyota-RAV4-interior-with-upgraded-seats.jpeg Reference Image 2:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603 Reference image 3:https://drive.google.com/file/d/1QUHTngrSdf3ISubpcPcByFgh0PlvRRoQ/edit aspect ratio:1:1",https://i.ibb.co/gZ0rXvkj/gemini-2-5-flash-1756924490911-10.png,https://drive.google.com/file/d/1rYLXa5HI8p4VvRfRhuLzgSaVMxQp-HRU/view?usp=drivesdk,1rYLXa5HI8p4VvRfRhuLzgSaVMxQp-HRU,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2307177,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""Swk61QFs"",
+  ""imgbbUrl"": ""https://i.ibb.co/gZ0rXvkj/gemini-2-5-flash-1756924490911-10.png"",
+  ""displayUrl"": ""https://i.ibb.co/CKjwXJR1/gemini-2-5-flash-1756924490911-10.png"",
+  ""deleteUrl"": ""https://ibb.co/Swk61QFs/46470921e0576ddff9b7b219070af7f6"",
+  ""driveFileId"": ""1rYLXa5HI8p4VvRfRhuLzgSaVMxQp-HRU"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1rYLXa5HI8p4VvRfRhuLzgSaVMxQp-HRU/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T18:35:01.747Z""
+}"
+change the first image of the man leaning against the car. Swap the car with the car in the second image. Also have him holding the can in the third image.,,,1:1,1PbSZRRDxMyHNkmHozu8KNpwMEajhnhQ0,https://drive.google.com/file/d/1cLFctZ93oESHge-4zxux5ss0dknW3o5p/view?usp=drive_link,,https://www.longotoyota.com/blogs/4337/wp-content/uploads/2023/01/2023-Toyota-RAV4.jpg,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603",,"change the first image of the man leaning against the car. Swap the car with the car in the second image. Also have him holding the can in the third image. Reference image 1:https://drive.google.com/file/d/1cLFctZ93oESHge-4zxux5ss0dknW3o5p/view?usp=drive_link Reference Image 2:https://www.longotoyota.com/blogs/4337/wp-content/uploads/2023/01/2023-Toyota-RAV4.jpg Reference image 3:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603 aspect ratio:1:1",https://i.ibb.co/rRmZqZk9/gemini-2-5-flash-1756926079040-12.png,https://drive.google.com/file/d/1SrFkTKMMl5qjHw8xbyh45SIqYu9WjkUO/view?usp=drivesdk,1SrFkTKMMl5qjHw8xbyh45SIqYu9WjkUO,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2020365,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""nNbD4Drp"",
+  ""imgbbUrl"": ""https://i.ibb.co/rRmZqZk9/gemini-2-5-flash-1756926079040-12.png"",
+  ""displayUrl"": ""https://i.ibb.co/VctvbvV6/gemini-2-5-flash-1756926079040-12.png"",
+  ""deleteUrl"": ""https://ibb.co/nNbD4Drp/5bd7e79b61c38bc8c7c9b06034a8a743"",
+  ""driveFileId"": ""1SrFkTKMMl5qjHw8xbyh45SIqYu9WjkUO"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1SrFkTKMMl5qjHw8xbyh45SIqYu9WjkUO/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T19:01:31.107Z""
+}"
+change the first image of the man leaning against the car. Swap the car with the car in the second image. Also have him holding the can in the third image.,,,1:1,1idALIJs9LzPGVf3sHyLwu-jHr0CoTMHO,https://drive.google.com/file/d/1cLFctZ93oESHge-4zxux5ss0dknW3o5p/view?usp=drive_link,,https://www.motortrend.com/files/67a2770e2906d20008bad29f/1-2025-tesla-cybertruck-front-view.jpg,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603",,"change the first image of the man leaning against the car. Swap the car with the car in the second image. Also have him holding the can in the third image. Reference image 1:https://drive.google.com/file/d/1cLFctZ93oESHge-4zxux5ss0dknW3o5p/view?usp=drive_link Reference Image 2:https://www.motortrend.com/files/67a2770e2906d20008bad29f/1-2025-tesla-cybertruck-front-view.jpg Reference image 3:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603 aspect ratio:1:1",https://i.ibb.co/fYSGLtV2/gemini-2-5-flash-1756926079045-13.png,https://drive.google.com/file/d/1tbqR1M8yCH_m0jgD6yPIF8M720GKzGMl/view?usp=drivesdk,1tbqR1M8yCH_m0jgD6yPIF8M720GKzGMl,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 1783455,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""ynRB75mX"",
+  ""imgbbUrl"": ""https://i.ibb.co/fYSGLtV2/gemini-2-5-flash-1756926079045-13.png"",
+  ""displayUrl"": ""https://i.ibb.co/QFcjtn7f/gemini-2-5-flash-1756926079045-13.png"",
+  ""deleteUrl"": ""https://ibb.co/ynRB75mX/6936798c5c214a777b3c4eee8a8a0434"",
+  ""driveFileId"": ""1tbqR1M8yCH_m0jgD6yPIF8M720GKzGMl"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1tbqR1M8yCH_m0jgD6yPIF8M720GKzGMl/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T19:01:36.475Z""
+}"
+change the first image of the man leaning against the car. Swap the car with the car in the second image. Also have him holding the can in the third image.,,,1:1,1idALIJs9LzPGVf3sHyLwu-jHr0CoTMHO,https://drive.google.com/file/d/1cLFctZ93oESHge-4zxux5ss0dknW3o5p/view?usp=drive_link,,https://cimg2.ibsrv.net/ibimg/hgm/1626x915-1/100/943/2024-ford-f-150_100943342.jpg,,"https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603",,"change the first image of the man leaning against the car. Swap the car with the car in the second image. Also have him holding the can in the third image. Reference image 1:https://drive.google.com/file/d/1cLFctZ93oESHge-4zxux5ss0dknW3o5p/view?usp=drive_link Reference Image 2:https://cimg2.ibsrv.net/ibimg/hgm/1626x915-1/100/943/2024-ford-f-150_100943342.jpg Reference image 3:https://empirewine.imgix.net/item-hqid/64603.webp?auto=format,compress&fit=max&fill-color=FFFFFF&pad=20&h=600&w=603 aspect ratio:1:1",https://i.ibb.co/twZmbsQN/gemini-2-5-flash-1756926079051-14.png,https://drive.google.com/file/d/1J341RAEi8SdcZT0s_8puyzSBDt5Iv_BG/view?usp=drivesdk,1J341RAEi8SdcZT0s_8puyzSBDt5Iv_BG,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 1998570,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""vCswJPVr"",
+  ""imgbbUrl"": ""https://i.ibb.co/twZmbsQN/gemini-2-5-flash-1756926079051-14.png"",
+  ""displayUrl"": ""https://i.ibb.co/DPGV7Cz6/gemini-2-5-flash-1756926079051-14.png"",
+  ""deleteUrl"": ""https://ibb.co/vCswJPVr/8028a4ade8d2196b1bb7537ae977a2c1"",
+  ""driveFileId"": ""1J341RAEi8SdcZT0s_8puyzSBDt5Iv_BG"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1J341RAEi8SdcZT0s_8puyzSBDt5Iv_BG/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T19:01:42.152Z""
+}"
+"change the first image of the woman standing in front of the car. Swap the car with the car in the second image. Change the branding of the finished image to reflect the new car chosen in image 2. Example: if the car in reference image 2 is a cyber truck, make the branding tesla. Remove all branding from the original image.",,,1:1,1idALIJs9LzPGVf3sHyLwu-jHr0CoTMHO,https://cms.podium.com/wp-content/uploads/2023/03/Screen-Shot-2023-03-17-at-10.45.41-AM.png,,https://www.motortrend.com/files/67a2770e2906d20008bad29f/1-2025-tesla-cybertruck-front-view.jpg,,,,"change the first image of the woman standing in front of the car. Swap the car with the car in the second image. Change the branding of the finished image to reflect the new car chosen in image 2. Example: if the car in reference image 2 is a cyber truck, make the branding tesla. Remove all branding from the original image. Reference image 1:https://cms.podium.com/wp-content/uploads/2023/03/Screen-Shot-2023-03-17-at-10.45.41-AM.png Reference Image 2:https://www.motortrend.com/files/67a2770e2906d20008bad29f/1-2025-tesla-cybertruck-front-view.jpg Reference image 3: aspect ratio:1:1",https://i.ibb.co/TBQDSt3D/gemini-2-5-flash-1756933842146-15.png,https://drive.google.com/file/d/1PW_y2YjxDHy_xt7S-BVRVpus84sTI5RV/view?usp=drivesdk,1PW_y2YjxDHy_xt7S-BVRVpus84sTI5RV,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2202285,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""ccWKHQnK"",
+  ""imgbbUrl"": ""https://i.ibb.co/TBQDSt3D/gemini-2-5-flash-1756933842146-15.png"",
+  ""displayUrl"": ""https://i.ibb.co/3yx5qcZ5/gemini-2-5-flash-1756933842146-15.png"",
+  ""deleteUrl"": ""https://ibb.co/ccWKHQnK/59ad9cca8e1869d98478a50ac3e53313"",
+  ""driveFileId"": ""1PW_y2YjxDHy_xt7S-BVRVpus84sTI5RV"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1PW_y2YjxDHy_xt7S-BVRVpus84sTI5RV/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T21:10:54.380Z""
+}"
+"change the first image of the woman standing in front of the car. Swap the car with the car in the second image. Change the branding of the finished image to reflect the new car chosen in image 2. Example: if the car in reference image 2 is a cyber truck, make the branding tesla. Remove all branding from the original image.",,,1:1,1idALIJs9LzPGVf3sHyLwu-jHr0CoTMHO,https://cms.podium.com/wp-content/uploads/2023/03/Screen-Shot-2023-03-17-at-10.45.41-AM.png,,https://www.longotoyota.com/blogs/4337/wp-content/uploads/2023/01/2023-Toyota-RAV4.jpg,,,,"change the first image of the woman standing in front of the car. Swap the car with the car in the second image. Change the branding of the finished image to reflect the new car chosen in image 2. Example: if the car in reference image 2 is a cyber truck, make the branding tesla. Remove all branding from the original image. Reference image 1:https://cms.podium.com/wp-content/uploads/2023/03/Screen-Shot-2023-03-17-at-10.45.41-AM.png Reference Image 2:https://www.longotoyota.com/blogs/4337/wp-content/uploads/2023/01/2023-Toyota-RAV4.jpg Reference image 3: aspect ratio:1:1",https://i.ibb.co/DH3gwZmz/gemini-2-5-flash-1756933842151-16.png,https://drive.google.com/file/d/10OLjenI-0Xve17cv2qGzrp-SW7cocc5Y/view?usp=drivesdk,10OLjenI-0Xve17cv2qGzrp-SW7cocc5Y,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 1998714,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""hJp12SrL"",
+  ""imgbbUrl"": ""https://i.ibb.co/DH3gwZmz/gemini-2-5-flash-1756933842151-16.png"",
+  ""displayUrl"": ""https://i.ibb.co/PvBz1dJF/gemini-2-5-flash-1756933842151-16.png"",
+  ""deleteUrl"": ""https://ibb.co/hJp12SrL/4594a90688e366273ac32ed464244437"",
+  ""driveFileId"": ""10OLjenI-0Xve17cv2qGzrp-SW7cocc5Y"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/10OLjenI-0Xve17cv2qGzrp-SW7cocc5Y/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T21:10:59.017Z""
+}"
+"change the first image of the woman standing in front of the car. Swap the car with the car in the second image. Change the branding of the finished image to reflect the new car chosen in image 2. Example: if the car in reference image 2 is a cyber truck, make the branding tesla. Remove all branding from the original image.",,,1:1,1idALIJs9LzPGVf3sHyLwu-jHr0CoTMHO,https://cms.podium.com/wp-content/uploads/2023/03/Screen-Shot-2023-03-17-at-10.45.41-AM.png,,https://cimg2.ibsrv.net/ibimg/hgm/1626x915-1/100/943/2024-ford-f-150_100943342.jpg,,,,"change the first image of the woman standing in front of the car. Swap the car with the car in the second image. Change the branding of the finished image to reflect the new car chosen in image 2. Example: if the car in reference image 2 is a cyber truck, make the branding tesla. Remove all branding from the original image. Reference image 1:https://cms.podium.com/wp-content/uploads/2023/03/Screen-Shot-2023-03-17-at-10.45.41-AM.png Reference Image 2:https://cimg2.ibsrv.net/ibimg/hgm/1626x915-1/100/943/2024-ford-f-150_100943342.jpg Reference image 3: aspect ratio:1:1",https://i.ibb.co/C5NxDH54/gemini-2-5-flash-1756933842157-17.png,https://drive.google.com/file/d/1N8162itcK8uLeKZyzD3lCoC_vhL1Y1iH/view?usp=drivesdk,1N8162itcK8uLeKZyzD3lCoC_vhL1Y1iH,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2203455,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""Y7YvwL7J"",
+  ""imgbbUrl"": ""https://i.ibb.co/C5NxDH54/gemini-2-5-flash-1756933842157-17.png"",
+  ""displayUrl"": ""https://i.ibb.co/4Z9B3VZC/gemini-2-5-flash-1756933842157-17.png"",
+  ""deleteUrl"": ""https://ibb.co/Y7YvwL7J/e01f9e09ba89a064f3f8a0a50d45d9e2"",
+  ""driveFileId"": ""1N8162itcK8uLeKZyzD3lCoC_vhL1Y1iH"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1N8162itcK8uLeKZyzD3lCoC_vhL1Y1iH/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T21:11:03.769Z""
+}"
+"change the first image of the woman standing in front of the car. Swap the car with the car in the second image. Change the branding of the finished image to reflect the new car chosen in image 2. Example: if the car in reference image 2 is a cyber truck, make the branding tesla. Remove all branding from the original image.",,,1:1,1idALIJs9LzPGVf3sHyLwu-jHr0CoTMHO,https://cms.podium.com/wp-content/uploads/2023/03/Screen-Shot-2023-03-17-at-10.45.41-AM.png,,"https://cache.bmwusa.com/cosy.arox?pov=walkaround&brand=WBBM&vehicle=25XR&client=byo&paint=P0300&fabric=FKHSW&sa=S01X8,S0225,S02TB,S0302,S0319,S03AG,S0402,S0420,S0423,S0430,S0459,S0481,S0493,S0494,S04K1,S04U0,S04UR,S0534,S0552,S05AC,S05AS,S05AV,S0676,S06AC,S06AK,S06C4,S06U3,S0775&quality=70&bkgnd=transparent&resp=png&angle=60&w=10000&h=10000&x=0&y=0",,,,"change the first image of the woman standing in front of the car. Swap the car with the car in the second image. Change the branding of the finished image to reflect the new car chosen in image 2. Example: if the car in reference image 2 is a cyber truck, make the branding tesla. Remove all branding from the original image. Reference image 1:https://cms.podium.com/wp-content/uploads/2023/03/Screen-Shot-2023-03-17-at-10.45.41-AM.png Reference Image 2:https://cache.bmwusa.com/cosy.arox?pov=walkaround&brand=WBBM&vehicle=25XR&client=byo&paint=P0300&fabric=FKHSW&sa=S01X8,S0225,S02TB,S0302,S0319,S03AG,S0402,S0420,S0423,S0430,S0459,S0481,S0493,S0494,S04K1,S04U0,S04UR,S0534,S0552,S05AC,S05AS,S05AV,S0676,S06AC,S06AK,S06C4,S06U3,S0775&quality=70&bkgnd=transparent&resp=png&angle=60&w=10000&h=10000&x=0&y=0 Reference image 3: aspect ratio:1:1",https://i.ibb.co/hJn9B2nP/gemini-2-5-flash-1756933842164-18.png,https://drive.google.com/file/d/1hkQt_SlC_RkY_2C0nBQdn_5DKaNd5ZtI/view?usp=drivesdk,1hkQt_SlC_RkY_2C0nBQdn_5DKaNd5ZtI,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2203155,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""q34jNm4t"",
+  ""imgbbUrl"": ""https://i.ibb.co/hJn9B2nP/gemini-2-5-flash-1756933842164-18.png"",
+  ""displayUrl"": ""https://i.ibb.co/dw3MPk3d/gemini-2-5-flash-1756933842164-18.png"",
+  ""deleteUrl"": ""https://ibb.co/q34jNm4t/99ac233968811f70d37da5fcf49f4d51"",
+  ""driveFileId"": ""1hkQt_SlC_RkY_2C0nBQdn_5DKaNd5ZtI"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1hkQt_SlC_RkY_2C0nBQdn_5DKaNd5ZtI/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T21:11:08.435Z""
+}"
+"change the first image of the woman standing in front of the car. Swap the car with the car in the second image. Change the branding of the finished image to reflect the new car chosen in image 2. Example: if the car in reference image 2 is a cyber truck, make the branding tesla. Remove all branding from the original image.",,,1:1,1idALIJs9LzPGVf3sHyLwu-jHr0CoTMHO,https://cms.podium.com/wp-content/uploads/2023/03/Screen-Shot-2023-03-17-at-10.45.41-AM.png,,https://vehicle-images.dealerinspire.com/371b-110012062/W1KRJ7JB8SF004347/ba0b4f6d356b00ea51bd487b8627d3ea.jpg,,,,"change the first image of the woman standing in front of the car. Swap the car with the car in the second image. Change the branding of the finished image to reflect the new car chosen in image 2. Example: if the car in reference image 2 is a cyber truck, make the branding tesla. Remove all branding from the original image. Reference image 1:https://cms.podium.com/wp-content/uploads/2023/03/Screen-Shot-2023-03-17-at-10.45.41-AM.png Reference Image 2:https://vehicle-images.dealerinspire.com/371b-110012062/W1KRJ7JB8SF004347/ba0b4f6d356b00ea51bd487b8627d3ea.jpg Reference image 3: aspect ratio:1:1",https://i.ibb.co/qFJsgvXq/gemini-2-5-flash-1756933842172-19.png,https://drive.google.com/file/d/1hiF6RK3JssWrcXeK2naHuNhSR1Igq6De/view?usp=drivesdk,1hiF6RK3JssWrcXeK2naHuNhSR1Igq6De,,"{
+  ""model"": ""gemini-2.5-flash-image-preview"",
+  ""success"": true,
+  ""attempts"": 1,
+  ""imageSize"": 2137437,
+  ""storage"": ""ImgBB"",
+  ""imgbbId"": ""HphzPj1w"",
+  ""imgbbUrl"": ""https://i.ibb.co/qFJsgvXq/gemini-2-5-flash-1756933842172-19.png"",
+  ""displayUrl"": ""https://i.ibb.co/NnTjNMQD/gemini-2-5-flash-1756933842172-19.png"",
+  ""deleteUrl"": ""https://ibb.co/HphzPj1w/7cc153d916198716bf01b0ffabaee330"",
+  ""driveFileId"": ""1hiF6RK3JssWrcXeK2naHuNhSR1Igq6De"",
+  ""driveFileUrl"": ""https://drive.google.com/file/d/1hiF6RK3JssWrcXeK2naHuNhSR1Igq6De/view?usp=drivesdk"",
+  ""timestamp"": ""2025-09-03T21:11:12.928Z""
+}"
