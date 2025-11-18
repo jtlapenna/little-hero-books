@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
       // For now, the retry happens automatically when the cron runs again and finds them in Supabase
     }
     
-    metrics.ordersFetchMs = Date.now() - ordersFetchStart;
+    // metrics.ordersFetchMs is already set in the if/else block above
 
     if (!amazonOrders || amazonOrders.length === 0) {
       metrics.totalMs = Date.now() - startTime;
@@ -209,6 +209,9 @@ export async function GET(request: NextRequest) {
           console.log(`[Cron Amazon Orders] [${executionId}] TEST MODE: Using mock order items for ${amazonOrder.AmazonOrderId}`);
         } else {
           // PRODUCTION MODE: Fetch order items from Amazon API
+          if (!accessToken) {
+            throw new Error('Access token not available for fetching order items');
+          }
           orderItems = await fetchOrderItems(accessToken, amazonOrder.AmazonOrderId);
         }
         
