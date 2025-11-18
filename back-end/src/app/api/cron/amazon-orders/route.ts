@@ -260,6 +260,7 @@ export async function GET(request: NextRequest) {
         const orderData = await normalizeAmazonOrder(amazonOrder, orderItems, customization);
         
         // Extract only Supabase-compatible fields (snake_case columns)
+        // Note: book_specs column doesn't exist in schema - bookSpecs is sent to W0 webhook only
         const supabaseOrderData = {
           amazon_order_id: orderData.amazon_order_id,
           order_status: orderData.status || 'Unshipped',
@@ -269,7 +270,6 @@ export async function GET(request: NextRequest) {
           customer_name: orderData.buyer?.name || orderData.shippingAddress?.name,
           shipping_address: orderData.shippingAddress,
           character_specs: orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs,
-          book_specs: orderData.bookSpecs,
           dedication_text: orderData.dedication || orderData.Dedication,
           product_info: orderData.items || orderData.lineItems || orderItems,
           status: 'pending_w0',
@@ -585,6 +585,13 @@ async function fetchOrderItems(accessToken: string, orderId: string): Promise<an
     const orderItems = data.payload?.OrderItems || [];
 
     console.log(`[Cron Amazon Orders] Fetched ${orderItems.length} items for order ${orderId}`);
+    
+    // Log raw structure for verification (when debug mode enabled)
+    // This helps verify the real Amazon API structure matches our expectations
+    if (process.env.AMAZON_DEBUG_STRUCTURE === 'true' && orderItems.length > 0) {
+      console.log(`[Cron Amazon Orders] 🔍 DEBUG: Raw order items response structure:`, JSON.stringify(orderItems[0], null, 2));
+    }
+    
     return orderItems;
   } catch (error: any) {
     console.error(`[Cron Amazon Orders] Error fetching items for order ${orderId}:`, error.message);
@@ -595,14 +602,44 @@ async function fetchOrderItems(accessToken: string, orderId: string): Promise<an
 
 /**
  * Parse customization data from order items
+ * 
+ * EXPECTED AMAZON CUSTOM STRUCTURE:
+ * OrderItems[0].BuyerCustomizedInfo.CustomizedInfo = {
+ *   "Child's Name": "Alex",
+ *   "Child's Age": "5",
+ *   "Skin Tone": "skin-medium",
+ *   "Hair Color": "brown-light",
+ *   "Hair Style": "curly-crop",
+ *   "Pronouns": "they/them",
+ *   "Favorite Color": "blue",
+ *   "Animal Guide": "dog",
+ *   "Clothing Style": "tee-shorts",
+ *   "Hometown": "San Francisco",
+ *   "Dedication Message": "To my amazing child..."
+ * }
+ * 
+ * NOTE: We log the actual structure when it differs from expected to help verify mapping
  */
 function parseCustomizationFromItems(orderItems: any[]): Record<string, any> {
   if (!orderItems || orderItems.length === 0) {
     return {};
   }
 
-  // Try multiple locations for customization data (Amazon API structure can vary)
   const firstItem = orderItems[0];
+  
+  // Log the actual structure for verification (first time we see it)
+  // This helps us verify the real Amazon API structure matches our expectations
+  if (process.env.AMAZON_DEBUG_STRUCTURE === 'true') {
+    console.log('[Cron Amazon Orders] 🔍 DEBUG: Full order item structure:', JSON.stringify(firstItem, null, 2));
+    console.log('[Cron Amazon Orders] 🔍 DEBUG: Available paths:', {
+      'BuyerCustomizedInfo?.CustomizedInfo': !!firstItem?.BuyerCustomizedInfo?.CustomizedInfo,
+      'CustomizedInfo': !!firstItem?.CustomizedInfo,
+      'BuyerInfo?.BuyerCustomizedInfo': !!firstItem?.BuyerInfo?.BuyerCustomizedInfo,
+      'CustomizationInfo': !!firstItem?.CustomizationInfo,
+    });
+  }
+
+  // Try multiple locations for customization data (Amazon API structure can vary)
   const customization =
     firstItem?.BuyerCustomizedInfo?.CustomizedInfo ||
     firstItem?.CustomizedInfo ||
@@ -611,9 +648,29 @@ function parseCustomizationFromItems(orderItems: any[]): Record<string, any> {
     {};
 
   if (Object.keys(customization).length > 0) {
-    console.log(`[Cron Amazon Orders] Found customization fields: ${Object.keys(customization).join(', ')}`);
+    const fields = Object.keys(customization);
+    console.log(`[Cron Amazon Orders] ✅ Found customization fields (${fields.length}): ${fields.join(', ')}`);
+    
+    // Log unexpected field names to help identify mapping issues
+    const expectedFields = [
+      "Child's Name", "Child's Age", "Skin Tone", "Hair Color", "Hair Style",
+      "Pronouns", "Favorite Color", "Animal Guide", "Clothing Style", 
+      "Hometown", "Dedication Message"
+    ];
+    const unexpectedFields = fields.filter(f => !expectedFields.some(ef => 
+      ef.toLowerCase().replace(/\s+/g, '') === f.toLowerCase().replace(/\s+/g, '')
+    ));
+    if (unexpectedFields.length > 0) {
+      console.warn(`[Cron Amazon Orders] ⚠️  Unexpected customization fields (may need mapping): ${unexpectedFields.join(', ')}`);
+    }
   } else {
-    console.warn(`[Cron Amazon Orders] No customization data found in order items`);
+    console.warn(`[Cron Amazon Orders] ⚠️  No customization data found in order items`);
+    console.warn(`[Cron Amazon Orders] ⚠️  Item structure keys: ${Object.keys(firstItem || {}).join(', ')}`);
+    
+    // Log the structure if we can't find customization (helps debug)
+    if (process.env.AMAZON_DEBUG_STRUCTURE === 'true') {
+      console.warn('[Cron Amazon Orders] 🔍 DEBUG: First item structure:', JSON.stringify(firstItem, null, 2));
+    }
   }
 
   return customization;
@@ -701,6 +758,9 @@ async function normalizeAmazonOrder(
     characterSpecs: characterSpecs,
     character_specs: characterSpecs, // Supabase column name (snake_case)
     CharacterSpecs: characterSpecs, // Support both camelCase and PascalCase for W0
+    // bookSpecs: Generated internally (not from Amazon)
+    // Note: This is optional - most workflows have fallbacks
+    // Format/size is hardcoded for MVP (8.5x8.5 softcover, 16 pages)
     bookSpecs: {
       title: `${characterSpecs.childName} and the Adventure Compass`,
       totalPages: 16,
