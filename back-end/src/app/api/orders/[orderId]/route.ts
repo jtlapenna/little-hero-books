@@ -117,6 +117,21 @@ async function getOrder(
   if (supabaseOrder) {
     order = mergeOrderData(supabaseOrder, manifestOrder);
     console.log(`[GET /api/orders/[orderId]] Merged reviewStages:`, JSON.stringify(order.reviewStages, null, 2));
+    
+    // Verify manifest URLs actually point to existing files
+    // If Supabase has a URL but the file doesn't exist in R2, clear the URL
+    if (order.manifest2aUrl && !manifest2a) {
+      console.log(`[GET /api/orders/[orderId]] ⚠️ Supabase has manifest_2a_url but file doesn't exist in R2, clearing URL`);
+      order.manifest2aUrl = undefined;
+    }
+    if (order.manifest2bUrl && !manifest2b) {
+      console.log(`[GET /api/orders/[orderId]] ⚠️ Supabase has manifest_2b_url but file doesn't exist in R2, clearing URL`);
+      order.manifest2bUrl = undefined;
+    }
+    if (order.manifest3Url && !manifest3) {
+      console.log(`[GET /api/orders/[orderId]] ⚠️ Supabase has manifest_3_url but file doesn't exist in R2, clearing URL`);
+      order.manifest3Url = undefined;
+    }
   } else if (manifestOrder) {
     order = manifestOrder;
   } else {
