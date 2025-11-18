@@ -38,9 +38,23 @@ const amazonSandboxMode = process.env.AMAZON_SANDBOX_MODE === 'true';
  */
 export async function GET(request: NextRequest) {
   // Verify cron secret (security)
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    console.error('[Cron Amazon Orders] Unauthorized - missing or invalid CRON_SECRET');
+  const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
+  
+  // Debug logging (in production, this helps diagnose auth issues)
+  if (!cronSecret) {
+    console.error('[Cron Amazon Orders] CRON_SECRET environment variable is not set');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+  
+  const expectedAuth = `Bearer ${cronSecret}`;
+  if (!authHeader || authHeader.trim() !== expectedAuth.trim()) {
+    console.error('[Cron Amazon Orders] Unauthorized', {
+      hasHeader: !!authHeader,
+      headerLength: authHeader?.length || 0,
+      expectedLength: expectedAuth.length,
+      cronSecretSet: !!cronSecret,
+      cronSecretLength: cronSecret?.length || 0
+    });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
