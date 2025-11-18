@@ -339,6 +339,68 @@ export async function GET(request: NextRequest) {
 }
 
 /**
+ * Generate mock Amazon order data for testing
+ * Returns orders in the same format as Amazon SP-API Orders API
+ */
+function getMockAmazonOrders(): any[] {
+  const now = new Date();
+  const orderId = `TEST-${now.getTime()}`;
+  
+  return [{
+    AmazonOrderId: orderId,
+    PurchaseDate: now.toISOString(),
+    OrderStatus: 'Unshipped',
+    MarketplaceId: amazonMarketplaceId || 'ATVPDKIKX0DER',
+    BuyerInfo: {
+      BuyerEmail: 'test@example.com',
+      BuyerName: 'Test Customer'
+    },
+    ShippingAddress: {
+      Name: 'Test Customer',
+      AddressLine1: '123 Test Street',
+      City: 'San Francisco',
+      StateOrRegion: 'CA',
+      PostalCode: '94102',
+      CountryCode: 'US',
+      Phone: '555-123-4567'
+    },
+    NumberOfItemsShipped: 1,
+    NumberOfItemsUnshipped: 1,
+    OrderTotal: {
+      CurrencyCode: 'USD',
+      Amount: '24.99'
+    },
+    // Mock order items with customization data (Amazon Custom format)
+    OrderItems: [{
+      OrderItemId: `${orderId}-ITEM-001`,
+      SellerSKU: 'LHB-8X10-SOFTCOVER',
+      Title: 'Little Hero Book - Custom Personalized',
+      QuantityOrdered: 1,
+      ItemPrice: {
+        CurrencyCode: 'USD',
+        Amount: '24.99'
+      },
+      // Amazon Custom customization fields
+      BuyerCustomizedInfo: {
+        CustomizedInfo: {
+          "Child's Name": "Alex",
+          "Child's Age": "5",
+          "Skin Tone": "skin-medium",
+          "Hair Color": "brown",
+          "Hair Style": "short/straight",
+          "Pronouns": "they/them",
+          "Favorite Color": "blue",
+          "Animal Guide": "dog",
+          "Clothing Style": "tee-shorts",
+          "Hometown": "San Francisco",
+          "Dedication Message": "To my amazing child, Alex! Love, Mom and Dad"
+        }
+      }
+    }]
+  }];
+}
+
+/**
  * Get Amazon SP-API access token using refresh token
  */
 async function getAmazonAccessToken(): Promise<string | null> {
