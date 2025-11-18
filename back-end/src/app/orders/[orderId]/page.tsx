@@ -907,7 +907,14 @@ export default function OrderDetailPage() {
         )}
 
         {/* Recovery Actions Section */}
-        {order && (lifecycleStatus.errors && lifecycleStatus.errors.length > 0 || !order.oneManifestUrl || order.executionStatus === 'error' || order.executionStatus === 'error_requires_manual_review') && (
+        {order && (
+          // Show section if there are errors, missing manifests, OR if we can create manifests from shared images
+          (lifecycleStatus.errors && lifecycleStatus.errors.length > 0 || 
+           !order.oneManifestUrl || 
+           order.executionStatus === 'error' || 
+           order.executionStatus === 'error_requires_manual_review' ||
+           // Show if we can create 2A or 2B manifests (images exist but manifests don't)
+           (order.oneManifestUrl && order.characterHash && (!order.manifest2aUrl || !order.manifest2bUrl))) && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
             <h3 className="text-sm font-semibold text-yellow-900 mb-3">Recovery Actions</h3>
             <div className="flex flex-wrap gap-2">
@@ -925,18 +932,23 @@ export default function OrderDetailPage() {
                     </>
                   ) : (
                     <>
-                      Create Manifest
+                      Create 1-Manifest
                     </>
                   )}
                 </button>
               )}
-              {order.oneManifestUrl && !order.manifest2aUrl && order.characterHash && (
+              {/* Show 2A button if: has 1-manifest, has characterHash (images exist), no 2A manifest, and 2A images exist */}
+              {order.oneManifestUrl && 
+               !order.manifest2aUrl && 
+               order.characterHash && 
+               order.r2Assets?.poses && 
+               order.r2Assets.poses.length > 0 && (
                 <button
                   type="button"
                   onClick={handleCreate2aManifest}
                   disabled={creating2aManifest}
                   className="inline-flex items-center px-3 py-1.5 border border-blue-300 rounded-md text-sm font-medium text-blue-800 bg-white hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                  title="Create 2A manifest by reusing images from another order with the same character"
+                  title="Create 2A manifest by reusing images from another order with the same character. This will use the generated poses from the source order but keep this order's customer information and dedication from the 1-manifest."
                 >
                   {creating2aManifest ? (
                     <>
@@ -950,13 +962,18 @@ export default function OrderDetailPage() {
                   )}
                 </button>
               )}
-              {order.manifest2aUrl && !order.manifest2bUrl && order.characterHash && (
+              {/* Show 2B button if: has 2A manifest (or 1-manifest if 2A images exist), has characterHash, no 2B manifest, and 2B images exist */}
+              {(order.manifest2aUrl || (order.oneManifestUrl && order.r2Assets?.poses && order.r2Assets.poses.length > 0)) && 
+               !order.manifest2bUrl && 
+               order.characterHash && 
+               order.r2Assets?.posesBgRemoved && 
+               order.r2Assets.posesBgRemoved.length > 0 && (
                 <button
                   type="button"
                   onClick={handleCreate2bManifest}
                   disabled={creating2bManifest}
                   className="inline-flex items-center px-3 py-1.5 border border-blue-300 rounded-md text-sm font-medium text-blue-800 bg-white hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                  title="Create 2B manifest by reusing images from another order with the same character"
+                  title="Create 2B manifest by reusing images from another order with the same character. This will allow the order to proceed to workflow 3 without regenerating background-removed images."
                 >
                   {creating2bManifest ? (
                     <>

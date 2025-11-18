@@ -135,15 +135,15 @@ export async function POST(
 
     console.log(`[Create 2B Manifest] Source order: ${sourceOrderId}, manifest key: ${sourceManifestKey}`);
 
-    // Download source order's 2B manifest
+    // Download source order's 2B manifest (for image references)
     let sourceManifest: any;
     try {
       sourceManifest = await downloadManifest(sourceManifestKey);
-      console.log(`[Create 2B Manifest] Downloaded source manifest with ${sourceManifest?.entries?.length || 0} entries`);
+      console.log(`[Create 2B Manifest] Downloaded source 2B manifest with ${sourceManifest?.entries?.length || 0} entries`);
     } catch (error: any) {
       return NextResponse.json(
         { 
-          error: 'Failed to download source manifest',
+          error: 'Failed to download source 2B manifest',
           details: error?.message || 'Manifest not found in R2'
         },
         { status: 404 }
@@ -158,7 +158,24 @@ export async function POST(
       );
     }
 
+    // Download new order's 1-manifest (for order-specific information) - prefer this over Supabase
+    let oneManifest: any = null;
+    if (newOrder.one_manifest_url) {
+      try {
+        let oneManifestKey = newOrder.one_manifest_url;
+        if (oneManifestKey.includes('/api/manifests/')) {
+          oneManifestKey = oneManifestKey.split('/api/manifests/')[1];
+        }
+        oneManifest = await downloadManifest(oneManifestKey);
+        console.log(`[Create 2B Manifest] Downloaded 1-manifest for order-specific information`);
+      } catch (error: any) {
+        console.warn(`[Create 2B Manifest] Failed to download 1-manifest, will use Supabase data:`, error?.message);
+        // Continue without 1-manifest, will use Supabase data as fallback
+      }
+    }
+
     // Build new manifest by copying image references but updating order-specific fields
+    // Use 1-manifest for order info (most accurate), fallback to Supabase, then source manifest
     const newManifest = {
       ...sourceManifest,
       schema: sourceManifest.schema || 'lhb.run-manifest@v2.0',
@@ -166,24 +183,24 @@ export async function POST(
       characterHash: newOrder.character_hash,
       order: {
         ...sourceManifest.order,
-        // Update order-specific fields
+        // Override with order-specific information from 1-manifest (preferred) or Supabase
         amazonOrderId: newOrderId,
-        purchaseDate: newOrder.purchase_date || newOrder.created_at || sourceManifest.order?.purchaseDate || null,
+        purchaseDate: newOrder.purchase_date || newOrder.created_at || oneManifest?.order?.purchaseDate || sourceManifest.order?.purchaseDate || null,
         buyer: {
-          email: newOrder.customer_email || sourceManifest.order?.buyer?.email || null,
-          name: newOrder.customer_name || sourceManifest.order?.buyer?.name || null
+          email: newOrder.customer_email || oneManifest?.order?.buyer?.email || sourceManifest.order?.buyer?.email || null,
+          name: newOrder.customer_name || oneManifest?.order?.buyer?.name || sourceManifest.order?.buyer?.name || null
         },
         dedication: newOrder.dedication_text ? {
           raw: newOrder.dedication_text,
           text: newOrder.dedication_text,
           htmlSafe: newOrder.dedication_text
-        } : (sourceManifest.order?.dedication || null),
-        characterSpecs: newOrder.character_specs || sourceManifest.order?.characterSpecs || {},
-        bookSpecs: newOrder.product_info?.bookSpecs || sourceManifest.order?.bookSpecs || {},
+        } : (oneManifest?.order?.dedication || sourceManifest.order?.dedication || null),
+        characterSpecs: newOrder.character_specs || oneManifest?.order?.characterSpecs || sourceManifest.order?.characterSpecs || {},
+        bookSpecs: newOrder.product_info?.bookSpecs || oneManifest?.order?.bookSpecs || sourceManifest.order?.bookSpecs || {},
         orderDetails: {
           ...sourceManifest.order?.orderDetails,
-          quantity: newOrder.product_info?.quantity || sourceManifest.order?.orderDetails?.quantity || 1,
-          shippingAddress: newOrder.shipping_address || newOrder.product_info?.shippingAddress || sourceManifest.order?.orderDetails?.shippingAddress || {}
+          quantity: newOrder.product_info?.quantity || oneManifest?.order?.orderDetails?.quantity || sourceManifest.order?.orderDetails?.quantity || 1,
+          shippingAddress: newOrder.shipping_address || newOrder.product_info?.shippingAddress || oneManifest?.order?.orderDetails?.shippingAddress || sourceManifest.order?.orderDetails?.shippingAddress || {}
         }
       },
       // Copy entries with image references (bgRemovedKey, bgRemovedImageUrl, etc.)
