@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createHash } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 // Note: Cron jobs require Node.js runtime, not Edge
@@ -226,11 +227,21 @@ export async function GET(request: NextRequest) {
           
           // Store order in Supabase with a flag indicating it needs retry
           // This prevents it from being processed with defaults
+          // CRITICAL: Trim order IDs to prevent trailing space issues
+          const rawRetryOrderId = amazonOrder.AmazonOrderId;
+          const retryOrderIdValue = String(rawRetryOrderId || '').trim();
+          
+          if (!retryOrderIdValue || retryOrderIdValue.length === 0) {
+            console.error(`[Cron Amazon Orders] [${executionId}] Invalid order ID for retry: ${rawRetryOrderId}`);
+            errors.push({ orderId: rawRetryOrderId, error: 'Invalid order ID: cannot be empty after trimming' });
+            continue;
+          }
+          
           const { error: storeError } = await supabase
             .from('orders')
             .upsert({
-              orderId: amazonOrder.AmazonOrderId, // Some environments still require this column
-              amazon_order_id: amazonOrder.AmazonOrderId,
+              orderId: retryOrderIdValue, // Trimmed
+              amazon_order_id: retryOrderIdValue, // Trimmed
               execution_status: 'pending_w0',
               next_workflow: null,
               status: 'new',
@@ -263,10 +274,23 @@ export async function GET(request: NextRequest) {
         // Extract only Supabase-compatible fields
         // Note: Schema uses orderId (camelCase) as PRIMARY KEY, amazon_order_id as separate field
         // Note: book_specs column doesn't exist in schema - bookSpecs is sent to W0 webhook only
-        const orderIdValue = orderData.amazon_order_id || orderData.amazonOrderId || orderData.orderId || amazonOrder.AmazonOrderId;
+        // CRITICAL: Trim order IDs to prevent trailing space issues
+        const rawOrderId = orderData.amazon_order_id || orderData.amazonOrderId || orderData.orderId || amazonOrder.AmazonOrderId;
+        const orderIdValue = String(rawOrderId || '').trim();
+        
+        if (!orderIdValue || orderIdValue.length === 0) {
+          throw new Error(`Invalid order ID: cannot be empty after trimming. Original: ${rawOrderId}`);
+        }
+        
+        // Calculate character_hash that includes orderId to make it unique per order
+        // This prevents character hash collisions when multiple orders have the same character specs
+        const characterSpecs = orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs || {};
+        const characterHash = calculateCharacterHash(characterSpecs, orderIdValue);
+        
         const supabaseOrderData = {
-          orderId: orderIdValue, // Primary key - use amazon_order_id as orderId
-          amazon_order_id: orderIdValue,
+          orderId: orderIdValue, // Primary key - use amazon_order_id as orderId (trimmed)
+          amazon_order_id: orderIdValue, // Trimmed to prevent trailing space issues
+          character_hash: characterHash, // Unique per order (includes orderId in hash)
           order_status: orderData.status || 'Unshipped',
           purchase_date: orderData.purchaseDate || orderData.orderDate,
           marketplace_id: orderData.marketplaceId,
@@ -295,15 +319,22 @@ export async function GET(request: NextRequest) {
           throw new Error(`Supabase store failed: ${storeError.message}`);
         }
 
-        console.log(`[Cron Amazon Orders] [${executionId}] Stored order ${amazonOrder.AmazonOrderId} in Supabase`);
+        console.log(`[Cron Amazon Orders] [${executionId}] Stored order ${orderIdValue} in Supabase with character_hash: ${characterHash}`);
 
         // 3b. Call W0 webhook with order data
+        // Include character_hash in orderData so workflows can use it
+        const webhookPayload = {
+          ...orderData,
+          characterHash: characterHash,
+          character_hash: characterHash, // Support both formats
+        };
+        
         const webhookResponse = await fetch(n8nW0WebhookUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(orderData),
+          body: JSON.stringify(webhookPayload),
         });
 
         if (!webhookResponse.ok) {
@@ -798,5 +829,29 @@ async function normalizeAmazonOrder(
     _rawOrderItems: orderItems,
     _rawCustomization: customization,
   };
+}
+
+/**
+ * Calculate character hash from character specs and order ID
+ * Includes orderId in hash to ensure uniqueness per order (prevents collisions)
+ * Format: MD5 hash of (characterSpecs + orderId), first 16 characters
+ */
+function calculateCharacterHash(characterSpecs: Record<string, any>, orderId: string): string {
+  // Sort character specs keys for consistent hashing
+  const sortedSpecs = Object.keys(characterSpecs)
+    .sort()
+    .reduce((acc, key) => {
+      acc[key] = characterSpecs[key];
+      return acc;
+    }, {} as Record<string, any>);
+  
+  // Include orderId in hash to make it unique per order
+  // This prevents collisions when multiple orders have identical character specs
+  const hashInput = JSON.stringify({ ...sortedSpecs, orderId });
+  
+  return createHash('md5')
+    .update(hashInput)
+    .digest('hex')
+    .substring(0, 16);
 }
 

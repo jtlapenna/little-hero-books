@@ -23,12 +23,15 @@ async function getOrder(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const { orderId } = await params;
+  const { orderId: rawOrderId } = await params;
+  
+  // Trim orderId to handle trailing/leading spaces from URL encoding or data entry issues
+  const orderId = rawOrderId?.trim() || '';
   
   console.log('[GET /api/orders/[orderId]] Fetching order:', orderId);
   
   // Validate order ID format
-  if (!orderId || typeof orderId !== 'string') {
+  if (!orderId || typeof orderId !== 'string' || orderId.length === 0) {
     throw createValidationError('Invalid order ID provided');
   }
   

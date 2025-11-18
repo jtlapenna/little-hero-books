@@ -131,7 +131,16 @@ function detectOrderErrors(order: Order): ErrorType[] {
   const errors: ErrorType[] = [];
 
   // Check for missing manifest
-  if (!order.oneManifestUrl) {
+  // An order is missing a manifest if it has NO manifests at all (neither 1-manifest, 2a, 2b, nor 3)
+  // Orders that have progressed past W0 may not have 1-manifest but should have 2a/2b/3 manifests
+  const hasAnyManifest = !!(
+    order.oneManifestUrl ||
+    order.manifest2aUrl ||
+    order.manifest2bUrl ||
+    order.manifest3Url
+  );
+  
+  if (!hasAnyManifest) {
     errors.push(DisplayStatus.MISSING_MANIFEST);
   }
 

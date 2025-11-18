@@ -131,8 +131,11 @@ export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
 // Note: Database uses integer `id` as PK with snake_case columns
 // We can query by: id (integer), or any text field that matches
 export async function getOrderFromSupabase(orderId: string) {
+  // Trim orderId to handle trailing/leading spaces from data entry issues
+  const trimmedOrderId = orderId.trim();
+  
   // If orderId is numeric, try as integer id first (most common case)
-  const numericId = parseInt(orderId);
+  const numericId = parseInt(trimmedOrderId);
   if (!isNaN(numericId)) {
     const { data, error } = await supabase
       .from('orders')
@@ -144,28 +147,56 @@ export async function getOrderFromSupabase(orderId: string) {
   }
   
   // Try camelCase (orderId field) - might exist in some schemas
+  // First try exact match with trimmed orderId
   let { data, error } = await supabase
     .from('orders')
     .select('*')
-    .eq('orderId', orderId)
+    .eq('orderId', trimmedOrderId)
     .single();
   
-  // If that fails, try snake_case (order_id field)
-  if (error && (error.code === '42703' || error.code === 'PGRST116')) {
+  // If exact match fails, try with trailing space pattern (database may have trailing spaces)
+  if (error && (error.code === 'PGRST116' || error.code === 'PGRST204')) {
     ({ data, error } = await supabase
       .from('orders')
       .select('*')
-      .eq('order_id', orderId)
+      .ilike('orderId', `${trimmedOrderId}%`)
       .single());
   }
   
-  // If that fails, try amazon_order_id (text field)
-  if (error && (error.code === '42703' || error.code === 'PGRST116')) {
+  // If that fails, try snake_case (order_id field)
+  if (error && (error.code === '42703' || error.code === 'PGRST116' || error.code === 'PGRST204')) {
     ({ data, error } = await supabase
       .from('orders')
       .select('*')
-      .eq('amazon_order_id', orderId)
+      .eq('order_id', trimmedOrderId)
       .single());
+    
+    // If exact match fails, try with trailing space pattern
+    if (error && (error.code === 'PGRST116' || error.code === 'PGRST204')) {
+      ({ data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .ilike('order_id', `${trimmedOrderId}%`)
+        .single());
+    }
+  }
+  
+  // If that fails, try amazon_order_id (text field) - this is the most common case
+  if (error && (error.code === '42703' || error.code === 'PGRST116' || error.code === 'PGRST204')) {
+    ({ data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('amazon_order_id', trimmedOrderId)
+      .single());
+    
+    // If exact match fails, try with trailing space pattern (handles trailing spaces in database)
+    if (error && (error.code === 'PGRST116' || error.code === 'PGRST204')) {
+      ({ data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .ilike('amazon_order_id', `${trimmedOrderId}%`)
+        .single());
+    }
   }
   
   if (error) {

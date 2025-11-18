@@ -10,8 +10,8 @@ import { OrderStatus, LuluStatus } from '@/constants/statuses';
  * 1. Flags exist → Set revision status
  * 2. Production status → Use lulu_status
  * 3. Customer approval → Use customer_approval_status
- * 4. Review stages → Check review_stages JSONB
- * 5. Workflow step → Use workflow_step field
+ * 4. Workflow step → Use workflow_step field (more authoritative than review_stages)
+ * 5. Review stages → Check review_stages JSONB (fallback if workflow_step not set)
  * 6. Default → 'new'
  */
 export async function calculateOrderStatus(orderId: string): Promise<string> {
@@ -65,29 +65,9 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
     if (order.customer_approval_status === 'revision_requested') return OrderStatus.CUSTOMER_REVISION_REQUESTED;
   }
   
-  // 4. Check review stages
-  const reviewStages = order.review_stages || {};
-  
-  if (reviewStages.postPdf?.status === 'approved') {
-    return order.customer_approval_required ? OrderStatus.PENDING_CUSTOMER_APPROVAL : OrderStatus.PENDING_PRINT;
-  }
-  if (reviewStages.postPdf?.status === 'ready' || reviewStages.postPdf?.status === 'in-review') {
-    return OrderStatus.PENDING_ASSEMBLY_REVIEW;
-  }
-  if (reviewStages.postBria?.status === 'approved' && !reviewStages.postPdf) {
-    return OrderStatus.PENDING_ASSEMBLY;
-  }
-  if (reviewStages.postBria?.status === 'ready' || reviewStages.postBria?.status === 'in-review') {
-    return OrderStatus.PENDING_BG_REMOVAL_REVIEW;
-  }
-  if (reviewStages.preBria?.status === 'approved' && !reviewStages.postBria) {
-    return OrderStatus.PENDING_BG_REMOVAL;
-  }
-  if (reviewStages.preBria?.status === 'ready' || reviewStages.preBria?.status === 'in-review') {
-    return OrderStatus.PENDING_BASE_REVIEW;
-  }
-  
-  // 5. Check workflow step (using workflow_step field from database)
+  // 4. Check workflow step FIRST (workflow_step is more authoritative than review_stages)
+  // This ensures that if a workflow has completed, we use that status even if review_stages
+  // hasn't been updated yet (e.g., W2A completes but review_stages still shows 'ready')
   if (order.workflow_step) {
     // Special handling for 'order_intake': status depends on whether router has picked it up
     if (order.workflow_step === 'order_intake') {
@@ -110,6 +90,28 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
     if (workflowStatusMap[order.workflow_step]) {
       return workflowStatusMap[order.workflow_step];
     }
+  }
+  
+  // 5. Check review stages (fallback if workflow_step doesn't provide status)
+  const reviewStages = order.review_stages || {};
+  
+  if (reviewStages.postPdf?.status === 'approved') {
+    return order.customer_approval_required ? OrderStatus.PENDING_CUSTOMER_APPROVAL : OrderStatus.PENDING_PRINT;
+  }
+  if (reviewStages.postPdf?.status === 'ready' || reviewStages.postPdf?.status === 'in-review') {
+    return OrderStatus.PENDING_ASSEMBLY_REVIEW;
+  }
+  if (reviewStages.postBria?.status === 'approved' && !reviewStages.postBria) {
+    return OrderStatus.PENDING_ASSEMBLY;
+  }
+  if (reviewStages.postBria?.status === 'ready' || reviewStages.postBria?.status === 'in-review') {
+    return OrderStatus.PENDING_BG_REMOVAL_REVIEW;
+  }
+  if (reviewStages.preBria?.status === 'approved' && !reviewStages.postBria) {
+    return OrderStatus.PENDING_BG_REMOVAL;
+  }
+  if (reviewStages.preBria?.status === 'ready' || reviewStages.preBria?.status === 'in-review') {
+    return OrderStatus.PENDING_BASE_REVIEW;
   }
   
   // 6. Default
@@ -179,4 +181,3 @@ export async function updateOrderStatus(orderId: string, updates: {
 export async function getOrderStatus(orderId: string): Promise<string> {
   return calculateOrderStatus(orderId);
 }
-
