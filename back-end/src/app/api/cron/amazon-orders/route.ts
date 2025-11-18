@@ -685,7 +685,8 @@ async function normalizeAmazonOrder(
     ShippingAddress: shippingAddress,
     shippingAddress: normalizedShipping,
     characterSpecs: characterSpecs,
-    CharacterSpecs: characterSpecs, // Support both camelCase and PascalCase
+    character_specs: characterSpecs, // Supabase column name (snake_case)
+    CharacterSpecs: characterSpecs, // Support both camelCase and PascalCase for W0
     bookSpecs: {
       title: `${characterSpecs.childName} and the Adventure Compass`,
       totalPages: 16,
