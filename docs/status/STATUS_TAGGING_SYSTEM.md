@@ -840,13 +840,16 @@ getPhaseForDisplayStatus() → OrderPhase enum
 - `preBria.status = "ready"` or `"in-review"` → `PENDING_BASE_REVIEW`
 
 **Lulu Status → OrderStatus:**
-- `"Order Received"` → `PENDING_PRINT`
-- `"Processing"` → `PENDING_SHIPPING`
-- `"Fulfilling"` → `IN_PRODUCTION`
-- `"Shipped"` → `SHIPPED`
-- `"Delivered"` → `DELIVERED`
-- `"Action Required"` → `ACTION_REQUIRED`
-- `"Canceled"` / `"Refunded"` → `CANCELLED`
+- `"CREATED"` → `PENDING_PRINT`
+- `"UNPAID"` → `PENDING_PRINT`
+- `"PAYMENT_IN_PROGRESS"` → `PENDING_PRINT`
+- `"PRODUCTION_DELAYED"` → `PENDING_PRINT`
+- `"PRODUCTION_READY"` → `PENDING_PRINT`
+- `"IN_PRODUCTION"` → `IN_PRODUCTION`
+- `"SHIPPED"` → `SHIPPED`
+- `"DELIVERED"` → `DELIVERED`
+- `"REJECTED"` → `ACTION_REQUIRED`
+- `"CANCELED"` → `CANCELLED`
 
 ## Related Documentation
 

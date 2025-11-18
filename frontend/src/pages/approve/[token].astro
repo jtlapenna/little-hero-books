@@ -74,11 +74,44 @@ if (!token) {
         <!-- Page Header -->
         <div class="preview-card">
           <div class="preview-card-header">
-            <div>
+            <div class="header-left">
               <h2 class="preview-title">Hi, <span id="buyer-name" class="buyer-name">there</span>!</h2>
               <p class="preview-subtitle">
                 Review your personalized book for <span id="child-name" class="font-semibold">your child</span>
               </p>
+            </div>
+            <!-- Order Status Indicator (shown after approval) - Desktop: center, Mobile: after order details -->
+            <div id="header-order-status" class="header-order-status" style="display: none;">
+              <button id="status-indicator-wrapper" class="status-indicator-wrapper" aria-label="View order status details">
+                <!-- Status Icon with colored circle background (matches success message icon) -->
+                <div id="header-status-icon-wrapper" class="header-status-icon-wrapper status-icon-success">
+                  <!-- Success Icon (Checkmark) -->
+                  <svg id="header-status-icon-check" class="header-status-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <!-- Warning Icon (Exclamation) -->
+                  <svg id="header-status-icon-exclamation" class="header-status-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  <!-- Error Icon (X) -->
+                  <svg id="header-status-icon-x" class="header-status-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                  </svg>
+                </div>
+                <div class="status-indicator-content">
+                  <span id="header-status-text" class="status-text">Preparing for Print</span>
+                  <div class="status-indicator-bottom">
+                    <span class="status-click-text">Click for details</span>
+                    <svg class="status-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 5v14M19 12l-7 7-7-7"/>
+                    </svg>
+                  </div>
+                </div>
+              </button>
             </div>
             <div class="order-details-inline">
               <div class="order-detail-line">
@@ -213,17 +246,39 @@ if (!token) {
         <!-- Success Message (shown after approval) -->
         <div id="success-message" class="preview-card success-message-card" style="display: none;">
           <div class="success-message-content">
-            <div class="success-icon-wrapper">
-              <svg class="success-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Dynamic Status Icon (Green check, Yellow exclamation, Red X) -->
+            <div id="status-icon-wrapper" class="status-icon-wrapper status-icon-success">
+              <!-- Success Icon (Checkmark) -->
+              <svg id="status-icon-check" class="status-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
+              <!-- Warning Icon (Exclamation) -->
+              <svg id="status-icon-exclamation" class="status-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <!-- Error Icon (X) -->
+              <svg id="status-icon-x" class="status-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
             </div>
-            <h2 class="success-message-title">Success! Magic is on the way!</h2>
-            <p class="success-message-text">
-              Your book has been approved and is now being prepared for printing. We'll send you an email with tracking information once it ships.
+            <!-- Dynamic Title -->
+            <h2 id="status-title" class="success-message-title">Success! Magic is on the way!</h2>
+            <!-- Dynamic Message -->
+            <p id="status-message" class="success-message-text">
+              Your book has been approved and is now being prepared for printing. We'll update this page with tracking information once it ships.
             </p>
-            <div id="order-status-updates" class="order-status-updates">
-              {/* Order status updates will go here */}
+            <!-- Tracking Information (shown when shipped) -->
+            <div id="tracking-info" class="tracking-info" style="display: none;">
+              <h4 class="tracking-title">Tracking Information</h4>
+              <div id="tracking-details" class="tracking-details">
+                <!-- Tracking details will be inserted here -->
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1068,6 +1123,12 @@ if (!token) {
       correctionInfo.style.display = 'none';
     }
     
+    // Show header status indicator
+    const headerStatus = document.getElementById('header-order-status');
+    if (headerStatus) {
+      headerStatus.style.display = 'flex';
+    }
+    
     // Show success message
     const successMessage = document.getElementById('success-message');
     if (successMessage) {
@@ -1075,6 +1136,242 @@ if (!token) {
       successMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } else {
       console.error('[SUCCESS] success-message element not found!');
+    }
+    
+    // Start fetching order status
+    if (orderData && orderData.orderId) {
+      fetchOrderStatus(orderData.orderId);
+      // Poll for status updates every 30 seconds
+      startStatusPolling(orderData.orderId);
+    }
+  }
+
+  // Status polling interval
+  let statusPollInterval = null;
+
+  async function fetchOrderStatus(orderId) {
+    try {
+      const response = await fetch(`${API_BASE}/api/preview/${orderId}/status`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch status');
+      }
+      const statusData = await response.json();
+      updateStatusDisplay(statusData);
+    } catch (error) {
+      console.error('[STATUS] Error fetching order status:', error);
+    }
+  }
+
+  function updateStatusDisplay(statusData) {
+    // Update header status text with actual status
+    const headerStatusText = document.getElementById('header-status-text');
+    if (headerStatusText) {
+      headerStatusText.textContent = statusData.status;
+    }
+
+    // Get status configuration based on Lulu status
+    const luluStatus = statusData.luluStatus || '';
+    const statusConfig = getStatusConfig(luluStatus, statusData.status);
+
+    // Update header status icon to match main status icon
+    updateHeaderStatusIcon(statusConfig.iconType);
+
+    // Update status icon
+    updateStatusIcon(statusConfig.iconType);
+
+    // Update title and message
+    const statusTitle = document.getElementById('status-title');
+    const statusMessage = document.getElementById('status-message');
+    
+    if (statusTitle) {
+      statusTitle.textContent = statusConfig.title;
+    }
+    
+    if (statusMessage) {
+      statusMessage.textContent = statusConfig.message;
+    }
+
+    // Show tracking info if shipped
+    if (statusData.trackingNumber || statusData.trackingUrls) {
+      const trackingInfo = document.getElementById('tracking-info');
+      const trackingDetails = document.getElementById('tracking-details');
+      
+      if (trackingInfo && trackingDetails) {
+        trackingInfo.style.display = 'block';
+        trackingDetails.innerHTML = '';
+        
+        if (statusData.trackingNumber) {
+          const trackingNum = document.createElement('div');
+          trackingNum.textContent = `Tracking Number: ${statusData.trackingNumber}`;
+          trackingDetails.appendChild(trackingNum);
+        }
+        
+        if (statusData.trackingUrls && statusData.trackingUrls.length > 0) {
+          statusData.trackingUrls.forEach(url => {
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.className = 'tracking-link';
+            link.textContent = 'Track Your Package';
+            link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg> Track Your Package`;
+            trackingDetails.appendChild(link);
+          });
+        }
+        
+        if (statusData.carrierName) {
+          const carrier = document.createElement('div');
+          carrier.textContent = `Carrier: ${statusData.carrierName}`;
+          carrier.style.fontSize = '0.875rem';
+          carrier.style.color = '#6b7280';
+          carrier.style.marginTop = 'var(--spacing-xs)';
+          trackingDetails.appendChild(carrier);
+        }
+      }
+    }
+  }
+
+  /**
+   * Get status configuration based on Lulu status
+   * Each status has a unique descriptive message
+   */
+  function getStatusConfig(luluStatus, fallbackStatus) {
+    // Success states (green checkmark)
+    if (luluStatus === 'IN_PRODUCTION') {
+      return {
+        iconType: 'success',
+        title: 'Printing Your Book',
+        message: 'Your book is currently being printed at our facility. This process typically takes 2-3 business days. We\'ll update this page with tracking information once it ships.'
+      };
+    }
+    
+    if (luluStatus === 'SHIPPED') {
+      return {
+        iconType: 'success',
+        title: 'Shipped',
+        message: 'Great news! Your book has been shipped and is on its way to you. You can track your package using the tracking information below. Delivery typically takes 5-7 business days.'
+      };
+    }
+    
+    if (luluStatus === 'DELIVERED') {
+      return {
+        iconType: 'success',
+        title: 'Delivered',
+        message: 'Your personalized book has been delivered! We hope you and your little hero enjoy the magical adventure together. Thank you for choosing Little Hero Labs!'
+      };
+    }
+    
+    // Error states
+    if (luluStatus === 'REJECTED') {
+      return {
+        iconType: 'warning',
+        title: 'Action Required',
+        message: 'We encountered an issue while processing your order. Our team has been notified and will contact you shortly to resolve this. Please check your email for updates or contact our support team if you have questions.'
+      };
+    }
+    
+    if (luluStatus === 'CANCELED') {
+      return {
+        iconType: 'error',
+        title: 'Canceled',
+        message: 'Your order has been canceled. If you believe this was done in error or have questions about your order, please contact our support team. We\'re here to help!'
+      };
+    }
+    
+    // Default: Preparing for Print (green checkmark)
+    // This covers: CREATED, UNPAID, PAYMENT_IN_PROGRESS, PRODUCTION_DELAYED, PRODUCTION_READY
+    // and fallback states like customer_approved, pending_print
+    return {
+      iconType: 'success',
+      title: 'Success! Magic is on the way!',
+      message: 'Your book has been approved and is now being prepared for printing. Our team is processing your order and will begin printing soon. We\'ll update this page with tracking information once your book ships.'
+    };
+  }
+
+  /**
+   * Update status icon based on type (success, warning, error)
+   */
+  function updateStatusIcon(iconType) {
+    const iconWrapper = document.getElementById('status-icon-wrapper');
+    const iconCheck = document.getElementById('status-icon-check');
+    const iconExclamation = document.getElementById('status-icon-exclamation');
+    const iconX = document.getElementById('status-icon-x');
+    
+    if (!iconWrapper) return;
+    
+    // Remove all icon type classes
+    iconWrapper.classList.remove('status-icon-success', 'status-icon-warning', 'status-icon-error');
+    
+    // Hide all icons
+    if (iconCheck) iconCheck.style.display = 'none';
+    if (iconExclamation) iconExclamation.style.display = 'none';
+    if (iconX) iconX.style.display = 'none';
+    
+    // Show appropriate icon based on type
+    if (iconType === 'success') {
+      iconWrapper.classList.add('status-icon-success');
+      if (iconCheck) iconCheck.style.display = 'block';
+    } else if (iconType === 'warning') {
+      iconWrapper.classList.add('status-icon-warning');
+      if (iconExclamation) iconExclamation.style.display = 'block';
+    } else if (iconType === 'error') {
+      iconWrapper.classList.add('status-icon-error');
+      if (iconX) iconX.style.display = 'block';
+    }
+  }
+
+  function startStatusPolling(orderId) {
+    // Clear any existing interval
+    if (statusPollInterval) {
+      clearInterval(statusPollInterval);
+    }
+    
+    // Poll every 30 seconds
+    statusPollInterval = setInterval(() => {
+      fetchOrderStatus(orderId);
+    }, 30000);
+  }
+
+  // Header status indicator click handler - whole area is clickable
+  const statusIndicatorWrapper = document.getElementById('status-indicator-wrapper');
+  if (statusIndicatorWrapper) {
+    statusIndicatorWrapper.addEventListener('click', () => {
+      const successMessage = document.getElementById('success-message');
+      if (successMessage) {
+        successMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  }
+
+  /**
+   * Update header status icon to match main status icon
+   */
+  function updateHeaderStatusIcon(iconType) {
+    const iconWrapper = document.getElementById('header-status-icon-wrapper');
+    const iconCheck = document.getElementById('header-status-icon-check');
+    const iconExclamation = document.getElementById('header-status-icon-exclamation');
+    const iconX = document.getElementById('header-status-icon-x');
+    
+    if (!iconWrapper) return;
+    
+    // Remove all icon type classes
+    iconWrapper.classList.remove('status-icon-success', 'status-icon-warning', 'status-icon-error');
+    
+    // Hide all icons
+    if (iconCheck) iconCheck.style.display = 'none';
+    if (iconExclamation) iconExclamation.style.display = 'none';
+    if (iconX) iconX.style.display = 'none';
+    
+    // Show appropriate icon based on type
+    if (iconType === 'success') {
+      iconWrapper.classList.add('status-icon-success');
+      if (iconCheck) iconCheck.style.display = 'block';
+    } else if (iconType === 'warning') {
+      iconWrapper.classList.add('status-icon-warning');
+      if (iconExclamation) iconExclamation.style.display = 'block';
+    } else if (iconType === 'error') {
+      iconWrapper.classList.add('status-icon-error');
+      if (iconX) iconX.style.display = 'block';
     }
   }
 
@@ -2262,11 +2559,19 @@ if (!token) {
   }
 
   .preview-card-header {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
     gap: var(--spacing-lg);
     flex-wrap: wrap;
+  }
+
+  .preview-card-header .header-left {
+    justify-self: start;
+  }
+
+  .preview-card-header > .order-details-inline {
+    justify-self: end;
   }
 
   .action-buttons {
@@ -2725,9 +3030,15 @@ if (!token) {
     }
 
     .preview-card-header {
+      grid-template-columns: 1fr;
       flex-direction: column;
       align-items: flex-start;
       gap: var(--spacing-md);
+    }
+
+    .preview-card-header > div:first-child,
+    .preview-card-header > .order-details-inline {
+      justify-self: stretch;
     }
 
     .header-actions {
@@ -2902,15 +3213,36 @@ if (!token) {
     padding: var(--spacing-lg) 0;
   }
 
-  .success-icon-wrapper {
+  /* Status Icon Wrapper - Dynamic colors based on status */
+  .status-icon-wrapper {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 64px;
     height: 64px;
-    background: #d1fae5;
     border-radius: 50%;
     margin: 0 auto var(--spacing-md) auto;
+    transition: all 0.3s ease;
+  }
+
+  .status-icon-wrapper.status-icon-success {
+    background: #d1fae5;
+    color: #10b981;
+  }
+
+  .status-icon-wrapper.status-icon-warning {
+    background: #fef3c7;
+    color: #f59e0b;
+  }
+
+  .status-icon-wrapper.status-icon-error {
+    background: #fee2e2;
+    color: #ef4444;
+  }
+
+  .status-icon {
+    width: 24px;
+    height: 24px;
   }
 
   .success-icon {
@@ -2937,10 +3269,174 @@ if (!token) {
     margin-right: auto;
   }
 
-  .order-status-updates {
-    margin-top: var(--spacing-md);
-    padding-top: var(--spacing-md);
+  /* Header Order Status Indicator - Desktop: centered in grid */
+  .header-order-status {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    grid-column: 2;
+    justify-self: center;
+  }
+
+  .status-indicator-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: var(--font-heading);
+    /* Remove default button styling */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    text-decoration: none;
+    outline: none;
+  }
+
+  .status-indicator-wrapper:hover {
+    opacity: 0.8;
+  }
+
+  .status-indicator-wrapper:active {
+    transform: translateY(1px);
+  }
+
+  .status-indicator-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+    justify-content: center;
+  }
+
+  .status-indicator-bottom {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+
+  .status-click-text {
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    color: var(--color-soft-charcoal);
+    font-weight: 400;
+  }
+
+  /* Header Status Icon Wrapper - Colored circle with icon inside (matches main status icon) */
+  .header-status-icon-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+  }
+
+  .header-status-icon-wrapper.status-icon-success {
+    background: #d1fae5;
+    color: #10b981;
+  }
+
+  .header-status-icon-wrapper.status-icon-warning {
+    background: #fef3c7;
+    color: #f59e0b;
+  }
+
+  .header-status-icon-wrapper.status-icon-error {
+    background: #fee2e2;
+    color: #ef4444;
+  }
+
+  .header-status-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .status-text {
+    font-family: var(--font-heading);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-navy-midnight);
+    white-space: nowrap;
+  }
+
+  .status-arrow {
+    width: 16px;
+    height: 16px;
+    color: var(--color-hero-coral);
+    animation: bounce-arrow 2s infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes bounce-arrow {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(4px);
+    }
+  }
+
+  /* Tracking Information */
+  .tracking-info {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
     border-top: 1px solid #e5e7eb;
+  }
+
+  .tracking-title {
+    font-family: var(--font-heading);
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-navy-midnight);
+    margin: 0 0 var(--spacing-md) 0;
+  }
+
+  .tracking-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .tracking-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .tracking-link:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 768px) {
+    .preview-card-header {
+      flex-direction: column;
+      align-items: flex-start;
+      grid-template-columns: 1fr;
+    }
+
+    .preview-card-header .header-left,
+    .preview-card-header > .order-details-inline {
+      width: 100%;
+    }
+
+    /* Move status indicator to end on mobile */
+    .header-order-status {
+      order: 3;
+      width: 100%;
+      margin-top: var(--spacing-sm);
+      justify-content: center;
+    }
   }
 
   @media (max-width: 768px) {

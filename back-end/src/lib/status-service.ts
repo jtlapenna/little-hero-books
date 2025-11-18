@@ -119,17 +119,28 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
 /**
  * Map Lulu API status to our status system
  * Uses existing lulu_status field from database
+ * 
+ * Maps Lulu Print-Job statuses to our internal OrderStatus
  */
 function mapLuluStatusToOrderStatus(luluStatus: string): OrderStatus {
   const mapping: Record<string, OrderStatus> = {
-    [LuluStatus.ORDER_RECEIVED]: OrderStatus.PENDING_PRINT,
-    [LuluStatus.PROCESSING]: OrderStatus.PENDING_SHIPPING,
-    [LuluStatus.FULFILLING]: OrderStatus.IN_PRODUCTION,
+    // Pre-production statuses (order received, payment processing)
+    [LuluStatus.CREATED]: OrderStatus.PENDING_PRINT,
+    [LuluStatus.UNPAID]: OrderStatus.PENDING_PRINT,
+    [LuluStatus.PAYMENT_IN_PROGRESS]: OrderStatus.PENDING_PRINT,
+    [LuluStatus.PRODUCTION_DELAYED]: OrderStatus.PENDING_PRINT,
+    [LuluStatus.PRODUCTION_READY]: OrderStatus.PENDING_PRINT,
+    
+    // Production statuses
+    [LuluStatus.IN_PRODUCTION]: OrderStatus.IN_PRODUCTION,
+    
+    // Shipping statuses
     [LuluStatus.SHIPPED]: OrderStatus.SHIPPED,
-    [LuluStatus.DELIVERED]: OrderStatus.DELIVERED,
-    [LuluStatus.ACTION_REQUIRED]: OrderStatus.ACTION_REQUIRED,
+    [LuluStatus.DELIVERED]: OrderStatus.DELIVERED, // Custom status (from tracking)
+    
+    // Error/problem statuses
+    [LuluStatus.REJECTED]: OrderStatus.ACTION_REQUIRED,
     [LuluStatus.CANCELED]: OrderStatus.CANCELLED,
-    [LuluStatus.REFUNDED]: OrderStatus.CANCELLED
   };
   
   return mapping[luluStatus] || OrderStatus.PENDING_PRINT;

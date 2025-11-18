@@ -1,5 +1,32 @@
 # Developer A Package - Little Hero Books n8n Workflows
 
+## 🚀 **START HERE: Your Immediate Tasks**
+
+**Developer B has completed all their work. The system is ready for you to integrate Workflows 2A, 2B, and 3.**
+
+### **✅ What's Ready for You**
+- ✅ Database fully set up and operational (Supabase)
+- ✅ Workflow 1 complete (orders waiting in database)
+- ✅ Workflows 4-8 complete (print, error recovery, monitoring, QA, cost optimization)
+- ✅ Lulu webhook endpoint deployed and tested
+- ✅ Human review system operational
+- ✅ Customer preview system live
+
+### **🎯 Your 3 Main Tasks**
+
+1. **Workflow 2A** (Days 1-2): Integrate with database, add human review (Pre-Bria stage)
+2. **Workflow 2B** (Days 3-4): Integrate with database, add human review (Post-Bria stage)  
+3. **Workflow 3** (Days 5-7): Integrate with database, add human review (Post-PDF stage)
+
+**Plus**: 
+- Subscribe to Lulu webhooks (1-2 hours) - see section "🔔 Lulu Webhook Integration"
+- Setup Amazon Custom listing (3-5 days) - see section "🛒 Amazon Custom Setup"
+
+### **📖 Full Instructions**
+Scroll down to **"📝 Quick Reference Summary for Developer A"** (line ~869) for step-by-step implementation details.
+
+---
+
 ## 🎯 **Project Overview**
 
 **Little Hero Labs** (littleherolabs.com) is a personalized children's book service that generates custom stories through Amazon Custom listings and automated print-on-demand fulfillment. The system creates watercolor storybook-style books featuring personalized child characters in 12 different poses across various story scenes.
@@ -43,7 +70,7 @@
 - ✅ Order status API: `/api/preview/[orderId]/status` - Returns Lulu status updates
 
 **⚠️ Pending Implementation**:
-- ❌ Lulu webhook endpoint: `/api/webhooks/lulu/status` - **MISSING** (Developer B task)
+- ✅ Lulu webhook endpoint: `/api/webhooks/lulu/status` - **COMPLETE** (Deployed and tested)
 
 ---
 
@@ -745,7 +772,10 @@ Human Review → Database → Workflow 4 (Dev B)
 
 ### **📋 Overview**
 
-After Developer B creates the webhook endpoint, you need to subscribe to Lulu webhooks so we receive automatic status updates when orders move through Lulu's print process.
+✅ **Webhook endpoint is ready!** Developer B has deployed and tested the webhook endpoint. You can now subscribe to Lulu webhooks so we receive automatic status updates when orders move through Lulu's print process.
+
+**Webhook URL**: `https://admin.littleherolabs.com/api/webhooks/lulu/status`
+**Status**: ✅ Deployed, tested, and ready for subscription
 
 ### **✅ What's Already Working**
 
@@ -753,8 +783,11 @@ After Developer B creates the webhook endpoint, you need to subscribe to Lulu we
 - ✅ When Workflow 4 submits an order to Lulu, Lulu returns a print job ID
 - ✅ The "Process Lulu Response" node extracts this ID: `resp.id || resp.job_id || resp.data?.id`
 - ✅ The "Supabase: mark submitted" node stores it as `lulu_job_id` in the database
+- ✅ **VERIFIED**: Database query confirmed Workflow 4 is storing `lulu_job_id` correctly (orders E2E-004 and E2E-005 have job IDs stored)
 
 **Key Point**: The print job ID **comes FROM Lulu** - we don't create it. When you call Lulu's API to create a print job, they return an ID like `12345` or `abc-123-def`.
+
+**Database Field**: The webhook endpoint looks up orders by `lulu_job_id` (snake_case), which matches what Workflow 4 stores.
 
 ### **🚧 What You Need to Do**
 
@@ -823,7 +856,8 @@ Customer views page → Polls status API → Reads from DB → Shows updated sta
 ### **📋 Implementation Checklist**
 
 - [ ] **Verify Lulu API credentials** - Confirm Workflow 4 credentials work for webhook subscription
-- [ ] **Wait for Developer B** - Confirm webhook endpoint `/api/webhooks/lulu/status` is deployed and accessible
+- [x] **Wait for Developer B** - ✅ Webhook endpoint `/api/webhooks/lulu/status` is deployed and accessible
+- [x] **Workflow 4 verified** - ✅ Confirmed storing `lulu_job_id` correctly (no changes needed)
 - [ ] **Test webhook subscription** - Use Postman/curl or create a simple n8n workflow to subscribe
 - [ ] **Confirm subscription success** - Check that Lulu accepted the webhook URL
 - [ ] **Optional: Add to Workflow 4** - If you want automated subscription per order (not recommended for MVP)
@@ -832,16 +866,154 @@ Customer views page → Polls status API → Reads from DB → Shows updated sta
 
 1. **Webhook Subscription Approach**: Do you want to subscribe once manually (simpler, recommended for MVP) or add subscription logic to Workflow 4 (more automated, but more complex)?
 
-2. **Webhook Endpoint Availability**: Before subscribing, check with Developer B that the endpoint exists and is ready.
+2. **Webhook Endpoint Availability**: ✅ **READY** - Endpoint is deployed and tested at `https://admin.littleherolabs.com/api/webhooks/lulu/status`
 
-3. **Lulu API Authentication**: Verify Lulu API credentials in Workflow 4 CONFIG node work for webhook subscription endpoint.
+3. **Workflow 4 Status**: ✅ **VERIFIED** - Workflow 4 is correctly storing `lulu_job_id` in the database (verified with orders E2E-004 and E2E-005). No changes needed.
+
+4. **Lulu API Authentication**: Verify Lulu API credentials in Workflow 4 CONFIG node work for webhook subscription endpoint.
 
 ### **📚 Reference Documentation**
 
 - **Lulu API Docs**: https://api.lulu.com/api-docs/
+- **Webhook Deployment**: `docs/lulu/WEBHOOK_DEPLOYMENT.md` - Deployment status and testing details
 - **Webhook Details**: `docs/lulu/LULU_ERROR_HANDLING.md`
 - **Status Mapping**: `docs/lulu/STATUS_MAPPING.md`
 - **Current Workflow 4**: `docs/n8n-workflow-files/finals/LHB - 4 - PRINT FULlFILMENT.json`
+
+---
+
+## 🛒 **Amazon Custom Setup (Your Task - In Progress)**
+
+### **📋 Overview**
+
+**Status**: 🔄 **IN PROGRESS** - You are currently working on this task
+
+Set up Amazon Custom listing with all required fields, images, and configuration for accepting personalized book orders.
+
+**Priority**: P1 (High - Required for launch)  
+**Estimated Time**: 3-5 days  
+**Dependencies**: None (can be done in parallel with workflow integration)
+
+### **Current State Analysis**
+- ✅ Amazon listing copy exists (`docs/AMAZON_LISTING_FINAL.md`)
+- ✅ Amazon integration docs exist (`docs/AMAZON_INTEGRATION.md`)
+- ⚠️ Amazon Seller account may not be set up
+- ⚠️ Amazon Custom listing not created
+- ⚠️ SP-API credentials may not be configured
+
+### **Implementation Steps**
+
+1. **Create Amazon Professional Seller Account**
+   - [ ] Sign up for Amazon Professional Seller account ($40/month)
+   - [ ] Complete seller verification
+   - [ ] Set up payment methods
+   - [ ] Configure tax settings
+   - [ ] Complete identity verification (if required)
+   - **Timing**: Only when ready to launch (not before)
+
+2. **Get SP-API Credentials**
+   - [ ] Follow `docs/AMAZON_INTEGRATION.md` for SP-API setup
+   - [ ] Create IAM user and policy
+   - [ ] Generate access keys
+   - [ ] Get refresh token
+   - [ ] Store credentials securely (environment variables)
+   - [ ] Test SP-API connection
+
+3. **Prepare Product Images**
+   - [ ] Create 7 product images (you have design capability)
+   - [ ] Review image specifications: `docs/AMAZON_LISTING_FINAL.md` (lines 113-152)
+   - [ ] Ensure images meet Amazon requirements:
+     - Main image: 1000x1000px minimum
+     - 6 additional images: Various sizes
+     - All images must show product clearly
+   - [ ] Optimize images for web (compress, proper format)
+
+4. **Create Product Video** (Optional but Recommended)
+   - [ ] Create 15-30 second product video
+   - [ ] Show: Form entry, page flips, final book
+   - [ ] Format: Vertical 1080x1920 for social reuse
+   - [ ] Upload to Amazon
+
+5. **Create Amazon Custom Listing**
+   - [ ] Log into Seller Central
+   - [ ] Create new Custom product listing
+   - [ ] Upload all 7 product images
+   - [ ] Add product video (if created)
+   - [ ] Paste listing copy from `docs/AMAZON_LISTING_FINAL.md`
+   - [ ] Configure 10 customization fields:
+     - Child's name
+     - Child's age
+     - Pronouns
+     - Skin tone
+     - Hair color
+     - Hair style
+     - Favorite color
+     - Animal guide
+     - Clothing style
+     - Hometown
+   - [ ] Set initial price: $27.99 (adjust based on market research)
+   - [ ] Set shipping options and rates
+   - [ ] Configure fulfillment settings
+   - [ ] Submit for approval (1-3 days)
+
+6. **Configure Custom Field Validation**
+   - [ ] Set up field requirements and constraints
+   - [ ] Add help text for each field
+   - [ ] Test custom field submission
+   - [ ] Ensure data maps correctly to Workflow 1
+
+7. **Set Up Amazon PPC Campaign** (After Listing Approved)
+   - [ ] Create Sponsored Products campaign
+   - [ ] Set initial budget: $10-20/day
+   - [ ] Add 5-10 exact-match keywords:
+     - "personalized kids book"
+     - "custom children's book"
+     - "name book for kids"
+     - etc.
+   - [ ] Monitor and optimize campaign performance
+
+8. **Testing & Validation**
+   - [ ] Test order submission through Amazon Custom
+   - [ ] Verify all custom fields are captured correctly
+   - [ ] Test order appears in Workflow 1
+   - [ ] Test end-to-end order flow
+   - [ ] Verify SP-API integration works
+
+9. **Preview Notification Messaging & Soft Launch Prep**
+   - [x] Wire Next.js API route `/api/notifications/preview/amazon` that calls `back-end/src/lib/notifications/amazon-message-center.ts`
+   - [x] Implement Amazon Message Center helper (LWA token, Uploads API encryption, `confirmCustomizationDetails` sender)
+   - [x] Add `customer_contacts` table + API (`/api/preview/contact`) to capture email + canonical payload (enforce single correction)
+   - [x] Update preview page with bounded correction form (reason dropdown, canonical options, policy banner, double email entry)
+   - [x] Surface "You have 1 correction available" state; lock form after submission and remove redundant name input
+   - [ ] Build lightweight n8n task/cron to flag pending approvals >72h for manual follow-up
+   - [ ] Document ops response templates + future automation (SendGrid/Help Scout, reminder cadence, feedback_tickets) in docs
+   - [ ] Amazon listing prep (friends & family launch):
+     - Listing copy/assets ready (7 images + optional 30s video)
+     - Customization field cheat sheet derived from `Customization_Source_of_Truth.md`
+     - Manual fulfillment SOP + tracking spreadsheet
+     - Draft Amazon Message Center templates + F&F onboarding email
+
+### **Files to Reference**
+- `docs/AMAZON_INTEGRATION.md` - Complete setup guide
+- `docs/AMAZON_LISTING_FINAL.md` - Listing copy and specifications
+- `docs/amazon/amazon-custom-listing-spec.md` - Detailed listing spec
+- `docs/amazon/sp-api-integration-code.md` - SP-API code examples
+
+### **Files to Modify** (after Amazon setup)
+- `back-end/.env.local` - Add SP-API credentials
+- `docs/n8n-workflow-files/n8n-new/1-order-intake-validation.json` - Update to use real SP-API
+- `back-end/src/lib/notifications/amazon-message-center.ts` - Plug into real SP-API client once credentials live
+- `back-end/src/app/api/notifications/preview/amazon/route.ts` - Route exists, will be called by n8n
+
+### **Acceptance Criteria**
+- [ ] Amazon Seller account active and verified
+- [ ] SP-API credentials obtained and configured
+- [ ] Amazon Custom listing created and approved
+- [ ] All 7 product images uploaded
+- [ ] Product video uploaded (if created)
+- [ ] Custom fields configured correctly
+- [ ] Test order successfully flows through system
+- [ ] Amazon PPC campaign ready (optional)
 
 ---
 
@@ -874,7 +1046,7 @@ Integrate your existing workflows (2A, 2B, 3) with the Supabase database and imp
 
 ### **🔧 Your Tasks (Priority Order)**
 
-> **⚠️ STATUS UNCERTAINTY**: The tasks below (Workflows 2A, 2B, 3) may already be complete. If you have already completed the database integration and human review integration for these workflows, please confirm and we can mark them as complete.
+> **Note**: If you have already completed the database integration and human review integration for these workflows, please verify they're working correctly and mark them as complete.
 
 #### **Phase 1: Workflow 2A (Days 1-2)** 🚀 START HERE (or verify if complete)
 1. Replace `Generate Mock Order` node with Supabase query
@@ -959,29 +1131,22 @@ Developer B's Workflow 4:
 
 ### **📞 Communication with Developer B**
 
-**Developer B Current Status:**
-
-🚨 **BLOCKING YOUR PROGRESS**: Developer B is currently working on database schema updates that you need before proceeding:
-1. **Adding manifest URL columns** to `orders` table (`manifest_2a_url`, `manifest_2b_url`, `manifest_3_url`)
-2. **Creating `character_generations` table** for per-pose tracking (12 poses per order)
-3. **Implementing RPC functions** (`upsert_from_manifest_2a`, `upsert_from_manifest_2b`, `upsert_from_manifest_3`)
-4. **Migrating approvals** to new `human_review_queue` schema
+**Developer B Status: ✅ ALL TASKS COMPLETE**
 
 **What Developer B Has Completed:**
 - ✅ Workflow 1 (Order Intake & Validation) - PRODUCTION READY
-- ✅ All n8n workflows (1, 4, 5, 6, 7, 8) - PRODUCTION READY
-- ✅ Initial database setup - Supabase operational
-- ⏳ Database schema updates (manifest support) - **IN PROGRESS NOW**
-
-**Developer B Current Tasks:**
-- ✅ Database schema updates (Priority 0) - **COMPLETED** - Migration successfully deployed
-- 🚀 Website & marketing infrastructure (Cloudflare, Analytics, Landing Page) - Running in parallel
+- ✅ Workflows 4-8 (Print, Error Recovery, Monitoring, QA, Cost Optimization) - PRODUCTION READY
+- ✅ Database setup - Supabase fully operational
+- ✅ Database schema updates (manifest support) - **COMPLETED** - All migrations deployed
+- ✅ Lulu webhook endpoint - **COMPLETE** - Deployed and tested
+- ✅ Workflow 4 verified - **CONFIRMED** - Storing `lulu_job_id` correctly
 
 **What You Can Do Now:**
 1. ✅ **Database schema is complete** - All manifest columns and RPC functions ready
 2. ✅ **Start integrating with manifests** - Use the new RPC functions provided
 3. ✅ **Test integration** - Schema is fully deployed and operational
 4. 🚀 **Proceed with workflow updates** - Begin using manifest-driven approach immediately
+5. ✅ **Subscribe to Lulu webhooks** - Endpoint is ready (see "🔔 Lulu Webhook Integration" section)
 
 **Database Ready**: ✅ **COMPLETE** - Supabase fully operational with new schema deployed
 

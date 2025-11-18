@@ -1,5 +1,9 @@
 # Health Monitor - Orphaned Recovery Actions
 
+> **See Also**: 
+> - `docs/database/orphaned-orders-prevention-system.md` - Orphaned orders system overview
+> - `docs/database/implementation-summary.md` - Implementation status
+
 ## Overview
 
 The Health Monitor workflow (W1.5) processes orphaned orders through 4 distinct recovery actions. Each action is triggered based on the order's classification in the "Orphaned: Classify Orphans" node.

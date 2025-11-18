@@ -1,5 +1,11 @@
 # Amazon SP-API Integration Code
-## Ready-to-Use Code for Workflow 1
+## ⚠️ DEPRECATED - Use AMAZON_N8N_CODE.md Instead
+
+> **Note**: This file uses the n8n Credentials approach which requires a Pro plan. The current implementation uses the CONFIG node approach (see `AMAZON_N8N_CODE.md`).
+
+## Ready-to-Use Code for Workflow 1 (DEPRECATED)
+
+> **⚠️ IMPORTANT**: This file is deprecated. Use `AMAZON_N8N_CODE.md` instead, which uses the CONFIG node approach (works with free n8n plan).
 
 ### 🔑 Credentials Setup (n8n)
 

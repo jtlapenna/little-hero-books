@@ -1,4 +1,6 @@
 # Amazon Integration - Troubleshooting Guide
+
+> **See Also**: `AMAZON_SETUP_GUIDE.md` - Main setup guide | `AMAZON_N8N_CODE.md` - n8n workflow code
 ## Common Issues and Solutions
 
 ---

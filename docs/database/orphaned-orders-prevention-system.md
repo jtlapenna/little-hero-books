@@ -144,3 +144,9 @@ This system prevents orders from being forgotten by:
 4. Monitor for a few days to verify it's working
 5. Add Slack/Email alerts if needed
 
+---
+
+**See Also**:
+- `docs/database/implementation-summary.md` - Implementation status
+- `docs/database/fix-orphaned-orders-summary.md` - Fix summary
+

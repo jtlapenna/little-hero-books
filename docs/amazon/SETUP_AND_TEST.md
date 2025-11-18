@@ -1,6 +1,8 @@
 # Amazon Integration - Setup and Testing Guide
 ## Step-by-Step Instructions to Get Amazon Orders Working
 
+> **See Also**: `AMAZON_SETUP_GUIDE.md` - Main setup guide with complete overview
+
 ---
 
 ## 🎯 **Overview**

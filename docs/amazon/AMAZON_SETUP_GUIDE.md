@@ -80,11 +80,13 @@ PREVIEW_AUTO_APPROVAL_HOURS=72
 ```
 
 **Current Status**:
-- ✅ Client ID - Set
-- ✅ Client Secret - Set
-- ✅ Seller ID - Set to `A2V719MRGLK48O`
-- ⚠️ Refresh Token - Still need
+- ✅ Client ID - Set (sandbox credentials)
+- ✅ Client Secret - Set (sandbox credentials)
+- ✅ Seller ID - Set to `A2V719MRGLK48O` (from Account ID)
+- ⚠️ Refresh Token - Still need (get via OAuth)
 - ⚠️ AWS IAM - Can do later (only for Message Center)
+
+**Note**: Current credentials shown are **sandbox credentials** for testing. Replace with production credentials when ready.
 
 ---
 
@@ -109,10 +111,13 @@ Normalize Payload (Existing Node)
 ### **Quick Setup**
 
 1. **Open n8n** → Workflow 0: `LHB - 0 - ORDER INTAKE VALIDATION`
-2. **Create 4 Code nodes** (see `AMAZON_N8N_CODE.md` for exact code)
-3. **Connect them** in order above
-4. **Disable "Mock Order" node** (keep for testing)
-5. **Set up Cron Trigger**: `*/10 * * * *` (every 10 minutes)
+2. **Add Amazon credentials to CONFIG node** (see `SETUP_AND_TEST.md` Step 1)
+3. **Create 4 Code nodes** (see `AMAZON_N8N_CODE.md` for exact code)
+4. **Connect them** in order above
+5. **Disable "Mock Order" node** (keep for testing)
+6. **Set up Cron Trigger**: `*/10 * * * *` (every 10 minutes)
+
+**Important**: We use the **CONFIG node approach** (not n8n Credentials) because Variables require a Pro plan. All code in `AMAZON_N8N_CODE.md` reads from the CONFIG node.
 
 **See `AMAZON_N8N_CODE.md` for complete code for all 4 nodes.**
 
@@ -175,10 +180,11 @@ See `AMAZON_TROUBLESHOOTING.md` for:
 
 ## 📚 **Reference Documents**
 
-- **n8n Code**: `AMAZON_N8N_CODE.md` - All code snippets for n8n nodes
+- **n8n Code**: `AMAZON_N8N_CODE.md` - **Use this** - All code snippets for n8n nodes (CONFIG node approach)
 - **Troubleshooting**: `AMAZON_TROUBLESHOOTING.md` - Common issues and solutions
 - **Listing Spec**: `amazon-custom-listing-spec.md` - Amazon Custom field mapping
 - **Pre-Launch**: `pre-launch-checklist.md` - Pre-launch tasks
+- **⚠️ Deprecated**: `sp-api-integration-code.md` - Old credentials-based approach (requires Pro plan)
 
 ---
 

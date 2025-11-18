@@ -129,7 +129,7 @@ This document defines the complete order lifecycle and all possible state combin
 **State: PRINT FULFILLMENT**
 - `execution_status`: `'processing'` or `'completed'`
 - `workflow_step`: `'print_fulfillment'`
-- `lulu_status`: `'Order Received'`, `'Processing'`, `'Fulfilling'`, etc.
+- `lulu_status`: `'CREATED'`, `'IN_PRODUCTION'`, `'SHIPPED'`, etc.
 - **Display**: "Printing"
 
 **State: SHIPPED**

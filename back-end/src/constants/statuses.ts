@@ -130,17 +130,31 @@ export enum WorkflowStep {
 
 /**
  * Lulu Print Status
- * Statuses from Lulu API
+ * Statuses from Lulu API (Print-Job status)
+ * These match the exact string values returned by the Lulu API
+ * 
+ * Reference: https://api.lulu.com/api-docs/
+ * Status flow: CREATED → UNPAID → PAYMENT_IN_PROGRESS → PRODUCTION_DELAYED → 
+ *              PRODUCTION_READY → IN_PRODUCTION → SHIPPED
+ * Error states: REJECTED, CANCELED
  */
 export enum LuluStatus {
-  ORDER_RECEIVED = 'Order Received',
-  PROCESSING = 'Processing',
-  FULFILLING = 'Fulfilling',
-  SHIPPED = 'Shipped',
-  DELIVERED = 'Delivered',
-  ACTION_REQUIRED = 'Action Required',
-  CANCELED = 'Canceled',
-  REFUNDED = 'Refunded'
+  // Normal flow statuses
+  CREATED = 'CREATED',
+  UNPAID = 'UNPAID',
+  PAYMENT_IN_PROGRESS = 'PAYMENT_IN_PROGRESS',
+  PRODUCTION_DELAYED = 'PRODUCTION_DELAYED',
+  PRODUCTION_READY = 'PRODUCTION_READY',
+  IN_PRODUCTION = 'IN_PRODUCTION',
+  SHIPPED = 'SHIPPED',
+  
+  // Error/problem statuses
+  REJECTED = 'REJECTED',
+  CANCELED = 'CANCELED',
+  
+  // Note: DELIVERED is not a Lulu API status - it comes from tracking/carrier
+  // We may track this separately or infer it from tracking data
+  DELIVERED = 'DELIVERED', // Custom status (not from Lulu API)
 }
 
 /**

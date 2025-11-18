@@ -81,7 +81,6 @@ Authoritative list of customer-facing personalization fields and allowed values.
 - assets/poses/animals/
 - assets/poses/bases/
 - docs/amazon/amazon-custom-listing-spec.md
-- docs/AMAZON_LISTING_FINAL.md
 - renderer/src/schema.ts
 - data/order-model.js
 - docs/n8n-workflow-files/finals/SW0 - Base Character Generation.json

@@ -386,6 +386,23 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
     };
   }
 
+  // Handle Lulu error states (REJECTED, CANCELED)
+  if (order.luluStatus === LuluStatus.REJECTED) {
+    const displayStatus = DisplayStatus.ACTION_REQUIRED;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+  
+  if (order.luluStatus === LuluStatus.CANCELED) {
+    const displayStatus = DisplayStatus.ACTION_REQUIRED;
+    return {
+      status: displayStatus,
+      phase: getPhaseForDisplayStatus(displayStatus, revisionCount),
+    };
+  }
+
   // Handle customer revision requested (check this early)
   if (
     customerApprovalStatus === CustomerApprovalStatus.REVISION_REQUESTED ||
@@ -445,8 +462,20 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
         rawStatus === OrderStatus.CUSTOMER_APPROVED) {
       // Check if it's actually been sent to print (lulu_status or PENDING_PRINT)
       // If it's been sent to print, show "Printing", otherwise "Ready to Print"
+      // Map all Lulu statuses that indicate order is with Lulu (even if pre-production)
+      const isWithLulu = order.luluStatus && (
+        order.luluStatus === LuluStatus.CREATED ||
+        order.luluStatus === LuluStatus.UNPAID ||
+        order.luluStatus === LuluStatus.PAYMENT_IN_PROGRESS ||
+        order.luluStatus === LuluStatus.PRODUCTION_DELAYED ||
+        order.luluStatus === LuluStatus.PRODUCTION_READY ||
+        order.luluStatus === LuluStatus.IN_PRODUCTION ||
+        order.luluStatus === LuluStatus.SHIPPED ||
+        order.luluStatus === LuluStatus.DELIVERED
+      );
+      
       if (rawStatus === OrderStatus.PENDING_PRINT ||
-          order.luluStatus ||
+          isWithLulu ||
           rawStatus === OrderStatus.PRINT_SUBMISSION_IN_PROGRESS ||
           rawStatus === OrderStatus.PRINT_SUBMISSION_COMPLETED ||
           rawStatus === OrderStatus.IN_PRODUCTION ||
@@ -480,9 +509,13 @@ export function getDisplayStatusForOrder(order: Order): DisplayStatusMetadata {
      rawStatus === OrderStatus.CUSTOMER_APPROVED) &&
     rawStatus &&
     (SENT_TO_PRINT_STATUSES.has(rawStatus) ||
-      order.luluStatus === LuluStatus.ORDER_RECEIVED ||
-      order.luluStatus === LuluStatus.PROCESSING ||
-      order.luluStatus === LuluStatus.FULFILLING)
+      // Map all Lulu statuses that indicate printing/production
+      order.luluStatus === LuluStatus.CREATED ||
+      order.luluStatus === LuluStatus.UNPAID ||
+      order.luluStatus === LuluStatus.PAYMENT_IN_PROGRESS ||
+      order.luluStatus === LuluStatus.PRODUCTION_DELAYED ||
+      order.luluStatus === LuluStatus.PRODUCTION_READY ||
+      order.luluStatus === LuluStatus.IN_PRODUCTION)
   ) {
     const displayStatus = DisplayStatus.PRINTING;
     return {

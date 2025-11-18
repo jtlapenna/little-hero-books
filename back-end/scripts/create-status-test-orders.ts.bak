@@ -1,0 +1,236 @@
+/**
+ * Create Test Orders for Status Display Testing
+ * 
+ * Creates temporary test orders with all customer-facing status combinations
+ * so you can preview how each status looks on the approval page.
+ * 
+ * Usage:
+ *   npm run create-status-test-orders
+ * 
+ * Cleanup:
+ *   npm run delete-status-test-orders
+ */
+
+import { supabase } from '../src/lib/supabase-client';
+import { generatePreviewToken } from '../src/lib/preview-tokens';
+
+const CUSTOMER_SITE_URL = process.env.CUSTOMER_SITE_URL || 'https://littleherolabs.com';
+
+interface TestOrder {
+  orderId: string;
+  name: string;
+  luluStatus: string | null;
+  orderStatus: string;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  carrier?: string;
+  description: string;
+}
+
+const testOrders: TestOrder[] = [
+  {
+    orderId: 'STATUS-TEST-001',
+    name: 'Preparing for Print (CREATED)',
+    luluStatus: 'CREATED',
+    orderStatus: 'customer_approved',
+    description: 'Order created, waiting for payment processing'
+  },
+  {
+    orderId: 'STATUS-TEST-002',
+    name: 'Preparing for Print (UNPAID)',
+    luluStatus: 'UNPAID',
+    orderStatus: 'customer_approved',
+    description: 'Order unpaid, waiting for payment'
+  },
+  {
+    orderId: 'STATUS-TEST-003',
+    name: 'Preparing for Print (PAYMENT_IN_PROGRESS)',
+    luluStatus: 'PAYMENT_IN_PROGRESS',
+    orderStatus: 'customer_approved',
+    description: 'Payment processing in progress'
+  },
+  {
+    orderId: 'STATUS-TEST-004',
+    name: 'Preparing for Print (PRODUCTION_DELAYED)',
+    luluStatus: 'PRODUCTION_DELAYED',
+    orderStatus: 'customer_approved',
+    description: 'Production delayed, preparing for print'
+  },
+  {
+    orderId: 'STATUS-TEST-005',
+    name: 'Preparing for Print (PRODUCTION_READY)',
+    luluStatus: 'PRODUCTION_READY',
+    orderStatus: 'customer_approved',
+    description: 'Ready for production, preparing for print'
+  },
+  {
+    orderId: 'STATUS-TEST-006',
+    name: 'Printing Your Book',
+    luluStatus: 'IN_PRODUCTION',
+    orderStatus: 'in_production',
+    description: 'Book is currently being printed'
+  },
+  {
+    orderId: 'STATUS-TEST-007',
+    name: 'Shipped (with tracking)',
+    luluStatus: 'SHIPPED',
+    orderStatus: 'shipped',
+    trackingNumber: '1Z999AA10123456784',
+    trackingUrl: 'https://tools.usps.com/go/TrackConfirmAction?qtc_tLabels1=1Z999AA10123456784',
+    carrier: 'USPS',
+    description: 'Book has been shipped with tracking information'
+  },
+  {
+    orderId: 'STATUS-TEST-008',
+    name: 'Delivered',
+    luluStatus: 'DELIVERED',
+    orderStatus: 'delivered',
+    trackingNumber: '1Z999AA10123456784',
+    trackingUrl: 'https://tools.usps.com/go/TrackConfirmAction?qtc_tLabels1=1Z999AA10123456784',
+    carrier: 'USPS',
+    description: 'Book has been delivered'
+  },
+  {
+    orderId: 'STATUS-TEST-009',
+    name: 'Action Required (REJECTED)',
+    luluStatus: 'REJECTED',
+    orderStatus: 'action_required',
+    description: 'Order rejected - action required'
+  },
+  {
+    orderId: 'STATUS-TEST-010',
+    name: 'Canceled',
+    luluStatus: 'CANCELED',
+    orderStatus: 'cancelled',
+    description: 'Order has been canceled'
+  },
+  {
+    orderId: 'STATUS-TEST-011',
+    name: 'Preparing for Print (No Lulu Status)',
+    luluStatus: null,
+    orderStatus: 'customer_approved',
+    description: 'Customer approved, waiting for Lulu status'
+  }
+];
+
+async function createTestOrders() {
+  console.log('🧪 Creating test orders for status display testing...\n');
+
+  const results: Array<{
+    orderId: string;
+    name: string;
+    token: string;
+    url: string;
+    description: string;
+  }> = [];
+
+  for (const testOrder of testOrders) {
+    try {
+      // Check if order already exists
+      const { data: existing } = await supabase
+        .from('orders')
+        .select('orderId')
+        .eq('orderId', testOrder.orderId)
+        .single();
+
+      if (existing) {
+        console.log(`⚠️  Order ${testOrder.orderId} already exists, skipping...`);
+        // Still generate token for existing order
+        const token = await generatePreviewToken(testOrder.orderId);
+        results.push({
+          orderId: testOrder.orderId,
+          name: testOrder.name,
+          token,
+          url: `${CUSTOMER_SITE_URL}/approve/${token}`,
+          description: testOrder.description
+        });
+        continue;
+      }
+
+      // Create order - use minimal required fields first
+      const orderData: any = {
+        orderId: testOrder.orderId,
+        childName: 'Test Child',
+        status: testOrder.orderStatus,
+        customer_approval_status: 'approved',
+        customer_approval_approved_at: new Date().toISOString(),
+        shippingName: 'Test Customer',
+        shippingEmail: 'test@example.com',
+        shippingAddress1: '123 Test St',
+        shippingCity: 'Test City',
+        shippingState: 'CA',
+        shippingZip: '90210',
+        shippingCountry: 'US'
+      };
+
+      // Add optional fields if they exist
+      if (testOrder.luluStatus) {
+        orderData.lulu_status = testOrder.luluStatus;
+      }
+      if (testOrder.trackingNumber) {
+        orderData.tracking_number = testOrder.trackingNumber;
+      }
+      if (testOrder.trackingUrl) {
+        orderData.tracking_url = testOrder.trackingUrl;
+      }
+      if (testOrder.carrier) {
+        orderData.carrier = testOrder.carrier;
+      }
+
+      const { error: insertError } = await supabase
+        .from('orders')
+        .insert(orderData);
+
+      if (insertError) {
+        console.error(`❌ Error creating order ${testOrder.orderId}:`, insertError);
+        continue;
+      }
+
+      // Generate preview token
+      const token = await generatePreviewToken(testOrder.orderId);
+
+      results.push({
+        orderId: testOrder.orderId,
+        name: testOrder.name,
+        token,
+        url: `${CUSTOMER_SITE_URL}/approve/${token}`,
+        description: testOrder.description
+      });
+
+      console.log(`✅ Created ${testOrder.orderId}: ${testOrder.name}`);
+    } catch (error) {
+      console.error(`❌ Error processing ${testOrder.orderId}:`, error);
+    }
+  }
+
+  console.log('\n📋 Test Order URLs:\n');
+  console.log('='.repeat(80));
+  results.forEach((result, index) => {
+    console.log(`\n${index + 1}. ${result.name}`);
+    console.log(`   Order ID: ${result.orderId}`);
+    console.log(`   URL: ${result.url}`);
+    console.log(`   Description: ${result.description}`);
+  });
+  console.log('\n' + '='.repeat(80));
+
+  console.log('\n📝 To delete all test orders, run:');
+  console.log('   npm run delete-status-test-orders\n');
+
+  return results;
+}
+
+// Run if called directly
+if (require.main === module) {
+  createTestOrders()
+    .then(() => {
+      console.log('✅ Done!');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('❌ Error:', error);
+      process.exit(1);
+    });
+}
+
+export { createTestOrders, testOrders };
+
