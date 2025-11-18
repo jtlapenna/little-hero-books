@@ -176,11 +176,13 @@ export async function POST(
 
     // Build new manifest by copying image references but updating order-specific fields
     // Use 1-manifest for order info (most accurate), fallback to Supabase, then source manifest
+    const now = new Date().toISOString();
     const newManifest = {
       ...sourceManifest,
       schema: sourceManifest.schema || 'lhb.run-manifest@v2.0',
-      runStamp: new Date().toISOString(),
+      runStamp: now,
       characterHash: newOrder.character_hash,
+      generatedAt: now, // Update to current timestamp (was from source order)
       order: {
         ...sourceManifest.order,
         // Override with order-specific information from 1-manifest (preferred) or Supabase
@@ -209,6 +211,18 @@ export async function POST(
         // Keep all image references from source (bgRemovedKey, bgRemovedImageUrl, etc.)
         // These point to the shared character hash directory, so they're valid for the new order
       })),
+      // Clear order-specific review queue (from source order)
+      reviewQueue: [], // Will be recalculated by workflow if needed
+      // Clear order-specific revision history (from source order)
+      revisions: {
+        history: [], // Order-specific revision history should not be copied
+        pending: {}
+      },
+      // Update briaProcessing timestamps
+      briaProcessing: sourceManifest.briaProcessing ? {
+        ...sourceManifest.briaProcessing,
+        completedAt: now // Update to current timestamp
+      } : undefined,
       // Update top-level orderId
       orderId: newOrderId,
       amazonOrderId: newOrderId,

@@ -192,11 +192,13 @@ export async function POST(
     // Build new 2A manifest by:
     // 1. Using image references from source 2A manifest (approvedKey, publicUrl, etc.)
     // 2. Using order-specific information from 1-manifest (customer info, dedication, etc.)
+    const now = new Date().toISOString();
     const newManifest = {
       ...source2aManifest,
       schema: source2aManifest.schema || 'lhb.run-manifest@v2.0',
-      runStamp: new Date().toISOString(),
+      runStamp: now,
       characterHash: newOrder.character_hash,
+      generatedAt: now, // Update to current timestamp (was from source order)
       order: {
         ...source2aManifest.order,
         // Override with order-specific information from 1-manifest
@@ -226,6 +228,13 @@ export async function POST(
         // Keep all image references from source (approvedKey, publicUrl, approvedFilename, etc.)
         // These point to the shared character hash directory, so they're valid for the new order
       })),
+      // Clear order-specific review queue (from source order)
+      reviewQueue: [], // Will be recalculated by workflow if needed
+      // Clear order-specific revision history (from source order)
+      revisions: {
+        history: [], // Order-specific revision history should not be copied
+        pending: {}
+      },
       // Update top-level orderId
       orderId: newOrderId,
       amazonOrderId: newOrderId,
