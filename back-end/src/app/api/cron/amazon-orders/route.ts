@@ -201,7 +201,15 @@ export async function GET(request: NextRequest) {
     for (const amazonOrder of amazonOrders) {
       try {
         // 3a. Fetch order items to get customization data
-        const orderItems = await fetchOrderItems(accessToken, amazonOrder.AmazonOrderId);
+        let orderItems: any[] = [];
+        if (testMode) {
+          // TEST MODE: Use OrderItems from mock data (already included in amazonOrder)
+          orderItems = amazonOrder.OrderItems || [];
+          console.log(`[Cron Amazon Orders] [${executionId}] TEST MODE: Using mock order items for ${amazonOrder.AmazonOrderId}`);
+        } else {
+          // PRODUCTION MODE: Fetch order items from Amazon API
+          orderItems = await fetchOrderItems(accessToken, amazonOrder.AmazonOrderId);
+        }
         
         // 3b. Parse customization data from order items
         const customization = parseCustomizationFromItems(orderItems);
