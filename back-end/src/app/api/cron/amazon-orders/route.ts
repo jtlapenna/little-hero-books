@@ -372,14 +372,19 @@ async function fetchAmazonOrders(accessToken: string): Promise<any[]> {
     const url = new URL(`${baseUrl}/orders/v0/orders`);
     
     // Amazon SP-API requires MarketplaceIds as a query parameter
-    // For sandbox, we might need to adjust parameters
     url.searchParams.set('MarketplaceIds', amazonMarketplaceId || 'ATVPDKIKX0DER');
-    url.searchParams.set('CreatedAfter', createdAfter);
     
-    // Sandbox might not support all parameters - try without OrderStatuses if it fails
-    if (!amazonSandboxMode) {
+    // For sandbox, use a much older date (30 days ago) as sandbox might have limited test data
+    // Sandbox also might require CreatedAfter in a specific format
+    if (amazonSandboxMode) {
+      // Use 30 days ago for sandbox to catch any test orders
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      url.searchParams.set('CreatedAfter', thirtyDaysAgo.toISOString());
+    } else {
+      url.searchParams.set('CreatedAfter', createdAfter);
       url.searchParams.set('OrderStatuses', 'Unshipped');
     }
+    
     url.searchParams.set('MaxResultsPerPage', '50');
 
     console.log(`[Cron Amazon Orders] Fetching orders from: ${url.toString()}`);
