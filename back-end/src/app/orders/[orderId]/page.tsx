@@ -907,14 +907,40 @@ export default function OrderDetailPage() {
         )}
 
         {/* Recovery Actions Section */}
-        {order && (
-          // Show section if there are errors, missing manifests, OR if we can create manifests from shared images
-          (lifecycleStatus.errors && lifecycleStatus.errors.length > 0 || 
-           !order.oneManifestUrl || 
-           order.executionStatus === 'error' || 
-           order.executionStatus === 'error_requires_manual_review' ||
-           // Show if we can create 2A or 2B manifests (images exist but manifests don't)
-           (order.oneManifestUrl && order.characterHash && (!order.manifest2aUrl || !order.manifest2bUrl))) && (
+        {order && (() => {
+          // Debug logging for button visibility
+          const canShow2a = order.oneManifestUrl && 
+                           !order.manifest2aUrl && 
+                           order.characterHash && 
+                           (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0);
+          
+          const canShow2b = (order.manifest2aUrl || (order.oneManifestUrl && (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0))) && 
+                           !order.manifest2bUrl && 
+                           order.characterHash && 
+                           (order.r2Assets?.sharedImageInfo?.hasSource2bManifest || order.r2Assets?.posesBgRemoved?.length > 0);
+          
+          console.log('[OrderDetailPage] Button visibility check:', {
+            orderId: order.orderId,
+            hasOneManifest: !!order.oneManifestUrl,
+            has2aManifest: !!order.manifest2aUrl,
+            has2bManifest: !!order.manifest2bUrl,
+            hasCharacterHash: !!order.characterHash,
+            sharedImageInfo: order.r2Assets?.sharedImageInfo,
+            posesCount: order.r2Assets?.poses?.length || 0,
+            posesBgRemovedCount: order.r2Assets?.posesBgRemoved?.length || 0,
+            canShow2a,
+            canShow2b
+          });
+          
+          const shouldShowSection = lifecycleStatus.errors && lifecycleStatus.errors.length > 0 || 
+                                    !order.oneManifestUrl || 
+                                    order.executionStatus === 'error' || 
+                                    order.executionStatus === 'error_requires_manual_review' ||
+                                    // Show if we can create 2A or 2B manifests (images exist but manifests don't)
+                                    (order.oneManifestUrl && order.characterHash && (!order.manifest2aUrl || !order.manifest2bUrl));
+          
+          return shouldShowSection;
+        })() && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
             <h3 className="text-sm font-semibold text-yellow-900 mb-3">Recovery Actions</h3>
             <div className="flex flex-wrap gap-2">
@@ -938,10 +964,16 @@ export default function OrderDetailPage() {
                 </button>
               )}
               {/* Show 2A button if: has 1-manifest, has characterHash, no 2A manifest, and source order with 2A manifest exists */}
-              {order.oneManifestUrl && 
-               !order.manifest2aUrl && 
-               order.characterHash && 
-               (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0) && (
+              {(() => {
+                const canShow = order.oneManifestUrl && 
+                               !order.manifest2aUrl && 
+                               order.characterHash && 
+                               (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0);
+                if (canShow) {
+                  console.log('[OrderDetailPage] Showing 2A button');
+                }
+                return canShow;
+              })() && (
                 <button
                   type="button"
                   onClick={handleCreate2aManifest}
@@ -962,10 +994,31 @@ export default function OrderDetailPage() {
                 </button>
               )}
               {/* Show 2B button if: has 2A manifest (or 1-manifest if 2A images exist), has characterHash, no 2B manifest, and source order with 2B manifest exists */}
-              {(order.manifest2aUrl || (order.oneManifestUrl && (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0))) && 
-               !order.manifest2bUrl && 
-               order.characterHash && 
-               (order.r2Assets?.sharedImageInfo?.hasSource2bManifest || order.r2Assets?.posesBgRemoved?.length > 0) && (
+              {(() => {
+                const has2aOrCanCreate2a = order.manifest2aUrl || (order.oneManifestUrl && (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0));
+                const canShow = has2aOrCanCreate2a && 
+                               !order.manifest2bUrl && 
+                               order.characterHash && 
+                               (order.r2Assets?.sharedImageInfo?.hasSource2bManifest || order.r2Assets?.posesBgRemoved?.length > 0);
+                if (canShow) {
+                  console.log('[OrderDetailPage] Showing 2B button', {
+                    has2aOrCanCreate2a,
+                    has2bManifest: !!order.manifest2bUrl,
+                    hasCharacterHash: !!order.characterHash,
+                    hasSource2b: order.r2Assets?.sharedImageInfo?.hasSource2bManifest,
+                    posesBgRemovedCount: order.r2Assets?.posesBgRemoved?.length || 0
+                  });
+                } else {
+                  console.log('[OrderDetailPage] NOT showing 2B button', {
+                    has2aOrCanCreate2a,
+                    has2bManifest: !!order.manifest2bUrl,
+                    hasCharacterHash: !!order.characterHash,
+                    hasSource2b: order.r2Assets?.sharedImageInfo?.hasSource2bManifest,
+                    posesBgRemovedCount: order.r2Assets?.posesBgRemoved?.length || 0
+                  });
+                }
+                return canShow;
+              })() && (
                 <button
                   type="button"
                   onClick={handleCreate2bManifest}

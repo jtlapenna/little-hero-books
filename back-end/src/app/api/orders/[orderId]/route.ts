@@ -275,6 +275,7 @@ async function getOrder(
           
           console.log(`[GET /api/orders/[orderId]] Character hash ${order.characterHash} is shared with ${sourceOrderIds.length} other order(s):`, sourceOrderIds);
           console.log(`[GET /api/orders/[orderId]] Source orders have 2A manifest: ${hasSource2aManifest}, 2B manifest: ${hasSource2bManifest}`);
+          console.log(`[GET /api/orders/[orderId]] Shared image info:`, JSON.stringify(sharedImageInfo, null, 2));
         }
       } catch (error: any) {
         console.warn(`[GET /api/orders/[orderId]] Error checking for shared images:`, error?.message || error);
@@ -611,6 +612,8 @@ async function getOrder(
   };
   
   console.log(`[GET /api/orders/[orderId]] Returning order with ${characterAssets.length} assets`);
+  console.log(`[GET /api/orders/[orderId]] r2Assets.sharedImageInfo:`, order.r2Assets.sharedImageInfo);
+  console.log(`[GET /api/orders/[orderId]] poses count: ${preBriaPoses.length}, posesBgRemoved count: ${postBriaPoses.length}`);
   console.log(`[GET /api/orders/[orderId]] Base character:`, baseCharacter ? { url: baseCharacter.url, type: baseCharacter.assetType } : 'null');
   console.log(`[GET /api/orders/[orderId]] Pre-Bria poses: ${preBriaPoses.length}`, preBriaPoses.map(p => ({ poseNumber: p.poseNumber, url: p.url, type: p.assetType })));
   console.log(`[GET /api/orders/[orderId]] Post-Bria poses: ${postBriaPoses.length}`, postBriaPoses.map(p => ({ poseNumber: p.poseNumber, url: p.url, type: p.assetType })));
