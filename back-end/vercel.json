@@ -8,10 +8,6 @@
     {
       "path": "/api/cron/health-monitor",
       "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/amazon-orders",
-      "schedule": "0 0 * * *"
     }
   ]
 }
