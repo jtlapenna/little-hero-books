@@ -44,18 +44,40 @@ const amazonSandboxMode = getEnvVar('AMAZON_SANDBOX_MODE') === 'true';
  */
 export async function GET(request: NextRequest) {
   // Read CRON_SECRET at request time (ensures it's available even if set after deployment)
-  const requestCronSecret = getEnvVar('CRON_SECRET');
+  // Try multiple ways to read it in case of Next.js/Vercel quirks
+  const requestCronSecret = 
+    process.env.CRON_SECRET || 
+    getEnvVar('CRON_SECRET') ||
+    process.env['CRON_SECRET'];
   
   // Verify cron secret (security)
   const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
   
   // Debug logging (in production, this helps diagnose auth issues)
   if (!requestCronSecret) {
+    const allEnvKeys = Object.keys(process.env);
+    const cronRelatedKeys = allEnvKeys.filter(k => 
+      k.includes('CRON') || 
+      k.includes('SECRET') || 
+      k.includes('cron') || 
+      k.includes('secret')
+    );
+    
     console.error('[Cron Amazon Orders] CRON_SECRET environment variable is not set in Production environment');
-    console.error('[Cron Amazon Orders] Available env vars:', Object.keys(process.env).filter(k => k.includes('CRON') || k.includes('SECRET')));
+    console.error('[Cron Amazon Orders] Total env vars:', allEnvKeys.length);
+    console.error('[Cron Amazon Orders] Cron/Secret related keys:', cronRelatedKeys);
+    console.error('[Cron Amazon Orders] Direct process.env.CRON_SECRET:', process.env.CRON_SECRET);
+    console.error('[Cron Amazon Orders] getEnvVar result:', getEnvVar('CRON_SECRET'));
+    
     return NextResponse.json({ 
       error: 'Server configuration error',
-      message: 'CRON_SECRET environment variable is not set. Please ensure it is configured for Production environment in Vercel.'
+      message: 'CRON_SECRET environment variable is not set. Please ensure it is configured for Production environment in Vercel and redeploy.',
+      debug: {
+        envVarCount: allEnvKeys.length,
+        cronRelatedKeys: cronRelatedKeys,
+        hasDirectAccess: !!process.env.CRON_SECRET,
+        hasHelperAccess: !!getEnvVar('CRON_SECRET')
+      }
     }, { status: 500 });
   }
   
