@@ -6,21 +6,39 @@
 
 > **Note**: Codebase currently references "Little Hero Books" - this will be updated post-launch. Not critical for MVP.
 
-## ✅ **DATABASE SETUP COMPLETED**
+## ✅ **DATABASE SETUP COMPLETED (VERIFIED - January 2025)**
 
-**🎉 Database setup has been successfully completed!**
+**🎉 Database setup has been successfully completed and verified!**
 
 **✅ Completed Tasks:**
 - ✅ Supabase project created and configured
 - ✅ Database schema verified and operational
+- ✅ **All migrations applied**: Status system, preview system, manifest support, customer contacts
 - ✅ n8n integration configured with Supabase credentials
 - ✅ All workflows tested and working with database
 - ✅ Environment variables configured
 - ✅ Database connection tested and verified
+- ✅ **RPC functions operational**: `upsert_from_manifest_2a()`, `upsert_from_manifest_2b()`
 
-**📊 Database Status:**
+**📊 Database Status (VERIFIED):**
 - **Project URL**: `https://mdnthwpcnphjnnblbvxk.supabase.co`
-- **Tables**: 6 tables created and operational (orders, failed_orders, human_review_queue, character_generations, audit_logs, workflow_execution_logs)
+- **Primary Key**: `id` (INTEGER, auto-increment)
+- **Unique Identifier**: `orderId` (TEXT, NOT NULL)
+- **Tables**: 7+ tables operational:
+  - ✅ `orders` - Main order table with all required fields
+  - ✅ `character_generations` - Per-pose image tracking
+  - ✅ `human_review_queue` - Review queue management
+  - ✅ `preview_tokens` - Customer preview tokens
+  - ✅ `customer_feedback` - Customer feedback and revisions
+  - ✅ `notification_logs` - Notification tracking
+  - ✅ `failed_orders` - Error tracking
+- **Key Fields Verified**:
+  - ✅ `lulu_job_id`, `lulu_status` - Lulu print tracking
+  - ✅ `review_stages` (JSONB) - Three-stage review system
+  - ✅ `flags` (JSONB), `has_flags` (BOOLEAN) - Flag tracking
+  - ✅ `customer_approval_status`, `customer_approval_required`, etc. - Customer approval
+  - ✅ `manifest_2a_url`, `manifest_2b_url`, `manifest_3_url` - Manifest URLs
+  - ✅ `workflow_step`, `next_workflow`, `execution_status` - Workflow tracking
 - **n8n Integration**: Supabase credentials configured and tested
 - **Data Flow**: All workflows successfully reading from and writing to database
 
@@ -266,6 +284,200 @@ Submit completed books to Lulu Print-on-Demand, track printing progress, and han
 
 ---
 
+## 🔔 **Lulu Webhook Integration (CRITICAL - Your Task)**
+
+### **📋 Overview**
+
+This is a **critical task** that enables automatic order status updates from Lulu's API. Once implemented, Lulu will automatically POST status updates to our endpoint, and we'll update the database in real-time.
+
+**Status**: ❌ **MISSING** - High priority
+
+### **✅ Task 1: Verify Database Fields**
+
+**Current Status**: ✅ **VERIFIED** (January 2025)
+
+These fields **already exist** in the `orders` table:
+- ✅ `lulu_job_id` (VARCHAR) - Stores Lulu print job ID
+- ✅ `lulu_status` (VARCHAR) - Stores Lulu status (SHIPPED, IN_PRODUCTION, etc.)
+- ✅ `tracking_number` (VARCHAR) - Shipping tracking number
+- ✅ `carrier` (VARCHAR) - Shipping carrier
+- ✅ `trackingUrl` (TEXT) - Tracking URL
+
+**Action**: No migration needed - all fields exist.
+
+---
+
+### **✅ Task 2: Create Webhook Endpoint**
+
+**File Location**: `back-end/src/app/api/webhooks/lulu/status/route.ts`
+
+**Endpoint Specification**:
+- **Method**: `POST`
+- **Path**: `/api/webhooks/lulu/status`
+- **Purpose**: Receive status updates from Lulu and update database
+
+**Implementation Requirements**:
+
+1. **Parse Webhook Payload**
+   - Extract `print_job_id` (or `id`) from payload
+   - Extract `name` (status name like "SHIPPED", "IN_PRODUCTION", etc.)
+   - Extract tracking info from `line_item_statuses` array
+
+2. **Find Order in Database**
+   - Query Supabase: `SELECT * FROM orders WHERE lulu_job_id = ?`
+   - Handle case where order not found (log error, return 200 anyway)
+
+3. **Update Database Fields**
+   - `lulu_status` = status name from payload
+   - `tracking_number` = `tracking_id` from line_item_statuses (if SHIPPED)
+   - `trackingUrl` = first item from `tracking_urls` array (if SHIPPED)
+   - `carrier` = `carrier` from line_item_statuses (if SHIPPED)
+   - `updatedAt` = current timestamp
+
+4. **Handle Error States**
+   - If status is `REJECTED`: Set `lulu_status = 'REJECTED'`, log error details
+   - If status is `CANCELED`: Set `lulu_status = 'CANCELED'`
+
+5. **Return Response**
+   - Always return `200 OK` (even if order not found)
+   - Lulu expects 200 to acknowledge receipt
+
+**Example Webhook Payload from Lulu**:
+```json
+{
+  "name": "SHIPPED",
+  "message": "Print job has been shipped",
+  "changed": "2025-01-15T10:30:00Z",
+  "print_job_id": 12345,
+  "line_item_statuses": [
+    {
+      "name": "SHIPPED",
+      "tracking_id": "1Z999AA10123456784",
+      "tracking_urls": [
+        "https://www.ups.com/track?tracknum=1Z999AA10123456784"
+      ],
+      "carrier": "UPS"
+    }
+  ]
+}
+```
+
+**Example Implementation Structure**:
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseClient } from '@/lib/supabase-client';
+
+export async function POST(request: NextRequest) {
+  try {
+    // 1. Parse webhook payload
+    const payload = await request.json();
+    
+    // 2. Extract data
+    const printJobId = payload.print_job_id || payload.id;
+    const status = payload.name;
+    const lineItems = payload.line_item_statuses || [];
+    
+    // 3. Find order by lulu_job_id
+    // 4. Update database
+    // 5. Handle errors
+    
+    return NextResponse.json({ received: true }, { status: 200 });
+  } catch (error) {
+    // Always return 200, but log error
+    console.error('[LULU WEBHOOK] Error:', error);
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+}
+```
+
+**Security Considerations**:
+- **Optional**: Verify webhook signature if Lulu provides one
+- **Rate Limiting**: Consider adding rate limiting to prevent abuse
+- **CORS**: Allow all origins (Lulu will POST from their servers)
+
+---
+
+### **✅ Task 3: Test Webhook Endpoint**
+
+**Local Testing**:
+1. Start local server: `npm run dev`
+2. Use ngrok or similar to expose localhost: `ngrok http 3000`
+3. Send test payload using Postman/curl
+4. Verify database update: Check Supabase to confirm order was updated
+
+**Production Testing**:
+1. Deploy endpoint to production
+2. Verify URL is accessible: `https://admin.littleherolabs.com/api/webhooks/lulu/status`
+3. Send test payload to production URL
+4. Verify database update
+
+---
+
+### **✅ Task 4: Deploy and Verify**
+
+**Deployment Checklist**:
+- [ ] Endpoint deployed to production
+- [ ] URL is publicly accessible (no authentication required for Lulu)
+- [ ] Database fields exist and are correct type
+- [ ] Test payload successfully updates database
+- [ ] Error handling works (returns 200 even on errors)
+- [ ] Logging is in place for debugging
+
+**Verify with Developer A**:
+Once endpoint is ready:
+- [ ] Share the webhook URL: `https://admin.littleherolabs.com/api/webhooks/lulu/status`
+- [ ] Confirm endpoint is accessible
+- [ ] Developer A will subscribe to Lulu webhooks
+
+---
+
+### **📋 Database Field Reference**
+
+| Webhook Field | Database Field | Type | Notes |
+|--------------|----------------|------|-------|
+| `print_job_id` | `lulu_job_id` | VARCHAR(50) | Used to find order |
+| `name` | `lulu_status` | VARCHAR(50) | Status: SHIPPED, IN_PRODUCTION, etc. |
+| `line_item_statuses[].tracking_id` | `tracking_number` | VARCHAR(100) | Only when SHIPPED |
+| `line_item_statuses[].tracking_urls[0]` | `trackingUrl` | TEXT | Only when SHIPPED |
+| `line_item_statuses[].carrier` | `carrier` | VARCHAR(50) | Only when SHIPPED |
+
+**Status Values from Lulu**:
+- `CREATED`
+- `UNPAID`
+- `PAYMENT_IN_PROGRESS`
+- `PRODUCTION_DELAYED`
+- `PRODUCTION_READY`
+- `IN_PRODUCTION`
+- `SHIPPED`
+- `REJECTED`
+- `CANCELED`
+
+---
+
+### **📚 Reference Documentation**
+
+- **Lulu Webhook Docs**: `docs/lulu/LULU_ERROR_HANDLING.md`
+- **Status Mapping**: `docs/lulu/STATUS_MAPPING.md`
+- **Current Status API**: `back-end/src/app/api/preview/[orderId]/status/route.ts`
+- **Database Schema**: `database/supabase-schema.sql`
+
+---
+
+### **🎯 Quick Start Checklist**
+
+1. [x] Check database fields exist (`lulu_job_id`, `lulu_status`) - ✅ VERIFIED
+2. [ ] Create webhook endpoint file
+3. [ ] Implement payload parsing
+4. [ ] Implement database lookup by `lulu_job_id`
+5. [ ] Implement database update logic
+6. [ ] Add error handling (always return 200)
+7. [ ] Test locally with test payload
+8. [ ] Deploy to production
+9. [ ] Verify endpoint is accessible
+10. [ ] Notify Developer A that endpoint is ready
+
+---
+
 ## 🔧 **Workflow 5: Error Recovery**
 
 ### **Purpose**
@@ -275,7 +487,7 @@ Handle **technical failures** and implement retry logic with exponential backoff
 - ✅ Basic structure exists (`5-error-recovery.json`)
 - ✅ Error analysis logic implemented
 - ✅ Safeguards added to avoid human review interference
-- 🔄 Needs completion and testing
+- ✅ **COMPLETE** - Production ready and tested
 
 ### **Integration Points**
 **Input**: Failed orders from any workflow (1, 2A, 2B, 3, 4) - **TECHNICAL FAILURES ONLY**
@@ -365,7 +577,7 @@ Monitor system health, API costs, queue status, and send alerts for issues.
 ### **Current Status**
 - ✅ Basic structure exists (`6-monitoring-alerts.json`)
 - ✅ Health check logic implemented
-- 🔄 Needs completion and testing
+- ✅ **COMPLETE** - Production ready and tested
 
 ### **Integration Points**
 **Input**: System metrics from all workflows
@@ -416,7 +628,7 @@ Validate generated content quality and ensure print specifications compliance.
 ### **Current Status**
 - ✅ Basic structure exists (`7-quality-assurance.json`)
 - ✅ Quality check logic implemented
-- 🔄 Needs completion and testing
+- ✅ **COMPLETE** - Production ready and tested
 
 ### **Integration Points**
 **Input**: Completed orders from Workflow 3 (book assembly)
@@ -467,7 +679,7 @@ Optimize AI generation costs and identify cost-saving opportunities.
 ### **Current Status**
 - ✅ Basic structure exists (`8-cost-optimization.json`)
 - ✅ Cost analysis logic implemented
-- 🔄 Needs completion and testing
+- ✅ **COMPLETE** - Production ready and tested
 
 ### **Integration Points**
 **Input**: All workflows (monitors costs across entire system)
@@ -2772,7 +2984,7 @@ Organize orders and reviews into logical phase buckets (e.g., "Generation", "Rev
 **Priority**: P0 (Critical - Core customer feature)  
 **Estimated Time**: Placeholder: 2-3 days | Full Implementation: 5-7 days (after Developer A completes admin previewer)  
 **Dependencies**: Task 1 ✅, Task 2 ✅  
-**Status**: ✅ **PLACEHOLDER COMPLETE - MOVED TO CUSTOMER-FACING SITE (Admin copy removed)**
+**Status**: ✅ **COMPLETE** - Placeholder complete, design polish complete, moved to customer-facing site
 
 > **📖 COMPLETE PLAN**: See `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md` - This is the single source of truth for the customer preview and approval system, including all decisions, architecture, notification strategy, and implementation details.
 
@@ -2843,10 +3055,10 @@ Create a customer-facing page where customers can preview their book and approve
 **After Phase 1 Completion**: Move to Tasks 5, 6, 7 while waiting for Developer A's previewer.
 
 **Phase 3 (Future)**: Full implementation after Developer A completes admin previewer:
-   - Clone Developer A's previewer component
-   - Replace placeholder with full PDF viewer
-   - Add page-by-page navigation, zoom controls
-   - Add issue flagging UI
+   - ✅ Clone Developer A's previewer component - **COMPLETE**
+   - ✅ Replace placeholder with full PDF viewer - **COMPLETE**
+   - ✅ Add page-by-page navigation, zoom controls - **COMPLETE**
+   - ✅ Add issue flagging UI - **COMPLETE**
 
 **Note**: See `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md` for complete database schema and implementation details.
 
@@ -2937,10 +3149,10 @@ Create a customer-facing page where customers can preview their book and approve
 - ✅ Admin preview page removed (no duplicate routes)
 
 #### **Acceptance Criteria - Phase 3 (Full Implementation - After Developer A)**
-- ✅ PDF viewer displays correctly (cloned from Developer A)
-- ✅ Issue flagging functional
-- ✅ Disclaimer and terms implemented
-- ✅ Complete customer experience
+- ✅ PDF viewer displays correctly (cloned from Developer A) - **COMPLETE**
+- ✅ Issue flagging functional - **COMPLETE**
+- ✅ Disclaimer and terms implemented - **COMPLETE**
+- ✅ Complete customer experience - **COMPLETE**
 
 ---
 

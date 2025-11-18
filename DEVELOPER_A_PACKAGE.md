@@ -27,31 +27,34 @@
 
 ## 🏗️ **Current Workflow Status**
 
-### **🚨 CRITICAL: Order Approval Backend - Missing Lib Files**
+### **✅ Backend Implementation Status (VERIFIED - January 2025)**
 
-**URGENT**: The order approval backend in `back-end/` directory has placeholder lib files that **must be implemented** before deployment can work properly.
+**Backend Status**: Core functionality implemented and operational
 
-**Missing Implementations** (in `back-end/src/lib/`):
-- ⚠️ `mock-data.ts` - Replace with real Supabase queries for orders
-- ⚠️ `approval-store.ts` - Implement approval/rejection logic with Supabase
-- ⚠️ `r2-service.ts` - Connect to Cloudflare R2 for asset retrieval
-- ⚠️ `review-state.ts` - Implement review state management with Supabase
-- ⚠️ `monitoring.ts` - Implement system health monitoring
-- ✅ `utils.ts` - Basic utilities implemented
-- ✅ `api-wrapper.ts` - Basic API wrapper implemented
-- ✅ `error-handler.ts` - Basic error handling implemented
+**✅ Implemented Components**:
+- ✅ `back-end/src/lib/supabase-client.ts` - Supabase integration operational
+- ✅ `back-end/src/lib/status-service.ts` - Status management implemented
+- ✅ `back-end/src/lib/status-display.ts` - Status display logic implemented
+- ✅ `back-end/src/lib/approval-store.ts` - Approval/rejection logic with Supabase
+- ✅ `back-end/src/lib/review-state.ts` - Review state management with Supabase
+- ✅ `back-end/src/lib/r2-service.ts` - Cloudflare R2 asset retrieval operational
+- ✅ Webhook endpoints: `/api/webhooks/workflow-2a-complete`, `/api/webhooks/workflow-2b-complete`, `/api/webhooks/workflow-3-complete`
+- ✅ Customer preview system: `/api/preview/generate-token`, `/api/preview/[orderId]/approve`, `/api/preview/[orderId]/status`
+- ✅ Order status API: `/api/preview/[orderId]/status` - Returns Lulu status updates
 
-**Why This Matters**: These files are imported throughout the backend but currently only contain placeholder code. The site will build but won't function until these are properly implemented with real Supabase integration.
-
-**Location**: `back-end/src/lib/*.ts`
+**⚠️ Pending Implementation**:
+- ❌ Lulu webhook endpoint: `/api/webhooks/lulu/status` - **MISSING** (Developer B task)
 
 ---
 
 ### **Developer A (Your Work) - Database Integration Required**
 > **Ownership reminder**: Developer A is responsible for n8n Workflows **2A, 2B, and 3** (generation → assembly). Developer B maintains Workflow 1 intake, downstream Workflows 4-8, and the customer preview/approval frontend. Any workflow changes tied to generation/background removal/PDF assembly fall to Developer A; intake or notification adjustments (e.g., storing buyer names, preview contact capture) live with Developer B.
-- 🔄 **Workflow 2A**: AI Character Generation (Bria AI Integration) - `2.A.-bria-submit.json`
-- 🔄 **Workflow 2B**: AI Character Generation (Background Removal) - `2.B.-bria-retrieve.json`  
-- 🔄 **Workflow 3**: Book Assembly & PDF Generation - `3-book-assembly-production.json`
+
+> **⚠️ STATUS UNCERTAINTY**: Workflows 2A, 2B, and 3 may already be complete. If Developer A confirms these workflows have been fully integrated with the database and human review system, we can mark them as complete. Please verify with Developer A.
+
+- 🔄 **Workflow 2A**: AI Character Generation (Bria AI Integration) - `2.A.-bria-submit.json` (may be complete - needs verification)
+- 🔄 **Workflow 2B**: AI Character Generation (Background Removal) - `2.B.-bria-retrieve.json` (may be complete - needs verification)
+- 🔄 **Workflow 3**: Book Assembly & PDF Generation - `3-book-assembly-production.json` (may be complete - needs verification)
 
 ### **Developer B (Completed) - Ready for Integration**
 > Developer B also owns the customer preview experience (single structured correction form with email confirmation) and the Amazon Message Center notification flow described in `docs/CUSTOMER_PREVIEW_APPROVAL_SYSTEM.md`.
@@ -107,12 +110,14 @@ Your workflows must now integrate with the **Human-in-the-Loop Asset Review Syst
    - Wait for `status = 'post_pdf_approved'` before completion
 
 #### **Database Schema Integration:**
-```sql
--- Add these fields to your orders table
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_stage VARCHAR(50) DEFAULT 'pre_bria_pending';
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS human_approved BOOLEAN DEFAULT FALSE;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS approval_notes TEXT;
-```
+**✅ All Required Fields Already Exist** (verified January 2025):
+- ✅ `review_stages` (JSONB) - Three-stage review system already implemented
+- ✅ `human_approved` (BOOLEAN) - Human approval flag exists
+- ✅ `flags` (JSONB), `has_flags` (BOOLEAN) - Flag tracking system exists
+- ✅ `workflow_step`, `next_workflow` - Workflow tracking exists
+- ✅ `execution_status` - Execution status tracking exists
+
+**No migrations needed** - All fields are already in the database.
 
 #### **Status Flow:**
 ```
@@ -175,115 +180,47 @@ pre_bria_pending → pre_bria_approved → post_bria_pending → post_bria_appro
 
 ### **Database Setup Status**
 - ✅ **Supabase Database**: Fully configured and operational
-- ✅ **Schema**: Complete with all required tables
+- ✅ **Schema**: Complete with all required tables and fields
 - ✅ **Credentials**: n8n Supabase node configured
-- ✅ **Sample Data**: 3 test orders ready for processing
-- ⚠️ **Migration Needed**: Run `migration-add-feedback-fields.sql` to add regeneration fields
+- ✅ **All Migrations Applied**: Status system, preview system, manifest support, customer contacts
+- ✅ **RPC Functions**: `upsert_from_manifest_2a()` and `upsert_from_manifest_2b()` operational
+- ✅ **Supporting Tables**: All tables exist (character_generations, human_review_queue, preview_tokens, customer_feedback, notification_logs)
 
-### **Database Schema Overview**
-```sql
--- Main orders table with all workflow statuses
-CREATE TABLE orders (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    amazon_order_id VARCHAR(255) UNIQUE NOT NULL,
-    processing_id VARCHAR(255) UNIQUE,
-    status VARCHAR(50) NOT NULL DEFAULT 'pending_validation',
-    workflow_step VARCHAR(50) NOT NULL DEFAULT 'order_intake',
-    next_workflow VARCHAR(50),
-    
-    -- Order information
-    order_status VARCHAR(50),
-    purchase_date TIMESTAMP WITH TIME ZONE,
-    order_total DECIMAL(10, 2),
-    currency VARCHAR(10),
-    marketplace_id VARCHAR(50),
-    
-    -- Customer information
-    customer_email VARCHAR(255),
-    customer_name VARCHAR(255),
-    shipping_address JSONB,
-    
-    -- Character specifications
-    character_specs JSONB,
-    character_hash VARCHAR(255),
-    product_info JSONB,
-    
-    -- Priority and timing
-    priority VARCHAR(20) DEFAULT 'normal',
-    estimated_processing_time VARCHAR(50),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    validated_at TIMESTAMP WITH TIME ZONE,
-    validation_errors JSONB DEFAULT '[]'::jsonb,
-    queued_at TIMESTAMP WITH TIME ZONE,
-    
-    -- AI Generation tracking
-    ai_generation_started_at TIMESTAMP WITH TIME ZONE,
-    ai_generation_completed_at TIMESTAMP WITH TIME ZONE,
-    character_images_generated INTEGER DEFAULT 0,
-    total_poses_required INTEGER DEFAULT 12,
-    ai_generation_cost DECIMAL(10, 2) DEFAULT 0.00,
-    character_consistency_score DECIMAL(3, 2),
-    
-    -- Book Assembly tracking
-    book_assembly_started_at TIMESTAMP WITH TIME ZONE,
-    book_assembly_completed_at TIMESTAMP WITH TIME ZONE,
-    final_book_url TEXT,
-    final_cover_url TEXT,
-    pdf_generation_cost DECIMAL(10, 2) DEFAULT 0.00,
-    
-    -- Human Review fields
-    requires_human_review BOOLEAN DEFAULT FALSE,
-    human_approved BOOLEAN DEFAULT NULL,
-    human_reviewed_at TIMESTAMP WITH TIME ZONE,
-    human_reviewer VARCHAR(100),
-    qa_status VARCHAR(50) DEFAULT 'pending',
-    qa_score DECIMAL(3, 2),
-    qa_notes TEXT,
-    
-    -- Print & Fulfillment tracking
-    print_submission_in_progress BOOLEAN DEFAULT FALSE,
-    print_job_id VARCHAR(255),
-    print_status VARCHAR(50),
-    print_submission_started_at TIMESTAMP WITH TIME ZONE,
-    print_submission_completed_at TIMESTAMP WITH TIME ZONE,
-    fulfillment_tracking_id VARCHAR(255),
-    fulfillment_carrier VARCHAR(100),
-    fulfillment_completed_at TIMESTAMP WITH TIME ZONE,
-    fulfillment_cost DECIMAL(10, 2) DEFAULT 0.00,
-    
-    -- Cost optimization
-    cost_optimization_applied BOOLEAN DEFAULT FALSE,
-    cost_savings DECIMAL(10, 2) DEFAULT 0.00
-);
+### **Database Schema Overview (VERIFIED - January 2025)**
 
--- Human review queue for quality control
-CREATE TABLE human_review_queue (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
-    status VARCHAR(50) DEFAULT 'pending',
-    review_type VARCHAR(50),
-    review_priority VARCHAR(20),
-    assigned_to VARCHAR(255),
-    reviewed_by VARCHAR(100),
-    review_notes TEXT,
-    decision VARCHAR(50),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    completed_at TIMESTAMP WITH TIME ZONE
-);
+**Key Database Structure:**
+- **Primary Key**: `id` (INTEGER, auto-increment) - NOT UUID
+- **Unique Identifier**: `orderId` (TEXT, NOT NULL) - used for lookups
+- **Amazon Order ID**: Both `amazon_order_id` (VARCHAR) and `amazonOrderId` (TEXT) exist (use `amazon_order_id` for consistency)
 
--- Audit logs for tracking all actions
-CREATE TABLE audit_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    event_type VARCHAR(100) NOT NULL,
-    entity_type VARCHAR(100) NOT NULL,
-    entity_id UUID NOT NULL,
-    user_id VARCHAR(255),
-    details JSONB
-);
-```
+**✅ All Required Fields EXIST:**
+- ✅ `workflow_step`, `next_workflow`, `execution_status` - Workflow tracking
+- ✅ `review_stages` (JSONB) - Three-stage review system (preBria, postBria, postPdf)
+- ✅ `flags` (JSONB), `has_flags` (BOOLEAN) - Flag tracking system
+- ✅ `customer_approval_status`, `customer_approval_required`, `customer_approval_requested_at`, `customer_approval_approved_at` - Customer approval system
+- ✅ `character_hash` (VARCHAR) - Character caching
+- ✅ `human_approved` (BOOLEAN) - Human review approval
+- ✅ `manifest_2a_url`, `manifest_2b_url`, `manifest_3_url` (TEXT) - Manifest URLs
+- ✅ `lulu_job_id` (VARCHAR), `lulu_status` (VARCHAR) - Lulu print tracking
+- ✅ `tracking_number` (VARCHAR), `carrier` (VARCHAR) - Shipping tracking
+- ✅ `delivered_at` (TIMESTAMP) - Delivery tracking
+- ✅ `revision_count` (INTEGER) - Revision tracking
+
+**✅ Supporting Tables EXIST:**
+- ✅ `character_generations` - Per-pose image tracking (12 poses per order)
+- ✅ `human_review_queue` - Review queue management
+- ✅ `preview_tokens` - Customer preview token management
+- ✅ `customer_feedback` - Customer feedback and revision requests
+- ✅ `notification_logs` - Notification attempt tracking
+
+**✅ RPC Functions EXIST:**
+- ✅ `upsert_from_manifest_2a(p_order_id TEXT, p_manifest JSONB)` - Upsert from Workflow 2A manifest
+- ✅ `upsert_from_manifest_2b(p_order_id TEXT, p_manifest JSONB)` - Upsert from Workflow 2B manifest
+
+**Field Naming Notes:**
+- Most fields use **snake_case** (e.g., `lulu_job_id`, `tracking_number`)
+- Some legacy fields use **camelCase** (e.g., `amazonOrderId`, `orderId`)
+- **Recommendation**: Use `amazon_order_id` (snake_case) for consistency
 
 ### **Current Database Status**
 ```sql
@@ -299,11 +236,13 @@ WHERE status = 'queued_for_processing';
 
 ## 🔄 **Workflow 2A: Database Integration Required**
 
+> **⚠️ STATUS UNCERTAINTY**: This workflow may already be complete. If Developer A confirms that Workflow 2A has been fully integrated with the database and human review system, we can mark this section as complete. Please verify with Developer A before proceeding.
+
 ### **Current Status**
 - ✅ **Workflow exists**: `2.A.-bria-submit.json`
-- ❌ **Uses mock data**: Still generating test orders instead of querying database
-- ❌ **Manual trigger**: Needs cron trigger for automatic processing
-- ❌ **No database updates**: Not updating order status after processing
+- ❌ **Uses mock data**: Still generating test orders instead of querying database (or may be complete - needs verification)
+- ❌ **Manual trigger**: Needs cron trigger for automatic processing (or may be complete - needs verification)
+- ❌ **No database updates**: Not updating order status after processing (or may be complete - needs verification)
 
 ### **Required Changes**
 
@@ -428,10 +367,12 @@ return [{ json: orderData }];
 
 ## 🔄 **Workflow 2B: Database Integration Required**
 
+> **⚠️ STATUS UNCERTAINTY**: This workflow may already be complete. If Developer A confirms that Workflow 2B has been fully integrated with the database and human review system, we can mark this section as complete. Please verify with Developer A before proceeding.
+
 ### **Current Status**
 - ✅ **Workflow exists**: `2.B.-bria-retrieve.json`
-- ❌ **Webhook trigger**: Needs to be triggered by Workflow 2A completion
-- ❌ **No database updates**: Not updating order status after completion
+- ❌ **Webhook trigger**: Needs to be triggered by Workflow 2A completion (or may be complete - needs verification)
+- ❌ **No database updates**: Not updating order status after completion (or may be complete - needs verification)
 
 ### **Required Changes**
 
@@ -489,10 +430,12 @@ return [{ json: orderData }];
 
 ## 🔄 **Workflow 3: Database Integration + Human Intervention**
 
+> **⚠️ STATUS UNCERTAINTY**: This workflow may already be complete. If Developer A confirms that Workflow 3 has been fully integrated with the database and human review system, we can mark this section as complete. Please verify with Developer A before proceeding.
+
 ### **Current Status**
 - ✅ **Workflow exists**: `3-book-assembly-production.json`
-- ❌ **Uses mock data**: Needs to query database for completed AI generation
-- ❌ **No human intervention**: Missing quality review step
+- ❌ **Uses mock data**: Needs to query database for completed AI generation (or may be complete - needs verification)
+- ❌ **No human intervention**: Missing quality review step (or may be complete - needs verification)
 
 ### **Required Changes**
 
@@ -798,11 +741,116 @@ Human Review → Database → Workflow 4 (Dev B)
 
 ---
 
+## 🔔 **Lulu Webhook Integration (Your Task)**
+
+### **📋 Overview**
+
+After Developer B creates the webhook endpoint, you need to subscribe to Lulu webhooks so we receive automatic status updates when orders move through Lulu's print process.
+
+### **✅ What's Already Working**
+
+**Print Job ID Storage** (Workflow 4):
+- ✅ When Workflow 4 submits an order to Lulu, Lulu returns a print job ID
+- ✅ The "Process Lulu Response" node extracts this ID: `resp.id || resp.job_id || resp.data?.id`
+- ✅ The "Supabase: mark submitted" node stores it as `lulu_job_id` in the database
+
+**Key Point**: The print job ID **comes FROM Lulu** - we don't create it. When you call Lulu's API to create a print job, they return an ID like `12345` or `abc-123-def`.
+
+### **🚧 What You Need to Do**
+
+#### **Task: Subscribe to Lulu Webhooks**
+
+**What It Is**: A one-time API call to Lulu to tell them "when status changes, POST to this URL"
+
+**When to Do It**: 
+- **Option A**: One-time manual setup (recommended for MVP)
+- **Option B**: Add a node in Workflow 4 that subscribes after submitting each order (more complex)
+
+**Lulu API Endpoint**: `POST https://api.lulu.com/webhooks/`
+
+**Request Body**:
+```json
+{
+  "url": "https://admin.littleherolabs.com/api/webhooks/lulu/status",
+  "topics": ["PRINT_JOB_STATUS_CHANGED"]
+}
+```
+
+**Response**:
+```json
+{
+  "id": 789,
+  "url": "https://admin.littleherolabs.com/api/webhooks/lulu/status",
+  "topics": ["PRINT_JOB_STATUS_CHANGED"],
+  "created": "2025-01-15T10:00:00Z"
+}
+```
+
+**Important Notes**:
+- This is a **one-time setup** - you don't need to subscribe for each order
+- Once subscribed, Lulu will send webhooks for **all** print jobs
+- The webhook URL must be publicly accessible (no localhost)
+- You may need to authenticate with Lulu API (same credentials as Workflow 4)
+
+**Recommendation**: 
+- For MVP: Do this manually once via Postman/curl or a simple n8n workflow
+- For Production: Consider adding it as a setup step in Workflow 4, but only if Lulu requires per-order subscriptions (check their docs)
+
+### **🔄 How It All Works Together**
+
+**Current Flow (Without Webhooks)**:
+```
+Workflow 4 → Submit to Lulu → Get Print Job ID → Store in DB
+                                                      ↓
+Customer views page → Polls status API → Reads from DB → Shows status
+```
+
+**Problem**: Status only updates if we manually poll Lulu's API or customer views the page.
+
+**New Flow (With Webhooks)**:
+```
+Workflow 4 → Submit to Lulu → Get Print Job ID → Store in DB
+                                                      ↓
+Lulu processes order → Status changes → Lulu POSTs to webhook endpoint
+                                                      ↓
+Webhook endpoint → Updates DB (lulu_status, tracking, etc.)
+                                                      ↓
+Customer views page → Polls status API → Reads from DB → Shows updated status
+```
+
+**Benefit**: Status updates automatically in real-time, no polling needed.
+
+### **📋 Implementation Checklist**
+
+- [ ] **Verify Lulu API credentials** - Confirm Workflow 4 credentials work for webhook subscription
+- [ ] **Wait for Developer B** - Confirm webhook endpoint `/api/webhooks/lulu/status` is deployed and accessible
+- [ ] **Test webhook subscription** - Use Postman/curl or create a simple n8n workflow to subscribe
+- [ ] **Confirm subscription success** - Check that Lulu accepted the webhook URL
+- [ ] **Optional: Add to Workflow 4** - If you want automated subscription per order (not recommended for MVP)
+
+### **❓ Questions to Answer**
+
+1. **Webhook Subscription Approach**: Do you want to subscribe once manually (simpler, recommended for MVP) or add subscription logic to Workflow 4 (more automated, but more complex)?
+
+2. **Webhook Endpoint Availability**: Before subscribing, check with Developer B that the endpoint exists and is ready.
+
+3. **Lulu API Authentication**: Verify Lulu API credentials in Workflow 4 CONFIG node work for webhook subscription endpoint.
+
+### **📚 Reference Documentation**
+
+- **Lulu API Docs**: https://api.lulu.com/api-docs/
+- **Webhook Details**: `docs/lulu/LULU_ERROR_HANDLING.md`
+- **Status Mapping**: `docs/lulu/STATUS_MAPPING.md`
+- **Current Workflow 4**: `docs/n8n-workflow-files/finals/LHB - 4 - PRINT FULlFILMENT.json`
+
+---
+
 ## 📚 **Additional Resources**
 
-- **Database Schema**: `docs/database/little-hero-books-schema.sql`
+- **Database Schema**: `docs/database/supabase-schema.sql`
+- **Database Verification**: `docs/database/DATABASE_VERIFICATION_QUERIES.sql`
 - **Developer B Package**: `DEVELOPER_B_PACKAGE.md`
-- **Workflow Files**: `docs/n8n-workflow-files/n8n-new/`
+- **Workflow Files**: `docs/n8n-workflow-files/finals/`
 - **Supabase Documentation**: https://supabase.com/docs
 - **n8n Supabase Node**: https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.supabase/
 
@@ -826,7 +874,9 @@ Integrate your existing workflows (2A, 2B, 3) with the Supabase database and imp
 
 ### **🔧 Your Tasks (Priority Order)**
 
-#### **Phase 1: Workflow 2A (Days 1-2)** 🚀 START HERE
+> **⚠️ STATUS UNCERTAINTY**: The tasks below (Workflows 2A, 2B, 3) may already be complete. If you have already completed the database integration and human review integration for these workflows, please confirm and we can mark them as complete.
+
+#### **Phase 1: Workflow 2A (Days 1-2)** 🚀 START HERE (or verify if complete)
 1. Replace `Generate Mock Order` node with Supabase query
 2. Query: `status = 'queued_for_processing'` AND `next_workflow = '2.A.-bria-submit'`
 3. **🎯 CRITICAL: Integrate with Human Review System**:
@@ -836,12 +886,12 @@ Integrate your existing workflows (2A, 2B, 3) with the Supabase database and imp
 4. Change Manual Trigger → Cron Trigger (every 5 minutes: `*/5 * * * *`)
 5. Add database update after processing starts: `status = 'ai_generation_in_progress'`
 
-#### **Phase 2: Workflow 2B (Days 3-4)** ⏳ NEXT
+#### **Phase 2: Workflow 2B (Days 3-4)** ⏳ NEXT (or verify if complete)
 1. Add database update after completion: `status = 'ai_generation_completed'`
 2. Set `next_workflow = '3-book-assembly'`
 3. Test complete AI generation flow
 
-#### **Phase 3: Workflow 3 (Days 5-7)** ⏳ FINAL
+#### **Phase 3: Workflow 3 (Days 5-7)** ⏳ FINAL (or verify if complete)
 1. Replace mock data with Supabase query
 2. Query: `status = 'ai_generation_completed'` AND `next_workflow = '3-book-assembly'`
 3. Add quality check logic at the end
