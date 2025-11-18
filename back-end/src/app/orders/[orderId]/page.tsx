@@ -116,7 +116,13 @@ export default function OrderDetailPage() {
   // Fetch order data from API
   const fetchOrder = async (orderId: string) => {
     try {
-      const response = await fetch(`/api/orders/${orderId}`);
+      // Add cache-busting to ensure we get fresh data after manifest deletions
+      const response = await fetch(`/api/orders/${orderId}?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       if (!response.ok) {
         const errorText = await response.text();
         let errorMessage = 'Failed to fetch order';
@@ -924,6 +930,8 @@ export default function OrderDetailPage() {
             hasOneManifest: !!order.oneManifestUrl,
             has2aManifest: !!order.manifest2aUrl,
             has2bManifest: !!order.manifest2bUrl,
+            manifest2aUrl: order.manifest2aUrl, // Log actual value for debugging
+            manifest2bUrl: order.manifest2bUrl, // Log actual value for debugging
             hasCharacterHash: !!order.characterHash,
             sharedImageInfo: order.r2Assets?.sharedImageInfo,
             posesCount: order.r2Assets?.poses?.length || 0,
