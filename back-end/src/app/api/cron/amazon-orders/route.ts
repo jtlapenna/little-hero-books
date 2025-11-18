@@ -229,6 +229,7 @@ export async function GET(request: NextRequest) {
           const { error: storeError } = await supabase
             .from('orders')
             .upsert({
+              orderId: amazonOrder.AmazonOrderId, // Primary key
               amazon_order_id: amazonOrder.AmazonOrderId,
               execution_status: 'pending_w0',
               next_workflow: null,
@@ -241,7 +242,7 @@ export async function GET(request: NextRequest) {
               // Add a note that customization data is missing
               product_info: { _customization_missing: true, _retry_on_next_cron: true },
             }, {
-              onConflict: 'amazon_order_id',
+              onConflict: 'orderId', // Primary key is orderId (camelCase)
               ignoreDuplicates: false,
             });
 
@@ -259,10 +260,13 @@ export async function GET(request: NextRequest) {
         // 3d. Normalize order data with customization
         const orderData = await normalizeAmazonOrder(amazonOrder, orderItems, customization);
         
-        // Extract only Supabase-compatible fields (snake_case columns)
+        // Extract only Supabase-compatible fields
+        // Note: Schema uses orderId (camelCase) as PRIMARY KEY, amazon_order_id as separate field
         // Note: book_specs column doesn't exist in schema - bookSpecs is sent to W0 webhook only
+        const orderIdValue = orderData.amazon_order_id || orderData.amazonOrderId || orderData.orderId || amazonOrder.AmazonOrderId;
         const supabaseOrderData = {
-          amazon_order_id: orderData.amazon_order_id,
+          orderId: orderIdValue, // Primary key - use amazon_order_id as orderId
+          amazon_order_id: orderIdValue,
           order_status: orderData.status || 'Unshipped',
           purchase_date: orderData.purchaseDate || orderData.orderDate,
           marketplace_id: orderData.marketplaceId,
@@ -281,7 +285,7 @@ export async function GET(request: NextRequest) {
         const { data: storedOrder, error: storeError } = await supabase
           .from('orders')
           .upsert(supabaseOrderData, {
-            onConflict: 'amazon_order_id',
+            onConflict: 'orderId', // Primary key is orderId (camelCase)
             ignoreDuplicates: false,
           })
           .select()
