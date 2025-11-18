@@ -252,7 +252,7 @@ async function getOrder(
       try {
         const { data: ordersWithSameHash, error: hashCheckError } = await supabase
           .from('orders')
-          .select('amazon_order_id, orderId')
+          .select('amazon_order_id, orderId, manifest_2a_url, manifest_2b_url')
           .eq('character_hash', order.characterHash)
           .neq('amazon_order_id', orderId)
           .limit(10);
@@ -262,12 +262,19 @@ async function getOrder(
             .map(o => o.amazon_order_id || o.orderId)
             .filter(Boolean) as string[];
           
+          // Check if any source order has 2A or 2B manifest (for button visibility)
+          const hasSource2aManifest = ordersWithSameHash.some(o => o.manifest_2a_url);
+          const hasSource2bManifest = ordersWithSameHash.some(o => o.manifest_2b_url);
+          
           sharedImageInfo = {
             isShared: true,
             sourceOrderIds: sourceOrderIds,
+            hasSource2aManifest: hasSource2aManifest,
+            hasSource2bManifest: hasSource2bManifest,
           };
           
           console.log(`[GET /api/orders/[orderId]] Character hash ${order.characterHash} is shared with ${sourceOrderIds.length} other order(s):`, sourceOrderIds);
+          console.log(`[GET /api/orders/[orderId]] Source orders have 2A manifest: ${hasSource2aManifest}, 2B manifest: ${hasSource2bManifest}`);
         }
       } catch (error: any) {
         console.warn(`[GET /api/orders/[orderId]] Error checking for shared images:`, error?.message || error);

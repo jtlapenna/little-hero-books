@@ -937,12 +937,11 @@ export default function OrderDetailPage() {
                   )}
                 </button>
               )}
-              {/* Show 2A button if: has 1-manifest, has characterHash (images exist), no 2A manifest, and 2A images exist */}
+              {/* Show 2A button if: has 1-manifest, has characterHash, no 2A manifest, and source order with 2A manifest exists */}
               {order.oneManifestUrl && 
                !order.manifest2aUrl && 
                order.characterHash && 
-               order.r2Assets?.poses && 
-               order.r2Assets.poses.length > 0 && (
+               (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0) && (
                 <button
                   type="button"
                   onClick={handleCreate2aManifest}
@@ -962,12 +961,11 @@ export default function OrderDetailPage() {
                   )}
                 </button>
               )}
-              {/* Show 2B button if: has 2A manifest (or 1-manifest if 2A images exist), has characterHash, no 2B manifest, and 2B images exist */}
-              {(order.manifest2aUrl || (order.oneManifestUrl && order.r2Assets?.poses && order.r2Assets.poses.length > 0)) && 
+              {/* Show 2B button if: has 2A manifest (or 1-manifest if 2A images exist), has characterHash, no 2B manifest, and source order with 2B manifest exists */}
+              {(order.manifest2aUrl || (order.oneManifestUrl && (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0))) && 
                !order.manifest2bUrl && 
                order.characterHash && 
-               order.r2Assets?.posesBgRemoved && 
-               order.r2Assets.posesBgRemoved.length > 0 && (
+               (order.r2Assets?.sharedImageInfo?.hasSource2bManifest || order.r2Assets?.posesBgRemoved?.length > 0) && (
                 <button
                   type="button"
                   onClick={handleCreate2bManifest}
