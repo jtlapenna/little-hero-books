@@ -239,11 +239,40 @@ async function getOrder(
   
   // Get character assets if characterHash is available
   let characterAssets: any[] = [];
+  let sharedImageInfo: { isShared: boolean; sourceOrderIds: string[] } | null = null;
+  
   if (order.characterHash) {
     try {
       console.log(`[GET /api/orders/[orderId]] Fetching character assets for hash: ${order.characterHash}`);
       characterAssets = await getCharacterAssets(order.characterHash);
       console.log(`[GET /api/orders/[orderId]] Found ${characterAssets.length} character assets`);
+      
+      // Check if this character hash belongs to other orders (images are being reused)
+      // This happens when orders have identical character specs (before the fix) or when images are intentionally shared
+      try {
+        const { data: ordersWithSameHash, error: hashCheckError } = await supabase
+          .from('orders')
+          .select('amazon_order_id, orderId')
+          .eq('character_hash', order.characterHash)
+          .neq('amazon_order_id', orderId)
+          .limit(10);
+        
+        if (!hashCheckError && ordersWithSameHash && ordersWithSameHash.length > 0) {
+          const sourceOrderIds = ordersWithSameHash
+            .map(o => o.amazon_order_id || o.orderId)
+            .filter(Boolean) as string[];
+          
+          sharedImageInfo = {
+            isShared: true,
+            sourceOrderIds: sourceOrderIds,
+          };
+          
+          console.log(`[GET /api/orders/[orderId]] Character hash ${order.characterHash} is shared with ${sourceOrderIds.length} other order(s):`, sourceOrderIds);
+        }
+      } catch (error: any) {
+        console.warn(`[GET /api/orders/[orderId]] Error checking for shared images:`, error?.message || error);
+        // Continue without shared image info
+      }
     } catch (error: any) {
       console.error(`[GET /api/orders/[orderId]] Error fetching character assets:`, error?.message || error);
       // Continue without assets rather than failing
@@ -261,6 +290,7 @@ async function getOrder(
         poses: characterAssets,
         baseCharacterBgRemoved: null,
         posesBgRemoved: [],
+        sharedImageInfo: sharedImageInfo || null, // Indicates if images are shared with other orders
       };
     } else {
       // Initialize with empty arrays so frontend can render empty state
@@ -270,6 +300,7 @@ async function getOrder(
         poses: [],
         baseCharacterBgRemoved: null,
         posesBgRemoved: [],
+        sharedImageInfo: sharedImageInfo || null, // Indicates if images are shared with other orders
       };
     }
     return NextResponse.json(order);
@@ -567,7 +598,9 @@ async function getOrder(
     baseCharacter,
     poses: preBriaPoses,  // Pre-Bria tab: original images from poses/ directory
     posesBgRemoved: postBriaPoses,  // Post-Bria tab: background-removed images from parent dir
-    all: characterAssets
+    all: characterAssets,
+    characterHash: order.characterHash || '',
+    sharedImageInfo: sharedImageInfo || null, // Indicates if images are shared with other orders
   };
   
   console.log(`[GET /api/orders/[orderId]] Returning order with ${characterAssets.length} assets`);

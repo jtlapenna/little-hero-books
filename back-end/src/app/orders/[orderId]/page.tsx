@@ -103,6 +103,8 @@ export default function OrderDetailPage() {
   const [resetting, setResetting] = useState(false);
   const [manualPrintLoading, setManualPrintLoading] = useState(false);
   const [creatingManifest, setCreatingManifest] = useState(false);
+  const [creating2aManifest, setCreating2aManifest] = useState(false);
+  const [creating2bManifest, setCreating2bManifest] = useState(false);
   const [resettingOrder, setResettingOrder] = useState(false);
   const printRequestInProgressRef = useRef(false);
   const rawResetToggle = process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET;
@@ -683,6 +685,64 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleCreate2aManifest = async () => {
+    if (!order) return;
+    
+    if (!confirm('Create 2A-manifest.json by reusing images from another order with the same character? This will use the generated poses from the source order but keep this order\'s customer information and dedication from the 1-manifest.')) {
+      return;
+    }
+
+    setCreating2aManifest(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.orderId}/create-2a-manifest`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || data.details || 'Failed to create 2A manifest');
+      }
+
+      alert(`2A manifest created successfully! Images reused from order ${data.sourceOrderId}. Order can now proceed to workflow 2B.`);
+      await fetchOrder(order.orderId);
+    } catch (error: any) {
+      console.error('Error creating 2A manifest:', error);
+      alert(error?.message || 'Failed to create 2A manifest. Please try again.');
+    } finally {
+      setCreating2aManifest(false);
+    }
+  };
+
+  const handleCreate2bManifest = async () => {
+    if (!order) return;
+    
+    if (!confirm('Create 2B-manifest.json by reusing images from another order with the same character? This will allow the order to proceed to workflow 3 without regenerating background-removed images.')) {
+      return;
+    }
+
+    setCreating2bManifest(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.orderId}/create-2b-manifest`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || data.details || 'Failed to create 2B manifest');
+      }
+
+      alert(`2B manifest created successfully! Images reused from order ${data.sourceOrderId}. Order can now proceed to workflow 3.`);
+      await fetchOrder(order.orderId);
+    } catch (error: any) {
+      console.error('Error creating 2B manifest:', error);
+      alert(error?.message || 'Failed to create 2B manifest. Please try again.');
+    } finally {
+      setCreating2bManifest(false);
+    }
+  };
+
   const handleResetOrderRecovery = async () => {
     if (!order) return;
     
@@ -866,6 +926,46 @@ export default function OrderDetailPage() {
                   ) : (
                     <>
                       Create Manifest
+                    </>
+                  )}
+                </button>
+              )}
+              {order.oneManifestUrl && !order.manifest2aUrl && order.characterHash && (
+                <button
+                  type="button"
+                  onClick={handleCreate2aManifest}
+                  disabled={creating2aManifest}
+                  className="inline-flex items-center px-3 py-1.5 border border-blue-300 rounded-md text-sm font-medium text-blue-800 bg-white hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  title="Create 2A manifest by reusing images from another order with the same character"
+                >
+                  {creating2aManifest ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating 2A...
+                    </>
+                  ) : (
+                    <>
+                      Create 2A Manifest (Reuse Images)
+                    </>
+                  )}
+                </button>
+              )}
+              {order.manifest2aUrl && !order.manifest2bUrl && order.characterHash && (
+                <button
+                  type="button"
+                  onClick={handleCreate2bManifest}
+                  disabled={creating2bManifest}
+                  className="inline-flex items-center px-3 py-1.5 border border-blue-300 rounded-md text-sm font-medium text-blue-800 bg-white hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  title="Create 2B manifest by reusing images from another order with the same character"
+                >
+                  {creating2bManifest ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating 2B...
+                    </>
+                  ) : (
+                    <>
+                      Create 2B Manifest (Reuse Images)
                     </>
                   )}
                 </button>

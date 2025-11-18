@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { AssetGrid } from '@/components/assets/asset-grid';
-import { CheckCircle, Play, X } from 'lucide-react';
+import { CheckCircle, Play, X, Info } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 
@@ -942,8 +942,54 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   };
 
 
+  // Check if images are shared with other orders
+  const sharedImageInfo = order?.r2Assets?.sharedImageInfo;
+  const isImagesShared = sharedImageInfo?.isShared === true;
+  const sourceOrderIds = sharedImageInfo?.sourceOrderIds || [];
+
   return (
     <div className="space-y-8">
+      {/* Shared Images Indicator */}
+      {isImagesShared && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <Info className="h-5 w-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
+            <div className="flex-1">
+              <h4 className="text-sm font-medium text-amber-900 mb-1">
+                Images Shared with Other Orders
+              </h4>
+              <p className="text-sm text-amber-800 mb-2">
+                These images are being reused from {sourceOrderIds.length === 1 ? 'another order' : `${sourceOrderIds.length} other orders`} with identical character specifications. 
+                This is expected behavior and helps save generation costs.
+              </p>
+              {sourceOrderIds.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs font-medium text-amber-900 mb-1">Source order{sourceOrderIds.length > 1 ? 's' : ''}:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {sourceOrderIds.slice(0, 5).map((sourceOrderId) => (
+                      <a
+                        key={sourceOrderId}
+                        href={`/orders/${sourceOrderId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-amber-100 text-amber-900 hover:bg-amber-200 transition-colors"
+                      >
+                        {sourceOrderId}
+                      </a>
+                    ))}
+                    {sourceOrderIds.length > 5 && (
+                      <span className="text-xs text-amber-700 px-2 py-1">
+                        +{sourceOrderIds.length - 5} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {hasAllImages ? (
         <>
           {/* Base Character Section */}
