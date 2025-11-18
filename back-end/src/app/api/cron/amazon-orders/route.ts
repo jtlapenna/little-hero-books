@@ -372,20 +372,26 @@ async function fetchAmazonOrders(accessToken: string): Promise<any[]> {
     const url = new URL(`${baseUrl}/orders/v0/orders`);
     
     // Amazon SP-API requires MarketplaceIds as a query parameter
+    // Note: MarketplaceIds must be a single value or comma-separated list
     url.searchParams.set('MarketplaceIds', amazonMarketplaceId || 'ATVPDKIKX0DER');
     
-    // For sandbox, use a much older date (30 days ago) as sandbox might have limited test data
-    // Sandbox also might require CreatedAfter in a specific format
+    // For sandbox, try minimal parameters first (sandbox may have different requirements)
+    // Sandbox often requires CreatedAfter but might be more strict about format
     if (amazonSandboxMode) {
-      // Use 30 days ago for sandbox to catch any test orders
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      url.searchParams.set('CreatedAfter', thirtyDaysAgo.toISOString());
+      // Use 7 days ago for sandbox (shorter window for test data)
+      // Format: ISO 8601 without milliseconds (Amazon SP-API preferred format)
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      // Remove milliseconds and ensure proper format
+      const createdAfterFormatted = sevenDaysAgo.toISOString().replace(/\.\d{3}Z$/, 'Z');
+      url.searchParams.set('CreatedAfter', createdAfterFormatted);
+      // Don't set OrderStatuses for sandbox - it might not support filtering
+      // Don't set MaxResultsPerPage for sandbox - use default
     } else {
+      // Production: use all standard parameters
       url.searchParams.set('CreatedAfter', createdAfter);
       url.searchParams.set('OrderStatuses', 'Unshipped');
+      url.searchParams.set('MaxResultsPerPage', '50');
     }
-    
-    url.searchParams.set('MaxResultsPerPage', '50');
 
     console.log(`[Cron Amazon Orders] Fetching orders from: ${url.toString()}`);
     console.log(`[Cron Amazon Orders] Sandbox mode: ${amazonSandboxMode}, MarketplaceId: ${amazonMarketplaceId}`);
