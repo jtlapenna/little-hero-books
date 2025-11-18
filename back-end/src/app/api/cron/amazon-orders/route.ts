@@ -124,6 +124,7 @@ export async function GET(request: NextRequest) {
 
   try {
     let amazonOrders: any[] = [];
+    let accessToken: string | null = null; // Declare outside if/else for use in order processing
     
     if (testMode) {
       // TEST MODE: Use mock Amazon order data instead of calling Amazon API
@@ -137,7 +138,7 @@ export async function GET(request: NextRequest) {
       // PRODUCTION MODE: Call real Amazon SP-API
       // 1. Get Amazon access token
       const tokenStart = Date.now();
-      const accessToken = await getAmazonAccessToken();
+      accessToken = await getAmazonAccessToken();
       metrics.tokenFetchMs = Date.now() - tokenStart;
 
       if (!accessToken) {
