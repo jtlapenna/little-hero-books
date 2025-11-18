@@ -4,19 +4,25 @@ import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 // Note: Cron jobs require Node.js runtime, not Edge
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
-const cronSecret = process.env.CRON_SECRET;
-const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake';
+// Read environment variables at runtime (not module load time)
+// This ensures they're available even if set after deployment
+const getEnvVar = (key: string, fallback?: string): string | undefined => {
+  return process.env[key] || fallback;
+};
+
+const supabaseUrl = getEnvVar('SUPABASE_URL') || getEnvVar('NEXT_PUBLIC_SUPABASE_URL');
+const supabaseKey = getEnvVar('SUPABASE_SERVICE_ROLE_KEY') || getEnvVar('NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY');
+const cronSecret = getEnvVar('CRON_SECRET');
+const n8nW0WebhookUrl = getEnvVar('N8N_W0_WEBHOOK_URL') || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake';
 
 // Amazon SP-API credentials
-const amazonClientId = process.env.AMZ_APP_CLIENT_ID || process.env.AMAZON_SP_API_CLIENT_ID;
-const amazonClientSecret = process.env.AMZ_APP_CLIENT_SECRET || process.env.AMAZON_SP_API_CLIENT_SECRET;
-const amazonRefreshToken = process.env.AMZ_REFRESH_TOKEN || process.env.AMAZON_SP_API_REFRESH_TOKEN;
-const amazonSellerId = process.env.AMZ_SELLER_ID || process.env.AMAZON_SP_API_SELLER_ID;
-const amazonMarketplaceId = process.env.AMZ_MARKETPLACE_ID || process.env.AMAZON_SP_API_MARKETPLACE_ID || 'ATVPDKIKX0DER';
-const amazonRegion = process.env.AMZ_REGION || process.env.AMAZON_SP_API_REGION || 'na';
-const amazonSandboxMode = process.env.AMAZON_SANDBOX_MODE === 'true';
+const amazonClientId = getEnvVar('AMZ_APP_CLIENT_ID') || getEnvVar('AMAZON_SP_API_CLIENT_ID');
+const amazonClientSecret = getEnvVar('AMZ_APP_CLIENT_SECRET') || getEnvVar('AMAZON_SP_API_CLIENT_SECRET');
+const amazonRefreshToken = getEnvVar('AMZ_REFRESH_TOKEN') || getEnvVar('AMAZON_SP_API_REFRESH_TOKEN');
+const amazonSellerId = getEnvVar('AMZ_SELLER_ID') || getEnvVar('AMAZON_SP_API_SELLER_ID');
+const amazonMarketplaceId = getEnvVar('AMZ_MARKETPLACE_ID') || getEnvVar('AMAZON_SP_API_MARKETPLACE_ID') || 'ATVPDKIKX0DER';
+const amazonRegion = getEnvVar('AMZ_REGION') || getEnvVar('AMAZON_SP_API_REGION') || 'na';
+const amazonSandboxMode = getEnvVar('AMAZON_SANDBOX_MODE') === 'true';
 
 /**
  * GET /api/cron/amazon-orders
@@ -37,23 +43,31 @@ const amazonSandboxMode = process.env.AMAZON_SANDBOX_MODE === 'true';
  * - New orders exist
  */
 export async function GET(request: NextRequest) {
+  // Read CRON_SECRET at request time (ensures it's available even if set after deployment)
+  const requestCronSecret = getEnvVar('CRON_SECRET');
+  
   // Verify cron secret (security)
   const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
   
   // Debug logging (in production, this helps diagnose auth issues)
-  if (!cronSecret) {
-    console.error('[Cron Amazon Orders] CRON_SECRET environment variable is not set');
-    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  if (!requestCronSecret) {
+    console.error('[Cron Amazon Orders] CRON_SECRET environment variable is not set in Production environment');
+    console.error('[Cron Amazon Orders] Available env vars:', Object.keys(process.env).filter(k => k.includes('CRON') || k.includes('SECRET')));
+    return NextResponse.json({ 
+      error: 'Server configuration error',
+      message: 'CRON_SECRET environment variable is not set. Please ensure it is configured for Production environment in Vercel.'
+    }, { status: 500 });
   }
   
-  const expectedAuth = `Bearer ${cronSecret}`;
+  const expectedAuth = `Bearer ${requestCronSecret}`;
   if (!authHeader || authHeader.trim() !== expectedAuth.trim()) {
     console.error('[Cron Amazon Orders] Unauthorized', {
       hasHeader: !!authHeader,
       headerLength: authHeader?.length || 0,
       expectedLength: expectedAuth.length,
-      cronSecretSet: !!cronSecret,
-      cronSecretLength: cronSecret?.length || 0
+      cronSecretSet: !!requestCronSecret,
+      cronSecretLength: requestCronSecret?.length || 0,
+      headerPrefix: authHeader?.substring(0, 20) || 'none'
     });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
