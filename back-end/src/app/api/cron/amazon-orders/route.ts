@@ -370,10 +370,20 @@ async function fetchAmazonOrders(accessToken: string): Promise<any[]> {
           : `https://sellingpartnerapi-${amazonRegion}.amazon.com`);
 
     const url = new URL(`${baseUrl}/orders/v0/orders`);
-    url.searchParams.set('MarketplaceIds', amazonMarketplaceId);
+    
+    // Amazon SP-API requires MarketplaceIds as a query parameter
+    // For sandbox, we might need to adjust parameters
+    url.searchParams.set('MarketplaceIds', amazonMarketplaceId || 'ATVPDKIKX0DER');
     url.searchParams.set('CreatedAfter', createdAfter);
-    url.searchParams.set('OrderStatuses', 'Unshipped');
+    
+    // Sandbox might not support all parameters - try without OrderStatuses if it fails
+    if (!amazonSandboxMode) {
+      url.searchParams.set('OrderStatuses', 'Unshipped');
+    }
     url.searchParams.set('MaxResultsPerPage', '50');
+
+    console.log(`[Cron Amazon Orders] Fetching orders from: ${url.toString()}`);
+    console.log(`[Cron Amazon Orders] Sandbox mode: ${amazonSandboxMode}, MarketplaceId: ${amazonMarketplaceId}`);
 
     const response = await fetch(url.toString(), {
       method: 'GET',
