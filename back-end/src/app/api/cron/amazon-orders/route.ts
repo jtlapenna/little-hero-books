@@ -41,12 +41,25 @@ const amazonSandboxMode = process.env.AMAZON_SANDBOX_MODE === 'true';
 export async function GET(request: NextRequest) {
   // Verify cron secret (security) - same pattern as router cron route
   const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
+  
+  // Debug: Log if cronSecret is undefined (shouldn't happen if env var is set)
+  if (!cronSecret) {
+    console.error('[Cron Amazon Orders] CRON_SECRET is undefined at module load time');
+    console.error('[Cron Amazon Orders] This route should match router cron pattern exactly');
+    return NextResponse.json({ 
+      error: 'Server configuration error',
+      message: 'CRON_SECRET is undefined. Check Vercel environment variables are set for Production.'
+    }, { status: 500 });
+  }
+  
   if (authHeader !== `Bearer ${cronSecret}`) {
     console.error('[Cron Amazon Orders] Unauthorized - missing or invalid CRON_SECRET', {
       hasHeader: !!authHeader,
       headerLength: authHeader?.length || 0,
       cronSecretSet: !!cronSecret,
-      cronSecretLength: cronSecret?.length || 0
+      cronSecretLength: cronSecret?.length || 0,
+      headerValue: authHeader?.substring(0, 30) + '...',
+      expectedPrefix: `Bearer ${cronSecret?.substring(0, 10)}...`
     });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
