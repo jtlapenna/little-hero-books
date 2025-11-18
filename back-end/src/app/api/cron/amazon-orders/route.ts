@@ -259,14 +259,28 @@ export async function GET(request: NextRequest) {
         // 3d. Normalize order data with customization
         const orderData = await normalizeAmazonOrder(amazonOrder, orderItems, customization);
         
+        // Extract only Supabase-compatible fields (snake_case columns)
+        const supabaseOrderData = {
+          amazon_order_id: orderData.amazon_order_id,
+          order_status: orderData.status || 'Unshipped',
+          purchase_date: orderData.purchaseDate || orderData.orderDate,
+          marketplace_id: orderData.marketplaceId,
+          customer_email: orderData.customerEmail || orderData.buyer?.email,
+          customer_name: orderData.buyer?.name || orderData.shippingAddress?.name,
+          shipping_address: orderData.shippingAddress,
+          character_specs: orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs,
+          book_specs: orderData.bookSpecs,
+          dedication_text: orderData.dedication || orderData.Dedication,
+          product_info: orderData.items || orderData.lineItems || orderItems,
+          status: 'pending_w0',
+          execution_status: 'pending_w0', // W0 will update to 'ready_for_processing'
+          next_workflow: null, // W0 will set to '2A'
+          updated_at: new Date().toISOString(),
+        };
+        
         const { data: storedOrder, error: storeError } = await supabase
           .from('orders')
-          .upsert({
-            ...orderData,
-            execution_status: 'pending_w0', // W0 will update to 'ready_for_processing'
-            next_workflow: null, // W0 will set to '2A'
-            updated_at: new Date().toISOString(),
-          }, {
+          .upsert(supabaseOrderData, {
             onConflict: 'amazon_order_id',
             ignoreDuplicates: false,
           })
