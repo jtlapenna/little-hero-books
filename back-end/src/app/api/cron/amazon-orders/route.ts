@@ -229,12 +229,12 @@ export async function GET(request: NextRequest) {
           const { error: storeError } = await supabase
             .from('orders')
             .upsert({
-              orderId: amazonOrder.AmazonOrderId, // Primary key
+              orderId: amazonOrder.AmazonOrderId, // Some environments still require this column
               amazon_order_id: amazonOrder.AmazonOrderId,
               execution_status: 'pending_w0',
               next_workflow: null,
               status: 'new',
-              // Store basic order info but mark that customization is missing
+              // Store basic order info but mark that customization data is missing
               customer_email: amazonOrder.BuyerInfo?.BuyerEmail || null,
               marketplace_id: amazonOrder.MarketplaceId || amazonMarketplaceId,
               purchase_date: amazonOrder.PurchaseDate || new Date().toISOString(),
@@ -242,7 +242,7 @@ export async function GET(request: NextRequest) {
               // Add a note that customization data is missing
               product_info: { _customization_missing: true, _retry_on_next_cron: true },
             }, {
-              onConflict: 'orderId', // Primary key is orderId (camelCase)
+              onConflict: 'amazon_order_id', // Unique constraint guaranteed in Supabase schema
               ignoreDuplicates: false,
             });
 
@@ -285,7 +285,7 @@ export async function GET(request: NextRequest) {
         const { data: storedOrder, error: storeError } = await supabase
           .from('orders')
           .upsert(supabaseOrderData, {
-            onConflict: 'orderId', // Primary key is orderId (camelCase)
+            onConflict: 'amazon_order_id', // DB guarantees uniqueness on this column
             ignoreDuplicates: false,
           })
           .select()
