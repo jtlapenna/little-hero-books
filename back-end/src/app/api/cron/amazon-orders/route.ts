@@ -39,27 +39,41 @@ const amazonSandboxMode = process.env.AMAZON_SANDBOX_MODE === 'true';
  * - New orders exist
  */
 export async function GET(request: NextRequest) {
-  // Verify cron secret (security) - same pattern as router cron route
+  // Verify cron secret (security)
+  // Try module load time first (matches router cron), fallback to runtime if needed
+  const secretToUse = cronSecret || process.env.CRON_SECRET;
   const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
   
-  // Debug: Log if cronSecret is undefined (shouldn't happen if env var is set)
-  if (!cronSecret) {
-    console.error('[Cron Amazon Orders] CRON_SECRET is undefined at module load time');
-    console.error('[Cron Amazon Orders] This route should match router cron pattern exactly');
+  if (!secretToUse) {
+    const allEnvKeys = Object.keys(process.env || {});
+    const envSample = allEnvKeys.slice(0, 10).join(', ');
+    
+    console.error('[Cron Amazon Orders] CRON_SECRET is undefined at both module load and runtime');
+    console.error('[Cron Amazon Orders] Module load time:', !!cronSecret);
+    console.error('[Cron Amazon Orders] Runtime check:', !!process.env.CRON_SECRET);
+    console.error('[Cron Amazon Orders] Total env vars:', allEnvKeys.length);
+    console.error('[Cron Amazon Orders] Sample env vars:', envSample);
+    console.error('[Cron Amazon Orders] Router cron works, so CRON_SECRET should be available');
+    
     return NextResponse.json({ 
       error: 'Server configuration error',
-      message: 'CRON_SECRET is undefined. Check Vercel environment variables are set for Production.'
+      message: 'CRON_SECRET is undefined. Check Vercel environment variables are set for Production.',
+      debug: {
+        moduleLoadTime: !!cronSecret,
+        runtime: !!process.env.CRON_SECRET,
+        envVarCount: allEnvKeys.length
+      }
     }, { status: 500 });
   }
   
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  if (authHeader !== `Bearer ${secretToUse}`) {
     console.error('[Cron Amazon Orders] Unauthorized - missing or invalid CRON_SECRET', {
       hasHeader: !!authHeader,
       headerLength: authHeader?.length || 0,
-      cronSecretSet: !!cronSecret,
-      cronSecretLength: cronSecret?.length || 0,
+      cronSecretSet: !!secretToUse,
+      cronSecretLength: secretToUse?.length || 0,
       headerValue: authHeader?.substring(0, 30) + '...',
-      expectedPrefix: `Bearer ${cronSecret?.substring(0, 10)}...`
+      expectedPrefix: `Bearer ${secretToUse?.substring(0, 10)}...`
     });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
