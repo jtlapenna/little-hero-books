@@ -39,6 +39,10 @@ const amazonSandboxMode = process.env.AMAZON_SANDBOX_MODE === 'true';
  * - New orders exist
  */
 export async function GET(request: NextRequest) {
+  // Check for test mode (via query parameter ?test=true)
+  const url = new URL(request.url);
+  const testMode = url.searchParams.get('test') === 'true' || process.env.AMAZON_CRON_TEST_MODE === 'true';
+  
   // Verify cron secret (security)
   // Try module load time first (matches router cron), fallback to runtime if needed
   const secretToUse = cronSecret || process.env.CRON_SECRET;
@@ -114,22 +118,39 @@ export async function GET(request: NextRequest) {
   };
 
   console.log(`[Cron Amazon Orders] [${executionId}] Starting execution at ${new Date().toISOString()}`);
+  if (testMode) {
+    console.log(`[Cron Amazon Orders] [${executionId}] ⚠️ TEST MODE ENABLED - Using mock Amazon order data`);
+  }
 
   try {
-    // 1. Get Amazon access token
-    const tokenStart = Date.now();
-    const accessToken = await getAmazonAccessToken();
-    metrics.tokenFetchMs = Date.now() - tokenStart;
+    let amazonOrders: any[] = [];
+    
+    if (testMode) {
+      // TEST MODE: Use mock Amazon order data instead of calling Amazon API
+      const ordersFetchStart = Date.now();
+      amazonOrders = getMockAmazonOrders();
+      metrics.ordersFetchMs = Date.now() - ordersFetchStart;
+      metrics.tokenFetchMs = 0; // Skip token fetch in test mode
+      
+      console.log(`[Cron Amazon Orders] [${executionId}] TEST MODE: Generated ${amazonOrders.length} mock order(s)`);
+    } else {
+      // PRODUCTION MODE: Call real Amazon SP-API
+      // 1. Get Amazon access token
+      const tokenStart = Date.now();
+      const accessToken = await getAmazonAccessToken();
+      metrics.tokenFetchMs = Date.now() - tokenStart;
 
-    if (!accessToken) {
-      throw new Error('Failed to get Amazon access token');
+      if (!accessToken) {
+        throw new Error('Failed to get Amazon access token');
+      }
+
+      console.log(`[Cron Amazon Orders] [${executionId}] Got Amazon access token (${metrics.tokenFetchMs}ms)`);
+
+      // 2. Fetch orders from Amazon SP-API
+      const ordersFetchStart = Date.now();
+      amazonOrders = await fetchAmazonOrders(accessToken);
+      metrics.ordersFetchMs = Date.now() - ordersFetchStart;
     }
-
-    console.log(`[Cron Amazon Orders] [${executionId}] Got Amazon access token (${metrics.tokenFetchMs}ms)`);
-
-    // 2. Fetch orders from Amazon SP-API
-    const ordersFetchStart = Date.now();
-    const amazonOrders = await fetchAmazonOrders(accessToken);
     
     // 2a. Also check for orders in Supabase that need retry (customization data missing)
     // These are orders that were previously skipped because customization wasn't available
