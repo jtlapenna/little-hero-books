@@ -730,7 +730,7 @@ if (!token) {
     }
   }
 
-  // Render current spread - matches order review page implementation
+  // Render current spread - covers as full-width, interior as two-page spreads
   function renderSpread(spread) {
     const spreadEl = document.getElementById('two-page-spread');
     if (!spreadEl) return;
@@ -748,7 +748,16 @@ if (!token) {
     // Clear the spread container
     spreadEl.innerHTML = '';
     
-    // Helper function to set image opacity (matches order review approach)
+    // Add class to indicate if this is a cover (full-width) or spread (two-page)
+    if (spread.coverData) {
+      spreadEl.classList.add('is-cover');
+      spreadEl.classList.remove('is-spread');
+    } else {
+      spreadEl.classList.add('is-spread');
+      spreadEl.classList.remove('is-cover');
+    }
+    
+    // Helper function to set image opacity
     const setImageOpacity = (img, isLoading) => {
       if (isLoading) {
         img.classList.add('opacity-0');
@@ -759,97 +768,17 @@ if (!token) {
       }
     };
     
-    // Render left page - can be regular page or back cover
-    // For front cover spread, left page should be blank
+    // Handle covers as full-width single pages
     if (spread.coverData && spread.coverData.isFrontCover) {
-      // Front cover spread: left page is blank
-      const whitePage = document.createElement('div');
-      whitePage.className = 'white-page';
-      spreadEl.appendChild(whitePage);
-    } else if (spread.coverData && spread.coverData.isBackCover) {
-      // Back cover: show left half of cover image
+      // Front cover: show full-width cover image
       if (spread.coverData.fullImageUrl) {
         const coverContainer = document.createElement('div');
-        coverContainer.className = 'cover-image-container back-cover';
-        const img = document.createElement('img');
-        img.alt = 'Back Cover';
-        img.src = spread.coverData.fullImageUrl;
-        img.className = 'cover-image transition-opacity duration-200';
-        
-        // Check if image is already cached
-        const isCached = img.complete && img.naturalHeight !== 0;
-        
-        if (!isCached) {
-          setImageOpacity(img, true);
-          img.onload = function() {
-            console.log('[Preview] ✅ Back cover image loaded successfully');
-            setImageOpacity(img, false);
-          };
-          img.onerror = function() {
-            console.error('[Preview] ❌ Failed to load back cover image:', spread.coverData.fullImageUrl);
-            this.style.display = 'none';
-            setImageOpacity(img, false);
-          };
-        } else {
-          // Image already cached
-          console.log('[Preview] ✅ Back cover image already cached');
-          setImageOpacity(img, false);
-        }
-        
-        coverContainer.appendChild(img);
-        spreadEl.appendChild(coverContainer);
-      } else {
-        const whitePage = document.createElement('div');
-        whitePage.className = 'white-page';
-        spreadEl.appendChild(whitePage);
-      }
-    } else if (spread.leftPage) {
-      // Regular left page
-      const img = document.createElement('img');
-      img.alt = `Page ${spread.leftPage.pageNumber}`;
-      img.src = spread.leftPage.imageUrl;
-      img.className = 'transition-opacity duration-200';
-      
-      // Check if image is already cached
-      const isCached = img.complete && img.naturalHeight !== 0;
-      
-      if (!isCached) {
-        setImageOpacity(img, true);
-        img.onload = function() {
-          console.log(`[Preview] ✅ Left image loaded successfully for page ${spread.leftPage.pageNumber}`);
-          setImageOpacity(img, false);
-        };
-        img.onerror = function() {
-          console.error(`[Preview] ❌ Failed to load left page image:`, spread.leftPage.imageUrl);
-          this.style.display = 'none';
-          setImageOpacity(img, false);
-        };
-      } else {
-        // Image already cached
-        console.log(`[Preview] ✅ Left image already cached for page ${spread.leftPage.pageNumber}`);
-        setImageOpacity(img, false);
-      }
-      
-      spreadEl.appendChild(img);
-    } else {
-      // Blank left page
-      const whitePage = document.createElement('div');
-      whitePage.className = 'white-page';
-      spreadEl.appendChild(whitePage);
-    }
-    
-    // Render right page - can be regular page or front cover
-    if (spread.coverData && spread.coverData.isFrontCover) {
-      // Front cover: show right half of cover image
-      if (spread.coverData.fullImageUrl) {
-        const coverContainer = document.createElement('div');
-        coverContainer.className = 'cover-image-container front-cover';
+        coverContainer.className = 'cover-image-container full-cover front-cover';
         const img = document.createElement('img');
         img.alt = 'Front Cover';
         img.src = spread.coverData.fullImageUrl;
         img.className = 'cover-image transition-opacity duration-200';
         
-        // Check if image is already cached
         const isCached = img.complete && img.naturalHeight !== 0;
         
         if (!isCached) {
@@ -864,51 +793,111 @@ if (!token) {
             setImageOpacity(img, false);
           };
         } else {
-          // Image already cached
           console.log('[Preview] ✅ Front cover image already cached');
           setImageOpacity(img, false);
         }
         
         coverContainer.appendChild(img);
         spreadEl.appendChild(coverContainer);
+      }
+    } else if (spread.coverData && spread.coverData.isBackCover) {
+      // Back cover: show full-width cover image
+      if (spread.coverData.fullImageUrl) {
+        const coverContainer = document.createElement('div');
+        coverContainer.className = 'cover-image-container full-cover back-cover';
+        const img = document.createElement('img');
+        img.alt = 'Back Cover';
+        img.src = spread.coverData.fullImageUrl;
+        img.className = 'cover-image transition-opacity duration-200';
+        
+        const isCached = img.complete && img.naturalHeight !== 0;
+        
+        if (!isCached) {
+          setImageOpacity(img, true);
+          img.onload = function() {
+            console.log('[Preview] ✅ Back cover image loaded successfully');
+            setImageOpacity(img, false);
+          };
+          img.onerror = function() {
+            console.error('[Preview] ❌ Failed to load back cover image:', spread.coverData.fullImageUrl);
+            this.style.display = 'none';
+            setImageOpacity(img, false);
+          };
+        } else {
+          console.log('[Preview] ✅ Back cover image already cached');
+          setImageOpacity(img, false);
+        }
+        
+        coverContainer.appendChild(img);
+        spreadEl.appendChild(coverContainer);
+      }
+    } else {
+      // Interior spread: two-page layout
+      // Render left page
+      if (spread.leftPage) {
+        const img = document.createElement('img');
+        img.alt = `Page ${spread.leftPage.pageNumber}`;
+        img.src = spread.leftPage.imageUrl;
+        img.className = 'transition-opacity duration-200';
+        
+        const isCached = img.complete && img.naturalHeight !== 0;
+        
+        if (!isCached) {
+          setImageOpacity(img, true);
+          img.onload = function() {
+            console.log(`[Preview] ✅ Left image loaded successfully for page ${spread.leftPage.pageNumber}`);
+            setImageOpacity(img, false);
+          };
+          img.onerror = function() {
+            console.error(`[Preview] ❌ Failed to load left page image:`, spread.leftPage.imageUrl);
+            this.style.display = 'none';
+            setImageOpacity(img, false);
+          };
+        } else {
+          console.log(`[Preview] ✅ Left image already cached for page ${spread.leftPage.pageNumber}`);
+          setImageOpacity(img, false);
+        }
+        
+        spreadEl.appendChild(img);
       } else {
+        // Blank left page
         const whitePage = document.createElement('div');
         whitePage.className = 'white-page';
         spreadEl.appendChild(whitePage);
       }
-    } else if (spread.rightPage) {
-      // Regular right page
-      const img = document.createElement('img');
-      img.alt = `Page ${spread.rightPage.pageNumber}`;
-      img.src = spread.rightPage.imageUrl;
-      img.className = 'transition-opacity duration-200';
       
-      // Check if image is already cached
-      const isCached = img.complete && img.naturalHeight !== 0;
-      
-      if (!isCached) {
-        setImageOpacity(img, true);
-        img.onload = function() {
-          console.log(`[Preview] ✅ Right image loaded successfully for page ${spread.rightPage.pageNumber}`);
+      // Render right page
+      if (spread.rightPage) {
+        const img = document.createElement('img');
+        img.alt = `Page ${spread.rightPage.pageNumber}`;
+        img.src = spread.rightPage.imageUrl;
+        img.className = 'transition-opacity duration-200';
+        
+        const isCached = img.complete && img.naturalHeight !== 0;
+        
+        if (!isCached) {
+          setImageOpacity(img, true);
+          img.onload = function() {
+            console.log(`[Preview] ✅ Right image loaded successfully for page ${spread.rightPage.pageNumber}`);
+            setImageOpacity(img, false);
+          };
+          img.onerror = function() {
+            console.error(`[Preview] ❌ Failed to load right page image:`, spread.rightPage.imageUrl);
+            this.style.display = 'none';
+            setImageOpacity(img, false);
+          };
+        } else {
+          console.log(`[Preview] ✅ Right image already cached for page ${spread.rightPage.pageNumber}`);
           setImageOpacity(img, false);
-        };
-        img.onerror = function() {
-          console.error(`[Preview] ❌ Failed to load right page image:`, spread.rightPage.imageUrl);
-          this.style.display = 'none';
-          setImageOpacity(img, false);
-        };
+        }
+        
+        spreadEl.appendChild(img);
       } else {
-        // Image already cached
-        console.log(`[Preview] ✅ Right image already cached for page ${spread.rightPage.pageNumber}`);
-        setImageOpacity(img, false);
+        // Blank right page
+        const whitePage = document.createElement('div');
+        whitePage.className = 'white-page';
+        spreadEl.appendChild(whitePage);
       }
-      
-      spreadEl.appendChild(img);
-    } else {
-      // Blank right page
-      const whitePage = document.createElement('div');
-      whitePage.className = 'white-page';
-      spreadEl.appendChild(whitePage);
     }
     
     // Update spread info
@@ -2939,6 +2928,9 @@ if (!token) {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Fixed height to prevent resizing */
+    min-height: 600px;
+    height: 600px;
   }
 
   .two-page-spread {
@@ -2946,28 +2938,64 @@ if (!token) {
     gap: 0;
     width: 100%;
     max-width: 100%;
-    height: auto;
+    height: 100%;
     background: #ffffff;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     overflow: hidden;
+    /* Fixed aspect ratio for consistent sizing */
+    align-items: center;
+    justify-content: center;
   }
 
-  .two-page-spread img {
+  /* Two-page spread layout (interior pages) */
+  .two-page-spread.is-spread {
+    display: flex;
+  }
+
+  .two-page-spread.is-spread img {
     width: 50%;
-    height: auto;
+    height: 100%;
     object-fit: contain;
     display: block;
     aspect-ratio: 1 / 1;
   }
 
-  .white-page {
+  .two-page-spread.is-spread .white-page {
     width: 50%;
     aspect-ratio: 1 / 1;
     background-color: white;
   }
 
-  .cover-image-container {
+  /* Full-width cover layout (front/back covers) */
+  .two-page-spread.is-cover {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .cover-image-container.full-cover {
+    width: 100%;
+    height: 100%;
+    max-width: 450px;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    position: relative;
+    background-color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cover-image-container.full-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  /* Legacy: half-width cover containers (not used for covers, but keep for compatibility) */
+  .cover-image-container:not(.full-cover) {
     width: 50%;
     aspect-ratio: 1 / 1;
     overflow: hidden;
@@ -2975,7 +3003,7 @@ if (!token) {
     background-color: white;
   }
 
-  .cover-image-container img {
+  .cover-image-container:not(.full-cover) img {
     width: 200%;
     height: 100%;
     object-fit: cover;
@@ -2983,11 +3011,11 @@ if (!token) {
     display: block;
   }
 
-  .cover-image-container.front-cover img {
+  .cover-image-container:not(.full-cover).front-cover img {
     object-position: right center;
   }
 
-  .cover-image-container.back-cover img {
+  .cover-image-container:not(.full-cover).back-cover img {
     object-position: left center;
   }
   
@@ -2997,9 +3025,14 @@ if (!token) {
       padding: 1rem;
     }
     
-    .two-page-spread img,
-    .cover-image-container img {
-      max-height: 50vh;
+    .spread-container {
+      min-height: 400px;
+      height: 400px;
+    }
+    
+    .two-page-spread.is-spread img,
+    .cover-image-container.full-cover img {
+      max-height: 100%;
     }
   }
 
