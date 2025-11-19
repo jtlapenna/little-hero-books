@@ -31,6 +31,19 @@ jobs:
         env:
           NODE_ENV: production
 
+      - name: Verify build output exists
+        run: |
+          cd back-end
+          if [ ! -d ".open-next/cloudflare" ]; then
+            echo "❌ ERROR: Build output directory .open-next/cloudflare does not exist!"
+            echo "Build directory contents:"
+            ls -la .open-next/ 2>/dev/null || echo "  .open-next directory not found"
+            exit 1
+          fi
+          echo "✅ Build output directory exists"
+          echo "Build output contents:"
+          ls -la .open-next/cloudflare | head -20
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
