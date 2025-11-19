@@ -480,14 +480,23 @@ if (!token) {
   function createSpreads(pages, coverImageUrl) {
     const spreads = [];
     
+    console.log('[Preview] createSpreads called:', {
+      pagesCount: pages.length,
+      coverImageUrl: coverImageUrl || 'NULL',
+      hasCover: !!coverImageUrl
+    });
+    
     // Add front cover spread if cover is available
     if (coverImageUrl) {
+      console.log('[Preview] Adding front cover spread with URL:', coverImageUrl);
       spreads.push({
         spreadNumber: 0,
         isCover: true,
         isBackCover: false,
         coverImageUrl: coverImageUrl
       });
+    } else {
+      console.warn('[Preview] ⚠️ No coverImageUrl provided - front cover will not be shown');
     }
     
     // Find dedication page (page 0) and story pages (pages 1-15)
@@ -518,13 +527,24 @@ if (!token) {
     
     // Add back cover spread if cover is available
     if (coverImageUrl) {
+      console.log('[Preview] Adding back cover spread with URL:', coverImageUrl);
       spreads.push({
         spreadNumber: spreads.length,
         isCover: false,
         isBackCover: true,
         coverImageUrl: coverImageUrl
       });
+    } else {
+      console.warn('[Preview] ⚠️ No coverImageUrl provided - back cover will not be shown');
     }
+    
+    console.log('[Preview] Total spreads created:', spreads.length, spreads.map(s => ({
+      spreadNumber: s.spreadNumber,
+      isCover: s.isCover,
+      isBackCover: s.isBackCover,
+      hasCoverUrl: !!s.coverImageUrl,
+      coverUrl: s.coverImageUrl ? s.coverImageUrl.substring(0, 100) + '...' : 'none'
+    })));
     
     return spreads;
   }
@@ -652,11 +672,48 @@ if (!token) {
       
       console.log('[Preview] Final pages array:', pages.length, 'pages', pages.map(p => `p${p.pageNumber}`));
       
-      // Get cover image URL
-      const coverImageUrl = manifest?.coverImageUrl 
-        || manifest3?.coverImageUrl
-        || manifest?.bookAssembly?.coverImageUrl
+      // Get cover image URL - check multiple possible locations
+      // Priority: Cloudflare Images URL (preview/watermarked), then direct URL, then R2 key
+      const pngGen = manifest?.pngGeneration || manifest3?.pngGeneration || {};
+      
+      // Check for Cloudflare Images URL first (preferred for preview)
+      let coverImageUrl = pngGen.coverCloudflareImageUrl 
+        || manifest?.coverCloudflareImageUrl
+        || manifest3?.coverCloudflareImageUrl
         || null;
+      
+      // If Cloudflare URL exists, ensure it has a variant (add /public if missing)
+      if (coverImageUrl && typeof coverImageUrl === 'string') {
+        if (!coverImageUrl.includes('/public') && !coverImageUrl.includes('/backend')) {
+          coverImageUrl = coverImageUrl.endsWith('/') ? coverImageUrl + 'public' : coverImageUrl + '/public';
+        }
+      }
+      
+      // Fallback to direct coverImageUrl fields
+      if (!coverImageUrl) {
+        coverImageUrl = manifest?.coverImageUrl 
+          || manifest3?.coverImageUrl
+          || manifest?.bookAssembly?.coverImageUrl
+          || pngGen?.coverImageUrl
+          || null;
+      }
+      
+      // Fallback to R2 key (construct URL)
+      if (!coverImageUrl && pngGen?.coverImageR2Key) {
+        coverImageUrl = `${API_BASE}/api/assets/${pngGen.coverImageR2Key}`;
+      }
+      
+      console.log('[Preview] Cover image URL lookup:', {
+        'pngGeneration.coverCloudflareImageUrl': pngGen?.coverCloudflareImageUrl || 'not found',
+        'manifest.coverCloudflareImageUrl': manifest?.coverCloudflareImageUrl || 'not found',
+        'manifest3.coverCloudflareImageUrl': manifest3?.coverCloudflareImageUrl || 'not found',
+        'manifest.coverImageUrl': manifest?.coverImageUrl || 'not found',
+        'manifest3.coverImageUrl': manifest3?.coverImageUrl || 'not found',
+        'manifest.bookAssembly.coverImageUrl': manifest?.bookAssembly?.coverImageUrl || 'not found',
+        'pngGeneration.coverImageUrl': pngGen?.coverImageUrl || 'not found',
+        'pngGeneration.coverImageR2Key': pngGen?.coverImageR2Key || 'not found',
+        'final coverImageUrl': coverImageUrl || 'NULL - COVER NOT FOUND'
+      });
       
       return { pages, coverImageUrl };
     } catch (error) {
@@ -669,10 +726,26 @@ if (!token) {
   function renderSpread(spread) {
     if (!spreadContent) return;
     
+    console.log('[Preview] renderSpread called:', {
+      spreadNumber: spread.spreadNumber,
+      isCover: spread.isCover,
+      isBackCover: spread.isBackCover,
+      hasCoverUrl: !!spread.coverImageUrl,
+      coverUrl: spread.coverImageUrl ? spread.coverImageUrl.substring(0, 100) + '...' : 'none',
+      hasLeftPage: !!spread.leftPage,
+      hasRightPage: !!spread.rightPage
+    });
+    
+    // Use opacity transition to prevent flashing
+    spreadContent.style.opacity = '0';
+    spreadContent.style.transition = 'opacity 0.2s ease-in-out';
+    
+    // Clear content
     spreadContent.innerHTML = '';
     
     // Render cover (front or back) - check both isCover and isBackCover
     if ((spread.isCover || spread.isBackCover) && spread.coverImageUrl) {
+      console.log('[Preview] Rendering cover:', spread.isBackCover ? 'BACK' : 'FRONT', 'URL:', spread.coverImageUrl);
       // Render cover
       const coverContainer = document.createElement('div');
       coverContainer.className = spread.isBackCover ? 'cover-image-container back-cover' : 'cover-image-container front-cover';
@@ -680,16 +753,67 @@ if (!token) {
       img.alt = spread.isBackCover ? 'Back Cover' : 'Front Cover';
       img.src = spread.coverImageUrl;
       img.className = 'cover-image';
+      
+      // Add error handler for cover image
+      img.onerror = function() {
+        console.error('[Preview] ❌ Failed to load cover image:', spread.coverImageUrl, 'Type:', spread.isBackCover ? 'BACK' : 'FRONT');
+        this.style.display = 'none';
+      };
+      
+      img.onload = function() {
+        console.log('[Preview] ✅ Cover image loaded successfully:', spread.isBackCover ? 'BACK' : 'FRONT');
+        // Fade in after image loads
+        requestAnimationFrame(() => {
+          spreadContent.style.opacity = '1';
+        });
+      };
+      
       coverContainer.appendChild(img);
       spreadContent.appendChild(coverContainer);
+      
+      // If image is already cached, fade in immediately
+      if (img.complete) {
+        requestAnimationFrame(() => {
+          spreadContent.style.opacity = '1';
+        });
+      }
     } else {
       // Render two-page spread
+      let imagesLoaded = 0;
+      const totalImages = (spread.leftPage ? 1 : 0) + (spread.rightPage ? 1 : 0);
+      
       if (spread.leftPage) {
         const leftImg = document.createElement('img');
         leftImg.alt = `Page ${spread.leftPage.pageNumber}`;
         leftImg.src = spread.leftPage.imageUrl;
         leftImg.className = 'page-image left-page';
+        
+        leftImg.onload = function() {
+          imagesLoaded++;
+          if (imagesLoaded === totalImages) {
+            // Fade in after all images load
+            requestAnimationFrame(() => {
+              spreadContent.style.opacity = '1';
+            });
+          }
+        };
+        
+        leftImg.onerror = function() {
+          console.error('[Preview] ❌ Failed to load page image:', spread.leftPage.imageUrl);
+          imagesLoaded++;
+          if (imagesLoaded === totalImages) {
+            requestAnimationFrame(() => {
+              spreadContent.style.opacity = '1';
+            });
+          }
+        };
+        
         spreadContent.appendChild(leftImg);
+        
+        // If image is already cached, count it as loaded
+        if (leftImg.complete) {
+          imagesLoaded++;
+        }
       }
       
       if (spread.rightPage) {
@@ -697,7 +821,40 @@ if (!token) {
         rightImg.alt = `Page ${spread.rightPage.pageNumber}`;
         rightImg.src = spread.rightPage.imageUrl;
         rightImg.className = 'page-image right-page';
+        
+        rightImg.onload = function() {
+          imagesLoaded++;
+          if (imagesLoaded === totalImages) {
+            // Fade in after all images load
+            requestAnimationFrame(() => {
+              spreadContent.style.opacity = '1';
+            });
+          }
+        };
+        
+        rightImg.onerror = function() {
+          console.error('[Preview] ❌ Failed to load page image:', spread.rightPage.imageUrl);
+          imagesLoaded++;
+          if (imagesLoaded === totalImages) {
+            requestAnimationFrame(() => {
+              spreadContent.style.opacity = '1';
+            });
+          }
+        };
+        
         spreadContent.appendChild(rightImg);
+        
+        // If image is already cached, count it as loaded
+        if (rightImg.complete) {
+          imagesLoaded++;
+        }
+      }
+      
+      // If no images or all images already cached, fade in immediately
+      if (totalImages === 0 || imagesLoaded === totalImages) {
+        requestAnimationFrame(() => {
+          spreadContent.style.opacity = '1';
+        });
       }
     }
     
@@ -770,6 +927,10 @@ if (!token) {
       }
       
       // Create spreads
+      console.log('[Preview] Creating spreads with:', {
+        pagesCount: pages.length,
+        coverImageUrl: coverImageUrl || 'NULL'
+      });
       spreads = createSpreads(pages, coverImageUrl);
       
       if (spreads.length === 0) {
@@ -780,6 +941,8 @@ if (!token) {
         return;
       }
       
+      console.log('[Preview] Spreads created successfully:', spreads.length, 'total spreads');
+      
       // Hide loading state now that PDF is ready
       if (loadingState) loadingState.style.display = 'none';
       
@@ -788,6 +951,7 @@ if (!token) {
       
       // Render first spread
       currentSpreadIndex = 0;
+      console.log('[Preview] Rendering first spread (index 0):', spreads[0]);
       renderSpread(spreads[0]);
     } catch (error) {
       console.error('[Preview] Error loading pages:', error);
