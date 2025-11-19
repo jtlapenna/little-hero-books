@@ -145,10 +145,12 @@ if (!token) {
             </div>
             <div class="spread-viewer">
               <div class="spread-container">
-                <div class="two-page-spread">
-                  <div class="white-page"></div>
-                  <div id="spread-content" class="spread-content">
-                    <!-- Pages will be inserted here -->
+                <div class="two-page-spread" id="two-page-spread">
+                  <div id="left-page" class="page-container">
+                    <!-- Left page content (back cover or regular page) -->
+                  </div>
+                  <div id="right-page" class="page-container">
+                    <!-- Right page content (front cover or regular page) -->
                   </div>
                 </div>
               </div>
@@ -469,7 +471,6 @@ if (!token) {
   let spreads = [];
   let currentSpreadIndex = 0;
   const pdfViewerContainer = document.getElementById('pdf-viewer-container');
-  const spreadContent = document.getElementById('spread-content');
   const currentSpreadEl = document.getElementById('current-spread');
   const totalSpreadsEl = document.getElementById('total-spreads');
   const spreadLabelEl = document.getElementById('spread-label');
@@ -486,14 +487,20 @@ if (!token) {
       hasCover: !!coverImageUrl
     });
     
-    // Add front cover spread if cover is available
+    // Add front cover spread (blank left, cover right half) if cover is available
     if (coverImageUrl) {
       console.log('[Preview] Adding front cover spread with URL:', coverImageUrl);
       spreads.push({
         spreadNumber: 0,
+        leftPage: null,
+        rightPage: null,
+        coverData: {
+          fullImageUrl: coverImageUrl,
+          isFrontCover: true,
+          isBackCover: false
+        },
         isCover: true,
-        isBackCover: false,
-        coverImageUrl: coverImageUrl
+        isBackCover: false
       });
     } else {
       console.warn('[Preview] ⚠️ No coverImageUrl provided - front cover will not be shown');
@@ -525,14 +532,20 @@ if (!token) {
       });
     }
     
-    // Add back cover spread if cover is available
+    // Add back cover spread (cover left half, blank right) if cover is available
     if (coverImageUrl) {
       console.log('[Preview] Adding back cover spread with URL:', coverImageUrl);
       spreads.push({
         spreadNumber: spreads.length,
+        leftPage: null,
+        rightPage: null,
+        coverData: {
+          fullImageUrl: coverImageUrl,
+          isFrontCover: false,
+          isBackCover: true
+        },
         isCover: false,
-        isBackCover: true,
-        coverImageUrl: coverImageUrl
+        isBackCover: true
       });
     } else {
       console.warn('[Preview] ⚠️ No coverImageUrl provided - back cover will not be shown');
@@ -542,8 +555,8 @@ if (!token) {
       spreadNumber: s.spreadNumber,
       isCover: s.isCover,
       isBackCover: s.isBackCover,
-      hasCoverUrl: !!s.coverImageUrl,
-      coverUrl: s.coverImageUrl ? s.coverImageUrl.substring(0, 100) + '...' : 'none'
+      hasCoverData: !!s.coverData,
+      coverUrl: s.coverData?.fullImageUrl ? s.coverData.fullImageUrl.substring(0, 100) + '...' : 'none'
     })));
     
     return spreads;
@@ -722,140 +735,239 @@ if (!token) {
     }
   }
 
+  // Track image loading state
+  let imageLoading = { left: false, right: false };
+  let imageError = { left: null, right: null };
+  
   // Render current spread
   function renderSpread(spread) {
-    if (!spreadContent) return;
+    const leftPageEl = document.getElementById('left-page');
+    const rightPageEl = document.getElementById('right-page');
+    
+    if (!leftPageEl || !rightPageEl) return;
     
     console.log('[Preview] renderSpread called:', {
       spreadNumber: spread.spreadNumber,
       isCover: spread.isCover,
       isBackCover: spread.isBackCover,
-      hasCoverUrl: !!spread.coverImageUrl,
-      coverUrl: spread.coverImageUrl ? spread.coverImageUrl.substring(0, 100) + '...' : 'none',
+      hasCoverData: !!spread.coverData,
+      coverUrl: spread.coverData?.fullImageUrl ? spread.coverData.fullImageUrl.substring(0, 100) + '...' : 'none',
       hasLeftPage: !!spread.leftPage,
       hasRightPage: !!spread.rightPage
     });
     
-    // Use opacity transition to prevent flashing
-    spreadContent.style.opacity = '0';
-    spreadContent.style.transition = 'opacity 0.2s ease-in-out';
+    // Create stable key for this spread to prevent unnecessary re-renders
+    const leftPageNum = spread.leftPage?.pageNumber ?? null;
+    const rightPageNum = spread.rightPage?.pageNumber ?? null;
+    const coverType = spread.coverData 
+      ? (spread.coverData.isFrontCover ? 'front' : spread.coverData.isBackCover ? 'back' : 'cover')
+      : null;
+    const coverUrl = spread.coverData?.fullImageUrl || null;
+    const spreadKey = `${currentSpreadIndex}-${leftPageNum}-${rightPageNum}-${coverType}-${coverUrl ? 'hasCover' : 'noCover'}`;
     
-    // Clear content
-    spreadContent.innerHTML = '';
+    // Reset loading state when spread changes
+    imageLoading = { left: true, right: true };
+    imageError = { left: null, right: null };
     
-    // Render cover (front or back) - check both isCover and isBackCover
-    if ((spread.isCover || spread.isBackCover) && spread.coverImageUrl) {
-      console.log('[Preview] Rendering cover:', spread.isBackCover ? 'BACK' : 'FRONT', 'URL:', spread.coverImageUrl);
-      // Render cover
-      const coverContainer = document.createElement('div');
-      coverContainer.className = spread.isBackCover ? 'cover-image-container back-cover' : 'cover-image-container front-cover';
+    // Clear both pages
+    leftPageEl.innerHTML = '';
+    rightPageEl.innerHTML = '';
+    leftPageEl.style.opacity = '0';
+    rightPageEl.style.opacity = '0';
+    leftPageEl.style.transition = 'opacity 0.2s ease-in-out';
+    rightPageEl.style.transition = 'opacity 0.2s ease-in-out';
+    
+    // Track how many images need to load
+    let imagesToLoad = 0;
+    let imagesLoaded = 0;
+    
+    const checkAllLoaded = () => {
+      imagesLoaded++;
+      if (imagesLoaded >= imagesToLoad) {
+        // Fade in both pages after all images load
+        requestAnimationFrame(() => {
+          leftPageEl.style.opacity = '1';
+          rightPageEl.style.opacity = '1';
+        });
+      }
+    };
+    
+    // Render left page - can be regular page or back cover
+    if (spread.coverData && spread.coverData.isBackCover) {
+      // Back cover: show left half of cover image
+      if (spread.coverData.fullImageUrl) {
+        imagesToLoad++;
+        const coverContainer = document.createElement('div');
+        coverContainer.className = 'cover-image-container back-cover';
+        const img = document.createElement('img');
+        img.alt = 'Back Cover';
+        img.src = spread.coverData.fullImageUrl;
+        img.className = 'cover-image';
+        img.key = `back-cover-${spreadKey}`;
+        
+        img.onload = function() {
+          console.log('[Preview] ✅ Back cover image loaded successfully');
+          imageLoading.left = false;
+          imageError.left = null;
+          checkAllLoaded();
+        };
+        
+        img.onerror = function() {
+          console.error('[Preview] ❌ Failed to load back cover image:', spread.coverData.fullImageUrl);
+          imageLoading.left = false;
+          imageError.left = 'Failed to load back cover';
+          this.style.display = 'none';
+          checkAllLoaded();
+        };
+        
+        img.className += ` transition-opacity duration-200 ${imageLoading.left ? 'opacity-0' : 'opacity-100'}`;
+        if (imageError.left) img.style.display = 'none';
+        
+        coverContainer.appendChild(img);
+        leftPageEl.appendChild(coverContainer);
+        
+        // If image is already cached, count it as loaded
+        if (img.complete && img.naturalHeight !== 0) {
+          imageLoading.left = false;
+          checkAllLoaded();
+        }
+      } else {
+        leftPageEl.innerHTML = '<div class="white-page"></div>';
+        imageLoading.left = false;
+        checkAllLoaded();
+      }
+    } else if (spread.leftPage) {
+      // Regular left page
+      imagesToLoad++;
       const img = document.createElement('img');
-      img.alt = spread.isBackCover ? 'Back Cover' : 'Front Cover';
-      img.src = spread.coverImageUrl;
-      img.className = 'cover-image';
-      
-      // Add error handler for cover image
-      img.onerror = function() {
-        console.error('[Preview] ❌ Failed to load cover image:', spread.coverImageUrl, 'Type:', spread.isBackCover ? 'BACK' : 'FRONT');
-        this.style.display = 'none';
-      };
+      img.alt = `Page ${spread.leftPage.pageNumber}`;
+      img.src = spread.leftPage.imageUrl;
+      img.className = 'page-image left-page';
+      img.key = `left-page-${spread.leftPage.pageNumber}-${spreadKey}`;
       
       img.onload = function() {
-        console.log('[Preview] ✅ Cover image loaded successfully:', spread.isBackCover ? 'BACK' : 'FRONT');
-        // Fade in after image loads
-        requestAnimationFrame(() => {
-          spreadContent.style.opacity = '1';
-        });
+        console.log(`[Preview] ✅ Left image loaded successfully for page ${spread.leftPage.pageNumber}`);
+        imageLoading.left = false;
+        imageError.left = null;
+        checkAllLoaded();
       };
       
-      coverContainer.appendChild(img);
-      spreadContent.appendChild(coverContainer);
+      img.onerror = function() {
+        console.error(`[Preview] ❌ Failed to load left page image:`, spread.leftPage.imageUrl);
+        imageLoading.left = false;
+        imageError.left = `Failed to load page ${spread.leftPage.pageNumber}`;
+        this.style.display = 'none';
+        checkAllLoaded();
+      };
       
-      // If image is already cached, fade in immediately
-      if (img.complete) {
-        requestAnimationFrame(() => {
-          spreadContent.style.opacity = '1';
-        });
+      img.className += ` transition-opacity duration-200 ${imageLoading.left ? 'opacity-0' : 'opacity-100'}`;
+      if (imageError.left) img.style.display = 'none';
+      
+      leftPageEl.appendChild(img);
+      
+      // If image is already cached, count it as loaded
+      if (img.complete && img.naturalHeight !== 0) {
+        imageLoading.left = false;
+        checkAllLoaded();
       }
     } else {
-      // Render two-page spread
-      let imagesLoaded = 0;
-      const totalImages = (spread.leftPage ? 1 : 0) + (spread.rightPage ? 1 : 0);
-      
-      if (spread.leftPage) {
-        const leftImg = document.createElement('img');
-        leftImg.alt = `Page ${spread.leftPage.pageNumber}`;
-        leftImg.src = spread.leftPage.imageUrl;
-        leftImg.className = 'page-image left-page';
+      // Blank left page
+      leftPageEl.innerHTML = '<div class="white-page"></div>';
+      imageLoading.left = false;
+      checkAllLoaded();
+    }
+    
+    // Render right page - can be regular page or front cover
+    if (spread.coverData && spread.coverData.isFrontCover) {
+      // Front cover: show right half of cover image
+      if (spread.coverData.fullImageUrl) {
+        imagesToLoad++;
+        const coverContainer = document.createElement('div');
+        coverContainer.className = 'cover-image-container front-cover';
+        const img = document.createElement('img');
+        img.alt = 'Front Cover';
+        img.src = spread.coverData.fullImageUrl;
+        img.className = 'cover-image';
+        img.key = `front-cover-${spreadKey}`;
         
-        leftImg.onload = function() {
-          imagesLoaded++;
-          if (imagesLoaded === totalImages) {
-            // Fade in after all images load
-            requestAnimationFrame(() => {
-              spreadContent.style.opacity = '1';
-            });
-          }
+        img.onload = function() {
+          console.log('[Preview] ✅ Front cover image loaded successfully');
+          imageLoading.right = false;
+          imageError.right = null;
+          checkAllLoaded();
         };
         
-        leftImg.onerror = function() {
-          console.error('[Preview] ❌ Failed to load page image:', spread.leftPage.imageUrl);
-          imagesLoaded++;
-          if (imagesLoaded === totalImages) {
-            requestAnimationFrame(() => {
-              spreadContent.style.opacity = '1';
-            });
-          }
+        img.onerror = function() {
+          console.error('[Preview] ❌ Failed to load front cover image:', spread.coverData.fullImageUrl);
+          imageLoading.right = false;
+          imageError.right = 'Failed to load front cover';
+          this.style.display = 'none';
+          checkAllLoaded();
         };
         
-        spreadContent.appendChild(leftImg);
+        img.className += ` transition-opacity duration-200 ${imageLoading.right ? 'opacity-0' : 'opacity-100'}`;
+        if (imageError.right) img.style.display = 'none';
+        
+        coverContainer.appendChild(img);
+        rightPageEl.appendChild(coverContainer);
         
         // If image is already cached, count it as loaded
-        if (leftImg.complete) {
-          imagesLoaded++;
+        if (img.complete && img.naturalHeight !== 0) {
+          imageLoading.right = false;
+          checkAllLoaded();
         }
+      } else {
+        rightPageEl.innerHTML = '<div class="white-page"></div>';
+        imageLoading.right = false;
+        checkAllLoaded();
       }
+    } else if (spread.rightPage) {
+      // Regular right page
+      imagesToLoad++;
+      const img = document.createElement('img');
+      img.alt = `Page ${spread.rightPage.pageNumber}`;
+      img.src = spread.rightPage.imageUrl;
+      img.className = 'page-image right-page';
+      img.key = `right-page-${spread.rightPage.pageNumber}-${spreadKey}`;
       
-      if (spread.rightPage) {
-        const rightImg = document.createElement('img');
-        rightImg.alt = `Page ${spread.rightPage.pageNumber}`;
-        rightImg.src = spread.rightPage.imageUrl;
-        rightImg.className = 'page-image right-page';
-        
-        rightImg.onload = function() {
-          imagesLoaded++;
-          if (imagesLoaded === totalImages) {
-            // Fade in after all images load
-            requestAnimationFrame(() => {
-              spreadContent.style.opacity = '1';
-            });
-          }
-        };
-        
-        rightImg.onerror = function() {
-          console.error('[Preview] ❌ Failed to load page image:', spread.rightPage.imageUrl);
-          imagesLoaded++;
-          if (imagesLoaded === totalImages) {
-            requestAnimationFrame(() => {
-              spreadContent.style.opacity = '1';
-            });
-          }
-        };
-        
-        spreadContent.appendChild(rightImg);
-        
-        // If image is already cached, count it as loaded
-        if (rightImg.complete) {
-          imagesLoaded++;
-        }
-      }
+      img.onload = function() {
+        console.log(`[Preview] ✅ Right image loaded successfully for page ${spread.rightPage.pageNumber}`);
+        imageLoading.right = false;
+        imageError.right = null;
+        checkAllLoaded();
+      };
       
-      // If no images or all images already cached, fade in immediately
-      if (totalImages === 0 || imagesLoaded === totalImages) {
-        requestAnimationFrame(() => {
-          spreadContent.style.opacity = '1';
-        });
+      img.onerror = function() {
+        console.error(`[Preview] ❌ Failed to load right page image:`, spread.rightPage.imageUrl);
+        imageLoading.right = false;
+        imageError.right = `Failed to load page ${spread.rightPage.pageNumber}`;
+        this.style.display = 'none';
+        checkAllLoaded();
+      };
+      
+      img.className += ` transition-opacity duration-200 ${imageLoading.right ? 'opacity-0' : 'opacity-100'}`;
+      if (imageError.right) img.style.display = 'none';
+      
+      rightPageEl.appendChild(img);
+      
+      // If image is already cached, count it as loaded
+      if (img.complete && img.naturalHeight !== 0) {
+        imageLoading.right = false;
+        checkAllLoaded();
       }
+    } else {
+      // Blank right page
+      rightPageEl.innerHTML = '<div class="white-page"></div>';
+      imageLoading.right = false;
+      checkAllLoaded();
+    }
+    
+    // If no images to load, fade in immediately
+    if (imagesToLoad === 0) {
+      requestAnimationFrame(() => {
+        leftPageEl.style.opacity = '1';
+        rightPageEl.style.opacity = '1';
+      });
     }
     
     // Update spread info
@@ -2900,10 +3012,23 @@ if (!token) {
     max-width: 100%;
     max-height: 100%;
   }
+  
+  .page-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    background: #ffffff;
+    overflow: hidden;
+    position: relative;
+  }
 
   .white-page {
-    width: 50%;
+    width: 100%;
+    height: 100%;
     background: #ffffff;
+    min-height: 400px;
     flex-shrink: 0;
   }
 
@@ -2919,53 +3044,44 @@ if (!token) {
 
   .cover-image-container {
     width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1rem;
     background: #ffffff;
-    max-height: 100%;
     overflow: hidden;
-    box-sizing: border-box;
+    position: relative;
   }
 
-  .cover-image-container.front-cover {
-    justify-content: flex-end;
-    padding-right: 0;
-  }
-
-  .cover-image-container.back-cover {
-    justify-content: flex-start;
-    padding-left: 0;
-  }
-
-  .cover-image {
-    max-width: 50%;
-    max-height: 60vh;
-    width: auto;
-    height: auto;
-    object-fit: contain;
+  .cover-image-container img {
+    width: 200%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
     display: block;
-    box-sizing: border-box;
+  }
+
+  .cover-image-container.front-cover img {
+    object-position: right center;
+  }
+
+  .cover-image-container.back-cover img {
+    object-position: left center;
   }
 
   .page-image {
-    width: 50%;
-    max-width: 50%;
-    max-height: 60vh;
-    height: auto;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
     display: block;
     box-sizing: border-box;
-    flex-shrink: 0;
   }
 
-  .page-image.left-page {
-    border-right: 1px solid #e5e7eb;
-  }
-
-  .page-image.right-page {
-    border-left: 1px solid #e5e7eb;
+  .white-page {
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+    min-height: 400px;
   }
   
   @media (max-width: 768px) {
