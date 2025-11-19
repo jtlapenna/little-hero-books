@@ -783,17 +783,26 @@ if (!token) {
     
     const checkAllLoaded = () => {
       imagesLoaded++;
+      console.log(`[Preview] checkAllLoaded: imagesLoaded=${imagesLoaded}, imagesToLoad=${imagesToLoad}`);
       if (imagesLoaded >= imagesToLoad) {
         // Fade in both pages after all images load
+        console.log(`[Preview] ✅ All images loaded, fading in pages`);
         requestAnimationFrame(() => {
           leftPageEl.style.opacity = '1';
           rightPageEl.style.opacity = '1';
+          console.log(`[Preview] ✅ Pages opacity set to 1`);
         });
       }
     };
     
     // Render left page - can be regular page or back cover
-    if (spread.coverData && spread.coverData.isBackCover) {
+    // For front cover spread, left page should be blank
+    if (spread.coverData && spread.coverData.isFrontCover) {
+      // Front cover spread: left page is blank
+      leftPageEl.innerHTML = '<div class="white-page"></div>';
+      imageLoading.left = false;
+      // Blank page doesn't count as an image to load
+    } else if (spread.coverData && spread.coverData.isBackCover) {
       // Back cover: show left half of cover image
       if (spread.coverData.fullImageUrl) {
         imagesToLoad++;
@@ -984,11 +993,16 @@ if (!token) {
     
     // If no images to load, fade in immediately
     // Also check if all images are already loaded (cached images)
+    console.log(`[Preview] Final check: imagesToLoad=${imagesToLoad}, imagesLoaded=${imagesLoaded}`);
     if (imagesToLoad === 0 || imagesLoaded >= imagesToLoad) {
+      console.log(`[Preview] ✅ No images to load or all loaded, fading in immediately`);
       requestAnimationFrame(() => {
         leftPageEl.style.opacity = '1';
         rightPageEl.style.opacity = '1';
+        console.log(`[Preview] ✅ Pages opacity set to 1 (immediate)`);
       });
+    } else {
+      console.log(`[Preview] ⏳ Waiting for ${imagesToLoad - imagesLoaded} more images to load`);
     }
     
     // Update spread info
