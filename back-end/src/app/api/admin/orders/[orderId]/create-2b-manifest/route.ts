@@ -269,14 +269,43 @@ export async function POST(
 
     // Upload to R2
     const manifestJson = JSON.stringify(newManifest, null, 2);
-    await putObject(
-      R2_ORDERS_BUCKET,
-      newManifestKey,
-      manifestJson,
-      'application/json'
-    );
-
-    console.log(`[Create 2B Manifest] Uploaded new manifest to: ${newManifestKey}`);
+    try {
+      const uploadResponse = await putObject(
+        R2_ORDERS_BUCKET,
+        newManifestKey,
+        manifestJson,
+        'application/json'
+      );
+      
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`R2 upload failed: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorText}`);
+      }
+      
+      console.log(`[Create 2B Manifest] Uploaded new manifest to: ${newManifestKey}`);
+      
+      // Verify the file was actually uploaded by trying to download it
+      try {
+        const verifyManifest = await downloadManifest(newManifestKey);
+        if (!verifyManifest || !verifyManifest.orderId) {
+          throw new Error('Uploaded manifest verification failed: manifest is invalid');
+        }
+        console.log(`[Create 2B Manifest] Verified manifest exists in R2: ${newManifestKey}`);
+      } catch (verifyError: any) {
+        console.error(`[Create 2B Manifest] ⚠️ WARNING: Manifest upload succeeded but verification failed:`, verifyError?.message);
+        // Don't fail the request, but log the warning - might be a timing issue
+      }
+    } catch (uploadError: any) {
+      console.error(`[Create 2B Manifest] Failed to upload manifest to R2:`, uploadError?.message);
+      return NextResponse.json(
+        { 
+          error: 'Failed to upload manifest to R2',
+          details: uploadError?.message || 'Upload failed',
+          manifestKey: newManifestKey
+        },
+        { status: 500 }
+      );
+    }
 
     // Determine correct next_workflow based on order's actual progress
     const nextWorkflow = determineNextWorkflow({
