@@ -146,12 +146,7 @@ if (!token) {
             <div class="spread-viewer">
               <div class="spread-container">
                 <div class="two-page-spread" id="two-page-spread">
-                  <div id="left-page" class="page-container">
-                    <!-- Left page content (back cover or regular page) -->
-                  </div>
-                  <div id="right-page" class="page-container">
-                    <!-- Right page content (front cover or regular page) -->
-                  </div>
+                  <!-- Images/containers will be appended here directly -->
                 </div>
               </div>
             </div>
@@ -735,16 +730,10 @@ if (!token) {
     }
   }
 
-  // Track image loading state
-  let imageLoading = { left: false, right: false };
-  let imageError = { left: null, right: null };
-  
-  // Render current spread
+  // Render current spread - matches order review page implementation
   function renderSpread(spread) {
-    const leftPageEl = document.getElementById('left-page');
-    const rightPageEl = document.getElementById('right-page');
-    
-    if (!leftPageEl || !rightPageEl) return;
+    const spreadEl = document.getElementById('two-page-spread');
+    if (!spreadEl) return;
     
     console.log('[Preview] renderSpread called:', {
       spreadNumber: spread.spreadNumber,
@@ -756,42 +745,17 @@ if (!token) {
       hasRightPage: !!spread.rightPage
     });
     
-    // Create stable key for this spread to prevent unnecessary re-renders
-    const leftPageNum = spread.leftPage?.pageNumber ?? null;
-    const rightPageNum = spread.rightPage?.pageNumber ?? null;
-    const coverType = spread.coverData 
-      ? (spread.coverData.isFrontCover ? 'front' : spread.coverData.isBackCover ? 'back' : 'cover')
-      : null;
-    const coverUrl = spread.coverData?.fullImageUrl || null;
-    const spreadKey = `${currentSpreadIndex}-${leftPageNum}-${rightPageNum}-${coverType}-${coverUrl ? 'hasCover' : 'noCover'}`;
+    // Clear the spread container
+    spreadEl.innerHTML = '';
     
-    // Reset loading state when spread changes
-    imageLoading = { left: true, right: true };
-    imageError = { left: null, right: null };
-    
-    // Clear both pages
-    leftPageEl.innerHTML = '';
-    rightPageEl.innerHTML = '';
-    leftPageEl.style.opacity = '0';
-    rightPageEl.style.opacity = '0';
-    leftPageEl.style.transition = 'opacity 0.2s ease-in-out';
-    rightPageEl.style.transition = 'opacity 0.2s ease-in-out';
-    
-    // Track how many images need to load
-    let imagesToLoad = 0;
-    let imagesLoaded = 0;
-    
-    const checkAllLoaded = () => {
-      imagesLoaded++;
-      console.log(`[Preview] checkAllLoaded: imagesLoaded=${imagesLoaded}, imagesToLoad=${imagesToLoad}`);
-      if (imagesLoaded >= imagesToLoad) {
-        // Fade in both pages after all images load
-        console.log(`[Preview] ✅ All images loaded, fading in pages`);
-        requestAnimationFrame(() => {
-          leftPageEl.style.opacity = '1';
-          rightPageEl.style.opacity = '1';
-          console.log(`[Preview] ✅ Pages opacity set to 1`);
-        });
+    // Helper function to set image opacity (matches order review approach)
+    const setImageOpacity = (img, isLoading) => {
+      if (isLoading) {
+        img.classList.add('opacity-0');
+        img.classList.remove('opacity-100');
+      } else {
+        img.classList.remove('opacity-0');
+        img.classList.add('opacity-100');
       }
     };
     
@@ -799,210 +763,152 @@ if (!token) {
     // For front cover spread, left page should be blank
     if (spread.coverData && spread.coverData.isFrontCover) {
       // Front cover spread: left page is blank
-      leftPageEl.innerHTML = '<div class="white-page"></div>';
-      imageLoading.left = false;
-      // Blank page doesn't count as an image to load
+      const whitePage = document.createElement('div');
+      whitePage.className = 'white-page';
+      spreadEl.appendChild(whitePage);
     } else if (spread.coverData && spread.coverData.isBackCover) {
       // Back cover: show left half of cover image
       if (spread.coverData.fullImageUrl) {
-        imagesToLoad++;
         const coverContainer = document.createElement('div');
         coverContainer.className = 'cover-image-container back-cover';
         const img = document.createElement('img');
         img.alt = 'Back Cover';
         img.src = spread.coverData.fullImageUrl;
-        img.className = 'cover-image';
-        img.key = `back-cover-${spreadKey}`;
+        img.className = 'cover-image transition-opacity duration-200';
         
-        // Check if image is already cached BEFORE setting up handlers
+        // Check if image is already cached
         const isCached = img.complete && img.naturalHeight !== 0;
         
         if (!isCached) {
+          setImageOpacity(img, true);
           img.onload = function() {
             console.log('[Preview] ✅ Back cover image loaded successfully');
-            imageLoading.left = false;
-            imageError.left = null;
-            checkAllLoaded();
+            setImageOpacity(img, false);
           };
-          
           img.onerror = function() {
             console.error('[Preview] ❌ Failed to load back cover image:', spread.coverData.fullImageUrl);
-            imageLoading.left = false;
-            imageError.left = 'Failed to load back cover';
             this.style.display = 'none';
-            checkAllLoaded();
+            setImageOpacity(img, false);
           };
         } else {
-          // Image already cached - mark as loaded immediately
+          // Image already cached
           console.log('[Preview] ✅ Back cover image already cached');
-          imageLoading.left = false;
-          imageError.left = null;
-          checkAllLoaded();
+          setImageOpacity(img, false);
         }
         
-        img.className += ` transition-opacity duration-200 ${imageLoading.left ? 'opacity-0' : 'opacity-100'}`;
-        if (imageError.left) img.style.display = 'none';
-        
         coverContainer.appendChild(img);
-        leftPageEl.appendChild(coverContainer);
+        spreadEl.appendChild(coverContainer);
       } else {
-        leftPageEl.innerHTML = '<div class="white-page"></div>';
-        imageLoading.left = false;
-        // Blank page doesn't count as an image to load
+        const whitePage = document.createElement('div');
+        whitePage.className = 'white-page';
+        spreadEl.appendChild(whitePage);
       }
     } else if (spread.leftPage) {
       // Regular left page
-      imagesToLoad++;
       const img = document.createElement('img');
       img.alt = `Page ${spread.leftPage.pageNumber}`;
       img.src = spread.leftPage.imageUrl;
-      img.className = 'page-image left-page';
-      img.key = `left-page-${spread.leftPage.pageNumber}-${spreadKey}`;
+      img.className = 'transition-opacity duration-200';
       
-      // Check if image is already cached BEFORE setting up handlers
+      // Check if image is already cached
       const isCached = img.complete && img.naturalHeight !== 0;
       
       if (!isCached) {
+        setImageOpacity(img, true);
         img.onload = function() {
           console.log(`[Preview] ✅ Left image loaded successfully for page ${spread.leftPage.pageNumber}`);
-          imageLoading.left = false;
-          imageError.left = null;
-          checkAllLoaded();
+          setImageOpacity(img, false);
         };
-        
         img.onerror = function() {
           console.error(`[Preview] ❌ Failed to load left page image:`, spread.leftPage.imageUrl);
-          imageLoading.left = false;
-          imageError.left = `Failed to load page ${spread.leftPage.pageNumber}`;
           this.style.display = 'none';
-          checkAllLoaded();
+          setImageOpacity(img, false);
         };
       } else {
-        // Image already cached - mark as loaded immediately
+        // Image already cached
         console.log(`[Preview] ✅ Left image already cached for page ${spread.leftPage.pageNumber}`);
-        imageLoading.left = false;
-        imageError.left = null;
-        checkAllLoaded();
+        setImageOpacity(img, false);
       }
       
-      img.className += ` transition-opacity duration-200 ${imageLoading.left ? 'opacity-0' : 'opacity-100'}`;
-      if (imageError.left) img.style.display = 'none';
-      
-      leftPageEl.appendChild(img);
+      spreadEl.appendChild(img);
     } else {
       // Blank left page
-      leftPageEl.innerHTML = '<div class="white-page"></div>';
-      imageLoading.left = false;
-      // Blank page doesn't count as an image to load
+      const whitePage = document.createElement('div');
+      whitePage.className = 'white-page';
+      spreadEl.appendChild(whitePage);
     }
     
     // Render right page - can be regular page or front cover
     if (spread.coverData && spread.coverData.isFrontCover) {
       // Front cover: show right half of cover image
       if (spread.coverData.fullImageUrl) {
-        imagesToLoad++;
         const coverContainer = document.createElement('div');
         coverContainer.className = 'cover-image-container front-cover';
         const img = document.createElement('img');
         img.alt = 'Front Cover';
         img.src = spread.coverData.fullImageUrl;
-        img.className = 'cover-image';
-        img.key = `front-cover-${spreadKey}`;
+        img.className = 'cover-image transition-opacity duration-200';
         
-        // Check if image is already cached BEFORE setting up handlers
+        // Check if image is already cached
         const isCached = img.complete && img.naturalHeight !== 0;
         
         if (!isCached) {
+          setImageOpacity(img, true);
           img.onload = function() {
             console.log('[Preview] ✅ Front cover image loaded successfully');
-            imageLoading.right = false;
-            imageError.right = null;
-            checkAllLoaded();
+            setImageOpacity(img, false);
           };
-          
           img.onerror = function() {
             console.error('[Preview] ❌ Failed to load front cover image:', spread.coverData.fullImageUrl);
-            imageLoading.right = false;
-            imageError.right = 'Failed to load front cover';
             this.style.display = 'none';
-            checkAllLoaded();
+            setImageOpacity(img, false);
           };
         } else {
-          // Image already cached - mark as loaded immediately
+          // Image already cached
           console.log('[Preview] ✅ Front cover image already cached');
-          imageLoading.right = false;
-          imageError.right = null;
-          checkAllLoaded();
+          setImageOpacity(img, false);
         }
         
-        img.className += ` transition-opacity duration-200 ${imageLoading.right ? 'opacity-0' : 'opacity-100'}`;
-        if (imageError.right) img.style.display = 'none';
-        
         coverContainer.appendChild(img);
-        rightPageEl.appendChild(coverContainer);
+        spreadEl.appendChild(coverContainer);
       } else {
-        rightPageEl.innerHTML = '<div class="white-page"></div>';
-        imageLoading.right = false;
-        // Blank page doesn't count as an image to load
+        const whitePage = document.createElement('div');
+        whitePage.className = 'white-page';
+        spreadEl.appendChild(whitePage);
       }
     } else if (spread.rightPage) {
       // Regular right page
-      imagesToLoad++;
       const img = document.createElement('img');
       img.alt = `Page ${spread.rightPage.pageNumber}`;
       img.src = spread.rightPage.imageUrl;
-      img.className = 'page-image right-page';
-      img.key = `right-page-${spread.rightPage.pageNumber}-${spreadKey}`;
+      img.className = 'transition-opacity duration-200';
       
-      // Check if image is already cached BEFORE setting up handlers
+      // Check if image is already cached
       const isCached = img.complete && img.naturalHeight !== 0;
       
       if (!isCached) {
+        setImageOpacity(img, true);
         img.onload = function() {
           console.log(`[Preview] ✅ Right image loaded successfully for page ${spread.rightPage.pageNumber}`);
-          imageLoading.right = false;
-          imageError.right = null;
-          checkAllLoaded();
+          setImageOpacity(img, false);
         };
-        
         img.onerror = function() {
           console.error(`[Preview] ❌ Failed to load right page image:`, spread.rightPage.imageUrl);
-          imageLoading.right = false;
-          imageError.right = `Failed to load page ${spread.rightPage.pageNumber}`;
           this.style.display = 'none';
-          checkAllLoaded();
+          setImageOpacity(img, false);
         };
       } else {
-        // Image already cached - mark as loaded immediately
+        // Image already cached
         console.log(`[Preview] ✅ Right image already cached for page ${spread.rightPage.pageNumber}`);
-        imageLoading.right = false;
-        imageError.right = null;
-        checkAllLoaded();
+        setImageOpacity(img, false);
       }
       
-      img.className += ` transition-opacity duration-200 ${imageLoading.right ? 'opacity-0' : 'opacity-100'}`;
-      if (imageError.right) img.style.display = 'none';
-      
-      rightPageEl.appendChild(img);
+      spreadEl.appendChild(img);
     } else {
       // Blank right page
-      rightPageEl.innerHTML = '<div class="white-page"></div>';
-      imageLoading.right = false;
-      // Blank page doesn't count as an image to load
-    }
-    
-    // If no images to load, fade in immediately
-    // Also check if all images are already loaded (cached images)
-    console.log(`[Preview] Final check: imagesToLoad=${imagesToLoad}, imagesLoaded=${imagesLoaded}`);
-    if (imagesToLoad === 0 || imagesLoaded >= imagesToLoad) {
-      console.log(`[Preview] ✅ No images to load or all loaded, fading in immediately`);
-      requestAnimationFrame(() => {
-        leftPageEl.style.opacity = '1';
-        rightPageEl.style.opacity = '1';
-        console.log(`[Preview] ✅ Pages opacity set to 1 (immediate)`);
-      });
-    } else {
-      console.log(`[Preview] ⏳ Waiting for ${imagesToLoad - imagesLoaded} more images to load`);
+      const whitePage = document.createElement('div');
+      whitePage.className = 'white-page';
+      spreadEl.appendChild(whitePage);
     }
     
     // Update spread info
@@ -3038,44 +2944,27 @@ if (!token) {
   .two-page-spread {
     display: flex;
     gap: 0;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
     background: #ffffff;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     overflow: hidden;
-    position: relative;
-    width: 100%;
-    max-width: 100%;
-    max-height: 100%;
   }
-  
-  .page-container {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
-    background: #ffffff;
-    overflow: hidden;
-    position: relative;
+
+  .two-page-spread img {
     width: 50%;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    aspect-ratio: 1 / 1;
   }
 
   .white-page {
-    width: 100%;
-    height: 100%;
-    background: #ffffff;
-    min-height: 400px;
-    flex-shrink: 0;
-  }
-
-  .spread-content {
-    display: flex;
-    width: 100%;
-    gap: 0;
-    max-width: 100%;
-    max-height: 100%;
-    align-items: center;
-    justify-content: flex-end;
+    width: 50%;
+    aspect-ratio: 1 / 1;
+    background-color: white;
   }
 
   .cover-image-container {
@@ -3101,14 +2990,6 @@ if (!token) {
   .cover-image-container.back-cover img {
     object-position: left center;
   }
-
-  .page-image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-    box-sizing: border-box;
-  }
   
   @media (max-width: 768px) {
     .spread-viewer {
@@ -3116,8 +2997,8 @@ if (!token) {
       padding: 1rem;
     }
     
-    .cover-image,
-    .page-image {
+    .two-page-spread img,
+    .cover-image-container img {
       max-height: 50vh;
     }
   }
@@ -3444,8 +3325,8 @@ if (!token) {
     }
 
     /* Ensure images are responsive */
-    .page-image,
-    .cover-image {
+    .two-page-spread img,
+    .cover-image-container img {
       max-width: 100%;
       height: auto;
     }
