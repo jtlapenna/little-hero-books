@@ -423,13 +423,26 @@ if (!token) {
           checkOrderStatus(orderData);
         } else {
           // Token is invalid (used or expired) but we have order data
-          // Show approved state with order data
-          console.log('[PREVIEW] Token invalid but order data available - showing approved state', 
-            'valid:', data.valid,
-            'used:', data.used,
-            'expired:', data.expired
-          );
-          showApprovedState(orderData);
+          // If token is used, it means customer already approved, so show approved state
+          // If token is expired, check customer_approval_status to determine state
+          if (data.used) {
+            console.log('[PREVIEW] Token already used - customer has approved, showing approved state');
+            showApprovedState(orderData);
+          } else if (data.expired) {
+            // Token expired - check if customer approved before expiration
+            console.log('[PREVIEW] Token expired - checking approval status', 
+              'customer_approval_status:', orderData.customer_approval_status
+            );
+            if (orderData.customer_approval_status === 'approved') {
+              showApprovedState(orderData);
+            } else {
+              // Token expired but not approved - show error
+              showError('This preview link has expired. Please contact us for a new link.');
+            }
+          } else {
+            // Token invalid for other reason
+            showError('Invalid preview link. Please contact us for assistance.');
+          }
         }
         return;
       }
@@ -658,7 +671,8 @@ if (!token) {
     
     spreadContent.innerHTML = '';
     
-    if (spread.isCover && spread.coverImageUrl) {
+    // Render cover (front or back) - check both isCover and isBackCover
+    if ((spread.isCover || spread.isBackCover) && spread.coverImageUrl) {
       // Render cover
       const coverContainer = document.createElement('div');
       coverContainer.className = spread.isBackCover ? 'cover-image-container back-cover' : 'cover-image-container front-cover';
@@ -1033,18 +1047,16 @@ if (!token) {
   }
 
   function checkOrderStatus(order) {
-    // Check if order is approved (execution_status is 'ready_for_processing' or beyond, or if next_workflow is set to 4 or beyond)
-    const isApproved = order.execution_status === 'ready_for_processing' || 
-                      order.execution_status === 'processing' ||
-                      order.execution_status === 'completed' ||
-                      order.execution_status === 'in_progress' ||
-                      (order.next_workflow && parseInt(order.next_workflow) >= 4) ||
-                      order.status === 'approved' ||
-                      order.customer_approval_status === 'approved';
+    // ONLY check customer_approval_status to determine if customer has approved
+    // Do NOT check execution_status or next_workflow as these can be set for many reasons
+    // (e.g., order ready for workflow 2A, 2B, or 3, not just customer approval)
+    const isApproved = order.customer_approval_status === 'approved';
     
     if (isApproved) {
-      console.log('[STATUS] Order is already approved, showing success message and hiding actions');
+      console.log('[STATUS] Order is already approved by customer, showing success message and hiding actions');
       showApprovedState(order);
+    } else {
+      console.log('[STATUS] Order not yet approved by customer, showing approval interface');
     }
   }
 
