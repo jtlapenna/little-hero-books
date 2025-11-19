@@ -1,0 +1,364 @@
+import React, { useEffect, useMemo, useState } from 'react';
+
+export interface PageData {
+  pageNumber: number;
+  imageUrl: string;
+}
+
+export interface CoverData {
+  fullImageUrl: string;
+  isFrontCover?: boolean;
+  isBackCover?: boolean;
+}
+
+export interface SpreadData {
+  spreadNumber: number;
+  leftPage?: PageData | null;
+  rightPage?: PageData | null;
+  coverData?: CoverData | null;
+  isCover?: boolean;
+  isBackCover?: boolean;
+}
+
+interface BookSpreadViewerProps {
+  spreads?: SpreadData[];
+  initialSpread?: number;
+  onSpreadChange?: (index: number) => void;
+  /**
+   * Optional browser event name to listen for dynamic spread updates.
+   * The event detail should be: { spreads: SpreadData[], initialSpread?: number }
+   */
+  externalEventName?: string;
+}
+
+const clampIndex = (index: number, total: number) => {
+  if (total <= 0) return 0;
+  if (index < 0) return 0;
+  if (index >= total) return total - 1;
+  return index;
+};
+
+const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
+  spreads = [],
+  initialSpread = 0,
+  onSpreadChange,
+  externalEventName,
+}) => {
+  const [viewerSpreads, setViewerSpreads] = useState<SpreadData[]>(() =>
+    Array.isArray(spreads) ? spreads : []
+  );
+  const [currentIndex, setCurrentIndex] = useState(() =>
+    clampIndex(initialSpread, viewerSpreads.length)
+  );
+
+  useEffect(() => {
+    const nextSpreads = Array.isArray(spreads) ? spreads : [];
+    setViewerSpreads(nextSpreads);
+    setCurrentIndex((prev) => {
+      const nextInitial = clampIndex(initialSpread, nextSpreads.length);
+      return prev === nextInitial ? prev : nextInitial;
+    });
+  }, [spreads, initialSpread]);
+
+  useEffect(() => {
+    if (!externalEventName) return;
+
+    const handleSpreadsUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        spreads?: SpreadData[];
+        initialSpread?: number;
+      }>;
+      const detail = customEvent.detail || {};
+      const nextSpreads = Array.isArray(detail.spreads) ? detail.spreads : [];
+      setViewerSpreads(nextSpreads);
+      const nextInitial = typeof detail.initialSpread === 'number' ? detail.initialSpread : 0;
+      setCurrentIndex(clampIndex(nextInitial, nextSpreads.length));
+    };
+
+    window.addEventListener(externalEventName, handleSpreadsUpdate as EventListener);
+    return () => window.removeEventListener(externalEventName, handleSpreadsUpdate as EventListener);
+  }, [externalEventName]);
+
+  useEffect(() => {
+    if (viewerSpreads.length === 0) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        goToSpread(currentIndex - 1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        goToSpread(currentIndex + 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentIndex, viewerSpreads.length]);
+
+  const totalSpreads = viewerSpreads.length;
+
+  const currentSpread = useMemo(() => {
+    if (!Array.isArray(viewerSpreads) || viewerSpreads.length === 0) {
+      return null;
+    }
+    return viewerSpreads[currentIndex] ?? viewerSpreads[0];
+  }, [viewerSpreads, currentIndex]);
+
+  const goToSpread = (nextIndex: number) => {
+    if (nextIndex < 0 || nextIndex >= totalSpreads) return;
+    setCurrentIndex(nextIndex);
+    onSpreadChange?.(nextIndex);
+  };
+
+  const renderLeftPage = () => {
+    if (!currentSpread) return null;
+
+    if (currentSpread.coverData?.isBackCover && currentSpread.coverData.fullImageUrl) {
+      return (
+        <div className="cover-image-container back-cover">
+          <img src={currentSpread.coverData.fullImageUrl} alt="Back Cover" />
+        </div>
+      );
+    }
+
+    if (currentSpread.leftPage?.imageUrl) {
+      return (
+        <img
+          src={currentSpread.leftPage.imageUrl}
+          alt={`Page ${currentSpread.leftPage.pageNumber}`}
+        />
+      );
+    }
+
+    return <div className="white-page" />;
+  };
+
+  const renderRightPage = () => {
+    if (!currentSpread) return null;
+
+    if (currentSpread.coverData?.isFrontCover && currentSpread.coverData.fullImageUrl) {
+      return (
+        <div className="cover-image-container front-cover">
+          <img src={currentSpread.coverData.fullImageUrl} alt="Front Cover" />
+        </div>
+      );
+    }
+
+    if (currentSpread.rightPage?.imageUrl) {
+      return (
+        <img
+          src={currentSpread.rightPage.imageUrl}
+          alt={`Page ${currentSpread.rightPage.pageNumber}`}
+        />
+      );
+    }
+
+    return <div className="white-page" />;
+  };
+
+  if (!currentSpread) {
+    return (
+      <div className="empty-state">
+        <p>No spreads available.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="book-viewer">
+      <div className="viewer-header">
+        <span>
+          Spread {currentIndex + 1} of {totalSpreads}
+          {currentSpread.coverData?.isFrontCover && <span className="spread-label"> (Front Cover)</span>}
+          {currentSpread.coverData?.isBackCover && <span className="spread-label"> (Back Cover)</span>}
+          {!currentSpread.coverData && currentSpread.leftPage && currentSpread.rightPage && (
+            <span className="spread-label">
+              {' '}
+              (Pages {currentSpread.leftPage.pageNumber} &amp; {currentSpread.rightPage.pageNumber})
+            </span>
+          )}
+        </span>
+
+        <div className="spread-controls">
+          <button
+            className="spread-nav-btn"
+            aria-label="Previous spread"
+            onClick={() => goToSpread(currentIndex - 1)}
+            disabled={currentIndex === 0}
+          >
+            ‹
+          </button>
+          <button
+            className="spread-nav-btn"
+            aria-label="Next spread"
+            onClick={() => goToSpread(currentIndex + 1)}
+            disabled={currentIndex >= totalSpreads - 1}
+          >
+            ›
+          </button>
+        </div>
+      </div>
+
+      <div className="spread-viewer">
+        <div className="spread-container">
+          <div className="two-page-spread">
+            {renderLeftPage()}
+            {renderRightPage()}
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        .book-viewer {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 6px rgba(15, 23, 42, 0.05);
+        }
+
+        .viewer-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1rem 1.5rem;
+          border-bottom: 1px solid #e5e7eb;
+          font-family: var(--font-ui, 'Poppins', sans-serif);
+          font-size: 0.95rem;
+          color: #1f2937;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+        }
+
+        .spread-label {
+          color: #6b7280;
+          margin-left: 0.4rem;
+          font-size: 0.9em;
+        }
+
+        .spread-controls {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .spread-nav-btn {
+          width: 2.25rem;
+          height: 2.25rem;
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          background: #fff;
+          color: #4b5563;
+          font-size: 1.2rem;
+          line-height: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+        }
+
+        .spread-nav-btn:hover:not(:disabled) {
+          border-color: #9ca3af;
+          color: #1f2937;
+          transform: translateY(-1px);
+        }
+
+        .spread-nav-btn:disabled {
+          opacity: 0.35;
+          cursor: not-allowed;
+        }
+
+        .spread-viewer {
+          background: #f3f4f6;
+          padding: 1.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          max-height: 70vh;
+          overflow: hidden;
+        }
+
+        .spread-container {
+          width: 100%;
+          max-width: 900px;
+          max-height: 100%;
+          margin: 0 auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .two-page-spread {
+          display: flex;
+          gap: 0;
+          width: 100%;
+          max-width: 100%;
+          height: auto;
+          background: #ffffff;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          border-radius: 8px;
+          overflow: hidden;
+        }
+
+        .two-page-spread img {
+          width: 50%;
+          height: auto;
+          object-fit: contain;
+          display: block;
+          aspect-ratio: 1 / 1;
+        }
+
+        .white-page {
+          width: 50%;
+          aspect-ratio: 1 / 1;
+          background-color: white;
+        }
+
+        .cover-image-container {
+          width: 50%;
+          aspect-ratio: 1 / 1;
+          overflow: hidden;
+          position: relative;
+          background-color: white;
+        }
+
+        .cover-image-container img {
+          width: 200%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
+          display: block;
+        }
+
+        .cover-image-container.front-cover img {
+          object-position: right center;
+        }
+
+        .cover-image-container.back-cover img {
+          object-position: left center;
+        }
+
+        .empty-state {
+          padding: 2rem;
+          text-align: center;
+          color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+          .spread-viewer {
+            max-height: 60vh;
+            padding: 1rem;
+          }
+
+          .two-page-spread img,
+          .cover-image-container img {
+            max-height: 50vh;
+          }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default BookSpreadViewer;
+

@@ -88,3 +88,13 @@ frontend/
 - All pages are optimized for SEO with proper meta tags
 - Analytics can be added in the Layout component's head slot
 - The site is designed to be deployed separately from the admin system
+
+## Customer Approval Page
+
+The customer approval flow (`src/pages/approve/[token].astro`) uses a React island for the book preview viewer.
+
+- **Component**: `src/components/BookSpreadViewer.tsx`
+- **Hydration**: Rendered via `<BookSpreadViewer client:load />` and updated through the custom browser event `lhb:book-spreads`
+- **Data Flow**: The Astro page validates tokens, fetches manifests, builds `spreads`, and dispatches them to the React viewer
+- **Navigation**: Previous/Next buttons and global `ArrowLeft`/`ArrowRight` keyboard shortcuts are handled by the React component
+- **Styling**: Viewer styles live inside the React component; the Astro page only toggles the wrapper visibility
