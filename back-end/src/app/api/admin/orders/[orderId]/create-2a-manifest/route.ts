@@ -72,15 +72,43 @@ export async function POST(
       );
     }
 
-    // Check if order already has a 2A manifest
+    // Check if order already has a 2A manifest (verify file actually exists in R2)
     if (newOrder.manifest_2a_url) {
-      return NextResponse.json(
-        { 
-          error: 'Order already has a 2A manifest',
-          details: `Manifest URL: ${newOrder.manifest_2a_url}`
-        },
-        { status: 400 }
-      );
+      // Verify the manifest file actually exists in R2
+      // Supabase might have a URL but the file could have been deleted
+      try {
+        let manifestKey = newOrder.manifest_2a_url;
+        if (manifestKey.includes('/api/manifests/')) {
+          manifestKey = manifestKey.split('/api/manifests/')[1];
+        } else if (manifestKey.includes('manifests/2a-manifest.json')) {
+          // Already a key
+        }
+        
+        const existingManifest = await downloadManifest(manifestKey);
+        if (existingManifest) {
+          // File exists, order already has a valid 2A manifest
+          return NextResponse.json(
+            { 
+              error: 'Order already has a 2A manifest',
+              details: `Manifest URL: ${newOrder.manifest_2a_url}`
+            },
+            { status: 400 }
+          );
+        }
+        // File doesn't exist, clear the URL from Supabase and continue
+        console.log(`[Create 2A Manifest] Supabase has manifest_2a_url but file doesn't exist, clearing URL and continuing`);
+        await supabase
+          .from('orders')
+          .update({ manifest_2a_url: null })
+          .eq('amazon_order_id', newOrderId);
+      } catch (error: any) {
+        // File doesn't exist (404 or other error), clear the URL from Supabase and continue
+        console.log(`[Create 2A Manifest] Manifest file not found in R2, clearing Supabase URL and continuing:`, error?.message);
+        await supabase
+          .from('orders')
+          .update({ manifest_2a_url: null })
+          .eq('amazon_order_id', newOrderId);
+      }
     }
 
     // Validate required fields
