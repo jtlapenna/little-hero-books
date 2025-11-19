@@ -805,36 +805,41 @@ if (!token) {
         img.className = 'cover-image';
         img.key = `back-cover-${spreadKey}`;
         
-        img.onload = function() {
-          console.log('[Preview] ✅ Back cover image loaded successfully');
+        // Check if image is already cached BEFORE setting up handlers
+        const isCached = img.complete && img.naturalHeight !== 0;
+        
+        if (!isCached) {
+          img.onload = function() {
+            console.log('[Preview] ✅ Back cover image loaded successfully');
+            imageLoading.left = false;
+            imageError.left = null;
+            checkAllLoaded();
+          };
+          
+          img.onerror = function() {
+            console.error('[Preview] ❌ Failed to load back cover image:', spread.coverData.fullImageUrl);
+            imageLoading.left = false;
+            imageError.left = 'Failed to load back cover';
+            this.style.display = 'none';
+            checkAllLoaded();
+          };
+        } else {
+          // Image already cached - mark as loaded immediately
+          console.log('[Preview] ✅ Back cover image already cached');
           imageLoading.left = false;
           imageError.left = null;
           checkAllLoaded();
-        };
-        
-        img.onerror = function() {
-          console.error('[Preview] ❌ Failed to load back cover image:', spread.coverData.fullImageUrl);
-          imageLoading.left = false;
-          imageError.left = 'Failed to load back cover';
-          this.style.display = 'none';
-          checkAllLoaded();
-        };
+        }
         
         img.className += ` transition-opacity duration-200 ${imageLoading.left ? 'opacity-0' : 'opacity-100'}`;
         if (imageError.left) img.style.display = 'none';
         
         coverContainer.appendChild(img);
         leftPageEl.appendChild(coverContainer);
-        
-        // If image is already cached, count it as loaded
-        if (img.complete && img.naturalHeight !== 0) {
-          imageLoading.left = false;
-          checkAllLoaded();
-        }
       } else {
         leftPageEl.innerHTML = '<div class="white-page"></div>';
         imageLoading.left = false;
-        checkAllLoaded();
+        // Blank page doesn't count as an image to load
       }
     } else if (spread.leftPage) {
       // Regular left page
@@ -845,36 +850,41 @@ if (!token) {
       img.className = 'page-image left-page';
       img.key = `left-page-${spread.leftPage.pageNumber}-${spreadKey}`;
       
-      img.onload = function() {
-        console.log(`[Preview] ✅ Left image loaded successfully for page ${spread.leftPage.pageNumber}`);
+      // Check if image is already cached BEFORE setting up handlers
+      const isCached = img.complete && img.naturalHeight !== 0;
+      
+      if (!isCached) {
+        img.onload = function() {
+          console.log(`[Preview] ✅ Left image loaded successfully for page ${spread.leftPage.pageNumber}`);
+          imageLoading.left = false;
+          imageError.left = null;
+          checkAllLoaded();
+        };
+        
+        img.onerror = function() {
+          console.error(`[Preview] ❌ Failed to load left page image:`, spread.leftPage.imageUrl);
+          imageLoading.left = false;
+          imageError.left = `Failed to load page ${spread.leftPage.pageNumber}`;
+          this.style.display = 'none';
+          checkAllLoaded();
+        };
+      } else {
+        // Image already cached - mark as loaded immediately
+        console.log(`[Preview] ✅ Left image already cached for page ${spread.leftPage.pageNumber}`);
         imageLoading.left = false;
         imageError.left = null;
         checkAllLoaded();
-      };
-      
-      img.onerror = function() {
-        console.error(`[Preview] ❌ Failed to load left page image:`, spread.leftPage.imageUrl);
-        imageLoading.left = false;
-        imageError.left = `Failed to load page ${spread.leftPage.pageNumber}`;
-        this.style.display = 'none';
-        checkAllLoaded();
-      };
+      }
       
       img.className += ` transition-opacity duration-200 ${imageLoading.left ? 'opacity-0' : 'opacity-100'}`;
       if (imageError.left) img.style.display = 'none';
       
       leftPageEl.appendChild(img);
-      
-      // If image is already cached, count it as loaded
-      if (img.complete && img.naturalHeight !== 0) {
-        imageLoading.left = false;
-        checkAllLoaded();
-      }
     } else {
       // Blank left page
       leftPageEl.innerHTML = '<div class="white-page"></div>';
       imageLoading.left = false;
-      checkAllLoaded();
+      // Blank page doesn't count as an image to load
     }
     
     // Render right page - can be regular page or front cover
@@ -890,36 +900,41 @@ if (!token) {
         img.className = 'cover-image';
         img.key = `front-cover-${spreadKey}`;
         
-        img.onload = function() {
-          console.log('[Preview] ✅ Front cover image loaded successfully');
+        // Check if image is already cached BEFORE setting up handlers
+        const isCached = img.complete && img.naturalHeight !== 0;
+        
+        if (!isCached) {
+          img.onload = function() {
+            console.log('[Preview] ✅ Front cover image loaded successfully');
+            imageLoading.right = false;
+            imageError.right = null;
+            checkAllLoaded();
+          };
+          
+          img.onerror = function() {
+            console.error('[Preview] ❌ Failed to load front cover image:', spread.coverData.fullImageUrl);
+            imageLoading.right = false;
+            imageError.right = 'Failed to load front cover';
+            this.style.display = 'none';
+            checkAllLoaded();
+          };
+        } else {
+          // Image already cached - mark as loaded immediately
+          console.log('[Preview] ✅ Front cover image already cached');
           imageLoading.right = false;
           imageError.right = null;
           checkAllLoaded();
-        };
-        
-        img.onerror = function() {
-          console.error('[Preview] ❌ Failed to load front cover image:', spread.coverData.fullImageUrl);
-          imageLoading.right = false;
-          imageError.right = 'Failed to load front cover';
-          this.style.display = 'none';
-          checkAllLoaded();
-        };
+        }
         
         img.className += ` transition-opacity duration-200 ${imageLoading.right ? 'opacity-0' : 'opacity-100'}`;
         if (imageError.right) img.style.display = 'none';
         
         coverContainer.appendChild(img);
         rightPageEl.appendChild(coverContainer);
-        
-        // If image is already cached, count it as loaded
-        if (img.complete && img.naturalHeight !== 0) {
-          imageLoading.right = false;
-          checkAllLoaded();
-        }
       } else {
         rightPageEl.innerHTML = '<div class="white-page"></div>';
         imageLoading.right = false;
-        checkAllLoaded();
+        // Blank page doesn't count as an image to load
       }
     } else if (spread.rightPage) {
       // Regular right page
@@ -930,36 +945,41 @@ if (!token) {
       img.className = 'page-image right-page';
       img.key = `right-page-${spread.rightPage.pageNumber}-${spreadKey}`;
       
-      img.onload = function() {
-        console.log(`[Preview] ✅ Right image loaded successfully for page ${spread.rightPage.pageNumber}`);
+      // Check if image is already cached BEFORE setting up handlers
+      const isCached = img.complete && img.naturalHeight !== 0;
+      
+      if (!isCached) {
+        img.onload = function() {
+          console.log(`[Preview] ✅ Right image loaded successfully for page ${spread.rightPage.pageNumber}`);
+          imageLoading.right = false;
+          imageError.right = null;
+          checkAllLoaded();
+        };
+        
+        img.onerror = function() {
+          console.error(`[Preview] ❌ Failed to load right page image:`, spread.rightPage.imageUrl);
+          imageLoading.right = false;
+          imageError.right = `Failed to load page ${spread.rightPage.pageNumber}`;
+          this.style.display = 'none';
+          checkAllLoaded();
+        };
+      } else {
+        // Image already cached - mark as loaded immediately
+        console.log(`[Preview] ✅ Right image already cached for page ${spread.rightPage.pageNumber}`);
         imageLoading.right = false;
         imageError.right = null;
         checkAllLoaded();
-      };
-      
-      img.onerror = function() {
-        console.error(`[Preview] ❌ Failed to load right page image:`, spread.rightPage.imageUrl);
-        imageLoading.right = false;
-        imageError.right = `Failed to load page ${spread.rightPage.pageNumber}`;
-        this.style.display = 'none';
-        checkAllLoaded();
-      };
+      }
       
       img.className += ` transition-opacity duration-200 ${imageLoading.right ? 'opacity-0' : 'opacity-100'}`;
       if (imageError.right) img.style.display = 'none';
       
       rightPageEl.appendChild(img);
-      
-      // If image is already cached, count it as loaded
-      if (img.complete && img.naturalHeight !== 0) {
-        imageLoading.right = false;
-        checkAllLoaded();
-      }
     } else {
       // Blank right page
       rightPageEl.innerHTML = '<div class="white-page"></div>';
       imageLoading.right = false;
-      checkAllLoaded();
+      // Blank page doesn't count as an image to load
     }
     
     // If no images to load, fade in immediately
