@@ -17,7 +17,7 @@ SET
   current_workflow = NULL, -- Clear current workflow
   started_at = NULL, -- Clear started_at
   queued_at = NOW(), -- Update queued_at so router prioritizes it
-  updated_at = NOW(),
+  updated_at = NOW() -- Last field, no trailing comma
   -- Optionally reset postPdf review status (uncomment if you want to reset review)
   -- review_stages = jsonb_set(
   --   review_stages,
