@@ -331,14 +331,16 @@ export async function POST(
     });
 
     // Update Supabase with manifest URL and workflow step
+    const now = new Date().toISOString();
     const { error: updateError } = await supabase
       .from('orders')
       .update({
         manifest_2a_url: newManifestKey,
         workflow_step: 'ai_generation_completed',
-        execution_status: 'done', // 2A is complete (images reused, no processing needed)
+        execution_status: 'ready_for_processing', // Ready for next workflow (usually 2B)
         next_workflow: nextWorkflow, // Usually '2B' for background removal
-        updated_at: new Date().toISOString()
+        queued_at: now, // Set queued_at so router picks it up
+        updated_at: now
       })
       .eq('amazon_order_id', newOrderId);
 

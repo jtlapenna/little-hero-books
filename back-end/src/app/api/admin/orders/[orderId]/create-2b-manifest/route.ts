@@ -319,14 +319,16 @@ export async function POST(
     });
 
     // Update Supabase with manifest URL and workflow step
+    const now = new Date().toISOString();
     const { error: updateError } = await supabase
       .from('orders')
       .update({
         manifest_2b_url: newManifestKey,
         workflow_step: 'bria_processing_complete',
-        execution_status: 'done', // 2B is complete (images reused, no processing needed)
+        execution_status: 'ready_for_processing', // Ready for next workflow (usually 3)
         next_workflow: nextWorkflow, // Usually '3' for book assembly
-        updated_at: new Date().toISOString()
+        queued_at: now, // Set queued_at so router picks it up
+        updated_at: now
       })
       .eq('amazon_order_id', newOrderId);
 
