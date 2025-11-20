@@ -454,11 +454,11 @@ if (!token) {
   const bookViewerWrapper = document.getElementById('book-viewer-wrapper');
 
   function computeInitialSpreadIndex(spreadsList) {
+    // Always start at the front cover (index 0)
     if (!Array.isArray(spreadsList) || spreadsList.length === 0) {
       return 0;
     }
-    const firstInterior = spreadsList.findIndex((spread) => !spread.isCover);
-    return firstInterior >= 0 ? firstInterior : 0;
+    return 0;
   }
 
   function syncReactViewer(spreadsToRender) {
