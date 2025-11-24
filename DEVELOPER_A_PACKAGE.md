@@ -61,16 +61,25 @@ Scroll down to **"📝 Quick Reference Summary for Developer A"** (line ~869) fo
 **✅ Implemented Components**:
 - ✅ `back-end/src/lib/supabase-client.ts` - Supabase integration operational
 - ✅ `back-end/src/lib/status-service.ts` - Status management implemented
-- ✅ `back-end/src/lib/status-display.ts` - Status display logic implemented
+- ✅ `back-end/src/lib/status-display.ts` - Status display logic implemented with **dual-label system**
 - ✅ `back-end/src/lib/approval-store.ts` - Approval/rejection logic with Supabase
 - ✅ `back-end/src/lib/review-state.ts` - Review state management with Supabase
 - ✅ `back-end/src/lib/r2-service.ts` - Cloudflare R2 asset retrieval operational
 - ✅ Webhook endpoints: `/api/webhooks/workflow-2a-complete`, `/api/webhooks/workflow-2b-complete`, `/api/webhooks/workflow-3-complete`
 - ✅ Customer preview system: `/api/preview/generate-token`, `/api/preview/[orderId]/approve`, `/api/preview/[orderId]/status`
 - ✅ Order status API: `/api/preview/[orderId]/status` - Returns Lulu status updates
+- ✅ **Dual-label status system**: Admin panel now displays both workflow status (primary) and technical status (secondary) - See `docs/status/DUAL-LABEL-SYSTEM.md`
 
 **⚠️ Pending Implementation**:
 - ✅ Lulu webhook endpoint: `/api/webhooks/lulu/status` - **COMPLETE** (Deployed and tested)
+
+**📊 Status System Notes**:
+The admin panel uses a **dual-label system** to display order status:
+- **Workflow Status** (Primary): Shows where the order is in production (e.g., "Review Poses", "Review Pages")
+- **Technical Status** (Secondary): Shows technical issues/errors (e.g., "Missing Manifest", "Max Retries")
+- When updating order status in your workflows, focus on the workflow progression status
+- Technical errors are automatically detected and displayed separately
+- See `docs/status/DUAL-LABEL-SYSTEM.md` for complete details
 
 ---
 

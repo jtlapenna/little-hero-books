@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
 import { formatDate } from '@/lib/utils';
 import { getOrderFlagSummary, getActiveStageFlagCount } from '@/lib/review-state';
@@ -27,7 +28,7 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
       order.platform.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.characterHash && order.characterHash.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || order.workflowStatus === statusFilter;
     const matchesPlatform = platformFilter === 'all' || order.platform === platformFilter;
     
     return matchesSearch && matchesStatus && matchesPlatform;
@@ -68,6 +69,7 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as 'all' | DisplayStatus)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+            aria-label="Filter by status"
           >
             <option value="all">All Status</option>
             {statusOptions.map((option) => (
@@ -81,6 +83,7 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
             value={platformFilter}
             onChange={(e) => setPlatformFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+            aria-label="Filter by platform"
           >
             <option value="all">All Platforms</option>
             <option value="amazon">Amazon</option>
@@ -139,8 +142,9 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
-                        <StatusBadge 
-                          status={order.status} 
+                        <DualStatusBadge
+                          workflowStatus={order.workflowStatus}
+                          technicalStatus={order.technicalStatus}
                           revisionCount={order.revisionCount}
                           errors={order.errors}
                         />

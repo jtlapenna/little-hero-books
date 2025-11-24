@@ -31,30 +31,35 @@ export function isInWorkflowProcessing(order: OrderListItem): boolean {
  * Check if an order should appear in the Review Poses tab
  * 
  * Conditions:
- * - Order is in preBria stage (not yet approved)
+ * - Order is in preBria stage (not yet approved) OR workflowStatus is REVIEW_POSES
  * - Order is not in queue or processing
  * - Order has DisplayStatus of REVIEW_POSES (images are generated)
  * - Order is not completed
+ * 
+ * Note: If workflowStatus is REVIEW_POSES, we trust that the status calculation logic
+ * has already verified the prerequisites, so we don't strictly require reviewStages to be set.
+ * This handles edge cases where orders are manually advanced or test data is inconsistent.
  */
 export function shouldShowInReviewPoses(order: OrderListItem): boolean {
-  // Must be in preBria stage (not yet approved)
-  const isInPreBriaStage = order.reviewStages?.preBria?.status !== ReviewStageStatus.APPROVED &&
-                           order.reviewStages?.preBria?.status !== 'approved';
+  // Must have DisplayStatus of REVIEW_POSES (images are generated and ready for review)
+  // AND must not be in queue phase or processing
+  const isReviewPosesStatus = order.workflowStatus === DisplayStatus.REVIEW_POSES &&
+                              order.phase !== OrderPhase.IN_QUEUE;
+  
+  // If workflowStatus is not REVIEW_POSES, don't show in this tab
+  if (!isReviewPosesStatus) {
+    return false;
+  }
   
   // Must not be in queue (check phase, DisplayStatus, and rawStatus)
   const isNotInQueue = order.phase !== OrderPhase.IN_QUEUE && 
-                       order.status !== DisplayStatus.IN_QUEUE;
+                       order.workflowStatus !== DisplayStatus.IN_QUEUE;
   
   // Must not be processing (check rawStatus explicitly)
   const isNotProcessing = !isInWorkflowProcessing(order) &&
                           order.rawStatus !== OrderStatus.AI_GENERATION_IN_PROGRESS &&
                           order.rawStatus !== OrderStatus.PENDING_BG_REMOVAL &&
                           order.rawStatus !== OrderStatus.PENDING_ASSEMBLY;
-  
-  // Must have DisplayStatus of REVIEW_POSES (images are generated and ready for review)
-  // AND must not be in queue phase or processing
-  const isReviewPosesStatus = order.status === DisplayStatus.REVIEW_POSES &&
-                              order.phase !== OrderPhase.IN_QUEUE;
   
   // Must not be completed
   const isNotCompleted = order.rawStatus !== OrderStatus.COMPLETED;
@@ -72,37 +77,44 @@ export function shouldShowInReviewPoses(order: OrderListItem): boolean {
   // Must be in FIRST_REVIEW phase (not SECOND_REVIEW)
   const isFirstReview = order.phase === OrderPhase.FIRST_REVIEW;
   
-  return isInPreBriaStage && isNotInQueue && isNotProcessing && isReviewPosesStatus && isNotCompleted && notSentToPrint && isFirstReview;
+  // Optional: Check if preBria stage is not yet approved (if reviewStages exist)
+  // This is a soft check - if reviewStages don't exist or are malformed, we still trust workflowStatus
+  const preBriaNotApproved = !order.reviewStages?.preBria || 
+                             (order.reviewStages.preBria.status !== ReviewStageStatus.APPROVED &&
+                              order.reviewStages.preBria.status !== 'approved');
+  
+  return isNotInQueue && isNotProcessing && isReviewPosesStatus && isNotCompleted && notSentToPrint && isFirstReview && preBriaNotApproved;
 }
 
 /**
  * Check if an order should appear in the Review Backgrounds tab
  * 
  * Conditions:
- * - Order is in postBria stage (not yet approved)
- * - Previous stage (preBria) must be approved
+ * - Order is in postBria stage (not yet approved) OR workflowStatus is REVIEW_BACKGROUNDS
+ * - Previous stage (preBria) must be approved OR workflowStatus is REVIEW_BACKGROUNDS
  * - Order has DisplayStatus of REVIEW_BACKGROUNDS (images are generated)
  * - Order is not processing
+ * 
+ * Note: If workflowStatus is REVIEW_BACKGROUNDS, we trust that the status calculation logic
+ * has already verified the prerequisites, so we don't strictly require reviewStages to be set.
+ * This handles edge cases where orders are manually advanced or test data is inconsistent.
  */
 export function shouldShowInReviewBackgrounds(order: OrderListItem): boolean {
-  // Must be in postBria stage (not yet approved)
-  const isInPostBriaStage = order.reviewStages?.postBria?.status !== ReviewStageStatus.APPROVED &&
-                            order.reviewStages?.postBria?.status !== 'approved';
+  // Must have DisplayStatus of REVIEW_BACKGROUNDS (images are generated and ready for review)
+  // AND must not be in queue phase or processing
+  const isReviewBackgroundsStatus = order.workflowStatus === DisplayStatus.REVIEW_BACKGROUNDS &&
+                                     order.phase !== OrderPhase.IN_QUEUE;
   
-  // PreBria must be approved
-  const preBriaApproved = order.reviewStages?.preBria?.status === ReviewStageStatus.APPROVED ||
-                          order.reviewStages?.preBria?.status === 'approved';
+  // If workflowStatus is not REVIEW_BACKGROUNDS, don't show in this tab
+  if (!isReviewBackgroundsStatus) {
+    return false;
+  }
   
   // Must not be processing (check rawStatus explicitly)
   const isNotProcessing = !isInWorkflowProcessing(order) &&
                           order.rawStatus !== OrderStatus.AI_GENERATION_IN_PROGRESS &&
                           order.rawStatus !== OrderStatus.PENDING_BG_REMOVAL &&
                           order.rawStatus !== OrderStatus.PENDING_ASSEMBLY;
-  
-  // Must have DisplayStatus of REVIEW_BACKGROUNDS (images are generated and ready for review)
-  // AND must not be in queue phase or processing
-  const isReviewBackgroundsStatus = order.status === DisplayStatus.REVIEW_BACKGROUNDS &&
-                                     order.phase !== OrderPhase.IN_QUEUE;
   
   // Must not be completed
   const isNotCompleted = order.rawStatus !== OrderStatus.COMPLETED;
@@ -120,7 +132,13 @@ export function shouldShowInReviewBackgrounds(order: OrderListItem): boolean {
   // Must be in FIRST_REVIEW phase (not SECOND_REVIEW)
   const isFirstReview = order.phase === OrderPhase.FIRST_REVIEW;
   
-  return isInPostBriaStage && preBriaApproved && isNotProcessing && isReviewBackgroundsStatus && isNotCompleted && notSentToPrint && isFirstReview;
+  // Optional: Check if postBria stage is not yet approved (if reviewStages exist)
+  // This is a soft check - if reviewStages don't exist or are malformed, we still trust workflowStatus
+  const postBriaNotApproved = !order.reviewStages?.postBria || 
+                              (order.reviewStages.postBria.status !== ReviewStageStatus.APPROVED &&
+                               order.reviewStages.postBria.status !== 'approved');
+  
+  return isNotProcessing && isReviewBackgroundsStatus && isNotCompleted && notSentToPrint && isFirstReview && postBriaNotApproved;
 }
 
 /**
@@ -128,31 +146,30 @@ export function shouldShowInReviewBackgrounds(order: OrderListItem): boolean {
  * 
  * Conditions:
  * - Order is in postPdf stage (not yet approved)
- * - Previous stages (preBria, postBria) must be approved
+ * - Previous stages (preBria, postBria) must be approved OR workflowStatus is REVIEW_PAGES
  * - Order has DisplayStatus of REVIEW_PAGES (images are generated)
  * - Order is not processing
+ * 
+ * Note: If workflowStatus is REVIEW_PAGES, we trust that the status calculation logic
+ * has already verified the prerequisites, so we don't strictly require reviewStages to be set.
+ * This handles edge cases where orders are manually advanced or test data is inconsistent.
  */
 export function shouldShowInReviewPages(order: OrderListItem): boolean {
-  // Must be in postPdf stage (not yet approved)
-  const isInPostPdfStage = order.reviewStages?.postPdf?.status !== ReviewStageStatus.APPROVED &&
-                          order.reviewStages?.postPdf?.status !== 'approved';
+  // Must have DisplayStatus of REVIEW_PAGES (images are generated and ready for review)
+  // AND must not be in queue phase or processing
+  const isReviewPagesStatus = order.workflowStatus === DisplayStatus.REVIEW_PAGES &&
+                              order.phase !== OrderPhase.IN_QUEUE;
   
-  // Previous stages must be approved
-  const preBriaApproved = order.reviewStages?.preBria?.status === ReviewStageStatus.APPROVED ||
-                          order.reviewStages?.preBria?.status === 'approved';
-  const postBriaApproved = order.reviewStages?.postBria?.status === ReviewStageStatus.APPROVED ||
-                           order.reviewStages?.postBria?.status === 'approved';
+  // If workflowStatus is not REVIEW_PAGES, don't show in this tab
+  if (!isReviewPagesStatus) {
+    return false;
+  }
   
   // Must not be processing (check rawStatus explicitly)
   const isNotProcessing = !isInWorkflowProcessing(order) &&
                           order.rawStatus !== OrderStatus.AI_GENERATION_IN_PROGRESS &&
                           order.rawStatus !== OrderStatus.PENDING_BG_REMOVAL &&
                           order.rawStatus !== OrderStatus.PENDING_ASSEMBLY;
-  
-  // Must have DisplayStatus of REVIEW_PAGES (images are generated and ready for review)
-  // AND must not be in queue phase or processing
-  const isReviewPagesStatus = order.status === DisplayStatus.REVIEW_PAGES &&
-                              order.phase !== OrderPhase.IN_QUEUE;
   
   // Must not be completed
   const isNotCompleted = order.rawStatus !== OrderStatus.COMPLETED;
@@ -170,7 +187,13 @@ export function shouldShowInReviewPages(order: OrderListItem): boolean {
   // Must be in FIRST_REVIEW phase (not SECOND_REVIEW)
   const isFirstReview = order.phase === OrderPhase.FIRST_REVIEW;
   
-  return isInPostPdfStage && preBriaApproved && postBriaApproved && isNotProcessing && isReviewPagesStatus && isNotCompleted && notSentToPrint && isFirstReview;
+  // Optional: Check if postPdf stage is not yet approved (if reviewStages exist)
+  // This is a soft check - if reviewStages don't exist or are malformed, we still trust workflowStatus
+  const postPdfNotApproved = !order.reviewStages?.postPdf || 
+                             (order.reviewStages.postPdf.status !== ReviewStageStatus.APPROVED &&
+                              order.reviewStages.postPdf.status !== 'approved');
+  
+  return isNotProcessing && isReviewPagesStatus && isNotCompleted && notSentToPrint && isFirstReview && postPdfNotApproved;
 }
 
 /**
@@ -261,7 +284,7 @@ export function getCardLabel(
   // BUT only if images are generated (DisplayStatus is not IN_QUEUE)
   if (stageStatus !== ReviewStageStatus.APPROVED && stageStatus !== 'approved') {
     // Check if order is still in queue/processing - if so, don't show "Ready for Approval"
-    if (order.status === DisplayStatus.IN_QUEUE || 
+    if (order.workflowStatus === DisplayStatus.IN_QUEUE || 
         order.phase === OrderPhase.IN_QUEUE ||
         isInWorkflowProcessing(order)) {
       return 'Processing';

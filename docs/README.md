@@ -9,6 +9,7 @@ This is the main index for all project documentation.
 
 ### **Status & Order Management**
 - `status/ORDER_STATUS_COMPLETE_REFERENCE.md` - **Main reference** for all order statuses
+- `status/DUAL-LABEL-SYSTEM.md` - **Dual-label system** (workflow + technical status)
 - `status/ADMIN_STATUS_DETAILS.md` - Admin-facing status details
 - `status/CUSTOMER_STATUS_DETAILS.md` - Customer-facing status details
 - `status/ORDER_STATUS_SOURCE_OF_TRUTH.md` - Internal status system details

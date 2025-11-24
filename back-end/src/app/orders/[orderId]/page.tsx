@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Order, ReviewStage } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
 import { formatDate, getInitials } from '@/lib/utils';
 import { getOrderById } from '@/lib/mock-data';
@@ -851,8 +852,9 @@ export default function OrderDetailPage() {
                 <span className="mr-1 text-[10px] uppercase tracking-wide text-gray-500">
                   Order Status
                 </span>
-                <StatusBadge 
-                  status={lifecycleStatus.status} 
+                <DualStatusBadge
+                  workflowStatus={lifecycleStatus.workflowStatus}
+                  technicalStatus={lifecycleStatus.technicalStatus}
                   revisionCount={order?.revisionCount}
                   errors={lifecycleStatus.errors}
                 />

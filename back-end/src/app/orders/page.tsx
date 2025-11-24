@@ -10,6 +10,7 @@ import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
 import { OrderPhase, groupOrdersByPhase, PHASE_ORDER } from '@/constants/phases';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { formatDate } from '@/lib/utils';
 import { buildOrderListItem } from '@/lib/status-display';
 import { RefreshCw } from 'lucide-react';
@@ -177,8 +178,10 @@ export default function OrdersPage() {
                           </div>
                         </div>
                         <div className="ml-4">
-                          <StatusBadge 
-                            status={order.status}
+                          <DualStatusBadge
+                            workflowStatus={order.workflowStatus}
+                            technicalStatus={order.technicalStatus}
+                            revisionCount={order.revisionCount}
                             errors={order.errors}
                           />
                         </div>

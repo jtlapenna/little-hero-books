@@ -2722,12 +2722,14 @@ Ensure all approval stages, review stages, and order statuses are properly conne
 3. **Update Backend API to Use Supabase**
    - [x] Created `back-end/src/lib/supabase-client.ts` with CRUD operations
    - [x] Created `back-end/src/lib/status-service.ts` with centralized status calculation
+   - [x] Created `back-end/src/lib/status-display.ts` with **dual-label system** (workflow + technical status)
    - [x] Updated `back-end/src/lib/approval-store.ts` to use Supabase
    - [x] Updated `back-end/src/lib/review-state.ts` to query Supabase
    - [x] **Updated webhook handlers to write status changes to Supabase**:
      - [x] Updated `/api/webhooks/workflow-2b-complete/route.ts` to write status `bria_processing_complete` to Supabase
      - [x] Updated `/api/webhooks/workflow-3-complete/route.ts` to write status `book_assembly_completed` to Supabase
      - [x] Webhooks now update order status in Supabase when n8n workflows complete
+   - [x] **Implemented dual-label status system** - See `docs/status/DUAL-LABEL-SYSTEM.md`
 
 4. **Create Status Transition Functions**
    - [x] Created `updateOrderStatus()` function in `status-service.ts` (centralized status management)

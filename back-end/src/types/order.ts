@@ -84,7 +84,9 @@ export interface OrderListItem {
   platform: string;
   firstName: string;
   lastName: string;
-  status: DisplayStatus;
+  workflowStatus: DisplayStatus;      // NEW: Always shows workflow position
+  technicalStatus?: DisplayStatus;    // NEW: Only set when errors exist
+  status: DisplayStatus;              // Backward compatibility (deprecated)
   rawStatus: string;
   phase: OrderPhase;
   orderDate: string;

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Order, OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
 import { formatDate } from '@/lib/utils';
 import { getOrderListItems } from '@/lib/mock-data';
@@ -214,6 +215,7 @@ export default function ReviewPage() {
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+                aria-label="Sort by"
               >
                 <option value="orderDate">Order Date</option>
                 <option value="firstName">First Name</option>
@@ -224,6 +226,8 @@ export default function ReviewPage() {
               <button
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                 className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent flex items-center"
+                aria-label={`Sort ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
+                title={`Sort ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
               >
                 <ChevronDown className={`h-4 w-4 transition-transform ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
               </button>
@@ -327,7 +331,12 @@ export default function ReviewPage() {
                       {order.orderId}
                     </h3>
                     <div className="flex items-center space-x-1.5 flex-shrink-0">
-                      <StatusBadge status={order.status} revisionCount={order.revisionCount} />
+                      <DualStatusBadge 
+                        workflowStatus={order.workflowStatus}
+                        technicalStatus={order.technicalStatus}
+                        revisionCount={order.revisionCount}
+                        errors={order.errors}
+                      />
                     </div>
                   </div>
                   
@@ -446,7 +455,12 @@ export default function ReviewPage() {
                           {order.platform}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <StatusBadge status={order.status} revisionCount={order.revisionCount} />
+                          <DualStatusBadge 
+                            workflowStatus={order.workflowStatus}
+                            technicalStatus={order.technicalStatus}
+                            revisionCount={order.revisionCount}
+                            errors={order.errors}
+                          />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {hasFlags ? (
