@@ -45,8 +45,8 @@ This guide covers:
 
 **Steps**:
 1. Go to: https://console.aws.amazon.com/iam/
-2. Create IAM User: `little-hero-books-sp-api`
-3. Attach policy: `AmazonSellingPartnerAPIReadOnly`
+2. Create IAM User: `little-hero-labs-sp-api`
+3. Attach policy: `LittleHeroLabsSpApiAccess` (custom policy created)
 4. Save both keys immediately
 
 ---
