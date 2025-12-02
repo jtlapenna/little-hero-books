@@ -891,24 +891,56 @@ Customer views page → Polls status API → Reads from DB → Shows updated sta
 
 ---
 
-## 🛒 **Amazon Custom Setup (Your Task - In Progress)**
+## 🛒 **Amazon Custom Setup (Your Task - BLOCKING PROJECT)** ⚠️
 
 ### **📋 Overview**
 
-**Status**: 🔄 **IN PROGRESS** - You are currently working on this task
+**Status**: 🚨 **BLOCKING** - This task is blocking end-to-end testing and Amazon Messaging API validation
 
 Set up Amazon Custom listing with all required fields, images, and configuration for accepting personalized book orders.
 
-**Priority**: P1 (High - Required for launch)  
-**Estimated Time**: 3-5 days  
-**Dependencies**: None (can be done in parallel with workflow integration)
+**Priority**: P0 (Critical - Blocks all testing)  
+**Estimated Time**: 2-3 days (reduced from 3-5 days - credentials complete)  
+**Dependencies**: None (can be done immediately)
+
+### **✅ What's Already Complete (Developer B - December 2, 2025)**
+
+**Amazon Integration Ready**:
+- ✅ Amazon Seller account approved and active
+- ✅ AWS IAM user created (`little-hero-labs-sp-api`)
+- ✅ AWS IAM policy created (`LittleHeroLabsSpApiAccess`)
+- ✅ AWS access keys generated and configured
+- ✅ Production Amazon SP-API app created ("Little Hero Labs Production")
+- ✅ Production refresh token generated (US, Canada, Mexico)
+- ✅ LWA Client ID and Secret obtained
+- ✅ Environment variables configured in `back-end/.env.local`
+- ✅ `AMAZON_SANDBOX_MODE=false` (production mode)
+- ✅ Amazon Messaging API implemented and tested
+- ✅ Backend API endpoint operational (`/api/notifications/preview/amazon`)
+
+**What This Means**:
+- 🚀 You can create the Amazon listing immediately
+- 🚀 No credential setup needed - everything is configured
+- 🚀 System is ready to send messages to real customers
+- 🚀 Only blocking items are: product images + listing creation
+
+**Reference**: See `docs/amazon/PRODUCTION_CREDENTIALS_COMPLETE.md` for full details
+
+**⚠️ CRITICAL**: Without the Amazon listing, we cannot:
+- Test Amazon Messaging API with real orders
+- Test end-to-end order flow from Amazon → Lulu
+- Validate customer preview delivery via Amazon Message Center
+- Launch the product to customers
 
 ### **Current State Analysis**
 - ✅ Amazon listing copy exists (`docs/AMAZON_LISTING_FINAL.md`)
 - ✅ Amazon integration docs exist (`docs/AMAZON_INTEGRATION.md`)
-- ⚠️ Amazon Seller account may not be set up
-- ⚠️ Amazon Custom listing not created
-- ⚠️ SP-API credentials may not be configured
+- ✅ Amazon Seller account approved and active
+- ✅ AWS IAM credentials configured (`little-hero-labs-sp-api`)
+- ✅ Production SP-API credentials configured (Developer B - December 2, 2025)
+- ✅ Amazon Messaging API implemented and ready
+- ⚠️ Amazon Custom listing not created (BLOCKING)
+- ⚠️ Product images not created (BLOCKING)
 
 ### **Implementation Steps**
 
@@ -920,13 +952,15 @@ Set up Amazon Custom listing with all required fields, images, and configuration
    - [ ] Complete identity verification (if required)
    - **Timing**: Only when ready to launch (not before)
 
-2. **Get SP-API Credentials**
-   - [ ] Follow `docs/AMAZON_INTEGRATION.md` for SP-API setup
-   - [ ] Create IAM user and policy
-   - [ ] Generate access keys
-   - [ ] Get refresh token
-   - [ ] Store credentials securely (environment variables)
-   - [ ] Test SP-API connection
+2. **Get SP-API Credentials** ✅ **COMPLETE (Developer B)**
+   - [x] Follow `docs/AMAZON_INTEGRATION.md` for SP-API setup
+   - [x] Create IAM user and policy (`little-hero-labs-sp-api` / `LittleHeroLabsSpApiAccess`)
+   - [x] Generate AWS access keys
+   - [x] Create production Amazon SP-API app ("Little Hero Labs Production")
+   - [x] Generate production refresh token (US, Canada, Mexico marketplaces)
+   - [x] Store credentials securely in `.env.local`
+   - [x] Test SP-API configuration
+   - **Status**: Production credentials configured and ready for testing
 
 3. **Prepare Product Images**
    - [ ] Create 7 product images (you have design capability)
@@ -1008,21 +1042,69 @@ Set up Amazon Custom listing with all required fields, images, and configuration
 - `docs/amazon/amazon-custom-listing-spec.md` - Detailed listing spec
 - `docs/amazon/sp-api-integration-code.md` - SP-API code examples
 
-### **Files to Modify** (after Amazon setup)
-- `back-end/.env.local` - Add SP-API credentials
-- `docs/n8n-workflow-files/n8n-new/1-order-intake-validation.json` - Update to use real SP-API
-- `back-end/src/lib/notifications/amazon-message-center.ts` - Plug into real SP-API client once credentials live
-- `back-end/src/app/api/notifications/preview/amazon/route.ts` - Route exists, will be called by n8n
+### **Files Already Updated** (by Developer B)
+- ✅ `back-end/.env.local` - Production SP-API credentials configured
+- ✅ `back-end/src/lib/notifications/amazon-message-center.ts` - Amazon Messaging API implemented
+- ✅ `back-end/src/app/api/notifications/preview/amazon/route.ts` - API route operational
+
+### **Files to Modify** (after Amazon listing created)
+- `docs/n8n-workflow-files/n8n-new/1-order-intake-validation.json` - Update to use real SP-API (when listing live)
+- Add HTTP Request node to Workflow 3 to call `/api/notifications/preview/amazon`
 
 ### **Acceptance Criteria**
-- [ ] Amazon Seller account active and verified
-- [ ] SP-API credentials obtained and configured
-- [ ] Amazon Custom listing created and approved
+- [x] Amazon Seller account active and verified (Developer B ✅)
+- [x] AWS IAM credentials obtained and configured (Developer B ✅)
+- [x] Production SP-API credentials obtained and configured (Developer B ✅)
+- [x] Amazon Messaging API implemented (Developer B ✅)
+- [ ] Create 7 product images (Developer A - BLOCKING)
+- [ ] Amazon Custom listing created and approved (Developer A - BLOCKING)
 - [ ] All 7 product images uploaded
 - [ ] Product video uploaded (if created)
 - [ ] Custom fields configured correctly
 - [ ] Test order successfully flows through system
 - [ ] Amazon PPC campaign ready (optional)
+
+### **🧪 Testing Strategy (After Listing Created)**
+
+Once the Amazon Custom listing is live, we will test the complete system:
+
+**Phase 1: Partial Testing (Cancel Before Lulu)**
+1. Place 2-3 test orders through Amazon Custom listing
+2. Monitor orders flow through Workflows 0 → 1 → 2A → 2B → 3
+3. Verify Amazon Messaging API sends preview link to customer
+4. Test customer preview page and approval flow
+5. **Cancel orders before submitting to Lulu** (to avoid print costs)
+6. Verify all workflows and database updates work correctly
+
+**Phase 2: Full End-to-End Testing (Real Print)**
+1. Place 1 real test order through Amazon Custom listing
+2. Complete full workflow including Lulu print submission
+3. Monitor Lulu webhook updates (status changes)
+4. Verify shipment confirmation sent back to Amazon
+5. Receive physical book and verify quality
+6. **Cost**: ~$30 per test order (book price + shipping)
+
+**Why This Approach?**
+- ✅ Tests Amazon integration without excessive print costs
+- ✅ Validates Amazon Messaging API with real orders
+- ✅ Confirms customer preview flow works end-to-end
+- ✅ Verifies Lulu integration with one real print job
+- ✅ Minimizes testing costs while ensuring quality
+
+**Timeline**:
+- **Week 1**: Create product images + Amazon listing (Developer A)
+- **Week 1-2**: Wait for Amazon approval (1-3 days)
+- **Week 2**: Phase 1 testing (2-3 cancelled orders)
+- **Week 3**: Phase 2 testing (1 real order)
+- **Week 4**: Launch to customers
+
+**Updated Timeline (Credentials Complete)**:
+- ✅ **Credentials setup**: Complete (Developer B)
+- ⏳ **Product images**: 2-3 days (Developer A)
+- ⏳ **Listing creation**: 2-3 hours (Developer A)
+- ⏳ **Amazon approval**: 1-3 days (automatic)
+- ⏳ **Testing**: 1 week
+- 🚀 **Launch**: Week 3-4 (accelerated from Week 5)
 
 ---
 
