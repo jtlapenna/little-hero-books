@@ -9,8 +9,10 @@ module.exports = {
       incrementalCache: "dummy",
       tagCache: "dummy",
       queue: "direct"
-    }
+    },
+    functions: {}
   },
+  edgeExternals: ["node:crypto", "fs", "fs/promises", "path", "os"],
   middleware: {
     external: true,
     override: {
