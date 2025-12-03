@@ -61,7 +61,27 @@ jobs:
           echo "Build output contents:"
           ls -la .open-next/cloudflare | head -20
 
+      - name: Pre-deploy diagnostics
+        run: |
+          cd back-end
+          echo "=== PRE-DEPLOY DIAGNOSTICS ==="
+          echo "Current directory: $(pwd)"
+          echo "Build output exists: $([ -d ".open-next/cloudflare" ] && echo "YES" || echo "NO")"
+          echo "Build output size: $(du -sh .open-next/cloudflare 2>/dev/null || echo "N/A")"
+          echo "Build output file count: $(find .open-next/cloudflare -type f 2>/dev/null | wc -l || echo "0")"
+          echo "Wrangler available: $(which wrangler || echo "NOT FOUND")"
+          echo "Wrangler version: $(wrangler --version 2>/dev/null || echo "NOT AVAILABLE")"
+          echo "NPM wrangler version: $(npm list wrangler 2>/dev/null | grep wrangler || echo "NOT FOUND")"
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "NPX version: $(npx --version)"
+          echo "Environment variables check:"
+          echo "  CLOUDFLARE_API_TOKEN: $([ -n "$CLOUDFLARE_API_TOKEN" ] && echo "SET (${#CLOUDFLARE_API_TOKEN} chars)" || echo "NOT SET")"
+          echo "  CLOUDFLARE_ACCOUNT_ID: $([ -n "$CLOUDFLARE_ACCOUNT_ID" ] && echo "SET" || echo "NOT SET")"
+          echo "=============================="
+
       - name: Deploy to Cloudflare Pages
+        id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -70,4 +90,18 @@ jobs:
           command: pages deploy .open-next/cloudflare --project-name=little-hero-labs-admin
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEBUG: "1"
+        continue-on-error: true
+
+      - name: Post-deploy diagnostics
+        if: always()
+        run: |
+          cd back-end
+          echo "=== POST-DEPLOY DIAGNOSTICS ==="
+          echo "Deploy step outcome: ${{ steps.deploy.outcome }}"
+          echo "Deploy step conclusion: ${{ steps.deploy.conclusion }}"
+          echo "Checking if deployment actually happened..."
+          echo "Current time: $(date)"
+          echo "=============================="
 
