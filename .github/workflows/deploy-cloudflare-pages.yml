@@ -81,6 +81,10 @@ jobs:
           echo "Environment variables check:"
           echo "  CLOUDFLARE_API_TOKEN: $([ -n "$CLOUDFLARE_API_TOKEN" ] && echo "SET (${#CLOUDFLARE_API_TOKEN} chars)" || echo "NOT SET")"
           echo "  CLOUDFLARE_ACCOUNT_ID: $([ -n "$CLOUDFLARE_ACCOUNT_ID" ] && echo "SET" || echo "NOT SET")"
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "❌ ERROR: Required environment variables are not set!"
+            exit 1
+          fi
           echo "=============================="
 
       - name: Deploy to Cloudflare Pages
@@ -92,8 +96,9 @@ jobs:
           workingDirectory: back-end
           command: pages deploy .open-next/cloudflare --project-name=little-hero-labs-admin
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           DEBUG: "1"
-        continue-on-error: true
 
       - name: Post-deploy diagnostics
         if: always()
