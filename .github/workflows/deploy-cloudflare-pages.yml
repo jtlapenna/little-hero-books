@@ -23,11 +23,28 @@ jobs:
         run: |
           cd back-end
           npm ci
+          echo "✅ Dependencies installed"
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Checking opennextjs-cloudflare installation:"
+          npx opennextjs-cloudflare --version || echo "⚠️ opennextjs-cloudflare not found in npx"
 
       - name: Build
         run: |
           cd back-end
-          npm run pages:build
+          echo "🔨 Starting build..."
+          echo "Current directory: $(pwd)"
+          echo "Checking for open-next.config.js:"
+          ls -la open-next.config.js || echo "⚠️ open-next.config.js not found"
+          echo "Running pages:build..."
+          npm run pages:build 2>&1 | tee build.log || {
+            echo "❌ Build failed!"
+            echo "Build log:"
+            cat build.log || true
+            echo "Checking for partial build output:"
+            ls -la .open-next/ 2>/dev/null || echo "  .open-next directory not found"
+            exit 1
+          }
         env:
           NODE_ENV: production
 
