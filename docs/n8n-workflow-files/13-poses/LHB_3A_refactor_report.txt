@@ -1,2 +1,0 @@
-Refactor complete.
-Disabled PDF nodes: Prepare PDFMonkey Data, Poll PDFMonkey until ready, Download PDF from PDFMonkey, Generate PDF with PDFMonkey, Wait, Upload PDF to R2, Prepare PDF Metadata for Merge
