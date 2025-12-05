@@ -13,7 +13,7 @@ async function readJsonSafe<T = any>(res: Response): Promise<T> {
 }
 
 /**
- * Regenerate a pose image using Gemini Flash 2.5
+ * Regenerate a pose image using Gemini Nano Banana 3 Pro
  * POST /api/orders/[orderId]/regenerate-pose
  * 
  * Body (JSON):
@@ -337,7 +337,7 @@ export async function POST(
     }
 
     const requestBody = {
-      model: 'models/gemini-2.5-flash-image',
+      model: 'models/gemini-nano-banana-3-pro',
       systemInstruction,
       contents: [{ role: 'user', parts }],
       generationConfig: {
@@ -351,7 +351,7 @@ export async function POST(
 
     // Call Gemini API with retry logic
     console.log(`[Regenerate Pose API] Calling Gemini API for pose ${poseNumber}`);
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${geminiApiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-nano-banana-3-pro:generateContent?key=${geminiApiKey}`;
     
     const MAX_RETRIES = 3;
     const RETRY_DELAY = 1000; // 1 second base delay
