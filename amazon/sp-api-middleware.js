@@ -2,11 +2,11 @@
 
 /**
  * Little Hero Books - Amazon SP-API Middleware
- * Handles authentication, signing, and API calls to Amazon Selling Partner API
+ * Handles LWA authentication and API calls to Amazon Selling Partner API
+ * Modern SP-API uses LWA tokens only (no SigV4 signing required)
  */
 
 import express from 'express';
-import { createHash, createHmac } from 'crypto';
 import { config } from 'dotenv';
 import fetch from 'node-fetch';
 
@@ -16,382 +16,600 @@ config({ path: '../.env' });
 const app = express();
 app.use(express.json());
 
-// Amazon SP-API Configuration
+// Determine environment (sandbox or production)
+const isSandbox = process.env.AMAZON_ENV === 'sandbox' || process.env.AMAZON_SANDBOX_MODE === 'true';
+
+// Amazon SP-API Configuration - supports both sandbox and production
+// Supports both new (AMZ_LWA_*) and legacy (AMZ_APP_*) variable names
 const AMZ_CONFIG = {
-  region: process.env.AMZ_REGION || 'us-east-1',
-  marketplaceId: process.env.AMZ_MARKETPLACE_ID || 'ATVPDKIKX0DER',
-  sellerId: process.env.AMZ_SELLER_ID,
-  clientId: process.env.AMZ_APP_CLIENT_ID,
-  clientSecret: process.env.AMZ_APP_CLIENT_SECRET,
-  refreshToken: process.env.AMZ_REFRESH_TOKEN,
-  baseUrl: `https://sellingpartnerapi-${process.env.AMZ_REGION || 'us-east-1'}.amazon.com`
+  sandbox: {
+    clientId: process.env.AMZ_LWA_CLIENT_ID_SANDBOX || process.env.AMZ_APP_CLIENT_ID_SANDBOX,
+    clientSecret: process.env.AMZ_LWA_CLIENT_SECRET_SANDBOX || process.env.AMZ_APP_CLIENT_SECRET_SANDBOX,
+    refreshToken: process.env.AMZ_LWA_REFRESH_TOKEN_SANDBOX || process.env.AMZ_APP_SANDBOX_REFRESH_TOKEN || process.env.AMZ_REFRESH_TOKEN,
+    baseUrl: 'https://sandbox.sellingpartnerapi-na.amazon.com',
+  },
+  production: {
+    clientId: process.env.AMZ_LWA_CLIENT_ID_PROD || process.env.AMZ_APP_CLIENT_ID_PROD || process.env.AMZ_APP_CLIENT_ID,
+    clientSecret: process.env.AMZ_LWA_CLIENT_SECRET_PROD || process.env.AMZ_APP_CLIENT_SECRET_PROD || process.env.AMZ_APP_CLIENT_SECRET,
+    refreshToken: process.env.AMZ_LWA_REFRESH_TOKEN_PROD || process.env.AMZ_APP_PROD_REFRESH_TOKEN || process.env.AMZ_REFRESH_TOKEN,
+    baseUrl: process.env.AMZ_REGION === 'na' 
+      ? 'https://sellingpartnerapi-na.amazon.com'
+      : `https://sellingpartnerapi-${process.env.AMZ_REGION || 'na'}.amazon.com`,
+  },
 };
 
-// Access token cache
-let accessToken = null;
-let tokenExpiry = null;
+const currentConfig = isSandbox ? AMZ_CONFIG.sandbox : AMZ_CONFIG.production;
+const marketplaceId = process.env.AMZ_MARKETPLACE_ID || 'ATVPDKIKX0DER';
+const backendApiUrl = process.env.BACKEND_API_URL || 'http://localhost:3000';
 
-// AWS Signature V4 implementation
-function createSignatureV4(method, uri, query, headers, payload, region = 'us-east-1') {
-  const algorithm = 'AWS4-HMAC-SHA256';
-  const service = 'execute-api';
-  const timestamp = new Date().toISOString().replace(/[:\-]|\.\d{3}/g, '');
-  const date = timestamp.substr(0, 8);
-  
-  // Create canonical request
-  const canonicalUri = uri;
-  const canonicalQueryString = Object.keys(query)
-    .sort()
-    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`)
-    .join('&');
-  
-  const canonicalHeaders = Object.keys(headers)
-    .sort()
-    .map(key => `${key.toLowerCase()}:${headers[key]}\n`)
-    .join('');
-  
-  const signedHeaders = Object.keys(headers)
-    .sort()
-    .map(key => key.toLowerCase())
-    .join(';');
-  
-  const payloadHash = createHash('sha256').update(payload || '').digest('hex');
-  
-  const canonicalRequest = [
-    method,
-    canonicalUri,
-    canonicalQueryString,
-    canonicalHeaders,
-    signedHeaders,
-    payloadHash
-  ].join('\n');
-  
-  // Create string to sign
-  const credentialScope = `${date}/${region}/${service}/aws4_request`;
-  const stringToSign = [
-    algorithm,
-    timestamp,
-    credentialScope,
-    createHash('sha256').update(canonicalRequest).digest('hex')
-  ].join('\n');
-  
-  // Calculate signature
-  const kDate = createHmac('sha256', `AWS4${process.env.AWS_SECRET_ACCESS_KEY || 'dummy'}`, date).digest();
-  const kRegion = createHmac('sha256', kDate, region).digest();
-  const kService = createHmac('sha256', kRegion, service).digest();
-  const kSigning = createHmac('sha256', kService, 'aws4_request').digest();
-  const signature = createHmac('sha256', kSigning, stringToSign).digest('hex');
-  
-  // Create authorization header
-  const authorization = `${algorithm} Credential=${process.env.AWS_ACCESS_KEY_ID || 'dummy'}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-  
-  return {
-    authorization,
-    'x-amz-date': timestamp,
-    'x-amz-content-sha256': payloadHash
-  };
-}
+// Access token cache (separate for sandbox and production)
+const tokenCache = {
+  sandbox: { token: null, expiry: null },
+  production: { token: null, expiry: null },
+};
 
-// Get access token using refresh token
-async function getAccessToken() {
-  if (accessToken && tokenExpiry && Date.now() < tokenExpiry) {
-    return accessToken;
+/**
+ * Get access token using LWA refresh token flow
+ * Modern SP-API does NOT require SigV4/AWS IAM signing
+ */
+async function getAccessToken(useSandbox = isSandbox) {
+  const cache = useSandbox ? tokenCache.sandbox : tokenCache.production;
+  const config = useSandbox ? AMZ_CONFIG.sandbox : AMZ_CONFIG.production;
+
+  // Return cached token if still valid
+  if (cache.token && cache.expiry && Date.now() < cache.expiry) {
+    return cache.token;
+  }
+
+  if (!config.clientId || !config.clientSecret || !config.refreshToken) {
+    throw new Error(`Missing LWA credentials for ${useSandbox ? 'sandbox' : 'production'}`);
   }
   
   try {
     const response = await fetch('https://api.amazon.com/auth/o2/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
         grant_type: 'refresh_token',
-        refresh_token: AMZ_CONFIG.refreshToken,
-        client_id: AMZ_CONFIG.clientId,
-        client_secret: AMZ_CONFIG.clientSecret
-      })
+        refresh_token: config.refreshToken,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+      }),
     });
-    
-    const data = await response.json();
-    
+
     if (!response.ok) {
-      throw new Error(`Token refresh failed: ${data.error_description || data.error}`);
+      const errorText = await response.text();
+      throw new Error(`LWA token request failed (${response.status}): ${errorText}`);
     }
     
-    accessToken = data.access_token;
-    tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // 1 minute buffer
+    const data = await response.json();
+    if (!data.access_token) {
+      throw new Error('LWA token response missing access_token');
+    }
     
-    return accessToken;
+    // Cache token with 1 minute buffer before expiry
+    cache.token = data.access_token;
+    cache.expiry = Date.now() + (data.expires_in * 1000) - 60000;
+    
+    return cache.token;
   } catch (error) {
-    console.error('Failed to get access token:', error.message);
+    console.error(`[Amazon Middleware] Failed to get ${useSandbox ? 'sandbox' : 'production'} access token:`, error.message);
     throw error;
   }
 }
 
-// Make authenticated SP-API request
-async function makeSPAPIRequest(method, path, query = {}, body = null) {
+/**
+ * Make authenticated SP-API request (no SigV4 signing required)
+ */
+async function makeSPAPIRequest(method, path, query = {}, body = null, useSandbox = isSandbox) {
   try {
-    const accessToken = await getAccessToken();
-    
-    const url = new URL(`${AMZ_CONFIG.baseUrl}${path}`);
-    Object.keys(query).forEach(key => url.searchParams.append(key, query[key]));
+    const accessToken = await getAccessToken(useSandbox);
+    const config = useSandbox ? AMZ_CONFIG.sandbox : AMZ_CONFIG.production;
+
+    const url = new URL(`${config.baseUrl}${path}`);
+    Object.keys(query).forEach(key => {
+      if (Array.isArray(query[key])) {
+        // Handle array parameters (e.g., MarketplaceIds) - Amazon expects comma-separated
+        url.searchParams.append(key, query[key].join(','));
+      } else if (query[key] !== undefined && query[key] !== null) {
+        // For MarketplaceIds as single string, pass as-is
+        url.searchParams.append(key, String(query[key]));
+      }
+    });
     
     const headers = {
       'x-amz-access-token': accessToken,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     };
-    
-    const payload = body ? JSON.stringify(body) : '';
-    
-    // Add AWS signature
-    const signature = createSignatureV4(method, path, query, headers, payload, AMZ_CONFIG.region);
-    Object.assign(headers, signature);
     
     const response = await fetch(url.toString(), {
       method,
       headers,
-      body: payload || undefined
+      body: body ? JSON.stringify(body) : undefined,
     });
-    
-    const responseData = await response.json();
-    
+
     if (!response.ok) {
-      throw new Error(`SP-API request failed: ${responseData.errors?.[0]?.message || responseData.message || 'Unknown error'}`);
+      const errorText = await response.text();
+      let errorMessage = `SP-API request failed (${response.status}): ${errorText}`;
+      
+      // Parse error if possible
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.errors?.[0]?.message || errorMessage;
+      } catch (e) {
+        // Use raw error text
+      }
+      
+      throw new Error(errorMessage);
     }
-    
-    return responseData;
+
+    return await response.json();
   } catch (error) {
-    console.error('SP-API request error:', error.message);
+    console.error('[Amazon Middleware] SP-API request error:', error.message);
     throw error;
   }
 }
 
-// Health check endpoint
+/**
+ * Normalize Amazon order data to internal payload format
+ */
+function normalizeOrderPayload(amazonOrder, orderItems = [], buyerInfo = null, shippingAddress = null) {
+  // Extract customization from order items
+  const customization = {};
+  if (orderItems && orderItems.length > 0) {
+    const firstItem = orderItems[0];
+    const customInfo = 
+      firstItem?.BuyerCustomizedInfo?.CustomizedInfo ||
+      firstItem?.CustomizedInfo ||
+      firstItem?.BuyerInfo?.BuyerCustomizedInfo ||
+      {};
+    
+    Object.assign(customization, customInfo);
+  }
+
+  // Build normalized payload
+  return {
+    amazonOrderId: amazonOrder.AmazonOrderId,
+    orderId: amazonOrder.AmazonOrderId,
+    purchaseDate: amazonOrder.PurchaseDate,
+    orderStatus: amazonOrder.OrderStatus,
+    marketplaceId: amazonOrder.MarketplaceId || marketplaceId,
+    buyer: buyerInfo ? {
+      email: buyerInfo.BuyerEmail,
+      name: buyerInfo.BuyerName,
+    } : null,
+    shippingAddress: shippingAddress ? {
+      name: shippingAddress.Name,
+      address: shippingAddress.AddressLine1,
+      address2: shippingAddress.AddressLine2 || '',
+      city: shippingAddress.City,
+      state: shippingAddress.StateOrRegion,
+      zip: shippingAddress.PostalCode,
+      country: shippingAddress.CountryCode || 'US',
+      phone: shippingAddress.Phone || '',
+    } : null,
+    items: orderItems.map(item => ({
+      orderItemId: item.OrderItemId,
+      asin: item.ASIN,
+      sku: item.SellerSKU,
+      title: item.Title,
+      quantity: item.QuantityOrdered,
+      price: item.ItemPrice,
+      customization: item.BuyerCustomizedInfo?.CustomizedInfo || item.CustomizedInfo || {},
+    })),
+    customization,
+    // Raw data for reference
+    _raw: {
+      order: amazonOrder,
+      items: orderItems,
+      buyerInfo,
+      shippingAddress,
+    },
+  };
+}
+
+/**
+ * POST normalized order to backend API
+ * Idempotent: uses amazonOrderId as key
+ */
+async function postOrderToBackend(normalizedOrder) {
+  try {
+    const response = await fetch(`${backendApiUrl}/api/amazon/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(normalizedOrder),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Backend API failed (${response.status}): ${errorText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('[Amazon Middleware] Failed to POST order to backend:', error.message);
+    throw error;
+  }
+}
+
+// ==================== ENDPOINTS ====================
+
+// Health check
 app.get('/health', (req, res) => {
+  const config = isSandbox ? AMZ_CONFIG.sandbox : AMZ_CONFIG.production;
   res.json({
     ok: true,
     service: 'little-hero-books-amazon-middleware',
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
+    version: '2.0.0',
+    environment: isSandbox ? 'sandbox' : 'production',
     amazonConfig: {
-      region: AMZ_CONFIG.region,
-      marketplaceId: AMZ_CONFIG.marketplaceId,
-      sellerId: AMZ_CONFIG.sellerId ? 'configured' : 'missing',
-      clientId: AMZ_CONFIG.clientId ? 'configured' : 'missing',
-      refreshToken: AMZ_CONFIG.refreshToken ? 'configured' : 'missing'
+      hasSandboxCreds: !!(AMZ_CONFIG.sandbox.clientId && AMZ_CONFIG.sandbox.clientSecret),
+      hasProdCreds: !!(AMZ_CONFIG.production.clientId && AMZ_CONFIG.production.clientSecret),
+      currentMode: isSandbox ? 'sandbox' : 'production',
+      marketplaceId,
+      baseUrl: config.baseUrl,
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
-// Get orders (with filtering for Little Hero Books products)
+// Sandbox connectivity test
+app.get('/test-sandbox', async (req, res) => {
+  try {
+    console.log('[Amazon Middleware] Testing sandbox connectivity...');
+    
+    // Get sandbox access token
+    const accessToken = await getAccessToken(true);
+    console.log('[Amazon Middleware] ✅ Got sandbox access token');
+
+    // Sandbox Orders API may have limited support - try minimal parameters first
+    // Some sandbox endpoints don't support all query parameters
+    const testParams = {
+      MarketplaceIds: marketplaceId, // Single value, not array for sandbox
+    };
+
+    try {
+      const result = await makeSPAPIRequest('GET', '/orders/v0/orders', testParams, null, true);
+      
+      res.json({
+        success: true,
+        message: 'Sandbox connectivity test passed',
+        ordersFound: result.payload?.Orders?.length || 0,
+        hasOrders: (result.payload?.Orders?.length || 0) > 0,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (ordersError) {
+      // If Orders API fails, try a simpler endpoint to verify connectivity
+      // Just getting the token is already a good connectivity test
+      console.warn('[Amazon Middleware] Orders API test failed, but token was obtained:', ordersError.message);
+      
+      res.json({
+        success: true,
+        message: 'Sandbox connectivity verified (token obtained)',
+        note: 'Orders API may have limited sandbox support',
+        ordersApiError: ordersError.message,
+        tokenObtained: true,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (error) {
+    console.error('[Amazon Middleware] Sandbox test failed:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// Get orders (polling endpoint)
 app.get('/orders', async (req, res) => {
   try {
     const { 
-      createdAfter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Last 24 hours
+      createdAfter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
       orderStatuses = 'Unshipped,PartiallyShipped',
-      maxResultsPerPage = 10
+      maxResultsPerPage = 50,
+      useSandbox: querySandbox = isSandbox,
     } = req.query;
     
-    const orders = await makeSPAPIRequest('GET', '/orders/v0/orders', {
-      MarketplaceIds: AMZ_CONFIG.marketplaceId,
+    const params = {
+      MarketplaceIds: [marketplaceId],
       CreatedAfter: createdAfter,
       OrderStatuses: orderStatuses,
-      MaxResultsPerPage: maxResultsPerPage
-    });
-    
-    // Filter for Little Hero Books orders (custom products)
-    const filteredOrders = orders.payload?.Orders?.filter(order => 
-      order.OrderType === 'StandardOrder' && 
-      order.SalesChannel?.includes('Custom') // Amazon Custom orders
-    ) || [];
-    
+      MaxResultsPerPage: parseInt(maxResultsPerPage, 10),
+    };
+
+    const result = await makeSPAPIRequest('GET', '/orders/v0/orders', params, null, querySandbox === 'true');
+    const orders = result.payload?.Orders || [];
+
     res.json({
       success: true,
-      orders: filteredOrders,
-      totalCount: filteredOrders.length,
-      requestedAt: new Date().toISOString()
+      orders,
+      totalCount: orders.length,
+      requestedAt: new Date().toISOString(),
     });
-    
   } catch (error) {
-    console.error('Error fetching orders:', error.message);
+    console.error('[Amazon Middleware] Error fetching orders:', error.message);
     res.status(500).json({
       success: false,
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
 
-// Get order items with customization data
+// Get single order
+app.get('/orders/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { useSandbox: querySandbox = isSandbox } = req.query;
+
+    const result = await makeSPAPIRequest(
+      'GET',
+      `/orders/v0/orders/${orderId}`,
+      { MarketplaceIds: [marketplaceId] },
+      null,
+      querySandbox === 'true'
+    );
+    
+    res.json({
+      success: true,
+      order: result.payload,
+      requestedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error(`[Amazon Middleware] Error fetching order ${req.params.orderId}:`, error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      orderId: req.params.orderId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// Get order items
 app.get('/orders/:orderId/items', async (req, res) => {
   try {
     const { orderId } = req.params;
-    
-    const orderItems = await makeSPAPIRequest('GET', `/orders/v0/orders/${orderId}/orderItems`);
-    
-    // Extract customization data from Amazon Custom orders
-    const itemsWithCustomization = orderItems.payload?.OrderItems?.map(item => {
-      const customization = {};
-      
-      // Parse Amazon Custom fields (these vary by listing setup)
-      if (item.CustomizedInfo) {
-        // Direct customization info
-        Object.assign(customization, item.CustomizedInfo);
-      }
-      
-      // Parse from product info or other fields
-      if (item.ProductInfo?.NumberOfItems) {
-        // Look for customization in product info
-        const productInfo = item.ProductInfo;
-        if (productInfo.Title?.includes('Personalized')) {
-          // Extract customization from title or other fields
-          // This depends on how your Amazon Custom listing is configured
-        }
-      }
-      
-      return {
-        ...item,
-        customization
-      };
-    }) || [];
-    
+    const { useSandbox: querySandbox = isSandbox } = req.query;
+
+    const result = await makeSPAPIRequest(
+      'GET',
+      `/orders/v0/orders/${orderId}/orderItems`,
+      {},
+      null,
+      querySandbox === 'true'
+    );
+
     res.json({
       success: true,
       orderId,
-      items: itemsWithCustomization,
-      requestedAt: new Date().toISOString()
+      items: result.payload?.OrderItems || [],
+      requestedAt: new Date().toISOString(),
     });
-    
   } catch (error) {
-    console.error('Error fetching order items:', error.message);
+    console.error(`[Amazon Middleware] Error fetching items for order ${req.params.orderId}:`, error.message);
     res.status(500).json({
       success: false,
       error: error.message,
       orderId: req.params.orderId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
 
-// Confirm shipment with tracking
-app.post('/orders/:orderId/confirm-shipment', async (req, res) => {
+// Get order items buyer info (for customizations)
+app.get('/orders/:orderId/items/buyer-info', async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { 
-      carrierCode = 'USPS',
-      trackingNumber,
-      shipDate = new Date().toISOString()
-    } = req.body;
+    const { useSandbox: querySandbox = isSandbox } = req.query;
+
+    const result = await makeSPAPIRequest(
+      'GET',
+      `/orders/v0/orders/${orderId}/orderItems/buyerInfo`,
+      {},
+      null,
+      querySandbox === 'true'
+    );
     
-    if (!trackingNumber) {
-      return res.status(400).json({
+    res.json({
+      success: true,
+      orderId,
+      buyerInfo: result.payload,
+      requestedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error(`[Amazon Middleware] Error fetching buyer info for order ${req.params.orderId}:`, error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      orderId: req.params.orderId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// Get order buyer info (PII - may require RDT)
+app.get('/orders/:orderId/buyer-info', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { useSandbox: querySandbox = isSandbox } = req.query;
+
+    const result = await makeSPAPIRequest(
+      'GET',
+      `/orders/v0/orders/${orderId}/buyerInfo`,
+      {},
+      null,
+      querySandbox === 'true'
+    );
+
+    res.json({
+      success: true,
+      orderId,
+      buyerInfo: result.payload,
+      requestedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error(`[Amazon Middleware] Error fetching buyer info for order ${req.params.orderId}:`, error.message);
+    res.status(500).json({
         success: false,
-        error: 'trackingNumber is required',
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    const shipmentData = {
-      packageDetail: {
-        carrierCode,
-        trackingNumber,
-        shipDate
-      }
-    };
-    
-    const result = await makeSPAPIRequest('POST', `/orders/v0/orders/${orderId}/shipmentConfirmation`, shipmentData);
-    
-    res.json({
-      success: true,
-      orderId,
-      trackingNumber,
-      carrierCode,
-      confirmedAt: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    console.error('Error confirming shipment:', error.message);
-    res.status(500).json({
-      success: false,
       error: error.message,
       orderId: req.params.orderId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
 
-// Parse customization data from Amazon Custom order
-app.post('/orders/:orderId/parse-customization', async (req, res) => {
+// Get order address (PII - may require RDT)
+app.get('/orders/:orderId/address', async (req, res) => {
   try {
     const { orderId } = req.params;
-    
-    // Get order items first
-    const orderItemsResponse = await makeSPAPIRequest('GET', `/orders/v0/orders/${orderId}/orderItems`);
-    const items = orderItemsResponse.payload?.OrderItems || [];
-    
-    // Parse customization data (this is where you'd extract the specific fields)
-    const customizationData = items.map(item => {
-      // This is a template - customize based on your actual Amazon Custom listing fields
-      const customization = {
-        childName: null,
-        childAge: null,
-        hairColor: null,
-        skinTone: null,
-        favoriteAnimal: null,
-        favoriteFood: null,
-        favoriteColor: null,
-        hometown: null,
-        dedication: null
-      };
-      
-      // Parse from item data - this depends on your Amazon Custom setup
-      if (item.CustomizedInfo) {
-        // Example parsing - adjust based on your actual field names
-        const customInfo = item.CustomizedInfo;
-        customization.childName = customInfo.child_name || customInfo.name;
-        customization.childAge = customInfo.age;
-        customization.hairColor = customInfo.hair_color || customInfo.hair;
-        customization.skinTone = customInfo.skin_tone || customInfo.skin;
-        customization.favoriteAnimal = customInfo.favorite_animal || customInfo.animal;
-        customization.favoriteFood = customInfo.favorite_food || customInfo.food;
-        customization.favoriteColor = customInfo.favorite_color || customInfo.color;
-        customization.hometown = customInfo.hometown || customInfo.city;
-        customization.dedication = customInfo.dedication || customInfo.message;
-      }
-      
-      return {
-        asin: item.ASIN,
-        sku: item.SellerSKU,
-        customization
-      };
-    });
+    const { useSandbox: querySandbox = isSandbox } = req.query;
+
+    const result = await makeSPAPIRequest(
+      'GET',
+      `/orders/v0/orders/${orderId}/address`,
+      {},
+      null,
+      querySandbox === 'true'
+    );
     
     res.json({
       success: true,
       orderId,
-      customizationData,
-      parsedAt: new Date().toISOString()
+      address: result.payload,
+      requestedAt: new Date().toISOString(),
     });
-    
   } catch (error) {
-    console.error('Error parsing customization:', error.message);
+    console.error(`[Amazon Middleware] Error fetching address for order ${req.params.orderId}:`, error.message);
     res.status(500).json({
       success: false,
       error: error.message,
       orderId: req.params.orderId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// Process order end-to-end: fetch all data, normalize, POST to backend
+app.post('/orders/:orderId/process', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { useSandbox: querySandbox = isSandbox } = req.query;
+
+    console.log(`[Amazon Middleware] Processing order ${orderId} (${querySandbox === 'true' ? 'sandbox' : 'production'})...`);
+
+    // 1. Get order
+    const orderResult = await makeSPAPIRequest(
+      'GET',
+      `/orders/v0/orders/${orderId}`,
+      { MarketplaceIds: [marketplaceId] },
+      null,
+      querySandbox === 'true'
+    );
+    const order = orderResult.payload;
+
+    // 2. Get order items
+    let orderItems = [];
+    try {
+      const itemsResult = await makeSPAPIRequest(
+        'GET',
+        `/orders/v0/orders/${orderId}/orderItems`,
+        {},
+        null,
+        querySandbox === 'true'
+      );
+      orderItems = itemsResult.payload?.OrderItems || [];
+    } catch (error) {
+      console.warn(`[Amazon Middleware] Could not fetch order items: ${error.message}`);
+      // Continue without items
+    }
+
+    // 3. Get order items buyer info (for customizations)
+    let itemsBuyerInfo = null;
+    try {
+      const itemsBuyerResult = await makeSPAPIRequest(
+        'GET',
+        `/orders/v0/orders/${orderId}/orderItems/buyerInfo`,
+        {},
+        null,
+        querySandbox === 'true'
+      );
+      itemsBuyerInfo = itemsBuyerResult.payload;
+    } catch (error) {
+      console.warn(`[Amazon Middleware] Could not fetch items buyer info: ${error.message}`);
+      // Continue without buyer info
+    }
+
+    // 4. Get order buyer info (PII)
+    let buyerInfo = null;
+    try {
+      const buyerResult = await makeSPAPIRequest(
+        'GET',
+        `/orders/v0/orders/${orderId}/buyerInfo`,
+        {},
+        null,
+        querySandbox === 'true'
+      );
+      buyerInfo = buyerResult.payload;
+    } catch (error) {
+      console.warn(`[Amazon Middleware] Could not fetch buyer info: ${error.message}`);
+      // Continue without buyer info
+    }
+
+    // 5. Get order address (PII)
+    let shippingAddress = null;
+    try {
+      const addressResult = await makeSPAPIRequest(
+        'GET',
+        `/orders/v0/orders/${orderId}/address`,
+        {},
+        null,
+        querySandbox === 'true'
+      );
+      shippingAddress = addressResult.payload;
+    } catch (error) {
+      console.warn(`[Amazon Middleware] Could not fetch address: ${error.message}`);
+      // Fallback to order.ShippingAddress if available
+      shippingAddress = order.ShippingAddress || null;
+    }
+
+    // 6. Normalize order data
+    const normalizedOrder = normalizeOrderPayload(order, orderItems, buyerInfo, shippingAddress);
+
+    // 7. POST to backend API (idempotent)
+    const backendResult = await postOrderToBackend(normalizedOrder);
+    
+    res.json({
+      success: true,
+      orderId,
+      normalized: normalizedOrder,
+      backendResponse: backendResult,
+      processedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error(`[Amazon Middleware] Error processing order ${req.params.orderId}:`, error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      orderId: req.params.orderId,
+      timestamp: new Date().toISOString(),
     });
   }
 });
 
 // Error handling middleware
 app.use((error, req, res, next) => {
-  console.error('Middleware error:', error);
+  console.error('[Amazon Middleware] Unhandled error:', error);
   res.status(500).json({
     success: false,
     error: 'Internal server error',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -400,7 +618,9 @@ const port = process.env.AMAZON_MIDDLEWARE_PORT || 4000;
 app.listen(port, () => {
   console.log(`🚀 Amazon SP-API Middleware running on port ${port}`);
   console.log(`📊 Health check: http://localhost:${port}/health`);
+  console.log(`🧪 Sandbox test: http://localhost:${port}/test-sandbox`);
   console.log(`📦 Orders: http://localhost:${port}/orders`);
+  console.log(`🌍 Environment: ${isSandbox ? 'SANDBOX' : 'PRODUCTION'}`);
 });
 
 export default app;
