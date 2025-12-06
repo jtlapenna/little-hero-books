@@ -140,6 +140,73 @@ async function postAmazonOrder(request: NextRequest) {
     const isNewOrder = result?.created_at === result?.updated_at;
     console.log(`[POST /api/amazon/orders] ${isNewOrder ? '✅ Created' : '✅ Updated'} order ${orderIdValue} (idempotent)`);
 
+    // Call W0 webhook if this is a new order (or if explicitly requested)
+    // W0 will process the order and update execution_status to 'ready_for_processing'
+    const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL;
+    if (n8nW0WebhookUrl && (isNewOrder || json.triggerW0 === true)) {
+      try {
+        // Build W0-compatible payload (matches what cron route sends)
+        const webhookPayload = {
+          amazonOrderId: orderIdValue,
+          orderId: orderIdValue,
+          id: orderIdValue,
+          orderDate: orderData.purchase_date,
+          purchaseDate: orderData.purchase_date,
+          status: 'pending_w0',
+          marketplaceId: orderData.marketplace_id,
+          customerEmail: orderData.customer_email,
+          buyer: {
+            email: orderData.customer_email,
+            name: orderData.customer_name,
+          },
+          shippingAddress: orderData.shipping_address,
+          characterSpecs: characterSpecs,
+          character_specs: characterSpecs,
+          CharacterSpecs: characterSpecs,
+          bookSpecs: {
+            title: `${characterSpecs.childName} and the Adventure Compass`,
+            totalPages: 16,
+            format: '8.5x8.5_softcover',
+            bookType: 'adventure',
+          },
+          orderDetails: {
+            quantity: 1,
+            shippingAddress: orderData.shipping_address,
+          },
+          dedication: characterSpecs.dedication || null,
+          Dedication: characterSpecs.dedication || null,
+          items: json.items || [],
+          lineItems: json.items?.map(item => ({
+            customizationFields: Object.entries(item.customization || {}).map(([name, value]) => ({
+              name: name,
+              text: String(value),
+            })),
+          })) || [],
+          characterHash: characterHash,
+          character_hash: characterHash,
+        };
+
+        const webhookResponse = await fetch(n8nW0WebhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(webhookPayload),
+        });
+
+        if (!webhookResponse.ok) {
+          const errorText = await webhookResponse.text();
+          console.warn(`[POST /api/amazon/orders] W0 webhook call failed (${webhookResponse.status}): ${errorText.substring(0, 200)}`);
+          // Don't fail the request - order is stored, W0 can be called manually if needed
+        } else {
+          console.log(`[POST /api/amazon/orders] ✅ Called W0 webhook for order ${orderIdValue}`);
+        }
+      } catch (error: any) {
+        console.warn(`[POST /api/amazon/orders] W0 webhook call error: ${error.message}`);
+        // Don't fail the request - order is stored
+      }
+    }
+
     return NextResponse.json({
       success: true,
       orderId: orderIdValue,
@@ -150,6 +217,7 @@ async function postAmazonOrder(request: NextRequest) {
       storedAt: new Date().toISOString(),
       executionStatus: orderData.execution_status,
       nextWorkflow: orderData.next_workflow,
+      w0Called: !!n8nW0WebhookUrl && (isNewOrder || json.triggerW0 === true),
     }, { status: isNewOrder ? 201 : 200 });
 
   } catch (error: any) {

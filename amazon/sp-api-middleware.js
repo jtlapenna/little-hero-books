@@ -153,7 +153,36 @@ async function makeSPAPIRequest(method, path, query = {}, body = null, useSandbo
 }
 
 /**
- * Normalize Amazon order data to internal payload format
+ * Parse customization into characterSpecs (matches W0's expected format)
+ */
+function parseCharacterSpecs(customization) {
+  const getField = (keys) => {
+    for (const key of keys) {
+      const value = customization[key];
+      if (value !== undefined && value !== null && value !== '') {
+        return String(value);
+      }
+    }
+    return null;
+  };
+
+  return {
+    childName: getField(['Child\'s Name', 'Child Name', 'childName', 'ChildName']) || 'Hero',
+    age: parseInt(getField(['Child\'s Age', 'Child Age', 'age', 'Age']) || '5', 10),
+    pronouns: getField(['Pronouns', 'pronouns']) || 'they/them',
+    skinTone: (getField(['Skin Tone', 'skinTone', 'SkinTone']) || 'medium').toLowerCase(),
+    hairColor: (getField(['Hair Color', 'hairColor', 'HairColor']) || 'brown').toLowerCase(),
+    hairStyle: (getField(['Hair Style', 'hairStyle', 'HairStyle']) || 'short/straight').toLowerCase(),
+    favoriteColor: (getField(['Favorite Color', 'favoriteColor', 'FavoriteColor']) || 'blue').toLowerCase(),
+    animalGuide: getField(['Animal Guide', 'animalGuide', 'AnimalGuide']) || 'dog',
+    clothingStyle: (getField(['Clothing Style', 'clothingStyle', 'ClothingStyle']) || 't-shirt and shorts').toLowerCase(),
+    hometown: getField(['Hometown', 'hometown', 'Home Town']) || null,
+    dedication: getField(['Dedication Message', 'dedication', 'Dedication']) || '',
+  };
+}
+
+/**
+ * Normalize Amazon order data to internal payload format (W0-compatible)
  */
 function normalizeOrderPayload(amazonOrder, orderItems = [], buyerInfo = null, shippingAddress = null) {
   // Extract customization from order items
@@ -169,27 +198,56 @@ function normalizeOrderPayload(amazonOrder, orderItems = [], buyerInfo = null, s
     Object.assign(customization, customInfo);
   }
 
-  // Build normalized payload
+  // Parse character specs (W0-compatible format)
+  const characterSpecs = parseCharacterSpecs(customization);
+  const dedication = characterSpecs.dedication || '';
+
+  // Normalize shipping address
+  const normalizedShipping = shippingAddress ? {
+    name: shippingAddress.Name,
+    address: shippingAddress.AddressLine1 || '',
+    address2: shippingAddress.AddressLine2 || '',
+    city: shippingAddress.City || '',
+    state: shippingAddress.StateOrRegion || '',
+    zip: shippingAddress.PostalCode || '',
+    country: shippingAddress.CountryCode || 'US',
+    phone: shippingAddress.Phone || '',
+  } : null;
+
+  // Build normalized payload (matches W0's expected format)
   return {
     amazonOrderId: amazonOrder.AmazonOrderId,
     orderId: amazonOrder.AmazonOrderId,
+    id: amazonOrder.AmazonOrderId,
+    amazonOrderId: amazonOrder.AmazonOrderId,
     purchaseDate: amazonOrder.PurchaseDate,
+    orderDate: amazonOrder.PurchaseDate,
     orderStatus: amazonOrder.OrderStatus,
+    status: 'pending_w0',
     marketplaceId: amazonOrder.MarketplaceId || marketplaceId,
+    customerEmail: buyerInfo?.BuyerEmail || null,
     buyer: buyerInfo ? {
       email: buyerInfo.BuyerEmail,
       name: buyerInfo.BuyerName,
     } : null,
-    shippingAddress: shippingAddress ? {
-      name: shippingAddress.Name,
-      address: shippingAddress.AddressLine1,
-      address2: shippingAddress.AddressLine2 || '',
-      city: shippingAddress.City,
-      state: shippingAddress.StateOrRegion,
-      zip: shippingAddress.PostalCode,
-      country: shippingAddress.CountryCode || 'US',
-      phone: shippingAddress.Phone || '',
-    } : null,
+    ShippingAddress: shippingAddress,
+    shippingAddress: normalizedShipping,
+    // W0-compatible fields
+    characterSpecs: characterSpecs,
+    character_specs: characterSpecs, // Supabase format
+    CharacterSpecs: characterSpecs, // Alternative format
+    bookSpecs: {
+      title: `${characterSpecs.childName} and the Adventure Compass`,
+      totalPages: 16,
+      format: '8.5x8.5_softcover',
+      bookType: 'adventure',
+    },
+    orderDetails: {
+      quantity: parseInt(amazonOrder.NumberOfItemsShipped || amazonOrder.NumberOfItemsUnshipped || '1', 10),
+      shippingAddress: normalizedShipping,
+    },
+    dedication: dedication,
+    Dedication: dedication,
     items: orderItems.map(item => ({
       orderItemId: item.OrderItemId,
       asin: item.ASIN,
@@ -197,9 +255,20 @@ function normalizeOrderPayload(amazonOrder, orderItems = [], buyerInfo = null, s
       title: item.Title,
       quantity: item.QuantityOrdered,
       price: item.ItemPrice,
-      customization: item.BuyerCustomizedInfo?.CustomizedInfo || item.CustomizedInfo || {},
+      customizations: Object.entries(item.BuyerCustomizedInfo?.CustomizedInfo || item.CustomizedInfo || {}).map(([name, value]) => ({
+        name: name,
+        label: name,
+        type: 'text',
+        value: String(value),
+      })),
     })),
-    customization,
+    lineItems: [{
+      customizationFields: Object.entries(customization).map(([name, value]) => ({
+        name: name,
+        text: String(value),
+      })),
+    }],
+    customization, // Raw customization for reference
     // Raw data for reference
     _raw: {
       order: amazonOrder,
