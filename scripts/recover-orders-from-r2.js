@@ -219,22 +219,23 @@ async function recoverOrderFromR2(orderId, manifestKeys) {
   if (manifestKeys['2b']) manifestUrls.manifest_2b_url = buildManifestUrl(manifestKeys['2b']);
   if (manifestKeys['3']) manifestUrls.manifest_3_url = buildManifestUrl(manifestKeys['3']);
 
-  // Prepare Supabase insert
+  // Prepare Supabase insert (using snake_case for database)
   const insertData = {
     amazon_order_id: orderData.amazonOrderId,
-    orderId: orderData.orderId,
+    orderId: orderData.orderId, // Keep camelCase for orderId field
     customer_email: orderData.customerEmail,
     customer_name: orderData.customerName,
     character_hash: orderData.characterHash,
-    character_specs: orderData.characterSpecs,
+    character_specs: orderData.characterSpecs || {},
     product_info: {
-      bookSpecs: orderData.bookSpecs,
-      orderDetails: orderData.orderDetails,
+      bookSpecs: orderData.bookSpecs || {},
+      orderDetails: orderData.orderDetails || {},
     },
-    purchase_date: orderData.purchaseDate,
-    marketplace_id: orderData.marketplaceId,
+    purchase_date: orderData.purchaseDate || new Date().toISOString(),
+    marketplace_id: orderData.marketplaceId || 'ATVPDKIKX0DER',
     execution_status: 'ready_for_processing',
     next_workflow: manifestStage === '3' ? '4' : manifestStage === '2b' ? '3' : manifestStage === '2a' ? '2B' : '2A',
+    status: 'new', // Default status
     ...manifestUrls,
   };
 
