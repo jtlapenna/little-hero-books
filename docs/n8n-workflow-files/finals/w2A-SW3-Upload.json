@@ -21,7 +21,7 @@
         "url": "https://admin.littleherolabs.com/api/check-and-flip-orientation",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"imageUrl\": \"{{ $('Prepare Upload (ensure generated)').item.json.publicR2Url }}/{{ $('Prepare Upload (ensure generated)').item.json.__meta.storageKey }}\",\n  \"poseRefUrl\": \"{{ $('Prepare Upload (ensure generated)').item.json.poseRefPublicUrl }}\",\n  \"characterHash\": \"{{ $('Prepare Upload (ensure generated)').item.json.characterHash }}\",\n  \"poseNumber\": {{ $('Prepare Upload (ensure generated)').item.json.poseNumber }}\n}",
+        "jsonBody": "={\n  \"imageUrl\": \"{{ $('Prepare Upload (ensure generated)').item.json.publicR2Url }}/{{ $('Prepare Upload (ensure generated)').item.json.__meta.storageKey }}\",\n  \"poseRefUrl\": \"{{ $('Capture Lean Meta').item.json.poseRefPublicUrl }}\",\n  \"characterHash\": \"{{ $('Prepare Upload (ensure generated)').item.json.characterHash }}\",\n  \"poseNumber\": {{ $('Prepare Upload (ensure generated)').item.json.poseNumber }}\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
