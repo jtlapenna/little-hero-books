@@ -19,7 +19,13 @@ Authoritative list of customer-facing personalization fields and allowed values.
 - **Skin Tone**:
   - **R2/Internal System** (canonical IDs for asset storage): skin-light, skin-medium, skin-tan, skin-brown-light, skin-brown-deep
   - **Amazon/Renderer** (customer-facing terminology): light, medium, tan, olive, dark
-  - **Note**: Amazon Custom will use renderer terminology (light, medium, etc.). Internal workflows map to R2 canonical IDs (skin-* prefix). Skin tones are handled via image swatches in the workflow rather than hex codes.
+  - **Base Hex Codes** (extracted from base character images):
+    - skin-light (#EEC38D)
+    - skin-medium (#EBB167)
+    - skin-tan (#D19550)
+    - skin-brown-light (#B47442)
+    - skin-brown-deep (#8A5733)
+  - **Note**: Amazon Custom will use renderer terminology (light, medium, etc.). Internal workflows map to R2 canonical IDs (skin-* prefix). Skin tones are handled via image swatches in the workflow, with base hex codes available for reference.
 - **Favorite Color** (for clothing accents; renderer map exists):
   - red (#C83f3C)
   - orange (#DB8A2B)
@@ -77,13 +83,20 @@ Authoritative list of customer-facing personalization fields and allowed values.
 ### Skin Tone (Required - Dropdown with Preview Images)
 **Amazon Display Options**: Light, Medium, Tan, Olive, Dark  
 **Internal R2 Mapping**: 
-- Light → `skin-light`
-- Medium → `skin-medium`
-- Tan → `skin-tan`
-- Olive → `skin-tan` (or map based on context)
-- Dark → `skin-brown-deep` (or `skin-brown-light` based on context)
+- Light → `skin-light` (#EEC38D)
+- Medium → `skin-medium` (#EBB167)
+- Tan → `skin-tan` (#D19550)
+- Olive → `skin-tan` (#D19550) (or map based on context)
+- Dark → `skin-brown-deep` (#8A5733) (or `skin-brown-light` (#B47442) based on context)
 
-**Implementation Note**: Amazon surfaces use renderer terminology (light, medium, etc.). Internal workflows and R2 storage use canonical IDs with `skin-` prefix. The canonicalization function in n8n workflows handles this mapping.
+**Base Hex Codes** (extracted from base character images):
+- `skin-light`: #EEC38D
+- `skin-medium`: #EBB167
+- `skin-tan`: #D19550
+- `skin-brown-light`: #B47442
+- `skin-brown-deep`: #8A5733
+
+**Implementation Note**: Amazon surfaces use renderer terminology (light, medium, etc.). Internal workflows and R2 storage use canonical IDs with `skin-` prefix. The canonicalization function in n8n workflows handles this mapping. Base hex codes are available in `SKIN_TONE_HEX_MAP` for reference.
 
 ### Hair Color (Required - Dropdown)
 **Amazon Display Options**: All 8 colors (exact names):

@@ -66,6 +66,14 @@ export const SKIN_TONES = [
 ] as const;
 export type SkinToneCanonical = typeof SKIN_TONES[number];
 
+export const SKIN_TONE_HEX_MAP: Record<SkinToneCanonical, { id: SkinToneCanonical; hex: string; label: string }> = {
+  'skin-light': { id: 'skin-light', hex: '#EEC38D', label: 'Light' },
+  'skin-medium': { id: 'skin-medium', hex: '#EBB167', label: 'Medium' },
+  'skin-tan': { id: 'skin-tan', hex: '#D19550', label: 'Tan' },
+  'skin-brown-light': { id: 'skin-brown-light', hex: '#B47442', label: 'Brown — Light' },
+  'skin-brown-deep': { id: 'skin-brown-deep', hex: '#8A5733', label: 'Brown — Deep' },
+};
+
 // === Clothing styles ===
 // Orders (labels): "t-shirt and shorts" | "dress"
 export const CLOTHING_STYLE_LABELS = [
