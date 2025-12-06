@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { PNG } from 'pngjs';
+import { recordRequest } from './stats/route';
 
 /**
  * Extract R2 key from URL
@@ -106,12 +107,17 @@ async function flipPngHorizontally(imageBuffer: Buffer): Promise<Buffer> {
  * Flips the image horizontally if orientations don't match
  */
 export async function POST(request: NextRequest) {
+  let characterHash = 'unknown';
+  let poseNumber = -1;
+  
   try {
     console.log('[Auto-Flip] Request received');
     
     // Parse request body
     const body = await request.json();
-    const { imageUrl, poseRefUrl, characterHash, poseNumber } = body;
+    const { imageUrl, poseRefUrl } = body;
+    characterHash = body.characterHash || 'unknown';
+    poseNumber = body.poseNumber ?? -1;
     
     // Validation
     if (!imageUrl || typeof imageUrl !== 'string') {
@@ -342,6 +348,7 @@ export async function POST(request: NextRequest) {
     
     if (!needsFlip) {
       console.log('[Auto-Flip] Orientations match, no flip needed');
+      recordRequest(characterHash, poseNumber, false, true);
       return NextResponse.json({
         success: true,
         flipped: false,
@@ -365,6 +372,7 @@ export async function POST(request: NextRequest) {
       });
     } catch (error: any) {
       console.error('[Auto-Flip] Error flipping image:', error);
+      recordRequest(characterHash, poseNumber, false, false);
       return NextResponse.json(
         { success: false, error: `Failed to flip image: ${error.message || 'Unknown error'}` },
         { status: 500 }
@@ -378,6 +386,7 @@ export async function POST(request: NextRequest) {
       console.log('[Auto-Flip] Flipped image uploaded successfully');
     } catch (error: any) {
       console.error('[Auto-Flip] Error uploading flipped image:', error);
+      recordRequest(characterHash, poseNumber, false, false);
       return NextResponse.json(
         { success: false, error: `Failed to upload flipped image: ${error.message || 'Unknown error'}` },
         { status: 500 }
@@ -392,6 +401,8 @@ export async function POST(request: NextRequest) {
       bucket: imageBucket,
     });
     
+    recordRequest(characterHash, poseNumber, true, true);
+    
     return NextResponse.json({
       success: true,
       flipped: true,
@@ -401,6 +412,8 @@ export async function POST(request: NextRequest) {
     
   } catch (error: any) {
     console.error('[Auto-Flip] Unexpected error:', error);
+    // Record error with available data
+    recordRequest(characterHash, poseNumber, false, false);
     return NextResponse.json(
       { success: false, error: error?.message || 'Internal server error' },
       { status: 500 }
