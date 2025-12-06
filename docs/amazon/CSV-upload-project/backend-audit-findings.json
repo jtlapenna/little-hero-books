@@ -1,0 +1,159 @@
+{
+  "audit_date": "2024-12-06",
+  "findings": [
+    {
+      "file": "back-end/src/app/api/orders/[orderId]/print/route.ts:12-70",
+      "type": "API endpoint",
+      "customer_fields": ["shipping_address"],
+      "current_behavior": "POST /api/orders/[orderId]/print queues order for w4 without validating shipping_address exists",
+      "issue": "Orders without shipping_address can be queued for w4, which will fail when w4 tries to submit to Lulu",
+      "fix": "Add validation check: if (!order.shipping_address || !order.shipping_address.address || !order.shipping_address.city) throw error preventing queue. Return clear error message: 'Order cannot be sent to print fulfillment: shipping information not yet available. Please upload CSV to populate customer data.'",
+      "priority": "P0",
+      "effort": "30min"
+    },
+    {
+      "file": "pod/pod-service.js:8-25",
+      "type": "validation",
+      "customer_fields": ["shipping_address"],
+      "current_behavior": "PODOrderSchema uses Zod validation requiring shippingAddress.name, address1, city, state, zip, country",
+      "issue": "Zod validation will reject orders with null/undefined shipping_address, causing createOrder() to throw validation error",
+      "fix": "Validation is correct - this will prevent invalid orders from reaching Lulu. Ensure callers check shipping_address before calling PODService.createOrder()",
+      "priority": "P0",
+      "effort": "15min (documentation/clarification only - validation is correct)"
+    },
+    {
+      "file": "back-end/src/app/api/amazon/orders/route.ts:105-107",
+      "type": "API endpoint",
+      "customer_fields": ["customer_name", "customer_email", "shipping_address"],
+      "current_behavior": "Sets customer fields to null when not provided in API payload (uses || null pattern)",
+      "issue": "None - already handles NULL gracefully",
+      "fix": "No changes needed - correctly sets fields to NULL when missing",
+      "priority": "P2",
+      "effort": "0min"
+    },
+    {
+      "file": "back-end/src/app/api/orders/route.ts:106-118",
+      "type": "API endpoint",
+      "customer_fields": ["customer_name", "customer_email", "shipping_address"],
+      "current_behavior": "Sets customer fields from JSON payload, falls back to null/empty object when missing",
+      "issue": "None - already handles NULL gracefully",
+      "fix": "No changes needed - correctly handles missing customer data",
+      "priority": "P2",
+      "effort": "0min"
+    },
+    {
+      "file": "back-end/src/app/api/cron/amazon-orders/route.ts:249-299",
+      "type": "API endpoint",
+      "customer_fields": ["customer_email", "customer_name", "shipping_address"],
+      "current_behavior": "Sets customer fields to null when not available from Amazon API",
+      "issue": "None - already handles NULL gracefully",
+      "fix": "No changes needed - correctly sets fields to NULL when missing",
+      "priority": "P2",
+      "effort": "0min"
+    },
+    {
+      "file": "back-end/src/lib/order-mapper.ts:67-71",
+      "type": "database",
+      "customer_fields": ["shipping_address"],
+      "current_behavior": "Reads shipping_address from multiple sources, falls back to empty object {} if missing",
+      "issue": "None - handles null gracefully with fallback to empty object",
+      "fix": "No changes needed - safe pattern",
+      "priority": "P2",
+      "effort": "0min"
+    },
+    {
+      "file": "back-end/src/lib/order-mapper.ts:48-51",
+      "type": "database",
+      "customer_fields": ["customer_name"],
+      "current_behavior": "Extracts child name from customer_name, handles null/undefined gracefully",
+      "issue": "None - uses optional chaining and null checks",
+      "fix": "No changes needed - safe pattern",
+      "priority": "P2",
+      "effort": "0min"
+    },
+    {
+      "file": "back-end/src/app/api/admin/orders/[orderId]/create-manifest/route.ts:90-107",
+      "type": "API endpoint",
+      "customer_fields": ["customer_name", "customer_email", "shipping_address"],
+      "current_behavior": "Reads customer fields from Supabase order, uses null or empty object when missing",
+      "issue": "None - handles null gracefully",
+      "fix": "No changes needed - safe pattern",
+      "priority": "P2",
+      "effort": "0min"
+    },
+    {
+      "file": "back-end/src/app/api/admin/orders/[orderId]/create-2a-manifest/route.ts:236-249",
+      "type": "API endpoint",
+      "customer_fields": ["customer_name", "customer_email", "shipping_address"],
+      "current_behavior": "Reads customer fields with fallbacks, uses null or empty object when missing",
+      "issue": "None - handles null gracefully",
+      "fix": "No changes needed - safe pattern",
+      "priority": "P2",
+      "effort": "0min"
+    },
+    {
+      "file": "back-end/src/app/api/admin/orders/[orderId]/create-2b-manifest/route.ts:220-233",
+      "type": "API endpoint",
+      "customer_fields": ["customer_name", "customer_email", "shipping_address"],
+      "current_behavior": "Reads customer fields with multiple fallbacks, uses null or empty object when missing",
+      "issue": "None - handles null gracefully",
+      "fix": "No changes needed - safe pattern",
+      "priority": "P2",
+      "effort": "0min"
+    },
+    {
+      "file": "back-end/src/app/api/preview/validate-token/route.ts:134-146",
+      "type": "API endpoint",
+      "customer_fields": ["customer_name"],
+      "current_behavior": "Extracts customer name from merged order data, handles null gracefully",
+      "issue": "None - uses optional chaining and null coalescing",
+      "fix": "No changes needed - safe pattern",
+      "priority": "P2",
+      "effort": "0min"
+    },
+    {
+      "file": "back-end/src/app/orders/[orderId]/page.tsx:1214",
+      "type": "UI",
+      "customer_fields": ["customer_email"],
+      "current_behavior": "Displays customerEmail with fallback to 'N/A'",
+      "issue": "None - handles null gracefully in UI",
+      "fix": "No changes needed - safe pattern",
+      "priority": "P2",
+      "effort": "0min"
+    },
+    {
+      "file": "back-end/scripts/cleanup-old-orders.ts:84-168",
+      "type": "background job",
+      "customer_fields": ["customer_name", "customer_email"],
+      "current_behavior": "Uses customer_name || customer_email || 'Unknown' for display/logging",
+      "issue": "None - handles null gracefully with fallback",
+      "fix": "No changes needed - safe pattern",
+      "priority": "P2",
+      "effort": "0min"
+    },
+    {
+      "file": "docs/n8n-workflow-files/finals/w4-PRODUCTION-Print_Fulfillment.json (referenced in w4-audit.md)",
+      "type": "external API",
+      "customer_fields": ["shipping_address"],
+      "current_behavior": "w4 workflow throws error if shipping_address.phone_number is missing (per w4-audit.md)",
+      "issue": "Workflow will crash if shipping_address is NULL. Backend should prevent orders from reaching w4 without shipping data",
+      "fix": "Backend validation in /api/orders/[orderId]/print route will prevent this (see finding #1). w4 workflow changes may still be needed for robustness, but backend gate is primary fix",
+      "priority": "P0",
+      "effort": "1hr (if w4 changes needed, but backend fix is primary)"
+    }
+  ],
+  "summary": {
+    "total_findings": 14,
+    "p0_critical": 3,
+    "p1_high": 0,
+    "p2_medium": 11,
+    "estimated_total_effort": "1h 45min"
+  },
+  "notes": {
+    "primary_fix": "Add shipping_address validation to POST /api/orders/[orderId]/print route to prevent orders without customer data from being queued for w4",
+    "user_requirement": "Backend should throw error (not skip/queue) when shipping information is missing, preventing any orders from being sent to w4 without shipping information",
+    "safe_patterns_found": "Most code already handles NULL customer fields gracefully using optional chaining, null coalescing, and fallback values",
+    "validation_note": "POD service validation is correct - it should reject invalid orders. The fix is to validate before calling POD service, not to change POD validation"
+  }
+}
+

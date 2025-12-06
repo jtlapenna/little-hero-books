@@ -8,31 +8,12 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        336,
-        32
+        1184,
+        64
       ],
       "id": "e93bd5a8-c1ce-4681-8445-68e864e4f2b8",
       "name": "Wait",
       "webhookId": "cac9f23e-4e21-499a-ac2c-3aad35ed652c"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/check-and-flip-orientation",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"imageUrl\": \"{{ $('Prepare Upload (ensure generated)').item.json.publicR2Url }}/{{ $('Prepare Upload (ensure generated)').item.json.__meta.storageKey }}\",\n  \"poseRefUrl\": \"{{ $('Capture Lean Meta').item.json.poseRefPublicUrl }}\",\n  \"characterHash\": \"{{ $('Prepare Upload (ensure generated)').item.json.characterHash }}\",\n  \"poseNumber\": {{ $('Prepare Upload (ensure generated)').item.json.poseNumber }}\n}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        560,
-        32
-      ],
-      "id": "9a7dddad-d785-431d-9948-292c80495235",
-      "name": "HTTP Request",
-      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -157,6 +138,41 @@
       ],
       "id": "796f827d-8d66-46c8-9bf6-5f7a070d6df3",
       "name": "Merge"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        960,
+        48
+      ],
+      "id": "cf39bac6-f5e2-472e-8092-037c0a2e5799",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://admin.littleherolabs.com/api/check-and-flip-orientation",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"imageUrl\": \"{{ $('Prepare Upload (ensure generated)1').item.json.publicR2Url }}/{{ $('Prepare Upload (ensure generated)1').item.json.__meta.storageKey }}\",\n  \"poseRefUrl\": \"{{ $('Capture Lean Meta').item.json.poseRefPublicUrl }}\",\n  \"characterHash\": \"{{ $('Prepare Upload (ensure generated)1').item.json.characterHash }}\",\n  \"poseNumber\": {{ $('Prepare Upload (ensure generated)1').item.json.poseNumber }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1392,
+        64
+      ],
+      "id": "dd567f9e-f818-4eb5-8130-cd064e5acf20",
+      "name": "HTTP Request1",
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {
@@ -401,7 +417,7 @@
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "HTTP Request1",
             "type": "main",
             "index": 0
           }
@@ -413,6 +429,11 @@
         [
           {
             "node": "Schema Check + Defaults",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
             "type": "main",
             "index": 0
           }
@@ -448,11 +469,6 @@
             "node": "Memory Cleanup After Upload",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Wait",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -467,6 +483,11 @@
           },
           {
             "node": "Merge",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Merge1",
             "type": "main",
             "index": 1
           }
@@ -491,6 +512,22 @@
             "node": "Return Upload Results",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -500,7 +537,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "6b8347ab-e0c4-480a-9fe0-ac810841ad0a",
+  "versionId": "2a0b8044-582f-44ed-853f-b60e8a924fd8",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },

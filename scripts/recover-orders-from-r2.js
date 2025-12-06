@@ -18,9 +18,41 @@
  *   node scripts/recover-orders-from-r2.js JESSICA-CUNT
  */
 
-require('dotenv').config({ path: '.env.local' });
-const { createClient } = require('@supabase/supabase-js');
-const { S3Client, ListObjectsV2Command, GetObjectCommand } = require('@aws-sdk/client-s3');
+// Load environment variables from back-end/.env.local
+const path = require('path');
+const fs = require('fs');
+
+// Add back-end/node_modules to module path
+const backEndNodeModules = path.join(__dirname, '..', 'back-end', 'node_modules');
+if (fs.existsSync(backEndNodeModules)) {
+  require('module')._resolveFilename = (function(originalResolveFilename) {
+    return function(request, parent) {
+      if (!request.startsWith('.') && !path.isAbsolute(request)) {
+        try {
+          return originalResolveFilename(path.join(backEndNodeModules, request), parent);
+        } catch {
+          // Fallback to normal resolution
+        }
+      }
+      return originalResolveFilename(request, parent);
+    };
+  })(require('module')._resolveFilename);
+}
+
+const envPath = path.join(__dirname, '..', 'back-end', '.env.local');
+if (fs.existsSync(envPath)) {
+  const dotenv = require(path.join(backEndNodeModules, 'dotenv'));
+  dotenv.config({ path: envPath });
+} else {
+  try {
+    const dotenv = require(path.join(backEndNodeModules, 'dotenv'));
+    dotenv.config({ path: '.env.local' });
+  } catch {}
+}
+
+const { createClient } = require(path.join(backEndNodeModules, '@supabase/supabase-js'));
+const s3 = require(path.join(backEndNodeModules, '@aws-sdk/client-s3'));
+const { S3Client, ListObjectsV2Command, GetObjectCommand } = s3;
 
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes('--dry-run');
@@ -29,11 +61,22 @@ const ORDER_ID = args.find(arg => arg !== '--dry-run');
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 
-const r2AccountId = process.env.R2_ACCOUNT_ID;
-const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
-const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-const r2Bucket = process.env.R2_ORDERS_BUCKET || 'little-hero-orders';
-const publicR2Url = process.env.R2_PUBLIC_URL || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';
+// Try multiple possible env variable names (matching r2-client.ts)
+const r2AccountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
+const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID || 
+                      process.env.R2_ACCESS_ID_KEY ||
+                      process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
+                      process.env.CLOUDFLARE_R2_ACCESS_KEY;
+const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY || 
+                          process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
+                          process.env.CLOUDFLARE_R2_SECRET_KEY;
+const r2Bucket = process.env.R2_ORDERS_BUCKET || 
+                 process.env.R2_ORDERS_BUCKET_NAME || 
+                 process.env.CLOUDFLARE_R2_ORDERS_BUCKET || 
+                 'little-hero-orders';
+const publicR2Url = process.env.R2_PUBLIC_URL || 
+                    process.env.CLOUDFLARE_R2_PUBLIC_URL || 
+                    'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('❌ Error: Supabase credentials not found');
@@ -46,9 +89,21 @@ if (!r2AccountId || !r2AccessKeyId || !r2SecretAccessKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// R2 endpoint format: https://{accountId}.r2.cloudflarestorage.com
+// Bucket name goes in the request path, not the hostname
+const r2Endpoint = r2AccountId ? `https://${r2AccountId}.r2.cloudflarestorage.com` : null;
+
+if (!r2Endpoint) {
+  console.error('❌ Error: R2 endpoint not configured');
+  console.error('Set CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID in back-end/.env.local');
+  process.exit(1);
+}
+
 const r2Client = new S3Client({
   region: 'auto',
-  endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
+  endpoint: r2Endpoint,
+  forcePathStyle: true, // Important: Use path-style URLs for R2
   credentials: {
     accessKeyId: r2AccessKeyId,
     secretAccessKey: r2SecretAccessKey,

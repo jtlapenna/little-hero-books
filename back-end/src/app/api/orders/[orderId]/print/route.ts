@@ -34,6 +34,30 @@ async function sendToPrint(
       throw createNotFoundError(`Order ${orderId} not found`);
     }
     
+    // Validate shipping address exists and has required fields
+    const shippingAddress = currentOrder.shipping_address;
+
+    if (!shippingAddress || typeof shippingAddress !== 'object') {
+      throw createValidationError(
+        'Order cannot be sent to print fulfillment: shipping information not yet available. ' +
+        'Please upload CSV to populate customer data.'
+      );
+    }
+
+    // Check for required fields (support both 'address' and 'address1' field names)
+    const addressLine = shippingAddress.address || shippingAddress.address1 || shippingAddress.address_line_1;
+    const city = shippingAddress.city;
+    const state = shippingAddress.state;
+    const zip = shippingAddress.zip || shippingAddress.postal_code;
+
+    if (!addressLine || !city || !state || !zip) {
+      throw createValidationError(
+        'Order cannot be sent to print fulfillment: shipping information is incomplete. ' +
+        'Required fields (address, city, state, zip) must be populated. ' +
+        'Please upload CSV to populate customer data.'
+      );
+    }
+    
     const updates: any = {
       next_workflow: '4',
       execution_status: 'ready_for_processing',

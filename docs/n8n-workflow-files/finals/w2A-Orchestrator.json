@@ -1,5 +1,5 @@
 {
-  "name": "WORKING VERSION - 2A - Orchestrator",
+  "name": "w2A-Orchestrator",
   "nodes": [
     {
       "parameters": {
@@ -310,7 +310,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Generate Character Hash — EACH mode\n// Deterministic, normalized hash from characterSpecs.\n// IMPORTANT: In EACH mode, return a single object (not an array).\n\nconst j  = { ...($json || {}) };\nconst b  = $binary || {};\nconst cs = j.characterSpecs || {};\n\nfunction intOr(v, d){ const n = Number.parseInt(v, 10); return Number.isFinite(n) ? n : d; }\n\n// Create a normalized character specification object for hashing\nconst characterHashSpec = {\n  skinTone:       (cs.skinTone || 'medium'),\n  hairColor:      (cs.hairColor || 'brown'),\n  hairStyle:      (cs.hairStyle || 'short/straight'),\n  age:            intOr(cs.age, 5),\n  pronouns:       (cs.pronouns || 'they/them'),\n  favoriteColor:  (cs.favoriteColor || 'blue'),\n  animalGuide:    (cs.animalGuide || 'dog'),\n  clothingStyle:  (cs.clothingStyle || 't-shirt and shorts'),\n};\n\n// Order keys for stable hashing\nconst orderedSpec = Object.keys(characterHashSpec)\n  .sort()\n  .reduce((acc, k) => { acc[k] = characterHashSpec[k]; return acc; }, {});\n\n// Generate a deterministic hash from the character specifications\nconst crypto = require('crypto');\nconst hashString = JSON.stringify(orderedSpec);\nconst characterHash = crypto.createHash('sha256').update(hashString).digest('hex').substring(0, 16);\n\n// Add character hash and normalized specs to order data\nconst out = {\n  ...j,\n  characterSpecs: cs,             // preserve original specs\n  characterHash,                  // short deterministic id\n  characterHashSpec: orderedSpec, // normalized spec used for hashing\n  characterPath: `characters/${characterHash}`,\n  templatePath: 'templates',\n};\n\n// Optional: log for debug\nconsole.log(`Generated character hash: ${characterHash}`);\n\n// EACH mode => return a SINGLE object\nreturn {\n  json: out,\n  binary: b,\n  // preserve pairing if present (helps downstream merges)\n  ...(($input && $input.item && $input.item.pairedItem) ? { pairedItem: $input.item.pairedItem } : {})\n};\n"
+        "jsCode": "// Extract Character Hash from w0 — EACH mode\n// Use the hash already calculated in w0, don't recalculate\n// IMPORTANT: In EACH mode, return a single object (not an array).\n\nconst j = { ...($json || {}) };\nconst b = $binary || {};\n\n// Extract hash from w0 (try multiple possible locations)\nconst characterHash = j.character_hash || j.characterHash || j.orderContext?.characterHash;\n\nif (!characterHash) {\n  throw new Error('Missing character_hash from w0. Order data: ' + JSON.stringify(Object.keys(j)));\n}\n\n// Preserve characterSpecs for downstream nodes\nconst cs = j.characterSpecs || j.character_specs || {};\n\n// Build output matching the expected structure\nconst out = {\n  ...j,\n  characterSpecs: cs,\n  characterHash,\n  characterPath: `characters/${characterHash}`,\n  templatePath: 'templates',\n};\n\nconsole.log('Using character hash from w0:', characterHash);\n\n// EACH mode => return a SINGLE object\nreturn {\n  json: out,\n  binary: b,\n  ...(($input && $input.item && $input.item.pairedItem) ? { pairedItem: $input.item.pairedItem } : {})\n};"
       },
       "id": "bcb6f3a9-6148-4fc9-86c6-b766d08361be",
       "name": "Generate Character Hash1",
@@ -404,12 +404,11 @@
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -2464,
-        -160
+        -800,
+        1344
       ],
       "id": "2ba55b07-6ffe-439a-931f-87a282db59f4",
-      "name": "When clicking 'Execute workflow'",
-      "disabled": true
+      "name": "When clicking 'Execute workflow'"
     },
     {
       "parameters": {
@@ -702,8 +701,8 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders?on_conflict=amazon_order_id",
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders?orderId=eq.{{$json.orderId}}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -812,6 +811,19 @@
       ],
       "id": "290b1e84-ee1e-4b33-a9aa-d77b6c6cd990",
       "name": "Respond to Webhook (Ack)"
+    },
+    {
+      "parameters": {
+        "jsCode": "return[\n  {\n    \"success\": true,\n    \"manifestKey\": \"book-mvp-simple-adventure/orders/NB3-STANDARD-03/manifests/2a-manifest.json\",\n    \"manifest\": {\n      \"schema\": \"lhb.run-manifest@v2.0\",\n      \"runStamp\": \"2025-12-06T17:12:38.503Z\",\n      \"characterHash\": \"52f4a5bec52c777c\",\n      \"order\": {\n        \"amazonOrderId\": \"NB3-STANDARD-03\",\n        \"childName\": \"Luca\",\n        \"characterSpecs\": {\n          \"age\": 5,\n          \"pronouns\": \"he/him\",\n          \"skinTone\": \"skin-brown-dark\",\n          \"childName\": \"Luca\",\n          \"hairColor\": \"medium-brown\",\n          \"hairStyle\": \"small-puffy-ponytail\",\n          \"animalGuide\": \"unicorn\",\n          \"clothingStyle\": \"tee-shorts\",\n          \"favoriteColor\": \"red\"\n        },\n        \"bookSpecs\": {},\n        \"orderDetails\": {\n          \"quantity\": 1,\n          \"shippingAddress\": {\n            \"zip\": \"95945\",\n            \"city\": \"Grass Valley\",\n            \"name\": \"Jeff LaPenna\",\n            \"phone\": \"+1-678-478-3477\",\n            \"state\": \"CA\",\n            \"address\": \"12207 Sunset Ave.\"\n          }\n        },\n        \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n        \"r2BucketName\": \"little-hero-assets\"\n      },\n      \"poses\": {\n        \"total\": 13,\n        \"approved\": 13,\n        \"exhausted\": 0,\n        \"retried\": 1,\n        \"failed\": 0,\n        \"needingReview\": 0\n      },\n      \"entries\": [\n        {\n          \"poseNumber\": 0,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose00.png\",\n          \"approvedFilename\": \"pose00.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose00.png\",\n          \"correlationId\": \"style-qa-1765040277779-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.0, ΔS≈0.0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.0, ΔS≈0.0.\"\n          }\n        },\n        {\n          \"poseNumber\": 1,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose01.png\",\n          \"approvedFilename\": \"pose01.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose01.png\",\n          \"correlationId\": \"style-qa-1765040348746-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV=0, ΔS=0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV=0, ΔS=0.\"\n          }\n        },\n        {\n          \"poseNumber\": 2,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose02.png\",\n          \"approvedFilename\": \"pose02.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose02.png\",\n          \"correlationId\": \"style-qa-1765040415046-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.0, ΔS≈0.0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.0, ΔS≈0.0.\"\n          }\n        },\n        {\n          \"poseNumber\": 3,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose03.png\",\n          \"approvedFilename\": \"pose03.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose03.png\",\n          \"correlationId\": \"style-qa-1765040484150-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\"\n          }\n        },\n        {\n          \"poseNumber\": 4,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose04.png\",\n          \"approvedFilename\": \"pose04.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose04.png\",\n          \"correlationId\": \"style-qa-1765040543357-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\"\n          }\n        },\n        {\n          \"poseNumber\": 5,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose05.png\",\n          \"approvedFilename\": \"pose05.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose05.png\",\n          \"correlationId\": \"style-qa-1765040607436-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.5, ΔS≈1.5\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.5, ΔS≈1.5\"\n          }\n        },\n        {\n          \"poseNumber\": 6,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose06.png\",\n          \"approvedFilename\": \"pose06.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose06.png\",\n          \"correlationId\": \"style-qa-1765040672877-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\"\n          }\n        },\n        {\n          \"poseNumber\": 7,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose07.png\",\n          \"approvedFilename\": \"pose07.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose07.png\",\n          \"correlationId\": \"style-qa-1765040737191-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.8, ΔS≈1.2.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.8, ΔS≈1.2.\"\n          }\n        },\n        {\n          \"poseNumber\": 8,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose08.png\",\n          \"approvedFilename\": \"pose08.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose08.png\",\n          \"correlationId\": \"style-qa-1765040802334-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.5, ΔS≈1.5.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.5, ΔS≈1.5.\"\n          }\n        },\n        {\n          \"poseNumber\": 9,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose09.png\",\n          \"approvedFilename\": \"pose09.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose09.png\",\n          \"correlationId\": \"style-qa-1765040867351-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.8, ΔS≈1.2.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.8, ΔS≈1.2.\"\n          }\n        },\n        {\n          \"poseNumber\": 10,\n          \"attempts\": 1,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose10_r1.png\",\n          \"approvedFilename\": \"pose10_r1.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose10_r1.png\",\n          \"correlationId\": \"style-qa-1765041002489-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV=0.0, ΔS=0.0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV=0.0, ΔS=0.0.\"\n          },\n          \"retryHistory\": [\n            {\n              \"attempt\": 1,\n              \"passed\": true,\n              \"qaScore\": 1,\n              \"styleScore\": 1,\n              \"reasons\": null\n            }\n          ],\n          \"qaReasons\": null\n        },\n        {\n          \"poseNumber\": 11,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose11.png\",\n          \"approvedFilename\": \"pose11.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose11.png\",\n          \"correlationId\": \"style-qa-1765041063394-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV=0, ΔS=0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV=0, ΔS=0.\"\n          }\n        },\n        {\n          \"poseNumber\": 12,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose12.png\",\n          \"approvedFilename\": \"pose12.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose12.png\",\n          \"correlationId\": \"style-qa-1765041142010-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV=0.0, ΔS=0.0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV=0.0, ΔS=0.0.\"\n          }\n        }\n      ],\n      \"reviewQueue\": [],\n      \"summary\": {\n        \"percentComplete\": 100,\n        \"readyForBook\": true,\n        \"needsHumanReview\": false\n      },\n      \"workflow\": {\n        \"currentStage\": \"2A-complete\",\n        \"nextWorkflow\": \"2B\",\n        \"requiresHumanReview\": false\n      },\n      \"generatedAt\": \"2025-12-06T17:12:38.504Z\",\n      \"_debug\": {\n        \"poseIndexFixes\": [\n          {\n            \"inputNumeric\": 0,\n            \"fromPath\": 1,\n            \"used\": 1,\n            \"key\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose01.png\"\n          }\n        ]\n      }\n    },\n    \"characterHash\": \"52f4a5bec52c777c\",\n    \"amazonOrderId\": \"NB3-STANDARD-03\",\n    \"manifestReady\": true,\n    \"uploadBucket\": \"little-hero-orders\"\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -512,
+        1344
+      ],
+      "id": "80090e0b-3332-4117-a306-d561b5dbc836",
+      "name": "Code in JavaScript"
     }
   ],
   "pinData": {
@@ -820,79 +832,79 @@
         "json": {
           "headers": {
             "host": "thepeakbeyond.app.n8n.cloud",
-            "user-agent": "axios/1.8.3",
-            "content-length": "2777",
+            "user-agent": "axios/1.12.0",
+            "content-length": "2885",
             "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
             "accept-encoding": "gzip, br",
             "cdn-loop": "cloudflare; loops=1; subreqs=1",
             "cf-connecting-ip": "4.182.88.118",
             "cf-ew-via": "15",
             "cf-ipcountry": "DE",
-            "cf-ray": "99d2c62235e29a0f-FRA",
+            "cf-ray": "9a9d51021018dbcd-FRA",
             "cf-visitor": "{\"scheme\":\"https\"}",
             "cf-worker": "n8n.cloud",
             "content-type": "application/json",
-            "idempotency-key": "E2E-002-undefined",
-            "x-forwarded-for": "4.182.88.118, 162.158.86.253",
+            "idempotency-key": "NB3-STANDARD-03-undefined",
+            "x-forwarded-for": "4.182.88.118, 172.71.144.173",
             "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
             "x-forwarded-port": "443",
             "x-forwarded-proto": "https",
-            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-n8pcb",
+            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-vdndp",
             "x-is-trusted": "yes",
             "x-real-ip": "4.182.88.118"
           },
           "params": {},
           "query": {},
           "body": {
-            "id": 69,
-            "amazon_order_id": "E2E-002",
+            "id": 255,
+            "amazon_order_id": null,
             "processing_id": null,
             "status": "queued_for_processing",
             "workflow_step": "order_intake",
             "next_workflow": "2A",
             "order_status": null,
-            "purchase_date": "2025-11-12T02:04:43.605",
+            "purchase_date": "2025-12-06T08:32:39.323",
             "order_total": null,
             "currency": "USD",
-            "marketplace_id": "ATVPDKIKX0DER",
-            "customer_email": "test@littleherolabs.com",
-            "customer_name": "Jane Smith",
+            "marketplace_id": null,
+            "customer_email": "jeff.lapenna@gmail.com",
+            "customer_name": "Jeff LaPenna",
             "shipping_address": {
-              "zip": "97201",
-              "city": "Portland",
-              "name": "Jane Smith",
-              "phone": "+1-555-123-4567",
-              "state": "OR",
-              "address": "123 Main Street"
+              "zip": "95945",
+              "city": "Grass Valley",
+              "name": "Jeff LaPenna",
+              "phone": "+1-678-478-3477",
+              "state": "CA",
+              "address": "12207 Sunset Ave."
             },
             "character_specs": {
               "age": 5,
-              "pronouns": "she/her",
-              "skinTone": "light",
-              "childName": "Emma",
-              "hairColor": "blonde",
-              "hairStyle": "straight-long",
-              "animalGuide": "penguin",
-              "clothingStyle": "adventure",
-              "favoriteColor": "purple"
+              "pronouns": "he/him",
+              "skinTone": "skin-brown-dark",
+              "childName": "Luca",
+              "hairColor": "medium-brown",
+              "hairStyle": "small-puffy-ponytail",
+              "animalGuide": "unicorn",
+              "clothingStyle": "tee-shorts",
+              "favoriteColor": "red"
             },
-            "character_hash": "7d1000cc",
+            "character_hash": "50504dce",
             "product_info": {
               "quantity": 1,
               "shippingAddress": {
-                "zip": "97201",
-                "city": "Portland",
-                "name": "Jane Smith",
-                "phone": "+1-555-123-4567",
-                "state": "OR",
-                "address": "123 Main Street"
+                "zip": "95945",
+                "city": "Grass Valley",
+                "name": "Jeff LaPenna",
+                "phone": "+1-678-478-3477",
+                "state": "CA",
+                "address": "12207 Sunset Ave."
               }
             },
             "priority": "normal",
             "estimated_processing_time": null,
-            "created_at": "2025-11-11T23:44:06.095581",
-            "updated_at": "2025-11-12T02:59:32.690897",
-            "queued_at": "2025-11-12T02:04:44.576",
+            "created_at": "2025-12-06T07:55:25.285732",
+            "updated_at": "2025-12-06T16:56:24.487495",
+            "queued_at": "2025-12-06T16:56:23.858",
             "validated_at": null,
             "validation_errors": [],
             "quality_score": null,
@@ -954,7 +966,7 @@
             "customer_approval_approved_at": null,
             "delivered_at": null,
             "revision_count": 0,
-            "orderId": "E2E-002",
+            "orderId": "NB3-STANDARD-03",
             "printFulfillmentStartedAt": null,
             "printFulfillmentFinishedAt": null,
             "printFulfillmentStatus": null,
@@ -962,10 +974,10 @@
             "coverPdfR2Key": null,
             "amazonOrderId": null,
             "execution_status": "processing",
-            "started_at": "2025-11-12T02:59:32.593",
+            "started_at": "2025-12-06T16:56:24.397",
             "current_workflow": "2A",
-            "one_manifest_url": "book-mvp-simple-adventure/orders/E2E-002/manifests/1-manifest.json",
-            "dedication_text": "For our little adventurer on her 5th birthday!",
+            "one_manifest_url": "book-mvp-simple-adventure/orders/NB3-STANDARD-03/manifests/1-manifest.json",
+            "dedication_text": "Luca! We hope you enjoy this story about finding the brave, trustworthy voice inside of you. Love always, your Dads!",
             "one_manifest_key": null,
             "error_message": null,
             "error_type": null,
@@ -1120,7 +1132,7 @@
       "main": [
         [
           {
-            "node": "Capture Order Context",
+            "node": "Code in JavaScript",
             "type": "main",
             "index": 0
           }
@@ -1347,13 +1359,24 @@
           }
         ]
       ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Supabase — Upsert from 2A Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "0dd73578-7157-43b1-bdcb-220c420655c1",
+  "versionId": "07aba9f3-ba28-41ce-b448-1ca34a549f7b",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
