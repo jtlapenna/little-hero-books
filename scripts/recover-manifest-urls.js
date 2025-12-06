@@ -15,9 +15,10 @@
  *   node scripts/recover-manifest-urls.js JESSICA-CUNT
  */
 
-require('dotenv').config({ path: '.env.local' });
-const { createClient } = require('@supabase/supabase-js');
-const { S3Client, HeadObjectCommand } = require('@aws-sdk/client-s3');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', 'back-end', '.env.local') });
+const { createClient } = require(path.join(__dirname, '..', 'back-end', 'node_modules', '@supabase', 'supabase-js'));
+const axios = require('axios');
 
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes('--dry-run');
@@ -26,10 +27,7 @@ const ORDER_ID = args.find(arg => arg !== '--dry-run');
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 
-const r2AccountId = process.env.R2_ACCOUNT_ID;
-const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
-const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-const r2Bucket = process.env.R2_ORDERS_BUCKET || 'little-hero-orders';
+const backendUrl = process.env.BACKEND_URL || 'https://admin.littleherolabs.com';
 const publicR2Url = process.env.R2_PUBLIC_URL || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';
 
 if (!supabaseUrl || !supabaseKey) {
@@ -37,20 +35,7 @@ if (!supabaseUrl || !supabaseKey) {
   process.exit(1);
 }
 
-if (!r2AccountId || !r2AccessKeyId || !r2SecretAccessKey) {
-  console.error('❌ Error: R2 credentials not found');
-  process.exit(1);
-}
-
 const supabase = createClient(supabaseUrl, supabaseKey);
-const r2Client = new S3Client({
-  region: 'auto',
-  endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: r2AccessKeyId,
-    secretAccessKey: r2SecretAccessKey,
-  },
-});
 
 function buildManifestKey(orderId, stage) {
   return `book-mvp-simple-adventure/orders/${orderId}/manifests/${stage}-manifest.json`;
@@ -63,13 +48,16 @@ function buildManifestUrl(manifestKey) {
 async function checkManifestInR2(orderId, stage) {
   const key = buildManifestKey(orderId, stage);
   try {
-    await r2Client.send(new HeadObjectCommand({
-      Bucket: r2Bucket,
-      Key: key,
-    }));
-    return { exists: true, key };
+    // Use backend API to check if manifest exists
+    const response = await axios.get(`${backendUrl}/api/manifests/${key}`, {
+      validateStatus: (status) => status < 500, // Don't throw on 404
+    });
+    if (response.status === 200) {
+      return { exists: true, key };
+    }
+    return { exists: false, key };
   } catch (error) {
-    if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+    if (error.response?.status === 404) {
       return { exists: false, key };
     }
     throw error;
@@ -85,7 +73,7 @@ async function recoverOrder(orderId) {
   const { data: order, error } = await supabase
     .from('orders')
     .select('*')
-    .or(`amazon_order_id.eq.${orderId},orderId.eq.${orderId},order_id.eq.${orderId}`)
+    .or(`amazon_order_id.eq.${orderId},orderId.eq.${orderId}`)
     .single();
 
   if (error || !order) {
@@ -170,7 +158,7 @@ async function recoverAll() {
   // Get all orders missing manifest URLs
   const { data: orders, error } = await supabase
     .from('orders')
-    .select('id, orderId, order_id, amazon_order_id, one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url')
+    .select('id, orderId, amazon_order_id, one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url')
     .or('one_manifest_url.is.null,manifest_2a_url.is.null,manifest_2b_url.is.null,manifest_3_url.is.null')
     .order('id', { ascending: false })
     .limit(100);
