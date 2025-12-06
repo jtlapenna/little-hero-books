@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import sharp from 'sharp';
+import { PNG } from 'pngjs';
 
 /**
  * Extract R2 key from URL
@@ -34,6 +34,69 @@ function getBucketFromKey(key: string): string {
   const isOrderAsset = key.startsWith('book-mvp-simple-adventure/orders/');
   return isOrderAsset ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
 }
+
+/**
+ * Flip PNG image horizontally using pngjs (pure JavaScript, works in Workers)
+ * This is the same approach as manual flip, but server-side
+ */
+async function flipPngHorizontally(imageBuffer: Buffer): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    try {
+      // Parse PNG using pngjs
+      const png = PNG.sync.read(imageBuffer);
+      
+      console.log(`[Auto-Flip] PNG parsed: ${png.width}x${png.height}, colorType: ${png.colorType}, alpha: ${png.alpha}`);
+      
+      // Determine bytes per pixel based on color type
+      // PNG color types: 0=grayscale, 2=RGB, 3=indexed, 4=grayscale+alpha, 6=RGBA
+      // pngjs always converts to RGBA format, so we can safely use 4 bytes per pixel
+      const bytesPerPixel = 4; // pngjs always outputs RGBA
+      const rowLength = png.width * bytesPerPixel;
+      
+      // Create new buffer for flipped image
+      const flippedData = Buffer.alloc(png.data.length);
+      
+      // Flip each row horizontally
+      for (let y = 0; y < png.height; y++) {
+        const rowStart = y * rowLength;
+        
+        // Copy row in reverse order (flip horizontally)
+        for (let x = 0; x < png.width; x++) {
+          const sourcePixelStart = rowStart + (x * bytesPerPixel);
+          const targetPixelStart = rowStart + ((png.width - 1 - x) * bytesPerPixel);
+          
+          // Copy RGBA values (pngjs always provides RGBA format)
+          flippedData[targetPixelStart] = png.data[sourcePixelStart];         // R
+          flippedData[targetPixelStart + 1] = png.data[sourcePixelStart + 1]; // G
+          flippedData[targetPixelStart + 2] = png.data[sourcePixelStart + 2]; // B
+          flippedData[targetPixelStart + 3] = png.data[sourcePixelStart + 3]; // A
+        }
+      }
+      
+      // Create new PNG with flipped data
+      const flippedPng = new PNG({
+        width: png.width,
+        height: png.height,
+        colorType: png.colorType,
+        inputColorType: png.colorType,
+        inputHasAlpha: png.alpha,
+      });
+      
+      flippedPng.data = flippedData;
+      
+      // Pack PNG back to buffer
+      const flippedBuffer = PNG.sync.write(flippedPng);
+      
+      console.log(`[Auto-Flip] Image flipped: ${imageBuffer.length} bytes → ${flippedBuffer.length} bytes`);
+      
+      resolve(flippedBuffer);
+    } catch (error: any) {
+      console.error('[Auto-Flip] Error flipping PNG:', error);
+      reject(new Error(`Failed to flip PNG: ${error.message || 'Unknown error'}`));
+    }
+  });
+}
+
 
 /**
  * Auto-flip orientation webhook endpoint
@@ -287,13 +350,14 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Flip the image horizontally using sharp
-    console.log('[Auto-Flip] Flipping image horizontally...');
+    // Flip the image using the same pattern as manual flip, but server-side
+    // We'll use a simple pixel manipulation approach that works in Workers
+    console.log('[Auto-Flip] Flipping image horizontally using pixel manipulation...');
+    
     let flippedBuffer: Buffer;
     try {
-      flippedBuffer = await sharp(imageBuffer)
-        .flop() // Horizontal flip
-        .toBuffer();
+      // Use simple PNG pixel manipulation (works in Workers)
+      flippedBuffer = await flipPngHorizontally(imageBuffer);
       
       console.log('[Auto-Flip] Image flipped:', {
         originalSize: imageBuffer.length,

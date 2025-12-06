@@ -26,8 +26,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     hasTransparentBackground: false
   });
 
-  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number; comparisonMode?: 'reference' | 'background' | null; comparisonImageUrl?: string; comparisonLabel?: string; poseNumber?: number; pendingRevisionUrl?: string; onRevisionBadgeClick?: () => void }>>([]);
+  const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number; comparisonMode?: 'reference' | 'background' | null; comparisonImageUrl?: string; comparisonLabel?: string; poseNumber?: number; pendingRevisionUrl?: string; onRevisionBadgeClick?: () => void; onFlip?: () => void; isFlipping?: boolean }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
+  const [flippingPoseId, setFlippingPoseId] = useState<string | null>(null);
   const [pendingRevisions, setPendingRevisions] = useState<Record<string, { r2Key: string; previewUrl: string }>>({});
   
   // Track poses that the user has manually unflagged (persist across re-renders)
@@ -316,7 +317,10 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             console.log('[PreBriaStage] Revision badge clicked for pose', poseNumber);
             // Note: The actual modal opening is handled by AssetGrid when the badge is clicked
             // We just need to ensure the asset has the pendingRevisionUrl set (which it does)
-          } : undefined
+          } : undefined,
+          // Flip handler - pass the URL directly to avoid stale closure issues
+          onFlip: () => handleFlip(poseId, poseNumber, pose.url || ''),
+          isFlipping: flippingPoseId === poseId
         };
       });
       console.log('[PreBriaStage] Mapped poses count:', mappedPoses.length, 'sample:', mappedPoses.slice(0, 2).map(p => ({ id: p.id, url: p.url?.substring(0, 50) })));
@@ -326,7 +330,221 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [r2AssetsKey, orderId, pendingRevisions]); // Include pendingRevisions in dependencies
+  }, [r2AssetsKey, orderId, pendingRevisions, flippingPoseId]); // Include flippingPoseId to update isFlipping state
+
+  const handleFlip = async (assetId: string, poseNumber: number, imageUrlParam?: string) => {
+    console.log('[PreBriaStage] handleFlip called with assetId:', assetId, 'poseNumber:', poseNumber, 'imageUrlParam:', imageUrlParam);
+    
+    setFlippingPoseId(assetId);
+    
+    try {
+      // Use the URL passed as parameter, or try to find it from current poses state
+      let imageUrl: string | undefined = imageUrlParam;
+      
+      if (!imageUrl || imageUrl.trim() === '') {
+        // Fallback: try to find from current poses state
+        let currentPose = poses.find(p => p.poseNumber === poseNumber);
+        if (!currentPose) {
+          // Fallback: try finding by assetId
+          currentPose = poses.find(p => p.id === assetId);
+        }
+        
+        if (!currentPose || !currentPose.url || currentPose.url.trim() === '') {
+          // Last resort: fetch from API
+          console.log('[PreBriaStage] URL not provided and not found in state, fetching from API...');
+          const orderResponse = await fetch(`/api/orders/${orderId}`);
+          if (!orderResponse.ok) {
+            throw new Error('Failed to fetch order data');
+          }
+          const orderData = await orderResponse.json();
+          const apiPose = orderData.r2Assets?.poses?.find((p: any) => p.poseNumber === poseNumber);
+          if (!apiPose || !apiPose.url) {
+            alert(`Image URL is missing for pose ${poseNumber}. The image may not have been generated yet.`);
+            setFlippingPoseId(null);
+            return;
+          }
+          imageUrl = apiPose.url;
+        } else {
+          imageUrl = currentPose.url;
+        }
+      }
+
+      // At this point, imageUrl should be defined, but TypeScript doesn't know that
+      if (!imageUrl || imageUrl.trim() === '') {
+        alert(`Image URL is missing for pose ${poseNumber}. The image may not have been generated yet.`);
+        setFlippingPoseId(null);
+        return;
+      }
+
+      // TypeScript assertion: imageUrl is guaranteed to be a string at this point
+      let finalImageUrl: string = imageUrl;
+
+      // Check if URL is a data URL (from previous flip) - if so, we need to fetch the original from R2
+      if (finalImageUrl.startsWith('data:')) {
+        // Data URL from previous flip - we need to get the original image from the API
+        console.log('[PreBriaStage] URL is a data URL, fetching original from API');
+        // Fetch the original image URL from the order data
+        const orderResponse = await fetch(`/api/orders/${orderId}`);
+        if (!orderResponse.ok) {
+          throw new Error('Failed to fetch order data');
+        }
+        const orderData = await orderResponse.json();
+        const originalPose = orderData.r2Assets?.poses?.find((p: any) => p.poseNumber === poseNumber);
+        if (!originalPose || !originalPose.url) {
+          throw new Error('Original image URL not found in order data');
+        }
+        finalImageUrl = originalPose.url;
+        console.log('[PreBriaStage] Using original URL:', finalImageUrl);
+      }
+
+      // Ensure URL is absolute if it's a relative path
+      if (finalImageUrl.startsWith('/')) {
+        finalImageUrl = window.location.origin + finalImageUrl;
+      }
+
+      // Load the image - try Image element first, fallback to fetch if CORS fails
+      let img: HTMLImageElement;
+      let imageBlob: Blob | null = null;
+      
+      try {
+        // First, try loading via Image element (faster, works if CORS is configured)
+        img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Image load timeout'));
+          }, 10000); // 10 second timeout for Image element
+          
+          img.onload = () => {
+            clearTimeout(timeout);
+            resolve(null);
+          };
+          img.onerror = (error) => {
+            clearTimeout(timeout);
+            console.warn('[PreBriaStage] Image element load failed, will try fetch:', error);
+            reject(new Error('Image element failed'));
+          };
+          img.src = finalImageUrl;
+        });
+      } catch (imageError) {
+        // Fallback: fetch the image as a blob and create Image from blob URL
+        console.log('[PreBriaStage] Image element failed, trying fetch API...');
+        try {
+          const response = await fetch(finalImageUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+          }
+          imageBlob = await response.blob();
+          const blobUrl = URL.createObjectURL(imageBlob);
+          
+          // Create new Image from blob URL
+          img = new Image();
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error('Image load from blob timeout'));
+            }, 10000);
+            
+            img.onload = () => {
+              clearTimeout(timeout);
+              resolve(null);
+            };
+            img.onerror = (error) => {
+              clearTimeout(timeout);
+              URL.revokeObjectURL(blobUrl); // Clean up
+              reject(new Error('Failed to load image from blob'));
+            };
+            img.src = blobUrl;
+          });
+          
+          // Clean up blob URL after loading (will be revoked after canvas operations)
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        } catch (fetchError: any) {
+          console.error('[PreBriaStage] Both Image element and fetch failed:', fetchError);
+          throw new Error(`Failed to load image: ${fetchError.message || 'Unknown error'}. URL: ${imageUrl}`);
+        }
+      }
+
+      // Create canvas and flip the image horizontally
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+
+      // Flip horizontally by scaling and translating
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, -img.width, 0);
+
+      // Convert canvas to blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to convert canvas to blob'));
+          }
+        }, 'image/png');
+      });
+
+      // Create FormData and upload the flipped image (replaces original - no flip state needed)
+      const formData = new FormData();
+      formData.append('poseNumber', poseNumber.toString());
+      formData.append('stage', 'preBria'); // Pre-Bria stage - replaces original generated image
+      formData.append('file', blob, `pose${String(poseNumber).padStart(2, '0')}.png`);
+
+      const response = await fetch(`/api/orders/${orderId}/replace-image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to upload flipped image';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+          console.error('[PreBriaStage] API error response:', error);
+        } catch {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        alert(errorMessage);
+        setFlippingPoseId(null);
+        return;
+      }
+
+      const result = await response.json();
+      console.log('[PreBriaStage] Flip and upload successful:', result);
+
+      // Create a data URL from the flipped canvas for immediate display
+      const flippedDataUrl = canvas.toDataURL('image/png');
+      
+      // Update the local state immediately to show the flipped image
+      setPoses(prev => prev.map(pose => {
+        if (pose.id === assetId) {
+          // Use data URL for immediate visual feedback, then refresh will get the R2 version
+          return {
+            ...pose,
+            url: flippedDataUrl,
+            _isFlipped: true // Flag to indicate this is a temporary flipped version
+          };
+        }
+        return pose;
+      }));
+
+      // Refresh the order data to get the updated image from R2
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error: any) {
+      console.error('[PreBriaStage] Error flipping image:', error);
+      alert(`Failed to flip image: ${error.message || 'Unknown error'}`);
+    } finally {
+      setFlippingPoseId(null);
+    }
+  };
 
   const handleDownload = async (assetId: string) => {
     try {
