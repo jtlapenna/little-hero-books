@@ -123,18 +123,22 @@ export default function HomePage() {
             </div>
           </Link>
 
-          <div className="group bg-white rounded-lg shadow-md p-6 opacity-50">
+          <Link
+            href="/admin/csv-upload"
+            className="group bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+          >
             <div className="flex items-center mb-4">
-              <Settings className="h-8 w-8 text-gray-400 mr-3" />
-              <h2 className="text-xl font-semibold text-gray-500">Settings</h2>
+              <Settings className="h-8 w-8 text-purple-600 mr-3" />
+              <h2 className="text-xl font-semibold text-gray-900">CSV Upload</h2>
             </div>
-            <p className="text-gray-400 mb-4">
-              System configuration and preferences
+            <p className="text-gray-600 mb-4">
+              Upload Amazon order CSV to populate customer shipping information
             </p>
-            <div className="flex items-center text-gray-400">
-              <span className="text-sm font-medium">Coming Soon</span>
+            <div className="flex items-center text-purple-600 group-hover:text-purple-800">
+              <span className="text-sm font-medium">Upload CSV</span>
+              <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </div>
