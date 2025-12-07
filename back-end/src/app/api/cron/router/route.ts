@@ -60,6 +60,43 @@ export async function GET(request: NextRequest) {
   console.log(`[Cron Router] [${executionId}] Starting execution at ${new Date().toISOString()}`);
 
   try {
+    // 0. First, check for new Amazon orders (runs before normal routing)
+    // This is integrated here to stay within Vercel's 2-cron limit
+    const amazonOrdersStart = Date.now();
+    try {
+      const baseUrl = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}` 
+        : (request.headers.get('host') 
+          ? `https://${request.headers.get('host')}` 
+          : 'http://localhost:3000');
+      
+      const amazonOrdersUrl = `${baseUrl}/api/cron/amazon-orders`;
+      const amazonResponse = await fetch(amazonOrdersUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${cronSecret}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (amazonResponse.ok) {
+        const amazonResult = await amazonResponse.json();
+        const amazonDuration = Date.now() - amazonOrdersStart;
+        console.log(`[Cron Router] [${executionId}] Amazon orders check completed (${amazonDuration}ms):`, {
+          ordersFound: amazonResult.ordersFound || 0,
+          ordersProcessed: amazonResult.ordersProcessed || 0,
+          errors: amazonResult.errors?.length || 0,
+        });
+      } else {
+        const amazonError = await amazonResponse.text();
+        console.warn(`[Cron Router] [${executionId}] Amazon orders check failed (${amazonResponse.status}): ${amazonError.substring(0, 200)}`);
+        // Continue with normal routing even if Amazon check fails
+      }
+    } catch (amazonError: any) {
+      console.warn(`[Cron Router] [${executionId}] Amazon orders check error (continuing with routing):`, amazonError.message);
+      // Continue with normal routing even if Amazon check fails
+    }
+
     // 1. Check capacity using queue_status view
     const capacityCheckStart = Date.now();
     const { data: capacityData, error: capacityError } = await supabase
