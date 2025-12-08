@@ -228,20 +228,32 @@ export async function POST(request: NextRequest) {
         const customizationUrl = extractCustomizationUrl(row, headers);
         let characterSpecs = null;
 
+        console.log(`[CSV Upload] [${requestId}] Order ${amazonOrderId}: customizationUrl=${customizationUrl || 'null'}`);
+
         // Download and parse customization ZIP if URL is present
         if (customizationUrl) {
+          console.log(`[CSV Upload] [${requestId}] Downloading customization ZIP from: ${customizationUrl}`);
           try {
             const customizationData = await downloadAndExtractCustomizationZip(customizationUrl);
             if (customizationData) {
+              console.log(`[CSV Upload] [${requestId}] ✅ Customization ZIP downloaded, parsing JSON...`);
               characterSpecs = parseAmazonCustomization(customizationData);
-              if (!characterSpecs) {
-                console.warn(`[CSV Upload] Failed to parse customization for order ${amazonOrderId}`);
+              if (characterSpecs) {
+                console.log(`[CSV Upload] [${requestId}] ✅ Customization parsed successfully:`, JSON.stringify(characterSpecs, null, 2));
+              } else {
+                console.warn(`[CSV Upload] [${requestId}] ⚠️ Failed to parse customization for order ${amazonOrderId}`);
+                console.warn(`[CSV Upload] [${requestId}] Customization data structure:`, JSON.stringify(customizationData, null, 2).substring(0, 1000));
               }
+            } else {
+              console.warn(`[CSV Upload] [${requestId}] ⚠️ Customization ZIP download returned null for order ${amazonOrderId}`);
             }
           } catch (customizationError: any) {
-            console.error(`[CSV Upload] Error processing customization for order ${amazonOrderId}:`, customizationError);
+            console.error(`[CSV Upload] [${requestId}] ❌ Error processing customization for order ${amazonOrderId}:`, customizationError.message);
+            console.error(`[CSV Upload] [${requestId}] Customization error stack:`, customizationError.stack);
             // Continue processing even if customization fails
           }
+        } else {
+          console.log(`[CSV Upload] [${requestId}] ⚠️ No customization URL found in CSV for order ${amazonOrderId}`);
         }
 
         // Prepare updates
