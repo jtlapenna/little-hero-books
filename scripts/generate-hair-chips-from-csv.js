@@ -126,8 +126,8 @@ function buildEnhancedPrompt(basePrompt, hexCode) {
     return basePrompt;
   }
   
-  // Explicit editing instruction with clear label
-  const enhancedPrompt = `Edit the REFERENCE IMAGE by changing only the hair color to #${hex}. Preserve the exact silhouette, shape, form, texture, shading, and all other details. Do not add, remove, or modify any visual elements. Only the hair color should change to #${hex}.`;
+  // Very simple, direct prompt as requested
+  const enhancedPrompt = `please change the base color of this hair chip to #${hex}.  do not change anything else about the image.  do not change the silhouette, shading, or texture, only the base color.`;
   
   return enhancedPrompt;
 }
@@ -144,7 +144,7 @@ async function callGeminiAPI(prompt, referenceImageBase64, referenceImageMime) {
     console.log(`   🎨 Target color: #${hex}`);
   }
   
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${API_KEY}`;
   
   // System instruction to explicitly tell model this is an EDITING task, not generation
   const systemInstruction = {
@@ -183,9 +183,10 @@ The output must be the reference image with ONLY the hair color changed.`
     }],
     generationConfig: {
       imageConfig: {
-        aspectRatio: '1:1'
+        aspectRatio: '1:1',
+        imageSize: '1K'
       },
-      temperature: 0,
+      temperature: 0.15,
       topK: 1,
       topP: 0.6,
       candidateCount: 1
@@ -361,6 +362,35 @@ async function processCSV() {
     console.log(`\n🔄 Processing row ${rowNum}/${rows.length}...`);
     console.log(`   Reference: ${referenceUrl}`);
     
+    // Generate filename first to check if it already exists
+    const filename = extractFilename(referenceUrl, finalPrompt);
+    
+    // Check if file already exists (try both png and jpg extensions)
+    const extensions = ['png', 'jpg', 'jpeg'];
+    let existingFile = null;
+    for (const ext of extensions) {
+      const filepath = path.join(OUTPUT_DIR, `${filename}.${ext}`);
+      try {
+        await fs.access(filepath);
+        existingFile = filepath;
+        break;
+      } catch (error) {
+        // File doesn't exist with this extension, continue
+      }
+    }
+    
+    if (existingFile) {
+      console.log(`   ⏭️  Skipping: File already exists: ${path.basename(existingFile)}`);
+      results.push({
+        rowNum,
+        success: true,
+        skipped: true,
+        reason: 'File already exists',
+        filepath: existingFile
+      });
+      continue;
+    }
+    
     try {
       // Download reference image
       console.log('   📥 Downloading reference image...');
@@ -379,9 +409,6 @@ async function processCSV() {
       
       console.log('   🎨 Calling Gemini API...');
       const { imageBase64, mimeType, apiResponse } = await callGeminiAPI(finalPrompt, refBase64, refMime);
-      
-      // Generate filename
-      const filename = extractFilename(referenceUrl, finalPrompt);
       
       // Save or upload
       let result;

@@ -22,6 +22,506 @@ const amazonRegion = process.env.AMZ_REGION || process.env.AMAZON_SP_API_REGION 
 const amazonSandboxMode = process.env.AMAZON_SANDBOX_MODE === 'true';
 
 /**
+ * Process Amazon orders - exportable function for use in router cron
+ */
+export async function processAmazonOrders(
+  supabase: any,
+  options: {
+    testMode?: boolean;
+    executionId?: string;
+    supabaseUrl: string;
+    supabaseKey: string;
+    n8nW0WebhookUrl: string;
+    amazonClientId?: string;
+    amazonClientSecret?: string;
+    amazonRefreshToken?: string;
+    amazonSellerId?: string;
+    amazonMarketplaceId?: string;
+    amazonRegion?: string;
+    amazonSandboxMode?: boolean;
+  }
+): Promise<{
+  ordersFound: number;
+  ordersProcessed: number;
+  errors?: Array<{ orderId: string; error: string }>;
+  metrics?: any;
+}> {
+  const {
+    testMode = false,
+    executionId = `amazon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    supabaseUrl,
+    supabaseKey,
+    n8nW0WebhookUrl,
+    amazonClientId,
+    amazonClientSecret,
+    amazonRefreshToken,
+    amazonSellerId,
+    amazonMarketplaceId = 'ATVPDKIKX0DER',
+    amazonRegion = 'na',
+    amazonSandboxMode = false,
+  } = options;
+
+  const startTime = Date.now();
+  const metrics = {
+    tokenFetchMs: 0,
+    ordersFetchMs: 0,
+    ordersProcessed: 0,
+    webhookCallsMs: 0,
+    totalMs: 0
+  };
+
+  console.log(`[Cron Amazon Orders] [${executionId}] Starting execution at ${new Date().toISOString()}`);
+  if (testMode) {
+    console.log(`[Cron Amazon Orders] [${executionId}] ⚠️ TEST MODE ENABLED - Using mock Amazon order data`);
+  }
+
+  try {
+    let amazonOrders: any[] = [];
+    let accessToken: string | null = null;
+    
+    if (testMode) {
+      const ordersFetchStart = Date.now();
+      amazonOrders = getMockAmazonOrders();
+      metrics.ordersFetchMs = Date.now() - ordersFetchStart;
+      metrics.tokenFetchMs = 0;
+      console.log(`[Cron Amazon Orders] [${executionId}] TEST MODE: Generated ${amazonOrders.length} mock order(s)`);
+    } else {
+      if (!amazonClientId || !amazonClientSecret || !amazonRefreshToken) {
+        throw new Error('Amazon SP-API credentials not configured');
+      }
+
+      const tokenStart = Date.now();
+      accessToken = await getAmazonAccessTokenInternal(amazonClientId, amazonClientSecret, amazonRefreshToken);
+      metrics.tokenFetchMs = Date.now() - tokenStart;
+
+      if (!accessToken) {
+        throw new Error('Failed to get Amazon access token');
+      }
+
+      console.log(`[Cron Amazon Orders] [${executionId}] Got Amazon access token (${metrics.tokenFetchMs}ms)`);
+
+      const ordersFetchStart = Date.now();
+      amazonOrders = await fetchAmazonOrdersInternal(accessToken, amazonMarketplaceId, amazonRegion, amazonSandboxMode);
+      metrics.ordersFetchMs = Date.now() - ordersFetchStart;
+    }
+    
+    if (!amazonOrders || amazonOrders.length === 0) {
+      metrics.totalMs = Date.now() - startTime;
+      console.log(`[Cron Amazon Orders] [${executionId}] No new orders found:`, {
+        totalDuration: `${metrics.totalMs}ms`
+      });
+      return {
+        ordersFound: 0,
+        ordersProcessed: 0,
+        metrics
+      };
+    }
+
+    console.log(`[Cron Amazon Orders] [${executionId}] Found ${amazonOrders.length} new order(s):`, {
+      orderIds: amazonOrders.map(o => o.AmazonOrderId),
+      fetchDuration: `${metrics.ordersFetchMs}ms`
+    });
+
+    const webhookCallsStart = Date.now();
+    const processedOrders: string[] = [];
+    const errors: Array<{ orderId: string; error: string }> = [];
+
+    for (const amazonOrder of amazonOrders) {
+      try {
+        let orderItems: any[] = [];
+        if (testMode) {
+          orderItems = amazonOrder.OrderItems || [];
+          console.log(`[Cron Amazon Orders] [${executionId}] TEST MODE: Using mock order items for ${amazonOrder.AmazonOrderId}`);
+        } else {
+          if (!accessToken) {
+            throw new Error('Access token not available for fetching order items');
+          }
+          orderItems = await fetchOrderItemsInternal(accessToken, amazonOrder.AmazonOrderId, amazonRegion, amazonSandboxMode);
+        }
+        
+        const customization = parseCustomizationFromItems(orderItems);
+        
+        if (orderItems.length === 0 || Object.keys(customization).length === 0) {
+          console.warn(`[Cron Amazon Orders] [${executionId}] Order ${amazonOrder.AmazonOrderId} has no customization data - skipping (will retry on next cron run)`);
+          
+          const rawRetryOrderId = amazonOrder.AmazonOrderId;
+          const retryOrderIdValue = String(rawRetryOrderId || '').trim();
+          
+          if (!retryOrderIdValue || retryOrderIdValue.length === 0) {
+            console.error(`[Cron Amazon Orders] [${executionId}] Invalid order ID for retry: ${rawRetryOrderId}`);
+            errors.push({ orderId: rawRetryOrderId, error: 'Invalid order ID: cannot be empty after trimming' });
+            continue;
+          }
+          
+          const { error: storeError } = await supabase
+            .from('orders')
+            .upsert({
+              orderId: retryOrderIdValue,
+              amazon_order_id: retryOrderIdValue,
+              execution_status: 'pending_w0',
+              next_workflow: null,
+              status: 'new',
+              customer_email: amazonOrder.BuyerInfo?.BuyerEmail || null,
+              marketplace_id: amazonOrder.MarketplaceId || amazonMarketplaceId,
+              purchase_date: amazonOrder.PurchaseDate || new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              product_info: { _customization_missing: true, _retry_on_next_cron: true },
+            }, {
+              onConflict: 'amazon_order_id',
+              ignoreDuplicates: false,
+            });
+
+          if (storeError) {
+            console.error(`[Cron Amazon Orders] [${executionId}] Failed to store order ${amazonOrder.AmazonOrderId} for retry:`, storeError.message);
+            errors.push({ orderId: amazonOrder.AmazonOrderId, error: `Store for retry failed: ${storeError.message}` });
+          } else {
+            console.log(`[Cron Amazon Orders] [${executionId}] Stored order ${amazonOrder.AmazonOrderId} for retry (customization data not available yet)`);
+          }
+          
+          continue;
+        }
+        
+        const orderData = await normalizeAmazonOrderInternal(amazonOrder, orderItems, customization, amazonMarketplaceId);
+        
+        const rawOrderId = orderData.amazon_order_id || orderData.amazonOrderId || orderData.orderId || amazonOrder.AmazonOrderId;
+        const orderIdValue = String(rawOrderId || '').trim();
+        
+        if (!orderIdValue || orderIdValue.length === 0) {
+          throw new Error(`Invalid order ID: cannot be empty after trimming. Original: ${rawOrderId}`);
+        }
+        
+        const characterSpecs = orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs || {};
+        const characterHash = calculateCharacterHash(characterSpecs, orderIdValue);
+        
+        const supabaseOrderData = {
+          orderId: orderIdValue,
+          amazon_order_id: orderIdValue,
+          character_hash: characterHash,
+          order_status: orderData.status || 'Unshipped',
+          purchase_date: orderData.purchaseDate || orderData.orderDate,
+          marketplace_id: orderData.marketplaceId,
+          customer_email: orderData.customerEmail || orderData.buyer?.email,
+          customer_name: orderData.buyer?.name || orderData.shippingAddress?.name,
+          shipping_address: orderData.shippingAddress,
+          character_specs: orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs,
+          dedication_text: orderData.dedication || orderData.Dedication,
+          product_info: orderData.items || orderData.lineItems || orderItems,
+          status: 'pending_w0',
+          execution_status: 'pending_w0',
+          next_workflow: null,
+          updated_at: new Date().toISOString(),
+        };
+        
+        const { data: storedOrder, error: storeError } = await supabase
+          .from('orders')
+          .upsert(supabaseOrderData, {
+            onConflict: 'amazon_order_id',
+            ignoreDuplicates: false,
+          })
+          .select()
+          .single();
+
+        if (storeError) {
+          throw new Error(`Supabase store failed: ${storeError.message}`);
+        }
+
+        console.log(`[Cron Amazon Orders] [${executionId}] Stored order ${orderIdValue} in Supabase with character_hash: ${characterHash}`);
+
+        const webhookPayload = {
+          ...orderData,
+          characterHash: characterHash,
+          character_hash: characterHash,
+        };
+        
+        const webhookResponse = await fetch(n8nW0WebhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(webhookPayload),
+        });
+
+        if (!webhookResponse.ok) {
+          const errorText = await webhookResponse.text();
+          throw new Error(`W0 webhook failed (${webhookResponse.status}): ${errorText.substring(0, 200)}`);
+        }
+
+        processedOrders.push(amazonOrder.AmazonOrderId);
+        metrics.ordersProcessed++;
+        console.log(`[Cron Amazon Orders] [${executionId}] ✅ Processed order ${amazonOrder.AmazonOrderId}`);
+
+      } catch (error: any) {
+        const orderId = amazonOrder.AmazonOrderId || 'unknown';
+        const errorMsg = error?.message || String(error);
+        errors.push({ orderId, error: errorMsg });
+        console.error(`[Cron Amazon Orders] [${executionId}] ❌ Failed to process order ${orderId}:`, errorMsg);
+      }
+    }
+
+    metrics.webhookCallsMs = Date.now() - webhookCallsStart;
+    metrics.totalMs = Date.now() - startTime;
+
+    console.log(`[Cron Amazon Orders] [${executionId}] Completed:`, {
+      total: amazonOrders.length,
+      processed: metrics.ordersProcessed,
+      errors: errors.length,
+      totalDuration: `${metrics.totalMs}ms`
+    });
+
+    return {
+      ordersFound: amazonOrders.length,
+      ordersProcessed: metrics.ordersProcessed,
+      errors: errors.length > 0 ? errors : undefined,
+      metrics
+    };
+
+  } catch (error: any) {
+    metrics.totalMs = Date.now() - startTime;
+    console.error(`[Cron Amazon Orders] [${executionId}] Unexpected error:`, {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      metrics,
+      totalDuration: `${metrics.totalMs}ms`
+    });
+    throw error;
+  }
+}
+
+/**
+ * Internal helper functions (extracted from original functions)
+ */
+async function getAmazonAccessTokenInternal(
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string
+): Promise<string | null> {
+  try {
+    const response = await fetch('https://api.amazon.com/auth/o2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId,
+        client_secret: clientSecret,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Amazon token request failed (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    if (!data.access_token) {
+      throw new Error('Amazon token response missing access_token');
+    }
+
+    return data.access_token;
+  } catch (error: any) {
+    console.error('[Cron Amazon Orders] Failed to get access token:', error.message);
+    throw error;
+  }
+}
+
+async function fetchAmazonOrdersInternal(
+  accessToken: string,
+  marketplaceId: string,
+  region: string,
+  sandboxMode: boolean
+): Promise<any[]> {
+  try {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const createdAfter = yesterday.toISOString();
+
+    const baseUrl = sandboxMode
+      ? 'https://sandbox.sellingpartnerapi-na.amazon.com'
+      : (region === 'na'
+          ? 'https://sellingpartnerapi-na.amazon.com'
+          : `https://sellingpartnerapi-${region}.amazon.com`);
+
+    const url = new URL(`${baseUrl}/orders/v0/orders`);
+    url.searchParams.set('MarketplaceIds', marketplaceId || 'ATVPDKIKX0DER');
+    
+    if (!sandboxMode) {
+      url.searchParams.set('CreatedAfter', createdAfter);
+      url.searchParams.set('OrderStatuses', 'Unshipped');
+      url.searchParams.set('MaxResultsPerPage', '50');
+    }
+
+    console.log(`[Cron Amazon Orders] Fetching orders from: ${url.toString()}`);
+    console.log(`[Cron Amazon Orders] Sandbox mode: ${sandboxMode}, MarketplaceId: ${marketplaceId}`);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'x-amz-access-token': accessToken,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      
+      if (sandboxMode && response.status === 400) {
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.errors?.[0]?.code === 'InvalidInput') {
+            console.warn('[Cron Amazon Orders] Sandbox Orders API returned InvalidInput - endpoint may not be fully supported in sandbox');
+            return [];
+          }
+        } catch (e) {
+          // Continue with normal error handling
+        }
+      }
+      
+      if (response.status === 401) {
+        throw new Error('Amazon authentication failed. Check your credentials.');
+      }
+      if (response.status === 429) {
+        throw new Error('Amazon rate limit exceeded. Wait 60 seconds and retry.');
+      }
+      if (response.status === 403) {
+        throw new Error('Amazon access forbidden. Check your SP-API permissions.');
+      }
+      throw new Error(`Amazon API request failed (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.payload?.Orders || [];
+  } catch (error: any) {
+    console.error('[Cron Amazon Orders] Failed to fetch orders:', error.message);
+    throw error;
+  }
+}
+
+async function fetchOrderItemsInternal(
+  accessToken: string,
+  orderId: string,
+  region: string,
+  sandboxMode: boolean
+): Promise<any[]> {
+  try {
+    const baseUrl = sandboxMode
+      ? 'https://sandbox.sellingpartnerapi-na.amazon.com'
+      : (region === 'na'
+          ? 'https://sellingpartnerapi-na.amazon.com'
+          : `https://sellingpartnerapi-${region}.amazon.com`);
+
+    const url = `${baseUrl}/orders/v0/orders/${orderId}/orderItems`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'x-amz-access-token': accessToken,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (response.status === 404) {
+        console.warn(`[Cron Amazon Orders] Order ${orderId} items not available yet (404)`);
+        return [];
+      }
+      throw new Error(`Failed to fetch order items (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    const orderItems = data.payload?.OrderItems || [];
+    console.log(`[Cron Amazon Orders] Fetched ${orderItems.length} items for order ${orderId}`);
+    return orderItems;
+  } catch (error: any) {
+    console.error(`[Cron Amazon Orders] Error fetching items for order ${orderId}:`, error.message);
+    return [];
+  }
+}
+
+async function normalizeAmazonOrderInternal(
+  amazonOrder: any,
+  orderItems: any[] = [],
+  customization: Record<string, any> = {},
+  marketplaceId: string
+): Promise<any> {
+  const amazonOrderId = amazonOrder.AmazonOrderId;
+  const purchaseDate = amazonOrder.PurchaseDate || new Date().toISOString();
+  const buyerEmail = amazonOrder.BuyerInfo?.BuyerEmail || null;
+  const buyerName = amazonOrder.BuyerInfo?.BuyerName || null;
+
+  const shippingAddress = amazonOrder.ShippingAddress || {};
+  const normalizedShipping = {
+    name: shippingAddress.Name || buyerName || 'Unknown',
+    address: shippingAddress.AddressLine1 || '',
+    address2: shippingAddress.AddressLine2 || '',
+    city: shippingAddress.City || '',
+    state: shippingAddress.StateOrRegion || '',
+    zip: shippingAddress.PostalCode || '',
+    phone: shippingAddress.Phone || '',
+    country: shippingAddress.CountryCode || 'US',
+  };
+
+  const characterSpecs = parseCharacterSpecs(customization);
+  const dedication = characterSpecs.dedication || '';
+
+  return {
+    amazon_order_id: amazonOrderId,
+    orderId: amazonOrderId,
+    id: amazonOrderId,
+    amazonOrderId: amazonOrderId,
+    orderDate: purchaseDate,
+    purchaseDate: purchaseDate,
+    createdAt: new Date().toISOString(),
+    status: 'pending_w0',
+    marketplaceId: marketplaceId,
+    customerEmail: buyerEmail,
+    buyer: {
+      email: buyerEmail,
+      name: buyerName,
+    },
+    ShippingAddress: shippingAddress,
+    shippingAddress: normalizedShipping,
+    characterSpecs: characterSpecs,
+    character_specs: characterSpecs,
+    CharacterSpecs: characterSpecs,
+    bookSpecs: {
+      title: `${characterSpecs.childName} and the Adventure Compass`,
+      totalPages: 16,
+      format: '8.5x8.5_softcover',
+      bookType: 'adventure',
+    },
+    orderDetails: {
+      quantity: parseInt(amazonOrder.NumberOfItemsShipped || amazonOrder.NumberOfItemsUnshipped || '1'),
+      shippingAddress: normalizedShipping,
+    },
+    dedication: dedication,
+    Dedication: dedication,
+    items: orderItems.length > 0 ? [{
+      sku: orderItems[0]?.SellerSKU || 'LHB-8X10-SOFTCOVER',
+      quantity: 1,
+      customizations: Object.entries(customization).map(([name, value]) => ({
+        name: name,
+        label: name,
+        type: 'text',
+        value: String(value),
+      })),
+    }] : [],
+    lineItems: [{
+      customizationFields: Object.entries(customization).map(([name, value]) => ({
+        name: name,
+        text: String(value),
+      })),
+    }],
+    _rawAmazonOrder: amazonOrder,
+    _rawOrderItems: orderItems,
+    _rawCustomization: customization,
+  };
+}
+
+/**
  * GET /api/cron/amazon-orders
  * 
  * Vercel Cron job that polls Amazon SP-API for new orders and triggers W0 processing.
@@ -109,289 +609,55 @@ export async function GET(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseKey);
   const executionId = `amazon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  const startTime = Date.now();
-  const metrics = {
-    tokenFetchMs: 0,
-    ordersFetchMs: 0,
-    ordersProcessed: 0,
-    webhookCallsMs: 0,
-    totalMs: 0
-  };
-
-  console.log(`[Cron Amazon Orders] [${executionId}] Starting execution at ${new Date().toISOString()}`);
-  if (testMode) {
-    console.log(`[Cron Amazon Orders] [${executionId}] ⚠️ TEST MODE ENABLED - Using mock Amazon order data`);
-  }
 
   try {
-    let amazonOrders: any[] = [];
-    let accessToken: string | null = null; // Declare outside if/else for use in order processing
-    
-    if (testMode) {
-      // TEST MODE: Use mock Amazon order data instead of calling Amazon API
-      const ordersFetchStart = Date.now();
-      amazonOrders = getMockAmazonOrders();
-      metrics.ordersFetchMs = Date.now() - ordersFetchStart;
-      metrics.tokenFetchMs = 0; // Skip token fetch in test mode
-      
-      console.log(`[Cron Amazon Orders] [${executionId}] TEST MODE: Generated ${amazonOrders.length} mock order(s)`);
-    } else {
-      // PRODUCTION MODE: Call real Amazon SP-API
-      // 1. Get Amazon access token
-      const tokenStart = Date.now();
-      accessToken = await getAmazonAccessToken();
-      metrics.tokenFetchMs = Date.now() - tokenStart;
+    const result = await processAmazonOrders(supabase, {
+      testMode,
+      executionId,
+      supabaseUrl,
+      supabaseKey,
+      n8nW0WebhookUrl,
+      amazonClientId,
+      amazonClientSecret,
+      amazonRefreshToken,
+      amazonSellerId,
+      amazonMarketplaceId,
+      amazonRegion,
+      amazonSandboxMode,
+    });
 
-      if (!accessToken) {
-        throw new Error('Failed to get Amazon access token');
-      }
-
-      console.log(`[Cron Amazon Orders] [${executionId}] Got Amazon access token (${metrics.tokenFetchMs}ms)`);
-
-      // 2. Fetch orders from Amazon SP-API
-      const ordersFetchStart = Date.now();
-      amazonOrders = await fetchAmazonOrders(accessToken);
-      metrics.ordersFetchMs = Date.now() - ordersFetchStart;
-    }
-    
-    // 2a. Also check for orders in Supabase that need retry (customization data missing)
-    // These are orders that were previously skipped because customization wasn't available
-    const { data: retryOrders, error: retryError } = await supabase
-      .from('orders')
-      .select('amazon_order_id, purchase_date')
-      .eq('execution_status', 'pending_w0')
-      .is('next_workflow', null) // Orders that haven't been processed yet
-      .or('product_info->>_customization_missing.is.true')
-      .order('purchase_date', { ascending: true }) // Retry oldest first
-      .limit(20); // Limit retries to avoid overwhelming the system
-    
-    if (!retryError && retryOrders && retryOrders.length > 0) {
-      const retryOrderIds = retryOrders.map(o => o.amazon_order_id).filter(Boolean);
-      console.log(`[Cron Amazon Orders] [${executionId}] Found ${retryOrderIds.length} orders needing retry:`, retryOrderIds);
-      
-      // Note: These orders will be retried when we process orders below
-      // We'll check if they're in the amazonOrders list, and if not, we'll try to fetch their items
-      // For now, the retry happens automatically when the cron runs again and finds them in Supabase
-    }
-    
-    // metrics.ordersFetchMs is already set in the if/else block above
-
-    if (!amazonOrders || amazonOrders.length === 0) {
-      metrics.totalMs = Date.now() - startTime;
-      console.log(`[Cron Amazon Orders] [${executionId}] No new orders found:`, {
-        totalDuration: `${metrics.totalMs}ms`
-      });
+    if (result.ordersFound === 0) {
       return NextResponse.json({
         skipped: true,
         reason: 'no_orders',
         executionId,
-        metrics,
+        metrics: result.metrics,
         timestamp: new Date().toISOString()
       });
     }
-
-    console.log(`[Cron Amazon Orders] [${executionId}] Found ${amazonOrders.length} new order(s):`, {
-      orderIds: amazonOrders.map(o => o.AmazonOrderId),
-      fetchDuration: `${metrics.ordersFetchMs}ms`
-    });
-
-    // 3. Process each order: fetch items, parse customization, store in Supabase and trigger W0
-    const webhookCallsStart = Date.now();
-    const processedOrders: string[] = [];
-    const errors: Array<{ orderId: string; error: string }> = [];
-
-    for (const amazonOrder of amazonOrders) {
-      try {
-        // 3a. Fetch order items to get customization data
-        let orderItems: any[] = [];
-        if (testMode) {
-          // TEST MODE: Use OrderItems from mock data (already included in amazonOrder)
-          orderItems = amazonOrder.OrderItems || [];
-          console.log(`[Cron Amazon Orders] [${executionId}] TEST MODE: Using mock order items for ${amazonOrder.AmazonOrderId}`);
-        } else {
-          // PRODUCTION MODE: Fetch order items from Amazon API
-          if (!accessToken) {
-            throw new Error('Access token not available for fetching order items');
-          }
-          orderItems = await fetchOrderItems(accessToken, amazonOrder.AmazonOrderId);
-        }
-        
-        // 3b. Parse customization data from order items
-        const customization = parseCustomizationFromItems(orderItems);
-        
-        // 3c. Check if customization data is available
-        // If order items returned 404 or customization is empty, skip processing
-        // Amazon sometimes takes a few minutes to populate order items after order creation
-        if (orderItems.length === 0 || Object.keys(customization).length === 0) {
-          console.warn(`[Cron Amazon Orders] [${executionId}] Order ${amazonOrder.AmazonOrderId} has no customization data - skipping (will retry on next cron run)`);
-          
-          // Store order in Supabase with a flag indicating it needs retry
-          // This prevents it from being processed with defaults
-          // CRITICAL: Trim order IDs to prevent trailing space issues
-          const rawRetryOrderId = amazonOrder.AmazonOrderId;
-          const retryOrderIdValue = String(rawRetryOrderId || '').trim();
-          
-          if (!retryOrderIdValue || retryOrderIdValue.length === 0) {
-            console.error(`[Cron Amazon Orders] [${executionId}] Invalid order ID for retry: ${rawRetryOrderId}`);
-            errors.push({ orderId: rawRetryOrderId, error: 'Invalid order ID: cannot be empty after trimming' });
-            continue;
-          }
-          
-          const { error: storeError } = await supabase
-            .from('orders')
-            .upsert({
-              orderId: retryOrderIdValue, // Trimmed
-              amazon_order_id: retryOrderIdValue, // Trimmed
-              execution_status: 'pending_w0',
-              next_workflow: null,
-              status: 'new',
-              // Store basic order info but mark that customization data is missing
-              customer_email: amazonOrder.BuyerInfo?.BuyerEmail || null,
-              marketplace_id: amazonOrder.MarketplaceId || amazonMarketplaceId,
-              purchase_date: amazonOrder.PurchaseDate || new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              // Add a note that customization data is missing
-              product_info: { _customization_missing: true, _retry_on_next_cron: true },
-            }, {
-              onConflict: 'amazon_order_id', // Unique constraint guaranteed in Supabase schema
-              ignoreDuplicates: false,
-            });
-
-          if (storeError) {
-            console.error(`[Cron Amazon Orders] [${executionId}] Failed to store order ${amazonOrder.AmazonOrderId} for retry:`, storeError.message);
-            errors.push({ orderId: amazonOrder.AmazonOrderId, error: `Store for retry failed: ${storeError.message}` });
-          } else {
-            console.log(`[Cron Amazon Orders] [${executionId}] Stored order ${amazonOrder.AmazonOrderId} for retry (customization data not available yet)`);
-          }
-          
-          // Skip W0 webhook call - will retry on next cron run
-          continue;
-        }
-        
-        // 3d. Normalize order data with customization
-        const orderData = await normalizeAmazonOrder(amazonOrder, orderItems, customization);
-        
-        // Extract only Supabase-compatible fields
-        // Note: Schema uses orderId (camelCase) as PRIMARY KEY, amazon_order_id as separate field
-        // Note: book_specs column doesn't exist in schema - bookSpecs is sent to W0 webhook only
-        // CRITICAL: Trim order IDs to prevent trailing space issues
-        const rawOrderId = orderData.amazon_order_id || orderData.amazonOrderId || orderData.orderId || amazonOrder.AmazonOrderId;
-        const orderIdValue = String(rawOrderId || '').trim();
-        
-        if (!orderIdValue || orderIdValue.length === 0) {
-          throw new Error(`Invalid order ID: cannot be empty after trimming. Original: ${rawOrderId}`);
-        }
-        
-        // Calculate character_hash that includes orderId to make it unique per order
-        // This prevents character hash collisions when multiple orders have the same character specs
-        const characterSpecs = orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs || {};
-        const characterHash = calculateCharacterHash(characterSpecs, orderIdValue);
-        
-        const supabaseOrderData = {
-          orderId: orderIdValue, // Primary key - use amazon_order_id as orderId (trimmed)
-          amazon_order_id: orderIdValue, // Trimmed to prevent trailing space issues
-          character_hash: characterHash, // Unique per order (includes orderId in hash)
-          order_status: orderData.status || 'Unshipped',
-          purchase_date: orderData.purchaseDate || orderData.orderDate,
-          marketplace_id: orderData.marketplaceId,
-          customer_email: orderData.customerEmail || orderData.buyer?.email,
-          customer_name: orderData.buyer?.name || orderData.shippingAddress?.name,
-          shipping_address: orderData.shippingAddress,
-          character_specs: orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs,
-          dedication_text: orderData.dedication || orderData.Dedication,
-          product_info: orderData.items || orderData.lineItems || orderItems,
-          status: 'pending_w0',
-          execution_status: 'pending_w0', // W0 will update to 'ready_for_processing'
-          next_workflow: null, // W0 will set to '2A'
-          updated_at: new Date().toISOString(),
-        };
-        
-        const { data: storedOrder, error: storeError } = await supabase
-          .from('orders')
-          .upsert(supabaseOrderData, {
-            onConflict: 'amazon_order_id', // DB guarantees uniqueness on this column
-            ignoreDuplicates: false,
-          })
-          .select()
-          .single();
-
-        if (storeError) {
-          throw new Error(`Supabase store failed: ${storeError.message}`);
-        }
-
-        console.log(`[Cron Amazon Orders] [${executionId}] Stored order ${orderIdValue} in Supabase with character_hash: ${characterHash}`);
-
-        // 3b. Call W0 webhook with order data
-        // Include character_hash in orderData so workflows can use it
-        const webhookPayload = {
-          ...orderData,
-          characterHash: characterHash,
-          character_hash: characterHash, // Support both formats
-        };
-        
-        const webhookResponse = await fetch(n8nW0WebhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(webhookPayload),
-        });
-
-        if (!webhookResponse.ok) {
-          const errorText = await webhookResponse.text();
-          throw new Error(`W0 webhook failed (${webhookResponse.status}): ${errorText.substring(0, 200)}`);
-        }
-
-        processedOrders.push(amazonOrder.AmazonOrderId);
-        metrics.ordersProcessed++;
-        console.log(`[Cron Amazon Orders] [${executionId}] ✅ Processed order ${amazonOrder.AmazonOrderId}`);
-
-      } catch (error: any) {
-        const orderId = amazonOrder.AmazonOrderId || 'unknown';
-        const errorMsg = error?.message || String(error);
-        errors.push({ orderId, error: errorMsg });
-        console.error(`[Cron Amazon Orders] [${executionId}] ❌ Failed to process order ${orderId}:`, errorMsg);
-        // Continue processing other orders even if one fails
-      }
-    }
-
-    metrics.webhookCallsMs = Date.now() - webhookCallsStart;
-    metrics.totalMs = Date.now() - startTime;
-
-    console.log(`[Cron Amazon Orders] [${executionId}] Completed:`, {
-      total: amazonOrders.length,
-      processed: metrics.ordersProcessed,
-      errors: errors.length,
-      totalDuration: `${metrics.totalMs}ms`
-    });
 
     return NextResponse.json({
       success: true,
       message: 'Amazon orders processed',
       executionId,
-      ordersFound: amazonOrders.length,
-      ordersProcessed: metrics.ordersProcessed,
-      orderIds: processedOrders,
-      errors: errors.length > 0 ? errors : undefined,
-      metrics,
+      ordersFound: result.ordersFound,
+      ordersProcessed: result.ordersProcessed,
+      errors: result.errors,
+      metrics: result.metrics,
       timestamp: new Date().toISOString()
     });
 
   } catch (error: any) {
-    metrics.totalMs = Date.now() - startTime;
     console.error(`[Cron Amazon Orders] [${executionId}] Unexpected error:`, {
       error: error.message,
       stack: error.stack,
       name: error.name,
-      metrics,
-      totalDuration: `${metrics.totalMs}ms`
     });
     return NextResponse.json(
       {
         error: 'Internal server error',
         executionId,
         details: error.message,
-        metrics,
         timestamp: new Date().toISOString()
       },
       { status: 500 }
@@ -463,176 +729,39 @@ function getMockAmazonOrders(): any[] {
 
 /**
  * Get Amazon SP-API access token using refresh token
+ * (Legacy function - now calls internal version)
  */
 async function getAmazonAccessToken(): Promise<string | null> {
-  try {
-    const response = await fetch('https://api.amazon.com/auth/o2/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: amazonRefreshToken!,
-        client_id: amazonClientId!,
-        client_secret: amazonClientSecret!,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Amazon token request failed (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    if (!data.access_token) {
-      throw new Error('Amazon token response missing access_token');
-    }
-
-    return data.access_token;
-  } catch (error: any) {
-    console.error('[Cron Amazon Orders] Failed to get access token:', error.message);
-    throw error;
+  if (!amazonClientId || !amazonClientSecret || !amazonRefreshToken) {
+    throw new Error('Amazon SP-API credentials not configured');
   }
+  return getAmazonAccessTokenInternal(amazonClientId, amazonClientSecret, amazonRefreshToken);
 }
 
 /**
  * Fetch unshipped orders from Amazon SP-API
+ * (Legacy function - now calls internal version)
  */
 async function fetchAmazonOrders(accessToken: string): Promise<any[]> {
-  try {
-    // Calculate time window (last 24 hours)
-    const now = new Date();
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const createdAfter = yesterday.toISOString();
-
-    // SP-API endpoint (sandbox or production)
-    const baseUrl = amazonSandboxMode
-      ? 'https://sandbox.sellingpartnerapi-na.amazon.com'
-      : (amazonRegion === 'na'
-          ? 'https://sellingpartnerapi-na.amazon.com'
-          : `https://sellingpartnerapi-${amazonRegion}.amazon.com`);
-
-    const url = new URL(`${baseUrl}/orders/v0/orders`);
-    
-    // Amazon SP-API requires MarketplaceIds as a query parameter
-    // Note: MarketplaceIds must be a single value or comma-separated list
-    url.searchParams.set('MarketplaceIds', amazonMarketplaceId || 'ATVPDKIKX0DER');
-    
-    // For sandbox, the Orders API might not be fully supported or might require different parameters
-    // Try with minimal required parameters first
-    if (amazonSandboxMode) {
-      // Sandbox might not support CreatedAfter - try without it first
-      // If that fails, we'll handle it gracefully below
-      // Note: Some sandbox endpoints don't support all query parameters
-    } else {
-      // Production: use all standard parameters
-      url.searchParams.set('CreatedAfter', createdAfter);
-      url.searchParams.set('OrderStatuses', 'Unshipped');
-      url.searchParams.set('MaxResultsPerPage', '50');
-    }
-
-    console.log(`[Cron Amazon Orders] Fetching orders from: ${url.toString()}`);
-    console.log(`[Cron Amazon Orders] Sandbox mode: ${amazonSandboxMode}, MarketplaceId: ${amazonMarketplaceId}`);
-
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: {
-        'x-amz-access-token': accessToken,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      
-      // For sandbox, if we get InvalidInput, the Orders API might not be supported
-      // Return empty array gracefully instead of throwing error
-      if (amazonSandboxMode && response.status === 400) {
-        try {
-          const errorJson = JSON.parse(errorText);
-          if (errorJson.errors?.[0]?.code === 'InvalidInput') {
-            console.warn('[Cron Amazon Orders] Sandbox Orders API returned InvalidInput - endpoint may not be fully supported in sandbox');
-            console.warn('[Cron Amazon Orders] Returning empty array (no orders) - this is expected for sandbox testing');
-            return []; // Return empty array - sandbox might not support Orders API
-          }
-        } catch (e) {
-          // If we can't parse error, continue with normal error handling
-        }
-      }
-      
-      if (response.status === 401) {
-        throw new Error('Amazon authentication failed. Check your credentials.');
-      }
-      if (response.status === 429) {
-        throw new Error('Amazon rate limit exceeded. Wait 60 seconds and retry.');
-      }
-      if (response.status === 403) {
-        throw new Error('Amazon access forbidden. Check your SP-API permissions.');
-      }
-      throw new Error(`Amazon API request failed (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    const orders = data.payload?.Orders || [];
-
-    // Check if we need to fetch order items for each order
-    // For now, return basic order data - W0 will fetch items if needed
-    return orders;
-  } catch (error: any) {
-    console.error('[Cron Amazon Orders] Failed to fetch orders:', error.message);
-    throw error;
-  }
+  return fetchAmazonOrdersInternal(
+    accessToken,
+    amazonMarketplaceId || 'ATVPDKIKX0DER',
+    amazonRegion || 'na',
+    amazonSandboxMode
+  );
 }
 
 /**
  * Fetch order items from Amazon SP-API to get customization data
+ * (Legacy function - now calls internal version)
  */
 async function fetchOrderItems(accessToken: string, orderId: string): Promise<any[]> {
-  try {
-    // SP-API endpoint (sandbox or production)
-    const baseUrl = amazonSandboxMode
-      ? 'https://sandbox.sellingpartnerapi-na.amazon.com'
-      : (amazonRegion === 'na'
-          ? 'https://sellingpartnerapi-na.amazon.com'
-          : `https://sellingpartnerapi-${amazonRegion}.amazon.com`);
-
-    const url = `${baseUrl}/orders/v0/orders/${orderId}/orderItems`;
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'x-amz-access-token': accessToken,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      if (response.status === 404) {
-        console.warn(`[Cron Amazon Orders] Order ${orderId} items not available yet (404)`);
-        return []; // Return empty array if items not ready
-      }
-      throw new Error(`Failed to fetch order items (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    const orderItems = data.payload?.OrderItems || [];
-
-    console.log(`[Cron Amazon Orders] Fetched ${orderItems.length} items for order ${orderId}`);
-    
-    // Log raw structure for verification (when debug mode enabled)
-    // This helps verify the real Amazon API structure matches our expectations
-    if (process.env.AMAZON_DEBUG_STRUCTURE === 'true' && orderItems.length > 0) {
-      console.log(`[Cron Amazon Orders] 🔍 DEBUG: Raw order items response structure:`, JSON.stringify(orderItems[0], null, 2));
-    }
-    
-    return orderItems;
-  } catch (error: any) {
-    console.error(`[Cron Amazon Orders] Error fetching items for order ${orderId}:`, error.message);
-    // Return empty array on error - order can still be processed without customization
-    return [];
-  }
+  return fetchOrderItemsInternal(
+    accessToken,
+    orderId,
+    amazonRegion || 'na',
+    amazonSandboxMode
+  );
 }
 
 /**
@@ -742,93 +871,15 @@ function parseCharacterSpecs(customization: Record<string, any>): any {
 
 /**
  * Normalize Amazon order data to match W0's expected format
+ * (Legacy function - now calls internal version)
  */
 async function normalizeAmazonOrder(
   amazonOrder: any,
   orderItems: any[] = [],
   customization: Record<string, any> = {}
 ): Promise<any> {
-  // Extract basic order info
-  const amazonOrderId = amazonOrder.AmazonOrderId;
-  const purchaseDate = amazonOrder.PurchaseDate || new Date().toISOString();
-  const marketplaceId = amazonOrder.MarketplaceId || amazonMarketplaceId;
-  const buyerEmail = amazonOrder.BuyerInfo?.BuyerEmail || null;
-  const buyerName = amazonOrder.BuyerInfo?.BuyerName || null;
-
-  // Extract shipping address
-  const shippingAddress = amazonOrder.ShippingAddress || {};
-  const normalizedShipping = {
-    name: shippingAddress.Name || buyerName || 'Unknown',
-    address: shippingAddress.AddressLine1 || '',
-    address2: shippingAddress.AddressLine2 || '',
-    city: shippingAddress.City || '',
-    state: shippingAddress.StateOrRegion || '',
-    zip: shippingAddress.PostalCode || '',
-    phone: shippingAddress.Phone || '',
-    country: shippingAddress.CountryCode || 'US',
-  };
-
-  // Parse character specs from customization data
-  const characterSpecs = parseCharacterSpecs(customization);
-  const dedication = characterSpecs.dedication || '';
-
-  // Build standardized order object matching W0's expected format
-  return {
-    amazon_order_id: amazonOrderId,
-    orderId: amazonOrderId,
-    id: amazonOrderId,
-    amazonOrderId: amazonOrderId,
-    orderDate: purchaseDate,
-    purchaseDate: purchaseDate,
-    createdAt: new Date().toISOString(),
-    status: 'pending_w0',
-    marketplaceId: marketplaceId,
-    customerEmail: buyerEmail,
-    buyer: {
-      email: buyerEmail,
-      name: buyerName,
-    },
-    ShippingAddress: shippingAddress,
-    shippingAddress: normalizedShipping,
-    characterSpecs: characterSpecs,
-    character_specs: characterSpecs, // Supabase column name (snake_case)
-    CharacterSpecs: characterSpecs, // Support both camelCase and PascalCase for W0
-    // bookSpecs: Generated internally (not from Amazon)
-    // Note: This is optional - most workflows have fallbacks
-    // Format/size is hardcoded for MVP (8.5x8.5 softcover, 16 pages)
-    bookSpecs: {
-      title: `${characterSpecs.childName} and the Adventure Compass`,
-      totalPages: 16,
-      format: '8.5x8.5_softcover',
-      bookType: 'adventure',
-    },
-    orderDetails: {
-      quantity: parseInt(amazonOrder.NumberOfItemsShipped || amazonOrder.NumberOfItemsUnshipped || '1'),
-      shippingAddress: normalizedShipping,
-    },
-    dedication: dedication,
-    Dedication: dedication, // Support both formats
-    items: orderItems.length > 0 ? [{
-      sku: orderItems[0]?.SellerSKU || 'LHB-8X10-SOFTCOVER',
-      quantity: 1,
-      customizations: Object.entries(customization).map(([name, value]) => ({
-        name: name,
-        label: name,
-        type: 'text',
-        value: String(value),
-      })),
-    }] : [],
-    lineItems: [{
-      customizationFields: Object.entries(customization).map(([name, value]) => ({
-        name: name,
-        text: String(value),
-      })),
-    }],
-    // Store raw data for reference
-    _rawAmazonOrder: amazonOrder,
-    _rawOrderItems: orderItems,
-    _rawCustomization: customization,
-  };
+  const marketplaceId = amazonOrder.MarketplaceId || amazonMarketplaceId || 'ATVPDKIKX0DER';
+  return normalizeAmazonOrderInternal(amazonOrder, orderItems, customization, marketplaceId);
 }
 
 /**

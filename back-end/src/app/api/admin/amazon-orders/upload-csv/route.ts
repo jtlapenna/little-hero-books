@@ -7,8 +7,11 @@ import {
   buildShippingAddress,
   extractCustomerName,
   extractCustomerEmail,
+  extractCustomizationUrl,
 } from '@/lib/csv-upload-helpers';
 import { updateOrderInSupabase } from '@/lib/supabase-client';
+import { downloadAndExtractCustomizationZip } from '@/lib/zip-downloader';
+import { parseAmazonCustomization } from '@/lib/amazon-customization-parser';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,10 +83,17 @@ export async function POST(request: NextRequest) {
     // Read file as text
     const fileText = await file.text();
 
-    // Parse CSV
+    // Detect delimiter (tab-separated or comma-separated)
+    // Check first line for tabs
+    const firstLine = fileText.split('\n')[0];
+    const isTabSeparated = firstLine.includes('\t');
+    const delimiter = isTabSeparated ? '\t' : ',';
+
+    // Parse CSV/TSV
     const parseResult = Papa.parse<string[]>(fileText, {
       header: false,
       skipEmptyLines: true,
+      delimiter: delimiter,
       transformHeader: (header) => header.trim(),
     });
 
@@ -191,6 +201,26 @@ export async function POST(request: NextRequest) {
         const customerName = extractCustomerName(row, headers);
         const customerEmail = extractCustomerEmail(row, headers);
 
+        // Extract customization URL if available
+        const customizationUrl = extractCustomizationUrl(row, headers);
+        let characterSpecs = null;
+
+        // Download and parse customization ZIP if URL is present
+        if (customizationUrl) {
+          try {
+            const customizationData = await downloadAndExtractCustomizationZip(customizationUrl);
+            if (customizationData) {
+              characterSpecs = parseAmazonCustomization(customizationData);
+              if (!characterSpecs) {
+                console.warn(`[CSV Upload] Failed to parse customization for order ${amazonOrderId}`);
+              }
+            }
+          } catch (customizationError: any) {
+            console.error(`[CSV Upload] Error processing customization for order ${amazonOrderId}:`, customizationError);
+            // Continue processing even if customization fails
+          }
+        }
+
         // Prepare updates
         const updates: any = {
           shipping_address: shippingAddress,
@@ -202,6 +232,11 @@ export async function POST(request: NextRequest) {
 
         if (customerEmail) {
           updates.customer_email = customerEmail;
+        }
+
+        // Add character specs if customization was successfully parsed
+        if (characterSpecs) {
+          updates.character_specs = characterSpecs;
         }
 
         // Update order in Supabase

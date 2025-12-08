@@ -12,6 +12,12 @@
  * Environment variables required:
  *   - VERCEL_URL (or use --url flag)
  *   - CRON_SECRET (or use --secret flag)
+ *   - VERCEL_BYPASS_TOKEN (or use --bypass flag) - Required if deployment protection is enabled
+ * 
+ * Examples:
+ *   node scripts/test-amazon-orders-cron.js
+ *   node scripts/test-amazon-orders-cron.js --secret=abc123 --bypass=bypass_xyz
+ *   node scripts/test-amazon-orders-cron.js --test
  */
 
 const https = require('https');
@@ -21,10 +27,12 @@ const http = require('http');
 const args = process.argv.slice(2);
 const urlArg = args.find(arg => arg.startsWith('--url='))?.split('=')[1];
 const secretArg = args.find(arg => arg.startsWith('--secret='))?.split('=')[1];
+const bypassArg = args.find(arg => arg.startsWith('--bypass='))?.split('=')[1];
 const testModeArg = args.includes('--test');
 
 const vercelUrl = urlArg || process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL || 'little-hero-books-dvvaz6omr-jeffs-projects-5810cd55.vercel.app';
 const cronSecret = secretArg || process.env.CRON_SECRET;
+const bypassToken = bypassArg || process.env.VERCEL_BYPASS_TOKEN;
 const testMode = testModeArg || process.env.AMAZON_CRON_TEST_MODE === 'true';
 
 if (!cronSecret) {
@@ -34,15 +42,27 @@ if (!cronSecret) {
   process.exit(1);
 }
 
-const endpoint = testMode 
-  ? `https://${vercelUrl}/api/cron/amazon-orders?test=true`
-  : `https://${vercelUrl}/api/cron/amazon-orders`;
+// Build endpoint URL with query parameters
+const urlParams = new URLSearchParams();
+if (testMode) {
+  urlParams.append('test', 'true');
+}
+if (bypassToken) {
+  urlParams.append('x-vercel-protection-bypass', bypassToken);
+}
+const queryString = urlParams.toString();
+const endpoint = `https://${vercelUrl}/api/cron/amazon-orders${queryString ? '?' + queryString : ''}`;
 
 console.log('🧪 Testing Amazon Orders Cron Job');
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 console.log(`URL: ${endpoint}`);
 console.log(`Test Mode: ${testMode ? '✅ ENABLED (using mock data)' : '❌ DISABLED (using real Amazon API)'}`);
 console.log(`Cron Secret: ${cronSecret.substring(0, 10)}...`);
+if (bypassToken) {
+  console.log(`Bypass Token: ${bypassToken.substring(0, 10)}...`);
+} else {
+  console.log(`Bypass Token: ❌ NOT SET (may fail if deployment protection is enabled)`);
+}
 console.log('');
 
 const startTime = Date.now();
@@ -115,6 +135,10 @@ const req = https.request(options, (res) => {
       } else if (res.statusCode === 401) {
         console.log('❌ Authentication failed');
         console.log('   Check CRON_SECRET is correct');
+      } else if (res.statusCode === 403) {
+        console.log('❌ Access forbidden - Deployment protection is blocking the request');
+        console.log('   Solution: Use --bypass=YOUR_BYPASS_TOKEN or set VERCEL_BYPASS_TOKEN');
+        console.log('   Get bypass token from: Vercel Dashboard → Settings → Deployment Protection');
       } else if (res.statusCode === 500) {
         console.log('❌ Server error');
         if (json.error) {

@@ -1,0 +1,325 @@
+{
+  "orderId" : "111-0060602-1283417",
+  "orderItemId" : "148770257647321",
+  "merchantId" : "A3QO0NYAT0D2I2",
+  "marketplaceId" : "ATVPDKIKX0DER",
+  "asin" : "B0G4QPLWKH",
+  "title" : "Little Hero Labs Personalized Children's Book, Finding Our Inner Voice, Self-Discovery Adventure Story for Ages 3-6, Customizable Character and Name",
+  "quantity" : 1,
+  "vendorCode" : null,
+  "customizationData" : {
+    "type" : "PageContainerCustomization",
+    "children" : [ {
+      "type" : "PreviewContainerCustomization",
+      "name" : "Little Hero Labs Customization",
+      "label" : "Customize Your Book",
+      "children" : [ {
+        "type" : "FlatContainerCustomization",
+        "children" : [ {
+          "type" : "FlatRatePriceDeltaContainerCustomization",
+          "name" : "Data (Text input without Font or Color) 1",
+          "label" : "Data (Text input without Font or Color) 1",
+          "children" : [ {
+            "type" : "TextCustomization",
+            "name" : "",
+            "label" : "Child's First Name",
+            "inputValue" : "Henry"
+          } ],
+          "priceDelta" : {
+            "amount" : 0
+          }
+        }, {
+          "type" : "FlatRatePriceDeltaContainerCustomization",
+          "name" : "Data (Text input without Font or Color) 2",
+          "label" : "Data (Text input without Font or Color) 2",
+          "children" : [ {
+            "type" : "TextCustomization",
+            "name" : "",
+            "label" : "Hometown",
+            "inputValue" : "Little Neck"
+          } ],
+          "priceDelta" : {
+            "amount" : 0
+          }
+        }, {
+          "type" : "OptionCustomization",
+          "name" : "Option Dropdown 1",
+          "label" : "Child's Age",
+          "optionSelection" : {
+            "name" : "3",
+            "label" : "3",
+            "additionalCost" : {
+              "amount" : 0
+            }
+          },
+          "displayValue" : "3"
+        }, {
+          "type" : "OptionCustomization",
+          "name" : "Option Dropdown 2",
+          "label" : "Gender",
+          "optionSelection" : {
+            "name" : "He",
+            "label" : "He",
+            "additionalCost" : {
+              "amount" : 0
+            }
+          },
+          "displayValue" : "He"
+        }, {
+          "type" : "OptionCustomization",
+          "name" : "Option Dropdown 3",
+          "label" : "Skin Tone",
+          "optionSelection" : {
+            "name" : "Tan",
+            "label" : "Tan",
+            "additionalCost" : {
+              "amount" : 0
+            },
+            "thumbnailImage" : {
+              "imageUrl" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/b8df464b25defa62f9247ff331b1f3a6.jpg",
+              "dimension" : {
+                "width" : 1024,
+                "height" : 1024
+              }
+            },
+            "overlayImage" : {
+              "imageUrl" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/b8df464b25defa62f9247ff331b1f3a6.jpg",
+              "dimension" : {
+                "width" : 1024,
+                "height" : 1024
+              }
+            }
+          },
+          "displayValue" : "Tan"
+        }, {
+          "type" : "OptionCustomization",
+          "name" : "Option Dropdown 4",
+          "label" : "Hair Color",
+          "optionSelection" : {
+            "name" : "Auburn",
+            "label" : "Auburn",
+            "additionalCost" : {
+              "amount" : 0
+            },
+            "thumbnailImage" : {
+              "imageUrl" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/3641d13eed97ec024f244a97729abe36.png",
+              "dimension" : {
+                "width" : 400,
+                "height" : 400
+              }
+            },
+            "overlayImage" : {
+              "imageUrl" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/3641d13eed97ec024f244a97729abe36.png",
+              "dimension" : {
+                "width" : 400,
+                "height" : 400
+              }
+            }
+          },
+          "displayValue" : "Auburn"
+        }, {
+          "type" : "OptionCustomization",
+          "name" : "Option Dropdown 5",
+          "label" : "Hair Style",
+          "optionSelection" : {
+            "name" : "Curly Crop",
+            "label" : "Curly Crop",
+            "additionalCost" : {
+              "amount" : 0
+            },
+            "thumbnailImage" : {
+              "imageUrl" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/4c9dfd096c18c3e3e6020f1145fd6898.png",
+              "dimension" : {
+                "width" : 1024,
+                "height" : 1024
+              }
+            },
+            "overlayImage" : {
+              "imageUrl" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/4c9dfd096c18c3e3e6020f1145fd6898.png",
+              "dimension" : {
+                "width" : 1024,
+                "height" : 1024
+              }
+            }
+          },
+          "displayValue" : "Curly Crop"
+        }, {
+          "type" : "OptionCustomization",
+          "name" : "Option Dropdown 6",
+          "label" : "Favorite Color",
+          "optionSelection" : {
+            "name" : "Purple",
+            "label" : "Purple",
+            "additionalCost" : {
+              "amount" : 0
+            },
+            "thumbnailImage" : {
+              "imageUrl" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/f90a8c2bc741a11700ff1c7b90ae8cf3.png",
+              "dimension" : {
+                "width" : 400,
+                "height" : 400
+              }
+            },
+            "overlayImage" : {
+              "imageUrl" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/f90a8c2bc741a11700ff1c7b90ae8cf3.png",
+              "dimension" : {
+                "width" : 400,
+                "height" : 400
+              }
+            }
+          },
+          "displayValue" : "Purple"
+        }, {
+          "type" : "OptionCustomization",
+          "name" : "Option Dropdown 7",
+          "label" : "Animal Guide / Favorite Animal",
+          "optionSelection" : {
+            "name" : "Owl",
+            "label" : "Owl",
+            "additionalCost" : {
+              "amount" : 0
+            },
+            "thumbnailImage" : {
+              "imageUrl" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/aecab159e5e393d82eada1402399aa2c.png",
+              "dimension" : {
+                "width" : 1024,
+                "height" : 1024
+              }
+            },
+            "overlayImage" : {
+              "imageUrl" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/aecab159e5e393d82eada1402399aa2c.png",
+              "dimension" : {
+                "width" : 1024,
+                "height" : 1024
+              }
+            }
+          },
+          "displayValue" : "Owl"
+        }, {
+          "type" : "FlatRatePriceDeltaContainerCustomization",
+          "name" : "Data (Text input without Font or Color) 3",
+          "label" : "Data (Text input without Font or Color) 3",
+          "children" : [ {
+            "type" : "TextCustomization",
+            "name" : "",
+            "label" : "Dedication Text",
+            "inputValue" : "Dear Henry, we love you so very much. Love, your Uncles."
+          } ],
+          "priceDelta" : {
+            "amount" : 0
+          }
+        } ]
+      } ],
+      "baseImage" : {
+        "imageUrl" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/11d8d6b50768fa63e22334b88cb86027.png",
+        "dimension" : {
+          "width" : 1526,
+          "height" : 1526
+        }
+      },
+      "snapshot" : {
+        "imageName" : "208d4d7b-784f-1c6b-fa20-89990c421e0b.jpg",
+        "dimension" : {
+          "width" : 400,
+          "height" : 400
+        }
+      },
+      "svg" : "09e29a98-6328-47fc-ee52-8d6603593642.svg"
+    } ]
+  },
+  "version3.0" : {
+    "customizationInfo" : {
+      "surfaces" : [ {
+        "name" : "Customize Your Book",
+        "areas" : [ {
+          "customizationType" : "TextPrinting",
+          "priceDelta" : {
+            "value" : 0.0
+          },
+          "name" : "Data (Text input without Font or Color) 1",
+          "label" : "Child's First Name",
+          "text" : "Henry"
+        }, {
+          "customizationType" : "TextPrinting",
+          "priceDelta" : {
+            "value" : 0.0
+          },
+          "name" : "Data (Text input without Font or Color) 2",
+          "label" : "Hometown",
+          "text" : "Little Neck"
+        }, {
+          "customizationType" : "Options",
+          "name" : "Option Dropdown 1",
+          "label" : "Child's Age",
+          "optionValue" : "3",
+          "priceDelta" : {
+            "value" : 0.0
+          },
+          "optionImage" : ""
+        }, {
+          "customizationType" : "Options",
+          "name" : "Option Dropdown 2",
+          "label" : "Gender",
+          "optionValue" : "He",
+          "priceDelta" : {
+            "value" : 0.0
+          },
+          "optionImage" : ""
+        }, {
+          "customizationType" : "Options",
+          "name" : "Option Dropdown 3",
+          "label" : "Skin Tone",
+          "optionValue" : "Tan",
+          "priceDelta" : {
+            "value" : 0.0
+          },
+          "optionImage" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/b8df464b25defa62f9247ff331b1f3a6.jpg"
+        }, {
+          "customizationType" : "Options",
+          "name" : "Option Dropdown 4",
+          "label" : "Hair Color",
+          "optionValue" : "Auburn",
+          "priceDelta" : {
+            "value" : 0.0
+          },
+          "optionImage" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/3641d13eed97ec024f244a97729abe36.png"
+        }, {
+          "customizationType" : "Options",
+          "name" : "Option Dropdown 5",
+          "label" : "Hair Style",
+          "optionValue" : "Curly Crop",
+          "priceDelta" : {
+            "value" : 0.0
+          },
+          "optionImage" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/4c9dfd096c18c3e3e6020f1145fd6898.png"
+        }, {
+          "customizationType" : "Options",
+          "name" : "Option Dropdown 6",
+          "label" : "Favorite Color",
+          "optionValue" : "Purple",
+          "priceDelta" : {
+            "value" : 0.0
+          },
+          "optionImage" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/f90a8c2bc741a11700ff1c7b90ae8cf3.png"
+        }, {
+          "customizationType" : "Options",
+          "name" : "Option Dropdown 7",
+          "label" : "Animal Guide / Favorite Animal",
+          "optionValue" : "Owl",
+          "priceDelta" : {
+            "value" : 0.0
+          },
+          "optionImage" : "https://m.media-amazon.com/images/S/gestalt-seller-images-prod-us-east-1/ATVPDKIKX0DER/A3QO0NYAT0D2I2/aecab159e5e393d82eada1402399aa2c.png"
+        }, {
+          "customizationType" : "TextPrinting",
+          "priceDelta" : {
+            "value" : 0.0
+          },
+          "name" : "Data (Text input without Font or Color) 3",
+          "label" : "Dedication Text",
+          "text" : "Dear Henry, we love you so very much. Love, your Uncles."
+        } ]
+      } ]
+    }
+  }
+}

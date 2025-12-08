@@ -10,6 +10,9 @@ const cronSecret = process.env.CRON_SECRET;
 const n8nWebhookUrl = process.env.N8N_ROUTER_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/w1-1-router';
 const maxConcurrent = 5; // Match W1.1 router maxConcurrent
 
+// Amazon orders processing - import the processing function
+import { processAmazonOrders } from '../amazon-orders/route';
+
 /**
  * GET /api/cron/router
  * 
@@ -60,6 +63,38 @@ export async function GET(request: NextRequest) {
   console.log(`[Cron Router] [${executionId}] Starting execution at ${new Date().toISOString()}`);
 
   try {
+    // 0. First, process new Amazon orders (runs before normal routing)
+    // This is integrated here to stay within Vercel's 2-cron limit
+    const amazonOrdersStart = Date.now();
+    try {
+      // Directly call the Amazon orders processing function
+      const amazonResult = await processAmazonOrders(supabase, {
+        testMode: false,
+        executionId: `${executionId}-amazon`,
+        supabaseUrl,
+        supabaseKey,
+        n8nW0WebhookUrl: process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake',
+        amazonClientId: process.env.AMZ_APP_CLIENT_ID || process.env.AMAZON_SP_API_CLIENT_ID,
+        amazonClientSecret: process.env.AMZ_APP_CLIENT_SECRET || process.env.AMAZON_SP_API_CLIENT_SECRET,
+        amazonRefreshToken: process.env.AMZ_REFRESH_TOKEN || process.env.AMAZON_SP_API_REFRESH_TOKEN,
+        amazonSellerId: process.env.AMZ_SELLER_ID || process.env.AMAZON_SP_API_SELLER_ID,
+        amazonMarketplaceId: process.env.AMZ_MARKETPLACE_ID || process.env.AMAZON_SP_API_MARKETPLACE_ID || 'ATVPDKIKX0DER',
+        amazonRegion: process.env.AMZ_REGION || process.env.AMAZON_SP_API_REGION || 'na',
+        amazonSandboxMode: process.env.AMAZON_SANDBOX_MODE === 'true',
+      });
+
+      const amazonDuration = Date.now() - amazonOrdersStart;
+      console.log(`[Cron Router] [${executionId}] Amazon orders check completed (${amazonDuration}ms):`, {
+        ordersFound: amazonResult.ordersFound || 0,
+        ordersProcessed: amazonResult.ordersProcessed || 0,
+        errors: amazonResult.errors?.length || 0,
+      });
+    } catch (amazonError: any) {
+      const amazonDuration = Date.now() - amazonOrdersStart;
+      console.error(`[Cron Router] [${executionId}] Amazon orders check failed (${amazonDuration}ms):`, amazonError.message);
+      // Continue with normal routing even if Amazon check fails
+    }
+
     // 1. Check capacity using queue_status view
     const capacityCheckStart = Date.now();
     const { data: capacityData, error: capacityError } = await supabase

@@ -13,6 +13,30 @@ export function normalizeColumnName(name: string): string {
 }
 
 /**
+ * Extract customization URL from CSV row
+ * Returns null if not found
+ */
+export function extractCustomizationUrl(
+  row: any,
+  headers: string[]
+): string | null {
+  const urlIndex = findColumnIndex(headers, [
+    'customized-url',
+    'customized_url',
+    'customization-url',
+    'customization_url',
+    'customizedUrl'
+  ]);
+  
+  if (urlIndex === null) {
+    return null;
+  }
+  
+  const url = row[urlIndex]?.toString().trim();
+  return url || null;
+}
+
+/**
  * Find column index by trying multiple name variations
  * Returns the index of the first matching column, or null if not found
  */
