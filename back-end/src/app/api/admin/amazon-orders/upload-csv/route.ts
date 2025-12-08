@@ -285,7 +285,8 @@ export async function POST(request: NextRequest) {
           // Auto-trigger W0 if order now has complete data (shipping + character specs)
           // W0 will process the order, build manifest, and set execution_status to 'ready_for_processing'
           // Check if order has both shipping_address and character_specs (either from this update or already in DB)
-          console.log(`[CSV Upload] [${requestId}] Checking W0 trigger for order ${amazonOrderId}...`);
+          console.log(`[CSV Upload] [${requestId}] ✅ Order ${amazonOrderId} updated successfully, checking W0 trigger...`);
+          console.log(`[CSV Upload] [${requestId}] Updates applied:`, JSON.stringify(Object.keys(updates)));
           try {
             // Fetch the updated order to get all data for W0
             const { data: updatedOrder, error: fetchError } = await supabase
