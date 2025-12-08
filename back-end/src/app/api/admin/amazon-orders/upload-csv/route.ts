@@ -17,6 +17,7 @@ export const dynamic = 'force-dynamic';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -153,6 +154,7 @@ export async function POST(request: NextRequest) {
     const matchedOrders: string[] = [];
     const pendingOrders: string[] = [];
     const errors: Array<{ row: number; orderId: string | null; error: string }> = [];
+    const w0Triggered: string[] = []; // Track orders that had W0 triggered
 
     for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i];
@@ -245,6 +247,56 @@ export async function POST(request: NextRequest) {
           await updateOrderInSupabase(amazonOrderId, updates);
           matchedOrders.push(amazonOrderId);
           summary.matched++;
+
+          // Auto-trigger W0 if order now has complete data (shipping + character specs)
+          // W0 will process the order, build manifest, and set execution_status to 'ready_for_processing'
+          if (shippingAddress && characterSpecs && n8nW0WebhookUrl) {
+            try {
+              // Fetch the updated order to get all data for W0
+              const { data: updatedOrder, error: fetchError } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('amazon_order_id', amazonOrderId)
+                .single();
+
+              if (!fetchError && updatedOrder) {
+                // Build W0 webhook payload (similar to Amazon orders cron)
+                const w0Payload = {
+                  orderId: updatedOrder.orderId || updatedOrder.amazon_order_id,
+                  amazon_order_id: updatedOrder.amazon_order_id,
+                  character_hash: updatedOrder.character_hash,
+                  character_specs: updatedOrder.character_specs,
+                  shipping_address: updatedOrder.shipping_address,
+                  customer_name: updatedOrder.customer_name,
+                  customer_email: updatedOrder.customer_email,
+                  dedication_text: updatedOrder.dedication_text,
+                  product_info: updatedOrder.product_info,
+                  purchase_date: updatedOrder.purchase_date,
+                  marketplace_id: updatedOrder.marketplace_id,
+                };
+
+                const w0Response = await fetch(n8nW0WebhookUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(w0Payload),
+                });
+
+                if (w0Response.ok) {
+                  w0Triggered.push(amazonOrderId);
+                  console.log(`[CSV Upload] ✅ Triggered W0 for order ${amazonOrderId}`);
+                } else {
+                  const errorText = await w0Response.text();
+                  console.warn(`[CSV Upload] ⚠️ W0 webhook failed for order ${amazonOrderId}: ${w0Response.status} - ${errorText.substring(0, 200)}`);
+                  // Don't fail the CSV upload if W0 fails - order is still updated
+                }
+              }
+            } catch (w0Error: any) {
+              console.warn(`[CSV Upload] ⚠️ Failed to trigger W0 for order ${amazonOrderId}:`, w0Error.message);
+              // Don't fail the CSV upload if W0 trigger fails - order is still updated
+            }
+          }
         } catch (updateError: any) {
           errors.push({
             row: rowNumber,
@@ -271,6 +323,7 @@ export async function POST(request: NextRequest) {
         matched_orders: matchedOrders,
         pending_orders: pendingOrders,
         errors: errors,
+        w0_triggered: w0Triggered, // Orders that had W0 automatically triggered
       },
       timestamp: new Date().toISOString(),
     });
