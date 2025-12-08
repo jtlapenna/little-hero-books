@@ -1067,12 +1067,17 @@ export default function OrderDetailPage() {
                   )}
                 </button>
               )}
-              {(order.executionStatus === 'error' || order.executionStatus === 'error_requires_manual_review') && (
+              {(order.executionStatus === 'error' || 
+                order.executionStatus === 'error_requires_manual_review' ||
+                (order.executionStatus === 'processing' && order.currentWorkflow)) && (
                 <button
                   type="button"
                   onClick={handleResetOrderRecovery}
                   disabled={resettingOrder}
                   className="inline-flex items-center px-3 py-1.5 border border-yellow-300 rounded-md text-sm font-medium text-yellow-800 bg-white hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  title={order.executionStatus === 'processing' 
+                    ? 'Reset order stuck in processing state' 
+                    : 'Reset order to ready for processing'}
                 >
                   {resettingOrder ? (
                     <>
