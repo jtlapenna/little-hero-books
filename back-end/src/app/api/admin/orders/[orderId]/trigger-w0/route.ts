@@ -134,6 +134,7 @@ export async function POST(
     };
 
     // Call W0 webhook
+    console.log(`[Trigger W0] Calling webhook: ${n8nW0WebhookUrl}`);
     const w0Response = await fetch(n8nW0WebhookUrl, {
       method: 'POST',
       headers: {
@@ -149,6 +150,7 @@ export async function POST(
         {
           error: 'W0 webhook failed',
           status: w0Response.status,
+          webhookUrl: n8nW0WebhookUrl,
           response: responseText.substring(0, 500),
         },
         { status: 500 }
