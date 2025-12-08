@@ -74,9 +74,15 @@ export async function GET(request: NextRequest) {
         supabaseUrl,
         supabaseKey,
         n8nW0WebhookUrl: process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake',
-        amazonClientId: process.env.AMZ_APP_CLIENT_ID || process.env.AMAZON_SP_API_CLIENT_ID,
-        amazonClientSecret: process.env.AMZ_APP_CLIENT_SECRET || process.env.AMAZON_SP_API_CLIENT_SECRET,
-        amazonRefreshToken: process.env.AMZ_REFRESH_TOKEN || process.env.AMAZON_SP_API_REFRESH_TOKEN,
+        amazonClientId: process.env.AMZ_LWA_CLIENT_ID_PROD 
+          || process.env.AMZ_APP_CLIENT_ID 
+          || process.env.AMAZON_SP_API_CLIENT_ID,
+        amazonClientSecret: process.env.AMZ_LWA_CLIENT_SECRET_PROD
+          || process.env.AMZ_APP_CLIENT_SECRET 
+          || process.env.AMAZON_SP_API_CLIENT_SECRET,
+        amazonRefreshToken: process.env.AMZ_APP_PROD_REFRESH_TOKEN
+          || process.env.AMZ_REFRESH_TOKEN 
+          || process.env.AMAZON_SP_API_REFRESH_TOKEN,
         amazonSellerId: process.env.AMZ_SELLER_ID || process.env.AMAZON_SP_API_SELLER_ID,
         amazonMarketplaceId: process.env.AMZ_MARKETPLACE_ID || process.env.AMAZON_SP_API_MARKETPLACE_ID || 'ATVPDKIKX0DER',
         amazonRegion: process.env.AMZ_REGION || process.env.AMAZON_SP_API_REGION || 'na',

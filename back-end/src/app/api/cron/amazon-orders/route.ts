@@ -12,10 +12,16 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 const cronSecret = process.env.CRON_SECRET;
 const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake';
 
-// Amazon SP-API credentials
-const amazonClientId = process.env.AMZ_APP_CLIENT_ID || process.env.AMAZON_SP_API_CLIENT_ID;
-const amazonClientSecret = process.env.AMZ_APP_CLIENT_SECRET || process.env.AMAZON_SP_API_CLIENT_SECRET;
-const amazonRefreshToken = process.env.AMZ_REFRESH_TOKEN || process.env.AMAZON_SP_API_REFRESH_TOKEN;
+// Amazon SP-API credentials (check production-specific vars first, then fallback)
+const amazonClientId = process.env.AMZ_LWA_CLIENT_ID_PROD 
+  || process.env.AMZ_APP_CLIENT_ID 
+  || process.env.AMAZON_SP_API_CLIENT_ID;
+const amazonClientSecret = process.env.AMZ_LWA_CLIENT_SECRET_PROD
+  || process.env.AMZ_APP_CLIENT_SECRET 
+  || process.env.AMAZON_SP_API_CLIENT_SECRET;
+const amazonRefreshToken = process.env.AMZ_APP_PROD_REFRESH_TOKEN
+  || process.env.AMZ_REFRESH_TOKEN 
+  || process.env.AMAZON_SP_API_REFRESH_TOKEN;
 const amazonSellerId = process.env.AMZ_SELLER_ID || process.env.AMAZON_SP_API_SELLER_ID;
 const amazonMarketplaceId = process.env.AMZ_MARKETPLACE_ID || process.env.AMAZON_SP_API_MARKETPLACE_ID || 'ATVPDKIKX0DER';
 const amazonRegion = process.env.AMZ_REGION || process.env.AMAZON_SP_API_REGION || 'na';
@@ -104,7 +110,7 @@ export async function processAmazonOrders(
       amazonOrders = await fetchAmazonOrdersInternal(accessToken, amazonMarketplaceId, amazonRegion, amazonSandboxMode);
       metrics.ordersFetchMs = Date.now() - ordersFetchStart;
     }
-    
+
     if (!amazonOrders || amazonOrders.length === 0) {
       metrics.totalMs = Date.now() - startTime;
       console.log(`[Cron Amazon Orders] [${executionId}] No new orders found:`, {
@@ -379,6 +385,27 @@ async function fetchAmazonOrdersInternal(
         }
       }
       
+      // Log full error details for debugging
+      let errorDetails = '';
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorDetails = JSON.stringify(errorJson, null, 2);
+        console.error(`[Cron Amazon Orders] Full error response (${response.status}):`, errorDetails);
+        
+        if (errorJson.errors && Array.isArray(errorJson.errors)) {
+          errorJson.errors.forEach((err: any, i: number) => {
+            console.error(`[Cron Amazon Orders] Error ${i + 1}:`, {
+              code: err.code,
+              message: err.message,
+              details: err.details,
+            });
+          });
+        }
+      } catch (e) {
+        errorDetails = errorText.substring(0, 500);
+        console.error(`[Cron Amazon Orders] Error response (${response.status}, non-JSON):`, errorDetails);
+      }
+      
       if (response.status === 401) {
         throw new Error('Amazon authentication failed. Check your credentials.');
       }
@@ -386,9 +413,12 @@ async function fetchAmazonOrdersInternal(
         throw new Error('Amazon rate limit exceeded. Wait 60 seconds and retry.');
       }
       if (response.status === 403) {
-        throw new Error('Amazon access forbidden. Check your SP-API permissions.');
+        const errorMsg = errorDetails 
+          ? `Amazon access forbidden. Check your SP-API permissions. Details: ${errorDetails.substring(0, 200)}`
+          : 'Amazon access forbidden. Check your SP-API permissions.';
+        throw new Error(errorMsg);
       }
-      throw new Error(`Amazon API request failed (${response.status}): ${errorText}`);
+      throw new Error(`Amazon API request failed (${response.status}): ${errorText.substring(0, 200)}`);
     }
 
     const data = await response.json();
