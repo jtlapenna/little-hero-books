@@ -199,7 +199,19 @@ export async function processAmazonOrders(
         const characterSpecs = orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs || {};
         const characterHash = calculateCharacterHash(characterSpecs, orderIdValue);
         
-        const supabaseOrderData = {
+        // Check if order already exists to avoid overwriting w0's progress
+        const { data: existingOrder } = await supabase
+          .from('orders')
+          .select('execution_status, next_workflow, workflow_step')
+          .eq('amazon_order_id', orderIdValue)
+          .single();
+        
+        // Only set execution_status and next_workflow if order is new or still in initial state
+        // Don't overwrite if w0 has already processed it
+        const isNewOrInitial = !existingOrder || 
+          (existingOrder.execution_status === 'pending_w0' && existingOrder.next_workflow === null);
+        
+        const supabaseOrderData: any = {
           orderId: orderIdValue,
           amazon_order_id: orderIdValue,
           character_hash: characterHash,
@@ -212,11 +224,17 @@ export async function processAmazonOrders(
           character_specs: orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs,
           dedication_text: orderData.dedication || orderData.Dedication,
           product_info: orderData.items || orderData.lineItems || orderItems,
-          status: 'pending_w0',
-          execution_status: 'pending_w0',
-          next_workflow: null,
           updated_at: new Date().toISOString(),
         };
+        
+        // Only set status/execution_status/next_workflow if order is new or still in initial state
+        // This prevents overwriting w0's progress if it has already run
+        if (isNewOrInitial) {
+          supabaseOrderData.status = 'pending_w0';
+          supabaseOrderData.execution_status = 'pending_w0';
+          supabaseOrderData.next_workflow = null;
+        }
+        // If order already exists and w0 has processed it, don't overwrite those fields
         
         const { data: storedOrder, error: storeError } = await supabase
           .from('orders')

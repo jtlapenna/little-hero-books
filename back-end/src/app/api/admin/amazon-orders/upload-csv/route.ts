@@ -185,7 +185,11 @@ export async function POST(request: NextRequest) {
       try {
         // Extract amazon_order_id
         const amazonOrderId = extractAmazonOrderId(row, headers);
+        console.log(`[CSV Upload] [${requestId}] Row ${rowNumber}: Extracted amazonOrderId="${amazonOrderId}"`);
         if (!amazonOrderId) {
+          console.error(`[CSV Upload] [${requestId}] Row ${rowNumber}: ❌ Failed to extract amazonOrderId`);
+          console.error(`[CSV Upload] [${requestId}] Row ${rowNumber}: Headers:`, headers);
+          console.error(`[CSV Upload] [${requestId}] Row ${rowNumber}: Row data:`, row);
           errors.push({
             row: rowNumber,
             orderId: null,
@@ -195,21 +199,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Query Supabase for order
-        const { data: order, error: queryError } = await supabase
-          .from('orders')
-          .select('amazon_order_id')
-          .eq('amazon_order_id', amazonOrderId)
-          .single();
-
-        if (queryError || !order) {
-          // Order not found - track as pending
-          pendingOrders.push(amazonOrderId);
-          summary.pending++;
-          continue;
-        }
-
-        // Build shipping address
+        // Build shipping address (required for order creation)
         const shippingAddress = buildShippingAddress(row, headers);
         if (!shippingAddress) {
           errors.push({
@@ -257,39 +247,146 @@ export async function POST(request: NextRequest) {
           console.log(`[CSV Upload] [${requestId}] ⚠️ No customization URL found in CSV for order ${amazonOrderId}`);
         }
 
-        // Prepare updates
-        const updates: any = {
-          shipping_address: shippingAddress,
-        };
+        // Query Supabase for order
+        console.log(`[CSV Upload] [${requestId}] Row ${rowNumber}: Querying Supabase for order with amazon_order_id="${amazonOrderId}"`);
+        const { data: existingOrder, error: queryError } = await supabase
+          .from('orders')
+          .select('amazon_order_id')
+          .eq('amazon_order_id', amazonOrderId)
+          .single();
 
-        if (customerName) {
-          updates.customer_name = customerName;
-        }
+        const orderExists = !queryError && existingOrder;
 
-        if (customerEmail) {
-          updates.customer_email = customerEmail;
-        }
+        if (!orderExists) {
+          // Order not found - create it with CSV data
+          console.log(`[CSV Upload] [${requestId}] Order ${amazonOrderId} not found - creating new order from CSV data`);
+          
+          // Calculate character hash if we have character specs
+          let characterHash = null;
+          if (characterSpecs) {
+            const crypto = require('crypto');
+            const characterHashSpec = {
+              clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts',
+              favoriteColor: characterSpecs.favoriteColor || 'blue',
+              hairColor: characterSpecs.hairColor || 'brown',
+              hairStyle: characterSpecs.hairStyle || 'short/straight',
+              skinTone: characterSpecs.skinTone || 'medium'
+            };
+            const hashString = JSON.stringify(characterHashSpec);
+            characterHash = crypto.createHash('sha256').update(hashString).digest('hex').substring(0, 16);
+          }
 
-        // Add character specs if customization was successfully parsed
-        if (characterSpecs) {
-          updates.character_specs = characterSpecs;
-        }
+          // Build new order data
+          const newOrderData: any = {
+            orderId: amazonOrderId,
+            amazon_order_id: amazonOrderId,
+            shipping_address: shippingAddress,
+            customer_name: customerName || null,
+            customer_email: customerEmail || null,
+            character_specs: characterSpecs || null,
+            character_hash: characterHash,
+            dedication_text: characterSpecs?.dedication || null,
+            status: 'new',
+            execution_status: 'pending_w0',
+            next_workflow: null,
+            workflow_step: null,
+            marketplace_id: 'ATVPDKIKX0DER', // Default to US marketplace
+            purchase_date: new Date().toISOString(), // Use current date if not in CSV
+            product_info: { _created_via_csv: true },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
 
-        // Update order in Supabase
-        // Use updateOrderInSupabase which handles amazon_order_id lookup
-        try {
-          console.log(`[CSV Upload] [${requestId}] Updating order ${amazonOrderId} with updates:`, JSON.stringify(Object.keys(updates)));
-          await updateOrderInSupabase(amazonOrderId, updates);
-          console.log(`[CSV Upload] [${requestId}] ✅ Order ${amazonOrderId} updated successfully`);
-          matchedOrders.push(amazonOrderId);
-          summary.matched++;
-
-          // Auto-trigger W0 if order now has complete data (shipping + character specs)
-          // W0 will process the order, build manifest, and set execution_status to 'ready_for_processing'
-          // Check if order has both shipping_address and character_specs (either from this update or already in DB)
-          console.log(`[CSV Upload] [${requestId}] ✅ Order ${amazonOrderId} updated successfully, checking W0 trigger...`);
-          console.log(`[CSV Upload] [${requestId}] Updates applied:`, JSON.stringify(Object.keys(updates)));
           try {
+            const { data: createdOrder, error: createError } = await supabase
+              .from('orders')
+              .insert(newOrderData)
+              .select()
+              .single();
+
+            if (createError) {
+              console.error(`[CSV Upload] [${requestId}] ❌ Failed to create order ${amazonOrderId}:`, createError.message);
+              errors.push({
+                row: rowNumber,
+                orderId: amazonOrderId,
+                error: `Failed to create order: ${createError.message}`,
+              });
+              summary.errors++;
+              continue;
+            }
+
+            console.log(`[CSV Upload] [${requestId}] ✅ Created new order ${amazonOrderId} from CSV`);
+            matchedOrders.push(amazonOrderId);
+            summary.matched++;
+          } catch (createException: any) {
+            console.error(`[CSV Upload] [${requestId}] ❌ Exception creating order ${amazonOrderId}:`, createException.message);
+            errors.push({
+              row: rowNumber,
+              orderId: amazonOrderId,
+              error: `Exception creating order: ${createException.message}`,
+            });
+            summary.errors++;
+            continue;
+          }
+        } else {
+          // Order exists - update it with CSV data
+          console.log(`[CSV Upload] [${requestId}] Order ${amazonOrderId} exists - updating with CSV data`);
+
+          // Prepare updates
+          const updates: any = {
+            shipping_address: shippingAddress,
+          };
+
+          if (customerName) {
+            updates.customer_name = customerName;
+          }
+
+          if (customerEmail) {
+            updates.customer_email = customerEmail;
+          }
+
+          // Add character specs if customization was successfully parsed
+          if (characterSpecs) {
+            updates.character_specs = characterSpecs;
+            // Recalculate character hash if character specs changed
+            const crypto = require('crypto');
+            const characterHashSpec = {
+              clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts',
+              favoriteColor: characterSpecs.favoriteColor || 'blue',
+              hairColor: characterSpecs.hairColor || 'brown',
+              hairStyle: characterSpecs.hairStyle || 'short/straight',
+              skinTone: characterSpecs.skinTone || 'medium'
+            };
+            const hashString = JSON.stringify(characterHashSpec);
+            updates.character_hash = crypto.createHash('sha256').update(hashString).digest('hex').substring(0, 16);
+          }
+
+          // Update order in Supabase
+          // Use updateOrderInSupabase which handles amazon_order_id lookup
+          try {
+            console.log(`[CSV Upload] [${requestId}] Updating order ${amazonOrderId} with updates:`, JSON.stringify(Object.keys(updates)));
+            await updateOrderInSupabase(amazonOrderId, updates);
+            console.log(`[CSV Upload] [${requestId}] ✅ Order ${amazonOrderId} updated successfully`);
+            matchedOrders.push(amazonOrderId);
+            summary.matched++;
+          } catch (updateException: any) {
+            console.error(`[CSV Upload] [${requestId}] ❌ Exception updating order ${amazonOrderId}:`, updateException.message);
+            errors.push({
+              row: rowNumber,
+              orderId: amazonOrderId,
+              error: `Exception updating order: ${updateException.message}`,
+            });
+            summary.errors++;
+            continue;
+          }
+        }
+
+        // Auto-trigger W0 if order now has complete data (shipping + character specs)
+        // This runs for both created and updated orders
+        // W0 will process the order, build manifest, and set execution_status to 'ready_for_processing'
+        // Check if order has both shipping_address and character_specs (either from this update or already in DB)
+        console.log(`[CSV Upload] [${requestId}] ✅ Order ${amazonOrderId} processed, checking W0 trigger...`);
+        try {
             console.log(`[CSV Upload] [${requestId}] Entering W0 trigger try block for order ${amazonOrderId}`);
             // Fetch the updated order to get all data for W0
             const { data: updatedOrder, error: fetchError } = await supabase
@@ -375,12 +472,26 @@ export async function POST(request: NextRequest) {
                     }, {} as Record<string, any>);
                   const hashInput = JSON.stringify({ ...sortedSpecs, orderId: orderIdValue });
                   characterHash = createHash('md5').update(hashInput).digest('hex').substring(0, 16);
+                  
+                  // Save character_hash to Supabase if it was just calculated
+                  console.log(`[CSV Upload] [${requestId}] Saving character_hash to Supabase: ${characterHash}`);
+                  await supabase
+                    .from('orders')
+                    .update({ character_hash: characterHash })
+                    .eq('amazon_order_id', amazonOrderId);
                 }
                 
+                // Log the order IDs being used in W0 payload
+                console.log(`[CSV Upload] [${requestId}] Building W0 payload for order ${amazonOrderId}`);
+                console.log(`[CSV Upload] [${requestId}] updatedOrder.amazon_order_id: ${updatedOrder.amazon_order_id}`);
+                console.log(`[CSV Upload] [${requestId}] updatedOrder.orderId: ${updatedOrder.orderId}`);
+                console.log(`[CSV Upload] [${requestId}] Using amazonOrderId: ${updatedOrder.amazon_order_id || amazonOrderId}`);
+                console.log(`[CSV Upload] [${requestId}] Using orderId: ${updatedOrder.orderId || updatedOrder.amazon_order_id || amazonOrderId}`);
+                
                 const w0Payload = {
-                  amazonOrderId: updatedOrder.amazon_order_id,
-                  orderId: updatedOrder.orderId || updatedOrder.amazon_order_id,
-                  id: updatedOrder.orderId || updatedOrder.amazon_order_id,
+                  amazonOrderId: updatedOrder.amazon_order_id || amazonOrderId,
+                  orderId: updatedOrder.orderId || updatedOrder.amazon_order_id || amazonOrderId,
+                  id: updatedOrder.orderId || updatedOrder.amazon_order_id || amazonOrderId,
                   orderDate: updatedOrder.purchase_date,
                   purchaseDate: updatedOrder.purchase_date,
                   status: 'pending_w0',

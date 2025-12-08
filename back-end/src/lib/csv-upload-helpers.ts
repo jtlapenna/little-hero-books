@@ -79,11 +79,17 @@ export function extractAmazonOrderId(
   }
   
   const orderId = row[orderIdIndex];
-  if (!orderId || typeof orderId !== 'string') {
+  if (!orderId) {
     return null;
   }
   
-  return orderId.trim();
+  // Convert to string and trim (handles numbers, etc.)
+  const orderIdStr = String(orderId).trim();
+  if (!orderIdStr) {
+    return null;
+  }
+  
+  return orderIdStr;
 }
 
 /**

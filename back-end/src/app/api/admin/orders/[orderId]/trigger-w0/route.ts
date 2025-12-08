@@ -96,6 +96,13 @@ export async function POST(
         }, {} as Record<string, any>);
       const hashInput = JSON.stringify({ ...sortedSpecs, orderId: orderIdValue });
       characterHash = createHash('md5').update(hashInput).digest('hex').substring(0, 16);
+      
+      // Save character_hash to Supabase if it was just calculated
+      console.log(`[Trigger W0] Saving character_hash to Supabase: ${characterHash}`);
+      await supabase
+        .from('orders')
+        .update({ character_hash: characterHash })
+        .eq('amazon_order_id', orderId);
     }
 
     // Build W0 payload
