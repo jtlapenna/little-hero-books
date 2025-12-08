@@ -23,15 +23,32 @@ export async function POST(
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   // Allow same-origin requests (internal admin page) without auth
+  // Also allow requests from the same domain (for production/admin subdomain)
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
-  const isSameOrigin = origin?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') || 
-                       referer?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') ||
-                       !origin;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
+  const isSameOrigin = !origin || // No origin = same-origin request
+                       origin?.includes(siteUrl) || 
+                       referer?.includes(siteUrl) ||
+                       origin?.includes('littleherolabs.com') || // Allow admin subdomain
+                       referer?.includes('littleherolabs.com');
   
   if (!isSameOrigin) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    console.error('[Reset Order] Unauthorized request:', {
+      origin,
+      referer,
+      siteUrl,
+      isSameOrigin
+    });
+    return NextResponse.json({ 
+      error: 'Unauthorized',
+      details: 'Request must be from same origin',
+      origin,
+      referer
+    }, { status: 401 });
   }
+  
+  console.log('[Reset Order] Request authorized:', { origin, referer });
 
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.json(
