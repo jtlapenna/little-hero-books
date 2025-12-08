@@ -314,13 +314,24 @@ export async function POST(request: NextRequest) {
                 }
               }
               
+              // Check if objects are valid (not null, not array, have keys)
               const hasShipping = shippingAddressObj && 
-                (typeof shippingAddressObj === 'object' ? Object.keys(shippingAddressObj).length > 0 : false);
+                typeof shippingAddressObj === 'object' && 
+                !Array.isArray(shippingAddressObj) &&
+                shippingAddressObj !== null &&
+                Object.keys(shippingAddressObj).length > 0;
+              
               const hasCharacterSpecs = characterSpecsObj && 
-                (typeof characterSpecsObj === 'object' ? Object.keys(characterSpecsObj).length > 0 : false);
+                typeof characterSpecsObj === 'object' && 
+                !Array.isArray(characterSpecsObj) &&
+                characterSpecsObj !== null &&
+                Object.keys(characterSpecsObj).length > 0;
 
               console.log(`[CSV Upload] [${requestId}] Order ${amazonOrderId} data check: hasShipping=${hasShipping}, hasCharacterSpecs=${hasCharacterSpecs}, webhookUrl=${!!n8nW0WebhookUrl}`);
               console.log(`[CSV Upload] [${requestId}] shipping_address type: ${typeof updatedOrder.shipping_address}, character_specs type: ${typeof updatedOrder.character_specs}`);
+              console.log(`[CSV Upload] [${requestId}] shippingAddressObj: ${shippingAddressObj ? `object with ${Object.keys(shippingAddressObj).length} keys` : 'null/undefined'}`);
+              console.log(`[CSV Upload] [${requestId}] characterSpecsObj: ${characterSpecsObj ? `object with ${Object.keys(characterSpecsObj).length} keys` : 'null/undefined'}`);
+              console.log(`[CSV Upload] [${requestId}] n8nW0WebhookUrl: ${n8nW0WebhookUrl || 'MISSING'}`);
               
               // Log detailed state for debugging
               if (!hasShipping) {
