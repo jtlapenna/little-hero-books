@@ -39,6 +39,8 @@ async function getOrder(
   try {
     supabaseOrderRecord = await getOrderFromSupabase(orderId);
     console.log(`[GET /api/orders/[orderId]] Supabase record found for ${orderId}, review_stages:`, JSON.stringify(supabaseOrderRecord?.review_stages || null));
+    console.log(`[GET /api/orders/[orderId]] Raw Supabase current_workflow:`, supabaseOrderRecord?.current_workflow);
+    console.log(`[GET /api/orders/[orderId]] Raw Supabase execution_status:`, supabaseOrderRecord?.execution_status);
   } catch (error: any) {
     console.warn(
       `[GET /api/orders/[orderId]] Supabase lookup failed for ${orderId}:`,
@@ -52,6 +54,8 @@ async function getOrder(
       supabaseOrder = await mapSupabaseOrderToOrder(supabaseOrderRecord);
       console.log(`[GET /api/orders/[orderId]] Supabase order loaded for ${orderId}`);
       console.log(`[GET /api/orders/[orderId]] Supabase reviewStages:`, JSON.stringify(supabaseOrder.reviewStages, null, 2));
+      console.log(`[GET /api/orders/[orderId]] Mapped currentWorkflow:`, supabaseOrder.currentWorkflow);
+      console.log(`[GET /api/orders/[orderId]] Mapped executionStatus:`, supabaseOrder.executionStatus);
     } catch (error: any) {
       console.error(
         `[GET /api/orders/[orderId]] Failed to map Supabase order ${orderId}:`,
@@ -117,6 +121,8 @@ async function getOrder(
   if (supabaseOrder) {
     order = mergeOrderData(supabaseOrder, manifestOrder);
     console.log(`[GET /api/orders/[orderId]] Merged reviewStages:`, JSON.stringify(order.reviewStages, null, 2));
+    console.log(`[GET /api/orders/[orderId]] Final merged currentWorkflow:`, order.currentWorkflow);
+    console.log(`[GET /api/orders/[orderId]] Final merged executionStatus:`, order.executionStatus);
     
     // Verify manifest URLs actually point to existing files
     // If Supabase has a URL but the file doesn't exist in R2, clear the URL

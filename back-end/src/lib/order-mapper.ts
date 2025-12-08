@@ -72,6 +72,10 @@ export async function mapSupabaseOrderToOrder(
     ...orderDetailsRaw,
   };
 
+  // Log the raw record values for debugging
+  console.log(`[mapSupabaseOrderToOrder] Mapping order ${orderId}, current_workflow from record:`, record.current_workflow);
+  console.log(`[mapSupabaseOrderToOrder] Mapping order ${orderId}, execution_status from record:`, record.execution_status);
+
   const order: Order = {
     orderId,
     platform: record.platform || 'amazon',
@@ -135,6 +139,10 @@ export async function mapSupabaseOrderToOrder(
         'https://n8n.example.com/webhook/approve',
     },
   };
+
+  // Log the mapped values
+  console.log(`[mapSupabaseOrderToOrder] Mapped currentWorkflow:`, order.currentWorkflow);
+  console.log(`[mapSupabaseOrderToOrder] Mapped executionStatus:`, order.executionStatus);
 
   // Derive character path if missing but hash exists
   if (!order.characterPath && order.characterHash) {
@@ -275,9 +283,11 @@ export function mapManifestToOrder(orderId: string, manifest: any): Order {
 
 export function mergeOrderData(primary: Order, fallback: Order | null): Order {
   if (!fallback) {
+    console.log(`[mergeOrderData] No fallback, returning primary with currentWorkflow:`, primary.currentWorkflow);
     return { ...primary };
   }
 
+  console.log(`[mergeOrderData] Merging primary (currentWorkflow: ${primary.currentWorkflow}) with fallback (currentWorkflow: ${fallback.currentWorkflow})`);
   const merged: Order = { ...primary };
 
   merged.customer = {

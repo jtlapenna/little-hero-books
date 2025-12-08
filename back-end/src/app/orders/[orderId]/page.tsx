@@ -146,6 +146,8 @@ export default function OrderDetailPage() {
       console.log('OrderDetailPage: R2 base character:', data.r2Assets?.baseCharacter);
       console.log('OrderDetailPage: R2 poses count:', data.r2Assets?.poses?.length);
       console.log('OrderDetailPage: R2 post-Bria poses count:', data.r2Assets?.posesBgRemoved?.length);
+      console.log('OrderDetailPage: currentWorkflow from API:', data.currentWorkflow);
+      console.log('OrderDetailPage: executionStatus from API:', data.executionStatus);
       setOrder(data);
       
       // Initialize flagCounts from order.flags if available (for immediate UI update)
