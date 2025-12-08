@@ -167,12 +167,14 @@ export async function POST(request: NextRequest) {
     const dataRows = rows.slice(1);
     const summary = {
       total_rows: dataRows.length,
-      matched: 0,
+      matched: 0, // Orders that existed and were updated
+      created: 0, // Orders that were created from CSV
       pending: 0,
       errors: 0,
     };
 
-    const matchedOrders: string[] = [];
+    const matchedOrders: string[] = []; // Orders that existed and were updated
+    const createdOrders: string[] = []; // Orders that were created from CSV
     const pendingOrders: string[] = [];
     const errors: Array<{ row: number; orderId: string | null; error: string }> = [];
     const w0Triggered: string[] = []; // Track orders that had W0 triggered
@@ -315,8 +317,8 @@ export async function POST(request: NextRequest) {
             }
 
             console.log(`[CSV Upload] [${requestId}] ✅ Created new order ${amazonOrderId} from CSV`);
-            matchedOrders.push(amazonOrderId);
-            summary.matched++;
+            createdOrders.push(amazonOrderId);
+            summary.created++;
           } catch (createException: any) {
             console.error(`[CSV Upload] [${requestId}] ❌ Exception creating order ${amazonOrderId}:`, createException.message);
             errors.push({
@@ -585,7 +587,8 @@ export async function POST(request: NextRequest) {
       success: true,
       summary,
       details: {
-        matched_orders: matchedOrders,
+        matched_orders: matchedOrders, // Orders that existed and were updated
+        created_orders: createdOrders, // Orders that were created from CSV
         pending_orders: pendingOrders,
         errors: errors,
         w0_triggered: w0Triggered, // Orders that had W0 automatically triggered
@@ -596,7 +599,7 @@ export async function POST(request: NextRequest) {
     };
     
     console.log(`[CSV Upload] [${requestId}] ====== Request Completed Successfully ======`);
-    console.log(`[CSV Upload] [${requestId}] Summary: ${summary.matched} matched, ${summary.pending} pending, ${summary.errors} errors`);
+    console.log(`[CSV Upload] [${requestId}] Summary: ${summary.matched} matched, ${summary.created} created, ${summary.pending} pending, ${summary.errors} errors`);
     console.log(`[CSV Upload] [${requestId}] W0 triggered for: ${w0Triggered.length} orders`);
     
     return NextResponse.json(response);

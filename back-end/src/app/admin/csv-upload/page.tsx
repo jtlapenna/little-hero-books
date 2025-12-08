@@ -9,11 +9,13 @@ interface UploadResult {
   summary: {
     total_rows: number;
     matched: number;
+    created: number;
     pending: number;
     errors: number;
   };
   details: {
     matched_orders: string[];
+    created_orders: string[];
     pending_orders: string[];
     errors: Array<{
       row: number;
@@ -259,7 +261,7 @@ export default function CsvUploadPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="text-sm text-gray-600">Total Rows</div>
                   <div className="text-2xl font-bold text-gray-900 mt-1">
@@ -270,6 +272,12 @@ export default function CsvUploadPage() {
                   <div className="text-sm text-green-600">Matched</div>
                   <div className="text-2xl font-bold text-green-700 mt-1">
                     {result.summary.matched}
+                  </div>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="text-sm text-blue-600">Created</div>
+                  <div className="text-2xl font-bold text-blue-700 mt-1">
+                    {result.summary.created || 0}
                   </div>
                 </div>
                 <div className="bg-yellow-50 rounded-lg p-4">
@@ -290,6 +298,34 @@ export default function CsvUploadPage() {
                 Processed at: {new Date(result.timestamp).toLocaleString()}
               </div>
             </div>
+
+            {/* Created Orders */}
+            {result.details.created_orders && result.details.created_orders.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex items-center mb-4">
+                  <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Created Orders ({result.details.created_orders.length})
+                  </h3>
+                </div>
+                <div className="bg-blue-50 rounded-md p-4">
+                  <p className="text-sm text-blue-800 mb-2">
+                    Successfully created the following orders from CSV data:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {result.details.created_orders.map((orderId) => (
+                      <Link
+                        key={orderId}
+                        href={`/orders/${orderId}`}
+                        className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm hover:bg-blue-200"
+                      >
+                        {orderId}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Matched Orders */}
             {result.details.matched_orders.length > 0 && (
@@ -389,7 +425,11 @@ export default function CsvUploadPage() {
                   <div>
                     <h3 className="text-sm font-medium text-green-800">Upload Complete</h3>
                     <p className="mt-1 text-sm text-green-700">
-                      All orders were successfully matched and updated.
+                      {result.summary.created > 0 && result.summary.matched > 0
+                        ? `All orders were successfully processed: ${result.summary.created} created, ${result.summary.matched} updated.`
+                        : result.summary.created > 0
+                        ? `All orders were successfully created from CSV data.`
+                        : `All orders were successfully matched and updated.`}
                     </p>
                   </div>
                 </div>
