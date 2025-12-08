@@ -176,6 +176,7 @@ export async function POST(request: NextRequest) {
     const pendingOrders: string[] = [];
     const errors: Array<{ row: number; orderId: string | null; error: string }> = [];
     const w0Triggered: string[] = []; // Track orders that had W0 triggered
+    const w0Skipped: Array<{ orderId: string; reason: string }> = []; // Track orders where W0 was skipped and why
 
     for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i];
@@ -332,6 +333,8 @@ export async function POST(request: NextRequest) {
               console.log(`[CSV Upload] [${requestId}] shippingAddressObj: ${shippingAddressObj ? `object with ${Object.keys(shippingAddressObj).length} keys` : 'null/undefined'}`);
               console.log(`[CSV Upload] [${requestId}] characterSpecsObj: ${characterSpecsObj ? `object with ${Object.keys(characterSpecsObj).length} keys` : 'null/undefined'}`);
               console.log(`[CSV Upload] [${requestId}] n8nW0WebhookUrl: ${n8nW0WebhookUrl || 'MISSING'}`);
+              console.log(`[CSV Upload] [${requestId}] Condition check: hasShipping=${hasShipping} (${typeof hasShipping}), hasCharacterSpecs=${hasCharacterSpecs} (${typeof hasCharacterSpecs}), n8nW0WebhookUrl=${!!n8nW0WebhookUrl} (${typeof n8nW0WebhookUrl})`);
+              console.log(`[CSV Upload] [${requestId}] Final condition result: ${hasShipping && hasCharacterSpecs && n8nW0WebhookUrl}`);
               
               // Log detailed state for debugging
               if (!hasShipping) {
@@ -437,6 +440,7 @@ export async function POST(request: NextRequest) {
                               !hasCharacterSpecs ? 'missing character_specs' : 
                               !n8nW0WebhookUrl ? 'N8N_W0_WEBHOOK_URL not configured' : 'unknown';
                 console.log(`[CSV Upload] [${requestId}] ⚠️ Skipping W0 trigger for order ${amazonOrderId}: ${reason}`);
+                w0Skipped.push({ orderId: amazonOrderId, reason });
               }
             } else {
               console.error(`[CSV Upload] [${requestId}] ❌ Failed to fetch updated order ${amazonOrderId} for W0 trigger`);
@@ -476,6 +480,7 @@ export async function POST(request: NextRequest) {
         pending_orders: pendingOrders,
         errors: errors,
         w0_triggered: w0Triggered, // Orders that had W0 automatically triggered
+        w0_skipped: w0Skipped, // Orders where W0 was skipped and why
       },
       timestamp: new Date().toISOString(),
       request_id: requestId, // Include request ID for log correlation
