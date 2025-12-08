@@ -12,6 +12,7 @@ import {
 import { updateOrderInSupabase } from '@/lib/supabase-client';
 import { downloadAndExtractCustomizationZip } from '@/lib/zip-downloader';
 import { parseAmazonCustomization } from '@/lib/amazon-customization-parser';
+import { createHash } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -267,19 +268,61 @@ export async function POST(request: NextRequest) {
                 (typeof updatedOrder.character_specs === 'object' ? Object.keys(updatedOrder.character_specs).length > 0 : true);
 
               if (hasShipping && hasCharacterSpecs && n8nW0WebhookUrl) {
-                // Build W0 webhook payload (similar to Amazon orders cron)
+                // Build W0 webhook payload (matches format from Amazon orders cron and /api/amazon/orders)
+                const characterSpecs = typeof updatedOrder.character_specs === 'string' 
+                  ? JSON.parse(updatedOrder.character_specs) 
+                  : updatedOrder.character_specs;
+                const shippingAddress = typeof updatedOrder.shipping_address === 'string'
+                  ? JSON.parse(updatedOrder.shipping_address)
+                  : updatedOrder.shipping_address;
+                
+                // Calculate character_hash if missing (same logic as Amazon orders cron)
+                let characterHash = updatedOrder.character_hash;
+                if (!characterHash && characterSpecs) {
+                  const orderIdValue = updatedOrder.orderId || updatedOrder.amazon_order_id;
+                  // Sort character specs keys for consistent hashing (matches cron logic)
+                  const sortedSpecs = Object.keys(characterSpecs)
+                    .sort()
+                    .reduce((acc, key) => {
+                      acc[key] = characterSpecs[key];
+                      return acc;
+                    }, {} as Record<string, any>);
+                  const hashInput = JSON.stringify({ ...sortedSpecs, orderId: orderIdValue });
+                  characterHash = createHash('md5').update(hashInput).digest('hex').substring(0, 16);
+                }
+                
                 const w0Payload = {
+                  amazonOrderId: updatedOrder.amazon_order_id,
                   orderId: updatedOrder.orderId || updatedOrder.amazon_order_id,
-                  amazon_order_id: updatedOrder.amazon_order_id,
-                  character_hash: updatedOrder.character_hash,
-                  character_specs: updatedOrder.character_specs,
-                  shipping_address: updatedOrder.shipping_address,
-                  customer_name: updatedOrder.customer_name,
-                  customer_email: updatedOrder.customer_email,
-                  dedication_text: updatedOrder.dedication_text,
-                  product_info: updatedOrder.product_info,
-                  purchase_date: updatedOrder.purchase_date,
-                  marketplace_id: updatedOrder.marketplace_id,
+                  id: updatedOrder.orderId || updatedOrder.amazon_order_id,
+                  orderDate: updatedOrder.purchase_date,
+                  purchaseDate: updatedOrder.purchase_date,
+                  status: 'pending_w0',
+                  marketplaceId: updatedOrder.marketplace_id,
+                  customerEmail: updatedOrder.customer_email,
+                  buyer: {
+                    email: updatedOrder.customer_email,
+                    name: updatedOrder.customer_name,
+                  },
+                  shippingAddress: shippingAddress,
+                  characterSpecs: characterSpecs,
+                  character_specs: characterSpecs,
+                  CharacterSpecs: characterSpecs,
+                  bookSpecs: {
+                    title: `${characterSpecs?.childName || 'Child'} and the Adventure Compass`,
+                    totalPages: 16,
+                    format: '8.5x8.5_softcover',
+                    bookType: 'adventure',
+                  },
+                  orderDetails: {
+                    quantity: 1,
+                    shippingAddress: shippingAddress,
+                  },
+                  dedication: characterSpecs?.dedication || updatedOrder.dedication_text || null,
+                  Dedication: characterSpecs?.dedication || updatedOrder.dedication_text || null,
+                  items: Array.isArray(updatedOrder.product_info) ? updatedOrder.product_info : [],
+                  characterHash: characterHash,
+                  character_hash: characterHash,
                 };
 
                 const w0Response = await fetch(n8nW0WebhookUrl, {
