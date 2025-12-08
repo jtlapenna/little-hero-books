@@ -753,7 +753,8 @@ export default function OrderDetailPage() {
   const handleResetOrderRecovery = async () => {
     if (!order) return;
     
-    if (!confirm('Reset order to initial state? This will clear error fields and reset execution status.')) {
+    const nextWorkflow = order.nextWorkflow || '2A';
+    if (!confirm(`Reset order to ready for processing?\n\nThis will:\n- Set execution_status to 'ready_for_processing'\n- Set next_workflow to '${nextWorkflow}'\n- Clear error fields and processing state\n- Queue order for router cron\n\nOrder will be picked up by the router cron and sent to workflow ${nextWorkflow}.`)) {
       return;
     }
 
@@ -769,7 +770,7 @@ export default function OrderDetailPage() {
         throw new Error(data.error || 'Failed to reset order');
       }
 
-      alert('Order reset successfully!');
+      alert(`Order reset successfully!\n\nExecution Status: ${data.execution_status}\nNext Workflow: ${data.nextWorkflow}\n\nThe order is now ready for the router cron to pick up.`);
       await fetchOrder(order.orderId);
     } catch (error: any) {
       console.error('Error resetting order:', error);

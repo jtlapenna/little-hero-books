@@ -78,18 +78,21 @@ export async function POST(
       next_workflow: order.next_workflow
     });
 
-    // Reset order to initial state
+    // Reset order to ready_for_processing state so router cron can pick it up
+    // Clear all processing/error state and set execution_status to ready_for_processing
     const { error: updateError } = await supabase
       .from('orders')
       .update({
-        execution_status: 'ready_for_processing',
-        next_workflow: nextWorkflow,
+        execution_status: 'ready_for_processing', // Required for router cron
+        next_workflow: nextWorkflow, // Required for router cron (must not be null)
         error_message: null,
         error_type: null,
         retry_count: 0,
         next_retry_at: null,
-        current_workflow: null,
-        started_at: null,
+        last_error_at: null,
+        current_workflow: null, // Clear active workflow
+        started_at: null, // Clear processing timestamp
+        queued_at: new Date().toISOString(), // Set queued_at so router can prioritize
         updated_at: new Date().toISOString()
       })
       .eq('amazon_order_id', orderId);
@@ -105,11 +108,38 @@ export async function POST(
       );
     }
 
+    // Verify the update was successful
+    const { data: updatedOrder, error: verifyError } = await supabase
+      .from('orders')
+      .select('execution_status, next_workflow, current_workflow, started_at')
+      .eq('amazon_order_id', orderId)
+      .single();
+
+    if (verifyError) {
+      console.error('[Reset Order] Failed to verify update:', verifyError);
+      return NextResponse.json(
+        { 
+          error: 'Reset completed but verification failed',
+          details: verifyError.message 
+        },
+        { status: 500 }
+      );
+    }
+
+    console.log('[Reset Order] Order reset successfully:', {
+      orderId,
+      execution_status: updatedOrder.execution_status,
+      next_workflow: updatedOrder.next_workflow,
+      current_workflow: updatedOrder.current_workflow,
+      started_at: updatedOrder.started_at
+    });
+
     return NextResponse.json({
       success: true,
       orderId: orderId,
       nextWorkflow: nextWorkflow,
-      message: 'Order reset successfully'
+      execution_status: updatedOrder.execution_status,
+      message: `Order reset successfully. Ready for router cron (next_workflow: ${nextWorkflow})`
     });
 
   } catch (error: any) {
