@@ -278,7 +278,9 @@ export async function POST(request: NextRequest) {
         // Update order in Supabase
         // Use updateOrderInSupabase which handles amazon_order_id lookup
         try {
+          console.log(`[CSV Upload] [${requestId}] Updating order ${amazonOrderId} with updates:`, JSON.stringify(Object.keys(updates)));
           await updateOrderInSupabase(amazonOrderId, updates);
+          console.log(`[CSV Upload] [${requestId}] ✅ Order ${amazonOrderId} updated successfully`);
           matchedOrders.push(amazonOrderId);
           summary.matched++;
 
@@ -288,6 +290,7 @@ export async function POST(request: NextRequest) {
           console.log(`[CSV Upload] [${requestId}] ✅ Order ${amazonOrderId} updated successfully, checking W0 trigger...`);
           console.log(`[CSV Upload] [${requestId}] Updates applied:`, JSON.stringify(Object.keys(updates)));
           try {
+            console.log(`[CSV Upload] [${requestId}] Entering W0 trigger try block for order ${amazonOrderId}`);
             // Fetch the updated order to get all data for W0
             const { data: updatedOrder, error: fetchError } = await supabase
               .from('orders')
@@ -457,6 +460,7 @@ export async function POST(request: NextRequest) {
             w0Skipped.push({ orderId: amazonOrderId, reason: `Exception: ${w0Error.message || 'Unknown error'}` });
             // Don't fail the CSV upload if W0 trigger fails - order is still updated
           }
+          console.log(`[CSV Upload] [${requestId}] Exited W0 trigger try block for order ${amazonOrderId}`);
         } catch (updateError: any) {
           errors.push({
             row: rowNumber,
