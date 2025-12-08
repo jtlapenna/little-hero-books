@@ -93,6 +93,17 @@ export async function POST(
 
     console.log('[Reset Order] Determined next_workflow:', nextWorkflow);
 
+    if (!nextWorkflow) {
+      console.error('[Reset Order] Cannot reset: next_workflow is null');
+      return NextResponse.json(
+        { 
+          error: 'Cannot reset order: next_workflow cannot be determined',
+          details: 'Order may not have completed W0 yet'
+        },
+        { status: 400 }
+      );
+    }
+
     // Use the database ID for the update to ensure we update the correct record
     const updateData = {
       execution_status: 'ready_for_processing', // Required for router cron
@@ -108,16 +119,27 @@ export async function POST(
       updated_at: new Date().toISOString()
     };
 
-    console.log('[Reset Order] Updating order with:', updateData);
+    console.log('[Reset Order] Updating order with:', {
+      orderId: order.id,
+      amazon_order_id: order.amazon_order_id,
+      updateData
+    });
 
     // Reset order to ready_for_processing state so router cron can pick it up
     // Clear all processing/error state and set execution_status to ready_for_processing
     // Use database ID for more reliable update
-    const { error: updateError, data: updateDataResult } = await supabase
+    const { error: updateError, data: updateDataResult, count } = await supabase
       .from('orders')
       .update(updateData)
       .eq('id', order.id)
       .select('execution_status, next_workflow, current_workflow, started_at');
+
+    console.log('[Reset Order] Update result:', {
+      error: updateError,
+      data: updateDataResult,
+      count,
+      rowsAffected: updateDataResult?.length || 0
+    });
 
     if (updateError) {
       console.error('[Reset Order] Failed to update Supabase:', {

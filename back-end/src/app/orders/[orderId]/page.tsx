@@ -760,20 +760,38 @@ export default function OrderDetailPage() {
 
     setResettingOrder(true);
     try {
+      console.log('[Reset Button] Calling reset endpoint for order:', order.orderId);
       const response = await fetch(`/api/admin/orders/${order.orderId}/reset`, {
         method: 'POST',
       });
 
+      console.log('[Reset Button] Response status:', response.status, response.statusText);
       const data = await response.json();
+      console.log('[Reset Button] Response data:', data);
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to reset order');
+        console.error('[Reset Button] Reset failed:', data);
+        throw new Error(data.error || data.details || 'Failed to reset order');
       }
 
+      console.log('[Reset Button] Reset successful, fetching updated order...');
       alert(`Order reset successfully!\n\nExecution Status: ${data.execution_status}\nNext Workflow: ${data.nextWorkflow}\n\nThe order is now ready for the router cron to pick up.`);
       await fetchOrder(order.orderId);
+      
+      // Verify the order was actually reset
+      const updatedOrder = await fetch(`/api/orders/${order.orderId}`).then(r => r.json());
+      console.log('[Reset Button] Order after reset:', {
+        execution_status: updatedOrder.execution_status,
+        current_workflow: updatedOrder.current_workflow,
+        next_workflow: updatedOrder.next_workflow
+      });
+      
+      if (updatedOrder.execution_status !== 'ready_for_processing') {
+        console.warn('[Reset Button] WARNING: Order execution_status was not reset correctly!', updatedOrder.execution_status);
+        alert(`⚠️ Warning: Order reset may not have worked correctly.\n\nExpected: ready_for_processing\nActual: ${updatedOrder.execution_status}\n\nPlease check server logs.`);
+      }
     } catch (error: any) {
-      console.error('Error resetting order:', error);
+      console.error('[Reset Button] Error resetting order:', error);
       alert(error?.message || 'Failed to reset order. Please try again.');
     } finally {
       setResettingOrder(false);
