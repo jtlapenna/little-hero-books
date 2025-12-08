@@ -46,7 +46,24 @@ if (!supabaseUrl || !supabaseKey) {
 
 (async () => {
   try {
-    const { createClient } = require('@supabase/supabase-js');
+    // Try to load from back-end node_modules
+    let createClient;
+    try {
+      const supabaseModule = require('../back-end/node_modules/@supabase/supabase-js');
+      createClient = supabaseModule.createClient;
+    } catch (e) {
+      // Fallback: try direct require
+      const supabaseModule = require('@supabase/supabase-js');
+      createClient = supabaseModule.createClient;
+    }
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('❌ Supabase credentials not found in environment');
+      console.error('   SUPABASE_URL:', supabaseUrl ? '✅' : '❌');
+      console.error('   SUPABASE_SERVICE_ROLE_KEY:', supabaseKey ? '✅' : '❌');
+      process.exit(1);
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     const { data, error } = await supabase

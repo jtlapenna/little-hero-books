@@ -295,21 +295,43 @@ export async function POST(request: NextRequest) {
 
             if (!fetchError && updatedOrder) {
               // Check if order has complete data (shipping + character specs)
-              const hasShipping = updatedOrder.shipping_address && 
-                (typeof updatedOrder.shipping_address === 'object' ? Object.keys(updatedOrder.shipping_address).length > 0 : true);
-              const hasCharacterSpecs = updatedOrder.character_specs && 
-                (typeof updatedOrder.character_specs === 'object' ? Object.keys(updatedOrder.character_specs).length > 0 : true);
+              // Handle both JSON strings and objects from Supabase
+              let shippingAddressObj = updatedOrder.shipping_address;
+              if (typeof shippingAddressObj === 'string') {
+                try {
+                  shippingAddressObj = JSON.parse(shippingAddressObj);
+                } catch (e) {
+                  shippingAddressObj = null;
+                }
+              }
+              
+              let characterSpecsObj = updatedOrder.character_specs;
+              if (typeof characterSpecsObj === 'string') {
+                try {
+                  characterSpecsObj = JSON.parse(characterSpecsObj);
+                } catch (e) {
+                  characterSpecsObj = null;
+                }
+              }
+              
+              const hasShipping = shippingAddressObj && 
+                (typeof shippingAddressObj === 'object' ? Object.keys(shippingAddressObj).length > 0 : false);
+              const hasCharacterSpecs = characterSpecsObj && 
+                (typeof characterSpecsObj === 'object' ? Object.keys(characterSpecsObj).length > 0 : false);
 
               console.log(`[CSV Upload] [${requestId}] Order ${amazonOrderId} data check: hasShipping=${hasShipping}, hasCharacterSpecs=${hasCharacterSpecs}, webhookUrl=${!!n8nW0WebhookUrl}`);
+              console.log(`[CSV Upload] [${requestId}] shipping_address type: ${typeof updatedOrder.shipping_address}, character_specs type: ${typeof updatedOrder.character_specs}`);
               
               // Log detailed state for debugging
               if (!hasShipping) {
                 console.log(`[CSV Upload] [${requestId}] ⚠️ Order ${amazonOrderId} missing shipping_address`);
                 console.log(`[CSV Upload] [${requestId}] shipping_address value:`, JSON.stringify(updatedOrder.shipping_address));
+                console.log(`[CSV Upload] [${requestId}] shipping_address parsed:`, JSON.stringify(shippingAddressObj));
               }
               if (!hasCharacterSpecs) {
                 console.log(`[CSV Upload] [${requestId}] ⚠️ Order ${amazonOrderId} missing character_specs`);
                 console.log(`[CSV Upload] [${requestId}] character_specs value:`, JSON.stringify(updatedOrder.character_specs));
+                console.log(`[CSV Upload] [${requestId}] character_specs parsed:`, JSON.stringify(characterSpecsObj));
               }
               if (!n8nW0WebhookUrl) {
                 console.log(`[CSV Upload] [${requestId}] ⚠️ N8N_W0_WEBHOOK_URL not configured`);
@@ -318,12 +340,9 @@ export async function POST(request: NextRequest) {
               if (hasShipping && hasCharacterSpecs && n8nW0WebhookUrl) {
                 console.log(`[CSV Upload] [${requestId}] ✅ Conditions met - triggering W0 for order ${amazonOrderId}`);
                 // Build W0 webhook payload (matches format from Amazon orders cron and /api/amazon/orders)
-                const characterSpecs = typeof updatedOrder.character_specs === 'string' 
-                  ? JSON.parse(updatedOrder.character_specs) 
-                  : updatedOrder.character_specs;
-                const shippingAddress = typeof updatedOrder.shipping_address === 'string'
-                  ? JSON.parse(updatedOrder.shipping_address)
-                  : updatedOrder.shipping_address;
+                // Use the already-parsed objects
+                const characterSpecs = characterSpecsObj;
+                const shippingAddress = shippingAddressObj;
                 
                 // Calculate character_hash if missing (same logic as Amazon orders cron)
                 let characterHash = updatedOrder.character_hash;
