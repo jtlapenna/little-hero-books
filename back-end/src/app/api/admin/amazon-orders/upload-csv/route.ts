@@ -264,7 +264,6 @@ export async function POST(request: NextRequest) {
           // Calculate character hash if we have character specs
           let characterHash = null;
           if (characterSpecs) {
-            const crypto = require('crypto');
             const characterHashSpec = {
               clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts',
               favoriteColor: characterSpecs.favoriteColor || 'blue',
@@ -273,7 +272,7 @@ export async function POST(request: NextRequest) {
               skinTone: characterSpecs.skinTone || 'medium'
             };
             const hashString = JSON.stringify(characterHashSpec);
-            characterHash = crypto.createHash('sha256').update(hashString).digest('hex').substring(0, 16);
+            characterHash = createHash('sha256').update(hashString).digest('hex').substring(0, 16);
           }
 
           // Build new order data
@@ -349,7 +348,6 @@ export async function POST(request: NextRequest) {
           if (characterSpecs) {
             updates.character_specs = characterSpecs;
             // Recalculate character hash if character specs changed
-            const crypto = require('crypto');
             const characterHashSpec = {
               clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts',
               favoriteColor: characterSpecs.favoriteColor || 'blue',
@@ -572,14 +570,6 @@ export async function POST(request: NextRequest) {
             // Don't fail the CSV upload if W0 trigger fails - order is still updated
           }
           console.log(`[CSV Upload] [${requestId}] Exited W0 trigger try block for order ${amazonOrderId}`);
-        } catch (updateError: any) {
-          errors.push({
-            row: rowNumber,
-            orderId: amazonOrderId,
-            error: `Failed to update order: ${updateError?.message || 'Unknown error'}`,
-          });
-          summary.errors++;
-        }
       } catch (rowError: any) {
         errors.push({
           row: rowNumber,
