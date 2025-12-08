@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         executionId: `${executionId}-amazon`,
         supabaseUrl,
         supabaseKey,
-        n8nW0WebhookUrl: process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake',
+        n8nW0WebhookUrl: process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/w0-intake',
         amazonClientId: process.env.AMZ_LWA_CLIENT_ID_PROD 
           || process.env.AMZ_APP_CLIENT_ID 
           || process.env.AMAZON_SP_API_CLIENT_ID,
