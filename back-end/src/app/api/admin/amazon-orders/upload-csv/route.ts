@@ -32,33 +32,45 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
  * Returns: Summary of processing results
  */
 export async function POST(request: NextRequest) {
-  // Allow same-origin requests (internal admin page) without auth
-  const origin = request.headers.get('origin');
-  const referer = request.headers.get('referer');
-  const isSameOrigin =
-    origin?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') ||
-    referer?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') ||
-    !origin;
-
-  if (!isSameOrigin) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json(
-      { error: 'Supabase credentials not configured' },
-      { status: 500 }
-    );
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
+  const requestId = `csv-upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[CSV Upload] [${requestId}] ====== CSV Upload Request Started ======`);
+  console.log(`[CSV Upload] [${requestId}] Timestamp: ${new Date().toISOString()}`);
+  
   try {
+    // Allow same-origin requests (internal admin page) without auth
+    const origin = request.headers.get('origin');
+    const referer = request.headers.get('referer');
+    const isSameOrigin =
+      origin?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') ||
+      referer?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') ||
+      !origin;
+
+    console.log(`[CSV Upload] [${requestId}] Origin check: origin=${origin}, referer=${referer}, isSameOrigin=${isSameOrigin}`);
+
+    if (!isSameOrigin) {
+      console.error(`[CSV Upload] [${requestId}] ❌ Unauthorized - origin check failed`);
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error(`[CSV Upload] [${requestId}] ❌ Supabase credentials missing`);
+      return NextResponse.json(
+        { error: 'Supabase credentials not configured' },
+        { status: 500 }
+      );
+    }
+
+    console.log(`[CSV Upload] [${requestId}] ✅ Auth and config checks passed`);
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     // Parse form data
+    console.log(`[CSV Upload] [${requestId}] Parsing form data...`);
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
+    console.log(`[CSV Upload] [${requestId}] File received: ${file ? `name=${file.name}, size=${file.size} bytes` : 'null'}`);
 
     if (!file) {
+      console.error(`[CSV Upload] [${requestId}] ❌ No file provided`);
       return NextResponse.json(
         { error: 'No file provided. Please upload a CSV file.' },
         { status: 400 }
@@ -67,7 +79,9 @@ export async function POST(request: NextRequest) {
 
     // Validate file type
     const fileName = file.name.toLowerCase();
+    console.log(`[CSV Upload] [${requestId}] Validating file: ${fileName}`);
     if (!fileName.endsWith('.csv') && !fileName.endsWith('.txt')) {
+      console.error(`[CSV Upload] [${requestId}] ❌ Invalid file type: ${fileName}`);
       return NextResponse.json(
         { error: 'Invalid file type. Only .csv and .txt files are allowed.' },
         { status: 400 }
@@ -76,6 +90,7 @@ export async function POST(request: NextRequest) {
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
+      console.error(`[CSV Upload] [${requestId}] ❌ File too large: ${file.size} bytes`);
       return NextResponse.json(
         { error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB.` },
         { status: 400 }
@@ -83,21 +98,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Read file as text
+    console.log(`[CSV Upload] [${requestId}] Reading file content...`);
     const fileText = await file.text();
+    console.log(`[CSV Upload] [${requestId}] File content length: ${fileText.length} characters`);
 
     // Detect delimiter (tab-separated or comma-separated)
     // Check first line for tabs
     const firstLine = fileText.split('\n')[0];
     const isTabSeparated = firstLine.includes('\t');
     const delimiter = isTabSeparated ? '\t' : ',';
+    console.log(`[CSV Upload] [${requestId}] Detected delimiter: ${isTabSeparated ? 'TAB' : 'COMMA'}`);
 
     // Parse CSV/TSV
+    console.log(`[CSV Upload] [${requestId}] Parsing CSV/TSV...`);
     const parseResult = Papa.parse<string[]>(fileText, {
       header: false,
       skipEmptyLines: true,
       delimiter: delimiter,
       transformHeader: (header) => header.trim(),
     });
+    console.log(`[CSV Upload] [${requestId}] Parse result: ${parseResult.data.length} rows, ${parseResult.errors.length} errors`);
 
     if (parseResult.errors.length > 0) {
       return NextResponse.json(
@@ -393,7 +413,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Return summary
-    return NextResponse.json({
+    const response = {
       success: true,
       summary,
       details: {
@@ -403,13 +423,24 @@ export async function POST(request: NextRequest) {
         w0_triggered: w0Triggered, // Orders that had W0 automatically triggered
       },
       timestamp: new Date().toISOString(),
-    });
+      request_id: requestId, // Include request ID for log correlation
+    };
+    
+    console.log(`[CSV Upload] [${requestId}] ====== Request Completed Successfully ======`);
+    console.log(`[CSV Upload] [${requestId}] Summary: ${summary.matched} matched, ${summary.pending} pending, ${summary.errors} errors`);
+    console.log(`[CSV Upload] [${requestId}] W0 triggered for: ${w0Triggered.length} orders`);
+    
+    return NextResponse.json(response);
   } catch (error: any) {
-    console.error('[CSV Upload] Error processing CSV:', error);
+    console.error(`[CSV Upload] [${requestId}] ====== ERROR ======`);
+    console.error(`[CSV Upload] [${requestId}] Error message:`, error?.message || 'Unknown error');
+    console.error(`[CSV Upload] [${requestId}] Error stack:`, error?.stack);
+    console.error(`[CSV Upload] [${requestId}] Full error:`, JSON.stringify(error, null, 2));
     return NextResponse.json(
       {
         error: 'Failed to process CSV file',
         details: error?.message || 'Unknown error',
+        request_id: requestId,
       },
       { status: 500 }
     );

@@ -64,7 +64,7 @@ if (!supabaseUrl || !supabaseKey) {
 
 // Fetch order from Supabase
 async function fetchOrder() {
-  const { createClient } = await import('@supabase/supabase-js');
+  const { createClient } = require('@supabase/supabase-js');
   const supabase = createClient(supabaseUrl, supabaseKey);
   
   const { data, error } = await supabase
@@ -95,7 +95,7 @@ async function testW0Webhook(orderData) {
       : orderData.shipping_address;
     
     // Calculate character_hash if missing
-    const { createHash } = await import('crypto');
+    const { createHash } = require('crypto');
     let characterHash = orderData.character_hash;
     if (!characterHash && characterSpecs) {
       const orderIdValue = orderData.orderId || orderData.amazon_order_id;

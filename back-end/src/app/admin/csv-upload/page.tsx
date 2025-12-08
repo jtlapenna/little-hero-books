@@ -77,6 +77,9 @@ export default function CsvUploadPage() {
   const handleUpload = async () => {
     if (!file) return;
 
+    console.log('[CSV Upload UI] Starting upload...');
+    console.log('[CSV Upload UI] File:', file.name, file.size, 'bytes');
+    
     setUploading(true);
     setError(null);
     setResult(null);
@@ -84,23 +87,33 @@ export default function CsvUploadPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      console.log('[CSV Upload UI] FormData created, sending request to /api/admin/amazon-orders/upload-csv');
 
       const response = await fetch('/api/admin/amazon-orders/upload-csv', {
         method: 'POST',
         body: formData,
       });
 
+      console.log('[CSV Upload UI] Response received:', response.status, response.statusText);
+      console.log('[CSV Upload UI] Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+        console.error('[CSV Upload UI] Error response:', errorData);
         throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('[CSV Upload UI] Success response:', data);
       setResult(data);
     } catch (err: any) {
+      console.error('[CSV Upload UI] Exception during upload:', err);
+      console.error('[CSV Upload UI] Error message:', err.message);
+      console.error('[CSV Upload UI] Error stack:', err.stack);
       setError(err.message || 'Failed to upload CSV file');
     } finally {
       setUploading(false);
+      console.log('[CSV Upload UI] Upload finished');
     }
   };
 
