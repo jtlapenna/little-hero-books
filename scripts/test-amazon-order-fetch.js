@@ -15,7 +15,13 @@
  *   AMAZON_SANDBOX_MODE (optional, defaults to false)
  */
 
-require('dotenv').config({ path: '.env.local' });
+// Try to load dotenv if available, but don't fail if it's not installed
+try {
+  require('dotenv').config({ path: '.env.local' });
+} catch (e) {
+  // dotenv not installed - will use environment variables directly
+  console.log('ℹ️  dotenv not found - using environment variables directly\n');
+}
 
 const amazonClientId = process.env.AMZ_APP_CLIENT_ID || process.env.AMAZON_SP_API_CLIENT_ID;
 const amazonClientSecret = process.env.AMZ_APP_CLIENT_SECRET || process.env.AMAZON_SP_API_CLIENT_SECRET;
