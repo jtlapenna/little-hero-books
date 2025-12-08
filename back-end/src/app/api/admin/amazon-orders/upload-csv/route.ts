@@ -252,6 +252,7 @@ export async function POST(request: NextRequest) {
           // Auto-trigger W0 if order now has complete data (shipping + character specs)
           // W0 will process the order, build manifest, and set execution_status to 'ready_for_processing'
           // Check if order has both shipping_address and character_specs (either from this update or already in DB)
+          console.log(`[CSV Upload] Checking W0 trigger for order ${amazonOrderId}...`);
           try {
             // Fetch the updated order to get all data for W0
             const { data: updatedOrder, error: fetchError } = await supabase
@@ -267,7 +268,10 @@ export async function POST(request: NextRequest) {
               const hasCharacterSpecs = updatedOrder.character_specs && 
                 (typeof updatedOrder.character_specs === 'object' ? Object.keys(updatedOrder.character_specs).length > 0 : true);
 
+              console.log(`[CSV Upload] Order ${amazonOrderId} data check: hasShipping=${hasShipping}, hasCharacterSpecs=${hasCharacterSpecs}, webhookUrl=${!!n8nW0WebhookUrl}`);
+
               if (hasShipping && hasCharacterSpecs && n8nW0WebhookUrl) {
+                console.log(`[CSV Upload] ✅ Conditions met - triggering W0 for order ${amazonOrderId}`);
                 // Build W0 webhook payload (matches format from Amazon orders cron and /api/amazon/orders)
                 const characterSpecs = typeof updatedOrder.character_specs === 'string' 
                   ? JSON.parse(updatedOrder.character_specs) 
@@ -333,24 +337,41 @@ export async function POST(request: NextRequest) {
                   body: JSON.stringify(w0Payload),
                 });
 
+                const responseText = await w0Response.text();
+                
                 if (w0Response.ok) {
                   w0Triggered.push(amazonOrderId);
-                  console.log(`[CSV Upload] ✅ Triggered W0 for order ${amazonOrderId}`);
-                  const responseText = await w0Response.text();
-                  console.log(`[CSV Upload] W0 response for ${amazonOrderId}:`, responseText.substring(0, 500));
+                  console.log(`[CSV Upload] ✅ Successfully triggered W0 for order ${amazonOrderId}`);
+                  console.log(`[CSV Upload] W0 response status: ${w0Response.status}`);
+                  if (responseText) {
+                    try {
+                      const responseJson = JSON.parse(responseText);
+                      console.log(`[CSV Upload] W0 response:`, JSON.stringify(responseJson, null, 2));
+                    } catch (e) {
+                      console.log(`[CSV Upload] W0 response (text): ${responseText.substring(0, 500)}`);
+                    }
+                  }
                 } else {
-                  const errorText = await w0Response.text();
-                  console.error(`[CSV Upload] ❌ W0 webhook failed for order ${amazonOrderId}: ${w0Response.status} - ${errorText.substring(0, 500)}`);
+                  console.error(`[CSV Upload] ❌ W0 webhook failed for order ${amazonOrderId}`);
+                  console.error(`[CSV Upload] Status: ${w0Response.status} ${w0Response.statusText}`);
+                  console.error(`[CSV Upload] Response: ${responseText.substring(0, 1000)}`);
                   // Don't fail the CSV upload if W0 fails - order is still updated
                 }
               } else {
-                console.log(`[CSV Upload] ⚠️ Skipping W0 trigger for order ${amazonOrderId}: missing data (hasShipping: ${hasShipping}, hasCharacterSpecs: ${hasCharacterSpecs})`);
+                const reason = !hasShipping ? 'missing shipping_address' : 
+                              !hasCharacterSpecs ? 'missing character_specs' : 
+                              !n8nW0WebhookUrl ? 'N8N_W0_WEBHOOK_URL not configured' : 'unknown';
+                console.log(`[CSV Upload] ⚠️ Skipping W0 trigger for order ${amazonOrderId}: ${reason}`);
               }
             } else {
-              console.warn(`[CSV Upload] ⚠️ Failed to fetch updated order ${amazonOrderId} for W0 trigger:`, fetchError?.message);
+              console.error(`[CSV Upload] ❌ Failed to fetch updated order ${amazonOrderId} for W0 trigger`);
+              console.error(`[CSV Upload] Error:`, fetchError?.message || 'Unknown error');
+              console.error(`[CSV Upload] Fetch error details:`, JSON.stringify(fetchError, null, 2));
             }
           } catch (w0Error: any) {
-            console.warn(`[CSV Upload] ⚠️ Failed to trigger W0 for order ${amazonOrderId}:`, w0Error.message);
+            console.error(`[CSV Upload] ❌ Exception while triggering W0 for order ${amazonOrderId}:`);
+            console.error(`[CSV Upload] Error message: ${w0Error.message}`);
+            console.error(`[CSV Upload] Error stack:`, w0Error.stack);
             // Don't fail the CSV upload if W0 trigger fails - order is still updated
           }
         } catch (updateError: any) {
