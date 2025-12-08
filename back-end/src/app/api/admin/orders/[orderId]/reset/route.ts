@@ -20,7 +20,7 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   // Allow same-origin requests (internal admin page) without auth
   const origin = request.headers.get('origin');
@@ -40,7 +40,7 @@ export async function POST(
     );
   }
 
-  const orderId = params.orderId;
+  const { orderId } = await params;
 
   if (!orderId) {
     return NextResponse.json(
