@@ -433,6 +433,7 @@ export async function POST(request: NextRequest) {
                   console.error(`[CSV Upload] [${requestId}] ❌ W0 webhook failed for order ${amazonOrderId}`);
                   console.error(`[CSV Upload] [${requestId}] Status: ${w0Response.status} ${w0Response.statusText}`);
                   console.error(`[CSV Upload] [${requestId}] Response: ${responseText.substring(0, 1000)}`);
+                  w0Skipped.push({ orderId: amazonOrderId, reason: `W0 webhook failed: ${w0Response.status} ${w0Response.statusText}` });
                   // Don't fail the CSV upload if W0 fails - order is still updated
                 }
               } else {
@@ -446,11 +447,13 @@ export async function POST(request: NextRequest) {
               console.error(`[CSV Upload] [${requestId}] ❌ Failed to fetch updated order ${amazonOrderId} for W0 trigger`);
               console.error(`[CSV Upload] [${requestId}] Error:`, fetchError?.message || 'Unknown error');
               console.error(`[CSV Upload] [${requestId}] Fetch error details:`, JSON.stringify(fetchError, null, 2));
+              w0Skipped.push({ orderId: amazonOrderId, reason: `Failed to fetch order: ${fetchError?.message || 'Unknown error'}` });
             }
           } catch (w0Error: any) {
             console.error(`[CSV Upload] [${requestId}] ❌ Exception while triggering W0 for order ${amazonOrderId}:`);
             console.error(`[CSV Upload] [${requestId}] Error message: ${w0Error.message}`);
             console.error(`[CSV Upload] [${requestId}] Error stack:`, w0Error.stack);
+            w0Skipped.push({ orderId: amazonOrderId, reason: `Exception: ${w0Error.message || 'Unknown error'}` });
             // Don't fail the CSV upload if W0 trigger fails - order is still updated
           }
         } catch (updateError: any) {
