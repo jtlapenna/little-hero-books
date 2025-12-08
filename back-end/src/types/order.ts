@@ -46,6 +46,7 @@ export interface Order {
   finalBookUrl?: string;
   finalCoverUrl?: string;
   workflowStep?: string;
+  currentWorkflow?: string; // current_workflow from Supabase (2A, 2B, 3, etc.)
   luluStatus?: string;
   executionStatus?: string; // execution_status from Supabase (processing, error, error_requires_manual_review, etc.)
   errorMessage?: string; // error_message from Supabase
