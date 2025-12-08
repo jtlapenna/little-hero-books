@@ -1124,9 +1124,21 @@ export default function OrderDetailPage() {
                   )}
                 </button>
               )}
-              {(order.executionStatus === 'error' || 
-                order.executionStatus === 'error_requires_manual_review' ||
-                (order.executionStatus === 'processing' && order.currentWorkflow)) && (
+              {(() => {
+                const shouldShow = enableResetButton && (
+                  order.executionStatus === 'error' || 
+                  order.executionStatus === 'error_requires_manual_review' ||
+                  (order.executionStatus === 'processing' && order.currentWorkflow)
+                );
+                console.log('[Reset Button] Visibility check:', {
+                  enableResetButton,
+                  executionStatus: order.executionStatus,
+                  currentWorkflow: order.currentWorkflow,
+                  shouldShow,
+                  orderId: order?.orderId
+                });
+                return shouldShow;
+              })() && (
                 <button
                   type="button"
                   onClick={(e) => {
