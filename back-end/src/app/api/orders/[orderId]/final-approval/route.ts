@@ -1,4 +1,5 @@
-// Force new deployment - fix notification sending for existing tokens
+// Fix: Remove await before .catch() in notification logging
+// Deployment: Force new deployment to apply fix
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
@@ -197,8 +198,10 @@ async function handleFinalApproval(
       notificationResult.response = response;
       notificationResult.sent = response.success;
 
+      // Log notification attempt (fire and forget - don't await to avoid blocking)
+      // FIX: Removed await before .catch() - await resolves promise, making .catch() unavailable
       const now = new Date().toISOString();
-      await supabase
+      supabase
         .from('notification_logs')
         .insert({
           order_id: amazonOrderId,
@@ -212,6 +215,9 @@ async function handleFinalApproval(
             : response.error || 'Unknown error',
           sent_at: response.success ? now : null,
           created_at: now
+        })
+        .then(() => {
+          // Successfully logged (no action needed)
         })
         .catch((error) => {
           console.error(
