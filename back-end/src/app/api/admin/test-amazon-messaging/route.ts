@@ -91,6 +91,9 @@ export async function GET(request: NextRequest) {
       }
       
       if (!lwaResponse.ok) {
+        // For unauthorized_client, provide specific verification steps
+        const isUnauthorizedClient = lwaData.error === 'unauthorized_client';
+        
         diagnostics.steps.push({ 
           step: 3, 
           status: 'error', 
@@ -99,14 +102,31 @@ export async function GET(request: NextRequest) {
           httpStatus: lwaResponse.status,
           fullResponse: lwaData,
           troubleshooting: {
-            possibleCauses: [
+            errorType: isUnauthorizedClient ? 'CREDENTIAL_MISMATCH' : 'OTHER',
+            possibleCauses: isUnauthorizedClient ? [
+              '⚠️ MOST LIKELY: Refresh token in Cloudflare doesn\'t match the one in Seller Central',
+              '⚠️ Client ID in Cloudflare doesn\'t match the one in Seller Central',
+              '⚠️ Client Secret in Cloudflare doesn\'t match the one in Seller Central',
+              'Refresh token was regenerated but not updated in Cloudflare Pages',
+              'Copy-paste error: Extra spaces, missing characters, or wrong token copied'
+            ] : [
               'App not self-authorized: Even with refresh token, app must be authorized for seller account',
               'Refresh token mismatch: Token doesn\'t match client ID/secret',
               'App status: App may be in Draft but needs explicit authorization',
               'Seller account mismatch: Refresh token for different seller account',
               'Role permissions: App missing required SP-API roles (Buyer Communication)'
             ],
-            actionItems: [
+            actionItems: isUnauthorizedClient ? [
+              '1. Go to Seller Central → Manage Authorizations',
+              '2. Copy the EXACT refresh token (starts with Atzr|)',
+              '3. Go to Cloudflare Pages → Settings → Environment Variables',
+              '4. Find AMZ_REFRESH_TOKEN and replace with the EXACT token from step 2',
+              '5. Verify AMZ_APP_CLIENT_ID matches "View LWA credentials" in Seller Central',
+              '6. Verify AMZ_APP_CLIENT_SECRET matches "View LWA credentials" in Seller Central',
+              '7. Make sure NO extra spaces or quotes around values',
+              '8. Redeploy Cloudflare Pages after updating',
+              '9. Test again with this endpoint'
+            ] : [
               '1. Go to Seller Central → Apps & Services → Develop Apps',
               '2. Find "Little Hero Labs Production" app',
               '3. Click "Authorize app" (not just generate token)',
@@ -115,7 +135,17 @@ export async function GET(request: NextRequest) {
               '6. Copy the NEW refresh token after authorization',
               '7. Update AMZ_REFRESH_TOKEN in Cloudflare Pages',
               '8. Verify AMZ_SELLER_ID matches the authorized account'
-            ]
+            ],
+            verificationChecklist: isUnauthorizedClient ? [
+              'Refresh token: First 10 chars match? (Atzr|IwEBI...)',
+              'Refresh token: Last 10 chars match? (...AQUnxuKFrc)',
+              'Refresh token: Total length is 332 characters?',
+              'Client ID: Starts with "amzn1.application-oa2-client."?',
+              'Client Secret: Starts with "amzn1.oa2-cs.v1."?',
+              'Client Secret: Length is 80 characters?',
+              'All values: No extra spaces before/after?',
+              'All values: No quotes around values in Cloudflare?'
+            ] : []
           }
         });
         return NextResponse.json({
