@@ -508,16 +508,45 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
   }
 
   if (!response.ok) {
+    // Log FULL error details for troubleshooting - this is critical for diagnosis
+    const errorDetails = {
+      status: response.status,
+      statusText: response.statusText,
+      url: url.toString(),
+      method: method,
+      path: options.path,
+      errorData: data,
+      errors: data?.errors,
+      firstError: data?.errors?.[0],
+      rawResponse: text.substring(0, 1000), // First 1000 chars
+      allErrorCodes: data?.errors?.map((e: any) => e.code) || [],
+      allErrorMessages: data?.errors?.map((e: any) => e.message) || []
+    };
+    
+    console.error('[Amazon SP-API] Request failed - FULL DETAILS:', JSON.stringify(errorDetails, null, 2));
+
     const errorMessage =
       data?.errors?.[0]?.message ||
       data?.message ||
       `Amazon SP-API request failed with status ${response.status}`;
 
-    throw new AmazonMessagingError(errorMessage, {
+    // Include ALL error details in the error message for frontend display
+    const errorCode = data?.errors?.[0]?.code;
+    const errorDetailsStr = data?.errors?.[0]?.details 
+      ? ` Details: ${JSON.stringify(data.errors[0].details)}`
+      : '';
+    
+    const detailedError = errorCode 
+      ? `${errorMessage} (Code: ${errorCode}${errorDetailsStr})`
+      : errorMessage;
+
+    throw new AmazonMessagingError(detailedError, {
       retryable: response.status >= 500,
       status: response.status,
-      code: data?.errors?.[0]?.code,
-      details: data
+      code: errorCode,
+      details: data,
+      url: url.toString(),
+      path: options.path
     });
   }
 

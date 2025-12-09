@@ -272,12 +272,42 @@ async function handleFinalApproval(
         });
     } catch (error: any) {
       notificationResult.sent = false;
-      notificationResult.reason =
-        error?.message || 'Failed to send Amazon notification.';
-      console.error(
-        '[Final Approval] Amazon preview notification error:',
-        error
-      );
+      
+      // Include COMPREHENSIVE error information for troubleshooting
+      const errorDetails = error?.details || error?.response || {};
+      const errorCode = error?.code || errorDetails?.errors?.[0]?.code;
+      const errorMessage = error?.message || 'Failed to send Amazon notification.';
+      const errorPath = error?.path || 'unknown';
+      const errorUrl = error?.url || 'unknown';
+      
+      // Build detailed error message with all available info
+      let detailedReason = errorMessage;
+      if (errorCode) {
+        detailedReason += ` (Code: ${errorCode})`;
+      }
+      if (error?.status) {
+        detailedReason += ` (HTTP ${error.status})`;
+      }
+      if (errorPath && errorPath !== 'unknown') {
+        detailedReason += ` (Endpoint: ${errorPath})`;
+      }
+      if (errorDetails?.errors?.[0]?.details) {
+        detailedReason += ` | Details: ${JSON.stringify(errorDetails.errors[0].details)}`;
+      }
+      
+      notificationResult.reason = detailedReason;
+      
+      // Log FULL error details for server-side diagnosis
+      console.error('[Final Approval] Amazon preview notification error - COMPLETE DIAGNOSTICS:', {
+        message: errorMessage,
+        code: errorCode,
+        status: error?.status,
+        path: errorPath,
+        url: errorUrl,
+        details: errorDetails,
+        fullError: error,
+        stack: error?.stack
+      });
     }
   }
 
