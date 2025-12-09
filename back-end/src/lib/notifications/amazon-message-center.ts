@@ -134,9 +134,11 @@ export interface AmazonMessagingResponse {
   success: boolean;
   messageId?: string;
   documentId?: string;
+  messageType?: 'confirmCustomizationDetails' | 'createConfirmOrderDetails';
   error?: string;
   issues?: z.ZodIssue[];
   retryable?: boolean;
+  details?: unknown;
 }
 
 class AmazonMessagingError extends Error {
@@ -185,31 +187,65 @@ export async function sendAmazonPreviewMessage(
     const config = configResult.config;
     const accessToken = await getAccessToken(config);
 
-    await ensureMessageTypeAllowed({
+    // Check which message types are available for this order
+    const messageTypeCheck = await checkAvailableMessageTypes({
       amazonOrderId: params.amazonOrderId,
       accessToken,
       config
     });
 
-    const { documentId } = await uploadHtmlDocument({
-      html,
-      accessToken,
-      config,
-      reminderType: params.reminderType
-    });
+    if (!messageTypeCheck.allowedType) {
+      return {
+        success: false,
+        error: `No suitable messaging action available for this order. Available actions: ${messageTypeCheck.availableActions.join(', ') || 'none'}`,
+        details: {
+          availableActions: messageTypeCheck.availableActions,
+          rawResponse: messageTypeCheck.rawResponse
+        }
+      };
+    }
 
-    const messageResponse = await sendConfirmCustomizationDetails({
-      amazonOrderId: params.amazonOrderId,
-      accessToken,
-      config,
-      documentId,
-      reminderType: params.reminderType
-    });
+    console.log('[Amazon Messaging] Using message type:', messageTypeCheck.allowedType);
+
+    // Upload HTML document (only needed for confirmCustomizationDetails)
+    let documentId: string | undefined;
+    if (messageTypeCheck.allowedType === 'confirmCustomizationDetails') {
+      const uploadResult = await uploadHtmlDocument({
+        html,
+        accessToken,
+        config,
+        reminderType: params.reminderType
+      });
+      documentId = uploadResult.documentId;
+    }
+
+    // Send the appropriate message type
+    let messageResponse;
+    if (messageTypeCheck.allowedType === 'confirmCustomizationDetails') {
+      messageResponse = await sendConfirmCustomizationDetails({
+        amazonOrderId: params.amazonOrderId,
+        accessToken,
+        config,
+        documentId: documentId!,
+        reminderType: params.reminderType
+      });
+    } else {
+      // Use createConfirmOrderDetails as fallback
+      messageResponse = await sendConfirmOrderDetails({
+        amazonOrderId: params.amazonOrderId,
+        accessToken,
+        config,
+        previewUrl: params.previewUrl,
+        childName: params.childName,
+        reminderType: params.reminderType
+      });
+    }
 
     return {
       success: true,
       messageId: messageResponse.messageId,
-      documentId: documentId
+      documentId: documentId,
+      messageType: messageTypeCheck.allowedType
     };
   } catch (error) {
     if (error instanceof AmazonMessagingError) {
@@ -233,7 +269,19 @@ interface EnsureMessageTypeAllowedOptions {
   config: AmazonMessagingConfig;
 }
 
-async function ensureMessageTypeAllowed(options: EnsureMessageTypeAllowedOptions) {
+type AllowedMessageType = 'confirmCustomizationDetails' | 'createConfirmOrderDetails' | null;
+
+interface MessageTypeCheckResult {
+  allowedType: AllowedMessageType;
+  availableActions: string[];
+  rawResponse: any;
+}
+
+/**
+ * Check which messaging actions are available for this order
+ * Returns the best available action type, or null if none are suitable
+ */
+async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptions): Promise<MessageTypeCheckResult> {
   try {
     const response = await callSellingPartnerApi({
       method: 'GET',
@@ -261,18 +309,32 @@ async function ensureMessageTypeAllowed(options: EnsureMessageTypeAllowedOptions
       })
       .filter((value): value is string => typeof value === 'string');
 
-    if (!actions.includes('confirmCustomizationDetails')) {
-      throw new AmazonMessagingError('Amazon does not allow confirmCustomizationDetails for this order', {
-        retryable: false,
-        details: { actions }
-      });
+    // Log available actions for debugging
+    console.log('[Amazon Messaging] Available actions for order:', {
+      orderId: options.amazonOrderId,
+      actions,
+      rawActions: availableActions
+    });
+
+    // Prefer confirmCustomizationDetails, fall back to createConfirmOrderDetails
+    let allowedType: AllowedMessageType = null;
+    if (actions.includes('confirmCustomizationDetails')) {
+      allowedType = 'confirmCustomizationDetails';
+    } else if (actions.includes('createConfirmOrderDetails')) {
+      allowedType = 'createConfirmOrderDetails';
     }
+
+    return {
+      allowedType,
+      availableActions: actions,
+      rawResponse: response
+    };
   } catch (error: any) {
     // Re-throw AmazonMessagingError as-is
     if (error instanceof AmazonMessagingError) {
       throw error;
     }
-    // Wrap other errors (like "Body has already been used")
+    // Wrap other errors
     throw new AmazonMessagingError(
       error?.message || 'Failed to check message type availability',
       {
@@ -408,6 +470,9 @@ async function sendConfirmCustomizationDetails(options: SendConfirmCustomization
     path: `/messaging/v1/orders/${options.amazonOrderId}/messages/confirmCustomizationDetails`,
     accessToken: options.accessToken,
     config: options.config,
+    query: {
+      marketplaceIds: options.config.marketplaceId
+    },
     body: {
       attachments: [
         {
@@ -417,6 +482,49 @@ async function sendConfirmCustomizationDetails(options: SendConfirmCustomization
           documentId: options.documentId
         }
       ]
+    }
+  });
+
+  const messageId = response?.payload?.messageId || randomUUID();
+
+  return {
+    messageId
+  };
+}
+
+interface SendConfirmOrderDetailsOptions {
+  amazonOrderId: string;
+  accessToken: string;
+  config: AmazonMessagingConfig;
+  previewUrl: string;
+  childName?: string;
+  reminderType: ReminderType;
+}
+
+/**
+ * Send a confirmOrderDetails message (fallback when confirmCustomizationDetails isn't available)
+ * This uses plain text with the preview URL, no HTML attachments
+ */
+async function sendConfirmOrderDetails(options: SendConfirmOrderDetailsOptions) {
+  const reminders: Record<ReminderType, string> = {
+    initial: `Hi! Here is a preview of your personalized book so you can confirm everything looks good before we print: ${options.previewUrl}. We will proceed using these details unless we hear from you.`,
+    'reminder-day-1': `Friendly reminder: please review your story within the next two days. Preview: ${options.previewUrl}`,
+    'reminder-day-2': `Final reminder: automatic approval fires tomorrow unless you request a revision. Preview: ${options.previewUrl}`,
+    'auto-approval': `Action completed: we approved your story automatically so production can begin right away. Preview: ${options.previewUrl}`
+  };
+
+  const messageText = reminders[options.reminderType] || reminders.initial;
+
+  const response = await callSellingPartnerApi({
+    method: 'POST',
+    path: `/messaging/v1/orders/${options.amazonOrderId}/messages/createConfirmOrderDetails`,
+    accessToken: options.accessToken,
+    config: options.config,
+    query: {
+      marketplaceIds: options.config.marketplaceId
+    },
+    body: {
+      text: messageText
     }
   });
 
