@@ -101,15 +101,18 @@ async function handleFinalApproval(
     };
   }
 
-  const notificationsEnabled =
-    process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED === 'true';
+  // Check if notifications are enabled (handle whitespace and case variations)
+  const envValue = process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED?.trim().toLowerCase();
+  const notificationsEnabled = envValue === 'true';
   
-  // Debug logging for configuration
-  console.log('[Final Approval] Amazon messaging config check:', {
-    envVar: process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED,
-    enabled: notificationsEnabled,
-    type: typeof process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED
-  });
+  // Debug logging for configuration (only log if disabled to reduce noise)
+  if (!notificationsEnabled) {
+    console.log('[Final Approval] Amazon messaging disabled:', {
+      envVar: process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED,
+      trimmed: envValue,
+      enabled: notificationsEnabled
+    });
+  }
 
   const amazonOrderId =
     orderRecord.amazon_order_id ||
