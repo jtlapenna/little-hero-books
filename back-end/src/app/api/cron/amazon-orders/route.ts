@@ -334,12 +334,19 @@ async function getAmazonAccessTokenInternal(
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Amazon token request failed (${response.status}): ${errorText}`);
+    // Read response body once - can't read it twice in Cloudflare Workers
+    const responseText = await response.text();
+    let data: any;
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      data = { raw: responseText };
     }
 
-    const data = await response.json();
+    if (!response.ok) {
+      const errorText = typeof data === 'string' ? data : (data.error || data.error_description || responseText || 'Unknown error');
+      throw new Error(`Amazon token request failed (${response.status}): ${errorText}`);
+    }
     if (!data.access_token) {
       throw new Error('Amazon token response missing access_token');
     }
@@ -388,12 +395,21 @@ async function fetchAmazonOrdersInternal(
       },
     });
 
+    // Read response body once - can't read it twice in Cloudflare Workers
+    const responseText = await response.text();
+    let data: any;
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      data = { raw: responseText };
+    }
+
     if (!response.ok) {
-      const errorText = await response.text();
+      const errorText = responseText;
       
       if (sandboxMode && response.status === 400) {
         try {
-          const errorJson = JSON.parse(errorText);
+          const errorJson = typeof data === 'object' ? data : JSON.parse(errorText);
           if (errorJson.errors?.[0]?.code === 'InvalidInput') {
             console.warn('[Cron Amazon Orders] Sandbox Orders API returned InvalidInput - endpoint may not be fully supported in sandbox');
             return [];
@@ -406,7 +422,7 @@ async function fetchAmazonOrdersInternal(
       // Log full error details for debugging
       let errorDetails = '';
       try {
-        const errorJson = JSON.parse(errorText);
+        const errorJson = typeof data === 'object' ? data : JSON.parse(errorText);
         errorDetails = JSON.stringify(errorJson, null, 2);
         console.error(`[Cron Amazon Orders] Full error response (${response.status}):`, errorDetails);
         
@@ -438,8 +454,6 @@ async function fetchAmazonOrdersInternal(
       }
       throw new Error(`Amazon API request failed (${response.status}): ${errorText.substring(0, 200)}`);
     }
-
-    const data = await response.json();
     return data.payload?.Orders || [];
   } catch (error: any) {
     console.error('[Cron Amazon Orders] Failed to fetch orders:', error.message);
@@ -470,16 +484,23 @@ async function fetchOrderItemsInternal(
       },
     });
 
+    // Read response body once - can't read it twice in Cloudflare Workers
+    const responseText = await response.text();
+    let data: any;
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      data = { raw: responseText };
+    }
+
     if (!response.ok) {
-      const errorText = await response.text();
+      const errorText = responseText;
       if (response.status === 404) {
         console.warn(`[Cron Amazon Orders] Order ${orderId} items not available yet (404)`);
         return [];
       }
       throw new Error(`Failed to fetch order items (${response.status}): ${errorText}`);
     }
-
-    const data = await response.json();
     const orderItems = data.payload?.OrderItems || [];
     console.log(`[Cron Amazon Orders] Fetched ${orderItems.length} items for order ${orderId}`);
     return orderItems;

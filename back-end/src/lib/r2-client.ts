@@ -138,13 +138,15 @@ export async function listObjects(
   // Fetch the signed request
   const response = await fetch(signedRequest);
   
+  // Read response body once - can't read it twice in Cloudflare Workers
+  const responseText = await response.text();
+  
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`R2 listObjects failed: ${response.status} ${response.statusText} - ${errorText}`);
+    throw new Error(`R2 listObjects failed: ${response.status} ${response.statusText} - ${responseText}`);
   }
   
-  // Parse XML response
-  const xmlText = await response.text();
+  // Parse XML response (already read above)
+  const xmlText = responseText;
   const parsed = xmlParser.parse(xmlText) as ListObjectsV2Response;
   
   const result = parsed.ListBucketResult;

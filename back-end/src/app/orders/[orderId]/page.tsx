@@ -124,19 +124,26 @@ export default function OrderDetailPage() {
           'Cache-Control': 'no-cache'
         }
       });
+      // Read response body once - can't read it twice in Cloudflare Workers
+      const responseText = await response.text();
+      let data: any;
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        data = { raw: responseText };
+      }
+
       if (!response.ok) {
-        const errorText = await response.text();
         let errorMessage = 'Failed to fetch order';
         try {
-          const errorJson = JSON.parse(errorText);
+          const errorJson = typeof data === 'object' ? data : JSON.parse(responseText);
           errorMessage = errorJson.error || errorJson.message || errorMessage;
         } catch {
-          errorMessage = errorText || errorMessage;
+          errorMessage = responseText || errorMessage;
         }
         console.error(`[OrderDetailPage] API error (${response.status}):`, errorMessage);
         throw new Error(errorMessage);
       }
-      const data = await response.json();
       setOrder(data);
       
       // Initialize flagCounts from order.flags if available (for immediate UI update)

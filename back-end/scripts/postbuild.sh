@@ -249,10 +249,11 @@ echo "✅ Post-build script completed successfully!"
 echo "📁 Output directory structure:"
 ls -la "$OUTPUT_DIR" | head -15
 
-# Run pre-upload diagnostic
-if [ -f "scripts/pre-upload-diagnostic.sh" ]; then
-  echo ""
-  echo "📊 Running pre-upload diagnostic..."
-  bash scripts/pre-upload-diagnostic.sh
-fi
+# Run pre-upload diagnostic (temporarily disabled for faster builds)
+# Uncomment to enable diagnostic reporting
+# if [ -f "scripts/pre-upload-diagnostic.sh" ]; then
+#   echo ""
+#   echo "📊 Running pre-upload diagnostic..."
+#   bash scripts/pre-upload-diagnostic.sh
+# fi
 

@@ -234,34 +234,49 @@ interface EnsureMessageTypeAllowedOptions {
 }
 
 async function ensureMessageTypeAllowed(options: EnsureMessageTypeAllowedOptions) {
-  const response = await callSellingPartnerApi({
-    method: 'GET',
-    path: `/messaging/v1/orders/${options.amazonOrderId}`,
-    accessToken: options.accessToken,
-    config: options.config
-  });
-
-  const availableActions = Array.isArray(response?.payload?.availableActions)
-    ? response.payload.availableActions
-    : [];
-
-  const actions: string[] = availableActions
-    .map((action: any) => {
-      if (typeof action === 'string') {
-        return action;
-      }
-      if (action && typeof action === 'object') {
-        return action.name || action.code || action.action;
-      }
-      return undefined;
-    })
-    .filter((value): value is string => typeof value === 'string');
-
-  if (!actions.includes('confirmCustomizationDetails')) {
-    throw new AmazonMessagingError('Amazon does not allow confirmCustomizationDetails for this order', {
-      retryable: false,
-      details: { actions }
+  try {
+    const response = await callSellingPartnerApi({
+      method: 'GET',
+      path: `/messaging/v1/orders/${options.amazonOrderId}`,
+      accessToken: options.accessToken,
+      config: options.config
     });
+
+    const availableActions = Array.isArray(response?.payload?.availableActions)
+      ? response.payload.availableActions
+      : [];
+
+    const actions: string[] = availableActions
+      .map((action: any) => {
+        if (typeof action === 'string') {
+          return action;
+        }
+        if (action && typeof action === 'object') {
+          return action.name || action.code || action.action;
+        }
+        return undefined;
+      })
+      .filter((value): value is string => typeof value === 'string');
+
+    if (!actions.includes('confirmCustomizationDetails')) {
+      throw new AmazonMessagingError('Amazon does not allow confirmCustomizationDetails for this order', {
+        retryable: false,
+        details: { actions }
+      });
+    }
+  } catch (error: any) {
+    // Re-throw AmazonMessagingError as-is
+    if (error instanceof AmazonMessagingError) {
+      throw error;
+    }
+    // Wrap other errors (like "Body has already been used")
+    throw new AmazonMessagingError(
+      error?.message || 'Failed to check message type availability',
+      {
+        retryable: false,
+        details: { originalError: error?.message }
+      }
+    );
   }
 }
 
@@ -507,6 +522,15 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
     body: bodyString || undefined
   });
 
+  // Capture response metadata BEFORE reading body
+  // In Cloudflare Workers, accessing response properties after reading body can cause issues
+  const responseStatus = response.status;
+  const responseStatusText = response.statusText;
+  const responseOk = response.ok;
+
+  // Read response body ONCE as text, then parse manually
+  // In Cloudflare Workers, response body can only be read once
+  // Don't use .clone() - just read once and parse
   const text = await response.text().catch(() => '');
   let data: any;
   try {
@@ -515,11 +539,11 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
     data = { raw: text };
   }
 
-  if (!response.ok) {
+  if (!responseOk) {
     // Log FULL error details for troubleshooting - this is critical for diagnosis
     const errorDetails = {
-      status: response.status,
-      statusText: response.statusText,
+      status: responseStatus,
+      statusText: responseStatusText,
       url: url.toString(),
       method: method,
       path: options.path,
@@ -536,7 +560,7 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
     const errorMessage =
       data?.errors?.[0]?.message ||
       data?.message ||
-      `Amazon SP-API request failed with status ${response.status}`;
+      `Amazon SP-API request failed with status ${responseStatus}`;
 
     // Include ALL error details in the error message for frontend display
     const errorCode = data?.errors?.[0]?.code;
@@ -549,8 +573,8 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
       : errorMessage;
 
     throw new AmazonMessagingError(detailedError, {
-      retryable: response.status >= 500,
-      status: response.status,
+      retryable: responseStatus >= 500,
+      status: responseStatus,
       code: errorCode,
       details: data,
       url: url.toString(),
@@ -615,22 +639,23 @@ async function getAccessToken(config: AmazonMessagingConfig): Promise<string> {
     body: params.toString()
   });
 
+  // Read response body once - can't read it twice in Cloudflare Workers
   const responseText = await response.text();
-  let responseData: any;
+  let data: any;
   try {
-    responseData = responseText ? JSON.parse(responseText) : {};
+    data = responseText ? JSON.parse(responseText) : {};
   } catch {
-    responseData = { raw: responseText };
+    data = { raw: responseText };
   }
 
   if (!response.ok) {
-    const errorMessage = responseData.error_description || responseData.error || responseText || 'Unknown error';
+    const errorMessage = data.error_description || data.error || responseText || 'Unknown error';
     console.error('[LWA Token] Failed to get access token:', {
       status: response.status,
       statusText: response.statusText,
       error: errorMessage,
-      errorCode: responseData.error,
-      fullResponse: responseData
+      errorCode: data.error,
+      fullResponse: data
     });
     
     throw new AmazonMessagingError(
@@ -638,13 +663,11 @@ async function getAccessToken(config: AmazonMessagingConfig): Promise<string> {
       {
         retryable: response.status >= 500,
         status: response.status,
-        details: responseData,
-        errorCode: responseData.error
+        details: data,
+        errorCode: data.error
       }
     );
   }
-
-  const data = await response.json();
 
   if (!data.access_token || !data.expires_in) {
     throw new AmazonMessagingError('Amazon LWA response missing access token', {
