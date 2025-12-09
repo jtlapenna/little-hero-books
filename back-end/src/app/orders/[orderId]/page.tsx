@@ -162,7 +162,6 @@ export default function OrderDetailPage() {
 
   // Callback to update order state and sync flagCounts
   const handleOrderUpdate = useCallback((updates: Partial<Order>) => {
-    console.log('[handleOrderUpdate] Received updates:', updates);
     setOrder(prev => {
       if (!prev) return prev;
       
@@ -181,9 +180,6 @@ export default function OrderDetailPage() {
         reviewStages: updatedReviewStages,
       };
       
-      console.log('[handleOrderUpdate] Updated order.reviewStages:', updatedReviewStages);
-      console.log('[handleOrderUpdate] Updated order.flags:', updatedOrder.flags);
-      
       // Sync flagCounts state with order.flags for immediate UI update
       if (updates.flags) {
         const newFlagCounts = {
@@ -191,7 +187,6 @@ export default function OrderDetailPage() {
           postBria: updates.flags.postBria || 0,
           postPdf: updates.flags.postPdf || 0,
         };
-        console.log('[handleOrderUpdate] Updating flagCounts:', newFlagCounts);
         setFlagCounts(newFlagCounts);
       }
       
@@ -223,11 +218,6 @@ export default function OrderDetailPage() {
         throw new Error('Order is not loaded');
       }
 
-      console.log('[SendToPrint] Initiating print request:', {
-        orderId: order.orderId,
-        source,
-        timestamp: new Date().toISOString()
-      });
 
       const response = await fetch(`/api/orders/${order.orderId}/print`, {
         method: 'POST',
@@ -237,12 +227,6 @@ export default function OrderDetailPage() {
         body: JSON.stringify({ source })
       });
 
-      console.log('[SendToPrint] Response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      });
 
       if (!response.ok) {
         const errorBody = await response.json().catch(() => null);
@@ -251,82 +235,80 @@ export default function OrderDetailPage() {
       }
 
       const result = await response.json().catch(() => null);
-      console.log('[SendToPrint] Success:', result);
       return result;
     },
     [order]
   );
 
-  // Update flag counts when order changes
+  // Update flag counts when orderId changes (not when order object changes)
   // Calculate directly from manifests (source of truth) rather than Supabase
   useEffectReact(() => {
-    if (order) {
-      const updateFlagCounts = async () => {
+    const orderId = params.orderId as string;
+    if (!orderId) return;
+    
+    const updateFlagCounts = async () => {
+      try {
+        let preBria = 0;
+        let postBria = 0;
+        let postPdf = 0;
+        
+        // Load 2a manifest for preBria flags
         try {
-          const orderId = order.orderId;
-          let preBria = 0;
-          let postBria = 0;
-          let postPdf = 0;
-          
-          // Load 2a manifest for preBria flags
-          try {
-            const manifest2aUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
-            const res2a = await fetch(manifest2aUrl, { cache: 'no-store' });
-            if (res2a.ok) {
-              const manifest2a = await res2a.json();
-              const entries2a = manifest2a?.entries || [];
-              preBria = entries2a.filter((e: any) => e.isFlagged || e.needsReview).length;
-            }
-          } catch (err) {
-            console.log('[OrderDetailPage] Could not load 2a manifest for flags:', err);
+          const manifest2aUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
+          const res2a = await fetch(manifest2aUrl, { cache: 'no-store' });
+          if (res2a.ok) {
+            const manifest2a = await res2a.json();
+            const entries2a = manifest2a?.entries || [];
+            preBria = entries2a.filter((e: any) => e.isFlagged || e.needsReview).length;
           }
-          
-          // Load 2b manifest for postBria flags (fallback to 2a if 2b doesn't exist)
-          // 404 is expected if workflow hasn't been triggered yet - suppress console errors
-          try {
-            let manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json?v=${Date.now()}`;
-            let res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
-            if (!res2b.ok && res2b.status === 404) {
-              // 404 is expected - manifest doesn't exist yet, fallback to 2a
-              manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
-              res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
-            }
-            if (res2b.ok) {
-              const manifest2b = await res2b.json();
-              const entries2b = manifest2b?.entries || [];
-              postBria = entries2b.filter((e: any) => e.isFlagged || e.needsReview).length;
-            }
-          } catch (err) {
-            // Silently handle - 404 is expected for orders that haven't reached this stage yet
-          }
-          
-          // Load 3 manifest for postPdf flags
-          // 404 is expected if workflow hasn't been triggered yet - suppress console errors
-          try {
-            const manifest3Url = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
-            const res3 = await fetch(manifest3Url, { cache: 'no-store' });
-            if (res3.ok) {
-              const manifest3 = await res3.json();
-              const pagesMetadata = manifest3?.pngGeneration?.pagesMetadata || manifest3?.manifest?.pngGeneration?.pagesMetadata || {};
-              postPdf = Object.values(pagesMetadata).filter((meta: any) => meta.isFlagged || meta.needsReview).length;
-            }
-          } catch (err) {
-            // Silently handle - 404 is expected for orders that haven't reached this stage yet
-          }
-          
-          setFlagCounts({ preBria, postBria, postPdf });
-        } catch (error) {
-          console.error('Error updating flag counts:', error);
+        } catch (err) {
+          // Silently handle - 404 is expected
         }
-      };
-      
-      updateFlagCounts();
-      
-      // Set up interval to check for flag count changes (polling for updates)
-      const interval = setInterval(updateFlagCounts, 3000); // Poll every 3 seconds
-      return () => clearInterval(interval);
-    }
-  }, [order]);
+        
+        // Load 2b manifest for postBria flags (fallback to 2a if 2b doesn't exist)
+        try {
+          let manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json?v=${Date.now()}`;
+          let res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
+          if (!res2b.ok && res2b.status === 404) {
+            manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
+            res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
+          }
+          if (res2b.ok) {
+            const manifest2b = await res2b.json();
+            const entries2b = manifest2b?.entries || [];
+            postBria = entries2b.filter((e: any) => e.isFlagged || e.needsReview).length;
+          }
+        } catch (err) {
+          // Silently handle - 404 is expected
+        }
+        
+        // Load 3 manifest for postPdf flags
+        try {
+          const manifest3Url = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
+          const res3 = await fetch(manifest3Url, { cache: 'no-store' });
+          if (res3.ok) {
+            const manifest3 = await res3.json();
+            const pagesMetadata = manifest3?.pngGeneration?.pagesMetadata || manifest3?.manifest?.pngGeneration?.pagesMetadata || {};
+            postPdf = Object.values(pagesMetadata).filter((meta: any) => meta.isFlagged || meta.needsReview).length;
+          }
+        } catch (err) {
+          // Silently handle - 404 is expected
+        }
+        
+        setFlagCounts({ preBria, postBria, postPdf });
+      } catch (error) {
+        // Silently handle errors
+      }
+    };
+    
+    // Initial update
+    updateFlagCounts();
+    
+    // Set up interval to check for flag count changes (polling for updates)
+    // Only poll every 10 seconds to reduce load
+    const interval = setInterval(updateFlagCounts, 10000);
+    return () => clearInterval(interval);
+  }, [params.orderId]); // Only depend on orderId, not the entire order object
 
   if (loading) {
     return (
@@ -457,44 +439,37 @@ export default function OrderDetailPage() {
       }
 
       const result = await response.json();
-      console.log('Stage approval result:', result);
-
       // Update the order with the approval result immediately (no delay, no refetch)
       if (result?.reviewStages || result?.flags) {
-        console.log('[handleStageApprove] Updating order with result:', { reviewStages: result.reviewStages, flags: result.flags });
-      setOrder(prev => {
-        if (!prev) return prev;
-          
-          // Create new object references to ensure React detects changes
-          const updatedReviewStages = result.reviewStages
-            ? {
-                ...prev.reviewStages,
-                ...result.reviewStages,
-              }
-            : prev.reviewStages;
-          
-          const updatedOrder: Order = {
-          ...prev,
-            reviewStages: updatedReviewStages,
-            ...(result.flags && { flags: result.flags }),
-          };
-          
-          console.log('[handleStageApprove] Updated order.reviewStages:', updatedReviewStages);
-          console.log('[handleStageApprove] Updated order.flags:', updatedOrder.flags);
-          
-          // Sync flagCounts state with order.flags for immediate UI update
-          if (result.flags) {
-            const newFlagCounts = {
-              preBria: result.flags.preBria || 0,
-              postBria: result.flags.postBria || 0,
-              postPdf: result.flags.postPdf || 0,
+        setOrder(prev => {
+          if (!prev) return prev;
+            
+            // Create new object references to ensure React detects changes
+            const updatedReviewStages = result.reviewStages
+              ? {
+                  ...prev.reviewStages,
+                  ...result.reviewStages,
+                }
+              : prev.reviewStages;
+            
+            const updatedOrder: Order = {
+            ...prev,
+              reviewStages: updatedReviewStages,
+              ...(result.flags && { flags: result.flags }),
             };
-            console.log('[handleStageApprove] Updating flagCounts:', newFlagCounts);
-            setFlagCounts(newFlagCounts);
-          }
-          
-          return updatedOrder;
-      });
+            
+            // Sync flagCounts state with order.flags for immediate UI update
+            if (result.flags) {
+              const newFlagCounts = {
+                preBria: result.flags.preBria || 0,
+                postBria: result.flags.postBria || 0,
+                postPdf: result.flags.postPdf || 0,
+              };
+              setFlagCounts(newFlagCounts);
+            }
+            
+            return updatedOrder;
+        });
       }
 
     } catch (error) {
@@ -541,7 +516,6 @@ export default function OrderDetailPage() {
   const handleInitiateWorkflow = async (stage: ReviewStage) => {
     if (!order) return;
     
-    console.log(`Initiating workflow for stage: ${stage}`);
     
     // Only trigger background removal for preBria stage
     if (stage === ('preBria' as unknown as ReviewStage)) {
@@ -558,8 +532,7 @@ export default function OrderDetailPage() {
           throw new Error(error.error || 'Failed to trigger background removal workflow');
         }
 
-        const result = await response.json();
-        console.log('Background removal workflow triggered:', result);
+        await response.json();
         
         // Refresh order data to update status (workflow step will change)
         await handleRefreshOrder();
@@ -589,8 +562,7 @@ export default function OrderDetailPage() {
           throw new Error(error.error || 'Failed to trigger book assembly workflow');
         }
 
-        const result = await response.json();
-        console.log('Book assembly workflow triggered:', result);
+        await response.json();
         
         // Refresh order data to update status (workflow step will change)
         await handleRefreshOrder();
@@ -1019,13 +991,6 @@ export default function OrderDetailPage() {
                   order.executionStatus === 'error_requires_manual_review' ||
                   (order.executionStatus === 'processing' && order.currentWorkflow)
                 );
-                console.log('[Reset Button] Visibility check:', {
-                  enableResetButton,
-                  executionStatus: order.executionStatus,
-                  currentWorkflow: order.currentWorkflow,
-                  shouldShow,
-                  orderId: order?.orderId
-                });
                 return shouldShow;
               })() && (
                 <button
@@ -1272,7 +1237,6 @@ export default function OrderDetailPage() {
                         
                         // Debug logging for badge state
                         if (stage.stageKey === 'preBria' || stage.stageKey === 'postBria' || stage.stageKey === 'postPdf') {
-                          console.log(`[Badge ${stage.stageKey}] stageStatus=${stageStatus}, isApproved=${isApproved}, stageFlagCount=${stageFlagCount}`);
                         }
                         
                         // Check if stage has been reached
