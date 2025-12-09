@@ -239,7 +239,10 @@ async function ensureMessageTypeAllowed(options: EnsureMessageTypeAllowedOptions
       method: 'GET',
       path: `/messaging/v1/orders/${options.amazonOrderId}`,
       accessToken: options.accessToken,
-      config: options.config
+      config: options.config,
+      query: {
+        marketplaceIds: options.config.marketplaceId // Amazon expects marketplaceIds query parameter (plural name, single value)
+      }
     });
 
     const availableActions = Array.isArray(response?.payload?.availableActions)
@@ -435,7 +438,7 @@ interface CallSpApiOptions {
   accessToken: string;
   config: AmazonMessagingConfig;
   body?: unknown;
-  query?: Record<string, string | number | undefined>;
+  query?: Record<string, string | number | string[] | undefined>;
 }
 
 async function callSellingPartnerApi(options: CallSpApiOptions) {
@@ -446,7 +449,16 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
   if (options.query) {
     for (const [key, value] of Object.entries(options.query)) {
       if (value !== undefined && value !== null) {
-        url.searchParams.append(key, String(value));
+        if (Array.isArray(value)) {
+          // For arrays, append each value (Amazon expects multiple marketplaceIds parameters)
+          value.forEach(v => {
+            if (v !== undefined && v !== null) {
+              url.searchParams.append(key, String(v));
+            }
+          });
+        } else {
+          url.searchParams.append(key, String(value));
+        }
       }
     }
   }
