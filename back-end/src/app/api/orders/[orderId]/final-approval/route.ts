@@ -1,3 +1,4 @@
+// Force new deployment - fix notification sending for existing tokens
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
@@ -169,10 +170,9 @@ async function handleFinalApproval(
     notificationResult.reason = 'Order is missing amazon_order_id.';
   } else if (!mappedOrder) {
     notificationResult.reason = 'Unable to map order for notification.';
-  } else if (!tokenCreated) {
-    notificationResult.reason =
-      'Preview token already active; skipping new notification.';
   } else {
+    // Send notification even if token already exists (allows resending to customer)
+    // Force new deployment
     notificationResult.attempted = true;
 
     try {
