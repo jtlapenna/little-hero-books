@@ -103,17 +103,26 @@ async function handleFinalApproval(
 
   // Check if notifications are enabled (handle whitespace and case variations)
   // Try multiple ways to read the env var (Next.js can cache env vars)
+  // IMPORTANT: In Vercel, env vars must be set in Project Settings → Environment Variables
+  // and the deployment must be rebuilt after adding them
   const rawEnvVar = process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED || 
-                    process.env.NEXT_PUBLIC_AMAZON_PREVIEW_NOTIFICATIONS_ENABLED;
+                    process.env.NEXT_PUBLIC_AMAZON_PREVIEW_NOTIFICATIONS_ENABLED ||
+                    null;
   const envValue = rawEnvVar?.trim().toLowerCase();
   const notificationsEnabled = envValue === 'true';
   
   // Always log for debugging (helps diagnose env var issues)
+  // This will appear in Vercel function logs
   console.log('[Final Approval] Amazon messaging config check:', {
-    rawEnvVar: rawEnvVar,
-    trimmed: envValue,
+    rawEnvVar: rawEnvVar || 'undefined',
+    trimmed: envValue || 'undefined',
     enabled: notificationsEnabled,
-    allEnvKeys: Object.keys(process.env).filter(k => k.includes('AMAZON') || k.includes('PREVIEW')).join(', ')
+    nodeEnv: process.env.NODE_ENV,
+    vercelEnv: process.env.VERCEL_ENV,
+    allAmazonKeys: Object.keys(process.env)
+      .filter(k => k.toUpperCase().includes('AMAZON') || k.toUpperCase().includes('PREVIEW'))
+      .map(k => `${k}=${process.env[k]?.substring(0, 10)}...`)
+      .join(', ')
   });
 
   const amazonOrderId =
