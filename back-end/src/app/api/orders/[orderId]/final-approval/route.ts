@@ -1,6 +1,6 @@
 // Fix: Remove await before .catch() in notification logging
 // Fix: Include actual error reason when Amazon messaging fails
-// Deployment: Force new deployment to apply fixes
+// Force deployment: Apply Amazon messaging fixes
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
@@ -178,6 +178,42 @@ async function handleFinalApproval(
     notificationResult.attempted = true;
 
     try {
+      // First, check configuration before attempting to send
+      const { getAmazonMessagingConfig } = await import('@/lib/notifications/amazon-message-center');
+      const configCheck = getAmazonMessagingConfig(true); // Force refresh
+      
+      if (!configCheck.ok) {
+        // Configuration is invalid - provide detailed error
+        const missingVars = configCheck.issues
+          .map(issue => {
+            const path = Array.isArray(issue.path) ? issue.path.join('.') : String(issue.path);
+            return `${path}: ${issue.message}`;
+          })
+          .join('; ');
+        
+        notificationResult.sent = false;
+        notificationResult.reason = `Configuration incomplete: ${missingVars}`;
+        
+        // Log detailed diagnostic info
+        console.error('[Final Approval] Amazon messaging config check failed:', {
+          error: configCheck.error,
+          issues: configCheck.issues,
+          envVars: {
+            AMZ_APP_CLIENT_ID: process.env.AMZ_APP_CLIENT_ID ? 'SET' : 'MISSING',
+            AMZ_APP_CLIENT_SECRET: process.env.AMZ_APP_CLIENT_SECRET ? 'SET' : 'MISSING',
+            AMZ_REFRESH_TOKEN: process.env.AMZ_REFRESH_TOKEN ? 'SET' : 'MISSING',
+            AMZ_SELLER_ID: process.env.AMZ_SELLER_ID ? 'SET' : 'MISSING',
+            AMZ_MARKETPLACE_ID: process.env.AMZ_MARKETPLACE_ID || 'NOT SET (using default)',
+            AMZ_REGION: process.env.AMZ_REGION || 'NOT SET (using default)',
+            AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? 'SET' : 'MISSING',
+            AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ? 'SET' : 'MISSING',
+            AWS_REGION: process.env.AWS_REGION || 'NOT SET (using default)',
+            CUSTOMER_SITE_URL: process.env.CUSTOMER_SITE_URL || 'NOT SET (using default)',
+          }
+        });
+        return; // Exit early - don't attempt to send
+      }
+
       const revisionsRemaining = Math.max(
         0,
         2 - (orderRecord.revision_count || 0)
