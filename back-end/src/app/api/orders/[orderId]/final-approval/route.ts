@@ -1,5 +1,6 @@
 // Fix: Remove await before .catch() in notification logging
-// Deployment: Force new deployment to apply fix
+// Fix: Include actual error reason when Amazon messaging fails
+// Deployment: Force new deployment to apply fixes
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
@@ -197,6 +198,14 @@ async function handleFinalApproval(
 
       notificationResult.response = response;
       notificationResult.sent = response.success;
+      
+      // If sending failed, include the error reason
+      if (!response.success) {
+        notificationResult.reason = response.error || 
+          (response.issues && response.issues.length > 0 
+            ? `Configuration issues: ${response.issues.map(i => i.message || i.path.join('.')).join(', ')}`
+            : 'Unknown error sending Amazon message');
+      }
 
       // Log notification attempt (fire and forget - don't await to avoid blocking)
       // FIX: Removed await before .catch() - await resolves promise, making .catch() unavailable
