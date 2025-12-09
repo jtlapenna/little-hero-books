@@ -132,7 +132,7 @@ async function handleFinalApproval(
 
   if (!notificationsEnabled) {
     notificationResult.reason =
-      `Amazon preview messaging disabled by configuration. (AMAZON_PREVIEW_NOTIFICATIONS_ENABLED=${process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED || 'not set'})`;
+      `Amazon preview messaging disabled by configuration. To enable, set AMAZON_PREVIEW_NOTIFICATIONS_ENABLED=true in your environment variables. (Current value: ${process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED || 'not set'})`;
   } else if (!amazonOrderId) {
     notificationResult.reason = 'Order is missing amazon_order_id.';
   } else if (!mappedOrder) {

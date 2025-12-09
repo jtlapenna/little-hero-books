@@ -270,8 +270,15 @@ export function PostPdfStage({
   const showPrintAction = isApproved && customerRevisionUsed;
   const finalApprovalIsLoading = Boolean(finalApprovalLoading);
 
-  const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
-  const pdfUrl = `/api/pdf/${pdfPath}`;
+  // Use finalBookUrl from order if available, otherwise fall back to expected path
+  // finalBookUrl is set by workflow 3 when the book is compiled
+  const finalBookUrl = order.finalBookUrl;
+  const pdfPath = finalBookUrl 
+    ? finalBookUrl.replace(/^https?:\/\/[^\/]+/, '').replace(/^\//, '') // Remove domain, keep path
+    : `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
+  const pdfUrl = finalBookUrl 
+    ? (finalBookUrl.startsWith('http') ? finalBookUrl : `/api/pdf/${pdfPath}`)
+    : `/api/pdf/${pdfPath}`;
 
   // Check if workflow 3 has completed
   // Workflow 3 is complete if manifest3Url exists or workflowStep is 'book_assembly_completed'
@@ -1424,7 +1431,7 @@ export function PostPdfStage({
         intervalId = null;
       }
     };
-  }, [orderId, pdfUrl]); // Removed coverImageUrl and coverImageDataUrl to prevent reload loops
+  }, [orderId, pdfUrl, workflow3Completed, finalBookUrl]); // Include workflow3Completed and finalBookUrl
 
   // Reset image loading state when spread changes (only if spread actually changed)
   // Compare spread key to prevent unnecessary resets when spreads array is recreated
