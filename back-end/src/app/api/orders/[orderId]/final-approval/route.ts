@@ -106,8 +106,8 @@ async function handleFinalApproval(
   // IMPORTANT: In Vercel, env vars must be set in Project Settings → Environment Variables
   // and the deployment must be rebuilt after adding them
   // 
-  // WORKAROUND: If the env var isn't set, we can also check if AMAZON_SANDBOX_MODE is false
-  // (in production, we typically want notifications enabled)
+  // WORKAROUND: If the env var isn't set, default to enabled in production (force redeploy)
+  // This is a workaround for Vercel env var not being available despite being set in UI
   const rawEnvVar = process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED || 
                     process.env.NEXT_PUBLIC_AMAZON_PREVIEW_NOTIFICATIONS_ENABLED ||
                     null;
@@ -115,12 +115,13 @@ async function handleFinalApproval(
   
   // Default to enabled in production if not explicitly set (since user has it set in Vercel UI)
   // This is a workaround for Vercel env var not being available despite being set
-  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+  // Note: isProduction is already declared above (line 83), reusing it here
   const sandboxMode = process.env.AMAZON_SANDBOX_MODE?.trim().toLowerCase() === 'true';
   
+  // Reuse isProduction from line 83 (no duplicate declaration)
   // Enable notifications if:
   // 1. Explicitly set to 'true', OR
-  // 2. In production and not in sandbox mode (default behavior)
+  // 2. In production and not in sandbox mode (default behavior when env var not available)
   const notificationsEnabled = envValue === 'true' || 
                                (isProduction && !sandboxMode && !rawEnvVar); // Default to enabled in production if not set
   
