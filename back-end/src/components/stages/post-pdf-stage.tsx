@@ -270,15 +270,8 @@ export function PostPdfStage({
   const showPrintAction = isApproved && customerRevisionUsed;
   const finalApprovalIsLoading = Boolean(finalApprovalLoading);
 
-  // Use finalBookUrl from order if available, otherwise fall back to expected path
-  // finalBookUrl is set by workflow 3 when the book is compiled
-  const finalBookUrl = order.finalBookUrl;
-  const pdfPath = finalBookUrl 
-    ? finalBookUrl.replace(/^https?:\/\/[^\/]+/, '').replace(/^\//, '') // Remove domain, keep path
-    : `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
-  const pdfUrl = finalBookUrl 
-    ? (finalBookUrl.startsWith('http') ? finalBookUrl : `/api/pdf/${pdfPath}`)
-    : `/api/pdf/${pdfPath}`;
+  const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
+  const pdfUrl = `/api/pdf/${pdfPath}`;
 
   // Check if workflow 3 has completed
   // Workflow 3 is complete if manifest3Url exists or workflowStep is 'book_assembly_completed'
@@ -1341,60 +1334,40 @@ export function PostPdfStage({
           }
         }
         
-        // Check if PDF exists for download
+        // Check if PDF exists for download (suppress 404 errors - they're expected if PDF doesn't exist yet)
         try {
-          const pdfRes = await fetch(pdfUrl, { method: 'HEAD' });
-          let pdfErrorMessage: string | null = null;
-
-          if (pdfRes.ok) {
-            const jsonRes = await fetch(`${pdfUrl}?format=json`);
-            if (jsonRes.ok) {
-              const data = await jsonRes.json();
-              setPdfAsset(prev => ({
-                ...prev,
-                url: data.signedUrl || pdfUrl,
-                exists: true,
-                loading: false,
-                error: null
-              }));
-            } else {
-              const errorBody = await jsonRes.json().catch(() => null);
-              pdfErrorMessage =
-                (errorBody?.error as string | undefined) || 'PDF metadata unavailable';
-            }
+          // Try JSON endpoint first (more reliable, returns error message if PDF doesn't exist)
+          const jsonRes = await fetch(`${pdfUrl}?format=json`, { 
+            method: 'GET',
+            // Suppress console errors for 404s
+            signal: AbortSignal.timeout(5000)
+          }).catch(() => null);
+          
+          if (jsonRes?.ok) {
+            const data = await jsonRes.json();
+            setPdfAsset(prev => ({
+              ...prev,
+              url: data.signedUrl || pdfUrl,
+              exists: true,
+              loading: false,
+              error: null
+            }));
           } else {
-            const jsonRes = await fetch(`${pdfUrl}?format=json`);
-            if (jsonRes.ok) {
-              const data = await jsonRes.json();
-              setPdfAsset(prev => ({
-                ...prev,
-                url: data.signedUrl || pdfUrl,
-                exists: true,
-                loading: false,
-                error: null
-              }));
-            } else {
-              const errorBody = await jsonRes.json().catch(() => null);
-              pdfErrorMessage =
-                (errorBody?.error as string | undefined) || 'PDF not yet generated';
-            }
-          }
-
-          if (pdfErrorMessage) {
+            // PDF doesn't exist yet - silently set as missing (no error message needed)
             setPdfAsset(prev => ({
               ...prev,
               exists: false,
               loading: false,
-              error: pdfErrorMessage
+              error: null // Don't show error - PDF just hasn't been generated yet
             }));
           }
         } catch (e: any) {
-          console.error('[Pages] Error checking PDF:', e);
+          // Silently handle errors - PDF just doesn't exist yet
           setPdfAsset(prev => ({
             ...prev,
             exists: false,
             loading: false,
-            error: e?.message || 'Failed to check PDF status'
+            error: null
           }));
         }
       } catch (error: any) {
@@ -1431,7 +1404,7 @@ export function PostPdfStage({
         intervalId = null;
       }
     };
-  }, [orderId, pdfUrl, workflow3Completed, finalBookUrl]); // Include workflow3Completed and finalBookUrl
+  }, [orderId, pdfUrl]); // Removed coverImageUrl and coverImageDataUrl to prevent reload loops
 
   // Reset image loading state when spread changes (only if spread actually changed)
   // Compare spread key to prevent unnecessary resets when spreads array is recreated

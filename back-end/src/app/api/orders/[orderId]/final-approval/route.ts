@@ -102,17 +102,19 @@ async function handleFinalApproval(
   }
 
   // Check if notifications are enabled (handle whitespace and case variations)
-  const envValue = process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED?.trim().toLowerCase();
+  // Try multiple ways to read the env var (Next.js can cache env vars)
+  const rawEnvVar = process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED || 
+                    process.env.NEXT_PUBLIC_AMAZON_PREVIEW_NOTIFICATIONS_ENABLED;
+  const envValue = rawEnvVar?.trim().toLowerCase();
   const notificationsEnabled = envValue === 'true';
   
-  // Debug logging for configuration (only log if disabled to reduce noise)
-  if (!notificationsEnabled) {
-    console.log('[Final Approval] Amazon messaging disabled:', {
-      envVar: process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED,
-      trimmed: envValue,
-      enabled: notificationsEnabled
-    });
-  }
+  // Always log for debugging (helps diagnose env var issues)
+  console.log('[Final Approval] Amazon messaging config check:', {
+    rawEnvVar: rawEnvVar,
+    trimmed: envValue,
+    enabled: notificationsEnabled,
+    allEnvKeys: Object.keys(process.env).filter(k => k.includes('AMAZON') || k.includes('PREVIEW')).join(', ')
+  });
 
   const amazonOrderId =
     orderRecord.amazon_order_id ||
@@ -132,7 +134,7 @@ async function handleFinalApproval(
 
   if (!notificationsEnabled) {
     notificationResult.reason =
-      `Amazon preview messaging disabled by configuration. To enable, set AMAZON_PREVIEW_NOTIFICATIONS_ENABLED=true in your environment variables. (Current value: ${process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED || 'not set'})`;
+      `Amazon preview messaging disabled by configuration. (AMAZON_PREVIEW_NOTIFICATIONS_ENABLED=${process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED || 'not set'})`;
   } else if (!amazonOrderId) {
     notificationResult.reason = 'Order is missing amazon_order_id.';
   } else if (!mappedOrder) {
