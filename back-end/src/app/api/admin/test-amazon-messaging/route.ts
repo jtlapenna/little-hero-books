@@ -49,10 +49,11 @@ export async function GET(request: NextRequest) {
     const amazonOrderId = order.amazon_order_id || order.orderId || order.order_id || orderId;
     diagnostics.steps.push({ step: 2, status: 'ok', message: `Order found, amazonOrderId: ${amazonOrderId}` });
 
-    // Step 3: Test LWA token (using sendAmazonPreviewMessage which handles token internally)
-    diagnostics.steps.push({ step: 3, name: 'Test LWA Access Token' });
+    // Step 3: Test LWA token generation
+    diagnostics.steps.push({ step: 3, name: 'Test LWA Access Token Generation' });
     try {
-      // We'll test token by attempting the actual send
+      // Import the getAccessToken function (it's not exported, so we'll test via sendAmazonPreviewMessage)
+      // The error will show if token generation fails
       diagnostics.steps.push({ step: 3, status: 'ok', message: 'Will test token in next step' });
     } catch (error: any) {
       diagnostics.steps.push({ step: 3, status: 'error', message: error.message, error });

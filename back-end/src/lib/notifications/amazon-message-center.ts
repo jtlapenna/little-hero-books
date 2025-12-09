@@ -573,6 +573,13 @@ async function getAccessToken(config: AmazonMessagingConfig): Promise<string> {
     client_secret: config.lwaClientSecret
   });
 
+  console.log('[LWA Token] Requesting access token:', {
+    endpoint: ACCESS_TOKEN_ENDPOINT,
+    clientId: config.lwaClientId.substring(0, 20) + '...',
+    refreshTokenPreview: config.lwaRefreshToken.substring(0, 20) + '...',
+    refreshTokenLength: config.lwaRefreshToken.length
+  });
+
   const response = await fetch(ACCESS_TOKEN_ENDPOINT, {
     method: 'POST',
     headers: {
@@ -581,13 +588,33 @@ async function getAccessToken(config: AmazonMessagingConfig): Promise<string> {
     body: params.toString()
   });
 
+  const responseText = await response.text();
+  let responseData: any;
+  try {
+    responseData = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    responseData = { raw: responseText };
+  }
+
   if (!response.ok) {
-    const text = await response.text().catch(() => undefined);
-    throw new AmazonMessagingError('Failed to obtain Amazon LWA access token', {
-      retryable: response.status >= 500,
+    const errorMessage = responseData.error_description || responseData.error || responseText || 'Unknown error';
+    console.error('[LWA Token] Failed to get access token:', {
       status: response.status,
-      details: text
+      statusText: response.statusText,
+      error: errorMessage,
+      errorCode: responseData.error,
+      fullResponse: responseData
     });
+    
+    throw new AmazonMessagingError(
+      `Failed to obtain Amazon LWA access token: ${errorMessage}`,
+      {
+        retryable: response.status >= 500,
+        status: response.status,
+        details: responseData,
+        errorCode: responseData.error
+      }
+    );
   }
 
   const data = await response.json();
