@@ -1,6 +1,6 @@
 // Fix: Remove await before .catch() in notification logging
 // Fix: Include actual error reason when Amazon messaging fails
-// Force deployment: Apply Amazon messaging fixes
+// Force deployment: Apply AWS credentials configuration
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
