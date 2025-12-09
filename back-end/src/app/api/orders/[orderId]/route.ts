@@ -28,8 +28,6 @@ async function getOrder(
   // Trim orderId to handle trailing/leading spaces from URL encoding or data entry issues
   const orderId = rawOrderId?.trim() || '';
   
-  console.log('[GET /api/orders/[orderId]] Fetching order:', orderId);
-  
   // Validate order ID format
   if (!orderId || typeof orderId !== 'string' || orderId.length === 0) {
     throw createValidationError('Invalid order ID provided');
@@ -38,9 +36,6 @@ async function getOrder(
   let supabaseOrderRecord: any = null;
   try {
     supabaseOrderRecord = await getOrderFromSupabase(orderId);
-    console.log(`[GET /api/orders/[orderId]] Supabase record found for ${orderId}, review_stages:`, JSON.stringify(supabaseOrderRecord?.review_stages || null));
-    console.log(`[GET /api/orders/[orderId]] Raw Supabase current_workflow:`, supabaseOrderRecord?.current_workflow);
-    console.log(`[GET /api/orders/[orderId]] Raw Supabase execution_status:`, supabaseOrderRecord?.execution_status);
   } catch (error: any) {
     console.warn(
       `[GET /api/orders/[orderId]] Supabase lookup failed for ${orderId}:`,
@@ -52,10 +47,6 @@ async function getOrder(
   if (supabaseOrderRecord) {
     try {
       supabaseOrder = await mapSupabaseOrderToOrder(supabaseOrderRecord);
-      console.log(`[GET /api/orders/[orderId]] Supabase order loaded for ${orderId}`);
-      console.log(`[GET /api/orders/[orderId]] Supabase reviewStages:`, JSON.stringify(supabaseOrder.reviewStages, null, 2));
-      console.log(`[GET /api/orders/[orderId]] Mapped currentWorkflow:`, supabaseOrder.currentWorkflow);
-      console.log(`[GET /api/orders/[orderId]] Mapped executionStatus:`, supabaseOrder.executionStatus);
     } catch (error: any) {
       console.error(
         `[GET /api/orders/[orderId]] Failed to map Supabase order ${orderId}:`,
@@ -88,24 +79,18 @@ async function getOrder(
   manifest2b = manifestResults[1];
   manifest3 = manifestResults[2];
   
-  // Determine primary manifest (for backward compatibility)
-  // Priority: 2b > 2a > 3
-  if (manifest2b) {
-    manifest = manifest2b;
-    loadedStage = '2b';
-    console.log(`[GET /api/orders/[orderId]] ✅ Using 2b-manifest as primary for order ${orderId}`);
-  } else if (manifest2a) {
-    manifest = manifest2a;
-    loadedStage = '2a';
-    console.log(`[GET /api/orders/[orderId]] ✅ Using 2a-manifest as primary for order ${orderId}`);
-  } else if (manifest3) {
-    manifest = manifest3;
-    loadedStage = '3';
-    console.log(`[GET /api/orders/[orderId]] ✅ Using 3-manifest as primary for order ${orderId}`);
-  }
-  
-  // Log which manifests were loaded
-  console.log(`[GET /api/orders/[orderId]] Loaded manifests: 2a=${!!manifest2a}, 2b=${!!manifest2b}, 3=${!!manifest3}`);
+    // Determine primary manifest (for backward compatibility)
+    // Priority: 2b > 2a > 3
+    if (manifest2b) {
+      manifest = manifest2b;
+      loadedStage = '2b';
+    } else if (manifest2a) {
+      manifest = manifest2a;
+      loadedStage = '2a';
+    } else if (manifest3) {
+      manifest = manifest3;
+      loadedStage = '3';
+    }
   
   if (!manifest && !supabaseOrder) {
     console.warn(`[GET /api/orders/[orderId]] ⚠️ No Supabase record or manifest found for ${orderId}`);
@@ -113,31 +98,22 @@ async function getOrder(
   }
   
   const manifestOrder = manifest ? mapManifestToOrder(orderId, manifest) : null;
-  if (manifestOrder) {
-    console.log(`[GET /api/orders/[orderId]] Manifest reviewStages:`, JSON.stringify(manifestOrder.reviewStages, null, 2));
-  }
 
   let order: Order;
   if (supabaseOrder) {
     order = mergeOrderData(supabaseOrder, manifestOrder);
-    console.log(`[GET /api/orders/[orderId]] Merged reviewStages:`, JSON.stringify(order.reviewStages, null, 2));
-    console.log(`[GET /api/orders/[orderId]] Final merged currentWorkflow:`, order.currentWorkflow);
-    console.log(`[GET /api/orders/[orderId]] Final merged executionStatus:`, order.executionStatus);
     
-    // Verify manifest URLs actually point to existing files
-    // If Supabase has a URL but the file doesn't exist in R2, clear the URL
-    if (order.manifest2aUrl && !manifest2a) {
-      console.log(`[GET /api/orders/[orderId]] ⚠️ Supabase has manifest_2a_url but file doesn't exist in R2, clearing URL`);
-      order.manifest2aUrl = undefined;
-    }
-    if (order.manifest2bUrl && !manifest2b) {
-      console.log(`[GET /api/orders/[orderId]] ⚠️ Supabase has manifest_2b_url but file doesn't exist in R2, clearing URL`);
-      order.manifest2bUrl = undefined;
-    }
-    if (order.manifest3Url && !manifest3) {
-      console.log(`[GET /api/orders/[orderId]] ⚠️ Supabase has manifest_3_url but file doesn't exist in R2, clearing URL`);
-      order.manifest3Url = undefined;
-    }
+      // Verify manifest URLs actually point to existing files
+      // If Supabase has a URL but the file doesn't exist in R2, clear the URL
+      if (order.manifest2aUrl && !manifest2a) {
+        order.manifest2aUrl = undefined;
+      }
+      if (order.manifest2bUrl && !manifest2b) {
+        order.manifest2bUrl = undefined;
+      }
+      if (order.manifest3Url && !manifest3) {
+        order.manifest3Url = undefined;
+      }
   } else if (manifestOrder) {
     order = manifestOrder;
   } else {
@@ -264,9 +240,7 @@ async function getOrder(
   
   if (order.characterHash) {
     try {
-      console.log(`[GET /api/orders/[orderId]] Fetching character assets for hash: ${order.characterHash}`);
       characterAssets = await getCharacterAssets(order.characterHash);
-      console.log(`[GET /api/orders/[orderId]] Found ${characterAssets.length} character assets`);
       
       // Check if this character hash belongs to other orders (images are being reused)
       // This happens when orders have identical character specs (before the fix) or when images are intentionally shared
@@ -293,10 +267,6 @@ async function getOrder(
             hasSource2aManifest: hasSource2aManifest,
             hasSource2bManifest: hasSource2bManifest,
           };
-          
-          console.log(`[GET /api/orders/[orderId]] Character hash ${order.characterHash} is shared with ${sourceOrderIds.length} other order(s):`, sourceOrderIds);
-          console.log(`[GET /api/orders/[orderId]] Source orders have 2A manifest: ${hasSource2aManifest}, 2B manifest: ${hasSource2bManifest}`);
-          console.log(`[GET /api/orders/[orderId]] Shared image info:`, JSON.stringify(sharedImageInfo, null, 2));
         }
       } catch (error: any) {
         console.warn(`[GET /api/orders/[orderId]] Error checking for shared images:`, error?.message || error);
@@ -374,9 +344,6 @@ async function getOrder(
   const manifestEntries = manifest?.entries || [];
   const expectedPoseCount = manifest?.poses?.total || manifestEntries.length || preBriaManifestEntries.length || postBriaManifestEntries.length || 13; // Default to 13 if not specified
   
-  console.log(`[GET /api/orders/[orderId]] Expected pose count: ${expectedPoseCount}, Manifest entries: ${manifestEntries.length}, Character assets: ${characterAssets.length}`);
-  console.log(`[GET /api/orders/[orderId]] Character assets sample:`, characterAssets.slice(0, 3).map(a => ({ poseNumber: a.poseNumber, assetType: a.assetType, url: a.url?.substring(0, 50) })));
-  
   // Create a map of existing assets by pose number for quick lookup
   const cacheBuster = Date.now();
   
@@ -396,11 +363,8 @@ async function getOrder(
       url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
     }));
   
-  console.log(`[GET /api/orders/[orderId]] Found ${existingPreBriaPoses.length} existing pre-Bria poses:`, existingPreBriaPoses.map(p => ({ poseNumber: p.poseNumber, url: p.url?.substring(0, 60) })));
-  
   // Create map of existing poses by poseNumber
   const existingPreBriaMap = new Map(existingPreBriaPoses.map(p => [p.poseNumber, p]));
-  console.log(`[GET /api/orders/[orderId]] Pre-Bria map keys:`, Array.from(existingPreBriaMap.keys()));
   
   // Build complete list of pre-Bria poses, including placeholders for missing/exhausted ones
   // Use preBriaManifestEntries for flag data (flags are saved to 2a manifest)
@@ -431,10 +395,8 @@ async function getOrder(
         attempts: manifestEntry?.attempts ?? existingPose.attempts,
         approved: manifestEntry?.approved ?? existingPose.approved
       });
-      console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found existing pose with URL, needsReview=${needsReview}, reviewReason=${preBriaReviewReason || 'null'} (filtered Post-Bria: ${isPostBriaReason})`);
     } else {
       // Pose is missing - create placeholder
-      console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Creating placeholder (existingPose: ${!!existingPose}, manifestEntry: ${!!manifestEntry})`);
       const isExhausted = manifestEntry?.status === 'exhausted' || manifestEntry?.status === 'failed';
       
       // Filter out Post-Bria-specific review reasons for Pre-Bria placeholders
@@ -470,8 +432,6 @@ async function getOrder(
                             manifest?.workflow?.currentStage === '2B-complete' || 
                             manifest?.workflow?.currentStage === '3-complete';
   
-  console.log(`[GET /api/orders/[orderId]] Workflow 2B has run: ${workflow2BHasRun}, loadedStage: ${loadedStage}, currentStage: ${manifest?.workflow?.currentStage}`);
-  
   const existingPostBriaPoses = characterAssets
     .filter(a => a.assetType === 'background-removed' && a.poseNumber >= 0)
     .sort((a, b) => a.poseNumber - b.poseNumber)
@@ -479,8 +439,6 @@ async function getOrder(
       ...pose,
       url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
     }));
-  
-  console.log(`[GET /api/orders/[orderId]] Found ${existingPostBriaPoses.length} existing post-Bria poses:`, existingPostBriaPoses.map(p => ({ poseNumber: p.poseNumber, url: p.url })));
   
   // Create map of existing post-Bria poses by poseNumber
   const existingPostBriaMap = new Map(existingPostBriaPoses.map(p => [p.poseNumber, p]));
@@ -491,8 +449,6 @@ async function getOrder(
   // If workflow 2B hasn't run yet, return existing poses from R2 AND any from manifest (manually uploaded)
   // This allows manually uploaded images to appear even if workflow 2B hasn't run
   if (!workflow2BHasRun) {
-    console.log(`[GET /api/orders/[orderId]] Workflow 2B has not run yet, checking R2 and manifest for post-Bria poses`);
-    
     // Start with existing poses from R2
     const poseMap = new Map(existingPostBriaPoses.map(p => [p.poseNumber, p]));
     
@@ -525,25 +481,20 @@ async function getOrder(
     });
     
     postBriaPoses.push(...Array.from(poseMap.values()).sort((a, b) => a.poseNumber - b.poseNumber));
-    console.log(`[GET /api/orders/[orderId]] Found ${postBriaPoses.length} post-Bria poses (${existingPostBriaPoses.length} from R2, ${postBriaPoses.length - existingPostBriaPoses.length} from manifest)`);
   } else {
     // Workflow 2B has run - build complete list including placeholders for missing ones
     // If we have existing poses but no manifest entries, just use the existing poses (fallback)
     if (existingPostBriaPoses.length > 0 && postBriaManifestEntries.length === 0) {
-      console.log(`[GET /api/orders/[orderId]] No manifest entries found, using existing post-Bria poses only`);
       postBriaPoses.push(...existingPostBriaPoses);
     } else {
       // Normal flow: build complete list including placeholders
       // Use postBriaManifestEntries to get flags from the correct manifest (2b or 2a)
-      console.log(`[GET /api/orders/[orderId]] Building post-Bria poses list, expectedPoseCount: ${expectedPoseCount}, existingPostBriaMap size: ${existingPostBriaMap.size}`);
       for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
         const existingPose = existingPostBriaMap.get(poseNum);
         const manifestEntry = postBriaManifestEntries.find((e: any) => e.poseNumber === poseNum);
         
         // Check if manifest has bgRemovedKey
         const hasBgRemovedKey = manifestEntry?.bgRemovedKey && manifestEntry.bgRemovedKey.length > 0;
-        
-        console.log(`[GET /api/orders/[orderId]] Processing pose ${poseNum}: existingPose=${!!existingPose}, manifestEntry=${!!manifestEntry}, hasBgRemovedKey=${hasBgRemovedKey}, manifestEntry.poseNumber=${manifestEntry?.poseNumber}, manifestEntry.bgRemovedKey=${manifestEntry?.bgRemovedKey || 'null'}`);
         
         if (existingPose) {
           // File exists in R2 - merge manifest entry's review flags if present
@@ -562,7 +513,6 @@ async function getOrder(
             attempts: manifestEntry?.attempts ?? existingPose.attempts,
             approved: manifestEntry?.approved ?? existingPose.approved
           });
-          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Found in R2, needsReview=${needsReview}, reviewReason=${reviewReason || 'null'}`);
         } else if (hasBgRemovedKey) {
           // Manifest says it should exist but file not found in R2 - this is unexpected
           // Construct URL from manifest's bgRemovedKey
@@ -589,7 +539,6 @@ async function getOrder(
             attempts: manifestEntry?.attempts || 0,
             approved: manifestEntry?.approved || false
           });
-          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Manifest has bgRemovedKey but file not in R2 map, constructed URL: ${proxyUrl ? 'present' : 'missing'}, needsReview=${needsReview}, reviewReason=${reviewReason || 'null'}`);
         } else {
           // Pose is missing - create placeholder
           const isExhausted = manifestEntry?.status === 'exhausted' || manifestEntry?.status === 'failed';
@@ -599,7 +548,7 @@ async function getOrder(
             ? 'not_processed' 
             : (isExhausted ? 'missing' : 'not_processed');
           
-          const placeholder = {
+          postBriaPoses.push({
             poseNumber: poseNum,
             url: '', // No URL - will show placeholder in UI
             assetType: 'background-removed',
@@ -611,12 +560,9 @@ async function getOrder(
             reviewReason: reviewReason,
             attempts: manifestEntry?.attempts || 0,
             approved: false
-          };
-          postBriaPoses.push(placeholder);
-          console.log(`[GET /api/orders/[orderId]] Pose ${poseNum}: Missing (no file in R2, no bgRemovedKey in manifest), created placeholder:`, JSON.stringify(placeholder));
+          });
         }
       }
-      console.log(`[GET /api/orders/[orderId]] Final postBriaPoses count: ${postBriaPoses.length}, poseNumbers: [${postBriaPoses.map(p => p.poseNumber).join(', ')}]`);
     }
   }
   
@@ -631,13 +577,6 @@ async function getOrder(
     characterHash: order.characterHash || '',
     sharedImageInfo: sharedImageInfo || null, // Indicates if images are shared with other orders
   };
-  
-  console.log(`[GET /api/orders/[orderId]] Returning order with ${characterAssets.length} assets`);
-  console.log(`[GET /api/orders/[orderId]] r2Assets.sharedImageInfo:`, order.r2Assets.sharedImageInfo);
-  console.log(`[GET /api/orders/[orderId]] poses count: ${preBriaPoses.length}, posesBgRemoved count: ${postBriaPoses.length}`);
-  console.log(`[GET /api/orders/[orderId]] Base character:`, baseCharacter ? { url: baseCharacter.url, type: baseCharacter.assetType } : 'null');
-  console.log(`[GET /api/orders/[orderId]] Pre-Bria poses: ${preBriaPoses.length}`, preBriaPoses.map(p => ({ poseNumber: p.poseNumber, url: p.url, type: p.assetType })));
-  console.log(`[GET /api/orders/[orderId]] Post-Bria poses: ${postBriaPoses.length}`, postBriaPoses.map(p => ({ poseNumber: p.poseNumber, url: p.url, type: p.assetType })));
   
   return NextResponse.json(order);
 }

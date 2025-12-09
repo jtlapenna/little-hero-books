@@ -103,6 +103,13 @@ async function handleFinalApproval(
 
   const notificationsEnabled =
     process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED === 'true';
+  
+  // Debug logging for configuration
+  console.log('[Final Approval] Amazon messaging config check:', {
+    envVar: process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED,
+    enabled: notificationsEnabled,
+    type: typeof process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED
+  });
 
   const amazonOrderId =
     orderRecord.amazon_order_id ||
@@ -122,7 +129,7 @@ async function handleFinalApproval(
 
   if (!notificationsEnabled) {
     notificationResult.reason =
-      'Amazon preview messaging disabled by configuration.';
+      `Amazon preview messaging disabled by configuration. (AMAZON_PREVIEW_NOTIFICATIONS_ENABLED=${process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED || 'not set'})`;
   } else if (!amazonOrderId) {
     notificationResult.reason = 'Order is missing amazon_order_id.';
   } else if (!mappedOrder) {

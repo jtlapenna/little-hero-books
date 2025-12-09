@@ -137,17 +137,6 @@ export default function OrderDetailPage() {
         throw new Error(errorMessage);
       }
       const data = await response.json();
-      console.log('OrderDetailPage: Received order data:', data);
-      console.log('OrderDetailPage: Review stages:', JSON.stringify(data.reviewStages, null, 2));
-      console.log('OrderDetailPage: PreBria status:', data.reviewStages?.preBria?.status);
-      console.log('OrderDetailPage: PostBria status:', data.reviewStages?.postBria?.status);
-      console.log('OrderDetailPage: PostPdf status:', data.reviewStages?.postPdf?.status);
-      console.log('OrderDetailPage: R2 assets:', data.r2Assets);
-      console.log('OrderDetailPage: R2 base character:', data.r2Assets?.baseCharacter);
-      console.log('OrderDetailPage: R2 poses count:', data.r2Assets?.poses?.length);
-      console.log('OrderDetailPage: R2 post-Bria poses count:', data.r2Assets?.posesBgRemoved?.length);
-      console.log('OrderDetailPage: currentWorkflow from API:', data.currentWorkflow);
-      console.log('OrderDetailPage: executionStatus from API:', data.executionStatus);
       setOrder(data);
       
       // Initialize flagCounts from order.flags if available (for immediate UI update)
@@ -325,7 +314,6 @@ export default function OrderDetailPage() {
             // Silently handle - 404 is expected for orders that haven't reached this stage yet
           }
           
-          console.log(`[OrderDetailPage] Flag counts from manifests: preBria=${preBria}, postBria=${postBria}, postPdf=${postPdf}`);
           setFlagCounts({ preBria, postBria, postPdf });
         } catch (error) {
           console.error('Error updating flag counts:', error);
@@ -753,107 +741,45 @@ export default function OrderDetailPage() {
   };
 
   const handleResetOrderRecovery = async () => {
-    console.log('[Reset Button] Handler called, order:', order?.orderId);
     if (!order) {
-      console.error('[Reset Button] No order available');
       return;
     }
     
     const nextWorkflow = order.nextWorkflow || '2A';
-    console.log('[Reset Button] Showing confirm dialog...');
     if (!confirm(`Reset order to ready for processing?\n\nThis will:\n- Set execution_status to 'ready_for_processing'\n- Set next_workflow to '${nextWorkflow}'\n- Clear error fields and processing state\n- Queue order for router cron\n\nOrder will be picked up by the router cron and sent to workflow ${nextWorkflow}.`)) {
-      console.log('[Reset Button] User cancelled');
       return;
     }
 
-    console.log('[Reset Button] User confirmed, starting reset...');
     setResettingOrder(true);
     try {
-      const endpoint = `/api/admin/orders/${order.orderId}/reset`;
-      console.log('[Reset Button] Calling reset endpoint:', endpoint);
-      console.log('[Reset Button] Order details:', {
-        orderId: order.orderId,
-        amazon_order_id: order.amazonOrderId,
-        executionStatus: order.executionStatus,
-        currentWorkflow: order.currentWorkflow
-      });
-      
-      const response = await fetch(endpoint, {
+      const response = await fetch(`/api/admin/orders/${order.orderId}/reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
-      console.log('[Reset Button] Response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
       let data;
       try {
         const text = await response.text();
-        console.log('[Reset Button] Response text:', text);
         data = text ? JSON.parse(text) : {};
       } catch (parseError) {
-        console.error('[Reset Button] Failed to parse response:', parseError);
         throw new Error('Invalid response from server');
       }
       
-      console.log('[Reset Button] Response data:', data);
-      
       if (!response.ok) {
-        console.error('[Reset Button] Reset failed:', {
-          status: response.status,
-          data
-        });
         throw new Error(data.error || data.details || `Server returned ${response.status}: ${response.statusText}`);
       }
 
-      console.log('[Reset Button] Reset successful, fetching updated order...');
       alert(`Order reset successfully!\n\nExecution Status: ${data.execution_status}\nNext Workflow: ${data.nextWorkflow}\n\nThe order is now ready for the router cron to pick up.`);
       
       // Refresh the order data
       await fetchOrder(order.orderId);
-      
-      // Verify the order was actually reset
-      console.log('[Reset Button] Verifying reset...');
-      const verifyResponse = await fetch(`/api/orders/${order.orderId}`);
-      if (!verifyResponse.ok) {
-        console.warn('[Reset Button] Could not verify reset - failed to fetch order');
-        return;
-      }
-      
-      const updatedOrder = await verifyResponse.json();
-      console.log('[Reset Button] Order after reset:', {
-        execution_status: updatedOrder.execution_status,
-        current_workflow: updatedOrder.current_workflow,
-        next_workflow: updatedOrder.next_workflow
-      });
-      
-      if (updatedOrder.execution_status !== 'ready_for_processing') {
-        console.warn('[Reset Button] WARNING: Order execution_status was not reset correctly!', {
-          expected: 'ready_for_processing',
-          actual: updatedOrder.execution_status,
-          fullOrder: updatedOrder
-        });
-        alert(`⚠️ Warning: Order reset may not have worked correctly.\n\nExpected: ready_for_processing\nActual: ${updatedOrder.execution_status}\n\nPlease check server logs.`);
-      } else {
-        console.log('[Reset Button] ✅ Reset verified successfully!');
-      }
     } catch (error: any) {
-      console.error('[Reset Button] Error resetting order:', {
-        error,
-        message: error?.message,
-        stack: error?.stack,
-        name: error?.name
-      });
+      console.error('[Reset Button] Error resetting order:', error);
       alert(`Failed to reset order: ${error?.message || 'Unknown error'}\n\nCheck browser console for details.`);
     } finally {
       setResettingOrder(false);
-      console.log('[Reset Button] Handler finished');
     }
   };
 
@@ -1005,21 +931,6 @@ export default function OrderDetailPage() {
                            order.characterHash && 
                            (order.r2Assets?.sharedImageInfo?.hasSource2bManifest || order.r2Assets?.posesBgRemoved?.length > 0);
           
-          console.log('[OrderDetailPage] Button visibility check:', {
-            orderId: order.orderId,
-            hasOneManifest: !!order.oneManifestUrl,
-            has2aManifest: !!order.manifest2aUrl,
-            has2bManifest: !!order.manifest2bUrl,
-            manifest2aUrl: order.manifest2aUrl, // Log actual value for debugging
-            manifest2bUrl: order.manifest2bUrl, // Log actual value for debugging
-            hasCharacterHash: !!order.characterHash,
-            sharedImageInfo: order.r2Assets?.sharedImageInfo,
-            posesCount: order.r2Assets?.poses?.length || 0,
-            posesBgRemovedCount: order.r2Assets?.posesBgRemoved?.length || 0,
-            canShow2a,
-            canShow2b
-          });
-          
           const shouldShowSection = lifecycleStatus.errors && lifecycleStatus.errors.length > 0 || 
                                     !order.oneManifestUrl || 
                                     order.executionStatus === 'error' || 
@@ -1052,16 +963,10 @@ export default function OrderDetailPage() {
                 </button>
               )}
               {/* Show 2A button if: has 1-manifest, has characterHash, no 2A manifest, and source order with 2A manifest exists */}
-              {(() => {
-                const canShow = order.oneManifestUrl && 
-                               !order.manifest2aUrl && 
-                               order.characterHash && 
-                               (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0);
-                if (canShow) {
-                  console.log('[OrderDetailPage] Showing 2A button');
-                }
-                return canShow;
-              })() && (
+              {order.oneManifestUrl && 
+               !order.manifest2aUrl && 
+               order.characterHash && 
+               (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0) && (
                 <button
                   type="button"
                   onClick={handleCreate2aManifest}
@@ -1084,28 +989,10 @@ export default function OrderDetailPage() {
               {/* Show 2B button if: has 2A manifest (or 1-manifest if 2A images exist), has characterHash, no 2B manifest, and source order with 2B manifest exists */}
               {(() => {
                 const has2aOrCanCreate2a = order.manifest2aUrl || (order.oneManifestUrl && (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0));
-                const canShow = has2aOrCanCreate2a && 
-                               !order.manifest2bUrl && 
-                               order.characterHash && 
-                               (order.r2Assets?.sharedImageInfo?.hasSource2bManifest || order.r2Assets?.posesBgRemoved?.length > 0);
-                if (canShow) {
-                  console.log('[OrderDetailPage] Showing 2B button', {
-                    has2aOrCanCreate2a,
-                    has2bManifest: !!order.manifest2bUrl,
-                    hasCharacterHash: !!order.characterHash,
-                    hasSource2b: order.r2Assets?.sharedImageInfo?.hasSource2bManifest,
-                    posesBgRemovedCount: order.r2Assets?.posesBgRemoved?.length || 0
-                  });
-                } else {
-                  console.log('[OrderDetailPage] NOT showing 2B button', {
-                    has2aOrCanCreate2a,
-                    has2bManifest: !!order.manifest2bUrl,
-                    hasCharacterHash: !!order.characterHash,
-                    hasSource2b: order.r2Assets?.sharedImageInfo?.hasSource2bManifest,
-                    posesBgRemovedCount: order.r2Assets?.posesBgRemoved?.length || 0
-                  });
-                }
-                return canShow;
+                return has2aOrCanCreate2a && 
+                       !order.manifest2bUrl && 
+                       order.characterHash && 
+                       (order.r2Assets?.sharedImageInfo?.hasSource2bManifest || order.r2Assets?.posesBgRemoved?.length > 0);
               })() && (
                 <button
                   type="button"
@@ -1144,12 +1031,6 @@ export default function OrderDetailPage() {
                 <button
                   type="button"
                   onClick={(e) => {
-                    console.log('[Reset Button] Button clicked!', {
-                      orderId: order?.orderId,
-                      executionStatus: order?.executionStatus,
-                      currentWorkflow: order?.currentWorkflow,
-                      resettingOrder
-                    });
                     e.preventDefault();
                     e.stopPropagation();
                     handleResetOrderRecovery();
