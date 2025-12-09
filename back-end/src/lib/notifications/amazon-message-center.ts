@@ -566,6 +566,25 @@ async function getAccessToken(config: AmazonMessagingConfig): Promise<string> {
     return accessTokenCache.token;
   }
 
+  // Diagnostic logging to verify which credentials are actually being used
+  const clientId = process.env.AMZ_APP_CLIENT_ID || '';
+  const clientSecret = process.env.AMZ_APP_CLIENT_SECRET || '';
+  const refreshToken = process.env.AMZ_REFRESH_TOKEN || '';
+
+  console.log('[Amazon LWA Debug] Environment variables check:', {
+    clientId: clientId.slice(0, 12) + (clientId.length > 12 ? '...' : ''),
+    clientIdLength: clientId.length,
+    clientSecret: clientSecret ? 'SET (' + clientSecret.length + ' chars)' : 'MISSING',
+    refreshTokenPrefix: refreshToken.slice(0, 16) + (refreshToken.length > 16 ? '...' : ''),
+    refreshTokenLength: refreshToken.length,
+    configClientId: config.lwaClientId.substring(0, 12) + '...',
+    configRefreshToken: config.lwaRefreshToken.substring(0, 16) + '...',
+    match: {
+      clientId: clientId === config.lwaClientId,
+      refreshToken: refreshToken === config.lwaRefreshToken
+    }
+  });
+
   const params = new URLSearchParams({
     grant_type: 'refresh_token',
     refresh_token: config.lwaRefreshToken,

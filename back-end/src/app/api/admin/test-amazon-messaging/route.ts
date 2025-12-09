@@ -37,18 +37,33 @@ export async function GET(request: NextRequest) {
     
     // Log credential previews (first/last chars only for security)
     const config = configResult.config;
+    
+    // Debug: Log raw client ID to verify which one is being used
+    const rawClientId = process.env.AMZ_APP_CLIENT_ID || '';
+    console.log('[LWA_DEBUG] Client ID verification:', {
+      rawClientId: rawClientId,
+      clientIdEnd: rawClientId.slice(-8),
+      expectedEnd: 'fa5f58',
+      matches: rawClientId.endsWith('fa5f58'),
+      configClientIdEnd: config.lwaClientId?.slice(-8),
+      configMatches: config.lwaClientId?.endsWith('fa5f58')
+    });
+    
     diagnostics.steps.push({ 
       step: 1, 
       status: 'ok', 
       message: 'Configuration valid',
       credentialChecks: {
         clientId: config.lwaClientId ? `${config.lwaClientId.substring(0, 10)}...${config.lwaClientId.substring(config.lwaClientId.length - 10)}` : 'MISSING',
+        clientIdEnd: config.lwaClientId?.slice(-8) || 'MISSING', // Last 8 chars for verification
         clientSecret: config.lwaClientSecret ? 'SET (' + config.lwaClientSecret.length + ' chars)' : 'MISSING',
         refreshToken: config.lwaRefreshToken ? `${config.lwaRefreshToken.substring(0, 10)}...${config.lwaRefreshToken.substring(config.lwaRefreshToken.length - 10)}` : 'MISSING',
         refreshTokenLength: config.lwaRefreshToken?.length || 0,
         sellerId: config.sellerId || 'MISSING',
         awsAccessKeyId: config.awsAccessKeyId ? `${config.awsAccessKeyId.substring(0, 10)}...` : 'MISSING',
-        awsSecretAccessKey: config.awsSecretAccessKey ? 'SET' : 'MISSING'
+        awsSecretAccessKey: config.awsSecretAccessKey ? 'SET' : 'MISSING',
+        envVarName: 'AMZ_APP_CLIENT_ID', // Show which env var is being read
+        envVarValue: rawClientId ? `${rawClientId.substring(0, 20)}...${rawClientId.slice(-8)}` : 'NOT SET'
       }
     });
 
