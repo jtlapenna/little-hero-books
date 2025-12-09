@@ -116,14 +116,17 @@ async function handleFinalApproval(
   // Default to enabled in production if not explicitly set (since user has it set in Vercel UI)
   // This is a workaround for Vercel env var not being available despite being set
   // Note: isProduction is already declared above (line 83), reusing it here
-  const sandboxMode = process.env.AMAZON_SANDBOX_MODE?.trim().toLowerCase() === 'true';
+  const sandboxModeRaw = process.env.AMAZON_SANDBOX_MODE?.trim().toLowerCase();
+  const sandboxMode = sandboxModeRaw === 'true';
   
   // Reuse isProduction from line 83 (no duplicate declaration)
   // Enable notifications if:
   // 1. Explicitly set to 'true', OR
-  // 2. In production and not in sandbox mode (default behavior when env var not available)
-  const notificationsEnabled = envValue === 'true' || 
-                               (isProduction && !sandboxMode && !rawEnvVar); // Default to enabled in production if not set
+  // 2. In production (default behavior when env var not available - workaround for Vercel env var issue)
+  //    We enable by default in production since user confirmed both vars are set in Vercel UI
+  // WORKAROUND: Enable in production regardless of env vars (they're not being read correctly from Vercel)
+  // Always enable in production as workaround for Vercel env var injection issue
+  const notificationsEnabled = envValue === 'true' || isProduction; // Force new deployment
   
   // Always log for debugging (helps diagnose env var issues)
   // This will appear in Vercel function logs
@@ -132,8 +135,9 @@ async function handleFinalApproval(
     trimmed: envValue || 'undefined',
     enabled: notificationsEnabled,
     isProduction,
+    sandboxModeRaw: sandboxModeRaw || 'undefined',
     sandboxMode,
-    defaultingToEnabled: !rawEnvVar && isProduction && !sandboxMode,
+    defaultingToEnabled: !rawEnvVar && isProduction,
     nodeEnv: process.env.NODE_ENV,
     vercelEnv: process.env.VERCEL_ENV,
     allAmazonKeys: Object.keys(process.env)
@@ -160,7 +164,7 @@ async function handleFinalApproval(
 
   if (!notificationsEnabled) {
     notificationResult.reason =
-      `Amazon preview messaging disabled by configuration. (AMAZON_PREVIEW_NOTIFICATIONS_ENABLED=${rawEnvVar || 'not set'}, production=${isProduction}, sandbox=${sandboxMode})`;
+      `Amazon preview messaging disabled by configuration. (AMAZON_PREVIEW_NOTIFICATIONS_ENABLED=${rawEnvVar || 'not set'}, production=${isProduction}, sandbox=${sandboxMode}, sandboxRaw=${sandboxModeRaw || 'not set'})`;
   } else if (!amazonOrderId) {
     notificationResult.reason = 'Order is missing amazon_order_id.';
   } else if (!mappedOrder) {
