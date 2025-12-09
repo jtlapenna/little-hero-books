@@ -34,7 +34,23 @@ export async function GET(request: NextRequest) {
         }
       });
     }
-    diagnostics.steps.push({ step: 1, status: 'ok', message: 'Configuration valid' });
+    
+    // Log credential previews (first/last chars only for security)
+    const config = configResult.config;
+    diagnostics.steps.push({ 
+      step: 1, 
+      status: 'ok', 
+      message: 'Configuration valid',
+      credentialChecks: {
+        clientId: config.lwaClientId ? `${config.lwaClientId.substring(0, 10)}...${config.lwaClientId.substring(config.lwaClientId.length - 10)}` : 'MISSING',
+        clientSecret: config.lwaClientSecret ? 'SET (' + config.lwaClientSecret.length + ' chars)' : 'MISSING',
+        refreshToken: config.lwaRefreshToken ? `${config.lwaRefreshToken.substring(0, 10)}...${config.lwaRefreshToken.substring(config.lwaRefreshToken.length - 10)}` : 'MISSING',
+        refreshTokenLength: config.lwaRefreshToken?.length || 0,
+        sellerId: config.sellerId || 'MISSING',
+        awsAccessKeyId: config.awsAccessKeyId ? `${config.awsAccessKeyId.substring(0, 10)}...` : 'MISSING',
+        awsSecretAccessKey: config.awsSecretAccessKey ? 'SET' : 'MISSING'
+      }
+    });
 
     // Step 2: Get order
     diagnostics.steps.push({ step: 2, name: 'Get Order from Supabase' });
@@ -49,17 +65,78 @@ export async function GET(request: NextRequest) {
     const amazonOrderId = order.amazon_order_id || order.orderId || order.order_id || orderId;
     diagnostics.steps.push({ step: 2, status: 'ok', message: `Order found, amazonOrderId: ${amazonOrderId}` });
 
-    // Step 3: Test LWA token generation
+    // Step 3: Test LWA token generation directly
     diagnostics.steps.push({ step: 3, name: 'Test LWA Access Token Generation' });
     try {
-      // Import the getAccessToken function (it's not exported, so we'll test via sendAmazonPreviewMessage)
-      // The error will show if token generation fails
-      diagnostics.steps.push({ step: 3, status: 'ok', message: 'Will test token in next step' });
+      const lwaEndpoint = 'https://api.amazon.com/auth/o2/token';
+      const params = new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: config.lwaRefreshToken,
+        client_id: config.lwaClientId,
+        client_secret: config.lwaClientSecret
+      });
+      
+      const lwaResponse = await fetch(lwaEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      });
+      
+      const lwaResponseText = await lwaResponse.text();
+      let lwaData: any;
+      try {
+        lwaData = lwaResponseText ? JSON.parse(lwaResponseText) : {};
+      } catch {
+        lwaData = { raw: lwaResponseText };
+      }
+      
+      if (!lwaResponse.ok) {
+        diagnostics.steps.push({ 
+          step: 3, 
+          status: 'error', 
+          message: lwaData.error_description || lwaData.error || 'LWA token request failed',
+          errorCode: lwaData.error,
+          httpStatus: lwaResponse.status,
+          fullResponse: lwaData,
+          troubleshooting: {
+            possibleCauses: [
+              'App not self-authorized: Even with refresh token, app must be authorized for seller account',
+              'Refresh token mismatch: Token doesn\'t match client ID/secret',
+              'App status: App may be in Draft but needs explicit authorization',
+              'Seller account mismatch: Refresh token for different seller account',
+              'Role permissions: App missing required SP-API roles (Buyer Communication)'
+            ],
+            actionItems: [
+              '1. Go to Seller Central → Apps & Services → Develop Apps',
+              '2. Find "Little Hero Labs Production" app',
+              '3. Click "Authorize app" (not just generate token)',
+              '4. Select your seller account',
+              '5. Verify "Buyer Communication" role is enabled',
+              '6. Copy the NEW refresh token after authorization',
+              '7. Update AMZ_REFRESH_TOKEN in Cloudflare Pages',
+              '8. Verify AMZ_SELLER_ID matches the authorized account'
+            ]
+          }
+        });
+        return NextResponse.json({
+          success: false,
+          error: 'LWA access token generation failed',
+          diagnostics
+        });
+      }
+      
+      diagnostics.steps.push({ 
+        step: 3, 
+        status: 'ok', 
+        message: 'LWA access token obtained successfully',
+        expiresIn: lwaData.expires_in,
+        tokenType: lwaData.token_type
+      });
     } catch (error: any) {
       diagnostics.steps.push({ step: 3, status: 'error', message: error.message, error });
       return NextResponse.json({
         success: false,
-        error: 'Failed to get access token',
+        error: 'Failed to test LWA token',
         diagnostics
       });
     }
