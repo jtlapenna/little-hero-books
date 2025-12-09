@@ -30,9 +30,17 @@ export type AmazonMessagingConfigResult =
 let cachedConfig: AmazonMessagingConfig | null = null;
 
 export function getAmazonMessagingConfig(forceRefresh = false): AmazonMessagingConfigResult {
+  // Always force refresh to avoid stale cached config after env var updates
+  // In production, env vars can change without code redeploy, so we should always read fresh
   if (!forceRefresh && cachedConfig) {
+    // Log what we're returning from cache for debugging
+    console.log('[Amazon Config] Using cached config (forceRefresh=false). Client ID ends with:', cachedConfig.lwaClientId?.slice(-8));
     return { ok: true, config: cachedConfig };
   }
+
+  // Log raw env var values for debugging
+  const rawClientId = process.env.AMZ_APP_CLIENT_ID || '';
+  console.log('[Amazon Config] Reading fresh config. Raw AMZ_APP_CLIENT_ID ends with:', rawClientId.slice(-8));
 
   const parseResult = amazonMessagingEnvSchema.safeParse({
     lwaClientId: process.env.AMZ_APP_CLIENT_ID,

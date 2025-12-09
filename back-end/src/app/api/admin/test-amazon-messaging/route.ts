@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
 
     // Step 1: Check configuration
     diagnostics.steps.push({ step: 1, name: 'Check Configuration' });
+    // Force refresh to ensure we get latest env vars (bypass cache)
     const configResult = getAmazonMessagingConfig(true);
     if (!configResult.ok) {
       return NextResponse.json({
