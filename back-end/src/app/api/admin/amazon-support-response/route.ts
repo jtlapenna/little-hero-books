@@ -79,7 +79,6 @@ export async function GET(request: NextRequest) {
     const responseTxt = formatResponseTxt(apiCallDetails);
 
     // Check if user wants to download a specific file
-    const { searchParams } = new URL(request.url);
     const file = searchParams.get('file'); // 'request' or 'response'
 
     if (file === 'request') {
