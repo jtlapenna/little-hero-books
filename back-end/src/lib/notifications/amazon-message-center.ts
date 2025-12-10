@@ -275,6 +275,7 @@ interface MessageTypeCheckResult {
   allowedType: AllowedMessageType;
   availableActions: string[];
   rawResponse: any;
+  apiCallDetails?: any; // Full request/response details for Amazon support
 }
 
 /**
@@ -324,24 +325,34 @@ async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptio
       allowedType = 'createConfirmOrderDetails';
     }
 
+    // Extract API call details if available from response
+    const apiCallDetails = (response as any).__apiCallDetails;
+
     return {
       allowedType,
       availableActions: actions,
-      rawResponse: response
+      rawResponse: response,
+      apiCallDetails // Include for export
     };
   } catch (error: any) {
-    // Re-throw AmazonMessagingError as-is
+    // Re-throw AmazonMessagingError as-is, preserving apiCallDetails
     if (error instanceof AmazonMessagingError) {
+      // apiCallDetails is already attached to the error in callSellingPartnerApi
       throw error;
     }
     // Wrap other errors
-    throw new AmazonMessagingError(
+    const wrappedError = new AmazonMessagingError(
       error?.message || 'Failed to check message type availability',
       {
         retryable: false,
         details: { originalError: error?.message }
       }
     );
+    // Preserve apiCallDetails if available
+    if (error.apiCallDetails) {
+      (wrappedError as any).apiCallDetails = error.apiCallDetails;
+    }
+    throw wrappedError;
   }
 }
 
@@ -636,6 +647,21 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
     requestHeaders.set('x-amz-security-token', process.env.AWS_SESSION_TOKEN);
   }
 
+  // Capture full request details for Amazon support
+  const requestTimestamp = amzDate;
+  const fullRequestDetails = {
+    method,
+    url: url.toString(),
+    path: options.path,
+    headers: Object.fromEntries(requestHeaders.entries()),
+    body: bodyString || null,
+    timestamp: requestTimestamp,
+    applicationId: options.config.lwaClientId,
+    developerAccountId: options.config.sellerId,
+    api: 'Selling Partner API',
+    operation: options.path
+  };
+
   const response = await fetch(url.toString(), {
     method,
     headers: requestHeaders,
@@ -647,6 +673,14 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
   const responseStatus = response.status;
   const responseStatusText = response.statusText;
   const responseOk = response.ok;
+  
+  // Capture response headers (including Request ID) BEFORE reading body
+  // In Cloudflare Workers, we need to capture headers before body is consumed
+  const responseHeaders: Record<string, string> = {};
+  response.headers.forEach((value, key) => {
+    responseHeaders[key] = value;
+  });
+  const requestId = responseHeaders['x-amzn-requestid'] || responseHeaders['x-amzn-RequestId'] || responseHeaders['x-amzn-RequestId'] || '';
 
   // Read response body ONCE as text, then parse manually
   // In Cloudflare Workers, response body can only be read once
@@ -658,6 +692,57 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
   } catch {
     data = { raw: text };
   }
+
+  // Capture full response details for Amazon support
+  const fullResponseDetails = {
+    status: responseStatus,
+    statusText: responseStatusText,
+    headers: responseHeaders,
+    body: text,
+    requestId,
+    timestamp: requestTimestamp
+  };
+
+  // Store request/response details for potential export (attach to error or return)
+  const apiCallDetails = {
+    request: fullRequestDetails,
+    response: fullResponseDetails,
+    applicationId: options.config.lwaClientId,
+    developerAccountId: options.config.sellerId,
+    api: 'Selling Partner API',
+    operation: options.path,
+    timestamp: requestTimestamp,
+    requestId
+  };
+
+  // Log full request/response details in format Amazon requested (for support tickets)
+  // This log entry contains ALL information Amazon needs
+  const supportLogEntry = {
+    // Amazon Support Request Fields
+    applicationId: apiCallDetails.applicationId,
+    developerAccountId: apiCallDetails.developerAccountId,
+    api: apiCallDetails.api,
+    operation: apiCallDetails.operation,
+    timestamp: apiCallDetails.timestamp,
+    requestId: apiCallDetails.requestId,
+    // Full Request (headers + body)
+    fullRequest: {
+      method: fullRequestDetails.method,
+      url: fullRequestDetails.url,
+      path: fullRequestDetails.path,
+      headers: fullRequestDetails.headers,
+      body: fullRequestDetails.body
+    },
+    // Full Response (headers + body)
+    fullResponse: {
+      status: fullResponseDetails.status,
+      statusText: fullResponseDetails.statusText,
+      headers: fullResponseDetails.headers,
+      body: fullResponseDetails.body // Full body for support
+    }
+  };
+  
+  console.log('[Amazon SP-API] Full Request/Response Details for Support:', JSON.stringify(supportLogEntry, null, 2));
 
   if (!responseOk) {
     // Log FULL error details for troubleshooting - this is critical for diagnosis
@@ -672,7 +757,18 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
       firstError: data?.errors?.[0],
       rawResponse: text.substring(0, 1000), // First 1000 chars
       allErrorCodes: data?.errors?.map((e: any) => e.code) || [],
-      allErrorMessages: data?.errors?.map((e: any) => e.message) || []
+      allErrorMessages: data?.errors?.map((e: any) => e.message) || [],
+      // Amazon support request details
+      amazonSupportInfo: {
+        applicationId: options.config.lwaClientId,
+        developerAccountId: options.config.sellerId,
+        api: 'Selling Partner API',
+        operation: options.path,
+        timestamp: requestTimestamp,
+        requestId,
+        fullRequest: fullRequestDetails,
+        fullResponse: fullResponseDetails
+      }
     };
     
     console.error('[Amazon SP-API] Request failed - FULL DETAILS:', JSON.stringify(errorDetails, null, 2));
@@ -692,7 +788,7 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
       ? `${errorMessage} (Code: ${errorCode}${errorDetailsStr})`
       : errorMessage;
 
-    throw new AmazonMessagingError(detailedError, {
+    const error = new AmazonMessagingError(detailedError, {
       retryable: responseStatus >= 500,
       status: responseStatus,
       code: errorCode,
@@ -700,7 +796,15 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
       url: url.toString(),
       path: options.path
     });
+    
+    // Attach API call details for Amazon support export
+    (error as any).apiCallDetails = apiCallDetails;
+    
+    throw error;
   }
+
+  // Attach API call details to successful response (for potential export)
+  (data as any).__apiCallDetails = apiCallDetails;
 
   return data;
 }

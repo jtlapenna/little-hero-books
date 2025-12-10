@@ -243,6 +243,9 @@ export async function GET(request: NextRequest) {
         });
       }
     } catch (error: any) {
+      // Extract API call details if available (for Amazon support export)
+      const apiCallDetails = error.apiCallDetails || null;
+      
       diagnostics.steps.push({ 
         step: 4, 
         status: 'error', 
@@ -252,12 +255,33 @@ export async function GET(request: NextRequest) {
         details: error.details,
         url: error.url,
         path: error.path,
-        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+        // Include API call details for Amazon support
+        apiCallDetails: apiCallDetails ? {
+          applicationId: apiCallDetails.applicationId,
+          developerAccountId: apiCallDetails.developerAccountId,
+          api: apiCallDetails.api,
+          operation: apiCallDetails.operation,
+          timestamp: apiCallDetails.timestamp,
+          requestId: apiCallDetails.requestId,
+          hasFullRequest: !!apiCallDetails.request,
+          hasFullResponse: !!apiCallDetails.response
+        } : null
       });
       return NextResponse.json({
         success: false,
         error: 'GET /messaging/v1/orders failed',
-        diagnostics
+        diagnostics,
+        // Include full API call details for export
+        amazonSupportInfo: apiCallDetails ? {
+          applicationId: apiCallDetails.applicationId,
+          developerAccountId: apiCallDetails.developerAccountId,
+          api: apiCallDetails.api,
+          operation: apiCallDetails.operation,
+          timestamp: apiCallDetails.timestamp,
+          requestId: apiCallDetails.requestId,
+          note: 'Full request/response details are in server logs. Search for "[Amazon SP-API] Full Request/Response Details for Support"'
+        } : null
       });
     }
 
