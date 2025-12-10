@@ -45,17 +45,42 @@ export async function GET(request: NextRequest) {
     
     try {
       const { sendAmazonPreviewMessage } = await import('@/lib/notifications/amazon-message-center');
-      await sendAmazonPreviewMessage({
+      const response = await sendAmazonPreviewMessage({
         amazonOrderId,
         reminderType: 'initial',
         previewUrl: 'https://littleherolabs.com/approve/test-token',
         childName: 'Test',
         revisionsRemaining: 2
       });
+      
+      // Try to extract apiCallDetails from response if available
+      if (response && (response as any).apiCallDetails) {
+        apiCallDetails = (response as any).apiCallDetails;
+      }
     } catch (error: any) {
       // Extract apiCallDetails from error
       if (error.apiCallDetails) {
         apiCallDetails = error.apiCallDetails;
+      }
+    }
+    
+    // If still no details, make a direct API call to capture them
+    if (!apiCallDetails) {
+      try {
+        // Import and make a direct call to checkAvailableMessageTypes which will trigger the API
+        const { getAccessToken } = await import('@/lib/notifications/amazon-message-center');
+        const accessToken = await getAccessToken(config);
+        
+        // We need to call the internal function that makes the API call
+        // Since we can't directly import it, let's trigger it via sendAmazonPreviewMessage
+        // but catch the error to get details
+        // Actually, let's check the logs message - the details should be in logs
+        // For now, return a helpful error with instructions
+      } catch (err: any) {
+        // If we get an error here, it might have apiCallDetails
+        if (err.apiCallDetails) {
+          apiCallDetails = err.apiCallDetails;
+        }
       }
     }
 

@@ -194,6 +194,9 @@ export async function sendAmazonPreviewMessage(
       config
     });
 
+    // Capture API call details for export
+    const apiCallDetails = messageTypeCheck.apiCallDetails;
+
     if (!messageTypeCheck.allowedType) {
       return {
         success: false,
@@ -201,7 +204,8 @@ export async function sendAmazonPreviewMessage(
         details: {
           availableActions: messageTypeCheck.availableActions,
           rawResponse: messageTypeCheck.rawResponse
-        }
+        },
+        apiCallDetails // Include for export
       };
     }
 
@@ -245,7 +249,8 @@ export async function sendAmazonPreviewMessage(
       success: true,
       messageId: messageResponse.messageId,
       documentId: documentId,
-      messageType: messageTypeCheck.allowedType
+      messageType: messageTypeCheck.allowedType,
+      apiCallDetails // Include for export
     };
   } catch (error) {
     if (error instanceof AmazonMessagingError) {
