@@ -222,6 +222,16 @@ export async function GET(request: NextRequest) {
         revisionsRemaining: 2
       });
       
+      // Log the raw response structure for debugging
+      console.log('[Test Amazon Messaging] Response structure:', {
+        success: response.success,
+        hasDetails: !!response.details,
+        hasRawResponse: !!response.details?.rawResponse,
+        rawResponseKeys: response.details?.rawResponse ? Object.keys(response.details.rawResponse) : [],
+        hasLinks: !!response.details?.rawResponse?._links,
+        hasActions: !!response.details?.rawResponse?._links?.actions
+      });
+      
       if (response.success) {
         diagnostics.steps.push({ 
           step: 4, 
@@ -230,11 +240,26 @@ export async function GET(request: NextRequest) {
           messageId: response.messageId
         });
       } else {
+        // Include detailed response structure for debugging
+        const rawResponse = response.details?.rawResponse || null;
+        const responseStructure = {
+          hasLinks: !!rawResponse?._links,
+          hasActions: !!rawResponse?._links?.actions,
+          actionsCount: Array.isArray(rawResponse?._links?.actions) ? rawResponse._links.actions.length : 0,
+          actionsPreview: Array.isArray(rawResponse?._links?.actions) 
+            ? rawResponse._links.actions.slice(0, 3).map((a: any) => ({ name: a?.name, href: a?.href?.substring(0, 50) + '...' }))
+            : null,
+          topLevelKeys: rawResponse ? Object.keys(rawResponse) : [],
+          fullResponsePreview: rawResponse ? JSON.stringify(rawResponse).substring(0, 500) : null
+        };
+        
         diagnostics.steps.push({ 
           step: 4, 
           status: 'error', 
           message: response.error || 'Unknown error',
-          issues: response.issues
+          issues: response.issues,
+          availableActions: response.details?.availableActions || [],
+          responseStructure
         });
         return NextResponse.json({
           success: false,
