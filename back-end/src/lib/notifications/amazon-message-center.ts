@@ -299,11 +299,13 @@ async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptio
       }
     });
 
-    const availableActions = Array.isArray(response?.payload?.availableActions)
-      ? response.payload.availableActions
+    // Amazon API returns actions in _links.actions array
+    // Each action is an object with { name, href } structure
+    const actionsArray = Array.isArray(response?._links?.actions)
+      ? response._links.actions
       : [];
 
-    const actions: string[] = availableActions
+    const actions: string[] = actionsArray
       .map((action: any) => {
         if (typeof action === 'string') {
           return action;
@@ -319,14 +321,21 @@ async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptio
     console.log('[Amazon Messaging] Available actions for order:', {
       orderId: options.amazonOrderId,
       actions,
-      rawActions: availableActions
+      rawActions: actionsArray,
+      responseStructure: {
+        hasLinks: !!response?._links,
+        hasActions: !!response?._links?.actions,
+        actionsCount: actionsArray.length
+      }
     });
 
-    // Prefer confirmCustomizationDetails, fall back to createConfirmOrderDetails
+    // Prefer confirmCustomizationDetails, fall back to confirmOrderDetails
+    // Note: Amazon API returns "confirmOrderDetails" but POST endpoint is "createConfirmOrderDetails"
     let allowedType: AllowedMessageType = null;
     if (actions.includes('confirmCustomizationDetails')) {
       allowedType = 'confirmCustomizationDetails';
-    } else if (actions.includes('createConfirmOrderDetails')) {
+    } else if (actions.includes('confirmOrderDetails')) {
+      // Amazon returns "confirmOrderDetails" in _links.actions, but POST endpoint uses "createConfirmOrderDetails"
       allowedType = 'createConfirmOrderDetails';
     }
 
