@@ -606,11 +606,11 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
   const dateStamp = amzDate.substring(0, 8);
 
+  // Headers that will be signed (for AWS SigV4)
   const headers: Record<string, string> = {
     host,
     'x-amz-date': amzDate,
-    'x-amz-access-token': options.accessToken,
-    'user-agent': 'LittleHeroBooks/1.0 (Language=TypeScript/Node.js; Platform=Cloudflare)'
+    'x-amz-access-token': options.accessToken
   };
 
   if (method === 'POST' || method === 'PUT') {
@@ -625,6 +625,7 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join('&');
 
+  // Only sign the required headers (user-agent should NOT be signed)
   const sortedHeaderKeys = Object.keys(headers).sort();
   const canonicalHeaders = sortedHeaderKeys
     .map((key) => `${key}:${headers[key].trim()}`)
@@ -660,6 +661,9 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
   for (const [key, value] of Object.entries(headers)) {
     requestHeaders.set(key, value);
   }
+
+  // Add user-agent header (required by Amazon but NOT signed)
+  requestHeaders.set('user-agent', 'LittleHeroBooks/1.0 (Language=TypeScript/Node.js; Platform=Cloudflare)');
 
   if (process.env.AWS_SESSION_TOKEN) {
     requestHeaders.set('x-amz-security-token', process.env.AWS_SESSION_TOKEN);
