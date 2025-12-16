@@ -257,10 +257,13 @@ export async function sendAmazonPreviewMessage(
     };
   } catch (error) {
     if (error instanceof AmazonMessagingError) {
+      // Extract apiCallDetails from error for export
+      const apiCallDetails = (error as any).apiCallDetails || null;
       return {
         success: false,
         error: error.message,
-        retryable: error.retryable
+        retryable: error.retryable,
+        apiCallDetails // Include for export
       };
     }
 
