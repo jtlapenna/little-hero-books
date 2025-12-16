@@ -337,8 +337,15 @@ async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptio
 
     // Prefer confirmCustomizationDetails, fall back to confirmOrderDetails
     // Note: Amazon API returns "confirmOrderDetails" but POST endpoint is "createConfirmOrderDetails"
+    // TEMPORARY: Force text-only for testing (skip HTML upload)
+    // TODO: Remove this after testing
+    const FORCE_TEXT_ONLY = process.env.AMAZON_FORCE_TEXT_ONLY === 'true';
+    
     let allowedType: AllowedMessageType = null;
-    if (actions.includes('confirmCustomizationDetails')) {
+    if (FORCE_TEXT_ONLY && actions.includes('confirmOrderDetails')) {
+      // Force text-only message type
+      allowedType = 'createConfirmOrderDetails';
+    } else if (actions.includes('confirmCustomizationDetails')) {
       allowedType = 'confirmCustomizationDetails';
     } else if (actions.includes('confirmOrderDetails')) {
       // Amazon returns "confirmOrderDetails" in _links.actions, but POST endpoint uses "createConfirmOrderDetails"

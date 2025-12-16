@@ -5,8 +5,10 @@ import { getOrderFromSupabase } from '@/lib/supabase-client';
 export const dynamic = 'force-dynamic';
 
 /**
- * Test sending text-only message (no HTML upload)
+ * Test sending text-only message (no HTML upload, skips checkAvailableMessageTypes)
  * GET /api/admin/test-amazon-text-message?orderId=111-0060602-1283417&previewUrl=https://littleherolabs.com/approve/test-token
+ * 
+ * This bypasses the upload step and directly sends a text-only message
  */
 export async function GET(request: NextRequest) {
   try {
@@ -34,27 +36,22 @@ export async function GET(request: NextRequest) {
 
     const amazonOrderId = order.amazon_order_id || order.orderId || order.order_id || orderId;
 
-    // Get access token
-    const { getAccessToken } = await import('@/lib/notifications/amazon-message-center');
-    const accessToken = await getAccessToken(config);
-
-    // Directly call sendConfirmOrderDetails (text-only, no upload)
-    const { callSellingPartnerApi } = await import('@/lib/notifications/amazon-message-center');
+    // Force text-only message by setting environment variable
+    // This will skip HTML upload and use createConfirmOrderDetails instead
+    process.env.AMAZON_FORCE_TEXT_ONLY = 'true';
     
-    const messageText = `Hi! Here is a preview of your personalized book so you can confirm everything looks good before we print: ${previewUrl}. We will proceed using these details unless we hear from you.`;
-
-    const response = await callSellingPartnerApi({
-      method: 'POST',
-      path: `/messaging/v1/orders/${amazonOrderId}/messages/createConfirmOrderDetails`,
-      accessToken,
-      config,
-      query: {
-        marketplaceIds: config.marketplaceId
-      },
-      body: {
-        text: messageText
-      }
+    const { sendAmazonPreviewMessage } = await import('@/lib/notifications/amazon-message-center');
+    
+    const response = await sendAmazonPreviewMessage({
+      amazonOrderId,
+      reminderType: 'initial',
+      previewUrl,
+      childName: 'Test',
+      revisionsRemaining: 2
     });
+    
+    // Clean up
+    delete process.env.AMAZON_FORCE_TEXT_ONLY;
 
     return NextResponse.json({
       success: true,
