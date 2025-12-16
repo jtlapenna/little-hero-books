@@ -271,6 +271,17 @@ export async function GET(request: NextRequest) {
       // Extract API call details if available (for Amazon support export)
       const apiCallDetails = error.apiCallDetails || null;
       
+      // Extract the actual error response body from Amazon
+      const errorResponseBody = error.details || error.apiCallDetails?.response?.body || null;
+      let parsedErrorBody = null;
+      if (errorResponseBody) {
+        try {
+          parsedErrorBody = typeof errorResponseBody === 'string' ? JSON.parse(errorResponseBody) : errorResponseBody;
+        } catch {
+          parsedErrorBody = { raw: errorResponseBody };
+        }
+      }
+      
       diagnostics.steps.push({ 
         step: 4, 
         status: 'error', 
@@ -280,6 +291,10 @@ export async function GET(request: NextRequest) {
         details: error.details,
         url: error.url,
         path: error.path,
+        // Include the actual error response from Amazon
+        amazonErrorResponse: parsedErrorBody,
+        amazonErrorCodes: parsedErrorBody?.errors?.map((e: any) => e.code) || [],
+        amazonErrorMessages: parsedErrorBody?.errors?.map((e: any) => e.message) || [],
         fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
         // Include API call details for Amazon support
         apiCallDetails: apiCallDetails ? {
@@ -290,7 +305,8 @@ export async function GET(request: NextRequest) {
           timestamp: apiCallDetails.timestamp,
           requestId: apiCallDetails.requestId,
           hasFullRequest: !!apiCallDetails.request,
-          hasFullResponse: !!apiCallDetails.response
+          hasFullResponse: !!apiCallDetails.response,
+          responseBody: apiCallDetails.response?.body || null
         } : null
       });
       return NextResponse.json({
