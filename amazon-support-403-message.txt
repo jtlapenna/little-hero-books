@@ -1,0 +1,66 @@
+Subject: 403 Unauthorized Error on Messaging API - Application ID: amzn1.application-oa2-client.704d66d4cc6645f58405d34f80fa5f58
+
+Hello Amazon SP-API Support,
+
+I am experiencing a 403 Unauthorized error when attempting to access the Messaging API endpoint. I have completed all recommended authorization steps but continue to receive this error.
+
+ERROR DETAILS:
+- Error: "Access to requested resource is denied. (Code: Unauthorized)"
+- Status Code: 403 Forbidden
+- Endpoint: GET /messaging/v1/orders/111-0060602-1283417
+- Application ID: amzn1.application-oa2-client.704d66d4cc6645f58405d34f80fa5f58
+- Developer Account ID: A2V719MRGLK48O
+- Seller ID: A2V719MRGLK48O
+- Order ID: 111-0060602-1283417
+- Marketplace ID: ATVPDKIKX0DER (US)
+- Region: na (North America)
+
+NOTE: On December 10, 2025, the same endpoint returned a successful 200 response with available messaging actions (see attached response file). The order and endpoint are valid. The 403 error began occurring after SP-API approval and re-authorization steps.
+
+WHAT I'VE COMPLETED:
+1. ✅ SP-API access approved (received approval email on December 10, 2025)
+2. ✅ Buyer Communication role enabled and active in Developer Profile
+3. ✅ Application authorized for seller account A2V719MRGLK48O via "Manage Authorizations"
+4. ✅ Refresh token obtained and configured in environment variables
+5. ✅ AWS IAM policy configured with execute-api:Invoke permissions for messaging endpoints
+6. ✅ Verified order 111-0060602-1283417 belongs to seller A2V719MRGLK48O
+7. ✅ Verified order is unshipped (messaging should be allowed)
+8. ✅ LWA access token generation working successfully (tested independently)
+
+CURRENT STATUS:
+- Application shows as "Draft" in Apps & Services → Develop Apps
+- No "Publish", "Activate", or "Submit" button available
+- Application appears as "Authorized" in Apps & Services → Manage Authorizations
+- Buyer Communication role shows as "Active" in Developer Profile
+
+TEST RESULTS:
+- LWA token generation: ✅ Success (returns valid access token)
+- GET /messaging/v1/orders/{orderId}: ❌ 403 Unauthorized
+- Order ownership: ✅ Verified in Seller Central
+- Order status: ✅ Unshipped
+
+QUESTION:
+Is the "Draft" status preventing API access? If so, how do I publish/activate the application? I do not see any publish or activate options in Seller Central.
+
+Alternatively, is there something else I need to configure or wait for after SP-API approval?
+
+REQUEST:
+Please help me understand:
+1. Why I'm receiving 403 Unauthorized despite completing all authorization steps
+2. Whether the "Draft" status is blocking API access
+3. What additional steps (if any) are required to enable Messaging API access
+4. If there's a permission propagation delay I should wait for
+
+I have attached the request/response details from my API call for your review.
+
+Thank you for your assistance.
+
+Best regards,
+[Your Name]
+Little Hero Books
+
+---
+ATTACHMENTS:
+- amazon-request-111-0060602-1283417.txt (full request details)
+- amazon-response-111-0060602-1283417.txt (full response details)
+

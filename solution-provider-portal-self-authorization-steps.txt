@@ -1,0 +1,148 @@
+STEP-BY-STEP: Solution Provider Portal Self-Authorization
+
+Your App Details:
+- App ID: amzn1.sp.solution.3e928368-7705-40e7-806f-d9d25b42516c
+- Client ID: amzn1.application-oa2-client.704d66d4cc6645f58405d34f80fa5f58
+
+==========================================
+STEP 1: Access Solution Provider Portal
+==========================================
+
+Try these URLs (in order):
+1. https://developer.amazon.com/solution-providers
+2. https://developer.amazon.com/sp-api/solution-provider
+3. https://sellercentral.amazon.com/apps/develop
+
+If you can't access:
+- You may need to be added as a user to the Solution Provider account
+- Contact whoever set up the app originally
+
+What you should see:
+- Page titled "Solution Provider Portal" (NOT "Amazon Developer Console")
+- Table listing your app(s)
+- Your app: "Little Hero Labs Production" or similar
+
+==========================================
+STEP 2: Find Your App and Edit It
+==========================================
+
+1. In the Solution Provider Portal, find your app in the table
+2. Click on the app name (or "Edit" button if available)
+3. You should see app settings/configuration page
+
+==========================================
+STEP 3: Verify OAuth Configuration
+==========================================
+
+In the app settings, find the OAuth section and verify:
+
+OAuth Login URI:
+https://littleherolabs.com
+(Or your main website URL)
+
+OAuth Redirect URI:
+https://localhost
+(Standard for self-authorization)
+
+If these are not set or different:
+- Update them to match above
+- Click "Save" or "Update"
+
+==========================================
+STEP 4: Verify Roles Are Selected
+==========================================
+
+In the app settings, find the "Roles" section and ensure:
+✅ Buyer Communication (REQUIRED for Messaging API)
+✅ Any other roles you need
+
+If not checked:
+- Check the boxes for all roles you need
+- Click "Save" or "Update"
+
+==========================================
+STEP 5: Self-Authorize the App
+==========================================
+
+After saving OAuth and roles, you need to self-authorize.
+
+Option A: Use the Authorization URL
+1. Copy this URL (replace YOUR_CLIENT_ID with your actual Client ID):
+   https://sellercentral.amazon.com/apps/authorize/consent?application_id=amzn1.application-oa2-client.704d66d4cc6645f58405d34f80fa5f58&state=test123&version=beta&redirect_uri=https://localhost
+
+2. Paste it into your browser and press Enter
+
+3. You'll be redirected to Amazon login (if not already logged in)
+
+4. You'll see a consent screen asking you to authorize the app
+   - Make sure "Buyer Communication" role is selected
+   - Click "Authorize" or "Allow"
+
+5. You'll be redirected to https://localhost
+   - You may see a blank page or error - THIS IS NORMAL
+   - The authorization is complete when you see the redirect
+
+Option B: Look for "Authorize" Button in Portal
+1. In Solution Provider Portal, look for:
+   - "Authorize App" button
+   - "Self-Authorize" link
+   - "Get Refresh Token" button
+   - "View Credentials" link
+
+2. Click it and follow the authorization flow
+
+==========================================
+STEP 6: Get Your New Refresh Token
+==========================================
+
+After authorization, you need a new refresh token:
+
+1. In Solution Provider Portal, look for:
+   - "View Credentials" or "View sandbox credentials"
+   - "Refresh Token" section
+   - "Credentials" tab
+
+2. Copy the Refresh Token (starts with "Atzr|")
+
+3. Update your environment variable:
+   - Go to Cloudflare Pages → Your Site → Settings → Environment Variables
+   - Update AMZ_REFRESH_TOKEN with the new token
+   - Save and redeploy
+
+==========================================
+STEP 7: Test the API
+==========================================
+
+After updating the refresh token and redeploying:
+
+curl "https://admin.littleherolabs.com/api/admin/test-amazon-messaging?orderId=111-0060602-1283417"
+
+You should now get a successful response instead of 403 Unauthorized.
+
+==========================================
+TROUBLESHOOTING
+==========================================
+
+If you can't find Solution Provider Portal:
+- Try all the URLs listed in Step 1
+- Check your browser history for "solution provider" URLs
+- Ask whoever originally set up the app for the URL they used
+
+If authorization URL shows error:
+- Make sure OAuth Redirect URI in app settings matches the URL (https://localhost)
+- Try the exact URL from Step 5, Option A
+- Make sure you're logged into the correct Amazon account
+
+If you still get 403 after authorization:
+- Wait 5-10 minutes for permissions to propagate
+- Verify the refresh token was updated
+- Check that Buyer Communication role is still selected in app settings
+
+If you need help:
+- Take screenshots of:
+  * The Solution Provider Portal page
+  * The app settings/configuration page
+  * Any error messages
+- Send to Amazon Support with your App ID
+
+

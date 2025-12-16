@@ -1,1 +1,19 @@
-{"error":"API call details not captured","instructions":["1. Check Cloudflare Pages logs for: \"[Amazon SP-API] Full Request/Response Details for Support\"","2. That log entry contains all information Amazon requested","3. Copy the JSON and format as TXT files using the format below","4. Or make another API call that will trigger an error to capture details"],"note":"The full request/response details are automatically logged when API calls are made. Search your Cloudflare Pages logs for the log entry mentioned above."}
+=== AMAZON SP-API REQUEST ===
+
+Method: GET
+URL: https://sellingpartnerapi-na.amazon.com/messaging/v1/orders/111-0060602-1283417?marketplaceIds=ATVPDKIKX0DER
+Path: /messaging/v1/orders/111-0060602-1283417
+Timestamp: 20251210T195854Z
+Application ID: [REDACTED_CLIENT_ID]
+Developer Account ID: A2V719MRGLK48O
+API: Selling Partner API
+Operation: /messaging/v1/orders/111-0060602-1283417
+
+--- Headers ---
+authorization: AWS4-HMAC-SHA256 Credential=[REDACTED_AWS_CREDENTIAL]/20251210/us-east-1/execute-api/aws4_request, SignedHeaders=host;x-amz-access-token;x-amz-date, Signature=[REDACTED_SIGNATURE]
+host: sellingpartnerapi-na.amazon.com
+x-amz-access-token: [REDACTED_ACCESS_TOKEN]
+x-amz-date: 20251210T195854Z
+
+--- Body ---
+(empty)

@@ -1,1 +1,246 @@
-{"error":"API call details not captured","instructions":["1. Check Cloudflare Pages logs for: \"[Amazon SP-API] Full Request/Response Details for Support\"","2. That log entry contains all information Amazon requested","3. Copy the JSON and format as TXT files using the format below","4. Or make another API call that will trigger an error to capture details"],"note":"The full request/response details are automatically logged when API calls are made. Search your Cloudflare Pages logs for the log entry mentioned above."}
+=== AMAZON SP-API RESPONSE ===
+
+Status: 200
+Status Text: 
+Request ID: 389b69e9-bde1-4669-a0e4-c481ffaf1197
+Timestamp: 20251210T195859Z
+Application ID: amzn1.application-oa2-client.704d66d4cc6645f58405d34f80fa5f58
+Developer Account ID: A2V719MRGLK48O
+API: Selling Partner API
+Operation: /messaging/v1/orders/111-0060602-1283417
+
+--- Headers ---
+cf-cache-status: DYNAMIC
+cf-ray: 9abf51f72370ec0f-SEA
+connection: keep-alive
+content-type: application/json
+date: Wed, 10 Dec 2025 19:59:00 GMT
+server: cloudflare
+strict-transport-security: max-age=47474747; includeSubDomains; preload
+transfer-encoding: chunked
+vary: accept-encoding,Content-Type,Accept-Encoding,User-Agent
+x-amz-apigw-id: OPF389b69e9bde1
+x-amz-rid: DRVK9PJT1QKXVEHCD35Y
+x-amzn-ratelimit-limit: 1.0
+x-amzn-requestid: 389b69e9-bde1-4669-a0e4-c481ffaf1197
+x-amzn-trace-id: Root=1-6939d104-389b69e9bde14669
+
+--- Body ---
+{
+  "_links": {
+    "actions": [
+      {
+        "href": "/messaging/v1/orders/111-0060602-1283417/messages/confirmCustomizationDetails?marketplaceIds=ATVPDKIKX0DER",
+        "name": "confirmCustomizationDetails"
+      },
+      {
+        "href": "/messaging/v1/orders/111-0060602-1283417/messages/updateFeedback?marketplaceIds=ATVPDKIKX0DER",
+        "name": "updateFeedback"
+      },
+      {
+        "href": "/messaging/v1/orders/111-0060602-1283417/messages/confirmOrderDetails?marketplaceIds=ATVPDKIKX0DER",
+        "name": "confirmOrderDetails"
+      },
+      {
+        "href": "/messaging/v1/orders/111-0060602-1283417/messages/unexpectedProblem?marketplaceIds=ATVPDKIKX0DER",
+        "name": "unexpectedProblem"
+      }
+    ],
+    "self": {
+      "href": "/messaging/v1/orders/111-0060602-1283417?marketplaceIds=ATVPDKIKX0DER"
+    }
+  },
+  "_embedded": {
+    "actions": [
+      {
+        "_links": {
+          "schema": {
+            "href": "/messaging/v1/orders/111-0060602-1283417/messages/confirmCustomizationDetails/schema",
+            "name": "confirmCustomizationDetails"
+          },
+          "self": {
+            "href": "/messaging/v1/orders/111-0060602-1283417/messages/confirmCustomizationDetails?marketplaceIds=ATVPDKIKX0DER",
+            "name": "confirmCustomizationDetails"
+          }
+        },
+        "_embedded": {
+          "schema": {
+            "_links": {
+              "self": {
+                "href": "/messaging/v1/orders/111-0060602-1283417/messages/confirmCustomizationDetails/schema",
+                "name": "confirmCustomizationDetails"
+              }
+            },
+            "type": "object",
+            "name": "confirmCustomizationDetails",
+            "title": "Confirm customization details",
+            "description": "Ask your customer to provide details or verify the customization input provided (name spelling, imagery, initials).",
+            "disabled": false,
+            "disabledReason": null,
+            "properties": {
+              "attachments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [],
+                  "properties": {
+                    "fileName": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "title": "Add attachment",
+                "description": "You can upload text files, PDFs, Word documents, and these image file types: .jpg, .gif, and .png. The total size of attachments must be less than 10 MB.",
+                "x-ui-field-type": "attachments",
+                "maxItems": 5
+              },
+              "rawMessageBody": {
+                "type": "string",
+                "title": "Explain why you are contacting and any action you need your customer to take. ",
+                "description": "800 character limit. Only links related to order completion are allowed, no HTML or email addresses.",
+                "x-ui-field-type": "text",
+                "minLength": 1,
+                "maxLength": 800
+              }
+            },
+            "required": [
+              "attachments",
+              "rawMessageBody"
+            ],
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "x-ui-hidden": false
+          }
+        },
+        "name": "confirmCustomizationDetails",
+        "title": "Confirm customization details"
+      },
+      {
+        "_links": {
+          "schema": {
+            "href": "/messaging/v1/orders/111-0060602-1283417/messages/updateFeedback/schema",
+            "name": "updateFeedback"
+          },
+          "self": {
+            "href": "/messaging/v1/orders/111-0060602-1283417/messages/updateFeedback?marketplaceIds=ATVPDKIKX0DER",
+            "name": "updateFeedback"
+          }
+        },
+        "_embedded": {
+          "schema": {
+            "_links": {
+              "self": {
+                "href": "/messaging/v1/orders/111-0060602-1283417/messages/updateFeedback/schema",
+                "name": "updateFeedback"
+              }
+            },
+            "type": "object",
+            "name": "updateFeedback",
+            "title": "Request to update negative feedback",
+            "description": "Ask your customer to consider updating their seller feedback rating. You may only send this once per order.",
+            "disabled": false,
+            "disabledReason": null,
+            "properties": {},
+            "required": [],
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "x-ui-hidden": true
+          }
+        },
+        "name": "updateFeedback",
+        "title": "Request to update negative feedback"
+      },
+      {
+        "_links": {
+          "schema": {
+            "href": "/messaging/v1/orders/111-0060602-1283417/messages/confirmOrderDetails/schema",
+            "name": "confirmOrderDetails"
+          },
+          "self": {
+            "href": "/messaging/v1/orders/111-0060602-1283417/messages/confirmOrderDetails?marketplaceIds=ATVPDKIKX0DER",
+            "name": "confirmOrderDetails"
+          }
+        },
+        "_embedded": {
+          "schema": {
+            "_links": {
+              "self": {
+                "href": "/messaging/v1/orders/111-0060602-1283417/messages/confirmOrderDetails/schema",
+                "name": "confirmOrderDetails"
+              }
+            },
+            "type": "object",
+            "name": "confirmOrderDetails",
+            "title": "Confirm order details",
+            "description": "Ask your customer a specific order-related question prior to shipping their order.",
+            "disabled": false,
+            "disabledReason": null,
+            "properties": {
+              "rawMessageBody": {
+                "type": "string",
+                "title": "Explain why you are contacting and any action you need your customer to take. ",
+                "description": "2000 character limit. Only links related to order completion are allowed, no HTML or email addresses.",
+                "x-ui-field-type": "text",
+                "minLength": 1,
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "rawMessageBody"
+            ],
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "x-ui-hidden": false
+          }
+        },
+        "name": "confirmOrderDetails",
+        "title": "Confirm order details"
+      },
+      {
+        "_links": {
+          "schema": {
+            "href": "/messaging/v1/orders/111-0060602-1283417/messages/unexpectedProblem/schema",
+            "name": "unexpectedProblem"
+          },
+          "self": {
+            "href": "/messaging/v1/orders/111-0060602-1283417/messages/unexpectedProblem?marketplaceIds=ATVPDKIKX0DER",
+            "name": "unexpectedProblem"
+          }
+        },
+        "_embedded": {
+          "schema": {
+            "_links": {
+              "self": {
+                "href": "/messaging/v1/orders/111-0060602-1283417/messages/unexpectedProblem/schema",
+                "name": "unexpectedProblem"
+              }
+            },
+            "type": "object",
+            "name": "unexpectedProblem",
+            "title": "Notify of a problem with shipping your order",
+            "description": "Notify your customer there was an unexpected problem with shipping their order.",
+            "disabled": false,
+            "disabledReason": null,
+            "properties": {
+              "rawMessageBody": {
+                "type": "string",
+                "title": "Explain why you are contacting and any action you need your customer to take. ",
+                "description": "2000 character limit. Only links related to order completion are allowed, no HTML or email addresses.",
+                "x-ui-field-type": "text",
+                "minLength": 1,
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "rawMessageBody"
+            ],
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "x-ui-hidden": false
+          }
+        },
+        "name": "unexpectedProblem",
+        "title": "Notify of a problem with shipping your order"
+      }
+    ]
+  }
+}

@@ -253,68 +253,68 @@ export default function OrderDetailPage() {
     const orderId = params.orderId as string;
     if (!orderId) return;
     
-    const updateFlagCounts = async () => {
-      try {
-        let preBria = 0;
-        let postBria = 0;
-        let postPdf = 0;
-        
-        // Load 2a manifest for preBria flags
+      const updateFlagCounts = async () => {
         try {
-          const manifest2aUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
-          const res2a = await fetch(manifest2aUrl, { cache: 'no-store' });
-          if (res2a.ok) {
-            const manifest2a = await res2a.json();
-            const entries2a = manifest2a?.entries || [];
-            preBria = entries2a.filter((e: any) => e.isFlagged || e.needsReview).length;
-          }
-        } catch (err) {
+          let preBria = 0;
+          let postBria = 0;
+          let postPdf = 0;
+          
+          // Load 2a manifest for preBria flags
+          try {
+            const manifest2aUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
+            const res2a = await fetch(manifest2aUrl, { cache: 'no-store' });
+            if (res2a.ok) {
+              const manifest2a = await res2a.json();
+              const entries2a = manifest2a?.entries || [];
+              preBria = entries2a.filter((e: any) => e.isFlagged || e.needsReview).length;
+            }
+          } catch (err) {
           // Silently handle - 404 is expected
-        }
-        
-        // Load 2b manifest for postBria flags (fallback to 2a if 2b doesn't exist)
-        try {
-          let manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json?v=${Date.now()}`;
-          let res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
-          if (!res2b.ok && res2b.status === 404) {
-            manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
-            res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
           }
-          if (res2b.ok) {
-            const manifest2b = await res2b.json();
-            const entries2b = manifest2b?.entries || [];
-            postBria = entries2b.filter((e: any) => e.isFlagged || e.needsReview).length;
-          }
-        } catch (err) {
+          
+          // Load 2b manifest for postBria flags (fallback to 2a if 2b doesn't exist)
+          try {
+            let manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json?v=${Date.now()}`;
+            let res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
+            if (!res2b.ok && res2b.status === 404) {
+              manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
+              res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
+            }
+            if (res2b.ok) {
+              const manifest2b = await res2b.json();
+              const entries2b = manifest2b?.entries || [];
+              postBria = entries2b.filter((e: any) => e.isFlagged || e.needsReview).length;
+            }
+          } catch (err) {
           // Silently handle - 404 is expected
-        }
-        
-        // Load 3 manifest for postPdf flags
-        try {
-          const manifest3Url = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
-          const res3 = await fetch(manifest3Url, { cache: 'no-store' });
-          if (res3.ok) {
-            const manifest3 = await res3.json();
-            const pagesMetadata = manifest3?.pngGeneration?.pagesMetadata || manifest3?.manifest?.pngGeneration?.pagesMetadata || {};
-            postPdf = Object.values(pagesMetadata).filter((meta: any) => meta.isFlagged || meta.needsReview).length;
           }
-        } catch (err) {
+          
+          // Load 3 manifest for postPdf flags
+          try {
+            const manifest3Url = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
+            const res3 = await fetch(manifest3Url, { cache: 'no-store' });
+            if (res3.ok) {
+              const manifest3 = await res3.json();
+              const pagesMetadata = manifest3?.pngGeneration?.pagesMetadata || manifest3?.manifest?.pngGeneration?.pagesMetadata || {};
+              postPdf = Object.values(pagesMetadata).filter((meta: any) => meta.isFlagged || meta.needsReview).length;
+            }
+          } catch (err) {
           // Silently handle - 404 is expected
-        }
-        
-        setFlagCounts({ preBria, postBria, postPdf });
-      } catch (error) {
+          }
+          
+          setFlagCounts({ preBria, postBria, postPdf });
+        } catch (error) {
         // Silently handle errors
-      }
-    };
-    
+        }
+      };
+      
     // Initial update
-    updateFlagCounts();
-    
-    // Set up interval to check for flag count changes (polling for updates)
+      updateFlagCounts();
+      
+      // Set up interval to check for flag count changes (polling for updates)
     // Only poll every 10 seconds to reduce load
     const interval = setInterval(updateFlagCounts, 10000);
-    return () => clearInterval(interval);
+      return () => clearInterval(interval);
   }, [params.orderId]); // Only depend on orderId, not the entire order object
 
   if (loading) {
@@ -448,35 +448,35 @@ export default function OrderDetailPage() {
       const result = await response.json();
       // Update the order with the approval result immediately (no delay, no refetch)
       if (result?.reviewStages || result?.flags) {
-        setOrder(prev => {
-          if (!prev) return prev;
-            
-            // Create new object references to ensure React detects changes
-            const updatedReviewStages = result.reviewStages
-              ? {
-                  ...prev.reviewStages,
-                  ...result.reviewStages,
-                }
-              : prev.reviewStages;
-            
-            const updatedOrder: Order = {
-            ...prev,
-              reviewStages: updatedReviewStages,
-              ...(result.flags && { flags: result.flags }),
+      setOrder(prev => {
+        if (!prev) return prev;
+          
+          // Create new object references to ensure React detects changes
+          const updatedReviewStages = result.reviewStages
+            ? {
+                ...prev.reviewStages,
+                ...result.reviewStages,
+              }
+            : prev.reviewStages;
+          
+          const updatedOrder: Order = {
+          ...prev,
+            reviewStages: updatedReviewStages,
+            ...(result.flags && { flags: result.flags }),
+          };
+          
+          // Sync flagCounts state with order.flags for immediate UI update
+          if (result.flags) {
+            const newFlagCounts = {
+              preBria: result.flags.preBria || 0,
+              postBria: result.flags.postBria || 0,
+              postPdf: result.flags.postPdf || 0,
             };
-            
-            // Sync flagCounts state with order.flags for immediate UI update
-            if (result.flags) {
-              const newFlagCounts = {
-                preBria: result.flags.preBria || 0,
-                postBria: result.flags.postBria || 0,
-                postPdf: result.flags.postPdf || 0,
-              };
-              setFlagCounts(newFlagCounts);
-            }
-            
-            return updatedOrder;
-        });
+            setFlagCounts(newFlagCounts);
+          }
+          
+          return updatedOrder;
+      });
       }
 
     } catch (error) {
@@ -897,27 +897,34 @@ export default function OrderDetailPage() {
           />
         )}
 
-        {/* Recovery Actions Section */}
+        {/* Recovery Actions Section - Only show if there are actual recovery actions available */}
         {order && (() => {
-          // Debug logging for button visibility
-          const canShow2a = order.oneManifestUrl && 
-                           !order.manifest2aUrl && 
-                           order.characterHash && 
-                           (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0);
+          // Check which buttons would actually be visible
+          const canShowCreate1Manifest = !order.oneManifestUrl;
           
-          const canShow2b = (order.manifest2aUrl || (order.oneManifestUrl && (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0))) && 
-                           !order.manifest2bUrl && 
-                           order.characterHash && 
-                           (order.r2Assets?.sharedImageInfo?.hasSource2bManifest || order.r2Assets?.posesBgRemoved?.length > 0);
+          const canShowCreate2aManifest = order.oneManifestUrl && 
+                                          !order.manifest2aUrl && 
+                                          order.characterHash && 
+                                          order.r2Assets?.sharedImageInfo?.hasSource2aManifest;
           
-          const shouldShowSection = lifecycleStatus.errors && lifecycleStatus.errors.length > 0 || 
-                                    !order.oneManifestUrl || 
-                                    order.executionStatus === 'error' || 
-                                    order.executionStatus === 'error_requires_manual_review' ||
-                                    // Show if we can create 2A or 2B manifests (images exist but manifests don't)
-                                    (order.oneManifestUrl && order.characterHash && (!order.manifest2aUrl || !order.manifest2bUrl));
+          const canShowCreate2bManifest = (order.manifest2aUrl || (order.oneManifestUrl && order.r2Assets?.sharedImageInfo?.hasSource2aManifest)) && 
+                                          !order.manifest2bUrl && 
+                                          order.characterHash && 
+                                          order.r2Assets?.sharedImageInfo?.hasSource2bManifest;
           
-          return shouldShowSection;
+          const canShowResetButton = enableResetButton && (
+            order.executionStatus === 'error' || 
+            order.executionStatus === 'error_requires_manual_review' ||
+            (order.executionStatus === 'processing' && order.currentWorkflow)
+          );
+          
+          // Only show section if at least one button would be visible
+          const hasAnyRecoveryAction = canShowCreate1Manifest || 
+                                      canShowCreate2aManifest || 
+                                      canShowCreate2bManifest || 
+                                      canShowResetButton;
+          
+          return hasAnyRecoveryAction;
         })() && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
             <h3 className="text-sm font-semibold text-yellow-900 mb-3">Recovery Actions</h3>
@@ -943,9 +950,9 @@ export default function OrderDetailPage() {
               )}
               {/* Show 2A button if: has 1-manifest, has characterHash, no 2A manifest, and source order with 2A manifest exists */}
               {order.oneManifestUrl && 
-               !order.manifest2aUrl && 
-               order.characterHash && 
-               (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0) && (
+                               !order.manifest2aUrl && 
+                               order.characterHash && 
+                               order.r2Assets?.sharedImageInfo?.hasSource2aManifest && (
                 <button
                   type="button"
                   onClick={handleCreate2aManifest}
@@ -965,13 +972,13 @@ export default function OrderDetailPage() {
                   )}
                 </button>
               )}
-              {/* Show 2B button if: has 2A manifest (or 1-manifest if 2A images exist), has characterHash, no 2B manifest, and source order with 2B manifest exists */}
+              {/* Show 2B button if: has 2A manifest (or 1-manifest if source 2A exists), has characterHash, no 2B manifest, and source order with 2B manifest exists */}
               {(() => {
-                const has2aOrCanCreate2a = order.manifest2aUrl || (order.oneManifestUrl && (order.r2Assets?.sharedImageInfo?.hasSource2aManifest || order.r2Assets?.poses?.length > 0));
+                const has2aOrCanCreate2a = order.manifest2aUrl || (order.oneManifestUrl && order.r2Assets?.sharedImageInfo?.hasSource2aManifest);
                 return has2aOrCanCreate2a && 
-                       !order.manifest2bUrl && 
-                       order.characterHash && 
-                       (order.r2Assets?.sharedImageInfo?.hasSource2bManifest || order.r2Assets?.posesBgRemoved?.length > 0);
+                               !order.manifest2bUrl && 
+                               order.characterHash && 
+                               order.r2Assets?.sharedImageInfo?.hasSource2bManifest;
               })() && (
                 <button
                   type="button"

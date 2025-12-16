@@ -1,0 +1,81 @@
+Subject: Request for Specific Guidance on Completing Self-Authorization Process
+
+Hello Amazon SP-API Developer Support team,
+
+I continue to receive 403 Unauthorized errors when calling Messaging API endpoints despite multiple self-authorization attempts. Please provide specific steps to complete self-authorization for my private application.
+
+APPLICATION DETAILS:
+- App ID: amzn1.sp.solution.3e928368-7705-40e7-806f-d9d25b42516c
+- Client ID: amzn1.application-oa2-client.704d66d4cc6645f58405d34f80fa5f58
+- Developer Account ID: A2V719MRGLK48O
+- Seller ID: A2V719MRGLK48O
+- App Status: Draft (Solution Provider Portal)
+- App Type: Private application
+
+COMPLETED STEPS:
+✅ All roles selected (including "Buyer Communication")
+✅ Application registered in Solution Provider Portal
+✅ Clicked "Authorize app" button 10+ times (generates new refresh tokens)
+✅ Token exchange working (refresh token → access token via POST /auth/o2/token)
+✅ Access tokens valid (format: Atza|..., expires_in: 3600)
+✅ AWS SigV4 signing implemented correctly
+✅ Required headers included (host, x-amz-date, x-amz-access-token, authorization, user-agent)
+✅ AWS IAM policy configured for execute-api:Invoke on messaging endpoints
+
+CURRENT ERRORS (403 Unauthorized):
+
+1. GET /messaging/v1/orders/111-0060602-1283417?marketplaceIds=ATVPDKIKX0DER
+   - Request Timestamp: 2025-12-16T19:50:43.157Z (x-amz-date: 20251216T195043Z)
+   - Request ID: 0a77c7e2-3f82-4e46-bef2-529189218106 (Dec 16, 2025)
+   - Most Recent Test: December 16, 2025 at 19:50:43 UTC
+
+2. POST /uploads/v1/documents
+   - Request ID: 10e11e6e-2846-4f73-8841-8c9eadcfb596 (Dec 16, 2025)
+
+3. POST /messaging/v1/orders/111-0060602-1283417/messages/createConfirmOrderDetails?marketplaceIds=ATVPDKIKX0DER
+   - Request ID: 0a77c7e2-3f82-4e46-bef2-529189218106 (Dec 16, 2025)
+
+All three endpoints return: "Access to requested resource is denied. (Code: Unauthorized)" with empty details field.
+
+HISTORICAL CONTEXT:
+- December 10, 2025: Same GET /messaging/v1/orders endpoint returned 200 successfully
+- Request ID from successful call: 389b69e9-bde1-4669-a0e4-c481ffaf1197
+- After SP-API approval and re-authorization, 403 errors began
+- Order 111-0060602-1283417 belongs to seller A2V719MRGLK48O and is unshipped
+
+API USAGE DASHBOARD DATA (Production Environment):
+- GET /messaging/v1/orders/{amazonOrderId}: 18/23 calls successful (78% success rate), 0 403 errors
+- This indicates authorization works for GET operations in production
+- POST endpoints (/uploads/v1/documents, /messages/createConfirmOrderDetails) are not shown in dashboard metrics, suggesting they may be failing before being logged
+- Pattern suggests GET operations succeed while POST operations consistently return 403
+
+AUTHORIZATION ATTEMPTS:
+- Clicked "Authorize app" in Solution Provider Portal multiple times
+- Each click generates new refresh token
+- No error messages displayed
+- No confirmation that permissions were granted
+- App status remains "Draft"
+- No indication that self-authorization completed successfully
+
+QUESTIONS:
+1. What specific steps must I complete to finish self-authorization? Is clicking "Authorize app" sufficient?
+2. How do I verify self-authorization completed successfully? Should app status change from "Draft"?
+3. Does clicking "Authorize app" automatically grant Buyer Communication permissions to the refresh token, or is an additional step required?
+4. Why did the same endpoint work on December 10 but now returns 403?
+5. Why do GET operations succeed (18/23 successful in production) while POST operations consistently return 403? Do POST endpoints require additional permissions or a different authorization scope?
+
+I have SP-API access approval (Dec 10, 2025), Buyer Communication role shows "Active" in Developer Profile, and I am the Primary User of the Seller Central account. I have followed https://developer-docs.amazon.com/sp-api/docs/self-authorization but the process does not appear to complete successfully.
+
+Please provide specific, actionable steps to complete self-authorization and resolve the 403 errors.
+
+Thank you,
+
+Jeff
+Little Hero Labs
+
+APPLICATION INFORMATION:
+- App ID: amzn1.sp.solution.3e928368-7705-40e7-806f-d9d25b42516c
+- Client ID: amzn1.application-oa2-client.704d66d4cc6645f58405d34f80fa5f58
+- Developer Account ID: A2V719MRGLK48O
+- Seller ID: A2V719MRGLK48O
+

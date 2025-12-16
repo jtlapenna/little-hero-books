@@ -1,0 +1,54 @@
+Subject: Re: 403 Unauthorized Error - Buyer Communication Role Not Activating
+
+Hello Ángel and Amazon Selling Partner API Developer Support team,
+
+Thank you for your previous guidance. I have completed all the steps you recommended, but I am still experiencing the 403 Unauthorized error when calling the Messaging API.
+
+COMPLETED STEPS:
+1. ✅ Buyer Communication role is selected in my app settings
+2. ✅ OAuth URIs are configured:
+   - OAuth Login URI: https://littleherolabs.com
+   - OAuth Redirect URI: https://littleherolabs.com/auth/amazon/callback
+3. ✅ Used the "Authorize app" button multiple times in Seller Central → Apps & Services → Develop Apps
+4. ✅ Generated new refresh tokens after each authorization
+5. ✅ Updated the refresh token in my environment variables and redeployed
+6. ✅ Verified I am the Primary User of the Seller Central account
+
+APPLICATION DETAILS:
+- App ID: amzn1.sp.solution.3e928368-7705-40e7-806f-d9d25b42516c
+- Client ID: amzn1.application-oa2-client.704d66d4cc6645f58405d34f80fa5f58
+- Developer Account ID: A2V719MRGLK48O
+- App Status: Draft (per documentation, private apps can be authorized in Draft status)
+
+PERSISTENT PROBLEM:
+Despite completing all authorization steps multiple times, I continue to receive:
+- Error: "Access to requested resource is denied. (Code: Unauthorized)"
+- When calling: GET /messaging/v1/orders/111-0060602-1283417
+- LWA access token generation succeeds, but the Messaging API endpoint returns 403
+
+The error persists even after:
+- Multiple re-authorizations using the "Authorize app" button
+- Generating and updating new refresh tokens
+- Verifying all roles and OAuth settings are saved
+
+REQUEST:
+Could you please:
+1. Verify on your end that the Buyer Communication role is properly activated for this application?
+2. Check if there is a delay or propagation issue preventing the role from taking effect?
+3. Manually verify/activate the role if there is a backend issue?
+4. Confirm if the application needs to be in a status other than "Draft" for Messaging API access to work?
+
+I have followed all documentation steps from:
+- https://developer-docs.amazon.com/sp-api/docs/self-authorization
+- https://developer-docs.amazon.com/sp-api/docs/updating-your-application-information
+
+But the authorization does not appear to be taking effect. This seems like it may be a backend issue on Amazon's side where the role authorization isn't properly propagating to the API permissions.
+
+Thank you for your assistance.
+
+Best regards,
+[Your Name]
+Little Hero Books / Little Hero Labs
+
+
+

@@ -79,18 +79,18 @@ async function getOrder(
   manifest2b = manifestResults[1];
   manifest3 = manifestResults[2];
   
-    // Determine primary manifest (for backward compatibility)
-    // Priority: 2b > 2a > 3
-    if (manifest2b) {
-      manifest = manifest2b;
-      loadedStage = '2b';
-    } else if (manifest2a) {
-      manifest = manifest2a;
-      loadedStage = '2a';
-    } else if (manifest3) {
-      manifest = manifest3;
-      loadedStage = '3';
-    }
+  // Determine primary manifest (for backward compatibility)
+  // Priority: 2b > 2a > 3
+  if (manifest2b) {
+    manifest = manifest2b;
+    loadedStage = '2b';
+  } else if (manifest2a) {
+    manifest = manifest2a;
+    loadedStage = '2a';
+  } else if (manifest3) {
+    manifest = manifest3;
+    loadedStage = '3';
+  }
   
   if (!manifest && !supabaseOrder) {
     console.warn(`[GET /api/orders/[orderId]] ⚠️ No Supabase record or manifest found for ${orderId}`);
@@ -103,17 +103,17 @@ async function getOrder(
   if (supabaseOrder) {
     order = mergeOrderData(supabaseOrder, manifestOrder);
     
-      // Verify manifest URLs actually point to existing files
-      // If Supabase has a URL but the file doesn't exist in R2, clear the URL
-      if (order.manifest2aUrl && !manifest2a) {
-        order.manifest2aUrl = undefined;
-      }
-      if (order.manifest2bUrl && !manifest2b) {
-        order.manifest2bUrl = undefined;
-      }
-      if (order.manifest3Url && !manifest3) {
-        order.manifest3Url = undefined;
-      }
+    // Verify manifest URLs actually point to existing files
+    // If Supabase has a URL but the file doesn't exist in R2, clear the URL
+    if (order.manifest2aUrl && !manifest2a) {
+      order.manifest2aUrl = undefined;
+    }
+    if (order.manifest2bUrl && !manifest2b) {
+      order.manifest2bUrl = undefined;
+    }
+    if (order.manifest3Url && !manifest3) {
+      order.manifest3Url = undefined;
+    }
   } else if (manifestOrder) {
     order = manifestOrder;
   } else {

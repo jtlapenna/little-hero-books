@@ -157,3 +157,5 @@ If all of the above are correct and you're still getting `unauthorized_client`:
    - [SP-API Authorization Guide](https://developer-docs.amazon.com/sp-api/docs/authorizing-selling-partner-api-applications)
    - [LWA Security Profile Setup](https://developer.amazon.com/docs/login-with-amazon/security-profile.html)
 
+
+   https://sellercentral.amazon.com/apps/authorize/consent?application_id=amzn1.application-oa2-client.704d66d4cc6645f58405d34f80fa5f58&state=test123&version=beta&redirect_uri=https://littleherolabs.com

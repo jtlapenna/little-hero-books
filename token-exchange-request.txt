@@ -1,0 +1,14 @@
+TOKEN EXCHANGE REQUEST (with your credentials)
+
+POST /auth/o2/token HTTP/1.1
+Host: api.amazon.com
+Content-Type: application/x-www-form-urlencoded;charset=UTF-8
+
+grant_type=refresh_token&refresh_token=YOUR_REFRESH_TOKEN_HERE&client_id=[REDACTED_CLIENT_ID]&client_secret=[REDACTED_CLIENT_SECRET]
+
+NOTE: Replace "YOUR_REFRESH_TOKEN_HERE" with your actual refresh token (starts with "Atzr|")
+
+This is what your code already does - you don't need to manually run this.
+The error you're seeing is because the app needs to be configured first.
+
+

@@ -1,0 +1,45 @@
+Subject: Re: Error Code 8541 - Binding Attribute Update for ASIN B0G4QPLWKH
+
+Hello Amazon Selling Partner Support,
+
+Thank you for your response regarding error code 8541 for ASIN B0G4QPLWKH. I am providing the requested information below.
+
+PRODUCT INFORMATION:
+1. SKU: KE-3QPF-VN03
+2. ASIN: B0G4QPLWKH
+3. Brand Name: Little Hero Labs
+4. GTIN: ISBN-13: 979-8218869069
+5. Batch ID: Not applicable (not using feeds)
+
+ISSUE DESCRIPTION:
+The product "Little Hero Labs Personalized Children's Book, Finding Our Inner Voice, Self-Discovery Adventure Story for Ages 3-6, Customizable Character and Name" is a physical paperback book, but it appears to have been incorrectly categorized with a "software" binding attribute in Amazon's catalog. I am attempting to correct this to "paperback" to accurately reflect the product type.
+
+PRODUCT DETAILS:
+- Product Type: Physical Paperback Book
+- Format: 8.5" x 8.5" Softcover
+- Pages: 16 pages (14 interior + covers)
+- Binding: Paperback (Perfect Bound)
+- This is a print-on-demand personalized children's book, not a software product
+
+GTIN INFORMATION:
+The product has ISBN-13: 979-8218869069 assigned. This ISBN is correctly associated with the product and is not being used by any unrelated product.
+
+CATALOG INFORMATION:
+The catalog information appears to be incorrect - the product is showing as "software" when it should be "paperback." This is a physical book product, not a digital software product.
+
+ADDITIONAL INFORMATION:
+- The UPC is not being used by an unrelated product - this is our own product listing
+- The catalog information is incorrect (binding attribute shows "software" instead of "paperback")
+- This is a Custom Listing product (Amazon Custom) for personalized children's books
+
+REQUEST:
+Please update the binding attribute from "software" to "paperback" for ASIN B0G4QPLWKH. The product is a physical paperback book and should not be categorized as software. All product information (SKU, ASIN, ISBN-13, Brand Name) has been provided above.
+
+I can provide any additional documentation or information needed to resolve this catalog matching conflict.
+
+Thank you for your assistance.
+
+Best regards,
+[Your Name]
+Little Hero Books / Little Hero Labs
+

@@ -234,7 +234,7 @@ async function handleFinalApproval(
 
       notificationResult.response = response;
       notificationResult.sent = response.success;
-      
+
       // If sending failed, include the error reason
       if (!response.success) {
         notificationResult.reason = response.error || 

@@ -125,15 +125,15 @@ export async function POST(
     const updateData = {
       execution_status: 'ready_for_processing', // Required for router cron
       next_workflow: nextWorkflow, // Required for router cron (must not be null)
-      error_message: null,
-      error_type: null,
-      retry_count: 0,
-      next_retry_at: null,
+        error_message: null,
+        error_type: null,
+        retry_count: 0,
+        next_retry_at: null,
       last_error_at: null,
       current_workflow: null, // Clear active workflow
       started_at: null, // Clear processing timestamp
       queued_at: new Date().toISOString(), // Set queued_at so router can prioritize
-      updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString()
     };
 
     console.log('[Reset Order] Updating order with:', {

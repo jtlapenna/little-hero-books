@@ -242,6 +242,7 @@ export function PostPdfStage({
   const coverCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
   const [sendingToPrint, setSendingToPrint] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const previewUrl =
     finalApprovalResult?.previewUrl || order.customerPreview?.url || null;
@@ -1344,15 +1345,15 @@ export function PostPdfStage({
           }).catch(() => null);
           
           if (jsonRes?.ok) {
-            const data = await jsonRes.json();
-            setPdfAsset(prev => ({
-              ...prev,
-              url: data.signedUrl || pdfUrl,
-              exists: true,
-              loading: false,
-              error: null
-            }));
-          } else {
+              const data = await jsonRes.json();
+              setPdfAsset(prev => ({
+                ...prev,
+                url: data.signedUrl || pdfUrl,
+                exists: true,
+                loading: false,
+                error: null
+              }));
+            } else {
             // PDF doesn't exist yet - silently set as missing (no error message needed)
             setPdfAsset(prev => ({
               ...prev,
@@ -2704,13 +2705,13 @@ export function PostPdfStage({
             )}
           </div>
           
-          <div className="flex space-x-3">
+          <div className="flex space-x-3 ml-8">
             {isApproved ? (
               showPrintAction ? (
                 <button
                   onClick={handleSendToPrintClick}
                   disabled={sendingToPrint}
-                  className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  className={`inline-flex items-center whitespace-nowrap px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     sendingToPrint
                       ? 'bg-indigo-500/70 text-white cursor-wait focus:ring-indigo-500'
                       : 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500'
@@ -2727,7 +2728,7 @@ export function PostPdfStage({
               <button
                 onClick={onInitiateWorkflow}
                   disabled={finalApprovalIsLoading || previewJustSent}
-                  className={`inline-flex items-center px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  className={`inline-flex items-center whitespace-nowrap px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     finalApprovalIsLoading
                       ? 'bg-green-500/70 text-white cursor-wait focus:ring-green-500'
                       : previewJustSent
@@ -2861,18 +2862,62 @@ export function PostPdfStage({
                     </p>
                   </div>
                   {previewUrl && (
-                    <button
-                      onClick={() => {
-                        if (!previewUrl) return;
-                        navigator.clipboard.writeText(previewUrl);
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2500);
-                      }}
-                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      <Clipboard className="h-3.5 w-3.5 mr-1" />
-                      {copied ? 'Copied!' : 'Copy'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          if (!previewUrl) return;
+                          navigator.clipboard.writeText(previewUrl);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2500);
+                        }}
+                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        <Clipboard className="h-3.5 w-3.5 mr-1" />
+                        {copied ? 'Copied!' : 'Copy'}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!orderId || generatingPdf) return;
+                          setGeneratingPdf(true);
+                          try {
+                            const response = await fetch(`/api/orders/${orderId}/generate-approval-pdf`);
+                            if (!response.ok) {
+                              throw new Error('Failed to generate PDF');
+                            }
+                            // Open in new tab for user to print/save
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `approval-${orderId}.html`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                          } catch (error: any) {
+                            console.error('Error generating PDF:', error);
+                            alert(`Failed to generate PDF: ${error.message}`);
+                          } finally {
+                            setGeneratingPdf(false);
+                          }
+                        }}
+                        disabled={generatingPdf}
+                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Generate PDF with approval link for manual Amazon messaging"
+                      >
+                        {generatingPdf ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="h-3.5 w-3.5 mr-1" />
+                            Download PDF
+                          </>
+                        )}
+                      </button>
+                    </div>
                   )}
                 </div>
 
