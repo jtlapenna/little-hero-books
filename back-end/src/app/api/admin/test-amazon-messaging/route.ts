@@ -272,14 +272,21 @@ export async function GET(request: NextRequest) {
       const apiCallDetails = error.apiCallDetails || null;
       
       // Extract the actual error response body from Amazon
-      const errorResponseBody = error.details || error.apiCallDetails?.response?.body || null;
+      // Try multiple sources: error.details (parsed), apiCallDetails.response.body (raw), or error itself
+      const rawResponseBody = apiCallDetails?.response?.body || null;
+      const parsedDetails = error.details || null;
+      
       let parsedErrorBody = null;
-      if (errorResponseBody) {
+      if (rawResponseBody) {
+        // Try to parse raw response body
         try {
-          parsedErrorBody = typeof errorResponseBody === 'string' ? JSON.parse(errorResponseBody) : errorResponseBody;
+          parsedErrorBody = typeof rawResponseBody === 'string' ? JSON.parse(rawResponseBody) : rawResponseBody;
         } catch {
-          parsedErrorBody = { raw: errorResponseBody };
+          parsedErrorBody = { raw: rawResponseBody.substring(0, 500) };
         }
+      } else if (parsedDetails) {
+        // Use already parsed details
+        parsedErrorBody = parsedDetails;
       }
       
       diagnostics.steps.push({ 
