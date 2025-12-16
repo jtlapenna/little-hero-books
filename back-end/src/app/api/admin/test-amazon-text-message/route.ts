@@ -36,8 +36,7 @@ export async function GET(request: NextRequest) {
 
     const amazonOrderId = order.amazon_order_id || order.orderId || order.order_id || orderId;
 
-    // Force text-only message by setting environment variable
-    // This will skip HTML upload and use createConfirmOrderDetails instead
+    // Force text-only mode to skip HTML upload
     process.env.AMAZON_FORCE_TEXT_ONLY = 'true';
     
     const { sendAmazonPreviewMessage } = await import('@/lib/notifications/amazon-message-center');
@@ -50,7 +49,6 @@ export async function GET(request: NextRequest) {
       revisionsRemaining: 2
     });
     
-    // Clean up
     delete process.env.AMAZON_FORCE_TEXT_ONLY;
 
     return NextResponse.json({
