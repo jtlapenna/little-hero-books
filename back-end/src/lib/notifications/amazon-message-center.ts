@@ -218,11 +218,11 @@ export async function sendAmazonPreviewMessage(
     let documentId: string | undefined;
     if (messageTypeCheck.allowedType === 'confirmCustomizationDetails') {
       const uploadResult = await uploadHtmlDocument({
-        html,
-        accessToken,
-        config,
-        reminderType: params.reminderType
-      });
+      html,
+      accessToken,
+      config,
+      reminderType: params.reminderType
+    });
       documentId = uploadResult.documentId;
     }
 
@@ -239,13 +239,13 @@ export async function sendAmazonPreviewMessage(
     } else {
       // Use createConfirmOrderDetails as fallback
       messageResponse = await sendConfirmOrderDetails({
-        amazonOrderId: params.amazonOrderId,
-        accessToken,
-        config,
+      amazonOrderId: params.amazonOrderId,
+      accessToken,
+      config,
         previewUrl: params.previewUrl,
         childName: params.childName,
-        reminderType: params.reminderType
-      });
+      reminderType: params.reminderType
+    });
     }
 
     return {
@@ -292,10 +292,10 @@ interface MessageTypeCheckResult {
  */
 async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptions): Promise<MessageTypeCheckResult> {
   try {
-    const response = await callSellingPartnerApi({
-      method: 'GET',
-      path: `/messaging/v1/orders/${options.amazonOrderId}`,
-      accessToken: options.accessToken,
+  const response = await callSellingPartnerApi({
+    method: 'GET',
+    path: `/messaging/v1/orders/${options.amazonOrderId}`,
+    accessToken: options.accessToken,
       config: options.config,
       query: {
         marketplaceIds: options.config.marketplaceId // Amazon expects marketplaceIds query parameter (plural name, single value)
@@ -306,19 +306,19 @@ async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptio
     // Each action is an object with { name, href } structure
     const actionsArray = Array.isArray(response?._links?.actions)
       ? response._links.actions
-      : [];
+    : [];
 
     const actions: string[] = actionsArray
-      .map((action: any) => {
-        if (typeof action === 'string') {
-          return action;
-        }
-        if (action && typeof action === 'object') {
-          return action.name || action.code || action.action;
-        }
-        return undefined;
-      })
-      .filter((value): value is string => typeof value === 'string');
+    .map((action: any) => {
+      if (typeof action === 'string') {
+        return action;
+      }
+      if (action && typeof action === 'object') {
+        return action.name || action.code || action.action;
+      }
+      return undefined;
+    })
+    .filter((value): value is string => typeof value === 'string');
 
     // Log available actions for debugging
     console.log('[Amazon Messaging] Available actions for order:', {
@@ -361,7 +361,7 @@ async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptio
     const wrappedError = new AmazonMessagingError(
       error?.message || 'Failed to check message type availability',
       {
-        retryable: false,
+      retryable: false,
         details: { originalError: error?.message }
       }
     );
@@ -593,7 +593,7 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
             }
           });
         } else {
-          url.searchParams.append(key, String(value));
+        url.searchParams.append(key, String(value));
         }
       }
     }
@@ -609,7 +609,8 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
   const headers: Record<string, string> = {
     host,
     'x-amz-date': amzDate,
-    'x-amz-access-token': options.accessToken
+    'x-amz-access-token': options.accessToken,
+    'user-agent': 'LittleHeroBooks/1.0 (Language=TypeScript/Node.js; Platform=Cloudflare)'
   };
 
   if (method === 'POST' || method === 'PUT') {
