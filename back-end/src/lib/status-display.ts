@@ -290,12 +290,19 @@ function calculateWorkflowStatus(order: Order): DisplayStatus {
     return DisplayStatus.NEEDS_REVISION;
   }
 
-  // 3. Awaiting customer
-  const proofSent = customerApprovalStatus === CustomerApprovalStatus.PENDING ||
-                   rawStatus === OrderStatus.PENDING_CUSTOMER_APPROVAL ||
-                   Boolean(order.customerApprovalRequestedAt);
-  if (proofSent) {
-    return DisplayStatus.AWAITING_CUSTOMER;
+  // 3. Awaiting customer (only if not already approved)
+  const isCustomerApproved = customerApprovalStatus === CustomerApprovalStatus.APPROVED || 
+                             rawStatus === OrderStatus.CUSTOMER_APPROVED ||
+                             Boolean(order.customerApprovalApprovedAt);
+  
+  // Only show "awaiting customer" if proof was sent AND customer hasn't approved yet
+  if (!isCustomerApproved) {
+    const proofSent = customerApprovalStatus === CustomerApprovalStatus.PENDING ||
+                     rawStatus === OrderStatus.PENDING_CUSTOMER_APPROVAL ||
+                     Boolean(order.customerApprovalRequestedAt);
+    if (proofSent) {
+      return DisplayStatus.AWAITING_CUSTOMER;
+    }
   }
 
   // 4. All stages approved
