@@ -9,7 +9,7 @@ import {
   extractCustomerEmail,
   extractCustomizationUrl,
 } from '@/lib/csv-upload-helpers';
-import { updateOrderInSupabase } from '@/lib/supabase-client';
+import { updateOrderInSupabase, getOrderFromSupabase } from '@/lib/supabase-client';
 import { downloadAndExtractCustomizationZip } from '@/lib/zip-downloader';
 import { parseAmazonCustomization } from '@/lib/amazon-customization-parser';
 import { createHash } from 'crypto';
@@ -333,6 +333,9 @@ export async function POST(request: NextRequest) {
           // Order exists - update it with CSV data
           console.log(`[CSV Upload] [${requestId}] Order ${amazonOrderId} exists - updating with CSV data`);
 
+        // Get existing order to preserve review_stages
+        const existingOrder = await getOrderFromSupabase(amazonOrderId).catch(() => null);
+
         // Prepare updates
         const updates: any = {
           shipping_address: shippingAddress,
@@ -359,6 +362,11 @@ export async function POST(request: NextRequest) {
             };
             const hashString = JSON.stringify(characterHashSpec);
             updates.character_hash = crypto.createHash('sha256').update(hashString).digest('hex').substring(0, 16);
+        }
+
+        // Preserve review_stages to avoid losing approval status
+        if (existingOrder?.review_stages) {
+          updates.review_stages = existingOrder.review_stages;
         }
 
         // Update order in Supabase
