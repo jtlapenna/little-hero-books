@@ -1804,8 +1804,11 @@ if (!token) {
     
     const pageContent = document.getElementById('book-content');
     
-    if (curtainScrollPosition < 1) {
-      // Curtain is still visible - lock page content in place
+    // On mobile, never set position fixed - allow normal scrolling
+    const isMobile = window.innerWidth <= 768;
+    
+    if (!isMobile && curtainScrollPosition < 1) {
+      // Curtain is still visible - lock page content in place (desktop only)
       // console.log('[CURTAIN] 👁️ Curtain is VISIBLE (position < 1), locking page content in place');
       
       if (pageContent) {
@@ -1841,8 +1844,8 @@ if (!token) {
       
       // Update header to white text while curtain is visible
       updateHeaderForCurtain();
-    } else {
-      // Curtain is fully lifted
+    } else if (!isMobile) {
+      // Curtain is fully lifted (desktop only)
       // console.log('[CURTAIN] 🚪 Curtain is FULLY LIFTED (position >= 1)');
       curtainScrollPosition = Math.min(curtainScrollPosition, 1);
       
@@ -2536,6 +2539,17 @@ if (!token) {
     #preview-content {
       padding-top: var(--spacing-lg);
     }
+    
+    /* On mobile, book-content-wrapper should be positioned normally, not fixed */
+    .book-content-wrapper {
+      position: relative !important;
+      z-index: 1 !important;
+    }
+    
+    /* Ensure content flows normally on mobile */
+    .book-content-wrapper[style*="position: fixed"] {
+      position: relative !important;
+    }
   }
 
   .book-content-wrapper {
@@ -2551,9 +2565,11 @@ if (!token) {
     transition: none; /* We handle positioning manually to prevent jumps */
   }
   
-  /* When fixed, ensure smooth visual appearance */
-  .book-content-wrapper[style*="position: fixed"] {
-    will-change: transform;
+  /* When fixed, ensure smooth visual appearance (desktop only) */
+  @media (min-width: 769px) {
+    .book-content-wrapper[style*="position: fixed"] {
+      will-change: transform;
+    }
   }
   
   /* Ensure the container starts at the very top */
@@ -2989,6 +3005,14 @@ if (!token) {
 
     .book-content-wrapper {
       padding-bottom: calc(var(--spacing-2xl) + 4rem);
+      /* Ensure it's not fixed on mobile */
+      position: relative !important;
+      z-index: 1 !important;
+    }
+    
+    /* Reset any inline styles that might set position: fixed */
+    .book-content-wrapper[style*="position"] {
+      position: relative !important;
     }
 
     .preview-main {
@@ -2998,8 +3022,34 @@ if (!token) {
     
     /* Ensure action buttons are accessible on mobile */
     #action-buttons-container {
+      position: relative;
+      z-index: 10;
       margin-bottom: calc(var(--spacing-2xl) + 2rem);
       padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+    }
+    
+    /* Ensure footer is visible on mobile */
+    footer {
+      position: relative;
+      z-index: 1;
+    }
+    
+    /* Landscape mode fixes */
+    @media (max-width: 768px) and (orientation: landscape) {
+      .book-content-wrapper {
+        min-height: auto;
+        padding-bottom: calc(var(--spacing-2xl) + 4rem);
+      }
+      
+      .preview-main {
+        padding-bottom: calc(var(--spacing-2xl) + 2rem);
+      }
+      
+      /* Ensure book viewer is visible in landscape */
+      .book-viewer {
+        display: block;
+        visibility: visible;
+      }
     }
 
     .detail-value {
