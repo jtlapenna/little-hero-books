@@ -52,6 +52,23 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
   );
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
+  // Lock body scroll when image is zoomed
+  useEffect(() => {
+    if (zoomedImage) {
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.position = originalPosition;
+        document.body.style.width = '';
+      };
+    }
+  }, [zoomedImage]);
+
   useEffect(() => {
     const nextSpreads = Array.isArray(spreads) ? spreads : [];
     setViewerSpreads(nextSpreads);
@@ -359,17 +376,15 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
         .image-zoom-modal {
           position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
+          inset: 0;
           background: rgba(0, 0, 0, 0.95);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 10000;
+          z-index: 99999;
           padding: 1rem;
           cursor: pointer;
+          overscroll-behavior: contain;
         }
 
         .image-zoom-modal img {

@@ -2270,22 +2270,14 @@ if (!token) {
         // });
       }
     } else if (delta < 0) {
-      // Scrolling up - if curtain is fully lifted, allow normal scroll
+      // Scrolling up - if curtain is fully lifted, allow normal scroll (don't bring curtain back)
       if (curtainScrollPosition >= 1 || curtainFullyLifted) {
-        // Curtain is already fully lifted, allow normal scroll behavior
-        // console.log('[CURTAIN] 📄 Scroll up detected but curtain is fully lifted, ALLOWING NORMAL SCROLL', {
-        //   scrollTop: scrollTop.toFixed(2),
-        //   curtainPosition: curtainScrollPosition.toFixed(3),
-        //   curtainFullyLifted
-        // });
-        return; // Allow normal scroll
+        // Curtain is already fully lifted, allow normal scroll behavior and don't update curtain
+        return; // Allow normal scroll, curtain stays lifted
       } else {
-        // Curtain is still visible, allow normal scroll (no action needed)
-        // console.log('[CURTAIN] 📄 Scroll up detected while curtain visible, allowing normal scroll', {
-        //   scrollTop: scrollTop.toFixed(2),
-        //   curtainPosition: curtainScrollPosition.toFixed(3)
-        // });
-        return;
+        // Curtain is still visible but not fully lifted - prevent bringing it back down
+        e.preventDefault();
+        return; // Don't allow scroll up to bring curtain back
       }
     } else {
       // console.log('[CURTAIN] ⚠️ Delta is 0 or undefined, no action taken', { delta });
@@ -2324,29 +2316,21 @@ if (!token) {
     
     // Once curtain is fully lifted, it stays up permanently - no action needed
     if (curtainFullyLifted || curtainScrollPosition >= 1) {
-      // console.log('[CURTAIN] ℹ️ Curtain is fully lifted, allowing normal page scroll', {
-      //   scrollTop: scrollTop.toFixed(2),
-      //   curtainFullyLifted,
-      //   curtainScrollPosition: curtainScrollPosition.toFixed(3)
-      // });
-      return; // No action - curtain stays up
-    } else if (scrollTop > 0 && scrollTop < windowHeight && curtainScrollPosition < 1 && !curtainFullyLifted) {
-      // If we somehow scrolled without fully lifting curtain, sync position
-      console.warn('[CURTAIN] ⚠️ Syncing curtain position with scroll (unexpected scroll detected)', {
-        scrollTop: scrollTop.toFixed(2),
-        currentPosition: curtainScrollPosition.toFixed(3),
-        curtainFullyLifted,
-        willSync: true
-      });
-      
+      // Curtain is fully lifted - never bring it back, allow normal scroll
+      return; // No action - curtain stays up permanently
+    }
+    
+    // If scrolling up when curtain is still visible (but not fully lifted), prevent bringing it back
+    if (scrollTop <= 0 && curtainScrollPosition > 0) {
+      // Don't allow scroll to bring curtain back down - keep current position
+      return;
+    }
+    
+    // Only update curtain position when scrolling down (and not fully lifted)
+    if (scrollTop > 0 && scrollTop < windowHeight && curtainScrollPosition < 1 && !curtainFullyLifted && wheelListenersActive) {
+      // If we somehow scrolled without fully lifting curtain, sync position (only when scrolling down)
       const oldPosition = curtainScrollPosition;
       curtainScrollPosition = Math.min(1, scrollTop / windowHeight);
-      
-      // console.log('[CURTAIN] 📊 Synced position:', {
-      //   from: oldPosition.toFixed(3),
-      //   to: curtainScrollPosition.toFixed(3),
-      //   change: (curtainScrollPosition - oldPosition).toFixed(3)
-      // });
       
       updateCurtainPosition();
       
@@ -2423,6 +2407,7 @@ if (!token) {
   /* When curtain is fully lifted, it should not block interactions */
   .curtain-hero.fully-lifted {
     pointer-events: none;
+    display: none !important; /* Completely hide curtain once lifted to prevent any interference */
   }
 
   .curtain-content {
@@ -2511,6 +2496,14 @@ if (!token) {
     z-index: 1;
     pointer-events: none;
   }
+  
+  /* When curtain is fully lifted and scroll area is hidden, ensure it doesn't affect layout */
+  .curtain-scroll-area[style*="display: none"] {
+    height: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
 
   .book-content-wrapper {
     position: relative;
@@ -2518,11 +2511,18 @@ if (!token) {
     background: linear-gradient(180deg, var(--color-storybook-beige) 0%, var(--color-off-white) 65%, #ffffff 100%);
     /* Content starts at the top of the page - curtain sits on top of it */
     padding-top: 0;
-    padding-bottom: var(--spacing-xl);
+    padding-bottom: calc(var(--spacing-2xl) + env(safe-area-inset-bottom, 0px));
     margin-top: 0;
+    margin-bottom: 0;
     min-height: 100vh;
     /* Smooth transition when switching from fixed to relative */
     transition: none; /* We handle positioning manually to prevent jumps */
+  }
+  
+  /* When curtain is fully lifted, ensure content has proper stacking */
+  .curtain-hero.fully-lifted ~ .book-content-wrapper,
+  .curtain-hero.fully-lifted + .curtain-scroll-area + .book-content-wrapper {
+    z-index: 1;
   }
   
   /* When fixed, ensure smooth visual appearance */
@@ -2534,12 +2534,14 @@ if (!token) {
   #preview-content {
     padding-top: 0;
     margin-top: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   
   .preview-main {
     padding-top: var(--spacing-lg);
     padding-bottom: var(--spacing-xl);
     margin-top: 0;
+    margin-bottom: var(--spacing-xl);
   }
 
   .loading-content,
@@ -2967,6 +2969,25 @@ if (!token) {
 
     .preview-main {
       padding-bottom: var(--spacing-2xl);
+      margin-bottom: var(--spacing-2xl);
+    }
+    
+    /* Ensure action buttons are accessible on mobile */
+    #action-buttons-container {
+      margin-bottom: calc(var(--spacing-2xl) + 2rem);
+      padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+      position: relative;
+      z-index: 10;
+    }
+    
+    /* Ensure page can scroll to bottom on mobile */
+    .book-content-wrapper {
+      padding-bottom: calc(var(--spacing-2xl) + 4rem + env(safe-area-inset-bottom, 0px));
+    }
+    
+    .preview-main {
+      padding-bottom: calc(var(--spacing-2xl) + 2rem);
+      margin-bottom: calc(var(--spacing-2xl) + 2rem);
     }
 
     .detail-value {
