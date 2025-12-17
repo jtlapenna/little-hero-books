@@ -58,11 +58,19 @@ export async function POST(
     // (already included via spread operator above)
     
     // Update order in Supabase
-    await updateOrderInSupabase(orderId, {
+    // Preserve review_stages to avoid losing approval status
+    const updates: any = {
       shipping_address: normalized,
       error_type: null, // Clear the missing_shipping error
       error_message: null
-    });
+    };
+    
+    // Preserve review_stages if it exists (don't overwrite approvals)
+    if (order.review_stages) {
+      updates.review_stages = order.review_stages;
+    }
+    
+    await updateOrderInSupabase(orderId, updates);
     
     return NextResponse.json({
       success: true,
