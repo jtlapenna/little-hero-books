@@ -3,6 +3,8 @@
  * Utilities for parsing and processing Amazon order CSV files
  */
 
+import { cleanPhoneNumber } from './phone-utils';
+
 /**
  * Normalize CSV column names for flexible matching
  * Converts to lowercase and handles hyphens/underscores
@@ -218,10 +220,16 @@ export function buildShippingAddress(
   }
   
   if (phoneIndex !== null && row[phoneIndex]) {
-    const phone = row[phoneIndex]?.toString().trim();
-    if (phone) {
-      shippingAddress.phone = phone;
-      shippingAddress.phone_number = phone; // Also store as phone_number for consistency
+    const rawPhone = row[phoneIndex]?.toString().trim();
+    if (rawPhone) {
+      // Clean phone number to remove extensions (Lulu API doesn't accept extensions)
+      // Import at top of file would be better, but this works for now
+      const { cleanPhoneNumber } = require('@/lib/phone-utils');
+      const cleanedPhone = cleanPhoneNumber(rawPhone);
+      if (cleanedPhone) {
+        shippingAddress.phone = cleanedPhone;
+        shippingAddress.phone_number = cleanedPhone; // Also store as phone_number for consistency
+      }
     }
   }
   

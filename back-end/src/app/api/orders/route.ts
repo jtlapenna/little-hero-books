@@ -6,6 +6,7 @@ import { createValidationError } from '@/lib/error-handler';
 import { OrderStatus, ReviewStageStatus } from '@/constants/statuses';
 import { listOrdersFromSupabase } from '@/lib/supabase-client';
 import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
+import { cleanPhoneNumber } from '@/lib/phone-utils';
 
 async function getOrders(_request: NextRequest) {
   console.log('[GET /api/orders] Starting orders fetch (Supabase first)...');
@@ -107,15 +108,30 @@ async function postOrder(request: NextRequest) {
       customer_name: json.BuyerInfo?.BuyerName || json.buyer?.name || json.shippingAddress?.name,
       
       // Shipping address (required for Lulu API)
-      shipping_address: json.ShippingAddress || json.shippingAddress || {
-        name: json.shippingAddress?.name || json.BuyerInfo?.BuyerName,
-        address: json.ShippingAddress?.AddressLine1 || json.shippingAddress?.address,
-        city: json.ShippingAddress?.City || json.shippingAddress?.city,
-        state: json.ShippingAddress?.StateOrRegion || json.shippingAddress?.state,
-        zip: json.ShippingAddress?.PostalCode || json.shippingAddress?.zip,
-        phone: json.ShippingAddress?.Phone || json.shippingAddress?.phone || json.shippingAddress?.phoneNumber || json.shippingAddress?.phone_number,
-        country: json.ShippingAddress?.CountryCode || json.shippingAddress?.country || 'US',
-      },
+      // Clean phone number to remove extensions (Lulu API doesn't accept extensions)
+      shipping_address: (() => {
+        const amazonShipping = json.ShippingAddress || json.shippingAddress;
+        if (amazonShipping) {
+          const rawPhone = amazonShipping.Phone || amazonShipping.phone || amazonShipping.phoneNumber || amazonShipping.phone_number;
+          const cleanedPhone = cleanPhoneNumber(rawPhone);
+          return {
+            ...amazonShipping,
+            phone: cleanedPhone || amazonShipping.phone,
+            phone_number: cleanedPhone || amazonShipping.phone_number
+          };
+        }
+        // Fallback if no shipping address provided
+        const rawPhone = json.ShippingAddress?.Phone || json.shippingAddress?.phone || json.shippingAddress?.phoneNumber || json.shippingAddress?.phone_number;
+        return {
+          name: json.shippingAddress?.name || json.BuyerInfo?.BuyerName,
+          address: json.ShippingAddress?.AddressLine1 || json.shippingAddress?.address,
+          city: json.ShippingAddress?.City || json.shippingAddress?.city,
+          state: json.ShippingAddress?.StateOrRegion || json.shippingAddress?.state,
+          zip: json.ShippingAddress?.PostalCode || json.shippingAddress?.zip,
+          phone: cleanPhoneNumber(rawPhone),
+          country: json.ShippingAddress?.CountryCode || json.shippingAddress?.country || 'US',
+        };
+      })(),
       
       // Character specs from Amazon Custom fields
       character_specs: json.characterSpecs || json.CharacterSpecs || {
