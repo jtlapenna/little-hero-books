@@ -55,7 +55,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Process Workflow 4 orders\n// Keep payload minimal; W4 will fetch the 3-manifest itself (same pattern as W2A, W2B, W3)\nconst routing = $input.first().json;\nconst orders4 = routing.workflow4 || [];\nif (orders4.length === 0) {\n  console.log('No orders for Workflow 4');\n  return [];\n}\nconsole.log(`=== PROCESSING ${orders4.length} ORDERS FOR WORKFLOW 4 ===`);\nconst prefix = 'book-mvp-simple-adventure/orders';\n\n// Build minimal payload - W4 will fetch 3-manifest itself\nreturn orders4.map(order => {\n  // Ensure shipping_address has phone_number (use company fallback if missing)\n  const shippingAddress = order.shipping_address ? {\n    ...order.shipping_address,\n    phone_number: order.shipping_address.phone_number || \n                  order.shipping_address.phone || \n                  '+1-678-478-3477' // Company fallback\n  } : null;\n\n  return {\n    json: {\n      orderId: order.amazon_order_id,\n      characterHash: order.character_hash,\n      orderDbId: order.id,\n      workflow: '4',\n      shipping_address: shippingAddress,\n      // Pass 3-manifest key (W4 will fetch it via backend proxy, like W3 does)\n      manifest3Key: `${prefix}/${order.amazon_order_id}/manifests/3-manifest.json`,\n      oneManifestKey: order.one_manifest_url || `${prefix}/${order.amazon_order_id}/manifests/1-manifest.json`\n    }\n  };\n});"
+        "jsCode": "// Clean phone number function (strips extensions)\nfunction cleanPhoneNumber(phone) {\n  if (!phone) return null;\n  let cleaned = String(phone).trim();\n  // Remove extension patterns: \"ext. 02924\", \"ext 02924\", \"extension 02924\", \"x 02924\", etc.\n  cleaned = cleaned.replace(/\\s*(ext|extension|x)[\\s:\\.]*\\d+/gi, '');\n  cleaned = cleaned.trim();\n  return cleaned || null;\n}\n\n// Process Workflow 4 orders\nconst routing = $input.first().json;\nconst orders4 = routing.workflow4 || [];\nif (orders4.length === 0) {\n  console.log('No orders for Workflow 4');\n  return [];\n}\nconsole.log(`=== PROCESSING ${orders4.length} ORDERS FOR WORKFLOW 4 ===`);\nconst prefix = 'book-mvp-simple-adventure/orders';\n\n// Build minimal payload - W4 will fetch 3-manifest itself\nreturn orders4.map(order => {\n  // Clean phone number (strip extensions) and ensure phone_number exists\n  const rawPhone = order.shipping_address?.phone_number || \n                   order.shipping_address?.phone;\n  const cleanedPhone = cleanPhoneNumber(rawPhone);\n  \n  // Use cleaned phone if available, otherwise use company fallback\n  // Company fallback: 678-478-3477 (for non-Amazon orders)\n  const phone_number = cleanedPhone || '+1-678-478-3477';\n  \n  const shippingAddress = order.shipping_address ? {\n    ...order.shipping_address,\n    phone_number: phone_number\n  } : null;\n\n  return {\n    json: {\n      orderId: order.amazon_order_id,\n      characterHash: order.character_hash,\n      orderDbId: order.id,\n      workflow: '4',\n      shipping_address: shippingAddress,\n      // Pass 3-manifest key (W4 will fetch it via backend proxy, like W3 does)\n      manifest3Key: `${prefix}/${order.amazon_order_id}/manifests/3-manifest.json`,\n      oneManifestKey: order.one_manifest_url || `${prefix}/${order.amazon_order_id}/manifests/1-manifest.json`\n    }\n  };\n});"
       },
       "id": "bd845d18-8499-4775-906b-14a81b5daa6c",
       "name": "Prep Workflow 4 Orders",
@@ -509,7 +509,7 @@
               "leftValue": "={{ $json.shipping_address.state_code }}",
               "rightValue": "",
               "operator": {
-                "type": "number",
+                "type": "string",
                 "operation": "notEmpty",
                 "singleValue": true
               }
@@ -609,7 +609,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/internal/orders/{{$json.orderId}}/flags/missing-shipping",
+        "url": "=https://admin.littleherolabs.com/api/internal/orders/{{$json.orderId}}/flags/missing-shipping",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -619,7 +619,7 @@
             },
             {
               "name": "Authorization",
-              "value": "Bearer <BACKEND_INTERNAL_TOKEN>"
+              "value": "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
             }
           ]
         },
@@ -636,7 +636,7 @@
         288,
         592
       ],
-      "notes": "TODO: Replace <BACKEND_INTERNAL_TOKEN> with real token or use credentials"
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -890,7 +890,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "b3ee7619-9773-4df0-af79-d5cc70f01c9f",
+  "versionId": "03d9f10c-b22f-46b2-8b2a-dc401c12acc6",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"

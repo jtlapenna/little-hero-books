@@ -5,17 +5,11 @@ import { getOrderFromSupabase } from '@/lib/supabase-client';
 export const dynamic = 'force-dynamic';
 
 /**
- * Generate Amazon Support response with all requested information formatted as TXT files
- * GET /api/admin/amazon-support-response?orderId=111-0060602-1283417
+ * Generate Amazon Support response for TEXT-ONLY message (no document upload)
+ * GET /api/admin/amazon-support-response-text?orderId=111-0060602-1283417
  * 
- * This endpoint makes the actual API call and returns everything Amazon requested:
- * 1. Full Request (TXT file with headers and body)
- * 2. Full Response (TXT file with headers and body)
- * 3. Application ID
- * 4. Developer account ID
- * 5. API and operation
- * 6. Timestamp
- * 7. Request ID
+ * This endpoint forces text-only mode to capture messaging API call details
+ * without the document upload step
  */
 export async function GET(request: NextRequest) {
   try {
@@ -40,18 +34,13 @@ export async function GET(request: NextRequest) {
 
     const amazonOrderId = order.amazon_order_id || order.orderId || order.order_id || orderId;
 
-    // Check if text-only mode is requested (to skip document upload)
-    const textOnly = searchParams.get('textOnly') === 'true';
-
+    // Force text-only mode to skip HTML upload and capture messaging API call
+    process.env.AMAZON_FORCE_TEXT_ONLY = 'true';
+    
     // Make the API call to capture full request/response
     let apiCallDetails: any = null;
     
     try {
-      // Force text-only mode if requested
-      if (textOnly) {
-        process.env.AMAZON_FORCE_TEXT_ONLY = 'true';
-      }
-      
       const { sendAmazonPreviewMessage } = await import('@/lib/notifications/amazon-message-center');
       const response = await sendAmazonPreviewMessage({
         amazonOrderId,
@@ -71,10 +60,7 @@ export async function GET(request: NextRequest) {
         apiCallDetails = error.apiCallDetails;
       }
     } finally {
-      // Clean up environment variable
-      if (textOnly) {
-        delete process.env.AMAZON_FORCE_TEXT_ONLY;
-      }
+      delete process.env.AMAZON_FORCE_TEXT_ONLY;
     }
 
     // If we don't have details, return instructions
@@ -93,30 +79,28 @@ export async function GET(request: NextRequest) {
     }
 
     // Format as TXT files exactly as Amazon requested
-    const requestTxt = formatRequestTxt(apiCallDetails, textOnly);
-    const responseTxt = formatResponseTxt(apiCallDetails, textOnly);
+    const requestTxt = formatRequestTxt(apiCallDetails);
+    const responseTxt = formatResponseTxt(apiCallDetails);
 
     // Check if user wants to download a specific file
     const file = searchParams.get('file'); // 'request' or 'response'
 
     if (file === 'request') {
       // Return request file as downloadable TXT
-      const filename = textOnly ? `amazon-request-text-${orderId}.txt` : `amazon-request-${orderId}.txt`;
       return new NextResponse(requestTxt, {
         headers: {
           'Content-Type': 'text/plain',
-          'Content-Disposition': `attachment; filename="${filename}"`
+          'Content-Disposition': `attachment; filename="amazon-request-text-${orderId}.txt"`
         }
       });
     }
 
     if (file === 'response') {
       // Return response file as downloadable TXT
-      const filename = textOnly ? `amazon-response-text-${orderId}.txt` : `amazon-response-${orderId}.txt`;
       return new NextResponse(responseTxt, {
         headers: {
           'Content-Type': 'text/plain',
-          'Content-Disposition': `attachment; filename="${filename}"`
+          'Content-Disposition': `attachment; filename="amazon-response-text-${orderId}.txt"`
         }
       });
     }
@@ -130,6 +114,7 @@ export async function GET(request: NextRequest) {
       operation: apiCallDetails.operation,
       timestamp: apiCallDetails.timestamp,
       requestId: apiCallDetails.requestId,
+      note: 'This is a TEXT-ONLY message call (no document upload). The operation should be /messaging/v1/orders/{orderId}/messages/createConfirmOrderDetails',
       
       // Download links
       downloadLinks: {
@@ -139,19 +124,19 @@ export async function GET(request: NextRequest) {
       
       // TXT file contents (for reference)
       requestFile: {
-        filename: textOnly ? `amazon-request-text-${orderId}.txt` : `amazon-request-${orderId}.txt`,
+        filename: `amazon-request-text-${orderId}.txt`,
         content: requestTxt
       },
       responseFile: {
-        filename: textOnly ? `amazon-response-text-${orderId}.txt` : `amazon-response-${orderId}.txt`,
+        filename: `amazon-response-text-${orderId}.txt`,
         content: responseTxt
       },
       
       // Instructions
       instructions: [
         'To download as TXT files:',
-        `1. Request file: curl "${request.url.split('?')[0]}?orderId=${orderId}&file=request" -o amazon-request-${orderId}.txt`,
-        `2. Response file: curl "${request.url.split('?')[0]}?orderId=${orderId}&file=response" -o amazon-response-${orderId}.txt`,
+        `1. Request file: curl "${request.url.split('?')[0]}?orderId=${orderId}&file=request" -o amazon-request-text-${orderId}.txt`,
+        `2. Response file: curl "${request.url.split('?')[0]}?orderId=${orderId}&file=response" -o amazon-response-text-${orderId}.txt`,
         'Or click the downloadLinks in a browser',
         '',
         '3. Attach both TXT files to your Amazon Support ticket',
@@ -167,12 +152,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function formatRequestTxt(details: any, textOnly: boolean = false): string {
+function formatRequestTxt(details: any): string {
   const req = details.request;
   let txt = '';
   
-  const suffix = textOnly ? ' (TEXT-ONLY MESSAGE)' : '';
-  txt += `=== AMAZON SP-API REQUEST${suffix} ===\n\n`;
+  txt += '=== AMAZON SP-API REQUEST (TEXT-ONLY MESSAGE) ===\n\n';
   txt += `Method: ${req.method}\n`;
   txt += `URL: ${req.url}\n`;
   txt += `Path: ${req.path}\n`;
@@ -203,12 +187,11 @@ function formatRequestTxt(details: any, textOnly: boolean = false): string {
   return txt;
 }
 
-function formatResponseTxt(details: any, textOnly: boolean = false): string {
+function formatResponseTxt(details: any): string {
   const res = details.response;
   let txt = '';
   
-  const suffix = textOnly ? ' (TEXT-ONLY MESSAGE)' : '';
-  txt += `=== AMAZON SP-API RESPONSE${suffix} ===\n\n`;
+  txt += '=== AMAZON SP-API RESPONSE (TEXT-ONLY MESSAGE) ===\n\n';
   txt += `Status: ${res.status}\n`;
   txt += `Status Text: ${res.statusText}\n`;
   txt += `Request ID: ${details.requestId}\n`;
