@@ -107,6 +107,7 @@ export default function OrderDetailPage() {
   const [creating2aManifest, setCreating2aManifest] = useState(false);
   const [creating2bManifest, setCreating2bManifest] = useState(false);
   const [resettingOrder, setResettingOrder] = useState(false);
+  const [normalizingShipping, setNormalizingShipping] = useState(false);
   const printRequestInProgressRef = useRef(false);
   const rawResetToggle = process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET;
   const enableResetButton =
@@ -719,6 +720,35 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleNormalizeShipping = async () => {
+    if (!order) return;
+    
+    if (!confirm('Normalize shipping address field names? This will add the expected field names (address_line_1, postal_code, state_code) and clear the missing_shipping error.')) {
+      return;
+    }
+    
+    setNormalizingShipping(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.orderId}/normalize-shipping`, {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to normalize shipping address');
+      }
+      
+      alert('Shipping address normalized successfully! Refreshing order data...');
+      await fetchOrder(order.orderId);
+    } catch (error: any) {
+      console.error('[Normalize Shipping] Error:', error);
+      alert(`Failed to normalize shipping address: ${error.message}`);
+    } finally {
+      setNormalizingShipping(false);
+    }
+  };
+
   const handleResetOrderRecovery = async () => {
     if (!order) {
       return;
@@ -918,11 +948,16 @@ export default function OrderDetailPage() {
             (order.executionStatus === 'processing' && order.currentWorkflow)
           );
           
+          const canShowNormalizeShipping = order.error_type === 'missing_shipping' && 
+                                          order.shipping_address && 
+                                          typeof order.shipping_address === 'object';
+          
           // Only show section if at least one button would be visible
           const hasAnyRecoveryAction = canShowCreate1Manifest || 
                                       canShowCreate2aManifest || 
                                       canShowCreate2bManifest || 
-                                      canShowResetButton;
+                                      canShowResetButton ||
+                                      canShowNormalizeShipping;
           
           return hasAnyRecoveryAction;
         })() && (
@@ -1028,6 +1063,28 @@ export default function OrderDetailPage() {
                   ) : (
                     <>
                       Reset Order
+                    </>
+                  )}
+                </button>
+              )}
+              {order.error_type === 'missing_shipping' && 
+               order.shipping_address && 
+               typeof order.shipping_address === 'object' && (
+                <button
+                  type="button"
+                  onClick={handleNormalizeShipping}
+                  disabled={normalizingShipping}
+                  className="inline-flex items-center px-3 py-1.5 border border-blue-300 rounded-md text-sm font-medium text-blue-800 bg-white hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  title="Fix shipping address field names to match n8n workflow validation requirements"
+                >
+                  {normalizingShipping ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Normalizing...
+                    </>
+                  ) : (
+                    <>
+                      Fix Shipping Address Fields
                     </>
                   )}
                 </button>
