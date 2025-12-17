@@ -3004,7 +3004,7 @@ if (!token) {
     }
 
     .book-content-wrapper {
-      padding-bottom: calc(var(--spacing-2xl) + 4rem);
+      padding-bottom: var(--spacing-lg);
       /* Ensure it's not fixed on mobile */
       position: relative !important;
       z-index: 1 !important;
@@ -3016,16 +3016,17 @@ if (!token) {
     }
 
     .preview-main {
-      padding-bottom: calc(var(--spacing-2xl) + 2rem);
-      margin-bottom: calc(var(--spacing-2xl) + 2rem);
+      padding-bottom: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
     }
     
-    /* Ensure action buttons are accessible on mobile */
+    /* Ensure action buttons are accessible on mobile - closer to content */
     #action-buttons-container {
       position: relative;
       z-index: 10;
-      margin-bottom: calc(var(--spacing-2xl) + 2rem);
-      padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+      margin-bottom: var(--spacing-md);
+      margin-top: var(--spacing-md);
+      padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom, 0px));
     }
     
     /* Ensure footer is visible on mobile */

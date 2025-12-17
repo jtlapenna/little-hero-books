@@ -251,8 +251,14 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           <button 
             className="image-zoom-close"
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               setZoomedImage(null);
+              return false;
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
             }}
             aria-label="Close zoomed image"
           >
@@ -381,7 +387,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 99999;
+          z-index: 999999;
           padding: 1rem;
           cursor: pointer;
           overscroll-behavior: contain;
@@ -395,7 +401,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
         }
 
         .image-zoom-close {
-          position: absolute;
+          position: fixed;
           top: 1rem;
           right: 1rem;
           background: rgba(255, 255, 255, 0.2);
@@ -410,7 +416,8 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           justify-content: center;
           cursor: pointer;
           transition: all 0.2s ease;
-          z-index: 10001;
+          z-index: 9999999;
+          pointer-events: auto;
         }
 
         .image-zoom-close:hover {
@@ -421,11 +428,12 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
         @media (max-width: 768px) {
           .image-zoom-close {
-            top: 0.5rem;
+            top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
             right: 0.5rem;
             width: 2.5rem;
             height: 2.5rem;
             font-size: 1.5rem;
+            z-index: 9999999;
           }
 
           .cover-image-container.zoomable-image {
