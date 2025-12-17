@@ -101,13 +101,17 @@ export function buildShippingAddress(
   headers: string[]
 ): {
   name: string;
-  address: string;
-  address2?: string;
+  address_line_1: string;
+  address_line_2?: string;
   city: string;
-  state: string;
-  zip: string;
+  state_code: string;
+  postal_code: string;
   country: string;
   phone?: string;
+  // Legacy fields for backward compatibility
+  address?: string;
+  zip?: string;
+  state?: string;
 } | null {
   // Find required columns
   const addressIndex = findColumnIndex(headers, [
@@ -190,21 +194,26 @@ export function buildShippingAddress(
   const nameIndex = recipientNameIndex !== null ? recipientNameIndex : buyerNameIndex;
   const name = nameIndex !== null ? row[nameIndex]?.toString().trim() : '';
   
-  // Build shipping address object
+  // Build shipping address object with expected field names for n8n workflow validation
   const shippingAddress: any = {
     name: name || undefined,
-    address: address,
+    address_line_1: address, // Expected by n8n workflow validation
     city: city,
-    state: state,
+    state_code: state, // Expected by n8n workflow validation
+    postal_code: zip, // Expected by n8n workflow validation
+    country: countryIndex !== null ? row[countryIndex]?.toString().trim() || 'US' : 'US',
+    // Legacy fields for backward compatibility
+    address: address,
     zip: zip,
-    country: countryIndex !== null ? row[countryIndex]?.toString().trim() || 'US' : 'US'
+    state: state
   };
   
   // Add optional fields if present
   if (address2Index !== null && row[address2Index]) {
     const address2 = row[address2Index]?.toString().trim();
     if (address2) {
-      shippingAddress.address2 = address2;
+      shippingAddress.address_line_2 = address2; // Expected field name
+      shippingAddress.address2 = address2; // Legacy field name
     }
   }
   
@@ -212,6 +221,7 @@ export function buildShippingAddress(
     const phone = row[phoneIndex]?.toString().trim();
     if (phone) {
       shippingAddress.phone = phone;
+      shippingAddress.phone_number = phone; // Also store as phone_number for consistency
     }
   }
   
