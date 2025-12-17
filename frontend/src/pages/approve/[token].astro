@@ -2287,27 +2287,6 @@ if (!token) {
     if (curtainFullyLifted || curtainScrollPosition >= 1) {
       return; // Completely ignore - let normal scroll happen
     }
-      
-      if (curtainScrollPosition >= 1) {
-        console.log('[CURTAIN] ⚠️ Curtain reached max during sync - transitioning to normal scroll', {
-          position: curtainScrollPosition.toFixed(3)
-        });
-        // This will trigger the transition in updateCurtainPosition
-      }
-    } else {
-      // console.log('[CURTAIN] ℹ️ handlePageScroll: NO ACTION TAKEN', {
-      //   scrollTop: scrollTop.toFixed(2),
-      //   curtainScrollPosition: curtainScrollPosition.toFixed(3),
-      //   curtainFullyLifted,
-      //   reason: scrollTop <= 0 
-      //     ? 'At top but conditions not met' 
-      //     : curtainScrollPosition >= 1 
-      //       ? 'Curtain already at max' 
-      //       : curtainFullyLifted 
-      //         ? 'Curtain already fully lifted' 
-      //         : 'Normal scrolling'
-      // });
-    }
     
     // console.log('[CURTAIN] 🏁 handlePageScroll EVENT COMPLETE');
   }
