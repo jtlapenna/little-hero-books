@@ -590,18 +590,18 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
         @media (max-width: 768px) and (orientation: landscape) {
           .spread-viewer {
-            max-height: 25vh !important;
-            padding: 0.25rem !important;
+            max-height: 85vh;
+            padding: 1rem;
           }
 
           .two-page-spread img,
           .cover-image-container img {
-            max-height: 22vh !important;
+            max-height: 75vh;
           }
 
           .viewer-header {
-            padding: 0.25rem 0.5rem !important;
-            font-size: 0.7rem !important;
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
           }
           
           .cover-image-container.zoomable-image {
