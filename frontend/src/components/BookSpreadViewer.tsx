@@ -340,6 +340,13 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           max-height: 70vh;
           overflow: hidden;
         }
+        
+        @media (max-width: 768px) {
+          .spread-viewer {
+            padding: 1rem;
+            max-height: 50vh;
+          }
+        }
 
         .spread-container {
           width: 100%;
@@ -387,7 +394,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 999999;
+          z-index: 2147483647;
           padding: 1rem;
           cursor: pointer;
           overscroll-behavior: contain;
@@ -416,7 +423,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           justify-content: center;
           cursor: pointer;
           transition: all 0.2s ease;
-          z-index: 9999999;
+          z-index: 2147483647;
           pointer-events: auto;
         }
 
@@ -433,7 +440,11 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
             width: 2.5rem;
             height: 2.5rem;
             font-size: 1.5rem;
-            z-index: 9999999;
+            z-index: 2147483647;
+          }
+          
+          .image-zoom-modal {
+            z-index: 2147483647;
           }
 
           .cover-image-container.zoomable-image {

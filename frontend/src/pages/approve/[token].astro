@@ -2631,13 +2631,19 @@ if (!token) {
     margin-bottom: var(--spacing-lg);
   }
 
-  .preview-card {
-    background: #ffffff;
-    border-radius: 20px;
-    box-shadow: 0 12px 36px rgba(45, 49, 66, 0.08);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-  }
+    .preview-card {
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 12px 36px rgba(45, 49, 66, 0.08);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    @media (max-width: 768px) {
+      .preview-card {
+        margin-bottom: var(--spacing-xs);
+      }
+    }
 
   .preview-card-header {
     display: grid;
@@ -3004,7 +3010,7 @@ if (!token) {
     }
 
     .book-content-wrapper {
-      padding-bottom: var(--spacing-lg);
+      padding-bottom: var(--spacing-xs);
       /* Ensure it's not fixed on mobile */
       position: relative !important;
       z-index: 1 !important;
@@ -3016,17 +3022,22 @@ if (!token) {
     }
 
     .preview-main {
-      padding-bottom: var(--spacing-md);
-      margin-bottom: var(--spacing-md);
+      padding-bottom: var(--spacing-xs);
+      margin-bottom: var(--spacing-xs);
     }
     
-    /* Ensure action buttons are accessible on mobile - closer to content */
+    /* Ensure action buttons are accessible on mobile - much closer to content */
     #action-buttons-container {
       position: relative;
       z-index: 10;
-      margin-bottom: var(--spacing-md);
-      margin-top: var(--spacing-md);
-      padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom, 0px));
+      margin-bottom: var(--spacing-xs);
+      margin-top: var(--spacing-xs);
+      padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 0px));
+    }
+    
+    /* Reduce spacing between buttons */
+    .action-buttons {
+      gap: var(--spacing-xs);
     }
     
     /* Ensure footer is visible on mobile */
