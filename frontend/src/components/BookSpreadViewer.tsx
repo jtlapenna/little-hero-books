@@ -50,6 +50,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
   const [currentIndex, setCurrentIndex] = useState(() =>
     clampIndex(initialSpread, viewerSpreads.length)
   );
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
   useEffect(() => {
     const nextSpreads = Array.isArray(spreads) ? spreads : [];
@@ -83,6 +84,10 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
     if (viewerSpreads.length === 0) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (zoomedImage && event.key === 'Escape') {
+        setZoomedImage(null);
+        return;
+      }
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
         goToSpread(currentIndex - 1);
@@ -94,7 +99,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, viewerSpreads.length]);
+  }, [currentIndex, viewerSpreads.length, zoomedImage]);
 
   const totalSpreads = viewerSpreads.length;
 
@@ -116,7 +121,10 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
     if (currentSpread.coverData?.isBackCover && currentSpread.coverData.fullImageUrl) {
       return (
-        <div className="cover-image-container back-cover">
+        <div 
+          className="cover-image-container back-cover zoomable-image"
+          onClick={() => setZoomedImage(currentSpread.coverData!.fullImageUrl)}
+        >
           <img src={currentSpread.coverData.fullImageUrl} alt="Back Cover" />
         </div>
       );
@@ -127,6 +135,9 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
         <img
           src={currentSpread.leftPage.imageUrl}
           alt={`Page ${currentSpread.leftPage.pageNumber}`}
+          className="zoomable-image"
+          onClick={() => setZoomedImage(currentSpread.leftPage!.imageUrl)}
+          style={{ cursor: 'pointer' }}
         />
       );
     }
@@ -139,7 +150,10 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
     if (currentSpread.coverData?.isFrontCover && currentSpread.coverData.fullImageUrl) {
       return (
-        <div className="cover-image-container front-cover">
+        <div 
+          className="cover-image-container front-cover zoomable-image"
+          onClick={() => setZoomedImage(currentSpread.coverData!.fullImageUrl)}
+        >
           <img src={currentSpread.coverData.fullImageUrl} alt="Front Cover" />
         </div>
       );
@@ -150,6 +164,9 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
         <img
           src={currentSpread.rightPage.imageUrl}
           alt={`Page ${currentSpread.rightPage.pageNumber}`}
+          className="zoomable-image"
+          onClick={() => setZoomedImage(currentSpread.rightPage!.imageUrl)}
+          style={{ cursor: 'pointer' }}
         />
       );
     }
@@ -208,6 +225,29 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           </div>
         </div>
       </div>
+
+      {zoomedImage && (
+        <div 
+          className="image-zoom-modal"
+          onClick={() => setZoomedImage(null)}
+        >
+          <button 
+            className="image-zoom-close"
+            onClick={(e) => {
+              e.stopPropagation();
+              setZoomedImage(null);
+            }}
+            aria-label="Close zoomed image"
+          >
+            ×
+          </button>
+          <img 
+            src={zoomedImage} 
+            alt="Zoomed view"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       <style>{`
         .book-viewer {
@@ -270,7 +310,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
         .spread-viewer {
           background: #f3f4f6;
-          padding: 1.5rem;
+          padding: 2.5rem;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -306,6 +346,76 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           object-fit: contain;
           display: block;
           aspect-ratio: 1 / 1;
+        }
+
+        .zoomable-image {
+          cursor: pointer;
+          transition: opacity 0.2s ease;
+        }
+
+        .zoomable-image:hover {
+          opacity: 0.9;
+        }
+
+        .image-zoom-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.95);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10000;
+          padding: 1rem;
+          cursor: pointer;
+        }
+
+        .image-zoom-modal img {
+          max-width: 100%;
+          max-height: 100%;
+          object-fit: contain;
+          cursor: default;
+        }
+
+        .image-zoom-close {
+          position: absolute;
+          top: 1rem;
+          right: 1rem;
+          background: rgba(255, 255, 255, 0.2);
+          border: 2px solid rgba(255, 255, 255, 0.5);
+          color: white;
+          font-size: 2rem;
+          width: 3rem;
+          height: 3rem;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          z-index: 10001;
+        }
+
+        .image-zoom-close:hover {
+          background: rgba(255, 255, 255, 0.3);
+          border-color: rgba(255, 255, 255, 0.8);
+          transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+          .image-zoom-close {
+            top: 0.5rem;
+            right: 0.5rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            font-size: 1.5rem;
+          }
+
+          .cover-image-container.zoomable-image {
+            cursor: pointer;
+          }
         }
 
         .white-page {
@@ -347,12 +457,33 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
         @media (max-width: 768px) {
           .spread-viewer {
             max-height: 60vh;
-            padding: 1rem;
+            padding: 1.5rem;
           }
 
           .two-page-spread img,
           .cover-image-container img {
             max-height: 50vh;
+          }
+
+          .cover-image-container.zoomable-image {
+            cursor: pointer;
+          }
+        }
+
+        @media (max-width: 768px) and (orientation: landscape) {
+          .spread-viewer {
+            max-height: 85vh;
+            padding: 1rem;
+          }
+
+          .two-page-spread img,
+          .cover-image-container img {
+            max-height: 75vh;
+          }
+
+          .viewer-header {
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
           }
         }
       `}</style>

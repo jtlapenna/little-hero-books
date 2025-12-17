@@ -1,5 +1,5 @@
 
-import express from "express";
+import express, { Request, Response } from "express";
 import { renderBook } from "./render.js";
 import { config } from "dotenv";
 import { uploadToStorage } from "./storage.js";
@@ -30,7 +30,7 @@ function log(level: string, message: string, data?: any) {
 }
 
 // Health check with environment info
-app.get("/health", (_, res) => {
+app.get("/health", (_: Request, res: Response) => {
   res.json({ 
     ok: true,
     service: 'little-hero-books-renderer',
@@ -43,7 +43,7 @@ app.get("/health", (_, res) => {
 });
 
 // Render endpoint - n8n compatible with R2/S3 storage
-app.post("/render", async (req, res) => {
+app.post("/render", async (req: Request, res: Response) => {
   const startTime = Date.now();
   const orderId = req.body?.orderId || 'unknown';
   
