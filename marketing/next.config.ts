@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
   // Set output file tracing root to marketing directory
   // This prevents Next.js from detecting root package-lock.json
   outputFileTracingRoot: process.cwd(),
+  // Static export for Cloudflare Pages compatibility
+  output: 'export',
+  // Disable image optimization (not available in static export)
+  images: {
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;

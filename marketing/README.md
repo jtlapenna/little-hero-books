@@ -29,8 +29,8 @@ This site is deployed to Cloudflare Pages via the `little-hero-labs` project.
 **Build Configuration:**
 - Root directory: `marketing`
 - Build command: `npm ci && npm run build`
-- Output directory: `.next`
-- Framework preset: Next.js
+- Output directory: `out` (static export)
+- Framework preset: Next.js (Static HTML Export)
 
 ## Structure
 
