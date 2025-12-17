@@ -122,7 +122,7 @@ export async function getAvailableOrderIds(): Promise<string[]> {
 }
 
 // Build manifest key for order-centric storage
-export function buildManifestKey(orderId: string, stage: '2a' | '2b' | '3'): string {
+export function buildManifestKey(orderId: string, stage: '2a' | '2b' | '3' | '4'): string {
   const PROJECT_NS = 'book-mvp-simple-adventure';
   return `${PROJECT_NS}/orders/${orderId}/manifests/${stage}-manifest.json`;
 }

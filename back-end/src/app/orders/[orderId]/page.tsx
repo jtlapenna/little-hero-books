@@ -11,6 +11,7 @@ import { getOrderById } from '@/lib/mock-data';
 import { PreBriaStage } from '@/components/stages/pre-bria-stage';
 import { PostBriaStage } from '@/components/stages/post-bria-stage';
 import { PostPdfStage } from '@/components/stages/post-pdf-stage';
+import { LuluStage } from '@/components/stages/lulu-stage';
 import { getStageFlaggedCount, getOrderFlagSummary } from '@/lib/review-state';
 import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
@@ -248,6 +249,50 @@ export default function OrderDetailPage() {
     [order]
   );
 
+  // Handler for refreshing Lulu status
+  const handleRefreshLuluStatus = useCallback(async () => {
+    if (!order?.orderId) {
+      throw new Error('Order is not loaded');
+    }
+
+    const response = await fetch(`/api/admin/orders/${order.orderId}/refresh-lulu-status`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(errorBody?.error || `Failed to refresh Lulu status: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json().catch(() => null);
+    return result;
+  }, [order]);
+
+  // Handler for canceling Lulu order
+  const handleCancelLuluOrder = useCallback(async () => {
+    if (!order?.orderId) {
+      throw new Error('Order is not loaded');
+    }
+
+    const response = await fetch(`/api/admin/orders/${order.orderId}/cancel-lulu-order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(errorBody?.error || `Failed to cancel Lulu order: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json().catch(() => null);
+    return result;
+  }, [order]);
+
   // Update flag counts when orderId changes (not when order object changes)
   // Calculate directly from manifests (source of truth) rather than Supabase
   useEffectReact(() => {
@@ -346,7 +391,7 @@ export default function OrderDetailPage() {
     );
   }
 
-  const stages: { key: ReviewStage; label: string; description: string; stageKey: 'preBria' | 'postBria' | 'postPdf' }[] = [
+  const stages: { key: ReviewStage; label: string; description: string; stageKey: 'preBria' | 'postBria' | 'postPdf' | 'lulu' }[] = [
     {
       key: 'preBria' as unknown as ReviewStage,
       label: 'Review Poses',
@@ -364,6 +409,12 @@ export default function OrderDetailPage() {
       label: 'Review Pages',
       description: 'Final compiled PDF ready for production',
       stageKey: 'postPdf'
+    },
+    {
+      key: 'lulu' as unknown as ReviewStage,
+      label: 'Print Status',
+      description: 'Lulu print job status and tracking',
+      stageKey: 'lulu'
     }
   ];
 
@@ -1284,21 +1335,52 @@ export default function OrderDetailPage() {
             {/* Stage Tabs */}
             <div className="border-b border-gray-200">
               <nav className="flex space-x-8 px-6">
-                {stages.map((stage) => (
-                  <button
-                    key={stage.key as unknown as string}
-                    onClick={() => setActiveStage(stage.key)}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                      activeStage === stage.key
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span>{stage.label}</span>
-                      {(() => {
-                        // Use stageKey to access reviewStages (more reliable than stage.key)
-                        const stageStatus = order.reviewStages[stage.stageKey]?.status;
+                {stages.map((stage) => {
+                  // Only show Lulu tab if order has been submitted to Lulu
+                  if (stage.stageKey === 'lulu' && !order.luluJobId) {
+                    return null;
+                  }
+                  
+                  return (
+                    <button
+                      key={stage.key as unknown as string}
+                      onClick={() => setActiveStage(stage.key)}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                        activeStage === stage.key
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span>{stage.label}</span>
+                        {(() => {
+                          // Lulu stage shows status badge instead of approval badge
+                          if (stage.stageKey === 'lulu') {
+                            if (order.luluStatus) {
+                              const statusColors: Record<string, string> = {
+                                CREATED: 'bg-blue-100 text-blue-800 border-blue-200',
+                                UNPAID: 'bg-blue-100 text-blue-800 border-blue-200',
+                                PAYMENT_IN_PROGRESS: 'bg-blue-100 text-blue-800 border-blue-200',
+                                PRODUCTION_DELAYED: 'bg-blue-100 text-blue-800 border-blue-200',
+                                PRODUCTION_READY: 'bg-blue-100 text-blue-800 border-blue-200',
+                                IN_PRODUCTION: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+                                SHIPPED: 'bg-green-100 text-green-800 border-green-200',
+                                DELIVERED: 'bg-green-100 text-green-800 border-green-200',
+                                REJECTED: 'bg-red-100 text-red-800 border-red-200',
+                                CANCELED: 'bg-gray-100 text-gray-800 border-gray-200',
+                              };
+                              const colors = statusColors[order.luluStatus] || 'bg-gray-100 text-gray-800 border-gray-200';
+                              return (
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${colors}`}>
+                                  {order.luluStatus}
+                                </span>
+                              );
+                            }
+                            return null;
+                          }
+                          
+                          // Use stageKey to access reviewStages (more reliable than stage.key)
+                          const stageStatus = order.reviewStages[stage.stageKey]?.status;
                         // Use stageKey (preBria/postBria/postPdf) to look up flag count, not stage.key
                         const stageFlagCount = flagCounts[stage.stageKey] || 0;
                         // Compare with string 'approved' to handle both enum and string values
@@ -1356,7 +1438,8 @@ export default function OrderDetailPage() {
                       })()}
                     </div>
                   </button>
-                ))}
+                  );
+                })}
               </nav>
             </div>
 
@@ -1398,6 +1481,16 @@ export default function OrderDetailPage() {
                   finalApprovalError={finalApprovalError}
                   finalApprovalLoading={finalApprovalLoading}
                   onSendToPrint={() => handleSendToPrint('post-pdf-stage')}
+                />
+              )}
+
+              {activeStage === ('lulu' as unknown as ReviewStage) && (
+                <LuluStage
+                  orderId={order.orderId}
+                  order={order}
+                  onRefresh={handleRefreshOrder}
+                  onRefreshStatus={handleRefreshLuluStatus}
+                  onCancelOrder={handleCancelLuluOrder}
                 />
               )}
             </div>

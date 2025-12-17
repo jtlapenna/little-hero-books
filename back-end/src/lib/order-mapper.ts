@@ -1,6 +1,7 @@
 import { OrderStatus, ReviewStageStatus } from '@/constants/statuses';
 import { Order, ReviewStage } from '@/types/order';
 import { calculateOrderStatus } from './status-service';
+import { downloadManifest, buildManifestKey } from './r2-service';
 
 type SupabaseOrderRecord = Record<string, any>;
 
@@ -116,6 +117,7 @@ export async function mapSupabaseOrderToOrder(
     workflowStep: record.workflow_step || undefined,
     currentWorkflow: record.current_workflow || undefined,
     luluStatus: record.lulu_status || undefined,
+    luluJobId: record.lulu_job_id || undefined,
     executionStatus: record.execution_status || undefined,
     errorMessage: record.error_message || undefined,
     errorType: record.error_type || undefined,
@@ -139,6 +141,38 @@ export async function mapSupabaseOrderToOrder(
   // Derive character path if missing but hash exists
   if (!order.characterPath && order.characterHash) {
     order.characterPath = `characters/${order.characterHash}`;
+  }
+
+  // Fetch 4-manifest to get additional Lulu data (cost, estimated ship date, etc.)
+  if (order.luluJobId) {
+    try {
+      const manifest4Key = buildManifestKey(orderId, '4');
+      const manifest4 = await downloadManifest(manifest4Key).catch(() => null);
+      
+      if (manifest4?.lulu) {
+        order.luluCost = manifest4.lulu.cost;
+        order.luluEstimatedShipDate = manifest4.lulu.estimatedShipDate;
+        // Set submitted date from manifest creation date
+        if (manifest4.createdAt) {
+          order.luluSubmittedAt = manifest4.createdAt;
+        }
+      }
+      
+      // Extract tracking info from Supabase if available (may be stored separately)
+      // Check if there's tracking data in the record
+      if (record.tracking_number) {
+        order.luluTrackingNumber = record.tracking_number;
+      }
+      if (record.tracking_url) {
+        order.luluTrackingUrl = record.tracking_url;
+      }
+      if (record.carrier) {
+        order.luluCarrier = record.carrier;
+      }
+    } catch (error) {
+      // Silently fail - 4-manifest may not exist yet
+      console.log(`[Order Mapper] Could not fetch 4-manifest for ${orderId}:`, error);
+    }
   }
 
   return order;

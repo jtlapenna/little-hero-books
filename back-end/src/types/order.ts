@@ -48,6 +48,14 @@ export interface Order {
   workflowStep?: string;
   currentWorkflow?: string; // current_workflow from Supabase (2A, 2B, 3, etc.)
   luluStatus?: string;
+  luluJobId?: string; // Lulu job ID from lulu_job_id
+  luluCost?: number; // Print job cost
+  luluEstimatedShipDate?: string; // Estimated ship date
+  luluTrackingNumber?: string; // Tracking number (when shipped)
+  luluTrackingUrl?: string; // Tracking URL (when shipped)
+  luluCarrier?: string; // Shipping carrier (when shipped)
+  luluSubmittedAt?: string; // When order was submitted to Lulu
+  luluStatusHistory?: Array<{status: string, timestamp: string, details?: any}>; // Status change history
   executionStatus?: string; // execution_status from Supabase (processing, error, error_requires_manual_review, etc.)
   errorMessage?: string; // error_message from Supabase
   errorType?: string; // error_type from Supabase
