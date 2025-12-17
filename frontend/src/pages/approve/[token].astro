@@ -2631,19 +2631,44 @@ if (!token) {
     margin-bottom: var(--spacing-lg);
   }
 
+  .preview-card {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 12px 36px rgba(45, 49, 66, 0.08);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+  }
+  
+  @media (max-width: 768px) {
     .preview-card {
-      background: #ffffff;
-      border-radius: 20px;
-      box-shadow: 0 12px 36px rgba(45, 49, 66, 0.08);
-      padding: var(--spacing-lg);
-      margin-bottom: var(--spacing-lg);
+      margin-bottom: var(--spacing-xs);
+      padding: var(--spacing-md);
     }
     
-    @media (max-width: 768px) {
-      .preview-card {
-        margin-bottom: var(--spacing-xs);
-      }
+    .preview-area {
+      min-height: auto;
     }
+  }
+  
+  @media (max-width: 768px) and (orientation: landscape) {
+    .preview-card,
+    .preview-card[data-astro-cid-qyn4roxk] {
+      padding: var(--spacing-sm) !important;
+      margin-bottom: var(--spacing-xs) !important;
+    }
+    
+    .preview-area,
+    .preview-area[data-astro-cid-qyn4roxk] {
+      min-height: auto !important;
+      max-height: none !important;
+      height: auto !important;
+    }
+    
+    .book-viewer-wrapper {
+      max-height: 30vh !important;
+      overflow: hidden;
+    }
+  }
 
   .preview-card-header {
     display: grid;
@@ -2721,6 +2746,22 @@ if (!token) {
     min-height: 600px;
     display: flex;
     flex-direction: column;
+  }
+  
+  @media (max-width: 768px) {
+    .preview-area,
+    .preview-area[data-astro-cid-qyn4roxk] {
+      min-height: auto !important;
+    }
+  }
+  
+  @media (max-width: 768px) and (orientation: landscape) {
+    .preview-area,
+    .preview-area[data-astro-cid-qyn4roxk] {
+      min-height: auto !important;
+      max-height: none !important;
+      height: auto !important;
+    }
   }
 
   .book-viewer-wrapper {

@@ -52,19 +52,32 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
   );
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
-  // Lock body scroll when image is zoomed
+  // Lock body scroll and disable header when image is zoomed
   useEffect(() => {
     if (zoomedImage) {
       const originalOverflow = document.body.style.overflow;
       const originalPosition = document.body.style.position;
+      const header = document.getElementById('main-header');
+      const originalHeaderPointerEvents = header?.style.pointerEvents;
+      
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
+      
+      // Disable header pointer events to prevent clicks from reaching it
+      if (header) {
+        header.style.pointerEvents = 'none';
+      }
       
       return () => {
         document.body.style.overflow = originalOverflow;
         document.body.style.position = originalPosition;
         document.body.style.width = '';
+        
+        // Re-enable header pointer events
+        if (header) {
+          header.style.pointerEvents = originalHeaderPointerEvents || '';
+        }
       };
     }
   }, [zoomedImage]);
@@ -246,17 +259,34 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
       {zoomedImage && (
         <div 
           className="image-zoom-modal"
-          onClick={() => setZoomedImage(null)}
+          onClick={(e) => {
+            // Only close if clicking the backdrop, not the image or button
+            if (e.target === e.currentTarget) {
+              setZoomedImage(null);
+            }
+          }}
+          onMouseDown={(e) => {
+            // Prevent any clicks from reaching elements behind the modal
+            if (e.target === e.currentTarget) {
+              e.preventDefault();
+            }
+          }}
         >
           <button 
             className="image-zoom-close"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              e.nativeEvent?.stopImmediatePropagation?.();
               setZoomedImage(null);
               return false;
             }}
             onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.nativeEvent?.stopImmediatePropagation?.();
+            }}
+            onTouchStart={(e) => {
               e.preventDefault();
               e.stopPropagation();
             }}
@@ -268,6 +298,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
             src={zoomedImage} 
             alt="Zoomed view"
             onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           />
         </div>
       )}
@@ -343,8 +374,8 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
         
         @media (max-width: 768px) {
           .spread-viewer {
-            padding: 1rem;
-            max-height: 50vh;
+            padding: 0.5rem;
+            max-height: 40vh;
           }
         }
 
@@ -389,15 +420,35 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
         .image-zoom-modal {
           position: fixed;
-          inset: 0;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          width: 100vw;
+          height: 100vh;
           background: rgba(0, 0, 0, 0.95);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 2147483647;
+          z-index: 2147483647 !important;
           padding: 1rem;
           cursor: pointer;
           overscroll-behavior: contain;
+          isolation: isolate;
+          pointer-events: auto;
+        }
+        
+        /* Ensure header is below modal */
+        .image-zoom-modal ~ *,
+        .image-zoom-modal + * {
+          pointer-events: none;
+        }
+        
+        /* Prevent header from being clickable when modal is open */
+        body:has(.image-zoom-modal) #main-header,
+        body:has(.image-zoom-modal) .header {
+          pointer-events: none !important;
+          z-index: 1000 !important;
         }
 
         .image-zoom-modal img {
@@ -423,8 +474,10 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           justify-content: center;
           cursor: pointer;
           transition: all 0.2s ease;
-          z-index: 2147483647;
-          pointer-events: auto;
+          z-index: 2147483647 !important;
+          pointer-events: auto !important;
+          isolation: isolate;
+          touch-action: manipulation;
         }
 
         .image-zoom-close:hover {
@@ -435,20 +488,51 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
         @media (max-width: 768px) {
           .image-zoom-close {
-            top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+            top: calc(env(safe-area-inset-top, 0px) + 3.5rem) !important;
             right: 0.5rem;
             width: 2.5rem;
             height: 2.5rem;
             font-size: 1.5rem;
-            z-index: 2147483647;
+            z-index: 2147483647 !important;
+            isolation: isolate;
+            pointer-events: auto !important;
+            touch-action: manipulation;
           }
           
           .image-zoom-modal {
-            z-index: 2147483647;
+            z-index: 2147483647 !important;
+            isolation: isolate;
+            pointer-events: auto !important;
           }
 
           .cover-image-container.zoomable-image {
             cursor: pointer;
+          }
+        }
+        
+        @media (max-width: 768px) and (orientation: landscape) {
+          .image-zoom-close {
+            top: calc(env(safe-area-inset-top, 0px) + 3.5rem) !important;
+            right: 0.5rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            font-size: 1.5rem;
+            z-index: 2147483647 !important;
+            isolation: isolate;
+            pointer-events: auto !important;
+            touch-action: manipulation;
+          }
+          
+          .image-zoom-modal {
+            z-index: 2147483647 !important;
+            isolation: isolate;
+            pointer-events: auto !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
           }
         }
 
@@ -488,15 +572,15 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           color: #6b7280;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 768px) and (orientation: portrait) {
           .spread-viewer {
-            max-height: 60vh;
-            padding: 1.5rem;
+            padding: 0.5rem;
+            max-height: 40vh;
           }
 
           .two-page-spread img,
           .cover-image-container img {
-            max-height: 50vh;
+            max-height: 35vh;
           }
 
           .cover-image-container.zoomable-image {
@@ -506,18 +590,22 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
         @media (max-width: 768px) and (orientation: landscape) {
           .spread-viewer {
-            max-height: 85vh;
-            padding: 1rem;
+            max-height: 25vh !important;
+            padding: 0.25rem !important;
           }
 
           .two-page-spread img,
           .cover-image-container img {
-            max-height: 75vh;
+            max-height: 22vh !important;
           }
 
           .viewer-header {
-            padding: 0.75rem 1rem;
-            font-size: 0.85rem;
+            padding: 0.25rem 0.5rem !important;
+            font-size: 0.7rem !important;
+          }
+          
+          .cover-image-container.zoomable-image {
+            cursor: pointer;
           }
         }
       `}</style>
