@@ -13,8 +13,6 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   // Static export for Cloudflare Pages compatibility
   output: 'export',
-  // Output to 'dist' to match Cloudflare Pages dashboard setting
-  distDir: 'dist',
   // Disable image optimization (not available in static export)
   images: {
     unoptimized: true,

@@ -5,8 +5,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && npm run build:copy-output",
-    "build:copy-output": "rm -rf dist && cp -r out dist",
+    "build": "next build",
+    "build:copy-output": "if [ -d out ]; then rm -rf dist && cp -r out dist && echo 'Copied out to dist'; else echo 'Error: out directory not found after build'; ls -la; exit 1; fi",
+    "postbuild": "npm run build:copy-output",
     "start": "next start",
     "lint": "next lint"
   },
