@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
     const w0CleanupStart = Date.now();
     const { data: w0CompletedOrders, error: w0CleanupError } = await supabase
       .from('orders')
-      .select('id,amazon_order_id,one_manifest_url,workflow_step,execution_status,next_workflow')
+      .select('id,amazon_order_id,one_manifest_url,manifest_2a_url,manifest_2b_url,manifest_3_url,workflow_step,execution_status,next_workflow,review_stages')
       .eq('execution_status', 'pending_w0')
       .not('one_manifest_url', 'is', null);
     
@@ -178,14 +178,24 @@ export async function GET(request: NextRequest) {
       
       // Update each order to ready_for_processing with correct next_workflow
       const w0UpdatePromises = w0CompletedOrders.map(async (order) => {
+        // Parse review_stages if it's a string
+        let reviewStages = order.review_stages;
+        if (typeof reviewStages === 'string') {
+          try {
+            reviewStages = JSON.parse(reviewStages);
+          } catch (e) {
+            reviewStages = null;
+          }
+        }
+        
         // Determine next workflow based on order progress
         const nextWorkflow = determineNextWorkflow({
           one_manifest_url: order.one_manifest_url,
-          manifest_2a_url: null,
-          manifest_2b_url: null,
-          manifest_3_url: null,
+          manifest_2a_url: order.manifest_2a_url,
+          manifest_2b_url: order.manifest_2b_url,
+          manifest_3_url: order.manifest_3_url,
           workflow_step: order.workflow_step,
-          review_stages: null,
+          review_stages: reviewStages,
           next_workflow: order.next_workflow,
         });
         
