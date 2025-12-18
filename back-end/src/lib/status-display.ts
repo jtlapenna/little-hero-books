@@ -503,6 +503,8 @@ export function getPhaseForOrder(order: Order | OrderListItem): OrderPhase {
 
 export function buildOrderListItem(order: Order): OrderListItem {
   const display = getDisplayStatusForOrder(order);
+  // Use getPhaseForOrder to ensure correct phase assignment (handles special cases like cancelled prints)
+  const phase = getPhaseForOrder(order);
   return {
     orderId: order.orderId,
     platform: order.platform,
@@ -512,7 +514,7 @@ export function buildOrderListItem(order: Order): OrderListItem {
     technicalStatus: display.technicalStatus,    // NEW: Only set when errors exist
     status: display.status,                      // Backward compatibility
     rawStatus: order.status,
-    phase: display.phase,
+    phase: phase,                                // Use getPhaseForOrder for correct phase assignment
     orderDate: order.orderDate,
     characterHash: order.characterHash,
     reviewStages: order.reviewStages,
