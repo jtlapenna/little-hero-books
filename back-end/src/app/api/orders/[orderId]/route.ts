@@ -365,7 +365,7 @@ async function getOrder(
     .sort((a, b) => a.poseNumber - b.poseNumber)
     .map(pose => ({
       ...pose,
-      url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
+      url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}v=${cacheBuster}`
     }));
   
   // Create map of existing poses by poseNumber
@@ -442,7 +442,7 @@ async function getOrder(
     .sort((a, b) => a.poseNumber - b.poseNumber)
     .map(pose => ({
       ...pose,
-      url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}t=${cacheBuster}`
+      url: `${pose.url}${pose.url.includes('?') ? '&' : '?'}v=${cacheBuster}`
     }));
   
   // Create map of existing post-Bria poses by poseNumber
