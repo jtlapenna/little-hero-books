@@ -73,7 +73,16 @@ export function determineNextWorkflow(order: OrderProgress): string | null {
     // If preBria is approved, go to workflow 2B
     // Otherwise, keep at 2A (needs review/approval)
     const preBriaStatus = order.review_stages?.preBria?.status;
-    if (preBriaStatus === 'approved') {
+    // Check for 'approved' status (case-insensitive, handle both string and enum values)
+    const isPreBriaApproved = preBriaStatus === 'approved' || 
+                              preBriaStatus === 'APPROVED' ||
+                              String(preBriaStatus).toLowerCase() === 'approved';
+    if (isPreBriaApproved) {
+      return '2B';
+    }
+    // If next_workflow is already set to '2B', preserve it (user explicitly triggered it)
+    // This prevents recalculating back to '2A' if review_stages aren't loaded yet
+    if (order.next_workflow === '2B') {
       return '2B';
     }
     return '2A';
