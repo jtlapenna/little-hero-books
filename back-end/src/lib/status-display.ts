@@ -66,6 +66,9 @@ function getPhaseForDisplayStatus(displayStatus: DisplayStatus, revisionCount?: 
     case DisplayStatus.DELIVERED:
       return OrderPhase.SENT_TO_PRINT; // Keep in sent to print phase
     case DisplayStatus.ACTION_REQUIRED:
+      // If ACTION_REQUIRED is due to cancelled print, show in SENT_TO_PRINT phase
+      // This will be handled by getPhaseForOrder which has access to the full order
+      return OrderPhase.IN_QUEUE; // Default, but getPhaseForOrder will override if needed
     case DisplayStatus.MISSING_MANIFEST:
     case DisplayStatus.MAX_RETRIES:
     case DisplayStatus.WORKFLOW_TIMEOUT:
@@ -73,7 +76,7 @@ function getPhaseForDisplayStatus(displayStatus: DisplayStatus, revisionCount?: 
     case DisplayStatus.STUCK_PROCESSING:
     case DisplayStatus.NOT_PICKED_UP:
     case DisplayStatus.MULTIPLE_ERRORS:
-      return OrderPhase.IN_QUEUE; // All errors show in queue phase
+      return OrderPhase.IN_QUEUE; // All other errors show in queue phase
     case DisplayStatus.MANUAL_REVIEW_REQUIRED:
       return OrderPhase.FIRST_REVIEW; // Show in review phase for manual intervention
     default:
@@ -268,7 +271,36 @@ function calculateWorkflowStatus(order: Order): DisplayStatus {
 
   // Priority order (WITHOUT error checks - only workflow progression):
   
-  // 1. Delivered/Shipped
+  // 0. Check lulu_status FIRST if order has been sent to print (highest priority for print statuses)
+  // Once an order is sent to print, lulu_status takes precedence over workflow status
+  if (order.luluStatus) {
+    // Check for final print statuses first
+    if (order.luluStatus === LuluStatus.DELIVERED) {
+      return DisplayStatus.DELIVERED;
+    }
+    if (order.luluStatus === LuluStatus.SHIPPED) {
+      return DisplayStatus.SHIPPED;
+    }
+    // Check for cancelled status - if print was cancelled, show that
+    if (order.luluStatus === LuluStatus.CANCELED) {
+      return DisplayStatus.ACTION_REQUIRED; // Show as action required when cancelled
+    }
+    // Check for production statuses
+    if (order.luluStatus === LuluStatus.IN_PRODUCTION || 
+        order.luluStatus === LuluStatus.PRODUCTION_READY ||
+        order.luluStatus === LuluStatus.PRODUCTION_DELAYED ||
+        order.luluStatus === LuluStatus.PAYMENT_IN_PROGRESS ||
+        order.luluStatus === LuluStatus.UNPAID ||
+        order.luluStatus === LuluStatus.CREATED) {
+      return DisplayStatus.PRINTING;
+    }
+    // If order has lulu_status but doesn't match above, it's still in print workflow
+    if (order.luluJobId) {
+      return DisplayStatus.PRINTING;
+    }
+  }
+  
+  // 1. Delivered/Shipped (fallback if lulu_status not set)
   if (rawStatus && (DELIVERED_STATUSES.has(rawStatus) || order.luluStatus === LuluStatus.DELIVERED)) {
     return DisplayStatus.DELIVERED;
   }
@@ -453,9 +485,19 @@ export function getStageBadgeStatus(stageStatus?: string | null, stageKey?: 'pre
 /**
  * Get phase for an order (for use in groupOrdersByPhase)
  * This function considers revisionCount to determine first vs second review
+ * Also handles special cases like cancelled print orders
  */
 export function getPhaseForOrder(order: Order | OrderListItem): OrderPhase {
   const display = getDisplayStatusForOrder(order as Order);
+  
+  // Special case: If order has lulu_status (sent to print) and is ACTION_REQUIRED (cancelled),
+  // show it in SENT_TO_PRINT phase instead of IN_QUEUE
+  if (display.workflowStatus === DisplayStatus.ACTION_REQUIRED && 
+      (order as Order).luluStatus && 
+      (order as Order).luluJobId) {
+    return OrderPhase.SENT_TO_PRINT;
+  }
+  
   return display.phase;
 }
 
