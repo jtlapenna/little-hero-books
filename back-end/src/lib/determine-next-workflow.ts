@@ -94,7 +94,11 @@ export function determineNextWorkflow(order: OrderProgress): string | null {
   }
   
   // 5. No progress - keep current next_workflow or return null
-  // This preserves the existing next_workflow if it was set, or returns null
-  return order.next_workflow || null;
+  // IMPORTANT: If next_workflow is already set (manually by user), preserve it
+  // This prevents overwriting user's explicit workflow selection
+  if (order.next_workflow) {
+    return order.next_workflow;
+  }
+  return null;
 }
 
