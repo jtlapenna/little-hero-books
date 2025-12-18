@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAmazonMessagingConfig } from '@/lib/notifications/amazon-message-center';
-import { createHash } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,7 +122,6 @@ export async function GET(request: NextRequest) {
     ].join('\n');
 
     // Sign the request
-    const { createHmac } = await import('crypto');
     const getSignatureKey = (key: string, dateStamp: string, regionName: string, serviceName: string) => {
       const kDate = createHmac('sha256', `AWS4${key}`).update(dateStamp).digest();
       const kRegion = createHmac('sha256', kDate).update(regionName).digest();
