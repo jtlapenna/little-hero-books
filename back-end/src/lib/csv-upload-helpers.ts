@@ -290,6 +290,45 @@ export function extractCustomerEmail(
 }
 
 /**
+ * Extract purchase date from CSV row
+ * Returns ISO string or null if not found
+ */
+export function extractPurchaseDate(
+  row: any,
+  headers: string[]
+): string | null {
+  const dateIndex = findColumnIndex(headers, [
+    'purchase-date',
+    'purchase_date',
+    'purchaseDate',
+    'order-date',
+    'order_date',
+    'orderDate'
+  ]);
+  
+  if (dateIndex === null) {
+    return null;
+  }
+  
+  const dateStr = row[dateIndex]?.toString().trim();
+  if (!dateStr) {
+    return null;
+  }
+  
+  // Try to parse the date (handles ISO format and other common formats)
+  try {
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString();
+    }
+  } catch (e) {
+    // Invalid date format
+  }
+  
+  return null;
+}
+
+/**
  * Validate CSV headers contain required columns
  * Returns validation result with list of missing columns
  */

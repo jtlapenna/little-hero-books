@@ -8,6 +8,7 @@ import {
   extractCustomerName,
   extractCustomerEmail,
   extractCustomizationUrl,
+  extractPurchaseDate,
 } from '@/lib/csv-upload-helpers';
 import { updateOrderInSupabase, getOrderFromSupabase } from '@/lib/supabase-client';
 import { downloadAndExtractCustomizationZip } from '@/lib/zip-downloader';
@@ -216,6 +217,7 @@ export async function POST(request: NextRequest) {
         // Extract customer data
         const customerName = extractCustomerName(row, headers);
         const customerEmail = extractCustomerEmail(row, headers);
+        const purchaseDate = extractPurchaseDate(row, headers);
 
         // Extract customization URL if available
         const customizationUrl = extractCustomizationUrl(row, headers);
@@ -251,13 +253,13 @@ export async function POST(request: NextRequest) {
 
         // Query Supabase for order
         console.log(`[CSV Upload] [${requestId}] Row ${rowNumber}: Querying Supabase for order with amazon_order_id="${amazonOrderId}"`);
-        const { data: existingOrder, error: queryError } = await supabase
+        const { data: orderCheck, error: queryError } = await supabase
           .from('orders')
           .select('amazon_order_id')
           .eq('amazon_order_id', amazonOrderId)
           .single();
 
-        const orderExists = !queryError && existingOrder;
+        const orderExists = !queryError && orderCheck;
 
         if (!orderExists) {
           // Order not found - create it with CSV data
@@ -292,7 +294,7 @@ export async function POST(request: NextRequest) {
             next_workflow: null,
             workflow_step: null,
             marketplace_id: 'ATVPDKIKX0DER', // Default to US marketplace
-            purchase_date: new Date().toISOString(), // Use current date if not in CSV
+            purchase_date: purchaseDate || new Date().toISOString(), // Use CSV date if available, otherwise current date
             product_info: { _created_via_csv: true },
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -334,7 +336,7 @@ export async function POST(request: NextRequest) {
           console.log(`[CSV Upload] [${requestId}] Order ${amazonOrderId} exists - updating with CSV data`);
 
         // Get existing order to preserve review_stages
-        const existingOrder = await getOrderFromSupabase(amazonOrderId).catch(() => null);
+        const existingOrderFull = await getOrderFromSupabase(amazonOrderId).catch(() => null);
 
         // Prepare updates
         const updates: any = {
@@ -361,12 +363,12 @@ export async function POST(request: NextRequest) {
               skinTone: characterSpecs.skinTone || 'medium'
             };
             const hashString = JSON.stringify(characterHashSpec);
-            updates.character_hash = crypto.createHash('sha256').update(hashString).digest('hex').substring(0, 16);
+            updates.character_hash = createHash('sha256').update(hashString).digest('hex').substring(0, 16);
         }
 
         // Preserve review_stages to avoid losing approval status
-        if (existingOrder?.review_stages) {
-          updates.review_stages = existingOrder.review_stages;
+        if (existingOrderFull?.review_stages) {
+          updates.review_stages = existingOrderFull.review_stages;
         }
 
         // Update order in Supabase
