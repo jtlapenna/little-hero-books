@@ -36,9 +36,36 @@ export default function OrdersPage() {
         throw new Error('Failed to fetch orders');
       }
       const data: Order[] = await response.json();
-      const orderListItems: OrderListItem[] = data.map((order) =>
-        buildOrderListItem(order)
-      );
+      const orderListItems: OrderListItem[] = data
+        .map((order) => {
+          try {
+            return buildOrderListItem(order);
+          } catch (error: any) {
+            console.error(`[Orders Page] Failed to build order list item for ${order.orderId}:`, error);
+            // Return a minimal order list item so it still appears
+            return {
+              orderId: order.orderId || 'unknown',
+              platform: order.platform || 'amazon',
+              firstName: order.customer?.firstName || 'Unknown',
+              lastName: order.customer?.lastName || '',
+              workflowStatus: 'action_required' as any,
+              technicalStatus: 'action_required' as any,
+              status: 'action_required' as any,
+              rawStatus: order.status || 'unknown',
+              phase: 'in_queue' as any,
+              orderDate: order.orderDate || new Date().toISOString(),
+              characterHash: order.characterHash,
+              reviewStages: order.reviewStages,
+              customerApprovalStatus: order.customerApprovalStatus ?? null,
+              hasFlags: order.hasFlags ?? false,
+              flags: order.flags || {},
+              revisionCount: typeof order.revisionCount === 'number' ? order.revisionCount : 0,
+              errors: ['action_required' as any],
+            };
+          }
+        })
+        .filter((item): item is OrderListItem => item !== null && item !== undefined);
+      console.log(`[Orders Page] Loaded ${orderListItems.length} orders from ${data.length} API orders`);
       setOrders(orderListItems);
     } catch (error) {
       console.error('Error fetching orders:', error);
