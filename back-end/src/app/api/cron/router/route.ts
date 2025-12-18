@@ -161,7 +161,63 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. Fetch ready orders (only if capacity available)
+    // 3. First, check for orders that completed W0 but weren't updated properly
+    // These orders have one_manifest_url and workflow_step='order_intake' but still have execution_status='pending_w0'
+    const w0CleanupStart = Date.now();
+    const { data: w0CompletedOrders, error: w0CleanupError } = await supabase
+      .from('orders')
+      .select('id,amazon_order_id,one_manifest_url,workflow_step,execution_status,next_workflow')
+      .eq('execution_status', 'pending_w0')
+      .not('one_manifest_url', 'is', null);
+    
+    if (w0CompletedOrders && w0CompletedOrders.length > 0) {
+      console.log(`[Cron Router] [${executionId}] Found ${w0CompletedOrders.length} order(s) that completed W0 but weren't updated`);
+      
+      // Import determineNextWorkflow to calculate next_workflow
+      const { determineNextWorkflow } = await import('@/lib/determine-next-workflow');
+      
+      // Update each order to ready_for_processing with correct next_workflow
+      const w0UpdatePromises = w0CompletedOrders.map(async (order) => {
+        // Determine next workflow based on order progress
+        const nextWorkflow = determineNextWorkflow({
+          one_manifest_url: order.one_manifest_url,
+          manifest_2a_url: null,
+          manifest_2b_url: null,
+          manifest_3_url: null,
+          workflow_step: order.workflow_step,
+          review_stages: null,
+          next_workflow: order.next_workflow,
+        });
+        
+        if (nextWorkflow) {
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+              execution_status: 'ready_for_processing',
+              next_workflow: nextWorkflow,
+              workflow_step: 'order_intake', // Ensure workflow_step is set
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', order.id);
+          
+          if (updateError) {
+            console.error(`[Cron Router] [${executionId}] Failed to update W0-completed order ${order.amazon_order_id}:`, updateError.message);
+          } else {
+            console.log(`[Cron Router] [${executionId}] ✅ Updated W0-completed order ${order.amazon_order_id} to ready_for_processing with next_workflow=${nextWorkflow}`);
+          }
+        } else {
+          console.warn(`[Cron Router] [${executionId}] Could not determine next_workflow for W0-completed order ${order.amazon_order_id}`);
+        }
+      });
+      
+      await Promise.all(w0UpdatePromises);
+    }
+    const w0CleanupMs = Date.now() - w0CleanupStart;
+    if (w0CleanupMs > 0) {
+      console.log(`[Cron Router] [${executionId}] W0 cleanup took ${w0CleanupMs}ms`);
+    }
+
+    // 4. Fetch ready orders (only if capacity available)
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
@@ -192,7 +248,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 4. If no orders, return early (0 n8n executions)
+    // 5. If no orders, return early (0 n8n executions)
     if (!orders || orders.length === 0) {
       metrics.totalMs = Date.now() - startTime;
       console.log(`[Cron Router] [${executionId}] No ready orders found - skipped n8n call:`, {
@@ -230,7 +286,7 @@ export async function GET(request: NextRequest) {
       fetchDuration: `${metrics.ordersFetchMs}ms`
     });
 
-    // 5. Update queued_at and status for all orders being picked up (mark as queued for routing)
+    // 6. Update queued_at and status for all orders being picked up (mark as queued for routing)
     // This ensures queued_at represents when the order was actually queued for routing
     // and status is set to 'queued_for_processing' when actually queued
     const nowIso = new Date().toISOString();
@@ -251,7 +307,7 @@ export async function GET(request: NextRequest) {
       console.log(`[Cron Router] [${executionId}] Updated queued_at for ${orderIds.length} order(s)`);
     }
 
-    // 6. Orders exist - call n8n webhook (1 execution)
+    // 7. Orders exist - call n8n webhook (1 execution)
     const webhookStart = Date.now();
     console.log(`[Cron Router] [${executionId}] Calling n8n webhook: ${n8nWebhookUrl}`);
     
