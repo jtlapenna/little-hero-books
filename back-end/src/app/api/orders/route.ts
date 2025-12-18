@@ -8,6 +8,50 @@ import { listOrdersFromSupabase } from '@/lib/supabase-client';
 import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
 import { cleanPhoneNumber } from '@/lib/phone-utils';
 
+/**
+ * Create a minimal order with error indicator when mapping fails
+ * This ensures orders with bad data still appear in the UI with error indicators
+ */
+function createErrorOrder(record: any, error: any): Order {
+  const orderId = record.amazon_order_id || record.orderId || record.order_id || (record.id ? String(record.id) : 'unknown');
+  const errorMessage = error?.message || String(error) || 'Unknown mapping error';
+  
+  return {
+    orderId,
+    platform: record.platform || 'amazon',
+    amazonOrderId: record.amazon_order_id || undefined,
+    project: record.project || 'book-mvp-simple-adventure',
+    customer: {
+      firstName: record.customer_name ? String(record.customer_name).split(' ')[0] || 'Unknown' : 'Unknown',
+      lastName: record.customer_name ? String(record.customer_name).split(' ').slice(1).join(' ') || '' : '',
+      email: record.customer_email || 'unknown@example.com',
+    },
+    customerEmail: record.customer_email || undefined,
+    orderDate: record.purchase_date || record.created_at || new Date().toISOString(),
+    status: OrderStatus.ACTION_REQUIRED, // Mark as action required to show error
+    characterSpecs: record.character_specs || {},
+    bookSpecs: record.book_specs || {},
+    orderDetails: {
+      quantity: 1,
+      pages: 16,
+      format: '8.5x8.5_softcover',
+      shippingAddress: record.shipping_address || {},
+    },
+    assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
+    reviewStages: {
+      preBria: { status: ReviewStageStatus.PENDING },
+      postBria: { status: ReviewStageStatus.PENDING },
+      postPdf: { status: ReviewStageStatus.PENDING },
+    },
+    executionStatus: record.execution_status || 'error',
+    errorMessage: `Mapping error: ${errorMessage}`,
+    errorType: 'mapping_error',
+    webhooks: {
+      onApprove: 'https://n8n.example.com/webhook/approve',
+    },
+  };
+}
+
 async function getOrders(_request: NextRequest) {
   console.log('[GET /api/orders] Starting orders fetch (Supabase first)...');
 
@@ -17,32 +61,32 @@ async function getOrders(_request: NextRequest) {
     if (supabaseRecords.length > 0) {
       console.log('[GET /api/orders] Supabase returned', supabaseRecords.length, 'orders');
       // Map orders individually with error handling to prevent one bad order from breaking all orders
+      // If mapping fails, create a minimal order with error indicators so it still appears in UI
       const supabaseOrders = await Promise.all(
         supabaseRecords.map(async (record) => {
           try {
             return await mapSupabaseOrderToOrder(record);
           } catch (error: any) {
+            const orderId = record.amazon_order_id || record.orderId || record.id || 'unknown';
             console.error(
-              `[GET /api/orders] Failed to map Supabase order ${record.amazon_order_id || record.orderId || record.id}:`,
+              `[GET /api/orders] Failed to map Supabase order ${orderId}:`,
               error?.message || error
             );
-            // Return null for failed mappings - we'll filter them out below
-            return null;
+            // Create error order so it still appears in UI with error indicators
+            return createErrorOrder(record, error);
           }
         })
       );
       
-      // Filter out null values (failed mappings)
-      const validOrders = supabaseOrders.filter((order): order is Order => order !== null);
-      
-      if (validOrders.length !== supabaseRecords.length) {
+      const errorOrderCount = supabaseOrders.filter(o => o.errorType === 'mapping_error').length;
+      if (errorOrderCount > 0) {
         console.warn(
-          `[GET /api/orders] ${supabaseRecords.length - validOrders.length} order(s) failed to map and were excluded`
+          `[GET /api/orders] ${errorOrderCount} order(s) had mapping errors but are still visible with error indicators`
         );
       }
 
       const orders = await Promise.all(
-        validOrders.map(async (order) => {
+        supabaseOrders.map(async (order) => {
           if (!needsCustomerEnrichment(order)) {
             return order;
           }
