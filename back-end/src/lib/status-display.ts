@@ -327,14 +327,14 @@ function calculateWorkflowStatus(order: Order): DisplayStatus {
                              rawStatus === OrderStatus.CUSTOMER_APPROVED ||
                              Boolean(order.customerApprovalApprovedAt);
   
+  // Check if proof was sent (used in multiple places)
+  const proofSent = customerApprovalStatus === CustomerApprovalStatus.PENDING ||
+                   rawStatus === OrderStatus.PENDING_CUSTOMER_APPROVAL ||
+                   Boolean(order.customerApprovalRequestedAt);
+  
   // Only show "awaiting customer" if proof was sent AND customer hasn't approved yet
-  if (!isCustomerApproved) {
-    const proofSent = customerApprovalStatus === CustomerApprovalStatus.PENDING ||
-                     rawStatus === OrderStatus.PENDING_CUSTOMER_APPROVAL ||
-                     Boolean(order.customerApprovalRequestedAt);
-    if (proofSent) {
-      return DisplayStatus.AWAITING_CUSTOMER;
-    }
+  if (!isCustomerApproved && proofSent) {
+    return DisplayStatus.AWAITING_CUSTOMER;
   }
 
   // 4. All stages approved
