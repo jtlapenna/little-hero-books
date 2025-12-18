@@ -345,7 +345,12 @@ async function getOrder(
   const expectedPoseCount = manifest?.poses?.total || manifestEntries.length || preBriaManifestEntries.length || postBriaManifestEntries.length || 13; // Default to 13 if not specified
   
   // Create a map of existing assets by pose number for quick lookup
-  const cacheBuster = Date.now();
+  // Use order updated_at timestamp for cache-busting to ensure fresh images after workflow reruns
+  // This ensures that when workflow 2A reruns and overwrites images, we get fresh URLs
+  const orderUpdatedAt = supabaseOrderRecord?.updated_at 
+    ? new Date(supabaseOrderRecord.updated_at).getTime() 
+    : Date.now();
+  const cacheBuster = orderUpdatedAt;
   
   // Pre-Bria poses: all "original" type images including pose0 (poseNumber >= 0)
   // But exclude base-character.png from poses (it's shown in Base Character section)
