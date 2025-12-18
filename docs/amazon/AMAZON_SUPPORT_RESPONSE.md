@@ -183,8 +183,14 @@ curl "https://YOUR_BACKEND_URL/api/admin/amazon-support-response?orderId=111-006
 **Note:** Replace `YOUR_BACKEND_URL` with your actual Cloudflare Pages admin URL. The `textOnly=true` parameter forces the endpoint to skip document upload and directly call the messaging API.
 
 These files demonstrate that the 403 error occurs on both:
-1. The document upload endpoint (`/uploads/v1/documents`) - required for HTML messages
+1. The document upload endpoint (`/uploads/v1/documents`) - **CORRECTED**: Should use `/uploads/2020-11-01/uploadDestinations/messaging` with query parameters (marketplaceIds, contentMD5, contentType) instead of body parameters
 2. The messaging endpoint (`/messaging/v1/orders/{orderId}/messages/createConfirmOrderDetails`) - for text-only messages
 
-This indicates a broader permission issue affecting the Messaging API, not just a specific endpoint.
+**Update (2025-12-17)**: Amazon Support confirmed the correct endpoint is `/uploads/2020-11-01/uploadDestinations/{resource}` where:
+- `resource` = "messaging" (path parameter)
+- `marketplaceIds` = query parameter (not body)
+- `contentMD5` = query parameter (MD5 hash of content before encryption)
+- `contentType` = optional query parameter
+
+The implementation has been updated in `back-end/src/lib/notifications/amazon-message-center.ts`.
 

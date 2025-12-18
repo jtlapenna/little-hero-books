@@ -66,12 +66,14 @@ Amazon SP-API requires AWS SigV4 signing for all API requests. This is separate 
          "Resource": [
            "arn:aws:execute-api:*:*:*/*/POST/messaging/v1/orders/*/messages/*",
            "arn:aws:execute-api:*:*:*/*/GET/messaging/v1/orders/*",
-           "arn:aws:execute-api:*:*:*/*/POST/uploads/v1/documents"
+           "arn:aws:execute-api:*:*:*/*/POST/uploads/2020-11-01/uploadDestinations/messaging"
          ]
        }
      ]
    }
    ```
+   
+   **Note**: The upload endpoint was updated from `/uploads/v1/documents` to `/uploads/2020-11-01/uploadDestinations/messaging` per Amazon Support guidance (2025-12-17).
 
 5. **Save Credentials**:
    - **Access Key ID**: `AKIA...` (starts with AKIA)

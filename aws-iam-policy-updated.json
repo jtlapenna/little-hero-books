@@ -1,0 +1,17 @@
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Effect": "Allow",
+			"Action": [
+				"execute-api:Invoke"
+			],
+			"Resource": [
+				"arn:aws:execute-api:*:*:*/*/GET/messaging/v1/orders/*",
+				"arn:aws:execute-api:*:*:*/*/POST/messaging/v1/orders/*/messages/*",
+				"arn:aws:execute-api:*:*:*/*/POST/uploads/2020-11-01/uploadDestinations/messaging"
+			]
+		}
+	]
+}
+

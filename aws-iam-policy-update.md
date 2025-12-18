@@ -36,13 +36,14 @@ Update to this for better compatibility:
       "Resource": [
         "arn:aws:execute-api:*:*:*/*/GET/messaging/v1/orders/*",
         "arn:aws:execute-api:*:*:*/*/POST/messaging/v1/orders/*/messages/*",
-        "arn:aws:execute-api:*:*:*/*/POST/uploads/v1/documents",
-        "arn:aws:execute-api:*:*:*/*/POST/uploads/2020-11-25/uploadDestinations/messaging/v1"
+        "arn:aws:execute-api:*:*:*/*/POST/uploads/2020-11-01/uploadDestinations/messaging"
       ]
     }
   ]
 }
 ```
+
+**Note**: Updated per Amazon Support guidance (2025-12-17). The correct endpoint is `/uploads/2020-11-01/uploadDestinations/messaging` (not `/uploads/v1/documents`).
 
 ## How to Update
 

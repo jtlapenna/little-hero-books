@@ -392,16 +392,21 @@ interface UploadHtmlDocumentOptions {
 
 async function uploadHtmlDocument(options: UploadHtmlDocumentOptions) {
   const htmlBuffer = Buffer.from(options.html, 'utf8');
+  
+  // Calculate MD5 hash of the content (before encryption) for contentMD5 query parameter
+  const contentMD5 = createHash('md5').update(htmlBuffer).digest('base64');
 
+  // Use the correct endpoint: /uploads/2020-11-01/uploadDestinations/{resource}
+  // Resource parameter is "messaging" for messaging API uploads
   const createResponse = await callSellingPartnerApi({
     method: 'POST',
-    path: '/uploads/v1/documents',
+    path: '/uploads/2020-11-01/uploadDestinations/messaging',
     accessToken: options.accessToken,
     config: options.config,
-    body: {
-      contentType: 'text/html; charset=UTF-8',
-      contentLength: htmlBuffer.length,
-      marketplaceIds: [options.config.marketplaceId]
+    query: {
+      marketplaceIds: [options.config.marketplaceId],
+      contentMD5: contentMD5,
+      contentType: 'text/html; charset=UTF-8'
     }
   });
 
