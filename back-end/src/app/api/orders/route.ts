@@ -16,12 +16,33 @@ async function getOrders(_request: NextRequest) {
 
     if (supabaseRecords.length > 0) {
       console.log('[GET /api/orders] Supabase returned', supabaseRecords.length, 'orders');
+      // Map orders individually with error handling to prevent one bad order from breaking all orders
       const supabaseOrders = await Promise.all(
-        supabaseRecords.map((record) => mapSupabaseOrderToOrder(record))
+        supabaseRecords.map(async (record) => {
+          try {
+            return await mapSupabaseOrderToOrder(record);
+          } catch (error: any) {
+            console.error(
+              `[GET /api/orders] Failed to map Supabase order ${record.amazon_order_id || record.orderId || record.id}:`,
+              error?.message || error
+            );
+            // Return null for failed mappings - we'll filter them out below
+            return null;
+          }
+        })
       );
+      
+      // Filter out null values (failed mappings)
+      const validOrders = supabaseOrders.filter((order): order is Order => order !== null);
+      
+      if (validOrders.length !== supabaseRecords.length) {
+        console.warn(
+          `[GET /api/orders] ${supabaseRecords.length - validOrders.length} order(s) failed to map and were excluded`
+        );
+      }
 
       const orders = await Promise.all(
-        supabaseOrders.map(async (order) => {
+        validOrders.map(async (order) => {
           if (!needsCustomerEnrichment(order)) {
             return order;
           }
