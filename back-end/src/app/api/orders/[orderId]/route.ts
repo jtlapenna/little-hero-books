@@ -571,8 +571,11 @@ async function getOrder(
     }
   }
   
-  // Use the selected base character asset
-  const baseCharacter = baseCharacterAsset;
+  // Use the selected base character asset and add cache-busting
+  const baseCharacter = baseCharacterAsset ? {
+    ...baseCharacterAsset,
+    url: `${baseCharacterAsset.url}${baseCharacterAsset.url.includes('?') ? '&' : '?'}v=${cacheBuster}`
+  } : null;
   
   order.r2Assets = {
     baseCharacter,
