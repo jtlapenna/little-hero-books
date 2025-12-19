@@ -472,24 +472,31 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     setIsReplacing(assetId);
     
     try {
-      // Extract pose number from assetId (e.g., "pose01" -> 1)
-      const match = assetId.match(/pose(\d+)/);
-      if (!match) {
-        console.error('[PostBriaStage] Could not determine poseNumber for:', assetId);
-        alert('Invalid asset ID');
-        setIsReplacing(null);
-        return;
-      }
-
-      const poseNumber = parseInt(match[1], 10);
-      console.log('[PostBriaStage] Extracted poseNumber:', poseNumber);
-
       // Create form data
       console.log('[PostBriaStage] Creating FormData...');
       const formData = new FormData();
-      formData.append('poseNumber', poseNumber.toString());
       formData.append('stage', 'postBria');
       formData.append('file', file);
+      
+      // Handle base character replacement
+      if (assetId === 'base-character') {
+        formData.append('isBaseCharacter', 'true');
+        console.log('[PostBriaStage] Base character replacement requested');
+      } else {
+        // Extract pose number from assetId (e.g., "pose01" -> 1)
+        const match = assetId.match(/pose(\d+)/);
+        if (!match) {
+          console.error('[PostBriaStage] Could not determine poseNumber for:', assetId);
+          alert('Invalid asset ID');
+          setIsReplacing(null);
+          return;
+        }
+
+        const poseNumber = parseInt(match[1], 10);
+        console.log('[PostBriaStage] Extracted poseNumber:', poseNumber);
+        formData.append('poseNumber', poseNumber.toString());
+      }
+      
       console.log('[PostBriaStage] FormData created, file appended:', file.name);
       // replacedBy is optional - will be added when auth is implemented
 
@@ -498,6 +505,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       console.log('[PostBriaStage] Calling API:', apiUrl);
       console.log('[PostBriaStage] FormData entries:', {
         poseNumber: formData.get('poseNumber'),
+        isBaseCharacter: formData.get('isBaseCharacter'),
         stage: formData.get('stage'),
         file: formData.get('file') ? 'present' : 'missing'
       });

@@ -583,35 +583,35 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       type: file.type
     });
     
-    // Disable base-character replacement (not tracked in manifest)
-    if (assetId === 'base-character') {
-      console.log('[PreBriaStage] Base character replacement blocked');
-      alert('Base character replacement is not yet supported');
-      return;
-    }
-
     console.log('[PreBriaStage] Setting isReplacing state to:', assetId);
     setIsReplacing(assetId);
     
     try {
-      // Extract pose number from assetId (e.g., "pose01" -> 1)
-      const match = assetId.match(/pose(\d+)/);
-      if (!match) {
-        console.error('[PreBriaStage] Could not determine poseNumber for:', assetId);
-        alert('Invalid asset ID');
-        setIsReplacing(null);
-        return;
-      }
-
-      const poseNumber = parseInt(match[1], 10);
-      console.log('[PreBriaStage] Extracted poseNumber:', poseNumber);
-
       // Create form data
       console.log('[PreBriaStage] Creating FormData...');
       const formData = new FormData();
-      formData.append('poseNumber', poseNumber.toString());
       formData.append('stage', 'preBria');
       formData.append('file', file);
+      
+      // Handle base character replacement
+      if (assetId === 'base-character') {
+        formData.append('isBaseCharacter', 'true');
+        console.log('[PreBriaStage] Base character replacement requested');
+      } else {
+        // Extract pose number from assetId (e.g., "pose01" -> 1)
+        const match = assetId.match(/pose(\d+)/);
+        if (!match) {
+          console.error('[PreBriaStage] Could not determine poseNumber for:', assetId);
+          alert('Invalid asset ID');
+          setIsReplacing(null);
+          return;
+        }
+
+        const poseNumber = parseInt(match[1], 10);
+        console.log('[PreBriaStage] Extracted poseNumber:', poseNumber);
+        formData.append('poseNumber', poseNumber.toString());
+      }
+      
       console.log('[PreBriaStage] FormData created, file appended:', file.name);
       // replacedBy is optional - will be added when auth is implemented
 
@@ -620,6 +620,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       console.log('[PreBriaStage] Calling API:', apiUrl);
       console.log('[PreBriaStage] FormData entries:', {
         poseNumber: formData.get('poseNumber'),
+        isBaseCharacter: formData.get('isBaseCharacter'),
         stage: formData.get('stage'),
         file: formData.get('file') ? 'present' : 'missing'
       });

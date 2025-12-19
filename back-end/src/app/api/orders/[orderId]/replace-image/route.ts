@@ -40,6 +40,7 @@ export async function POST(
     const poseNumberStr = formData.get('poseNumber')?.toString();
     const pageNumberStr = formData.get('pageNumber')?.toString();
     const stage = formData.get('stage')?.toString();
+    const isBaseCharacter = formData.get('isBaseCharacter')?.toString() === 'true';
     const file = formData.get('file') as File | null;
     const replacedBy = formData.get('replacedBy')?.toString() || null; // Optional
     const isFlipped = formData.get('isFlipped')?.toString() === 'true'; // Indicates this is a flip operation
@@ -49,6 +50,7 @@ export async function POST(
       poseNumberStr,
       pageNumberStr,
       stage,
+      isBaseCharacter,
       file: file ? { name: file.name, size: file.size, type: file.type } : null,
       temporaryR2Key,
       replacedBy
@@ -56,8 +58,10 @@ export async function POST(
 
     // Validation
     // Either file OR temporaryR2Key must be provided
-    if ((!poseNumberStr && !pageNumberStr) || !stage || (!file && !temporaryR2Key)) {
+    // For base character, we don't need poseNumber/pageNumber
+    if (!isBaseCharacter && (!poseNumberStr && !pageNumberStr) || !stage || (!file && !temporaryR2Key)) {
       console.error('[Replace Image API] Missing required fields:', {
+        isBaseCharacter,
         hasPoseNumber: !!poseNumberStr,
         hasPageNumber: !!pageNumberStr,
         hasStage: !!stage,
@@ -65,7 +69,7 @@ export async function POST(
         hasTemporaryR2Key: !!temporaryR2Key
       });
       return NextResponse.json(
-        { error: 'Missing required fields: poseNumber or pageNumber, stage, and (file or temporaryR2Key)' },
+        { error: 'Missing required fields: (poseNumber or pageNumber or isBaseCharacter), stage, and (file or temporaryR2Key)' },
         { status: 400 }
       );
     }
@@ -78,7 +82,7 @@ export async function POST(
       );
     }
 
-    // Validate that we have exactly one of poseNumber or pageNumber
+    // Validate that we have exactly one of poseNumber, pageNumber, or isBaseCharacter
     if (poseNumberStr && pageNumberStr) {
       return NextResponse.json(
         { error: 'Cannot specify both poseNumber and pageNumber' },
@@ -86,9 +90,16 @@ export async function POST(
       );
     }
 
-    if (!poseNumberStr && !pageNumberStr) {
+    if (isBaseCharacter && (poseNumberStr || pageNumberStr)) {
       return NextResponse.json(
-        { error: 'Must specify either poseNumber or pageNumber' },
+        { error: 'Cannot specify isBaseCharacter with poseNumber or pageNumber' },
+        { status: 400 }
+      );
+    }
+
+    if (!isBaseCharacter && !poseNumberStr && !pageNumberStr) {
+      return NextResponse.json(
+        { error: 'Must specify either poseNumber, pageNumber, or isBaseCharacter' },
         { status: 400 }
       );
     }
@@ -133,7 +144,7 @@ export async function POST(
       );
     }
 
-    if ((stage === 'preBria' || stage === 'postBria') && pageNumber !== null) {
+    if ((stage === 'preBria' || stage === 'postBria') && pageNumber !== null && !isBaseCharacter) {
       return NextResponse.json(
         { error: `${stage} stage requires poseNumber, not pageNumber` },
         { status: 400 }
@@ -405,6 +416,95 @@ export async function POST(
         replacedBy: replacedBy || null,
         cloudflareImageId: cloudflareImageId || null,
         cloudflareImageUrl: cloudflareImageUrl || null,
+      });
+    }
+
+    // Handle base character replacement (not in manifest)
+    if (isBaseCharacter) {
+      console.log('[Replace Image API] Handling base character replacement');
+      
+      // Get character hash from order or manifest
+      let characterHash: string | null = null;
+      
+      // Try to get from 2a manifest first
+      try {
+        const manifest2aKey = buildManifestKey(orderId, '2a');
+        const manifest2aRes = await getObject(R2_ORDERS_BUCKET, manifest2aKey);
+        const manifest2a = await readJsonSafe<any>(manifest2aRes);
+        characterHash = manifest2a?.characterHash || manifest2a?.order?.characterHash || null;
+      } catch (error: any) {
+        console.warn('[Replace Image API] Could not load 2a manifest for characterHash:', error.message);
+      }
+      
+      // Fallback: try to get from Supabase order
+      if (!characterHash) {
+        try {
+          const { getOrderFromSupabase } = await import('@/lib/supabase-client');
+          const order = await getOrderFromSupabase(orderId).catch(() => null);
+          characterHash = order?.character_hash || null;
+        } catch (error: any) {
+          console.warn('[Replace Image API] Could not load order from Supabase:', error.message);
+        }
+      }
+      
+      if (!characterHash) {
+        return NextResponse.json(
+          { error: 'Cannot replace base character: characterHash not found. Please ensure workflow 2A has completed.' },
+          { status: 400 }
+        );
+      }
+      
+      // Construct R2 key for base character
+      const r2Key = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/base-character.png`;
+      const bucket = R2_PUBLIC_BUCKET;
+      
+      console.log(`[Replace Image API] Base character R2 key: ${r2Key}`);
+      
+      // Handle file upload
+      let fileBuffer: ArrayBuffer;
+      let contentType: string;
+      
+      if (temporaryR2Key) {
+        // Copy from temporary location
+        console.log(`[Replace Image API] Copying base character from temporary location: ${temporaryR2Key}`);
+        const tempFileRes = await getObject(R2_ORDERS_BUCKET, temporaryR2Key);
+        fileBuffer = await tempFileRes.arrayBuffer();
+        contentType = tempFileRes.headers.get('content-type') || 'image/png';
+        
+        await putObject(bucket, r2Key, fileBuffer, contentType);
+        console.log(`[Replace Image API] Base character copied successfully`);
+        
+        // Delete temporary file
+        try {
+          await deleteObject(R2_ORDERS_BUCKET, temporaryR2Key);
+        } catch (deleteError: any) {
+          console.warn(`[Replace Image API] Error deleting temporary file:`, deleteError);
+        }
+      } else if (file) {
+        // Upload new file
+        console.log(`[Replace Image API] Uploading base character to ${bucket}/${r2Key}`);
+        fileBuffer = await file.arrayBuffer();
+        contentType = file.type || 'image/png';
+        
+        await putObject(bucket, r2Key, fileBuffer, contentType);
+        console.log(`[Replace Image API] Base character uploaded successfully`);
+      } else {
+        return NextResponse.json(
+          { error: 'Either file or temporaryR2Key must be provided' },
+          { status: 400 }
+        );
+      }
+      
+      const replacedAt = new Date().toISOString();
+      
+      return NextResponse.json({
+        success: true,
+        orderId,
+        isBaseCharacter: true,
+        stage,
+        r2Key,
+        replacedAt,
+        replacedBy: replacedBy || null,
       });
     }
 
