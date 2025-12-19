@@ -254,7 +254,6 @@ function generateApprovalPageHtml(approvalUrl: string, childName: string, orderI
     <div class="footer">
       <p><strong>Order ID:</strong> ${orderId}</p>
       <p>Every child is the hero of their own story.<br>Little Hero Books</p>
-      <p>Need help? Reply to this message or email hello@littleherobooks.com</p>
     </div>
   </div>
 </body>
