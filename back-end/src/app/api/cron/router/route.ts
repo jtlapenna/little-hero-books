@@ -57,7 +57,6 @@ export async function GET(request: NextRequest) {
     capacityCheckMs: 0,
     ordersFetchMs: 0,
     w0CleanupMs: 0,
-    stuckCleanupMs: 0,
     webhookCallMs: 0,
     totalMs: 0
   };
@@ -172,18 +171,6 @@ export async function GET(request: NextRequest) {
       .eq('execution_status', 'pending_w0')
       .not('one_manifest_url', 'is', null);
     
-    // Also check for stuck orders that should be ready_for_processing
-    // These are orders that have next_workflow set but are stuck in 'processing' state
-    // This can happen if n8n started processing but didn't complete, or if user manually triggered next workflow
-    const stuckCleanupStart = Date.now();
-    // Query for orders that are processing but have next_workflow set
-    // These should be reset to ready_for_processing so router can pick them up
-    const { data: stuckOrders, error: stuckCleanupError } = await supabase
-      .from('orders')
-      .select('id,amazon_order_id,one_manifest_url,manifest_2a_url,manifest_2b_url,manifest_3_url,workflow_step,execution_status,next_workflow,current_workflow,started_at,review_stages')
-      .eq('execution_status', 'processing')
-      .not('next_workflow', 'is', null);
-    
     if (w0CompletedOrders && w0CompletedOrders.length > 0) {
       console.log(`[Cron Router] [${executionId}] Found ${w0CompletedOrders.length} order(s) that completed W0 but weren't updated`);
       
@@ -240,80 +227,20 @@ export async function GET(request: NextRequest) {
     if (w0CleanupMs > 0) {
       console.log(`[Cron Router] [${executionId}] W0 cleanup took ${w0CleanupMs}ms`);
     }
-    
-    // 3b. Fix stuck orders that should be ready_for_processing
-    // These are orders where next_workflow is set but execution_status is 'processing' with mismatched current_workflow
-    // This happens when user triggers next workflow but order is still processing previous one
-    if (stuckOrders && stuckOrders.length > 0) {
-      console.log(`[Cron Router] [${executionId}] Found ${stuckOrders.length} stuck order(s) that should be ready_for_processing`);
-      
-      // Import determineNextWorkflow to verify correct next_workflow
-      const { determineNextWorkflow } = await import('@/lib/determine-next-workflow');
-      
-      // Update each stuck order to ready_for_processing
-      const stuckUpdatePromises = stuckOrders.map(async (order) => {
-        // Parse review_stages if it's a string
-        let reviewStages = order.review_stages;
-        if (typeof reviewStages === 'string') {
-          try {
-            reviewStages = JSON.parse(reviewStages);
-          } catch (e) {
-            reviewStages = null;
-          }
-        }
-        
-        // Verify next_workflow is correct based on order progress
-        const calculatedNextWorkflow = determineNextWorkflow({
-          one_manifest_url: order.one_manifest_url,
-          manifest_2a_url: order.manifest_2a_url,
-          manifest_2b_url: order.manifest_2b_url,
-          manifest_3_url: order.manifest_3_url,
-          workflow_step: order.workflow_step,
-          review_stages: reviewStages,
-          next_workflow: order.next_workflow,
-        });
-        
-        // Use calculated next_workflow if it differs, otherwise keep the existing one
-        // This ensures we preserve user's explicit selection (e.g., if they triggered 2B)
-        const finalNextWorkflow = calculatedNextWorkflow || order.next_workflow;
-        
-        if (finalNextWorkflow) {
-          const { error: updateError } = await supabase
-            .from('orders')
-            .update({
-              execution_status: 'ready_for_processing',
-              next_workflow: finalNextWorkflow,
-              current_workflow: null, // Clear current_workflow since we're resetting
-              started_at: null, // Clear started_at since we're resetting
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', order.id);
-          
-          if (updateError) {
-            console.error(`[Cron Router] [${executionId}] Failed to fix stuck order ${order.amazon_order_id}:`, updateError.message);
-          } else {
-            console.log(`[Cron Router] [${executionId}] ✅ Fixed stuck order ${order.amazon_order_id}: reset to ready_for_processing with next_workflow=${finalNextWorkflow}`);
-          }
-        } else {
-          console.warn(`[Cron Router] [${executionId}] Could not determine next_workflow for stuck order ${order.amazon_order_id}`);
-        }
-      });
-      
-      await Promise.all(stuckUpdatePromises);
-    }
-    const stuckCleanupMs = Date.now() - stuckCleanupStart;
-    if (stuckCleanupMs > 0) {
-      console.log(`[Cron Router] [${executionId}] Stuck orders cleanup took ${stuckCleanupMs}ms`);
-    }
-    metrics.stuckCleanupMs = stuckCleanupMs;
+    metrics.w0CleanupMs = w0CleanupMs;
 
     // 4. Fetch ready orders (only if capacity available)
+    // IMPORTANT: Exclude orders that have been sent to print (W4 completed)
+    // These orders should only be requeued via manual override in the backend
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id,amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at,updated_at,shipping_address')
+      .select('id,amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id')
       .eq('execution_status', 'ready_for_processing')
       .not('next_workflow', 'is', null)
+      // Exclude orders that have been sent to print (W4 completed)
+      // These have lulu_job_id or lulu_status set, indicating they've been sent to print
+      .or('lulu_job_id.is.null,lulu_status.is.null')
       .order('priority', { ascending: false, nullsFirst: false })
       .order('updated_at', { ascending: true, nullsFirst: true }) // Fallback for orders without queued_at
       .order('queued_at', { ascending: true, nullsFirst: true }) // Primary ordering when queued_at exists
