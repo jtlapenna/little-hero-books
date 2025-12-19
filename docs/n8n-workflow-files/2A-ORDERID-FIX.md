@@ -2,27 +2,31 @@
 
 ## Problem
 
-The 2A workflow's Supabase PATCH node is using `?orderId=eq.{{$json.orderId}}` in the URL, but `$json.orderId` may be null/undefined at that point in the workflow, causing the PATCH to match 0 rows and fail silently.
+The 2A workflow's Supabase PATCH node is using `?orderId=eq.{{$json.orderId}}` in the URL filter, but the body parameter (line 768) sets `orderId` from a different expression: `$json.amazonOrderId || $json.manifest.order.amazonOrderId`. 
+
+If `$json.orderId` isn't set by the "Normalize Router Payload" node (or if the data flow is different), the URL filter will use `null` or `undefined`, causing the PATCH to match 0 rows and fail silently.
 
 ## Root Cause
 
-1. **URL Filter:** Line 705 uses `?orderId=eq.{{$json.orderId}}`
-2. **Body Parameter:** Line 768 sets `orderId` from `$json.amazonOrderId || $json.manifest.order.amazonOrderId`
-3. **Timing Issue:** The URL is evaluated before `orderId` is set in the body, so `$json.orderId` may be null/undefined
+1. **URL Filter (line 705):** Uses `?orderId=eq.{{$json.orderId}}`
+2. **Body Parameter (line 768):** Sets `orderId` from `$json.amazonOrderId || $json.manifest.order.amazonOrderId`
+3. **Mismatch:** The URL filter and body parameter use different expressions, so they may not match
 
 ## Solution
 
-Change the URL filter to use the same expression as the body parameter, or use `amazon_order_id` for the filter:
+The URL filter should use the same expression as the body parameter to ensure they match. Since the body parameter (line 768) uses `$json.amazonOrderId || $json.manifest.order.amazonOrderId`, the URL filter should use the same:
 
-**Option 1 (Recommended):** Use `amazon_order_id` in URL filter (works for Amazon orders):
+**Fix:** Change line 705 URL filter to:
+```
+?orderId=eq.{{ $json.amazonOrderId || $json.manifest?.order?.amazonOrderId || $json.orderId }}
+```
+
+**Alternative:** If you prefer to use `amazon_order_id` in the URL filter (since that's what the body sets for `amazon_order_id` field):
 ```
 ?amazon_order_id=eq.{{ $json.amazonOrderId || $json.manifest?.order?.amazonOrderId || $json.orderId }}
 ```
 
-**Option 2:** Use the same expression as body parameter:
-```
-?orderId=eq.{{ $json.amazonOrderId || $json.manifest?.order?.amazonOrderId || $json.orderId }}
-```
+**Note:** The "Normalize Router Payload" node should set `$json.orderId`, but using the same expression as the body parameter ensures consistency even if the normalization doesn't work as expected.
 
 ## Why It Worked Before
 
