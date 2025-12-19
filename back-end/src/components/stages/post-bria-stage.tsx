@@ -533,11 +533,22 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       const result = await response.json();
       console.log('[PostBriaStage] Image replaced successfully:', result);
 
+      // Wait a moment for R2 upload to propagate and cache to update
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
       // Refresh the order data to show updated image
-    if (onRefresh) {
+      if (onRefresh) {
         console.log('[PostBriaStage] Calling onRefresh...');
         await onRefresh();
         console.log('[PostBriaStage] onRefresh completed');
+        
+        // Force a second refresh after a short delay to ensure cache-busting takes effect
+        setTimeout(async () => {
+          if (onRefresh) {
+            console.log('[PostBriaStage] Second refresh to ensure image update...');
+            await onRefresh();
+          }
+        }, 500);
       } else {
         console.warn('[PostBriaStage] No onRefresh callback provided');
       }

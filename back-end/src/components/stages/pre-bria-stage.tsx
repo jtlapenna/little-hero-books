@@ -1223,7 +1223,6 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             canApprove={false}
             isApproved={true}
             isReplacing={isReplacing}
-            disabledReplaceIds={['base-character']}
           />
 
           {/* Poses Section */}
