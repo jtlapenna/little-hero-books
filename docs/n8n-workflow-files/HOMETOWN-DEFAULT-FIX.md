@@ -14,13 +14,11 @@ const hometown = order.characterSpecs?.hometown || 'Grass Valley';
 
 ## Solution
 
-Use shipping address city as a fallback, then a generic default:
+Use a generic default that works for any location and fits the story text:
 
 ```javascript
-// Get hometown from characterSpecs, fallback to shipping city, then generic default
-const hometown = order.characterSpecs?.hometown 
-  || order.orderDetails?.shippingAddress?.city 
-  || 'their hometown';
+// Get hometown from characterSpecs, fallback to generic default
+const hometown = order.characterSpecs?.hometown || 'a cozy town';
 ```
 
 ## Recommended Default Phrasing
@@ -29,12 +27,16 @@ Since the story uses hometown in two places:
 1. "It was bedtime in ${hometown}."
 2. "They flew through the stars to ${hometown}."
 
-A good default would be:
-- **"their hometown"** - More personal and works grammatically
-- **"home"** - Simple but might be awkward ("bedtime in home")
-- **"a cozy town"** - Generic but fits the story tone
+A good generic default would be:
+- **"a cozy town"** - Generic, works grammatically, fits the warm story tone
+- **"a quiet town"** - Alternative generic option
+- **"their hometown"** - More personal but still generic
 
-**Recommended:** Use `'their hometown'` as it's personal, grammatically correct, and fits the story's warm, inclusive tone.
+**Recommended:** Use `'a cozy town'` as it:
+- Works grammatically in both contexts ("bedtime in a cozy town", "flew through the stars to a cozy town")
+- Is generic enough for any location
+- Fits the warm, comforting tone of the story
+- Doesn't assume shipping address (which may differ from actual hometown)
 
 ## Files to Update
 
@@ -44,14 +46,11 @@ A good default would be:
 ## Updated Code
 
 ```javascript
-// Get hometown with fallback: characterSpecs → shipping city → default
-const hometown = order.characterSpecs?.hometown 
-  || order.orderDetails?.shippingAddress?.city 
-  || 'their hometown';
+// Get hometown with fallback: characterSpecs → generic default
+const hometown = order.characterSpecs?.hometown || 'a cozy town';
 ```
 
 This ensures:
 1. If customer provided hometown, use it
-2. If not, use shipping city (more personalized than hardcoded)
-3. If neither available, use "their hometown" (inclusive, personal default)
+2. If not, use "a cozy town" (generic, works for any location, fits story tone)
 
