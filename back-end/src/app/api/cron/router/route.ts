@@ -56,6 +56,8 @@ export async function GET(request: NextRequest) {
   const metrics = {
     capacityCheckMs: 0,
     ordersFetchMs: 0,
+    w0CleanupMs: 0,
+    stuckCleanupMs: 0,
     webhookCallMs: 0,
     totalMs: 0
   };
