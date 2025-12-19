@@ -176,12 +176,13 @@ export async function GET(request: NextRequest) {
     // These are orders that have next_workflow set but are stuck in 'processing' state
     // This can happen if n8n started processing but didn't complete, or if user manually triggered next workflow
     const stuckCleanupStart = Date.now();
+    // Query for orders that are processing but have next_workflow set
+    // These should be reset to ready_for_processing so router can pick them up
     const { data: stuckOrders, error: stuckCleanupError } = await supabase
       .from('orders')
       .select('id,amazon_order_id,one_manifest_url,manifest_2a_url,manifest_2b_url,manifest_3_url,workflow_step,execution_status,next_workflow,current_workflow,started_at,review_stages')
       .eq('execution_status', 'processing')
-      .not('next_workflow', 'is', null)
-      .or('current_workflow.neq.next_workflow,current_workflow.is.null'); // current_workflow doesn't match next_workflow, or is null
+      .not('next_workflow', 'is', null);
     
     if (w0CompletedOrders && w0CompletedOrders.length > 0) {
       console.log(`[Cron Router] [${executionId}] Found ${w0CompletedOrders.length} order(s) that completed W0 but weren't updated`);
