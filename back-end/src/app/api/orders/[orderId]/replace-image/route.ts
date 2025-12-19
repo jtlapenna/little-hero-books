@@ -497,6 +497,19 @@ export async function POST(
       
       const replacedAt = new Date().toISOString();
       
+      // Update order's updated_at timestamp in Supabase to trigger cache refresh
+      // This ensures the frontend gets new cache-busting parameters for image URLs
+      try {
+        const { updateOrderInSupabase } = await import('@/lib/supabase-client');
+        await updateOrderInSupabase(orderId, {
+          updated_at: replacedAt, // Use the same timestamp as replacement
+        });
+        console.log(`[Replace Image API] Updated order ${orderId} updated_at timestamp for cache refresh (base character)`);
+      } catch (error: any) {
+        console.warn(`[Replace Image API] Failed to update order timestamp (non-critical):`, error.message);
+        // Don't fail the request if timestamp update fails - image replacement was successful
+      }
+      
       return NextResponse.json({
         success: true,
         orderId,
@@ -816,6 +829,19 @@ export async function POST(
       updatedManifestJson,
       'application/json'
     );
+
+    // Update order's updated_at timestamp in Supabase to trigger cache refresh
+    // This ensures the frontend gets new cache-busting parameters for image URLs
+    try {
+      const { updateOrderInSupabase } = await import('@/lib/supabase-client');
+      await updateOrderInSupabase(orderId, {
+        updated_at: replacedAt, // Use the same timestamp as replacement
+      });
+      console.log(`[Replace Image API] Updated order ${orderId} updated_at timestamp for cache refresh`);
+    } catch (error: any) {
+      console.warn(`[Replace Image API] Failed to update order timestamp (non-critical):`, error.message);
+      // Don't fail the request if timestamp update fails - image replacement was successful
+    }
 
     console.log(`[Replace Image] Successfully replaced pose ${poseNumber} in ${stage} stage`);
 
