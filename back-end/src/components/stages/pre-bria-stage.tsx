@@ -648,11 +648,22 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       const result = await response.json();
       console.log('[PreBriaStage] Image replaced successfully:', result);
 
+      // Wait a moment for R2 upload to propagate and cache to update
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
       // Refresh the order data to show updated image
       if (onRefresh) {
         console.log('[PreBriaStage] Calling onRefresh...');
         await onRefresh();
         console.log('[PreBriaStage] onRefresh completed');
+        
+        // Force a second refresh after a short delay to ensure cache-busting takes effect
+        setTimeout(async () => {
+          if (onRefresh) {
+            console.log('[PreBriaStage] Second refresh to ensure image update...');
+            await onRefresh();
+          }
+        }, 500);
       } else {
         console.warn('[PreBriaStage] No onRefresh callback provided');
       }
