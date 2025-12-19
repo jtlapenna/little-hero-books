@@ -161,7 +161,7 @@
         "url": "https://admin.littleherolabs.com/api/check-and-flip-orientation",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"imageUrl\": \"{{ $('Prepare Upload (ensure generated)1').item.json.publicR2Url }}/{{ $('Prepare Upload (ensure generated)1').item.json.__meta.storageKey }}\",\n  \"poseRefUrl\": \"{{ $('Capture Lean Meta').item.json.poseRefPublicUrl }}\",\n  \"characterHash\": \"{{ $('Prepare Upload (ensure generated)1').item.json.characterHash }}\",\n  \"poseNumber\": {{ $('Prepare Upload (ensure generated)1').item.json.poseNumber }}\n}",
+        "jsonBody": "={\n  \"imageUrl\": \"{{ $('Prepare Upload (ensure generated)').item.json.publicR2Url }}/{{ $('Prepare Upload (ensure generated)').item.json.__meta.storageKey }}\",\n  \"poseRefUrl\": \"{{ $json.poseRefPublicUrl }}\",\n  \"characterHash\": \"{{ $('Prepare Upload (ensure generated)').item.json.characterHash }}\",\n  \"poseNumber\": {{ $('Prepare Upload (ensure generated)').item.json.poseNumber }}\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -537,7 +537,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "2a0b8044-582f-44ed-853f-b60e8a924fd8",
+  "versionId": "995fe0cd-4431-4896-971b-6effcdb85df5",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },

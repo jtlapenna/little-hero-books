@@ -106,9 +106,29 @@ function generateApprovalPageHtml(approvalUrl: string, childName: string, orderI
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Your Personalized Book Preview - ${orderId}</title>
   <style>
+    /* Force browsers to preserve colors when printing */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    
     @media print {
       body { margin: 0; padding: 0; }
-      .no-print { display: none; }
+      /* Ensure colors are preserved in print */
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+      /* Ensure links are preserved and visible */
+      a {
+        color: #ffffff !important;
+        text-decoration: none !important;
+      }
+      a[href]:after {
+        content: "" !important; /* Remove default URL printing */
+      }
     }
     body {
       font-family: Arial, sans-serif;
@@ -139,39 +159,53 @@ function generateApprovalPageHtml(approvalUrl: string, childName: string, orderI
     .cta-button {
       display: inline-block;
       padding: 16px 32px;
-      background: #f9786b;
-      color: #ffffff;
+      background: #f9786b !important;
+      color: #ffffff !important;
       border-radius: 8px;
-      text-decoration: none;
+      text-decoration: none !important;
       font-weight: bold;
       font-size: 18px;
       margin: 24px 0;
       transition: background 0.2s;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
     }
     .cta-button:hover {
       background: #e8695c;
     }
+    /* Ensure link is clickable and styled in print */
+    .cta-button[href] {
+      color: #ffffff !important;
+      background-color: #f9786b !important;
+    }
     .approval-url {
-      background: #f0f4f8;
-      border: 1px solid #cbd5e0;
+      background: #f0f4f8 !important;
+      border: 1px solid #cbd5e0 !important;
       border-radius: 6px;
       padding: 12px;
       margin: 20px 0;
       word-break: break-all;
       font-family: monospace;
       font-size: 12px;
-      color: #1f2933;
+      color: #1f2933 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
     }
     .instructions {
-      background: #fff8e1;
-      border-left: 4px solid #ffc107;
+      background: #fff8e1 !important;
+      border-left: 4px solid #ffc107 !important;
       padding: 16px;
       margin: 24px 0;
       text-align: left;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
     }
     .instructions h3 {
       margin-top: 0;
-      color: #f57c00;
+      color: #f57c00 !important;
     }
     .instructions ol {
       margin: 12px 0;
@@ -186,15 +220,6 @@ function generateApprovalPageHtml(approvalUrl: string, childName: string, orderI
       border-top: 1px solid #e2e8f0;
       font-size: 12px;
       color: #64748b;
-    }
-    .no-print {
-      background: #e3f2fd;
-      border: 1px solid #90caf9;
-      border-radius: 6px;
-      padding: 12px;
-      margin: 20px 0;
-      font-size: 14px;
-      color: #1565c0;
     }
   </style>
 </head>
@@ -224,10 +249,6 @@ function generateApprovalPageHtml(approvalUrl: string, childName: string, orderI
         <li>If you need any changes, click "I need a correction" and let us know</li>
       </ol>
       <p><strong>Note:</strong> If we don't hear from you within 3 days, we'll automatically approve your book and begin printing.</p>
-    </div>
-    
-    <div class="no-print">
-      <strong>For printing this page:</strong> Press Ctrl+P (Windows) or Cmd+P (Mac) to print this page as a PDF, or save this HTML file and attach it to your Amazon message.
     </div>
     
     <div class="footer">

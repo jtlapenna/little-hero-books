@@ -141,3 +141,9 @@ renderer-mock/out/
 
 # Embedded git repositories
 n8n-mcp/
+
+# Amazon API secrets and sensitive request/response files
+amazon/amazon-request.txt
+amazon/amazon-request-text.txt
+amazon/amazon-response.txt
+amazon/amazon-response-text.txt

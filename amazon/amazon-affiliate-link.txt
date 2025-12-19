@@ -1,0 +1,13 @@
+Amazon Affiliate Link for Little Hero Labs Book
+
+Original URL: https://www.amazon.com/dp/B0G4QPLWKH/ref=olp-opf-redir?aod=1
+ASIN: B0G4QPLWKH
+Affiliate Tag: bright-gift-20
+
+Affiliate Link:
+https://www.amazon.com/dp/B0G4QPLWKH?tag=bright-gift-20
+
+Alternative format (with ref parameter):
+https://www.amazon.com/dp/B0G4QPLWKH/ref=olp-opf-redir?aod=1&tag=bright-gift-20
+
+
