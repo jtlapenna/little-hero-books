@@ -2409,10 +2409,19 @@ if (!token) {
 </script>
 
 <style>
+  /* Ensure body and html allow horizontal scrolling when needed */
+  :global(body),
+  :global(html) {
+    overflow-x: auto;
+    overflow-y: auto;
+  }
+
   .preview-container {
     min-height: 100vh;
     background: linear-gradient(180deg, var(--color-storybook-beige) 0%, var(--color-off-white) 65%, #ffffff 100%);
     position: relative;
+    overflow-x: auto; /* Allow horizontal scrolling for wide content */
+    overflow-y: visible; /* Allow vertical scrolling */
   }
 
   /* Curtain Reveal Effect */
@@ -2432,9 +2441,12 @@ if (!token) {
     pointer-events: auto;
   }
   
-  /* When curtain is fully lifted, it should not block interactions */
+  /* When curtain is fully lifted, hide it completely to prevent blocking content */
   .curtain-hero.fully-lifted {
     pointer-events: none;
+    visibility: hidden;
+    opacity: 0;
+    display: none;
   }
 
   .curtain-content {
@@ -2563,6 +2575,9 @@ if (!token) {
     min-height: 100vh;
     /* Smooth transition when switching from fixed to relative */
     transition: none; /* We handle positioning manually to prevent jumps */
+    overflow-x: visible; /* Allow horizontal scrolling for wide spreads */
+    width: 100%;
+    max-width: 100%;
   }
   
   /* When fixed, ensure smooth visual appearance (desktop only) */
