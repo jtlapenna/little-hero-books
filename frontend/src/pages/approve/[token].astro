@@ -2405,40 +2405,22 @@ if (!token) {
   // Initial setup - ensure header is black during loading
   updateHeaderForLoading();
   
-  // console.log('[CURTAIN] 🚀 Initializing curtain effect');
-  window.scrollTo(0, 0);
-  updateCurtainPosition();
+  // TEMPORARILY DISABLED: Curtain reveal effect disabled due to Windows Chrome issues
+  // The curtain is hidden via CSS (display: none), so we skip all curtain initialization
+  // window.scrollTo(0, 0);
+  // updateCurtainPosition();
   updateHeaderForCurtain(); // Ensure header is styled correctly on initial load (will check loading state)
   
-  // Listen for wheel events to control curtain
-  // console.log('[CURTAIN] Adding wheel event listeners');
-  window.addEventListener('wheel', handleScroll, { passive: false });
-  window.addEventListener('DOMMouseScroll', handleScroll, { passive: false }); // Firefox
+  // Curtain event listeners disabled - curtain is hidden via CSS
+  // window.addEventListener('wheel', handleScroll, { passive: false });
+  // window.addEventListener('DOMMouseScroll', handleScroll, { passive: false }); // Firefox
+  // window.addEventListener('scroll', handlePageScroll, { passive: true });
   
-  // Listen to scroll events to handle bringing curtain back when scrolling up
-  // console.log('[CURTAIN] Adding scroll event listener');
-  window.addEventListener('scroll', handlePageScroll, { passive: true });
-  
-  // FIX: Check scroll position after page loads to hide curtain if already scrolled
-  // Use a longer delay to ensure page is fully loaded
-  setTimeout(() => {
-    if (curtainHero && !curtainFullyLifted) {
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
-      const windowHeight = window.innerHeight;
-      if (scrollTop >= windowHeight) {
-        console.log('[CURTAIN] 🔧 POST-LOAD CHECK: Scroll position >= windowHeight, hiding curtain', {
-          scrollTop: scrollTop.toFixed(2),
-          windowHeight: windowHeight.toFixed(2)
-        });
-        curtainScrollPosition = 1;
-        curtainFullyLifted = true;
-        curtainHero.classList.add('fully-lifted');
-        updateCurtainPosition();
-      }
-    }
-  }, 1000); // Wait 1 second after initialization
-  
-  // console.log('[CURTAIN] ✅ Initialization complete');
+  // Force hide curtain immediately (redundant but ensures it's hidden)
+  if (curtainHero) {
+    curtainHero.classList.add('fully-lifted');
+    curtainHero.style.display = 'none';
+  }
 
   loadPreview();
 </script>
@@ -2459,35 +2441,19 @@ if (!token) {
     overflow-y: visible; /* Allow vertical scrolling */
   }
 
-  /* Curtain Reveal Effect */
+  /* Curtain Reveal Effect - TEMPORARILY DISABLED due to Windows Chrome issues */
   .curtain-hero {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100vh;
-    background: linear-gradient(135deg, var(--color-hero-coral) 0%, #e8655a 100%);
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    will-change: transform;
-    box-shadow: 0 20px 60px rgba(249, 120, 107, 0.3);
-    pointer-events: auto;
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
   
   /* When curtain is fully lifted, hide it completely to prevent blocking content */
   .curtain-hero.fully-lifted {
-    pointer-events: none !important;
+    display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
-    display: none !important;
-    transform: translateY(-100%) !important;
-    z-index: -1 !important;
-  }
-  
-  /* Additional fallback: Hide curtain if it's positioned off-screen */
-  .curtain-hero[style*="translateY(-100%)"] {
     pointer-events: none !important;
   }
 
@@ -2569,9 +2535,10 @@ if (!token) {
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
   }
 
-  /* Scroll area that allows curtain to be revealed */
+  /* Scroll area that allows curtain to be revealed - TEMPORARILY DISABLED */
   .curtain-scroll-area {
-    height: 100vh;
+    display: none !important;
+    height: 0 !important;
     width: 100%;
     position: relative;
     z-index: 1;
