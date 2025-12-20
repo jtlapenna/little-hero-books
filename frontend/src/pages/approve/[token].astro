@@ -2410,60 +2410,33 @@ if (!token) {
   updateCurtainPosition();
   updateHeaderForCurtain(); // Ensure header is styled correctly on initial load (will check loading state)
   
-  // FIX: Check if user has already scrolled on page load (e.g., browser restore scroll position)
-  // If so, hide the curtain immediately
-  const initialScrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
-  const initialWindowHeight = window.innerHeight;
-  if (initialScrollTop >= initialWindowHeight && curtainHero) {
-    console.log('[CURTAIN] 🔧 INITIAL CHECK: Page loaded with scroll position >= windowHeight, hiding curtain', {
-      scrollTop: initialScrollTop.toFixed(2),
-      windowHeight: initialWindowHeight.toFixed(2)
-    });
-    curtainScrollPosition = 1;
-    curtainFullyLifted = true;
-    curtainHero.classList.add('fully-lifted');
-    updateCurtainPosition();
-  }
+  // Listen for wheel events to control curtain
+  // console.log('[CURTAIN] Adding wheel event listeners');
+  window.addEventListener('wheel', handleScroll, { passive: false });
+  window.addEventListener('DOMMouseScroll', handleScroll, { passive: false }); // Firefox
   
-  // FIX: Fallback timeout - if curtain hasn't been lifted after 3 seconds of any scroll activity, force hide it
-  let scrollActivityTimeout: any = null;
-  const resetScrollActivityTimeout = () => {
-    if (scrollActivityTimeout) {
-      clearTimeout(scrollActivityTimeout);
-    }
-    scrollActivityTimeout = setTimeout(() => {
-      const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
-      const currentWindowHeight = window.innerHeight;
-      if (currentScrollTop > 0 && !curtainFullyLifted && curtainHero) {
-        console.log('[CURTAIN] ⏰ TIMEOUT FALLBACK: Scroll activity detected but curtain not lifted, forcing hide', {
-          scrollTop: currentScrollTop.toFixed(2),
-          windowHeight: currentWindowHeight.toFixed(2)
+  // Listen to scroll events to handle bringing curtain back when scrolling up
+  // console.log('[CURTAIN] Adding scroll event listener');
+  window.addEventListener('scroll', handlePageScroll, { passive: true });
+  
+  // FIX: Check scroll position after page loads to hide curtain if already scrolled
+  // Use a longer delay to ensure page is fully loaded
+  setTimeout(() => {
+    if (curtainHero && !curtainFullyLifted) {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+      const windowHeight = window.innerHeight;
+      if (scrollTop >= windowHeight) {
+        console.log('[CURTAIN] 🔧 POST-LOAD CHECK: Scroll position >= windowHeight, hiding curtain', {
+          scrollTop: scrollTop.toFixed(2),
+          windowHeight: windowHeight.toFixed(2)
         });
         curtainScrollPosition = 1;
         curtainFullyLifted = true;
         curtainHero.classList.add('fully-lifted');
         updateCurtainPosition();
       }
-    }, 3000); // 3 second timeout
-  };
-  
-  // Listen for wheel events to control curtain
-  // console.log('[CURTAIN] Adding wheel event listeners');
-  window.addEventListener('wheel', (e) => {
-    resetScrollActivityTimeout(); // Reset timeout on any scroll activity
-    handleScroll(e);
-  }, { passive: false });
-  window.addEventListener('DOMMouseScroll', (e) => {
-    resetScrollActivityTimeout(); // Reset timeout on any scroll activity
-    handleScroll(e);
-  }, { passive: false }); // Firefox
-  
-  // Listen to scroll events to handle bringing curtain back when scrolling up
-  // console.log('[CURTAIN] Adding scroll event listener');
-  window.addEventListener('scroll', () => {
-    resetScrollActivityTimeout(); // Reset timeout on any scroll activity
-    handlePageScroll();
-  }, { passive: true });
+    }
+  }, 1000); // Wait 1 second after initialization
   
   // console.log('[CURTAIN] ✅ Initialization complete');
 
