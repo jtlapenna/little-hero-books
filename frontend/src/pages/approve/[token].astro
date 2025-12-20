@@ -2321,6 +2321,22 @@ if (!token) {
     const windowHeight = window.innerHeight;
     const pageContent = document.getElementById('book-content');
     
+    // FIX: If user has scrolled past one viewport height, force hide the curtain
+    // This is a fallback for cases where the wheel event handler doesn't work properly
+    if (scrollTop >= windowHeight && !curtainFullyLifted) {
+      console.log('[CURTAIN] 🔧 FALLBACK: Scroll position >= windowHeight, forcing curtain to hide', {
+        scrollTop: scrollTop.toFixed(2),
+        windowHeight: windowHeight.toFixed(2),
+        curtainScrollPosition: curtainScrollPosition.toFixed(3)
+      });
+      
+      curtainScrollPosition = 1;
+      curtainFullyLifted = true;
+      curtainHero.classList.add('fully-lifted');
+      updateCurtainPosition();
+      return;
+    }
+    
     // console.log('[CURTAIN] 📊 handlePageScroll: CURRENT STATE', {
     //   scrollTop: scrollTop.toFixed(2),
     //   windowHeight: windowHeight.toFixed(2),
@@ -2394,14 +2410,60 @@ if (!token) {
   updateCurtainPosition();
   updateHeaderForCurtain(); // Ensure header is styled correctly on initial load (will check loading state)
   
+  // FIX: Check if user has already scrolled on page load (e.g., browser restore scroll position)
+  // If so, hide the curtain immediately
+  const initialScrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+  const initialWindowHeight = window.innerHeight;
+  if (initialScrollTop >= initialWindowHeight && curtainHero) {
+    console.log('[CURTAIN] 🔧 INITIAL CHECK: Page loaded with scroll position >= windowHeight, hiding curtain', {
+      scrollTop: initialScrollTop.toFixed(2),
+      windowHeight: initialWindowHeight.toFixed(2)
+    });
+    curtainScrollPosition = 1;
+    curtainFullyLifted = true;
+    curtainHero.classList.add('fully-lifted');
+    updateCurtainPosition();
+  }
+  
+  // FIX: Fallback timeout - if curtain hasn't been lifted after 3 seconds of any scroll activity, force hide it
+  let scrollActivityTimeout: any = null;
+  const resetScrollActivityTimeout = () => {
+    if (scrollActivityTimeout) {
+      clearTimeout(scrollActivityTimeout);
+    }
+    scrollActivityTimeout = setTimeout(() => {
+      const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+      const currentWindowHeight = window.innerHeight;
+      if (currentScrollTop > 0 && !curtainFullyLifted && curtainHero) {
+        console.log('[CURTAIN] ⏰ TIMEOUT FALLBACK: Scroll activity detected but curtain not lifted, forcing hide', {
+          scrollTop: currentScrollTop.toFixed(2),
+          windowHeight: currentWindowHeight.toFixed(2)
+        });
+        curtainScrollPosition = 1;
+        curtainFullyLifted = true;
+        curtainHero.classList.add('fully-lifted');
+        updateCurtainPosition();
+      }
+    }, 3000); // 3 second timeout
+  };
+  
   // Listen for wheel events to control curtain
   // console.log('[CURTAIN] Adding wheel event listeners');
-  window.addEventListener('wheel', handleScroll, { passive: false });
-  window.addEventListener('DOMMouseScroll', handleScroll, { passive: false }); // Firefox
+  window.addEventListener('wheel', (e) => {
+    resetScrollActivityTimeout(); // Reset timeout on any scroll activity
+    handleScroll(e);
+  }, { passive: false });
+  window.addEventListener('DOMMouseScroll', (e) => {
+    resetScrollActivityTimeout(); // Reset timeout on any scroll activity
+    handleScroll(e);
+  }, { passive: false }); // Firefox
   
   // Listen to scroll events to handle bringing curtain back when scrolling up
   // console.log('[CURTAIN] Adding scroll event listener');
-  window.addEventListener('scroll', handlePageScroll, { passive: true });
+  window.addEventListener('scroll', () => {
+    resetScrollActivityTimeout(); // Reset timeout on any scroll activity
+    handlePageScroll();
+  }, { passive: true });
   
   // console.log('[CURTAIN] ✅ Initialization complete');
 
@@ -2443,10 +2505,17 @@ if (!token) {
   
   /* When curtain is fully lifted, hide it completely to prevent blocking content */
   .curtain-hero.fully-lifted {
-    pointer-events: none;
-    visibility: hidden;
-    opacity: 0;
-    display: none;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    display: none !important;
+    transform: translateY(-100%) !important;
+    z-index: -1 !important;
+  }
+  
+  /* Additional fallback: Hide curtain if it's positioned off-screen */
+  .curtain-hero[style*="translateY(-100%)"] {
+    pointer-events: none !important;
   }
 
   .curtain-content {
