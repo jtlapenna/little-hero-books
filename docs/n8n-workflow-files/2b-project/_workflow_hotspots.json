@@ -1,0 +1,111 @@
+{
+  "httpEndpoints": [
+    [
+      "Download 2A Manifest",
+      "={{ $json.manifestUrl }}{{ $json.manifestUrl.includes('?') ? '&' : '?' }}v={{ Date.now() }}",
+      "json/text"
+    ],
+    [
+      "Check Bria Status",
+      "={{ $json.status_url || $json.statusUrl }}",
+      "json/text"
+    ],
+    [
+      "Download Processed Image",
+      "={{ $json.resultUrl }}",
+      "binary"
+    ],
+    [
+      "Retry Workflow B",
+      "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal",
+      "json/text"
+    ],
+    [
+      "Respond to Webhook",
+      "=https://admin.littleherolabs.com/api/webhooks/workflow-2b-complete",
+      "json/text"
+    ],
+    [
+      "Submit to Bria AI",
+      "https://engine.prod.bria-api.com/v2/image/edit/remove_background",
+      "json/text"
+    ],
+    [
+      "Write Stage: BRIA_READY",
+      "=https://admin.littleherolabs.com/api/rest/v1/jobs",
+      "json/text"
+    ],
+    [
+      "Transparency QA1",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent",
+      "json/text"
+    ],
+    [
+      "Supabase Upsert 2B",
+      "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders?on_conflict=amazon_order_id",
+      "json/text"
+    ]
+  ],
+  "largestCodeNodes": [
+    [
+      22824,
+      "Simulate Merge Node Output"
+    ],
+    [
+      9087,
+      "Build 2B Manifest"
+    ],
+    [
+      8531,
+      "Build Bria Payload"
+    ],
+    [
+      7945,
+      "Extract Manifest URL"
+    ],
+    [
+      7478,
+      "Prepare for R2 Upload"
+    ],
+    [
+      6684,
+      "Store Submission Result"
+    ],
+    [
+      6633,
+      "Prep Backend Webhook"
+    ],
+    [
+      6332,
+      "Prep Incremental Manifest Upload"
+    ],
+    [
+      5776,
+      "Merge"
+    ],
+    [
+      5625,
+      "Parse Submissions"
+    ],
+    [
+      5508,
+      "Restore JSON After Upload"
+    ],
+    [
+      3998,
+      "Fetch and Merge Review Stages"
+    ],
+    [
+      3247,
+      "Transparency QA Build Request1"
+    ],
+    [
+      2752,
+      "Preserve isFirstPass"
+    ],
+    [
+      2103,
+      "Parse Transparency QA Results"
+    ]
+  ]
+}

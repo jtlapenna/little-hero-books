@@ -465,8 +465,9 @@ async function getOrder(
         // Only add if not already in map (R2 takes precedence)
         if (!poseMap.has(poseNum)) {
           const r2Key = entry.bgRemovedKey;
-          const publicUrl = entry.bgRemovedImageUrl || entry.bgRemovedPublicUrl || (order.publicR2Url ? `${order.publicR2Url}/${r2Key}` : null);
-          const proxyUrl = publicUrl ? `/api/assets/${r2Key}` : '';
+          // Always use our proxy endpoint; it supports BOTH public + orders buckets.
+          // Do not require a public URL (orders bucket keys won't have one).
+          const proxyUrl = r2Key ? `/api/assets/${r2Key}` : '';
           
           poseMap.set(poseNum, {
             poseNumber: poseNum,
@@ -522,8 +523,8 @@ async function getOrder(
           // Manifest says it should exist but file not found in R2 - this is unexpected
           // Construct URL from manifest's bgRemovedKey
           const r2Key = manifestEntry.bgRemovedKey;
-          const publicUrl = manifestEntry.bgRemovedImageUrl || (order.publicR2Url ? `${order.publicR2Url}/${r2Key}` : null);
-          const proxyUrl = publicUrl ? `/api/assets/${r2Key}` : '';
+          // Always proxy from the key; don't gate on a public URL.
+          const proxyUrl = r2Key ? `/api/assets/${r2Key}` : '';
           
           // Use manifest entry's needsReview and reviewReason (e.g., transparency_fail)
           const needsReview = manifestEntry?.needsReview || !proxyUrl;

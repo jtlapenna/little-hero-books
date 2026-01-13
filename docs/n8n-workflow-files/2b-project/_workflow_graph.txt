@@ -1,0 +1,77 @@
+Workflow: WORKING VERSION -  LHB - 2.B. - Background Removal
+
+Nodes: 56 | Edges: 65
+
+Key nodes:
+
+- Trigger: Webhook Trigger (n8n-nodes-base.webhook)
+- Wait: Wait Before Retry
+- Wait: Wait 90 Seconds
+- IF: Is First Pass?
+- IF: Route By Status
+- IF: Check Retry Limit
+- IF: Has statusUrl?
+- IF: if failed QA1
+- Merge: Merge All Results
+- Merge: Merge1
+- Merge: Merge Before Webhook
+- Merge: Pair With Originals
+- Merge: Merge QA Data1
+- Merge: Merge3
+
+Adjacency (outgoing):
+
+- Build 2B Manifest: [0]→Prep Manifest Upload
+- Build Bria Payload: [0]→Submit to Bria AI
+- Calculate Retry Delay: [0]→Wait Before Retry
+- Check Bria Status: [0]→Merge
+- Check Retry Limit: [0]→Calculate Retry Delay, [1]→Max Retries Exceeded
+- Clean Binary After Upload: [0]→Merge All Results
+- Composite BG and Character Image1: [0]→Transparency QA Build Request1
+- Download 2A Manifest: [0]→Preserve isFirstPass
+- Download Processed Image: [0]→Prepare for R2 Upload, [0]→Merge3
+- Download a file1: [0]→Merge3
+- Drop Composite Binary: [0]→Merge All Results
+- Drop Heavy Fields: [0]→Store Submission Result
+- Explode QA Array: [0]→Pair With Originals
+- Extract Manifest URL: [0]→Download 2A Manifest
+- Fetch and Merge Review Stages: [0]→Supabase Upsert 2B
+- Generate BRIA Summary: [0]→Write Stage: BRIA_READY
+- Has statusUrl?: [0]→Check Bria Status, [1]→Build Bria Payload
+- Is First Pass?: [0]→Build Bria Payload, [1]→Has statusUrl?
+- Key for Background1: [0]→Download a file1
+- Mark as Needs Review: [0]→Merge QA Data1
+- Max Retries Exceeded: [0]→Merge All Results
+- Merge: [0]→Parse Status Response
+- Merge All Results: [0]→Build 2B Manifest
+- Merge Before Webhook: [0]→Respond to Webhook
+- Merge QA Data1: [0]→Drop Composite Binary
+- Merge1: [0]→Generate BRIA Summary, [0]→Clean Binary After Upload
+- Merge3: [0]→Composite BG and Character Image1
+- Pair With Originals: [0]→Parse Transparency QA Results
+- Parse Status Response: [0]→Route By Status
+- Parse Submissions: [0]→Is First Pass?
+- Parse Transparency QA Results: [0]→if failed QA1
+- Prep Backend Webhook: [0]→Merge Before Webhook, [0]→Fetch and Merge Review Stages
+- Prep Incremental Manifest Upload: [0]→Upload Updated Manifest to R2
+- Prep Manifest Upload: [0]→Upload 2B Manifest to R2
+- Prepare for R2 Upload: [0]→Upload to R2, [0]→Merge1
+- Preserve isFirstPass: [0]→Parse Submissions
+- Respond to Webhook (Ack): [0]→Extract Manifest URL
+- Restore JSON After Upload: [0]→Wait 90 Seconds
+- Route By Status: [0]→Download Processed Image, [0]→Key for Background1, [0]→Pair With Originals, [1]→Check Retry Limit
+- Simulate Merge Node Output: [0]→Prep Manifest Upload
+- Store Submission Result: [0]→Prep Incremental Manifest Upload
+- Submit to Bria AI: [0]→Drop Heavy Fields
+- Supabase Upsert 2B: [0]→Merge Before Webhook
+- Transparency QA Build Request1: [0]→Transparency QA1
+- Transparency QA1: [0]→Explode QA Array
+- Upload 2B Manifest to R2: [0]→Prep Backend Webhook
+- Upload Updated Manifest to R2: [0]→Restore JSON After Upload
+- Upload to R2: [0]→Merge1
+- Wait 90 Seconds: [0]→Extract Manifest URL
+- Wait Before Retry: [0]→Retry Workflow B
+- Webhook Trigger: [0]→Respond to Webhook (Ack)
+- When clicking ‘Execute workflow’: [0]→Simulate Merge Node Output
+- Write Stage: BRIA_READY: [0]→Merge Before Webhook
+- if failed QA1: [0]→Mark as Needs Review, [1]→Merge QA Data1

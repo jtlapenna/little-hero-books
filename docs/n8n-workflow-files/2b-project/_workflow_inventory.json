@@ -1,0 +1,549 @@
+{
+  "workflowName": "WORKING VERSION -  LHB - 2.B. - Background Removal",
+  "nodeCount": 56,
+  "nodes": [
+    {
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "disabled": false,
+      "id": "a5b9147a-4234-4a2b-b016-21bd90e001c3"
+    },
+    {
+      "name": "Extract Manifest URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "b048436c-0d99-4311-93a6-8223c8c0d79f"
+    },
+    {
+      "name": "Download 2A Manifest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "disabled": false,
+      "id": "f1f5d179-432c-48cb-91d9-e43c8f1af45e"
+    },
+    {
+      "name": "Preserve isFirstPass",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "15a13e82-8fc6-4eef-b3d7-6a84603a48e6"
+    },
+    {
+      "name": "Parse Submissions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "2c537341-6b48-45f9-b682-6fb869b19741"
+    },
+    {
+      "name": "Is First Pass?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "e137a89c-9634-40e1-b07a-1d914034d26f"
+    },
+    {
+      "name": "Check Bria Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "disabled": false,
+      "id": "077926ce-c955-495e-9bf5-2c7163caf58f"
+    },
+    {
+      "name": "Parse Status Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "521c1824-c042-469d-80bd-432ba2d84a74"
+    },
+    {
+      "name": "Route By Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "7085c16b-ccd7-4a65-bf36-056121b36c77"
+    },
+    {
+      "name": "Download Processed Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "disabled": false,
+      "id": "ad6b454b-0bce-4753-bbdc-4b03c2490cfc"
+    },
+    {
+      "name": "Prepare for R2 Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "cd0b1a75-a17b-45c0-8e76-950b9dba568d"
+    },
+    {
+      "name": "Upload to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "disabled": false,
+      "id": "e1f549d7-5bbc-42db-ab22-9db9a3dbd9cd"
+    },
+    {
+      "name": "Clean Binary After Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "94f1d64c-35be-4bfe-94c9-a64eb55bd180"
+    },
+    {
+      "name": "Check Retry Limit",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "eb1a551a-19ec-4a30-9b8d-d7e00aae9565"
+    },
+    {
+      "name": "Calculate Retry Delay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "93a4ec01-e0a1-4ca1-82f0-a63480a16234"
+    },
+    {
+      "name": "Wait Before Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "disabled": false,
+      "id": "dbecce99-242c-4219-9e81-38f7eaa3df96"
+    },
+    {
+      "name": "Retry Workflow B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "disabled": false,
+      "id": "59e8e145-84d5-438d-a98d-58b25232237a"
+    },
+    {
+      "name": "Max Retries Exceeded",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "f63fa9d1-af8e-4886-97c2-3fa0058443c2"
+    },
+    {
+      "name": "Merge All Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "disabled": false,
+      "id": "3815abf4-a6d5-46dd-984e-6af4ef69a9f1"
+    },
+    {
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "disabled": true,
+      "id": "560ecd5c-5880-45cc-a9ec-5cd0eacaf201"
+    },
+    {
+      "name": "Merge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "2b707ca3-3016-41db-a0a0-4e9eeaca768e"
+    },
+    {
+      "name": "Merge1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "disabled": false,
+      "id": "c49941e0-cf59-49cf-8276-5dfb2e9470aa"
+    },
+    {
+      "name": "Submit to Bria AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "disabled": false,
+      "id": "70d1c97d-51e3-47c3-9c30-31c4f38fef38"
+    },
+    {
+      "name": "Store Submission Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "7acd2dc1-d176-43ce-9654-f5527d4e51ed"
+    },
+    {
+      "name": "Prep Incremental Manifest Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "c1b61435-8d88-490b-9d4f-498b53a24399"
+    },
+    {
+      "name": "Upload Updated Manifest to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "disabled": false,
+      "id": "d93aefde-2aa5-4b14-b253-3ed11859ec5a"
+    },
+    {
+      "name": "Restore JSON After Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "4e4760a7-a35e-4775-84f3-cd0879c99d0f"
+    },
+    {
+      "name": "Wait 90 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "disabled": false,
+      "id": "f7bacb2f-d605-4777-9e75-85d510955de1"
+    },
+    {
+      "name": "Drop Heavy Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "18b57ff3-4e8f-4765-b0b9-349826428948"
+    },
+    {
+      "name": "Build Bria Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "b6dfe8ce-5220-4ce8-b893-ac86529fd5b7"
+    },
+    {
+      "name": "Has statusUrl?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "fc591e01-e4ac-407f-b72c-2302664ed15e"
+    },
+    {
+      "name": "Generate BRIA Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "d54f3fc9-a058-4028-9a6c-595b04a8e0c0"
+    },
+    {
+      "name": "Write Stage: BRIA_READY",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "disabled": false,
+      "id": "51472d21-ca3c-4174-965f-f6513f2a3498"
+    },
+    {
+      "name": "Build 2B Manifest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "26c1896d-2c2f-49d2-a7b7-35c511e1822a"
+    },
+    {
+      "name": "Prep Manifest Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "aff50b03-ef21-426a-8b98-814999f32641"
+    },
+    {
+      "name": "Upload 2B Manifest to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "disabled": false,
+      "id": "eaf2b513-abb1-440e-acf6-4a8b5715fe22"
+    },
+    {
+      "name": "Prep Backend Webhook",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "c058c8d9-ee4c-4773-8d3e-abc67638ba1d"
+    },
+    {
+      "name": "Merge Before Webhook",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "disabled": false,
+      "id": "4de6a1a1-68e2-4eec-8344-00ca6c5c4b75"
+    },
+    {
+      "name": "Explode QA Array",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "d125a0fe-5588-496c-b7c9-526aba335330"
+    },
+    {
+      "name": "Pair With Originals",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "disabled": false,
+      "id": "06f61da7-cc39-4957-8ad2-b1d9a2b63106"
+    },
+    {
+      "name": "Merge QA Data1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "disabled": false,
+      "id": "7cafa793-4fd7-461a-b2fc-2fdab0f6a251"
+    },
+    {
+      "name": "Transparency QA1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "disabled": false,
+      "id": "9a9acc7c-1c91-4bbd-ab13-f6d673673836"
+    },
+    {
+      "name": "if failed QA1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "disabled": false,
+      "id": "263ac32b-1f71-4836-9b87-42810ae5e0f4"
+    },
+    {
+      "name": "Merge3",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "disabled": false,
+      "id": "77eb1bf5-4973-4801-877d-7622cd2113aa"
+    },
+    {
+      "name": "Transparency QA Build Request1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "d0cce74b-77af-4254-8c1a-9265a530a7a0"
+    },
+    {
+      "name": "Download a file1",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "disabled": false,
+      "id": "2d9e6e9f-4f78-463c-982f-303ac3996404"
+    },
+    {
+      "name": "Key for Background1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "1ee18755-cb6c-4424-9d3e-46c44db0a329"
+    },
+    {
+      "name": "Composite BG and Character Image1",
+      "type": "n8n-nodes-base.editImage",
+      "typeVersion": 1,
+      "disabled": false,
+      "id": "8820521b-d951-40a8-9daf-5bd5a79d3706"
+    },
+    {
+      "name": "Mark as Needs Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "b7c3dd43-316e-4259-aa5f-99fe243a0b53"
+    },
+    {
+      "name": "Parse Transparency QA Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "3c66f26f-eb3e-404b-9b01-e848ace42ffd"
+    },
+    {
+      "name": "Drop Composite Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "c3dc0d09-c98b-404d-9e17-815b6713c3ce"
+    },
+    {
+      "name": "Supabase Upsert 2B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "disabled": false,
+      "id": "a4a90318-70ca-4c8a-a391-e130df77c31c"
+    },
+    {
+      "name": "Respond to Webhook (Ack)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "disabled": false,
+      "id": "172643c4-0226-44dd-93a1-c39205e12caf"
+    },
+    {
+      "name": "Fetch and Merge Review Stages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "06a8ef63-8ecb-43e0-90e2-f9415b1283e4"
+    },
+    {
+      "name": "Simulate Merge Node Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "disabled": false,
+      "id": "1334eaa3-4c60-4541-831f-2b289b31ddf1"
+    },
+    {
+      "name": "When clicking \u2018Execute workflow\u2019",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "disabled": false,
+      "id": "f6229312-18ed-4a5c-b8ba-19bbc74c0926"
+    }
+  ],
+  "counts": {
+    "httpRequest": 9,
+    "code": 26,
+    "s3": 4,
+    "wait": 2,
+    "editImage": 1,
+    "merge": 6,
+    "if": 5
+  },
+  "binaryHeavy": [
+    [
+      "Download Processed Image",
+      "n8n-nodes-base.httpRequest",
+      "http responseFormat=file"
+    ],
+    [
+      "Upload to R2",
+      "n8n-nodes-base.s3",
+      "built-in binary"
+    ],
+    [
+      "Prep Incremental Manifest Upload",
+      "n8n-nodes-base.code",
+      "code uses getBinaryDataBuffer/base64"
+    ],
+    [
+      "Upload Updated Manifest to R2",
+      "n8n-nodes-base.s3",
+      "built-in binary"
+    ],
+    [
+      "Build Bria Payload",
+      "n8n-nodes-base.code",
+      "code uses getBinaryDataBuffer/base64"
+    ],
+    [
+      "Prep Manifest Upload",
+      "n8n-nodes-base.code",
+      "code uses getBinaryDataBuffer/base64"
+    ],
+    [
+      "Upload 2B Manifest to R2",
+      "n8n-nodes-base.s3",
+      "built-in binary"
+    ],
+    [
+      "Transparency QA Build Request1",
+      "n8n-nodes-base.code",
+      "code uses getBinaryDataBuffer/base64"
+    ],
+    [
+      "Download a file1",
+      "n8n-nodes-base.s3",
+      "built-in binary"
+    ],
+    [
+      "Composite BG and Character Image1",
+      "n8n-nodes-base.editImage",
+      "built-in binary"
+    ]
+  ],
+  "httpEndpoints": [
+    [
+      "Download 2A Manifest",
+      "={{ $json.manifestUrl }}{{ $json.manifestUrl.includes('?') ? '&' : '?' }}v={{ Date.now() }}"
+    ],
+    [
+      "Check Bria Status",
+      "={{ $json.status_url || $json.statusUrl }}"
+    ],
+    [
+      "Download Processed Image",
+      "={{ $json.resultUrl }}"
+    ],
+    [
+      "Retry Workflow B",
+      "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal"
+    ],
+    [
+      "Respond to Webhook",
+      "=https://admin.littleherolabs.com/api/webhooks/workflow-2b-complete"
+    ],
+    [
+      "Submit to Bria AI",
+      "https://engine.prod.bria-api.com/v2/image/edit/remove_background"
+    ],
+    [
+      "Write Stage: BRIA_READY",
+      "=https://admin.littleherolabs.com/api/rest/v1/jobs"
+    ],
+    [
+      "Transparency QA1",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent"
+    ],
+    [
+      "Supabase Upsert 2B",
+      "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders?on_conflict=amazon_order_id"
+    ]
+  ],
+  "connectionKeys": [
+    "Webhook Trigger",
+    "Extract Manifest URL",
+    "Parse Submissions",
+    "Is First Pass?",
+    "Check Bria Status",
+    "Parse Status Response",
+    "Route By Status",
+    "Download Processed Image",
+    "Prepare for R2 Upload",
+    "Upload to R2",
+    "Clean Binary After Upload",
+    "Check Retry Limit",
+    "Calculate Retry Delay",
+    "Wait Before Retry",
+    "Max Retries Exceeded",
+    "Merge",
+    "Merge1",
+    "Store Submission Result",
+    "Prep Incremental Manifest Upload",
+    "Upload Updated Manifest to R2",
+    "Restore JSON After Upload",
+    "Build Bria Payload",
+    "Submit to Bria AI",
+    "Drop Heavy Fields",
+    "Has statusUrl?",
+    "Wait 90 Seconds",
+    "Generate BRIA Summary",
+    "Write Stage: BRIA_READY",
+    "Download 2A Manifest",
+    "Merge All Results",
+    "Build 2B Manifest",
+    "Prep Manifest Upload",
+    "Upload 2B Manifest to R2",
+    "Prep Backend Webhook",
+    "Preserve isFirstPass",
+    "Merge Before Webhook",
+    "Explode QA Array",
+    "Pair With Originals",
+    "Merge QA Data1",
+    "Transparency QA1",
+    "if failed QA1",
+    "Merge3",
+    "Transparency QA Build Request1",
+    "Download a file1",
+    "Key for Background1",
+    "Composite BG and Character Image1",
+    "Mark as Needs Review",
+    "Drop Composite Binary",
+    "Parse Transparency QA Results",
+    "Supabase Upsert 2B"
+  ]
+}
