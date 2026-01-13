@@ -1,0 +1,64 @@
+Subject: Re: 403 Unauthorized - Complete Request/Response Details (Fresh Test Data)
+
+Hello Harsha,
+
+Thank you for your response. We understand you need complete, untruncated request and response details. We have provided this information in previous communications, but we will provide fresh test data captured using Postman as you requested.
+
+We will run new tests today and capture the complete request/response details in the exact format you need. However, we want to confirm a few details first to ensure we provide the most useful information:
+
+1. **Sensitive Data Handling**: Our previous captures included redacted values for security (authorization headers, access tokens). Should we:
+   - Provide full unredacted headers for your internal debugging?
+   - Or mask sensitive values but provide the complete structure?
+
+2. **Test Order**: Should we use the same test order (112-7311035-1437035) or would you prefer a different order for testing?
+
+3. **Endpoints to Test**: Should we provide details for all three failing endpoints, or focus on one specific endpoint first?
+   - GET /messaging/v1/orders/{orderId}
+   - POST /messaging/v1/orders/{orderId}/messages/createConfirmOrderDetails
+   - POST /uploads/2020-11-01/uploadDestinations/messaging
+
+**What We Will Provide (Fresh Test Data):**
+
+For each endpoint, we will capture using Postman Console and provide:
+
+1. ✅ **Full Endpoint** - Complete URL with actual domain (not placeholders)
+2. ✅ **Request Headers** - All headers including authorization, content-type, x-amz-* headers
+3. ✅ **Request Body** - Complete JSON body (where applicable)
+4. ✅ **Response Headers** - All response headers including x-amzn-* headers
+5. ✅ **Response Body** - Complete error response with all fields
+
+**Timeline:**
+
+We will run fresh tests within 24 hours and provide the complete Postman console output in a .txt file as requested.
+
+**Context from Previous Communications:**
+
+For your reference, we have previously provided:
+- Request/response details for order 112-7311035-1437035
+- Request/response details for order 111-0060602-1283417
+- Application configuration details
+- Permission verification details
+
+The consistent pattern across all tests is:
+- ✅ Access token generation: SUCCESS
+- ✅ Request signing (AWS SigV4): CORRECT
+- ✅ All required headers: PRESENT
+- ❌ All Messaging API endpoints: 403 Unauthorized
+- ❌ Error details field: EMPTY (no specific guidance)
+
+**Questions Before We Run Fresh Tests:**
+
+1. Should we test with the same refresh token we generated on December 19, 2025, or generate a new one?
+2. Is there a specific time window when we should run the tests (to avoid any temporary system issues)?
+3. Should we test in sandbox mode or production mode?
+
+We look forward to your guidance so we can provide the most useful diagnostic information.
+
+Thank you,
+Little Hero Books Development Team
+
+Developer Account: A2V719MRGLK48O
+Application ID: amzn1.sp.solution.3e928368-7705-40e7-806f-d9d25b42516c
+Client ID: amzn1.application-oa2-client.704d66d4cc6645f58405d34f80fa5f58
+
+

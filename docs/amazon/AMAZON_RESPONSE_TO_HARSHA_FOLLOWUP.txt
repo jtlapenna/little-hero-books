@@ -1,0 +1,104 @@
+Subject: Re: 403 Unauthorized - Steps Already Completed, Details Field Empty
+
+Hello Harsha,
+
+Thank you for your response. However, we have already completed all of the steps you recommended multiple times. We need to address several points:
+
+**1. APPLICATION REAUTHORIZATION - ALREADY DONE MULTIPLE TIMES**
+
+We have reauthorized our application following the self-authorization documentation multiple times:
+- ✅ Reauthorized on December 19, 2025 (per your previous recommendation)
+- ✅ Generated new refresh token successfully
+- ✅ Verified token exchange works correctly
+- ✅ Updated all environment variables
+
+The issue persists despite reauthorization. This suggests the problem is not with our authorization process, but with the application's permission configuration on Amazon's side.
+
+**2. ROLE PERMISSIONS - ALREADY VERIFIED**
+
+You confirmed: "Yes, role permissions are active for both the profile and application."
+
+However, we are still getting 403 errors. This suggests there may be a discrepancy between:
+- What the Solution Provider Portal shows (permissions appear active)
+- What the API actually allows (403 errors on all POST operations)
+
+**3. ORDER ELIGIBILITY - USING ACTIVE ORDER**
+
+You mentioned order 111-0060602-1283417 is cancelled. We understand that. However, we have been testing with order 112-7311035-1437035, which is an ACTIVE, UNSHIPPED order. This order should be eligible for messaging.
+
+Additionally, the 403 errors occur on ALL messaging endpoints, including:
+- GET /messaging/v1/orders/{orderId} (checking eligibility)
+- POST /messaging/v1/orders/{orderId}/messages/createConfirmOrderDetails (sending messages)
+- POST /uploads/2020-11-01/uploadDestinations/messaging (uploading attachments)
+
+The 403 errors are AUTHORIZATION errors, not order eligibility errors. If it were an order eligibility issue, we would get a different error code (like 400 Bad Request with a message about order status).
+
+**4. THE "DETAILS" FIELD ISSUE - THIS IS THE CORE PROBLEM**
+
+You asked: "What details field is empty?"
+
+When we receive a 403 error, Amazon's API returns this response:
+
+```json
+{
+  "errors": [
+    {
+      "code": "Unauthorized",
+      "message": "Access to requested resource is denied.",
+      "details": ""  // <-- This field is EMPTY
+    }
+  ]
+}
+```
+
+The `details` field in the error response is empty (""), which provides no specific information about WHY access was denied. This makes troubleshooting impossible.
+
+**WHAT WE NEED:**
+
+1. **Specific error details**: Why is the `details` field empty? Can Amazon provide specific information about what permission or configuration is missing?
+
+2. **Internal investigation**: Can Amazon check their internal logs to see:
+   - What specific permission check is failing?
+   - Is there an internal flag or restriction on our application?
+   - Why do GET requests work (44 successful) but POST requests fail (403)?
+
+3. **Application status verification**: Can Amazon confirm:
+   - Is our application in "Draft", "Published", or "Live" status?
+   - Does application status affect POST operation permissions differently than GET operations?
+
+4. **Read vs Write permissions**: Our API Usage Dashboard shows:
+   - ✅ 44 successful GET requests (checking order eligibility)
+   - ❌ 0 successful POST requests (sending messages)
+   
+   This suggests we have READ permission but not WRITE permission. Is this expected? Does the "Buyer Communication" role require additional configuration to send messages?
+
+**THE REAL ISSUE:**
+
+We have:
+- ✅ Reauthorized the application multiple times
+- ✅ Verified role permissions are active
+- ✅ Used active, unshipped orders for testing
+- ✅ Confirmed token generation and request signing work correctly
+- ✅ Verified all required headers are present
+
+Yet we still get:
+- ❌ 403 Unauthorized on all POST operations
+- ❌ Empty `details` field providing no helpful information
+- ❌ No explanation of what specific permission or configuration is missing
+
+**REQUEST:**
+
+Rather than repeating steps we've already completed, we need Amazon to:
+1. Check internal logs to identify the specific permission check that's failing
+2. Explain why the `details` field is empty and provide actual error details
+3. Verify if there's a difference between READ (GET) and WRITE (POST) permissions for the Messaging API
+4. Confirm if there are any internal flags, restrictions, or account-level issues affecting our application
+
+We have been troubleshooting this for multiple weeks and have provided complete request/response details multiple times. We need Amazon's internal team to investigate why our application can READ messaging eligibility but cannot WRITE/SEND messages, despite having the "Buyer Communication" role enabled.
+
+Thank you for your continued assistance.
+
+Developer Account: A2V719MRGLK48O
+Application: Little Hero Books
+Application ID: amzn1.sp.solution.3e928368-7705-40e7-806f-d9d25b42516c
+

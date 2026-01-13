@@ -336,7 +336,7 @@ async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptio
     });
 
     // Prefer confirmCustomizationDetails, fall back to confirmOrderDetails
-    // Note: Amazon API returns "confirmOrderDetails" but POST endpoint is "createConfirmOrderDetails"
+    // Note: Amazon API operation name is "createConfirmOrderDetails" but URL path is "confirmOrderDetails"
     // TEMPORARY: Force text-only for testing (skip HTML upload)
     // TODO: Remove this after testing
     const FORCE_TEXT_ONLY = process.env.AMAZON_FORCE_TEXT_ONLY === 'true';
@@ -348,7 +348,7 @@ async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptio
     } else if (actions.includes('confirmCustomizationDetails')) {
       allowedType = 'confirmCustomizationDetails';
     } else if (actions.includes('confirmOrderDetails')) {
-      // Amazon returns "confirmOrderDetails" in _links.actions, but POST endpoint uses "createConfirmOrderDetails"
+      // Amazon returns "confirmOrderDetails" in _links.actions, operation name is "createConfirmOrderDetails", but URL path is "confirmOrderDetails"
       allowedType = 'createConfirmOrderDetails';
     }
 
@@ -560,7 +560,7 @@ async function sendConfirmOrderDetails(options: SendConfirmOrderDetailsOptions) 
 
   const response = await callSellingPartnerApi({
     method: 'POST',
-    path: `/messaging/v1/orders/${options.amazonOrderId}/messages/createConfirmOrderDetails`,
+    path: `/messaging/v1/orders/${options.amazonOrderId}/messages/confirmOrderDetails`,
     accessToken: options.accessToken,
     config: options.config,
     query: {

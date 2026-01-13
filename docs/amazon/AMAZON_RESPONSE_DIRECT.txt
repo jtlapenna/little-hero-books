@@ -1,0 +1,141 @@
+Subject: Re: 403 Unauthorized - Request/Response Details Already Provided
+
+Hello Harsha,
+
+Thank you for your response. We have already provided complete request and response details in our previous communications. For your convenience, we are attaching them again in the exact format you requested.
+
+**ATTACHED FILES:**
+1. `amazon-request-111-0060602-1283417.txt` - Complete request details with full headers and body
+2. `amazon-response-111-0060602-1283417.txt` - Complete response details with full headers and body
+3. `amazon-request-text-111-0060602-1283417.txt` - Alternative format request details
+4. `amazon-response-text-111-0060602-1283417.txt` - Alternative format response details
+
+**WHAT WE'VE ALREADY PROVIDED (Multiple Times):**
+
+✅ **Full Endpoint URLs** - Complete URLs with actual domains:
+   - https://sellingpartnerapi-na.amazon.com/messaging/v1/orders/112-7311035-1437035
+   - https://sellingpartnerapi-na.amazon.com/messaging/v1/orders/112-7311035-1437035/messages/createConfirmOrderDetails
+   - https://sellingpartnerapi-na.amazon.com/uploads/2020-11-01/uploadDestinations/messaging
+
+✅ **Request Headers** - All headers including:
+   - authorization (AWS4-HMAC-SHA256 signature)
+   - content-type
+   - host
+   - x-amz-access-token
+   - x-amz-date
+   - user-agent
+
+✅ **Request Bodies** - Complete JSON bodies for POST requests
+
+✅ **Response Headers** - All response headers including:
+   - x-amzn-requestid
+   - x-amzn-errortype
+   - x-amzn-trace-id
+   - content-type
+   - All other response headers
+
+✅ **Response Bodies** - Complete error responses with:
+   - Error code: "Unauthorized"
+   - Error message: "Access to requested resource is denied."
+   - Details field: "" (empty - this is the problem)
+
+**CRITICAL EVIDENCE FROM API USAGE DASHBOARD:**
+
+We have reviewed our API Usage Dashboard (screenshot attached - "month to date" data). This reveals a critical discrepancy:
+
+**Production Environment (amzn1.sp.solution.3e928368-7705-40e7-806f-d9d25b42516c):**
+- Messaging API: 55 total calls
+  - Operation: GET /messaging/v1/orders/{amazonOrderId}
+  - ✅ 44 successful calls (200) - These are GET requests to CHECK order eligibility
+  - ⚠️ 11 client errors (400) - validation errors, not authorization
+  - ❌ 0 (403) errors shown in dashboard for GET requests
+
+**IMPORTANT CLARIFICATION:**
+
+The dashboard shows 44 successful (200) calls, but these are all **GET requests** to check if messaging is available for an order. We have **NEVER successfully sent a message** through the Messaging API.
+
+The actual message sending operations would be:
+- POST /messaging/v1/orders/{orderId}/messages/createConfirmOrderDetails
+- POST /uploads/2020-11-01/uploadDestinations/messaging
+
+**THE PROBLEM:**
+
+1. **GET requests work** - We can check order eligibility (44 successful GET calls)
+2. **POST requests fail** - We cannot send messages (all POST requests return 403 Unauthorized)
+3. **Dashboard doesn't show POST failures** - The dashboard only shows the GET operation, not the POST operations that are failing
+
+**Sandbox Environment (amzn1.sp.solution.a887d49e-bbd9-4682-9959-9d149f9b4320):**
+- Messaging API: 11 calls
+  - ❌ 0 successful calls
+  - ❌ 11 (403) errors - Even GET requests fail in sandbox
+
+**KEY OBSERVATIONS:**
+
+1. **Read vs Write permissions** - We have permission to READ/CHECK messaging eligibility (GET works), but NOT to SEND messages (POST fails with 403)
+2. **Dashboard limitation** - The dashboard only shows GET operations, not the POST operations that are actually failing
+3. **Sandbox completely blocked** - Even GET requests fail in sandbox (11/11 return 403)
+4. **Permission mismatch** - Our application has "Buyer Communication" role enabled, but POST operations are still denied
+
+**THE CORE ISSUE:**
+
+We have provided this information at least 3 times in previous communications. The consistent pattern is:
+
+1. ✅ Access token generation: WORKS (we can successfully get access tokens)
+2. ✅ Request signing: CORRECT (AWS SigV4 signing is valid)
+3. ✅ All headers: PRESENT (all required headers are included)
+4. ✅ GET requests work: 44 successful calls to check order eligibility
+5. ❌ POST requests fail: All message sending operations return 403 Unauthorized
+6. ❌ Error details: EMPTY (no specific guidance on why access is denied)
+7. ❌ Never sent a message: Despite having "Buyer Communication" role, we have never successfully sent a message
+
+**QUESTIONS FOR AMAZON:**
+
+1. **Read vs Write permissions**: Why do GET requests to check messaging eligibility work (44 successful), but POST requests to send messages fail with 403? Does the "Buyer Communication" role only grant read access, not write access?
+
+2. **Dashboard data**: The dashboard only shows GET /messaging/v1/orders/{amazonOrderId} operations. Where can we see the POST /messaging/v1/orders/{orderId}/messages/createConfirmOrderDetails operations that are failing? Are POST operations tracked separately?
+
+3. **Permission configuration**: We have "Buyer Communication" role enabled in the Solution Provider Portal. Is there an additional permission or configuration step required to actually SEND messages, beyond just checking order eligibility?
+
+4. **Sandbox vs Production**: Why do even GET requests fail in sandbox (11/11 return 403) while they work in production? Are sandbox permissions configured differently?
+
+5. **Application status**: Is our application in "Draft", "Published", or "Live" status? Does this affect POST operation permissions differently than GET operations?
+
+**WHAT WE NEED FROM AMAZON:**
+
+Rather than providing the same request/response details again, we need Amazon to:
+
+1. **Check application status** - Is our application properly authorized on Amazon's side?
+2. **Verify permissions** - Are the "Buyer Communication" role permissions actually active?
+3. **Check order eligibility** - Is order 112-7311035-1437035 eligible for messaging?
+4. **Provide specific error details** - Why is the "details" field empty? What specific permission or configuration is missing?
+
+**FRESH TEST DATA (If Required):**
+
+If you specifically need fresh test data captured using Postman, we can provide that. However, we expect the results to be identical to what we've already provided multiple times.
+
+We will run fresh tests using Postman Console and provide the output in .txt format as requested. However, we believe the root cause is not in the request format (which is correct) but in the application authorization or permission configuration on Amazon's side.
+
+**REQUEST FOR ESCALATION:**
+
+We have been troubleshooting this for multiple weeks and have:
+- Provided complete request/response details multiple times
+- Verified all application roles and permissions
+- Re-authorized the application multiple times
+- Generated new refresh tokens as recommended
+- Confirmed token exchange works correctly
+- Verified request signing and headers are correct
+
+We respectfully request that Amazon's internal team:
+1. **Review application configuration** - Check our application's current authorization status and permissions in your systems
+2. **Check internal logs** - Review your internal logs for recent 403 errors on our application (Application ID: amzn1.sp.solution.3e928368-7705-40e7-806f-d9d25b42516c) that may not yet be reflected in the API Usage Dashboard
+3. **Compare historical vs current** - Investigate what changed between December 10, 2025 (when we had 44 successful messaging calls) and now (when we're getting 403 errors)
+4. **Verify permission status** - Confirm whether Messaging API permissions were revoked, modified, or restricted for our application
+5. **Check for internal flags** - Review if there are any internal flags, restrictions, or account-level issues affecting our application
+6. **Provide specific guidance** - Tell us exactly what is causing the 403 errors and what steps we need to take to resolve them
+
+Thank you for your continued assistance.
+
+Developer Account: A2V719MRGLK48O
+Application: Little Hero Books
+Application ID: amzn1.sp.solution.3e928368-7705-40e7-806f-d9d25b42516c
+

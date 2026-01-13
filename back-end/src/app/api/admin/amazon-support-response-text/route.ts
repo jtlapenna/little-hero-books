@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
       operation: apiCallDetails.operation,
       timestamp: apiCallDetails.timestamp,
       requestId: apiCallDetails.requestId,
-      note: 'This is a TEXT-ONLY message call (no document upload). The operation should be /messaging/v1/orders/{orderId}/messages/createConfirmOrderDetails',
+      note: 'This is a TEXT-ONLY message call (no document upload). The operation name is "createConfirmOrderDetails" but the URL path is /messaging/v1/orders/{orderId}/messages/confirmOrderDetails',
       
       // Download links
       downloadLinks: {

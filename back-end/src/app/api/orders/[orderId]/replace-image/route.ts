@@ -627,10 +627,40 @@ export async function POST(
       entry.status = 'approved';
       entry.needsReview = false;
       entry.reviewReason = null;
-      // Update publicUrl if publicR2Url is available
+      // CRITICAL: Always update publicUrl to point to the new image
+      // Use backend proxy endpoint if publicR2Url is not available (works with private buckets)
+      // IMPORTANT: publicUrl must match approvedKey to ensure 2B workflow uses the correct image
       const publicR2Url = manifest.order?.publicR2Url;
+      const backendUrl = 'https://admin.littleherolabs.com';
+      
       if (publicR2Url) {
         entry.publicUrl = `${publicR2Url}/${originalKey}`;
+      } else {
+        // Fallback to backend proxy endpoint (works even if publicR2Url is missing)
+        entry.publicUrl = `${backendUrl}/api/assets/${originalKey}`;
+        console.log(`[Replace Image API] Updated publicUrl using backend proxy (publicR2Url not available): ${entry.publicUrl}`);
+      }
+      
+      // CRITICAL: Verify publicUrl matches approvedKey (extract R2 key from publicUrl and compare)
+      // This ensures 2B workflow will use the correct image
+      const publicUrlKey = entry.publicUrl.includes('/api/assets/') 
+        ? entry.publicUrl.split('/api/assets/')[1]?.split('?')[0]  // Extract key from proxy URL
+        : entry.publicUrl.includes(publicR2Url || '')
+          ? entry.publicUrl.replace(`${publicR2Url}/`, '').split('?')[0]  // Extract key from R2 URL
+          : null;
+      
+      if (publicUrlKey && publicUrlKey !== originalKey) {
+        console.warn(`[Replace Image API] ⚠️ publicUrl key mismatch! publicUrl points to: ${publicUrlKey}, but approvedKey is: ${originalKey}`);
+        console.warn(`[Replace Image API] This will cause 2B to use the wrong image. Fixing...`);
+        // Fix the mismatch by updating publicUrl to match approvedKey
+        if (publicR2Url) {
+          entry.publicUrl = `${publicR2Url}/${originalKey}`;
+        } else {
+          entry.publicUrl = `${backendUrl}/api/assets/${originalKey}`;
+        }
+        console.log(`[Replace Image API] ✅ Fixed publicUrl to match approvedKey: ${entry.publicUrl}`);
+      } else {
+        console.log(`[Replace Image API] ✅ Verified publicUrl matches approvedKey (${originalKey})`);
       }
     } else {
       // Post-Bria: update background-removed image fields
@@ -842,6 +872,61 @@ export async function POST(
       updatedManifestJson,
       'application/json'
     );
+
+    // CRITICAL: If this is a preBria replacement, clear the corresponding 2B manifest entry
+    // This forces 2B workflow to reprocess the pose with the new image
+    if (stage === 'preBria') {
+      try {
+        const manifest2bKey = buildManifestKey(orderId, '2b');
+        let manifest2b: any = null;
+        
+        try {
+          const manifest2bRes = await getObject(R2_ORDERS_BUCKET, manifest2bKey);
+          manifest2b = await readJsonSafe<any>(manifest2bRes);
+        } catch (error: any) {
+          // 2B manifest doesn't exist yet - that's fine, nothing to clear
+          if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+            console.log(`[Replace Image API] 2B manifest doesn't exist yet for pose ${poseNumber} - nothing to clear`);
+          } else {
+            console.warn(`[Replace Image API] Error loading 2B manifest (non-critical):`, error.message);
+          }
+        }
+
+        if (manifest2b && manifest2b.entries && Array.isArray(manifest2b.entries)) {
+          const entry2b = manifest2b.entries.find((e: any) => e.poseNumber === poseNumber);
+          
+          if (entry2b) {
+            // Clear 2B processing fields to force reprocessing
+            console.log(`[Replace Image API] Clearing 2B manifest entry for pose ${poseNumber} to force reprocessing`);
+            delete entry2b.bgRemovedKey;
+            delete entry2b.bgRemovedFilename;
+            delete entry2b.bgRemovedImageUrl;
+            delete entry2b.bgRemovedPublicUrl;
+            entry2b.bgRemoved = false;
+            entry2b.bgRemovedStatus = undefined;
+            // Clear Bria processing status so 2B will resubmit
+            delete entry2b.briaStatusUrl;
+            delete entry2b.briaRequestId;
+            delete entry2b.briaStatus;
+            
+            // Save updated 2B manifest
+            const updated2bManifestJson = JSON.stringify(manifest2b, null, 2);
+            await putObject(
+              R2_ORDERS_BUCKET,
+              manifest2bKey,
+              updated2bManifestJson,
+              'application/json'
+            );
+            console.log(`[Replace Image API] ✅ Cleared 2B manifest entry for pose ${poseNumber} - 2B will reprocess`);
+          } else {
+            console.log(`[Replace Image API] No 2B manifest entry found for pose ${poseNumber} - nothing to clear`);
+          }
+        }
+      } catch (error: any) {
+        // Non-critical - log but don't fail the replacement
+        console.warn(`[Replace Image API] Error clearing 2B manifest entry (non-critical):`, error.message);
+      }
+    }
 
     // Update order's updated_at timestamp in Supabase to trigger cache refresh
     // This ensures the frontend gets new cache-busting parameters for image URLs

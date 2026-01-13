@@ -279,35 +279,57 @@ export async function POST(
       `Generate pose ${poseNumber} for the character. Follow the pose reference exactly and match the base character's style.`;
 
     // Build Gemini API request body
+    // Determine style anchor source (base character OR previous option)
+    const hasStyleAnchor = hasBaseCharacter || hasPreviousOption;
+    const styleAnchorSource = hasBaseCharacter ? 'BASE' : (hasPreviousOption ? 'PREVIOUS OPTION' : null);
+    
     const systemInstruction = {
       role: 'system',
       parts: [{
         text: [
           'You are a deterministic vector-illustration renderer.',
           'OUTPUT: single 1:1 PNG on pure white (#FFFFFF). No text, watermark, gradients, textures, shadows, or noise.',
-          'BASE = appearance/style ONLY. POSE = pose ONLY.',
+          'STYLE ANCHOR: ' + (styleAnchorSource || 'NONE') + ' = appearance/style ONLY. POSE = pose ONLY.',
           'Do not sample any palette or materials from POSE.',
           'HARD CONSTRAINT ORDER (highest→lowest):',
           '1) SINGLE SUBJECT (one child; exactly 2 arms/2 legs/2 shoes)',
           '2) POSE LOCK (limbs/angles/contact)',
-          '3) BASE STYLE/IDENTITY LOCK (palette, line weight, facial schema)',
+          '3) STYLE/IDENTITY LOCK (palette, line weight, facial schema, clothing, shoes, hair - from ' + (styleAnchorSource || 'NONE') + ')',
           '4) FRAMING & CONTACT (full body; pure white)',
         ].join('\n')
       }]
     };
 
     // Build parts array with text and images
-    const parts: any[] = [
-      { text: `${originalPrompt}\n\nRevision Request: ${revisionPrompt}` }
-    ];
-
-    // Add images based on selection (order matters: previous option first if present, then base, then pose)
+    // Determine if previous option is being used as style anchor (when base is not included)
     const previousOptionImg = imageData.find(img => img.type === 'previous');
     const baseImg = imageData.find(img => img.type === 'base');
     const poseImg = imageData.find(img => img.type === 'pose');
+    
+    const previousOptionIsStyleAnchor = hasPreviousOption && !hasBaseCharacter;
+    
+    // Build revision instruction with explicit preservation requirements
+    let revisionInstruction = `Revision Request: ${revisionPrompt}`;
+    if (previousOptionIsStyleAnchor) {
+      revisionInstruction += '\n\nCRITICAL: Preserve ALL visual details from PREVIOUS OPTION exactly:';
+      revisionInstruction += '\n- Colors (skin tone, hair color, clothing colors, shoe colors)';
+      revisionInstruction += '\n- Style (line weight, texture, facial schema, clothing style)';
+      revisionInstruction += '\n- Appearance (hair style, shoe style, clothing details)';
+      revisionInstruction += '\n- Character identity (all features must match exactly)';
+      revisionInstruction += '\nONLY change the specific detail requested in the revision.';
+    }
+    
+    const parts: any[] = [
+      { text: `${originalPrompt}\n\n${revisionInstruction}` }
+    ];
 
+    // Add images based on selection (order matters: previous option first if present, then base, then pose)
     if (previousOptionImg) {
-      parts.push({ text: 'PREVIOUS OPTION (reference for revision). Apply revision to this image.' });
+      if (previousOptionIsStyleAnchor) {
+        parts.push({ text: 'PREVIOUS OPTION (STYLE ANCHOR + revision base). Preserve ALL appearance, colors, style, and details EXACTLY. Apply ONLY the requested revision change.' });
+      } else {
+        parts.push({ text: 'PREVIOUS OPTION (reference for revision). Apply revision to this image while preserving all other details.' });
+      }
       parts.push({ 
         inlineData: { 
           mimeType: previousOptionImg.mimeType, 
