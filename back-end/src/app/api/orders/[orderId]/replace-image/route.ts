@@ -453,8 +453,10 @@ export async function POST(
       if (!characterHash) {
         try {
           const { getOrderFromSupabase } = await import('@/lib/supabase-client');
-          const order = await getOrderFromSupabase(orderId).catch(() => null);
-          characterHash = order?.character_hash || null;
+          const order = (await getOrderFromSupabase(orderId).catch((): null => null)) as
+            | { character_hash?: string | null }
+            | null;
+          characterHash = order?.character_hash ?? null;
         } catch (error: any) {
           console.warn('[Replace Image API] Could not load order from Supabase:', error.message);
         }
@@ -627,6 +629,12 @@ export async function POST(
       entry.status = 'approved';
       entry.needsReview = false;
       entry.reviewReason = null;
+      // CRITICAL: If the user replaces a pre-Bria (2A) pose, any prior Bria submission must be invalidated.
+      // Otherwise workflow 2B may reuse an old briaStatusUrl/requestId and download an old result,
+      // even though the 2A source image at approvedKey was overwritten.
+      entry.briaStatusUrl = null;
+      entry.briaRequestId = null;
+      entry.briaStatus = null;
       // CRITICAL: Always update publicUrl to point to the new image
       // Use backend proxy endpoint if publicR2Url is not available (works with private buckets)
       // IMPORTANT: publicUrl must match approvedKey to ensure 2B workflow uses the correct image
