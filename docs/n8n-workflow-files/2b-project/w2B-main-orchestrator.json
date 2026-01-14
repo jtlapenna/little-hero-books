@@ -8,13 +8,13 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "85f97887-e2aa-4476-9d0c-be8abd38a4f9",
+      "id": "68c0ca81-869f-4af4-8aa8-f13b1aa4d5b0",
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -16,
-        -80
+        -1680,
+        -208
       ],
       "webhookId": "41599fba-eff6-48b2-bc4a-60e2c3acecf8"
     },
@@ -26,26 +26,26 @@
           "responseCode": 200
         }
       },
-      "id": "af1ca4ea-c464-433c-a90f-ebe605c85d15",
+      "id": "05255d6e-e814-4df6-845d-1ee2a28bd116",
       "name": "Respond to Webhook (Ack)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        208,
-        -80
+        -1456,
+        -208
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Normalize 2B orchestrator input (JSON-only)\n */\nconst input = $json || {};\nconst body = input.body && input.body !== input ? input.body : input;\n\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\n\nconst orderId = pick(input.orderId, input.amazonOrderId, body.orderId, body.amazonOrderId, null);\nif (!orderId) throw new Error('2B main: orderId is required');\n\n// 2A manifest URL\nlet manifestUrl = pick(input.manifestUrl, input.originalManifestUrl, body.manifestUrl, body.originalManifestUrl, null);\nif (!manifestUrl) {\n  const base = pick(input.backendUrl, body.backendUrl, 'https://admin.littleherolabs.com');\n  manifestUrl = `${base}/api/manifests/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2a-manifest.json`;\n}\n\nconst backendUrl = pick(input.backendUrl, body.backendUrl, 'https://admin.littleherolabs.com');\nconst callbackUrl = pick(input.callbackUrl, body.callbackUrl, `${backendUrl}/webhook/2b-callback`);\n\n// n8n Cloud-friendly: pass sw1 workflow id in the request payload (or set it directly in the Execute Workflow node UI)\nconst sw1WorkflowId = pick(input.sw1WorkflowId, body.sw1WorkflowId, null);\n\nconst batchSize = Math.max(1, Math.min(3, Number(pick(input.batchSize, body.batchSize, 1)) || 1));\nconst force = !!pick(input.force, body.force, false);\n\nreturn [{ json: { orderId, backendUrl, manifestUrl, callbackUrl, sw1WorkflowId, batchSize, force } }];\n"
       },
-      "id": "b7166285-0fd9-482f-8a7d-348b1a3d66cf",
+      "id": "29a13a8f-09a7-4606-be94-fb0c0a2807f6",
       "name": "Normalize 2B Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        432,
-        -80
+        -1232,
+        -208
       ]
     },
     {
@@ -60,48 +60,47 @@
           "timeout": 90000
         }
       },
-      "id": "bd7d3595-c2ee-4b22-877f-b0ae6fb41c79",
+      "id": "4fec6b19-c908-422a-b719-67a0016c5936",
       "name": "Download 2A Manifest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        672,
-        -80
+        -992,
+        -208
       ]
     },
     {
       "parameters": {
         "url": "={{ $items('Normalize 2B Input')[0].json.backendUrl + '/api/manifests/book-mvp-simple-adventure/orders/' + $items('Normalize 2B Input')[0].json.orderId + '/manifests/2b-manifest.json?v=' + Date.now() }}",
         "options": {
-          "timeout": 90000,
           "response": {
             "response": {
               "responseFormat": "json"
             }
           },
-          "ignoreResponseCode": true
+          "timeout": 90000
         }
       },
-      "id": "download-2b",
+      "id": "372abdd5-a408-4e94-aec1-17766de61944",
       "name": "Download 2B Manifest (optional)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        672,
-        120
+        -752,
+        -208
       ]
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Build pose worklist (idempotent + replacement-aware)\n * Async mode: we only trigger s2B-sw1 and return.\n */\nconst manifest2a = $json || {};\nif (!manifest2a.schema) throw new Error('2B main: expected manifest JSON from Download 2A Manifest');\n\n// Recover context from Normalize node (HTTP nodes overwrite input)\nlet ctx = {};\ntry { ctx = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst orderId = ctx.orderId || manifest2a.order?.amazonOrderId || manifest2a.order?.orderId;\nconst characterHash = manifest2a.characterHash || manifest2a.order?.characterHash || null;\nif (!orderId) throw new Error('2B main: orderId missing after manifest download');\nif (!characterHash) throw new Error('2B main: characterHash missing');\n\nconst approved = (manifest2a.entries || []).filter(e => e?.approved && e?.status === 'approved');\nif (!approved.length) return [{ json: { orderId, characterHash, scheduled: 0, reason: 'NO_APPROVED_POSES' } }];\n\n// Existing 2B manifest (optional) from the previous node\nlet existing2b = null;\ntry {\n  const maybe = $items('Download 2B Manifest (optional)', 0, $runIndex)?.[0]?.json;\n  if (maybe && maybe.schema === 'lhb.run-manifest@v2.0') existing2b = maybe;\n} catch {}\n\nconst existingEntries = Array.isArray(existing2b?.entries) ? existing2b.entries : [];\nconst existingByPose = new Map(existingEntries.map(e => [Number(e.poseNumber), e]));\n\n// NOTE: existing 2B manifest lookup occurs in callback for MVP to keep orchestrator lean\n// Idempotency can still be applied in callback using sourceApprovedKey/sourceReplacedAt.\n\nconst backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\nconst callbackUrl = ctx.callbackUrl;\nconst force = !!ctx.force;\n\nconst work = approved\n  .filter(p => {\n    if (force) return true;\n    const poseNum = Number(p?.poseNumber);\n    const ex = existingByPose.get(poseNum);\n    if (!ex) return true;\n    const srcKey = p.approvedKey || null;\n    const srcReplacedAt = p.replacedAt || null;\n    const srcReplacementCount = Number(p.replacementCount || 0);\n    const done = !!(\n      ex.bgRemovedKey &&\n      String(ex.briaStatus || '').toLowerCase() === 'completed' &&\n      (ex.sourceApprovedKey || null) === srcKey &&\n      ((ex.sourceReplacedAt || null) === srcReplacedAt || Number(ex.sourceReplacementCount || 0) === srcReplacementCount)\n    );\n    return !done;\n  })\n  .map(p => ({\n  orderId,\n  characterHash,\n  poseNumber: p.poseNumber,\n  approvedKey: p.approvedKey,\n  replacedAt: p.replacedAt || null,\n  replacementCount: Number(p.replacementCount || 0),\n  manifest2aUrl: ctx.manifestUrl || null,\n  backendUrl,\n  callbackUrl,\n  force\n}));\n\n// Emit one item per pose for SplitInBatches\nreturn work.map(w => ({ json: w }));\n"
+        "jsCode": "/**\n * Build pose worklist (idempotent + replacement-aware)\n * Async mode: we only trigger s2B-sw1 and return.\n */\nconst manifest2a = $json || {};\nif (!manifest2a.schema) throw new Error('2B main: expected manifest JSON from Download 2A Manifest');\n\n// Recover context from Normalize node (HTTP nodes overwrite input)\nlet ctx = {};\ntry { ctx = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst orderId = ctx.orderId || manifest2a.order?.amazonOrderId || manifest2a.order?.orderId;\nconst characterHash = manifest2a.characterHash || manifest2a.order?.characterHash || null;\nif (!orderId) throw new Error('2B main: orderId missing after manifest download');\nif (!characterHash) throw new Error('2B main: characterHash missing');\n\nconst approved = (manifest2a.entries || []).filter(e => e?.approved && e?.status === 'approved');\nif (!approved.length) return [{ json: { orderId, characterHash, scheduled: 0, reason: 'NO_APPROVED_POSES' } }];\n\n// Existing 2B manifest (optional) from the previous node\nlet existing2b = null;\ntry {\n  const maybe = $items('Download 2B Manifest (optional)', 0, $runIndex)?.[0]?.json;\n  if (maybe && maybe.schema === 'lhb.run-manifest@v2.0') existing2b = maybe;\n} catch {}\n\nconst existingEntries = Array.isArray(existing2b?.entries) ? existing2b.entries : [];\nconst existingByPose = new Map(existingEntries.map(e => [Number(e.poseNumber), e]));\n\n// NOTE: existing 2B manifest lookup occurs in callback for MVP to keep orchestrator lean\n// Idempotency can still be applied in callback using sourceApprovedKey/sourceReplacedAt.\n\nconst backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\nconst callbackUrl = ctx.callbackUrl;\nconst force = !!ctx.force;\n\nconst work = approved\n  .filter(p => {\n    if (force) return true;\n    const poseNum = Number(p?.poseNumber);\n    \n    // Check 2A manifest for existing Bria status (prevent duplicate submissions)\n    const hasBriaStatus = !!(p.briaStatusUrl || p.briaRequestId);\n    if (hasBriaStatus) {\n      console.log(`✓ Pose ${poseNum}: Already has Bria status, skipping submission`);\n      return false; // Skip - already submitted\n    }\n    \n    // Existing 2B manifest check (keep as-is)\n    const ex = existingByPose.get(poseNum);\n    if (!ex) return true;\n    const srcKey = p.approvedKey || null;\n    const srcReplacedAt = p.replacedAt || null;\n    const srcReplacementCount = Number(p.replacementCount || 0);\n    const done = !!(\n      ex.bgRemovedKey &&\n      String(ex.briaStatus || '').toLowerCase() === 'completed' &&\n      (ex.sourceApprovedKey || null) === srcKey &&\n      ((ex.sourceReplacedAt || null) === srcReplacedAt || Number(ex.sourceReplacementCount || 0) === srcReplacementCount)\n    );\n    return !done;\n  })\n  .map(p => ({\n  orderId,\n  characterHash,\n  poseNumber: p.poseNumber,\n  approvedKey: p.approvedKey,\n  replacedAt: p.replacedAt || null,\n  replacementCount: Number(p.replacementCount || 0),\n  manifest2aUrl: ctx.manifestUrl || null,\n  backendUrl,\n  callbackUrl,\n  force\n}));\n\n// Emit one item per pose for SplitInBatches\nreturn work.map(w => ({ json: w }));\n"
       },
-      "id": "3ddcbc8c-bccb-4efa-b32a-b8246bcbacb4",
+      "id": "a16703a6-533a-4d9b-ad60-6b83aaf810f2",
       "name": "Build Worklist",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        928,
-        -80
+        -512,
+        -208
       ]
     },
     {
@@ -109,42 +108,79 @@
         "batchSize": "={{ $items('Normalize 2B Input')[0].json.batchSize }}",
         "options": {}
       },
-      "id": "de83805c-9219-4b92-8aa1-72683beba33b",
+      "id": "9fb4e241-8dd3-48c7-bb2a-9a250a8a5e47",
       "name": "Split In Batches",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        1168,
-        -80
+        -272,
+        -208
       ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $json.sw1WorkflowId || $items('Normalize 2B Input')[0].json.sw1WorkflowId || '' }}",
-        "options": {
-          "waitTillFinished": false
-        }
+        "source": "url",
+        "workflowUrl": "https://thepeakbeyond.app.n8n.cloud/workflow/qmk3cTggZlR2WQHA",
+        "options": {}
       },
-      "id": "ef7746af-5e61-484f-8352-480f1ec1eef6",
+      "id": "e32a6904-385f-4931-853c-ff64f0fdafab",
       "name": "Execute Workflow: s2B-sw1",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        1408,
-        -192
+        -32,
+        -320
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Final response payload (does not wait for workers).\n */\nconst items = $items('Build Worklist', 0, $runIndex) || [];\nlet ctx = {};\ntry { ctx = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\nreturn [{ json: { orderId: ctx.orderId, scheduled: items.length, callbackUrl: ctx.callbackUrl, batchSize: ctx.batchSize } }];\n"
       },
-      "id": "c31344e0-43e0-420b-a31c-8705f4f962ef",
+      "id": "86de4dfc-fa04-42fd-a780-d9fe7cd3dacc",
       "name": "Final Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1408,
-        64
+        -32,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.backendUrl || 'https://admin.littleherolabs.com' }}/api/webhooks/workflow-2b-submitted",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.BACKEND_API_TOKEN || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { orderId: $json.orderId, scheduledPoses: $json.scheduled, batchSize: $json.batchSize, timestamp: new Date().toISOString() } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "f42322af-0ca0-42bd-81c9-b9015b9001da",
+      "name": "Notify Backend: BRIA_READY",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        -64
       ]
     }
   ],
@@ -223,22 +259,22 @@
         ]
       ]
     },
-    "Execute Workflow: s2B-sw1": {
-      "main": [
-        [
-          {
-            "node": "Split In Batches",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
     "Download 2B Manifest (optional)": {
       "main": [
         [
           {
             "node": "Build Worklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Summary": {
+      "main": [
+        [
+          {
+            "node": "Notify Backend: BRIA_READY",
             "type": "main",
             "index": 0
           }
@@ -250,7 +286,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "f826af1b-014a-493c-85e0-2ef94e11c382",
+  "versionId": "5a72cc64-43d7-41c8-a008-8ca0b0416828",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },
