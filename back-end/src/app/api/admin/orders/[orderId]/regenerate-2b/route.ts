@@ -18,6 +18,7 @@ export const dynamic = 'force-dynamic';
  * - bgRemovedKey, bgRemovedImageUrl
  * - briaStatus, briaRequestId, briaStatusUrl
  * - sourceApprovedKey, sourceReplacedAt, sourceReplacementCount
+ * - needsReview, reviewReason, isFlagged (cleared to false/null to start fresh)
  * 
  * Queues order for router (w1.1) to pick up and route to 2B workflow
  */
@@ -108,6 +109,13 @@ export async function POST(
             delete entry.sourceApprovedKey;
             delete entry.sourceReplacedAt;
             delete entry.sourceReplacementCount;
+            entryModified = true;
+          }
+          // Clear review flags when regenerating (start fresh)
+          if (entry.needsReview !== undefined || entry.reviewReason || entry.isFlagged !== undefined) {
+            entry.needsReview = false;
+            entry.reviewReason = null;
+            entry.isFlagged = false;
             entryModified = true;
           }
           if (entryModified) {

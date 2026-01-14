@@ -483,7 +483,7 @@ async function getOrder(
             assetType: 'background-removed',
             characterHash: order.characterHash,
             isMissing: !proxyUrl,
-            isFlagged: entry.isFlagged || entry.needsReview || false,
+            isFlagged: entry.needsReview === true,
             status: entry.status || 'approved',
             needsReview: entry.needsReview || false,
             reviewReason: entry.reviewReason || null,
@@ -513,10 +513,10 @@ async function getOrder(
         if (existingPose) {
           // File exists in R2 - merge manifest entry's review flags if present
           // This handles cases where the file was uploaded but manifest wasn't updated
-          const needsReview = manifestEntry?.needsReview || false;
+          const needsReview = manifestEntry?.needsReview === true;
           const reviewReason = manifestEntry?.reviewReason || null;
-          // isFlagged should come from manifest entry, not from existingPose (which doesn't have this field)
-          const isFlagged = manifestEntry?.isFlagged || needsReview || false;
+          // isFlagged should only be true if needsReview is true (explicit check to avoid stale flags)
+          const isFlagged = needsReview === true || (manifestEntry?.isFlagged === true && needsReview === true);
           
           // Update URL with cache-busting if manifest entry has processedAt (newer image)
           let url = existingPose.url;
@@ -549,10 +549,10 @@ async function getOrder(
           const proxyUrl = r2Key ? `/api/assets/${r2Key}?v=${entryProcessedAt}` : '';
           
           // Use manifest entry's needsReview and reviewReason (e.g., transparency_fail)
-          const needsReview = manifestEntry?.needsReview || !proxyUrl;
+          const needsReview = manifestEntry?.needsReview === true || !proxyUrl;
           const reviewReason = manifestEntry?.reviewReason || (!proxyUrl ? 'file_not_found_in_r2' : null);
-          // isFlagged should come from manifest entry
-          const isFlagged = manifestEntry?.isFlagged || needsReview || !proxyUrl;
+          // isFlagged should only be true if needsReview is true
+          const isFlagged = needsReview === true;
           
           postBriaPoses.push({
             poseNumber: poseNum,

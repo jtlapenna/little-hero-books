@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic';
  * Clears from 2A manifest:
  * - briaStatusUrl, briaRequestId (if present)
  * - bgRemovedKey, bgRemovedImageUrl (if present)
+ * - needsReview, reviewReason, isFlagged (cleared to false/null to start fresh)
  * 
  * Triggers workflow via router: Sets next_workflow: '2A', execution_status: 'ready_for_processing'
  */
@@ -71,11 +72,22 @@ export async function POST(
     if (manifest2a && Array.isArray(manifest2a.entries)) {
       let modified = false;
       manifest2a.entries.forEach((entry: any) => {
+        let entryModified = false;
         if (entry.briaStatusUrl || entry.briaRequestId || entry.bgRemovedKey || entry.bgRemovedImageUrl) {
           delete entry.briaStatusUrl;
           delete entry.briaRequestId;
           delete entry.bgRemovedKey;
           delete entry.bgRemovedImageUrl;
+          entryModified = true;
+        }
+        // Clear review flags when regenerating (start fresh)
+        if (entry.needsReview !== undefined || entry.reviewReason || entry.isFlagged !== undefined) {
+          entry.needsReview = false;
+          entry.reviewReason = null;
+          entry.isFlagged = false;
+          entryModified = true;
+        }
+        if (entryModified) {
           modified = true;
         }
       });
