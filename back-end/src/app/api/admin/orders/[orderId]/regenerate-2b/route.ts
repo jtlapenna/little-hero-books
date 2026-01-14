@@ -167,24 +167,39 @@ export async function POST(
           status: webhookResponse.status,
           error: errorText.substring(0, 500),
         });
-        // Continue anyway - we've cleared the manifests
+        // Fallback: queue for router if direct call failed
+        await updateOrderStatus(orderId, {
+          next_workflow: '2B',
+          execution_status: 'ready_for_processing',
+          queued_at: new Date().toISOString(),
+          started_at: null,
+          current_workflow: null,
+          review_stages,
+        });
       } else {
         console.log(`[Regenerate 2B] Successfully called n8n webhook with force=true`);
+        // Mark as processing to prevent router from picking it up
+        await updateOrderStatus(orderId, {
+          next_workflow: '2B',
+          execution_status: 'processing',
+          current_workflow: '2B',
+          started_at: new Date().toISOString(),
+          queued_at: null, // Clear queued_at so router doesn't pick it up
+          review_stages,
+        });
       }
     } catch (webhookError: any) {
-      console.error(`[Regenerate 2B] Error calling n8n webhook:`, webhookError?.message);
-      // Continue anyway - we've cleared the manifests, router can pick it up
+      console.error(`[Regenerate 2B] Error calling n8n webhook, queueing for router:`, webhookError?.message);
+      // Fallback: queue for router if direct call failed
+      await updateOrderStatus(orderId, {
+        next_workflow: '2B',
+        execution_status: 'ready_for_processing',
+        queued_at: new Date().toISOString(),
+        started_at: null,
+        current_workflow: null,
+        review_stages,
+      });
     }
-
-    // Also update order status in case webhook call failed (router can pick it up)
-    await updateOrderStatus(orderId, {
-      next_workflow: '2B',
-      execution_status: 'ready_for_processing',
-      queued_at: new Date().toISOString(),
-      started_at: null,
-      current_workflow: null,
-      review_stages, // Preserve review stages
-    });
 
     return NextResponse.json({
       success: true,

@@ -44,22 +44,8 @@ async function triggerBackgroundRemoval(
       throw createNotFoundError(`Order ${orderId} not found`);
     }
     
-    const updates: any = {
-      next_workflow: '2B',
-      execution_status: 'ready_for_processing',
-      queued_at: new Date().toISOString(),
-      started_at: null,
-      current_workflow: null
-    };
-    
-    // Preserve review_stages if they exist (to maintain approvals)
-    if (currentOrder.review_stages) {
-      updates.review_stages = currentOrder.review_stages;
-    }
-    
-    await updateOrderStatus(orderId, updates);
-    
-    // If force=true, also call n8n webhook directly with force parameter
+    // If force=true, call webhook directly and mark as processing to prevent router from picking it up
+    // If force=false, queue for router (don't call webhook directly)
     if (force) {
       const n8n2BWebhookUrl = process.env.N8N_2B_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal';
       try {
@@ -74,11 +60,56 @@ async function triggerBackgroundRemoval(
             force: true,
           }),
         });
-        console.log(`[POST /api/orders/[orderId]/trigger-background-removal] ✅ Also called n8n webhook directly with force=true`);
+        console.log(`[POST /api/orders/[orderId]/trigger-background-removal] ✅ Called n8n webhook directly with force=true`);
+        
+        // Mark as processing to prevent router from picking it up
+        const updates: any = {
+          next_workflow: '2B',
+          execution_status: 'processing',
+          current_workflow: '2B',
+          started_at: new Date().toISOString(),
+          queued_at: null, // Clear queued_at so router doesn't pick it up
+        };
+        
+        // Preserve review_stages if they exist (to maintain approvals)
+        if (currentOrder.review_stages) {
+          updates.review_stages = currentOrder.review_stages;
+        }
+        
+        await updateOrderStatus(orderId, updates);
       } catch (webhookError: any) {
-        console.warn(`[POST /api/orders/[orderId]/trigger-background-removal] Failed to call n8n webhook directly (router will handle):`, webhookError?.message);
-        // Continue - router will pick it up
+        console.warn(`[POST /api/orders/[orderId]/trigger-background-removal] Failed to call n8n webhook directly, queueing for router:`, webhookError?.message);
+        // Fallback: queue for router if direct call failed
+        const updates: any = {
+          next_workflow: '2B',
+          execution_status: 'ready_for_processing',
+          queued_at: new Date().toISOString(),
+          started_at: null,
+          current_workflow: null
+        };
+        
+        if (currentOrder.review_stages) {
+          updates.review_stages = currentOrder.review_stages;
+        }
+        
+        await updateOrderStatus(orderId, updates);
       }
+    } else {
+      // Normal flow: queue for router (don't call webhook directly)
+      const updates: any = {
+        next_workflow: '2B',
+        execution_status: 'ready_for_processing',
+        queued_at: new Date().toISOString(),
+        started_at: null,
+        current_workflow: null
+      };
+      
+      // Preserve review_stages if they exist (to maintain approvals)
+      if (currentOrder.review_stages) {
+        updates.review_stages = currentOrder.review_stages;
+      }
+      
+      await updateOrderStatus(orderId, updates);
     }
     
     console.log(`[POST /api/orders/[orderId]/trigger-background-removal] ✅ Queued order ${orderId} for W2B via router`);
