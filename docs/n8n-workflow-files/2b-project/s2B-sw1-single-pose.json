@@ -368,7 +368,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "/**\n * Mark as Needs Review - Set additional tracking fields for failed QA cases\n * Matches original workflow's \"Mark as Needs Review\" node behavior\n */\nconst j = $json || {};\n\n// Mark as failed\nj.qaPass = false;\nj.success = false;\nj.qa = j.qa || {};\nj.qa.combined = { pass: false };\n\n// Track for backend\nj.needsReview = true;\nj.reviewReason = j.reviewReason || 'transparency_fail';\nj.route = 'manual_review';\n\n// Ensure retryAttempt shows exhausted (at least 3)\nj.retryAttempt = Math.max(j.retryAttempt || 0, j.retry?.attempt || 0, 3);\n\nreturn [{ json: j, binary: {} }];\n"
+        "jsCode": "/**\n * Mark as Needs Review - Set additional tracking fields for failed QA cases\n * Matches original workflow's \"Mark as Needs Review\" node behavior\n */\nconst j = $json || {};\n\n// Mark as failed\nj.qaPass = false;\nj.success = false;\nj.qa = j.qa || {};\nj.qa.combined = { pass: false };\n\n// Track for backend\nj.needsReview = true;\nj.reviewReason = j.reviewReason || 'transparency_fail';\nj.route = 'manual_review';\n\n// Ensure retryAttempt shows exhausted (at least 3)\nj.retryAttempt = Math.max(j.retryAttempt || 0, j.retry?.attempt || 0, 3);\n\n// For runOnceForEachItem mode, return single object, not array\nreturn { json: j, binary: {} };\n"
       },
       "id": "707a3751-74c7-48cb-9f6d-170929bf5634",
       "name": "Mark as Needs Review",
@@ -382,7 +382,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "/**\n * Drop Heavy Fields - Remove large data fields to reduce memory\n * Preserves essential metadata for callback\n */\nconst j = $json || {};\n\nconst cleaned = { ...j };\n// Remove heavy fields that aren't needed downstream\ndelete cleaned.extractedImageData;\ndelete cleaned.poseBase64;\ndelete cleaned.characterBase64;\ndelete cleaned.requestBody;\ndelete cleaned.geminiRequest; // Already processed\n// Preserve: poseNumber, orderId, characterHash, briaStatus, qa, needsReview, etc.\n\nreturn [{ json: cleaned, binary: {} }];\n"
+        "jsCode": "/**\n * Drop Heavy Fields - Remove large data fields to reduce memory\n * Preserves essential metadata for callback\n */\nconst j = $json || {};\n\nconst cleaned = { ...j };\n// Remove heavy fields that aren't needed downstream\ndelete cleaned.extractedImageData;\ndelete cleaned.poseBase64;\ndelete cleaned.characterBase64;\ndelete cleaned.requestBody;\ndelete cleaned.geminiRequest; // Already processed\n// Preserve: poseNumber, orderId, characterHash, briaStatus, qa, needsReview, etc.\n\n// For runOnceForEachItem mode, return single object, not array\nreturn { json: cleaned, binary: {} };\n"
       },
       "id": "97dbe159-4bad-4517-83d2-c2ed099af6fa",
       "name": "Drop Heavy Fields",
