@@ -30,7 +30,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.BRIA_REMOVE_BG_URL || 'https://api.bria.ai/v1/remove-background' }}",
+        "url": "=https://api.bria.ai/v1/remove-background",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -101,7 +101,7 @@
           "parameters": [
             {
               "name": "api_token",
-              "value": "={{ $env.BRIA_API_KEY || '' }}"
+              "value": "=eb0fed5156c441148c462a74d3f92f00"
             }
           ]
         },
@@ -125,7 +125,7 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Decide: continue polling vs completed vs failed/timeout.\n */\nconst poll = $json || {};\nlet ctx = {};\ntry { ctx = $items('Extract Bria Tracking', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst maxAttempts = Number($env.BRIA_MAX_POLL_ATTEMPTS || 20);\nconst attempt = Number(ctx.attempt || 0) + 1;\n\nconst status = (poll.status || poll.state || poll.data?.status || '').toLowerCase();\nconst resultUrl = poll.result_url || poll.resultUrl || poll.data?.result_url || poll.data?.resultUrl || null;\nconst errMsg = poll.error?.message || poll.message || poll.data?.error || null;\n\n// Normalize terminal states\nif (status === 'completed' || status === 'done' || (resultUrl && !status)) {\n  if (!resultUrl) throw new Error('s2B-sw1: completed but missing result_url');\n  return [{ json: { ...ctx, attempt, briaStatus: 'completed', briaResultUrl: resultUrl, briaErrorMessage: null } }];\n}\nif (status === 'failed' || status === 'error') {\n  return [{ json: { ...ctx, attempt, briaStatus: 'failed', briaResultUrl: null, briaErrorMessage: errMsg || 'Bria failed' } }];\n}\n\nif (attempt >= maxAttempts) {\n  return [{ json: { ...ctx, attempt, briaStatus: 'timeout', briaResultUrl: null, briaErrorMessage: `Timeout after ${maxAttempts} polls` } }];\n}\n\n// Continue\nreturn [{ json: { ...ctx, attempt, briaStatus: 'polling', briaResultUrl: null } }];\n"
+        "jsCode": "/**\n * Decide: continue polling vs completed vs failed/timeout.\n */\nconst poll = $json || {};\nlet ctx = {};\ntry { ctx = $items('Extract Bria Tracking', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst maxAttempts = 20;\nconst attempt = Number(ctx.attempt || 0) + 1;\n\nconst status = (poll.status || poll.state || poll.data?.status || '').toLowerCase();\nconst resultUrl = poll.result_url || poll.resultUrl || poll.data?.result_url || poll.data?.resultUrl || null;\nconst errMsg = poll.error?.message || poll.message || poll.data?.error || null;\n\n// Normalize terminal states\nif (status === 'completed' || status === 'done' || (resultUrl && !status)) {\n  if (!resultUrl) throw new Error('s2B-sw1: completed but missing result_url');\n  return [{ json: { ...ctx, attempt, briaStatus: 'completed', briaResultUrl: resultUrl, briaErrorMessage: null } }];\n}\nif (status === 'failed' || status === 'error') {\n  return [{ json: { ...ctx, attempt, briaStatus: 'failed', briaResultUrl: null, briaErrorMessage: errMsg || 'Bria failed' } }];\n}\n\nif (attempt >= maxAttempts) {\n  return [{ json: { ...ctx, attempt, briaStatus: 'timeout', briaResultUrl: null, briaErrorMessage: `Timeout after ${maxAttempts} polls` } }];\n}\n\n// Continue\nreturn [{ json: { ...ctx, attempt, briaStatus: 'polling', briaResultUrl: null } }];\n"
       },
       "id": "55644b19-46b3-416a-9ba4-da567a660104",
       "name": "Decide Poll",
@@ -409,7 +409,7 @@
     {
       "parameters": {
         "operation": "upload",
-        "bucketName": "={{ $env.R2_ORDERS_BUCKET || 'little-hero-orders' }}",
+        "bucketName": "=little-hero-orders",
         "fileName": "={{ $json.bgRemovedKey }}",
         "additionalFields": {}
       },
