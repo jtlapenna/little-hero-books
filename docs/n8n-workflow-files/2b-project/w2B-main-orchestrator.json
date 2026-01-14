@@ -4,16 +4,16 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "bg-removal-v2",
+        "path": "bg-removal",
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "68c0ca81-869f-4af4-8aa8-f13b1aa4d5b0",
+      "id": "0342f1ed-7a96-4b34-a64f-bb7d70f3aa4e",
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -1680,
+        -2128,
         -208
       ],
       "webhookId": "41599fba-eff6-48b2-bc4a-60e2c3acecf8"
@@ -26,12 +26,12 @@
           "responseCode": 200
         }
       },
-      "id": "05255d6e-e814-4df6-845d-1ee2a28bd116",
+      "id": "4cc8136d-edf5-4283-be32-f6b104aaf83b",
       "name": "Respond to Webhook (Ack)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        -1456,
+        -1904,
         -208
       ]
     },
@@ -39,12 +39,12 @@
       "parameters": {
         "jsCode": "/**\n * Normalize 2B orchestrator input (JSON-only)\n */\nconst input = $json || {};\nconst body = input.body && input.body !== input ? input.body : input;\n\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\n\nconst orderId = pick(input.orderId, input.amazonOrderId, body.orderId, body.amazonOrderId, null);\nif (!orderId) throw new Error('2B main: orderId is required');\n\n// 2A manifest URL\nlet manifestUrl = pick(input.manifestUrl, input.originalManifestUrl, body.manifestUrl, body.originalManifestUrl, null);\nif (!manifestUrl) {\n  const base = pick(input.backendUrl, body.backendUrl, 'https://admin.littleherolabs.com');\n  manifestUrl = `${base}/api/manifests/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2a-manifest.json`;\n}\n\nconst backendUrl = pick(input.backendUrl, body.backendUrl, 'https://admin.littleherolabs.com');\nconst callbackUrl = pick(input.callbackUrl, body.callbackUrl, `${backendUrl}/webhook/2b-callback`);\n\n// n8n Cloud-friendly: pass sw1 workflow id in the request payload (or set it directly in the Execute Workflow node UI)\nconst sw1WorkflowId = pick(input.sw1WorkflowId, body.sw1WorkflowId, null);\n\nconst batchSize = Math.max(1, Math.min(3, Number(pick(input.batchSize, body.batchSize, 1)) || 1));\nconst force = !!pick(input.force, body.force, false);\n\nreturn [{ json: { orderId, backendUrl, manifestUrl, callbackUrl, sw1WorkflowId, batchSize, force } }];\n"
       },
-      "id": "29a13a8f-09a7-4606-be94-fb0c0a2807f6",
+      "id": "e46d9b87-554f-497f-9b71-70f5d1f97d56",
       "name": "Normalize 2B Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1232,
+        -1680,
         -208
       ]
     },
@@ -60,12 +60,12 @@
           "timeout": 90000
         }
       },
-      "id": "4fec6b19-c908-422a-b719-67a0016c5936",
+      "id": "8a3e3ba9-6a50-4d24-baff-fafa049b18b3",
       "name": "Download 2A Manifest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -992,
+        -1440,
         -208
       ]
     },
@@ -81,26 +81,97 @@
           "timeout": 90000
         }
       },
-      "id": "372abdd5-a408-4e94-aec1-17766de61944",
+      "id": "363d15a2-12c1-4824-9796-496d43df2961",
       "name": "Download 2B Manifest (optional)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -752,
+        -1200,
         -208
       ]
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Build pose worklist (idempotent + replacement-aware)\n * Async mode: we only trigger s2B-sw1 and return.\n */\nconst manifest2a = $json || {};\nif (!manifest2a.schema) throw new Error('2B main: expected manifest JSON from Download 2A Manifest');\n\n// Recover context from Normalize node (HTTP nodes overwrite input)\nlet ctx = {};\ntry { ctx = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst orderId = ctx.orderId || manifest2a.order?.amazonOrderId || manifest2a.order?.orderId;\nconst characterHash = manifest2a.characterHash || manifest2a.order?.characterHash || null;\nif (!orderId) throw new Error('2B main: orderId missing after manifest download');\nif (!characterHash) throw new Error('2B main: characterHash missing');\n\nconst approved = (manifest2a.entries || []).filter(e => e?.approved && e?.status === 'approved');\nif (!approved.length) return [{ json: { orderId, characterHash, scheduled: 0, reason: 'NO_APPROVED_POSES' } }];\n\n// Existing 2B manifest (optional) from the previous node\nlet existing2b = null;\ntry {\n  const maybe = $items('Download 2B Manifest (optional)', 0, $runIndex)?.[0]?.json;\n  if (maybe && maybe.schema === 'lhb.run-manifest@v2.0') existing2b = maybe;\n} catch {}\n\nconst existingEntries = Array.isArray(existing2b?.entries) ? existing2b.entries : [];\nconst existingByPose = new Map(existingEntries.map(e => [Number(e.poseNumber), e]));\n\n// NOTE: existing 2B manifest lookup occurs in callback for MVP to keep orchestrator lean\n// Idempotency can still be applied in callback using sourceApprovedKey/sourceReplacedAt.\n\nconst backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\nconst callbackUrl = ctx.callbackUrl;\nconst force = !!ctx.force;\n\nconst work = approved\n  .filter(p => {\n    if (force) return true;\n    const poseNum = Number(p?.poseNumber);\n    \n    // Check 2A manifest for existing Bria status (prevent duplicate submissions)\n    const hasBriaStatus = !!(p.briaStatusUrl || p.briaRequestId);\n    if (hasBriaStatus) {\n      console.log(`✓ Pose ${poseNum}: Already has Bria status, skipping submission`);\n      return false; // Skip - already submitted\n    }\n    \n    // Existing 2B manifest check (keep as-is)\n    const ex = existingByPose.get(poseNum);\n    if (!ex) return true;\n    const srcKey = p.approvedKey || null;\n    const srcReplacedAt = p.replacedAt || null;\n    const srcReplacementCount = Number(p.replacementCount || 0);\n    const done = !!(\n      ex.bgRemovedKey &&\n      String(ex.briaStatus || '').toLowerCase() === 'completed' &&\n      (ex.sourceApprovedKey || null) === srcKey &&\n      ((ex.sourceReplacedAt || null) === srcReplacedAt || Number(ex.sourceReplacementCount || 0) === srcReplacementCount)\n    );\n    return !done;\n  })\n  .map(p => ({\n  orderId,\n  characterHash,\n  poseNumber: p.poseNumber,\n  approvedKey: p.approvedKey,\n  replacedAt: p.replacedAt || null,\n  replacementCount: Number(p.replacementCount || 0),\n  manifest2aUrl: ctx.manifestUrl || null,\n  backendUrl,\n  callbackUrl,\n  force\n}));\n\n// Emit one item per pose for SplitInBatches\nreturn work.map(w => ({ json: w }));\n"
+        "jsCode": "/**\n * Build pose worklist (idempotent + replacement-aware)\n * Async mode: we only trigger s2B-sw1 and return.\n */\nconst manifest2a = $json || {};\nif (!manifest2a.schema) throw new Error('2B main: expected manifest JSON from Download 2A Manifest');\n\n// Recover context from Normalize node (HTTP nodes overwrite input)\nlet ctx = {};\ntry { ctx = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst orderId = ctx.orderId || manifest2a.order?.amazonOrderId || manifest2a.order?.orderId;\nconst characterHash = manifest2a.characterHash || manifest2a.order?.characterHash || null;\nif (!orderId) throw new Error('2B main: orderId missing after manifest download');\nif (!characterHash) throw new Error('2B main: characterHash missing');\n\nconst approved = (manifest2a.entries || []).filter(e => e?.approved && e?.status === 'approved');\nif (!approved.length) return [{ json: { orderId, characterHash, scheduled: 0, reason: 'NO_APPROVED_POSES' } }];\n\n// Existing 2B manifest (optional) from the previous node\nlet existing2b = null;\ntry {\n  const maybe = $items('Download 2B Manifest (optional)', 0, $runIndex)?.[0]?.json;\n  if (maybe && maybe.schema === 'lhb.run-manifest@v2.0') existing2b = maybe;\n} catch {}\n\nconst existingEntries = Array.isArray(existing2b?.entries) ? existing2b.entries : [];\nconst existingByPose = new Map(existingEntries.map(e => [Number(e.poseNumber), e]));\n\n// NOTE: existing 2B manifest lookup occurs in callback for MVP to keep orchestrator lean\n// Idempotency can still be applied in callback using sourceApprovedKey/sourceReplacedAt.\n\nconst backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\nconst callbackUrl = ctx.callbackUrl;\nconst force = !!ctx.force;\n\nlet skippedCount = 0;\nlet skippedByBriaStatus = 0;\nlet skippedBy2BManifest = 0;\n\nconst work = approved\n  .filter(p => {\n    if (force) return true;\n    const poseNum = Number(p?.poseNumber);\n    \n    // Check 2A manifest for existing Bria status (prevent duplicate submissions)\n    const hasBriaStatus = !!(p.briaStatusUrl || p.briaRequestId);\n    if (hasBriaStatus) {\n      console.log(`✓ Pose ${poseNum}: Already has Bria status, skipping submission`);\n      skippedByBriaStatus++;\n      skippedCount++;\n      return false; // Skip - already submitted\n    }\n    \n    // Existing 2B manifest check (keep as-is)\n    const ex = existingByPose.get(poseNum);\n    if (!ex) return true;\n    const srcKey = p.approvedKey || null;\n    const srcReplacedAt = p.replacedAt || null;\n    const srcReplacementCount = Number(p.replacementCount || 0);\n    const done = !!(\n      ex.bgRemovedKey &&\n      String(ex.briaStatus || '').toLowerCase() === 'completed' &&\n      (ex.sourceApprovedKey || null) === srcKey &&\n      ((ex.sourceReplacedAt || null) === srcReplacedAt || Number(ex.sourceReplacementCount || 0) === srcReplacementCount)\n    );\n    if (done) {\n      skippedBy2BManifest++;\n      skippedCount++;\n    }\n    return !done;\n  })\n  .map(p => ({\n  orderId,\n  characterHash,\n  poseNumber: p.poseNumber,\n  approvedKey: p.approvedKey,\n  replacedAt: p.replacedAt || null,\n  replacementCount: Number(p.replacementCount || 0),\n  manifest2aUrl: ctx.manifestUrl || null,\n  backendUrl,\n  callbackUrl,\n  force\n}));\n\n// If all poses were skipped, emit a summary item instead of empty array\nif (work.length === 0 && approved.length > 0) {\n  return [{ json: { \n    orderId, \n    characterHash, \n    scheduled: 0, \n    reason: 'ALL_POSES_ALREADY_PROCESSED',\n    totalApproved: approved.length,\n    skippedByBriaStatus,\n    skippedBy2BManifest,\n    skippedTotal: skippedCount\n  } }];\n}\n\n// Emit one item per pose for SplitInBatches\nreturn work.map(w => ({ json: w }));\n"
       },
-      "id": "a16703a6-533a-4d9b-ad60-6b83aaf810f2",
+      "id": "d70f926e-ece2-4c19-ad9f-d4cd879e704f",
       "name": "Build Worklist",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -512,
+        -960,
         -208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-skip-reason",
+              "leftValue": "={{ $json.reason }}",
+              "rightValue": "ALL_POSES_ALREADY_PROCESSED",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "If All Poses Skipped",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -720,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $items('Normalize 2B Input')[0].json.backendUrl || 'https://admin.littleherolabs.com' }}/api/webhooks/workflow-2b-skipped",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.BACKEND_API_TOKEN || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { orderId: $json.orderId, characterHash: $json.characterHash, reason: $json.reason, totalApproved: $json.totalApproved, skippedByBriaStatus: $json.skippedByBriaStatus, skippedBy2BManifest: $json.skippedBy2BManifest, skippedTotal: $json.skippedTotal } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "Notify Backend: All Poses Skipped",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -480,
+        -320
       ]
     },
     {
@@ -108,13 +179,13 @@
         "batchSize": "={{ $items('Normalize 2B Input')[0].json.batchSize }}",
         "options": {}
       },
-      "id": "9fb4e241-8dd3-48c7-bb2a-9a250a8a5e47",
+      "id": "eea55366-c6cb-4000-8085-a802d5ac61de",
       "name": "Split In Batches",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -272,
-        -208
+        -720,
+        -64
       ]
     },
     {
@@ -123,12 +194,12 @@
         "workflowUrl": "https://thepeakbeyond.app.n8n.cloud/workflow/qmk3cTggZlR2WQHA",
         "options": {}
       },
-      "id": "e32a6904-385f-4931-853c-ff64f0fdafab",
+      "id": "e42cd603-dd8c-4a4c-ae2b-460be69f7a21",
       "name": "Execute Workflow: s2B-sw1",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        -32,
+        -480,
         -320
       ]
     },
@@ -136,12 +207,12 @@
       "parameters": {
         "jsCode": "/**\n * Final response payload (does not wait for workers).\n */\nconst items = $items('Build Worklist', 0, $runIndex) || [];\nlet ctx = {};\ntry { ctx = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\nreturn [{ json: { orderId: ctx.orderId, scheduled: items.length, callbackUrl: ctx.callbackUrl, batchSize: ctx.batchSize } }];\n"
       },
-      "id": "86de4dfc-fa04-42fd-a780-d9fe7cd3dacc",
+      "id": "c48a9e9e-74a2-40e3-abc1-9a68e35404b2",
       "name": "Final Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -32,
+        -480,
         -64
       ]
     },
@@ -174,17 +245,58 @@
           "timeout": 90000
         }
       },
-      "id": "f42322af-0ca0-42bd-81c9-b9015b9001da",
+      "id": "c41b865e-68c0-47fe-8b4f-9c2243475be6",
       "name": "Notify Backend: BRIA_READY",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        208,
+        -240,
         -64
       ]
     }
   ],
-  "pinData": {},
+  "pinData": {
+    "Webhook Trigger": [
+      {
+        "json": {
+          "headers": {
+            "host": "thepeakbeyond.app.n8n.cloud",
+            "user-agent": "axios/1.12.0",
+            "content-length": "138",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "4.182.88.118",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "DE",
+            "cf-ray": "9bda2ad804b3906d-FRA",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "idempotency-key": "112-7311035-1437035-2B",
+            "x-forwarded-for": "4.182.88.118, 172.70.247.136",
+            "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-n8pcb",
+            "x-is-trusted": "yes",
+            "x-real-ip": "4.182.88.118"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "orderId": "112-7311035-1437035",
+            "characterHash": "cc388d1f43eef3cc",
+            "orderDbId": 313,
+            "workflow": "2B",
+            "claimedAt": "2026-01-14T03:50:06.896"
+          },
+          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
   "connections": {
     "Webhook Trigger": {
       "main": [
@@ -234,7 +346,36 @@
       "main": [
         [
           {
+            "node": "If All Poses Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If All Poses Skipped": {
+      "main": [
+        [
+          {
+            "node": "Notify Backend: All Poses Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Backend: All Poses Skipped": {
+      "main": [
+        [
+          {
+            "node": "Final Summary",
             "type": "main",
             "index": 0
           }
@@ -282,11 +423,11 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "5a72cc64-43d7-41c8-a008-8ca0b0416828",
+  "versionId": "0e64931d-c25f-4b83-aaca-e9e98fb3f316",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },

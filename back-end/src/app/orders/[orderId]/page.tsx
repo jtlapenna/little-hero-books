@@ -1204,6 +1204,33 @@ export default function OrderDetailPage() {
               </div>
             )}
             
+            {order.lastSkipReason && (
+              <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <div className="flex flex-col gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-blue-900">
+                      Last Workflow Skip: {order.lastSkipReason === 'ALL_POSES_ALREADY_PROCESSED' 
+                        ? 'All Poses Already Processed' 
+                        : order.lastSkipReason.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())}
+                    </p>
+                    {order.lastSkipAt && (
+                      <p className="text-xs text-blue-700 mt-1">
+                        Skipped at: {formatDate(order.lastSkipAt)}
+                      </p>
+                    )}
+                    {order.lastSkipDetails && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        {order.lastSkipDetails.skippedTotal} of {order.lastSkipDetails.totalApproved} poses skipped
+                        {order.lastSkipDetails.skippedByBriaStatus > 0 && (
+                          <span> ({order.lastSkipDetails.skippedByBriaStatus} by Bria status, {order.lastSkipDetails.skippedBy2BManifest} by 2B manifest)</span>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {order.status === OrderStatus.AI_GENERATION_IN_PROGRESS && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
@@ -1225,6 +1252,88 @@ export default function OrderDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* Force Regeneration Section */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <h3 className="text-sm font-semibold text-yellow-900 mb-3">Force Regeneration</h3>
+              <p className="text-xs text-yellow-800 mb-3">
+                Clear workflow status fields and trigger regeneration. This will recreate assets even if they already exist.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={async () => {
+                    if (!confirm('This will clear 2A assets and regenerate. Continue?')) return;
+                    try {
+                      const res = await fetch(`/api/admin/orders/${order.orderId}/regenerate-2a`, { method: 'POST' });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error || 'Failed to regenerate 2A');
+                      alert('2A regeneration queued successfully');
+                      // Refresh order data
+                      window.location.reload();
+                    } catch (error: any) {
+                      alert(`Error: ${error.message}`);
+                    }
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium bg-yellow-600 text-white rounded hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                >
+                  Regenerate 2A
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm('This will clear 2B assets and regenerate. Continue?')) return;
+                    try {
+                      const res = await fetch(`/api/admin/orders/${order.orderId}/regenerate-2b`, { method: 'POST' });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error || 'Failed to regenerate 2B');
+                      alert('2B regeneration queued successfully');
+                      // Refresh order data
+                      window.location.reload();
+                    } catch (error: any) {
+                      alert(`Error: ${error.message}`);
+                    }
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium bg-yellow-600 text-white rounded hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                >
+                  Regenerate 2B
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm('This will clear 3 (Book Assembly) assets and regenerate. Continue?')) return;
+                    try {
+                      const res = await fetch(`/api/admin/orders/${order.orderId}/regenerate-3`, { method: 'POST' });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error || 'Failed to regenerate 3');
+                      alert('3 regeneration queued successfully');
+                      // Refresh order data
+                      window.location.reload();
+                    } catch (error: any) {
+                      alert(`Error: ${error.message}`);
+                    }
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium bg-yellow-600 text-white rounded hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                >
+                  Regenerate 3
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm('This will clear 4 (Print Fulfillment) status and regenerate. Continue?')) return;
+                    try {
+                      const res = await fetch(`/api/admin/orders/${order.orderId}/regenerate-4`, { method: 'POST' });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error || 'Failed to regenerate 4');
+                      alert('4 regeneration queued successfully');
+                      // Refresh order data
+                      window.location.reload();
+                    } catch (error: any) {
+                      alert(`Error: ${error.message}`);
+                    }
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium bg-yellow-600 text-white rounded hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                >
+                  Regenerate 4
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Character & Book Details */}

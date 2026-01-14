@@ -15,7 +15,16 @@ async function triggerBackgroundRemoval(
 ) {
   const { orderId } = await params;
   
-  console.log(`[POST /api/orders/[orderId]/trigger-background-removal] Queueing order ${orderId} for 2B workflow via router`);
+  // Parse request body for optional force parameter
+  let force = false;
+  try {
+    const body = await request.json().catch(() => ({}));
+    force = !!body.force;
+  } catch {
+    // Body parsing failed, use default
+  }
+  
+  console.log(`[POST /api/orders/[orderId]/trigger-background-removal] Queueing order ${orderId} for 2B workflow via router${force ? ' (force=true)' : ''}`);
   
   // Validate order ID
   if (!orderId || typeof orderId !== 'string') {
@@ -49,14 +58,40 @@ async function triggerBackgroundRemoval(
     }
     
     await updateOrderStatus(orderId, updates);
+    
+    // If force=true, also call n8n webhook directly with force parameter
+    if (force) {
+      const n8n2BWebhookUrl = process.env.N8N_2B_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal';
+      try {
+        await fetch(n8n2BWebhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId,
+            characterHash: currentOrder.character_hash || undefined,
+            force: true,
+          }),
+        });
+        console.log(`[POST /api/orders/[orderId]/trigger-background-removal] ✅ Also called n8n webhook directly with force=true`);
+      } catch (webhookError: any) {
+        console.warn(`[POST /api/orders/[orderId]/trigger-background-removal] Failed to call n8n webhook directly (router will handle):`, webhookError?.message);
+        // Continue - router will pick it up
+      }
+    }
+    
     console.log(`[POST /api/orders/[orderId]/trigger-background-removal] ✅ Queued order ${orderId} for W2B via router`);
     
     return NextResponse.json({
       success: true,
-      message: 'Order queued for background removal workflow. Router will process it when capacity is available.',
+      message: force 
+        ? 'Order queued for background removal workflow with force=true. Router will process it when capacity is available.'
+        : 'Order queued for background removal workflow. Router will process it when capacity is available.',
       orderId,
       next_workflow: '2B',
-      execution_status: 'ready_for_processing'
+      execution_status: 'ready_for_processing',
+      force
     });
   } catch (error: any) {
     console.error(`[POST /api/orders/[orderId]/trigger-background-removal] Error queueing order:`, error);

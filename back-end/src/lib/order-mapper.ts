@@ -130,6 +130,11 @@ export async function mapSupabaseOrderToOrder(
     queuedAt: toIsoString(record.queued_at),
     createdAt: toIsoString(record.created_at),
     updatedAt: toIsoString(record.updated_at),
+    lastSkipReason: record.last_skip_reason || undefined,
+    lastSkipAt: toIsoString(record.last_skip_at),
+    lastSkipDetails: record.last_skip_details && typeof record.last_skip_details === 'object' 
+      ? record.last_skip_details as { totalApproved: number; skippedByBriaStatus: number; skippedBy2BManifest: number; skippedTotal: number }
+      : undefined,
     webhooks: {
       onApprove:
         record.webhook_url ||

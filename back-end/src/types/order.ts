@@ -86,6 +86,14 @@ export interface Order {
     posesBgRemoved: any[];
   };
   latestCustomerCorrection?: CustomerCorrection | null;
+  lastSkipReason?: string; // last_skip_reason from Supabase
+  lastSkipAt?: string; // last_skip_at from Supabase
+  lastSkipDetails?: { // last_skip_details from Supabase
+    totalApproved: number;
+    skippedByBriaStatus: number;
+    skippedBy2BManifest: number;
+    skippedTotal: number;
+  };
 }
 
 export interface OrderListItem {
