@@ -431,7 +431,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "/**\n * Clean Binary After Upload - Remove binary data to reduce memory\n * Preserves JSON metadata needed for callback\n */\nconst j = $json || {};\n\n// Validate required fields\nconst poseNumber = Number(j.poseNumber);\nif (!Number.isFinite(poseNumber) || poseNumber < 0) {\n  throw new Error(`Invalid poseNumber: ${j.poseNumber}`);\n}\nif (!j.bgRemovedKey) {\n  throw new Error(`Missing bgRemovedKey for pose ${poseNumber}`);\n}\n\nconsole.log(`[Pose ${poseNumber}] ✓ Uploaded to R2: ${j.bgRemovedKey}`);\n\nreturn [{ \n  json: {\n    ...j,\n    // Preserve all JSON, drop binary\n  },\n  binary: {} // Clear binary data\n}];\n"
+        "jsCode": "/**\n * Clean Binary After Upload - Remove binary data to reduce memory\n * Preserves JSON metadata needed for callback\n */\nconst j = $json || {};\n\n// Validate required fields\nconst poseNumber = Number(j.poseNumber);\nif (!Number.isFinite(poseNumber) || poseNumber < 0) {\n  throw new Error(`Invalid poseNumber: ${j.poseNumber}`);\n}\nif (!j.bgRemovedKey) {\n  throw new Error(`Missing bgRemovedKey for pose ${poseNumber}`);\n}\n\nconsole.log(`[Pose ${poseNumber}] ✓ Uploaded to R2: ${j.bgRemovedKey}`);\n\n// For runOnceForEachItem mode, return single object, not array\nreturn { \n  json: {\n    ...j,\n    // Preserve all JSON, drop binary\n  },\n  binary: {} // Clear binary data\n};\n"
       },
       "id": "af2a3d24-3ee8-4449-afab-dd7a8c6baae9",
       "name": "Clean Binary After Upload",
