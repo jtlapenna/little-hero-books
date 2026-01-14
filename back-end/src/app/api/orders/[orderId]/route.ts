@@ -350,7 +350,11 @@ async function getOrder(
   const orderUpdatedAt = supabaseOrderRecord?.updated_at 
     ? new Date(supabaseOrderRecord.updated_at).getTime() 
     : Date.now();
-  const cacheBuster = orderUpdatedAt;
+  // Also use manifest updatedAt for more granular cache-busting per pose
+  const manifest2bUpdatedAt = postBriaManifest?.updatedAt 
+    ? new Date(postBriaManifest.updatedAt).getTime() 
+    : null;
+  const cacheBuster = manifest2bUpdatedAt || orderUpdatedAt;
   
   // Pre-Bria poses: all "original" type images including pose0 (poseNumber >= 0)
   // But exclude base-character.png from poses (it's shown in Base Character section)
@@ -467,7 +471,11 @@ async function getOrder(
           const r2Key = entry.bgRemovedKey;
           // Always use our proxy endpoint; it supports BOTH public + orders buckets.
           // Do not require a public URL (orders bucket keys won't have one).
-          const proxyUrl = r2Key ? `/api/assets/${r2Key}` : '';
+          // Add cache-busting using entry's processedAt or manifest's updatedAt
+          const entryProcessedAt = entry.processedAt 
+            ? new Date(entry.processedAt).getTime() 
+            : manifest2bUpdatedAt || orderUpdatedAt;
+          const proxyUrl = r2Key ? `/api/assets/${r2Key}?v=${entryProcessedAt}` : '';
           
           poseMap.set(poseNum, {
             poseNumber: poseNum,
@@ -510,8 +518,18 @@ async function getOrder(
           // isFlagged should come from manifest entry, not from existingPose (which doesn't have this field)
           const isFlagged = manifestEntry?.isFlagged || needsReview || false;
           
+          // Update URL with cache-busting if manifest entry has processedAt (newer image)
+          let url = existingPose.url;
+          if (manifestEntry?.processedAt) {
+            const entryProcessedAt = new Date(manifestEntry.processedAt).getTime();
+            // Remove existing cache-buster and add new one
+            const baseUrl = url.split('?')[0];
+            url = `${baseUrl}?v=${entryProcessedAt}`;
+          }
+          
           postBriaPoses.push({
             ...existingPose,
+            url,
             needsReview: needsReview,
             reviewReason: reviewReason,
             isFlagged: isFlagged,
@@ -524,7 +542,11 @@ async function getOrder(
           // Construct URL from manifest's bgRemovedKey
           const r2Key = manifestEntry.bgRemovedKey;
           // Always proxy from the key; don't gate on a public URL.
-          const proxyUrl = r2Key ? `/api/assets/${r2Key}` : '';
+          // Add cache-busting using entry's processedAt or manifest's updatedAt
+          const entryProcessedAt = manifestEntry.processedAt 
+            ? new Date(manifestEntry.processedAt).getTime() 
+            : manifest2bUpdatedAt || orderUpdatedAt;
+          const proxyUrl = r2Key ? `/api/assets/${r2Key}?v=${entryProcessedAt}` : '';
           
           // Use manifest entry's needsReview and reviewReason (e.g., transparency_fail)
           const needsReview = manifestEntry?.needsReview || !proxyUrl;
