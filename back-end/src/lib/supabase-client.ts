@@ -236,6 +236,11 @@ export async function updateOrderInSupabase(orderId: string, updates: any) {
     'manifest_3_url': 'manifest_3_url',
     'final_book_url': 'final_book_url',
     'final_cover_url': 'final_cover_url',
+    'execution_status': 'execution_status',
+    'next_workflow': 'next_workflow',
+    'current_workflow': 'current_workflow',
+    'queued_at': 'queued_at',
+    'started_at': 'started_at',
   };
   
   // Convert all fields to snake_case

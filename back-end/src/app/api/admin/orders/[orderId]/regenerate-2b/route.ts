@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
  * - briaStatus, briaRequestId, briaStatusUrl
  * - sourceApprovedKey, sourceReplacedAt, sourceReplacementCount
  * 
- * Triggers workflow with force=true
+ * Queues order for router (w1.1) to pick up and route to 2B workflow
  */
 export async function POST(
   request: NextRequest,
@@ -145,66 +145,30 @@ export async function POST(
     // Preserve review_stages when updating
     const review_stages = currentOrder.review_stages || {};
 
-    // For force regeneration, call n8n webhook directly with force=true (bypass router)
-    const n8n2BWebhookUrl = process.env.N8N_2B_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal';
-    
-    try {
-      const webhookResponse = await fetch(n8n2BWebhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId,
-          characterHash: currentOrder.character_hash || undefined,
-          force: true, // Force regeneration
-        }),
-      });
+    // Queue order for router (w1.1) to pick up and route to 2B
+    // Router will pick up orders with execution_status = 'ready_for_processing' and next_workflow = '2B'
+    // IMPORTANT: Must clear any existing processing state to allow router to pick it up
+    await updateOrderStatus(orderId, {
+      next_workflow: '2B', // Uppercase '2B' (router expects uppercase)
+      execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
+      queued_at: new Date().toISOString(),
+      started_at: null, // Clear started_at
+      current_workflow: null, // Clear current_workflow
+      review_stages,
+      // Clear any error/retry state that might prevent routing
+      error_message: null,
+      error_type: null,
+      retry_count: 0,
+      last_error_at: null,
+      next_retry_at: null,
+    });
 
-      if (!webhookResponse.ok) {
-        const errorText = await webhookResponse.text();
-        console.error(`[Regenerate 2B] n8n webhook failed:`, {
-          status: webhookResponse.status,
-          error: errorText.substring(0, 500),
-        });
-        // Fallback: queue for router if direct call failed
-        await updateOrderStatus(orderId, {
-          next_workflow: '2B',
-          execution_status: 'ready_for_processing',
-          queued_at: new Date().toISOString(),
-          started_at: null,
-          current_workflow: null,
-          review_stages,
-        });
-      } else {
-        console.log(`[Regenerate 2B] Successfully called n8n webhook with force=true`);
-        // Mark as processing to prevent router from picking it up
-        await updateOrderStatus(orderId, {
-          next_workflow: '2B',
-          execution_status: 'processing',
-          current_workflow: '2B',
-          started_at: new Date().toISOString(),
-          queued_at: null, // Clear queued_at so router doesn't pick it up
-          review_stages,
-        });
-      }
-    } catch (webhookError: any) {
-      console.error(`[Regenerate 2B] Error calling n8n webhook, queueing for router:`, webhookError?.message);
-      // Fallback: queue for router if direct call failed
-      await updateOrderStatus(orderId, {
-        next_workflow: '2B',
-        execution_status: 'ready_for_processing',
-        queued_at: new Date().toISOString(),
-        started_at: null,
-        current_workflow: null,
-        review_stages,
-      });
-    }
+    console.log(`[Regenerate 2B] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
 
     return NextResponse.json({
       success: true,
       orderId,
-      message: '2B workflow regeneration triggered with force=true. Manifests cleared and webhook called.',
+      message: '2B workflow regeneration queued. Manifests cleared. Router will pick up this order on next cron run.',
       manifest2aCleared: manifest2aModified,
       manifest2bCleared: manifest2bModified
     });
