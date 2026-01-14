@@ -119,7 +119,7 @@
     {
       "parameters": {
         "operation": "upload",
-        "bucketName": "={{ $env.R2_ORDERS_BUCKET || 'little-hero-orders' }}",
+        "bucketName": "=little-hero-orders",
         "fileName": "={{ $json.manifest2bKey }}",
         "additionalFields": {}
       },
@@ -162,7 +162,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + ($env.BACKEND_API_TOKEN || '') }}"
+              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
             },
             {
               "name": "Content-Type",
