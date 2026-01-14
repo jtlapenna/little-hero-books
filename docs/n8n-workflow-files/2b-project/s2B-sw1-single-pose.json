@@ -1,36 +1,36 @@
 {
-  "name": "s2B-sw1-single-pose",
+  "name": "S2B-SW1-single-pose",
   "nodes": [
     {
       "parameters": {
         "jsCode": "/**\n * s2B-sw1: single-pose Bria background removal\n * Input: one pose item from 2B main\n */\nconst j = $json || {};\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\n\nconst orderId = pick(j.orderId, null);\nconst characterHash = pick(j.characterHash, null);\nconst poseNumberRaw = pick(j.poseNumber, null);\nconst poseNumber = (poseNumberRaw === 0 || poseNumberRaw === '0') ? 0 : Number(poseNumberRaw);\nconst approvedKey = pick(j.approvedKey, null);\n\nif (!orderId) throw new Error('s2B-sw1: orderId required');\nif (!characterHash) throw new Error('s2B-sw1: characterHash required');\nif (!Number.isFinite(poseNumber)) throw new Error('s2B-sw1: poseNumber required');\nif (!approvedKey) throw new Error('s2B-sw1: approvedKey required');\n\nconst backendUrl = pick(j.backendUrl, 'https://admin.littleherolabs.com');\nconst callbackUrl = pick(j.callbackUrl, `${backendUrl}/webhook/2b-callback`);\n\nconst replacedAt = pick(j.replacedAt, null);\nconst replacementCount = Number(pick(j.replacementCount, 0) || 0);\nconst manifest2aUrl = pick(j.manifest2aUrl, null);\n\n// Build a replacement-aware cache-busted source URL via backend proxy (private bucket-safe)\nconst replacedAtMs = replacedAt ? Date.parse(String(replacedAt)) : NaN;\nconst v = Number.isFinite(replacedAtMs) ? replacedAtMs : (replacementCount > 0 ? replacementCount : Date.now());\nconst sourceUrl = `${backendUrl}/api/assets/${approvedKey}?v=${v}`;\n\nreturn [{ json: {\n  orderId, characterHash, poseNumber, approvedKey,\n  backendUrl, callbackUrl,\n  replacedAt, replacementCount, manifest2aUrl,\n  sourceUrl\n} }];\n"
       },
-      "id": "4919701f-1c2d-420a-8fec-3ca1766e39cc",
+      "id": "4f269168-9898-4562-a0b1-5d5f7c157019",
       "name": "Normalize Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1104,
-        -400
+        240,
+        0
       ]
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Build Bria remove-bg request payload (JSON).\n */\nconst j = $json;\n\n// Bria endpoint expects image_url and configuration (per existing 2B workflow)\nconst payload = {\n  image_url: j.sourceUrl,\n  sync: false\n};\n\nreturn [{ json: { ...j, bria: { payload } } }];\n"
+        "jsCode": "/**\n * Build Bria remove-bg request payload (JSON).\n * Bria API v2 expects 'image' field (not 'image_url')\n */\nconst j = $json;\n\n// Bria v2 endpoint expects 'image' field and configuration\nconst payload = {\n  image: j.sourceUrl,\n  sync: false\n};\n\nreturn [{ json: { ...j, bria: { payload } } }];\n"
       },
-      "id": "683e31c3-6a39-4287-abe0-225696e8f1a8",
+      "id": "517fba5c-e1fa-4242-a3d9-0b1af27c9b26",
       "name": "Build Bria Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -864,
-        -400
+        480,
+        0
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.bria.ai/v1/remove-background",
+        "url": "https://engine.prod.bria-api.com/v2/image/edit/remove_background",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -46,7 +46,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json.bria?.payload || { image_url: $json.sourceUrl, sync: false } }}",
+        "jsonBody": "={{ $json.bria?.payload || { image: $json.sourceUrl, sync: false } }}",
         "options": {
           "response": {
             "response": {
@@ -56,26 +56,26 @@
           "timeout": 90000
         }
       },
-      "id": "4f4e37e7-1fc0-4e1d-b08a-8d7968a6f633",
+      "id": "171e1d1b-c161-4e8d-a2ae-afed7513b16f",
       "name": "Bria Submit",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -624,
-        -400
+        720,
+        0
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Extract Bria status URL/requestId and begin bounded polling loop state.\n */\nconst resp = $json || {};\nlet ctx = {};\ntry { ctx = $items('Normalize Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst statusUrl = resp.status_url || resp.statusUrl || resp.data?.status_url || null;\nconst requestId = resp.request_id || resp.requestId || resp.data?.request_id || null;\nif (!statusUrl && !requestId) {\n  throw new Error('s2B-sw1: Bria submit did not return status_url/request_id');\n}\n\nreturn [{ json: { ...ctx, briaStatusUrl: statusUrl, briaRequestId: requestId, attempt: 0 } }];\n"
       },
-      "id": "2a49603c-0a69-48c9-b8fb-99723d20d074",
+      "id": "361d56bf-3360-4323-9040-56f160907352",
       "name": "Extract Bria Tracking",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -384,
-        -400
+        960,
+        0
       ]
     },
     {
@@ -83,13 +83,13 @@
         "amount": "={{ Math.min(90, 8 + Math.floor((Number($json.attempt || 0)) / 3) * 10) }}",
         "unit": "seconds"
       },
-      "id": "77bc1441-febe-4a2d-b3bd-829d3c3f997a",
+      "id": "ea3093bb-3639-4242-a514-8dcbcfa357d6",
       "name": "Wait",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [
-        -144,
-        -400
+        1200,
+        0
       ],
       "webhookId": "625a2118-7bc9-4ac6-906d-11255093ccaa"
     },
@@ -101,7 +101,7 @@
           "parameters": [
             {
               "name": "api_token",
-              "value": "=eb0fed5156c441148c462a74d3f92f00"
+              "value": "={{ $env.BRIA_API_KEY || '' }}"
             }
           ]
         },
@@ -114,26 +114,26 @@
           "timeout": 90000
         }
       },
-      "id": "6c2de0b4-37de-4ca3-8b34-2339db6bd1ed",
+      "id": "cd971e52-7ddb-4ba0-a831-8ef791fdbe5f",
       "name": "Bria Poll",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        96,
-        -400
+        1440,
+        0
       ]
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Decide: continue polling vs completed vs failed/timeout.\n */\nconst poll = $json || {};\nlet ctx = {};\ntry { ctx = $items('Extract Bria Tracking', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst maxAttempts = 20;\nconst attempt = Number(ctx.attempt || 0) + 1;\n\nconst status = (poll.status || poll.state || poll.data?.status || '').toLowerCase();\nconst resultUrl = poll.result_url || poll.resultUrl || poll.data?.result_url || poll.data?.resultUrl || null;\nconst errMsg = poll.error?.message || poll.message || poll.data?.error || null;\n\n// Normalize terminal states\nif (status === 'completed' || status === 'done' || (resultUrl && !status)) {\n  if (!resultUrl) throw new Error('s2B-sw1: completed but missing result_url');\n  return [{ json: { ...ctx, attempt, briaStatus: 'completed', briaResultUrl: resultUrl, briaErrorMessage: null } }];\n}\nif (status === 'failed' || status === 'error') {\n  return [{ json: { ...ctx, attempt, briaStatus: 'failed', briaResultUrl: null, briaErrorMessage: errMsg || 'Bria failed' } }];\n}\n\nif (attempt >= maxAttempts) {\n  return [{ json: { ...ctx, attempt, briaStatus: 'timeout', briaResultUrl: null, briaErrorMessage: `Timeout after ${maxAttempts} polls` } }];\n}\n\n// Continue\nreturn [{ json: { ...ctx, attempt, briaStatus: 'polling', briaResultUrl: null } }];\n"
+        "jsCode": "/**\n * Decide: continue polling vs completed vs failed/timeout.\n */\nconst poll = $json || {};\nlet ctx = {};\ntry { ctx = $items('Extract Bria Tracking', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst maxAttempts = Number($env.BRIA_MAX_POLL_ATTEMPTS || 20);\nconst attempt = Number(ctx.attempt || 0) + 1;\n\nconst status = (poll.status || poll.state || poll.data?.status || '').toLowerCase();\nconst resultUrl = poll.result_url || poll.resultUrl || poll.data?.result_url || poll.data?.resultUrl || null;\nconst errMsg = poll.error?.message || poll.message || poll.data?.error || null;\n\n// Normalize terminal states\nif (status === 'completed' || status === 'done' || (resultUrl && !status)) {\n  if (!resultUrl) throw new Error('s2B-sw1: completed but missing result_url');\n  return [{ json: { ...ctx, attempt, briaStatus: 'completed', briaResultUrl: resultUrl, briaErrorMessage: null } }];\n}\nif (status === 'failed' || status === 'error') {\n  return [{ json: { ...ctx, attempt, briaStatus: 'failed', briaResultUrl: null, briaErrorMessage: errMsg || 'Bria failed' } }];\n}\n\nif (attempt >= maxAttempts) {\n  return [{ json: { ...ctx, attempt, briaStatus: 'timeout', briaResultUrl: null, briaErrorMessage: `Timeout after ${maxAttempts} polls` } }];\n}\n\n// Continue\nreturn [{ json: { ...ctx, attempt, briaStatus: 'polling', briaResultUrl: null } }];\n"
       },
-      "id": "55644b19-46b3-416a-9ba4-da567a660104",
+      "id": "941b41b1-09f5-49f0-9bee-13a22aba4456",
       "name": "Decide Poll",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        336,
-        -400
+        1680,
+        0
       ]
     },
     {
@@ -160,13 +160,13 @@
         },
         "options": {}
       },
-      "id": "fbfce714-dd6c-4a46-a319-219e5499af95",
+      "id": "fe8965ab-d5cb-4b7b-a703-cac65a235a26",
       "name": "If Polling",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        544,
-        -400
+        1888,
+        0
       ]
     },
     {
@@ -193,13 +193,13 @@
         },
         "options": {}
       },
-      "id": "ed8f09b6-1e95-49b6-9bc1-5eb5b7012d27",
+      "id": "5088c7b8-f1d2-4dbd-b0e0-dd8bdf75a5b0",
       "name": "If Completed",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -1248,
-        -64
+        96,
+        336
       ]
     },
     {
@@ -214,26 +214,26 @@
           "timeout": 90000
         }
       },
-      "id": "1a9b9459-1fab-461c-bebe-f63bbc2b9cf2",
+      "id": "adc160fa-37ba-4f43-815d-d5bb8f11ca8e",
       "name": "Download BG Removed (Binary)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -944,
-        -80
+        400,
+        320
       ]
     },
     {
       "parameters": {
         "jsCode": "// Emits where to fetch the neon canvas from, and what to name its binary\nreturn [{\n  json: {\n    bgBucket: 'little-hero-assets',\n    bgKey: 'book-mvp-simple-adventure/backgrounds/transparency-qa/neon-background.png',\n    bgBinary: 'bg'\n  }\n}];\n"
       },
-      "id": "fcd7ff6d-2a53-489c-b4c5-74bf15f672d0",
+      "id": "09487efb-4db4-4e0d-858b-d940fcc91fa2",
       "name": "QA: Key for Neon BG",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -736,
-        -80
+        608,
+        320
       ]
     },
     {
@@ -242,13 +242,13 @@
         "fileKey": "={{ $json.bgKey }}",
         "binaryPropertyName": "={{ $json.bgBinary }}"
       },
-      "id": "76f596fb-3781-444e-92b9-98a9d3b3ae40",
+      "id": "a6a63933-5b62-4a60-987a-a43bfc2a8478",
       "name": "QA: Download Neon BG",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -528,
-        -80
+        816,
+        320
       ],
       "credentials": {
         "s3": {
@@ -264,13 +264,13 @@
         "dataPropertyNameComposite": "data",
         "options": {}
       },
-      "id": "ef6281b4-6672-42f8-85af-2d5c177e4440",
+      "id": "0b8d4f62-cb14-4d33-8213-728fc524dd36",
       "name": "QA: Composite BG + Character",
       "type": "n8n-nodes-base.editImage",
       "typeVersion": 1,
       "position": [
-        -288,
-        -80
+        1056,
+        320
       ]
     },
     {
@@ -278,13 +278,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "/**\n * Transparency QA Build Request — dual-image (composite + original) & filesystem-safe\n * Expects:\n *   - composite image under binary.bg  (from Edit Image → Composite base)\n *   - original cutout under binary.data (transparent PNG)\n * Emits:\n *   - json.geminiRequest (ready to POST)\n *   - drops binaries to keep memory low\n */\n\nconst idx = $itemIndex;\nconst bin = $input.item.binary || {};\n\nconst hasComposite = !!bin.bg;\nconst hasOriginal  = !!bin.data;\nconst compositeKey = hasComposite ? 'bg'   : Object.keys(bin)[0];\nconst originalKey  = hasOriginal  ? 'data' : Object.keys(bin)[1] || Object.keys(bin)[0];\n\nif (!compositeKey || !originalKey || !bin[compositeKey] || !bin[originalKey]) {\n  throw new Error('Expected binary.bg (composite) and binary.data (original) to be present.');\n}\n\nconst mimeComposite = bin[compositeKey].mimeType || 'image/png';\nconst mimeOriginal  = bin[originalKey].mimeType  || 'image/png';\n\nconst compBuf = await this.helpers.getBinaryDataBuffer(idx, compositeKey);\nconst origBuf = await this.helpers.getBinaryDataBuffer(idx, originalKey);\n\nconst compB64 = compBuf.toString('base64');\nconst origB64 = origBuf.toString('base64');\n\nconst qaPrompt = `\nTask: QA for accidental transparency holes *inside* the subject silhouette.\n\nYou are given two images:\n1) A composite image of the subject over a solid neon green background (#39FF14, RGB 57,255,20).\n2) The original PNG with a transparent background (has alpha channel).\n\nRules (be strict):\n- If ANY of the neon background color (#42f10c, ±5% tolerance) is visible *inside* the subject silhouette\n  (especially eyes/teeth/mouth/clothing/body), set \"needs_review\": true.\n- Use the original PNG's alpha to determine the silhouette. Any fully transparent area *not connected to the outer\n  transparent border* is an interior hole and must be flagged.\n- Ignore the outer green area around the figure and a 1–3 px antialias halo at the silhouette edge.\n- If uncertain, set \"needs_review\": true.\n- Be EXTRA careful when reviewing whites of the eyes and teeth.\n\nReturn strict JSON only (no markdown):\n{\"needs_review\": true|false, \"issues\": [\"...\"], \"confidence\": 0..1}\n`.trim();\n\nconst geminiRequest = {\n  contents: [{\n    role: \"user\",\n    parts: [\n      { text: qaPrompt },\n      { inline_data: { mime_type: mimeComposite, data: compB64 } },\n      { inline_data: { mime_type: mimeOriginal,  data: origB64 } }\n    ]\n  }],\n  generationConfig: {\n    response_mime_type: \"application/json\",\n    temperature: 0,\n    topP: 0\n  }\n};\n\nreturn {\n  json: {\n    ...$json,\n    qa: { ...( $json.qa || {} ), transparency: { requested: true, bgHex: \"#39FF14\" } },\n    geminiRequest\n  },\n  binary: {}\n};\n"
       },
-      "id": "1002de37-fe3f-4410-a50a-8daee43f1440",
+      "id": "455562f2-b3ea-4e30-83ae-8b526d7df0fe",
       "name": "QA: Build Gemini Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -48,
-        -80
+        1296,
+        320
       ]
     },
     {
@@ -304,13 +304,13 @@
           }
         }
       },
-      "id": "6e03271b-9d20-4e94-87b1-8f343fdf5ecd",
+      "id": "63627f09-974c-4628-8258-aabf61f65230",
       "name": "QA: Gemini Transparency",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        192,
-        -80
+        1536,
+        320
       ],
       "credentials": {
         "googlePalmApi": {
@@ -324,13 +324,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "/**\n * Parse Transparency QA Result (single item)\n * Recall-biased: fail if parse fails or confidence < 0.99\n */\nfunction extractText(resp) {\n  try {\n    const parts = resp?.candidates?.[0]?.content?.parts || [];\n    return parts.map(p => (p && typeof p.text === 'string' ? p.text : '')).join('\\n').trim();\n  } catch {\n    return '';\n  }\n}\n\nconst resp = $json || {};\nconst raw = extractText(resp);\n\nlet parsed = null;\ntry { parsed = raw ? JSON.parse(raw) : null; } catch { parsed = null; }\n\nconst needsReviewModel = parsed?.needs_review === true;\nconst confidence = Number.isFinite(parsed?.confidence) ? parsed.confidence : null;\n\nconst needsReview = needsReviewModel || !parsed || (confidence !== null && confidence < 0.99);\n\nconst issues = Array.isArray(parsed?.issues)\n  ? parsed.issues\n  : (raw ? [raw] : (needsReview ? ['Uncertain — manual check required'] : []));\n\nconst out = {\n  ...$json,\n  qa: {\n    ...($json.qa || {}),\n    transparency: { pass: !needsReview, issues, confidence }\n  },\n  needsReview,\n  reviewReason: needsReview ? 'transparency_fail_or_low_conf' : null,\n};\n\n// trim heavy fields\ndelete out.candidates; delete out.usageMetadata; delete out.modelVersion; delete out.responseId;\n\nreturn [{ json: out }];\n"
       },
-      "id": "780c506a-972b-44dd-a3be-6173c7e62b1c",
+      "id": "863643db-aabd-422a-895f-a9f12ee61277",
       "name": "QA: Parse Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        432,
-        -80
+        1776,
+        320
       ]
     },
     {
@@ -356,13 +356,13 @@
         },
         "options": {}
       },
-      "id": "187f17b8-4ab8-479d-bb10-27e434e2b0f7",
+      "id": "1173e57b-df90-4e0c-bdba-6a6b5a331a33",
       "name": "If Failed QA",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        672,
-        -80
+        2016,
+        320
       ]
     },
     {
@@ -370,13 +370,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "/**\n * Mark as Needs Review - Set additional tracking fields for failed QA cases\n * Matches original workflow's \"Mark as Needs Review\" node behavior\n */\nconst j = $json || {};\n\n// Mark as failed\nj.qaPass = false;\nj.success = false;\nj.qa = j.qa || {};\nj.qa.combined = { pass: false };\n\n// Track for backend\nj.needsReview = true;\nj.reviewReason = j.reviewReason || 'transparency_fail';\nj.route = 'manual_review';\n\n// Ensure retryAttempt shows exhausted (at least 3)\nj.retryAttempt = Math.max(j.retryAttempt || 0, j.retry?.attempt || 0, 3);\n\nreturn [{ json: j, binary: {} }];\n"
       },
-      "id": "0fe7a019-37e7-4d94-a7ce-455dc6ea022e",
+      "id": "707a3751-74c7-48cb-9f6d-170929bf5634",
       "name": "Mark as Needs Review",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -976,
-        384
+        368,
+        784
       ]
     },
     {
@@ -384,42 +384,42 @@
         "mode": "runOnceForEachItem",
         "jsCode": "/**\n * Drop Heavy Fields - Remove large data fields to reduce memory\n * Preserves essential metadata for callback\n */\nconst j = $json || {};\n\nconst cleaned = { ...j };\n// Remove heavy fields that aren't needed downstream\ndelete cleaned.extractedImageData;\ndelete cleaned.poseBase64;\ndelete cleaned.characterBase64;\ndelete cleaned.requestBody;\ndelete cleaned.geminiRequest; // Already processed\n// Preserve: poseNumber, orderId, characterHash, briaStatus, qa, needsReview, etc.\n\nreturn [{ json: cleaned, binary: {} }];\n"
       },
-      "id": "929021c3-acc4-413b-b18a-b86147702986",
+      "id": "97dbe159-4bad-4517-83d2-c2ed099af6fa",
       "name": "Drop Heavy Fields",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -736,
-        384
+        608,
+        784
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Prepare canonical R2 key and minimal metadata.\n */\nconst j = $json;\nconst poseNN = String(j.poseNumber).padStart(2,'0');\nconst bgRemovedKey = `book-mvp-simple-adventure/orders/${String(j.orderId)}/2b/pose${poseNN}_nobg.png`;\nreturn [{ json: { ...j, poseNN, bgRemovedKey, briaCompletedAt: new Date().toISOString() } }];\n"
       },
-      "id": "aa89e524-1238-424e-9f5f-606ae93646d2",
+      "id": "d2ac7489-f13f-4c87-9358-49ea6de168ed",
       "name": "Prep Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -496,
-        384
+        848,
+        784
       ]
     },
     {
       "parameters": {
         "operation": "upload",
-        "bucketName": "=little-hero-orders",
+        "bucketName": "={{ $env.R2_ORDERS_BUCKET || 'little-hero-orders' }}",
         "fileName": "={{ $json.bgRemovedKey }}",
         "additionalFields": {}
       },
-      "id": "79f653eb-c514-4766-ab81-beffa9a0f703",
+      "id": "e920a4d7-6f11-410b-8d2a-24897cab4038",
       "name": "Upload BG Removed to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -256,
-        384
+        1088,
+        784
       ],
       "credentials": {
         "s3": {
@@ -433,26 +433,26 @@
         "mode": "runOnceForEachItem",
         "jsCode": "/**\n * Clean Binary After Upload - Remove binary data to reduce memory\n * Preserves JSON metadata needed for callback\n */\nconst j = $json || {};\n\n// Validate required fields\nconst poseNumber = Number(j.poseNumber);\nif (!Number.isFinite(poseNumber) || poseNumber < 0) {\n  throw new Error(`Invalid poseNumber: ${j.poseNumber}`);\n}\nif (!j.bgRemovedKey) {\n  throw new Error(`Missing bgRemovedKey for pose ${poseNumber}`);\n}\n\nconsole.log(`[Pose ${poseNumber}] ✓ Uploaded to R2: ${j.bgRemovedKey}`);\n\nreturn [{ \n  json: {\n    ...j,\n    // Preserve all JSON, drop binary\n  },\n  binary: {} // Clear binary data\n}];\n"
       },
-      "id": "c2586014-9512-4af2-a7a9-8c57cf7b43d7",
+      "id": "af2a3d24-3ee8-4449-afab-dd7a8c6baae9",
       "name": "Clean Binary After Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16,
-        384
+        1328,
+        784
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Build result payload (JSON-only) to send to callback aggregator.\n */\nlet ctx = {};\ntry { ctx = $items('Normalize Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst isCompleted = $json.briaStatus === 'completed';\n\nconst result = {\n  orderId: ctx.orderId,\n  characterHash: ctx.characterHash,\n  poseNumber: ctx.poseNumber,\n  approvedKey: ctx.approvedKey,\n  sourceReplacedAt: ctx.replacedAt || null,\n  sourceReplacementCount: Number(ctx.replacementCount || 0),\n  sourceUrl: ctx.sourceUrl,\n  manifest2aUrl: ctx.manifest2aUrl || null,\n  briaStatus: $json.briaStatus,\n  briaRequestId: ctx.briaRequestId || null,\n  briaStatusUrl: ctx.briaStatusUrl || null,\n  briaCompletedAt: isCompleted ? ($json.briaCompletedAt || new Date().toISOString()) : null,\n  briaErrorMessage: isCompleted ? null : ($json.briaErrorMessage || null),\n  bgRemovedKey: isCompleted ? ($json.bgRemovedKey || null) : null,\n  bgRemovedContentType: isCompleted ? 'image/png' : null,\n  bgRemovedSizeBytes: null,\n  bgRemovedImageUrl: null,\n\n  // QA (transparency)\n  qa: ($json.qa && typeof $json.qa === 'object') ? $json.qa : null,\n\n  // Review flags: if QA sets needsReview/reviewReason, prefer those over bria-derived defaults\n  needsReview: ($json.needsReview === true) ? true : (!isCompleted),\n  reviewReason: ($json.needsReview === true)\n    ? ($json.reviewReason || 'transparency_fail_or_low_conf')\n    : (isCompleted ? null : ($json.briaStatus === 'timeout' ? 'bria_timeout' : 'bria_failed')),\n};\n\nreturn [{ json: { callbackUrl: ctx.callbackUrl, result } }];\n"
       },
-      "id": "1d15983a-714b-4b0c-84f8-cc97fa918de5",
+      "id": "d1fdd29a-90f4-4274-8c78-d2c6ea23b667",
       "name": "Build Callback Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
-        384
+        1568,
+        784
       ]
     },
     {
@@ -468,26 +468,26 @@
           "timeout": 90000
         }
       },
-      "id": "95ad028d-0b01-4574-95fa-3b43f90351cc",
+      "id": "bc95fc4a-90c2-4ed1-a9a9-22a3e723aa70",
       "name": "POST to Callback",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        448,
-        384
+        1792,
+        784
       ]
     },
     {
       "parameters": {
         "inputSource": "passthrough"
       },
-      "id": "399cfaac-3afd-475e-9d32-c5299cac3875",
+      "id": "9d5b53ac-8686-44e4-858e-5fd6279ac0ae",
       "typeVersion": 1.1,
       "name": "When Executed by Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "position": [
-        -1344,
-        -400
+        0,
+        0
       ]
     }
   ],
@@ -617,50 +617,6 @@
         ]
       ]
     },
-    "Prep Upload": {
-      "main": [
-        [
-          {
-            "node": "Upload BG Removed to R2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Upload BG Removed to R2": {
-      "main": [
-        [
-          {
-            "node": "Clean Binary After Upload",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Clean Binary After Upload": {
-      "main": [
-        [
-          {
-            "node": "Build Callback Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Callback Result": {
-      "main": [
-        [
-          {
-            "node": "POST to Callback",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "QA: Key for Neon BG": {
       "main": [
         [
@@ -767,6 +723,50 @@
         ]
       ]
     },
+    "Prep Upload": {
+      "main": [
+        [
+          {
+            "node": "Upload BG Removed to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload BG Removed to R2": {
+      "main": [
+        [
+          {
+            "node": "Clean Binary After Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Binary After Upload": {
+      "main": [
+        [
+          {
+            "node": "Build Callback Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Callback Result": {
+      "main": [
+        [
+          {
+            "node": "POST to Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "When Executed by Another Workflow": {
       "main": [
         [
@@ -783,11 +783,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "c50bb450-bcba-44ae-a3bd-7d901b2b2e64",
+  "versionId": "2ca9f047-80f2-46e8-915f-042dc5db0466",
   "meta": {
-    "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },
-  "id": "qmk3cTggZlR2WQHA",
+  "id": "G2sOg2lFKVvXN8AC",
   "tags": []
 }
