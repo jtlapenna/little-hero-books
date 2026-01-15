@@ -1239,7 +1239,16 @@ export default function OrderDetailPage() {
                     try {
                       const res = await fetch(`/api/admin/orders/${order.orderId}/regenerate-2a`, { method: 'POST' });
                       const data = await res.json();
-                      if (!res.ok) throw new Error(data.error || 'Failed to regenerate 2A');
+                      // Prefer server-provided details for debugging
+                      if (!res.ok) {
+                        const msgParts = [
+                          data?.error || 'Failed to regenerate 2A',
+                          data?.details ? `Details: ${data.details}` : null,
+                          data?.code ? `Code: ${data.code}` : null,
+                          data?.hint ? `Hint: ${data.hint}` : null,
+                        ].filter(Boolean);
+                        throw new Error(msgParts.join('\n'));
+                      }
                       alert('2A regeneration queued successfully');
                       // Refresh order data
                       window.location.reload();
@@ -1275,7 +1284,16 @@ export default function OrderDetailPage() {
                     try {
                       const res = await fetch(`/api/admin/orders/${order.orderId}/regenerate-3`, { method: 'POST' });
                       const data = await res.json();
-                      if (!res.ok) throw new Error(data.error || 'Failed to regenerate 3');
+                      // Prefer server-provided details for debugging
+                      if (!res.ok) {
+                        const msgParts = [
+                          data?.error || 'Failed to regenerate 3',
+                          data?.details ? `Details: ${data.details}` : null,
+                          data?.code ? `Code: ${data.code}` : null,
+                          data?.hint ? `Hint: ${data.hint}` : null,
+                        ].filter(Boolean);
+                        throw new Error(msgParts.join('\n'));
+                      }
                       alert('3 regeneration queued successfully');
                       // Refresh order data
                       window.location.reload();
@@ -1293,7 +1311,16 @@ export default function OrderDetailPage() {
                     try {
                       const res = await fetch(`/api/admin/orders/${order.orderId}/regenerate-4`, { method: 'POST' });
                       const data = await res.json();
-                      if (!res.ok) throw new Error(data.error || 'Failed to regenerate 4');
+                      // Prefer server-provided details for debugging
+                      if (!res.ok) {
+                        const msgParts = [
+                          data?.error || 'Failed to regenerate 4',
+                          data?.details ? `Details: ${data.details}` : null,
+                          data?.code ? `Code: ${data.code}` : null,
+                          data?.hint ? `Hint: ${data.hint}` : null,
+                        ].filter(Boolean);
+                        throw new Error(msgParts.join('\n'));
+                      }
                       alert('4 regeneration queued successfully');
                       // Refresh order data
                       window.location.reload();

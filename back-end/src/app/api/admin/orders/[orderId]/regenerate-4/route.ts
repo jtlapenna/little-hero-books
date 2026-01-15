@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +45,21 @@ export async function POST(
   }
 
   try {
+    /**
+     * Update order row directly (avoid `.single()` update path).
+     * Keeps "regenerate" resilient if helper throws due to response-shape assumptions.
+     */
+    const updateOrderRow = async (amazonOrderId: string, updateData: Record<string, unknown>) => {
+      const { data, error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('amazon_order_id', amazonOrderId)
+        .select('id');
+
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error(`Order not found for update: ${amazonOrderId}`);
+    };
+
     // Get current order to preserve review_stages
     const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
     if (!currentOrder) {
@@ -59,8 +74,9 @@ export async function POST(
 
     // Clear Lulu status fields and trigger workflow
     // IMPORTANT: Must clear any existing processing state to allow router to pick it up
-    // Use updateOrderInSupabase directly to avoid calculateOrderStatus overriding execution_status
-    await updateOrderInSupabase(orderId, {
+    // Use direct update to ensure execution_status is actually persisted
+    const queuedAt = new Date().toISOString();
+    await updateOrderRow(orderId.trim(), {
       next_workflow: '4', // Uppercase '4' (router expects uppercase)
       execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
       lulu_job_id: null, // Clear Lulu job ID
@@ -70,7 +86,7 @@ export async function POST(
       lulu_tracking_number: null, // Clear tracking number
       lulu_tracking_url: null, // Clear tracking URL
       lulu_carrier: null, // Clear carrier
-      queued_at: new Date().toISOString(),
+      queued_at: queuedAt,
       started_at: null, // Clear started_at
       current_workflow: null, // Clear current_workflow
       review_stages, // Preserve review stages
@@ -80,6 +96,8 @@ export async function POST(
       retry_count: 0,
       last_error_at: null,
       next_retry_at: null,
+      // Ensure updated_at changes even if DB has no trigger
+      updated_at: queuedAt,
     });
     console.log(`[Regenerate 4] Successfully updated order ${orderId} - cleared Lulu fields and set execution_status to ready_for_processing`);
 

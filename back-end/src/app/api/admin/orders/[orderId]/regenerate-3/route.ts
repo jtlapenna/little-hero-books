@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +48,22 @@ export async function POST(
   }
 
   try {
+    /**
+     * Update order row directly (avoid `.single()` update path).
+     * `updateOrderInSupabase` uses `.select().single()` which can throw even if the UPDATE applied
+     * (e.g. response shape / multiple rows). For admin "regenerate" we want a best-effort, reliable update.
+     */
+    const updateOrderRow = async (amazonOrderId: string, updateData: Record<string, unknown>) => {
+      const { data, error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('amazon_order_id', amazonOrderId)
+        .select('id');
+
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error(`Order not found for update: ${amazonOrderId}`);
+    };
+
     // Get current order to preserve review_stages
     const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
     if (!currentOrder) {
@@ -108,49 +124,35 @@ export async function POST(
       }
     }
 
-    // Clear Supabase fields and trigger workflow
-    // IMPORTANT: Must clear any existing processing state to allow router to pick it up
-    // Use updateOrderInSupabase directly to avoid calculateOrderStatus overriding execution_status
-    // Use empty string for URL fields (Supabase might not accept null for text fields)
-    const updateData: any = {
-      next_workflow: '3', // Uppercase '3' (router expects uppercase)
-      execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
-      manifest_3_url: '', // Clear manifest URL - use empty string (Supabase text fields)
-      final_book_url: '', // Clear final book URL - use empty string
-      final_cover_url: '', // Clear final cover URL - use empty string
-      queued_at: new Date().toISOString(),
-      started_at: null, // Clear started_at
-      current_workflow: null, // Clear current_workflow
-      review_stages, // Preserve review stages
+    /**
+     * Clear Supabase fields and queue workflow 3.
+     * NOTE: use empty strings for URL fields because some schemas store them as non-null text.
+     */
+    const queuedAt = new Date().toISOString();
+    const updateData: Record<string, unknown> = {
+      next_workflow: '3',
+      execution_status: 'ready_for_processing',
+      queued_at: queuedAt,
+      started_at: null,
+      current_workflow: null,
+      // Clear outputs so downstream logic doesn’t treat assembly as already complete
+      manifest_3_url: '',
+      final_book_url: '',
+      final_cover_url: '',
+      // Preserve review stages
+      review_stages,
       // Clear any error/retry state that might prevent routing
       error_message: null,
       error_type: null,
       retry_count: 0,
       last_error_at: null,
       next_retry_at: null,
+      // Ensure updated_at changes even if DB has no trigger
+      updated_at: queuedAt,
     };
-    
-    console.log(`[Regenerate 3] Updating order ${orderId} with:`, {
-      next_workflow: updateData.next_workflow,
-      execution_status: updateData.execution_status,
-      manifest_3_url: updateData.manifest_3_url,
-      final_book_url: updateData.final_book_url,
-      final_cover_url: updateData.final_cover_url,
-    });
-    
-    try {
-      await updateOrderInSupabase(orderId, updateData);
-      console.log(`[Regenerate 3] Successfully updated order ${orderId} - cleared manifest_3_url and set execution_status to ready_for_processing`);
-    } catch (updateError: any) {
-      console.error(`[Regenerate 3] Error updating order in Supabase:`, updateError);
-      console.error(`[Regenerate 3] Update error details:`, {
-        message: updateError?.message,
-        code: updateError?.code,
-        details: updateError?.details,
-        hint: updateError?.hint,
-      });
-      throw new Error(`Failed to update order in Supabase: ${updateError?.message || 'Unknown error'}`);
-    }
+
+    await updateOrderRow(orderId.trim(), updateData);
+    console.log(`[Regenerate 3] ✅ Queued ${orderId} for router at ${queuedAt}`);
 
     console.log(`[Regenerate 3] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
 
