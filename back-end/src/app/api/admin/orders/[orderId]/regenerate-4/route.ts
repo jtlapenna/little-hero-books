@@ -59,9 +59,10 @@ export async function POST(
     const review_stages = currentOrder.review_stages || {};
 
     // Clear Lulu status fields and trigger workflow
+    // IMPORTANT: Must clear any existing processing state to allow router to pick it up
     await updateOrderStatus(orderId, {
-      next_workflow: '4',
-      execution_status: 'ready_for_processing',
+      next_workflow: '4', // Uppercase '4' (router expects uppercase)
+      execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
       lulu_job_id: null, // Clear Lulu job ID
       lulu_status: null, // Clear Lulu status
       lulu_cost: null, // Clear Lulu cost
@@ -70,15 +71,23 @@ export async function POST(
       lulu_tracking_url: null, // Clear tracking URL
       lulu_carrier: null, // Clear carrier
       queued_at: new Date().toISOString(),
-      started_at: null,
-      current_workflow: null,
+      started_at: null, // Clear started_at
+      current_workflow: null, // Clear current_workflow
       review_stages, // Preserve review stages
+      // Clear any error/retry state that might prevent routing
+      error_message: null,
+      error_type: null,
+      retry_count: 0,
+      last_error_at: null,
+      next_retry_at: null,
     });
+
+    console.log(`[Regenerate 4] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
 
     return NextResponse.json({
       success: true,
       orderId,
-      message: '4 workflow regeneration queued. Router will process when capacity is available.',
+      message: '4 workflow regeneration queued. Lulu fields cleared. Router will pick up this order on next cron run.',
       luluFieldsCleared: true
     });
   } catch (error: any) {

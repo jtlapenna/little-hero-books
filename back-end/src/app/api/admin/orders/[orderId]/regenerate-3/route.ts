@@ -101,22 +101,31 @@ export async function POST(
     const review_stages = currentOrder.review_stages || {};
 
     // Clear Supabase fields and trigger workflow
+    // IMPORTANT: Must clear any existing processing state to allow router to pick it up
     await updateOrderStatus(orderId, {
-      next_workflow: '3',
-      execution_status: 'ready_for_processing',
+      next_workflow: '3', // Uppercase '3' (router expects uppercase)
+      execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
       manifest_3_url: null, // Clear manifest URL
       final_book_url: null, // Clear final book URL
       final_cover_url: null, // Clear final cover URL
       queued_at: new Date().toISOString(),
-      started_at: null,
-      current_workflow: null,
+      started_at: null, // Clear started_at
+      current_workflow: null, // Clear current_workflow
       review_stages, // Preserve review stages
+      // Clear any error/retry state that might prevent routing
+      error_message: null,
+      error_type: null,
+      retry_count: 0,
+      last_error_at: null,
+      next_retry_at: null,
     });
+
+    console.log(`[Regenerate 3] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
 
     return NextResponse.json({
       success: true,
       orderId,
-      message: '3 workflow regeneration queued. Router will process when capacity is available.',
+      message: '3 workflow regeneration queued. Manifests cleared. Router will pick up this order on next cron run.',
       manifestCleared: manifest3Modified
     });
   } catch (error: any) {

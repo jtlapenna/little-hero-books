@@ -109,19 +109,28 @@ export async function POST(
     const review_stages = currentOrder.review_stages || {};
 
     // Trigger workflow via router
+    // IMPORTANT: Must clear any existing processing state to allow router to pick it up
     await updateOrderStatus(orderId, {
-      next_workflow: '2A',
-      execution_status: 'ready_for_processing',
+      next_workflow: '2A', // Uppercase '2A' (router expects uppercase)
+      execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
       queued_at: new Date().toISOString(),
-      started_at: null,
-      current_workflow: null,
+      started_at: null, // Clear started_at
+      current_workflow: null, // Clear current_workflow
       review_stages, // Preserve review stages
+      // Clear any error/retry state that might prevent routing
+      error_message: null,
+      error_type: null,
+      retry_count: 0,
+      last_error_at: null,
+      next_retry_at: null,
     });
+
+    console.log(`[Regenerate 2A] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
 
     return NextResponse.json({
       success: true,
       orderId,
-      message: '2A workflow regeneration queued. Router will process when capacity is available.',
+      message: '2A workflow regeneration queued. Manifests cleared. Router will pick up this order on next cron run.',
       manifestCleared: !!manifest2a
     });
   } catch (error: any) {
