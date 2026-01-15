@@ -4,6 +4,63 @@ import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 export const dynamic = 'force-dynamic';
 
 /**
+ * Update order row while tolerating schema drift between environments.
+ * If a column doesn't exist (e.g. `lulu_carrier`), drop it and retry.
+ */
+async function updateOrderRowResilient(amazonOrderId: string, updateData: Record<string, unknown>) {
+  const dataToUpdate: Record<string, unknown> = { ...updateData };
+  let lastError: any = null;
+
+  for (let i = 0; i < 6; i++) {
+    const { data, error } = await supabase
+      .from('orders')
+      .update(dataToUpdate)
+      .eq('amazon_order_id', amazonOrderId)
+      .select('id'); // avoid `.single()` response-shape issues
+
+    if (!error) {
+      if (!data || data.length === 0) throw new Error(`Order not found for update: ${amazonOrderId}`);
+      return;
+    }
+
+    lastError = error;
+
+    const msg = String(error?.message || '');
+    const details = String(error?.details || '');
+    const code = String(error?.code || '');
+    const combined = `${msg}\n${details}`.toLowerCase();
+
+    // PostgREST / Postgres "unknown column" variants
+    const isUnknownColumn =
+      code === 'PGRST204' ||
+      combined.includes('could not find the') && combined.includes('column') ||
+      code === '42703' ||
+      combined.includes('column') && combined.includes('does not exist');
+
+    if (!isUnknownColumn) break;
+
+    // Try to extract the missing column name.
+    // Examples:
+    // - "Could not find the 'lulu_carrier' column of 'orders' in the schema cache"
+    // - "column orders.final_cover_url does not exist"
+    const m =
+      msg.match(/'([^']+)' column/i) ||
+      details.match(/'([^']+)' column/i) ||
+      msg.match(/column\s+[\w.]+\.([\w_]+)\s+does not exist/i) ||
+      details.match(/column\s+[\w.]+\.([\w_]+)\s+does not exist/i);
+
+    const missingCol = m?.[1];
+    if (!missingCol) break;
+    if (!(missingCol in dataToUpdate)) break;
+
+    console.warn(`[Regenerate 4] Dropping missing column and retrying: ${missingCol}`);
+    delete dataToUpdate[missingCol];
+  }
+
+  throw lastError || new Error('Failed to update order (unknown error)');
+}
+
+/**
  * POST /api/admin/orders/[orderId]/regenerate-4
  * 
  * Force regeneration of 4 workflow (Print Fulfillment) by clearing Lulu status fields and triggering workflow.
@@ -45,21 +102,6 @@ export async function POST(
   }
 
   try {
-    /**
-     * Update order row directly (avoid `.single()` update path).
-     * Keeps "regenerate" resilient if helper throws due to response-shape assumptions.
-     */
-    const updateOrderRow = async (amazonOrderId: string, updateData: Record<string, unknown>) => {
-      const { data, error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('amazon_order_id', amazonOrderId)
-        .select('id');
-
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error(`Order not found for update: ${amazonOrderId}`);
-    };
-
     // Get current order to preserve review_stages
     const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
     if (!currentOrder) {
@@ -76,7 +118,7 @@ export async function POST(
     // IMPORTANT: Must clear any existing processing state to allow router to pick it up
     // Use direct update to ensure execution_status is actually persisted
     const queuedAt = new Date().toISOString();
-    await updateOrderRow(orderId.trim(), {
+    await updateOrderRowResilient(orderId.trim(), {
       next_workflow: '4', // Uppercase '4' (router expects uppercase)
       execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
       lulu_job_id: null, // Clear Lulu job ID

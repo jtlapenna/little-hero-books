@@ -627,6 +627,16 @@ export function PostPdfStage({
             if (previewImages && Array.isArray(previewImages) && previewImages.length > 0) {
               foundInManifest = true;
               // Use preview images from manifest
+              // Cache-bust preview URLs so W3 reruns (which overwrite keys) show immediately.
+              // This also prevents Cloudflare Images / browser caches from showing stale previews.
+              const previewBust = Date.now();
+              const withBust = (url: string): string => {
+                const base = String(url || '').trim();
+                if (!base) return base;
+                const sep = base.includes('?') ? '&' : '?';
+                return `${base}${sep}v=${previewBust}`;
+              };
+
               pageData = previewImages
                 .sort((a: any, b: any) => a.pageNumber - b.pageNumber)
                 .map((img: any) => {
@@ -660,20 +670,27 @@ export function PostPdfStage({
                   // Priority 1: Use Cloudflare Images if available and valid (fastest, WebP, CDN)
                   // IMPORTANT: Frontend should always use Cloudflare Images WebP for display (not R2 PNG)
                   let imageUrl: string;
-                  if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
-                    imageUrl = cloudflareImageUrl;
-                    console.log(`[Pages] Page ${img.pageNumber}: ✅ Using Cloudflare Images WebP URL:`, cloudflareImageUrl.substring(0, 80) + '...');
+                  // NOTE: W3 reruns overwrite R2 preview keys, but Cloudflare Images may not be regenerated.
+                  // Prefer R2 for preview-images so the UI always reflects the latest W3 run.
+                  const shouldPreferR2 = Boolean(img.r2Key && String(img.r2Key).includes('/preview-images/'));
+
+                  if (shouldPreferR2 && img.r2Key) {
+                    imageUrl = withBust(`/api/assets/${img.r2Key}`);
+                    console.log(`[Pages] Page ${img.pageNumber}: ✅ Using R2 preview-image (cache-busted):`, imageUrl);
+                  } else if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
+                    imageUrl = withBust(cloudflareImageUrl);
+                    console.log(`[Pages] Page ${img.pageNumber}: ✅ Using Cloudflare Images WebP URL (cache-busted):`, imageUrl.substring(0, 80) + '...');
                   }
                   // Priority 2: Use imageUrl if already constructed (from pngGeneration.pages fallback)
                   // Only use this if it's NOT a Cloudflare Images URL (shouldn't happen, but safety check)
                   else if (img.imageUrl && img.imageUrl.startsWith('/api/assets/') && !img.imageUrl.includes('imagedelivery.net')) {
-                    imageUrl = img.imageUrl;
-                    console.warn(`[Pages] Page ${img.pageNumber}: ⚠️ Using R2 URL (Cloudflare Images not available):`, img.imageUrl);
+                    imageUrl = withBust(img.imageUrl);
+                    console.warn(`[Pages] Page ${img.pageNumber}: ⚠️ Using R2 URL (cache-busted):`, imageUrl);
                   }
                   // Priority 3: Use R2 proxy URL (fallback - only if Cloudflare Images not available)
                   else if (img.r2Key) {
                     // Use relative URL so it works with any deployment (production or preview)
-                    imageUrl = `/api/assets/${img.r2Key}`;
+                    imageUrl = withBust(`/api/assets/${img.r2Key}`);
                     if (cloudflareImageUrl && !isValidCloudflareUrl(cloudflareImageUrl)) {
                       console.warn(`[Pages] Page ${img.pageNumber}: ⚠️ Invalid Cloudflare Images URL, using R2 fallback:`, cloudflareImageUrl);
                     } else if (!cloudflareImageUrl) {
@@ -687,13 +704,13 @@ export function PostPdfStage({
                     const fallbackUrl = img.imageUrl || '';
                     const r2KeyMatch = fallbackUrl.match(/\/api\/assets\/(.+)$/);
                     if (r2KeyMatch) {
-                      imageUrl = `/api/assets/${r2KeyMatch[1]}`;
+                      imageUrl = withBust(`/api/assets/${r2KeyMatch[1]}`);
                       console.log(`[Pages] Page ${img.pageNumber}: Using extracted R2 key from imageUrl`);
                     } else {
                       // Last resort: construct from page number using new format (p00.png, p01.png, etc.)
                       const pageNum = img.pageNumber ?? 0;
                       const filename = `p${String(pageNum).padStart(2, '0')}.png`;
-                      imageUrl = `/api/assets/book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`;
+                      imageUrl = withBust(`/api/assets/book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`);
                       console.log(`[Pages] Page ${img.pageNumber}: Using constructed fallback URL`);
                     }
                   }
