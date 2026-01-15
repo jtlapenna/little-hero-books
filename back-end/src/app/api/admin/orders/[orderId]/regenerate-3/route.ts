@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { updateOrderStatus } from '@/lib/status-service';
 import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 
 export const dynamic = 'force-dynamic';
@@ -98,7 +97,16 @@ export async function POST(
     }
 
     // Preserve review_stages when updating
-    const review_stages = currentOrder.review_stages || {};
+    // review_stages might be a JSON string from Supabase, parse it if needed
+    let review_stages = currentOrder.review_stages || {};
+    if (typeof review_stages === 'string') {
+      try {
+        review_stages = JSON.parse(review_stages);
+      } catch (e) {
+        console.warn(`[Regenerate 3] Failed to parse review_stages, using empty object:`, e);
+        review_stages = {};
+      }
+    }
 
     // Clear Supabase fields and trigger workflow
     // IMPORTANT: Must clear any existing processing state to allow router to pick it up
@@ -130,8 +138,19 @@ export async function POST(
       final_cover_url: updateData.final_cover_url,
     });
     
-    await updateOrderInSupabase(orderId, updateData);
-    console.log(`[Regenerate 3] Successfully updated order ${orderId} - cleared manifest_3_url and set execution_status to ready_for_processing`);
+    try {
+      await updateOrderInSupabase(orderId, updateData);
+      console.log(`[Regenerate 3] Successfully updated order ${orderId} - cleared manifest_3_url and set execution_status to ready_for_processing`);
+    } catch (updateError: any) {
+      console.error(`[Regenerate 3] Error updating order in Supabase:`, updateError);
+      console.error(`[Regenerate 3] Update error details:`, {
+        message: updateError?.message,
+        code: updateError?.code,
+        details: updateError?.details,
+        hint: updateError?.hint,
+      });
+      throw new Error(`Failed to update order in Supabase: ${updateError?.message || 'Unknown error'}`);
+    }
 
     console.log(`[Regenerate 3] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
 
@@ -143,10 +162,19 @@ export async function POST(
     });
   } catch (error: any) {
     console.error('[Regenerate 3] Error:', error);
+    console.error('[Regenerate 3] Error stack:', error?.stack);
+    console.error('[Regenerate 3] Error details:', {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+    });
     return NextResponse.json(
       { 
         error: 'Failed to regenerate 3 workflow',
-        details: error?.message 
+        details: error?.message || 'Unknown error',
+        code: error?.code,
+        hint: error?.hint
       },
       { status: 500 }
     );
