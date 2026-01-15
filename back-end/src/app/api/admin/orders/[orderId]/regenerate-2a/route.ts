@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { updateOrderStatus } from '@/lib/status-service';
-import { getOrderFromSupabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -110,7 +109,8 @@ export async function POST(
 
     // Trigger workflow via router
     // IMPORTANT: Must clear any existing processing state to allow router to pick it up
-    await updateOrderStatus(orderId, {
+    // Use updateOrderInSupabase directly to avoid calculateOrderStatus overriding execution_status
+    await updateOrderInSupabase(orderId, {
       next_workflow: '2A', // Uppercase '2A' (router expects uppercase)
       execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
       queued_at: new Date().toISOString(),
@@ -124,6 +124,7 @@ export async function POST(
       last_error_at: null,
       next_retry_at: null,
     });
+    console.log(`[Regenerate 2A] Successfully updated order ${orderId} - set execution_status to ready_for_processing`);
 
     console.log(`[Regenerate 2A] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
 

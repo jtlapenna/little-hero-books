@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateOrderStatus } from '@/lib/status-service';
-import { getOrderFromSupabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +59,8 @@ export async function POST(
 
     // Clear Lulu status fields and trigger workflow
     // IMPORTANT: Must clear any existing processing state to allow router to pick it up
-    await updateOrderStatus(orderId, {
+    // Use updateOrderInSupabase directly to avoid calculateOrderStatus overriding execution_status
+    await updateOrderInSupabase(orderId, {
       next_workflow: '4', // Uppercase '4' (router expects uppercase)
       execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
       lulu_job_id: null, // Clear Lulu job ID
@@ -81,6 +81,7 @@ export async function POST(
       last_error_at: null,
       next_retry_at: null,
     });
+    console.log(`[Regenerate 4] Successfully updated order ${orderId} - cleared Lulu fields and set execution_status to ready_for_processing`);
 
     console.log(`[Regenerate 4] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
 
