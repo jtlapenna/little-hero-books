@@ -2,6 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 
 /**
+ * Fetch from R2 and protect against truncated reads.
+ * Some renderers will display "top slice only" if a PNG download is cut short.
+ */
+async function getObjectBufferWithRetry(bucket: string, key: string, attempts = 3): Promise<{ buffer: ArrayBuffer; contentType: string; contentLength?: number }> {
+  let lastError: unknown = null;
+
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const r2Response = await getObject(bucket, key);
+      const contentType = r2Response.headers.get('content-type') || getContentTypeFromKey(key);
+      const expectedLenRaw = r2Response.headers.get('content-length');
+      const expectedLen = expectedLenRaw ? Number(expectedLenRaw) : undefined;
+      const buffer = await r2Response.arrayBuffer();
+      const actualLen = buffer.byteLength;
+
+      // If R2 gave us a length and the download is shorter, retry.
+      if (Number.isFinite(expectedLen) && expectedLen !== actualLen) {
+        lastError = new Error(`Truncated R2 object: expected ${expectedLen} bytes, got ${actualLen} bytes`);
+        console.warn(`[GET /api/assets] ${String(lastError)} (attempt ${i + 1}/${attempts}) key=${key}`);
+        continue;
+      }
+
+      return { buffer, contentType, contentLength: Number.isFinite(expectedLen) ? expectedLen : actualLen };
+    } catch (err) {
+      lastError = err;
+      console.warn(`[GET /api/assets] R2 fetch/read failed (attempt ${i + 1}/${attempts}) key=${key}:`, (err as any)?.message || err);
+    }
+  }
+
+  throw lastError || new Error('Failed to fetch object from R2');
+}
+
+/**
  * Handle CORS preflight requests
  */
 export async function OPTIONS(request: NextRequest) {
@@ -50,37 +83,32 @@ export async function GET(
     
     console.log(`[GET /api/assets] Using bucket: ${bucket} for key: ${key}`);
     
-    // Fetch object from R2 (getObject throws on error, so catch it)
-    let r2Response: Response;
+    // Fetch object from R2 (robust against truncated reads)
+    let imageBuffer: ArrayBuffer;
+    let contentType: string;
+    let contentLength: number | undefined;
     try {
-      r2Response = await getObject(bucket, key);
+      const out = await getObjectBufferWithRetry(bucket, key, 3);
+      imageBuffer = out.buffer;
+      contentType = out.contentType;
+      contentLength = out.contentLength;
     } catch (error: any) {
-      // getObject throws on non-OK responses (404, 403, etc.)
-      console.error(`[GET /api/assets] getObject threw error for ${key}:`, error.message);
-      
-      // Extract status code from error message if available
-      const statusMatch = error.message?.match(/(\d{3})/);
+      // Extract status code from error message if available (best-effort)
+      const statusMatch = error?.message?.match?.(/(\d{3})/);
       const status = statusMatch ? parseInt(statusMatch[1]) : 404;
-      
+      console.error(`[GET /api/assets] Failed to fetch image for ${key}:`, error?.message || error);
       return NextResponse.json(
-        { error: `Failed to fetch image: ${error.message || 'Not found'}` },
-        { 
+        { error: `Failed to fetch image: ${error?.message || 'Not found'}` },
+        {
           status,
           headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type',
-          }
+          },
         }
       );
     }
-
-    // Get content type from response or infer from extension
-    const contentType = r2Response.headers.get('content-type') || 
-      getContentTypeFromKey(key);
-    
-    // Get image data
-    const imageBuffer = await r2Response.arrayBuffer();
     
     // Determine cache strategy based on image type
     // Background-removed images (nobg.png) should refresh more frequently to show updated versions
@@ -99,6 +127,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': contentType,
+        ...(contentLength ? { 'Content-Length': String(contentLength) } : {}),
         'Cache-Control': cacheControl,
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
