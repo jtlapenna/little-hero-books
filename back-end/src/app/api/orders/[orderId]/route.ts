@@ -471,10 +471,13 @@ async function getOrder(
           const r2Key = entry.bgRemovedKey;
           // Always use our proxy endpoint; it supports BOTH public + orders buckets.
           // Do not require a public URL (orders bucket keys won't have one).
-          // Add cache-busting using entry's processedAt or manifest's updatedAt
-          const entryProcessedAt = entry.processedAt 
-            ? new Date(entry.processedAt).getTime() 
-            : manifest2bUpdatedAt || orderUpdatedAt;
+          // Add cache-busting: prioritize replacedAt/sourceReplacedAt (manual replacements) over processedAt
+          const replacementTimestamp = entry.replacedAt || entry.sourceReplacedAt;
+          const entryProcessedAt = replacementTimestamp
+            ? new Date(replacementTimestamp).getTime()
+            : (entry.processedAt 
+              ? new Date(entry.processedAt).getTime() 
+              : manifest2bUpdatedAt || orderUpdatedAt);
           const proxyUrl = r2Key ? `/api/assets/${r2Key}?v=${entryProcessedAt}` : '';
           
           poseMap.set(poseNum, {
@@ -518,13 +521,18 @@ async function getOrder(
           // isFlagged should only be true if needsReview is true (explicit check to avoid stale flags)
           const isFlagged = needsReview === true || (manifestEntry?.isFlagged === true && needsReview === true);
           
-          // Update URL with cache-busting if manifest entry has processedAt (newer image)
+          // Update URL with cache-busting: prioritize replacedAt/sourceReplacedAt (manual replacements) over processedAt
           let url = existingPose.url;
-          if (manifestEntry?.processedAt) {
-            const entryProcessedAt = new Date(manifestEntry.processedAt).getTime();
+          const replacementTimestamp = manifestEntry?.replacedAt || manifestEntry?.sourceReplacedAt;
+          const timestampToUse = replacementTimestamp 
+            ? new Date(replacementTimestamp).getTime()
+            : (manifestEntry?.processedAt 
+              ? new Date(manifestEntry.processedAt).getTime() 
+              : null);
+          if (timestampToUse) {
             // Remove existing cache-buster and add new one
             const baseUrl = url.split('?')[0];
-            url = `${baseUrl}?v=${entryProcessedAt}`;
+            url = `${baseUrl}?v=${timestampToUse}`;
           }
           
           postBriaPoses.push({
@@ -542,10 +550,13 @@ async function getOrder(
           // Construct URL from manifest's bgRemovedKey
           const r2Key = manifestEntry.bgRemovedKey;
           // Always proxy from the key; don't gate on a public URL.
-          // Add cache-busting using entry's processedAt or manifest's updatedAt
-          const entryProcessedAt = manifestEntry.processedAt 
-            ? new Date(manifestEntry.processedAt).getTime() 
-            : manifest2bUpdatedAt || orderUpdatedAt;
+          // Add cache-busting: prioritize replacedAt/sourceReplacedAt (manual replacements) over processedAt
+          const replacementTimestamp = manifestEntry.replacedAt || manifestEntry.sourceReplacedAt;
+          const entryProcessedAt = replacementTimestamp
+            ? new Date(replacementTimestamp).getTime()
+            : (manifestEntry.processedAt
+              ? new Date(manifestEntry.processedAt).getTime()
+              : manifest2bUpdatedAt || orderUpdatedAt);
           const proxyUrl = r2Key ? `/api/assets/${r2Key}?v=${entryProcessedAt}` : '';
           
           // Use manifest entry's needsReview and reviewReason (e.g., transparency_fail)

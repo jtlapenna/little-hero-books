@@ -796,6 +796,13 @@ export async function POST(
     if (replacedBy) {
       entry.replacedBy = replacedBy;
     }
+    
+    // For postBria stage, also update source tracking fields for workflow cache-busting
+    // When a postBria image is replaced, we need to track this so the workflow knows the source changed
+    if (stage === 'postBria') {
+      entry.sourceReplacedAt = replacedAt;
+      entry.sourceReplacementCount = replacementCount;
+    }
 
     // Add to replacement history array if it exists, or create it
     if (!entry.replacementHistory) {

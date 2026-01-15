@@ -109,13 +109,19 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   
   useEffect(() => {
     // Calculate stable key from actual data - include isFlagged and needsReview to detect flag changes
-    const currentKey = JSON.stringify(posesBgRemoved.map(p => ({ 
-      poseNumber: p.poseNumber, 
-      url: p.url, 
-      isMissing: p.isMissing,
-      isFlagged: p.isFlagged,
-      needsReview: p.needsReview
-    })));
+    // Also include a timestamp from the URL's cache-busting parameter to detect replacements
+    const currentKey = JSON.stringify(posesBgRemoved.map(p => {
+      // Extract cache-busting timestamp from URL if present
+      const urlTimestamp = p.url?.match(/[?&]v=(\d+)/)?.[1] || '';
+      return { 
+        poseNumber: p.poseNumber, 
+        url: p.url, 
+        urlTimestamp: urlTimestamp, // Include timestamp to detect URL changes
+        isMissing: p.isMissing,
+        isFlagged: p.isFlagged,
+        needsReview: p.needsReview
+      };
+    }));
     
     // Only update if the key actually changed
     if (currentKey === prevKeyRef.current) {
@@ -533,8 +539,11 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       const result = await response.json();
       console.log('[PostBriaStage] Image replaced successfully:', result);
 
+      // Clear prevKeyRef to force useEffect to run even if URL structure is similar
+      prevKeyRef.current = '';
+
       // Wait a moment for R2 upload to propagate and cache to update
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Refresh the order data to show updated image
       if (onRefresh) {
@@ -547,6 +556,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           if (onRefresh) {
             console.log('[PostBriaStage] Second refresh to ensure image update...');
             await onRefresh();
+            // Clear prevKeyRef again after second refresh to ensure state updates
+            prevKeyRef.current = '';
           }
         }, 500);
       } else {
@@ -565,8 +576,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
+      // Clear prevKeyRef to force useEffect to re-run and detect changes
+      prevKeyRef.current = '';
+      
       if (onRefresh) {
         await onRefresh();
+        // Clear again after refresh to ensure state updates
+        prevKeyRef.current = '';
       } else {
         // Fallback: reload the page
         window.location.reload();
