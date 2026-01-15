@@ -102,47 +102,36 @@ export async function POST(
 
     // Clear Supabase fields and trigger workflow
     // IMPORTANT: Must clear any existing processing state to allow router to pick it up
-    // Try updateOrderStatus first (like regenerate-2b), but fallback to direct update if calculateOrderStatus fails
-    try {
-      await updateOrderStatus(orderId, {
-        next_workflow: '3', // Uppercase '3' (router expects uppercase)
-        execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
-        manifest_3_url: null, // Clear manifest URL
-        final_book_url: null, // Clear final book URL
-        final_cover_url: null, // Clear final cover URL
-        queued_at: new Date().toISOString(),
-        started_at: null, // Clear started_at
-        current_workflow: null, // Clear current_workflow
-        review_stages, // Preserve review stages
-        // Clear any error/retry state that might prevent routing
-        error_message: null,
-        error_type: null,
-        retry_count: 0,
-        last_error_at: null,
-        next_retry_at: null,
-      });
-      console.log(`[Regenerate 3] Successfully updated order ${orderId} via updateOrderStatus`);
-    } catch (statusError: any) {
-      // If updateOrderStatus fails (likely due to calculateOrderStatus), fallback to direct update
-      console.warn(`[Regenerate 3] updateOrderStatus failed, using direct update:`, statusError?.message);
-      await updateOrderInSupabase(orderId, {
-        next_workflow: '3',
-        execution_status: 'ready_for_processing',
-        manifest_3_url: null,
-        final_book_url: null,
-        final_cover_url: null,
-        queued_at: new Date().toISOString(),
-        started_at: null,
-        current_workflow: null,
-        review_stages,
-        error_message: null,
-        error_type: null,
-        retry_count: 0,
-        last_error_at: null,
-        next_retry_at: null,
-      });
-      console.log(`[Regenerate 3] Successfully updated order ${orderId} via direct update`);
-    }
+    // Use updateOrderInSupabase directly to avoid calculateOrderStatus overriding execution_status
+    // Use empty string for URL fields (Supabase might not accept null for text fields)
+    const updateData: any = {
+      next_workflow: '3', // Uppercase '3' (router expects uppercase)
+      execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
+      manifest_3_url: '', // Clear manifest URL - use empty string (Supabase text fields)
+      final_book_url: '', // Clear final book URL - use empty string
+      final_cover_url: '', // Clear final cover URL - use empty string
+      queued_at: new Date().toISOString(),
+      started_at: null, // Clear started_at
+      current_workflow: null, // Clear current_workflow
+      review_stages, // Preserve review stages
+      // Clear any error/retry state that might prevent routing
+      error_message: null,
+      error_type: null,
+      retry_count: 0,
+      last_error_at: null,
+      next_retry_at: null,
+    };
+    
+    console.log(`[Regenerate 3] Updating order ${orderId} with:`, {
+      next_workflow: updateData.next_workflow,
+      execution_status: updateData.execution_status,
+      manifest_3_url: updateData.manifest_3_url,
+      final_book_url: updateData.final_book_url,
+      final_cover_url: updateData.final_cover_url,
+    });
+    
+    await updateOrderInSupabase(orderId, updateData);
+    console.log(`[Regenerate 3] Successfully updated order ${orderId} - cleared manifest_3_url and set execution_status to ready_for_processing`);
 
     console.log(`[Regenerate 3] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
 
