@@ -53,15 +53,40 @@ export async function POST(
      * `updateOrderInSupabase` uses `.select().single()` which can throw even if the UPDATE applied
      * (e.g. response shape / multiple rows). For admin "regenerate" we want a best-effort, reliable update.
      */
-    const updateOrderRow = async (amazonOrderId: string, updateData: Record<string, unknown>) => {
-      const { data, error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('amazon_order_id', amazonOrderId)
-        .select('id');
+    const parseMissingColumn = (err: any): string | null => {
+      const details = String(err?.details || err?.message || '');
+      // Example: "Could not find the 'final_cover_url' column of 'orders' in the schema cache"
+      const m = details.match(/Could not find the '([^']+)' column/i) || details.match(/'([^']+)'\s+column/i);
+      return m?.[1] ? String(m[1]) : null;
+    };
 
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error(`Order not found for update: ${amazonOrderId}`);
+    const updateOrderRowResilient = async (amazonOrderId: string, updateData: Record<string, unknown>) => {
+      // Copy so we can progressively drop unknown columns based on PostgREST errors.
+      const dataToUpdate: Record<string, unknown> = { ...updateData };
+      let lastError: any = null;
+
+      for (let i = 0; i < 6; i++) {
+        const { data, error } = await supabase
+          .from('orders')
+          .update(dataToUpdate)
+          .eq('amazon_order_id', amazonOrderId)
+          .select('id');
+
+        if (!error) {
+          if (!data || data.length === 0) throw new Error(`Order not found for update: ${amazonOrderId}`);
+          return;
+        }
+
+        lastError = error;
+        const code = String(error?.code || '');
+        const missingCol = (code === 'PGRST204' || code === '42703') ? parseMissingColumn(error) : null;
+        if (!missingCol || !(missingCol in dataToUpdate)) throw error;
+
+        // Drop the missing column and retry (supports differing schemas across environments)
+        delete dataToUpdate[missingCol];
+      }
+
+      throw lastError || new Error('Failed to update order (unknown error)');
     };
 
     // Get current order to preserve review_stages
@@ -138,7 +163,9 @@ export async function POST(
       // Clear outputs so downstream logic doesn’t treat assembly as already complete
       manifest_3_url: '',
       final_book_url: '',
+      // Some schemas use `cover_image_url` instead of `final_cover_url` (or may not have `final_cover_url`)
       final_cover_url: '',
+      cover_image_url: '',
       // Preserve review stages
       review_stages,
       // Clear any error/retry state that might prevent routing
@@ -151,7 +178,7 @@ export async function POST(
       updated_at: queuedAt,
     };
 
-    await updateOrderRow(orderId.trim(), updateData);
+    await updateOrderRowResilient(orderId.trim(), updateData);
     console.log(`[Regenerate 3] ✅ Queued ${orderId} for router at ${queuedAt}`);
 
     console.log(`[Regenerate 3] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
