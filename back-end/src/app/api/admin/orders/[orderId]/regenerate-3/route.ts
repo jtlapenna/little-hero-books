@@ -102,7 +102,9 @@ export async function POST(
 
     // Clear Supabase fields and trigger workflow
     // IMPORTANT: Must clear any existing processing state to allow router to pick it up
-    await updateOrderStatus(orderId, {
+    // Use updateOrderInSupabase directly to avoid calculateOrderStatus issues
+    const { updateOrderInSupabase } = await import('@/lib/supabase-client');
+    await updateOrderInSupabase(orderId, {
       next_workflow: '3', // Uppercase '3' (router expects uppercase)
       execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
       manifest_3_url: null, // Clear manifest URL

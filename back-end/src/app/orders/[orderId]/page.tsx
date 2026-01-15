@@ -1204,33 +1204,6 @@ export default function OrderDetailPage() {
               </div>
             )}
             
-            {order.lastSkipReason && (
-              <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-                <div className="flex flex-col gap-2">
-                  <div>
-                    <p className="text-sm font-semibold text-blue-900">
-                      Last Workflow Skip: {order.lastSkipReason === 'ALL_POSES_ALREADY_PROCESSED' 
-                        ? 'All Poses Already Processed' 
-                        : order.lastSkipReason.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())}
-                    </p>
-                    {order.lastSkipAt && (
-                      <p className="text-xs text-blue-700 mt-1">
-                        Skipped at: {formatDate(order.lastSkipAt)}
-                      </p>
-                    )}
-                    {order.lastSkipDetails && (
-                      <p className="text-xs text-blue-600 mt-1">
-                        {order.lastSkipDetails.skippedTotal} of {order.lastSkipDetails.totalApproved} poses skipped
-                        {order.lastSkipDetails.skippedByBriaStatus > 0 && (
-                          <span> ({order.lastSkipDetails.skippedByBriaStatus} by Bria status, {order.lastSkipDetails.skippedBy2BManifest} by 2B manifest)</span>
-                        )}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-            
             {order.status === OrderStatus.AI_GENERATION_IN_PROGRESS && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
