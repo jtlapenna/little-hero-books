@@ -90,14 +90,51 @@ export async function approveStage(
   const shouldClearCustomerRevision =
     existingOrder?.customer_approval_status === 'revision_requested';
 
+  // PSEUDOCODE (queue next step on approval)
+  // - If stage is being approved:
+  //   - preBria approved => queue 2B (background removal)
+  //   - postBria approved => queue 3 (assembly)
+  // - Do not try to "undo" routing on un-approve (admin can use reset/regen paths).
+  const queueUpdateOnApproval: Record<string, unknown> = (() => {
+    // Only queue on approve.
+    if (nextStatus !== 'approved') return {};
+
+    // Clear any "currently processing" markers so cron/router can safely pick it up again.
+    const base = {
+      execution_status: 'ready_for_processing',
+      current_workflow: null,
+      started_at: null,
+    } as const;
+
+    if (stage === 'preBria') {
+      // If W2A didn't update Supabase (workflow_step stuck at order_intake), unstick it here.
+      const maybeUnstick2A =
+        !existingOrder?.workflow_step || existingOrder.workflow_step === 'order_intake'
+          ? { workflow_step: '2A-complete' }
+          : {};
+
+      return { ...base, next_workflow: '2B', ...maybeUnstick2A };
+    }
+
+    if (stage === 'postBria') {
+      const maybeUnstick2B =
+        !existingOrder?.workflow_step || existingOrder.workflow_step === 'order_intake'
+          ? { workflow_step: '2B-complete' }
+          : {};
+
+      return { ...base, next_workflow: '3', ...maybeUnstick2B };
+    }
+
+    return {};
+  })();
+
   try {
     console.log(`[approveStage] Updating Supabase for order ${orderId}, stage ${stage}, status ${nextStatus}`);
     console.log(`[approveStage] reviewStages to save:`, JSON.stringify(reviewStages, null, 2));
     await updateOrderStatus(orderId, {
       review_stages: reviewStages,
-      // Note: Stage approval does NOT automatically queue orders for the next workflow.
-      // Admins must explicitly use the "Trigger Background Removal" or "Trigger Book Assembly" buttons
-      // to queue orders for processing. This gives admins control over when workflows start.
+      // When a stage is approved, queue the next workflow so cron routing can't send it backwards.
+      ...queueUpdateOnApproval,
       ...(shouldClearCustomerRevision
         ? {
             customer_approval_status: null,
