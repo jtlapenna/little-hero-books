@@ -85,6 +85,7 @@
       "name": "Download 2B Manifest (optional)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
+      "continueOnFail": true,
       "position": [
         -688,
         336
@@ -300,6 +301,7 @@
       "name": "Download 2B Manifest (if exists)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
+      "continueOnFail": true,
       "position": [
         1120,
         480

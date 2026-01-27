@@ -90,6 +90,9 @@ export function determineNextWorkflow(order: OrderProgress): string | null {
   
   // 4. Check if order has 1-manifest (from W0) but no other progress
   if (order.one_manifest_url) {
+    // If next_workflow is already set (e.g. admin re-queued to 2B), preserve it.
+    // This prevents W0/W0-retry flows from "resetting" progress back to 2A.
+    if (order.next_workflow) return order.next_workflow;
     return '2A';
   }
   

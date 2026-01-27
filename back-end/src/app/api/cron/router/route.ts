@@ -230,21 +230,21 @@ export async function GET(request: NextRequest) {
     metrics.w0CleanupMs = w0CleanupMs;
 
     // 4. Fetch ready orders (only if capacity available)
-    // IMPORTANT: Exclude orders that have been sent to print (W4 completed)
-    // These orders should only be requeued via manual override in the backend
+    // IMPORTANT:
+    // - We must NOT block manual regenerations of W2B/W3 just because Lulu fields are set.
+    // - We ONLY want to prevent auto-routing "already printed" orders into W4 unless the admin
+    //   explicitly cleared Lulu fields (regenerate-4 does this).
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select('id,amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id')
       .eq('execution_status', 'ready_for_processing')
       .not('next_workflow', 'is', null)
-      // Exclude orders that have been sent to print (W4 completed)
-      // These have lulu_job_id or lulu_status set, indicating they've been sent to print
-      .or('lulu_job_id.is.null,lulu_status.is.null')
       .order('priority', { ascending: false, nullsFirst: false })
       .order('updated_at', { ascending: true, nullsFirst: true }) // Fallback for orders without queued_at
       .order('queued_at', { ascending: true, nullsFirst: true }) // Primary ordering when queued_at exists
-      .limit(availableSlots);
+      // Fetch extra since we'll apply a small in-memory eligibility filter below
+      .limit(Math.max(availableSlots * 3, availableSlots));
     metrics.ordersFetchMs = Date.now() - ordersFetchStart;
 
     if (ordersError) {
@@ -265,13 +265,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 5. If no orders, return early (0 n8n executions)
-    if (!orders || orders.length === 0) {
+    // 5. Apply eligibility filter:
+    // - Allow W2B / W3 to be regenerated even if Lulu fields exist (order may have been printed).
+    // - For W4, only allow routing if Lulu fields are cleared (regenerate-4 does this).
+    const eligibleOrders = (orders || []).filter((o) => {
+      const next = String(o.next_workflow || '');
+      if (next !== '4') return true;
+      return !o.lulu_job_id && !o.lulu_status;
+    });
+
+    // 6. If no eligible orders, return early (0 n8n executions)
+    if (!eligibleOrders || eligibleOrders.length === 0) {
       metrics.totalMs = Date.now() - startTime;
-      console.log(`[Cron Router] [${executionId}] No ready orders found - skipped n8n call:`, {
+      console.log(`[Cron Router] [${executionId}] No eligible ready orders found - skipped n8n call:`, {
         processing: processingCount,
         available: availableSlots,
         queued: queuedCount,
+        fetched: orders?.length || 0,
         totalDuration: `${metrics.totalMs}ms`
       });
       return NextResponse.json({
@@ -281,33 +291,37 @@ export async function GET(request: NextRequest) {
         processingCount,
         availableSlots,
         queuedCount,
+        fetched: orders?.length || 0,
         metrics,
         timestamp: new Date().toISOString()
       });
     }
 
+    const ordersToRoute = eligibleOrders.slice(0, availableSlots);
+
     // Log order details for diagnostics
-    const ordersByWorkflow = orders.reduce((acc, order) => {
+    const ordersByWorkflow = ordersToRoute.reduce((acc, order) => {
       const workflow = order.next_workflow || 'unknown';
       if (!acc[workflow]) acc[workflow] = [];
       acc[workflow].push(order.amazon_order_id);
       return acc;
     }, {} as Record<string, string[]>);
 
-    console.log(`[Cron Router] [${executionId}] Found ${orders.length} ready orders:`, {
-      total: orders.length,
+    console.log(`[Cron Router] [${executionId}] Found ${ordersToRoute.length} eligible ready orders:`, {
+      total: ordersToRoute.length,
+      fetched: orders?.length || 0,
       byWorkflow: ordersByWorkflow,
-      orderIds: orders.map(o => o.amazon_order_id),
-      oldestQueued: orders[0]?.queued_at,
-      priorities: orders.map(o => ({ id: o.amazon_order_id, priority: o.priority })),
+      orderIds: ordersToRoute.map(o => o.amazon_order_id),
+      oldestQueued: ordersToRoute[0]?.queued_at,
+      priorities: ordersToRoute.map(o => ({ id: o.amazon_order_id, priority: o.priority })),
       fetchDuration: `${metrics.ordersFetchMs}ms`
     });
 
-    // 6. Update queued_at and status for all orders being picked up (mark as queued for routing)
+    // 7. Update queued_at and status for all orders being picked up (mark as queued for routing)
     // This ensures queued_at represents when the order was actually queued for routing
     // and status is set to 'queued_for_processing' when actually queued
     const nowIso = new Date().toISOString();
-    const orderIds = orders.map(o => o.id);
+    const orderIds = ordersToRoute.map(o => o.id);
     
     const { error: updateError } = await supabase
       .from('orders')
@@ -324,7 +338,7 @@ export async function GET(request: NextRequest) {
       console.log(`[Cron Router] [${executionId}] Updated queued_at for ${orderIds.length} order(s)`);
     }
 
-    // 7. Orders exist - call n8n webhook (1 execution)
+    // 8. Orders exist - call n8n webhook (1 execution)
     const webhookStart = Date.now();
     console.log(`[Cron Router] [${executionId}] Calling n8n webhook: ${n8nWebhookUrl}`);
     
@@ -333,7 +347,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ orders }),
+      body: JSON.stringify({ orders: ordersToRoute }),
     });
     metrics.webhookCallMs = Date.now() - webhookStart;
 
@@ -344,8 +358,8 @@ export async function GET(request: NextRequest) {
         status: webhookResponse.status,
         statusText: webhookResponse.statusText,
         error: errorText.substring(0, 500), // Limit error text length
-        ordersAttempted: orders.length,
-        orderIds: orders.map(o => o.amazon_order_id),
+        ordersAttempted: ordersToRoute.length,
+        orderIds: ordersToRoute.map(o => o.amazon_order_id),
         webhookDuration: `${metrics.webhookCallMs}ms`,
         totalDuration: `${metrics.totalMs}ms`
       });
@@ -355,8 +369,8 @@ export async function GET(request: NextRequest) {
           executionId,
           status: webhookResponse.status,
           details: errorText.substring(0, 500),
-          ordersProcessed: orders.length,
-          orderIds: orders.map(o => o.amazon_order_id),
+          ordersProcessed: ordersToRoute.length,
+          orderIds: ordersToRoute.map(o => o.amazon_order_id),
           metrics
         },
         { status: 502 }
@@ -367,8 +381,8 @@ export async function GET(request: NextRequest) {
     metrics.totalMs = Date.now() - startTime;
 
     console.log(`[Cron Router] [${executionId}] Successfully triggered n8n:`, {
-      ordersProcessed: orders.length,
-      orderIds: orders.map(o => o.amazon_order_id),
+      ordersProcessed: ordersToRoute.length,
+      orderIds: ordersToRoute.map(o => o.amazon_order_id),
       byWorkflow: ordersByWorkflow,
       webhookStatus: webhookResponse.status,
       webhookDuration: `${metrics.webhookCallMs}ms`,
@@ -380,8 +394,8 @@ export async function GET(request: NextRequest) {
       success: true,
       message: 'Router triggered',
       executionId,
-      ordersProcessed: orders.length,
-      orderIds: orders.map(o => o.amazon_order_id),
+      ordersProcessed: ordersToRoute.length,
+      orderIds: ordersToRoute.map(o => o.amazon_order_id),
       ordersByWorkflow,
       processingCount,
       availableSlots,

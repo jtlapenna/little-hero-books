@@ -251,6 +251,17 @@ export async function processAmazonOrders(
 
         console.log(`[Cron Amazon Orders] [${executionId}] Stored order ${orderIdValue} in Supabase with character_hash: ${characterHash}`);
 
+        // PSEUDOCODE (avoid W0 re-processing existing orders)
+        // - Only call W0 if the order is actually pending W0 (or doesn't exist yet).
+        // - If it's already moved past W0, do NOT call W0 again (it can reset next_workflow).
+        const shouldTriggerW0 = !existingOrder || existingOrder.execution_status === 'pending_w0';
+        if (!shouldTriggerW0) {
+          console.log(
+            `[Cron Amazon Orders] [${executionId}] Skipping W0 webhook for existing order ${orderIdValue} (execution_status=${existingOrder.execution_status}, next_workflow=${existingOrder.next_workflow})`
+          );
+          continue;
+        }
+
         const webhookPayload = {
           ...orderData,
           characterHash: characterHash,
