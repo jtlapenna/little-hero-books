@@ -28,7 +28,11 @@ export async function GET(request: NextRequest) {
       documentId: response.documentId,
       messageType: (response as any).messageType,
       error: response.error,
-      details: (response as any).details
+      details: (response as any).details,
+      // For Amazon support when request fails (Unauthorized, etc.)
+      requestId: (response as any).apiCallDetails?.requestId ?? null,
+      apiCallDetails: (response as any).apiCallDetails ?? null,
+      retryable: (response as any).retryable ?? null
     });
   } catch (error: any) {
     return NextResponse.json({

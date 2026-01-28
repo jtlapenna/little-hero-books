@@ -257,13 +257,15 @@ export async function sendAmazonPreviewMessage(
     };
   } catch (error) {
     if (error instanceof AmazonMessagingError) {
-      // Extract apiCallDetails from error for export
+      // Extract apiCallDetails from error for export (SP-API failures); LWA failures have .details
       const apiCallDetails = (error as any).apiCallDetails || null;
       return {
         success: false,
         error: error.message,
         retryable: error.retryable,
-        apiCallDetails // Include for export
+        apiCallDetails,
+        // When failure is LWA (getAccessToken), no apiCallDetails; include details for debugging
+        details: apiCallDetails ? undefined : (error as any).details
       };
     }
 
