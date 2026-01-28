@@ -678,6 +678,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const canTriggerAssembly = isApprovedEffective && hasImages;
 
   const [isTriggering, setIsTriggering] = useState(false);
+  const [isSyncing2bManifest, setIsSyncing2bManifest] = useState(false);
 
   const handleApproveStage = async () => {
     const targetStatus = approveStageConfirmed ? 'pending' : 'approved';
@@ -722,6 +723,58 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     }
   };
 
+  const handleSync2bManifest = async () => {
+    if (isSyncing2bManifest) return;
+    setIsSyncing2bManifest(true);
+    try {
+      const resp = await fetch(`/api/orders/${orderId}/sync-2b-manifest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      let payload: any = null;
+      try {
+        payload = await resp.json();
+      } catch {
+        payload = null;
+      }
+
+      if (!resp.ok) {
+        const err = payload?.error || `HTTP ${resp.status}`;
+        const details = payload?.details ? `\n\n${payload.details}` : '';
+        alert(`2B manifest sync failed: ${err}${details}`);
+        return;
+      }
+
+      const updated = Array.isArray(payload?.updatedPoseNumbers) ? payload.updatedPoseNumbers : [];
+      const missing = Array.isArray(payload?.stillMissingPoseNumbers) ? payload.stillMissingPoseNumbers : [];
+
+      if (updated.length === 0 && missing.length === 0) {
+        alert('2B manifest sync complete. No changes were needed.');
+      } else if (updated.length > 0 && missing.length === 0) {
+        alert(`2B manifest sync complete. Updated poses: ${updated.join(', ')}`);
+      } else if (updated.length === 0 && missing.length > 0) {
+        alert(
+          `2B manifest sync ran, but some poses are still missing bg-removed assets in R2: ${missing.join(', ')}`
+        );
+      } else {
+        alert(
+          `2B manifest sync complete.\n\nUpdated poses: ${updated.join(', ')}\nMissing in R2: ${missing.join(', ')}`
+        );
+      }
+
+      // Refresh order data to pick up updated manifest fields/caches
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (e: any) {
+      console.error('2B manifest sync error', e);
+      alert('Error syncing 2B manifest');
+    } finally {
+      setIsSyncing2bManifest(false);
+    }
+  };
+
   // Un-confirm approval when flags are set (same as Pre-Bria)
   useEffect(() => {
     setFlaggedCount(orderId, 'postBria', flaggedCount);
@@ -733,9 +786,11 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   }, [orderId, flaggedCount]);
 
   // Check if images are shared with other orders
-  const sharedImageInfo = order?.r2Assets?.sharedImageInfo;
+  const sharedImageInfo:
+    | { isShared?: boolean; sourceOrderIds?: string[] }
+    | null = ((order as any)?.r2Assets?.sharedImageInfo as any) ?? null;
   const isImagesShared = sharedImageInfo?.isShared === true;
-  const sourceOrderIds = sharedImageInfo?.sourceOrderIds || [];
+  const sourceOrderIds: string[] = sharedImageInfo?.sourceOrderIds ?? [];
 
   return (
     <div className="space-y-8">
@@ -756,7 +811,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
                 <div className="mt-2">
                   <p className="text-xs font-medium text-amber-900 mb-1">Source order{sourceOrderIds.length > 1 ? 's' : ''}:</p>
                   <div className="flex flex-wrap gap-2">
-                    {sourceOrderIds.slice(0, 5).map((sourceOrderId) => (
+                    {sourceOrderIds.slice(0, 5).map((sourceOrderId: string) => (
                       <a
                         key={sourceOrderId}
                         href={`/orders/${sourceOrderId}`}
@@ -922,6 +977,21 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
               <Play className="h-4 w-4 mr-2" />
               {isTriggering ? 'Triggering…' : 'Trigger Book Assembly'}
               </button>
+
+            {/* Sync/Repair 2B manifest from current R2 inventory */}
+            <button
+              onClick={handleSync2bManifest}
+              disabled={isSyncing2bManifest}
+              className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                isSyncing2bManifest
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-blue-500'
+              }`}
+              title="Backfill missing bgRemovedKey fields in 2b-manifest.json using the current bg-removed images in R2"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing2bManifest ? 'animate-spin' : ''}`} />
+              {isSyncing2bManifest ? 'Syncing…' : 'Sync 2B Manifest'}
+            </button>
           </div>
         </div>
       </div>

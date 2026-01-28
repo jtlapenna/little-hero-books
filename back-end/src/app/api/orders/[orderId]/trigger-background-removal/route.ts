@@ -44,6 +44,27 @@ async function triggerBackgroundRemoval(
       throw createNotFoundError(`Order ${orderId} not found`);
     }
     
+    // Normalize review_stages so we preserve approvals and keep stages consistent
+    // (Supabase may return JSONB as object, but be defensive if it's a string)
+    let normalizedReviewStages: any = currentOrder.review_stages || {};
+    if (typeof normalizedReviewStages === 'string') {
+      try {
+        normalizedReviewStages = JSON.parse(normalizedReviewStages);
+      } catch {
+        normalizedReviewStages = {};
+      }
+    }
+
+    // Since this endpoint explicitly triggers 2B, treat preBria as approved so the order
+    // does not appear to regress into the 2A review stage while queued for 2B.
+    normalizedReviewStages = {
+      ...(normalizedReviewStages || {}),
+      preBria: {
+        ...(normalizedReviewStages?.preBria || {}),
+        status: 'approved',
+      },
+    };
+
     // If force=true, call webhook directly and mark as processing to prevent router from picking it up
     // If force=false, queue for router (don't call webhook directly)
     if (force) {
@@ -71,10 +92,7 @@ async function triggerBackgroundRemoval(
           queued_at: null, // Clear queued_at so router doesn't pick it up
         };
         
-        // Preserve review_stages if they exist (to maintain approvals)
-        if (currentOrder.review_stages) {
-          updates.review_stages = currentOrder.review_stages;
-        }
+        updates.review_stages = normalizedReviewStages;
         
         await updateOrderStatus(orderId, updates);
       } catch (webhookError: any) {
@@ -88,9 +106,7 @@ async function triggerBackgroundRemoval(
           current_workflow: null
         };
         
-        if (currentOrder.review_stages) {
-          updates.review_stages = currentOrder.review_stages;
-        }
+        updates.review_stages = normalizedReviewStages;
         
         await updateOrderStatus(orderId, updates);
       }
@@ -104,10 +120,7 @@ async function triggerBackgroundRemoval(
         current_workflow: null
       };
       
-      // Preserve review_stages if they exist (to maintain approvals)
-      if (currentOrder.review_stages) {
-        updates.review_stages = currentOrder.review_stages;
-      }
+      updates.review_stages = normalizedReviewStages;
       
       await updateOrderStatus(orderId, updates);
     }

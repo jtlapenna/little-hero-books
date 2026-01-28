@@ -150,8 +150,24 @@ export async function POST(
       console.log(`[Regenerate 2B] Cleared status fields in 2B manifest: ${manifest2bKey}`);
     }
 
-    // Preserve review_stages when updating
-    const review_stages = currentOrder.review_stages || {};
+    // Preserve review_stages when updating (and avoid losing preBria approvals)
+    // NOTE: When an admin explicitly regenerates 2B, we treat preBria as approved so the UI/router
+    // doesn't "pull" the order back into the 2A review stage.
+    let review_stages: any = currentOrder.review_stages || {};
+    if (typeof review_stages === 'string') {
+      try {
+        review_stages = JSON.parse(review_stages);
+      } catch {
+        review_stages = {};
+      }
+    }
+    review_stages = {
+      ...(review_stages || {}),
+      preBria: {
+        ...(review_stages?.preBria || {}),
+        status: 'approved',
+      },
+    };
 
     // Queue order for router (w1.1) to pick up and route to 2B
     // Router will pick up orders with execution_status = 'ready_for_processing' and next_workflow = '2B'
