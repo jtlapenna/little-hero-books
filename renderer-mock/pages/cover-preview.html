@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cover Preview (pose positioning)</title>
+    <style>
+      :root {
+        --w: 5203px;
+        --h: 2625px;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #0b0f14;
+        color: #e6edf3;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      }
+      .wrap {
+        padding: 16px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+      .card {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        padding: 12px;
+      }
+      .card h2 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        font-weight: 600;
+        opacity: 0.95;
+      }
+      .sheet {
+        position: relative;
+        width: var(--w);
+        height: var(--h);
+        background: #111827;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+        transform-origin: top left;
+      }
+      /* Fit to viewport while keeping crisp edges */
+      .sheet.fit {
+        transform: scale(var(--scale, 0.22));
+      }
+      .bg {
+        position: absolute;
+        inset: 0;
+        background-repeat: no-repeat;
+      }
+      .bg-img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .pose-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        background-repeat: no-repeat;
+        background-position: 86.5% 80.5%;
+        background-size: 1200px auto;
+      }
+      .logo {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 999;
+        pointer-events: none;
+      }
+      /* Crosshair at the background-position anchor point */
+      .crosshair {
+        position: absolute;
+        left: 86.5%;
+        top: 80.5%;
+        width: 18px;
+        height: 18px;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+        pointer-events: none;
+      }
+      .crosshair::before,
+      .crosshair::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        background: rgba(255, 255, 255, 0.95);
+      }
+      .crosshair::before {
+        width: 18px;
+        height: 2px;
+        transform: translate(-50%, -50%);
+      }
+      .crosshair::after {
+        width: 2px;
+        height: 18px;
+        transform: translate(-50%, -50%);
+      }
+      .meta {
+        font-size: 12px;
+        opacity: 0.85;
+        line-height: 1.4;
+        margin: 10px 0 0;
+        overflow-wrap: anywhere;
+      }
+      .meta code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 11px;
+      }
+      .note {
+        margin: 0 0 14px 0;
+        font-size: 13px;
+        opacity: 0.9;
+      }
+      @media (max-width: 1100px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <p class="note">
+        This page previews **cover pose positioning** using real assets via <code>https://admin.littleherolabs.com/api/assets</code>.
+        Left uses the updated approach (BG as <code>&lt;img&gt;</code> + pose as a single-layer <code>background-image</code>). Right uses the legacy composite
+        <code>background-image: url(pose), url(bg)</code>.
+      </p>
+
+      <div class="row">
+        <div class="card">
+          <h2>Updated (BG &lt;img&gt; + Pose background-position)</h2>
+          <div id="sheet-new" class="sheet fit" aria-label="new cover preview"></div>
+          <div id="meta-new" class="meta"></div>
+        </div>
+
+        <div class="card">
+          <h2>Legacy (Composite background-image pose+bg)</h2>
+          <div id="sheet-old" class="sheet fit" aria-label="legacy cover preview"></div>
+          <div id="meta-old" class="meta"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const backendUrl = "https://admin.littleherolabs.com";
+        const characterHash = "b9f63e27ef9e5159";
+        const v = String(Date.now());
+        const asset = (key) => `${backendUrl}/api/assets/${key}?v=${encodeURIComponent(v)}`;
+
+        const bgKey = "book-mvp-simple-adventure/backgrounds/page00-covers-barcode.png";
+        const poseKey = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/characters_${characterHash}_pose00_nobg.png`;
+        const logoKey = "book-mvp-simple-adventure/overlays/logo-and-url.png";
+
+        const bgUrl = asset(bgKey);
+        const poseUrl = asset(poseKey);
+        const logoUrl = asset(logoKey);
+
+        // Fit-to-viewport scale
+        const setScale = () => {
+          const sheets = document.querySelectorAll(".sheet.fit");
+          for (const el of sheets) {
+            const pad = 48; // room for borders
+            const maxW = Math.max(200, el.parentElement.clientWidth - pad);
+            const scale = Math.min(1, maxW / 5203);
+            el.style.setProperty("--scale", String(scale));
+          }
+        };
+        window.addEventListener("resize", setScale);
+        setScale();
+
+        // New sheet: bg <img> + pose background-position layer
+        const sheetNew = document.getElementById("sheet-new");
+        sheetNew.innerHTML = `
+          <div class="bg">
+            <img class="bg-img" src="${bgUrl}" alt="" />
+            <div class="pose-layer" style="background-image:url('${poseUrl}')"></div>
+            <img class="logo" src="${logoUrl}" alt="" />
+            <div class="crosshair" title="86.5% / 80.5% anchor"></div>
+          </div>
+        `;
+
+        // Old sheet: composite background-image
+        const sheetOld = document.getElementById("sheet-old");
+        sheetOld.innerHTML = `
+          <div class="bg" style="
+            background-image: url('${poseUrl}'), url('${bgUrl}');
+            background-repeat: no-repeat;
+            background-position: 86.5% 80.5%, center center;
+            background-size: 1200px auto, cover;
+          "></div>
+          <img class="logo" src="${logoUrl}" alt="" />
+          <div class="crosshair" title="86.5% / 80.5% anchor"></div>
+        `;
+
+        document.getElementById("meta-new").innerHTML = `
+          <div><b>bg</b>: <code>${bgKey}</code></div>
+          <div><b>pose</b>: <code>${poseKey}</code></div>
+        `;
+        document.getElementById("meta-old").innerHTML = `
+          <div><b>bg</b>: <code>${bgKey}</code></div>
+          <div><b>pose</b>: <code>${poseKey}</code></div>
+        `;
+      })();
+    </script>
+  </body>
+</html>
+

@@ -202,6 +202,8 @@ export function AssetGrid({
                 src={asset.url}
                 alt={asset.name}
                 className="max-w-full max-h-full object-contain"
+                loading="lazy"
+                decoding="async"
                   onError={(e) => {
                     // Fallback to placeholder if image fails to load
                     const target = e.target as HTMLImageElement;

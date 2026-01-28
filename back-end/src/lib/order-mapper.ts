@@ -488,7 +488,23 @@ function extractChildNameFromCustomer(customerName?: string | null) {
 
 function toIsoString(value?: string | null) {
   if (!value) return undefined;
-  const date = new Date(value);
+  const raw = String(value).trim();
+
+  // Supabase/Postgres `timestamp` (without time zone) commonly returns strings like:
+  // - "2026-01-28 13:37:00"
+  // - "2026-01-28T13:37:00"
+  // These are *timezone-less* and JS interprets them as local time, which can make
+  // UTC values look "in the future" in the UI.
+  //
+  // We treat timezone-less timestamps as UTC by appending "Z".
+  const hasExplicitTz = /(?:Z|[+-]\d{2}:\d{2})$/i.test(raw);
+  const isDateTimeNoTz =
+    /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?$/.test(raw) &&
+    !hasExplicitTz;
+
+  const normalized = isDateTimeNoTz ? raw.replace(' ', 'T') + 'Z' : raw;
+
+  const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) {
     return undefined;
   }

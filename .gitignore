@@ -18,6 +18,9 @@ yarn-error.log*
 *.swo
 *~
 
+# Local screenshots / large binaries
+renderer-mock/cover-preview-screenshot.png
+
 # OS generated files
 .DS_Store
 .DS_Store?

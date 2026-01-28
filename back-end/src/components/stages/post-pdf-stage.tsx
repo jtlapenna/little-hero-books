@@ -670,14 +670,10 @@ export function PostPdfStage({
                   // Priority 1: Use Cloudflare Images if available and valid (fastest, WebP, CDN)
                   // IMPORTANT: Frontend should always use Cloudflare Images WebP for display (not R2 PNG)
                   let imageUrl: string;
-                  // NOTE: W3 reruns overwrite R2 preview keys, but Cloudflare Images may not be regenerated.
-                  // Prefer R2 for preview-images so the UI always reflects the latest W3 run.
-                  const shouldPreferR2 = Boolean(img.r2Key && String(img.r2Key).includes('/preview-images/'));
-
-                  if (shouldPreferR2 && img.r2Key) {
-                    imageUrl = withBust(`/api/assets/${img.r2Key}`);
-                    console.log(`[Pages] Page ${img.pageNumber}: ✅ Using R2 preview-image (cache-busted):`, imageUrl);
-                  } else if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
+                  // NOTE: The Post-PDF review UI shows many thumbnails at once. Using full-res R2 PNGs
+                  // (via `/api/assets/.../preview-images/...`) can be slow/heavy and cause blank tiles.
+                  // Prefer Cloudflare Images for display when available; keep r2Key for downloads/replacements.
+                  if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
                     imageUrl = withBust(cloudflareImageUrl);
                     console.log(`[Pages] Page ${img.pageNumber}: ✅ Using Cloudflare Images WebP URL (cache-busted):`, imageUrl.substring(0, 80) + '...');
                   }
