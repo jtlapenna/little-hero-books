@@ -453,18 +453,19 @@ async function uploadHtmlDocument(options: UploadHtmlDocumentOptions) {
   }
 
   const encryptionDetails = payload.encryptionDetails || uploadDestination?.encryptionDetails;
-  if (!encryptionDetails) {
-    throw new AmazonMessagingError('Amazon uploads API response missing encryption details', {
-      retryable: true,
-      details: payload
-    });
+  let bodyToUpload: Buffer;
+  let md5Checksum: string;
+
+  if (encryptionDetails) {
+    bodyToUpload = encryptHtml(htmlBuffer, encryptionDetails);
+    md5Checksum = createHash('md5').update(bodyToUpload).digest('base64');
+  } else {
+    // Messaging upload destination may return no encryption (plain upload); use raw content and MD5 of raw
+    bodyToUpload = htmlBuffer;
+    md5Checksum = contentMD5;
   }
 
-  const encryptedBuffer = encryptHtml(htmlBuffer, encryptionDetails);
-  const md5Checksum = createHash('md5').update(encryptedBuffer).digest('base64');
-
   const headers: Record<string, string> = {};
-
   const requiredHeaders = payload.headers || uploadDestination?.headers;
   if (requiredHeaders && typeof requiredHeaders === 'object') {
     for (const [key, value] of Object.entries(requiredHeaders)) {
@@ -473,17 +474,15 @@ async function uploadHtmlDocument(options: UploadHtmlDocumentOptions) {
       }
     }
   }
-
   if (!headers['Content-Type']) {
-    headers['Content-Type'] = 'application/octet-stream';
+    headers['Content-Type'] = encryptionDetails ? 'application/octet-stream' : 'text/html; charset=UTF-8';
   }
-
   headers['Content-MD5'] = md5Checksum;
 
   const uploadResponse = await fetch(uploadUrl, {
     method: 'PUT',
     headers,
-    body: encryptedBuffer
+    body: bodyToUpload
   });
 
   if (!uploadResponse.ok) {
