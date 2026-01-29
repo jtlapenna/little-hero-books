@@ -203,24 +203,24 @@ Use your **2 new orders that have not yet shipped** for testing. Unshipped order
 
 ## Test result: Unauthorized (order 111-9459631-7176256)
 
-**Response:** `{"success":false,"error":"Access to requested resource is denied. (Code: Unauthorized)"}`
+**Response:** `{"success":false,"error":"Access to requested resource is denied. (Code: Unauthorized)"}` (then after deploy, full response with `requestId` and `apiCallDetails`).
 
-This indicates Amazon SP-API is rejecting the **Messaging** request (likely the first call: `GET /messaging/v1/orders/{orderId}`). The error is from Amazon, not from missing config.
+**Root cause (from apiCallDetails):** The failure is **not** on the Messaging GET-orders call. It is on:
+- **Operation:** `POST /uploads/2020-11-01/uploadDestinations/messaging`
+- **Request ID:** `7fef5899-934c-4512-8b5d-2e7f4cf0c5c6`
+- **Response:** 403, `x-amzn-errortype: AccessDeniedException`, code `Unauthorized`
+
+So: **LWA and GET /messaging/v1/orders/... succeed**; the **Uploads API** (requesting an upload destination for the HTML message) is denying access. The app likely has Messaging permission but not **Uploads** (or the IAM user lacks execute-api on the uploads endpoint).
 
 ### Next steps
 
-1. **Get Request ID from Vercel logs**  
-   After redeploying (so future responses include `requestId` and `apiCallDetails`), run the test again and check the JSON response. Or **now**: Vercel → Project → Logs (or Function logs). Find the log entry for the request; look for:
-   - `[Amazon SP-API] Request failed - FULL DETAILS:` or  
-   - `[Amazon SP-API] Full Request/Response Details for Support:`  
-   Copy the **requestId** and (if present) **operation** from that log. You need the requestId for an Amazon support case.
+**Option A – Workaround (text-only message, no HTML upload)**  
+Set in Vercel (Production): `AMAZON_FORCE_TEXT_ONLY=true`.  
+The code will use `createConfirmOrderDetails` (plain text with preview URL) and **skip** the Uploads API call. Customers still get the preview link; the email body is text-only. Redeploy and re-run the curl; if Messaging is allowed, it should succeed.
 
-2. **Verify production credentials**
-   - **LWA:** In Vercel (Production), ensure `AMZ_APP_CLIENT_ID`, `AMZ_APP_CLIENT_SECRET`, and `AMZ_REFRESH_TOKEN` are the **production** app and token (not sandbox). Your `.env.local` has separate `AMZ_LWA_CLIENT_ID_PROD` / `AMZ_APP_PROD_REFRESH_TOKEN`; production must use the same values as your prod LWA app.
-   - **IAM:** The `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` in Vercel must be for an IAM user/role that is **authorized for SP-API** in the same app registration (Developer Console). That identity must have `execute-api:Invoke` on the SP-API API Gateway.
+**Option B – Proper fix (keep HTML messages)**  
+1. In Amazon Developer Console → your SP-API app → ensure **Uploads** API (or the scope that includes `uploadDestinations/messaging`) is enabled and that the seller (A2V719MRGLK48O) is authorized.  
+2. Ensure the IAM user (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) has `execute-api:Invoke` on the **Uploads** API Gateway for your app (same registration as Messaging).  
+3. Open an SP-API support case with **Request ID** `7fef5899-934c-4512-8b5d-2e7f4cf0c5c6`, **operation** `POST /uploads/2020-11-01/uploadDestinations/messaging`, and ask them to confirm your app has Uploads access for messaging for seller A2V719MRGLK48O.
 
-3. **Messaging permission**
-   - In Amazon Developer Console → your SP-API app → check that **Messaging** (and any required Messaging sub-types) are enabled and that the seller account (A2V719MRGLK48O) is authorized for this app.
-
-4. **Open an Amazon SP-API support case**
-   - Include: **Request ID** from logs, **operation** (e.g. `GET /messaging/v1/orders/111-9459631-7176256`), **application ID** (your LWA client ID), **seller ID** (A2V719MRGLK48O), and that you get "Access to requested resource is denied (Code: Unauthorized)" when calling the Messaging API. Ask them to confirm your app has Messaging access for that seller and that the IAM credentials are correctly linked.
+**Vercel Logs note:** The main Logs table (Time, Status, Host, Request, Messages) often does **not** show function-level `console.log` (e.g. `[Amazon SP-API]`). That’s a Vercel UI limitation. You don’t need the logs for this issue: the **API response** now includes `requestId` and `apiCallDetails`, which is enough for support and debugging.
