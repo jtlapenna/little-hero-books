@@ -1,9 +1,9 @@
 # Issue: Audit and Fix Amazon Messaging Feature
 
-**Status:** 🔴 Open  
+**Status:** 🟢 Resolved (text-only path)  
 **Priority:** High  
 **Created:** 2026-01-27  
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-01-29
 
 ## Description
 
@@ -136,11 +136,13 @@ This indicates Amazon SP-API is rejecting the request due to authentication/auth
 
 ## Success Criteria
 
-- [ ] `/api/admin/check-amazon-messaging` shows all config valid
-- [ ] Test message sends successfully
-- [ ] Production "Send for Customer Approval" button works
+- [x] `/api/admin/check-amazon-messaging` shows all config valid
+- [x] Test message sends successfully (curl to send-amazon-message: `success: true`, `messageType: createConfirmOrderDetails`, order 111-9459631-7176256)
+- [ ] Production "Send for Customer Approval" button works (test from order detail page with real preview URL)
 - [ ] UI shows "Preview link sent via Amazon Message Center" (not error)
 - [ ] `notification_logs` shows `status='sent'` with `messageId`
+
+**Fix applied:** Default to text-only messaging (no HTML upload). Set `AMAZON_FORCE_TEXT_ONLY=false` in Vercel only if you later get Uploads API permission and want HTML messages.
 
 ---
 

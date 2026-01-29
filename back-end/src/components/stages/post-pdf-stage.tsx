@@ -262,7 +262,7 @@ export function PostPdfStage({
   // Button logic:
   // - First Review (revisionCount === 0): After Send for Customer Approval → Show "Send Proof" button
   // - Second Review (revisionCount >= 1): After Send for Customer Approval → Show "Send to Print" button
-  // 
+  //
   // Show "Send to Print" only if:
   // 1. Stage is approved
   // 2. We're in second review (revisionCount >= 1)
