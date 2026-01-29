@@ -2,6 +2,8 @@ import { createCipheriv, createHash, createHmac, randomUUID } from 'crypto';
 
 import { z } from 'zod';
 
+import { buildApprovalPageHtml } from '@/lib/approval-page-html';
+
 // Amazon Messaging API - Updated to parse _links.actions correctly
 // Deployment trigger
 
@@ -71,60 +73,6 @@ export function getAmazonMessagingConfig(forceRefresh = false): AmazonMessagingC
   return { ok: true, config: cachedConfig };
 }
 
-interface BuildPreviewMessageOptions {
-  reminderType: ReminderType;
-  previewUrl: string;
-  childName?: string;
-  revisionsRemaining: number;
-}
-
-export function buildPreviewMessageHtml(options: BuildPreviewMessageOptions): string {
-  const { reminderType, previewUrl, childName = 'your child', revisionsRemaining } = options;
-
-  const reminders: Record<ReminderType, string> = {
-    initial: 'Your personalized storybook preview is ready.',
-    'reminder-day-1': 'Friendly reminder: please review your story within the next two days.',
-    'reminder-day-2': 'Final reminder: automatic approval fires tomorrow unless you request a revision.',
-    'auto-approval':
-      'Action completed: we approved your story automatically so production can begin right away.'
-  };
-
-  const revisionLine =
-    revisionsRemaining > 0
-      ? `You have <strong>${revisionsRemaining}</strong> free revision${
-          revisionsRemaining === 1 ? '' : 's'
-        } remaining.`
-      : 'You have used both free revisions. To request further changes, reply to this message or email hello@littleherobooks.com.';
-
-  return [
-    '<!DOCTYPE html>',
-    '<html>',
-    '<head>',
-    '<meta charset="utf-8" />',
-    `<title>Little Hero Books Preview for ${childName}</title>`,
-    '<style>',
-    'body { font-family: Arial, sans-serif; background: #f7f9fb; color: #1f2933; padding: 24px; }',
-    '.card { background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(31, 41, 51, 0.1); }',
-    '.cta { display: inline-block; padding: 12px 20px; background: #f9786b; color: #ffffff; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 16px 0; }',
-    '.meta { font-size: 12px; color: #52606d; margin-top: 24px; }',
-    '</style>',
-    '</head>',
-    '<body>',
-    '<div class="card">',
-    '<h1>Little Hero Books – Preview Ready</h1>',
-    `<p>${reminders[reminderType]}</p>`,
-    `<p>Tap below to review <strong>${childName}</strong>'s Adventure Compass story:</p>`,
-    `<p><a class="cta" href="${previewUrl}" target="_blank" rel="noopener noreferrer">Review Book Preview</a></p>`,
-    `<p>${revisionLine}</p>`,
-    '<p>If we do not hear from you within three days, we will approve the story automatically and move it into production.</p>',
-    '<p>Need help? Reply to this message or email hello@littleherobooks.com.</p>',
-    '<p class="meta">Every child is the hero of their own story.<br />Little Hero Books</p>',
-    '</div>',
-    '</body>',
-    '</html>'
-  ].join('');
-}
-
 interface SendPreviewMessageParams {
   amazonOrderId: string;
   reminderType: ReminderType;
@@ -186,7 +134,12 @@ export async function sendAmazonPreviewMessage(
     };
   }
 
-  const html = buildPreviewMessageHtml(params);
+  // Reuse same approval page HTML as tab 3 (Post-PDF) download; includes correct preview URL
+  const html = buildApprovalPageHtml(
+    params.previewUrl,
+    params.childName ?? 'your child',
+    params.amazonOrderId
+  );
 
   try {
     const config = configResult.config;
@@ -234,7 +187,7 @@ export async function sendAmazonPreviewMessage(
     let messageResponse;
     if (messageTypeCheck.allowedType === 'confirmCustomizationDetails') {
       const rawMessageBody =
-        `Your personalized book preview is ready. Please open the attachment and use the link to review and approve.`;
+        `Your book preview is ready. Open the attached file and click the link to review and approve, or copy this link: ${params.previewUrl}. Please respond within 3 days or we'll approve automatically and begin printing.`;
       messageResponse = await sendConfirmCustomizationDetails({
         amazonOrderId: params.amazonOrderId,
         accessToken,
@@ -572,7 +525,7 @@ interface SendConfirmOrderDetailsOptions {
  */
 async function sendConfirmOrderDetails(options: SendConfirmOrderDetailsOptions) {
   const reminders: Record<ReminderType, string> = {
-    initial: `Hi! Here is a preview of your personalized book so you can confirm everything looks good before we print: ${options.previewUrl}. We will proceed using these details unless we hear from you.`,
+    initial: `Hi! Here is your book preview: ${options.previewUrl}. Please respond within 3 days or we'll approve automatically and begin printing.`,
     'reminder-day-1': `Friendly reminder: please review your story within the next two days. Preview: ${options.previewUrl}`,
     'reminder-day-2': `Final reminder: automatic approval fires tomorrow unless you request a revision. Preview: ${options.previewUrl}`,
     'auto-approval': `Action completed: we approved your story automatically so production can begin right away. Preview: ${options.previewUrl}`

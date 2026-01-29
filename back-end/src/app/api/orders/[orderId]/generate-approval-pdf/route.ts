@@ -1,13 +1,16 @@
 /**
- * API Route: Generate PDF with Approval Link
- * 
+ * API Route: Generate HTML with Approval Link (for download / manual sending)
+ *
  * GET /api/orders/[orderId]/generate-approval-pdf
- * 
- * Generates a PDF that includes the book preview with an embedded approval link.
- * This PDF can be manually attached to Amazon messages while API authorization is being resolved.
+ *
+ * Returns the same approval-page HTML used in Amazon Message Center attachments.
+ * Use this to download the HTML file when a message needs to be sent manually
+ * (e.g. attach the file in Amazon Buyer-Seller Messaging). The response is
+ * served as an HTML file (approval-{orderId}.html) with the correct approval URL.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { buildApprovalPageHtml } from '@/lib/approval-page-html';
 import { getActivePreviewToken } from '@/lib/preview-tokens';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
 import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
@@ -65,9 +68,9 @@ export async function GET(
       console.warn(`[Generate Approval PDF] Book PDF not found at ${pdfKey}, creating standalone approval PDF`);
     }
 
-    // Generate HTML for approval page
+    // Generate HTML for approval page (shared with Amazon message attachment)
     const childName = order.childName || 'your child';
-    const html = generateApprovalPageHtml(approvalUrl, childName, orderId);
+    const html = buildApprovalPageHtml(approvalUrl, childName, orderId);
 
     // For now, return HTML that can be converted to PDF manually
     // In the future, we can use a PDF generation service or library
@@ -94,170 +97,4 @@ export async function GET(
     );
   }
 }
-
-/**
- * Generate HTML page with approval link that can be converted to PDF
- */
-function generateApprovalPageHtml(approvalUrl: string, childName: string, orderId: string): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Your Personalized Book Preview - ${orderId}</title>
-  <style>
-    /* Force browsers to preserve colors when printing */
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
-    }
-    
-    @media print {
-      body { margin: 0; padding: 0; }
-      /* Ensure colors are preserved in print */
-      * {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        color-adjust: exact !important;
-      }
-      /* Ensure links are preserved and visible */
-      a {
-        color: #ffffff !important;
-        text-decoration: none !important;
-      }
-      a[href]:after {
-        content: "" !important; /* Remove default URL printing */
-      }
-    }
-    body {
-      font-family: Arial, sans-serif;
-      background: #f7f9fb;
-      color: #1f2933;
-      padding: 40px 20px;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    .card {
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 40px;
-      box-shadow: 0 4px 12px rgba(31, 41, 51, 0.1);
-      text-align: center;
-    }
-    h1 {
-      color: #1f2933;
-      font-size: 28px;
-      margin-bottom: 16px;
-    }
-    p {
-      color: #52606d;
-      font-size: 16px;
-      line-height: 1.6;
-      margin-bottom: 24px;
-    }
-    .cta-button {
-      display: inline-block;
-      padding: 16px 32px;
-      background: #f9786b !important;
-      color: #ffffff !important;
-      border-radius: 8px;
-      text-decoration: none !important;
-      font-weight: bold;
-      font-size: 18px;
-      margin: 24px 0;
-      transition: background 0.2s;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
-    }
-    .cta-button:hover {
-      background: #e8695c;
-    }
-    /* Ensure link is clickable and styled in print */
-    .cta-button[href] {
-      color: #ffffff !important;
-      background-color: #f9786b !important;
-    }
-    .approval-url {
-      background: #f0f4f8 !important;
-      border: 1px solid #cbd5e0 !important;
-      border-radius: 6px;
-      padding: 12px;
-      margin: 20px 0;
-      word-break: break-all;
-      font-family: monospace;
-      font-size: 12px;
-      color: #1f2933 !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
-    }
-    .instructions {
-      background: #fff8e1 !important;
-      border-left: 4px solid #ffc107 !important;
-      padding: 16px;
-      margin: 24px 0;
-      text-align: left;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
-    }
-    .instructions h3 {
-      margin-top: 0;
-      color: #f57c00 !important;
-    }
-    .instructions ol {
-      margin: 12px 0;
-      padding-left: 24px;
-    }
-    .instructions li {
-      margin: 8px 0;
-    }
-    .footer {
-      margin-top: 40px;
-      padding-top: 24px;
-      border-top: 1px solid #e2e8f0;
-      font-size: 12px;
-      color: #64748b;
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Your Personalized Book Preview is Ready!</h1>
-    
-    <p>Hi there! Your personalized storybook for <strong>${childName}</strong> is ready for review.</p>
-    
-    <p>Please click the button below to view your book preview and approve it for printing:</p>
-    
-    <a href="${approvalUrl}" class="cta-button" target="_blank" rel="noopener noreferrer">
-      Review & Approve Your Book
-    </a>
-    
-    <div class="approval-url">
-      <strong>Approval Link:</strong><br>
-      ${approvalUrl}
-    </div>
-    
-    <div class="instructions">
-      <h3>What happens next?</h3>
-      <ol>
-        <li>Click the button above to view your book preview</li>
-        <li>Review all pages to ensure everything looks perfect</li>
-        <li>Click "Approve Book" when you're ready</li>
-        <li>If you need any changes, click "I need a correction" and let us know</li>
-      </ol>
-      <p><strong>Note:</strong> If we don't hear from you within 3 days, we'll automatically approve your book and begin printing.</p>
-    </div>
-    
-    <div class="footer">
-      <p><strong>Order ID:</strong> ${orderId}</p>
-      <p>Every child is the hero of their own story.<br>Little Hero Books</p>
-    </div>
-  </div>
-</body>
-</html>`;
-}
-
 
