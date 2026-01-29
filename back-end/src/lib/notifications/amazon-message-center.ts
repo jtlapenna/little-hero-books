@@ -218,11 +218,12 @@ export async function sendAmazonPreviewMessage(
     let documentId: string | undefined;
     if (messageTypeCheck.allowedType === 'confirmCustomizationDetails') {
       const uploadResult = await uploadHtmlDocument({
-      html,
-      accessToken,
-      config,
-      reminderType: params.reminderType
-    });
+        amazonOrderId: params.amazonOrderId,
+        html,
+        accessToken,
+        config,
+        reminderType: params.reminderType
+      });
       documentId = uploadResult.documentId;
     }
 
@@ -385,6 +386,7 @@ async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptio
 }
 
 interface UploadHtmlDocumentOptions {
+  amazonOrderId: string;
   html: string;
   accessToken: string;
   config: AmazonMessagingConfig;
@@ -397,11 +399,14 @@ async function uploadHtmlDocument(options: UploadHtmlDocumentOptions) {
   // Calculate MD5 hash of the content (before encryption) for contentMD5 query parameter
   const contentMD5 = createHash('md5').update(htmlBuffer).digest('base64');
 
-  // Use the correct endpoint: /uploads/2020-11-01/uploadDestinations/{resource}
-  // Resource parameter is "messaging" for messaging API uploads
+  // Full resource path per Uploads API model: resource = messaging/v1/orders/{amazonOrderId}/messages/confirmCustomizationDetails
+  // See https://github.com/amzn/selling-partner-api-models/blob/main/models/uploads-api-model/uploads_2020-11-01.json
+  const resource = `messaging/v1/orders/${options.amazonOrderId}/messages/confirmCustomizationDetails`;
+  const path = `/uploads/2020-11-01/uploadDestinations/${resource}`;
+
   const createResponse = await callSellingPartnerApi({
     method: 'POST',
-    path: '/uploads/2020-11-01/uploadDestinations/messaging',
+    path,
     accessToken: options.accessToken,
     config: options.config,
     query: {
