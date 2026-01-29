@@ -233,12 +233,15 @@ export async function sendAmazonPreviewMessage(
     // Send the appropriate message type
     let messageResponse;
     if (messageTypeCheck.allowedType === 'confirmCustomizationDetails') {
+      const rawMessageBody =
+        `Your personalized book preview is ready. Please open the attachment and use the link to review and approve.`;
       messageResponse = await sendConfirmCustomizationDetails({
         amazonOrderId: params.amazonOrderId,
         accessToken,
         config,
         documentId: documentId!,
-        reminderType: params.reminderType
+        reminderType: params.reminderType,
+        rawMessageBody
       });
     } else {
       // Use createConfirmOrderDetails as fallback
@@ -518,9 +521,16 @@ interface SendConfirmCustomizationDetailsOptions {
   config: AmazonMessagingConfig;
   documentId: string;
   reminderType: ReminderType;
+  /** Required by API: 1-800 chars. Shown with the attachment. */
+  rawMessageBody: string;
 }
 
 async function sendConfirmCustomizationDetails(options: SendConfirmCustomizationDetailsOptions) {
+  const rawMessageBody = options.rawMessageBody.slice(0, 800);
+  if (!rawMessageBody.trim()) {
+    throw new AmazonMessagingError('confirmCustomizationDetails requires non-empty rawMessageBody (1-800 chars)', { retryable: false });
+  }
+
   const response = await callSellingPartnerApi({
     method: 'POST',
     path: `/messaging/v1/orders/${options.amazonOrderId}/messages/confirmCustomizationDetails`,
@@ -530,12 +540,11 @@ async function sendConfirmCustomizationDetails(options: SendConfirmCustomization
       marketplaceIds: options.config.marketplaceId
     },
     body: {
+      text: rawMessageBody,
       attachments: [
         {
-          attachmentType: 'CUSTOMIZATION_DETAILS',
-          contentType: 'text/html; charset=UTF-8',
-          fileName: buildAttachmentFileName(options.reminderType),
-          documentId: options.documentId
+          uploadDestinationId: options.documentId,
+          fileName: buildAttachmentFileName(options.reminderType)
         }
       ]
     }
