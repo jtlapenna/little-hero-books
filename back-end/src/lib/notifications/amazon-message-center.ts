@@ -131,6 +131,8 @@ interface SendPreviewMessageParams {
   previewUrl: string;
   childName?: string;
   revisionsRemaining: number;
+  /** When true, use HTML path (confirmCustomizationDetails) if available. Test endpoint can pass ?forceHtml=true. */
+  forceHtml?: boolean;
 }
 
 export interface AmazonMessagingResponse {
@@ -194,7 +196,8 @@ export async function sendAmazonPreviewMessage(
     const messageTypeCheck = await checkAvailableMessageTypes({
       amazonOrderId: params.amazonOrderId,
       accessToken,
-      config
+      config,
+      forceHtml: params.forceHtml
     });
 
     // Capture API call details for export
@@ -281,6 +284,8 @@ interface EnsureMessageTypeAllowedOptions {
   amazonOrderId: string;
   accessToken: string;
   config: AmazonMessagingConfig;
+  /** When true, prefer HTML (confirmCustomizationDetails) over text-only. Overrides env. */
+  forceHtml?: boolean;
 }
 
 type AllowedMessageType = 'confirmCustomizationDetails' | 'createConfirmOrderDetails' | null;
@@ -339,11 +344,12 @@ async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptio
     });
 
     // Default to text-only (no HTML upload) to avoid Uploads API permission issues.
-    // Set AMAZON_FORCE_TEXT_ONLY=false to use HTML (confirmCustomizationDetails + Uploads API).
+    // Set AMAZON_FORCE_TEXT_ONLY=false or pass forceHtml=true (test) to use HTML (confirmCustomizationDetails + Uploads API).
     // Note: Amazon API operation name is "createConfirmOrderDetails" but URL path is "confirmOrderDetails"
     const forceTextOnlyRaw = (process.env.AMAZON_FORCE_TEXT_ONLY ?? '').toString().trim().toLowerCase();
-    const FORCE_TEXT_ONLY = forceTextOnlyRaw !== 'false';
-    console.log('[Amazon Messaging] AMAZON_FORCE_TEXT_ONLY:', { raw: process.env.AMAZON_FORCE_TEXT_ONLY, normalized: forceTextOnlyRaw, forceTextOnly: FORCE_TEXT_ONLY });
+    const fromEnv = forceTextOnlyRaw !== 'false';
+    const FORCE_TEXT_ONLY = options.forceHtml === true ? false : fromEnv;
+    console.log('[Amazon Messaging] AMAZON_FORCE_TEXT_ONLY:', { raw: process.env.AMAZON_FORCE_TEXT_ONLY, normalized: forceTextOnlyRaw, forceHtmlOverride: options.forceHtml, forceTextOnly: FORCE_TEXT_ONLY });
 
     let allowedType: AllowedMessageType = null;
     if (FORCE_TEXT_ONLY && actions.includes('confirmOrderDetails')) {
