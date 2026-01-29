@@ -143,9 +143,13 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
     
-    // Extract tracking info if status is SHIPPED
+    // Extract tracking info if status is SHIPPED (used later for Amazon shipped notification)
+    let shippingTrackingUrl: string | null = null;
+    let shippingTrackingNumber: string | null = null;
     if (statusName === 'SHIPPED' && lineItemStatuses.length > 0) {
       const trackingInfo = extractTrackingInfo(lineItemStatuses);
+      shippingTrackingUrl = trackingInfo.trackingUrl;
+      shippingTrackingNumber = trackingInfo.trackingNumber;
       if (trackingInfo.trackingNumber) {
         updateData.tracking_number = trackingInfo.trackingNumber;
       }
@@ -217,7 +221,34 @@ export async function POST(request: NextRequest) {
     }
     
     console.log(`[LULU WEBHOOK] Successfully updated order ${orderIdentifier} with status ${statusName}`);
-    
+
+    // Send Amazon "your book has shipped" message when SHIPPED, if enabled
+    if (statusName === 'SHIPPED') {
+      const shippedNotificationsEnabled =
+        (process.env.AMAZON_SHIPPED_NOTIFICATIONS_ENABLED ?? '').trim().toLowerCase() === 'true';
+      const amazonOrderId = order.amazon_order_id || order.order_id || order.orderId;
+      const childName =
+        order.character_specs?.childName ?? order.character_specs?.child_name ?? undefined;
+      if (shippedNotificationsEnabled && amazonOrderId) {
+        try {
+          const { sendAmazonShippedMessage } = await import('@/lib/notifications/amazon-message-center');
+          const result = await sendAmazonShippedMessage({
+            amazonOrderId: String(amazonOrderId),
+            trackingUrl: shippingTrackingUrl ?? undefined,
+            trackingNumber: shippingTrackingNumber ?? undefined,
+            childName: childName ?? undefined,
+          });
+          if (result.success) {
+            console.log(`[LULU WEBHOOK] Amazon shipped message sent for order ${orderIdentifier}`);
+          } else {
+            console.warn(`[LULU WEBHOOK] Amazon shipped message failed for ${orderIdentifier}:`, result.error);
+          }
+        } catch (notifyErr: any) {
+          console.warn(`[LULU WEBHOOK] Amazon shipped notification error:`, notifyErr?.message ?? notifyErr);
+        }
+      }
+    }
+
     // Always return 200 OK - Lulu expects this to acknowledge receipt
     return NextResponse.json(
       { 

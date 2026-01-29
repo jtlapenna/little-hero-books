@@ -231,6 +231,7 @@ export async function updateOrderInSupabase(orderId: string, updates: any) {
     'customer_approval_required': 'customer_approval_required',
     'customer_approval_requested_at': 'customer_approval_requested_at',
     'customer_approval_approved_at': 'customer_approval_approved_at',
+    'preview_reminder_sent': 'preview_reminder_sent',
     'lulu_status': 'lulu_status',
     'manifest_2b_url': 'manifest_2b_url',
     'manifest_3_url': 'manifest_3_url',

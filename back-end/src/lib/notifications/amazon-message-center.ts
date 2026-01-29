@@ -521,14 +521,15 @@ interface SendConfirmOrderDetailsOptions {
 
 /**
  * Send a confirmOrderDetails message (fallback when confirmCustomizationDetails isn't available)
- * This uses plain text with the preview URL, no HTML attachments
+ * Plain text with preview URL; newlines are preserved by Amazon Message Center for readability.
  */
 async function sendConfirmOrderDetails(options: SendConfirmOrderDetailsOptions) {
+  const child = options.childName || 'your child';
   const reminders: Record<ReminderType, string> = {
-    initial: `Hi! Here is your book preview: ${options.previewUrl}. Please respond within 3 days or we'll approve automatically and begin printing.`,
-    'reminder-day-1': `Friendly reminder: please review your story within the next two days. Preview: ${options.previewUrl}`,
-    'reminder-day-2': `Final reminder: automatic approval fires tomorrow unless you request a revision. Preview: ${options.previewUrl}`,
-    'auto-approval': `Action completed: we approved your story automatically so production can begin right away. Preview: ${options.previewUrl}`
+    initial: `Hi! Great news — ${child}'s personalized storybook is ready to see!\n\nClick the link below to view the preview and approve it for printing:\n\n${options.previewUrl}\n\nWe're so excited for you to see it. If we don't hear from you within 3 days, we'll go ahead and approve it so we can start printing.\n\nEvery child is the hero of their own story.\n— Little Hero Books`,
+    'reminder-day-1': `Friendly reminder: ${child}'s story is waiting for your review!\n\nView the preview here:\n${options.previewUrl}\n\nPlease take a look in the next day or two.\n\nEvery child is the hero of their own story.\n— Little Hero Books`,
+    'reminder-day-2': `Final reminder: we'll automatically approve ${child}'s book tomorrow unless you'd like to request a change.\n\nView the preview:\n${options.previewUrl}\n\nEvery child is the hero of their own story.\n— Little Hero Books`,
+    'auto-approval': `Good news: we've approved ${child}'s book and production has started!\n\nYou can still view the preview here: ${options.previewUrl}\n\nEvery child is the hero of their own story.\n— Little Hero Books`
   };
 
   const messageText = reminders[options.reminderType] || reminders.initial;
@@ -551,6 +552,62 @@ async function sendConfirmOrderDetails(options: SendConfirmOrderDetailsOptions) 
   return {
     messageId
   };
+}
+
+export interface SendAmazonShippedMessageParams {
+  amazonOrderId: string;
+  trackingUrl?: string | null;
+  trackingNumber?: string | null;
+  childName?: string | null;
+}
+
+export interface SendAmazonShippedMessageResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+
+/**
+ * Send a "your book has shipped" message via Amazon Message Center (confirmOrderDetails).
+ * Call from Lulu webhook when status becomes SHIPPED. Optional tracking URL or number.
+ */
+export async function sendAmazonShippedMessage(
+  params: SendAmazonShippedMessageParams
+): Promise<SendAmazonShippedMessageResult> {
+  const configResult = getAmazonMessagingConfig();
+  if (!configResult.ok) {
+    return { success: false, error: configResult.error };
+  }
+  const config = configResult.config;
+  const accessToken = await getAccessToken(config);
+  const child = params.childName || 'your child';
+
+  let trackingLine: string;
+  if (params.trackingUrl?.trim()) {
+    trackingLine = `Track your package here:\n\n${params.trackingUrl.trim()}`;
+  } else if (params.trackingNumber?.trim()) {
+    trackingLine = `Your tracking number: ${params.trackingNumber.trim()}`;
+  } else {
+    trackingLine = 'Your book is on its way!';
+  }
+
+  const text = `Good news — ${child}'s book has shipped!\n\n${trackingLine}\n\nEvery child is the hero of their own story.\n— Little Hero Books`;
+
+  try {
+    const response = await callSellingPartnerApi({
+      method: 'POST',
+      path: `/messaging/v1/orders/${params.amazonOrderId}/messages/confirmOrderDetails`,
+      accessToken,
+      config,
+      query: { marketplaceIds: config.marketplaceId },
+      body: { text: text.slice(0, 2000) }
+    });
+    const messageId = (response as any)?.payload?.messageId ?? randomUUID();
+    return { success: true, messageId };
+  } catch (err: any) {
+    const message = err?.message ?? String(err);
+    return { success: false, error: message };
+  }
 }
 
 function buildAttachmentFileName(reminderType: ReminderType) {
