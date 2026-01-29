@@ -337,16 +337,15 @@ async function checkAvailableMessageTypes(options: EnsureMessageTypeAllowedOptio
       }
     });
 
-    // When AMAZON_FORCE_TEXT_ONLY=true, always use text-only (no HTML upload) to avoid Uploads API permission issues.
-    // Otherwise prefer confirmCustomizationDetails (HTML), fall back to confirmOrderDetails (text).
+    // Default to text-only (no HTML upload) to avoid Uploads API permission issues.
+    // Set AMAZON_FORCE_TEXT_ONLY=false to use HTML when the app has Uploads permission.
     // Note: Amazon API operation name is "createConfirmOrderDetails" but URL path is "confirmOrderDetails"
-    const FORCE_TEXT_ONLY = process.env.AMAZON_FORCE_TEXT_ONLY === 'true';
+    const FORCE_TEXT_ONLY = process.env.AMAZON_FORCE_TEXT_ONLY !== 'false';
 
     let allowedType: AllowedMessageType = null;
     if (FORCE_TEXT_ONLY && actions.includes('confirmOrderDetails')) {
       allowedType = 'createConfirmOrderDetails';
     } else if (FORCE_TEXT_ONLY && actions.includes('confirmCustomizationDetails')) {
-      // Force text-only but order only exposes confirmCustomizationDetails: use text path anyway and skip upload (Amazon may accept it).
       allowedType = 'createConfirmOrderDetails';
     } else if (actions.includes('confirmCustomizationDetails')) {
       allowedType = 'confirmCustomizationDetails';
