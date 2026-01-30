@@ -1,0 +1,48 @@
+---
+import CreateLayout from '../../layouts/CreateLayout.astro';
+---
+
+<CreateLayout step="character" title="Character — Create Your Book | Little Hero Labs">
+  <div id="create-toast" class="create-toast create-toast--hidden" role="status" aria-live="polite">
+    Please complete the steps from the start.
+  </div>
+  <section class="section-padding">
+    <p class="create-placeholder">Character step – form coming in next batch.</p>
+  </section>
+</CreateLayout>
+
+<script>
+  const toast = document.getElementById('create-toast');
+  const params = new URLSearchParams(window.location.search);
+  if (toast && params.get('toast') === 'missing_state') {
+    toast.classList.remove('create-toast--hidden');
+    const hide = () => {
+      toast.classList.add('create-toast--hidden');
+      const url = new URL(window.location.href);
+      url.searchParams.delete('toast');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    };
+    window.setTimeout(hide, 4000);
+  }
+</script>
+
+<style>
+  .create-placeholder {
+    font-family: var(--font-body);
+    color: var(--color-soft-charcoal);
+  }
+
+  .create-toast {
+    padding: var(--spacing-md, 1rem);
+    margin-bottom: var(--spacing-md, 1rem);
+    background: var(--color-teal, #5AC6B1);
+    color: var(--color-navy, #2D3142);
+    font-family: var(--font-ui);
+    font-size: 0.9375rem;
+    border-radius: 4px;
+  }
+
+  .create-toast--hidden {
+    display: none;
+  }
+</style>

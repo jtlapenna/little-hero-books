@@ -6,6 +6,17 @@
 
 ---
 
+## Implementation progress (first batch complete)
+
+| Step | Status | Notes |
+|------|--------|--------|
+| 1. Backend | Done | Checkout Session + success_url/cancel_url; CORS on `/api/checkout/create`; webhook `checkout.session.completed`; env `D2C_FRONTEND_ORIGIN`. |
+| 2. B) Layout + routing | Done | CreateLayout.astro, StepIndicator, BackLink, four `/create/*` pages (placeholders). |
+| 3. C) State + guards | Done | createFlowSchema, createFlowStorage, createFlowSelectors; route guards in CreateLayout; toast on character for `?toast=missing_state`. |
+| 4–10. D–J | Pending | CharacterBuilder, BookCustomizationForm, CheckoutForm, Processing/StatusLookup, catalog CTA, QA. |
+
+---
+
 ## 1. Flow and routes
 
 | Step | Route | Purpose |
@@ -38,7 +49,7 @@
 
 | Document | Contents |
 |----------|----------|
-| [implementation-plan/D2C-phase-0-orders-only.md](implementation-plan/D2C-phase-0-orders-only.md) **§8** | Functional spec: screen-by-screen spec, API contract (checkout request/response), backend changes (Checkout Session, CORS), character/book fields, tasks T8.1–T8.5. |
+| [implementation-planning/D2C-phase-0-orders-only.md](../D2C-phase-0-orders-only.md) **§8** | Functional spec: screen-by-screen spec, API contract (checkout request/response), backend changes (Checkout Session, CORS), character/book fields, tasks T8.1–T8.5. |
 | [d_2_c_phase_0_step_7_ui_plan_updated.md](d_2_c_phase_0_step_7_ui_plan_updated.md) | Finalized UI decisions: layout approach, step indicator, character layout, visual style, trait picker pattern, responsive, copy tone. |
 | [d_2_c_phase_0_component_map_state_diagram_astro_react_islands.md](d_2_c_phase_0_component_map_state_diagram_astro_react_islands.md) | Component architecture: Astro pages, CreateLayout, shared components (StepIndicator, BackLink, OrderSummaryCard, SectionCard), React islands (CharacterBuilder, BookCustomizationForm, CheckoutForm, StatusLookup), state schema `CreateFlowState`, state diagram, guardrails. |
 | [d_2_c_phase_0_cursor_ready_implementation_checklist.md](d_2_c_phase_0_cursor_ready_implementation_checklist.md) | Step-by-step execution: B) layout + routing, C) state storage, D) Character (trait pickers, PreviewPanel), E) Customize, F) Checkout, G) Processing + StatusLookup, H) backend, I) QA, J) definition of done. **Execute in this order.** |
@@ -111,7 +122,7 @@ Full schema: see [d_2_c_phase_0_component_map_state_diagram_astro_react_islands.
 **Optional (preview):**  
 - `POST /api/preview/generate` or equivalent; can be stubbed with delay + placeholder image for Phase 0.  
 
-Current checkout API returns PaymentIntent `stripe_client_secret`; add **Checkout Session** support and return `stripe_checkout_session_url`. Webhook: handle `checkout.session.completed` (or keep using PaymentIntent from session) to confirm order and trigger W0.
+Backend now returns **Checkout Session** `stripe_checkout_session_url`; webhook handles `checkout.session.completed` (and `payment_intent.succeeded` for backward compatibility) to confirm order and trigger W0.
 
 ---
 

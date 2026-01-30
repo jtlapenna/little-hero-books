@@ -1,7 +1,7 @@
 /**
- * Stripe webhook: payment_intent.succeeded → confirm D2C order and trigger n8n W0.
+ * Stripe webhook: checkout.session.completed (or payment_intent.succeeded) → confirm D2C order and trigger n8n W0.
  * Idempotent by event.id. Raw body required for signature verification.
- * See docs/D2C-planning/implementation-plan/D2C-phase-0-orders-only.md Section 5.
+ * See docs/D2C-planning/implementation-planning/D2C-phase-0-orders-only.md Section 5.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -47,15 +47,23 @@ export async function POST(request: NextRequest) {
   const response = await withIdempotency(
     event.id,
     async () => {
-      if (event.type !== 'payment_intent.succeeded') {
-        return { status: 200, body: { received: true } };
-      }
+      let order_id: string | undefined;
 
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      const order_id = paymentIntent.metadata?.order_id as string | undefined;
-
-      if (!order_id) {
-        console.warn('[Webhook Stripe] payment_intent.succeeded missing metadata.order_id');
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object as Stripe.Checkout.Session;
+        order_id = session.metadata?.order_id as string | undefined;
+        if (!order_id) {
+          console.warn('[Webhook Stripe] checkout.session.completed missing metadata.order_id');
+          return { status: 200, body: { received: true } };
+        }
+      } else if (event.type === 'payment_intent.succeeded') {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        order_id = paymentIntent.metadata?.order_id as string | undefined;
+        if (!order_id) {
+          console.warn('[Webhook Stripe] payment_intent.succeeded missing metadata.order_id');
+          return { status: 200, body: { received: true } };
+        }
+      } else {
         return { status: 200, body: { received: true } };
       }
 

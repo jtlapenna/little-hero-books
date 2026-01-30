@@ -1,6 +1,6 @@
 /**
- * D2C Checkout: create order (pending payment) and return Stripe client secret.
- * Idempotent by Idempotency-Key header. See docs/D2C-planning/implementation-plan/D2C-phase-0-orders-only.md Section 4.
+ * D2C Checkout: create order (pending payment) and return Stripe Checkout Session URL.
+ * Idempotent by Idempotency-Key header. See docs/D2C-planning/implementation-planning/D2C-phase-0-orders-only.md Section 4.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,6 +11,25 @@ import { withIdempotency } from '@/lib/idempotency';
 import { calculateCharacterHash } from '@/lib/character-hash';
 
 export const dynamic = 'force-dynamic';
+
+function getCorsHeaders(request: NextRequest): Record<string, string> {
+  const origin = process.env.D2C_FRONTEND_ORIGIN ?? '';
+  const requestOrigin = request.headers.get('origin') ?? '';
+  const allowOrigin = origin && (requestOrigin === origin || requestOrigin.endsWith('.littleherolabs.com')) ? requestOrigin : origin || '*';
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Idempotency-Key',
+    'Access-Control-Max-Age': '86400',
+  };
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: getCorsHeaders(request),
+  });
+}
 
 const ShippingAddressSchema = z.object({
   name: z.string().min(1),
@@ -37,15 +56,17 @@ const BodySchema = z.object({
 const DEFAULT_AMOUNT_CENTS = 2999; // $29.99
 
 export async function POST(request: NextRequest) {
+  const corsHeaders = getCorsHeaders(request);
+
   if (request.method !== 'POST') {
-    return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+    return NextResponse.json({ error: 'Method not allowed' }, { status: 405, headers: corsHeaders });
   }
 
   const idempotencyKey = request.headers.get('Idempotency-Key')?.trim();
   if (!idempotencyKey) {
     return NextResponse.json(
       { error: 'Idempotency-Key header is required' },
-      { status: 400 }
+      { status: 400, headers: corsHeaders }
     );
   }
 
@@ -58,16 +79,25 @@ export async function POST(request: NextRequest) {
       const fields = err.errors.map((e) => ({ path: e.path.join('.'), message: e.message }));
       return NextResponse.json(
         { error: 'Validation failed', fields },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400, headers: corsHeaders });
   }
 
   if (parsed.shipping_address.country !== 'US') {
     return NextResponse.json(
       { error: 'Validation failed', fields: [{ path: 'shipping_address.country', message: 'Phase 0 supports US only' }] },
-      { status: 400 }
+      { status: 400, headers: corsHeaders }
+    );
+  }
+
+  const frontendOrigin = process.env.D2C_FRONTEND_ORIGIN ?? '';
+  if (!frontendOrigin) {
+    console.error('[Checkout] D2C_FRONTEND_ORIGIN not configured');
+    return NextResponse.json(
+      { error: 'Checkout configuration error' },
+      { status: 500, headers: corsHeaders }
     );
   }
 
@@ -117,27 +147,44 @@ export async function POST(request: NextRequest) {
       const amountCents = parseInt(process.env.D2C_CHECKOUT_AMOUNT_CENTS ?? '', 10) || DEFAULT_AMOUNT_CENTS;
       const stripe = new Stripe(stripeSecretKey);
 
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amountCents,
-        currency: 'usd',
+      const successUrl = `${frontendOrigin}/create/processing?order_id=${encodeURIComponent(order_id)}`;
+      const cancelUrl = `${frontendOrigin}/create/checkout`;
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: 'usd',
+              unit_amount: amountCents,
+              product_data: {
+                name: 'Little Hero Book — Personalized Children\'s Book',
+                description: 'Custom storybook starring your child as the hero.',
+              },
+            },
+          },
+        ],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
         metadata: { order_id },
-        automatic_payment_methods: { enabled: true },
+        customer_email: parsed.customer_email,
       });
 
-      if (!paymentIntent.client_secret) {
-        throw new Error('Stripe did not return client_secret');
+      if (!session.url) {
+        throw new Error('Stripe did not return checkout session URL');
       }
 
       return {
         status: 201,
         body: {
           order_id,
-          stripe_client_secret: paymentIntent.client_secret,
+          stripe_checkout_session_url: session.url,
         },
       };
     },
     { ttlHours: 24 }
   );
 
-  return NextResponse.json(response.body, { status: response.status });
+  return NextResponse.json(response.body, { status: response.status, headers: corsHeaders });
 }
