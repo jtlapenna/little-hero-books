@@ -301,36 +301,180 @@ Completed: T7.1, T7.2, T7.3, T7.4.
 
 ---
 
-## 8. Storefront UI
+## 8. Storefront UI (Step 7)
+
+**UI plan (visual / layout):** See [D2C-phase-0-step-7-ui-plan.md](../D2C-phase-0-step-7-ui-plan.md) for layout, component structure, trait picker UI, visual style, responsive behavior, progress/wayfinding, copy, and decisions to make.
 
 ### 8.1 Goal
 
 Customer flow: Catalog → Character (inline, no account) → Book customization → Checkout (Stripe) → Processing screen. Phase 0: single book; character data and shipping collected in funnel; no accounts/children tables.
 
-### 8.2 Screens and Tasks
+### 8.2 Decisions / Intent (aligned with product)
 
-| Screen | Tasks | Acceptance |
-|--------|-------|------------|
-| **Catalog** | Single book card; CTA “Create This Book”; link to character step | User can start flow |
-| **Character** | Form: child name, age, pronouns, skin tone, hair style, hair color, favorite color, favorite animal, dedication (optional). No “account” or “child profile” persistence; state in memory or session until checkout. Optional: simple character preview (static or link to existing preview tool if available). | Data available for checkout payload |
-| **Book customization** | Minimal: dedication, any book-specific fields. “Continue to Checkout.” | character_specs + dedication ready |
-| **Checkout** | Order summary; shipping form (name, address, city, state, zip, country, email); Stripe Elements or Stripe Checkout redirect. On “Place Order”: call POST /api/checkout/create with Idempotency-Key + body; get client_secret or session URL; complete payment. | Payment succeeds; user redirected to processing |
-| **Processing** | “Your book is being created…” message; order_id for reference; link to support. No dashboard yet if not logged in; optional “View status” link that uses order_id (e.g. public status page by order_id + token later). | User sees confirmation |
+- **Where to build:** Existing **Astro** site (`frontend/`). Customer storefront stays in Astro; admin stays in Next.js back-end.
+- **Stripe:** Use **Stripe Checkout** (redirect to Stripe-hosted page) for Phase 0: less front-end surface, Stripe handles PCI, faster to ship. Back-end must support creating a Checkout Session and returning `stripe_checkout_session_url` (in addition to or instead of PaymentIntent `stripe_client_secret`).
+- **Catalog:** Reuse/adapt existing **“Our books”** page (`frontend/src/pages/our-books.astro`) for the single book; CTA links to character step instead of Amazon.
+- **Dedication:** On a **separate “Book customization”** step (book-specific), not on the character step.
+- **Processing page:** Include a **“View status”** link (order_id + email or token → Step 8 status page). Existing **customer approval page** (`frontend/src/pages/approve/[token].astro`) shows preview from email link, then converts to order status once sent to print; preserve that behavior.
+- **API base URL:** Frontend reads back-end URL from env (e.g. `PUBLIC_API_URL` in `frontend/.env`). Back-end allows CORS for the frontend origin when frontend and back-end are on different domains.
 
-### 8.3 Tech Notes
+---
 
-- Frontend can be Next.js (same repo as back-end) or separate (e.g. Astro, React). Use API base URL for checkout and Stripe.
-- Idempotency-Key: generate UUID on client (e.g. crypto.randomUUID()) and send on first “Place Order”; retry with same key if request fails to avoid double order.
+### 8.3 Screen-by-screen specification
 
-### 8.4 Tasks (Summary)
+#### 8.3.1 Catalog (entry point)
+
+| Item | Specification |
+|------|----------------|
+| **Route** | `/our-books` (existing). No new route. |
+| **Source** | [frontend/src/pages/our-books.astro](frontend/src/pages/our-books.astro). |
+| **Changes** | Replace “Create Your Book” button href from Amazon link with internal link to character step (e.g. `/create/character` or `/create?step=character`). Keep single book card (e.g. “[Your Child's] Inner Voice”), cover image(s), description, age range, format. Optionally add price if shown. |
+| **State** | None; stateless entry. |
+| **Transition** | CTA → Character step (next route). |
+
+**Acceptance:** User lands on Our books, clicks “Create This Book,” and is taken to the character step.
+
+---
+
+#### 8.3.2 Character (trait selection + preview choice)
+
+| Item | Specification |
+|------|----------------|
+| **Route** | New page, e.g. `/create/character` or `/create` with step=character. |
+| **Purpose** | Collect all character traits via **image-based pickers**; at end, user chooses “Wait for preview” or “Submit for processing.” |
+| **State** | In-memory or session (e.g. `sessionStorage`) until checkout. No account; data is lost if user leaves and returns unless we add a simple “resume” token later. |
+| **Required fields** | Child’s name (text, 1–20 chars, letters/spaces/hyphens), age (3–8), hair style, hair color, skin tone, favorite color, animal guide. All trait options and image sources from [Customization_Source_of_Truth.md](../../new-planning/Customization_Source_of_Truth.md). |
+| **Optional fields** | Pronouns (she/her, he/him, they/them; default they/them), clothing style (tee-shorts, dress), favorite food (≤30 chars), hometown (default “Adventure City”), occasion (birthday, holiday, milestone, general). |
+| **Trait pickers** | Use **customization image examples** for each trait: hair style (images from `assets/hair-references/`: afro, bun, curly-long, curly-medium, curly-short, pigtails, pom-poms, ponytail, side-part, straight-long, straight-medium, straight-short), hair color (8 swatches or refs), skin tone (5: light, medium, tan, olive, dark → map to R2 canonical in API), favorite color (9 options per source of truth), animal guide (8: dog, cat, owl, lion, tiger, penguin, t-rex, unicorn). Where assets live: hair in repo `assets/hair-references/`; skin/color/animal may need mapping to existing asset paths or static image set in `frontend/public/`. |
+| **End-of-step choice** | Two CTAs: (1) **“Wait X to preview my character”** — optional preview path (e.g. call preview endpoint, show loading then preview; X = estimated time in copy). (2) **“Submit for processing”** — skip preview, go to Book customization. Either path leads to same Book customization step with same `character_specs` in state. |
+| **Validation** | Name length and charset; age in 3–8; all required traits selected. Show inline errors before allowing “Continue” or “Submit for processing.” |
+| **Transition** | → Book customization step (same session state; add dedication next). |
+
+**Acceptance:** User selects all required traits via image pickers, optionally waits for preview or skips; data is available for checkout payload; navigating to Book customization preserves character_specs.
+
+---
+
+#### 8.3.3 Book customization (book-specific fields)
+
+| Item | Specification |
+|------|----------------|
+| **Route** | New page, e.g. `/create/customize` or `/create?step=customize`. |
+| **Purpose** | Collect **book-specific** fields only (dedication and any others). Dedication is not character-specific. |
+| **State** | Receives character_specs from previous step (via session/state); adds dedication (and any other per-book fields). |
+| **Fields** | Dedication: free text, ≤200 chars recommended (source of truth allows 200–500; UI cap 200). Any other per-book fields per product. |
+| **Validation** | Dedication length; optional. |
+| **Transition** | “Continue to Checkout” → Checkout step (order summary + shipping + payment). |
+
+**Acceptance:** User sees character summary (read-only) and enters dedication; character_specs + dedication are ready for the checkout API.
+
+---
+
+#### 8.3.4 Checkout (order summary, shipping, payment)
+
+| Item | Specification |
+|------|----------------|
+| **Route** | New page, e.g. `/create/checkout` or `/create?step=checkout`. |
+| **Purpose** | Show order summary; collect shipping address and email; create order via API; redirect to Stripe Checkout; handle return. |
+| **Order summary** | Book title, child name, price (e.g. from env or fixed Phase 0 price). |
+| **Shipping form** | Name, address_line1, address_line2 (optional), city, state, postal_code, country. Phase 0: country = US only (validate in UI and API). |
+| **Email** | customer_email (required); used for order record and D2C notifications. |
+| **Payment** | **Stripe Checkout (redirect).** Flow: (1) User clicks “Place Order.” (2) Frontend validates form; generates Idempotency-Key (UUID); POST to back-end `/api/checkout/create` with body (shipping_address, customer_email, customer_name, character_specs, dedication). (3) Back-end creates order (pending payment), creates Stripe **Checkout Session** with success_url and cancel_url pointing back to frontend (e.g. success_url = `{frontendOrigin}/create/processing?order_id={order_id}`, cancel_url = `{frontendOrigin}/create/checkout`), returns `stripe_checkout_session_url` (and order_id). (4) Frontend redirects browser to session URL; user completes payment on Stripe. (5) Stripe redirects to success_url with order_id (or session_id); frontend shows Processing page. (6) Back-end webhook (`checkout.session.completed` or existing `payment_intent.succeeded`) confirms payment and triggers W0. |
+| **Idempotency** | Generate UUID once per “Place Order” click; send in header `Idempotency-Key`. On retry (e.g. network error), reuse same key so back-end returns same order_id and session URL. |
+| **Validation** | All required shipping fields; US only; valid email. |
+
+**Acceptance:** Order is created; user is sent to Stripe and returns to processing page; payment succeeds and webhook triggers W0.
+
+---
+
+#### 8.3.5 Processing (confirmation + View status)
+
+| Item | Specification |
+|------|----------------|
+| **Route** | New page, e.g. `/create/processing?order_id=...` or `/create/processing` with order_id in state. |
+| **Purpose** | Confirm order placed; show order_id; link to support; **“View status”** link. |
+| **Content** | “Your book is being created…” (or similar); order_id for reference; support link; **“View status”** button/link. View status: navigates to Step 8 status page (order_id + email or token). Until Step 8 exists, link can point to placeholder or “Check your order” form (order_id + email). |
+| **Existing approval page** | `frontend/src/pages/approve/[token].astro`: customer opens preview link from email; after approving (or auto-approval), that page converts to show order status once sent to print. No change required; ensure D2C approval emails use same approve URL pattern so this page continues to work. |
+
+**Acceptance:** User sees confirmation and order_id; “View status” is present and (once Step 8 is built) leads to order status by order_id + email or token.
+
+---
+
+### 8.4 Character and book fields (source of truth)
+
+- **Required (character):** Child’s name (1–20 chars), age (3–8), hair style (from hair-references list), hair color (8 options), skin tone (light/medium/tan/olive/dark → map to R2 canonical skin-* in API), favorite color (renderer map), animal guide (8 options). See [Customization_Source_of_Truth.md](../../new-planning/Customization_Source_of_Truth.md).
+- **Optional (character):** Pronouns, clothing style (tee-shorts, dress), favorite food, hometown, occasion.
+- **Book-specific (Book customization step):** Dedication (≤200 chars recommended), any other per-book fields.
+- **API mapping:** Checkout API expects `character_specs` with keys compatible with backend/n8n (e.g. childName, age, hairStyle, hairColor, skinTone, favoriteColor, animalGuide; optional: pronouns, clothingStyle, favoriteFood, hometown, occasion). Use camelCase for request body; backend/order-mapper already accept snake_case from DB. Dedication sent as top-level `dedication` in checkout body.
+
+---
+
+### 8.5 API contract (checkout)
+
+**Endpoint:** `POST {API_BASE_URL}/api/checkout/create`  
+**Headers:** `Content-Type: application/json`, `Idempotency-Key: <uuid>`
+
+**Request body (existing + alignment for Stripe Checkout):**
+
+- `shipping_address`: { name, address_line1, address_line2?, city, state, postal_code, country }
+- `customer_email`: string (email)
+- `customer_name`: string (optional)
+- `character_specs`: object with required/optional fields per §8.4 (childName, age, hairStyle, hairColor, skinTone, favoriteColor, animalGuide; optional pronouns, clothingStyle, favoriteFood, hometown, occasion). Names match Customization_Source_of_Truth canonical where applicable (e.g. skinTone: "light" | "medium" | "tan" | "olive" | "dark" for customer-facing; backend maps to R2 canonical).
+- `dedication`: string (optional, ≤200 chars recommended)
+- `product_info`: object (optional)
+
+**Response (current):** `201` with `{ order_id, stripe_client_secret }` (PaymentIntent).
+
+**Response (for Stripe Checkout redirect):** `201` with `{ order_id, stripe_checkout_session_url }`. Back-end creates a Stripe Checkout Session with:
+- `success_url`: e.g. `{frontend_origin}/create/processing?order_id={order_id}` (or from request body)
+- `cancel_url`: e.g. `{frontend_origin}/create/checkout`
+- `metadata`: { order_id }
+- Line item(s) for the book (amount from D2C_CHECKOUT_AMOUNT_CENTS or default).
+- `mode: 'payment'`.
+
+Frontend then redirects the browser to `stripe_checkout_session_url`. After payment, Stripe redirects to success_url. Back-end must handle either `payment_intent.succeeded` (current) or `checkout.session.completed` (if using Checkout Session) to confirm order and trigger W0; session metadata contains order_id.
+
+---
+
+### 8.6 Backend changes required for Step 7
+
+| Change | Description |
+|--------|-------------|
+| **Checkout Session support** | In `back-end/src/app/api/checkout/create/route.ts`: optionally or exclusively create a Stripe **Checkout Session** (with success_url, cancel_url from request body or env), return `stripe_checkout_session_url`. Keep idempotency and order creation as today. |
+| **Success/cancel URLs** | Accept optional `success_url` and `cancel_url` in request body (or derive from env FRONTEND_ORIGIN + paths). Use them when creating the Checkout Session. |
+| **Webhook** | If using Checkout Session: handle `checkout.session.completed` (retrieve session, read metadata.order_id, same confirm-order + trigger W0 logic as payment_intent.succeeded). Alternatively keep using PaymentIntent from session and keep existing webhook. |
+| **CORS** | Allow frontend origin (e.g. from env ALLOWED_ORIGINS or FRONTEND_ORIGIN) for POST /api/checkout/create and GET/POST for future order status endpoint. |
+
+---
+
+### 8.7 Frontend env and assets
+
+| Item | Specification |
+|------|----------------|
+| **Env** | In `frontend/.env` (or Cloudflare Pages env): `PUBLIC_API_URL` = back-end base URL (e.g. `https://admin.littleherolabs.com` or Vercel backend URL). Use for all API calls (checkout, future status). |
+| **Assets for trait pickers** | Hair: `assets/hair-references/` in repo (e.g. afro.png, bun.png, curly-long.png, …). Frontend may need these copied to `frontend/public/` or served via back-end; document where images are loaded from. Skin tone, favorite color, animal guide: use source-of-truth lists; images can be swatches or existing asset paths (e.g. assets/poses/animals/). |
+
+---
+
+### 8.8 Implementation order and dependencies
+
+1. **T8.1** — Catalog: change Our books CTA to link to character step. (No dependency.)
+2. **T8.2** — Character page: routes, state, trait pickers with images, required/optional fields, validation, “preview” vs “submit for processing” choice. (Depends on T8.1 for entry.)
+3. **T8.3** — Book customization page: route, dedication (and any other book fields), “Continue to Checkout.” (Depends on T8.2 for character_specs in state.)
+4. **Backend** — Checkout Session + success_url/cancel_url; CORS. (Can be done in parallel with T8.1–T8.3.)
+5. **T8.4** — Checkout page: order summary, shipping form, call checkout API with Idempotency-Key, redirect to Stripe Checkout, handle return to processing. (Depends on backend Checkout Session and T8.3.)
+6. **T8.5** — Processing page: confirmation, order_id, support link, “View status” link. (Depends on T8.4; View status target can be placeholder until Step 8.)
+
+---
+
+### 8.9 Tasks (summary with acceptance criteria)
 
 | Task | Description | Acceptance |
 |------|-------------|------------|
-| T8.1 | Catalog page with single book and CTA | Navigates to character |
-| T8.2 | Character form (all character_specs fields + dedication) | Data available for API |
-| T8.3 | Book customization screen (minimal) and “Continue to Checkout” | |
-| T8.4 | Checkout page: shipping form + Stripe; call checkout API with Idempotency-Key; complete payment | Order created; payment succeeds |
-| T8.5 | Processing/confirmation page | User sees success and next steps |
+| **T8.1** | Reuse/adapt Our books page: single book card; “Create This Book” CTA links to character step (not Amazon). | User clicks CTA and lands on character step. |
+| **T8.2** | Character step: new route; trait pickers with image examples for all required + optional traits per source of truth; validation; end-of-step choice: “Wait for preview” or “Submit for processing”; state carried to Book customization. | character_specs available; optional preview path or skip; data reaches next step. |
+| **T8.3** | Book customization step: new route; dedication (≤200 chars) and any other book-specific fields; “Continue to Checkout”; character_specs + dedication ready for API. | Payload complete for checkout. |
+| **T8.4** | Checkout page: order summary; shipping form (US); customer email; Idempotency-Key; POST checkout API; redirect to Stripe Checkout; return to processing with order_id. Backend: Checkout Session + success/cancel URLs; CORS. | Order created; payment succeeds; user returns to processing page. |
+| **T8.5** | Processing page: “Your book is being created…”, order_id, support link, “View status” link (to Step 8 when available). | User sees confirmation and can open status; approval page flow unchanged. |
 
 ---
 
