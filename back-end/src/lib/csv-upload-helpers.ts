@@ -95,6 +95,54 @@ export function extractAmazonOrderId(
 }
 
 /**
+ * Extract order-item-id from CSV row (Amazon line item identifier).
+ * Returns null if missing or invalid.
+ */
+export function extractOrderItemId(row: any, headers: string[]): string | null {
+  const index = findColumnIndex(headers, [
+    'order-item-id',
+    'order_item_id',
+    'orderItemId',
+  ]);
+  if (index === null) return null;
+  const val = row[index];
+  if (val === undefined || val === null) return null;
+  const str = String(val).trim();
+  return str || null;
+}
+
+/**
+ * Build a line-item record from a CSV row for storage in product_info.line_items.
+ * Used when one order has multiple rows (multiple items) in the same file.
+ */
+export function buildLineItemFromRow(
+  row: any,
+  headers: string[]
+): Record<string, unknown> {
+  const orderItemId = extractOrderItemId(row, headers);
+  const customizationUrl = extractCustomizationUrl(row, headers);
+  const quantityIndex = findColumnIndex(headers, [
+    'quantity-purchased',
+    'quantity_purchased',
+    'quantity',
+  ]);
+  const quantity = quantityIndex !== null ? parseInt(String(row[quantityIndex] ?? 1), 10) : 1;
+  const customizedPageIndex = findColumnIndex(headers, [
+    'customized-page',
+    'customized_page',
+    'customization-page',
+  ]);
+  const customizedPage = customizedPageIndex !== null ? row[customizedPageIndex]?.toString().trim() : null;
+  const item: Record<string, unknown> = {
+    order_item_id: orderItemId ?? undefined,
+    customization_url: customizationUrl ?? undefined,
+    customized_page: customizedPage ?? undefined,
+    quantity: Number.isNaN(quantity) ? 1 : quantity,
+  };
+  return item;
+}
+
+/**
  * Build shipping_address JSONB object from CSV row
  * Returns null if required fields are missing
  */
