@@ -9,6 +9,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getActivePreviewToken } from '@/lib/preview-tokens';
 import { sendAmazonPreviewMessage } from '@/lib/notifications/amazon-message-center';
+import { sendD2CPreviewEmail } from '@/lib/notifications/d2c-email';
 import { updateOrderInSupabase } from '@/lib/supabase-client';
 
 const REMINDER_HOURS_DAY_1 = 24;
@@ -28,10 +29,6 @@ function getOrderId(row: any): string {
   );
 }
 
-function getAmazonOrderId(row: any): string {
-  return row.amazon_order_id ?? getOrderId(row);
-}
-
 function getChildName(row: any): string | undefined {
   const cs = row.character_specs;
   if (!cs || typeof cs !== 'object') return undefined;
@@ -49,16 +46,13 @@ export async function processPreviewReminders(
       ? hoursFromEnv
       : 72;
   const result: ProcessPreviewRemindersResult = { processed: 0, sent: 0, errors: [] };
-  const notificationsEnabled =
+  const amazonNotificationsEnabled =
     (process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED ?? '').trim().toLowerCase() === 'true' ||
     process.env.VERCEL_ENV === 'production';
-  if (!notificationsEnabled) {
-    return result;
-  }
 
   const { data: orders, error: fetchError } = await supabase
     .from('orders')
-    .select('id, order_id, orderId, amazon_order_id, customer_approval_requested_at, preview_reminder_sent, character_specs, revision_count')
+    .select('id, order_id, orderId, amazon_order_id, platform, customer_email, customer_approval_requested_at, preview_reminder_sent, character_specs, revision_count')
     .eq('customer_approval_status', 'pending')
     .not('customer_approval_requested_at', 'is', null);
 
@@ -75,6 +69,9 @@ export async function processPreviewReminders(
     (process.env.CUSTOMER_SITE_URL ?? '').replace(/\/+$/, '') ||
     (isProduction ? 'https://littleherolabs.com' : 'http://localhost:4321');
 
+  const platform = (row: (typeof orders)[number]) => (row.platform ?? 'amazon') as string;
+  const isD2C = (r: (typeof orders)[number]) => platform(r) === 'd2c';
+
   for (const row of orders) {
     result.processed += 1;
     const requestedAt = row.customer_approval_requested_at;
@@ -85,9 +82,10 @@ export async function processPreviewReminders(
     const hoursSince = (now - requested) / (1000 * 60 * 60);
 
     const orderId = getOrderId(row);
-    const amazonOrderId = getAmazonOrderId(row);
+    const amazonOrderId = row.amazon_order_id ?? null;
     const childName = getChildName(row);
     const sent = row.preview_reminder_sent ?? null;
+    const d2c = isD2C(row);
 
     const token = await getActivePreviewToken(orderId);
     if (!token) {
@@ -101,64 +99,132 @@ export async function processPreviewReminders(
     try {
       if (hoursSince >= effectiveHours) {
         if (sent === 'auto-approval') continue;
-        // Send auto-approval message (actual auto-approval workflow can be added separately)
-        const response = await sendAmazonPreviewMessage({
-          amazonOrderId,
-          reminderType: 'auto-approval',
-          previewUrl,
-          childName,
-          revisionsRemaining,
-        });
-        if (response.success) {
-          result.sent += 1;
-          await updateOrderInSupabase(orderId, {
-            preview_reminder_sent: 'auto-approval',
-            updated_at: new Date().toISOString(),
+        if (d2c) {
+          if (!row.customer_email?.trim()) {
+            result.errors.push(`Order ${orderId}: D2C order missing customer_email`);
+            continue;
+          }
+          const response = await sendD2CPreviewEmail({
+            to: row.customer_email.trim(),
+            previewUrl,
+            childName,
+            reminderType: 'auto-approval',
+            orderId,
           });
-        } else {
-          result.errors.push(`Order ${orderId} auto-approval message: ${response.error}`);
+          if (response.success) {
+            result.sent += 1;
+            await updateOrderInSupabase(orderId, {
+              preview_reminder_sent: 'auto-approval',
+              updated_at: new Date().toISOString(),
+            });
+          } else {
+            result.errors.push(`Order ${orderId} auto-approval email: ${response.error}`);
+          }
+        } else if (amazonOrderId && amazonNotificationsEnabled) {
+          const response = await sendAmazonPreviewMessage({
+            amazonOrderId,
+            reminderType: 'auto-approval',
+            previewUrl,
+            childName,
+            revisionsRemaining,
+          });
+          if (response.success) {
+            result.sent += 1;
+            await updateOrderInSupabase(orderId, {
+              preview_reminder_sent: 'auto-approval',
+              updated_at: new Date().toISOString(),
+            });
+          } else {
+            result.errors.push(`Order ${orderId} auto-approval message: ${response.error}`);
+          }
         }
         continue;
       }
 
       if (hoursSince >= REMINDER_HOURS_DAY_2) {
         if (sent === 'reminder-day-2' || sent === 'auto-approval') continue;
-        const response = await sendAmazonPreviewMessage({
-          amazonOrderId,
-          reminderType: 'reminder-day-2',
-          previewUrl,
-          childName,
-          revisionsRemaining,
-        });
-        if (response.success) {
-          result.sent += 1;
-          await updateOrderInSupabase(orderId, {
-            preview_reminder_sent: 'reminder-day-2',
-            updated_at: new Date().toISOString(),
+        if (d2c) {
+          if (!row.customer_email?.trim()) {
+            result.errors.push(`Order ${orderId}: D2C order missing customer_email`);
+            continue;
+          }
+          const response = await sendD2CPreviewEmail({
+            to: row.customer_email.trim(),
+            previewUrl,
+            childName,
+            reminderType: 'reminder-day-2',
+            orderId,
           });
-        } else {
-          result.errors.push(`Order ${orderId} reminder-day-2: ${response.error}`);
+          if (response.success) {
+            result.sent += 1;
+            await updateOrderInSupabase(orderId, {
+              preview_reminder_sent: 'reminder-day-2',
+              updated_at: new Date().toISOString(),
+            });
+          } else {
+            result.errors.push(`Order ${orderId} reminder-day-2 email: ${response.error}`);
+          }
+        } else if (amazonOrderId && amazonNotificationsEnabled) {
+          const response = await sendAmazonPreviewMessage({
+            amazonOrderId,
+            reminderType: 'reminder-day-2',
+            previewUrl,
+            childName,
+            revisionsRemaining,
+          });
+          if (response.success) {
+            result.sent += 1;
+            await updateOrderInSupabase(orderId, {
+              preview_reminder_sent: 'reminder-day-2',
+              updated_at: new Date().toISOString(),
+            });
+          } else {
+            result.errors.push(`Order ${orderId} reminder-day-2: ${response.error}`);
+          }
         }
         continue;
       }
 
       if (hoursSince >= REMINDER_HOURS_DAY_1) {
         if (sent != null && sent !== '') continue;
-        const response = await sendAmazonPreviewMessage({
-          amazonOrderId,
-          reminderType: 'reminder-day-1',
-          previewUrl,
-          childName,
-          revisionsRemaining,
-        });
-        if (response.success) {
-          result.sent += 1;
-          await updateOrderInSupabase(orderId, {
-            preview_reminder_sent: 'reminder-day-1',
-            updated_at: new Date().toISOString(),
+        if (d2c) {
+          if (!row.customer_email?.trim()) {
+            result.errors.push(`Order ${orderId}: D2C order missing customer_email`);
+            continue;
+          }
+          const response = await sendD2CPreviewEmail({
+            to: row.customer_email.trim(),
+            previewUrl,
+            childName,
+            reminderType: 'reminder-day-1',
+            orderId,
           });
-        } else {
-          result.errors.push(`Order ${orderId} reminder-day-1: ${response.error}`);
+          if (response.success) {
+            result.sent += 1;
+            await updateOrderInSupabase(orderId, {
+              preview_reminder_sent: 'reminder-day-1',
+              updated_at: new Date().toISOString(),
+            });
+          } else {
+            result.errors.push(`Order ${orderId} reminder-day-1 email: ${response.error}`);
+          }
+        } else if (amazonOrderId && amazonNotificationsEnabled) {
+          const response = await sendAmazonPreviewMessage({
+            amazonOrderId,
+            reminderType: 'reminder-day-1',
+            previewUrl,
+            childName,
+            revisionsRemaining,
+          });
+          if (response.success) {
+            result.sent += 1;
+            await updateOrderInSupabase(orderId, {
+              preview_reminder_sent: 'reminder-day-1',
+              updated_at: new Date().toISOString(),
+            });
+          } else {
+            result.errors.push(`Order ${orderId} reminder-day-1: ${response.error}`);
+          }
         }
       }
     } catch (err: any) {

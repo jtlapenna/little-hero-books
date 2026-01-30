@@ -89,6 +89,7 @@ interface FinalApprovalResult {
     sent: boolean;
     reason?: string;
     response?: unknown;
+    channel?: 'email' | 'amazon_message';
   };
 }
 

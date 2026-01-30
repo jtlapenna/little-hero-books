@@ -10,7 +10,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- =============================================
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
-    amazon_order_id VARCHAR(50) UNIQUE NOT NULL,
+    amazon_order_id VARCHAR(50) UNIQUE,  -- nullable for D2C orders (no Amazon ID)
+    "orderId" VARCHAR(100),              -- business key: Amazon = amazon_order_id, D2C = UUID
+    platform VARCHAR(20) DEFAULT 'amazon', -- order origin: amazon | d2c
     processing_id VARCHAR(100) UNIQUE,
     
     -- Order Status & Workflow Tracking

@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 import { sendAmazonPreviewMessage } from '@/lib/notifications/amazon-message-center';
+import { sendD2CPreviewEmail } from '@/lib/notifications/d2c-email';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,9 +58,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const amazonOrderId =
-      order.amazon_order_id || order.orderId || order.order_id || payload.orderId;
+    const platform = (order.platform ?? 'amazon') as string;
+    const customerSiteUrl =
+      (() => {
+        const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+        return process.env.CUSTOMER_SITE_URL?.replace(/\/+$/, '') ||
+          (isProduction ? 'https://littleherolabs.com' : 'http://localhost:4321');
+      })();
 
+    const childName =
+      (order.character_specs && order.character_specs.childName) ||
+      (order.character_specs && order.character_specs.child_name) ||
+      undefined;
+
+    const previewUrl = `${customerSiteUrl}/approve/${payload.token}`;
+
+    // D2C: send preview by email (sendD2CPreviewEmail logs to notification_logs when orderId is provided)
+    if (platform === 'd2c') {
+      if (!order.customer_email?.trim()) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'D2C order is missing customer_email'
+          },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      const d2cResponse = await sendD2CPreviewEmail({
+        to: order.customer_email.trim(),
+        previewUrl,
+        childName,
+        reminderType: payload.reminderType,
+        orderId: payload.orderId,
+      });
+      if (!d2cResponse.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: d2cResponse.error || 'Failed to send D2C preview email'
+          },
+          { status: 502, headers: corsHeaders }
+        );
+      }
+      return NextResponse.json(
+        {
+          success: true,
+          messageId: d2cResponse.messageId,
+          documentId: undefined,
+          previewUrl,
+          reminderType: payload.reminderType
+        },
+        { status: 200, headers: corsHeaders }
+      );
+    }
+
+    // Amazon: send via Message Center
+    const amazonOrderId = order.amazon_order_id ?? null;
     if (!amazonOrderId) {
       return NextResponse.json(
         {
@@ -70,30 +124,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const customerSiteUrl =
-      (() => {
-        // Determine customer site URL based on environment
-        // In production, use littleherolabs.com; in development, use localhost
-        const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
-        return process.env.CUSTOMER_SITE_URL?.replace(/\/+$/, '') || 
-          (isProduction ? 'https://littleherolabs.com' : 'http://localhost:4321');
-      })();
-
-    const revisionsRemaining = Math.max(0, 2 - (order.revision_count || 0));
-
-    const childName =
-      (order.character_specs && order.character_specs.childName) ||
-      (order.character_specs && order.character_specs.child_name) ||
-      undefined;
-
-    const previewUrl = `${customerSiteUrl}/approve/${payload.token}`;
-
     const response = await sendAmazonPreviewMessage({
       amazonOrderId,
       reminderType: payload.reminderType,
       previewUrl,
       childName,
-      revisionsRemaining
+      revisionsRemaining: Math.max(0, 2 - (order.revision_count || 0))
     });
 
     await logNotificationAttempt({

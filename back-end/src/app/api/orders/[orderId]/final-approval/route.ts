@@ -10,6 +10,7 @@ import { updateOrderStatus } from '@/lib/status-service';
 import { ReviewStageStatus } from '@/constants/statuses';
 import { mapSupabaseOrderToOrder } from '@/lib/order-mapper';
 import { sendAmazonPreviewMessage } from '@/lib/notifications/amazon-message-center';
+import { sendD2CPreviewEmail } from '@/lib/notifications/d2c-email';
 
 interface FinalApprovalPayload {
   reviewer?: string;
@@ -149,23 +150,46 @@ async function handleFinalApproval(
       .join(', ')
   });
 
-  const amazonOrderId =
-    orderRecord.amazon_order_id ||
-    orderRecord.orderId ||
-    orderRecord.order_id ||
-    orderId;
+  const platform = (orderRecord.platform ?? 'amazon') as string;
+  const amazonOrderId = orderRecord.amazon_order_id ?? null;
 
   let notificationResult: {
     attempted: boolean;
     sent: boolean;
     reason?: string;
     response?: unknown;
+    channel?: 'email' | 'amazon_message';
   } = {
     attempted: false,
     sent: false
   };
 
-  if (!notificationsEnabled) {
+  // D2C: send preview link by email
+  if (platform === 'd2c') {
+    if (!orderRecord.customer_email?.trim()) {
+      notificationResult.reason = 'D2C order missing customer_email.';
+    } else {
+      notificationResult.attempted = true;
+      notificationResult.channel = 'email';
+      const childName =
+        (orderRecord.character_specs &&
+          (orderRecord.character_specs.childName ||
+            orderRecord.character_specs.child_name)) ||
+        undefined;
+      const response = await sendD2CPreviewEmail({
+        to: orderRecord.customer_email.trim(),
+        previewUrl,
+        childName,
+        reminderType: 'initial',
+        orderId,
+      });
+      notificationResult.sent = response.success;
+      notificationResult.response = response;
+      if (!response.success) {
+        notificationResult.reason = response.error ?? 'Failed to send D2C preview email.';
+      }
+    }
+  } else if (!notificationsEnabled) {
     notificationResult.reason =
       `Amazon preview messaging disabled by configuration. (AMAZON_PREVIEW_NOTIFICATIONS_ENABLED=${rawEnvVar || 'not set'}, production=${isProduction}, sandbox=${sandboxMode}, sandboxRaw=${sandboxModeRaw || 'not set'})`;
   } else if (!amazonOrderId) {
@@ -173,9 +197,9 @@ async function handleFinalApproval(
   } else if (!mappedOrder) {
     notificationResult.reason = 'Unable to map order for notification.';
   } else {
-    // Send notification even if token already exists (allows resending to customer)
-    // Force new deployment
+    // Amazon: send via Message Center (amazonOrderId is orderRecord.amazon_order_id)
     notificationResult.attempted = true;
+    notificationResult.channel = 'amazon_message';
 
     try {
       // First, check configuration before attempting to send

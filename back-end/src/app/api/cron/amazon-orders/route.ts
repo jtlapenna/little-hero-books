@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { createHash } from 'crypto';
+import { calculateCharacterHash } from '@/lib/character-hash';
 
 export const dynamic = 'force-dynamic';
 // Note: Cron jobs require Node.js runtime, not Edge
@@ -961,28 +961,3 @@ async function normalizeAmazonOrder(
   const marketplaceId = amazonOrder.MarketplaceId || amazonMarketplaceId || 'ATVPDKIKX0DER';
   return normalizeAmazonOrderInternal(amazonOrder, orderItems, customization, marketplaceId);
 }
-
-/**
- * Calculate character hash from character specs and order ID
- * Includes orderId in hash to ensure uniqueness per order (prevents collisions)
- * Format: MD5 hash of (characterSpecs + orderId), first 16 characters
- */
-function calculateCharacterHash(characterSpecs: Record<string, any>, orderId: string): string {
-  // Sort character specs keys for consistent hashing
-  const sortedSpecs = Object.keys(characterSpecs)
-    .sort()
-    .reduce((acc, key) => {
-      acc[key] = characterSpecs[key];
-      return acc;
-    }, {} as Record<string, any>);
-  
-  // Include orderId in hash to make it unique per order
-  // This prevents collisions when multiple orders have identical character specs
-  const hashInput = JSON.stringify({ ...sortedSpecs, orderId });
-  
-  return createHash('md5')
-    .update(hashInput)
-    .digest('hex')
-    .substring(0, 16);
-}
-

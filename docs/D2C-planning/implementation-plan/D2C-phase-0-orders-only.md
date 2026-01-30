@@ -15,17 +15,19 @@
 
 ## 1. Implementation Order (Dependencies)
 
-| Step | Workstream | Depends on |
-|------|------------|------------|
-| 1 | Schema migration (platform, orderId, amazon_order_id nullable) | — |
-| 2 | Idempotency storage (table or KV) and middleware | — |
-| 3 | Checkout API (create order, no payment yet) | 1, 2 |
-| 4 | Stripe webhook (payment success → confirm order, trigger W0) | 1, 2, 3 |
-| 5 | W0 payload builder for D2C (used by webhook) | 4 |
-| 6 | Notifications: branch on platform; email for D2C | 1 |
-| 7 | Storefront UI (catalog → character → customization → checkout) | 3 (API) |
-| 8 | Dashboard: My Orders for D2C | 1 (orders with platform) |
-| 9 | Admin: filter/label by platform | 1 |
+| Step | Workstream | Depends on | Status |
+|------|------------|------------|--------|
+| 1 | Schema migration (platform, orderId, amazon_order_id nullable) | — | Done |
+| 2 | Idempotency storage (table or KV) and middleware | — | Done |
+| 3 | Checkout API (create order, no payment yet) | 1, 2 | Done |
+| 4 | Stripe webhook (payment success → confirm order, trigger W0) | 1, 2, 3 | Done |
+| 5 | W0 payload builder for D2C (used by webhook) | 4 | Done |
+| 6 | Notifications: branch on platform; email for D2C | 1 | Done |
+| 7 | Storefront UI (catalog → character → customization → checkout) | 3 (API) | |
+| 8 | Dashboard: My Orders for D2C | 1 (orders with platform) | |
+| 9 | Admin: filter/label by platform | 1 | |
+
+**Progress:** Steps 1–6 complete. Schema, idempotency, Checkout API, Stripe webhook, W0 payload, Notifications (branch on platform; D2C email via Resend). Next: Step 7 (Storefront UI) or Step 8 (My Orders).
 
 Schema and idempotency can run in parallel. Checkout API and Stripe webhook are the critical path for “order in pipeline.” Notifications and UI can proceed once backend is testable.
 
@@ -75,12 +77,14 @@ ALTER TABLE orders
 
 ### 2.3 Verification
 
-- [ ] `orders.platform` exists; default `'amazon'`; existing rows unchanged.
-- [ ] `orders.orderId` exists; backfilled for existing Amazon orders; new D2C orders get UUID.
-- [ ] `orders.amazon_order_id` nullable; existing Amazon rows unchanged; new D2C rows have `amazon_order_id` NULL.
-- [ ] Backend `order-mapper` and list/update paths work with `platform` and `orderId` (already coded; confirm Supabase returns new columns).
+- [x] `orders.platform` exists; default `'amazon'`; existing rows unchanged.
+- [x] `orders.orderId` exists; backfilled for existing Amazon orders; new D2C orders get UUID.
+- [x] `orders.amazon_order_id` nullable; existing Amazon rows unchanged; new D2C rows have `amazon_order_id` NULL.
+- [x] Backend `order-mapper` and list/update paths work with `platform` and `orderId` (already coded; confirm Supabase returns new columns).
 
 ### 2.4 Tasks
+
+Completed: T2.1, T2.2, T2.3, T2.4.
 
 | Task | Description | Acceptance |
 |------|-------------|------------|
@@ -107,7 +111,11 @@ ALTER TABLE orders
 - **TTL:** 24 hours (keys older than 24h can be purged; same key after 24h is treated as new).
 - **Semantics:** First request with key: execute, store 200 + response, return. Subsequent request with same key within TTL: return 200 + stored response (do not re-execute). Optional: 409 if key already used and you want client to distinguish.
 
+Implemented: database/migration-idempotency-keys.sql, back-end/src/lib/idempotency.ts.
+
 ### 3.3 Tasks
+
+Completed: T3.1, T3.2, T3.3, T3.4. (T3.3 applied in Checkout API; T3.4 applied in Stripe webhook.)
 
 | Task | Description | Acceptance |
 |------|-------------|------------|
@@ -167,7 +175,11 @@ Create a D2C order in Supabase (status: pending payment) and return a Stripe cli
 - 409: idempotency key already used (optional; or return 200 with stored response).
 - 500: Stripe or DB error.
 
+Implemented: back-end/src/app/api/checkout/create/route.ts; requires Idempotency-Key; uses back-end/src/lib/character-hash.ts, Stripe PaymentIntent, env STRIPE_SECRET_KEY and optional D2C_CHECKOUT_AMOUNT_CENTS.
+
 ### 4.6 Tasks
+
+Completed: T4.1, T4.2, T4.3, T4.4.
 
 | Task | Description | Acceptance |
 |------|-------------|------------|
@@ -197,7 +209,11 @@ On successful payment, confirm the order in Supabase and trigger n8n W0 with the
 
 - Set `execution_status` = 'pending_w0', `next_workflow` = null (W0 will set one_manifest_url and then router will set next_workflow), `status` = 'pending_w0' or 'queued_for_processing', `purchase_date` = now. Optional: store `stripe_payment_intent_id` if column exists.
 
+Implemented: back-end/src/app/api/webhooks/stripe/route.ts; raw body + STRIPE_WEBHOOK_SECRET; idempotency by event.id; calls buildD2CW0Payload and N8N_W0_WEBHOOK_URL.
+
 ### 5.5 Tasks
+
+Completed: T5.1, T5.2, T5.3, T5.4.
 
 | Task | Description | Acceptance |
 |------|-------------|------------|
@@ -239,7 +255,11 @@ Do **not** send: `amazonOrderId`, `marketplaceId`. n8n W0 already treats these a
 
 - In the Stripe webhook handler after updating the order: load the full order row, build the payload object above, POST to `process.env.N8N_W0_WEBHOOK_URL` (same as Amazon cron). Reuse the same URL; no n8n change.
 
+Implemented: back-end/src/lib/w0-payload.ts (buildD2CW0Payload); used by Stripe webhook route.
+
 ### 6.4 Tasks
+
+Completed: T6.1, T6.2.
 
 | Task | Description | Acceptance |
 |------|-------------|------------|
@@ -266,7 +286,11 @@ Preview and shipped notifications: **Amazon** orders → Amazon Message Center (
 - **Templates:** Preview link email (subject, body with approval URL, 3-day copy). Shipped email (subject, body with tracking URL). Optional: reminder emails (day-1, day-2) if you do them for D2C.
 - **Storage:** Optional `notification_logs` (already exists) with type = 'email' for D2C.
 
+Implemented: Resend with `RESEND_API_KEY`, `D2C_EMAIL_FROM`, optional `D2C_EMAIL_ENABLED`. [back-end/src/lib/notifications/d2c-email.ts](back-end/src/lib/notifications/d2c-email.ts) (`sendD2CPreviewEmail`, `sendD2CShippedEmail`). Logs to `notification_logs` with `notification_type: 'email'` when `orderId` is provided.
+
 ### 7.4 Tasks
+
+Completed: T7.1, T7.2, T7.3, T7.4.
 
 | Task | Description | Acceptance |
 |------|-------------|------------|
@@ -353,19 +377,38 @@ Reuse existing approval flow: preview token, approve/revision endpoints, Lulu tr
 
 ## 12. Acceptance Criteria (Phase 0)
 
-- [ ] Schema: `platform`, `orderId`, nullable `amazon_order_id` in place; existing Amazon orders unchanged.
-- [ ] Checkout API creates D2C order with platform='d2c', orderId=UUID; returns Stripe client_secret or URL.
-- [ ] Stripe webhook on payment_intent.succeeded updates order and triggers W0; W0 runs and 1-manifest is created.
+- [x] Schema: `platform`, `orderId`, nullable `amazon_order_id` in place; existing Amazon orders unchanged.
+- [x] Checkout API creates D2C order with platform='d2c', orderId=UUID; returns Stripe client_secret or URL.
+- [x] Stripe webhook on payment_intent.succeeded updates order and triggers W0; W0 runs and 1-manifest is created.
 - [ ] Router cron picks up D2C order (execution_status/next_workflow) and routes through 2A → 2B → 3 → 4 same as Amazon.
-- [ ] Preview and shipped notifications for D2C go by email; Amazon still uses Message Center.
+- [x] Preview and shipped notifications for D2C go by email; Amazon still uses Message Center.
 - [ ] Storefront: catalog → character → customization → checkout → payment → processing screen works end-to-end.
 - [ ] Customer can view D2C order status (by order_id + email or token).
 - [ ] Admin can filter or see platform column for orders.
-- [ ] Idempotency: duplicate checkout or duplicate Stripe event does not create duplicate order or double W0 trigger.
+- [x] Idempotency: duplicate checkout or duplicate Stripe event does not create duplicate order or double W0 trigger.
 
 ---
 
-## 13. Out of Scope (Phase 0)
+## 13. Next Steps
+
+Backend path for D2C orders (schema → checkout → payment → W0) and **notifications** are complete (Steps 1–6). Remaining Phase 0 work is storefront, customer status, and admin visibility.
+
+**Recommended order:**
+
+| Priority | Step | What to do |
+|----------|------|------------|
+| **1** | **6 – Notifications** | Branch on `order.platform` where preview, reminders, and shipped messages are sent. For D2C: send email (preview link, reminders, shipped + tracking) instead of Amazon Message Center. Add email provider (SendGrid, Resend, Postmark, SES), env vars, and templates. See §7. |
+| **2** | **7 – Storefront UI** | Build customer flow: catalog → character form → customization → checkout (Stripe) → processing screen. Call POST `/api/checkout/create` with `Idempotency-Key` and complete payment. See §8. |
+| **3** | **8 – My Orders (D2C)** | Let customers view order status: backend endpoint (e.g. by `order_id` + email or token) and a "Check your order" / "View status" page. See §9. |
+| **4** | **9 – Admin filter** | Backend: support `?platform=d2c` (and `amazon`) on orders list. Admin UI: platform filter or platform column. Can be done in parallel with 6–8. See §10. |
+
+**Verification (optional early check):** Confirm the router cron and n8n pipeline treat D2C orders like Amazon after W0 (execution_status / next_workflow → 2A → 2B → 3 → 4). No code change required if W0 payload and columns are correct; one end-to-end test is enough.
+
+**Ordering flexibility:** If you want a testable storefront before email, do Step 7 before Step 6; D2C orders will still reach the pipeline and approval, and you can add notifications once the flow is stable.
+
+---
+
+## 14. Out of Scope (Phase 0)
 
 - Accounts table, children table, book_projects, character_style_variants.
 - Login/signup; “My Characters” or “My Books” dashboard tabs.
