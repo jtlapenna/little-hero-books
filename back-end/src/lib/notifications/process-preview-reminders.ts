@@ -8,7 +8,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getActivePreviewToken } from '@/lib/preview-tokens';
-import { sendAmazonPreviewMessage } from '@/lib/notifications/amazon-message-center';
+import { sendAmazonPreviewMessage, getAmazonOrderIdForMessaging } from '@/lib/notifications/amazon-message-center';
 import { sendD2CPreviewEmail } from '@/lib/notifications/d2c-email';
 import { updateOrderInSupabase } from '@/lib/supabase-client';
 
@@ -52,7 +52,7 @@ export async function processPreviewReminders(
 
   const { data: orders, error: fetchError } = await supabase
     .from('orders')
-    .select('id, order_id, orderId, amazon_order_id, platform, customer_email, customer_approval_requested_at, preview_reminder_sent, character_specs, revision_count')
+    .select('id, order_id, orderId, amazon_order_id, product_info, platform, customer_email, customer_approval_requested_at, preview_reminder_sent, character_specs, revision_count')
     .eq('customer_approval_status', 'pending')
     .not('customer_approval_requested_at', 'is', null);
 
@@ -82,7 +82,7 @@ export async function processPreviewReminders(
     const hoursSince = (now - requested) / (1000 * 60 * 60);
 
     const orderId = getOrderId(row);
-    const amazonOrderId = row.amazon_order_id ?? null;
+    const amazonOrderId = getAmazonOrderIdForMessaging(row);
     const childName = getChildName(row);
     const sent = row.preview_reminder_sent ?? null;
     const d2c = isD2C(row);

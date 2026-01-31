@@ -9,7 +9,7 @@ import { ensureActivePreviewToken } from '@/lib/preview-tokens';
 import { updateOrderStatus } from '@/lib/status-service';
 import { ReviewStageStatus } from '@/constants/statuses';
 import { mapSupabaseOrderToOrder } from '@/lib/order-mapper';
-import { sendAmazonPreviewMessage } from '@/lib/notifications/amazon-message-center';
+import { sendAmazonPreviewMessage, getAmazonOrderIdForMessaging } from '@/lib/notifications/amazon-message-center';
 import { sendD2CPreviewEmail } from '@/lib/notifications/d2c-email';
 
 interface FinalApprovalPayload {
@@ -151,7 +151,8 @@ async function handleFinalApproval(
   });
 
   const platform = (orderRecord.platform ?? 'amazon') as string;
-  const amazonOrderId = orderRecord.amazon_order_id ?? null;
+  // Use parent order ID for Amazon Messaging when this is a sibling (second+ item)
+  const amazonOrderId = getAmazonOrderIdForMessaging(orderRecord);
 
   let notificationResult: {
     attempted: boolean;
@@ -193,7 +194,7 @@ async function handleFinalApproval(
     notificationResult.reason =
       `Amazon preview messaging disabled by configuration. (AMAZON_PREVIEW_NOTIFICATIONS_ENABLED=${rawEnvVar || 'not set'}, production=${isProduction}, sandbox=${sandboxMode}, sandboxRaw=${sandboxModeRaw || 'not set'})`;
   } else if (!amazonOrderId) {
-    notificationResult.reason = 'Order is missing amazon_order_id.';
+    notificationResult.reason = 'Order is missing amazon_order_id (or parent for sibling).';
   } else if (!mappedOrder) {
     notificationResult.reason = 'Unable to map order for notification.';
   } else {

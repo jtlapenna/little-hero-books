@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
-import { sendAmazonPreviewMessage } from '@/lib/notifications/amazon-message-center';
+import { sendAmazonPreviewMessage, getAmazonOrderIdForMessaging } from '@/lib/notifications/amazon-message-center';
 import { sendD2CPreviewEmail } from '@/lib/notifications/d2c-email';
 
 const corsHeaders = {
@@ -112,13 +112,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Amazon: send via Message Center
-    const amazonOrderId = order.amazon_order_id ?? null;
+    // Amazon: send via Message Center (use parent order ID for sibling items)
+    const amazonOrderId = getAmazonOrderIdForMessaging(order);
     if (!amazonOrderId) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Order is missing amazon_order_id'
+          error: 'Order is missing amazon_order_id (or parent for sibling)'
         },
         { status: 400, headers: corsHeaders }
       );

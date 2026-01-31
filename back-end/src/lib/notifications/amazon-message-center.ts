@@ -94,6 +94,36 @@ export interface AmazonMessagingResponse {
   details?: unknown;
 }
 
+/**
+ * Resolve the Amazon order ID to use for the Messaging API.
+ * For sibling orders (second+ item in same Amazon order), the DB stores a synthetic
+ * amazon_order_id like "114-xxx-item-152767221929961". The Messaging API expects
+ * the parent order ID ("114-xxx"). This returns the parent when applicable.
+ */
+export function getAmazonOrderIdForMessaging(orderRecord: {
+  amazon_order_id?: string | null;
+  product_info?: unknown;
+}): string | null {
+  const raw = orderRecord.amazon_order_id ?? null;
+  if (!raw) return null;
+  let productInfo: Record<string, unknown> | null = null;
+  if (orderRecord.product_info != null) {
+    if (typeof orderRecord.product_info === 'string') {
+      try {
+        productInfo = JSON.parse(orderRecord.product_info) as Record<string, unknown>;
+      } catch {
+        productInfo = null;
+      }
+    } else if (typeof orderRecord.product_info === 'object' && orderRecord.product_info !== null) {
+      productInfo = orderRecord.product_info as Record<string, unknown>;
+    }
+  }
+  const parent = productInfo?._parent_amazon_order_id;
+  if (typeof parent === 'string' && parent.trim()) return parent.trim();
+  if (raw.includes('-item-')) return raw.substring(0, raw.indexOf('-item-'));
+  return raw;
+}
+
 class AmazonMessagingError extends Error {
   public readonly retryable: boolean;
   public readonly status?: number;
