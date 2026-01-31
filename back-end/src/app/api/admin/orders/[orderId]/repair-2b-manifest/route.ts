@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { downloadManifest, buildManifestKey, getCharacterAssets } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { determineNextWorkflow } from '@/lib/determine-next-workflow';
 import { supabase } from '@/lib/supabase-client';
@@ -61,19 +61,33 @@ export async function POST(
   }
 
   const characterHash: string = String(m2a.characterHash);
+
+  // Prefer R2 inventory keys when available so manifest matches what's actually in R2
+  // (fixes Pose 11 "Image not found" when 2B wrote a different key or aggregation missed it)
+  const assets = await getCharacterAssets(characterHash).catch(() => []);
+  const bgRemovedByPose = new Map<number, string>();
+  for (const a of assets) {
+    if (a.assetType !== 'background-removed') continue;
+    const url = String(a.url || '');
+    const key = url.startsWith('/api/assets/') ? url.replace(/^\/api\/assets\//, '') : null;
+    if (!key || !Number.isFinite(Number(a.poseNumber))) continue;
+    bgRemovedByPose.set(Number(a.poseNumber), key);
+  }
+
   const entries = m2a.entries.map((e: any) => {
     const poseNumber = Number(e?.poseNumber);
     if (!Number.isFinite(poseNumber)) return e;
 
-    // Purpose: Force 2B completion fields so W3 can consume.
+    const r2Key = bgRemovedByPose.get(poseNumber);
+    const keyToUse = r2Key || poseNobgKey(characterHash, poseNumber);
+
     return {
       ...e,
       briaStatus: 'completed',
       bgRemoved: true,
       bgRemovedStatus: 'completed',
       sourceApprovedKey: e.sourceApprovedKey || e.approvedKey || null,
-      bgRemovedKey: poseNobgKey(characterHash, poseNumber),
-      // Keep URL fields null; frontend can derive from key via /api/assets.
+      bgRemovedKey: keyToUse,
       bgRemovedImageUrl: e.bgRemovedImageUrl || null,
       processedAt: e.processedAt || new Date().toISOString(),
     };
@@ -156,11 +170,14 @@ export async function POST(
     })
     .eq('amazon_order_id', orderIdValue);
 
+  const r2PoseNumbers = Array.from(bgRemovedByPose.keys()).sort((a, b) => a - b);
+
   return NextResponse.json({
     success: true,
     orderId: orderIdValue,
     manifest2bKey,
     entriesUpdated: entries.length,
+    r2PoseNumbers,
     message: 'Repaired 2B manifest uploaded; order re-queued for next workflow.',
   });
 }

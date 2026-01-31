@@ -23,7 +23,8 @@
     "cleanup:orders": "dotenv -e .env.local -- tsx scripts/cleanup-old-orders.ts",
     "cleanup:r2-orders": "dotenv -e .env.local -- tsx scripts/cleanup-r2-orders.ts",
     "fetch:all-orders": "dotenv -e .env.local -- tsx scripts/fetch-all-orders.ts",
-    "compare:status": "dotenv -e .env.local -- tsx scripts/compare-order-status.ts"
+    "compare:status": "dotenv -e .env.local -- tsx scripts/compare-order-status.ts",
+    "create-sibling": "dotenv -e .env.local -- tsx scripts/create-sibling-order-from-line-item.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",

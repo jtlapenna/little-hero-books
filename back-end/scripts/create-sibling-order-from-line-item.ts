@@ -2,12 +2,14 @@
  * Create a sibling order for a second (or later) line item from the same Amazon order.
  * Use this when one order has multiple items but our pipeline only processes one book per order.
  *
- * Usage:
- *   # If the order was re-uploaded with the new CSV parser and has product_info.line_items:
- *   npx dotenv -e .env.local -- tsx scripts/create-sibling-order-from-line-item.ts 114-7080737-5512234
+ * Usage (run from back-end directory so dotenv-cli is used):
+ *   npm run create-sibling -- 114-7080737-5512234
+ *
+ *   # Or with explicit dotenv + tsx (from repo root use dotenv-cli and path from root):
+ *   cd back-end && npm run create-sibling -- 114-7080737-5512234
  *
  *   # If the order does NOT have line_items, pass the second item's customization URL:
- *   npx dotenv -e .env.local -- tsx scripts/create-sibling-order-from-line-item.ts 114-7080737-5512234 --url "https://zme-caps.amazon.com/t/..."
+ *   npm run create-sibling -- 114-7080737-5512234 -- --url "https://zme-caps.amazon.com/t/..."
  *
  * The script will:
  * 1. Load the existing order from Supabase.

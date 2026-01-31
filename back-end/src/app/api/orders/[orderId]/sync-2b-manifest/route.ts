@@ -70,9 +70,10 @@ export async function POST(
   const updatedPoseNumbers: number[] = [];
   const stillMissingPoseNumbers: number[] = [];
   const nowIso = new Date().toISOString();
+  const r2PoseNumbers = Array.from(bgRemovedByPose.keys()).sort((a, b) => a - b);
 
-  // Only enforce story poses 1..12.
-  for (let poseNum = 1; poseNum <= 12; poseNum++) {
+  // Story poses 0..12 (pose 0 = cover/base; 1..12 = interior).
+  for (let poseNum = 0; poseNum <= 12; poseNum++) {
     const entry = manifest2b.entries.find((e: any) => Number(e?.poseNumber) === poseNum);
     if (!entry) continue;
 
@@ -111,10 +112,13 @@ export async function POST(
     characterHash,
     updatedPoseNumbers,
     stillMissingPoseNumbers,
+    r2PoseNumbers,
     message:
       updatedPoseNumbers.length > 0
         ? '2B manifest updated from R2 inventory.'
-        : 'No changes needed; 2B manifest already had bgRemovedKey populated for these poses.',
+        : stillMissingPoseNumbers.length > 0
+          ? `No new updates; R2 has poses ${r2PoseNumbers.join(', ')}. Missing in R2 or manifest: ${stillMissingPoseNumbers.join(', ')}.`
+          : 'No changes needed; 2B manifest already had bgRemovedKey populated for these poses.',
   });
 }
 
