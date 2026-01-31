@@ -222,29 +222,50 @@ export async function POST(request: NextRequest) {
     
     console.log(`[LULU WEBHOOK] Successfully updated order ${orderIdentifier} with status ${statusName}`);
 
-    // Send Amazon "your book has shipped" message when SHIPPED, if enabled
+    // Send "your book has shipped" notification when SHIPPED: D2C → email, Amazon → Message Center
     if (statusName === 'SHIPPED') {
-      const shippedNotificationsEnabled =
-        (process.env.AMAZON_SHIPPED_NOTIFICATIONS_ENABLED ?? '').trim().toLowerCase() === 'true';
-      const amazonOrderId = order.amazon_order_id || order.order_id || order.orderId;
+      const platform = (order.platform ?? 'amazon') as string;
       const childName =
         order.character_specs?.childName ?? order.character_specs?.child_name ?? undefined;
-      if (shippedNotificationsEnabled && amazonOrderId) {
+      if (platform === 'd2c' && order.customer_email?.trim()) {
         try {
-          const { sendAmazonShippedMessage } = await import('@/lib/notifications/amazon-message-center');
-          const result = await sendAmazonShippedMessage({
-            amazonOrderId: String(amazonOrderId),
+          const { sendD2CShippedEmail } = await import('@/lib/notifications/d2c-email');
+          const result = await sendD2CShippedEmail({
+            to: order.customer_email.trim(),
+            childName: childName ?? undefined,
             trackingUrl: shippingTrackingUrl ?? undefined,
             trackingNumber: shippingTrackingNumber ?? undefined,
-            childName: childName ?? undefined,
+            orderId: orderIdentifier,
           });
           if (result.success) {
-            console.log(`[LULU WEBHOOK] Amazon shipped message sent for order ${orderIdentifier}`);
+            console.log(`[LULU WEBHOOK] D2C shipped email sent for order ${orderIdentifier}`);
           } else {
-            console.warn(`[LULU WEBHOOK] Amazon shipped message failed for ${orderIdentifier}:`, result.error);
+            console.warn(`[LULU WEBHOOK] D2C shipped email failed for ${orderIdentifier}:`, result.error);
           }
         } catch (notifyErr: any) {
-          console.warn(`[LULU WEBHOOK] Amazon shipped notification error:`, notifyErr?.message ?? notifyErr);
+          console.warn(`[LULU WEBHOOK] D2C shipped notification error:`, notifyErr?.message ?? notifyErr);
+        }
+      } else if (platform !== 'd2c') {
+        const shippedNotificationsEnabled =
+          (process.env.AMAZON_SHIPPED_NOTIFICATIONS_ENABLED ?? '').trim().toLowerCase() === 'true';
+        const amazonOrderId = order.amazon_order_id ?? null;
+        if (shippedNotificationsEnabled && amazonOrderId) {
+          try {
+            const { sendAmazonShippedMessage } = await import('@/lib/notifications/amazon-message-center');
+            const result = await sendAmazonShippedMessage({
+              amazonOrderId: String(amazonOrderId),
+              trackingUrl: shippingTrackingUrl ?? undefined,
+              trackingNumber: shippingTrackingNumber ?? undefined,
+              childName: childName ?? undefined,
+            });
+            if (result.success) {
+              console.log(`[LULU WEBHOOK] Amazon shipped message sent for order ${orderIdentifier}`);
+            } else {
+              console.warn(`[LULU WEBHOOK] Amazon shipped message failed for ${orderIdentifier}:`, result.error);
+            }
+          } catch (notifyErr: any) {
+            console.warn(`[LULU WEBHOOK] Amazon shipped notification error:`, notifyErr?.message ?? notifyErr);
+          }
         }
       }
     }

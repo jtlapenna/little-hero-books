@@ -23,7 +23,8 @@
     "cleanup:orders": "dotenv -e .env.local -- tsx scripts/cleanup-old-orders.ts",
     "cleanup:r2-orders": "dotenv -e .env.local -- tsx scripts/cleanup-r2-orders.ts",
     "fetch:all-orders": "dotenv -e .env.local -- tsx scripts/fetch-all-orders.ts",
-    "compare:status": "dotenv -e .env.local -- tsx scripts/compare-order-status.ts"
+    "compare:status": "dotenv -e .env.local -- tsx scripts/compare-order-status.ts",
+    "create-sibling": "dotenv -e .env.local -- tsx scripts/create-sibling-order-from-line-item.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",
@@ -45,7 +46,9 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-pdf": "^10.2.0",
+    "resend": "^4.8.0",
     "sharp": "^0.34.5",
+    "stripe": "^14.21.0",
     "swr": "^2.3.6",
     "tailwind-merge": "^3.3.1",
     "zod": "^4.1.12"

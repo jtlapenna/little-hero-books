@@ -17,11 +17,15 @@ export async function getCharacterAssets(characterHash: string): Promise<Charact
   // Generate URLs using API proxy endpoint (works for both public and private buckets)
   const assets: CharacterAsset[] = items.map((key) => {
     const file = key.split('/').pop() || '';
-    const poseMatch = file.match(/(pose[-_]?)(\d+)/i) || key.match(/\/(\d+)[^/]*$/);
-    const poseNumber = poseMatch ? parseInt(poseMatch[2] || poseMatch[1], 10) || 0 : 0;
-    const lower = key.toLowerCase();
     const lowerFile = file.toLowerCase();
-    
+    // Prefer canonical nobg pattern so pose11 is not parsed as pose1 (e.g. _pose11_nobg.png)
+    const canonicalNobg = file.match(/_pose(\d+)_nobg/i);
+    const poseMatch = canonicalNobg || file.match(/(pose[-_]?)(\d+)/i) || key.match(/\/(\d+)[^/]*$/);
+    const poseNumber = poseMatch
+      ? parseInt(canonicalNobg ? canonicalNobg[1] : (poseMatch[2] || poseMatch[1]), 10) || 0
+      : 0;
+    const lower = key.toLowerCase();
+
     // Determine asset type:
     // 1. Files in /poses/ directory are always "original" (2A images)
     // 2. Files with "nobg" in filename are "background-removed" (2B images)

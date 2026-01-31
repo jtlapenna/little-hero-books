@@ -66,6 +66,7 @@ interface FinalApprovalStateProps {
     sent: boolean;
     reason?: string;
     response?: unknown;
+    channel?: 'email' | 'amazon_message';
   };
 }
 
@@ -2969,11 +2970,15 @@ export function PostPdfStage({
 
                 {finalApprovalResult?.notification && (
                   <div className="space-y-1 text-xs">
-                    <p className="font-medium text-gray-900">Amazon Message Center</p>
+                    <p className="font-medium text-gray-900">
+                      {finalApprovalResult.notification.channel === 'email' ? 'Email' : 'Amazon Message Center'}
+                    </p>
                     <p className="text-gray-700">
                       {finalApprovalResult.notification.sent
-                        ? 'Preview link sent via Amazon Message Center.'
-                        : finalApprovalResult.notification.reason || 'Amazon messaging not sent (see logs for details).'}
+                        ? (finalApprovalResult.notification.channel === 'email'
+                          ? 'Preview link sent via email.'
+                          : 'Preview link sent via Amazon Message Center.')
+                        : finalApprovalResult.notification.reason || 'Notification not sent (see logs for details).'}
                     </p>
                   </div>
                 )}

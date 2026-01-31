@@ -153,6 +153,23 @@ LIMIT 10;
 - **UPDATE** `failed_orders` with retry attempts
 - **INSERT** into `order_processing_log` for retry steps
 
+## Migrations
+
+### D2C Phase 0: Dual-channel orders (`migration-d2c-phase-0-orders.sql`)
+
+Adds `platform`, `orderId`, and makes `amazon_order_id` nullable for D2C orders.
+
+**Run order:**
+
+1. **Staging**: Run the migration in Supabase SQL editor (or your migration runner) against the staging database. Confirm no errors; `orders` has `platform`, `"orderId"`, and nullable `amazon_order_id`.
+2. **Production**: After verification on staging, run the same migration against production.
+
+**Verification:** Use `database/verify-d2c-phase-0-migration.sql` to check columns and backfill. Confirm one list + one detail API response returns `platform` and `orderId`.
+
+### D2C Phase 0: Idempotency keys (`migration-idempotency-keys.sql`)
+
+Creates `idempotency_keys` table for checkout and Stripe webhook idempotency. Run after `migration-d2c-phase-0-orders.sql`. Backend uses `back-end/src/lib/idempotency.ts` (`withIdempotency`) to store and replay responses by key within TTL (default 24h).
+
 ## 🛠️ Maintenance
 
 ### Regular Tasks
