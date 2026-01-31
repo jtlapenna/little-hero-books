@@ -200,6 +200,10 @@ export async function GET(request: NextRequest) {
       
       // Update each order to ready_for_processing with correct next_workflow
       const w0UpdatePromises = w0CompletedOrders.map(async (order) => {
+        // Never overwrite an explicit W4 (admin or customer-approved) with a recalculated value
+        if (order.next_workflow === '4') {
+          return;
+        }
         // Parse review_stages if it's a string
         let reviewStages = order.review_stages;
         if (typeof reviewStages === 'string') {
@@ -210,7 +214,7 @@ export async function GET(request: NextRequest) {
           }
         }
         
-        // Determine next workflow based on order progress
+        // Determine next workflow based on order progress (W4 only if customer approved or not required)
         const nextWorkflow = determineNextWorkflow({
           one_manifest_url: order.one_manifest_url,
           manifest_2a_url: order.manifest_2a_url,
@@ -219,6 +223,8 @@ export async function GET(request: NextRequest) {
           workflow_step: order.workflow_step,
           review_stages: reviewStages,
           next_workflow: order.next_workflow,
+          customer_approval_required: order.customer_approval_required ?? undefined,
+          customer_approval_status: order.customer_approval_status ?? undefined,
         });
         
         if (nextWorkflow) {
@@ -258,7 +264,7 @@ export async function GET(request: NextRequest) {
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id,amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id')
+      .select('id,amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status')
       .eq('execution_status', 'ready_for_processing')
       .not('next_workflow', 'is', null)
       .order('priority', { ascending: false, nullsFirst: false })
@@ -288,11 +294,15 @@ export async function GET(request: NextRequest) {
 
     // 5. Apply eligibility filter:
     // - Allow W2B / W3 to be regenerated even if Lulu fields exist (order may have been printed).
-    // - For W4, only allow routing if Lulu fields are cleared (regenerate-4 does this).
+    // - For W4, only allow routing if: Lulu fields cleared AND (customer approval not required OR customer approved).
     const eligibleOrders = (orders || []).filter((o) => {
       const next = String(o.next_workflow || '');
       if (next !== '4') return true;
-      return !o.lulu_job_id && !o.lulu_status;
+      if (o.lulu_job_id || o.lulu_status) return false;
+      const approvalRequired = o.customer_approval_required === true;
+      const approved = o.customer_approval_status === 'approved';
+      if (approvalRequired && !approved) return false;
+      return true;
     });
 
     // 6. If no eligible orders, return early (0 n8n executions)

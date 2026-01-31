@@ -43,6 +43,8 @@ export async function POST(request: NextRequest) {
         workflow_step: order.workflow_step,
         review_stages: order.review_stages,
         next_workflow: order.next_workflow,
+        customer_approval_required: (order as any).customer_approval_required ?? undefined,
+        customer_approval_status: (order as any).customer_approval_status ?? undefined,
       });
       if (calculated) {
         nextWorkflow = calculated;

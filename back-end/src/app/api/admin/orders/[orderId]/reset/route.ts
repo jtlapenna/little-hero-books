@@ -105,7 +105,9 @@ export async function POST(
       manifest_3_url: order.manifest_3_url,
       workflow_step: order.workflow_step,
       review_stages: order.review_stages as any,
-      next_workflow: order.next_workflow
+      next_workflow: order.next_workflow,
+      customer_approval_required: (order as any).customer_approval_required ?? undefined,
+      customer_approval_status: (order as any).customer_approval_status ?? undefined,
     });
 
     console.log('[Reset Order] Determined next_workflow:', nextWorkflow);

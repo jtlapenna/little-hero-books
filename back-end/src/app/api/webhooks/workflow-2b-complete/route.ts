@@ -73,6 +73,8 @@ export async function POST(request: NextRequest) {
       workflow_step: currentOrder?.workflow_step ?? null,
       review_stages,
       next_workflow: currentOrder?.next_workflow ?? null,
+      customer_approval_required: (currentOrder as any)?.customer_approval_required ?? undefined,
+      customer_approval_status: (currentOrder as any)?.customer_approval_status ?? undefined,
     });
 
     // Update Supabase with workflow completion

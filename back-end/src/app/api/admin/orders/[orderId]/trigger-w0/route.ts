@@ -25,12 +25,27 @@ export async function POST(
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    // Fetch order
-    const { data: order, error: fetchError } = await supabase
-      .from('orders')
-      .select('*')
-      .or(`amazon_order_id.eq.${orderId},orderId.eq.${orderId}`)
-      .single();
+    // Fetch order: support id (numeric) or amazon_order_id / orderId (string)
+    const numericId = parseInt(orderId, 10);
+    const byId = !isNaN(numericId) && String(numericId) === orderId;
+    let order: any = null;
+    let fetchError: any = null;
+    if (byId) {
+      const r = await supabase.from('orders').select('*').eq('id', numericId).single();
+      order = r.data;
+      fetchError = r.error;
+    } else {
+      // Use .eq() so string values (e.g. with hyphens) are encoded correctly
+      const r = await supabase.from('orders').select('*').eq('amazon_order_id', orderId).single();
+      if (r.error && !r.data) {
+        const r2 = await supabase.from('orders').select('*').eq('orderId', orderId).single();
+        order = r2.data;
+        fetchError = r2.error;
+      } else {
+        order = r.data;
+        fetchError = r.error;
+      }
+    }
 
     if (fetchError || !order) {
       return NextResponse.json(
@@ -102,7 +117,7 @@ export async function POST(
       await supabase
         .from('orders')
         .update({ character_hash: characterHash })
-        .eq('amazon_order_id', orderId);
+        .eq('id', order.id);
     }
 
     // Build W0 payload

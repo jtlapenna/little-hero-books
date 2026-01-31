@@ -33,10 +33,23 @@ npm run create-sibling -- 114-7080737-5512234 -- --url "https://zme-caps.amazon.
 
 ## 3. If download returns 403 Forbidden
 
-Amazon customization URLs often require a logged-in seller session or specific referrer. Running the script on your laptop may get 403. Options:
+Amazon customization URLs often require a logged-in seller session. The script (and server) may get 403 when fetching the ZIP.
 
-- Run the script from the same environment that normally fetches Amazon URLs (e.g. a server that n8n or the cron uses).
-- Or use a backend endpoint (if we add one) that runs the download server-side and then creates the sibling order.
+**Use the create-sibling API with pasted JSON (no Amazon download):**
+
+1. In Seller Central, open the **second item’s** customization URL in your browser (while logged in). Download the ZIP, extract the JSON file (e.g. `152767221930001.json`), and copy its full contents.
+2. Call the API with that JSON:
+
+```bash
+curl -X POST "https://admin.littleherolabs.com/api/admin/orders/114-7080737-5512234/create-sibling" \
+  -H "Content-Type: application/json" \
+  -H "Origin: https://admin.littleherolabs.com" \
+  -d '{"customization_json": <PASTE_THE_JSON_HERE>, "order_item_id": "152767221930001"}'
+```
+
+Or use a `.json` file: `-d @payload.json` where `payload.json` contains `{"customization_json": { ... }, "order_item_id": "152767221930001"}`.
+
+The API creates the sibling order and triggers W0; no download from Amazon is required.
 
 ## 4. After sibling order is created
 

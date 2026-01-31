@@ -142,7 +142,7 @@ export async function POST(
   // Purpose: Ensure router/W3 can progress using Supabase as source of truth.
   const { data: orderRow } = await supabase
     .from('orders')
-    .select('one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url, workflow_step, review_stages, next_workflow')
+    .select('one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url, workflow_step, review_stages, next_workflow, customer_approval_required, customer_approval_status')
     .eq('amazon_order_id', orderIdValue)
     .single();
 
@@ -154,6 +154,8 @@ export async function POST(
     workflow_step: orderRow?.workflow_step || null,
     review_stages: (orderRow?.review_stages as any) || null,
     next_workflow: orderRow?.next_workflow || null,
+    customer_approval_required: orderRow?.customer_approval_required ?? undefined,
+    customer_approval_status: orderRow?.customer_approval_status ?? undefined,
   });
 
   await supabase

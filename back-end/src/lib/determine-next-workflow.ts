@@ -1,15 +1,20 @@
 /**
  * Determine the correct next_workflow for an order based on its actual progress
  * 
- * This function checks the order's manifests, workflow_step, and review_stages
- * to determine where the order should be in the workflow pipeline.
+ * This function checks the order's manifests, workflow_step, review_stages, and
+ * customer approval to determine where the order should be in the workflow pipeline.
  * 
  * Logic:
- * - If 3-manifest exists or book_assembly_completed → '4' (or '3' if postPdf not approved)
+ * - If 3-manifest exists or book_assembly_completed → '4' only if postPdf approved
+ *   AND (customer approval not required OR customer has approved). Otherwise '3'.
  * - If 2B-manifest exists or 2B completed → '3'
  * - If 2A-manifest exists or 2A completed → '2B'
  * - If 1-manifest exists but no other progress → '2A'
  * - Otherwise, keep current next_workflow or return null
+ * 
+ * W4 is only valid when:
+ * 1. Admin explicitly sent to W4 (caller preserves next_workflow='4'; cron does not overwrite), or
+ * 2. Customer approved via preview/approval link (customer_approval_status === 'approved').
  */
 
 export interface OrderProgress {
@@ -24,6 +29,10 @@ export interface OrderProgress {
     postPdf?: { status?: string };
   } | null;
   next_workflow?: string | null;
+  /** When true, do not return '4' unless customer_approval_status === 'approved'. */
+  customer_approval_required?: boolean | null;
+  /** e.g. 'pending' | 'approved' | 'revision_requested'. Required for W4 when customer_approval_required is true. */
+  customer_approval_status?: string | null;
 }
 
 export function determineNextWorkflow(order: OrderProgress): string | null {
@@ -36,11 +45,17 @@ export function determineNextWorkflow(order: OrderProgress): string | null {
   );
   
   if (hasWorkflow3) {
-    // If postPdf is approved, go to workflow 4 (print)
-    // Otherwise, go back to workflow 3 (needs review/approval)
+    // If postPdf is approved, consider workflow 4 (print) only when allowed
     const postPdfStatus = order.review_stages?.postPdf?.status;
     if (postPdfStatus === 'approved') {
-      return '4';
+      // W4 only when: no customer approval required, OR customer has approved
+      const approvalRequired = order.customer_approval_required === true;
+      const approved = order.customer_approval_status === 'approved';
+      if (!approvalRequired || approved) {
+        return '4';
+      }
+      // Still waiting for customer approval — stay at W3
+      return '3';
     }
     return '3';
   }

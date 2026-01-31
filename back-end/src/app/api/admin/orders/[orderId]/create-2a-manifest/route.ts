@@ -327,7 +327,9 @@ export async function POST(
       manifest_3_url: newOrder.manifest_3_url,
       workflow_step: newOrder.workflow_step,
       review_stages: newOrder.review_stages as any,
-      next_workflow: newOrder.next_workflow
+      next_workflow: newOrder.next_workflow,
+      customer_approval_required: (newOrder as any).customer_approval_required ?? undefined,
+      customer_approval_status: (newOrder as any).customer_approval_status ?? undefined,
     });
 
     // Update Supabase with manifest URL and workflow step
