@@ -598,6 +598,56 @@ export interface SendAmazonShippedMessageResult {
 }
 
 /**
+ * Send a "your book has been sent to print" message via Amazon Message Center (confirmOrderDetails).
+ * Call from print-submitted webhook after W4 has submitted to Lulu. Includes preview link and note that the page will update with order status.
+ */
+export interface SendAmazonPrintSubmittedMessageParams {
+  amazonOrderId: string;
+  previewUrl: string;
+  childName?: string;
+}
+
+export interface SendAmazonPrintSubmittedMessageResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+
+export async function sendAmazonPrintSubmittedMessage(
+  params: SendAmazonPrintSubmittedMessageParams
+): Promise<SendAmazonPrintSubmittedMessageResult> {
+  const configResult = getAmazonMessagingConfig();
+  if (!configResult.ok) {
+    return { success: false, error: configResult.error };
+  }
+  const config = configResult.config;
+  const accessToken = await getAccessToken(config);
+  const child = params.childName || 'your child';
+
+  const text =
+    `Good news — ${child}'s book has been sent to the printer!\n\n` +
+    `You can view your preview and check order status here:\n${params.previewUrl}\n\n` +
+    `This page will update with your order status (e.g. when it ships).\n\n` +
+    `Every child is the hero of their own story.\n— Little Hero Books`;
+
+  try {
+    const response = await callSellingPartnerApi({
+      method: 'POST',
+      path: `/messaging/v1/orders/${params.amazonOrderId}/messages/confirmOrderDetails`,
+      accessToken,
+      config,
+      query: { marketplaceIds: config.marketplaceId },
+      body: { text: text.slice(0, 2000) }
+    });
+    const messageId = (response as any)?.payload?.messageId ?? randomUUID();
+    return { success: true, messageId };
+  } catch (err: any) {
+    const message = err?.message ?? String(err);
+    return { success: false, error: message };
+  }
+}
+
+/**
  * Send a "your book has shipped" message via Amazon Message Center (confirmOrderDetails).
  * Call from Lulu webhook when status becomes SHIPPED. Optional tracking URL or number.
  */

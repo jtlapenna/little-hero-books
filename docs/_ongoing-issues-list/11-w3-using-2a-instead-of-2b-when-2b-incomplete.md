@@ -37,9 +37,9 @@ When **all** bg-removed images are already in R2 but the 2B manifest is incomple
 
 2. **Repair 2B manifest (admin)**  
    `POST /api/admin/orders/{orderId}/repair-2b-manifest`  
-   - Rebuilds the 2B manifest from the 2A manifest and **prefers R2 keys** when available (so Pose 11 and others use the key that actually exists in R2).  
-   - Uploads the repaired manifest to R2 and updates Supabase (manifest_2b_url, next_workflow, etc.).  
-   - Response includes `r2PoseNumbers` for diagnostics.
+   - Rebuilds the 2B manifest from the 2A manifest and **only sets bgRemovedKey when that pose exists in R2** (never invents keys).  
+   - **Fails with 400** if any story pose (1..12) has no bg-removed image in R2; response includes `missingStoryPoses` and `r2PoseNumbers`.  
+   - Only uploads when all story poses have bg-removed assets in R2; then updates Supabase (manifest_2b_url, next_workflow, etc.).
 
 3. **Re-run W3**  
    Trigger Book Assembly for the order (or let the router run it). W3 will use the repaired 2B manifest and show transparent characters.
@@ -51,6 +51,11 @@ When **all** bg-removed images are already in R2 but the 2B manifest is incomple
 
 ### Reference
 
-- W3 “Build Assembly Input From Manifest”: uses `key = e.bgRemovedKey || e.approvedKey`.
+- W3 “Build Assembly Input From Manifest”: **requires** `bgRemovedKey` for story poses 1..12; **throws** if any missing (no 2A fallback).
 - `back-end/src/lib/r2-service.ts`: canonical nobg pattern `_pose(\d+)_nobg` used so pose 11 is not parsed as pose 1.
 - `POST /api/orders/[orderId]/trigger-book-assembly`: syncs 2B from R2 and returns 409 if poses are missing unless `{ force: true }`.
+
+### Quick fix for one order (e.g. Atlas sibling)
+
+1. **If R2 has all bg-removed images** for that order's character hash: call `POST /api/admin/orders/{orderId}/repair-2b-manifest`. If repair returns 400 with `missingStoryPoses`, R2 does not have those poses — re-run workflow 2B to process all poses, then call repair again.
+2. **Then send to W3**: trigger book assembly (or let router run W3). W3 will use only bg-removed images and will error if the manifest is incomplete.

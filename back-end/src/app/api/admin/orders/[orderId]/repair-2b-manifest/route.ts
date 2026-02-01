@@ -79,19 +79,38 @@ export async function POST(
     if (!Number.isFinite(poseNumber)) return e;
 
     const r2Key = bgRemovedByPose.get(poseNumber);
-    const keyToUse = r2Key || poseNobgKey(characterHash, poseNumber);
+    // Only set bgRemovedKey when we have an actual R2 asset (never invent keys that don't exist)
+    const hasBgRemoved = !!r2Key;
 
     return {
       ...e,
-      briaStatus: 'completed',
-      bgRemoved: true,
-      bgRemovedStatus: 'completed',
+      briaStatus: hasBgRemoved ? 'completed' : (e.briaStatus ?? null),
+      bgRemoved: hasBgRemoved,
+      bgRemovedStatus: hasBgRemoved ? 'completed' : (e.bgRemovedStatus ?? null),
       sourceApprovedKey: e.sourceApprovedKey || e.approvedKey || null,
-      bgRemovedKey: keyToUse,
-      bgRemovedImageUrl: e.bgRemovedImageUrl || null,
-      processedAt: e.processedAt || new Date().toISOString(),
+      bgRemovedKey: r2Key ?? e.bgRemovedKey ?? null,
+      bgRemovedImageUrl: hasBgRemoved ? (e.bgRemovedImageUrl || null) : (e.bgRemovedImageUrl ?? null),
+      processedAt: hasBgRemoved ? (e.processedAt || new Date().toISOString()) : (e.processedAt ?? null),
     };
   });
+
+  // Require all story poses (1..12) to have bgRemovedKey before uploading (W3 must not use 2A fallback)
+  const storyPoseNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const missingStoryPoses = storyPoseNumbers.filter((poseNum) => {
+    const entry = entries.find((e: any) => Number(e?.poseNumber) === poseNum);
+    return !entry || typeof entry.bgRemovedKey !== 'string' || !entry.bgRemovedKey.trim();
+  });
+  if (missingStoryPoses.length > 0) {
+    return NextResponse.json(
+      {
+        error: 'Cannot repair: 2B manifest would be incomplete',
+        details: 'The following story poses have no bg-removed image in R2. Re-run workflow 2B to process all poses, then call repair again.',
+        missingStoryPoses,
+        r2PoseNumbers: Array.from(bgRemovedByPose.keys()).sort((a, b) => a - b),
+      },
+      { status: 400 }
+    );
+  }
 
   const approvedCount = entries.filter((e: any) => e?.approved && e?.status === 'approved').length;
   const terminalCount = entries.filter((e: any) => String(e?.briaStatus || '').toLowerCase() === 'completed').length;

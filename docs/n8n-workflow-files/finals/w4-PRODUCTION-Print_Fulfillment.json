@@ -236,6 +236,37 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "https://admin.littleherolabs.com/api/webhooks/print-submitted",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_BACKEND_API_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ orderId: $json.orderId || $json.amazon_order_id }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Notify: Sent to Print",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -672,
+        784
+      ]
+    },
+    {
+      "parameters": {
         "jsCode": "const j = $input.first().json || {};\nconst manifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  stage: '4-print-fulfillment',\n  createdAt: new Date().toISOString(),\n  orderId: j.orderId,\n  artifacts: {\n    interiorPdfR2Key: j.pdfR2Key || j.bookPdfUrl,\n    coverPdfR2Key: j.coverPdfR2Key,\n    coverPdfUrl: j.coverPdfUrl || null\n  },\n  lulu: {\n    jobId: j.luluJobId,\n    status: j.luluStatus,\n    cost: j.luluCost,\n    estimatedShipDate: j.estimatedShipDate\n  }\n};\nconst key = `book-mvp-simple-adventure/orders/${j.orderId}/manifests/4-manifest.json`;\nreturn [{ json: { ...j, manifestKey: key, _manifest: manifest } }];\n"
       },
       "id": "b95888df-1450-4c29-a823-4b89c5b6aebf",
@@ -1739,6 +1770,17 @@
         [
           {
             "node": "Supabase: mark submitted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: mark submitted": {
+      "main": [
+        [
+          {
+            "node": "Notify: Sent to Print",
             "type": "main",
             "index": 0
           }

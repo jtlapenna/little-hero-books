@@ -178,6 +178,80 @@ export async function sendD2CPreviewEmail(
   }
 }
 
+export interface SendD2CPrintSubmittedEmailParams {
+  to: string;
+  previewUrl: string;
+  childName?: string;
+  orderId?: string;
+}
+
+/**
+ * Send D2C "sent to print" email with preview link and note that the page will update with order status.
+ */
+export async function sendD2CPrintSubmittedEmail(
+  params: SendD2CPrintSubmittedEmailParams
+): Promise<D2CEmailResult> {
+  if (!isD2CEmailEnabled()) {
+    return { success: false, error: 'D2C email notifications are disabled' };
+  }
+
+  const resend = getResendClient();
+  if (!resend) {
+    return { success: false, error: 'RESEND_API_KEY is not set' };
+  }
+
+  const child = params.childName ?? 'your child';
+  const subject = `${child}'s book has been sent to print! — Little Hero Books`;
+  const text =
+    `Good news — ${child}'s book has been sent to the printer!\n\n` +
+    `You can view your preview and check order status here:\n${params.previewUrl}\n\n` +
+    `This page will update with your order status (e.g. when it ships).\n\n` +
+    `Every child is the hero of their own story.\n— Little Hero Books`;
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: getFromAddress(),
+      to: [params.to],
+      subject,
+      text,
+    });
+
+    if (error) {
+      if (params.orderId) {
+        await logNotification({
+          orderId: params.orderId,
+          recipient: params.to,
+          status: 'failed',
+          errorMessage: error.message,
+        });
+      }
+      return { success: false, error: error.message };
+    }
+
+    const messageId = data?.id ?? undefined;
+    if (params.orderId) {
+      await logNotification({
+        orderId: params.orderId,
+        recipient: params.to,
+        status: 'sent',
+        messageId: messageId ?? null,
+      });
+    }
+    return { success: true, messageId };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (params.orderId) {
+      await logNotification({
+        orderId: params.orderId,
+        recipient: params.to,
+        status: 'failed',
+        errorMessage: message,
+      });
+    }
+    return { success: false, error: message };
+  }
+}
+
 /**
  * Send D2C shipped email with optional tracking. Optionally log to notification_logs when orderId is provided.
  */

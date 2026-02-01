@@ -641,53 +641,37 @@ if (!token) {
         || {};
       
       // Build page data array
-      // Ensure previewImages is an array before mapping
-      // Priority: Use Cloudflare Images URLs (preview/watermarked versions) when available
+      // Prefer R2 proxy URLs over Cloudflare Images so we do NOT show Cloudflare's PROOF watermark.
       const isValidCloudflareUrl = (url) => {
         if (!url || typeof url !== 'string') return false;
-        // Must be a valid Cloudflare Images URL: https://imagedelivery.net/{accountHash}/{imageId}/{variant}
         return url.startsWith('https://imagedelivery.net/') && url.split('/').length >= 5;
       };
+      const isR2ProxyUrl = (url) => typeof url === 'string' && url.includes('/api/assets/') && !url.includes('imagedelivery.net');
       
       const pages = (Array.isArray(previewImages) ? previewImages : []).map((img) => {
         const pageNum = Number(img.pageNumber || 0);
-        // Generate page key for Cloudflare lookup (p00_dedication for page 0, p01 for page 1, etc.)
         const pageKey = pageNum === 0 ? 'p00_dedication' : (pageNum < 10 ? `p0${pageNum}` : `p${pageNum}`);
-        
-        // Get Cloudflare Images data from pagesWithCloudflare object
-        // For page 0, check both p00_dedication and p00 keys
         const cfData = pageNum === 0 
           ? (pagesWithCloudflare['p00_dedication'] || pagesWithCloudflare['p00'] || null)
           : (pagesWithCloudflare[pageKey] || null);
         const cloudflareImageUrl = img.cloudflareImageUrl || cfData?.cloudflareImageUrl || null;
         
-        // Priority 1: Use Cloudflare Images URL if available (preview/watermarked, WebP, CDN)
+        // Priority 1: Use R2 proxy URL when available (no PROOF overlay)
+        if (img.r2Key) {
+          return { pageNumber: pageNum, imageUrl: `${API_BASE}/api/assets/${img.r2Key}` };
+        }
+        if (img.imageUrl && isR2ProxyUrl(img.imageUrl)) {
+          return { pageNumber: pageNum, imageUrl: img.imageUrl.startsWith('http') ? img.imageUrl : `${API_BASE}${img.imageUrl}` };
+        }
+        // Priority 2: Fall back to Cloudflare Images only when R2 not available
         if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
-          return {
-            pageNumber: pageNum,
-            imageUrl: cloudflareImageUrl
-          };
+          return { pageNumber: pageNum, imageUrl: cloudflareImageUrl };
         }
-        // Priority 2: Use imageUrl from previewImages if it's a Cloudflare URL
-        else if (img.imageUrl && isValidCloudflareUrl(img.imageUrl)) {
-          return {
-            pageNumber: pageNum,
-            imageUrl: img.imageUrl
-          };
+        if (img.imageUrl && isValidCloudflareUrl(img.imageUrl)) {
+          return { pageNumber: pageNum, imageUrl: img.imageUrl };
         }
-        // Priority 3: Use imageUrl from previewImages (R2 proxy)
-        else if (img.imageUrl) {
-          return {
-            pageNumber: pageNum,
-            imageUrl: img.imageUrl
-          };
-        }
-        // Priority 4: Fallback to R2 key
-        else if (img.r2Key) {
-          return {
-            pageNumber: pageNum,
-            imageUrl: `${API_BASE}/api/assets/${img.r2Key}`
-          };
+        if (img.imageUrl) {
+          return { pageNumber: pageNum, imageUrl: img.imageUrl.startsWith('http') ? img.imageUrl : `${API_BASE}${img.imageUrl}` };
         }
         return null;
       }).filter(p => p && p.imageUrl); // Only include pages with valid URLs
