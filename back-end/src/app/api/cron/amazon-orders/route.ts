@@ -226,6 +226,10 @@ export async function processAmazonOrders(
           product_info: orderData.items || orderData.lineItems || orderItems,
           updated_at: new Date().toISOString(),
         };
+        if (orderData.ShipmentServiceLevelCategory != null || orderData.ShipServiceLevel != null) {
+          supabaseOrderData.amazon_shipment_service_level =
+            orderData.ShipmentServiceLevelCategory || orderData.ShipServiceLevel;
+        }
         
         // Only set status/execution_status/next_workflow if order is new or still in initial state
         // This prevents overwriting w0's progress if it has already run
@@ -547,6 +551,9 @@ async function normalizeAmazonOrderInternal(
   const characterSpecs = parseCharacterSpecs(customization);
   const dedication = characterSpecs.dedication || '';
 
+  const shipmentServiceLevel =
+    amazonOrder.ShipmentServiceLevelCategory || amazonOrder.ShipServiceLevel || null;
+
   return {
     amazon_order_id: amazonOrderId,
     orderId: amazonOrderId,
@@ -557,6 +564,8 @@ async function normalizeAmazonOrderInternal(
     createdAt: new Date().toISOString(),
     status: 'pending_w0',
     marketplaceId: marketplaceId,
+    ShipmentServiceLevelCategory: shipmentServiceLevel,
+    ShipServiceLevel: amazonOrder.ShipServiceLevel || shipmentServiceLevel,
     customerEmail: buyerEmail,
     buyer: {
       email: buyerEmail,

@@ -154,16 +154,13 @@ export async function POST(request: NextRequest) {
         updateData.tracking_number = trackingInfo.trackingNumber;
       }
       if (trackingInfo.trackingUrl) {
-        // Database uses trackingUrl (camelCase) per schema.sql, but migration suggests tracking_url
-        // Try both to be safe
         updateData.tracking_url = trackingInfo.trackingUrl;
-        updateData.trackingUrl = trackingInfo.trackingUrl;
       }
       if (trackingInfo.carrier) {
         updateData.carrier = trackingInfo.carrier;
       }
-      // Set shipped_at timestamp
       updateData.shipped_at = new Date().toISOString();
+      updateData.print_fulfillment_finished_at = new Date().toISOString();
     }
     
     // Handle error states
