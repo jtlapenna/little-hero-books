@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
     // Select lulu_job_id, lulu_status so we can filter again in JS (covers empty string or replica lag)
     const { data: notPickedUpOld, error: notPickedUpOldError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, workflow_step, lulu_job_id, lulu_status')
+      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, workflow_step, lulu_job_id, lulu_status, customer_approval_status')
       .eq('execution_status', 'ready_for_processing')
       .not('queued_at', 'is', null)
       .lt('queued_at', queuedThresholdTime.toISOString());
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
     // Query 2: Orders with next_retry_at set (scheduled for retry)
     const { data: scheduledRetryData, error: scheduledRetryError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, workflow_step, lulu_job_id, lulu_status')
+      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, workflow_step, lulu_job_id, lulu_status, customer_approval_status')
       .eq('execution_status', 'ready_for_processing')
       .not('next_retry_at', 'is', null);
     
@@ -293,15 +293,16 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Process not picked up orders — exclude only when actually in print phase or already with Lulu.
-    // Use workflow_step === 'print_fulfillment' only (not next_workflow === '4'), so "Awaiting Customer"
-    // orders with next_workflow 4 still show as needing attention if not picked up.
+    // Process not picked up orders — exclude when in print phase or already with Lulu.
+    // Include: "Awaiting Customer" (customer not yet approved) so they show as needing attention.
+    // Exclude: has Lulu job/status, or workflow_step is print_fulfillment, or (next is W4 and customer approved).
     const excludeFromNotPickedUp = (o: any) => {
       const jobId = o?.lulu_job_id;
       const status = o?.lulu_status;
       const hasLulu = (jobId != null && jobId !== '') || (status != null && status !== '');
-      const inPrintPhase = o?.workflow_step === 'print_fulfillment';
-      return hasLulu || inPrintPhase;
+      const inPrintStep = o?.workflow_step === 'print_fulfillment';
+      const approvedAndNextIsW4 = o?.next_workflow === '4' && o?.customer_approval_status === 'approved';
+      return hasLulu || inPrintStep || approvedAndNextIsW4;
     };
     (notPickedUpDataDeduped || []).forEach((order: any) => {
       if (excludeFromNotPickedUp(order)) {
