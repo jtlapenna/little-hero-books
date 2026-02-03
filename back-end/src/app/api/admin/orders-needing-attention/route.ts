@@ -361,6 +361,26 @@ export async function GET(request: NextRequest) {
 
     // Convert to array and apply filters
     let orders = Array.from(orderMap.values());
+
+    // Final filter: remove any order that is in print phase (sent to Lulu or approved + next W4).
+    // Some orders come from the orphaned RPC which may not return lulu_job_id, so we re-fetch from DB.
+    if (orders.length > 0) {
+      const ids = orders.map((o: any) => o.id);
+      const { data: printPhaseRows } = await supabase
+        .from('orders')
+        .select('id, lulu_job_id, lulu_status, workflow_step, customer_approval_status, next_workflow')
+        .in('id', ids);
+      const excludeIdSet = new Set<number>();
+      (printPhaseRows || []).forEach((row: any) => {
+        const jobId = row?.lulu_job_id;
+        const status = row?.lulu_status;
+        const hasLulu = (jobId != null && jobId !== '') || (status != null && status !== '');
+        const inPrintStep = row?.workflow_step === 'print_fulfillment';
+        const approvedAndNextIsW4 = row?.next_workflow === '4' && row?.customer_approval_status === 'approved';
+        if (hasLulu || inPrintStep || approvedAndNextIsW4) excludeIdSet.add(row.id);
+      });
+      orders = orders.filter((o: any) => !excludeIdSet.has(o.id));
+    }
     
     // Final pass: Ensure next_retry_at is explicitly included for all orders
     // This handles cases where the field might be missing from query results
