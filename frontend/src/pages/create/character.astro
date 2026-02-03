@@ -1,5 +1,6 @@
 ---
 import CreateLayout from '../../layouts/CreateLayout.astro';
+import CharacterBuilder from '../../components/create/islands/CharacterBuilder.tsx';
 ---
 
 <CreateLayout step="character" title="Character — Create Your Book | Little Hero Labs">
@@ -7,7 +8,7 @@ import CreateLayout from '../../layouts/CreateLayout.astro';
     Please complete the steps from the start.
   </div>
   <section class="section-padding">
-    <p class="create-placeholder">Character step – form coming in next batch.</p>
+    <CharacterBuilder client:load />
   </section>
 </CreateLayout>
 
@@ -27,9 +28,8 @@ import CreateLayout from '../../layouts/CreateLayout.astro';
 </script>
 
 <style>
-  .create-placeholder {
-    font-family: var(--font-body);
-    color: var(--color-soft-charcoal);
+  .section-padding {
+    padding-top: var(--spacing-sm, 0.5rem);
   }
 
   .create-toast {

@@ -6,6 +6,7 @@
   "scripts": {
     "setup": "node scripts/setup-env.js",
     "dev": "cd renderer && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
     "dev:amazon": "cd amazon && npm run dev",
     "dev:templates": "cd templates && npm run dev",
     "dev:pod": "cd pod && npm run dev",
