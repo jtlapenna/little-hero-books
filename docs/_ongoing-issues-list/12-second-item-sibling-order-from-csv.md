@@ -55,4 +55,71 @@ The API creates the sibling order and triggers W0; no download from Amazon is re
 
 - The new order has a synthetic id like `114-7080737-5512234-item-152767221930001`.
 - It is queued for W0 so it goes through 2A → 2B → 3 → 4 like the first book.
-- You will get two separate Lulu jobs (two shipments) unless multi-item Lulu aggregation is implemented.
+- **Without aggregation:** you get two separate Lulu jobs (two shipments). Use the manual script below for one-off combined shipment, or implement the aggregation workflow for automatic combined print.
+
+---
+
+## 5. Sending sibling orders to print together (manual script)
+
+When both books are ready for print (W4 / proof approved), you can submit them as **one Lulu print job** (one shipment, two line items) using:
+
+- **Script:** `scripts/submit-sibling-orders-to-lulu.js`
+- **Input:** A JSON file with exactly 2 order objects (same Amazon order, two line items). Each must have `orderId`, interior/cover PDF R2 keys, and `shipping_address`.
+- **Docs:** `docs/lulu/SIBLING_ORDERS_LULU.md`
+
+Example:
+
+```bash
+node scripts/submit-sibling-orders-to-lulu.js scripts/sibling-orders-114-7080737-5512234.json
+```
+
+The script fetches signed PDF URLs, gets a Lulu token, POSTs one print job with two line items, and optionally updates Supabase for both orders with the same `lulu_job_id`, `lulu_status`, `print_submitted_at`, and `execution_status: 'done'`.
+
+---
+
+## 6. Full system: aggregating sibling orders for print (automated workflow)
+
+**Goal:** Once both sibling orders are processed through W3 (book assembly done, approved for print), automatically aggregate them into a **single Lulu print job** (one order, multiple line items) instead of running W4 twice and creating two shipments.
+
+### 6.1 Data model and identification
+
+- **Sibling group:** All orders that share the same **Amazon order id** (e.g. `114-7080737-5512234`). Main order has that id; sibling has synthetic id like `114-7080737-5512234-item-152767221930001`.
+- **Stored in Supabase:** Either:
+  - Derive siblings by `amazon_order_id` (strip `-item-*` from synthetic ids to get the root order id), or
+  - Add optional `sibling_group_id` (e.g. root order id) and/or `sibling_order_ids` on the main order for fast lookup.
+- **Ready for aggregation:** Each order has `next_workflow === '4'`, `customer_approval_status === 'approved'`, and required PDFs/manifests in R2. No order in the group has been sent to Lulu yet (`lulu_job_id` is null).
+
+### 6.2 New workflow: “Sibling aggregation for print” (W4-aggregate or post-W3 aggregate)
+
+- **Trigger:** Either:
+  - **Cron / router:** When choosing which orders to send to W4, detect sibling groups; if all siblings in a group are ready for W4, send the **group** to an aggregation path instead of sending each order to W4 individually.  
+  - Or a **dedicated small workflow** that runs after W3 completion: “When an order completes W3 and is approved, check if it has siblings; if all siblings are approved and ready, run aggregation once for the group.”
+- **Aggregation step (single place):**
+  1. Collect all orders in the sibling group (same `amazon_order_id`).
+  2. For each order, resolve interior + cover PDF (signed URLs from backend).
+  3. Build one Lulu print job: one `shipping_address` (from any sibling), one `contact_email`, `line_items: [ book1, book2, ... ]`.
+  4. POST to Lulu `POST /print-jobs/` (same as current W4 / script).
+  5. On success: PATCH Supabase for **every** order in the group with the same `lulu_job_id`, `lulu_status`, `print_submitted_at`, and set `execution_status` to `'done'` (so router does not pick them for W4 again).
+- **Idempotency:** If aggregation runs twice (e.g. cron + webhook), skip or no-op when any order in the group already has `lulu_job_id` set.
+
+### 6.3 Where the aggregation logic can live
+
+- **Option A – Backend API:** New endpoint e.g. `POST /api/cron/aggregate-sibling-orders` (or called by cron). Cron hits it; backend finds sibling groups ready for print, builds one Lulu job per group, submits, updates Supabase. No change to W4 n8n for single-book orders.
+- **Option B – n8n workflow:** New workflow “W4 Sibling Aggregate” triggered when a sibling group is ready. Input: list of order ids in the group. Workflow fetches PDF URLs (via backend), builds Lulu payload, submits, then PATCHes Supabase for all (or calls backend to do the PATCH).
+- **Option C – Extend W4:** When W4 starts for an order, check for siblings ready for W4; if so, aggregate and submit one job, then mark all siblings done. Single-book orders run existing W4 as today.
+
+Recommendation: **Option A** keeps Lulu and Supabase logic in one place (backend), reuses the same logic as `submit-sibling-orders-to-lulu.js`, and keeps n8n simple. Cron or router would call this endpoint for “sibling groups ready for print” instead of sending each order to W4.
+
+### 6.4 Edge cases
+
+- **Only one sibling ready:** Don’t aggregate; either wait until both are ready or allow manual/script submission for that one (current W4 single-book path).
+- **Three+ line items:** Same design: one group, one print job, N line items.
+- **Lulu webhooks:** One job id for the whole group; webhook handler may need to map status/tracking to all orders in the group (e.g. by `lulu_job_id`).
+
+### 6.5 Implementation checklist (when building the full system)
+
+- [ ] Define sibling group in DB (e.g. by `amazon_order_id` or `sibling_group_id`).
+- [ ] Cron or router: detect “sibling group all ready for W4” and call aggregation path instead of W4 per order.
+- [ ] Backend: endpoint or internal function that builds one Lulu job from N orders and PATCHes all N.
+- [ ] Ensure W4 single-order path is not triggered for orders that were aggregated (e.g. set `execution_status`/flag when aggregated).
+- [ ] Lulu webhook: when `lulu_job_id` is updated (e.g. SHIPPED), update all orders sharing that `lulu_job_id`.
