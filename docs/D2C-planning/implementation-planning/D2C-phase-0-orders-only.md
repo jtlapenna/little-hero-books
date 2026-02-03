@@ -303,7 +303,7 @@ Completed: T7.1, T7.2, T7.3, T7.4.
 
 ## 8. Storefront UI (Step 7)
 
-**UI plan (visual / layout):** See [D2C-phase-0-step-7-ui-plan.md](../D2C-phase-0-step-7-ui-plan.md) for layout, component structure, trait picker UI, visual style, responsive behavior, progress/wayfinding, copy, and decisions to make.
+**UI plan (visual / layout):** See [D2C-phase-0-step-7-ui-plan.md](step-7-UI-plan/D2C-phase-0-step-7-ui-plan.md) for layout, component structure, trait picker UI, visual style, responsive behavior, progress/wayfinding, copy, and decisions to make.
 
 ### 8.1 Goal
 

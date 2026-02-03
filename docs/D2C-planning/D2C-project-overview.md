@@ -20,9 +20,9 @@
 | Document | Role |
 |----------|------|
 | **This file** (`D2C-project-overview.md`) | Master plan: phases, summaries, cross-references. |
-| **[D2C Phase 0: Orders-Only Launch](implementation-plan/D2C-phase-0-orders-only.md)** | Full implementation plan for first D2C ship (schema, checkout, Stripe, W0, notifications, storefront, dashboard orders, admin, idempotency). |
-| **[D2C Phase 1: Accounts & Characters](implementation-plan/D2C-phase-1-accounts-characters.md)** | Full implementation plan for accounts, children, character-style variants, linking orders to accounts, dashboard tabs. |
-| **[D2C Phase 2: Book Projects & Catalog](implementation-plan/D2C-phase-2-book-projects-catalog.md)** | Full implementation plan for book_projects, books, art_styles, full “create book project → checkout” flow, dashboard My Books. |
+| **[D2C Phase 0: Orders-Only Launch](implementation-planning/D2C-phase-0-orders-only.md)** | Full implementation plan for first D2C ship (schema, checkout, Stripe, W0, notifications, storefront, dashboard orders, admin, idempotency). |
+| **[D2C Phase 1: Accounts & Characters](implementation-planning/D2C-phase-1-accounts-characters.md)** | Full implementation plan for accounts, children, character-style variants, linking orders to accounts, dashboard tabs. |
+| **[D2C Phase 2: Book Projects & Catalog](implementation-planning/D2C-phase-2-book-projects-catalog.md)** | Full implementation plan for book_projects, books, art_styles, full “create book project → checkout” flow, dashboard My Books. |
 | [Current system audit](current-system-audit-findings/current-system-audit-findings.md) | What exists today (backend, Supabase, n8n); gaps; dual-channel strategy. |
 | [API contracts](lhl_api_contracts_frontend_↔_n_8_n_↔_admin.md) | Endpoints, payloads, conventions; Current vs D2C; approval and n8n. |
 | [Data schemas](lhl_data_schemas_accounts_characters_books_orders.md) | Current schema (orders), target schema (accounts, children, book_projects, etc.), dual-channel identifiers. |
@@ -44,7 +44,7 @@
 
 ## Phase 0: Orders-Only Launch
 
-**Detail doc:** [D2C-phase-0-orders-only.md](implementation-plan/D2C-phase-0-orders-only.md)
+**Detail doc:** [D2C-phase-0-orders-only.md](implementation-planning/D2C-phase-0-orders-only.md)
 
 **Summary:**
 - **Schema:** Add `platform`, ensure `orderId`; make `amazon_order_id` nullable for D2C; migration SQL.
@@ -64,7 +64,7 @@
 
 ## Phase 1: Accounts & Characters
 
-**Detail doc:** [D2C-phase-1-accounts-characters.md](implementation-plan/D2C-phase-1-accounts-characters.md)
+**Detail doc:** [D2C-phase-1-accounts-characters.md](implementation-planning/D2C-phase-1-accounts-characters.md)
 
 **Summary:**
 - **Schema:** Add `accounts`, `children`; optional `character_style_variants` and `art_styles` if needed for preview. Add `account_id` (nullable) to `orders`. Migrations.
@@ -81,7 +81,7 @@
 
 ## Phase 2: Book Projects & Catalog
 
-**Detail doc:** [D2C-phase-2-book-projects-catalog.md](implementation-plan/D2C-phase-2-book-projects-catalog.md)
+**Detail doc:** [D2C-phase-2-book-projects-catalog.md](implementation-planning/D2C-phase-2-book-projects-catalog.md)
 
 **Summary:**
 - **Schema:** Add `books`, `art_styles`, `book_projects`; optional `approvals` table if not already represented on orders. Link `orders` to `book_project_id` when applicable. Migrations.
@@ -99,9 +99,9 @@
 ## How to Use These Documents
 
 1. **Start here:** Read this overview and the [Current system audit](current-system-audit-findings/current-system-audit-findings.md).
-2. **Phase 0:** Open [D2C-phase-0-orders-only.md](implementation-plan/D2C-phase-0-orders-only.md) for the full implementation plan (tasks, migrations, handler specs, acceptance criteria). Use API contracts and data schemas for exact shapes; use wireframes for UI scope.
-3. **Phase 1:** After Phase 0 (or in parallel for design), open [D2C-phase-1-accounts-characters.md](implementation-plan/D2C-phase-1-accounts-characters.md). Use API contracts and schemas for accounts/children.
-4. **Phase 2:** After Phase 1 (or when scoping multi-book), open [D2C-phase-2-book-projects-catalog.md](implementation-plan/D2C-phase-2-book-projects-catalog.md).
+2. **Phase 0:** Open [D2C-phase-0-orders-only.md](implementation-planning/D2C-phase-0-orders-only.md) for the full implementation plan (tasks, migrations, handler specs, acceptance criteria). Use API contracts and data schemas for exact shapes; use wireframes for UI scope.
+3. **Phase 1:** After Phase 0 (or in parallel for design), open [D2C-phase-1-accounts-characters.md](implementation-planning/D2C-phase-1-accounts-characters.md). Use API contracts and schemas for accounts/children.
+4. **Phase 2:** After Phase 1 (or when scoping multi-book), open [D2C-phase-2-book-projects-catalog.md](implementation-planning/D2C-phase-2-book-projects-catalog.md).
 5. **When in doubt:** Contracts and schemas are source of truth; phase docs add implementation detail and task breakdown. Scope cutlines define what not to ship in V1.
 
 ---
@@ -122,6 +122,6 @@
 - [Scope cutlines](lhl_scope_cutlines_v_1_launch_vs_v_2_expansion.md)
 - [Wireframes](lhl_wireframe_level_screen_flows_accounts_characters_orders.md)
 - [Concept / architecture](lhl_personalization_accounts_and_order_system_concept_architecture.md)
-- [Phase 0 implementation plan](implementation-plan/D2C-phase-0-orders-only.md)
-- [Phase 1 implementation plan](implementation-plan/D2C-phase-1-accounts-characters.md)
-- [Phase 2 implementation plan](implementation-plan/D2C-phase-2-book-projects-catalog.md)
+- [Phase 0 implementation plan](implementation-planning/D2C-phase-0-orders-only.md)
+- [Phase 1 implementation plan](implementation-planning/D2C-phase-1-accounts-characters.md)
+- [Phase 2 implementation plan](implementation-planning/D2C-phase-2-book-projects-catalog.md)

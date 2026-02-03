@@ -7,7 +7,7 @@ Define a **ruthless scope cutline** for V1 (launch) and a clear roadmap for V2+,
 - Character/book generation workflows already exist in n8n
 - **Dual channel:** Sell on both Amazon and the Little Hero Books site; same n8n pipeline for both (see `current-system-audit-findings/current-system-audit-findings.md`)
 
-**Current reality:** Today only **Amazon** order entry exists (SP-API cron → Supabase → n8n W0). D2C V1 adds storefront checkout, Stripe, and order creation with `platform = 'd2c'` and `orderId` (e.g. UUID), then triggers the same n8n W0. Phase 0 = reuse existing `orders` table + add `platform`; Phase 1 (optional) = add accounts/children when needed.
+**Current reality:** Today only **Amazon** order entry exists (SP-API cron → Supabase → n8n W0). D2C V1 adds storefront checkout, Stripe, and order creation with `platform = 'd2c'` and `orderId` (e.g. UUID), then triggers the same n8n W0. **Phase 0** is the first ship: orders-only (no accounts/children tables). **Phase 1** adds soft accounts and child profiles; see [D2C-project-overview.md](D2C-project-overview.md) for phase dependencies.
 
 ---
 

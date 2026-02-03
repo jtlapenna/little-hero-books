@@ -14,6 +14,8 @@ Goal: deterministic, idempotent, debuggable integrations.
 
 **D2C (planned):** The same n8n pipeline (W0 → … → approval → Lulu) is used. D2C adds: checkout API, Stripe webhook, order creation in Supabase with `platform = 'd2c'` and `orderId` (e.g. UUID), and trigger to n8n W0. Optionally: accounts, children, character-style-variant APIs. The only behavioral difference is **who** creates the order and **which notification channel** is used: Amazon Message Center for Amazon orders, email (or other) for D2C. Backend branches on `platform` for notifications. See `current-system-audit-findings/current-system-audit-findings.md` for current system details.
 
+**Phase 0 (first D2C ship):** Only **POST /api/checkout/create** (with `character_specs`, `dedication`, `shipping_address`, `customer_email`; no `book_project_id`) and optionally **GET /api/orders/status** (e.g. `?order_id=&email=`) are in scope. Accounts, children, and book-project endpoints are Phase 1+.
+
 ---
 
 # 0. Conventions
