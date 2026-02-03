@@ -1,0 +1,26 @@
+[
+  {
+    "idx": 3,
+    "id": 391,
+    "amazon_order_id": "114-7080737-5512234",
+    "orderId": "114-7080737-5512234",
+    "customer_email": "6wtmqbjyzfd32pm@marketplace.amazon.com",
+    "customer_name": "Antoinette Mason",
+    "shipping_address": "{\"zip\": \"94952-4136\", \"city\": \"PETALUMA\", \"name\": \"Antoinette Mason\", \"phone\": \"+1 602-671-6610\", \"state\": \"CA\", \"address\": \"215 SUNNYSLOPE AVE\"}",
+    "character_specs": "{\"age\": 2, \"pronouns\": \"She\", \"skinTone\": \"light\", \"childName\": \"Simone\", \"hairColor\": \"blonde\", \"hairStyle\": \"pigtails\", \"animalGuide\": \"Cat\", \"clothingStyle\": \"dress\", \"favoriteColor\": \"Pink\"}",
+    "interiorPdfR2Key": "book-mvp-simple-adventure/orders/114-7080737-5512234/interior_114-7080737-5512234.pdf",
+    "coverPdfR2Key": "book-mvp-simple-adventure/orders/114-7080737-5512234/cover_114-7080737-5512234.pdf"
+  },
+  {
+    "idx": 4,
+    "id": 398,
+    "amazon_order_id": "114-7080737-5512234-item-152767221929961",
+    "orderId": "114-7080737-5512234-item-152767221929961",
+    "customer_email": "6wtmqbjyzfd32pm@marketplace.amazon.com",
+    "customer_name": "Antoinette Mason",
+    "shipping_address": "{\"zip\": \"94952-4136\", \"city\": \"PETALUMA\", \"name\": \"Antoinette Mason\", \"phone\": \"+1 602-671-6610\", \"state\": \"CA\", \"address\": \"215 SUNNYSLOPE AVE\"}",
+    "character_specs": "{\"age\": 4, \"pronouns\": \"He\", \"skinTone\": \"light\", \"childName\": \"Atlas\", \"hairColor\": \"light brown\", \"hairStyle\": \"curly medium\", \"animalGuide\": \"Tiger\", \"clothingStyle\": \"tee-shorts\", \"favoriteColor\": \"Blue\"}",
+    "interiorPdfR2Key": "book-mvp-simple-adventure/orders/114-7080737-5512234-item-152767221929961/interior_114-7080737-5512234-item-152767221929961.pdf",
+    "coverPdfR2Key": "book-mvp-simple-adventure/orders/114-7080737-5512234-item-152767221929961/cover_114-7080737-5512234-item-152767221929961.pdf"
+  }
+]

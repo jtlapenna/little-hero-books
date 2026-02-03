@@ -225,7 +225,13 @@ function detectOrderErrors(order: Order): ErrorType[] {
   }
 
   // Check for not picked up (ready_for_processing for extended time)
-  if (order.executionStatus === 'ready_for_processing' && order.queuedAt) {
+  // Exclude orders already sent to Lulu (printing) — they don't need "Not Picked Up"
+  const alreadyPrinting = !!(order.luluJobId || order.luluStatus);
+  if (
+    !alreadyPrinting &&
+    order.executionStatus === 'ready_for_processing' &&
+    order.queuedAt
+  ) {
     const queuedAt = new Date(order.queuedAt);
     const now = new Date();
     const minutesQueued = Math.floor((now.getTime() - queuedAt.getTime()) / 1000 / 60);
