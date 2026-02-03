@@ -208,9 +208,12 @@ function CharacterBuilder() {
       <section className="character-builder__section">
         <h2 className="character-builder__section-title">About your child</h2>
         <div className="character-builder__row">
-          <label className="character-builder__label">
-            Child&apos;s name
+          <div className="character-builder__field">
+            <label className="character-builder__label" htmlFor="char-name">
+              Child&apos;s name
+            </label>
             <input
+              id="char-name"
               type="text"
               className="character-builder__input"
               value={char.name ?? ''}
@@ -222,10 +225,13 @@ function CharacterBuilder() {
               aria-describedby={nameError ? 'name-error' : undefined}
             />
             {nameError && <span id="name-error" className="character-builder__error" role="alert">{nameError}</span>}
-          </label>
-          <label className="character-builder__label">
-            Age (3–8)
+          </div>
+          <div className="character-builder__field character-builder__field--age">
+            <label className="character-builder__label" htmlFor="char-age">
+              Age (3–8)
+            </label>
             <input
+              id="char-age"
               type="number"
               min={AGE_MIN}
               max={AGE_MAX}
@@ -241,11 +247,14 @@ function CharacterBuilder() {
               aria-describedby={ageError ? 'age-error' : undefined}
             />
             {ageError && <span id="age-error" className="character-builder__error" role="alert">{ageError}</span>}
-          </label>
+          </div>
         </div>
-        <label className="character-builder__label">
-          Pronouns
+        <div className="character-builder__field">
+          <label className="character-builder__label" htmlFor="char-pronouns">
+            Pronouns
+          </label>
           <select
+            id="char-pronouns"
             className="character-builder__select"
             value={char.pronouns ?? 'they-them'}
             onChange={(e) => updateCharacter({ pronouns: e.target.value })}
@@ -254,17 +263,20 @@ function CharacterBuilder() {
               <option key={o.id} value={o.id}>{o.label}</option>
             ))}
           </select>
-        </label>
-        <label className="character-builder__label">
-          Hometown (optional)
+        </div>
+        <div className="character-builder__field">
+          <label className="character-builder__label" htmlFor="char-hometown">
+            Hometown (optional)
+          </label>
           <input
+            id="char-hometown"
             type="text"
             className="character-builder__input"
             value={char.hometown ?? HOMETOWN_DEFAULT}
             onChange={(e) => updateCharacter({ hometown: e.target.value || HOMETOWN_DEFAULT })}
             placeholder={HOMETOWN_DEFAULT}
           />
-        </label>
+        </div>
       </section>
 
       {/* Look & style */}
@@ -350,15 +362,24 @@ function CharacterBuilder() {
         .character-builder { max-width: 640px; }
         .create-loading { font-family: var(--font-body); color: var(--color-soft-charcoal); padding: var(--spacing-md); }
         .character-builder__title { font-family: var(--font-heading); font-size: 1.75rem; font-weight: 700; color: var(--color-navy-midnight); margin-bottom: var(--spacing-lg); }
-        .character-builder__section { margin-bottom: var(--spacing-lg); }
-        .character-builder__section-title { font-family: var(--font-ui); font-size: 1.125rem; font-weight: 600; color: var(--color-navy-midnight); margin-bottom: var(--spacing-md); }
-        .character-builder__row { display: flex; flex-wrap: wrap; gap: var(--spacing-md); }
-        .character-builder__label { display: block; font-family: var(--font-ui); font-size: 0.9375rem; font-weight: 500; color: var(--color-soft-charcoal); margin-bottom: var(--spacing-sm); }
-        .character-builder__input { width: 100%; max-width: 240px; padding: 0.5rem 0.75rem; border: 1px solid rgba(45,49,66,0.2); border-radius: 8px; font-family: var(--font-body); font-size: 1rem; }
-        .character-builder__input--age { max-width: 80px; }
+        .character-builder__section { margin-bottom: calc(var(--spacing-lg, 2rem) + 65px); }
+        .character-builder__section-title { font-family: var(--font-ui); font-size: 1.125rem; font-weight: 600; color: var(--color-navy-midnight); margin-bottom: 1.25rem; }
+        .character-builder__section > .swatch-picker + .swatch-picker,
+        .character-builder__section > .swatch-picker + .trait-grid-picker,
+        .character-builder__section > .trait-grid-picker + .swatch-picker,
+        .character-builder__section > .trait-grid-picker + .trait-grid-picker { margin-top: 65px; }
+        .character-builder__field { margin-bottom: 1.25rem; }
+        .character-builder__field:last-child { margin-bottom: 0; }
+        .character-builder__row { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 1.25rem; align-items: flex-end; }
+        .character-builder__row .character-builder__field { margin-bottom: 0; flex: 0 1 auto; min-width: 0; max-width: 280px; }
+        .character-builder__row .character-builder__field--age { flex: 0 0 auto; max-width: none; }
+        .character-builder__label { display: block; font-family: var(--font-ui); font-size: 0.9375rem; font-weight: 500; color: var(--color-soft-charcoal); margin-bottom: 0.5rem; }
+        .character-builder__input { width: 100%; max-width: 280px; padding: 0.625rem 0.875rem; border: 1px solid rgba(45,49,66,0.25); border-radius: 8px; font-family: var(--font-body); font-size: 1rem; min-height: 2.75rem; }
+        .character-builder__input--age { max-width: 5rem; }
         .character-builder__input:focus { outline: 2px solid var(--color-teal); outline-offset: 2px; }
-        .character-builder__error { display: block; font-size: 0.875rem; color: var(--color-hero-coral); margin-top: 2px; }
-        .character-builder__select { padding: 0.5rem 0.75rem; border: 1px solid rgba(45,49,66,0.2); border-radius: 8px; font-family: var(--font-body); font-size: 1rem; max-width: 200px; }
+        .character-builder__error { display: block; font-size: 0.875rem; color: var(--color-hero-coral); margin-top: 0.25rem; }
+        .character-builder__select { width: 100%; max-width: 200px; padding: 0.625rem 0.875rem; border: 1px solid rgba(45,49,66,0.25); border-radius: 8px; font-family: var(--font-body); font-size: 1rem; min-height: 2.75rem; background-color: #fff; color: var(--color-soft-charcoal); -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2rem; }
+        .character-builder__select:focus { outline: 2px solid var(--color-teal); outline-offset: 2px; }
         .character-builder__preview-section { margin-top: var(--spacing-xl); }
         .character-builder__preview-helper { font-size: 0.875rem; color: var(--color-soft-charcoal); margin-top: var(--spacing-sm); }
         .character-builder__ctas { display: flex; flex-wrap: wrap; gap: var(--spacing-md); margin-top: var(--spacing-xl); }

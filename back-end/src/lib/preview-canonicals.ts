@@ -12,17 +12,25 @@ const SKIN_MAP: Record<string, string> = {
   light: 'skin-light',
   medium: 'skin-medium',
   tan: 'skin-tan',
+  'medium-dark': 'skin-medium-dark',
+  deep: 'skin-deep',
+  // Legacy mappings (Amazon orders, old frontend)
   olive: 'skin-tan',
-  dark: 'skin-brown-deep',
+  dark: 'skin-deep',
+  'skin-brown-deep': 'skin-deep',
+  'skin-brown-light': 'skin-medium-dark',
 };
 
 // w2A FILENAME_MAP for tee-shorts only (preview default)
 const BASE_FILENAME_TEE_SHORTS: Record<string, string> = {
-  'skin-brown-deep': 'base--skin-dark-aa.png',
-  'skin-brown-light': 'base--skin-light-aa.png',
   'skin-light': 'base--skin-light.png',
   'skin-medium': 'base--skin-medium.jpg',
   'skin-tan': 'base--skin-tan.png',
+  'skin-medium-dark': 'base--skin-medium-dark.png',
+  'skin-deep': 'base--skin-deep.png',
+  // Legacy (keep for backward compatibility with in-flight orders)
+  'skin-brown-deep': 'base--skin-dark-aa.png',
+  'skin-brown-light': 'base--skin-light-aa.png',
 };
 
 // Frontend favoriteColor id -> hex (w2A CLOTHING_COLOR_MAP)
