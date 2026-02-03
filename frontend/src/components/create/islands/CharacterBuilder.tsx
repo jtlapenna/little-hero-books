@@ -1,9 +1,9 @@
 /**
  * D2C Phase 0: character step form. Loads/saves state via createFlowStorage;
- * trait pickers, optional details, preview stub, Continue → /create/customize.
+ * trait pickers, optional details, preview with caching, Continue → /create/customize.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { load, save } from '../../../lib/createFlow/createFlowStorage';
 import { getDefaultState } from '../../../lib/createFlow/createFlowSchema';
 import type { CreateFlowState, CreateFlowCharacter } from '../../../lib/createFlow/createFlowSchema';
@@ -21,6 +21,7 @@ import {
   AGE_MIN,
   AGE_MAX,
 } from '../../../lib/createFlow/traitOptions';
+import { hasRequiredVisualTraits, computeVisualTraitsKey } from '../../../lib/createFlow/characterHash';
 import { TraitGridPicker } from './TraitGridPicker';
 import { SwatchPicker } from './SwatchPicker';
 import { PreviewPanel, type PreviewPanelStatus } from './PreviewPanel';
@@ -31,10 +32,41 @@ const PREVIEW_TIMEOUT_MS = 90000;
 /** Backend base URL for API calls (empty = same origin). Set PUBLIC_BACKEND_URL in dev if frontend/backend differ. */
 const API_BASE = (import.meta as { env?: { PUBLIC_BACKEND_URL?: string } }).env?.PUBLIC_BACKEND_URL ?? '';
 
+interface PreviewResult {
+  imageUrl?: string;
+  hash?: string;
+  cached?: boolean;
+  error?: string;
+}
+
+/**
+ * Fast cache check - only checks if cached preview exists (HEAD request).
+ * Backend computes the hash (ensures algorithm match).
+ * Does NOT generate if missing - just returns exists: false.
+ */
+async function checkPreviewCache(character: CreateFlowCharacter): Promise<{ exists: boolean; imageUrl?: string; hash?: string }> {
+  const url = `${API_BASE}/api/preview/check`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ character_specs: character }),
+    });
+    
+    if (!res.ok) return { exists: false };
+    
+    const data = await res.json() as { exists: boolean; imageUrl?: string; hash?: string };
+    return data;
+  } catch {
+    return { exists: false };
+  }
+}
+
 /**
  * Request character preview from backend (POST /api/preview/generate). Uses Gemini server-side.
+ * Now returns hash and cached flag in addition to imageUrl.
  */
-function requestPreview(character: CreateFlowCharacter): Promise<{ imageUrl?: string; error?: string }> {
+function requestPreview(character: CreateFlowCharacter, forceRegenerate = false): Promise<PreviewResult> {
   const url = `${API_BASE}/api/preview/generate`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), PREVIEW_TIMEOUT_MS);
@@ -42,7 +74,7 @@ function requestPreview(character: CreateFlowCharacter): Promise<{ imageUrl?: st
   return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ character_specs: character }),
+    body: JSON.stringify({ character_specs: character, forceRegenerate }),
     signal: controller.signal,
   })
     .then(async (res) => {
@@ -54,8 +86,8 @@ function requestPreview(character: CreateFlowCharacter): Promise<{ imageUrl?: st
         const hint = API_BASE ? '' : ' Set PUBLIC_BACKEND_URL in frontend/.env (e.g. http://localhost:3000) if the backend runs on a different port.';
         return { ok: false, error: `Preview service returned an unexpected response (${res.status}). Is the backend running?${hint}` };
       }
-      const data = JSON.parse(text) as { imageUrl?: string; image_url?: string; error?: string };
-      return { ok: res.ok, imageUrl: data.imageUrl ?? data.image_url, error: data.error };
+      const data = JSON.parse(text) as { imageUrl?: string; image_url?: string; hash?: string; cached?: boolean; error?: string };
+      return { ok: res.ok, imageUrl: data.imageUrl ?? data.image_url, hash: data.hash, cached: data.cached, error: data.error };
     })
     .catch((err) => {
       clearTimeout(timeoutId);
@@ -64,7 +96,7 @@ function requestPreview(character: CreateFlowCharacter): Promise<{ imageUrl?: st
       }
       return { ok: false, error: err?.message ?? 'Preview couldn\'t be generated right now. You can continue and we\'ll finish it after checkout.' };
     })
-    .then((out) => (out.ok ? { imageUrl: out.imageUrl } : { error: out.error }));
+    .then((out) => (out.ok ? { imageUrl: out.imageUrl, hash: out.hash, cached: out.cached } : { error: out.error }));
 }
 
 /** Name: 1–20 chars, letters/spaces/hyphens */
@@ -81,6 +113,10 @@ function CharacterBuilder() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [ageError, setAgeError] = useState<string | null>(null);
   const [previewTimeoutId, setPreviewTimeoutId] = useState<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Track visual traits key to detect changes for cache check
+  const lastVisualTraitsKeyRef = useRef<string | null>(null);
+  const cacheCheckInProgressRef = useRef(false);
 
   // Load state on mount; sanitize so we don't show stub and cap doesn't block after bad/stale state
   useEffect(() => {
@@ -113,26 +149,79 @@ function CharacterBuilder() {
       if (!state) return;
       const nextChar = { ...state.character, ...updates };
       persist({ character: nextChar });
-      // If a required trait changed and preview was ready, mark out_of_date
-      const requiredKeys = ['name', 'age', 'pronouns', 'skinTone', 'hairStyle', 'hairColor', 'favoriteColor', 'favoriteAnimal'];
-      const changedRequired = requiredKeys.some((k) => updates[k as keyof CreateFlowCharacter] !== undefined);
-      if (changedRequired && state.preview?.status === 'ready') {
+      
+      // Check if visual traits changed (affects preview caching)
+      const visualKeys = ['pronouns', 'skinTone', 'hairStyle', 'hairColor', 'favoriteColor'];
+      const changedVisual = visualKeys.some((k) => updates[k as keyof CreateFlowCharacter] !== undefined);
+      
+      // If a visual trait changed and preview was ready/cached, mark out_of_date
+      if (changedVisual && (state.preview?.status === 'ready' || state.preview?.status === 'cached')) {
         persist({ preview: { ...state.preview, status: 'out_of_date' } });
       }
     },
     [state, persist]
   );
 
+  // Auto-check cache when visual traits change and all required traits are present
+  useEffect(() => {
+    if (!state) return;
+    
+    // Skip if not all required visual traits are set
+    if (!hasRequiredVisualTraits(state.character)) return;
+    
+    // Compute current visual traits key
+    const currentKey = computeVisualTraitsKey(state.character);
+    
+    // Skip if visual traits haven't changed
+    if (currentKey === lastVisualTraitsKeyRef.current) return;
+    lastVisualTraitsKeyRef.current = currentKey;
+    
+    // Skip if already checking or generating
+    if (cacheCheckInProgressRef.current) return;
+    if (state.preview?.status === 'generating') return;
+    
+    // Skip if we already have a valid cached/ready preview with matching hash
+    // (The hash comparison ensures we re-check if traits changed)
+    if ((state.preview?.status === 'cached' || state.preview?.status === 'ready') && state.preview?.imageUrl) {
+      return;
+    }
+    
+    // Set checking status and check cache
+    cacheCheckInProgressRef.current = true;
+    persist({ preview: { status: 'checking', generationCount: state.preview?.generationCount ?? 0 } });
+    
+    checkPreviewCache(state.character).then((result) => {
+      cacheCheckInProgressRef.current = false;
+      
+      if (result.exists && result.imageUrl) {
+        // Cache hit - display immediately
+        const imageUrl = result.imageUrl.startsWith('http') ? result.imageUrl : `${API_BASE}${result.imageUrl}`;
+        persist({
+          preview: {
+            status: 'cached',
+            imageUrl,
+            characterHash: result.hash,
+            generatedAt: new Date().toISOString(),
+            generationCount: state.preview?.generationCount ?? 0,
+          },
+        });
+      } else {
+        // No cache - show generate button
+        persist({ preview: { status: 'none', generationCount: state.preview?.generationCount ?? 0 } });
+      }
+    });
+  }, [state?.character.skinTone, state?.character.hairStyle, state?.character.hairColor, state?.character.favoriteColor, state?.character.pronouns, state, persist]);
+
   const handleContinue = useCallback(() => {
     if (!state || !isCharacterStepComplete(state)) return;
     window.location.href = '/create/customize';
   }, [state]);
 
-  const handleGeneratePreview = useCallback(() => {
+  const handleGeneratePreview = useCallback((forceRegenerate = false) => {
     if (!state) return;
     const count = state.preview?.generationCount ?? 0;
     const isOutOfDate = state.preview?.status === 'out_of_date';
-    if (count >= PREVIEW_CAP && !isOutOfDate) return;
+    if (count >= PREVIEW_CAP && !isOutOfDate && !forceRegenerate) return;
     persist({
       preview: {
         status: 'generating',
@@ -150,7 +239,7 @@ function CharacterBuilder() {
       setPreviewTimeoutId(null);
     }, PREVIEW_TIMEOUT_MS);
     setPreviewTimeoutId(timeoutId);
-    requestPreview(state.character).then((result) => {
+    requestPreview(state.character, forceRegenerate).then((result) => {
       if (timeoutId) clearTimeout(timeoutId);
       setPreviewTimeoutId(null);
       if (result.imageUrl) {
@@ -158,10 +247,11 @@ function CharacterBuilder() {
         const imageUrl = result.imageUrl.startsWith('http') ? result.imageUrl : `${API_BASE}${result.imageUrl}`;
         persist({
           preview: {
-            status: 'ready',
+            status: result.cached ? 'cached' : 'ready',
             imageUrl,
+            characterHash: result.hash,
             generatedAt: new Date().toISOString(),
-            generationCount: count + 1,
+            generationCount: result.cached ? count : count + 1,
           },
         });
       } else {
@@ -190,7 +280,13 @@ function CharacterBuilder() {
   const previewStatus: PreviewPanelStatus = state.preview?.status ?? 'none';
   const canContinue = isCharacterStepComplete(state);
   const previewCount = state.preview?.generationCount ?? 0;
-  const canPreview = canContinue && (previewCount < PREVIEW_CAP || previewStatus === 'out_of_date');
+  // Can generate new preview if: step complete, under cap, not currently cached/ready/generating/checking
+  const canPreview = canContinue && 
+    (previewCount < PREVIEW_CAP || previewStatus === 'out_of_date') &&
+    previewStatus !== 'generating' &&
+    previewStatus !== 'checking';
+  // Show generate button only when not already displaying an image
+  const showGenerateButton = canPreview && previewStatus !== 'cached' && previewStatus !== 'ready';
 
   const onNameBlur = () => setNameError(validateName(char.name ?? ''));
   const onAgeBlur = () => {
@@ -324,13 +420,13 @@ function CharacterBuilder() {
         />
       </section>
 
-      {/* Preview panel (stub) */}
+      {/* Preview panel */}
       <section className="character-builder__section character-builder__preview-section">
         <PreviewPanel
           status={previewStatus}
           imageUrl={state.preview?.imageUrl}
           errorMessage={state.preview?.errorMessage}
-          onRegenerate={canPreview ? handleGeneratePreview : undefined}
+          onRegenerate={canPreview ? () => handleGeneratePreview(true) : undefined}
           onCancel={previewStatus === 'generating' ? handleCancelPreview : undefined}
         />
         {previewStatus === 'none' && (
@@ -340,14 +436,16 @@ function CharacterBuilder() {
 
       {/* CTAs */}
       <div className="character-builder__ctas">
-        <button
-          type="button"
-          className="character-builder__btn character-builder__btn--secondary"
-          onClick={handleGeneratePreview}
-          disabled={!canPreview}
-        >
-          Generate preview (~45s)
-        </button>
+        {showGenerateButton && (
+          <button
+            type="button"
+            className="character-builder__btn character-builder__btn--secondary"
+            onClick={() => handleGeneratePreview(false)}
+            disabled={!canPreview}
+          >
+            Generate preview (~45s)
+          </button>
+        )}
         <button
           type="button"
           className="character-builder__btn character-builder__btn--primary"

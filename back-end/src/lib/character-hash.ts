@@ -25,3 +25,38 @@ export function calculateCharacterHash(
 
   return createHash('md5').update(hashInput).digest('hex').substring(0, 16);
 }
+
+/**
+ * Visual traits that affect character appearance (used for preview caching).
+ * Only these traits change the generated image; name, age, hometown, etc. do not.
+ */
+const VISUAL_TRAIT_KEYS = ['skinTone', 'hairStyle', 'hairColor', 'favoriteColor', 'pronouns'] as const;
+
+/**
+ * Calculate preview hash from visual traits only (no orderId).
+ * Used for D2C preview caching — same visual traits always produce the same hash.
+ * Format: MD5 hash of sorted visual traits, first 16 characters.
+ */
+export function calculatePreviewHash(
+  characterSpecs: Record<string, unknown>
+): string {
+  // Extract and normalize only visual traits
+  const visualTraits = VISUAL_TRAIT_KEYS.reduce((acc, key) => {
+    const value = characterSpecs[key];
+    // Normalize: lowercase string values, skip undefined
+    if (value !== undefined && value !== null) {
+      acc[key] = typeof value === 'string' ? value.toLowerCase().trim() : value;
+    }
+    return acc;
+  }, {} as Record<string, unknown>);
+
+  // Sort keys for deterministic hash
+  const sorted = Object.keys(visualTraits)
+    .sort()
+    .reduce((acc, key) => {
+      acc[key] = visualTraits[key];
+      return acc;
+    }, {} as Record<string, unknown>);
+
+  return createHash('md5').update(JSON.stringify(sorted)).digest('hex').substring(0, 16);
+}

@@ -1,9 +1,10 @@
 /**
- * D2C Phase 0: preview panel (stub). States: none, generating, ready, out_of_date, error.
+ * D2C Phase 0: preview panel with caching support.
+ * States: none, checking, generating, ready, cached, out_of_date, error.
  * Secondary CTA "Generate preview" lives in CharacterBuilder; this panel displays state only.
  */
 
-export type PreviewPanelStatus = 'none' | 'generating' | 'ready' | 'error' | 'out_of_date';
+export type PreviewPanelStatus = 'none' | 'checking' | 'generating' | 'ready' | 'cached' | 'error' | 'out_of_date';
 
 interface PreviewPanelProps {
   status: PreviewPanelStatus;
@@ -27,6 +28,22 @@ export function PreviewPanel({
         <style>{`
           .preview-panel--none { padding: var(--spacing-lg, 2rem); text-align: center; background: var(--color-warm-sand, #F1FAEE); border-radius: 12px; }
           .preview-panel__placeholder { font-family: var(--font-body); font-size: 0.9375rem; color: var(--color-soft-charcoal, #333); margin: 0; }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (status === 'checking') {
+    return (
+      <div className="preview-panel preview-panel--checking">
+        <div className="preview-panel__spinner preview-panel__spinner--small" aria-hidden />
+        <p className="preview-panel__copy">Checking for existing preview…</p>
+        <style>{`
+          .preview-panel--checking { padding: var(--spacing-md, 1rem); text-align: center; background: var(--color-warm-sand, #F1FAEE); border-radius: 12px; }
+          .preview-panel__spinner--small { width: 24px; height: 24px; margin: 0 auto var(--spacing-sm, 0.5rem); border: 2px solid rgba(45,49,66,0.1); border-top-color: var(--color-teal, #5AC6B1); border-radius: 50%; animation: preview-spin 0.8s linear infinite; }
+          @keyframes preview-spin { to { transform: rotate(360deg); } }
+          @media (prefers-reduced-motion: reduce) { .preview-panel__spinner--small { animation: none; opacity: 0.7; } }
+          .preview-panel__copy { font-family: var(--font-body); font-size: 0.875rem; color: var(--color-soft-charcoal, #333); margin: 0; }
         `}</style>
       </div>
     );
@@ -56,7 +73,9 @@ export function PreviewPanel({
 
   // Real image = full URL or same-origin path (e.g. /api/assets/previews/xxx.png); otherwise show placeholder
   const isRealImageUrl = imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('/'));
-  if (status === 'ready') {
+  
+  // 'ready' and 'cached' both display the image
+  if (status === 'ready' || status === 'cached') {
     return (
       <div className="preview-panel preview-panel--ready">
         {isRealImageUrl ? (
@@ -70,7 +89,7 @@ export function PreviewPanel({
             }}
           />
         ) : null}
-        {/* Inline SVG placeholder: always visible when no real image; avoids data URL / img load issues (CSP, black square) */}
+        {/* Inline SVG placeholder: visible when no real image or image fails to load */}
         <svg
           className={`preview-panel__placeholder-svg ${isRealImageUrl ? 'preview-panel__placeholder--hidden' : ''}`}
           xmlns="http://www.w3.org/2000/svg"
@@ -81,14 +100,11 @@ export function PreviewPanel({
         >
           <rect fill="#f1faee" width="200" height="200" />
           <text x="100" y="105" fontFamily="sans-serif" fontSize="14" fill="#666" textAnchor="middle">
-            Preview coming soon
-          </text>
-          <text x="100" y="128" fontFamily="sans-serif" fontSize="11" fill="#999" textAnchor="middle">
-            (Stub — no API yet)
+            Loading preview…
           </text>
         </svg>
         <style>{`
-          .preview-panel--ready { width: fit-content; max-width: 100%; padding: 0; background: var(--color-off-white, #FFFCF8); border-radius: 12px; border: 1px solid rgba(45,49,66,0.08); margin: 0 auto; overflow: hidden; }
+          .preview-panel--ready { width: fit-content; max-width: 100%; padding: 0; background: var(--color-off-white, #FFFCF8); border-radius: 12px; border: 1px solid rgba(45,49,66,0.08); margin: 0 auto; overflow: hidden; position: relative; }
           .preview-panel__img { display: block; width: auto; height: auto; max-width: 480px; max-height: 560px; border-radius: 12px; object-fit: contain; vertical-align: bottom; }
           .preview-panel__placeholder-svg { display: block; width: auto; max-width: 480px; height: auto; border-radius: 12px; background: #f1faee; }
           .preview-panel__placeholder--hidden { position: absolute; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none; }

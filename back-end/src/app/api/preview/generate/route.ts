@@ -1,16 +1,18 @@
 /**
  * POST /api/preview/generate
  * Generate character preview image from character_specs (Gemini + R2).
+ * Uses hash-based caching: same visual traits = same hash = cached image reuse.
  * Request: { character_specs: CreateFlowCharacter }
- * Response: { imageUrl: string } or { error: string }
+ * Response: { imageUrl: string, hash: string, cached: boolean } or { error: string }
  */
 
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, putObject, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
+import { getObject, putObject, headObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFIX } from '@/lib/r2-client';
 import { resolvePreviewCanonicals, type CharacterSpecsInput } from '@/lib/preview-canonicals';
 import { buildPreviewGeminiRequest } from '@/lib/preview-gemini';
+import { calculatePreviewHash } from '@/lib/character-hash';
 
 // CORS: allow D2C frontend (e.g. localhost:4321) to call this API
 const corsHeaders = {
@@ -26,8 +28,6 @@ export async function OPTIONS() {
 
 const GEMINI_MODEL = 'gemini-3-pro-image-preview';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-
-const PREVIEW_KEY_PREFIX = 'previews/';
 
 function requireString(obj: unknown, key: string): string | null {
   if (!obj || typeof obj !== 'object') return null;
@@ -58,15 +58,29 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const character_specs = body.character_specs ?? body.characterSpecs ?? {};
     const specs = character_specs as CharacterSpecsInput;
-
-    // Validate required fields for generation
-    const skinTone = requireString(specs, 'skinTone') ?? 'medium';
-    const hairStyle = requireString(specs, 'hairStyle') ?? 'side-part';
-    const hairColor = requireString(specs, 'hairColor') ?? '';
-    const favoriteColor = requireString(specs, 'favoriteColor') ?? 'blue';
+    const forceRegenerate = body.forceRegenerate === true;
 
     if (!specs || typeof specs !== 'object') {
       return NextResponse.json({ error: 'Missing character_specs' }, { status: 400, headers: corsHeaders });
+    }
+
+    // Compute preview hash from visual traits
+    const previewHash = calculatePreviewHash(specs as Record<string, unknown>);
+    const previewKey = `${R2_CHARACTERS_PREFIX}${previewHash}/preview.png`;
+
+    // Check cache first (unless force regenerate)
+    if (!forceRegenerate) {
+      try {
+        const cacheCheck = await headObject(R2_PUBLIC_BUCKET, previewKey);
+        if (cacheCheck.ok) {
+          console.log('[Preview Generate] Cache hit:', previewHash);
+          const imageUrl = `/api/assets/${previewKey}`;
+          return NextResponse.json({ imageUrl, hash: previewHash, cached: true }, { headers: corsHeaders });
+        }
+      } catch (e) {
+        // Cache check failed, proceed with generation
+        console.log('[Preview Generate] Cache check error (proceeding):', e);
+      }
     }
 
     const geminiApiKey = process.env.GOOGLE_GEMINI_API_KEY;
@@ -134,6 +148,8 @@ export async function POST(request: NextRequest) {
       hairMime,
     });
 
+    console.log('[Preview Generate] Generating new image for hash:', previewHash);
+
     const geminiResponse = await fetch(`${GEMINI_URL}?key=${geminiApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -159,15 +175,15 @@ export async function POST(request: NextRequest) {
     }
 
     const imageBuffer = Buffer.from(imageData.base64, 'base64');
-    const previewId = crypto.randomUUID();
-    const r2Key = `${PREVIEW_KEY_PREFIX}${previewId}.png`;
 
-    await putObject(R2_PUBLIC_BUCKET, r2Key, imageBuffer, 'image/png');
+    // Store at hash-based location for caching
+    await putObject(R2_PUBLIC_BUCKET, previewKey, imageBuffer, 'image/png');
+    console.log('[Preview Generate] Stored new preview at:', previewKey);
 
     // Return URL via backend proxy (same-origin /api/assets/...)
-    const imageUrl = `/api/assets/${r2Key}`;
+    const imageUrl = `/api/assets/${previewKey}`;
 
-    return NextResponse.json({ imageUrl }, { headers: corsHeaders });
+    return NextResponse.json({ imageUrl, hash: previewHash, cached: false }, { headers: corsHeaders });
   } catch (err: unknown) {
     console.error('[Preview Generate] Error:', err);
     return NextResponse.json(
