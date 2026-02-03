@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
     // Select lulu_job_id, lulu_status so we can filter again in JS (covers empty string or replica lag)
     const { data: notPickedUpOld, error: notPickedUpOldError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, lulu_job_id, lulu_status')
+      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, workflow_step, lulu_job_id, lulu_status')
       .eq('execution_status', 'ready_for_processing')
       .not('queued_at', 'is', null)
       .lt('queued_at', queuedThresholdTime.toISOString());
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
     // Query 2: Orders with next_retry_at set (scheduled for retry)
     const { data: scheduledRetryData, error: scheduledRetryError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, lulu_job_id, lulu_status')
+      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, workflow_step, lulu_job_id, lulu_status')
       .eq('execution_status', 'ready_for_processing')
       .not('next_retry_at', 'is', null);
     
@@ -300,8 +300,8 @@ export async function GET(request: NextRequest) {
       return (jobId != null && jobId !== '') || (status != null && status !== '');
     };
     (notPickedUpDataDeduped || []).forEach((order: any) => {
-      if (isAlreadyPrinting(order)) {
-        return; // Don't add to list — they're printing, not "not picked up"
+      if (excludeFromNotPickedUp(order)) {
+        return; // Don't add to list — they're in print phase or already with Lulu
       }
       // Debug: Log JOHN-TEST4 processing
       if (order.amazon_order_id === 'JOHN-TEST4') {
