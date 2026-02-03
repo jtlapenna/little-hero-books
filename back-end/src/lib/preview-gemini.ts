@@ -14,25 +14,42 @@ export interface BuildPreviewRequestInput {
 }
 
 /**
- * Build Gemini generateContent request body for base character image (tee-shorts, no skin swatch).
+ * Build Gemini generateContent request body for base character image.
+ * Supports both tee-shorts and dress based on resolved.clothingTypeCanonical.
  */
 export function buildPreviewGeminiRequest(input: BuildPreviewRequestInput): Record<string, unknown> {
   const { resolved, base64Base, baseMime, base64Hair, hairMime } = input;
-  const { favoriteColorHex, hairColorLabel, shortsHex } = resolved;
+  const { favoriteColorHex, hairColorLabel, shortsHex, clothingTypeCanonical } = resolved;
+  
+  const isDress = clothingTypeCanonical === 'dress';
 
-  const topColorLock = favoriteColorHex
-    ? [
-        `CRITICAL — T-SHIRT COLOR: ${favoriteColorHex}`,
-        `The t-shirt fabric MUST be ${favoriteColorHex}.`,
-        'This is the REQUIRED color for the shirt. Do not use any other color.',
-        `Shorts MUST be neutral denim ${shortsHex} (never change shorts color).`,
-        'Subtle book-style shading allowed within these hues only.',
-      ].join('\n')
-    : [
-        'CRITICAL — T-SHIRT COLOR: Use a single solid color for the shirt.',
-        `Shorts MUST be neutral denim ${shortsHex}.`,
-        'Keep shirt color consistent across all generations.',
-      ].join('\n');
+  // Clothing color prompt varies by type
+  const topColorLock = isDress
+    ? (favoriteColorHex
+        ? [
+            `CRITICAL — DRESS COLOR: ${favoriteColorHex}`,
+            `The dress fabric MUST be ${favoriteColorHex}.`,
+            'This is the REQUIRED color. Do not use any other color for the dress.',
+            'Subtle book-style shading allowed within this hue only.',
+          ].join('\n')
+        : [
+            'CRITICAL — DRESS COLOR: Use a single solid color.',
+            'Keep this color consistent across all generations.',
+            'Subtle book-style shading allowed.',
+          ].join('\n'))
+    : (favoriteColorHex
+        ? [
+            `CRITICAL — T-SHIRT COLOR: ${favoriteColorHex}`,
+            `The t-shirt fabric MUST be ${favoriteColorHex}.`,
+            'This is the REQUIRED color for the shirt. Do not use any other color.',
+            `Shorts MUST be neutral denim ${shortsHex} (never change shorts color).`,
+            'Subtle book-style shading allowed within these hues only.',
+          ].join('\n')
+        : [
+            'CRITICAL — T-SHIRT COLOR: Use a single solid color for the shirt.',
+            `Shorts MUST be neutral denim ${shortsHex}.`,
+            'Keep shirt color consistent across all generations.',
+          ].join('\n'));
 
   const styleRules = [
     'BOOK STYLE: flat, clean vector-like forms with soft textured shading; no outlines on clothing folds.',
@@ -41,13 +58,21 @@ export function buildPreviewGeminiRequest(input: BuildPreviewRequestInput): Reco
 
   const subjectLimit = 'SUBJECT LIMIT: Render exactly one child in frame. No additional people, duplicates, reflections, or background characters.';
 
-  const clothingTypeLine = [
-    'CLOTHING STYLE LOCK — T-SHIRT & SHORTS:',
-    '- Short-sleeve T-shirt paired with shorts.',
-    '- No skirts, dresses, pants, or jackets.',
-  ].join('\n');
+  // Clothing type lock varies
+  const clothingTypeLine = isDress
+    ? [
+        'CLOTHING STYLE LOCK — DRESS (HARD OVERRIDE):',
+        '- Outfit must be a single-piece dress even if any reference image suggests otherwise.',
+        '- Ignore any cues for T-shirts, shorts, pants, skirts, or layered outfits.',
+        '- Dress silhouette: short sleeves or sleeveless OK; continuous skirt panel; hem roughly mid-thigh.',
+      ].join('\n')
+    : [
+        'CLOTHING STYLE LOCK — T-SHIRT & SHORTS:',
+        '- Short-sleeve T-shirt paired with shorts.',
+        '- No skirts, dresses, pants, or jackets.',
+      ].join('\n');
 
-  const shortsRule = `SHORTS COLOR LOCK: Neutral denim ${shortsHex} (fixed). Never recolor shorts.`;
+  const shortsRule = isDress ? null : `SHORTS COLOR LOCK: Neutral denim ${shortsHex} (fixed). Never recolor shorts.`;
 
   const skinToneLine = 'SKIN-TONE LOCK: Keep skin tone identical to the base reference (no lightening/darkening; do not change undertone).';
 
@@ -89,14 +114,17 @@ export function buildPreviewGeminiRequest(input: BuildPreviewRequestInput): Reco
     rolesLegend,
     hairPromptBlock,
     hygiene,
-  ];
+  ].filter(Boolean);
   const userText = userTextParts.join('\n\n');
+
+  // System instruction varies by clothing type
+  const colorInstruction = isDress
+    ? (favoriteColorHex ? `CRITICAL: The dress MUST be ${favoriteColorHex}. This is non-negotiable.` : null)
+    : (favoriteColorHex ? `CRITICAL: The t-shirt MUST be ${favoriteColorHex}. Shorts MUST be ${shortsHex}. These colors are non-negotiable.` : null);
 
   const systemTextParts = [
     'You are a precise illustration tool.',
-    favoriteColorHex
-      ? `CRITICAL: The t-shirt MUST be ${favoriteColorHex}. Shorts MUST be ${shortsHex}. These colors are non-negotiable.`
-      : null,
+    colorInstruction,
     'CRITICAL: Preserve EXACT requested traits. Use IMAGE A only for overall style; use IMAGE B only for hair.',
     'Do not add text, logos, props, or backgrounds.',
   ].filter(Boolean) as string[];

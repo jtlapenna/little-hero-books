@@ -22,15 +22,16 @@ const SKIN_MAP: Record<string, string> = {
 };
 
 // w2A FILENAME_MAP for tee-shorts only (preview default)
+// Note: medium-dark uses light-aa files, deep uses dark-aa files (existing R2 assets)
 const BASE_FILENAME_TEE_SHORTS: Record<string, string> = {
   'skin-light': 'base--skin-light.png',
   'skin-medium': 'base--skin-medium.jpg',
   'skin-tan': 'base--skin-tan.png',
-  'skin-medium-dark': 'base--skin-medium-dark.png',
-  'skin-deep': 'base--skin-deep.png',
-  // Legacy (keep for backward compatibility with in-flight orders)
-  'skin-brown-deep': 'base--skin-dark-aa.png',
+  'skin-medium-dark': 'base--skin-light-aa.png',  // Reuses existing light-aa asset
+  'skin-deep': 'base--skin-dark-aa.png',          // Reuses existing dark-aa asset
+  // Legacy canonical names (backward compatibility)
   'skin-brown-light': 'base--skin-light-aa.png',
+  'skin-brown-deep': 'base--skin-dark-aa.png',
 };
 
 // Frontend favoriteColor id -> hex (w2A CLOTHING_COLOR_MAP)
@@ -89,8 +90,38 @@ export interface CharacterSpecsInput {
   pronouns?: string;
   favoriteAnimal?: string;
   hometown?: string;
+  clothingStyle?: string;
   [key: string]: unknown;
 }
+
+/**
+ * Map pronouns/gender to clothing type (mirrors n8n Normalize Payload logic).
+ */
+function mapClothingType(pronouns?: string, explicitClothing?: string): 'tee-shorts' | 'dress' {
+  // Explicit clothing style takes priority
+  if (explicitClothing) {
+    const c = explicitClothing.toLowerCase().trim();
+    if (c.includes('dress')) return 'dress';
+    if (c.includes('tee') || c.includes('shorts')) return 'tee-shorts';
+  }
+  // Map from pronouns
+  if (!pronouns) return 'tee-shorts';
+  const p = pronouns.toLowerCase().trim();
+  if (p.includes('girl') || p.includes('she')) return 'dress';
+  return 'tee-shorts';
+}
+
+// w2A FILENAME_MAP for dress variants
+const BASE_FILENAME_DRESS: Record<string, string> = {
+  'skin-light': 'base--skin-light--dress.png',
+  'skin-medium': 'base--skin-medium--dress.png',
+  'skin-tan': 'base--skin-tan--dress.png',
+  'skin-medium-dark': 'base--skin-light-aa--dress.png',
+  'skin-deep': 'base--skin-dark-aa--dress.png',
+  // Legacy
+  'skin-brown-light': 'base--skin-light-aa--dress.png',
+  'skin-brown-deep': 'base--skin-dark-aa--dress.png',
+};
 
 /**
  * Resolve frontend character_specs to w2A canonicals and R2 keys for base + hair assets.
@@ -99,8 +130,12 @@ export function resolvePreviewCanonicals(specs: CharacterSpecsInput): PreviewRes
   const skinRaw = (specs.skinTone ?? 'medium').toString().toLowerCase().trim();
   const skinToneCanonical = SKIN_MAP[skinRaw] ?? 'skin-medium';
 
-  const clothingTypeCanonical = 'tee-shorts';
-  const baseFilename = BASE_FILENAME_TEE_SHORTS[skinToneCanonical] ?? BASE_FILENAME_TEE_SHORTS['skin-medium'];
+  // Determine clothing type from pronouns (or explicit clothingStyle)
+  const clothingTypeCanonical = mapClothingType(specs.pronouns, specs.clothingStyle);
+  
+  // Select base image based on clothing type
+  const filenameMap = clothingTypeCanonical === 'dress' ? BASE_FILENAME_DRESS : BASE_FILENAME_TEE_SHORTS;
+  const baseFilename = filenameMap[skinToneCanonical] ?? filenameMap['skin-medium'];
   const baseRefKey = `${ASSET_ROOT_BASES}/${baseFilename}`;
 
   const hairRaw = (specs.hairStyle ?? 'side-part').toString().toLowerCase().trim().replace(/\s+/g, '-');

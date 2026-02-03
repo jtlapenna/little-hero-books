@@ -53,20 +53,18 @@ The frontend D2C character builder skin tones have been updated with hex values 
 
 ## Required Updates
 
-### 1. R2 Assets: New Base Character Images (BLOCKING)
+### 1. R2 Assets: Reusing Existing Base Character Images ✅
 
 **Location:** `little-hero-assets/book-mvp-simple-adventure/characters/bases/`
 
-**New images needed:**
+**Mapping (reusing existing files):**
 
-| Canonical | Tee-shorts file | Dress file |
-|-----------|-----------------|------------|
-| `skin-medium-dark` | `base--skin-medium-dark.png` | `base--skin-medium-dark--dress.png` |
-| `skin-deep` | `base--skin-deep.png` | `base--skin-deep--dress.png` |
+| New Canonical | Uses Existing File | Dress Variant |
+|---------------|-------------------|---------------|
+| `skin-medium-dark` | `base--skin-light-aa.png` | `base--skin-light-aa--dress.png` |
+| `skin-deep` | `base--skin-dark-aa.png` | `base--skin-dark-aa--dress.png` |
 
-These should be created with skin tones matching:
-- `medium-dark`: `#95623D`
-- `deep`: `#7C5130`
+No new images needed — reusing the existing `-aa` (African-American) assets.
 
 ---
 
@@ -102,8 +100,8 @@ const BASE_FILENAME_TEE_SHORTS: Record<string, string> = {
   'skin-light': 'base--skin-light.png',
   'skin-medium': 'base--skin-medium.jpg',
   'skin-tan': 'base--skin-tan.png',
-  'skin-medium-dark': 'base--skin-medium-dark.png',  // NEW
-  'skin-deep': 'base--skin-deep.png',                 // NEW
+  'skin-medium-dark': 'base--skin-light-aa.png',  // Reuses existing light-aa
+  'skin-deep': 'base--skin-dark-aa.png',          // Reuses existing dark-aa
 };
 ```
 
@@ -171,15 +169,15 @@ const FILENAME_MAP = {
     'skin-light': 'base--skin-light.png',
     'skin-medium': 'base--skin-medium.jpg',
     'skin-tan': 'base--skin-tan.png',
-    'skin-medium-dark': 'base--skin-medium-dark.png',
-    'skin-deep': 'base--skin-deep.png',
+    'skin-medium-dark': 'base--skin-light-aa.png',   // Reuses existing
+    'skin-deep': 'base--skin-dark-aa.png',           // Reuses existing
   },
   'dress': {
     'skin-light': 'base--skin-light--dress.png',
     'skin-medium': 'base--skin-medium--dress.png',
     'skin-tan': 'base--skin-tan--dress.png',
-    'skin-medium-dark': 'base--skin-medium-dark--dress.png',
-    'skin-deep': 'base--skin-deep--dress.png',
+    'skin-medium-dark': 'base--skin-light-aa--dress.png',  // Reuses existing
+    'skin-deep': 'base--skin-dark-aa--dress.png',          // Reuses existing
   }
 };
 ```
@@ -192,17 +190,14 @@ const FILENAME_MAP = {
 - [x] Update `frontend/src/lib/createFlow/traitOptions.ts` with final hex values
 
 ### R2 Assets ✅
-- [x] Create `base--skin-medium-dark.png` (tee-shorts)
-- [x] Create `base--skin-medium-dark--dress.png` (dress)
-- [x] Create `base--skin-deep.png` (tee-shorts)
-- [x] Create `base--skin-deep--dress.png` (dress)
-- [x] Upload all 4 images to `little-hero-assets/book-mvp-simple-adventure/characters/bases/`
+- [x] Existing files reused: `base--skin-light-aa.png` → medium-dark, `base--skin-dark-aa.png` → deep
+- [x] No new uploads needed
 
 ### Backend ✅
 - [x] Update `back-end/src/lib/preview-canonicals.ts` — SKIN_MAP and BASE_FILENAME_TEE_SHORTS
 - [x] Update `back-end/src/types/customization.ts` — SKIN_TONES and SKIN_TONE_HEX_MAP
 
-### n8n Workflow (REMAINING)
+### n8n Workflow (REMAINING — for production Amazon orders)
 - [ ] Update `Resolve Skin Tone & Base Path1` node in w2A — see code changes in §4 above
 - [ ] Deploy updated workflow to n8n cloud
 
