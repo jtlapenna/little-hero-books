@@ -135,11 +135,13 @@ export async function GET(request: NextRequest) {
     queuedThresholdTime.setMinutes(queuedThresholdTime.getMinutes() - 60); // 60 minutes for "not picked up"
     
     // Query 1: Orders queued > 60 minutes ago (exclude orders already sent to Lulu — they're "Printing", not "Not Picked Up")
+    // Exclude when lulu_job_id OR lulu_status is set (same as status-display "Printing" logic)
     const { data: notPickedUpOld, error: notPickedUpOldError } = await supabase
       .from('orders')
       .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow')
       .eq('execution_status', 'ready_for_processing')
       .is('lulu_job_id', null)
+      .is('lulu_status', null)
       .not('queued_at', 'is', null)
       .lt('queued_at', queuedThresholdTime.toISOString());
     
@@ -149,6 +151,7 @@ export async function GET(request: NextRequest) {
       .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow')
       .eq('execution_status', 'ready_for_processing')
       .is('lulu_job_id', null)
+      .is('lulu_status', null)
       .not('next_retry_at', 'is', null);
     
     // Debug: Log if JOHN-TEST4 is in scheduled retry results
