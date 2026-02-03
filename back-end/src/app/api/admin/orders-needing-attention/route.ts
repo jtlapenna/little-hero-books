@@ -293,11 +293,15 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Process not picked up orders — exclude any that are already printing (have Lulu job/status)
-    const isAlreadyPrinting = (o: any) => {
+    // Process not picked up orders — exclude only when actually in print phase or already with Lulu.
+    // Use workflow_step === 'print_fulfillment' only (not next_workflow === '4'), so "Awaiting Customer"
+    // orders with next_workflow 4 still show as needing attention if not picked up.
+    const excludeFromNotPickedUp = (o: any) => {
       const jobId = o?.lulu_job_id;
       const status = o?.lulu_status;
-      return (jobId != null && jobId !== '') || (status != null && status !== '');
+      const hasLulu = (jobId != null && jobId !== '') || (status != null && status !== '');
+      const inPrintPhase = o?.workflow_step === 'print_fulfillment';
+      return hasLulu || inPrintPhase;
     };
     (notPickedUpDataDeduped || []).forEach((order: any) => {
       if (excludeFromNotPickedUp(order)) {
