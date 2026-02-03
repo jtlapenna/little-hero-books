@@ -3,10 +3,11 @@
  *
  * POST /api/webhooks/print-submitted
  *
- * Called by n8n W4 (Print Fulfillment) after "Supabase: mark submitted" (when Lulu has
- * accepted the job and lulu_job_id is set). Sends the customer a "your book has been
- * sent to print" message (Amazon Message Center or D2C email) with the preview/approval
- * link and a note that the page will update with order status.
+ * Called by n8n W4 (Print Fulfillment) after Lulu has accepted the job (lulu_job_id set).
+ * 1. Updates Supabase: execution_status = 'done', print_submitted_at = now (so the order
+ *    no longer shows as "Not Picked Up" and we have a submitted timestamp).
+ * 2. Sends the customer a "your book has been sent to print" message (Amazon Message Center
+ *    or D2C email).
  *
  * Auth: Bearer token (same as other workflow webhooks).
  * Body: { orderId: string } (amazon_order_id from W4 payload).
@@ -16,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
+import { updateOrderStatus } from '@/lib/status-service';
 import { getActivePreviewToken } from '@/lib/preview-tokens';
 import {
   sendAmazonPrintSubmittedMessage,
@@ -54,6 +56,20 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    // Update Supabase so the order is no longer "ready_for_processing" and we have a submitted timestamp.
+    // This prevents the order from showing as "Not Picked Up" and ensures print_submitted_at is set
+    // even if W4's Supabase PATCH didn't include it.
+    const nowIso = new Date().toISOString();
+    await updateOrderStatus(orderId, {
+      execution_status: 'done',
+      print_submitted_at: nowIso,
+      started_at: null,
+      current_workflow: null,
+    }).catch((err) => {
+      console.error('[print-submitted] Failed to update order status:', err?.message ?? err);
+      // Continue to send notification even if status update fails
+    });
 
     const token = await getActivePreviewToken(orderId);
     if (!token) {

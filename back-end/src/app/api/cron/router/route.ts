@@ -50,6 +50,30 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // CRITICAL: This cron must call the W1.1 router only, not a workflow webhook directly.
+  // If N8N_ROUTER_WEBHOOK_URL is set to book-assembly (W3), bg-removal (W2B), etc., orders
+  // would bypass the router (no Mark as Processing, no capacity limit, wrong payload shape).
+  const urlLower = n8nWebhookUrl.toLowerCase();
+  const isDirectWorkflowUrl =
+    urlLower.includes('book-assembly') ||
+    urlLower.includes('bg-removal') ||
+    urlLower.includes('2a-start') ||
+    urlLower.includes('order-intake') ||
+    urlLower.includes('w4-pdf-print');
+  if (isDirectWorkflowUrl) {
+    console.error('[Cron Router] N8N_ROUTER_WEBHOOK_URL must be the W1.1 router webhook, not a workflow URL', {
+      configured: n8nWebhookUrl.replace(/\/[^/]+$/, '/...'),
+      hint: 'Set N8N_ROUTER_WEBHOOK_URL to your n8n W1.1 router webhook (e.g. .../webhook/w1-1-router), not book-assembly or other workflow URLs.',
+    });
+    return NextResponse.json(
+      {
+        error: 'Router webhook misconfiguration',
+        message: 'N8N_ROUTER_WEBHOOK_URL must point to the W1.1 router webhook (e.g. .../webhook/w1-1-router), not to a workflow (book-assembly, bg-removal, etc.). Orders must go through the router.',
+      },
+      { status: 500 }
+    );
+  }
+
   const supabase = createClient(supabaseUrl, supabaseKey);
   const executionId = `router-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
