@@ -81,6 +81,7 @@ export function buildPreviewGeminiRequest(input: BuildPreviewRequestInput): Reco
     '- Haircut is LOCKED to IMAGE B. Do not change cut, part side, ear visibility, or maximum length.',
     '- Motion may deflect strands slightly, but silhouette/part/length remain unchanged.',
     `- Hair color: ${hairColorLabel} (do not recolor).`,
+    `- EYEBROW COLOR: Eyebrows MUST match the hair color (${hairColorLabel}). Do not use a different color for eyebrows.`,
   ].join('\n');
 
   const rolesLegend = [
