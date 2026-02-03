@@ -135,23 +135,19 @@ export async function GET(request: NextRequest) {
     queuedThresholdTime.setMinutes(queuedThresholdTime.getMinutes() - 60); // 60 minutes for "not picked up"
     
     // Query 1: Orders queued > 60 minutes ago (exclude orders already sent to Lulu — they're "Printing", not "Not Picked Up")
-    // Exclude when lulu_job_id OR lulu_status is set (same as status-display "Printing" logic)
+    // Select lulu_job_id, lulu_status so we can filter again in JS (covers empty string or replica lag)
     const { data: notPickedUpOld, error: notPickedUpOldError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow')
+      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, lulu_job_id, lulu_status')
       .eq('execution_status', 'ready_for_processing')
-      .is('lulu_job_id', null)
-      .is('lulu_status', null)
       .not('queued_at', 'is', null)
       .lt('queued_at', queuedThresholdTime.toISOString());
     
-    // Query 2: Orders with next_retry_at set (scheduled for retry) — same: exclude already-printing
+    // Query 2: Orders with next_retry_at set (scheduled for retry)
     const { data: scheduledRetryData, error: scheduledRetryError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow')
+      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, lulu_job_id, lulu_status')
       .eq('execution_status', 'ready_for_processing')
-      .is('lulu_job_id', null)
-      .is('lulu_status', null)
       .not('next_retry_at', 'is', null);
     
     // Debug: Log if JOHN-TEST4 is in scheduled retry results
@@ -297,8 +293,16 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Process not picked up orders
+    // Process not picked up orders — exclude any that are already printing (have Lulu job/status)
+    const isAlreadyPrinting = (o: any) => {
+      const jobId = o?.lulu_job_id;
+      const status = o?.lulu_status;
+      return (jobId != null && jobId !== '') || (status != null && status !== '');
+    };
     (notPickedUpDataDeduped || []).forEach((order: any) => {
+      if (isAlreadyPrinting(order)) {
+        return; // Don't add to list — they're printing, not "not picked up"
+      }
       // Debug: Log JOHN-TEST4 processing
       if (order.amazon_order_id === 'JOHN-TEST4') {
         console.log('[DEBUG] Processing JOHN-TEST4 from not picked up:', {
