@@ -5,20 +5,23 @@ import { recordRequest } from './stats/route';
 
 /**
  * Extract R2 key from URL
- * Handles both /api/assets/{key} and full URLs
+ * Handles: /api/assets/{key}, and public R2 URLs (https://pub-*.r2.dev/{key})
  */
 function extractR2Key(url: string): string | null {
   try {
     const urlObj = new URL(url, 'https://admin.littleherolabs.com');
     const pathname = urlObj.pathname;
-    
-    // Extract key from /api/assets/{key} pattern
-    const match = pathname.match(/^\/api\/assets\/(.+)$/);
-    if (match) {
-      return match[1];
+    const hostname = urlObj.hostname || '';
+
+    // /api/assets/{key} (admin proxy)
+    const apiMatch = pathname.match(/^\/api\/assets\/(.+)$/);
+    if (apiMatch) return apiMatch[1];
+
+    // Public R2 URL: https://pub-*.r2.dev/{key} → key is path without leading slash
+    if (hostname.endsWith('.r2.dev') && pathname.startsWith('/') && pathname.length > 1) {
+      return pathname.replace(/^\/+/, '');
     }
-    
-    // If URL doesn't match pattern, return null
+
     return null;
   } catch (error) {
     console.error('[Auto-Flip] Error parsing URL:', url, error);

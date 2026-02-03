@@ -1,13 +1,23 @@
 # Issue: Fix W2A Auto-Flip Feature (not working)
 
-**Status:** 🔴 Open  
+**Status:** 🟡 Fix applied (backend); verify in production  
 **Priority:** High  
 **Created:** 2026-01-28  
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-02-02
 
 ## Description
 
-The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) is not working. This likely impacts character pose generation/orientation consistency (e.g., left/right facing), and may reduce downstream quality or require manual corrections.
+The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) was not working. The API returned 400: "Could not extract R2 key from imageUrl" when the workflow sent **public R2 URLs** (e.g. `https://pub-....r2.dev/.../pose11.png`). The backend only accepted URLs in the form `/api/assets/{key}`.
+
+## Root cause (2026-02-02)
+
+- **Backend** `check-and-flip-orientation` (`back-end/src/app/api/check-and-flip-orientation/route.ts`) used `extractR2Key()` which only matched `/api/assets/{key}`.
+- **Workflow** sends full public R2 URLs for `imageUrl` and `poseRefUrl` (built from `publicR2Url` + storage key). So extraction failed and the API returned 400.
+
+## Fix applied
+
+- **`extractR2Key()`** now also accepts **public R2 URLs**: hostname ending with `.r2.dev`; the path (without leading slash) is used as the R2 object key. Existing `/api/assets/{key}` behavior is unchanged.
+- No workflow changes required; the same payload (public `imageUrl` / `poseRefUrl`) now works.
 
 ## Impact
 
@@ -62,4 +72,5 @@ The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) is not wor
 ## Notes
 
 - Coordinate with W3 composition assumptions (pose placement + any per-pose transforms).
+- **Verification:** After deploying the backend fix, run W2A with an order that uses public R2 URLs; confirm check-and-flip-orientation returns 200 and flips when Gemini reports DIFFERENT.
 
