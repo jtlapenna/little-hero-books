@@ -897,10 +897,21 @@ export default function OrderDetailPage() {
           
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="min-w-0 flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 truncate">{order.orderId}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 truncate">
+                {/* Show display_order_id for D2C, amazon_order_id for Amazon, fallback to orderId */}
+                {order.platform === 'd2c' 
+                  ? (order.displayOrderId || `LH-${order.orderId.substring(0, 5).toUpperCase()}`)
+                  : (order.amazonOrderId || order.orderId)}
+              </h1>
               <p className="text-gray-600 mt-1">
                 {order.customer.firstName} {order.customer.lastName} •{' '}
-                {order.platform ? order.platform.charAt(0).toUpperCase() + order.platform.slice(1) : 'Amazon'}
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                  order.platform === 'd2c' 
+                    ? 'bg-purple-100 text-purple-800' 
+                    : 'bg-orange-100 text-orange-800'
+                }`}>
+                  {order.platform === 'd2c' ? 'D2C (Website)' : order.platform ? order.platform.charAt(0).toUpperCase() + order.platform.slice(1) : 'Amazon'}
+                </span>
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
@@ -1405,29 +1416,44 @@ export default function OrderDetailPage() {
           </div>
 
           {/* Technical Details (Collapsible) */}
-          {(order.characterHash || order.characterPath) && (
+          {(order.characterHash || order.orderId) && (
             <div className="border-t border-gray-200 pt-4">
               <details className="group">
                 <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
-                  Technical Details
+                  Technical Details & R2 Links
                   <span className="ml-2 text-xs text-gray-500 group-open:hidden">(click to expand)</span>
                 </summary>
                 <div className="mt-3 space-y-2 text-xs text-gray-600">
+                  {/* Internal Order ID (UUID) - only show for D2C where display ID differs */}
+                  {order.platform === 'd2c' && (
+                    <div>
+                      <span className="font-medium">Internal Order ID:</span> {order.orderId}
+                    </div>
+                  )}
                   {order.characterHash && (
                     <div>
-                      <span className="font-medium">Character Hash:</span> {order.characterHash}
+                      <span className="font-medium">Character Hash:</span>{' '}
+                      <a
+                        href={`https://dash.cloudflare.com/3daae940fcb6fc5b8bbd9bb8fcc62854/r2/default/buckets/little-hero-assets?prefix=book-mvp-simple-adventure%2Forder-generated-assets%2Fcharacters%2F${order.characterHash}%2F`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        {order.characterHash}
+                      </a>
                     </div>
                   )}
-                  {order.characterPath && (
-                    <div>
-                      <span className="font-medium">Character Path:</span> {order.characterPath}
-                    </div>
-                  )}
-                  {order.templatePath && (
-                    <div>
-                      <span className="font-medium">Template Path:</span> {order.templatePath}
-                    </div>
-                  )}
+                  <div>
+                    <span className="font-medium">Order Folder:</span>{' '}
+                    <a
+                      href={`https://dash.cloudflare.com/3daae940fcb6fc5b8bbd9bb8fcc62854/r2/default/buckets/little-hero-orders?prefix=book-mvp-simple-adventure%2Forders%2F${encodeURIComponent(order.orderId)}%2F`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      View in R2
+                    </a>
+                  </div>
                 </div>
               </details>
             </div>

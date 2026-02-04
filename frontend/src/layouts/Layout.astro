@@ -19,7 +19,7 @@ const ogImage = image || `${siteUrl}/og-image.jpg`; // Default OG image
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" style="background-color: #FFFCF8;">
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={description} />
@@ -87,7 +87,7 @@ const ogImage = image || `${siteUrl}/og-image.jpg`; // Default OG image
 
     <slot name="head" />
   </head>
-  <body>
+  <body style="background-color: #FFFCF8;">
     <Header />
     <main>
       <slot />

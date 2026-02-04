@@ -29,8 +29,18 @@ export function calculateCharacterHash(
 /**
  * Visual traits that affect character appearance (used for preview caching).
  * Only these traits change the generated image; name, age, hometown, etc. do not.
+ * Note: We use clothingType instead of pronouns since he/him and they/them both use t-shirt.
  */
-const VISUAL_TRAIT_KEYS = ['skinTone', 'hairStyle', 'hairColor', 'favoriteColor', 'pronouns'] as const;
+const VISUAL_TRAIT_KEYS = ['skinTone', 'hairStyle', 'hairColor', 'favoriteColor'] as const;
+
+/**
+ * Map pronouns to clothing type for hash calculation.
+ * she/her → dress, everything else → t-shirt
+ */
+function getClothingTypeFromPronouns(pronouns: unknown): string {
+  if (pronouns === 'she-her') return 'dress';
+  return 't-shirt';
+}
 
 /**
  * Calculate preview hash from visual traits only (no orderId).
@@ -49,6 +59,9 @@ export function calculatePreviewHash(
     }
     return acc;
   }, {} as Record<string, unknown>);
+
+  // Add clothing type derived from pronouns (he/him and they/them both = t-shirt)
+  visualTraits['clothingType'] = getClothingTypeFromPronouns(characterSpecs['pronouns']);
 
   // Sort keys for deterministic hash
   const sorted = Object.keys(visualTraits)

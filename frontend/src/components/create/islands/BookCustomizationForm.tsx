@@ -80,22 +80,23 @@ function BookCustomizationForm() {
               </p>
             )}
           </div>
-          <div className="book-customization__summary-images">
-            {state.preview?.imageUrl && (
+          {/* Only show images section if preview exists; otherwise text info is sufficient */}
+          {state.preview?.imageUrl && (
+            <div className="book-customization__summary-images">
               <img
                 src={state.preview.imageUrl}
                 alt={`${charName} preview`}
                 className="book-customization__summary-preview"
               />
-            )}
-            {state.character?.favoriteAnimal && (
-              <img
-                src={`/animals/${state.character.favoriteAnimal}.png`}
-                alt={`${formatAnimalName(state.character.favoriteAnimal)} guide`}
-                className="book-customization__summary-animal-img"
-              />
-            )}
-          </div>
+              {state.character?.favoriteAnimal && (
+                <img
+                  src={`/animals/${state.character.favoriteAnimal}.png`}
+                  alt={`${formatAnimalName(state.character.favoriteAnimal)} guide`}
+                  className="book-customization__summary-animal-img"
+                />
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -143,7 +144,7 @@ function BookCustomizationForm() {
       </div>
 
       <style>{`
-        .book-customization { max-width: 640px; }
+        .book-customization { max-width: 640px; margin: 0 auto; }
         .create-loading { font-family: var(--font-body); color: var(--color-soft-charcoal); padding: var(--spacing-md); }
         
         .book-customization__title { 
@@ -203,7 +204,7 @@ function BookCustomizationForm() {
         }
         .book-customization__summary-images {
           display: flex;
-          gap: 0.4rem;
+          gap: 0;
           align-items: flex-end;
           background: #fff;
           border-radius: 12px;
@@ -218,6 +219,7 @@ function BookCustomizationForm() {
           width: 83px;
           height: 83px;
           object-fit: contain;
+          margin-left: -40px;
         }
         
         /* Dedication section */

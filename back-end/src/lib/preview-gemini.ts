@@ -58,6 +58,15 @@ export function buildPreviewGeminiRequest(input: BuildPreviewRequestInput): Reco
 
   const subjectLimit = 'SUBJECT LIMIT: Render exactly one child in frame. No additional people, duplicates, reflections, or background characters.';
 
+  const framingRule = [
+    'FRAMING — FULL BODY (CRITICAL):',
+    '- MUST show the ENTIRE character from head to feet.',
+    '- Feet and shoes MUST be fully visible within the frame.',
+    '- Do NOT crop at knees, waist, or any point above the feet.',
+    '- Leave comfortable margin around the character (not touching edges).',
+    '- Character should be centered and fit entirely within the square frame.',
+  ].join('\n');
+
   // Clothing type lock varies
   const clothingTypeLine = isDress
     ? [
@@ -108,6 +117,7 @@ export function buildPreviewGeminiRequest(input: BuildPreviewRequestInput): Reco
     topColorLock,
     styleRules,
     subjectLimit,
+    framingRule,
     clothingTypeLine,
     shortsRule,
     skinToneLine,
@@ -126,6 +136,7 @@ export function buildPreviewGeminiRequest(input: BuildPreviewRequestInput): Reco
   const systemTextParts = [
     'You are a precise illustration tool.',
     colorInstruction,
+    'CRITICAL: Show FULL BODY from head to feet. Feet must be visible. Do not crop the character.',
     'CRITICAL: Preserve EXACT requested traits. Use IMAGE A only for overall style; use IMAGE B only for hair.',
     'Do not add text, logos, props, or backgrounds.',
   ].filter(Boolean) as string[];

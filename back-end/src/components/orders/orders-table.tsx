@@ -87,6 +87,7 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
           >
             <option value="all">All Platforms</option>
             <option value="amazon">Amazon</option>
+            <option value="d2c">D2C (Website)</option>
             <option value="etsy">Etsy</option>
           </select>
         </div>

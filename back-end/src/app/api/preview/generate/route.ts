@@ -90,6 +90,15 @@ export async function POST(request: NextRequest) {
 
     // Resolve canonicals and asset keys
     const resolved = resolvePreviewCanonicals(specs);
+    
+    console.log('[Preview Generate] Resolved canonicals:', {
+      skinTone: specs.skinTone,
+      skinToneCanonical: resolved.skinToneCanonical,
+      baseRefKey: resolved.baseRefKey,
+      hairStyle: specs.hairStyle,
+      hairColor: specs.hairColor,
+      favoriteColor: specs.favoriteColor,
+    });
 
     // Load base image from R2
     let baseRes: Response;

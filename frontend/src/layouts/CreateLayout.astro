@@ -37,7 +37,7 @@ const backLabel = backLabelByStep[step];
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" style="background-color: #FFFCF8;">
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={description} />
@@ -68,7 +68,7 @@ const backLabel = backLabelByStep[step];
     )}
     <slot name="head" />
   </head>
-  <body data-create-step={step}>
+  <body data-create-step={step} style="background-color: #FFFCF8;">
     <Header />
     <main class="create-main">
       <div class="container">
@@ -98,9 +98,9 @@ const backLabel = backLabelByStep[step];
   .create-main {
     padding: var(--spacing-md, 1rem) 0 var(--spacing-xl, 4rem);
   }
-  /* Center content with wide margins; narrower max-width for create flow */
+  /* Center content with wide margins */
   .create-main .container {
-    max-width: 42rem;
+    max-width: 72rem;
     margin-left: auto;
     margin-right: auto;
     padding-left: var(--spacing-lg, 2rem);

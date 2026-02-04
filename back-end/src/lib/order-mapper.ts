@@ -75,6 +75,7 @@ export async function mapSupabaseOrderToOrder(
 
   const order: Order = {
     orderId,
+    displayOrderId: record.display_order_id || undefined,
     platform: record.platform || 'amazon',
     amazonOrderId: record.amazon_order_id || undefined,
     project: defaultProject,

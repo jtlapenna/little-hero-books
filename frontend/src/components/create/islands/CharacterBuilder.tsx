@@ -11,15 +11,12 @@ import { isCharacterStepComplete } from '../../../lib/createFlow/createFlowSelec
 import {
   getHairStyleOptionsForColor,
   HAIR_COLORS,
-  HAIR_STYLES,
   SKIN_TONES,
   FAVORITE_COLORS,
   ANIMAL_GUIDES,
   PRONOUNS,
   HOMETOWN_DEFAULT,
   NAME_MAX_LENGTH,
-  AGE_MIN,
-  AGE_MAX,
 } from '../../../lib/createFlow/traitOptions';
 import { hasRequiredVisualTraits, computeVisualTraitsKey } from '../../../lib/createFlow/characterHash';
 import { TraitGridPicker } from './TraitGridPicker';
@@ -291,8 +288,7 @@ function CharacterBuilder() {
   const onNameBlur = () => setNameError(validateName(char.name ?? ''));
   const onAgeBlur = () => {
     const a = char.age;
-    if (a === undefined || a === null) setAgeError('Please select an age.');
-    else if (Number(a) < AGE_MIN || Number(a) > AGE_MAX) setAgeError(`Age must be between ${AGE_MIN} and ${AGE_MAX}.`);
+    if (a === undefined || a === null) setAgeError('Please enter an age.');
     else setAgeError(null);
   };
 
@@ -324,13 +320,12 @@ function CharacterBuilder() {
           </div>
           <div className="character-builder__field character-builder__field--age">
             <label className="character-builder__label" htmlFor="char-age">
-              Age (3–8)
+              Age
             </label>
             <input
               id="char-age"
               type="number"
-              min={AGE_MIN}
-              max={AGE_MAX}
+              min={0}
               className="character-builder__input character-builder__input--age"
               value={char.age ?? ''}
               onChange={(e) => {
@@ -338,7 +333,7 @@ function CharacterBuilder() {
                 updateCharacter({ age: v });
               }}
               onBlur={onAgeBlur}
-              placeholder="3–8"
+              placeholder="0–8"
               aria-invalid={!!ageError}
               aria-describedby={ageError ? 'age-error' : undefined}
             />
@@ -393,7 +388,7 @@ function CharacterBuilder() {
           label="Hair color"
         />
         <TraitGridPicker
-          options={char.hairColor ? getHairStyleOptionsForColor(char.hairColor) : HAIR_STYLES}
+          options={getHairStyleOptionsForColor(char.hairColor)}
           value={char.hairStyle}
           onChange={(id) => updateCharacter({ hairStyle: id })}
           name="Hair style"
@@ -457,7 +452,7 @@ function CharacterBuilder() {
       </div>
 
       <style>{`
-        .character-builder { max-width: 640px; }
+        .character-builder { max-width: 640px; margin: 0 auto; }
         .create-loading { font-family: var(--font-body); color: var(--color-soft-charcoal); padding: var(--spacing-md); }
         .character-builder__title { font-family: var(--font-heading); font-size: 1.75rem; font-weight: 700; color: var(--color-navy-midnight); margin-bottom: var(--spacing-lg); }
         .character-builder__section { margin-bottom: calc(var(--spacing-lg, 2rem) + 65px); }
@@ -468,19 +463,21 @@ function CharacterBuilder() {
         .character-builder__section > .trait-grid-picker + .trait-grid-picker { margin-top: 65px; }
         .character-builder__field { margin-bottom: 1.25rem; }
         .character-builder__field:last-child { margin-bottom: 0; }
-        .character-builder__row { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 1.25rem; align-items: flex-end; }
+        .character-builder__row { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 1.25rem; align-items: flex-start; }
         .character-builder__row .character-builder__field { margin-bottom: 0; flex: 0 1 auto; min-width: 0; max-width: 280px; }
         .character-builder__row .character-builder__field--age { flex: 0 0 auto; max-width: none; }
         .character-builder__label { display: block; font-family: var(--font-ui); font-size: 0.9375rem; font-weight: 500; color: var(--color-soft-charcoal); margin-bottom: 0.5rem; }
-        .character-builder__input { width: 100%; max-width: 280px; padding: 0.625rem 0.875rem; border: 1px solid rgba(45,49,66,0.25); border-radius: 8px; font-family: var(--font-body); font-size: 1rem; min-height: 2.75rem; }
-        .character-builder__input--age { max-width: 5rem; }
+        .character-builder__input { width: 100%; max-width: 280px; padding: 0.625rem 0.875rem; border: 1px solid rgba(45,49,66,0.25); border-radius: 8px; font-family: var(--font-body); font-size: 1rem; min-height: 2.75rem; box-sizing: border-box; }
+        .character-builder__input--age { width: 5.5rem; max-width: 5.5rem; min-width: 5.5rem; text-align: center; }
         .character-builder__input:focus { outline: 2px solid var(--color-teal); outline-offset: 2px; }
         .character-builder__error { display: block; font-size: 0.875rem; color: var(--color-hero-coral); margin-top: 0.25rem; }
+        .character-builder__helper { display: block; font-size: 0.75rem; color: var(--color-soft-charcoal); opacity: 0.7; margin-top: 0.25rem; }
         .character-builder__select { width: 100%; max-width: 200px; padding: 0.625rem 0.875rem; border: 1px solid rgba(45,49,66,0.25); border-radius: 8px; font-family: var(--font-body); font-size: 1rem; min-height: 2.75rem; background-color: #fff; color: var(--color-soft-charcoal); -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2rem; }
         .character-builder__select:focus { outline: 2px solid var(--color-teal); outline-offset: 2px; }
-        .character-builder__preview-section { margin-top: var(--spacing-xl); }
+        .character-builder__preview-section { margin-top: var(--spacing-xl); text-align: center; }
         .character-builder__preview-helper { font-size: 0.875rem; color: var(--color-soft-charcoal); margin-top: var(--spacing-sm); }
-        .character-builder__ctas { display: flex; flex-wrap: wrap; gap: var(--spacing-md); margin-top: var(--spacing-xl); }
+        .character-builder__preview-section .preview-panel { display: inline-block; }
+        .character-builder__ctas { display: flex; flex-wrap: wrap; gap: var(--spacing-md); margin-top: var(--spacing-xl); justify-content: center; }
         .character-builder__btn { padding: 0.75rem 2rem; border-radius: 12px; font-family: var(--font-display); font-weight: 700; font-size: 1rem; cursor: pointer; border: none; }
         .character-builder__btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .character-builder__btn--primary { background: var(--color-hero-coral); color: #fff; }
