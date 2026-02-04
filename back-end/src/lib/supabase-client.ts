@@ -217,6 +217,12 @@ export async function getOrderFromSupabase(orderId: string) {
 }
 
 export async function updateOrderInSupabase(orderId: string, updates: any) {
+  // PSEUDOCODE
+  // - Convert update payload to DB column names
+  // - Try UPDATE by the most common identifier fields (amazon_order_id, orderId, order_id, id)
+  // - Avoid `.single()` on UPDATE results (it can error even when the UPDATE applied)
+  // - Only INSERT when we are confident no existing row matches
+
   // Convert camelCase to snake_case for database columns
   const updateData: any = {};
   
@@ -267,48 +273,47 @@ export async function updateOrderInSupabase(orderId: string, updates: any) {
       .from('orders')
       .update(updateData)
     .eq('amazon_order_id', orderId)
-      .select()
-      .single();
-  data = result1.data;
+      .select('id');
+  data = result1.data?.[0] || null;
   error = result1.error;
   
   // 2. If that fails, try orderId (camelCase - for manual/dummy orders)
-  if (error && (error.code === '42703' || error.code === 'PGRST116')) {
+  if (!data && error && (error.code === '42703' || error.code === 'PGRST116')) {
     const result2 = await supabase
       .from('orders')
       .update(updateData)
       .eq('orderId', orderId)
-      .select()
-      .single();
-    data = result2.data;
+      .select('id');
+    data = result2.data?.[0] || null;
     error = result2.error;
   }
   
   // 3. If that fails, try order_id (snake_case - alternative for manual orders)
-  if (error && (error.code === '42703' || error.code === 'PGRST116')) {
+  if (!data && error && (error.code === '42703' || error.code === 'PGRST116')) {
     const result3 = await supabase
       .from('orders')
       .update(updateData)
       .eq('order_id', orderId)
-      .select()
-      .single();
-    data = result3.data;
+      .select('id');
+    data = result3.data?.[0] || null;
     error = result3.error;
   }
   
   // 4. If that fails and orderId is numeric, try id (for numeric IDs)
   const numericId = parseInt(orderId);
-  if (error && (error.code === '42703' || error.code === 'PGRST116') && !isNaN(numericId)) {
+  if (!data && error && (error.code === '42703' || error.code === 'PGRST116') && !isNaN(numericId)) {
     const result4 = await supabase
       .from('orders')
       .update(updateData)
       .eq('id', numericId)
-      .select()
-      .single();
-    data = result4.data;
+      .select('id');
+    data = result4.data?.[0] || null;
     error = result4.error;
   }
   
+  // If we updated at least one row, we're done.
+  if (data && !error) return data;
+
   if (error) {
     // Only try to insert if the error is "no rows found" (PGRST116)
     // If it's a different error (like duplicate key), don't try to insert
@@ -361,34 +366,30 @@ export async function updateOrderInSupabase(orderId: string, updates: any) {
             .from('orders')
             .update(updateData)
             .eq('amazon_order_id', orderId)
-            .select()
-            .single();
+            .select('id');
         } else if (order.orderId === orderId) {
           retryResult = await supabase
             .from('orders')
             .update(updateData)
             .eq('orderId', orderId)
-            .select()
-            .single();
+            .select('id');
         } else if (order.order_id === orderId) {
           retryResult = await supabase
             .from('orders')
             .update(updateData)
             .eq('order_id', orderId)
-            .select()
-            .single();
+            .select('id');
         } else if (!isNaN(numericId) && order.id === numericId) {
           retryResult = await supabase
             .from('orders')
             .update(updateData)
             .eq('id', numericId)
-            .select()
-            .single();
+            .select('id');
         }
         
-        if (retryResult?.data) {
+        if (retryResult?.data?.length) {
           console.log(`[Supabase] Order ${orderId} found and updated successfully`);
-          return retryResult.data;
+          return retryResult.data[0];
         }
         // If retry still fails, throw the error
         console.error(`[Supabase] Retry update failed for order ${orderId}:`, retryResult?.error);
@@ -408,15 +409,14 @@ export async function updateOrderInSupabase(orderId: string, updates: any) {
       const { data: insertData, error: insertError } = await supabase
         .from('orders')
         .insert(insertPayload)
-        .select()
-        .single();
+        .select('id');
 
       if (insertError) {
         console.error(`[Supabase] Error inserting order ${orderId}:`, insertError);
         throw insertError;
       }
 
-      return insertData;
+      return insertData?.[0] || null;
     }
 
     // For other errors (like duplicate key, constraint violations, etc.), just throw

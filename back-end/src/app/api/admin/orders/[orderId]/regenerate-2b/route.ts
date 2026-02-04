@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { updateOrderStatus } from '@/lib/status-service';
-import { getOrderFromSupabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+import { OrderStatus } from '@/constants/statuses';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +26,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
+  // PSEUDOCODE
+  // - Load the existing order (by any identifier) so we can update by primary key (id)
+  // - Clear 2A/2B manifest per-entry Bria fields (best-effort)
+  // - Queue the order back to router for 2B by updating the same DB row (never insert / never reset workflow_step)
+
   // Allow same-origin requests (internal admin page) without auth
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
@@ -169,23 +174,57 @@ export async function POST(
       },
     };
 
-    // Queue order for router (w1.1) to pick up and route to 2B
-    // Router will pick up orders with execution_status = 'ready_for_processing' and next_workflow = '2B'
-    // IMPORTANT: Must clear any existing processing state to allow router to pick it up
-    await updateOrderStatus(orderId, {
-      next_workflow: '2B', // Uppercase '2B' (router expects uppercase)
-      execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
-      queued_at: new Date().toISOString(),
-      started_at: null, // Clear started_at
-      current_workflow: null, // Clear current_workflow
-      review_stages,
-      // Clear any error/retry state that might prevent routing
-      error_message: null,
-      error_type: null,
-      retry_count: 0,
-      last_error_at: null,
-      next_retry_at: null,
-    });
+    // Queue order for router (w1.1) to pick up and route to 2B.
+    // IMPORTANT:
+    // - Update by primary key `id` to avoid trailing-space / identifier mismatches.
+    // - Do NOT use updateOrderStatus helper here; it can recalculate status and/or trigger fragile update paths.
+    const queuedAt = new Date().toISOString();
+    const orderRowId = Number(currentOrder.id);
+    if (!Number.isFinite(orderRowId)) {
+      return NextResponse.json(
+        { error: 'Order row is missing numeric id (cannot queue regenerate safely)' },
+        { status: 500 }
+      );
+    }
+
+    const { data, error } = await supabase
+      .from('orders')
+      .update({
+        next_workflow: '2B', // Uppercase '2B' (router expects uppercase)
+        execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
+        status: OrderStatus.QUEUED_FOR_PROCESSING, // Purpose: avoid stale 'new' status after direct updates
+        queued_at: queuedAt,
+        started_at: null,
+        current_workflow: null,
+        review_stages,
+        // Purpose: make UI reflect we intentionally moved the order back to 2B
+        // (and avoid accidental regression to order_intake when workflow_step was never updated).
+        workflow_step: 'ai_generation_completed',
+        // Best-effort: if 2A manifest URL is missing, set canonical key so other logic doesn't regress
+        manifest_2a_url: currentOrder.manifest_2a_url || buildManifestKey(orderId, '2a'),
+        // Clear any error/retry state that might prevent routing
+        error_message: null,
+        error_type: null,
+        retry_count: 0,
+        last_error_at: null,
+        next_retry_at: null,
+        updated_at: queuedAt,
+      })
+      .eq('id', orderRowId)
+      .select('id');
+
+    if (error) {
+      return NextResponse.json(
+        { error: 'Failed to queue order for 2B regeneration', details: error.message, code: error.code, hint: error.hint },
+        { status: 500 }
+      );
+    }
+    if (!data || data.length === 0) {
+      return NextResponse.json(
+        { error: 'Order not found for update (no rows affected)' },
+        { status: 404 }
+      );
+    }
 
     console.log(`[Regenerate 2B] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
 

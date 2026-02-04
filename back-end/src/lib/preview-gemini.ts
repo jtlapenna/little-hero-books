@@ -1,0 +1,161 @@
+/**
+ * Build Gemini API request for character preview (base + hair ref).
+ * Minimal port of w2A "Prepare Binary (Base Gen, dual-image)" prompt structure.
+ */
+
+import type { PreviewResolved } from './preview-canonicals';
+
+export interface BuildPreviewRequestInput {
+  resolved: PreviewResolved;
+  base64Base: string;
+  baseMime: string;
+  base64Hair: string;
+  hairMime: string;
+}
+
+/**
+ * Build Gemini generateContent request body for base character image.
+ * Supports both tee-shorts and dress based on resolved.clothingTypeCanonical.
+ */
+export function buildPreviewGeminiRequest(input: BuildPreviewRequestInput): Record<string, unknown> {
+  const { resolved, base64Base, baseMime, base64Hair, hairMime } = input;
+  const { favoriteColorHex, hairColorLabel, shortsHex, clothingTypeCanonical } = resolved;
+  
+  const isDress = clothingTypeCanonical === 'dress';
+
+  // Clothing color prompt varies by type
+  const topColorLock = isDress
+    ? (favoriteColorHex
+        ? [
+            `CRITICAL — DRESS COLOR: ${favoriteColorHex}`,
+            `The dress fabric MUST be ${favoriteColorHex}.`,
+            'This is the REQUIRED color. Do not use any other color for the dress.',
+            'Subtle book-style shading allowed within this hue only.',
+          ].join('\n')
+        : [
+            'CRITICAL — DRESS COLOR: Use a single solid color.',
+            'Keep this color consistent across all generations.',
+            'Subtle book-style shading allowed.',
+          ].join('\n'))
+    : (favoriteColorHex
+        ? [
+            `CRITICAL — T-SHIRT COLOR: ${favoriteColorHex}`,
+            `The t-shirt fabric MUST be ${favoriteColorHex}.`,
+            'This is the REQUIRED color for the shirt. Do not use any other color.',
+            `Shorts MUST be neutral denim ${shortsHex} (never change shorts color).`,
+            'Subtle book-style shading allowed within these hues only.',
+          ].join('\n')
+        : [
+            'CRITICAL — T-SHIRT COLOR: Use a single solid color for the shirt.',
+            `Shorts MUST be neutral denim ${shortsHex}.`,
+            'Keep shirt color consistent across all generations.',
+          ].join('\n'));
+
+  const styleRules = [
+    'BOOK STYLE: flat, clean vector-like forms with soft textured shading; no outlines on clothing folds.',
+    'BACKGROUND: pure white (#FFFFFF). No props, logos, or text. No transparency.',
+  ].join('\n');
+
+  const subjectLimit = 'SUBJECT LIMIT: Render exactly one child in frame. No additional people, duplicates, reflections, or background characters.';
+
+  const framingRule = [
+    'FRAMING — FULL BODY (CRITICAL):',
+    '- MUST show the ENTIRE character from head to feet.',
+    '- Feet and shoes MUST be fully visible within the frame.',
+    '- Do NOT crop at knees, waist, or any point above the feet.',
+    '- Leave comfortable margin around the character (not touching edges).',
+    '- Character should be centered and fit entirely within the square frame.',
+  ].join('\n');
+
+  // Clothing type lock varies
+  const clothingTypeLine = isDress
+    ? [
+        'CLOTHING STYLE LOCK — DRESS (HARD OVERRIDE):',
+        '- Outfit must be a single-piece dress even if any reference image suggests otherwise.',
+        '- Ignore any cues for T-shirts, shorts, pants, skirts, or layered outfits.',
+        '- Dress silhouette: short sleeves or sleeveless OK; continuous skirt panel; hem roughly mid-thigh.',
+      ].join('\n')
+    : [
+        'CLOTHING STYLE LOCK — T-SHIRT & SHORTS:',
+        '- Short-sleeve T-shirt paired with shorts.',
+        '- No skirts, dresses, pants, or jackets.',
+      ].join('\n');
+
+  const shortsRule = isDress ? null : `SHORTS COLOR LOCK: Neutral denim ${shortsHex} (fixed). Never recolor shorts.`;
+
+  const skinToneLine = 'SKIN-TONE LOCK: Keep skin tone identical to the base reference (no lightening/darkening; do not change undertone).';
+
+  const hairLockShared = [
+    'HAIRSTYLE LOCK:',
+    '- Haircut is LOCKED to IMAGE B. Do not change cut, part side, ear visibility, or maximum length.',
+    '- Motion may deflect strands slightly, but silhouette/part/length remain unchanged.',
+    `- Hair color: ${hairColorLabel} (do not recolor).`,
+    `- EYEBROW COLOR: Eyebrows MUST match the hair color (${hairColorLabel}). Do not use a different color for eyebrows.`,
+  ].join('\n');
+
+  const rolesLegend = [
+    'IMAGE ROLES:',
+    '- IMAGE A = base character style guide (bald/neutral head). Do not infer haircut from IMAGE A.',
+    '- IMAGE B = hairstyle reference. Use ONLY for part location, silhouette, maximum length, and placement.',
+    'Priority: if IMAGE A and IMAGE B conflict about hair, FOLLOW IMAGE B.',
+  ].join('\n');
+
+  const hairPromptBlock = [
+    'HAIRSTYLE DESCRIPTION — GENERIC',
+    `- Color: ${hairColorLabel}.`,
+    '- Hair silhouette is a single, opaque, connected mass with clean, closed edges.',
+    '- Keep face and both ears unobstructed unless the style requires otherwise.',
+  ].join('\n');
+
+  const hygiene = [
+    'HAIR OUTPUT POLICY:',
+    '- Hair renders as a single, opaque, connected mass; closed edges.',
+    '- No halos, gaps, or semi-transparent strokes.',
+  ].join('\n');
+
+  const userTextParts = [
+    topColorLock,
+    styleRules,
+    subjectLimit,
+    framingRule,
+    clothingTypeLine,
+    shortsRule,
+    skinToneLine,
+    hairLockShared,
+    rolesLegend,
+    hairPromptBlock,
+    hygiene,
+  ].filter(Boolean);
+  const userText = userTextParts.join('\n\n');
+
+  // System instruction varies by clothing type
+  const colorInstruction = isDress
+    ? (favoriteColorHex ? `CRITICAL: The dress MUST be ${favoriteColorHex}. This is non-negotiable.` : null)
+    : (favoriteColorHex ? `CRITICAL: The t-shirt MUST be ${favoriteColorHex}. Shorts MUST be ${shortsHex}. These colors are non-negotiable.` : null);
+
+  const systemTextParts = [
+    'You are a precise illustration tool.',
+    colorInstruction,
+    'CRITICAL: Show FULL BODY from head to feet. Feet must be visible. Do not crop the character.',
+    'CRITICAL: Preserve EXACT requested traits. Use IMAGE A only for overall style; use IMAGE B only for hair.',
+    'Do not add text, logos, props, or backgrounds.',
+  ].filter(Boolean) as string[];
+  const systemText = systemTextParts.join('\n');
+
+  const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [
+    { text: userText },
+    { text: 'IMAGE A — BASE STYLE GUIDE (do not infer haircut).' },
+    { inlineData: { mimeType: baseMime, data: base64Base } },
+    { text: 'IMAGE B — HAIRSTYLE REFERENCE. Use ONLY for hair silhouette/part/length/placement. Do not copy face/skin/eyes/clothes.' },
+    { inlineData: { mimeType: hairMime, data: base64Hair } },
+  ];
+
+  return {
+    systemInstruction: { role: 'system', parts: [{ text: systemText }] },
+    contents: [{ role: 'user', parts }],
+    generationConfig: {
+      imageConfig: { aspectRatio: '1:1', imageSize: '2K' },
+      temperature: 0.15,
+    },
+  };
+}
