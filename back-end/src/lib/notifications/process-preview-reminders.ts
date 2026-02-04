@@ -77,7 +77,7 @@ export async function processPreviewReminders(
 
   const { data: orders, error: fetchError } = await supabase
     .from('orders')
-    .select('id, order_id, orderId, amazon_order_id, product_info, platform, customer_email, customer_approval_requested_at, preview_reminder_sent, character_specs, revision_count')
+    .select('id, orderId, amazon_order_id, product_info, platform, customer_email, customer_approval_requested_at, preview_reminder_sent, character_specs, revision_count')
     .eq('customer_approval_status', 'pending')
     .not('customer_approval_requested_at', 'is', null);
 
