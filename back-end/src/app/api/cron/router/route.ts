@@ -128,23 +128,26 @@ export async function GET(request: NextRequest) {
 
     // 0b. Process Amazon preview reminders (day-1, day-2, auto-approval message) — no extra cron
     const remindersStart = Date.now();
+    let remindersSummary: { processed: number; sent: number; skipped: number; errors: number; debug?: any } | null = null;
     try {
       const { processPreviewReminders } = await import('@/lib/notifications/process-preview-reminders');
       const reminderResult = await processPreviewReminders(supabase);
       const remindersDuration = Date.now() - remindersStart;
-      if (reminderResult.processed > 0 || reminderResult.sent > 0 || reminderResult.errors.length > 0) {
-        console.log(`[Cron Router] [${executionId}] Preview reminders (${remindersDuration}ms):`, {
-          processed: reminderResult.processed,
-          sent: reminderResult.sent,
-          errors: reminderResult.errors.length,
-        });
-        if (reminderResult.errors.length > 0) {
-          reminderResult.errors.slice(0, 5).forEach((e) => console.warn(`[Cron Router] [${executionId}] Reminder:`, e));
-        }
+      remindersSummary = {
+        processed: reminderResult.processed,
+        sent: reminderResult.sent,
+        skipped: reminderResult.skipped,
+        errors: reminderResult.errors.length,
+        debug: reminderResult.debug,
+      };
+      console.log(`[Cron Router] [${executionId}] Preview reminders (${remindersDuration}ms):`, remindersSummary);
+      if (reminderResult.errors.length > 0) {
+        reminderResult.errors.slice(0, 10).forEach((e) => console.warn(`[Cron Router] [${executionId}] Reminder error:`, e));
       }
     } catch (reminderError: any) {
       const remindersDuration = Date.now() - remindersStart;
       console.error(`[Cron Router] [${executionId}] Preview reminders failed (${remindersDuration}ms):`, reminderError.message);
+      remindersSummary = { processed: 0, sent: 0, skipped: 0, errors: 1, debug: { error: reminderError.message } };
     }
 
     // 1. Check capacity using queue_status view
@@ -347,6 +350,7 @@ export async function GET(request: NextRequest) {
         availableSlots,
         queuedCount,
         fetched: orders?.length || 0,
+        reminders: remindersSummary,
         metrics,
         timestamp: new Date().toISOString()
       });

@@ -18,7 +18,13 @@ const REMINDER_HOURS_DAY_2 = 48;
 export interface ProcessPreviewRemindersResult {
   processed: number;
   sent: number;
+  skipped: number;
   errors: string[];
+  debug: {
+    ordersFound: number;
+    amazonNotificationsEnabled: boolean;
+    skippedReasons: Record<string, number>;
+  };
 }
 
 function getOrderId(row: any): string {
@@ -45,10 +51,29 @@ export async function processPreviewReminders(
     : Number.isFinite(hoursFromEnv)
       ? hoursFromEnv
       : 72;
-  const result: ProcessPreviewRemindersResult = { processed: 0, sent: 0, errors: [] };
+  
   const amazonNotificationsEnabled =
     (process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED ?? '').trim().toLowerCase() === 'true' ||
     process.env.VERCEL_ENV === 'production';
+
+  const skippedReasons: Record<string, number> = {};
+  const addSkipReason = (reason: string) => {
+    skippedReasons[reason] = (skippedReasons[reason] || 0) + 1;
+  };
+
+  const result: ProcessPreviewRemindersResult = {
+    processed: 0,
+    sent: 0,
+    skipped: 0,
+    errors: [],
+    debug: {
+      ordersFound: 0,
+      amazonNotificationsEnabled,
+      skippedReasons,
+    },
+  };
+
+  console.log('[Preview Reminders] Config:', { amazonNotificationsEnabled, effectiveHours });
 
   const { data: orders, error: fetchError } = await supabase
     .from('orders')
@@ -60,6 +85,9 @@ export async function processPreviewReminders(
     result.errors.push(`Fetch pending orders: ${fetchError.message}`);
     return result;
   }
+
+  result.debug.ordersFound = orders?.length ?? 0;
+  console.log(`[Preview Reminders] Found ${result.debug.ordersFound} orders pending approval`);
 
   if (!orders?.length) return result;
 
