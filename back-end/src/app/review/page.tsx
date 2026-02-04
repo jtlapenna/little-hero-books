@@ -6,7 +6,7 @@ import { Order, OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatPlatformName } from '@/lib/utils';
 import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
 import { OrderStatus } from '@/constants/statuses';
@@ -345,7 +345,7 @@ export default function ReviewPage() {
                       <span className="font-medium">Customer:</span> {order.firstName} {order.lastName}
                     </p>
                     <p className="text-sm text-gray-600">
-                      <span className="font-medium">Platform:</span> {order.platform}
+                      <span className="font-medium">Platform:</span> {formatPlatformName(order.platform)}
                     </p>
                     <p className="text-sm text-gray-600">
                       <span className="font-medium">Order Date:</span> {formatDate(order.orderDate)}
@@ -451,8 +451,8 @@ export default function ReviewPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {order.firstName} {order.lastName}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
-                          {order.platform}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatPlatformName(order.platform)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <DualStatusBadge 

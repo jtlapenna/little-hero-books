@@ -454,24 +454,72 @@ export async function createOrderInSupabase(order: any) {
   return data;
 }
 
-export async function listOrdersFromSupabase(options: { limit?: number } = {}) {
+export interface ListOrdersOptions {
+  limit?: number;
+  lifecycle?: 'active' | 'recently_delivered' | 'all'; // Filter by lifecycle status
+  includeArchived?: boolean; // Include archived orders from archived_orders table
+}
+
+export async function listOrdersFromSupabase(options: ListOrdersOptions = {}) {
   try {
+    // Build query for main orders table
     let query = supabase
       .from('orders')
       .select('*')
       .order('created_at', { ascending: false });
 
+    // Filter by lifecycle status
+    if (options.lifecycle && options.lifecycle !== 'all') {
+      query = query.eq('lifecycle_status', options.lifecycle);
+    }
+
     if (options.limit) {
       query = query.limit(options.limit);
     }
 
-    const { data, error } = await query;
+    const { data: ordersData, error: ordersError } = await query;
 
-    if (error) {
-      throw error;
+    if (ordersError) {
+      throw ordersError;
     }
 
-    return data || [];
+    let orders = ordersData || [];
+
+    // Fetch archived orders if requested
+    if (options.includeArchived) {
+      let archivedQuery = supabase
+        .from('archived_orders')
+        .select('*')
+        .order('archived_at', { ascending: false });
+
+      if (options.limit) {
+        // Adjust limit for archived orders based on how many main orders we got
+        const remainingLimit = options.limit - orders.length;
+        if (remainingLimit > 0) {
+          archivedQuery = archivedQuery.limit(remainingLimit);
+        }
+      }
+
+      const { data: archivedData, error: archivedError } = await archivedQuery;
+
+      if (archivedError) {
+        console.warn('[Supabase] Error fetching archived orders:', archivedError);
+        // Don't throw - return main orders without archived
+      } else if (archivedData && archivedData.length > 0) {
+        console.log(`[Supabase] Found ${archivedData.length} archived orders`);
+        // Expand order_data JSONB and mark as archived
+        const markedArchived = archivedData.map((archived: any) => ({
+          ...archived.order_data,  // Spread the stored order data
+          archived_at: archived.archived_at,
+          archive_reason: archived.archive_reason,
+          archived_by: archived.archived_by,
+          lifecycle_status: 'archived',
+        }));
+        orders = [...orders, ...markedArchived];
+      }
+    }
+
+    return orders;
   } catch (error) {
     console.error('[Supabase] Error listing orders:', error);
     throw error;

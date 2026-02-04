@@ -235,7 +235,20 @@ export async function POST(request: NextRequest) {
     
     // Call Gemini API to compare orientations
     console.log('[Auto-Flip] Calling Gemini API to compare orientations...');
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+    // PSEUDOCODE
+    // - Pick an orientation-capable model (env override first).
+    // - Try candidates in order; if Gemini returns 404 (model not found), fall through to next.
+    // - If a non-404 error occurs, return it immediately (don't mask real failures).
+    const modelFromEnv = (process.env.GEMINI_ORIENTATION_MODEL || '').trim();
+    const modelCandidatesRaw = [
+      modelFromEnv,
+      // Prefer current, broadly available models (older names can 404 as they deprecate).
+      // 2.5 is active for this project.
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-pro',
+    ].filter(Boolean);
+    const modelCandidates = Array.from(new Set(modelCandidatesRaw));
     
     const geminiRequestBody = {
       contents: [{
@@ -266,28 +279,180 @@ export async function POST(request: NextRequest) {
       }
     };
     
-    let geminiResponse: Response;
     try {
-      geminiResponse = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(geminiRequestBody),
-      });
-      
-      if (!geminiResponse.ok) {
+      let geminiResponse: Response | null = null;
+      let selectedModel: string | null = null;
+      let last404BodySnippet: string | null = null;
+
+      for (const model of modelCandidates) {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+
+        geminiResponse = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(geminiRequestBody),
+        });
+
+        // Early return on success.
+        if (geminiResponse.ok) {
+          selectedModel = model;
+          break;
+        }
+
+        // If model not found, try next candidate.
+        if (geminiResponse.status === 404) {
+          const errorText = await geminiResponse.text();
+          last404BodySnippet = errorText.substring(0, 500);
+          console.warn('[Auto-Flip] Gemini model not found (404); trying next model', {
+            model,
+            body: last404BodySnippet,
+          });
+          continue;
+        }
+
+        // Other non-OK: report immediately (don't hide real errors).
         const errorText = await geminiResponse.text();
         console.error('[Auto-Flip] Gemini API error:', {
+          model,
           status: geminiResponse.status,
           statusText: geminiResponse.statusText,
           body: errorText.substring(0, 500),
         });
         return NextResponse.json(
-          { success: false, error: `Gemini API error: ${geminiResponse.status} ${geminiResponse.statusText}` },
+          { success: false, error: `Gemini API error (${model}): ${geminiResponse.status} ${geminiResponse.statusText}` },
           { status: geminiResponse.status }
         );
       }
+
+      // If we never found a working model, surface a clear error.
+      if (!geminiResponse || !geminiResponse.ok || !selectedModel) {
+        console.error('[Auto-Flip] No Gemini model candidate succeeded', {
+          modelCandidates,
+          last404BodySnippet,
+        });
+        return NextResponse.json(
+          { success: false, error: 'Gemini API error: no available model for generateContent (all candidates 404)' },
+          { status: 502 }
+        );
+      }
+
+      // Parse Gemini response
+      const geminiData = await geminiResponse.json();
+      const candidates = geminiData.candidates || [];
+
+      if (candidates.length === 0) {
+        // Check for safety ratings or blocked content
+        const safetyRatings = geminiData.promptFeedback?.safetyRatings || [];
+        const blocked = safetyRatings.some((rating: any) => rating.blocked === true);
+
+        if (blocked) {
+          const blockedReasons = safetyRatings
+            .filter((rating: any) => rating.blocked)
+            .map((rating: any) => `${rating.category}: ${rating.probability}`)
+            .join(', ');
+
+          console.error('[Auto-Flip] Content blocked by Gemini safety filters:', blockedReasons);
+          return NextResponse.json(
+            { success: false, error: 'Content was blocked by Gemini safety filters', details: blockedReasons },
+            { status: 400 }
+          );
+        }
+
+        console.error('[Auto-Flip] No candidates in Gemini response:', geminiData);
+        return NextResponse.json(
+          { success: false, error: 'No response from Gemini API', details: geminiData.error?.message || 'Unknown reason' },
+          { status: 500 }
+        );
+      }
+
+      const firstCandidate = candidates[0];
+
+      // Check for finish reason
+      if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP') {
+        console.error('[Auto-Flip] Generation stopped:', firstCandidate.finishReason);
+        return NextResponse.json(
+          { success: false, error: `Generation stopped: ${firstCandidate.finishReason}` },
+          { status: 400 }
+        );
+      }
+
+      const textParts = firstCandidate.content?.parts || [];
+      const textResponse = textParts
+        .filter((p: any) => p.text)
+        .map((p: any) => p.text)
+        .join(' ')
+        .trim()
+        .toUpperCase();
+
+      console.log('[Auto-Flip] Gemini response:', { model: selectedModel, textResponse });
+
+      // Check if orientations are different
+      const needsFlip = textResponse.includes('DIFFERENT');
+
+      if (!needsFlip) {
+        console.log('[Auto-Flip] Orientations match, no flip needed');
+        recordRequest(characterHash, poseNumber, false, true);
+        return NextResponse.json({
+          success: true,
+          flipped: false,
+          imageUrl,
+          message: 'Orientations match, no flip needed',
+        });
+      }
+
+      // Flip the image using the same pattern as manual flip, but server-side
+      // We'll use a simple pixel manipulation approach that works in Workers
+      console.log('[Auto-Flip] Flipping image horizontally using pixel manipulation...');
+
+      let flippedBuffer: Buffer;
+      try {
+        // Use simple PNG pixel manipulation (works in Workers)
+        flippedBuffer = await flipPngHorizontally(imageBuffer);
+
+        console.log('[Auto-Flip] Image flipped:', {
+          originalSize: imageBuffer.length,
+          flippedSize: flippedBuffer.length,
+        });
+      } catch (error: any) {
+        console.error('[Auto-Flip] Error flipping image:', error);
+        recordRequest(characterHash, poseNumber, false, false);
+        return NextResponse.json(
+          { success: false, error: `Failed to flip image: ${error.message || 'Unknown error'}` },
+          { status: 500 }
+        );
+      }
+
+      // Upload flipped image back to R2 (overwrites original)
+      console.log('[Auto-Flip] Uploading flipped image to R2...');
+      try {
+        await putObject(imageBucket, imageKey, flippedBuffer, imageMimeType);
+        console.log('[Auto-Flip] Flipped image uploaded successfully');
+      } catch (error: any) {
+        console.error('[Auto-Flip] Error uploading flipped image:', error);
+        recordRequest(characterHash, poseNumber, false, false);
+        return NextResponse.json(
+          { success: false, error: `Failed to upload flipped image: ${error.message || 'Unknown error'}` },
+          { status: 500 }
+        );
+      }
+
+      // Log the flip for debugging
+      console.log('[Auto-Flip] Flipped image:', {
+        characterHash,
+        poseNumber,
+        r2Key: imageKey,
+        bucket: imageBucket,
+      });
+
+      recordRequest(characterHash, poseNumber, true, true);
+
+      return NextResponse.json({
+        success: true,
+        flipped: true,
+        imageUrl,
+        message: 'Image was flipped and overwritten in R2',
+      });
+
     } catch (error: any) {
       console.error('[Auto-Flip] Network error calling Gemini API:', error);
       return NextResponse.json(
@@ -295,124 +460,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
-    // Parse Gemini response
-    const geminiData = await geminiResponse.json();
-    const candidates = geminiData.candidates || [];
-    
-    if (candidates.length === 0) {
-      // Check for safety ratings or blocked content
-      const safetyRatings = geminiData.promptFeedback?.safetyRatings || [];
-      const blocked = safetyRatings.some((rating: any) => rating.blocked === true);
-      
-      if (blocked) {
-        const blockedReasons = safetyRatings
-          .filter((rating: any) => rating.blocked)
-          .map((rating: any) => `${rating.category}: ${rating.probability}`)
-          .join(', ');
-        
-        console.error('[Auto-Flip] Content blocked by Gemini safety filters:', blockedReasons);
-        return NextResponse.json(
-          { success: false, error: 'Content was blocked by Gemini safety filters', details: blockedReasons },
-          { status: 400 }
-        );
-      }
-      
-      console.error('[Auto-Flip] No candidates in Gemini response:', geminiData);
-      return NextResponse.json(
-        { success: false, error: 'No response from Gemini API', details: geminiData.error?.message || 'Unknown reason' },
-        { status: 500 }
-      );
-    }
-    
-    const firstCandidate = candidates[0];
-    
-    // Check for finish reason
-    if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP') {
-      console.error('[Auto-Flip] Generation stopped:', firstCandidate.finishReason);
-      return NextResponse.json(
-        { success: false, error: `Generation stopped: ${firstCandidate.finishReason}` },
-        { status: 400 }
-      );
-    }
-    
-    const textParts = firstCandidate.content?.parts || [];
-    const textResponse = textParts
-      .filter((p: any) => p.text)
-      .map((p: any) => p.text)
-      .join(' ')
-      .trim()
-      .toUpperCase();
-    
-    console.log('[Auto-Flip] Gemini response:', textResponse);
-    
-    // Check if orientations are different
-    const needsFlip = textResponse.includes('DIFFERENT');
-    
-    if (!needsFlip) {
-      console.log('[Auto-Flip] Orientations match, no flip needed');
-      recordRequest(characterHash, poseNumber, false, true);
-      return NextResponse.json({
-        success: true,
-        flipped: false,
-        imageUrl,
-        message: 'Orientations match, no flip needed',
-      });
-    }
-    
-    // Flip the image using the same pattern as manual flip, but server-side
-    // We'll use a simple pixel manipulation approach that works in Workers
-    console.log('[Auto-Flip] Flipping image horizontally using pixel manipulation...');
-    
-    let flippedBuffer: Buffer;
-    try {
-      // Use simple PNG pixel manipulation (works in Workers)
-      flippedBuffer = await flipPngHorizontally(imageBuffer);
-      
-      console.log('[Auto-Flip] Image flipped:', {
-        originalSize: imageBuffer.length,
-        flippedSize: flippedBuffer.length,
-      });
-    } catch (error: any) {
-      console.error('[Auto-Flip] Error flipping image:', error);
-      recordRequest(characterHash, poseNumber, false, false);
-      return NextResponse.json(
-        { success: false, error: `Failed to flip image: ${error.message || 'Unknown error'}` },
-        { status: 500 }
-      );
-    }
-    
-    // Upload flipped image back to R2 (overwrites original)
-    console.log('[Auto-Flip] Uploading flipped image to R2...');
-    try {
-      await putObject(imageBucket, imageKey, flippedBuffer, imageMimeType);
-      console.log('[Auto-Flip] Flipped image uploaded successfully');
-    } catch (error: any) {
-      console.error('[Auto-Flip] Error uploading flipped image:', error);
-      recordRequest(characterHash, poseNumber, false, false);
-      return NextResponse.json(
-        { success: false, error: `Failed to upload flipped image: ${error.message || 'Unknown error'}` },
-        { status: 500 }
-      );
-    }
-    
-    // Log the flip for debugging
-    console.log('[Auto-Flip] Flipped image:', {
-      characterHash,
-      poseNumber,
-      r2Key: imageKey,
-      bucket: imageBucket,
-    });
-    
-    recordRequest(characterHash, poseNumber, true, true);
-    
-    return NextResponse.json({
-      success: true,
-      flipped: true,
-      imageUrl,
-      message: 'Image was flipped and overwritten in R2',
-    });
-    
   } catch (error: any) {
     console.error('[Auto-Flip] Unexpected error:', error);
     // Record error with available data

@@ -6,7 +6,7 @@ import { Order, ReviewStage } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
-import { formatDate, getInitials } from '@/lib/utils';
+import { formatDate, getInitials, formatPlatformName } from '@/lib/utils';
 import { getOrderById } from '@/lib/mock-data';
 import { PreBriaStage } from '@/components/stages/pre-bria-stage';
 import { PostBriaStage } from '@/components/stages/post-bria-stage';
@@ -15,7 +15,7 @@ import { LuluStage } from '@/components/stages/lulu-stage';
 import { getStageFlaggedCount, getOrderFlagSummary } from '@/lib/review-state';
 import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
-import { ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer, Archive } from 'lucide-react';
 import { getDisplayStatusForOrder, getStageBadgeStatus } from '@/lib/status-display';
 import { ManualReviewAlert } from '@/components/ui/manual-review-alert';
 
@@ -110,6 +110,7 @@ export default function OrderDetailPage() {
   const [creating2bManifest, setCreating2bManifest] = useState(false);
   const [resettingOrder, setResettingOrder] = useState(false);
   const [normalizingShipping, setNormalizingShipping] = useState(false);
+  const [archivingOrder, setArchivingOrder] = useState(false);
   const printRequestInProgressRef = useRef(false);
   const rawResetToggle = process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET;
   const enableResetButton =
@@ -432,7 +433,13 @@ export default function OrderDetailPage() {
   }
 
   const activeStageKey = activeStage as unknown as keyof typeof order.reviewStages;
-  const lifecycleStatus = getDisplayStatusForOrder(order);
+  const baseLifecycleStatus = getDisplayStatusForOrder(order);
+  
+  // Override status display for archived orders
+  const lifecycleStatus = (order as any).lifecycle_status === 'archived'
+    ? { ...baseLifecycleStatus, workflowStatus: 'archived' as any, technicalStatus: null, errors: [] }
+    : baseLifecycleStatus;
+  
   const activeStageDefinition = stages.find(
     (stage) => stage.key === activeStage
   );
@@ -882,6 +889,41 @@ export default function OrderDetailPage() {
     }
   };
 
+  // Archive order - moves to archived_orders table
+  const handleArchiveOrder = async () => {
+    if (!order) return;
+    const confirmed = window.confirm(
+      'Archive this order? It will be moved to the archived orders list and removed from the active orders view.'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setArchivingOrder(true);
+
+      const response = await fetch(`/api/admin/orders/${order.orderId}/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'manual' }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        throw new Error(errorBody?.error || 'Failed to archive order');
+      }
+
+      alert('Order archived successfully.');
+      // Redirect back to orders list since this order is now archived
+      router.push('/orders');
+    } catch (error: any) {
+      console.error('Error archiving order:', error);
+      alert(error?.message || 'Failed to archive order. Please try again.');
+    } finally {
+      setArchivingOrder(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -900,7 +942,7 @@ export default function OrderDetailPage() {
               <h1 className="text-3xl font-bold text-gray-900 truncate">{order.orderId}</h1>
               <p className="text-gray-600 mt-1">
                 {order.customer.firstName} {order.customer.lastName} •{' '}
-                {order.platform ? order.platform.charAt(0).toUpperCase() + order.platform.slice(1) : 'Amazon'}
+                {formatPlatformName(order.platform)}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
@@ -960,6 +1002,25 @@ export default function OrderDetailPage() {
                   <>
                     <Printer className="h-4 w-4 mr-2" />
                     Send to Print
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handleArchiveOrder}
+                disabled={archivingOrder}
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-600 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+                title="Archive this order"
+              >
+                {archivingOrder ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Archiving...
+                  </>
+                ) : (
+                  <>
+                    <Archive className="h-4 w-4 mr-2" />
+                    Archive
                   </>
                 )}
               </button>

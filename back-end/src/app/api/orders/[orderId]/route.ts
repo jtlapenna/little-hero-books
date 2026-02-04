@@ -4,6 +4,7 @@ import { Order } from '@/types/order';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+import { getArchivedOrderById } from '@/lib/order-lifecycle';
 function isTableMissingError(error: any, tableName: string) {
   if (!error) return false;
   const message = String(error.message || '').toLowerCase();
@@ -34,6 +35,9 @@ async function getOrder(
   }
   
   let supabaseOrderRecord: any = null;
+  let isArchivedOrder = false;
+  
+  // First try to find in main orders table
   try {
     supabaseOrderRecord = await getOrderFromSupabase(orderId);
   } catch (error: any) {
@@ -43,10 +47,30 @@ async function getOrder(
     );
   }
 
+  // If not found, check archived_orders table
+  if (!supabaseOrderRecord) {
+    try {
+      supabaseOrderRecord = await getArchivedOrderById(supabase, orderId);
+      if (supabaseOrderRecord) {
+        isArchivedOrder = true;
+        console.log(`[GET /api/orders/[orderId]] Found archived order ${orderId}`);
+      }
+    } catch (error: any) {
+      console.warn(
+        `[GET /api/orders/[orderId]] Archived orders lookup failed for ${orderId}:`,
+        error?.message || error
+      );
+    }
+  }
+
   let supabaseOrder: Order | null = null;
   if (supabaseOrderRecord) {
     try {
       supabaseOrder = await mapSupabaseOrderToOrder(supabaseOrderRecord);
+      // Ensure lifecycle_status is preserved for archived orders
+      if (isArchivedOrder) {
+        supabaseOrder.lifecycle_status = 'archived';
+      }
     } catch (error: any) {
       console.error(
         `[GET /api/orders/[orderId]] Failed to map Supabase order ${orderId}:`,

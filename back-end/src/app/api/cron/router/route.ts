@@ -150,6 +150,28 @@ export async function GET(request: NextRequest) {
       remindersSummary = { processed: 0, sent: 0, skipped: 0, errors: 1, debug: { error: reminderError.message } };
     }
 
+    // 0c. Process order lifecycle (auto-delivered, auto-archive)
+    const lifecycleStart = Date.now();
+    let lifecycleSummary: { markedDelivered: number; archived: number; errors: number } | null = null;
+    try {
+      const { processOrderLifecycle } = await import('@/lib/order-lifecycle');
+      const lifecycleResult = await processOrderLifecycle(supabase);
+      const lifecycleDuration = Date.now() - lifecycleStart;
+      lifecycleSummary = {
+        markedDelivered: lifecycleResult.markedDelivered,
+        archived: lifecycleResult.archived,
+        errors: lifecycleResult.errors.length,
+      };
+      console.log(`[Cron Router] [${executionId}] Order lifecycle (${lifecycleDuration}ms):`, lifecycleSummary);
+      if (lifecycleResult.errors.length > 0) {
+        lifecycleResult.errors.slice(0, 5).forEach((e) => console.warn(`[Cron Router] [${executionId}] Lifecycle error:`, e));
+      }
+    } catch (lifecycleError: any) {
+      const lifecycleDuration = Date.now() - lifecycleStart;
+      console.error(`[Cron Router] [${executionId}] Order lifecycle failed (${lifecycleDuration}ms):`, lifecycleError.message);
+      lifecycleSummary = { markedDelivered: 0, archived: 0, errors: 1 };
+    }
+
     // 1. Check capacity using queue_status view
     const capacityCheckStart = Date.now();
     const { data: capacityData, error: capacityError } = await supabase
@@ -205,6 +227,8 @@ export async function GET(request: NextRequest) {
         processingCount,
         maxConcurrent,
         queuedCount,
+        reminders: remindersSummary,
+        lifecycle: lifecycleSummary,
         metrics,
         timestamp: new Date().toISOString()
       });
@@ -351,6 +375,7 @@ export async function GET(request: NextRequest) {
         queuedCount,
         fetched: orders?.length || 0,
         reminders: remindersSummary,
+        lifecycle: lifecycleSummary,
         metrics,
         timestamp: new Date().toISOString()
       });
@@ -459,6 +484,8 @@ export async function GET(request: NextRequest) {
       processingCount,
       availableSlots,
       queuedCount,
+      reminders: remindersSummary,
+      lifecycle: lifecycleSummary,
       metrics,
       n8nExecutions: 1,
       timestamp: new Date().toISOString(),

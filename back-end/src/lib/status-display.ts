@@ -491,9 +491,18 @@ export function getStageBadgeStatus(stageStatus?: string | null, stageKey?: 'pre
 /**
  * Get phase for an order (for use in groupOrdersByPhase)
  * This function considers revisionCount to determine first vs second review
- * Also handles special cases like cancelled print orders
+ * Also handles special cases like cancelled print orders and lifecycle status
  */
 export function getPhaseForOrder(order: Order | OrderListItem): OrderPhase {
+  // Check lifecycle_status first - takes precedence over workflow status
+  const lifecycleStatus = (order as any).lifecycle_status || (order as any).lifecycleStatus;
+  if (lifecycleStatus === 'recently_delivered') {
+    return OrderPhase.RECENTLY_DELIVERED;
+  }
+  if (lifecycleStatus === 'archived') {
+    return OrderPhase.ARCHIVED;
+  }
+  
   const display = getDisplayStatusForOrder(order as Order);
   
   // Special case: If order has lulu_status (sent to print) and is ACTION_REQUIRED (cancelled),
@@ -529,6 +538,7 @@ export function buildOrderListItem(order: Order): OrderListItem {
     flags: order.flags ?? {},
     revisionCount: typeof order.revisionCount === 'number' ? order.revisionCount : 0,
     errors: display.errors,
+    lifecycle_status: (order as any).lifecycle_status || 'active',
   };
 }
 

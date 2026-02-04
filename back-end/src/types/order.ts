@@ -94,6 +94,8 @@ export interface Order {
     skippedBy2BManifest: number;
     skippedTotal: number;
   };
+  lifecycle_status?: string; // Order lifecycle: 'active' | 'recently_delivered' | 'archived'
+  assumed_delivered_at?: string; // When order was assumed delivered (shipped_at + delivery days)
 }
 
 export interface OrderListItem {
@@ -114,6 +116,7 @@ export interface OrderListItem {
   flags?: Record<string, any>;
   revisionCount?: number;
   errors?: DisplayStatus[]; // Array of errors for multiple errors badge
+  lifecycle_status?: string; // Order lifecycle status: 'active' | 'recently_delivered' | 'archived'
 }
 
 export interface CustomerCorrection {

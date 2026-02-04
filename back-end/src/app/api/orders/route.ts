@@ -52,11 +52,19 @@ function createErrorOrder(record: any, error: any): Order {
   };
 }
 
-async function getOrders(_request: NextRequest) {
-  console.log('[GET /api/orders] Starting orders fetch (Supabase first)...');
+async function getOrders(request: NextRequest) {
+  // Parse query parameters for lifecycle filtering
+  const { searchParams } = new URL(request.url);
+  const lifecycle = searchParams.get('lifecycle') as 'active' | 'recently_delivered' | 'all' | null;
+  const includeArchived = searchParams.get('include_archived') === 'true';
+  
+  console.log(`[GET /api/orders] Starting orders fetch (lifecycle=${lifecycle || 'all'}, includeArchived=${includeArchived})...`);
 
   try {
-    const supabaseRecords = await listOrdersFromSupabase();
+    const supabaseRecords = await listOrdersFromSupabase({
+      lifecycle: lifecycle || undefined,
+      includeArchived,
+    });
 
     if (supabaseRecords.length > 0) {
       console.log('[GET /api/orders] Supabase returned', supabaseRecords.length, 'orders');

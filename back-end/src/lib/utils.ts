@@ -32,3 +32,14 @@ export function getInitials(name: string): string {
     .slice(0, 2);
 }
 
+/**
+ * Format platform name for display
+ * Handles special cases like "d2c" -> "D2C" (acronym)
+ */
+export function formatPlatformName(platform: string): string {
+  if (!platform) return 'Amazon';
+  const lower = platform.toLowerCase();
+  if (lower === 'd2c') return 'D2C';
+  return platform.charAt(0).toUpperCase() + platform.slice(1);
+}
+

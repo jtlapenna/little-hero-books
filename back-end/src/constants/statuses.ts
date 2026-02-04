@@ -222,7 +222,11 @@ export const StatusLabels: Record<string, string> = {
   [ReviewStageStatus.FLAGGED]: 'Flagged',
   
   // Customer Approval Statuses
-  [CustomerApprovalStatus.REVISION_REQUESTED]: 'Revision Requested'
+  [CustomerApprovalStatus.REVISION_REQUESTED]: 'Revision Requested',
+  
+  // Lifecycle Statuses
+  'archived': 'Archived',
+  'recently_delivered': 'Recently Delivered',
 };
 
 /**
@@ -499,6 +503,18 @@ export const StatusColors: Record<string, {
     bg: 'bg-orange-100',
     text: 'text-orange-800',
     border: 'border-orange-200'
+  },
+  
+  // Lifecycle Statuses
+  'archived': {
+    bg: 'bg-slate-100',
+    text: 'text-slate-600',
+    border: 'border-slate-300'
+  },
+  'recently_delivered': {
+    bg: 'bg-teal-100',
+    text: 'text-teal-700',
+    border: 'border-teal-300'
   }
 };
 

@@ -11,7 +11,7 @@ import { OrderStatus } from './statuses';
 
 /**
  * Order Phase Enum
- * Simplified 5-phase system for order lifecycle
+ * 7-phase system for order lifecycle (including delivery and archive)
  */
 export enum OrderPhase {
   IN_QUEUE = 'in_queue', // In Queue / Generating - Grey
@@ -19,6 +19,8 @@ export enum OrderPhase {
   AWAITING_CUSTOMER = 'awaiting_customer', // Awaiting Customer - Purple
   SECOND_REVIEW = 'second_review', // Second Review - Yellow
   SENT_TO_PRINT = 'sent_to_print', // Sent to Print - Green
+  RECENTLY_DELIVERED = 'recently_delivered', // Recently Delivered - Teal (assumed delivered, 15-day retention)
+  ARCHIVED = 'archived', // Archived - Grey/muted (collapsed by default)
 }
 
 /**
@@ -80,6 +82,8 @@ export const PhaseLabels: Record<OrderPhase, string> = {
   [OrderPhase.AWAITING_CUSTOMER]: 'Awaiting Customer',
   [OrderPhase.SECOND_REVIEW]: 'Second Review',
   [OrderPhase.SENT_TO_PRINT]: 'Sent to Print',
+  [OrderPhase.RECENTLY_DELIVERED]: 'Recently Delivered',
+  [OrderPhase.ARCHIVED]: 'Archived',
 };
 
 /**
@@ -91,6 +95,8 @@ export const PhaseDescriptions: Record<OrderPhase, string> = {
   [OrderPhase.AWAITING_CUSTOMER]: 'Proof sent to customer, awaiting response',
   [OrderPhase.SECOND_REVIEW]: 'Second review after customer revision request',
   [OrderPhase.SENT_TO_PRINT]: 'Order sent to print production',
+  [OrderPhase.RECENTLY_DELIVERED]: 'Assumed delivered, auto-archives after 15 days',
+  [OrderPhase.ARCHIVED]: 'Archived orders (searchable but inactive)',
 };
 
 /**
@@ -132,14 +138,40 @@ export const PhaseColors: Record<OrderPhase, {
     text: 'text-green-700',
     border: 'border-green-200',
     icon: '🖨️' // Printer for sent to print
+  },
+  [OrderPhase.RECENTLY_DELIVERED]: {
+    bg: 'bg-teal-50',
+    text: 'text-teal-700',
+    border: 'border-teal-200',
+    icon: '📦' // Package for recently delivered
+  },
+  [OrderPhase.ARCHIVED]: {
+    bg: 'bg-slate-100',
+    text: 'text-slate-500',
+    border: 'border-slate-200',
+    icon: '🗄️' // File cabinet for archived
   }
 };
 
 /**
  * Phase Order
- * The order in which phases appear in the UI
+ * The order in which phases appear in the phase summary UI.
+ * Note: RECENTLY_DELIVERED and ARCHIVED are shown in separate collapsible sections,
+ * so they are NOT included here.
  */
 export const PHASE_ORDER: OrderPhase[] = [
+  OrderPhase.IN_QUEUE,
+  OrderPhase.FIRST_REVIEW,
+  OrderPhase.AWAITING_CUSTOMER,
+  OrderPhase.SECOND_REVIEW,
+  OrderPhase.SENT_TO_PRINT,
+];
+
+/**
+ * Active Phases (excludes recently_delivered and archived)
+ * Used for filtering active orders in the main view
+ */
+export const ACTIVE_PHASE_ORDER: OrderPhase[] = [
   OrderPhase.IN_QUEUE,
   OrderPhase.FIRST_REVIEW,
   OrderPhase.AWAITING_CUSTOMER,
@@ -182,16 +214,28 @@ export function getPhaseColors(phase: OrderPhase) {
  * Note: Orders should have their phase set by buildOrderListItem which calls getDisplayStatusForOrder
  * This function uses order.phase if available, otherwise falls back to IN_QUEUE
  */
-export function groupOrdersByPhase<T extends { status?: string; phase?: OrderPhase; revisionCount?: number }>(orders: T[]): Record<OrderPhase, T[]> {
+export function groupOrdersByPhase<T extends { status?: string; phase?: OrderPhase; revisionCount?: number; lifecycle_status?: string }>(orders: T[]): Record<OrderPhase, T[]> {
   const grouped: Record<OrderPhase, T[]> = {
     [OrderPhase.IN_QUEUE]: [],
     [OrderPhase.FIRST_REVIEW]: [],
     [OrderPhase.AWAITING_CUSTOMER]: [],
     [OrderPhase.SECOND_REVIEW]: [],
     [OrderPhase.SENT_TO_PRINT]: [],
+    [OrderPhase.RECENTLY_DELIVERED]: [],
+    [OrderPhase.ARCHIVED]: [],
   };
   
   orders.forEach(order => {
+    // Check lifecycle_status first for recently_delivered and archived orders
+    if (order.lifecycle_status === 'recently_delivered') {
+      grouped[OrderPhase.RECENTLY_DELIVERED].push(order);
+      return;
+    }
+    if (order.lifecycle_status === 'archived') {
+      grouped[OrderPhase.ARCHIVED].push(order);
+      return;
+    }
+    
     // Use order.phase if available (should be set by buildOrderListItem)
     // Otherwise fallback to IN_QUEUE
     const phase = order.phase || OrderPhase.IN_QUEUE;
@@ -204,7 +248,7 @@ export function groupOrdersByPhase<T extends { status?: string; phase?: OrderPha
 /**
  * Get phase counts
  */
-export function getPhaseCounts<T extends { status?: string; phase?: OrderPhase; revisionCount?: number }>(orders: T[]): Record<OrderPhase, number> {
+export function getPhaseCounts<T extends { status?: string; phase?: OrderPhase; revisionCount?: number; lifecycle_status?: string }>(orders: T[]): Record<OrderPhase, number> {
   const grouped = groupOrdersByPhase(orders);
   return {
     [OrderPhase.IN_QUEUE]: grouped[OrderPhase.IN_QUEUE].length,
@@ -212,6 +256,8 @@ export function getPhaseCounts<T extends { status?: string; phase?: OrderPhase; 
     [OrderPhase.AWAITING_CUSTOMER]: grouped[OrderPhase.AWAITING_CUSTOMER].length,
     [OrderPhase.SECOND_REVIEW]: grouped[OrderPhase.SECOND_REVIEW].length,
     [OrderPhase.SENT_TO_PRINT]: grouped[OrderPhase.SENT_TO_PRINT].length,
+    [OrderPhase.RECENTLY_DELIVERED]: grouped[OrderPhase.RECENTLY_DELIVERED].length,
+    [OrderPhase.ARCHIVED]: grouped[OrderPhase.ARCHIVED].length,
   };
 }
 

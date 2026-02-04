@@ -37,7 +37,7 @@ export function PhaseSummary<T extends { status?: string; phase?: OrderPhase }>(
         <span className="text-sm text-gray-500">Total: {total}</span>
       </div>
       
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
         {PHASE_ORDER.map((phase) => {
           const count = phaseCounts[phase];
           const colors = getPhaseColors(phase);

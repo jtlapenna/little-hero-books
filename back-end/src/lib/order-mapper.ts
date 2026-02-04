@@ -135,6 +135,9 @@ export async function mapSupabaseOrderToOrder(
     lastSkipDetails: record.last_skip_details && typeof record.last_skip_details === 'object' 
       ? record.last_skip_details as { totalApproved: number; skippedByBriaStatus: number; skippedBy2BManifest: number; skippedTotal: number }
       : undefined,
+    // Lifecycle status for archiving system
+    lifecycle_status: record.lifecycle_status || 'active',
+    assumed_delivered_at: toIsoString(record.assumed_delivered_at),
     webhooks: {
       onApprove:
         record.webhook_url ||
