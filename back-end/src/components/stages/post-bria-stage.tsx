@@ -25,6 +25,31 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   useEffect(() => {
     setApproveStageConfirmed(!!isApproved);
   }, [isApproved]);
+
+  /**
+   * Cache-busting for admin review images.
+   * - Purpose: keep images in sync with R2 even when keys are overwritten.
+   * - Strategy: prefer order.updatedAt (changes on replace); otherwise bump every 30s.
+   */
+  const [assetBustTick, setAssetBustTick] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setAssetBustTick(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  function getBustToken(): string {
+    const updatedAtMs = order?.updatedAt ? Date.parse(order.updatedAt) : 0;
+    // Include both so we refresh on replace (updatedAt) and periodically (tick).
+    return `${Number.isFinite(updatedAtMs) ? updatedAtMs : 0}-${assetBustTick}`;
+  }
+
+  function withCacheBust(url: string, token: string): string {
+    const u = String(url || '').trim();
+    if (!u) return u;
+    // Replace existing v=... if present; otherwise append.
+    if (/[?&]v=/.test(u)) return u.replace(/([?&])v=[^&]*/g, `$1v=${token}`);
+    return `${u}${u.includes('?') ? '&' : '?'}v=${token}`;
+  }
   
   // Initialize with empty state - will be populated from R2 data
   const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number; comparisonMode?: 'reference' | 'background' | null; comparisonImageUrl?: string; comparisonLabel?: string; poseNumber?: number; pageNumber?: number; onFlip?: () => void; isFlipping?: boolean }>>([]);
@@ -110,18 +135,22 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   useEffect(() => {
     // Calculate stable key from actual data - include isFlagged and needsReview to detect flag changes
     // Also include a timestamp from the URL's cache-busting parameter to detect replacements
-    const currentKey = JSON.stringify(posesBgRemoved.map(p => {
-      // Extract cache-busting timestamp from URL if present
-      const urlTimestamp = p.url?.match(/[?&]v=(\d+)/)?.[1] || '';
-      return { 
-        poseNumber: p.poseNumber, 
-        url: p.url, 
-        urlTimestamp: urlTimestamp, // Include timestamp to detect URL changes
-        isMissing: p.isMissing,
-        isFlagged: p.isFlagged,
-        needsReview: p.needsReview
-      };
-    }));
+    const currentKey = JSON.stringify({
+      updatedAt: order?.updatedAt || '',
+      bustToken: getBustToken(),
+      poses: posesBgRemoved.map(p => {
+        // Extract cache-busting timestamp from URL if present
+        const urlTimestamp = p.url?.match(/[?&]v=(\d+)/)?.[1] || '';
+        return {
+          poseNumber: p.poseNumber,
+          url: p.url,
+          urlTimestamp: urlTimestamp, // Include timestamp to detect URL changes
+          isMissing: p.isMissing,
+          isFlagged: p.isFlagged,
+          needsReview: p.needsReview
+        };
+      })
+    });
     
     // Only update if the key actually changed
     if (currentKey === prevKeyRef.current) {
@@ -177,6 +206,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       // Fetch URLs first, then map poses
       // Note: Flags are now loaded directly from manifest in a separate useEffect, so we just use manuallyFlaggedRef here
       fetchBackgroundUrls().then(() => {
+        const bust = getBustToken();
         
         // Now map poses with cached URLs
         const mappedPoses = posesBgRemoved.map((pose) => {
@@ -201,7 +231,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         return {
           id: poseId,
           name: `Pose ${poseNumber} (BG Removed)${isMissing ? ' (Missing)' : ''}`,
-          url: pose.url || '',
+          url: withCacheBust(pose.url || '', bust),
           isFlagged: shouldBeFlagged, // Respect user unflag decisions
           hasTransparentBackground: true,
           isMissing: isMissing,
@@ -214,8 +244,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           comparisonLabel: 'Page Background',
           poseNumber: poseNumber,
           pageNumber: pageNumber ?? undefined,
-          // Flip handler - pass the URL directly to avoid stale closure issues
-          onFlip: () => handleFlip(poseId, poseNumber, pose.url || ''),
+          // Flip handler - pass the (cache-busted) URL directly to avoid stale closure issues
+          onFlip: () => handleFlip(poseId, poseNumber, withCacheBust(pose.url || '', bust)),
           isFlipping: flippingPoseId === poseId
         };
         });
@@ -226,7 +256,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [posesBgRemoved, orderId, flippingPoseId]); // Include flippingPoseId to update isFlipping state
+  }, [posesBgRemoved, orderId, flippingPoseId, assetBustTick]); // include tick to keep images live
 
   const handleFlip = async (assetId: string, poseNumber: number, imageUrlParam?: string) => {
     console.log('[PostBriaStage] handleFlip called with assetId:', assetId, 'poseNumber:', poseNumber, 'imageUrlParam:', imageUrlParam);

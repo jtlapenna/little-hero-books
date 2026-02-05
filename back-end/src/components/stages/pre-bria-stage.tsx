@@ -17,6 +17,31 @@ interface PreBriaStageProps {
 }
 
 export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh, onOrderUpdate }: PreBriaStageProps) {
+  /**
+   * Cache-busting for admin review images.
+   * - Purpose: keep images in sync with R2 even when keys are overwritten.
+   * - Strategy: prefer order.updatedAt (changes on replace); otherwise bump every 30s.
+   */
+  const [assetBustTick, setAssetBustTick] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setAssetBustTick(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  function getBustToken(): string {
+    const updatedAtMs = order?.updatedAt ? Date.parse(order.updatedAt) : 0;
+    // Include both so we refresh on replace (updatedAt) and periodically (tick).
+    return `${Number.isFinite(updatedAtMs) ? updatedAtMs : 0}-${assetBustTick}`;
+  }
+
+  function withCacheBust(url: string, token: string): string {
+    const u = String(url || '').trim();
+    if (!u) return u;
+    // Replace existing v=... if present; otherwise append.
+    if (/[?&]v=/.test(u)) return u.replace(/([?&])v=[^&]*/g, `$1v=${token}`);
+    return `${u}${u.includes('?') ? '&' : '?'}v=${token}`;
+  }
+
   // Initialize with empty state - will be populated from R2 data
   const [baseCharacter, setBaseCharacter] = useState({
     id: 'base-character',
@@ -139,8 +164,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         Object.keys(revisions).forEach((poseKey) => {
           const revision = revisions[poseKey];
           if (revision?.r2Key && revision?.status === 'completed') {
-            // Prefer Cloudflare Images URL if available, otherwise use R2 URL
-            const previewUrl = revision.cloudflareImageUrl || `/api/assets/${revision.r2Key}`;
+            // Prefer Cloudflare Images URL if available, otherwise use R2 URL. Always cache-bust.
+            const previewUrlRaw = revision.cloudflareImageUrl || `/api/assets/${revision.r2Key}`;
+            const previewUrl = withCacheBust(previewUrlRaw, getBustToken());
             revisionsMap[poseKey] = {
               r2Key: revision.r2Key,
               previewUrl
@@ -205,6 +231,8 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   // This prevents infinite loops when order object reference changes but data is the same
   const r2Assets = order?.r2Assets;
   const r2AssetsKey = r2Assets ? JSON.stringify({
+    updatedAt: order?.updatedAt || '',
+    assetBustTick,
     baseCharacterUrl: r2Assets.baseCharacter?.url || '',
     posesCount: r2Assets.poses?.length || 0,
     poses: r2Assets.poses?.map(p => ({ poseNumber: p.poseNumber, url: p.url, isMissing: p.isMissing, isFlagged: p.isFlagged, needsReview: p.needsReview })) || []
@@ -220,12 +248,13 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     console.log('[PreBriaStage] Processing r2Assets, poses count:', r2Assets.poses?.length);
     
     // Update base character if available
+    const bust = getBustToken();
     if (r2Assets.baseCharacter && r2Assets.baseCharacter.url) {
       console.log('[PreBriaStage] Setting base character:', r2Assets.baseCharacter.url.substring(0, 60));
       setBaseCharacter({
         id: 'base-character',
         name: 'Base Character',
-        url: r2Assets.baseCharacter.url,
+        url: withCacheBust(r2Assets.baseCharacter.url, bust),
         isFlagged: false,
         hasTransparentBackground: false
       });
@@ -296,7 +325,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         return {
           id: poseId,
           name: `Pose ${poseNumber}${isMissing ? ' (Missing)' : ''}`,
-          url: pose.url || '',
+          url: withCacheBust(pose.url || '', bust),
           isFlagged: shouldBeFlagged, // Respect user unflag decisions
           hasTransparentBackground: false,
           isMissing: isMissing,
@@ -318,8 +347,8 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             // Note: The actual modal opening is handled by AssetGrid when the badge is clicked
             // We just need to ensure the asset has the pendingRevisionUrl set (which it does)
           } : undefined,
-          // Flip handler - pass the URL directly to avoid stale closure issues
-          onFlip: () => handleFlip(poseId, poseNumber, pose.url || ''),
+          // Flip handler - pass the (cache-busted) URL directly to avoid stale closure issues
+          onFlip: () => handleFlip(poseId, poseNumber, withCacheBust(pose.url || '', bust)),
           isFlipping: flippingPoseId === poseId
         };
       });

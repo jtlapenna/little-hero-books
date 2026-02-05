@@ -668,23 +668,28 @@ export function PostPdfStage({
                     return url.startsWith('https://imagedelivery.net/') && url.split('/').length >= 5;
                   };
                   
-                  // Prefer R2 proxy URLs over Cloudflare Images for admin preview so we do NOT show
-                  // Cloudflare's PROOF watermark. Cloudflare Images variants can add PROOF overlay;
-                  // R2 preview-images are the actual rendered PNGs from W3.
+                  /**
+                   * Pseudocode (preview URL selection)
+                   * - Prefer Cloudflare Images URL (smaller, CDN-served; avoids large PNG proxy truncation)
+                   * - Else use R2 proxy URL (/api/assets/...) when available
+                   * - Else construct a last-resort R2 proxy URL from page number
+                   */
                   let imageUrl: string;
-                  // Priority 1: Use R2 proxy URL when we have r2Key or /api/assets/ imageUrl (no PROOF overlay)
-                  if (img.r2Key) {
+
+                  // Priority 1: Cloudflare Images (down-res) for reliable admin preview display
+                  // Note: We still keep r2Key for downloads and replacements.
+                  if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
+                    imageUrl = withBust(cloudflareImageUrl);
+                    console.log(`[Pages] Page ${img.pageNumber}: ✅ Using Cloudflare Images for preview:`, imageUrl.substring(0, 80) + '...');
+                  }
+                  // Priority 2: R2 proxy URL
+                  else if (img.r2Key) {
                     imageUrl = withBust(`/api/assets/${img.r2Key}`);
-                    console.log(`[Pages] Page ${img.pageNumber}: ✅ Using R2 URL (no PROOF overlay):`, imageUrl.substring(0, 80) + '...');
+                    console.log(`[Pages] Page ${img.pageNumber}: Using R2 URL:`, imageUrl.substring(0, 80) + '...');
                   }
                   else if (img.imageUrl && img.imageUrl.startsWith('/api/assets/') && !img.imageUrl.includes('imagedelivery.net')) {
                     imageUrl = withBust(img.imageUrl);
-                    console.log(`[Pages] Page ${img.pageNumber}: ✅ Using R2 imageUrl (no PROOF overlay):`, imageUrl.substring(0, 80) + '...');
-                  }
-                  // Priority 2: Fall back to Cloudflare Images only when R2 not available
-                  else if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
-                    imageUrl = withBust(cloudflareImageUrl);
-                    console.log(`[Pages] Page ${img.pageNumber}: ⚠️ Using Cloudflare Images (R2 not available):`, imageUrl.substring(0, 80) + '...');
+                    console.log(`[Pages] Page ${img.pageNumber}: Using R2 imageUrl:`, imageUrl.substring(0, 80) + '...');
                   }
                   // Priority 3: Extract r2Key from imageUrl or construct from page number
                   else {
