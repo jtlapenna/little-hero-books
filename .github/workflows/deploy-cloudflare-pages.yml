@@ -36,6 +36,8 @@ jobs:
       - name: Build
         run: |
           cd back-end
+          # Purpose: ensure the step fails if `npm run pages:build` fails (even when piped to `tee`)
+          set -o pipefail
           echo "🔨 Starting build..."
           echo "Current directory: $(pwd)"
           echo "Checking for open-next.config.js:"
