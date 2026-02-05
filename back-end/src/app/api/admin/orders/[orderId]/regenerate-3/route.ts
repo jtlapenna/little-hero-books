@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
  * Clears from 3 manifest:
  * - finalBookUrl, finalCoverUrl
  * 
- * Clears Supabase: manifest_3_url, final_book_url, final_cover_url
+ * Rewinds DB state so W1.1 routes to 3 (not 4): workflow_step, manifest_3_url, final_*_url cleared.
  * 
  * Triggers workflow: Sets next_workflow: '3', execution_status: 'ready_for_processing'
  */
@@ -48,48 +48,7 @@ export async function POST(
   }
 
   try {
-    /**
-     * Update order row directly (avoid `.single()` update path).
-     * `updateOrderInSupabase` uses `.select().single()` which can throw even if the UPDATE applied
-     * (e.g. response shape / multiple rows). For admin "regenerate" we want a best-effort, reliable update.
-     */
-    const parseMissingColumn = (err: any): string | null => {
-      const details = String(err?.details || err?.message || '');
-      // Example: "Could not find the 'final_cover_url' column of 'orders' in the schema cache"
-      const m = details.match(/Could not find the '([^']+)' column/i) || details.match(/'([^']+)'\s+column/i);
-      return m?.[1] ? String(m[1]) : null;
-    };
-
-    const updateOrderRowResilient = async (amazonOrderId: string, updateData: Record<string, unknown>) => {
-      // Copy so we can progressively drop unknown columns based on PostgREST errors.
-      const dataToUpdate: Record<string, unknown> = { ...updateData };
-      let lastError: any = null;
-
-      for (let i = 0; i < 6; i++) {
-        const { data, error } = await supabase
-          .from('orders')
-          .update(dataToUpdate)
-          .eq('amazon_order_id', amazonOrderId)
-          .select('id');
-
-        if (!error) {
-          if (!data || data.length === 0) throw new Error(`Order not found for update: ${amazonOrderId}`);
-          return;
-        }
-
-        lastError = error;
-        const code = String(error?.code || '');
-        const missingCol = (code === 'PGRST204' || code === '42703') ? parseMissingColumn(error) : null;
-        if (!missingCol || !(missingCol in dataToUpdate)) throw error;
-
-        // Drop the missing column and retry (supports differing schemas across environments)
-        delete dataToUpdate[missingCol];
-      }
-
-      throw lastError || new Error('Failed to update order (unknown error)');
-    };
-
-    // Get current order to preserve review_stages
+    // Get current order to preserve review_stages and get numeric id / amazon_order_id
     const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
     if (!currentOrder) {
       return NextResponse.json(
@@ -98,8 +57,45 @@ export async function POST(
       );
     }
 
-    // Download 3 manifest if it exists
-    const manifest3Key = buildManifestKey(orderId, '3');
+    const orderRowId = Number(currentOrder.id);
+    if (!Number.isFinite(orderRowId)) {
+      return NextResponse.json(
+        { error: 'Order row is missing numeric id (cannot queue regenerate safely)' },
+        { status: 500 }
+      );
+    }
+
+    const parseMissingColumn = (err: unknown): string | null => {
+      const details = String((err as { details?: string; message?: string })?.details || (err as { message?: string })?.message || '');
+      const m = details.match(/Could not find the '([^']+)' column/i) || details.match(/'([^']+)'\s+column/i);
+      return m?.[1] ? String(m[1]) : null;
+    };
+    const updateOrderRowResilientById = async (id: number, updateData: Record<string, unknown>) => {
+      let dataToUpdate: Record<string, unknown> = { ...updateData };
+      let lastError: unknown = null;
+      for (let i = 0; i < 8; i++) {
+        const { data, error } = await supabase
+          .from('orders')
+          .update(dataToUpdate)
+          .eq('id', id)
+          .select('id');
+        if (!error) {
+          if (!data || data.length === 0) throw new Error(`Order not found for update (id=${id})`);
+          return;
+        }
+        lastError = error;
+        const code = String((error as { code?: string })?.code || '');
+        const missingCol = (code === 'PGRST204' || code === '42703') ? parseMissingColumn(error) : null;
+        if (!missingCol || !(missingCol in dataToUpdate)) throw error;
+        dataToUpdate = { ...dataToUpdate };
+        delete dataToUpdate[missingCol];
+      }
+      throw lastError ?? new Error('Failed to update order');
+    };
+
+    const amazonOrderId = (currentOrder as { amazon_order_id?: string }).amazon_order_id ?? orderId.trim();
+    // Download 3 manifest if it exists — use amazon_order_id for R2 key
+    const manifest3Key = buildManifestKey(amazonOrderId, '3');
     let manifest3: any = null;
     let manifest3Modified = false;
     try {
@@ -162,11 +158,12 @@ export async function POST(
       current_workflow: null,
       // Clear outputs so downstream logic doesn’t treat assembly as already complete
       manifest_3_url: '',
+      workflow_step: '2B-complete',
       final_book_url: '',
       // Some schemas use `cover_image_url` instead of `final_cover_url` (or may not have `final_cover_url`)
       final_cover_url: '',
       cover_image_url: '',
-      // Preserve review stages
+      status: 'queued_for_processing',
       review_stages,
       // Clear any error/retry state that might prevent routing
       error_message: null,
@@ -178,10 +175,9 @@ export async function POST(
       updated_at: queuedAt,
     };
 
-    await updateOrderRowResilient(orderId.trim(), updateData);
-    console.log(`[Regenerate 3] ✅ Queued ${orderId} for router at ${queuedAt}`);
-
-    console.log(`[Regenerate 3] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
+    await updateOrderRowResilientById(orderRowId, updateData);
+    console.log(`[Regenerate 3] ✅ Queued ${amazonOrderId} (id=${orderRowId}) for router at ${queuedAt}`);
+    console.log(`[Regenerate 3] Order ${amazonOrderId} queued for router. Router will pick it up on next cron run.`);
 
     return NextResponse.json({
       success: true,

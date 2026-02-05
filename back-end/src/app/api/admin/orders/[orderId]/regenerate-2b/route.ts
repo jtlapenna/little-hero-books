@@ -93,7 +93,7 @@ export async function POST(
       throw lastError || new Error('Failed to update order (unknown error)');
     };
 
-    // Get current order to preserve review_stages
+    // Get current order to preserve review_stages and get amazon_order_id for R2 keys
     const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
     if (!currentOrder) {
       return NextResponse.json(
@@ -102,8 +102,9 @@ export async function POST(
       );
     }
 
-    // Download 2A manifest (source)
-    const manifest2aKey = buildManifestKey(orderId, '2a');
+    const amazonOrderId = (currentOrder as { amazon_order_id?: string }).amazon_order_id ?? orderId.trim();
+    // Download 2A manifest (source) — use amazon_order_id for R2 key
+    const manifest2aKey = buildManifestKey(amazonOrderId, '2a');
     let manifest2a: any = null;
     let manifest2aModified = false;
     try {
@@ -124,7 +125,7 @@ export async function POST(
     }
 
     // Download 2B manifest if it exists
-    const manifest2bKey = buildManifestKey(orderId, '2b');
+    const manifest2bKey = buildManifestKey(amazonOrderId, '2b');
     let manifest2b: any = null;
     let manifest2bModified = false;
     try {
@@ -192,7 +193,14 @@ export async function POST(
 
     // Preserve review_stages exactly as-is. Regenerate should only queue routing fields.
     // (Do not auto-approve/reset stages here; that can be process-breaking.)
-    const review_stages: any = currentOrder.review_stages || {};
+    let review_stages: unknown = (currentOrder as { review_stages?: unknown }).review_stages || {};
+    if (typeof review_stages === 'string') {
+      try {
+        review_stages = JSON.parse(review_stages);
+      } catch {
+        review_stages = {};
+      }
+    }
 
     // Queue order for router (w1.1) to pick up and route to 2B.
     // IMPORTANT:
@@ -250,7 +258,7 @@ export async function POST(
       );
     }
 
-    console.log(`[Regenerate 2B] Order ${orderId} queued for router. Router will pick it up on next cron run.`);
+    console.log(`[Regenerate 2B] Order ${amazonOrderId} queued for router. Router will pick it up on next cron run.`);
 
     return NextResponse.json({
       success: true,
