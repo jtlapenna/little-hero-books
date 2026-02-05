@@ -46,13 +46,14 @@
 - Backend CORS allows frontend origin for `/api/checkout/create` and `/api/preview/*`
 Completed: approve page uses env-driven API base; .env.example docs updated for both frontend and backend.
 
-### 3) Shipping options (mirror Lulu) + payments reflect shipping (Task 2)
+### 3) ~~Shipping options (mirror Lulu) + payments reflect shipping (Task 2)~~ DONE
 **Why now:** Payment totals must be correct before any live Stripe testing.
 
 **Acceptance:**
 - Shipping level selector exists in checkout
 - Selected shipping level affects Stripe amount
 - Values mirror Lulu offerings (US-only)
+Completed: Shipping selector in checkout with 5 levels (Economy, Ground, Priority Mail, Expedited, Express). Selected tier updates Stripe checkout total. Labels renamed for clarity. Order summary sticky on desktop.
 
 ### 4) Fix order status lookup: DB column mismatch + optional verification (Task 7)
 **Why now:** After checkout, customers need a reliable “what’s happening” path.
