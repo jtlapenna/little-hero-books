@@ -5,11 +5,23 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { load, save, clear } from '../../../lib/createFlow/createFlowStorage';
-import type { CreateFlowState, CreateFlowCheckoutShipping } from '../../../lib/createFlow/createFlowSchema';
+import type { CreateFlowState, CreateFlowCheckoutShipping, ShippingTierId } from '../../../lib/createFlow/createFlowSchema';
 import { isCharacterStepComplete } from '../../../lib/createFlow/createFlowSelectors';
 
 /** Backend base URL for API calls. */
 const API_BASE = (import.meta as { env?: { PUBLIC_BACKEND_URL?: string } }).env?.PUBLIC_BACKEND_URL ?? '';
+
+/** Book price (cents). Must match backend DEFAULT_AMOUNT_CENTS. */
+const BOOK_PRICE_CENTS = 2999;
+
+/** Shipping options (rounded customer-facing prices). Match backend SHIPPING_CENTS_BY_TIER. */
+const SHIPPING_OPTIONS: { id: ShippingTierId; label: string; priceCents: number; estimate: string }[] = [
+  { id: 'mail', label: 'Mail', priceCents: 599, estimate: '11–13 business days' },
+  { id: 'ground_home', label: 'Ground Home', priceCents: 1299, estimate: '9–11 business days' },
+  { id: 'priority_mail', label: 'Priority Mail', priceCents: 1499, estimate: '9–11 business days' },
+  { id: 'expedited', label: 'Expedited Shipping', priceCents: 2099, estimate: '6–8 business days' },
+  { id: 'express', label: 'Express Shipping', priceCents: 3099, estimate: '5–7 business days' },
+];
 
 /** US states for dropdown. */
 const US_STATES = [
@@ -62,6 +74,7 @@ function CheckoutForm() {
     zip: '',
     country: 'US',
   });
+  const [shippingTier, setShippingTier] = useState<ShippingTierId>('mail');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -79,11 +92,25 @@ function CheckoutForm() {
     if (loaded.checkout?.shipping) {
       setShipping((prev) => ({ ...prev, ...loaded.checkout?.shipping }));
     }
+    const validTiers: ShippingTierId[] = ['mail', 'ground_home', 'priority_mail', 'expedited', 'express'];
+    if (loaded.checkout?.shippingTier && validTiers.includes(loaded.checkout.shippingTier)) {
+      setShippingTier(loaded.checkout.shippingTier);
+    }
   }, []);
 
   // Persist checkout data on change
-  const persistCheckout = useCallback((checkoutEmail: string, checkoutShipping: CreateFlowCheckoutShipping) => {
-    save({ checkout: { email: checkoutEmail, shipping: checkoutShipping } });
+  const persistCheckout = useCallback((
+    checkoutEmail: string,
+    checkoutShipping: CreateFlowCheckoutShipping,
+    checkoutShippingTier?: ShippingTierId
+  ) => {
+    save({
+      checkout: {
+        email: checkoutEmail,
+        shipping: checkoutShipping,
+        ...(checkoutShippingTier !== undefined && { shippingTier: checkoutShippingTier }),
+      },
+    });
   }, []);
 
   // Validate all fields
@@ -107,7 +134,7 @@ function CheckoutForm() {
   const handleBlur = (field: string) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
     setErrors(validate());
-    persistCheckout(email, shipping);
+    persistCheckout(email, shipping, shippingTier);
   };
 
   // Handle email change
@@ -120,6 +147,12 @@ function CheckoutForm() {
   const handleShippingChange = (field: keyof CreateFlowCheckoutShipping, value: string) => {
     setShipping((prev) => ({ ...prev, [field]: value }));
     if (touched[field]) setErrors(validate());
+  };
+
+  // Handle delivery method change
+  const handleShippingTierChange = (tier: ShippingTierId) => {
+    setShippingTier(tier);
+    persistCheckout(email, shipping, tier);
   };
 
   // Handle form submit
@@ -166,6 +199,7 @@ function CheckoutForm() {
           childName: state.character.name,
         },
         dedication: state.book?.dedication || undefined,
+        shipping_tier: shippingTier,
       };
 
       const response = await fetch(`${API_BASE}/api/checkout/create`, {
@@ -370,6 +404,33 @@ function CheckoutForm() {
             </div>
           </section>
 
+          {/* Delivery Method */}
+          <section className="checkout-form__section">
+            <h2 className="checkout-form__section-title">Delivery Method</h2>
+            <p className="checkout-form__section-note">Currently shipping to US addresses only.</p>
+            <div className="checkout-form__shipping-options" role="radiogroup" aria-label="Delivery method">
+              {SHIPPING_OPTIONS.map((opt) => (
+                <label
+                  key={opt.id}
+                  className={`checkout-form__shipping-option ${shippingTier === opt.id ? 'checkout-form__shipping-option--selected' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="shipping-tier"
+                    value={opt.id}
+                    checked={shippingTier === opt.id}
+                    onChange={() => handleShippingTierChange(opt.id)}
+                    disabled={isSubmitting}
+                    className="checkout-form__shipping-radio"
+                  />
+                  <span className="checkout-form__shipping-option-label">{opt.label}</span>
+                  <span className="checkout-form__shipping-option-estimate">{opt.estimate}</span>
+                  <span className="checkout-form__shipping-option-price">${(opt.priceCents / 100).toFixed(2)}</span>
+                </label>
+              ))}
+            </div>
+          </section>
+
           {/* Submit error */}
           {errors.submit && (
             <div className="checkout-form__submit-error" role="alert">
@@ -423,9 +484,21 @@ function CheckoutForm() {
                 )}
               </div>
             </div>
+            <div className="checkout-form__summary-lines">
+              <div className="checkout-form__summary-line">
+                <span>Little Hero Book</span>
+                <span>${(BOOK_PRICE_CENTS / 100).toFixed(2)}</span>
+              </div>
+              <div className="checkout-form__summary-line">
+                <span>Shipping — {SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.label ?? 'Mail'}</span>
+                <span>${((SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.priceCents ?? 599) / 100).toFixed(2)}</span>
+              </div>
+            </div>
             <div className="checkout-form__summary-total">
               <span>Total</span>
-              <span className="checkout-form__summary-price">$29.99</span>
+              <span className="checkout-form__summary-price">
+                ${((BOOK_PRICE_CENTS + (SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.priceCents ?? 599)) / 100).toFixed(2)}
+              </span>
             </div>
           </div>
         </aside>
@@ -532,6 +605,50 @@ function CheckoutForm() {
         .checkout-form__summary-price {
           font-size: 1.125rem;
         }
+        .checkout-form__summary-lines {
+          padding: var(--spacing-sm) 0;
+          border-top: 1px solid rgba(45,49,66,0.08);
+        }
+        .checkout-form__summary-line {
+          display: flex;
+          justify-content: space-between;
+          font-family: var(--font-ui);
+          font-size: 0.875rem;
+          color: var(--color-soft-charcoal);
+          margin-bottom: 0.25rem;
+        }
+        .checkout-form__summary-line:last-child { margin-bottom: 0; }
+        
+        /* Delivery method options */
+        .checkout-form__shipping-options {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+        .checkout-form__shipping-option {
+          display: grid;
+          grid-template-columns: auto 1fr auto auto;
+          align-items: center;
+          gap: var(--spacing-sm) var(--spacing-md);
+          padding: var(--spacing-md);
+          border: 2px solid rgba(45,49,66,0.15);
+          border-radius: 10px;
+          cursor: pointer;
+          font-family: var(--font-ui);
+          transition: border-color 0.2s, background 0.2s;
+        }
+        .checkout-form__shipping-option:hover {
+          border-color: var(--color-teal, #5AC6B1);
+          background: rgba(90,198,177,0.06);
+        }
+        .checkout-form__shipping-option--selected {
+          border-color: var(--color-teal, #5AC6B1);
+          background: rgba(90,198,177,0.08);
+        }
+        .checkout-form__shipping-radio { accent-color: var(--color-teal, #5AC6B1); }
+        .checkout-form__shipping-option-label { font-weight: 600; color: var(--color-navy-midnight); }
+        .checkout-form__shipping-option-estimate { font-size: 0.875rem; color: var(--color-soft-charcoal); }
+        .checkout-form__shipping-option-price { font-weight: 600; color: var(--color-navy-midnight); }
         
         /* Form sections */
         .checkout-form__section {

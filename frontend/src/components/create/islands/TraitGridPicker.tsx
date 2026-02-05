@@ -45,7 +45,7 @@ export function TraitGridPicker({ options, value, onChange, name, label }: Trait
                 <img
                   src={opt.imageUrl}
                   alt=""
-                  className="trait-grid-picker__img"
+                  className={`trait-grid-picker__img${opt.id === 'dog' || opt.id === 'penguin' ? ' trait-grid-picker__img--flip' : ''}`}
                   loading="lazy"
                   onError={(e) => {
                     const el = e.target as HTMLImageElement;
@@ -77,6 +77,7 @@ export function TraitGridPicker({ options, value, onChange, name, label }: Trait
         .trait-grid-picker__option--selected { border-color: var(--color-teal, #5AC6B1); box-shadow: 0 0 0 2px var(--color-teal, #5AC6B1); }
         @media (prefers-reduced-motion: reduce) { .trait-grid-picker__option { transition: none; } }
         .trait-grid-picker__img { width: 150px; height: 150px; object-fit: contain; margin-bottom: 8px; }
+        .trait-grid-picker__img--flip { transform: scaleX(-1); }
         .trait-grid-picker__placeholder { width: 150px; height: 150px; background: var(--color-soft-charcoal, #333); opacity: 0.2; border-radius: 10px; margin-bottom: 8px; }
         .trait-grid-picker__label { font-family: var(--font-ui); font-size: 0.9375rem; text-align: center; color: var(--color-soft-charcoal, #333); }
         .trait-grid-picker__check { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; background: var(--color-teal, #5AC6B1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.125rem; font-weight: 700; }

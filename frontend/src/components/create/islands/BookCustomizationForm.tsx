@@ -92,7 +92,7 @@ function BookCustomizationForm() {
                 <img
                   src={`/animals/${state.character.favoriteAnimal}.png`}
                   alt={`${formatAnimalName(state.character.favoriteAnimal)} guide`}
-                  className="book-customization__summary-animal-img"
+                  className={`book-customization__summary-animal-img${state.character.favoriteAnimal === 'dog' || state.character.favoriteAnimal === 'penguin' ? ' book-customization__summary-animal-img--flip' : ''}`}
                 />
               )}
             </div>
@@ -220,6 +220,9 @@ function BookCustomizationForm() {
           height: 83px;
           object-fit: contain;
           margin-left: -40px;
+        }
+        .book-customization__summary-animal-img--flip {
+          transform: scaleX(-1);
         }
         
         /* Dedication section */

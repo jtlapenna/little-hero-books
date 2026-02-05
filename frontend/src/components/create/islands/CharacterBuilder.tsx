@@ -25,6 +25,8 @@ import { PreviewPanel, type PreviewPanelStatus } from './PreviewPanel';
 
 const PREVIEW_CAP = 3;
 const PREVIEW_TIMEOUT_MS = 90000;
+/** Timeout for cache-check request so we don't hang if backend is unreachable */
+const PREVIEW_CHECK_TIMEOUT_MS = 10000;
 
 /** Backend base URL for API calls (empty = same origin). Set PUBLIC_BACKEND_URL in dev if frontend/backend differ. */
 const API_BASE = (import.meta as { env?: { PUBLIC_BACKEND_URL?: string } }).env?.PUBLIC_BACKEND_URL ?? '';
@@ -43,18 +45,21 @@ interface PreviewResult {
  */
 async function checkPreviewCache(character: CreateFlowCharacter): Promise<{ exists: boolean; imageUrl?: string; hash?: string }> {
   const url = `${API_BASE}/api/preview/check`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PREVIEW_CHECK_TIMEOUT_MS);
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ character_specs: character }),
+      signal: controller.signal,
     });
-    
+    clearTimeout(timeoutId);
     if (!res.ok) return { exists: false };
-    
     const data = await res.json() as { exists: boolean; imageUrl?: string; hash?: string };
     return data;
   } catch {
+    clearTimeout(timeoutId);
     return { exists: false };
   }
 }
@@ -189,9 +194,7 @@ function CharacterBuilder() {
     
     checkPreviewCache(state.character).then((result) => {
       cacheCheckInProgressRef.current = false;
-      
       if (result.exists && result.imageUrl) {
-        // Cache hit - display immediately
         const imageUrl = result.imageUrl.startsWith('http') ? result.imageUrl : `${API_BASE}${result.imageUrl}`;
         persist({
           preview: {
@@ -203,9 +206,11 @@ function CharacterBuilder() {
           },
         });
       } else {
-        // No cache - show generate button
         persist({ preview: { status: 'none', generationCount: state.preview?.generationCount ?? 0 } });
       }
+    }).catch(() => {
+      cacheCheckInProgressRef.current = false;
+      persist({ preview: { status: 'none', generationCount: state.preview?.generationCount ?? 0 } });
     });
   }, [state?.character.skinTone, state?.character.hairStyle, state?.character.hairColor, state?.character.favoriteColor, state?.character.pronouns, state, persist]);
 

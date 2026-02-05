@@ -50,6 +50,26 @@ const ShippingAddressSchema = z.object({
   country: z.string().min(1),
 });
 
+const SHIPPING_TIER_ENUM = z.enum(['mail', 'ground_home', 'priority_mail', 'expedited', 'express']);
+export type ShippingTier = z.infer<typeof SHIPPING_TIER_ENUM>;
+
+/** Rounded customer-facing shipping prices (cents). Labels for Stripe line item. */
+const SHIPPING_CENTS_BY_TIER: Record<ShippingTier, number> = {
+  mail: 599,
+  ground_home: 1299,
+  priority_mail: 1499,
+  expedited: 2099,
+  express: 3099,
+};
+
+const SHIPPING_LABEL_BY_TIER: Record<ShippingTier, string> = {
+  mail: 'Mail',
+  ground_home: 'Ground Home',
+  priority_mail: 'Priority Mail',
+  expedited: 'Expedited Shipping',
+  express: 'Express Shipping',
+};
+
 const BodySchema = z.object({
   shipping_address: ShippingAddressSchema,
   customer_email: z.string().email(),
@@ -65,6 +85,7 @@ const BodySchema = z.object({
   ),
   dedication: z.string().optional(),
   product_info: z.record(z.unknown()).optional(),
+  shipping_tier: SHIPPING_TIER_ENUM.optional().default('mail'),
 });
 
 const DEFAULT_AMOUNT_CENTS = 2999; // $29.99
@@ -194,7 +215,11 @@ export async function POST(request: NextRequest) {
         throw new Error('Payment configuration error');
       }
 
-      const amountCents = parseInt(process.env.D2C_CHECKOUT_AMOUNT_CENTS ?? '', 10) || DEFAULT_AMOUNT_CENTS;
+      const bookCents = parseInt(process.env.D2C_CHECKOUT_AMOUNT_CENTS ?? '', 10) || DEFAULT_AMOUNT_CENTS;
+      const shippingTier = parsed.shipping_tier as ShippingTier;
+      const shippingCents = SHIPPING_CENTS_BY_TIER[shippingTier];
+      const shippingLabel = SHIPPING_LABEL_BY_TIER[shippingTier];
+
       const stripe = new Stripe(stripeSecretKey);
 
       const successUrl = `${frontendOrigin}/create/processing?order_id=${encodeURIComponent(order_id)}`;
@@ -207,10 +232,21 @@ export async function POST(request: NextRequest) {
             quantity: 1,
             price_data: {
               currency: 'usd',
-              unit_amount: amountCents,
+              unit_amount: bookCents,
               product_data: {
                 name: 'Little Hero Book — Personalized Children\'s Book',
                 description: 'Custom storybook starring your child as the hero.',
+              },
+            },
+          },
+          {
+            quantity: 1,
+            price_data: {
+              currency: 'usd',
+              unit_amount: shippingCents,
+              product_data: {
+                name: `Shipping — ${shippingLabel}`,
+                description: 'Delivery to your address.',
               },
             },
           },
