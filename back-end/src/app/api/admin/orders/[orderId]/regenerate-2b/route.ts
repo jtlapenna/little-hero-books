@@ -28,7 +28,8 @@ export async function POST(
   // PSEUDOCODE
   // - Load the existing order (by any identifier) so we can update by primary key (id)
   // - Clear 2A/2B manifest per-entry Bria fields (best-effort)
-  // - Queue the order back to router for 2B by updating the same DB row (never insert / never reset workflow_step)
+  // - Rewind downstream pointers so routing targets 2B (not 3/4) even if order previously completed later steps
+  // - Queue the order back to router for 2B by updating the same DB row (never insert)
 
   // Allow same-origin requests (internal admin page) without auth
   const origin = request.headers.get('origin');
@@ -57,6 +58,41 @@ export async function POST(
   }
 
   try {
+    // Purpose: tolerate schema drift (missing columns) by dropping unknown fields and retrying.
+    const parseMissingColumn = (err: any): string | null => {
+      const details = String(err?.details || err?.message || '');
+      const m =
+        details.match(/Could not find the '([^']+)' column/i) ||
+        details.match(/'([^']+)'\s+column/i);
+      return m?.[1] ? String(m[1]) : null;
+    };
+
+    const updateOrderRowResilientById = async (orderRowId: number, updateData: Record<string, unknown>) => {
+      const dataToUpdate: Record<string, unknown> = { ...updateData };
+      let lastError: any = null;
+
+      for (let i = 0; i < 8; i++) {
+        const { data, error } = await supabase
+          .from('orders')
+          .update(dataToUpdate)
+          .eq('id', orderRowId)
+          .select('id');
+
+        if (!error) {
+          if (!data || data.length === 0) throw new Error(`Order not found for update (id=${orderRowId})`);
+          return;
+        }
+
+        lastError = error;
+        const code = String(error?.code || '');
+        const missingCol = (code === 'PGRST204' || code === '42703') ? parseMissingColumn(error) : null;
+        if (!missingCol || !(missingCol in dataToUpdate)) throw error;
+        delete dataToUpdate[missingCol];
+      }
+
+      throw lastError || new Error('Failed to update order (unknown error)');
+    };
+
     // Get current order to preserve review_stages
     const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
     if (!currentOrder) {
@@ -171,36 +207,46 @@ export async function POST(
       );
     }
 
-    const { data, error } = await supabase
-      .from('orders')
-      .update({
-        next_workflow: '2B', // Uppercase '2B' (router expects uppercase)
-        execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
-        queued_at: queuedAt,
-        started_at: null,
-        current_workflow: null,
-        review_stages, // Preserve as-is (JSONB)
-        // Clear any error/retry state that might prevent routing
-        error_message: null,
-        error_type: null,
-        retry_count: 0,
-        last_error_at: null,
-        next_retry_at: null,
-        updated_at: queuedAt,
-      })
-      .eq('id', orderRowId)
-      .select('id');
+    // IMPORTANT: If the order previously completed W3/W4, Supabase may still have manifest_3_url / workflow_step
+    // set. That can cause routing/UX to "stick" at later steps. Rewind these pointers so W1.1 will route to 2B.
+    const updateData: Record<string, unknown> = {
+      next_workflow: '2B', // Uppercase '2B' (router expects uppercase)
+      execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
+      queued_at: queuedAt,
+      started_at: null,
+      current_workflow: null,
+      review_stages, // Preserve as-is (JSONB)
+      // Rewind downstream outputs (best-effort; some schemas store as non-null text)
+      workflow_step: '2A-complete',
+      manifest_2b_url: '',
+      manifest_3_url: '',
+      final_book_url: '',
+      final_cover_url: '',
+      cover_image_url: '',
+      // Make queued state visible (some tools/UI still look at `status`)
+      status: 'queued_for_processing',
+      // Clear any error/retry state that might prevent routing
+      error_message: null,
+      error_type: null,
+      retry_count: 0,
+      last_error_at: null,
+      next_retry_at: null,
+      updated_at: queuedAt,
+    };
 
-    if (error) {
+    await updateOrderRowResilientById(orderRowId, updateData);
+
+    // Fetch updated row fields for verification/debugging in UI
+    const { data: verifyRow, error: verifyError } = await supabase
+      .from('orders')
+      .select('id, status, execution_status, workflow_step, next_workflow, queued_at, started_at, current_workflow, manifest_2b_url, manifest_3_url')
+      .eq('id', orderRowId)
+      .single();
+
+    if (verifyError) {
       return NextResponse.json(
-        { error: 'Failed to queue order for 2B regeneration', details: error.message, code: error.code, hint: error.hint },
+        { error: 'Queued for 2B but failed to verify update', details: verifyError.message, code: verifyError.code, hint: verifyError.hint },
         { status: 500 }
-      );
-    }
-    if (!data || data.length === 0) {
-      return NextResponse.json(
-        { error: 'Order not found for update (no rows affected)' },
-        { status: 404 }
       );
     }
 
@@ -211,7 +257,8 @@ export async function POST(
       orderId,
       message: '2B workflow regeneration queued. Manifests cleared. Router will pick up this order on next cron run.',
       manifest2aCleared: manifest2aModified,
-      manifest2bCleared: manifest2bModified
+      manifest2bCleared: manifest2bModified,
+      queued: verifyRow,
     });
   } catch (error: any) {
     console.error('[Regenerate 2B] Error:', error);
