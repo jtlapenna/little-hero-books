@@ -9,7 +9,14 @@ import { recordRequest } from './stats/route';
  */
 function extractR2Key(url: string): string | null {
   try {
-    const urlObj = new URL(url, 'https://admin.littleherolabs.com');
+    // Normalize common malformed inputs coming from workflow expressions:
+    // - "https:/pub-...r2.dev/..." (missing slash) → "https://pub-...r2.dev/..."
+    // - "http:/..." → "http://..."
+    const normalizedUrl = String(url || '')
+      .trim()
+      .replace(/^(https?):\/(?!\/)/i, '$1://');
+
+    const urlObj = new URL(normalizedUrl, 'https://admin.littleherolabs.com');
     const pathname = urlObj.pathname;
     const hostname = urlObj.hostname || '';
 
