@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
-import { OrderStatus } from '@/constants/statuses';
 
 export const dynamic = 'force-dynamic';
 
@@ -155,24 +154,9 @@ export async function POST(
       console.log(`[Regenerate 2B] Cleared status fields in 2B manifest: ${manifest2bKey}`);
     }
 
-    // Preserve review_stages when updating (and avoid losing preBria approvals)
-    // NOTE: When an admin explicitly regenerates 2B, we treat preBria as approved so the UI/router
-    // doesn't "pull" the order back into the 2A review stage.
-    let review_stages: any = currentOrder.review_stages || {};
-    if (typeof review_stages === 'string') {
-      try {
-        review_stages = JSON.parse(review_stages);
-      } catch {
-        review_stages = {};
-      }
-    }
-    review_stages = {
-      ...(review_stages || {}),
-      preBria: {
-        ...(review_stages?.preBria || {}),
-        status: 'approved',
-      },
-    };
+    // Preserve review_stages exactly as-is. Regenerate should only queue routing fields.
+    // (Do not auto-approve/reset stages here; that can be process-breaking.)
+    const review_stages: any = currentOrder.review_stages || {};
 
     // Queue order for router (w1.1) to pick up and route to 2B.
     // IMPORTANT:
@@ -192,16 +176,10 @@ export async function POST(
       .update({
         next_workflow: '2B', // Uppercase '2B' (router expects uppercase)
         execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
-        status: OrderStatus.QUEUED_FOR_PROCESSING, // Purpose: avoid stale 'new' status after direct updates
         queued_at: queuedAt,
         started_at: null,
         current_workflow: null,
-        review_stages,
-        // Purpose: make UI reflect we intentionally moved the order back to 2B
-        // (and avoid accidental regression to order_intake when workflow_step was never updated).
-        workflow_step: 'ai_generation_completed',
-        // Best-effort: if 2A manifest URL is missing, set canonical key so other logic doesn't regress
-        manifest_2a_url: currentOrder.manifest_2a_url || buildManifestKey(orderId, '2a'),
+        review_stages, // Preserve as-is (JSONB)
         // Clear any error/retry state that might prevent routing
         error_message: null,
         error_type: null,

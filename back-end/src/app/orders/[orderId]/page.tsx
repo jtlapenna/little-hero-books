@@ -111,6 +111,7 @@ export default function OrderDetailPage() {
   const [resettingOrder, setResettingOrder] = useState(false);
   const [normalizingShipping, setNormalizingShipping] = useState(false);
   const [archivingOrder, setArchivingOrder] = useState(false);
+  const [repairingWorkflowStep, setRepairingWorkflowStep] = useState(false);
   const printRequestInProgressRef = useRef(false);
   const rawResetToggle = process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET;
   const enableResetButton =
@@ -851,6 +852,27 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleRepairWorkflowStep = async () => {
+    // Purpose: Repair workflow_step when Supabase is stale (derive from manifests in R2).
+    if (!order) return;
+    if (!confirm("Repair workflow_step from manifests in R2?\n\nThis will:\n- Detect the highest manifest present (3 > 2B > 2A)\n- Update ONLY the workflow_step field in Supabase\n\nThis will NOT:\n- Change next_workflow\n- Change status/execution_status\n- Change manifests/review stages/customer approval")) {
+      return;
+    }
+
+    setRepairingWorkflowStep(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${order.orderId}/repair-workflow-step`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || data?.details || 'Failed to repair workflow_step');
+      alert(`workflow_step repaired:\n\nBefore: ${data.previousWorkflowStep || '(empty)'}\nAfter: ${data.repairedWorkflowStep}`);
+      await fetchOrder(order.orderId);
+    } catch (error: any) {
+      alert(`Failed to repair workflow_step: ${error?.message || 'Unknown error'}`);
+    } finally {
+      setRepairingWorkflowStep(false);
+    }
+  };
+
   const handleResetOrder = async () => {
     if (!order) return;
     const confirmed = window.confirm(
@@ -1064,13 +1086,19 @@ export default function OrderDetailPage() {
           const canShowNormalizeShipping = order.error_type === 'missing_shipping' && 
                                           order.shipping_address && 
                                           typeof order.shipping_address === 'object';
+
+          const canShowRepairWorkflowStep =
+            order.workflowStep === 'order_intake' &&
+            order.status !== OrderStatus.NEW &&
+            !!(order.oneManifestUrl || order.manifest2aUrl || order.manifest2bUrl || order.manifest3Url);
           
           // Only show section if at least one button would be visible
           const hasAnyRecoveryAction = canShowCreate1Manifest || 
                                       canShowCreate2aManifest || 
                                       canShowCreate2bManifest || 
                                       canShowResetButton ||
-                                      canShowNormalizeShipping;
+                                      canShowNormalizeShipping ||
+                                      canShowRepairWorkflowStep;
           
           return hasAnyRecoveryAction;
         })() && (
@@ -1164,9 +1192,7 @@ export default function OrderDetailPage() {
                   }}
                   disabled={resettingOrder}
                   className="inline-flex items-center px-3 py-1.5 border border-yellow-300 rounded-md text-sm font-medium text-yellow-800 bg-white hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                  title={order.executionStatus === 'processing' 
-                    ? 'Reset order stuck in processing state' 
-                    : 'Reset order to ready for processing'}
+                  title="Reset Order: clears processing/error state and re-queues for router cron. Recalculates next_workflow based on current progress. Does NOT change workflow_step, review stages, customer approval, or manifests."
                 >
                   {resettingOrder ? (
                     <>
@@ -1177,6 +1203,34 @@ export default function OrderDetailPage() {
                     <>
                       Reset Order
                     </>
+                  )}
+                </button>
+              )}
+              {(() => {
+                const shouldShow =
+                  order.workflowStep === 'order_intake' &&
+                  order.status !== OrderStatus.NEW &&
+                  !!(order.oneManifestUrl || order.manifest2aUrl || order.manifest2bUrl || order.manifest3Url);
+                return shouldShow;
+              })() && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleRepairWorkflowStep();
+                  }}
+                  disabled={repairingWorkflowStep}
+                  className="inline-flex items-center px-3 py-1.5 border border-blue-300 rounded-md text-sm font-medium text-blue-800 bg-white hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  title="Repair Workflow Step: checks which manifests exist in R2 (3 > 2B > 2A) and updates ONLY workflow_step in Supabase. Use when workflow_step is stale (e.g., stuck at order_intake)."
+                >
+                  {repairingWorkflowStep ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Repairing...
+                    </>
+                  ) : (
+                    <>Repair Workflow Step</>
                   )}
                 </button>
               )}
