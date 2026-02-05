@@ -1,18 +1,5 @@
 # Moving the Second Item From an Order Forward (Sibling Order)
 
-**Related files (verified):**
-
-| Purpose | File |
-|--------|------|
-| CSV upload (populate `product_info.line_items`) | `back-end/src/app/api/admin/amazon-orders/upload-csv/route.ts` |
-| CSV parsing, `buildLineItemFromRow`, `customized-url` / `order_item_id` columns | `back-end/src/lib/csv-upload-helpers.ts` |
-| Admin UI: Upload CSV | `back-end/src/app/admin/csv-upload/page.tsx` |
-| Create sibling (CLI, uses `line_items[1]` or `--url`) | `back-end/scripts/create-sibling-order-from-line-item.ts` |
-| Create sibling API (pasted JSON, no Amazon download) | `back-end/src/app/api/admin/orders/[orderId]/create-sibling/route.ts` |
-| Set `line_items` manually if CSV didn’t persist | `back-end/src/app/api/admin/orders/[orderId]/set-line-items/route.ts` |
-| Manual: submit 2 sibling orders to Lulu as one job | `scripts/submit-sibling-orders-to-lulu.js` |
-| Docs for sibling + Lulu | `docs/lulu/SIBLING_ORDERS_LULU.md` |
-
 ## When one Amazon order has two books (two line items)
 
 If an order has quantity 2 or two rows in the CSV, we process one book per order. To get the second book into the pipeline you create a **sibling order** and run the pipeline for it.

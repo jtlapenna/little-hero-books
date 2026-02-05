@@ -38,12 +38,13 @@
 
 **Acceptance:** All “Create Your Book” / “Get Started” CTAs route into `/create/character`. Completed.
 
-### 2) Production wiring: frontend → backend base URL and CORS (Task 8)
+### 2) ~~Production wiring: frontend → backend base URL and CORS (Task 8)~~ DONE
 **Why now:** In prod, frontend and backend are different origins; Step 7 API calls must succeed.
 
 **Acceptance:**
 - `PUBLIC_BACKEND_URL` is set correctly in prod
 - Backend CORS allows frontend origin for `/api/checkout/create` and `/api/preview/*`
+Completed: approve page uses env-driven API base; .env.example docs updated for both frontend and backend.
 
 ### 3) Shipping options (mirror Lulu) + payments reflect shipping (Task 2)
 **Why now:** Payment totals must be correct before any live Stripe testing.

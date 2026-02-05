@@ -59,20 +59,8 @@
 
 ---
 
-## D2C / Frontend-Backend Sync
-
-11. **14 – Skin tone hex updates (cross-system sync)**  
-    - Frontend updated with new hex values for better cultural coverage.  
-    - Backend (`preview-canonicals.ts`, `customization.ts`) needs hex alignment.  
-    - n8n w2A workflow may need updated if adding `skin-olive` canonical.  
-    - R2 base images only needed if adding new canonical.  
-    - Not urgent for production (Amazon orders); relevant for D2C preview feature.
-
----
-
 ## Summary
 
 - **Do first:** 08 (auto-flip), 04 (orders with errors visible), 12 (Supabase/Not Picked Up).  
 - **Then:** 01 (2B manifest nodes), 09 (pose 01), 11 (optional polish).  
-- **Later / planned:** 02, 05, 07, 10 (audits and 2B QA).  
-- **D2C track:** 14 (skin tone sync).
+- **Later / planned:** 02, 05, 07, 10 (audits and 2B QA).

@@ -20,6 +20,9 @@ const requireEmail =
 if (!token) {
   return Astro.redirect('/');
 }
+
+// Backend API base URL: env-driven so prod/staging stay consistent with create flow
+const apiBase = import.meta.env.PUBLIC_BACKEND_URL ?? (import.meta.env.DEV ? 'http://localhost:3000' : 'https://admin.littleherolabs.com');
 ---
 
 <Layout title="Book Preview - Little Hero Labs" description="Preview your personalized children's book">
@@ -267,13 +270,8 @@ if (!token) {
   </div>
 </Layout>
 
-<script define:vars={{ token, requireEmail }} type="module" is:inline>
-  // Determine API base URL based on environment
-  // In production, use the live backend; in development, use localhost
-  const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-  const API_BASE = isProduction 
-    ? 'https://admin.littleherolabs.com'
-    : 'http://localhost:3000';
+<script define:vars={{ token, requireEmail, apiBase }} type="module" is:inline>
+  const API_BASE = apiBase;
   const HAIR_STYLES = ['afro', 'bun', 'curly-long', 'curly-medium', 'curly-short', 'pigtails', 'pom-poms', 'ponytail', 'side-part', 'straight-long', 'straight-medium', 'straight-short'];
   const HAIR_COLORS = ['blonde', 'strawberry-blonde', 'light-brown', 'medium-brown', 'dark-brown', 'auburn', 'black', 'red'];
   const SKIN_TONES = ['skin-light', 'skin-medium', 'skin-tan', 'skin-brown-light', 'skin-brown-deep'];
