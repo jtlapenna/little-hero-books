@@ -92,10 +92,13 @@ const isLayered = bgImage && characterA && characterB;
     min-height: 500px;
   }
   
-  /* Single image mode (non-layered) */
+  /* Single image mode (non-layered) - reserve space to avoid layout shift on load */
+  .hero-image-container:not(:has(.hero-bg)) {
+    aspect-ratio: 16 / 9;
+  }
   .hero-image {
     width: 100%;
-    height: auto;
+    height: 100%;
     display: block;
     object-fit: cover;
     position: relative;

@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import StepIndicator from '../components/create/StepIndicator.astro';
@@ -37,7 +38,7 @@ const backLabel = backLabelByStep[step];
 ---
 
 <!doctype html>
-<html lang="en" style="background-color: #FFFCF8;">
+<html lang="en" style="background-color: #FFFCF8;" transition:animate="none">
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={description} />
@@ -67,12 +68,13 @@ const backLabel = backLabelByStep[step];
       <meta name="ahrefs-site-verification" content={import.meta.env.PUBLIC_AHREFS_VERIFICATION} />
     )}
     <slot name="head" />
+    <ClientRouter fallback="swap" />
   </head>
   <body data-create-step={step} style="background-color: #FFFCF8;">
     <Header />
-    <main class="create-main">
+    <main class="create-main" transition:name="main-content">
+      <StepIndicator currentStep={step} />
       <div class="container">
-        <StepIndicator currentStep={step} />
         {showBackLink && <BackLink href={backHref} label={backLabel} />}
         <slot />
       </div>
@@ -95,11 +97,16 @@ const backLabel = backLabelByStep[step];
 </script>
 
 <style>
+  /* Clear fixed header; space below stepper and bottom */
   .create-main {
-    padding: var(--spacing-md, 1rem) 0 var(--spacing-xl, 4rem);
+    padding-top: 5rem;
+    padding-bottom: var(--spacing-xl, 4rem);
+    padding-left: 0;
+    padding-right: 0;
   }
-  /* Center content with wide margins */
+  /* Spacing between StepIndicator and main content */
   .create-main .container {
+    margin-top: var(--spacing-md, 1rem);
     max-width: 72rem;
     margin-left: auto;
     margin-right: auto;

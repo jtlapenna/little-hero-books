@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 
@@ -19,7 +20,7 @@ const ogImage = image || `${siteUrl}/og-image.jpg`; // Default OG image
 ---
 
 <!doctype html>
-<html lang="en" style="background-color: #FFFCF8;">
+<html lang="en" style="background-color: #FFFCF8;" transition:animate="none">
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={description} />
@@ -86,13 +87,21 @@ const ogImage = image || `${siteUrl}/og-image.jpg`; // Default OG image
     )}
 
     <slot name="head" />
+    <ClientRouter fallback="swap" />
   </head>
   <body style="background-color: #FFFCF8;">
     <Header />
-    <main>
+    <main transition:name="main-content" class="layout-main">
       <slot />
     </main>
     <Footer />
   </body>
 </html>
+
+<style>
+  /* Stable min-height during view transition swap to prevent flash */
+  .layout-main {
+    min-height: 60vh;
+  }
+</style>
 

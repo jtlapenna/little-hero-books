@@ -235,7 +235,8 @@ export async function POST(request: NextRequest) {
     
     // Call Gemini API to compare orientations
     console.log('[Auto-Flip] Calling Gemini API to compare orientations...');
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+    // Flash Lite: simple image classification (SAME/DIFFERENT); lower cost/latency than 2.5-flash
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`;
     
     const geminiRequestBody = {
       contents: [{
@@ -262,7 +263,7 @@ export async function POST(request: NextRequest) {
         temperature: 0,
         topK: 1,
         topP: 0.6,
-        maxOutputTokens: 10,
+        maxOutputTokens: 64,
       }
     };
     
@@ -326,16 +327,6 @@ export async function POST(request: NextRequest) {
     }
     
     const firstCandidate = candidates[0];
-    
-    // Check for finish reason
-    if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP') {
-      console.error('[Auto-Flip] Generation stopped:', firstCandidate.finishReason);
-      return NextResponse.json(
-        { success: false, error: `Generation stopped: ${firstCandidate.finishReason}` },
-        { status: 400 }
-      );
-    }
-    
     const textParts = firstCandidate.content?.parts || [];
     const textResponse = textParts
       .filter((p: any) => p.text)
@@ -343,7 +334,20 @@ export async function POST(request: NextRequest) {
       .join(' ')
       .trim()
       .toUpperCase();
-    
+
+    // Fail on bad finish reason only if we don't have a usable answer (MAX_TOKENS can still contain SAME/DIFFERENT)
+    const hasUsableAnswer = textResponse.includes('SAME') || textResponse.includes('DIFFERENT');
+    if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP' && !hasUsableAnswer) {
+      console.error('[Auto-Flip] Generation stopped:', firstCandidate.finishReason);
+      return NextResponse.json(
+        { success: false, error: `Generation stopped: ${firstCandidate.finishReason}` },
+        { status: 400 }
+      );
+    }
+    if (firstCandidate.finishReason === 'MAX_TOKENS' && hasUsableAnswer) {
+      console.log('[Auto-Flip] Used truncated response (MAX_TOKENS) — answer was present');
+    }
+
     console.log('[Auto-Flip] Gemini response:', textResponse);
     
     // Check if orientations are different

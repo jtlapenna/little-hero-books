@@ -74,3 +74,18 @@ The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) was not wo
 - Coordinate with W3 composition assumptions (pose placement + any per-pose transforms).
 - **Verification:** After deploying the backend fix, run W2A with an order that uses public R2 URLs; confirm check-and-flip-orientation returns 200 and flips when Gemini reports DIFFERENT.
 
+### 2026-02-05: MAX_TOKENS fix
+
+- **Symptom:** API returned `400 - "Generation stopped: MAX_TOKENS"`; auto-flip never ran.
+- **Cause:** `maxOutputTokens: 10` was too low; Gemini sometimes needs more tokens to complete even "SAME"/"DIFFERENT".
+- **Fix:** (1) Increased `maxOutputTokens` to 64. (2) When `finishReason === 'MAX_TOKENS'`, still accept the response if it already contains "SAME" or "DIFFERENT" (use truncated answer instead of failing).
+
+### 2026-02-05: Gemini model update
+
+- **Cause:** `gemini-1.5-flash` is no longer accessible via API.
+- **Choice:** Use **`gemini-2.5-flash-lite`** (not 2.5-flash). Rationale:
+  - Task is simple **classification** (SAME vs DIFFERENT from two images) — Flash Lite is recommended for classification and latency-sensitive tasks.
+  - Flash Lite: ~3× cheaper input, ~6× cheaper output than 2.5-flash; lower latency; supports vision (images) and 1M context.
+  - 2.5-flash is for complex tasks where quality/capability outweigh cost; our use case does not need it.
+- **Fix:** Route now calls `gemini-2.5-flash-lite`.
+
