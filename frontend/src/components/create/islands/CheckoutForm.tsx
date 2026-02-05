@@ -16,8 +16,8 @@ const BOOK_PRICE_CENTS = 2999;
 
 /** Shipping options (rounded customer-facing prices). Match backend SHIPPING_CENTS_BY_TIER. */
 const SHIPPING_OPTIONS: { id: ShippingTierId; label: string; priceCents: number; estimate: string }[] = [
-  { id: 'mail', label: 'Mail', priceCents: 599, estimate: '11–13 business days' },
-  { id: 'ground_home', label: 'Ground Home', priceCents: 1299, estimate: '9–11 business days' },
+  { id: 'mail', label: 'Economy', priceCents: 599, estimate: '11–13 business days' },
+  { id: 'ground_home', label: 'Ground', priceCents: 1299, estimate: '9–11 business days' },
   { id: 'priority_mail', label: 'Priority Mail', priceCents: 1499, estimate: '9–11 business days' },
   { id: 'expedited', label: 'Expedited Shipping', priceCents: 2099, estimate: '6–8 business days' },
   { id: 'express', label: 'Express Shipping', priceCents: 3099, estimate: '5–7 business days' },
@@ -249,7 +249,6 @@ function CheckoutForm() {
       <h1 className="checkout-form__title">Checkout</h1>
 
       <div className="checkout-form__layout">
-        {/* Form (left on desktop, bottom on mobile) */}
         <form className="checkout-form__form" onSubmit={handleSubmit} noValidate>
           {/* Contact section */}
           <section className="checkout-form__section">
@@ -490,7 +489,7 @@ function CheckoutForm() {
                 <span>${(BOOK_PRICE_CENTS / 100).toFixed(2)}</span>
               </div>
               <div className="checkout-form__summary-line">
-                <span>Shipping — {SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.label ?? 'Mail'}</span>
+                <span>Shipping — {SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.label ?? 'Economy'}</span>
                 <span>${((SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.priceCents ?? 599) / 100).toFixed(2)}</span>
               </div>
             </div>
@@ -533,16 +532,26 @@ function CheckoutForm() {
         }
         @media (min-width: 1100px) {
           .checkout-form__layout {
-            display: block;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
           }
           .checkout-form__form { 
+            flex: 1;
+            width: 100%;
+            max-width: 520px;
+            /* Center the form: 290px left margin to balance 260px summary + 30px gap on the right */
             margin: 0 auto;
+            margin-left: 290px;
+            margin-right: 30px;
           }
           .checkout-form__summary { 
-            position: absolute;
-            right: 0;
-            top: 0;
+            position: sticky;
+            top: 1rem;
             width: 260px;
+            flex-shrink: 0;
+            height: fit-content;
+            order: 1;
           }
         }
         

@@ -24,7 +24,13 @@ function inferClothingFromPronouns(pronouns: unknown): string {
 function getCorsHeaders(request: NextRequest): Record<string, string> {
   const origin = process.env.D2C_FRONTEND_ORIGIN ?? '';
   const requestOrigin = request.headers.get('origin') ?? '';
-  const allowOrigin = origin && (requestOrigin === origin || requestOrigin.endsWith('.littleherolabs.com')) ? requestOrigin : origin || '*';
+  // In dev, allow any localhost port when backend is configured for localhost
+  const isLocalhostOrigin = /^https?:\/\/localhost(:\d+)?$/.test(origin);
+  const isLocalhostRequest = /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin);
+  const allowOrigin =
+    origin && (requestOrigin === origin || requestOrigin.endsWith('.littleherolabs.com') || (isLocalhostOrigin && isLocalhostRequest))
+      ? requestOrigin
+      : origin || '*';
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -63,8 +69,8 @@ const SHIPPING_CENTS_BY_TIER: Record<ShippingTier, number> = {
 };
 
 const SHIPPING_LABEL_BY_TIER: Record<ShippingTier, string> = {
-  mail: 'Mail',
-  ground_home: 'Ground Home',
+  mail: 'Economy',
+  ground_home: 'Ground',
   priority_mail: 'Priority Mail',
   expedited: 'Expedited Shipping',
   express: 'Express Shipping',

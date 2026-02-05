@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
 
       const executionStatus = (order as Record<string, unknown>).execution_status as string | undefined;
       if (executionStatus !== 'pending_payment') {
+        console.log('[Webhook Stripe] Order already processed (execution_status=%s), skipping email and W0', executionStatus ?? 'undefined');
         return { status: 200, body: { received: true } };
       }
 
@@ -154,7 +155,12 @@ export async function POST(request: NextRequest) {
       }
 
       // Send order confirmation email for D2C orders
-      if (platform === 'd2c' && customerEmail?.trim()) {
+      console.log('[Webhook Stripe] Confirmation email check: platform=%s, customer_email=%s', platform ?? 'undefined', customerEmail ? `${customerEmail.substring(0, 3)}...` : 'missing');
+      if (platform !== 'd2c') {
+        console.log('[Webhook Stripe] Skipping confirmation email: platform is not d2c');
+      } else if (!customerEmail?.trim()) {
+        console.warn('[Webhook Stripe] Skipping confirmation email: order has no customer_email');
+      } else {
         // Generate signed URL for preview image (valid for 7 days)
         let previewImageUrl: string | undefined;
         if (previewHash) {
@@ -166,6 +172,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        console.log('[Webhook Stripe] Sending order confirmation email to:', customerEmail.trim());
         const emailResult = await sendD2COrderConfirmationEmail({
           to: customerEmail.trim(),
           childName,
