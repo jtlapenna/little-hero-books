@@ -416,6 +416,7 @@ if (!token) {
           if (data.used) {
             console.log('[PREVIEW] Token already used - customer has approved, showing approved state');
             showApprovedState(orderData);
+            checkOrderStatus(orderData); // Same link: keep polling for shipping/tracking updates
           } else if (data.expired) {
             // Token expired - check if customer approved before expiration
             console.log('[PREVIEW] Token expired - checking approval status', 
@@ -423,6 +424,7 @@ if (!token) {
             );
             if (orderData.customer_approval_status === 'approved') {
               showApprovedState(orderData);
+              checkOrderStatus(orderData); // Same link: keep polling for shipping/tracking updates
             } else {
               // Token expired but not approved - show error
               showError('This preview link has expired. Please contact us for a new link.');

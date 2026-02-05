@@ -6,7 +6,8 @@ export function verifyBearerAuth(request: Request): { ok: boolean; error?: strin
   if (!expected) return { ok: false, error: 'Server token not configured' };
   if (!header || !header.toLowerCase().startsWith('bearer ')) return { ok: false, error: 'Missing bearer token' };
   const provided = header.slice(7).trim();
-  if (provided !== expected) return { ok: false, error: 'Invalid token' };
+  const expectedTrimmed = expected.trim();
+  if (provided !== expectedTrimmed) return { ok: false, error: 'Invalid token' };
   return { ok: true };
 }
 
