@@ -312,12 +312,18 @@ export async function GET(request: NextRequest) {
     // - We must NOT block manual regenerations of W2B/W3 just because Lulu fields are set.
     // - We ONLY want to prevent auto-routing "already printed" orders into W4 unless the admin
     //   explicitly cleared Lulu fields (regenerate-4 does this).
+    //
+    // CRITICAL DUPLICATE-PREVENTION:
+    // Some orders may incorrectly remain execution_status='ready_for_processing' even while a workflow is running.
+    // If started_at or current_workflow are set, treat the order as in-flight and DO NOT route it again.
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select('id,amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level')
       .eq('execution_status', 'ready_for_processing')
       .not('next_workflow', 'is', null)
+      .is('started_at', null)
+      .is('current_workflow', null)
       .order('priority', { ascending: false, nullsFirst: false })
       .order('updated_at', { ascending: true, nullsFirst: true }) // Fallback for orders without queued_at
       .order('queued_at', { ascending: true, nullsFirst: true }) // Primary ordering when queued_at exists
