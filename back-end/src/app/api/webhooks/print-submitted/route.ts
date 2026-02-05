@@ -18,7 +18,7 @@ import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
 import { updateOrderStatus } from '@/lib/status-service';
-import { getActivePreviewToken } from '@/lib/preview-tokens';
+import { getActivePreviewToken, getPreviewTokenForOrderLink } from '@/lib/preview-tokens';
 import {
   sendAmazonPrintSubmittedMessage,
   getAmazonOrderIdForMessaging,
@@ -71,15 +71,18 @@ export async function POST(request: NextRequest) {
       // Continue to send notification even if status update fails
     });
 
-    const token = await getActivePreviewToken(orderId);
+    // Prefer an unused token; fall back to any non-expired token (used is OK — same link works for viewing status/shipping).
+    let token = await getActivePreviewToken(orderId);
+    if (!token) token = await getPreviewTokenForOrderLink(orderId);
     if (!token) {
-      return NextResponse.json(
-        {
-          error: 'No active preview token for this order; cannot build preview link',
-          orderId,
-        },
-        { status: 400 }
-      );
+      // Supabase already updated above. No non-expired token; skip notification.
+      console.warn('[print-submitted] No non-expired preview token for order', orderId, '- skipping customer notification');
+      return NextResponse.json({
+        success: true,
+        orderId,
+        skipped: true,
+        reason: 'No non-expired preview token; customer notification skipped',
+      });
     }
 
     const customerSiteUrl =

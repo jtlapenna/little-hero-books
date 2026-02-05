@@ -243,6 +243,29 @@ export async function getActivePreviewToken(
   return mapPreviewTokenRow(activeRow);
 }
 
+/**
+ * Get any non-expired token for an order for building a "view status" link.
+ * Used tokens are allowed: the same link works for viewing approval/status/shipping
+ * (validate-token returns order data for used tokens; approve page shows status).
+ * Use this when sending "sent to print" etc. so the link in the email still works.
+ */
+export async function getPreviewTokenForOrderLink(
+  orderId: string
+): Promise<PreviewTokenInfo | null> {
+  const { data, error } = await supabase
+    .from('preview_tokens')
+    .select('token, order_id, created_at, expires_at, used_at')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  if (error || !data?.length) return null;
+
+  const now = new Date();
+  const row = (data as PreviewTokenRow[]).find((r) => new Date(r.expires_at) > now);
+  return row ? mapPreviewTokenRow(row) : null;
+}
+
 export async function ensureActivePreviewToken(
   orderId: string
 ): Promise<EnsurePreviewTokenResult> {
