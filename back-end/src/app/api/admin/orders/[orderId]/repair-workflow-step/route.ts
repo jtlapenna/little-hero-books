@@ -3,14 +3,16 @@ import { headObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { buildManifestKey } from '@/lib/r2-service';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 import { WorkflowStep } from '@/constants/statuses';
+import { determineNextWorkflow, type OrderProgress } from '@/lib/determine-next-workflow';
 
 export const dynamic = 'force-dynamic';
 
 // PSEUDOCODE
 // - Only allow same-origin (admin UI) calls
 // - Detect highest manifest present in R2 (HEAD requests; no downloads)
-// - Update ONLY workflow_step (and updated_at) on the existing Supabase row
-// - Do not change next_workflow, status, customer approval, review stages, or manifests
+// - Update workflow_step, next_workflow, execution_status (and clear started_at/current_workflow) so UI columns match
+// - next_workflow is derived from determineNextWorkflow so e.g. "pending customer approval" stays at next_workflow '3'
+// - Do not change customer approval, review stages, or manifest URL fields
 
 function isSameOrigin(request: NextRequest): boolean {
   // Purpose: keep this admin-only endpoint without extra auth wiring.
@@ -78,18 +80,38 @@ export async function POST(
   const prev = String((orderRow as any).workflow_step || '');
   const nowIso = new Date().toISOString();
 
+  // Derive next_workflow so workflow/status/next-workflow columns display correctly (e.g. pending customer approval → '3')
+  const row = orderRow as Record<string, unknown>;
+  const next_workflow = determineNextWorkflow({
+    one_manifest_url: row.one_manifest_url ?? null,
+    manifest_2a_url: row.manifest_2a_url ?? null,
+    manifest_2b_url: row.manifest_2b_url ?? null,
+    manifest_3_url: found.m3 ? (row.manifest_3_url || 'repaired') : (row.manifest_3_url ?? null),
+    workflow_step: nextStep,
+    review_stages: (row.review_stages as OrderProgress['review_stages']) ?? null,
+    next_workflow: row.next_workflow ?? null,
+    customer_approval_required: row.customer_approval_required ?? null,
+    customer_approval_status: row.customer_approval_status ?? null,
+  });
+
+  const updatePayload: Record<string, unknown> = {
+    workflow_step: nextStep,
+    execution_status: 'done',
+    started_at: null,
+    current_workflow: null,
+    updated_at: nowIso,
+  };
+  if (next_workflow != null) updatePayload.next_workflow = next_workflow;
+
   const { data, error } = await supabase
     .from('orders')
-    .update({
-      workflow_step: nextStep,
-      updated_at: nowIso,
-    })
+    .update(updatePayload)
     .eq('id', orderRowId)
-    .select('id, workflow_step');
+    .select('id, workflow_step, next_workflow, execution_status');
 
   if (error) {
     return NextResponse.json(
-      { error: 'Failed to update workflow_step', details: error.message, code: error.code, hint: error.hint },
+      { error: 'Failed to update workflow state', details: error.message, code: error.code, hint: error.hint },
       { status: 500 }
     );
   }
@@ -99,6 +121,8 @@ export async function POST(
     orderId,
     previousWorkflowStep: prev || null,
     repairedWorkflowStep: nextStep,
+    next_workflow: next_workflow ?? undefined,
+    execution_status: 'done',
     detected: found,
     updated: data?.[0] || null,
   });

@@ -855,7 +855,7 @@ export default function OrderDetailPage() {
   const handleRepairWorkflowStep = async () => {
     // Purpose: Repair workflow_step when Supabase is stale (derive from manifests in R2).
     if (!order) return;
-    if (!confirm("Repair workflow_step from manifests in R2?\n\nThis will:\n- Detect the highest manifest present (3 > 2B > 2A)\n- Update ONLY the workflow_step field in Supabase\n\nThis will NOT:\n- Change next_workflow\n- Change status/execution_status\n- Change manifests/review stages/customer approval")) {
+    if (!confirm("Repair workflow state from manifests in R2?\n\nThis will:\n- Detect the highest manifest present (3 > 2B > 2A)\n- Update workflow_step, next_workflow, and execution_status in Supabase\n- Clear processing state (started_at, current_workflow)\n- If not yet approved for print, order stays at pending customer approval (next_workflow '3')\n\nThis will NOT:\n- Change manifests, review stages, or customer approval")) {
       return;
     }
 
@@ -864,7 +864,7 @@ export default function OrderDetailPage() {
       const res = await fetch(`/api/admin/orders/${order.orderId}/repair-workflow-step`, { method: 'POST' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || data?.details || 'Failed to repair workflow_step');
-      alert(`workflow_step repaired:\n\nBefore: ${data.previousWorkflowStep || '(empty)'}\nAfter: ${data.repairedWorkflowStep}`);
+      alert(`Workflow state repaired.\n\nworkflow_step: ${data.previousWorkflowStep || '(empty)'} → ${data.repairedWorkflowStep}\nnext_workflow: ${data.next_workflow ?? '(unchanged)'}\nexecution_status: ${data.execution_status ?? 'done'}`);
       await fetchOrder(order.orderId);
     } catch (error: any) {
       alert(`Failed to repair workflow_step: ${error?.message || 'Unknown error'}`);
@@ -1087,9 +1087,8 @@ export default function OrderDetailPage() {
                                           order.shipping_address && 
                                           typeof order.shipping_address === 'object';
 
+          // Show when order has any manifest so admin can sync workflow/status/next_workflow from R2 (e.g. after re-running 2B/W3)
           const canShowRepairWorkflowStep =
-            order.workflowStep === 'order_intake' &&
-            order.status !== OrderStatus.NEW &&
             !!(order.oneManifestUrl || order.manifest2aUrl || order.manifest2bUrl || order.manifest3Url);
           
           // Only show section if at least one button would be visible
@@ -1206,13 +1205,7 @@ export default function OrderDetailPage() {
                   )}
                 </button>
               )}
-              {(() => {
-                const shouldShow =
-                  order.workflowStep === 'order_intake' &&
-                  order.status !== OrderStatus.NEW &&
-                  !!(order.oneManifestUrl || order.manifest2aUrl || order.manifest2bUrl || order.manifest3Url);
-                return shouldShow;
-              })() && (
+              {canShowRepairWorkflowStep && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -1222,7 +1215,7 @@ export default function OrderDetailPage() {
                   }}
                   disabled={repairingWorkflowStep}
                   className="inline-flex items-center px-3 py-1.5 border border-blue-300 rounded-md text-sm font-medium text-blue-800 bg-white hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                  title="Repair Workflow Step: checks which manifests exist in R2 (3 > 2B > 2A) and updates ONLY workflow_step in Supabase. Use when workflow_step is stale (e.g., stuck at order_intake)."
+                  title="Repair Workflow: syncs workflow_step, next_workflow, and execution_status from R2 manifests. Use when columns are stale after re-running 2B/W3. Keeps order at pending customer approval if not yet approved for print."
                 >
                   {repairingWorkflowStep ? (
                     <>
