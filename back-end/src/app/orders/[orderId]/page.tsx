@@ -1205,7 +1205,7 @@ export default function OrderDetailPage() {
                   )}
                 </button>
               )}
-              {canShowRepairWorkflowStep && (
+              {!!(order.oneManifestUrl || order.manifest2aUrl || order.manifest2bUrl || order.manifest3Url) && (
                 <button
                   type="button"
                   onClick={(e) => {
