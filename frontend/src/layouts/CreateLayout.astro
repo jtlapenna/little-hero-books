@@ -35,6 +35,7 @@ const backLabelByStep: Record<typeof step, string> = {
 const showBackLink = step !== 'processing';
 const backHref = backHrefByStep[step];
 const backLabel = backLabelByStep[step];
+const showStartOver = step !== 'character';
 ---
 
 <!doctype html>
@@ -75,7 +76,12 @@ const backLabel = backLabelByStep[step];
     <main class="create-main" transition:name="main-content">
       <StepIndicator currentStep={step} />
       <div class="container">
-        {showBackLink && <BackLink href={backHref} label={backLabel} />}
+        <div class="create-nav">
+          {showBackLink && <BackLink href={backHref} label={backLabel} />}
+          {showStartOver && (
+            <a href="/create/character" data-clear-flow class="start-over-link">Start over</a>
+          )}
+        </div>
         <slot />
       </div>
     </main>
@@ -84,7 +90,7 @@ const backLabel = backLabelByStep[step];
 </html>
 
 <script>
-  import { load } from '../lib/createFlow/createFlowStorage';
+  import { load, clear } from '../lib/createFlow/createFlowStorage';
   import { canAccessStep } from '../lib/createFlow/createFlowSelectors';
 
   const step = document.body?.dataset?.createStep as string | undefined;
@@ -94,6 +100,14 @@ const backLabel = backLabelByStep[step];
       window.location.href = '/create/character?toast=missing_state';
     }
   }
+
+  document.querySelectorAll('[data-clear-flow]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      clear();
+      window.location.href = '/create/character';
+    });
+  });
 </script>
 
 <style>
@@ -112,5 +126,27 @@ const backLabel = backLabelByStep[step];
     margin-right: auto;
     padding-left: var(--spacing-lg, 2rem);
     padding-right: var(--spacing-lg, 2rem);
+  }
+  /* Back link + Start over row */
+  .create-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md, 1rem);
+    margin-bottom: var(--spacing-md, 1rem);
+  }
+  .start-over-link {
+    font-family: var(--font-ui);
+    font-size: 0.9375rem;
+    color: var(--color-teal, #5AC6B1);
+    text-decoration: none;
+    padding: 0.25rem 0;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .start-over-link:hover {
+    text-decoration: underline;
   }
 </style>

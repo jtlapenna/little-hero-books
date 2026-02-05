@@ -245,13 +245,18 @@ export async function POST(request: NextRequest) {
     // Flash Lite: simple image classification (SAME/DIFFERENT); lower cost/latency than 2.5-flash
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`;
     
+    // Prompt: focus on left-right mirror only. Images may differ (custom character vs reference); we only care if orientation matches or is mirrored.
+    const orientationPrompt = `You are comparing two images of the same pose (pose reference): Image 1 is a generated character, Image 2 is the reference. They may look different (style, color). Ignore that.
+
+Only consider LEFT-RIGHT orientation (mirror): Does the character in Image 1 face the same side as in Image 2? If one would match the other after flipping Image 1 horizontally, answer DIFFERENT (flip needed). If they already face the same side, answer SAME.
+
+Answer with exactly one word: SAME or DIFFERENT.`;
+
     const geminiRequestBody = {
       contents: [{
         role: 'user',
         parts: [
-          {
-            text: 'Are these two characters facing the same direction? Answer only: SAME or DIFFERENT'
-          },
+          { text: orientationPrompt },
           {
             inlineData: {
               mimeType: imageMimeType,
@@ -335,12 +340,13 @@ export async function POST(request: NextRequest) {
     
     const firstCandidate = candidates[0];
     const textParts = firstCandidate.content?.parts || [];
-    const textResponse = textParts
+    const rawText = textParts
       .filter((p: any) => p.text)
       .map((p: any) => p.text)
       .join(' ')
-      .trim()
-      .toUpperCase();
+      .trim();
+    const textResponse = rawText.toUpperCase();
+    console.log('[Auto-Flip] Gemini raw response:', rawText);
 
     // Fail on bad finish reason only if we don't have a usable answer (MAX_TOKENS can still contain SAME/DIFFERENT)
     const hasUsableAnswer = textResponse.includes('SAME') || textResponse.includes('DIFFERENT');

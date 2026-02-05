@@ -89,3 +89,9 @@ The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) was not wo
   - 2.5-flash is for complex tasks where quality/capability outweigh cost; our use case does not need it.
 - **Fix:** Route now calls `gemini-2.5-flash-lite`.
 
+### 2026-02-05: Orientation prompt tightened (false SAME)
+
+- **Symptom:** Gemini returned "Orientations match, no flip needed" for pose11 when the generated image and reference had different left-right orientation (e.g. one facing viewer's left, one right).
+- **Cause:** Prompt "Are these two characters facing the same direction?" was ambiguous; model could treat different characters (generated vs reference) or loose "facing" interpretation as SAME.
+- **Fix:** (1) New prompt states Image 1 = generated character, Image 2 = reference; ignore style/color. (2) Ask explicitly: "Does the character in Image 1 face the same side as in Image 2? If one would match the other after flipping Image 1 horizontally, answer DIFFERENT." (3) Log raw Gemini response as `[Auto-Flip] Gemini raw response:` for debugging.
+

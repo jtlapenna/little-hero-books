@@ -55,7 +55,7 @@ Completed: approve page uses env-driven API base; .env.example docs updated for 
 - Values mirror Lulu offerings (US-only)
 Completed: Shipping selector in checkout with 5 levels (Economy, Ground, Priority Mail, Expedited, Express). Selected tier updates Stripe checkout total. Labels renamed for clarity. Order summary sticky on desktop.
 
-### 4) Fix order status lookup: DB column mismatch + optional verification (Task 7)
+### 4) ~~Fix order status lookup: DB column mismatch + optional verification (Task 7)~~ DONE
 **Why now:** After checkout, customers need a reliable “what’s happening” path.
 
 **Acceptance:**
@@ -63,10 +63,14 @@ Completed: Shipping selector in checkout with 5 levels (Economy, Ground, Priorit
 - Endpoint uses correct Supabase columns
 - Decide + implement whether email is required for lookup
 
-### 5) Add “Start over” / clear flow action (Task 9)
+Completed: LH-XXXXX resolves via display_order_id; status API uses correct Supabase column (orderId); optional email verification via query param (404 on mismatch).
+
+### 5) ~~Add “Start over” / clear flow action (Task 9)~~ DONE
 **Why now:** Needed for self-service recovery when users get stuck.
 
 **Acceptance:** Clears `lhl_create_flow_v0` and returns to `/create/character`.
+
+Completed: "Start over" link in CreateLayout (customize, checkout, processing); clears sessionStorage and navigates to /create/character.
 
 ### 6) ~~Lower the stepper so it’s not part of the header menu (Task 1)~~ DONE
 **Why now:** Layout polish after core flow is wired.
@@ -78,10 +82,12 @@ Completed: Shipping selector in checkout with 5 levels (Economy, Ground, Priorit
 
 **Acceptance:** Client-side navigation with instant swap; header/footer persist; Our Books transition fixed. Completed.
 
-### 7) Mobile/responsive polish across the funnel (Task 5)
+### 7) ~~Mobile/responsive polish across the funnel (Task 5)~~ DONE
 **Why now:** Do after core structural/layout changes to avoid rework.
 
 **Acceptance:** No overflow; clean stacking; tap targets; summary behavior by breakpoint.
+
+Completed: Mobile-first tweaks across CharacterBuilder/PreviewPanel, BookCustomizationForm (summary stacking + image scaling + CTA stacking), CheckoutForm (shipping option layout + CTA stacking + simpler desktop layout), ProcessingConfirmation (detail rows + full-width buttons on small screens).
 
 ### 8) Canonical/SEO correctness in `CreateLayout.astro` (Task 10)
 **Why now:** Small but important; do after routes/entry points are finalized.

@@ -80,10 +80,8 @@ function ProcessingConfirmation() {
     setLookupStatus(null);
 
     try {
-      const response = await fetch(
-        `${API_BASE}/api/preview/${encodeURIComponent(lookupOrderId.trim())}/status`,
-        { method: 'GET' }
-      );
+      const statusUrl = `${API_BASE}/api/preview/${encodeURIComponent(lookupOrderId.trim())}/status${lookupEmail.trim() ? `?email=${encodeURIComponent(lookupEmail.trim())}` : ''}`;
+      const response = await fetch(statusUrl, { method: 'GET' });
 
       if (!response.ok) {
         throw new Error('Order not found. Please check your order ID and email.');
@@ -318,6 +316,10 @@ function ProcessingConfirmation() {
           color: var(--color-navy-midnight);
           word-break: break-all;
         }
+        @media (max-width: 420px) {
+          .processing__detail-row { flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+          .processing__detail-value { word-break: normal; overflow-wrap: anywhere; }
+        }
         
         /* What's next */
         .processing__next {
@@ -484,6 +486,10 @@ function ProcessingConfirmation() {
           font-weight: 700;
           font-size: 1rem;
           text-decoration: none;
+        }
+        @media (max-width: 420px) {
+          .processing__lookup-btn { width: 100%; }
+          .processing__btn { display: block; width: 100%; text-align: center; }
         }
       `}</style>
     </div>

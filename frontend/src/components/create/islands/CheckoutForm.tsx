@@ -535,21 +535,20 @@ function CheckoutForm() {
             display: flex;
             flex-direction: row;
             align-items: flex-start;
+            justify-content: center;
+            gap: var(--spacing-xl);
           }
           .checkout-form__form { 
-            flex: 1;
+            flex: 0 1 520px;
             width: 100%;
             max-width: 520px;
-            /* Center the form: 290px left margin to balance 260px summary + 30px gap on the right */
-            margin: 0 auto;
-            margin-left: 290px;
-            margin-right: 30px;
+            margin: 0;
           }
           .checkout-form__summary { 
             position: sticky;
             top: 1rem;
             width: 260px;
-            flex-shrink: 0;
+            flex: 0 0 260px;
             height: fit-content;
             order: 1;
           }
@@ -600,6 +599,10 @@ function CheckoutForm() {
         .checkout-form__summary-dedication {
           font-style: italic;
           margin-top: 0.25rem;
+        }
+        @media (max-width: 420px) {
+          .checkout-form__summary-row { flex-direction: column; align-items: center; text-align: center; }
+          .checkout-form__summary-details { text-align: center; }
         }
         .checkout-form__summary-total {
           display: flex;
@@ -658,6 +661,23 @@ function CheckoutForm() {
         .checkout-form__shipping-option-label { font-weight: 600; color: var(--color-navy-midnight); }
         .checkout-form__shipping-option-estimate { font-size: 0.875rem; color: var(--color-soft-charcoal); }
         .checkout-form__shipping-option-price { font-weight: 600; color: var(--color-navy-midnight); }
+        @media (max-width: 480px) {
+          .checkout-form__shipping-option {
+            grid-template-columns: auto 1fr auto;
+          }
+          .checkout-form__shipping-option-label {
+            grid-column: 2;
+            grid-row: 1;
+          }
+          .checkout-form__shipping-option-price {
+            grid-column: 3;
+            grid-row: 1;
+          }
+          .checkout-form__shipping-option-estimate {
+            grid-column: 2 / -1;
+            grid-row: 2;
+          }
+        }
         
         /* Form sections */
         .checkout-form__section {
@@ -801,6 +821,11 @@ function CheckoutForm() {
           color: #888;
           margin-top: var(--spacing-md);
           text-align: center;
+        }
+        @media (max-width: 480px) {
+          .checkout-form__ctas { flex-direction: column; }
+          .checkout-form__btn--primary,
+          .checkout-form__btn--secondary { width: 100%; }
         }
       `}</style>
     </div>

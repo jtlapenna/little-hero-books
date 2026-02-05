@@ -487,6 +487,17 @@ function CharacterBuilder() {
         .character-builder__btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .character-builder__btn--primary { background: var(--color-hero-coral); color: #fff; }
         .character-builder__btn--secondary { background: var(--color-teal); color: #fff; }
+
+        /* Mobile: stack fields/CTAs and avoid fixed widths */
+        @media (max-width: 480px) {
+          .character-builder__row { gap: var(--spacing-md); }
+          .character-builder__row .character-builder__field { flex: 1 1 100%; max-width: none; }
+          .character-builder__row .character-builder__field--age { flex: 0 0 auto; }
+          .character-builder__input,
+          .character-builder__select { max-width: 100%; }
+          .character-builder__ctas { flex-direction: column; align-items: stretch; }
+          .character-builder__btn { width: 100%; }
+        }
       `}</style>
     </div>
   );

@@ -105,8 +105,8 @@ export function PreviewPanel({
         </svg>
         <style>{`
           .preview-panel--ready { width: fit-content; max-width: 100%; padding: 0; background: var(--color-off-white, #FFFCF8); border-radius: 12px; border: 1px solid rgba(45,49,66,0.08); margin: 0 auto; overflow: hidden; position: relative; }
-          .preview-panel__img { display: block; width: auto; height: auto; max-width: 480px; max-height: 560px; border-radius: 12px; object-fit: contain; vertical-align: bottom; }
-          .preview-panel__placeholder-svg { display: block; width: auto; max-width: 480px; height: auto; border-radius: 12px; background: #f1faee; }
+          .preview-panel__img { display: block; width: 100%; height: auto; max-width: 480px; max-height: 560px; border-radius: 12px; object-fit: contain; vertical-align: bottom; }
+          .preview-panel__placeholder-svg { display: block; width: 100%; max-width: 480px; height: auto; border-radius: 12px; background: #f1faee; }
           .preview-panel__placeholder--hidden { position: absolute; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none; }
         `}</style>
       </div>

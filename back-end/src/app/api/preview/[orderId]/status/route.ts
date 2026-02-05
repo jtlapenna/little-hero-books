@@ -19,26 +19,26 @@ async function resolveOrderId(inputId: string): Promise<string | null> {
   // Check if it's a short format (LH-XXXXX)
   if (inputId.toUpperCase().startsWith('LH-')) {
     const shortId = inputId.toUpperCase();
-    // Query by display_order_id
+    // Query by display_order_id (DB column is "orderId")
     const { data, error } = await supabase
       .from('orders')
-      .select('order_id')
+      .select('orderId')
       .eq('display_order_id', shortId)
       .single();
-    
+
     if (error || !data) {
-      // Fallback: try matching by first 5 chars of order_id
+      // Fallback: try matching by first 5 chars of orderId
       const prefix = shortId.substring(3).toLowerCase(); // Remove 'LH-' and lowercase
       const { data: fallbackData } = await supabase
         .from('orders')
-        .select('order_id')
-        .ilike('order_id', `${prefix}%`)
+        .select('orderId')
+        .ilike('orderId', `${prefix}%`)
         .limit(1)
         .single();
-      
-      return fallbackData?.order_id ?? null;
+
+      return fallbackData?.orderId ?? fallbackData?.order_id ?? null;
     }
-    return data.order_id;
+    return data.orderId ?? data.order_id ?? null;
   }
   
   // Already a full UUID
@@ -204,6 +204,18 @@ export async function GET(
           headers: corsHeaders,
         }
       );
+    }
+
+    // Optional email verification: if client sends email, must match order (404 on mismatch)
+    const emailParam = request.nextUrl.searchParams.get('email')?.trim();
+    if (emailParam) {
+      const customerEmail = (order as any).customer_email ?? (order as any).customerEmail;
+      if (!customerEmail || customerEmail.toLowerCase() !== emailParam.toLowerCase()) {
+        return NextResponse.json(
+          { error: 'Order not found' },
+          { status: 404, headers: corsHeaders }
+        );
+      }
     }
 
     // Get status message

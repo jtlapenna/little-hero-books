@@ -224,6 +224,14 @@ function BookCustomizationForm() {
         .book-customization__summary-animal-img--flip {
           transform: scaleX(-1);
         }
+
+        /* Mobile: stack summary content and scale images down */
+        @media (max-width: 480px) {
+          .book-customization__summary-content { flex-direction: column; align-items: stretch; }
+          .book-customization__summary-images { justify-content: center; }
+          .book-customization__summary-preview { width: 96px; height: 96px; }
+          .book-customization__summary-animal-img { width: 64px; height: 64px; margin-left: 0; }
+        }
         
         /* Dedication section */
         .book-customization__section {
@@ -306,6 +314,12 @@ function BookCustomizationForm() {
         }
         .book-customization__btn--secondary:hover {
           background: rgba(45,49,66,0.05);
+        }
+
+        /* Mobile: full-width CTAs */
+        @media (max-width: 480px) {
+          .book-customization__ctas { flex-direction: column; }
+          .book-customization__btn { width: 100%; }
         }
       `}</style>
     </div>
