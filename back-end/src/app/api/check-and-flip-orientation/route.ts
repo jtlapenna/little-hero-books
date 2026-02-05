@@ -233,38 +233,48 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Build a more robust decision: compare ORIGINAL vs FLIPPED against the reference.
+    // Style differences can fool "SAME/DIFFERENT", so we ask which option matches the reference direction.
+    let flippedCandidateBuffer: Buffer | null = null;
+    try {
+      flippedCandidateBuffer = await flipPngHorizontally(imageBuffer);
+    } catch (e: any) {
+      console.warn('[Auto-Flip] Failed to precompute flipped candidate; falling back to SAME/DIFFERENT style check', e?.message ?? e);
+    }
+
+    const flippedCandidateBase64 = flippedCandidateBuffer ? flippedCandidateBuffer.toString('base64') : null;
+
     // Call Gemini API to compare orientations
     console.log('[Auto-Flip] Calling Gemini API to compare orientations...');
-    // Flash Lite: simple image classification (SAME/DIFFERENT); lower cost/latency than 2.5-flash
+    // Flash Lite: simple image classification; lower cost/latency than 2.5-flash
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`;
-    
+
+    const parts: any[] = [
+      {
+        text: [
+          'Reference is the correct pose orientation.',
+          'Image A is the GENERATED image (ORIGINAL).',
+          'Image B is the GENERATED image flipped horizontally (FLIPPED).',
+          '',
+          'Which one matches the REFERENCE facing direction?',
+          'Answer ONLY: ORIGINAL or FLIPPED',
+        ].join('\n'),
+      },
+      { inlineData: { mimeType: poseRefMimeType, data: poseRefBase64 } }, // Reference first
+      { inlineData: { mimeType: imageMimeType, data: imageBase64 } }, // ORIGINAL
+    ];
+    if (flippedCandidateBase64) {
+      parts.push({ inlineData: { mimeType: imageMimeType, data: flippedCandidateBase64 } }); // FLIPPED
+    }
+
     const geminiRequestBody = {
-      contents: [{
-        role: 'user',
-        parts: [
-          {
-            text: 'Are these two characters facing the same direction? Answer only: SAME or DIFFERENT'
-          },
-          {
-            inlineData: {
-              mimeType: imageMimeType,
-              data: imageBase64
-            }
-          },
-          {
-            inlineData: {
-              mimeType: poseRefMimeType,
-              data: poseRefBase64
-            }
-          }
-        ]
-      }],
+      contents: [{ role: 'user', parts }],
       generationConfig: {
         temperature: 0,
         topK: 1,
         topP: 0.6,
-        maxOutputTokens: 64,
-      }
+        maxOutputTokens: 80,
+      },
     };
     
     let geminiResponse: Response;
@@ -350,8 +360,10 @@ export async function POST(request: NextRequest) {
 
     console.log('[Auto-Flip] Gemini response:', textResponse);
     
-    // Check if orientations are different
-    const needsFlip = textResponse.includes('DIFFERENT');
+    // Decision: prefer explicit ORIGINAL/FLIPPED. Fallback: SAME/DIFFERENT (older prompt).
+    const wantsFlipped = textResponse.includes('FLIPPED');
+    const wantsOriginal = textResponse.includes('ORIGINAL');
+    const needsFlip = wantsFlipped && !wantsOriginal;
     
     if (!needsFlip) {
       console.log('[Auto-Flip] Orientations match, no flip needed');
@@ -370,8 +382,8 @@ export async function POST(request: NextRequest) {
     
     let flippedBuffer: Buffer;
     try {
-      // Use simple PNG pixel manipulation (works in Workers)
-      flippedBuffer = await flipPngHorizontally(imageBuffer);
+      // Reuse candidate if we already computed it
+      flippedBuffer = flippedCandidateBuffer ?? (await flipPngHorizontally(imageBuffer));
       
       console.log('[Auto-Flip] Image flipped:', {
         originalSize: imageBuffer.length,
