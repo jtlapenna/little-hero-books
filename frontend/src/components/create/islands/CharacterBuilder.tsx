@@ -29,7 +29,10 @@ const PREVIEW_TIMEOUT_MS = 90000;
 const PREVIEW_CHECK_TIMEOUT_MS = 10000;
 
 /** Backend base URL for API calls (empty = same origin). Set PUBLIC_BACKEND_URL in dev if frontend/backend differ. */
-const API_BASE = (import.meta as { env?: { PUBLIC_BACKEND_URL?: string } }).env?.PUBLIC_BACKEND_URL ?? '';
+const API_BASE =
+  (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_API_URL ??
+  (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_BACKEND_URL ??
+  ((import.meta as { env?: { PROD?: boolean } }).env?.PROD ? 'https://admin.littleherolabs.com' : '');
 
 interface PreviewResult {
   imageUrl?: string;
@@ -85,7 +88,9 @@ function requestPreview(character: CreateFlowCharacter, forceRegenerate = false)
       const text = await res.text();
       // Backend returns JSON; HTML usually means wrong origin (e.g. 404 from frontend)
       if (!contentType.includes('application/json') || !text.trim().startsWith('{')) {
-        const hint = API_BASE ? '' : ' Set PUBLIC_BACKEND_URL in frontend/.env (e.g. http://localhost:3000) if the backend runs on a different port.';
+        const hint = API_BASE
+          ? ''
+          : ' Set PUBLIC_API_URL (or PUBLIC_BACKEND_URL) in the frontend environment (e.g. https://admin.littleherolabs.com).';
         return { ok: false, error: `Preview service returned an unexpected response (${res.status}). Is the backend running?${hint}` };
       }
       const data = JSON.parse(text) as { imageUrl?: string; image_url?: string; hash?: string; cached?: boolean; error?: string };
@@ -368,8 +373,8 @@ function CharacterBuilder() {
             id="char-hometown"
             type="text"
             className="character-builder__input"
-            value={char.hometown ?? HOMETOWN_DEFAULT}
-            onChange={(e) => updateCharacter({ hometown: e.target.value || HOMETOWN_DEFAULT })}
+            value={char.hometown ?? ''}
+            onChange={(e) => updateCharacter({ hometown: e.target.value || undefined })}
             placeholder={HOMETOWN_DEFAULT}
           />
         </div>

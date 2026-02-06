@@ -8,7 +8,10 @@ import { load, clear } from '../../../lib/createFlow/createFlowStorage';
 import type { CreateFlowState } from '../../../lib/createFlow/createFlowSchema';
 
 /** Backend base URL for API calls. */
-const API_BASE = (import.meta as { env?: { PUBLIC_BACKEND_URL?: string } }).env?.PUBLIC_BACKEND_URL ?? '';
+const API_BASE =
+  (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_API_URL ??
+  (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_BACKEND_URL ??
+  ((import.meta as { env?: { PROD?: boolean } }).env?.PROD ? 'https://admin.littleherolabs.com' : '');
 
 interface OrderStatus {
   status: string;

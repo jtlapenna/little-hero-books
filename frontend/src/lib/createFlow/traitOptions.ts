@@ -7,7 +7,7 @@ import type { SwatchOption } from '../../components/create/islands/SwatchPicker'
 import type { TraitGridOption } from '../../components/create/islands/TraitGridPicker';
 
 export const NAME_MAX_LENGTH = 20;
-export const HOMETOWN_DEFAULT = 'Little Neck';
+export const HOMETOWN_DEFAULT = 'a cozy town';
 
 export const PRONOUNS: { id: string; label: string }[] = [
   { id: 'she-her', label: 'She / Her' },

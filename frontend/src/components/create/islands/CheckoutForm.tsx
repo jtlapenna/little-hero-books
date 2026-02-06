@@ -9,7 +9,10 @@ import type { CreateFlowState, CreateFlowCheckoutShipping, ShippingTierId } from
 import { isCharacterStepComplete } from '../../../lib/createFlow/createFlowSelectors';
 
 /** Backend base URL for API calls. */
-const API_BASE = (import.meta as { env?: { PUBLIC_BACKEND_URL?: string } }).env?.PUBLIC_BACKEND_URL ?? '';
+const API_BASE =
+  (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_API_URL ??
+  (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_BACKEND_URL ??
+  ((import.meta as { env?: { PROD?: boolean } }).env?.PROD ? 'https://admin.littleherolabs.com' : '');
 
 /** Book price (cents). Must match backend DEFAULT_AMOUNT_CENTS. */
 const BOOK_PRICE_CENTS = 2999;

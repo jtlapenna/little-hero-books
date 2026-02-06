@@ -22,7 +22,10 @@ if (!token) {
 }
 
 // Backend API base URL: env-driven so prod/staging stay consistent with create flow
-const apiBase = import.meta.env.PUBLIC_BACKEND_URL ?? (import.meta.env.DEV ? 'http://localhost:3000' : 'https://admin.littleherolabs.com');
+const apiBase =
+  import.meta.env.PUBLIC_API_URL ??
+  import.meta.env.PUBLIC_BACKEND_URL ??
+  (import.meta.env.DEV ? 'http://localhost:3000' : 'https://admin.littleherolabs.com');
 ---
 
 <Layout title="Book Preview - Little Hero Labs" description="Preview your personalized children's book">
