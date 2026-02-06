@@ -58,6 +58,8 @@ async function copyPreviewToCharacterHash(previewHash: string, characterHash: st
 const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL;
 
 export async function POST(request: NextRequest) {
+  // Purpose: make webhook receipt obvious in Cloudflare logs.
+  console.log('[Webhook Stripe] Received request');
   const rawBody = await request.text();
   const signature = request.headers.get('stripe-signature') ?? request.headers.get('Stripe-Signature');
 
@@ -65,14 +67,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing Stripe-Signature header' }, { status: 401 });
   }
 
-  // Use sandbox keys if available, otherwise fall back to live keys
-  const webhookSecret = process.env.STRIPE_SANDBOX_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET;
+  // Purpose: prefer live secrets in production to avoid accidentally picking sandbox values.
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || process.env.STRIPE_SANDBOX_WEBHOOK_SECRET;
   if (!webhookSecret) {
     console.error('[Webhook Stripe] STRIPE_SANDBOX_WEBHOOK_SECRET or STRIPE_WEBHOOK_SECRET not configured');
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
   }
 
-  const stripeSecretKey = process.env.STRIPE_SANDBOX_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SANDBOX_SECRET_KEY;
   if (!stripeSecretKey) {
     console.error('[Webhook Stripe] STRIPE_SANDBOX_SECRET_KEY or STRIPE_SECRET_KEY not configured');
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
@@ -80,13 +82,16 @@ export async function POST(request: NextRequest) {
 
   let event: Stripe.Event;
   try {
-    const stripe = new Stripe(stripeSecretKey);
+    // Purpose: Cloudflare Workers runtime compatibility (even though verification is local).
+    const stripe = new Stripe(stripeSecretKey, { httpClient: Stripe.createFetchHttpClient() });
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[Webhook Stripe] Signature verification failed:', message);
     return NextResponse.json({ error: `Webhook signature verification failed: ${message}` }, { status: 401 });
   }
+
+  console.log('[Webhook Stripe] Verified event', { id: event.id, type: event.type, livemode: (event as any).livemode });
 
   const response = await withIdempotency(
     event.id,
@@ -118,6 +123,7 @@ export async function POST(request: NextRequest) {
       }
 
       const executionStatus = (order as Record<string, unknown>).execution_status as string | undefined;
+      console.log('[Webhook Stripe] Order status gate', { order_id, executionStatus: executionStatus ?? 'undefined' });
       if (executionStatus !== 'pending_payment') {
         console.log('[Webhook Stripe] Order already processed (execution_status=%s), skipping email and W0', executionStatus ?? 'undefined');
         return { status: 200, body: { received: true } };

@@ -3,7 +3,6 @@
  * Uses Resend with branded HTML templates. Logs to notification_logs when orderId is provided.
  */
 
-import { Resend } from 'resend';
 import { supabase } from '@/lib/supabase-client';
 import { buildEmailHtml, buildStepsList, buildParagraph, buildEmphasis } from './email-templates';
 
@@ -46,10 +45,9 @@ export interface D2CEmailResult {
 
 const DEFAULT_FROM = 'Little Hero Labs <notifications@littleherolabs.com>';
 
-function getResendClient(): Resend | null {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  if (!apiKey) return null;
-  return new Resend(apiKey);
+function getResendApiKey(): string | null {
+  // Purpose: centralize env access + trimming.
+  return process.env.RESEND_API_KEY?.trim() || null;
 }
 
 function getFromAddress(): string {
@@ -82,6 +80,40 @@ async function logNotification(params: {
   });
 }
 
+async function sendViaResendHttp(params: {
+  apiKey: string;
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}): Promise<{ id?: string; error?: string }> {
+  // Purpose: avoid SDK runtime incompatibilities in Cloudflare Workers by using fetch directly.
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${params.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: params.from,
+      to: [params.to],
+      subject: params.subject,
+      text: params.text,
+      html: params.html,
+    }),
+  });
+
+  const text = await res.text();
+  if (!res.ok) return { error: `Resend error (${res.status}): ${text.slice(0, 200)}` };
+  try {
+    const json = JSON.parse(text) as { id?: string };
+    return { id: json.id };
+  } catch {
+    return { id: undefined };
+  }
+}
+
 /**
  * Send D2C order confirmation email immediately after successful checkout.
  */
@@ -90,12 +122,28 @@ export async function sendD2COrderConfirmationEmail(
 ): Promise<D2CEmailResult> {
   if (!isD2CEmailEnabled()) {
     console.warn('[D2C Email] Order confirmation skipped: D2C_EMAIL_ENABLED is not true (in dev set D2C_EMAIL_ENABLED=true)');
+    if (params.orderId) {
+      await logNotification({
+        orderId: params.orderId,
+        recipient: params.to,
+        status: 'failed',
+        errorMessage: 'Skipped: D2C_EMAIL_ENABLED is not true',
+      });
+    }
     return { success: false, error: 'D2C email notifications are disabled' };
   }
 
-  const resend = getResendClient();
-  if (!resend) {
+  const apiKey = getResendApiKey();
+  if (!apiKey) {
     console.warn('[D2C Email] Order confirmation skipped: RESEND_API_KEY is not set');
+    if (params.orderId) {
+      await logNotification({
+        orderId: params.orderId,
+        recipient: params.to,
+        status: 'failed',
+        errorMessage: 'Skipped: RESEND_API_KEY is not set',
+      });
+    }
     return { success: false, error: 'RESEND_API_KEY is not set' };
   }
 
@@ -139,27 +187,21 @@ export async function sendD2COrderConfirmationEmail(
   });
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: getFromAddress(),
-      to: [params.to],
-      subject,
-      text,
-      html,
-    });
-
+    const from = getFromAddress();
+    const { id, error } = await sendViaResendHttp({ apiKey, from, to: params.to, subject, text, html });
     if (error) {
       if (params.orderId) {
         await logNotification({
           orderId: params.orderId,
           recipient: params.to,
           status: 'failed',
-          errorMessage: error.message,
+          errorMessage: error,
         });
       }
-      return { success: false, error: error.message };
+      return { success: false, error };
     }
 
-    const messageId = data?.id ?? undefined;
+    const messageId = id ?? undefined;
     if (params.orderId) {
       await logNotification({
         orderId: params.orderId,
