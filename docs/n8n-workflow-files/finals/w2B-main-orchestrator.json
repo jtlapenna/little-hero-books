@@ -8,13 +8,13 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "a1307c4d-cc29-41e6-bcec-8412011ddc65",
+      "id": "a4660980-4182-433a-8c38-cb614cb7631a",
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -1648,
-        112
+        -544,
+        -336
       ],
       "webhookId": "41599fba-eff6-48b2-bc4a-60e2c3acecf8"
     },
@@ -26,26 +26,26 @@
           "responseCode": 200
         }
       },
-      "id": "a2537981-2357-4811-8b8e-0069871231e3",
+      "id": "e4e5078c-f55c-4fc6-a706-6ee7aa692ebd",
       "name": "Respond to Webhook (Ack)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        -1424,
-        112
+        -320,
+        -336
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Normalize 2B orchestrator input (JSON-only)\n * Note: Idempotency is handled by router's \"Mark as Processing\" step\n * which sets execution_status='processing' before calling this webhook\n */\nconst input = $json || {};\nconst body = input.body && input.body !== input ? input.body : input;\n\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\n\nconst orderId = pick(input.orderId, input.amazonOrderId, body.orderId, body.amazonOrderId, null);\nif (!orderId) throw new Error('2B main: orderId is required');\n\n// 2A manifest URL\nlet manifestUrl = pick(input.manifestUrl, input.originalManifestUrl, body.manifestUrl, body.originalManifestUrl, null);\nif (!manifestUrl) {\n  const base = pick(input.backendUrl, body.backendUrl, 'https://admin.littleherolabs.com');\n  manifestUrl = `${base}/api/manifests/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2a-manifest.json`;\n}\n\nconst backendUrl = pick(input.backendUrl, body.backendUrl, 'https://admin.littleherolabs.com');\nconst callbackUrl = pick(input.callbackUrl, body.callbackUrl, `${backendUrl}/webhook/2b-callback`);\n\n// n8n Cloud-friendly: pass sw1 workflow id in the request payload (or set it directly in the Execute Workflow node UI)\nconst sw1WorkflowId = pick(input.sw1WorkflowId, body.sw1WorkflowId, null);\n\nconst batchSize = 1; // Always 1 so merge+upload runs sequentially per pose (avoids overwriting manifest)\nconst force = !!pick(input.force, body.force, false);\n\nreturn [{ json: { orderId, backendUrl, manifestUrl, callbackUrl, sw1WorkflowId, batchSize, force } }];\n"
       },
-      "id": "574d9361-bfbe-4008-b7cb-76a6520ef70b",
+      "id": "2782d9df-8148-4308-a8b2-ccbbccf6f0e3",
       "name": "Normalize 2B Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1200,
-        112
+        -96,
+        -336
       ]
     },
     {
@@ -60,13 +60,13 @@
           "timeout": 90000
         }
       },
-      "id": "02cdbdc3-c9e0-4831-9365-7018eace86e0",
+      "id": "084a4770-d8a4-4be8-be34-5f7a4982e38c",
       "name": "Download 2A Manifest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1024,
-        112
+        80,
+        -336
       ]
     },
     {
@@ -81,28 +81,27 @@
           "timeout": 90000
         }
       },
-      "id": "58e69091-24c2-4d2d-9135-1042f6f1a558",
+      "id": "7037f9e6-44e2-44d7-b9a9-40ac79ce84ab",
       "name": "Download 2B Manifest (optional)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -848,
-        112
+        256,
+        -336
       ],
-      "disabled": false,
       "continueOnFail": true
     },
     {
       "parameters": {
         "jsCode": "/**\n * Build pose worklist (idempotent + replacement-aware)\n * Async mode: we only trigger s2B-sw1 and return.\n */\n// PSEUDOCODE\n// - Always read 2A from the dedicated download node (optional 2B download can overwrite $json)\n// - Optionally read existing 2B (404 is OK) to skip already-completed poses\nconst manifest2a = $items('Download 2A Manifest', 0, $runIndex)?.[0]?.json || {};\nif (!manifest2a.schema) throw new Error('2B main: expected manifest JSON from Download 2A Manifest');\n\n// Recover context from Normalize node (HTTP nodes overwrite input)\nlet ctx = {};\ntry { ctx = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst orderId = ctx.orderId || manifest2a.order?.amazonOrderId || manifest2a.order?.orderId;\nconst characterHash = manifest2a.characterHash || manifest2a.order?.characterHash || null;\nif (!orderId) throw new Error('2B main: orderId missing after manifest download');\nif (!characterHash) throw new Error('2B main: characterHash missing');\n\nconst approved = (manifest2a.entries || []).filter(e => e?.approved && e?.status === 'approved');\nif (!approved.length) return [{ json: { orderId, characterHash, scheduled: 0, reason: 'NO_APPROVED_POSES' } }];\n\n// Existing 2B manifest (optional) from the previous node\nlet existing2b = null;\ntry {\n  const maybe = $items('Download 2B Manifest (optional)', 0, $runIndex)?.[0]?.json;\n  if (maybe && maybe.schema === 'lhb.run-manifest@v2.0') existing2b = maybe;\n} catch {}\n\nconst existingEntries = Array.isArray(existing2b?.entries) ? existing2b.entries : [];\nconst existingByPose = new Map(existingEntries.map(e => [Number(e.poseNumber), e]));\n\n// NOTE: existing 2B manifest lookup occurs in callback for MVP to keep orchestrator lean\n// Idempotency can still be applied in callback using sourceApprovedKey/sourceReplacedAt.\n\nconst backendUrl = ctx.backendUrl || 'https://admin.littleherolabs.com';\nconst callbackUrl = ctx.callbackUrl;\nconst force = !!ctx.force;\n\nlet skippedCount = 0;\nlet skippedByBriaStatus = 0;\nlet skippedBy2BManifest = 0;\n\nconst work = approved\n  .filter(p => {\n    if (force) return true;\n    const poseNum = Number(p?.poseNumber);\n\n    // Existing 2B manifest check (keep as-is)\n    const ex = existingByPose.get(poseNum);\n    if (!ex) return true;\n    const srcKey = p.approvedKey || null;\n    const srcReplacedAt = p.replacedAt || null;\n    const srcReplacementCount = Number(p.replacementCount || 0);\n    const done = !!(\n      ex.bgRemovedKey &&\n      String(ex.briaStatus || '').toLowerCase() === 'completed' &&\n      (ex.sourceApprovedKey || null) === srcKey &&\n      ((ex.sourceReplacedAt || null) === srcReplacedAt || Number(ex.sourceReplacementCount || 0) === srcReplacementCount)\n    );\n    if (done) {\n      skippedBy2BManifest++;\n      skippedCount++;\n    }\n    return !done;\n  })\n  .map(p => ({\n  orderId,\n  characterHash,\n  poseNumber: p.poseNumber,\n  approvedKey: p.approvedKey,\n  replacedAt: p.replacedAt || null,\n  replacementCount: Number(p.replacementCount || 0),\n  manifest2aUrl: ctx.manifestUrl || null,\n  backendUrl,\n  callbackUrl,\n  force\n}));\n\n// If all poses were skipped, emit a summary item instead of empty array\nif (work.length === 0 && approved.length > 0) {\n  return [{ json: { \n    orderId, \n    characterHash, \n    scheduled: 0, \n    reason: 'ALL_POSES_ALREADY_PROCESSED',\n    totalApproved: approved.length,\n    skippedByBriaStatus,\n    skippedBy2BManifest,\n    skippedTotal: skippedCount\n  } }];\n}\n\n// Emit one item per pose for SplitInBatches\nreturn work.map(w => ({ json: w }));\n"
       },
-      "id": "cfaa8be2-8668-4064-bad1-4ee4917d213a",
+      "id": "5e1ba1a6-642b-4d1b-8ffc-00318d4d21d8",
       "name": "Build Worklist",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -656,
-        112
+        448,
+        -336
       ],
       "alwaysOutputData": true
     },
@@ -130,13 +129,13 @@
         },
         "options": {}
       },
-      "id": "e55daa5b-97e8-45d7-a7be-70843bdb3714",
+      "id": "4467bad9-b1c0-4695-baa6-fbf25aea8749",
       "name": "If All Poses Skipped",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -400,
-        112
+        704,
+        -336
       ]
     },
     {
@@ -168,13 +167,13 @@
           "timeout": 90000
         }
       },
-      "id": "b21a0392-d885-4ade-b572-42251225ccec",
+      "id": "9b9536f9-f688-46fe-8838-63d2b1b1b460",
       "name": "Notify Backend: All Poses Skipped",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        0,
-        0
+        1104,
+        -448
       ]
     },
     {
@@ -182,26 +181,26 @@
         "batchSize": "={{ $items('Normalize 2B Input')[0].json.batchSize }}",
         "options": {}
       },
-      "id": "0e092a6a-e3af-454e-a3a5-823e17c1e11c",
+      "id": "a952cfc8-c0a8-4985-bd4f-da1ad51856b3",
       "name": "Split In Batches",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        0,
-        240
+        1104,
+        -208
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Final response payload (does not wait for workers).\n */\nconst items = $items('Build Worklist', 0, $runIndex) || [];\nlet ctx = {};\ntry { ctx = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\nreturn [{ json: { orderId: ctx.orderId, scheduled: items.length, callbackUrl: ctx.callbackUrl, batchSize: ctx.batchSize } }];\n"
       },
-      "id": "cd05dc56-055e-481a-b9d8-04dca5351aef",
+      "id": "c29fb033-4a87-4624-b4ca-367c6f4ec008",
       "name": "Final Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        336,
-        0
+        1440,
+        -448
       ]
     },
     {
@@ -233,13 +232,13 @@
           "timeout": 90000
         }
       },
-      "id": "55a0e118-dd16-4db6-bd23-0a026bf9278d",
+      "id": "c276420b-5eb9-4bc6-a2e7-4da0fa97c6a5",
       "name": "Notify Backend: BRIA_READY",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        528,
-        0
+        1632,
+        -448
       ],
       "disabled": true
     },
@@ -268,23 +267,23 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        304,
-        256
+        1408,
+        -192
       ],
-      "id": "301a7d30-49ec-4259-8610-3a3dd1dcb5a2",
+      "id": "88df432b-54f2-4d66-bef9-3844087231f7",
       "name": "Execute Workflow: s2B-sw"
     },
     {
       "parameters": {
         "jsCode": "/**\n * Normalize Result - Extract and normalize sub-workflow output for aggregator\n * Handles both flat result structure and any wrapper formats\n */\nconst j = $json || {};\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\n\n// Extract result (may be flat or wrapped)\nlet result = j.result || j;\n\n// Recover context from orchestrator\nlet ctx = {};\ntry { ctx = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\n// Extract fields with fallbacks\nconst orderId = pick(result.orderId, j.orderId, ctx.orderId, null);\nconst characterHash = pick(result.characterHash, j.characterHash, ctx.characterHash, null);\nconst poseNumberRaw = pick(result.poseNumber, j.poseNumber, null);\nconst poseNumber = (poseNumberRaw === 0 || poseNumberRaw === '0') ? 0 : Number(poseNumberRaw);\n\nif (!orderId) throw new Error('2B aggregator: orderId required');\nif (!characterHash) throw new Error('2B aggregator: characterHash required');\nif (!Number.isFinite(poseNumber)) throw new Error('2B aggregator: poseNumber required');\n\nconst backendUrl = pick(result.backendUrl, j.backendUrl, ctx.backendUrl, 'https://admin.littleherolabs.com');\nconst manifest2aUrl = pick(result.manifest2aUrl, j.manifest2aUrl, ctx.manifestUrl, `${backendUrl}/api/manifests/book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2a-manifest.json`);\nconst manifest2bKey = `book-mvp-simple-adventure/orders/${String(orderId)}/manifests/2b-manifest.json`;\n\n// Normalize result object\nconst normalizedResult = {\n  orderId,\n  characterHash,\n  poseNumber,\n  approvedKey: pick(result.approvedKey, null),\n  sourceReplacedAt: pick(result.sourceReplacedAt, null),\n  sourceReplacementCount: Number(pick(result.sourceReplacementCount, 0) || 0),\n  sourceUrl: pick(result.sourceUrl, null),\n  briaStatus: pick(result.briaStatus, 'error'),\n  briaRequestId: pick(result.briaRequestId, null),\n  briaStatusUrl: pick(result.briaStatusUrl, null),\n  briaCompletedAt: pick(result.briaCompletedAt, null),\n  briaErrorMessage: pick(result.briaErrorMessage, null),\n  bgRemovedKey: pick(result.bgRemovedKey, null),\n  bgRemovedContentType: pick(result.bgRemovedContentType, null),\n  bgRemovedSizeBytes: (result.bgRemovedSizeBytes === 0 ? 0 : (Number(result.bgRemovedSizeBytes) || null)),\n  bgRemovedImageUrl: pick(result.bgRemovedImageUrl, null),\n  qa: (result.qa && typeof result.qa === 'object') ? result.qa : null,\n  needsReview: !!pick(result.needsReview, false),\n  reviewReason: pick(result.reviewReason, null),\n};\n\nreturn [{ json: { backendUrl, manifest2aUrl, manifest2bKey, result: normalizedResult } }];\n"
       },
-      "id": "97d0f1af-17c1-44d8-abc7-d8f2432342e8",
+      "id": "1f0bb193-08f8-45ab-8c2e-dccb5aa2de6e",
       "name": "Normalize Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        528,
-        256
+        1632,
+        -192
       ]
     },
     {
@@ -299,15 +298,14 @@
           "timeout": 90000
         }
       },
-      "id": "a19b5a5a-671c-4221-a726-bfbd0b068b97",
+      "id": "e423267c-3078-4100-a179-28dc78e4e0a7",
       "name": "Download 2B Manifest (if exists)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        960,
-        256
+        2064,
+        -192
       ],
-      "disabled": false,
       "continueOnFail": true
     },
     {
@@ -322,39 +320,39 @@
           "timeout": 90000
         }
       },
-      "id": "416d6ecc-7d50-40c0-af26-ce5f23256a16",
+      "id": "d1a9c48c-1fb5-4c18-8bce-1ab8503a0086",
       "name": "Download 2A Manifest (for merge)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        800,
-        128
+        1904,
+        -320
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Merge the incoming pose result into 2B manifest (create if missing).\n * Uses $items() to access parallel download nodes reliably\n */\nlet ctx = {};\ntry { ctx = $items('Normalize Result', 0, $runIndex)?.[0]?.json || {}; } catch {}\nconst incoming = ctx.result;\n\nconst manifest2bMaybe = $items('Download 2B Manifest (if exists)', 0, $runIndex)?.[0]?.json || null;\nconst manifest2a = $items('Download 2A Manifest (for merge)', 0, $runIndex)?.[0]?.json || null;\n\nif (!incoming) {\n  throw new Error('2B aggregator: No result data from Normalize Result');\n}\n\nif (!manifest2a?.schema) {\n  throw new Error('2B aggregator: missing 2A manifest or invalid schema');\n}\n\n// Detect 2B manifest existence: backend returns JSON error on 404; treat as missing if no schema\nlet manifest2b = (manifest2bMaybe && manifest2bMaybe.schema === 'lhb.run-manifest@v2.0') ? manifest2bMaybe : null;\n\nif (!manifest2b) {\n  // Create skeleton 2B manifest from 2A\n  manifest2b = JSON.parse(JSON.stringify(manifest2a));\n  manifest2b.stage = '2b';\n  manifest2b.createdAt = new Date().toISOString();\n  manifest2b.updatedAt = new Date().toISOString();\n  (manifest2b.entries || []).forEach(e => {\n    e.bgRemovedKey = null;\n    e.bgRemovedImageUrl = null;\n    e.briaStatus = null;\n    e.briaRequestId = null;\n    e.briaStatusUrl = null;\n    e.briaErrorMessage = null;\n    e.sourceApprovedKey = null;\n    e.sourceReplacedAt = null;\n    e.sourceReplacementCount = 0;\n    e.processedAt = null;\n    // Clear 2B-specific review flags (start fresh for 2B workflow)\n    e.needsReview = false;\n    e.reviewReason = null;\n    e.isFlagged = false;\n  });\n}\n\n// Update pose entry\nconst poseNumber = Number(incoming.poseNumber);\nconst entry = (manifest2b.entries || []).find(e => Number(e.poseNumber) === poseNumber);\nif (!entry) throw new Error(`2B aggregator: pose ${poseNumber} not found in manifest entries`);\n\nentry.sourceApprovedKey = incoming.approvedKey || entry.approvedKey || null;\nentry.sourceReplacedAt = incoming.sourceReplacedAt || null;\nentry.sourceReplacementCount = Number(incoming.sourceReplacementCount || 0);\nentry.processedAt = new Date().toISOString();\n\nentry.briaStatus = incoming.briaStatus;\nentry.briaRequestId = incoming.briaRequestId || null;\nentry.briaStatusUrl = incoming.briaStatusUrl || null;\nentry.briaErrorMessage = incoming.briaErrorMessage || null;\n\n// QA\nif (incoming.qa && typeof incoming.qa === 'object') {\n  entry.qa = { ...(entry.qa || {}), ...incoming.qa };\n}\n\nif (incoming.briaStatus === 'completed') {\n  entry.bgRemovedKey = incoming.bgRemovedKey || entry.bgRemovedKey;\n  entry.bgRemovedImageUrl = incoming.bgRemovedImageUrl || entry.bgRemovedImageUrl;\n  entry.bgRemovedStatus = 'completed';\n  entry.bgRemoved = true;\n  // Only set needsReview to true if explicitly flagged; otherwise false\n  entry.needsReview = incoming.needsReview === true;\n  entry.reviewReason = incoming.needsReview === true ? (incoming.reviewReason || 'transparency_fail_or_low_conf') : null;\n  // Clear isFlagged if not explicitly set (completed poses should not be flagged unless QA failed)\n  if (incoming.needsReview !== true) {\n    entry.isFlagged = false;\n  }\n} else {\n  entry.bgRemoved = false;\n  entry.bgRemovedStatus = incoming.briaStatus;\n  entry.needsReview = true;\n  entry.reviewReason = incoming.reviewReason || 'unknown';\n}\n\nmanifest2b.updatedAt = new Date().toISOString();\n\n// Completion check: all approved poses are terminal\nconst approved2a = (manifest2a.entries || []).filter(e => e?.approved && e?.status === 'approved');\nconst approvedCount = approved2a.length;\n\nconst isTerminal = (s) => ['completed','failed','timeout','error'].includes(String(s||'').toLowerCase());\nconst approvedNums = new Set(approved2a.map(e => Number(e.poseNumber)));\nconst terminalApproved = (manifest2b.entries || []).filter(e => approvedNums.has(Number(e.poseNumber)) && isTerminal(e.briaStatus)).length;\nconst complete = (approvedCount > 0) && (terminalApproved === approvedCount);\n\n// Order-level review flags\nconst approvedEntries2b = (manifest2b.entries || []).filter(e => approvedNums.has(Number(e.poseNumber)));\nconst needsHumanReview = approvedEntries2b.some(e => e.needsReview === true || e.needs_review === true);\nconst allSucceeded = approvedEntries2b.every(e => String(e.briaStatus||'').toLowerCase() === 'completed');\nconst readyForBook = allSucceeded && !needsHumanReview;\n\n// Minimal summary\nmanifest2b.summary = manifest2b.summary || {};\nmanifest2b.summary.approvedPoseCount = approvedCount;\nmanifest2b.summary.terminalPoseCount = terminalApproved;\nmanifest2b.summary.complete = complete;\nmanifest2b.summary.needsHumanReview = needsHumanReview;\nmanifest2b.summary.readyForBook = readyForBook;\n\nreturn [{ json: { manifest2b, complete, manifest2bKey: ctx.manifest2bKey, backendUrl: ctx.backendUrl, orderId: incoming.orderId, characterHash: incoming.characterHash } }];\n"
       },
-      "id": "0abfc0a1-8c28-4155-9c73-43e978c0636d",
+      "id": "7258b301-3f92-4d23-bb3c-5152fddc2b54",
       "name": "Merge Result Into 2B Manifest",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1216,
-        256
+        2320,
+        -192
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Create binary for S3 upload (manifest JSON).\n */\nconst manifest = $json.manifest2b;\nconst s = JSON.stringify(manifest, null, 2);\nconst b64 = Buffer.from(s, 'utf8').toString('base64');\n\nreturn [{\n  json: { manifest2bKey: $json.manifest2bKey, complete: $json.complete, backendUrl: $json.backendUrl, orderId: $json.orderId, characterHash: $json.characterHash, needsHumanReview: $json.manifest2b?.summary?.needsHumanReview || false },\n  binary: {\n    data: {\n      data: b64,\n      mimeType: 'application/json',\n      fileName: '2b-manifest.json'\n    }\n  }\n}];\n"
       },
-      "id": "756e1265-7953-4778-8502-d06f8808f620",
+      "id": "d991e671-5561-46e3-b1cb-d353a831ed0b",
       "name": "Prep Manifest Binary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1456,
-        256
+        2560,
+        -192
       ]
     },
     {
@@ -364,13 +362,13 @@
         "fileName": "={{ $json.manifest2bKey }}",
         "additionalFields": {}
       },
-      "id": "356a3fa3-cc08-4304-bfdf-9d8b1d173c7a",
+      "id": "6fda20d6-5786-4f93-8b59-4c548ee2a72f",
       "name": "Upload 2B Manifest to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        1680,
-        256
+        2784,
+        -192
       ],
       "credentials": {
         "s3": {
@@ -404,13 +402,13 @@
         },
         "options": {}
       },
-      "id": "bd883e68-b9b1-4df5-abcf-e83a8dd16978",
+      "id": "7cdfe0e8-2487-4cfb-acaa-7b6d70ec01da",
       "name": "If Complete",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1872,
-        256
+        2976,
+        -192
       ]
     },
     {
@@ -442,13 +440,13 @@
           "timeout": 90000
         }
       },
-      "id": "257affac-e832-4a9e-890a-1d8f2d17459a",
+      "id": "2c881e0c-0475-432f-a94a-c5ffb9754879",
       "name": "Notify Backend (2B Complete)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2112,
-        240
+        3216,
+        -208
       ]
     }
   ],
@@ -707,18 +705,13 @@
           }
         ]
       ]
-    },
-    "Final Summary": {
-      "main": [
-        []
-      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "2a840b75-dcfc-4d45-918e-bf74fc4c2a7a",
+  "versionId": "9bdff975-0de9-4a94-8045-6f1110f69077",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
