@@ -84,6 +84,10 @@ export function AssetGrid({
   onReviseRevision
 }: AssetGridProps) {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  // Track which images failed to load so we can show a placeholder without mutating DOM.
+  const [failedAssetIds, setFailedAssetIds] = useState<Set<string>>(() => new Set());
+  // Track previous URLs to clear failure state when an image URL changes (e.g. after replace/cache-bust).
+  const prevUrlByIdRef = useRef<Map<string, string>>(new Map());
 
   // Update selectedAsset when the corresponding asset in the assets array changes
   // This ensures the modal shows the updated image after operations like flip, flag, or revision updates
@@ -110,6 +114,50 @@ export function AssetGrid({
       }
     }
   }, [assets, selectedAsset]);
+
+  // Keep failure state in sync with assets list and URL changes.
+  useEffect(() => {
+    if (!assets || assets.length === 0) {
+      prevUrlByIdRef.current = new Map();
+      if (failedAssetIds.size) setFailedAssetIds(new Set());
+      return;
+    }
+
+    const nextPrev = new Map<string, string>();
+    const ids = new Set(assets.map(a => a.id));
+    const prevMap = prevUrlByIdRef.current;
+
+    setFailedAssetIds((prev) => {
+      if (!prev.size) {
+        assets.forEach(a => nextPrev.set(a.id, a.url || ''));
+        prevUrlByIdRef.current = nextPrev;
+        return prev;
+      }
+
+      let changed = false;
+      const next = new Set<string>();
+
+      for (const id of prev) {
+        if (!ids.has(id)) {
+          changed = true; // asset removed
+          continue;
+        }
+        const asset = assets.find(a => a.id === id);
+        const prevUrl = prevMap.get(id) || '';
+        const nextUrl = asset?.url || '';
+        // If URL changed, allow a retry (clear failure for that id).
+        if (prevUrl !== nextUrl) {
+          changed = true;
+          continue;
+        }
+        next.add(id);
+      }
+
+      assets.forEach(a => nextPrev.set(a.id, a.url || ''));
+      prevUrlByIdRef.current = nextPrev;
+      return changed ? next : prev;
+    });
+  }, [assets, failedAssetIds.size]);
   const [internalIsReplacing, setInternalIsReplacing] = useState<string | null>(null);
   const isReplacing = externalIsReplacing !== undefined ? externalIsReplacing : internalIsReplacing;
   // Use refs to track file inputs for more reliable access
@@ -183,10 +231,12 @@ export function AssetGrid({
                 showBlackBackground && asset.hasTransparentBackground ? 'bg-black' : 'bg-gray-50'
               } ${asset.isMissing ? 'bg-red-50 border-2 border-red-300 border-dashed' : ''}`}
             >
-              {asset.isMissing || !asset.url ? (
+              {asset.isMissing || !asset.url || failedAssetIds.has(asset.id) ? (
                 <div className="flex flex-col items-center justify-center p-4 text-center">
                   <div className="text-4xl mb-2">⚠️</div>
-                  <div className="text-sm font-medium text-red-600 mb-1">Missing</div>
+                  <div className="text-sm font-medium text-red-600 mb-1">
+                    {asset.isMissing || !asset.url ? 'Missing' : 'Image not found'}
+                  </div>
                   {asset.status && (
                     <div className="text-xs text-gray-500 capitalize">{asset.status}</div>
                   )}
@@ -199,25 +249,25 @@ export function AssetGrid({
                 </div>
               ) : (
               <img
+                key={`${asset.id}:${asset.url}`}
                 src={asset.url}
                 alt={asset.name}
                 className="max-w-full max-h-full object-contain"
                 loading="lazy"
                 decoding="async"
-                  onError={(e) => {
-                    // Fallback to placeholder if image fails to load
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    const parent = target.parentElement;
-                    if (parent && !parent.querySelector('.missing-placeholder')) {
-                      parent.innerHTML = `
-                        <div class="missing-placeholder flex flex-col items-center justify-center p-4 text-center">
-                          <div class="text-4xl mb-2">⚠️</div>
-                          <div class="text-sm font-medium text-red-600">Image not found</div>
-                        </div>
-                      `;
-                    }
-                  }}
+                onLoad={() => {
+                  // Clear failure state if the image successfully loads.
+                  setFailedAssetIds(prev => {
+                    if (!prev.has(asset.id)) return prev;
+                    const next = new Set(prev);
+                    next.delete(asset.id);
+                    return next;
+                  });
+                }}
+                onError={() => {
+                  // Mark as failed; parent UI can later clear this when URL changes (cache-bust/replace).
+                  setFailedAssetIds(prev => (prev.has(asset.id) ? prev : new Set(prev).add(asset.id)));
+                }}
               />
               )}
             </div>
@@ -340,34 +390,23 @@ export function AssetGrid({
                 title="New revision available - Click to view"
               >
                 <div className="w-10 h-10 bg-blue-500 rounded-lg border-2 border-white shadow-lg overflow-hidden hover:ring-2 hover:ring-blue-300 transition-all">
-                  {asset.pendingRevisionUrl ? (
-                    <img
-                      src={asset.pendingRevisionUrl}
-                      alt="Revision preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        // Fallback to icon if image fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const parent = target.parentElement;
-                        if (parent) {
-                          parent.innerHTML = `
-                            <div class="w-full h-full flex items-center justify-center bg-blue-500">
-                              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                            </div>
-                          `;
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-blue-500">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                    </div>
-                  )}
+                  {/* Icon fallback lives behind the image (no DOM mutation in onError). */}
+                  <div className="relative w-full h-full flex items-center justify-center bg-blue-500">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    {asset.pendingRevisionUrl && (
+                      <img
+                        src={asset.pendingRevisionUrl}
+                        alt="Revision preview"
+                        className="absolute inset-0 w-full h-full object-cover"
+                        onError={(e) => {
+                          // Hide broken image so the icon shows through.
+                          (e.currentTarget as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             )}
