@@ -165,7 +165,7 @@ export async function cleanupLocalFiles(orderId: string, renderOutput: RenderOut
       renderOutput.bookPdfUrl,
       renderOutput.coverPdfUrl,
       renderOutput.thumbUrl
-    ].filter(Boolean);
+    ].filter((p): p is string => typeof p === 'string' && p.length > 0);
     
     for (const filePath of filesToCleanup) {
       if (fs.existsSync(filePath)) {
