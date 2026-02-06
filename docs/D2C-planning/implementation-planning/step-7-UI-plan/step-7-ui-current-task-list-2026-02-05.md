@@ -89,10 +89,12 @@ Completed: "Start over" link in CreateLayout (customize, checkout, processing); 
 
 Completed: Mobile-first tweaks across CharacterBuilder/PreviewPanel, BookCustomizationForm (summary stacking + image scaling + CTA stacking), CheckoutForm (shipping option layout + CTA stacking + simpler desktop layout), ProcessingConfirmation (detail rows + full-width buttons on small screens).
 
-### 8) Canonical/SEO correctness in `CreateLayout.astro` (Task 10)
+### 8) ~~Canonical/SEO correctness in `CreateLayout.astro` (Task 10)~~ DONE
 **Why now:** Small but important; do after routes/entry points are finalized.
 
 **Acceptance:** Canonical/OG base URL is env/config-driven (not hardcoded).
+
+Completed: Both Layout.astro and CreateLayout.astro now use `PUBLIC_SITE_URL` env var with fallback to production URL. Added to .env.example.
 
 ### 9) Switch to Stripe production and test end-to-end (Task 4)
 **Why last:** Only after checkout math + status + recovery are correct in test mode.

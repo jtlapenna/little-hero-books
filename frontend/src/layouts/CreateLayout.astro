@@ -15,7 +15,8 @@ interface Props {
 
 const { step, title, description = 'Create your personalized book — Little Hero Labs', image } = Astro.props;
 
-const siteUrl = 'https://www.littleherolabs.com';
+// Env-driven site URL for correct canonical/OG in all environments
+const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.com';
 const currentPath = Astro.url.pathname;
 const canonicalUrl = `${siteUrl}${currentPath}`;
 const ogImage = image || `${siteUrl}/og-image.jpg`;
