@@ -102,6 +102,8 @@ lib/
 lib64/
 # Allow back-end/src/lib (TypeScript library files)
 !back-end/src/lib/
+# Allow frontend/src/lib (Astro create flow helpers)
+!frontend/src/lib/
 parts/
 sdist/
 var/
