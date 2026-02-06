@@ -5,18 +5,17 @@ import { OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
-import { formatDate, formatPlatformName } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { getOrderFlagSummary, getActiveStageFlagCount } from '@/lib/review-state';
 import { DisplayStatus } from '@/constants/statuses';
-import { Search, ChevronDown, Archive } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
 
 interface OrdersTableProps {
   orders: OrderListItem[];
   onOrderClick: (orderId: string) => void;
-  onArchiveOrder?: (orderId: string) => void;
 }
 
-export function OrdersTable({ orders, onOrderClick, onArchiveOrder }: OrdersTableProps) {
+export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | DisplayStatus>('all');
   const [platformFilter, setPlatformFilter] = useState('all');
@@ -88,7 +87,8 @@ export function OrdersTable({ orders, onOrderClick, onArchiveOrder }: OrdersTabl
           >
             <option value="all">All Platforms</option>
             <option value="amazon">Amazon</option>
-            <option value="d2c">D2C</option>
+            <option value="d2c">D2C (Website)</option>
+            <option value="etsy">Etsy</option>
           </select>
         </div>
       </div>
@@ -138,8 +138,8 @@ export function OrdersTable({ orders, onOrderClick, onArchiveOrder }: OrdersTabl
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {order.firstName} {order.lastName}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatPlatformName(order.platform)}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                      {order.platform}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
@@ -158,25 +158,9 @@ export function OrdersTable({ orders, onOrderClick, onArchiveOrder }: OrdersTabl
                       {formatDate(order.orderDate)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center space-x-3">
-                        <button className="text-blue-600 hover:text-blue-900 font-medium">
-                          Open
-                        </button>
-                        {onArchiveOrder && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (window.confirm(`Archive order ${order.orderId}?`)) {
-                                onArchiveOrder(order.orderId);
-                              }
-                            }}
-                            className="text-gray-500 hover:text-gray-700 flex items-center space-x-1"
-                            title="Archive order"
-                          >
-                            <Archive className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
+                      <button className="text-blue-600 hover:text-blue-900 font-medium">
+                        Open
+                      </button>
                     </td>
                   </tr>
                 );

@@ -56,22 +56,22 @@ export const FAVORITE_COLORS = [
 ] as const;
 export type FavoriteColor = typeof FAVORITE_COLORS[number];
 
-// === Skin tones (canonical IDs inferred from base assets) ===
+// === Skin tones (canonical IDs matching R2 base assets) ===
 export const SKIN_TONES = [
   'skin-light',
   'skin-medium',
   'skin-tan',
-  'skin-brown-light',
-  'skin-brown-deep',
+  'skin-medium-dark',
+  'skin-deep',
 ] as const;
 export type SkinToneCanonical = typeof SKIN_TONES[number];
 
 export const SKIN_TONE_HEX_MAP: Record<SkinToneCanonical, { id: SkinToneCanonical; hex: string; label: string }> = {
-  'skin-light': { id: 'skin-light', hex: '#EEC38D', label: 'Light' },
-  'skin-medium': { id: 'skin-medium', hex: '#EBB167', label: 'Medium' },
-  'skin-tan': { id: 'skin-tan', hex: '#D19550', label: 'Tan' },
-  'skin-brown-light': { id: 'skin-brown-light', hex: '#B47442', label: 'Brown — Light' },
-  'skin-brown-deep': { id: 'skin-brown-deep', hex: '#8A5733', label: 'Brown — Deep' },
+  'skin-light': { id: 'skin-light', hex: '#F5D0B5', label: 'Light' },
+  'skin-medium': { id: 'skin-medium', hex: '#E7AB62', label: 'Medium' },
+  'skin-tan': { id: 'skin-tan', hex: '#CF924E', label: 'Tan' },
+  'skin-medium-dark': { id: 'skin-medium-dark', hex: '#95623D', label: 'Medium Dark' },
+  'skin-deep': { id: 'skin-deep', hex: '#7C5130', label: 'Deep' },
 };
 
 // === Clothing styles ===

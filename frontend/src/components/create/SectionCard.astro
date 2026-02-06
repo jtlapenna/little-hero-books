@@ -1,0 +1,30 @@
+---
+interface Props {
+  title?: string;
+}
+
+const { title } = Astro.props;
+---
+
+<section class="section-card">
+  {title && <h2 class="section-card__title">{title}</h2>}
+  <slot />
+</section>
+
+<style>
+  .section-card {
+    background: var(--color-off-white, #FFFCF8);
+    border-radius: 12px;
+    padding: var(--spacing-lg, 2rem);
+    margin-bottom: var(--spacing-lg, 2rem);
+    border: 1px solid rgba(45, 49, 66, 0.08);
+  }
+
+  .section-card__title {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-navy-midnight, #2D3142);
+    margin-bottom: var(--spacing-md, 1rem);
+  }
+</style>

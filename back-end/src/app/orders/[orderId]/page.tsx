@@ -6,7 +6,7 @@ import { Order, ReviewStage } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
-import { formatDate, getInitials, formatPlatformName } from '@/lib/utils';
+import { formatDate, getInitials } from '@/lib/utils';
 import { getOrderById } from '@/lib/mock-data';
 import { PreBriaStage } from '@/components/stages/pre-bria-stage';
 import { PostBriaStage } from '@/components/stages/post-bria-stage';
@@ -15,7 +15,7 @@ import { LuluStage } from '@/components/stages/lulu-stage';
 import { getStageFlaggedCount, getOrderFlagSummary } from '@/lib/review-state';
 import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
-import { ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer, Archive } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer } from 'lucide-react';
 import { getDisplayStatusForOrder, getStageBadgeStatus } from '@/lib/status-display';
 import { ManualReviewAlert } from '@/components/ui/manual-review-alert';
 
@@ -110,8 +110,6 @@ export default function OrderDetailPage() {
   const [creating2bManifest, setCreating2bManifest] = useState(false);
   const [resettingOrder, setResettingOrder] = useState(false);
   const [normalizingShipping, setNormalizingShipping] = useState(false);
-  const [archivingOrder, setArchivingOrder] = useState(false);
-  const [repairingWorkflowStep, setRepairingWorkflowStep] = useState(false);
   const printRequestInProgressRef = useRef(false);
   const rawResetToggle = process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET;
   const enableResetButton =
@@ -434,13 +432,7 @@ export default function OrderDetailPage() {
   }
 
   const activeStageKey = activeStage as unknown as keyof typeof order.reviewStages;
-  const baseLifecycleStatus = getDisplayStatusForOrder(order);
-  
-  // Override status display for archived orders
-  const lifecycleStatus = (order as any).lifecycle_status === 'archived'
-    ? { ...baseLifecycleStatus, workflowStatus: 'archived' as any, technicalStatus: null, errors: [] }
-    : baseLifecycleStatus;
-  
+  const lifecycleStatus = getDisplayStatusForOrder(order);
   const activeStageDefinition = stages.find(
     (stage) => stage.key === activeStage
   );
@@ -852,27 +844,6 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleRepairWorkflowStep = async () => {
-    // Purpose: Repair workflow_step when Supabase is stale (derive from manifests in R2).
-    if (!order) return;
-    if (!confirm("Repair workflow state from manifests in R2?\n\nThis will:\n- Detect the highest manifest present (3 > 2B > 2A)\n- Update workflow_step, next_workflow, and execution_status in Supabase\n- Clear processing state (started_at, current_workflow)\n- If not yet approved for print, order stays at pending customer approval (next_workflow '3')\n\nThis will NOT:\n- Change manifests, review stages, or customer approval")) {
-      return;
-    }
-
-    setRepairingWorkflowStep(true);
-    try {
-      const res = await fetch(`/api/admin/orders/${order.orderId}/repair-workflow-step`, { method: 'POST' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || data?.details || 'Failed to repair workflow_step');
-      alert(`Workflow state repaired.\n\nworkflow_step: ${data.previousWorkflowStep || '(empty)'} → ${data.repairedWorkflowStep}\nnext_workflow: ${data.next_workflow ?? '(unchanged)'}\nexecution_status: ${data.execution_status ?? 'done'}`);
-      await fetchOrder(order.orderId);
-    } catch (error: any) {
-      alert(`Failed to repair workflow_step: ${error?.message || 'Unknown error'}`);
-    } finally {
-      setRepairingWorkflowStep(false);
-    }
-  };
-
   const handleResetOrder = async () => {
     if (!order) return;
     const confirmed = window.confirm(
@@ -911,41 +882,6 @@ export default function OrderDetailPage() {
     }
   };
 
-  // Archive order - moves to archived_orders table
-  const handleArchiveOrder = async () => {
-    if (!order) return;
-    const confirmed = window.confirm(
-      'Archive this order? It will be moved to the archived orders list and removed from the active orders view.'
-    );
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setArchivingOrder(true);
-
-      const response = await fetch(`/api/admin/orders/${order.orderId}/archive`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: 'manual' }),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => null);
-        throw new Error(errorBody?.error || 'Failed to archive order');
-      }
-
-      alert('Order archived successfully.');
-      // Redirect back to orders list since this order is now archived
-      router.push('/orders');
-    } catch (error: any) {
-      console.error('Error archiving order:', error);
-      alert(error?.message || 'Failed to archive order. Please try again.');
-    } finally {
-      setArchivingOrder(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -961,10 +897,21 @@ export default function OrderDetailPage() {
           
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="min-w-0 flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 truncate">{order.orderId}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 truncate">
+                {/* Show display_order_id for D2C, amazon_order_id for Amazon, fallback to orderId */}
+                {order.platform === 'd2c' 
+                  ? (order.displayOrderId || `LH-${order.orderId.substring(0, 5).toUpperCase()}`)
+                  : (order.amazonOrderId || order.orderId)}
+              </h1>
               <p className="text-gray-600 mt-1">
                 {order.customer.firstName} {order.customer.lastName} •{' '}
-                {formatPlatformName(order.platform)}
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                  order.platform === 'd2c' 
+                    ? 'bg-purple-100 text-purple-800' 
+                    : 'bg-orange-100 text-orange-800'
+                }`}>
+                  {order.platform === 'd2c' ? 'D2C (Website)' : order.platform ? order.platform.charAt(0).toUpperCase() + order.platform.slice(1) : 'Amazon'}
+                </span>
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
@@ -1027,25 +974,6 @@ export default function OrderDetailPage() {
                   </>
                 )}
               </button>
-              <button
-                type="button"
-                onClick={handleArchiveOrder}
-                disabled={archivingOrder}
-                className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-600 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
-                title="Archive this order"
-              >
-                {archivingOrder ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Archiving...
-                  </>
-                ) : (
-                  <>
-                    <Archive className="h-4 w-4 mr-2" />
-                    Archive
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -1086,18 +1014,13 @@ export default function OrderDetailPage() {
           const canShowNormalizeShipping = order.error_type === 'missing_shipping' && 
                                           order.shipping_address && 
                                           typeof order.shipping_address === 'object';
-
-          // Show when order has any manifest so admin can sync workflow/status/next_workflow from R2 (e.g. after re-running 2B/W3)
-          const canShowRepairWorkflowStep =
-            !!(order.oneManifestUrl || order.manifest2aUrl || order.manifest2bUrl || order.manifest3Url);
           
           // Only show section if at least one button would be visible
           const hasAnyRecoveryAction = canShowCreate1Manifest || 
                                       canShowCreate2aManifest || 
                                       canShowCreate2bManifest || 
                                       canShowResetButton ||
-                                      canShowNormalizeShipping ||
-                                      canShowRepairWorkflowStep;
+                                      canShowNormalizeShipping;
           
           return hasAnyRecoveryAction;
         })() && (
@@ -1191,7 +1114,9 @@ export default function OrderDetailPage() {
                   }}
                   disabled={resettingOrder}
                   className="inline-flex items-center px-3 py-1.5 border border-yellow-300 rounded-md text-sm font-medium text-yellow-800 bg-white hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                  title="Reset Order: clears processing/error state and re-queues for router cron. Recalculates next_workflow based on current progress. Does NOT change workflow_step, review stages, customer approval, or manifests."
+                  title={order.executionStatus === 'processing' 
+                    ? 'Reset order stuck in processing state' 
+                    : 'Reset order to ready for processing'}
                 >
                   {resettingOrder ? (
                     <>
@@ -1202,28 +1127,6 @@ export default function OrderDetailPage() {
                     <>
                       Reset Order
                     </>
-                  )}
-                </button>
-              )}
-              {!!(order.oneManifestUrl || order.manifest2aUrl || order.manifest2bUrl || order.manifest3Url) && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleRepairWorkflowStep();
-                  }}
-                  disabled={repairingWorkflowStep}
-                  className="inline-flex items-center px-3 py-1.5 border border-blue-300 rounded-md text-sm font-medium text-blue-800 bg-white hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                  title="Repair Workflow: syncs workflow_step, next_workflow, and execution_status from R2 manifests. Use when columns are stale after re-running 2B/W3. Keeps order at pending customer approval if not yet approved for print."
-                >
-                  {repairingWorkflowStep ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Repairing...
-                    </>
-                  ) : (
-                    <>Repair Workflow Step</>
                   )}
                 </button>
               )}
@@ -1513,29 +1416,44 @@ export default function OrderDetailPage() {
           </div>
 
           {/* Technical Details (Collapsible) */}
-          {(order.characterHash || order.characterPath) && (
+          {(order.characterHash || order.orderId) && (
             <div className="border-t border-gray-200 pt-4">
               <details className="group">
                 <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
-                  Technical Details
+                  Technical Details & R2 Links
                   <span className="ml-2 text-xs text-gray-500 group-open:hidden">(click to expand)</span>
                 </summary>
                 <div className="mt-3 space-y-2 text-xs text-gray-600">
+                  {/* Internal Order ID (UUID) - only show for D2C where display ID differs */}
+                  {order.platform === 'd2c' && (
+                    <div>
+                      <span className="font-medium">Internal Order ID:</span> {order.orderId}
+                    </div>
+                  )}
                   {order.characterHash && (
                     <div>
-                      <span className="font-medium">Character Hash:</span> {order.characterHash}
+                      <span className="font-medium">Character Hash:</span>{' '}
+                      <a
+                        href={`https://dash.cloudflare.com/3daae940fcb6fc5b8bbd9bb8fcc62854/r2/default/buckets/little-hero-assets?prefix=book-mvp-simple-adventure%2Forder-generated-assets%2Fcharacters%2F${order.characterHash}%2F`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        {order.characterHash}
+                      </a>
                     </div>
                   )}
-                  {order.characterPath && (
-                    <div>
-                      <span className="font-medium">Character Path:</span> {order.characterPath}
-                    </div>
-                  )}
-                  {order.templatePath && (
-                    <div>
-                      <span className="font-medium">Template Path:</span> {order.templatePath}
-                    </div>
-                  )}
+                  <div>
+                    <span className="font-medium">Order Folder:</span>{' '}
+                    <a
+                      href={`https://dash.cloudflare.com/3daae940fcb6fc5b8bbd9bb8fcc62854/r2/default/buckets/little-hero-orders?prefix=book-mvp-simple-adventure%2Forders%2F${encodeURIComponent(order.orderId)}%2F`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      View in R2
+                    </a>
+                  </div>
                 </div>
               </details>
             </div>

@@ -8,7 +8,42 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase-client';
 import { LuluStatus } from '@/constants/statuses';
+
+/**
+ * Resolve order ID from either short format (LH-XXXXX) or full UUID
+ * Returns the full UUID for database lookup
+ */
+async function resolveOrderId(inputId: string): Promise<string | null> {
+  // Check if it's a short format (LH-XXXXX)
+  if (inputId.toUpperCase().startsWith('LH-')) {
+    const shortId = inputId.toUpperCase();
+    // Query by display_order_id (DB column is "orderId")
+    const { data, error } = await supabase
+      .from('orders')
+      .select('orderId')
+      .eq('display_order_id', shortId)
+      .single();
+
+    if (error || !data) {
+      // Fallback: try matching by first 5 chars of orderId
+      const prefix = shortId.substring(3).toLowerCase(); // Remove 'LH-' and lowercase
+      const { data: fallbackData } = await supabase
+        .from('orders')
+        .select('orderId')
+        .ilike('orderId', `${prefix}%`)
+        .limit(1)
+        .single();
+
+      return fallbackData?.orderId ?? fallbackData?.order_id ?? null;
+    }
+    return data.orderId ?? data.order_id ?? null;
+  }
+  
+  // Already a full UUID
+  return inputId;
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -134,13 +169,25 @@ export async function GET(
   { params }: { params: { orderId: string } }
 ) {
   try {
-    const { orderId } = params;
+    const { orderId: inputOrderId } = params;
 
-    if (!orderId) {
+    if (!inputOrderId) {
       return NextResponse.json(
         { error: 'Order ID is required' },
         { 
           status: 400,
+          headers: corsHeaders,
+        }
+      );
+    }
+
+    // Resolve short format (LH-XXXXX) to full UUID if needed
+    const orderId = await resolveOrderId(inputOrderId);
+    if (!orderId) {
+      return NextResponse.json(
+        { error: 'Order not found' },
+        { 
+          status: 404,
           headers: corsHeaders,
         }
       );
@@ -157,6 +204,18 @@ export async function GET(
           headers: corsHeaders,
         }
       );
+    }
+
+    // Optional email verification: if client sends email, must match order (404 on mismatch)
+    const emailParam = request.nextUrl.searchParams.get('email')?.trim();
+    if (emailParam) {
+      const customerEmail = (order as any).customer_email ?? (order as any).customerEmail;
+      if (!customerEmail || customerEmail.toLowerCase() !== emailParam.toLowerCase()) {
+        return NextResponse.json(
+          { error: 'Order not found' },
+          { status: 404, headers: corsHeaders }
+        );
+      }
     }
 
     // Get status message

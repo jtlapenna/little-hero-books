@@ -9,7 +9,14 @@ import { recordRequest } from './stats/route';
  */
 function extractR2Key(url: string): string | null {
   try {
-    const urlObj = new URL(url, 'https://admin.littleherolabs.com');
+    // Normalize common malformed inputs coming from workflow expressions:
+    // - "https:/pub-...r2.dev/..." (missing slash) → "https://pub-...r2.dev/..."
+    // - "http:/..." → "http://..."
+    const normalizedUrl = String(url || '')
+      .trim()
+      .replace(/^(https?):\/(?!\/)/i, '$1://');
+
+    const urlObj = new URL(normalizedUrl, 'https://admin.littleherolabs.com');
     const pathname = urlObj.pathname;
     const hostname = urlObj.hostname || '';
 
@@ -338,15 +345,20 @@ export async function POST(request: NextRequest) {
     
     const firstCandidate = candidates[0];
     const textParts = firstCandidate.content?.parts || [];
-    const textResponse = textParts
+    const rawText = textParts
       .filter((p: any) => p.text)
       .map((p: any) => p.text)
       .join(' ')
-      .trim()
-      .toUpperCase();
+      .trim();
+    const textResponse = rawText.toUpperCase();
+    console.log('[Auto-Flip] Gemini raw response:', rawText);
 
     // Fail on bad finish reason only if we don't have a usable answer (MAX_TOKENS can still contain SAME/DIFFERENT)
-    const hasUsableAnswer = textResponse.includes('SAME') || textResponse.includes('DIFFERENT');
+    const hasUsableAnswer =
+      textResponse.includes('ORIGINAL') ||
+      textResponse.includes('FLIPPED') ||
+      textResponse.includes('SAME') ||
+      textResponse.includes('DIFFERENT');
     if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP' && !hasUsableAnswer) {
       console.error('[Auto-Flip] Generation stopped:', firstCandidate.finishReason);
       return NextResponse.json(
@@ -360,10 +372,14 @@ export async function POST(request: NextRequest) {
 
     console.log('[Auto-Flip] Gemini response:', textResponse);
     
-    // Decision: prefer explicit ORIGINAL/FLIPPED. Fallback: SAME/DIFFERENT (older prompt).
+    // Decision: prefer explicit ORIGINAL/FLIPPED. Fallback: SAME/DIFFERENT.
     const wantsFlipped = textResponse.includes('FLIPPED');
     const wantsOriginal = textResponse.includes('ORIGINAL');
-    const needsFlip = wantsFlipped && !wantsOriginal;
+    const wantsDifferent = textResponse.includes('DIFFERENT');
+    const wantsSame = textResponse.includes('SAME');
+    const needsFlip =
+      (wantsFlipped && !wantsOriginal) ||
+      (wantsDifferent && !wantsSame);
     
     if (!needsFlip) {
       console.log('[Auto-Flip] Orientations match, no flip needed');

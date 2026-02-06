@@ -89,11 +89,13 @@ export async function sendD2COrderConfirmationEmail(
   params: SendD2COrderConfirmationEmailParams
 ): Promise<D2CEmailResult> {
   if (!isD2CEmailEnabled()) {
+    console.warn('[D2C Email] Order confirmation skipped: D2C_EMAIL_ENABLED is not true (in dev set D2C_EMAIL_ENABLED=true)');
     return { success: false, error: 'D2C email notifications are disabled' };
   }
 
   const resend = getResendClient();
   if (!resend) {
+    console.warn('[D2C Email] Order confirmation skipped: RESEND_API_KEY is not set');
     return { success: false, error: 'RESEND_API_KEY is not set' };
   }
 

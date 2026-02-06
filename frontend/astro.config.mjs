@@ -6,6 +6,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
+  server: { port: 4323 },
   output: 'server',
   adapter: cloudflare({
     mode: 'pages',

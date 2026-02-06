@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import StepIndicator from '../components/create/StepIndicator.astro';
@@ -14,7 +15,8 @@ interface Props {
 
 const { step, title, description = 'Create your personalized book — Little Hero Labs', image } = Astro.props;
 
-const siteUrl = 'https://www.littleherolabs.com';
+// Env-driven site URL for correct canonical/OG in all environments
+const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.com';
 const currentPath = Astro.url.pathname;
 const canonicalUrl = `${siteUrl}${currentPath}`;
 const ogImage = image || `${siteUrl}/og-image.jpg`;
@@ -34,10 +36,11 @@ const backLabelByStep: Record<typeof step, string> = {
 const showBackLink = step !== 'processing';
 const backHref = backHrefByStep[step];
 const backLabel = backLabelByStep[step];
+const showStartOver = step !== 'character';
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" style="background-color: #FFFCF8;" transition:animate="none">
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={description} />
@@ -67,13 +70,19 @@ const backLabel = backLabelByStep[step];
       <meta name="ahrefs-site-verification" content={import.meta.env.PUBLIC_AHREFS_VERIFICATION} />
     )}
     <slot name="head" />
+    <ClientRouter fallback="swap" />
   </head>
-  <body data-create-step={step}>
+  <body data-create-step={step} style="background-color: #FFFCF8;">
     <Header />
-    <main class="create-main">
+    <main class="create-main" transition:name="main-content">
+      <StepIndicator currentStep={step} />
       <div class="container">
-        <StepIndicator currentStep={step} />
-        {showBackLink && <BackLink href={backHref} label={backLabel} />}
+        <div class="create-nav">
+          {showBackLink && <BackLink href={backHref} label={backLabel} />}
+          {showStartOver && (
+            <a href="/create/character" data-clear-flow class="start-over-link">Start over</a>
+          )}
+        </div>
         <slot />
       </div>
     </main>
@@ -82,7 +91,7 @@ const backLabel = backLabelByStep[step];
 </html>
 
 <script>
-  import { load } from '../lib/createFlow/createFlowStorage';
+  import { load, clear } from '../lib/createFlow/createFlowStorage';
   import { canAccessStep } from '../lib/createFlow/createFlowSelectors';
 
   const step = document.body?.dataset?.createStep as string | undefined;
@@ -92,10 +101,59 @@ const backLabel = backLabelByStep[step];
       window.location.href = '/create/character?toast=missing_state';
     }
   }
+
+  document.querySelectorAll('[data-clear-flow]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      clear();
+      window.location.href = '/create/character';
+    });
+  });
 </script>
 
 <style>
+  /* Clear fixed header; space below stepper and bottom */
   .create-main {
-    padding: var(--spacing-md, 1rem) 0 var(--spacing-xl, 4rem);
+    padding-top: 5rem;
+    padding-bottom: var(--spacing-xl, 4rem);
+    padding-left: 0;
+    padding-right: 0;
+    /* Prevent footer flash during page load */
+    min-height: calc(100vh - 200px);
+  }
+  /* Spacing between StepIndicator and main content */
+  .create-main .container {
+    margin-top: var(--spacing-md, 1rem);
+    max-width: 72rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: var(--spacing-lg, 2rem);
+    padding-right: var(--spacing-lg, 2rem);
+  }
+  /* Back link + Start over row — always same line */
+  .create-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm, 0.5rem);
+    margin-bottom: var(--spacing-md, 1rem);
+    width: 100%;
+  }
+  .create-nav > * {
+    flex-shrink: 0;
+  }
+  .start-over-link {
+    font-family: var(--font-ui);
+    font-size: 0.9375rem;
+    color: var(--color-teal, #5AC6B1);
+    text-decoration: none;
+    padding: 0.25rem 0;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .start-over-link:hover {
+    text-decoration: underline;
   }
 </style>

@@ -1,16 +1,16 @@
 ---
 import CreateLayout from '../../layouts/CreateLayout.astro';
+import BookCustomizationForm from '../../components/create/islands/BookCustomizationForm.tsx';
 ---
 
 <CreateLayout step="customize" title="Customize — Create Your Book | Little Hero Labs">
   <section class="section-padding">
-    <p class="create-placeholder">Book customization step – form coming in next batch.</p>
+    <BookCustomizationForm client:load />
   </section>
 </CreateLayout>
 
 <style>
-  .create-placeholder {
-    font-family: var(--font-body);
-    color: var(--color-soft-charcoal);
+  .section-padding {
+    padding-top: var(--spacing-sm, 0.5rem);
   }
 </style>

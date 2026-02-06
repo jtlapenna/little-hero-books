@@ -8,14 +8,29 @@ import { z } from 'zod';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase-client';
 import { withIdempotency } from '@/lib/idempotency';
-import { calculateCharacterHash } from '@/lib/character-hash';
+import { calculateCharacterHash, calculatePreviewHash } from '@/lib/character-hash';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Infer clothing style from pronouns (matches Amazon order logic).
+ * Default: t-shirt and shorts for neutral/masculine pronouns, dress for feminine.
+ */
+function inferClothingFromPronouns(pronouns: unknown): string {
+  if (pronouns === 'she-her') return 'dress';
+  return 't-shirt and shorts';
+}
 
 function getCorsHeaders(request: NextRequest): Record<string, string> {
   const origin = process.env.D2C_FRONTEND_ORIGIN ?? '';
   const requestOrigin = request.headers.get('origin') ?? '';
-  const allowOrigin = origin && (requestOrigin === origin || requestOrigin.endsWith('.littleherolabs.com')) ? requestOrigin : origin || '*';
+  // In dev, allow any localhost port when backend is configured for localhost
+  const isLocalhostOrigin = /^https?:\/\/localhost(:\d+)?$/.test(origin);
+  const isLocalhostRequest = /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin);
+  const allowOrigin =
+    origin && (requestOrigin === origin || requestOrigin.endsWith('.littleherolabs.com') || (isLocalhostOrigin && isLocalhostRequest))
+      ? requestOrigin
+      : origin || '*';
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -41,16 +56,42 @@ const ShippingAddressSchema = z.object({
   country: z.string().min(1),
 });
 
+const SHIPPING_TIER_ENUM = z.enum(['mail', 'ground_home', 'priority_mail', 'expedited', 'express']);
+export type ShippingTier = z.infer<typeof SHIPPING_TIER_ENUM>;
+
+/** Rounded customer-facing shipping prices (cents). Labels for Stripe line item. */
+const SHIPPING_CENTS_BY_TIER: Record<ShippingTier, number> = {
+  mail: 599,
+  ground_home: 1299,
+  priority_mail: 1499,
+  expedited: 2099,
+  express: 3099,
+};
+
+const SHIPPING_LABEL_BY_TIER: Record<ShippingTier, string> = {
+  mail: 'Economy',
+  ground_home: 'Ground',
+  priority_mail: 'Priority Mail',
+  expedited: 'Expedited Shipping',
+  express: 'Express Shipping',
+};
+
 const BodySchema = z.object({
   shipping_address: ShippingAddressSchema,
   customer_email: z.string().email(),
   customer_name: z.string().optional(),
   character_specs: z.object({
-    childName: z.string().min(1),
+    // Accept either childName or name (frontend uses 'name', normalize to 'childName')
+    childName: z.string().min(1).optional(),
+    name: z.string().min(1).optional(),
     age: z.union([z.number().int().min(0).max(10), z.string()]).transform((v) => (typeof v === 'string' ? parseInt(v, 10) : v)),
-  }).passthrough(),
+  }).passthrough().refine(
+    (data) => data.childName || data.name,
+    { message: 'Either childName or name is required' }
+  ),
   dedication: z.string().optional(),
   product_info: z.record(z.unknown()).optional(),
+  shipping_tier: SHIPPING_TIER_ENUM.optional().default('mail'),
 });
 
 const DEFAULT_AMOUNT_CENTS = 2999; // $29.99
@@ -105,21 +146,56 @@ export async function POST(request: NextRequest) {
     idempotencyKey,
     async () => {
       const order_id = crypto.randomUUID();
-      const character_specs = parsed.character_specs as Record<string, unknown>;
+      // Generate customer-friendly display ID: LH-XXXXX (first 5 chars of UUID, uppercase)
+      const display_order_id = `LH-${order_id.substring(0, 5).toUpperCase()}`;
+      
+      // Normalize character_specs to match Amazon order format:
+      // - childName (frontend may send 'name')
+      // - animalGuide (frontend sends 'favoriteAnimal')
+      // - clothingStyle (inferred from pronouns if not provided)
+      const rawSpecs = parsed.character_specs as Record<string, unknown>;
+      const character_specs = {
+        ...rawSpecs,
+        childName: rawSpecs.childName ?? rawSpecs.name,
+        animalGuide: rawSpecs.animalGuide ?? rawSpecs.favoriteAnimal,
+        clothingStyle: rawSpecs.clothingStyle ?? inferClothingFromPronouns(rawSpecs.pronouns),
+      };
+      
       const character_hash = calculateCharacterHash(character_specs, order_id);
+      // Preview hash uses only visual traits (for caching) - different from character_hash
+      const preview_hash = calculatePreviewHash(character_specs);
 
       const now = new Date().toISOString();
+      
+      // Build book_specs with defaults for D2C orders (admin panel reads from this)
+      const childName = character_specs.childName as string;
+      const book_specs = {
+        title: `${childName} and the Adventure Compass`,
+        totalPages: 16,
+        format: '8.5x8.5_softcover',
+        bookType: 'adventure',
+      };
+      
+      // Also store in product_info for compatibility with other systems
+      const product_info = {
+        ...book_specs,
+        ...parsed.product_info, // Allow override from request if provided
+      };
+      
       const orderPayload = {
         orderId: order_id,
+        display_order_id,
         platform: 'd2c',
         amazon_order_id: null,
         customer_email: parsed.customer_email,
         customer_name: parsed.customer_name ?? parsed.shipping_address.name ?? null,
         shipping_address: parsed.shipping_address,
-        character_specs: parsed.character_specs,
+        character_specs,
         character_hash,
+        preview_hash, // Store preview hash for copying preview to pose 0 after payment
         dedication_text: parsed.dedication ?? null,
-        product_info: parsed.product_info ?? null,
+        book_specs, // For admin panel display (format, pages, title)
+        product_info, // For workflow compatibility
         status: 'pending_payment',
         execution_status: 'pending_payment',
         next_workflow: null,
@@ -138,13 +214,18 @@ export async function POST(request: NextRequest) {
         throw new Error('Failed to create order');
       }
 
-      const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+      // Use sandbox key if available, otherwise fall back to live key
+      const stripeSecretKey = process.env.STRIPE_SANDBOX_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
       if (!stripeSecretKey) {
-        console.error('[Checkout] STRIPE_SECRET_KEY not configured');
+        console.error('[Checkout] STRIPE_SANDBOX_SECRET_KEY or STRIPE_SECRET_KEY not configured');
         throw new Error('Payment configuration error');
       }
 
-      const amountCents = parseInt(process.env.D2C_CHECKOUT_AMOUNT_CENTS ?? '', 10) || DEFAULT_AMOUNT_CENTS;
+      const bookCents = parseInt(process.env.D2C_CHECKOUT_AMOUNT_CENTS ?? '', 10) || DEFAULT_AMOUNT_CENTS;
+      const shippingTier = parsed.shipping_tier as ShippingTier;
+      const shippingCents = SHIPPING_CENTS_BY_TIER[shippingTier];
+      const shippingLabel = SHIPPING_LABEL_BY_TIER[shippingTier];
+
       const stripe = new Stripe(stripeSecretKey);
 
       const successUrl = `${frontendOrigin}/create/processing?order_id=${encodeURIComponent(order_id)}`;
@@ -157,10 +238,21 @@ export async function POST(request: NextRequest) {
             quantity: 1,
             price_data: {
               currency: 'usd',
-              unit_amount: amountCents,
+              unit_amount: bookCents,
               product_data: {
                 name: 'Little Hero Book — Personalized Children\'s Book',
                 description: 'Custom storybook starring your child as the hero.',
+              },
+            },
+          },
+          {
+            quantity: 1,
+            price_data: {
+              currency: 'usd',
+              unit_amount: shippingCents,
+              product_data: {
+                name: `Shipping — ${shippingLabel}`,
+                description: 'Delivery to your address.',
               },
             },
           },
@@ -179,6 +271,7 @@ export async function POST(request: NextRequest) {
         status: 201,
         body: {
           order_id,
+          display_order_id,
           stripe_checkout_session_url: session.url,
         },
       };

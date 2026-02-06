@@ -92,7 +92,7 @@ function BookCustomizationForm() {
                 <img
                   src={`/animals/${state.character.favoriteAnimal}.png`}
                   alt={`${formatAnimalName(state.character.favoriteAnimal)} guide`}
-                  className="book-customization__summary-animal-img"
+                  className={`book-customization__summary-animal-img${state.character.favoriteAnimal === 'dog' || state.character.favoriteAnimal === 'penguin' ? ' book-customization__summary-animal-img--flip' : ''}`}
                 />
               )}
             </div>
@@ -125,21 +125,21 @@ function BookCustomizationForm() {
         </div>
       </section>
 
-      {/* CTAs */}
+      {/* CTAs — primary first, secondary (Back) below on mobile */}
       <div className="book-customization__ctas">
-        <button
-          type="button"
-          className="book-customization__btn book-customization__btn--secondary"
-          onClick={handleBack}
-        >
-          Back
-        </button>
         <button
           type="button"
           className="book-customization__btn book-customization__btn--primary"
           onClick={handleContinue}
         >
           Continue to checkout
+        </button>
+        <button
+          type="button"
+          className="book-customization__btn book-customization__btn--secondary"
+          onClick={handleBack}
+        >
+          Back
         </button>
       </div>
 
@@ -220,6 +220,17 @@ function BookCustomizationForm() {
           height: 83px;
           object-fit: contain;
           margin-left: -40px;
+        }
+        .book-customization__summary-animal-img--flip {
+          transform: scaleX(-1);
+        }
+
+        /* Mobile: stack summary content and scale images down */
+        @media (max-width: 480px) {
+          .book-customization__summary-content { flex-direction: column; align-items: stretch; }
+          .book-customization__summary-images { justify-content: center; }
+          .book-customization__summary-preview { width: 96px; height: 96px; }
+          .book-customization__summary-animal-img { width: 64px; height: 64px; margin-left: 0; }
         }
         
         /* Dedication section */
@@ -303,6 +314,12 @@ function BookCustomizationForm() {
         }
         .book-customization__btn--secondary:hover {
           background: rgba(45,49,66,0.05);
+        }
+
+        /* Mobile: full-width CTAs */
+        @media (max-width: 480px) {
+          .book-customization__ctas { flex-direction: column; }
+          .book-customization__btn { width: 100%; }
         }
       `}</style>
     </div>

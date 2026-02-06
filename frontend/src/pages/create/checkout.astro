@@ -1,16 +1,16 @@
 ---
 import CreateLayout from '../../layouts/CreateLayout.astro';
+import CheckoutForm from '../../components/create/islands/CheckoutForm.tsx';
 ---
 
 <CreateLayout step="checkout" title="Checkout — Create Your Book | Little Hero Labs">
   <section class="section-padding">
-    <p class="create-placeholder">Checkout step – form coming in next batch.</p>
+    <CheckoutForm client:load />
   </section>
 </CreateLayout>
 
 <style>
-  .create-placeholder {
-    font-family: var(--font-body);
-    color: var(--color-soft-charcoal);
+  .section-padding {
+    padding-top: var(--spacing-sm, 0.5rem);
   }
 </style>

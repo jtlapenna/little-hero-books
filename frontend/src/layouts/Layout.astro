@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 
@@ -11,15 +12,15 @@ interface Props {
 
 const { title, description = "Little Hero Labs - Become the hero of your own story", image } = Astro.props;
 
-// Get current URL for canonical and og:url
-const siteUrl = 'https://www.littleherolabs.com';
+// Get current URL for canonical and og:url (env-driven for correct domain in all environments)
+const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.com';
 const currentPath = Astro.url.pathname;
 const canonicalUrl = `${siteUrl}${currentPath}`;
 const ogImage = image || `${siteUrl}/og-image.jpg`; // Default OG image
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" style="background-color: #FFFCF8;" transition:animate="none">
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={description} />
@@ -86,13 +87,21 @@ const ogImage = image || `${siteUrl}/og-image.jpg`; // Default OG image
     )}
 
     <slot name="head" />
+    <ClientRouter fallback="swap" />
   </head>
-  <body>
+  <body style="background-color: #FFFCF8;">
     <Header />
-    <main>
+    <main transition:name="main-content" class="layout-main">
       <slot />
     </main>
     <Footer />
   </body>
 </html>
+
+<style>
+  /* Stable min-height during view transition swap to prevent flash */
+  .layout-main {
+    min-height: calc(100vh - 200px); /* Account for header + footer */
+  }
+</style>
 

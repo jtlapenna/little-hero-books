@@ -16,6 +16,7 @@ export interface ReviewStage {
 
 export interface Order {
   orderId: string;
+  displayOrderId?: string; // Customer-friendly ID: LH-XXXXX for D2C orders
   platform: string;
   amazonOrderId?: string;
   project: string;

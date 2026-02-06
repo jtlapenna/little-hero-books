@@ -28,13 +28,13 @@ const steps: { id: 'character' | 'customize' | 'checkout' | 'processing'; label:
 
 <style>
   .step-indicator {
-    padding: var(--spacing-md, 1rem) 0;
+    padding: var(--spacing-md, 1rem) var(--spacing-lg, 2rem);
   }
 
   .step-list {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-sm, 0.5rem);
+    flex-wrap: nowrap;
+    gap: 0;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -64,5 +64,15 @@ const steps: { id: 'character' | 'customize' | 'checkout' | 'processing'; label:
 
   .step-label {
     color: inherit;
+    white-space: nowrap;
+  }
+
+  /* Scale down on narrow screens to keep all steps on one line */
+  @media (max-width: 420px) {
+    .step-item { font-size: 0.75rem; }
+    .step-item:not(:last-child)::after {
+      margin-left: 0.25rem;
+      margin-right: 0.25rem;
+    }
   }
 </style>
