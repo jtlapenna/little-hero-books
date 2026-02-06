@@ -22,15 +22,16 @@ function inferClothingFromPronouns(pronouns: unknown): string {
 }
 
 function getCorsHeaders(request: NextRequest): Record<string, string> {
-  const origin = process.env.D2C_FRONTEND_ORIGIN ?? '';
-  const requestOrigin = request.headers.get('origin') ?? '';
-  // In dev, allow any localhost port when backend is configured for localhost
-  const isLocalhostOrigin = /^https?:\/\/localhost(:\d+)?$/.test(origin);
-  const isLocalhostRequest = /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin);
-  const allowOrigin =
-    origin && (requestOrigin === origin || requestOrigin.endsWith('.littleherolabs.com') || (isLocalhostOrigin && isLocalhostRequest))
-      ? requestOrigin
-      : origin || '*';
+  // Purpose: allow the D2C frontend to call this API cross-origin.
+  const configuredOrigin = (process.env.D2C_FRONTEND_ORIGIN ?? '').trim();
+  const requestOrigin = (request.headers.get('origin') ?? '').trim();
+  const isAllowedRequestOrigin =
+    requestOrigin === 'https://littleherolabs.com' ||
+    requestOrigin.endsWith('.littleherolabs.com') ||
+    /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin);
+
+  // Purpose: prefer explicit allowlist, otherwise fall back to safe request origin.
+  const allowOrigin = configuredOrigin || (isAllowedRequestOrigin ? requestOrigin : '*');
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -133,13 +134,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const frontendOrigin = process.env.D2C_FRONTEND_ORIGIN ?? '';
+  // Purpose: build Stripe redirect URLs. Prefer env, fall back to allowed request Origin.
+  const configuredOrigin = (process.env.D2C_FRONTEND_ORIGIN ?? '').trim();
+  const requestOrigin = (request.headers.get('origin') ?? '').trim();
+  const isAllowedRequestOrigin =
+    requestOrigin === 'https://littleherolabs.com' ||
+    requestOrigin.endsWith('.littleherolabs.com') ||
+    /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin);
+  const frontendOrigin = configuredOrigin || (isAllowedRequestOrigin ? requestOrigin : '');
   if (!frontendOrigin) {
-    console.error('[Checkout] D2C_FRONTEND_ORIGIN not configured');
-    return NextResponse.json(
-      { error: 'Checkout configuration error' },
-      { status: 500, headers: corsHeaders }
-    );
+    console.error('[Checkout] Missing D2C_FRONTEND_ORIGIN and request Origin not allowed');
+    return NextResponse.json({ error: 'Checkout configuration error' }, { status: 500, headers: corsHeaders });
   }
 
   const response = await withIdempotency(

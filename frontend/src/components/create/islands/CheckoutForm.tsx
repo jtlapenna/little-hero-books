@@ -538,20 +538,22 @@ function CheckoutForm() {
             display: flex;
             flex-direction: row;
             align-items: flex-start;
-            justify-content: center;
-            gap: var(--spacing-xl);
           }
           .checkout-form__form { 
-            flex: 0 1 520px;
+            flex: 1;
             width: 100%;
             max-width: 520px;
-            margin: 0;
+            /* Purpose: keep the form visually centered in viewport even with a sticky summary on the right. */
+            /* 290px left margin balances (260px summary + 30px gap) on the right. */
+            margin: 0 auto;
+            margin-left: 290px;
+            margin-right: 30px;
           }
           .checkout-form__summary { 
             position: sticky;
             top: 1rem;
             width: 260px;
-            flex: 0 0 260px;
+            flex-shrink: 0;
             height: fit-content;
             order: 1;
           }

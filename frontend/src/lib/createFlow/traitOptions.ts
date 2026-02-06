@@ -17,11 +17,12 @@ export const PRONOUNS: { id: string; label: string }[] = [
 
 /** Skin tone IDs: light, medium, tan, medium-dark, deep. */
 export const SKIN_TONES: SwatchOption[] = [
-  { id: 'light', label: 'Light', hex: '#F2D6CB' },
-  { id: 'medium', label: 'Medium', hex: '#D8A58B' },
-  { id: 'tan', label: 'Tan', hex: '#B97B5A' },
-  { id: 'medium-dark', label: 'Medium-dark', hex: '#8A5A3C' },
-  { id: 'deep', label: 'Deep', hex: '#5A3A2A' },
+  // Purpose: match Issue 14 “Final Skin Tone Specification” (sampled from R2 base images).
+  { id: 'light', label: 'Light', hex: '#EFC28E' },
+  { id: 'medium', label: 'Medium', hex: '#E7AB62' },
+  { id: 'tan', label: 'Tan', hex: '#CF924E' },
+  { id: 'medium-dark', label: 'Medium-dark', hex: '#95623D' },
+  { id: 'deep', label: 'Deep', hex: '#7C5130' },
 ];
 
 /** Hair color IDs must match backend HAIR_COLOR_CHIP_SUFFIX. */
