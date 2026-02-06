@@ -243,8 +243,10 @@ export async function POST(request: NextRequest) {
           console.warn(`[LULU WEBHOOK] D2C shipped notification error:`, notifyErr?.message ?? notifyErr);
         }
       } else if (platform !== 'd2c') {
-        const shippedNotificationsEnabled =
-          (process.env.AMAZON_SHIPPED_NOTIFICATIONS_ENABLED ?? '').trim().toLowerCase() === 'true';
+        // Enable if env var is 'true' OR if running in production (Vercel env var fallback)
+        const shippedEnvValue = (process.env.AMAZON_SHIPPED_NOTIFICATIONS_ENABLED ?? '').trim().toLowerCase();
+        const isProductionEnv = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+        const shippedNotificationsEnabled = shippedEnvValue === 'true' || isProductionEnv;
         const amazonOrderId = order.amazon_order_id ?? null;
         if (shippedNotificationsEnabled && amazonOrderId) {
           try {

@@ -128,15 +128,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Amazon (or non-d2c)
-    const enabled =
-      (process.env.AMAZON_PRINT_SUBMITTED_NOTIFICATIONS_ENABLED ?? '').trim().toLowerCase() ===
-      'true';
+    // Enable if env var is 'true' OR if running in production (Vercel env var fallback)
+    const envValue = (process.env.AMAZON_PRINT_SUBMITTED_NOTIFICATIONS_ENABLED ?? '').trim().toLowerCase();
+    const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+    const enabled = envValue === 'true' || isProduction;
+    
     if (!enabled) {
       return NextResponse.json({
         success: true,
         orderId: orderIdentifier,
         skipped: true,
-        reason: 'AMAZON_PRINT_SUBMITTED_NOTIFICATIONS_ENABLED is not set to true',
+        reason: `AMAZON_PRINT_SUBMITTED_NOTIFICATIONS_ENABLED is not set to true (envValue=${envValue || 'undefined'}, isProduction=${isProduction})`,
       });
     }
 
