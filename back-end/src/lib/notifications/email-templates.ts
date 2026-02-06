@@ -15,10 +15,11 @@ const COLORS = {
   white: '#FFFFFF',
 };
 
-// Email-safe fonts
+// Email-safe fonts (closest matches to website fonts)
 const FONTS = {
-  heading: "Georgia, 'Times New Roman', serif",
-  body: "Arial, Helvetica, sans-serif",
+  heading: "Georgia, 'Times New Roman', serif", // Matches Garamond/Playfair feel
+  body: "Arial, Helvetica, sans-serif", // Clean sans-serif for readability
+  display: "Arial, Helvetica, sans-serif", // Use same as body for consistent cross-platform display
 };
 
 // Logo URL - hosted on the website
@@ -44,19 +45,20 @@ export interface EmailTemplateOptions {
 
 /**
  * Build the branded header with coral bar, logo, and brand name.
+ * Logo aspect ratio is ~0.76:1 (2000x2617), so height 44px → width ~34px
  */
 function buildHeader(): string {
   return `
     <!-- Header -->
     <tr>
-      <td style="background-color: ${COLORS.coral}; padding: 24px 32px; text-align: center;">
+      <td style="background-color: ${COLORS.coral}; padding: 20px 32px; text-align: center;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
           <tr>
-            <td style="vertical-align: middle; padding-right: 12px;">
-              <img src="${LOGO_URL}" alt="Little Hero Labs" width="48" height="48" style="display: block; border-radius: 8px;" />
+            <td style="vertical-align: middle; padding-right: 10px;">
+              <img src="${LOGO_URL}" alt="Little Hero Labs" width="34" height="44" style="display: block; border-radius: 6px;" />
             </td>
             <td style="vertical-align: middle;">
-              <span style="font-family: ${FONTS.heading}; font-size: 28px; font-weight: 700; color: ${COLORS.white}; letter-spacing: 0.5px;">
+              <span style="font-family: ${FONTS.display}; font-size: 24px; font-weight: 700; color: ${COLORS.white};">
                 Little Hero Labs
               </span>
             </td>
@@ -68,18 +70,21 @@ function buildHeader(): string {
 }
 
 /**
- * Build the footer with tagline.
+ * Build the footer with tagline (matches website footer style).
  */
 function buildFooter(): string {
   return `
     <!-- Footer -->
     <tr>
-      <td style="background-color: ${COLORS.lightGray}; padding: 24px 32px; text-align: center; border-top: 1px solid #E0E0E0;">
-        <p style="margin: 0 0 8px 0; font-family: ${FONTS.heading}; font-size: 14px; font-style: italic; color: ${COLORS.navy};">
+      <td style="background-color: ${COLORS.navy}; padding: 24px 32px; text-align: center;">
+        <p style="margin: 0 0 4px 0; font-family: ${FONTS.display}; font-size: 16px; font-weight: 700; color: ${COLORS.white};">
+          Little Hero Labs
+        </p>
+        <p style="margin: 0 0 12px 0; font-family: ${FONTS.heading}; font-size: 13px; font-style: italic; color: #C7D6B8;">
           "Every child is the hero of their own story."
         </p>
-        <p style="margin: 0; font-family: ${FONTS.body}; font-size: 12px; color: #888888;">
-          Little Hero Labs • <a href="https://littleherolabs.com" style="color: ${COLORS.teal}; text-decoration: none;">littleherolabs.com</a>
+        <p style="margin: 0; font-family: ${FONTS.body}; font-size: 12px; color: #C7D6B8;">
+          <a href="https://littleherolabs.com" style="color: #C7D6B8; text-decoration: none;">littleherolabs.com</a>
         </p>
       </td>
     </tr>
@@ -87,14 +92,14 @@ function buildFooter(): string {
 }
 
 /**
- * Build a CTA button.
+ * Build a CTA button (matches website button style).
  */
 function buildButton(text: string, url: string): string {
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 24px auto;">
       <tr>
-        <td style="border-radius: 8px; background-color: ${COLORS.teal};">
-          <a href="${url}" target="_blank" style="display: inline-block; padding: 14px 32px; font-family: ${FONTS.body}; font-size: 16px; font-weight: 600; color: ${COLORS.white}; text-decoration: none; border-radius: 8px;">
+        <td style="border-radius: 50px; background-color: ${COLORS.coral};">
+          <a href="${url}" target="_blank" style="display: inline-block; padding: 14px 36px; font-family: ${FONTS.body}; font-size: 16px; font-weight: 600; color: ${COLORS.white}; text-decoration: none; border-radius: 50px;">
             ${text}
           </a>
         </td>
@@ -110,7 +115,7 @@ function buildInfoBox(content: string): string {
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 24px 0;">
       <tr>
-        <td style="background-color: ${COLORS.lightGray}; padding: 20px 24px; border-radius: 8px; border-left: 4px solid ${COLORS.coral};">
+        <td style="background-color: #FAF3E3; padding: 20px 24px; border-radius: 12px; border-left: 4px solid ${COLORS.teal};">
           ${content}
         </td>
       </tr>
@@ -130,8 +135,8 @@ function buildPreviewImage(imageUrl: string, childName?: string): string {
           <img 
             src="${imageUrl}" 
             alt="${alt}" 
-            width="200" 
-            style="display: block; margin: 0 auto; max-width: 200px; height: auto; border-radius: 12px; border: 3px solid ${COLORS.gold};"
+            width="180" 
+            style="display: block; margin: 0 auto; max-width: 180px; height: auto; border-radius: 16px; border: 3px solid ${COLORS.gold}; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
           />
         </td>
       </tr>

@@ -125,21 +125,21 @@ function BookCustomizationForm() {
         </div>
       </section>
 
-      {/* CTAs */}
+      {/* CTAs — primary first, secondary (Back) below on mobile */}
       <div className="book-customization__ctas">
-        <button
-          type="button"
-          className="book-customization__btn book-customization__btn--secondary"
-          onClick={handleBack}
-        >
-          Back
-        </button>
         <button
           type="button"
           className="book-customization__btn book-customization__btn--primary"
           onClick={handleContinue}
         >
           Continue to checkout
+        </button>
+        <button
+          type="button"
+          className="book-customization__btn book-customization__btn--secondary"
+          onClick={handleBack}
+        >
+          Back
         </button>
       </div>
 

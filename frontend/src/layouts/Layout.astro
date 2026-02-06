@@ -101,7 +101,7 @@ const ogImage = image || `${siteUrl}/og-image.jpg`; // Default OG image
 <style>
   /* Stable min-height during view transition swap to prevent flash */
   .layout-main {
-    min-height: 60vh;
+    min-height: calc(100vh - 200px); /* Account for header + footer */
   }
 </style>
 

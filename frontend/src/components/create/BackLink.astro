@@ -13,12 +13,14 @@ const { href, label = 'Back' } = Astro.props;
 
 <style>
   .back-link {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     font-family: var(--font-ui);
     font-size: 0.9375rem;
     color: var(--color-teal, #5AC6B1);
     text-decoration: none;
-    margin-bottom: var(--spacing-md, 1rem);
+    white-space: nowrap;
+    min-height: 44px;
   }
 
   .back-link:hover {

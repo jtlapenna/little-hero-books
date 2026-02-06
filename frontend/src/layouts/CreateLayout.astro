@@ -117,6 +117,8 @@ const showStartOver = step !== 'character';
     padding-bottom: var(--spacing-xl, 4rem);
     padding-left: 0;
     padding-right: 0;
+    /* Prevent footer flash during page load */
+    min-height: calc(100vh - 200px);
   }
   /* Spacing between StepIndicator and main content */
   .create-main .container {
@@ -127,14 +129,18 @@ const showStartOver = step !== 'character';
     padding-left: var(--spacing-lg, 2rem);
     padding-right: var(--spacing-lg, 2rem);
   }
-  /* Back link + Start over row */
+  /* Back link + Start over row — always same line */
   .create-nav {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--spacing-md, 1rem);
+    gap: var(--spacing-sm, 0.5rem);
     margin-bottom: var(--spacing-md, 1rem);
+    width: 100%;
+  }
+  .create-nav > * {
+    flex-shrink: 0;
   }
   .start-over-link {
     font-family: var(--font-ui);

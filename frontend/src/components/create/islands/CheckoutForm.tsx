@@ -437,8 +437,15 @@ function CheckoutForm() {
             </div>
           )}
 
-          {/* CTAs */}
+          {/* CTAs — primary first, secondary (Back) below on mobile */}
           <div className="checkout-form__ctas">
+            <button
+              type="submit"
+              className="checkout-form__btn checkout-form__btn--primary"
+              disabled={!isValid || isSubmitting}
+            >
+              {isSubmitting ? 'Processing…' : 'Place Order'}
+            </button>
             <button
               type="button"
               className="checkout-form__btn checkout-form__btn--secondary"
@@ -446,13 +453,6 @@ function CheckoutForm() {
               disabled={isSubmitting}
             >
               Back
-            </button>
-            <button
-              type="submit"
-              className="checkout-form__btn checkout-form__btn--primary"
-              disabled={!isValid || isSubmitting}
-            >
-              {isSubmitting ? 'Processing…' : 'Place Order'}
             </button>
           </div>
 
