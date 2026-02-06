@@ -100,189 +100,200 @@ const DEFAULT_AMOUNT_CENTS = 2999; // $29.99
 export async function POST(request: NextRequest) {
   const corsHeaders = getCorsHeaders(request);
 
-  if (request.method !== 'POST') {
-    return NextResponse.json({ error: 'Method not allowed' }, { status: 405, headers: corsHeaders });
-  }
-
-  const idempotencyKey = request.headers.get('Idempotency-Key')?.trim();
-  if (!idempotencyKey) {
-    return NextResponse.json(
-      { error: 'Idempotency-Key header is required' },
-      { status: 400, headers: corsHeaders }
-    );
-  }
-
-  let parsed: z.infer<typeof BodySchema>;
+  // Purpose: always return CORS headers, even on unexpected 500s (prevents browser "Failed to fetch").
   try {
-    const body = await request.json();
-    parsed = BodySchema.parse(body);
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      const fields = err.errors.map((e) => ({ path: e.path.join('.'), message: e.message }));
+    if (request.method !== 'POST') {
+      return NextResponse.json({ error: 'Method not allowed' }, { status: 405, headers: corsHeaders });
+    }
+
+    const idempotencyKey = request.headers.get('Idempotency-Key')?.trim();
+    if (!idempotencyKey) {
+      return NextResponse.json({ error: 'Idempotency-Key header is required' }, { status: 400, headers: corsHeaders });
+    }
+
+    let parsed: z.infer<typeof BodySchema>;
+    try {
+      const body = await request.json();
+      parsed = BodySchema.parse(body);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const fields = err.errors.map((e) => ({ path: e.path.join('.'), message: e.message }));
+        return NextResponse.json({ error: 'Validation failed', fields }, { status: 400, headers: corsHeaders });
+      }
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400, headers: corsHeaders });
+    }
+
+    if (parsed.shipping_address.country !== 'US') {
       return NextResponse.json(
-        { error: 'Validation failed', fields },
+        { error: 'Validation failed', fields: [{ path: 'shipping_address.country', message: 'Phase 0 supports US only' }] },
         { status: 400, headers: corsHeaders }
       );
     }
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400, headers: corsHeaders });
-  }
 
-  if (parsed.shipping_address.country !== 'US') {
-    return NextResponse.json(
-      { error: 'Validation failed', fields: [{ path: 'shipping_address.country', message: 'Phase 0 supports US only' }] },
-      { status: 400, headers: corsHeaders }
-    );
-  }
+    // Purpose: build Stripe redirect URLs. Prefer env, fall back to allowed request Origin.
+    const configuredOrigin = (process.env.D2C_FRONTEND_ORIGIN ?? '').trim();
+    const requestOrigin = (request.headers.get('origin') ?? '').trim();
+    const isAllowedRequestOrigin =
+      requestOrigin === 'https://littleherolabs.com' ||
+      requestOrigin.endsWith('.littleherolabs.com') ||
+      /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin);
+    const frontendOrigin = configuredOrigin || (isAllowedRequestOrigin ? requestOrigin : '');
+    if (!frontendOrigin) {
+      console.error('[Checkout] Missing D2C_FRONTEND_ORIGIN and request Origin not allowed');
+      return NextResponse.json({ error: 'Checkout configuration error' }, { status: 500, headers: corsHeaders });
+    }
 
-  // Purpose: build Stripe redirect URLs. Prefer env, fall back to allowed request Origin.
-  const configuredOrigin = (process.env.D2C_FRONTEND_ORIGIN ?? '').trim();
-  const requestOrigin = (request.headers.get('origin') ?? '').trim();
-  const isAllowedRequestOrigin =
-    requestOrigin === 'https://littleherolabs.com' ||
-    requestOrigin.endsWith('.littleherolabs.com') ||
-    /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin);
-  const frontendOrigin = configuredOrigin || (isAllowedRequestOrigin ? requestOrigin : '');
-  if (!frontendOrigin) {
-    console.error('[Checkout] Missing D2C_FRONTEND_ORIGIN and request Origin not allowed');
-    return NextResponse.json({ error: 'Checkout configuration error' }, { status: 500, headers: corsHeaders });
-  }
+    const response = await withIdempotency(
+      idempotencyKey,
+      async () => {
+        const order_id = crypto.randomUUID();
+        // Generate customer-friendly display ID: LH-XXXXX (first 5 chars of UUID, uppercase)
+        const display_order_id = `LH-${order_id.substring(0, 5).toUpperCase()}`;
 
-  const response = await withIdempotency(
-    idempotencyKey,
-    async () => {
-      const order_id = crypto.randomUUID();
-      // Generate customer-friendly display ID: LH-XXXXX (first 5 chars of UUID, uppercase)
-      const display_order_id = `LH-${order_id.substring(0, 5).toUpperCase()}`;
-      
-      // Normalize character_specs to match Amazon order format:
-      // - childName (frontend may send 'name')
-      // - animalGuide (frontend sends 'favoriteAnimal')
-      // - clothingStyle (inferred from pronouns if not provided)
-      const rawSpecs = parsed.character_specs as Record<string, unknown>;
-      const character_specs = {
-        ...rawSpecs,
-        childName: rawSpecs.childName ?? rawSpecs.name,
-        animalGuide: rawSpecs.animalGuide ?? rawSpecs.favoriteAnimal,
-        clothingStyle: rawSpecs.clothingStyle ?? inferClothingFromPronouns(rawSpecs.pronouns),
-      };
-      
-      const character_hash = calculateCharacterHash(character_specs, order_id);
-      // Preview hash uses only visual traits (for caching) - different from character_hash
-      const preview_hash = calculatePreviewHash(character_specs);
+        // Normalize character_specs to match Amazon order format:
+        // - childName (frontend may send 'name')
+        // - animalGuide (frontend sends 'favoriteAnimal')
+        // - clothingStyle (inferred from pronouns if not provided)
+        const rawSpecs = parsed.character_specs as Record<string, unknown>;
+        const character_specs = {
+          ...rawSpecs,
+          childName: rawSpecs.childName ?? rawSpecs.name,
+          animalGuide: rawSpecs.animalGuide ?? rawSpecs.favoriteAnimal,
+          clothingStyle: rawSpecs.clothingStyle ?? inferClothingFromPronouns(rawSpecs.pronouns),
+        };
 
-      const now = new Date().toISOString();
-      
-      // Build book_specs with defaults for D2C orders (admin panel reads from this)
-      const childName = character_specs.childName as string;
-      const book_specs = {
-        title: `${childName} and the Adventure Compass`,
-        totalPages: 16,
-        format: '8.5x8.5_softcover',
-        bookType: 'adventure',
-      };
-      
-      // Also store in product_info for compatibility with other systems
-      const product_info = {
-        ...book_specs,
-        ...parsed.product_info, // Allow override from request if provided
-      };
-      
-      const orderPayload = {
-        orderId: order_id,
-        display_order_id,
-        platform: 'd2c',
-        amazon_order_id: null,
-        customer_email: parsed.customer_email,
-        customer_name: parsed.customer_name ?? parsed.shipping_address.name ?? null,
-        shipping_address: parsed.shipping_address,
-        character_specs,
-        character_hash,
-        preview_hash, // Store preview hash for copying preview to pose 0 after payment
-        dedication_text: parsed.dedication ?? null,
-        book_specs, // For admin panel display (format, pages, title)
-        product_info, // For workflow compatibility
-        status: 'pending_payment',
-        execution_status: 'pending_payment',
-        next_workflow: null,
-        created_at: now,
-        updated_at: now,
-      };
+        const character_hash = calculateCharacterHash(character_specs, order_id);
+        // Preview hash uses only visual traits (for caching) - different from character_hash
+        const preview_hash = calculatePreviewHash(character_specs);
 
-      const { error: insertError } = await supabase
-        .from('orders')
-        .insert(orderPayload)
-        .select()
-        .single();
+        const now = new Date().toISOString();
 
-      if (insertError) {
-        console.error('[Checkout] Order insert failed:', insertError.message);
-        throw new Error('Failed to create order');
-      }
+        // Build book_specs with defaults for D2C orders (admin panel reads from this)
+        const childName = character_specs.childName as string;
+        const book_specs = {
+          title: `${childName} and the Adventure Compass`,
+          totalPages: 16,
+          format: '8.5x8.5_softcover',
+          bookType: 'adventure',
+        };
 
-      // Use sandbox key if available, otherwise fall back to live key
-      const stripeSecretKey = process.env.STRIPE_SANDBOX_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
-      if (!stripeSecretKey) {
-        console.error('[Checkout] STRIPE_SANDBOX_SECRET_KEY or STRIPE_SECRET_KEY not configured');
-        throw new Error('Payment configuration error');
-      }
+        // Also store in product_info for compatibility with other systems
+        const product_info = {
+          ...book_specs,
+          ...parsed.product_info, // Allow override from request if provided
+        };
 
-      const bookCents = parseInt(process.env.D2C_CHECKOUT_AMOUNT_CENTS ?? '', 10) || DEFAULT_AMOUNT_CENTS;
-      const shippingTier = parsed.shipping_tier as ShippingTier;
-      const shippingCents = SHIPPING_CENTS_BY_TIER[shippingTier];
-      const shippingLabel = SHIPPING_LABEL_BY_TIER[shippingTier];
-
-      const stripe = new Stripe(stripeSecretKey);
-
-      const successUrl = `${frontendOrigin}/create/processing?order_id=${encodeURIComponent(order_id)}`;
-      const cancelUrl = `${frontendOrigin}/create/checkout`;
-
-      const session = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency: 'usd',
-              unit_amount: bookCents,
-              product_data: {
-                name: 'Little Hero Book — Personalized Children\'s Book',
-                description: 'Custom storybook starring your child as the hero.',
-              },
-            },
-          },
-          {
-            quantity: 1,
-            price_data: {
-              currency: 'usd',
-              unit_amount: shippingCents,
-              product_data: {
-                name: `Shipping — ${shippingLabel}`,
-                description: 'Delivery to your address.',
-              },
-            },
-          },
-        ],
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        metadata: { order_id },
-        customer_email: parsed.customer_email,
-      });
-
-      if (!session.url) {
-        throw new Error('Stripe did not return checkout session URL');
-      }
-
-      return {
-        status: 201,
-        body: {
-          order_id,
+        const orderPayload = {
+          orderId: order_id,
           display_order_id,
-          stripe_checkout_session_url: session.url,
-        },
-      };
-    },
-    { ttlHours: 24 }
-  );
+          platform: 'd2c',
+          amazon_order_id: null,
+          customer_email: parsed.customer_email,
+          customer_name: parsed.customer_name ?? parsed.shipping_address.name ?? null,
+          shipping_address: parsed.shipping_address,
+          character_specs,
+          character_hash,
+          preview_hash, // Store preview hash for copying preview to pose 0 after payment
+          dedication_text: parsed.dedication ?? null,
+          book_specs, // For admin panel display (format, pages, title)
+          product_info, // For workflow compatibility
+          status: 'pending_payment',
+          execution_status: 'pending_payment',
+          next_workflow: null,
+          created_at: now,
+          updated_at: now,
+        };
 
-  return NextResponse.json(response.body, { status: response.status, headers: corsHeaders });
+        const { error: insertError } = await supabase.from('orders').insert(orderPayload).select().single();
+
+        if (insertError) {
+          console.error('[Checkout] Order insert failed:', insertError.message);
+          throw new Error('Failed to create order');
+        }
+
+        // Use sandbox key if available, otherwise fall back to live key
+        const stripeSecretKey = process.env.STRIPE_SANDBOX_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
+        if (!stripeSecretKey) {
+          console.error('[Checkout] STRIPE_SANDBOX_SECRET_KEY or STRIPE_SECRET_KEY not configured');
+          throw new Error('Payment configuration error');
+        }
+
+        const bookCents = parseInt(process.env.D2C_CHECKOUT_AMOUNT_CENTS ?? '', 10) || DEFAULT_AMOUNT_CENTS;
+        const shippingTier = parsed.shipping_tier as ShippingTier;
+        const shippingCents = SHIPPING_CENTS_BY_TIER[shippingTier];
+        const shippingLabel = SHIPPING_LABEL_BY_TIER[shippingTier];
+
+        // Purpose: Cloudflare Workers runtime — use fetch-based Stripe client to avoid socket/TLS issues.
+        const stripe = new Stripe(stripeSecretKey, {
+          httpClient: Stripe.createFetchHttpClient(),
+          maxNetworkRetries: 2,
+        });
+
+        const successUrl = `${frontendOrigin}/create/processing?order_id=${encodeURIComponent(order_id)}`;
+        const cancelUrl = `${frontendOrigin}/create/checkout`;
+
+        const session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          line_items: [
+            {
+              quantity: 1,
+              price_data: {
+                currency: 'usd',
+                unit_amount: bookCents,
+                product_data: {
+                  name: 'Little Hero Book — Personalized Children\'s Book',
+                  description: 'Custom storybook starring your child as the hero.',
+                },
+              },
+            },
+            {
+              quantity: 1,
+              price_data: {
+                currency: 'usd',
+                unit_amount: shippingCents,
+                product_data: {
+                  name: `Shipping — ${shippingLabel}`,
+                  description: 'Delivery to your address.',
+                },
+              },
+            },
+          ],
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+          metadata: { order_id },
+          customer_email: parsed.customer_email,
+        });
+
+        if (!session.url) {
+          throw new Error('Stripe did not return checkout session URL');
+        }
+
+        return {
+          status: 201,
+          body: {
+            order_id,
+            display_order_id,
+            stripe_checkout_session_url: session.url,
+          },
+        };
+      },
+      { ttlHours: 24 }
+    );
+
+    return NextResponse.json(response.body, { status: response.status, headers: corsHeaders });
+  } catch (err) {
+    console.error('[Checkout] Unhandled error:', err);
+    // Purpose: return a safe, actionable message (and keep CORS headers) so the frontend doesn't show "Failed to fetch".
+    const safeMessage =
+      err instanceof Error &&
+      [
+        'Checkout configuration error',
+        'Payment configuration error',
+        'Failed to create order',
+        'Stripe did not return checkout session URL',
+      ].includes(err.message)
+        ? err.message
+        : 'Checkout failed';
+    return NextResponse.json({ error: safeMessage }, { status: 500, headers: corsHeaders });
+  }
 }
