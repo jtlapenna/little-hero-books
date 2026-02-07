@@ -8,14 +8,16 @@ import { FlaggedBadge } from '@/components/ui/flagged-badge';
 import { formatDate } from '@/lib/utils';
 import { getOrderFlagSummary, getActiveStageFlagCount } from '@/lib/review-state';
 import { DisplayStatus } from '@/constants/statuses';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, Trash2 } from 'lucide-react';
 
 interface OrdersTableProps {
   orders: OrderListItem[];
   onOrderClick: (orderId: string) => void;
+  // Purpose: allow the parent page to archive from the table row.
+  onArchiveOrder?: (orderId: string) => void;
 }
 
-export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
+export function OrdersTable({ orders, onOrderClick, onArchiveOrder }: OrdersTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | DisplayStatus>('all');
   const [platformFilter, setPlatformFilter] = useState('all');
@@ -158,9 +160,28 @@ export function OrdersTable({ orders, onOrderClick }: OrdersTableProps) {
                       {formatDate(order.orderDate)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <button className="text-blue-600 hover:text-blue-900 font-medium">
-                        Open
-                      </button>
+                      <div className="flex items-center gap-3">
+                        {/* Purpose: open order details */}
+                        <button className="text-blue-600 hover:text-blue-900 font-medium">
+                          Open
+                        </button>
+
+                        {/* Purpose: archive order (trash icon) */}
+                        {onArchiveOrder && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onArchiveOrder(order.orderId);
+                            }}
+                            className="text-gray-500 hover:text-gray-800"
+                            title="Archive"
+                            aria-label={`Archive order ${order.orderId}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

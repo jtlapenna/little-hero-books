@@ -77,7 +77,8 @@ export async function processPreviewReminders(
 
   const { data: orders, error: fetchError } = await supabase
     .from('orders')
-    .select('id, orderId, amazon_order_id, product_info, platform, customer_email, customer_approval_requested_at, preview_reminder_sent, character_specs, revision_count')
+    // Purpose: only consider pending approvals, but still double-check before sending to avoid races.
+    .select('id, orderId, amazon_order_id, product_info, platform, customer_email, customer_approval_status, customer_approval_approved_at, customer_approval_requested_at, preview_reminder_sent, character_specs, revision_count')
     .eq('customer_approval_status', 'pending')
     .not('customer_approval_requested_at', 'is', null);
 
@@ -104,6 +105,21 @@ export async function processPreviewReminders(
     result.processed += 1;
     const requestedAt = row.customer_approval_requested_at;
     if (!requestedAt) continue;
+
+    // Purpose: never send reminders for already-approved orders (guards against stale rows or race conditions).
+    const latest = await supabase
+      .from('orders')
+      .select('customer_approval_status, customer_approval_approved_at')
+      .eq('id', row.id)
+      .single();
+    if (
+      latest.data &&
+      (latest.data.customer_approval_status !== 'pending' || latest.data.customer_approval_approved_at)
+    ) {
+      result.skipped += 1;
+      addSkipReason('already_approved');
+      continue;
+    }
 
     const requested = new Date(requestedAt).getTime();
     const now = Date.now();
