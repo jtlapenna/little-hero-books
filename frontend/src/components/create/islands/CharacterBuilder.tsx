@@ -10,6 +10,7 @@ import type { CreateFlowState, CreateFlowCharacter } from '../../../lib/createFl
 import { isCharacterStepComplete } from '../../../lib/createFlow/createFlowSelectors';
 import {
   getHairStyleOptionsForColor,
+  getHairStyleOptionsForInitialLoad,
   HAIR_COLORS,
   SKIN_TONES,
   FAVORITE_COLORS,
@@ -398,7 +399,7 @@ function CharacterBuilder() {
           label="Hair color"
         />
         <TraitGridPicker
-          options={getHairStyleOptionsForColor(char.hairColor)}
+          options={char.hairColor ? getHairStyleOptionsForColor(char.hairColor) : getHairStyleOptionsForInitialLoad()}
           value={char.hairStyle}
           onChange={(id) => updateCharacter({ hairStyle: id })}
           name="Hair style"

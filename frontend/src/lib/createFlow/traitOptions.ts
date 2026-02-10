@@ -87,6 +87,24 @@ export function getHairStyleOptionsForColor(hairColor: string | undefined): Trai
   });
 }
 
+/**
+ * First-load hair style options (before user picks hair color).
+ * Purpose: cycle through hair color reference images in order, repeating after one full cycle.
+ */
+export function getHairStyleOptionsForInitialLoad(): TraitGridOption[] {
+  const ids = HAIR_COLORS.map((c) => c.id);
+  return HAIR_STYLES.map((h, ix) => {
+    const suffix = ids.length ? ids[ix % ids.length] : '';
+    const generated = suffix ? `/hair-references/generated/${h.id}-${suffix}.jpg` : undefined;
+    return {
+      id: h.id,
+      label: h.label,
+      imageUrl: generated ?? `/hair-references/${h.id}.png`,
+      fallbackImageUrl: `/hair-references/${h.id}.png`,
+    };
+  });
+}
+
 export const ANIMAL_GUIDES: TraitGridOption[] = [
   { id: 'dog', label: 'Dog', imageUrl: '/animals/dog.png', fallbackImageUrl: '/animals/dog-appears.png' },
   { id: 'cat', label: 'Cat', imageUrl: '/animals/cat.png', fallbackImageUrl: '/animals/cat-appears.png' },
