@@ -42,4 +42,3 @@ export function formatPlatformName(platform: string): string {
   if (lower === 'd2c') return 'D2C';
   return platform.charAt(0).toUpperCase() + platform.slice(1);
 }
-

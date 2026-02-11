@@ -76,63 +76,97 @@ function extractErrorDetails(lineItemStatuses: any[]): string | null {
   return null;
 }
 
-export async function POST(request: NextRequest) {
+/** Unwrap nested payload (e.g. Lulu sends { data: { print_job_id, name, ... } }) */
+function unwrapPayload(raw: any): any {
+  if (!raw || typeof raw !== 'object') return raw;
+  const hasId = (o: any) => o && typeof o === 'object' && (o.print_job_id != null || o.id != null || o.printJobId != null);
+  if (hasId(raw)) return raw;
+  for (const key of ['data', 'body', 'event', 'payload']) {
+    const inner = raw[key];
+    if (hasId(inner)) return inner;
+  }
+  return raw;
+}
+
+/** Write one row to lulu_webhook_log so we can see if webhooks are reaching us (no reliance on Vercel logs). */
+async function auditLog(entry: {
+  printJobId: string | null;
+  statusName: string | null;
+  orderFound: boolean;
+  orderId: string | null;
+  updated: boolean;
+  errorMessage: string | null;
+}) {
   try {
-    // Parse webhook payload
-    const payload = await request.json();
-    
+    await supabase.from('lulu_webhook_log').insert({
+      print_job_id: entry.printJobId,
+      status_name: entry.statusName,
+      order_found: entry.orderFound,
+      order_id: entry.orderId,
+      updated: entry.updated,
+      error_message: entry.errorMessage,
+    });
+  } catch (e) {
+    console.error('[LULU WEBHOOK] Audit log insert failed:', e);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  let printJobId: string | null = null;
+  let statusName: string | null = null;
+  try {
+    // Parse and unwrap (Lulu may send nested payload)
+    const raw = await request.json();
+    const payload = unwrapPayload(raw);
     console.log('[LULU WEBHOOK] Received payload:', JSON.stringify(payload, null, 2));
-    
+
     // Extract print job ID (Lulu may use different field names)
-    const printJobId = payload.print_job_id || payload.id || payload.printJobId || null;
-    if (!printJobId) {
+    const printJobIdVal = payload.print_job_id ?? payload.id ?? payload.printJobId ?? null;
+    if (!printJobIdVal) {
       console.error('[LULU WEBHOOK] Missing print_job_id in payload');
-      // Still return 200 - Lulu expects acknowledgment
+      await auditLog({ printJobId: null, statusName: null, orderFound: false, orderId: null, updated: false, errorMessage: 'Missing print_job_id' });
       return NextResponse.json(
         { received: true, error: 'Missing print_job_id' },
         { status: 200, headers: corsHeaders }
       );
     }
-    
+    printJobId = String(printJobIdVal);
+
     // Extract status name
-    const statusName = payload.name || null;
+    statusName = payload.name ?? payload.status ?? null;
     if (!statusName) {
       console.error('[LULU WEBHOOK] Missing status name in payload');
+      await auditLog({ printJobId, statusName: null, orderFound: false, orderId: null, updated: false, errorMessage: 'Missing status name' });
       return NextResponse.json(
         { received: true, error: 'Missing status name' },
         { status: 200, headers: corsHeaders }
       );
     }
-    
+
     // Extract line item statuses
     const lineItemStatuses = payload.line_item_statuses || payload.lineItemStatuses || [];
     
-    // Use Supabase client (already imported)
-    
-    // Find order by lulu_job_id
-    // Convert printJobId to string for comparison (Lulu returns numbers, DB stores as VARCHAR)
-    const printJobIdStr = String(printJobId);
-    
+    // Find order by lulu_job_id (printJobId already string)
     const { data: order, error: findError } = await supabase
       .from('orders')
       .select('*')
-      .eq('lulu_job_id', printJobIdStr)
+      .eq('lulu_job_id', printJobId)
       .maybeSingle();
-    
+
     if (findError) {
       console.error('[LULU WEBHOOK] Error finding order:', findError);
-      // Still return 200 - order might not exist yet, or database error
+      await auditLog({ printJobId, statusName, orderFound: false, orderId: null, updated: false, errorMessage: findError.message });
       return NextResponse.json(
         { received: true, error: 'Order lookup failed', details: findError.message },
         { status: 200, headers: corsHeaders }
       );
     }
-    
+
     if (!order) {
-      console.warn(`[LULU WEBHOOK] Order not found for lulu_job_id: ${printJobIdStr}`);
-      // Still return 200 - order might not be in our system yet
+      console.warn(`[LULU WEBHOOK] Order not found for lulu_job_id: ${printJobId}`);
+      await auditLog({ printJobId, statusName, orderFound: false, orderId: null, updated: false, errorMessage: 'Order not found' });
       return NextResponse.json(
-        { received: true, warning: 'Order not found', printJobId: printJobIdStr },
+        { received: true, warning: 'Order not found', printJobId },
         { status: 200, headers: corsHeaders }
       );
     }
@@ -210,13 +244,14 @@ export async function POST(request: NextRequest) {
     
     if (updateError) {
       console.error('[LULU WEBHOOK] Error updating order:', updateError);
-      // Still return 200 - we acknowledged receipt, even if update failed
+      await auditLog({ printJobId, statusName, orderFound: true, orderId: orderIdentifier, updated: false, errorMessage: updateError.message });
       return NextResponse.json(
         { received: true, error: 'Update failed', details: updateError.message },
         { status: 200, headers: corsHeaders }
       );
     }
-    
+
+    await auditLog({ printJobId, statusName, orderFound: true, orderId: orderIdentifier, updated: true, errorMessage: null });
     console.log(`[LULU WEBHOOK] Successfully updated order ${orderIdentifier} with status ${statusName}`);
 
     // Send "your book has shipped" notification when SHIPPED: D2C → email, Amazon → Message Center
@@ -257,13 +292,31 @@ export async function POST(request: NextRequest) {
               trackingNumber: shippingTrackingNumber ?? undefined,
               childName: childName ?? undefined,
             });
+            const logStatus = result.success ? 'sent' : 'failed';
             if (result.success) {
               console.log(`[LULU WEBHOOK] Amazon shipped message sent for order ${orderIdentifier}`);
             } else {
               console.warn(`[LULU WEBHOOK] Amazon shipped message failed for ${orderIdentifier}:`, result.error);
             }
+            // Persist attempt so we can debug "worked then stopped" without Vercel logs
+            await supabase.from('notification_logs').insert({
+              order_id: String(orderIdentifier),
+              notification_type: 'amazon_message',
+              status: logStatus,
+              recipient: String(amazonOrderId),
+              error_message: result.error ?? null,
+              sent_at: result.success ? new Date().toISOString() : null,
+            });
           } catch (notifyErr: any) {
             console.warn(`[LULU WEBHOOK] Amazon shipped notification error:`, notifyErr?.message ?? notifyErr);
+            await supabase.from('notification_logs').insert({
+              order_id: String(orderIdentifier),
+              notification_type: 'amazon_message',
+              status: 'failed',
+              recipient: String(amazonOrderId),
+              error_message: notifyErr?.message ?? String(notifyErr),
+              sent_at: null,
+            });
           }
         }
       }
@@ -281,14 +334,10 @@ export async function POST(request: NextRequest) {
     );
     
   } catch (error: any) {
-    // Always return 200, but log the error
     console.error('[LULU WEBHOOK] Unexpected error:', error);
+    await auditLog({ printJobId: printJobId ?? null, statusName: statusName ?? null, orderFound: false, orderId: null, updated: false, errorMessage: error?.message || 'Unknown error' });
     return NextResponse.json(
-      { 
-        received: true, 
-        error: 'Internal server error',
-        details: error?.message || 'Unknown error'
-      },
+      { received: true, error: 'Internal server error', details: error?.message || 'Unknown error' },
       { status: 200, headers: corsHeaders }
     );
   }

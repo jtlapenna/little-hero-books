@@ -213,7 +213,13 @@ export async function GET(
     if (carrier) {
       updates.carrier = carrier;
     }
-    
+    // When SHIPPED, set timestamps so manual refresh matches webhook behavior
+    if (newStatus === 'SHIPPED') {
+      const now = new Date().toISOString();
+      updates.shipped_at = now;
+      updates.print_fulfillment_finished_at = now;
+    }
+
     // Handle error messages based on status
     if (newStatus === 'REJECTED' && errorMessage) {
       updates.error_message = errorMessage;

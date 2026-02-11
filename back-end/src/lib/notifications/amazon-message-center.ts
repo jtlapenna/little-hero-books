@@ -893,6 +893,11 @@ async function callSellingPartnerApi(options: CallSpApiOptions) {
   
   console.log('[Amazon SP-API] Full Request/Response Details for Support:', JSON.stringify(supportLogEntry, null, 2));
 
+  // On 401, clear token cache so next request gets a fresh LWA token (fixes "worked then stopped" when token was invalidated)
+  if (responseStatus === 401) {
+    accessTokenCache = null;
+  }
+
   if (!responseOk) {
     // Log FULL error details for troubleshooting - this is critical for diagnosis
     const errorDetails = {

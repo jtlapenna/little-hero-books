@@ -150,6 +150,9 @@ export async function POST(request: NextRequest) {
         // Generate customer-friendly display ID: LH-XXXXX (first 5 chars of UUID, uppercase)
         const display_order_id = `LH-${order_id.substring(0, 5).toUpperCase()}`;
 
+        // Purpose: persist customer-selected shipping tier on the order (used by W4 → Lulu shipping_level).
+        const shippingTier = parsed.shipping_tier as ShippingTier;
+
         // Normalize character_specs to match Amazon order format:
         // - childName (frontend may send 'name')
         // - animalGuide (frontend sends 'favoriteAnimal')
@@ -191,6 +194,7 @@ export async function POST(request: NextRequest) {
           customer_email: parsed.customer_email,
           customer_name: parsed.customer_name ?? parsed.shipping_address.name ?? null,
           shipping_address: parsed.shipping_address,
+          shipping_tier: shippingTier,
           character_specs,
           character_hash,
           preview_hash, // Store preview hash for copying preview to pose 0 after payment
@@ -219,7 +223,6 @@ export async function POST(request: NextRequest) {
         }
 
         const bookCents = parseInt(process.env.D2C_CHECKOUT_AMOUNT_CENTS ?? '', 10) || DEFAULT_AMOUNT_CENTS;
-        const shippingTier = parsed.shipping_tier as ShippingTier;
         const shippingCents = SHIPPING_CENTS_BY_TIER[shippingTier];
         const shippingLabel = SHIPPING_LABEL_BY_TIER[shippingTier];
 
