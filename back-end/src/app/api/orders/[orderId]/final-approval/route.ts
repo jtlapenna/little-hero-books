@@ -76,7 +76,11 @@ async function handleFinalApproval(
     workflow_step: 'customer_approval',
     customer_approval_required: true,
     customer_approval_status: 'pending',
-    customer_approval_requested_at: requestedAt
+    customer_approval_requested_at: requestedAt,
+    // Clear W3 processing state so health monitor doesn't flag as "stuck"
+    execution_status: 'done',
+    started_at: null,
+    current_workflow: null,
   });
 
   const { record: previewToken, created: tokenCreated } =

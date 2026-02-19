@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { LULU_TO_ORDER_STATUS } from '@/lib/lulu-status-map';
 
 export const dynamic = 'force-dynamic';
 // Note: Cron jobs require Node.js runtime, not Edge
@@ -228,7 +229,15 @@ export async function GET(request: NextRequest) {
               const cr = msgs.carrier_name || first?.carrier_name || first?.carrier || null;
 
               const nowIso = new Date().toISOString();
-              const updates: Record<string, any> = { lulu_status: name, shipped_at: nowIso, print_fulfillment_finished_at: nowIso, updated_at: nowIso };
+              const updates: Record<string, any> = {
+                lulu_status: name,
+                shipped_at: nowIso,
+                print_fulfillment_finished_at: nowIso,
+                updated_at: nowIso,
+                status: LULU_TO_ORDER_STATUS[name] ?? 'pending_print',
+                workflow_step: 'done',
+                execution_status: 'done',
+              };
               if (tn) updates.tracking_number = tn;
               if (tu) updates.tracking_url = tu;
               if (cr) updates.carrier = cr;

@@ -68,7 +68,9 @@ export async function GET(request: NextRequest) {
       .from('orders')
       .select('id,amazon_order_id,current_workflow,started_at,retry_count,error_message')
       .eq('execution_status', 'processing')
-      .lt('started_at', stuckThreshold.toISOString());
+      .lt('started_at', stuckThreshold.toISOString())
+      // Exclude orders that are legitimately idle (approval, done, post-fulfillment)
+      .not('workflow_step', 'in', '("customer_approval","done","print_fulfillment")');
     metrics.stuckQueryMs = Date.now() - stuckQueryStart;
 
     if (stuckError) {

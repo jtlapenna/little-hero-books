@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase-client';
+import { LULU_TO_ORDER_STATUS } from '@/lib/lulu-status-map';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -226,9 +227,17 @@ export async function GET(
       updates.error_message = errorMessage;
       updates.error_type = 'lulu_rejected';
     } else if (newStatus === 'CANCELED') {
-      // Clear error fields when order is canceled (not an error state)
       updates.error_message = null;
       updates.error_type = null;
+    }
+
+    // Recalculate display status from Lulu status
+    if (newStatus) {
+      updates.status = LULU_TO_ORDER_STATUS[newStatus] ?? 'pending_print';
+      if (newStatus === 'SHIPPED' || newStatus === 'DELIVERED') {
+        updates.workflow_step = 'done';
+        updates.execution_status = 'done';
+      }
     }
 
     // Update using the identifier that was used to find the order

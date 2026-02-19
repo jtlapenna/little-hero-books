@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase-client';
+import { LULU_TO_ORDER_STATUS } from '@/lib/lulu-status-map';
 
 // Force dynamic rendering - this route should never be statically generated
 export const dynamic = 'force-dynamic';
@@ -210,6 +211,14 @@ export async function POST(request: NextRequest) {
     
     if (statusName === 'CANCELED') {
       console.warn(`[LULU WEBHOOK] Order ${order.orderId || order.order_id || order.amazon_order_id} CANCELED`);
+    }
+
+    // Recalculate display status from Lulu status
+    updateData.status = LULU_TO_ORDER_STATUS[statusName] ?? 'pending_print';
+
+    if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {
+      updateData.workflow_step = 'done';
+      updateData.execution_status = 'done';
     }
     
     // Update order in database
