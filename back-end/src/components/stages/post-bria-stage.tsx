@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { AssetGrid } from '@/components/assets/asset-grid';
 import { CheckCircle, Play, Eye, RefreshCw, Info } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
@@ -26,21 +26,13 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     setApproveStageConfirmed(!!isApproved);
   }, [isApproved]);
 
-  /**
-   * Cache-busting for admin review images.
-   * - Purpose: keep images in sync with R2 even when keys are overwritten.
-   * - Strategy: prefer order.updatedAt (changes on replace); otherwise bump every 30s.
-   */
-  const [assetBustTick, setAssetBustTick] = useState<number>(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setAssetBustTick(Date.now()), 30_000);
-    return () => clearInterval(id);
-  }, []);
+  // On-demand cache-bust counter — only incremented by explicit user actions (replace, flip, refresh).
+  const [bustCounter, setBustCounter] = useState(0);
+  const bumpBust = useCallback(() => setBustCounter(c => c + 1), []);
 
   function getBustToken(): string {
     const updatedAtMs = order?.updatedAt ? Date.parse(order.updatedAt) : 0;
-    // Include both so we refresh on replace (updatedAt) and periodically (tick).
-    return `${Number.isFinite(updatedAtMs) ? updatedAtMs : 0}-${assetBustTick}`;
+    return `${Number.isFinite(updatedAtMs) ? updatedAtMs : 0}-${bustCounter}`;
   }
 
   function withCacheBust(url: string, token: string): string {
@@ -256,7 +248,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [posesBgRemoved, orderId, flippingPoseId, assetBustTick]); // include tick to keep images live
+  }, [posesBgRemoved, orderId, flippingPoseId, bustCounter]);
 
   const handleFlip = async (assetId: string, poseNumber: number, imageUrlParam?: string) => {
     console.log('[PostBriaStage] handleFlip called with assetId:', assetId, 'poseNumber:', poseNumber, 'imageUrlParam:', imageUrlParam);
@@ -464,6 +456,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       if (onRefresh) {
         await onRefresh();
       }
+      bumpBust();
     } catch (error: any) {
       console.error('[PostBriaStage] Error flipping image:', error);
       alert(`Failed to flip image: ${error.message || 'Unknown error'}`);
@@ -580,19 +573,10 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         console.log('[PostBriaStage] Calling onRefresh...');
         await onRefresh();
         console.log('[PostBriaStage] onRefresh completed');
-        
-        // Force a second refresh after a short delay to ensure cache-busting takes effect
-        setTimeout(async () => {
-          if (onRefresh) {
-            console.log('[PostBriaStage] Second refresh to ensure image update...');
-            await onRefresh();
-            // Clear prevKeyRef again after second refresh to ensure state updates
-            prevKeyRef.current = '';
-          }
-        }, 500);
       } else {
         console.warn('[PostBriaStage] No onRefresh callback provided');
       }
+      bumpBust();
     } catch (error: any) {
       console.error('[PostBriaStage] Replace failed with error:', error);
       console.error('[PostBriaStage] Error stack:', error.stack);
@@ -606,17 +590,15 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Clear prevKeyRef to force useEffect to re-run and detect changes
       prevKeyRef.current = '';
       
       if (onRefresh) {
         await onRefresh();
-        // Clear again after refresh to ensure state updates
         prevKeyRef.current = '';
       } else {
-        // Fallback: reload the page
         window.location.reload();
       }
+      bumpBust();
     } catch (error) {
       console.error('Error refreshing images:', error);
     } finally {

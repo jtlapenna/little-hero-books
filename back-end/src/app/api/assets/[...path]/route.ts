@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 
+export const maxDuration = 25;
+
 /**
  * Fetch from R2 and protect against truncated reads.
  * Some renderers will display "top slice only" if a PNG download is cut short.
@@ -115,12 +117,13 @@ export async function GET(
     const isBackgroundRemoved = key.toLowerCase().includes('nobg') || 
                                 key.toLowerCase().includes('bg-removed') ||
                                 key.toLowerCase().includes('background-removed');
-    // If cache-busting parameter is present, disable caching to ensure fresh image
+    // v= token is content-addressed (changes only when the asset changes), so
+    // the browser can safely cache the response for that exact URL.
     const cacheControl = cacheBuster
-      ? 'no-cache, no-store, must-revalidate' // Force fresh fetch when cache-busting
+      ? 'public, max-age=600, immutable'
       : isBackgroundRemoved
-        ? 'public, max-age=60, must-revalidate, s-maxage=0' // Cache for 1 minute, no CDN cache for post-Bria images
-        : 'public, max-age=3600, s-maxage=3600'; // Cache for 1 hour for other images
+        ? 'public, max-age=60, must-revalidate, s-maxage=0'
+        : 'public, max-age=3600, s-maxage=3600';
     
     // Return image with proper headers (including CORS)
     const response = new NextResponse(imageBuffer, {

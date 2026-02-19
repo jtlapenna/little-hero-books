@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { AssetGrid } from '@/components/assets/asset-grid';
 import { CheckCircle, Play, X, Info } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
@@ -17,21 +17,13 @@ interface PreBriaStageProps {
 }
 
 export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh, onOrderUpdate }: PreBriaStageProps) {
-  /**
-   * Cache-busting for admin review images.
-   * - Purpose: keep images in sync with R2 even when keys are overwritten.
-   * - Strategy: prefer order.updatedAt (changes on replace); otherwise bump every 30s.
-   */
-  const [assetBustTick, setAssetBustTick] = useState<number>(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setAssetBustTick(Date.now()), 30_000);
-    return () => clearInterval(id);
-  }, []);
+  // On-demand cache-bust counter — only incremented by explicit user actions (replace, flip, refresh).
+  const [bustCounter, setBustCounter] = useState(0);
+  const bumpBust = useCallback(() => setBustCounter(c => c + 1), []);
 
   function getBustToken(): string {
     const updatedAtMs = order?.updatedAt ? Date.parse(order.updatedAt) : 0;
-    // Include both so we refresh on replace (updatedAt) and periodically (tick).
-    return `${Number.isFinite(updatedAtMs) ? updatedAtMs : 0}-${assetBustTick}`;
+    return `${Number.isFinite(updatedAtMs) ? updatedAtMs : 0}-${bustCounter}`;
   }
 
   function withCacheBust(url: string, token: string): string {
@@ -232,7 +224,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   const r2Assets = order?.r2Assets;
   const r2AssetsKey = r2Assets ? JSON.stringify({
     updatedAt: order?.updatedAt || '',
-    assetBustTick,
+    bustCounter,
     baseCharacterUrl: r2Assets.baseCharacter?.url || '',
     posesCount: r2Assets.poses?.length || 0,
     poses: r2Assets.poses?.map(p => ({ poseNumber: p.poseNumber, url: p.url, isMissing: p.isMissing, isFlagged: p.isFlagged, needsReview: p.needsReview })) || []
@@ -567,6 +559,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       if (onRefresh) {
         await onRefresh();
       }
+      bumpBust();
     } catch (error: any) {
       console.error('[PreBriaStage] Error flipping image:', error);
       alert(`Failed to flip image: ${error.message || 'Unknown error'}`);
@@ -685,17 +678,10 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         console.log('[PreBriaStage] Calling onRefresh...');
         await onRefresh();
         console.log('[PreBriaStage] onRefresh completed');
-        
-        // Force a second refresh after a short delay to ensure cache-busting takes effect
-        setTimeout(async () => {
-          if (onRefresh) {
-            console.log('[PreBriaStage] Second refresh to ensure image update...');
-            await onRefresh();
-          }
-        }, 500);
       } else {
         console.warn('[PreBriaStage] No onRefresh callback provided');
       }
+      bumpBust();
     } catch (error: any) {
       console.error('[PreBriaStage] Replace failed with error:', error);
       console.error('[PreBriaStage] Error stack:', error.stack);
@@ -930,6 +916,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         if (onRefresh) {
           await onRefresh();
         }
+        bumpBust();
         return; // Done, no need to poll
       }
 
@@ -1002,12 +989,10 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
                 return updated;
               });
 
-              // Force a refresh of the poses array by triggering the useEffect
-              // The poses array depends on pendingRevisions, so it should update automatically
-              // But we'll also refresh order data to ensure everything is in sync
               if (onRefresh) {
                 await onRefresh();
               }
+              bumpBust();
             } else if (statusResult.status === 'failed') {
               clearInterval(pollInterval);
               pollingIntervalsRef.current.delete(revisionKey);
@@ -1053,10 +1038,10 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         
         pollingTimeoutsRef.current.set(revisionKey, timeout);
       } else {
-        // No jobId or unexpected status - refresh anyway
         if (onRefresh) {
           await onRefresh();
         }
+        bumpBust();
       }
     } catch (error: any) {
       console.error('[PreBriaStage] Regenerate failed:', error);
@@ -1111,6 +1096,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       if (onRefresh) {
         await onRefresh();
       }
+      bumpBust();
     } catch (error: any) {
       console.error('[PreBriaStage] Accept revision failed:', error);
       operationInProgressRef.current.delete(revisionKey);
@@ -1166,6 +1152,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       if (onRefresh) {
         await onRefresh();
       }
+      bumpBust();
     } catch (error: any) {
       console.error('[PreBriaStage] Reject revision failed:', error);
       operationInProgressRef.current.delete(revisionKey);

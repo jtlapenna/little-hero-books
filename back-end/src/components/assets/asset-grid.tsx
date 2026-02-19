@@ -84,10 +84,17 @@ export function AssetGrid({
   onReviseRevision
 }: AssetGridProps) {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  // Track which images failed to load so we can show a placeholder without mutating DOM.
+  // Track which images permanently failed (after all retries exhausted).
   const [failedAssetIds, setFailedAssetIds] = useState<Set<string>>(() => new Set());
   // Track previous URLs to clear failure state when an image URL changes (e.g. after replace/cache-bust).
   const prevUrlByIdRef = useRef<Map<string, string>>(new Map());
+
+  // Retry-with-backoff for transient image load failures.
+  const retryCountRef = useRef<Map<string, number>>(new Map());
+  const retryTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const [retrySuffix, setRetrySuffix] = useState<Map<string, number>>(() => new Map());
+  const MAX_RETRIES = 3;
+  const RETRY_DELAYS = [3_000, 10_000, 15_000];
 
   // Update selectedAsset when the corresponding asset in the assets array changes
   // This ensures the modal shows the updated image after operations like flip, flag, or revision updates
@@ -115,7 +122,14 @@ export function AssetGrid({
     }
   }, [assets, selectedAsset]);
 
-  // Keep failure state in sync with assets list and URL changes.
+  // Cleanup retry timers on unmount
+  useEffect(() => {
+    return () => {
+      retryTimerRef.current.forEach(t => clearTimeout(t));
+    };
+  }, []);
+
+  // Keep failure + retry state in sync with assets list and URL changes.
   useEffect(() => {
     if (!assets || assets.length === 0) {
       prevUrlByIdRef.current = new Map();
@@ -139,15 +153,18 @@ export function AssetGrid({
 
       for (const id of prev) {
         if (!ids.has(id)) {
-          changed = true; // asset removed
+          changed = true;
           continue;
         }
         const asset = assets.find(a => a.id === id);
         const prevUrl = prevMap.get(id) || '';
         const nextUrl = asset?.url || '';
-        // If URL changed, allow a retry (clear failure for that id).
         if (prevUrl !== nextUrl) {
           changed = true;
+          // Reset retry state when URL changes (replace/cache-bust)
+          retryCountRef.current.delete(id);
+          const timer = retryTimerRef.current.get(id);
+          if (timer) { clearTimeout(timer); retryTimerRef.current.delete(id); }
           continue;
         }
         next.add(id);
@@ -249,14 +266,21 @@ export function AssetGrid({
                 </div>
               ) : (
               <img
-                key={`${asset.id}:${asset.url}`}
-                src={asset.url}
+                key={`${asset.id}:${asset.url}:${retrySuffix.get(asset.id) ?? 0}`}
+                src={(() => {
+                  const r = retrySuffix.get(asset.id);
+                  if (!r) return asset.url;
+                  const sep = asset.url.includes('?') ? '&' : '?';
+                  return `${asset.url}${sep}retry=${r}`;
+                })()}
                 alt={asset.name}
                 className="max-w-full max-h-full object-contain"
                 loading="lazy"
                 decoding="async"
                 onLoad={() => {
-                  // Clear failure state if the image successfully loads.
+                  retryCountRef.current.delete(asset.id);
+                  const timer = retryTimerRef.current.get(asset.id);
+                  if (timer) { clearTimeout(timer); retryTimerRef.current.delete(asset.id); }
                   setFailedAssetIds(prev => {
                     if (!prev.has(asset.id)) return prev;
                     const next = new Set(prev);
@@ -265,8 +289,22 @@ export function AssetGrid({
                   });
                 }}
                 onError={() => {
-                  // Mark as failed; parent UI can later clear this when URL changes (cache-bust/replace).
-                  setFailedAssetIds(prev => (prev.has(asset.id) ? prev : new Set(prev).add(asset.id)));
+                  const attempt = retryCountRef.current.get(asset.id) ?? 0;
+                  if (attempt < MAX_RETRIES) {
+                    const delay = RETRY_DELAYS[attempt] ?? 15_000;
+                    retryCountRef.current.set(asset.id, attempt + 1);
+                    const timer = setTimeout(() => {
+                      retryTimerRef.current.delete(asset.id);
+                      setRetrySuffix(prev => {
+                        const next = new Map(prev);
+                        next.set(asset.id, attempt + 1);
+                        return next;
+                      });
+                    }, delay);
+                    retryTimerRef.current.set(asset.id, timer);
+                  } else {
+                    setFailedAssetIds(prev => (prev.has(asset.id) ? prev : new Set(prev).add(asset.id)));
+                  }
                 }}
               />
               )}
