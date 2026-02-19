@@ -5,26 +5,26 @@
       "parameters": {
         "jsCode": "/**\n * s2B-sw1: single-pose Bria background removal\n * Input: one pose item from 2B main\n */\nconst j = $json || {};\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\n\nconst orderId = pick(j.orderId, null);\nconst characterHash = pick(j.characterHash, null);\nconst poseNumberRaw = pick(j.poseNumber, null);\nconst poseNumber = (poseNumberRaw === 0 || poseNumberRaw === '0') ? 0 : Number(poseNumberRaw);\nconst approvedKey = pick(j.approvedKey, null);\n\nif (!orderId) throw new Error('s2B-sw1: orderId required');\nif (!characterHash) throw new Error('s2B-sw1: characterHash required');\nif (!Number.isFinite(poseNumber)) throw new Error('s2B-sw1: poseNumber required');\nif (!approvedKey) throw new Error('s2B-sw1: approvedKey required');\n\nconst backendUrl = pick(j.backendUrl, 'https://admin.littleherolabs.com');\nconst callbackUrl = pick(j.callbackUrl, `${backendUrl}/webhook/2b-callback`);\n\nconst replacedAt = pick(j.replacedAt, null);\nconst replacementCount = Number(pick(j.replacementCount, 0) || 0);\nconst manifest2aUrl = pick(j.manifest2aUrl, null);\n\n// Build a replacement-aware cache-busted source URL via backend proxy (private bucket-safe)\nconst replacedAtMs = replacedAt ? Date.parse(String(replacedAt)) : NaN;\nconst v = Number.isFinite(replacedAtMs) ? replacedAtMs : (replacementCount > 0 ? replacementCount : Date.now());\nconst sourceUrl = `${backendUrl}/api/assets/${approvedKey}?v=${v}`;\n\nreturn [{ json: {\n  orderId, characterHash, poseNumber, approvedKey,\n  backendUrl, callbackUrl,\n  replacedAt, replacementCount, manifest2aUrl,\n  sourceUrl\n} }];\n"
       },
-      "id": "5c74b719-7799-4379-aa37-4238398e0061",
+      "id": "cf03ed68-4050-416a-9045-afef62b942aa",
       "name": "Normalize Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1520,
-        -320
+        1536,
+        -592
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Build Bria remove-bg request payload (JSON).\n * Bria API v2 expects 'image' field (can be URL or base64)\n * Uses backend proxy endpoint for R2 images (required for private R2)\n * Handles URL normalization and fallbacks like original workflow\n */\nconst j = $json || {};\n\n// Backend API configuration\nconst backendUrl = j.backendUrl || 'https://admin.littleherolabs.com';\n\n// Helper function to normalize malformed URLs\nfunction normalizeUrl(url) {\n  if (!url || typeof url !== 'string') return url;\n  // Fix: https:/domain -> https://domain\n  url = url.replace(/^https:\\/(?!\\/)/, 'https://');\n  url = url.replace(/^http:\\/(?!\\/)/, 'http://');\n  return url;\n}\n\n// Get URL from sourceUrl (built in Normalize Input)\nlet url = j.sourceUrl || null;\n\n// Normalize URL to fix malformed URLs\nif (url) {\n  url = normalizeUrl(url);\n}\n\n// Base64 fallback (shouldn't be needed with manifest)\nlet b64 = j.extractedImageData || j.poseBase64 || j.characterBase64 || null;\nif (typeof b64 === 'string') {\n  const m = b64.match(/^data:(image\\/[a-z0-9+.\\-]+);base64,(.*)$/i);\n  if (m) b64 = m[2];\n  b64 = b64.trim();\n  if (b64.length < 12) b64 = null;\n}\n\nif (!url && !b64) {\n  throw new Error(`Pose ${j.poseNumber || 'unknown'}: No usable image URL found`);\n}\n\n// Build Bria payload (matches original workflow structure)\nconst briaPayload = {\n  image: url || b64,\n  meta: {\n    correlationId: j.correlationId || null,\n    pose: j.poseNumber || null,\n    characterHash: j.characterHash || null,\n    source: url ? 'url' : 'base64'\n  }\n};\n\nconst urlType = url ? (url.includes('/api/assets/') ? 'backend proxy URL' : 'public URL') : 'base64 data';\nconsole.log(`Pose ${j.poseNumber || 'unknown'}: Using ${url ? 'URL' : 'base64'} - ${urlType}`);\n\nreturn [{ json: { ...j, bria: { payload: briaPayload }, briaSource: url ? 'url' : 'base64' } }];\n"
       },
-      "id": "9328a8ef-cd20-48f5-a5d4-73263d8c5eef",
+      "id": "e0f2f688-dea3-489a-b5aa-de2038262dab",
       "name": "Build Bria Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1280,
-        -320
+        1776,
+        -592
       ]
     },
     {
@@ -56,13 +56,13 @@
           "timeout": 90000
         }
       },
-      "id": "1cc7335c-45e1-4333-aab5-227b5fc97985",
+      "id": "f7397a37-14d4-466f-823d-b1af6f052c43",
       "name": "Bria Submit",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1040,
-        -320
+        2016,
+        -592
       ],
       "retryOnFail": true,
       "waitBetweenTries": 3000
@@ -71,13 +71,13 @@
       "parameters": {
         "jsCode": "/**\n * Extract Bria status URL/requestId and begin bounded polling loop state.\n */\nconst resp = $json || {};\nlet ctx = {};\ntry { ctx = $items('Normalize Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst statusUrl = resp.status_url || resp.statusUrl || resp.data?.status_url || null;\nconst requestId = resp.request_id || resp.requestId || resp.data?.request_id || null;\nif (!statusUrl && !requestId) {\n  throw new Error('s2B-sw1: Bria submit did not return status_url/request_id');\n}\n\nreturn [{ json: { ...ctx, briaStatusUrl: statusUrl, briaRequestId: requestId, attempt: 0 } }];\n"
       },
-      "id": "7d139c85-75d4-42d7-8af5-d7dc75125fe8",
+      "id": "83ccafdd-93bc-4277-8ef1-b48b58d99eca",
       "name": "Extract Bria Tracking",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -800,
-        -320
+        2256,
+        -592
       ]
     },
     {
@@ -85,13 +85,13 @@
         "amount": "={{ Math.min(90, 8 + Math.floor((Number($json.attempt || 0)) / 3) * 10) }}",
         "unit": "seconds"
       },
-      "id": "8d6ce9df-79d5-41fa-8652-f7109752da48",
+      "id": "899556dd-230b-4567-b850-ed6d8d3f610a",
       "name": "Wait",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [
-        -560,
-        -320
+        2496,
+        -592
       ],
       "webhookId": "625a2118-7bc9-4ac6-906d-11255093ccaa"
     },
@@ -116,26 +116,26 @@
           "timeout": 90000
         }
       },
-      "id": "794bb8e2-cc87-4313-b127-278b989c70b8",
+      "id": "46502794-5c68-42ea-9d81-4383bf173216",
       "name": "Bria Poll",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -320,
-        -320
+        2736,
+        -592
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Decide: continue polling vs completed vs failed/timeout.\n * Updated for Bria API v2 response format: { result: { image_url }, status, request_id }\n */\nconst poll = $json || {};\nlet ctx = {};\ntry { ctx = $items('Extract Bria Tracking', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst maxAttempts = 20;\nconst attempt = Number(ctx.attempt || 0) + 1;\n\n// Status: v2 uses uppercase (COMPLETED), v1 uses lowercase (completed)\nconst statusRaw = poll.status || poll.state || poll.data?.status || '';\nconst status = String(statusRaw).toLowerCase();\n\n// Result URL: v2 has result.image_url, v1 has result_url/resultUrl\nconst resultUrl = poll.result?.image_url ||\n                  poll.result_url ||\n                  poll.resultUrl ||\n                  poll.data?.result_url ||\n                  poll.data?.resultUrl ||\n                  poll.data?.result?.image_url ||\n                  null;\n\nconst errMsg = poll.error?.message || poll.message || poll.data?.error || null;\n\n// Normalize terminal states\nif (status === 'completed' || status === 'done' || (resultUrl && !status)) {\n  if (!resultUrl) throw new Error('s2B-sw1: completed but missing result_url');\n  return [{ json: { ...ctx, attempt, briaStatus: 'completed', briaResultUrl: resultUrl, briaErrorMessage: null } }];\n}\nif (status === 'failed' || status === 'error') {\n  return [{ json: { ...ctx, attempt, briaStatus: 'failed', briaResultUrl: null, briaErrorMessage: errMsg || 'Bria failed' } }];\n}\n\nif (attempt >= maxAttempts) {\n  return [{ json: { ...ctx, attempt, briaStatus: 'timeout', briaResultUrl: null, briaErrorMessage: `Timeout after ${maxAttempts} polls` } }];\n}\n\n// Continue polling\nreturn [{ json: { ...ctx, attempt, briaStatus: 'polling', briaResultUrl: null } }];\n"
       },
-      "id": "376a9992-8e3c-47ba-96e0-4fe8de0994df",
+      "id": "2592ba0e-f220-4b2c-b084-748f2b405934",
       "name": "Decide Poll",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -80,
-        -320
+        2976,
+        -592
       ]
     },
     {
@@ -162,13 +162,13 @@
         },
         "options": {}
       },
-      "id": "008871fa-a07f-4494-8033-56d7315649a5",
+      "id": "a3433f48-5adb-4fa0-8f25-58ff65a4fc3f",
       "name": "If Polling",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        128,
-        -320
+        3184,
+        -592
       ]
     },
     {
@@ -195,13 +195,13 @@
         },
         "options": {}
       },
-      "id": "78bba711-3989-41d4-89cf-2e30262a31e9",
+      "id": "df0623cd-29c1-4c0f-a335-30c8ca66d996",
       "name": "If Completed",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -1664,
-        16
+        1392,
+        -256
       ]
     },
     {
@@ -216,26 +216,26 @@
           "timeout": 90000
         }
       },
-      "id": "fe8489bc-6574-4270-adc6-d4b1fc4b2a0c",
+      "id": "fd19f145-8c2a-4391-834b-962349cfcd5f",
       "name": "Download BG Removed (Binary)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1408,
-        0
+        1648,
+        -272
       ]
     },
     {
       "parameters": {
         "jsCode": "// Emits where to fetch the neon canvas from, and what to name its binary\nreturn [{\n  json: {\n    bgBucket: 'little-hero-assets',\n    bgKey: 'book-mvp-simple-adventure/backgrounds/transparency-qa/neon-background.png',\n    bgBinary: 'bg'\n  }\n}];\n"
       },
-      "id": "db558649-fc37-4a78-ba50-73b7cf23b00d",
+      "id": "5ac298fd-4ef9-4e3a-b017-812b3cfbc032",
       "name": "QA: Key for Neon BG",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -976,
-        -112
+        2080,
+        -384
       ]
     },
     {
@@ -244,13 +244,13 @@
         "fileKey": "={{ $json.bgKey }}",
         "binaryPropertyName": "={{ $json.bgBinary }}"
       },
-      "id": "272b05fd-c395-41a7-b845-d4dc54d9d751",
+      "id": "21b6b8f9-d9ed-48d6-9a5f-3d9f39bd571a",
       "name": "QA: Download Neon BG",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -528,
-        -16
+        2528,
+        -288
       ],
       "credentials": {
         "s3": {
@@ -266,13 +266,13 @@
         "dataPropertyNameComposite": "data",
         "options": {}
       },
-      "id": "55b4c839-57ba-4844-980a-0cdefa58c513",
+      "id": "af1fd8c6-99b0-46c2-8c48-bc1d8b8b5f90",
       "name": "QA: Composite BG + Character",
       "type": "n8n-nodes-base.editImage",
       "typeVersion": 1,
       "position": [
-        -288,
-        -16
+        2768,
+        -288
       ]
     },
     {
@@ -280,13 +280,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "/**\n * Transparency QA Build Request — dual-image (composite + original) & filesystem-safe\n * Expects:\n *   - composite image under binary.bg  (from Edit Image → Composite base)\n *   - original cutout under binary.data (transparent PNG)\n * Emits:\n *   - json.geminiRequest (ready to POST)\n *   - drops binaries to keep memory low\n */\n\nconst idx = $itemIndex;\nconst bin = $input.item.binary || {};\n\nconst hasComposite = !!bin.bg;\nconst hasOriginal  = !!bin.data;\nconst compositeKey = hasComposite ? 'bg'   : Object.keys(bin)[0];\nconst originalKey  = hasOriginal  ? 'data' : Object.keys(bin)[1] || Object.keys(bin)[0];\n\nif (!compositeKey || !originalKey || !bin[compositeKey] || !bin[originalKey]) {\n  throw new Error('Expected binary.bg (composite) and binary.data (original) to be present.');\n}\n\nconst mimeComposite = bin[compositeKey].mimeType || 'image/png';\nconst mimeOriginal  = bin[originalKey].mimeType  || 'image/png';\n\nconst compBuf = await this.helpers.getBinaryDataBuffer(idx, compositeKey);\nconst origBuf = await this.helpers.getBinaryDataBuffer(idx, originalKey);\n\nconst compB64 = compBuf.toString('base64');\nconst origB64 = origBuf.toString('base64');\n\nconst qaPrompt = `\nTask: QA for accidental transparency holes *inside* the subject silhouette.\n\nYou are given two images:\n1) A composite image of the subject over a solid neon green background (#39FF14, RGB 57,255,20).\n2) The original PNG with a transparent background (has alpha channel).\n\nRules (be strict):\n- If ANY of the neon background color (#42f10c, ±5% tolerance) is visible *inside* the subject silhouette\n  (especially eyes/teeth/mouth/clothing/body), set \"needs_review\": true.\n- Use the original PNG's alpha to determine the silhouette. Any fully transparent area *not connected to the outer\n  transparent border* is an interior hole and must be flagged.\n- Ignore the outer green area around the figure and a 1–3 px antialias halo at the silhouette edge.\n- If uncertain, set \"needs_review\": true.\n- Be EXTRA careful when reviewing whites of the eyes and teeth.\n\nReturn strict JSON only (no markdown):\n{\"needs_review\": true|false, \"issues\": [\"...\"], \"confidence\": 0..1}\n`.trim();\n\nconst geminiRequest = {\n  contents: [{\n    role: \"user\",\n    parts: [\n      { text: qaPrompt },\n      { inline_data: { mime_type: mimeComposite, data: compB64 } },\n      { inline_data: { mime_type: mimeOriginal,  data: origB64 } }\n    ]\n  }],\n  generationConfig: {\n    response_mime_type: \"application/json\",\n    temperature: 0,\n    topP: 0\n  }\n};\n\nreturn {\n  json: {\n    ...$json,\n    qa: { ...( $json.qa || {} ), transparency: { requested: true, bgHex: \"#39FF14\" } },\n    geminiRequest\n  },\n  binary: {}\n};\n"
       },
-      "id": "5747b12d-1e7c-4f45-a4e6-f68b84978a72",
+      "id": "73098fc0-7452-4dee-8625-43b9c7ca00b2",
       "name": "QA: Build Gemini Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -48,
-        -16
+        3008,
+        -288
       ]
     },
     {
@@ -306,13 +306,13 @@
           }
         }
       },
-      "id": "96652d65-6a9f-445f-b0b1-9c6a6645cfbc",
+      "id": "6609e395-f27c-447f-a617-9e4b24ee5dad",
       "name": "QA: Gemini Transparency",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        192,
-        -16
+        3248,
+        -288
       ],
       "credentials": {
         "googlePalmApi": {
@@ -326,13 +326,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "/**\n * Parse Transparency QA Result (single item)\n * Recall-biased: fail if parse fails or confidence < 0.99\n */\nfunction extractText(resp) {\n  try {\n    const parts = resp?.candidates?.[0]?.content?.parts || [];\n    return parts.map(p => (p && typeof p.text === 'string' ? p.text : '')).join('\\n').trim();\n  } catch {\n    return '';\n  }\n}\n\nconst resp = $json || {};\nconst raw = extractText(resp);\n\nlet parsed = null;\ntry { parsed = raw ? JSON.parse(raw) : null; } catch { parsed = null; }\n\nconst needsReviewModel = parsed?.needs_review === true;\nconst confidence = Number.isFinite(parsed?.confidence) ? parsed.confidence : null;\n\nconst needsReview = needsReviewModel || !parsed || (confidence !== null && confidence < 0.99);\n\nconst issues = Array.isArray(parsed?.issues)\n  ? parsed.issues\n  : (raw ? [raw] : (needsReview ? ['Uncertain — manual check required'] : []));\n\nconst out = {\n  ...$json,\n  qa: {\n    ...($json.qa || {}),\n    transparency: { pass: !needsReview, issues, confidence }\n  },\n  needsReview,\n  reviewReason: needsReview ? 'transparency_fail_or_low_conf' : null,\n};\n\n// trim heavy fields\ndelete out.candidates; delete out.usageMetadata; delete out.modelVersion; delete out.responseId;\n\n// For runOnceForEachItem mode, return single object, not array\nreturn { json: out };\n"
       },
-      "id": "01279e92-2d88-42bb-a45f-311d7da997e3",
+      "id": "5edcf4b7-5fe9-4ea4-9bfc-69e5f473e4e8",
       "name": "QA: Parse Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        432,
-        -16
+        3488,
+        -288
       ]
     },
     {
@@ -358,13 +358,13 @@
         },
         "options": {}
       },
-      "id": "dbdb400b-c1e5-424e-859f-d5a0d86da981",
+      "id": "bf2e992c-76b9-43fa-90a9-6c6958875dd3",
       "name": "If Failed QA",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        672,
-        -16
+        3728,
+        -288
       ]
     },
     {
@@ -372,13 +372,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "/**\n * Mark as Needs Review - Set additional tracking fields for failed QA cases\n * Matches original workflow's \"Mark as Needs Review\" node behavior\n */\nconst j = $json || {};\n\n// Mark as failed\nj.qaPass = false;\nj.success = false;\nj.qa = j.qa || {};\nj.qa.combined = { pass: false };\n\n// Track for backend\nj.needsReview = true;\nj.reviewReason = j.reviewReason || 'transparency_fail';\nj.route = 'manual_review';\n\n// Ensure retryAttempt shows exhausted (at least 3)\nj.retryAttempt = Math.max(j.retryAttempt || 0, j.retry?.attempt || 0, 3);\n\n// For runOnceForEachItem mode, return single object, not array\nreturn { json: j, binary: {} };\n"
       },
-      "id": "f1ec1693-30dc-4f84-845c-d838cb40f33a",
+      "id": "78b51b26-827d-4bef-ac04-57cc39b51c52",
       "name": "Mark as Needs Review",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1184,
-        464
+        1872,
+        192
       ]
     },
     {
@@ -386,13 +386,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "/**\n * Drop Heavy Fields - Remove large data fields to reduce memory\n * Preserves essential metadata for callback\n */\nconst j = $json || {};\n\nconst cleaned = { ...j };\n// Remove heavy fields that aren't needed downstream\ndelete cleaned.extractedImageData;\ndelete cleaned.poseBase64;\ndelete cleaned.characterBase64;\ndelete cleaned.requestBody;\ndelete cleaned.geminiRequest; // Already processed\n// Preserve: poseNumber, orderId, characterHash, briaStatus, qa, needsReview, etc.\n\n// For runOnceForEachItem mode, return single object, not array\nreturn { json: cleaned, binary: {} };\n"
       },
-      "id": "003b87cf-04e7-4f03-b3a0-86b7cecff620",
+      "id": "d2fd29bc-8ba7-4487-a87a-57e91aca6699",
       "name": "Drop Heavy Fields",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -736,
-        464
+        2320,
+        192
       ]
     },
     {
@@ -401,26 +401,26 @@
         "combineBy": "combineByPosition",
         "options": {}
       },
-      "id": "d56d9d40-24d8-4dfc-b48e-6be620eb0679",
+      "id": "fecde91c-6f07-4fec-917a-e69f6585cb5d",
       "name": "Merge QA with Binary",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -496,
-        464
+        2560,
+        192
       ]
     },
     {
       "parameters": {
         "jsCode": "/**\n * Prepare canonical R2 key and minimal metadata.\n * Preserves binary data for upload.\n * Uses legacy path structure: book-mvp-simple-adventure/order-generated-assets/characters/{hash}/characters_{hash}_pose{NN}_nobg.png\n */\nconst j = $json || {};\nconst bin = $binary || {};\n\n// Validate required fields\nif (!j.characterHash) {\n  throw new Error('Prep Upload: characterHash is required');\n}\nif (!Number.isFinite(j.poseNumber)) {\n  throw new Error('Prep Upload: poseNumber is required');\n}\n\nconst BASE_PREFIX = 'book-mvp-simple-adventure/order-generated-assets/characters';\nconst characterHash = String(j.characterHash);\nconst poseNN = String(j.poseNumber).padStart(2, '0');\nconst fileName = `characters_${characterHash}_pose${poseNN}_nobg.png`;\nconst bgRemovedKey = `${BASE_PREFIX}/${characterHash}/${fileName}`;\n\nreturn [{ \n  json: { ...j, poseNN, bgRemovedKey, briaCompletedAt: new Date().toISOString() },\n  binary: bin\n}];"
       },
-      "id": "98fddadb-84a8-431b-895c-a0c3ca1f03a4",
+      "id": "f7e843da-6f60-4a0d-b693-f37a4aaf0c23",
       "name": "Prep Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -256,
-        464
+        2800,
+        192
       ]
     },
     {
@@ -430,13 +430,13 @@
         "fileName": "={{ $json.bgRemovedKey }}",
         "additionalFields": {}
       },
-      "id": "6e6e6095-7bf5-4b0a-9528-cde114aec0c7",
+      "id": "22c97f33-8173-4c90-929f-51d8f178860d",
       "name": "Upload BG Removed to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -16,
-        464
+        3040,
+        192
       ],
       "credentials": {
         "s3": {
@@ -447,29 +447,50 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "https://admin.littleherolabs.com/api/normalize-pose-scale",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"imageUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/{{ $('Prep Upload').item.json.bgRemovedKey }}\",\n  \"poseNumber\": {{ $('Prep Upload').item.json.poseNumber }},\n  \"characterHash\": \"{{ $('Prep Upload').item.json.characterHash }}\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "a1b2c3d4-norm-pose-scale-0001",
+      "name": "Normalize Pose Scale",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3280,
+        192
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "/**\n * Clean Binary After Upload - Return complete result for orchestrator aggregator\n * Preserves all fields needed for manifest update\n * Handles case where S3 upload node strips JSON data\n */\nconst j = $json || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\n\n// S3 upload node may strip JSON - retrieve from upstream nodes\nlet poseNumber = Number(j.poseNumber);\nlet bgRemovedKey = j.bgRemovedKey;\nlet orderId = j.orderId;\nlet characterHash = j.characterHash;\nlet briaCompletedAt = j.briaCompletedAt;\nlet qa = j.qa;\nlet needsReview = j.needsReview;\nlet reviewReason = j.reviewReason;\nlet briaStatus = j.briaStatus;\nlet briaRequestId = j.briaRequestId;\nlet briaStatusUrl = j.briaStatusUrl;\nlet briaErrorMessage = j.briaErrorMessage;\nlet backendUrl = j.backendUrl;\nlet manifest2aUrl = j.manifest2aUrl;\nlet approvedKey = j.approvedKey;\nlet replacedAt = j.replacedAt;\nlet replacementCount = j.replacementCount;\nlet sourceUrl = j.sourceUrl;\n\n// Fallback 1: Try from Prep Upload node (most reliable source)\nif (!bgRemovedKey || !Number.isFinite(poseNumber) || poseNumber < 0) {\n  try {\n    const prepItems = $items('Prep Upload', 0, runIx);\n    if (prepItems?.length) {\n      const prep = prepItems[0]?.json || {};\n      if (!bgRemovedKey) bgRemovedKey = prep.bgRemovedKey;\n      if (!Number.isFinite(poseNumber) || poseNumber < 0) {\n        const prepPose = Number(prep.poseNumber);\n        if (Number.isFinite(prepPose) && prepPose >= 0) {\n          poseNumber = prepPose;\n        }\n      }\n      if (!orderId) orderId = prep.orderId;\n      if (!characterHash) characterHash = prep.characterHash;\n      if (!briaCompletedAt) briaCompletedAt = prep.briaCompletedAt;\n    }\n  } catch {}\n}\n\n// Fallback 2: Try from Merge QA with Binary node\nif (!bgRemovedKey || !Number.isFinite(poseNumber) || poseNumber < 0 || !briaStatus) {\n  try {\n    const mergeItems = $items('Merge QA with Binary', 0, runIx);\n    if (mergeItems?.length) {\n      const merge = mergeItems[0]?.json || {};\n      if (!bgRemovedKey) bgRemovedKey = merge.bgRemovedKey;\n      if (!Number.isFinite(poseNumber) || poseNumber < 0) {\n        const mergePose = Number(merge.poseNumber);\n        if (Number.isFinite(mergePose) && mergePose >= 0) {\n          poseNumber = mergePose;\n        }\n      }\n      if (!orderId) orderId = merge.orderId;\n      if (!characterHash) characterHash = merge.characterHash;\n      if (!qa) qa = merge.qa;\n      if (needsReview === undefined) needsReview = merge.needsReview;\n      if (!reviewReason) reviewReason = merge.reviewReason;\n      if (!briaStatus) briaStatus = merge.briaStatus;\n    }\n  } catch {}\n}\n\n// Fallback 2.5: Try from Preserve Binary Path Context node (has briaStatus after download)\nif (!briaStatus || briaStatus === 'error') {\n  try {\n    const preserveItems = $items('Preserve Binary Path Context', 0, runIx);\n    if (preserveItems?.length) {\n      const preserve = preserveItems[0]?.json || {};\n      if (preserve.briaStatus && preserve.briaStatus !== 'error') {\n        briaStatus = preserve.briaStatus;\n        if (!briaRequestId) briaRequestId = preserve.briaRequestId;\n        if (!briaStatusUrl) briaStatusUrl = preserve.briaStatusUrl;\n        if (!briaResultUrl && preserve.briaResultUrl) {\n          // briaResultUrl is not used downstream but good to preserve\n        }\n      }\n    }\n  } catch {}\n}\n\n// Fallback 2.6: Try from Decide Poll node (source of truth for briaStatus)\nif (!briaStatus || briaStatus === 'error') {\n  try {\n    const decideItems = $items('Decide Poll', 0, runIx);\n    if (decideItems?.length) {\n      // Find the completed one (should be the last one)\n      const decide = decideItems.find(item => item.json.briaStatus === 'completed') || decideItems[decideItems.length - 1];\n      if (decide?.json?.briaStatus) {\n        briaStatus = decide.json.briaStatus;\n        if (!briaRequestId) briaRequestId = decide.json.briaRequestId;\n        if (!briaStatusUrl) briaStatusUrl = decide.json.briaStatusUrl;\n        if (!briaResultUrl && decide.json.briaResultUrl) {\n          // briaResultUrl is not used downstream but good to preserve\n        }\n      }\n    }\n  } catch {}\n}\n\n// Fallback 3: Try from Normalize Input node (for context fields)\nif (!Number.isFinite(poseNumber) || poseNumber < 0 || !orderId || !characterHash || !backendUrl || !manifest2aUrl) {\n  try {\n    const normItems = $items('Normalize Input', 0, runIx);\n    if (normItems?.length) {\n      const norm = normItems[0]?.json || {};\n      if (!Number.isFinite(poseNumber) || poseNumber < 0) {\n        const normPose = Number(norm.poseNumber);\n        if (Number.isFinite(normPose) && normPose >= 0) {\n          poseNumber = normPose;\n        }\n      }\n      if (!orderId) orderId = norm.orderId;\n      if (!characterHash) characterHash = norm.characterHash;\n      if (!backendUrl) backendUrl = norm.backendUrl;\n      if (!manifest2aUrl) manifest2aUrl = norm.manifest2aUrl;\n      if (!approvedKey) approvedKey = norm.approvedKey;\n      if (!replacedAt) replacedAt = norm.replacedAt;\n      if (replacementCount === undefined) replacementCount = norm.replacementCount;\n      if (!sourceUrl) sourceUrl = norm.sourceUrl;\n    }\n  } catch {}\n}\n\n// Fallback 4: Try from Extract Bria Tracking node (for Bria tracking fields)\nif (!briaRequestId || !briaStatusUrl) {\n  try {\n    const trackItems = $items('Extract Bria Tracking', 0, runIx);\n    if (trackItems?.length) {\n      const track = trackItems[0]?.json || {};\n      if (!briaRequestId) briaRequestId = track.briaRequestId;\n      if (!briaStatusUrl) briaStatusUrl = track.briaStatusUrl;\n    }\n  } catch {}\n}\n\n// Validate required fields\nif (!Number.isFinite(poseNumber) || poseNumber < 0) {\n  throw new Error(`Invalid poseNumber: ${j.poseNumber || 'undefined'}`);\n}\n\nif (!orderId) throw new Error(`Missing orderId for pose ${poseNumber}`);\nif (!characterHash) throw new Error(`Missing characterHash for pose ${poseNumber}`);\n\n// Set defaults\nif (!backendUrl) backendUrl = 'https://admin.littleherolabs.com';\nif (!briaStatus) briaStatus = 'error';\n\n// Set briaCompletedAt if completed and missing\nconst isCompleted = briaStatus === 'completed';\nif (isCompleted && !briaCompletedAt) {\n  briaCompletedAt = new Date().toISOString();\n}\n\n// Set bgRemovedKey only if completed\nif (!isCompleted) {\n  bgRemovedKey = null;\n}\n\nconsole.log(`[Pose ${poseNumber}] ✓ Uploaded to R2: ${bgRemovedKey || 'N/A (not completed)'}`);\n\n// Build complete result object with all fields needed by aggregator\nconst result = {\n  orderId,\n  characterHash,\n  poseNumber,\n  approvedKey: approvedKey || null,\n  sourceReplacedAt: replacedAt || null,\n  sourceReplacementCount: Number(replacementCount || 0),\n  sourceUrl: sourceUrl || null,\n  manifest2aUrl: manifest2aUrl || null,\n  backendUrl,\n  briaStatus,\n  briaRequestId: briaRequestId || null,\n  briaStatusUrl: briaStatusUrl || null,\n  briaCompletedAt: isCompleted ? (briaCompletedAt || new Date().toISOString()) : null,\n  briaErrorMessage: isCompleted ? null : (briaErrorMessage || null),\n  bgRemovedKey: isCompleted ? (bgRemovedKey || null) : null,\n  bgRemovedContentType: isCompleted ? 'image/png' : null,\n  bgRemovedSizeBytes: null,\n  bgRemovedImageUrl: null,\n  qa: (qa && typeof qa === 'object') ? qa : null,\n  needsReview: (needsReview === true) ? true : (!isCompleted),\n  reviewReason: (needsReview === true)\n    ? (reviewReason || 'transparency_fail_or_low_conf')\n    : (isCompleted ? null : (briaStatus === 'timeout' ? 'bria_timeout' : 'bria_failed')),\n};\n\n// For runOnceForEachItem mode, return single object, not array\nreturn { \n  json: result,\n  binary: {} // Clear binary data\n};"
       },
-      "id": "96426883-076d-4c85-b3e0-e8b4ffe43d7f",
+      "id": "6b89010d-eb23-4c9a-8b46-4cfd2f67dec8",
       "name": "Clean Binary After Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
-        464
+        3520,
+        192
       ]
     },
     {
       "parameters": {
         "inputSource": "passthrough"
       },
-      "id": "617ae19b-457d-492e-98a4-72819e1b2116",
+      "id": "b20cefa8-a8dd-48a4-8f32-b5d055803706",
       "typeVersion": 1.1,
       "name": "When Executed by Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "position": [
-        -1760,
-        -320
+        1296,
+        -592
       ]
     },
     {
@@ -481,10 +502,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -752,
-        -16
+        2304,
+        -288
       ],
-      "id": "79b26b6f-b792-4a67-9f7e-795a9423de6c",
+      "id": "78573c0a-dfd9-486e-807a-4bd8d4623959",
       "name": "Merge"
     },
     {
@@ -494,10 +515,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1200,
-        0
+        1856,
+        -272
       ],
-      "id": "eaec8905-2d95-4bff-910d-72190190283a",
+      "id": "0d8bb14c-5229-4a86-9c03-9e70baf45bfe",
       "name": "Preserve Binary Path Context"
     }
   ],
@@ -769,6 +790,17 @@
       "main": [
         [
           {
+            "node": "Normalize Pose Scale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Pose Scale": {
+      "main": [
+        [
+          {
             "node": "Clean Binary After Upload",
             "type": "main",
             "index": 0
@@ -814,7 +846,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "f02b12ad-0b37-4f28-a172-3c54b589e61c",
+  "versionId": "1bec1e9c-f1e9-45a7-a34d-273275e301a5",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },

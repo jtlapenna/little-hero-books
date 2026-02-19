@@ -1,48 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, putObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { getObject, putObject } from '@/lib/r2-client';
+import { extractR2Key, getBucketFromKey } from '@/lib/r2-utils';
 import { PNG } from 'pngjs';
 import { recordRequest } from './stats/route';
-
-/**
- * Extract R2 key from URL
- * Handles: /api/assets/{key}, and public R2 URLs (https://pub-*.r2.dev/{key})
- */
-function extractR2Key(url: string): string | null {
-  try {
-    // Normalize common malformed inputs coming from workflow expressions:
-    // - "https:/pub-...r2.dev/..." (missing slash) → "https://pub-...r2.dev/..."
-    // - "http:/..." → "http://..."
-    const normalizedUrl = String(url || '')
-      .trim()
-      .replace(/^(https?):\/(?!\/)/i, '$1://');
-
-    const urlObj = new URL(normalizedUrl, 'https://admin.littleherolabs.com');
-    const pathname = urlObj.pathname;
-    const hostname = urlObj.hostname || '';
-
-    // /api/assets/{key} (admin proxy)
-    const apiMatch = pathname.match(/^\/api\/assets\/(.+)$/);
-    if (apiMatch) return apiMatch[1];
-
-    // Public R2 URL: https://pub-*.r2.dev/{key} → key is path without leading slash
-    if (hostname.endsWith('.r2.dev') && pathname.startsWith('/') && pathname.length > 1) {
-      return pathname.replace(/^\/+/, '');
-    }
-
-    return null;
-  } catch (error) {
-    console.error('[Auto-Flip] Error parsing URL:', url, error);
-    return null;
-  }
-}
-
-/**
- * Determine bucket from R2 key
- */
-function getBucketFromKey(key: string): string {
-  const isOrderAsset = key.startsWith('book-mvp-simple-adventure/orders/');
-  return isOrderAsset ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
-}
 
 /**
  * Compute horizontal center of mass of opaque pixels, normalized to [0, 1].
