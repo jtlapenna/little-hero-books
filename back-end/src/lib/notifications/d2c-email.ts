@@ -34,6 +34,7 @@ export interface SendD2CShippedEmailParams {
   childName?: string;
   trackingUrl?: string;
   trackingNumber?: string;
+  carrier?: string;
   orderId?: string;
 }
 
@@ -325,21 +326,19 @@ export async function sendD2CPreviewEmail(
     return { success: false, error: 'D2C email notifications are disabled' };
   }
 
-  const resend = getResendClient();
-  if (!resend) {
+  const apiKey = getResendApiKey();
+  if (!apiKey) {
     return { success: false, error: 'RESEND_API_KEY is not set' };
   }
 
   const subject = buildPreviewSubject(params.reminderType);
-  
-  // Plain text fallback
+
   const text = buildPreviewBodyText({
     previewUrl: params.previewUrl,
     childName: params.childName,
     reminderType: params.reminderType,
   });
 
-  // HTML version
   const htmlContent = buildPreviewBodyHtml({
     previewUrl: params.previewUrl,
     childName: params.childName,
@@ -363,45 +362,24 @@ export async function sendD2CPreviewEmail(
   });
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: getFromAddress(),
-      to: [params.to],
-      subject,
-      text,
-      html,
-    });
-
+    const from = getFromAddress();
+    const { id, error } = await sendViaResendHttp({ apiKey, from, to: params.to, subject, text, html });
     if (error) {
       if (params.orderId) {
-        await logNotification({
-          orderId: params.orderId,
-          recipient: params.to,
-          status: 'failed',
-          errorMessage: error.message,
-        });
+        await logNotification({ orderId: params.orderId, recipient: params.to, status: 'failed', errorMessage: error });
       }
-      return { success: false, error: error.message };
+      return { success: false, error };
     }
 
-    const messageId = data?.id ?? undefined;
+    const messageId = id ?? undefined;
     if (params.orderId) {
-      await logNotification({
-        orderId: params.orderId,
-        recipient: params.to,
-        status: 'sent',
-        messageId: messageId ?? null,
-      });
+      await logNotification({ orderId: params.orderId, recipient: params.to, status: 'sent', messageId: messageId ?? null });
     }
     return { success: true, messageId };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     if (params.orderId) {
-      await logNotification({
-        orderId: params.orderId,
-        recipient: params.to,
-        status: 'failed',
-        errorMessage: message,
-      });
+      await logNotification({ orderId: params.orderId, recipient: params.to, status: 'failed', errorMessage: message });
     }
     return { success: false, error: message };
   }
@@ -425,22 +403,20 @@ export async function sendD2CPrintSubmittedEmail(
     return { success: false, error: 'D2C email notifications are disabled' };
   }
 
-  const resend = getResendClient();
-  if (!resend) {
+  const apiKey = getResendApiKey();
+  if (!apiKey) {
     return { success: false, error: 'RESEND_API_KEY is not set' };
   }
 
   const child = params.childName ?? 'your child';
   const subject = `${child}'s book has been sent to print! — Little Hero Labs`;
-  
-  // Plain text fallback
+
   const text =
     `Good news — ${child}'s book has been sent to the printer!\n\n` +
     `You can view your preview and check order status here:\n${params.previewUrl}\n\n` +
     `This page will update with your order status (e.g. when it ships).\n\n` +
     `Every child is the hero of their own story.\n— Little Hero Labs`;
 
-  // HTML version
   const bodyHtml = 
     buildParagraph(`Good news — <strong>${child}'s</strong> book has been sent to the printer!`) +
     buildParagraph("Your personalized book is now being printed and will be on its way soon.") +
@@ -458,45 +434,24 @@ export async function sendD2CPrintSubmittedEmail(
   });
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: getFromAddress(),
-      to: [params.to],
-      subject,
-      text,
-      html,
-    });
-
+    const from = getFromAddress();
+    const { id, error } = await sendViaResendHttp({ apiKey, from, to: params.to, subject, text, html });
     if (error) {
       if (params.orderId) {
-        await logNotification({
-          orderId: params.orderId,
-          recipient: params.to,
-          status: 'failed',
-          errorMessage: error.message,
-        });
+        await logNotification({ orderId: params.orderId, recipient: params.to, status: 'failed', errorMessage: error });
       }
-      return { success: false, error: error.message };
+      return { success: false, error };
     }
 
-    const messageId = data?.id ?? undefined;
+    const messageId = id ?? undefined;
     if (params.orderId) {
-      await logNotification({
-        orderId: params.orderId,
-        recipient: params.to,
-        status: 'sent',
-        messageId: messageId ?? null,
-      });
+      await logNotification({ orderId: params.orderId, recipient: params.to, status: 'sent', messageId: messageId ?? null });
     }
     return { success: true, messageId };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     if (params.orderId) {
-      await logNotification({
-        orderId: params.orderId,
-        recipient: params.to,
-        status: 'failed',
-        errorMessage: message,
-      });
+      await logNotification({ orderId: params.orderId, recipient: params.to, status: 'failed', errorMessage: message });
     }
     return { success: false, error: message };
   }
@@ -512,37 +467,46 @@ export async function sendD2CShippedEmail(
     return { success: false, error: 'D2C email notifications are disabled' };
   }
 
-  const resend = getResendClient();
-  if (!resend) {
+  const apiKey = getResendApiKey();
+  if (!apiKey) {
     return { success: false, error: 'RESEND_API_KEY is not set' };
   }
 
   const child = params.childName ?? 'your child';
-  
-  // Build tracking info for text and HTML
+  const carrierLabel = params.carrier?.trim() || 'OSM';
+
+  // Build tracking info for plain-text and HTML
   let trackingLineText: string;
   let trackingInfoHtml: string | undefined;
   let ctaButton: { text: string; url: string } | undefined;
 
   if (params.trackingUrl?.trim()) {
-    trackingLineText = `Track your package here:\n\n${params.trackingUrl.trim()}`;
+    trackingLineText = `Carrier: ${carrierLabel}\nTrack your package here: ${params.trackingUrl.trim()}`;
     ctaButton = { text: 'Track Package', url: params.trackingUrl.trim() };
-  } else if (params.trackingNumber?.trim()) {
-    trackingLineText = `Your tracking number: ${params.trackingNumber.trim()}`;
     trackingInfoHtml = `
+      <p style="margin: 0; font-size: 14px; color: #666;">Carrier</p>
+      <p style="margin: 4px 0 12px 0; font-size: 16px; font-weight: 600; color: #2D3142;">${carrierLabel}</p>
+    `;
+  } else if (params.trackingNumber?.trim()) {
+    trackingLineText = `Carrier: ${carrierLabel}\nTracking number: ${params.trackingNumber.trim()}`;
+    trackingInfoHtml = `
+      <p style="margin: 0; font-size: 14px; color: #666;">Carrier</p>
+      <p style="margin: 4px 0 12px 0; font-size: 16px; font-weight: 600; color: #2D3142;">${carrierLabel}</p>
       <p style="margin: 0; font-size: 14px; color: #666;">Tracking Number</p>
       <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #2D3142; font-family: monospace;">${params.trackingNumber.trim()}</p>
     `;
   } else {
-    trackingLineText = 'Your book is on its way!';
+    trackingLineText = `Carrier: ${carrierLabel}\nYour book is on its way!`;
+    trackingInfoHtml = `
+      <p style="margin: 0; font-size: 14px; color: #666;">Carrier</p>
+      <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 600; color: #2D3142;">${carrierLabel}</p>
+    `;
   }
 
   const subject = `${child}'s book has shipped! — Little Hero Labs`;
-  
-  // Plain text fallback
+
   const text = `Good news — ${child}'s book has shipped!\n\n${trackingLineText}\n\nEvery child is the hero of their own story.\n— Little Hero Labs`;
 
-  // HTML version
   const bodyHtml = 
     buildParagraph(`Exciting news — <strong>${child}'s</strong> personalized book has shipped!`) +
     buildParagraph("Your book is on its way and should arrive soon. We hope it brings joy and adventure to your little hero!");
@@ -556,45 +520,24 @@ export async function sendD2CShippedEmail(
   });
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: getFromAddress(),
-      to: [params.to],
-      subject,
-      text,
-      html,
-    });
-
+    const from = getFromAddress();
+    const { id, error } = await sendViaResendHttp({ apiKey, from, to: params.to, subject, text, html });
     if (error) {
       if (params.orderId) {
-        await logNotification({
-          orderId: params.orderId,
-          recipient: params.to,
-          status: 'failed',
-          errorMessage: error.message,
-        });
+        await logNotification({ orderId: params.orderId, recipient: params.to, status: 'failed', errorMessage: error });
       }
-      return { success: false, error: error.message };
+      return { success: false, error };
     }
 
-    const messageId = data?.id ?? undefined;
+    const messageId = id ?? undefined;
     if (params.orderId) {
-      await logNotification({
-        orderId: params.orderId,
-        recipient: params.to,
-        status: 'sent',
-        messageId: messageId ?? null,
-      });
+      await logNotification({ orderId: params.orderId, recipient: params.to, status: 'sent', messageId: messageId ?? null });
     }
     return { success: true, messageId };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     if (params.orderId) {
-      await logNotification({
-        orderId: params.orderId,
-        recipient: params.to,
-        status: 'failed',
-        errorMessage: message,
-      });
+      await logNotification({ orderId: params.orderId, recipient: params.to, status: 'failed', errorMessage: message });
     }
     return { success: false, error: message };
   }

@@ -315,6 +315,7 @@ export async function POST(request: NextRequest) {
             childName: childName ?? undefined,
             trackingUrl: shippingTrackingUrl ?? undefined,
             trackingNumber: shippingTrackingNumber ?? undefined,
+            carrier: updateData.carrier ?? undefined,
             orderId: orderIdentifier,
           });
           if (result.success) {
