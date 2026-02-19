@@ -70,12 +70,46 @@ export async function processOrderLifecycle(supabase: SupabaseClient): Promise<L
   const now = new Date();
   const result: LifecycleResult = { markedDelivered: 0, archived: 0, errors: [] };
 
-  // 1. Mark shipped orders as "recently_delivered" if delivery window passed
+  // 1a. DELIVERED orders without shipped_at — Lulu says delivered but webhook never set shipped_at.
+  //     Transition immediately; use updated_at as best-guess delivery date.
+  try {
+    const { data: deliveredNoShip, error: deliveredNoShipErr } = await supabase
+      .from('orders')
+      .select('orderId, updated_at')
+      .eq('lulu_status', 'DELIVERED')
+      .or('lifecycle_status.eq.active,lifecycle_status.is.null')
+      .is('shipped_at', null);
+
+    if (deliveredNoShipErr) {
+      result.errors.push(`Fetch delivered-no-shipped: ${deliveredNoShipErr.message}`);
+    } else if (deliveredNoShip) {
+      for (const order of deliveredNoShip) {
+        const deliveredAt = order.updated_at || now.toISOString();
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({
+            lifecycle_status: 'recently_delivered',
+            assumed_delivered_at: deliveredAt,
+          })
+          .eq('orderId', order.orderId);
+
+        if (updateError) {
+          result.errors.push(`Mark delivered (no shipped_at) ${order.orderId}: ${updateError.message}`);
+        } else {
+          result.markedDelivered++;
+        }
+      }
+    }
+  } catch (err: any) {
+    result.errors.push(`Delivered-no-shipped processing: ${err.message}`);
+  }
+
+  // 1b. Shipped/delivered orders WITH shipped_at — use delivery window calculation
   try {
     const { data: shippedOrders, error: shippedError } = await supabase
       .from('orders')
       .select('orderId, shipped_at, amazon_shipment_service_level')
-      .eq('lulu_status', 'SHIPPED')
+      .in('lulu_status', ['SHIPPED', 'DELIVERED'])
       .or('lifecycle_status.eq.active,lifecycle_status.is.null')
       .not('shipped_at', 'is', null);
 

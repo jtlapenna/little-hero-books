@@ -148,42 +148,100 @@ export async function processAmazonOrders(
         const customization = parseCustomizationFromItems(orderItems);
         
         if (orderItems.length === 0 || Object.keys(customization).length === 0) {
-          console.warn(`[Cron Amazon Orders] [${executionId}] Order ${amazonOrder.AmazonOrderId} has no customization data - skipping (will retry on next cron run)`);
-          
           const rawRetryOrderId = amazonOrder.AmazonOrderId;
           const retryOrderIdValue = String(rawRetryOrderId || '').trim();
-          
+
           if (!retryOrderIdValue || retryOrderIdValue.length === 0) {
             console.error(`[Cron Amazon Orders] [${executionId}] Invalid order ID for retry: ${rawRetryOrderId}`);
             errors.push({ orderId: rawRetryOrderId, error: 'Invalid order ID: cannot be empty after trimming' });
             continue;
           }
-          
-          const { error: storeError } = await supabase
-            .from('orders')
-            .upsert({
-              orderId: retryOrderIdValue,
-              amazon_order_id: retryOrderIdValue,
-              execution_status: 'pending_w0',
-              next_workflow: null,
-              status: 'new',
-              customer_email: amazonOrder.BuyerInfo?.BuyerEmail || null,
-              marketplace_id: amazonOrder.MarketplaceId || amazonMarketplaceId,
-              purchase_date: amazonOrder.PurchaseDate || new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              product_info: { _customization_missing: true, _retry_on_next_cron: true },
-            }, {
-              onConflict: 'amazon_order_id',
-              ignoreDuplicates: false,
-            });
 
-          if (storeError) {
-            console.error(`[Cron Amazon Orders] [${executionId}] Failed to store order ${amazonOrder.AmazonOrderId} for retry:`, storeError.message);
-            errors.push({ orderId: amazonOrder.AmazonOrderId, error: `Store for retry failed: ${storeError.message}` });
+          // Check if the order already has character_specs (e.g. populated by CSV upload).
+          // If so, skip the stub upsert and let the normal W0 trigger path handle it.
+          const { data: existingRow } = await supabase
+            .from('orders')
+            .select('character_specs, execution_status, next_workflow')
+            .eq('amazon_order_id', retryOrderIdValue)
+            .maybeSingle();
+
+          const existingSpecs = existingRow?.character_specs;
+          const hasExistingSpecs = existingSpecs && typeof existingSpecs === 'object' && !Array.isArray(existingSpecs) && Object.keys(existingSpecs).length > 0;
+
+          if (hasExistingSpecs) {
+            console.log(`[Cron Amazon Orders] [${executionId}] Order ${retryOrderIdValue} has no API customization but already has character_specs (CSV) — skipping stub upsert`);
+            // Trigger W0 if still pending (CSV may have failed to trigger it, e.g. W0 was inactive)
+            if (existingRow?.execution_status === 'pending_w0' && !existingRow?.next_workflow && n8nW0WebhookUrl) {
+              try {
+                const { data: fullOrder } = await supabase.from('orders').select('*').eq('amazon_order_id', retryOrderIdValue).single();
+                if (fullOrder) {
+                  let sa = fullOrder.shipping_address;
+                  if (typeof sa === 'string') { try { sa = JSON.parse(sa); } catch { sa = null; } }
+                  let cs = fullOrder.character_specs;
+                  if (typeof cs === 'string') { try { cs = JSON.parse(cs); } catch { cs = null; } }
+                  const hasSa = sa && typeof sa === 'object' && Object.keys(sa).length > 0;
+                  if (hasSa && cs) {
+                    const ch = fullOrder.character_hash || calculateCharacterHash(cs, retryOrderIdValue);
+                    const pi = fullOrder.product_info as Record<string, unknown> | undefined;
+                    const items = (pi?.line_items as unknown[]) ?? (Array.isArray(pi) ? pi : []);
+                    const w0Payload = {
+                      amazonOrderId: retryOrderIdValue,
+                      orderId: fullOrder.orderId || retryOrderIdValue,
+                      id: fullOrder.orderId || retryOrderIdValue,
+                      purchaseDate: fullOrder.purchase_date,
+                      status: 'pending_w0',
+                      marketplaceId: fullOrder.marketplace_id,
+                      customerEmail: fullOrder.customer_email,
+                      buyer: { email: fullOrder.customer_email, name: fullOrder.customer_name },
+                      shippingAddress: sa, characterSpecs: cs, character_specs: cs, CharacterSpecs: cs,
+                      bookSpecs: { title: `${(cs as any)?.childName || 'Child'} and the Adventure Compass`, totalPages: 16, format: '8.5x8.5_softcover', bookType: 'adventure' },
+                      orderDetails: { quantity: Math.max(1, items.length), shippingAddress: sa },
+                      dedication: (cs as any)?.dedication || fullOrder.dedication_text || null,
+                      Dedication: (cs as any)?.dedication || fullOrder.dedication_text || null,
+                      items, characterHash: ch, character_hash: ch,
+                    };
+                    const w0Res = await fetch(n8nW0WebhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(w0Payload) });
+                    if (w0Res.ok) {
+                      processedOrders.push(retryOrderIdValue);
+                      metrics.ordersProcessed++;
+                      console.log(`[Cron Amazon Orders] [${executionId}] ✅ Triggered W0 for CSV-populated order ${retryOrderIdValue}`);
+                    } else {
+                      console.warn(`[Cron Amazon Orders] [${executionId}] W0 failed for ${retryOrderIdValue}: ${w0Res.status}`);
+                    }
+                  }
+                }
+              } catch (w0Err: any) {
+                console.warn(`[Cron Amazon Orders] [${executionId}] W0 trigger error for ${retryOrderIdValue}:`, w0Err?.message);
+              }
+            }
           } else {
-            console.log(`[Cron Amazon Orders] [${executionId}] Stored order ${amazonOrder.AmazonOrderId} for retry (customization data not available yet)`);
+            console.warn(`[Cron Amazon Orders] [${executionId}] Order ${retryOrderIdValue} has no customization data - storing for retry`);
+            const { error: storeError } = await supabase
+              .from('orders')
+              .upsert({
+                orderId: retryOrderIdValue,
+                amazon_order_id: retryOrderIdValue,
+                execution_status: 'pending_w0',
+                next_workflow: null,
+                status: 'new',
+                customer_email: amazonOrder.BuyerInfo?.BuyerEmail || null,
+                marketplace_id: amazonOrder.MarketplaceId || amazonMarketplaceId,
+                purchase_date: amazonOrder.PurchaseDate || new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                product_info: { _customization_missing: true, _retry_on_next_cron: true },
+              }, {
+                onConflict: 'amazon_order_id',
+                ignoreDuplicates: false,
+              });
+
+            if (storeError) {
+              console.error(`[Cron Amazon Orders] [${executionId}] Failed to store order ${retryOrderIdValue} for retry:`, storeError.message);
+              errors.push({ orderId: retryOrderIdValue, error: `Store for retry failed: ${storeError.message}` });
+            } else {
+              console.log(`[Cron Amazon Orders] [${executionId}] Stored order ${retryOrderIdValue} for retry (customization data not available yet)`);
+            }
           }
-          
+
           continue;
         }
         

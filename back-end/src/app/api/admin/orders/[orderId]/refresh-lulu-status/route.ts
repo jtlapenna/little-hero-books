@@ -213,8 +213,8 @@ export async function GET(
     if (carrier) {
       updates.carrier = carrier;
     }
-    // When SHIPPED, set timestamps so manual refresh matches webhook behavior
-    if (newStatus === 'SHIPPED') {
+    // When SHIPPED or DELIVERED, set timestamps so manual refresh matches webhook behavior
+    if (newStatus === 'SHIPPED' || newStatus === 'DELIVERED') {
       const now = new Date().toISOString();
       updates.shipped_at = now;
       updates.print_fulfillment_finished_at = now;
