@@ -13,19 +13,32 @@ The Lulu webhook is not automatically updating print status or shipping status i
 
 ## Current state (Feb 19 2026)
 - **Webhook subscription:** Active, correct URL, correct topic (`PRINT_JOB_STATUS_CHANGED`). Verified via `GET /api/admin/lulu-webhook-list`.
-- **Endpoint reachable:** Test POST returns 200.
-- **`lulu_status` IS updated** on all 10 orders with Lulu jobs — but via **manual refresh**, not the webhook. Clue: all 10 have `shipped_at=null`.
-- **The webhook itself may not be firing** — we need to check `lulu_webhook_log` after deploy (table may not exist yet; run migration first).
+- **Lulu IS calling us:** `lulu_webhook_log` confirms real SHIPPED/DELIVERED events for multiple print jobs.
+- **Updates were failing silently** due to the root cause below.
 
-## Root cause (two bugs found)
+## Root cause (definitive — confirmed via audit log + Lulu OpenAPI spec)
 
-### Bug 1: `shipped_at` gated on `lineItemStatuses`
-The webhook handler only set `shipped_at` when `lineItemStatuses.length > 0`. If Lulu sends a SHIPPED event without line item tracking details, `shipped_at` stays null. This meant the lifecycle cron couldn't pick these orders up.
+### Bug 1 (CRITICAL): Status field parsed as object instead of string
+Lulu's webhook sends the **full print job detail** (same as `GET /print-jobs/{id}`), where `status` is an **object**:
+```json
+{ "name": "SHIPPED", "changed": "2026-02-12T...", "message": "All line-items were shipped" }
+```
+Our handler did `statusName = payload.name ?? payload.status`, but the print job has no top-level `name` — so it fell through to `payload.status`, assigning the **entire object** as `statusName`. This caused three cascading failures:
+1. `lulu_status = statusName` tried to store a ~90-char JSON string into varchar(50) → DB error "value too long"
+2. `statusName === 'SHIPPED'` always returned `false` (object !== string) → `shipped_at` never set, notifications never fired
+3. The audit log stored the raw object as `status_name`, masking the issue with misleading log entries
 
-**Fix:** `shipped_at` and `print_fulfillment_finished_at` are now set unconditionally when status is `SHIPPED` or `DELIVERED`. Tracking fields still conditional on `lineItemStatuses`.
+**Evidence:** `lulu_webhook_log` row for print_job_id 2738265 shows `status_name: {"name":"SHIPPED","changed":"...","message":"..."}`, `order_found: true`, `updated: false`, `error_message: "value too long for type character varying(50)"`.
 
-### Bug 2: Unknown whether Lulu is actually calling us
-The `lulu_webhook_log` audit table may not have been created (migration not run). Without it, we have no persistent evidence of webhook delivery.
+**Fix:** Extract the string from the object: `statusRaw.name` when `statusRaw` is an object, else use it directly as a string.
+
+### Bug 2: Tracking info extracted from wrong location
+Lulu's webhook sends `line_items` (not `line_item_statuses`), with tracking data nested under `item.status.messages` (not directly on the item). Our handler looked for `firstItem.tracking_id` instead of `firstItem.status.messages.tracking_id`.
+
+**Fix:** Check `messages` and `status.messages` for tracking fields; also fall back to `line_items` for the array.
+
+### Bug 3 (previously fixed): `shipped_at` gated on `lineItemStatuses`
+The webhook handler only set `shipped_at` when `lineItemStatuses.length > 0`. Already fixed — `shipped_at` now set unconditionally for SHIPPED/DELIVERED.
 
 ## Code audit (done)
 - **Handler:** `back-end/src/app/api/webhooks/lulu/status/route.ts` — unwraps nested payloads, writes to `lulu_webhook_log`, updates order, sends notifications on SHIPPED.
@@ -37,15 +50,16 @@ The `lulu_webhook_log` audit table may not have been created (migration not run)
 ## Action items (after deploy)
 
 ### Immediate
-- [ ] **Run migration:** Execute `database/migration-lulu-webhook-log.sql` in Supabase SQL editor to create the audit table.
-- [ ] **Backfill stuck orders:** `POST https://admin.littleherolabs.com/api/admin/backfill-shipped-at` — sets `shipped_at` for 5 SHIPPED orders with null values.
-- [ ] **Check diagnostics:** `GET https://admin.littleherolabs.com/api/admin/webhook-diagnostics` — verify the audit table exists and check for any webhook log rows.
+- [x] **Migration:** `lulu_webhook_log` table created.
+- [x] **Backfill stuck orders:** `POST /api/admin/backfill-shipped-at` — fixed 2 orders with null `shipped_at`.
+- [x] **Diagnostics confirmed:** Lulu IS calling us; the updates were failing due to Bug 1.
+- [ ] **Deploy fix** — commit and push the status extraction + tracking extraction fixes.
 
-### Verify webhook delivery
-- [ ] **Send test:** `curl -X POST https://admin.littleherolabs.com/api/webhooks/lulu/status -H "Content-Type: application/json" -d '{"name":"TEST_PING","print_job_id":"test-99999"}'`
-- [ ] **Check audit log:** Should see a row in `lulu_webhook_log` with `order_found=false, error_message='Order not found'`.
-- [ ] **Wait for a real Lulu event:** Submit a new print job and monitor `lulu_webhook_log` for incoming SHIPPED/status events.
-- [ ] If no events after 24h, consider: re-subscribing (`POST /api/admin/lulu-webhook-subscribe`), checking Lulu support for delivery logs, or testing with a different webhook URL (e.g. webhook.site) to isolate the issue.
+### Verify after deploy
+- [ ] **Send test with real Lulu format:** `curl -X POST .../api/webhooks/lulu/status -H "Content-Type: application/json" -d '{"topic":"PRINT_JOB_STATUS_CHANGED","data":{"id":99998,"status":{"name":"TEST_PING","changed":"2026-01-01T00:00:00Z","message":"test"}}}'`
+- [ ] **Check audit log:** `status_name` should be `TEST_PING` (string), not a JSON object.
+- [ ] **Wait for a real Lulu SHIPPED event** and verify `lulu_status`, `shipped_at`, `tracking_number` all update correctly.
+- [ ] **Check notification_logs** for successful Amazon shipped message after the next SHIPPED event.
 
 ## Related issues
 - **#25** — Amazon shipping notifications depend on this webhook firing.

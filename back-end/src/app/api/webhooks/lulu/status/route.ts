@@ -31,7 +31,8 @@ export async function OPTIONS() {
 }
 
 /**
- * Extract tracking information from line item statuses
+ * Extract tracking information from line item statuses.
+ * Lulu nests tracking data under `messages` (status endpoint) or `status.messages` (print job detail).
  */
 function extractTrackingInfo(lineItemStatuses: any[]): {
   trackingNumber: string | null;
@@ -42,15 +43,16 @@ function extractTrackingInfo(lineItemStatuses: any[]): {
     return { trackingNumber: null, trackingUrl: null, carrier: null };
   }
 
-  // Get the first line item (usually there's only one for our use case)
   const firstItem = lineItemStatuses[0];
-  
+  const msgs = firstItem.messages || firstItem.status?.messages || {};
+
+  const trackingUrls = msgs.tracking_urls || firstItem.tracking_urls;
+
   return {
-    trackingNumber: firstItem.tracking_id || firstItem.trackingId || null,
-    trackingUrl: Array.isArray(firstItem.tracking_urls) 
-      ? firstItem.tracking_urls[0] || null
+    trackingNumber: msgs.tracking_id || firstItem.tracking_id || firstItem.trackingId || null,
+    trackingUrl: Array.isArray(trackingUrls) ? trackingUrls[0] || null
       : firstItem.tracking_url || firstItem.trackingUrl || null,
-    carrier: firstItem.carrier || null,
+    carrier: msgs.carrier_name || firstItem.carrier_name || firstItem.carrier || null,
   };
 }
 
@@ -100,7 +102,7 @@ async function auditLog(entry: {
   try {
     await supabase.from('lulu_webhook_log').insert({
       print_job_id: entry.printJobId,
-      status_name: entry.statusName,
+      status_name: typeof entry.statusName === 'object' ? JSON.stringify(entry.statusName) : entry.statusName,
       order_found: entry.orderFound,
       order_id: entry.orderId,
       updated: entry.updated,
@@ -132,8 +134,11 @@ export async function POST(request: NextRequest) {
     }
     printJobId = String(printJobIdVal);
 
-    // Extract status name
-    statusName = payload.name ?? payload.status ?? null;
+    // Extract status name — Lulu sends status as object { name, changed, message }
+    const statusRaw = payload.name ?? payload.status ?? null;
+    statusName = (statusRaw && typeof statusRaw === 'object' && statusRaw.name)
+      ? String(statusRaw.name)
+      : statusRaw ? String(statusRaw) : null;
     if (!statusName) {
       console.error('[LULU WEBHOOK] Missing status name in payload');
       await auditLog({ printJobId, statusName: null, orderFound: false, orderId: null, updated: false, errorMessage: 'Missing status name' });
@@ -143,8 +148,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract line item statuses
-    const lineItemStatuses = payload.line_item_statuses || payload.lineItemStatuses || [];
+    // Extract line item statuses — webhook sends print job detail (`line_items`) not status endpoint format (`line_item_statuses`)
+    const lineItemStatuses = payload.line_item_statuses || payload.lineItemStatuses || payload.line_items || [];
     
     // Find order by lulu_job_id (printJobId already string)
     const { data: order, error: findError } = await supabase
