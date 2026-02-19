@@ -177,24 +177,22 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
     
-    // Extract tracking info if status is SHIPPED (used later for Amazon shipped notification)
+    // Set shipped_at / tracking for SHIPPED or DELIVERED
     let shippingTrackingUrl: string | null = null;
     let shippingTrackingNumber: string | null = null;
-    if (statusName === 'SHIPPED' && lineItemStatuses.length > 0) {
-      const trackingInfo = extractTrackingInfo(lineItemStatuses);
-      shippingTrackingUrl = trackingInfo.trackingUrl;
-      shippingTrackingNumber = trackingInfo.trackingNumber;
-      if (trackingInfo.trackingNumber) {
-        updateData.tracking_number = trackingInfo.trackingNumber;
+    if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {
+      const nowIso = new Date().toISOString();
+      updateData.shipped_at = nowIso;
+      updateData.print_fulfillment_finished_at = nowIso;
+
+      if (lineItemStatuses.length > 0) {
+        const trackingInfo = extractTrackingInfo(lineItemStatuses);
+        shippingTrackingUrl = trackingInfo.trackingUrl;
+        shippingTrackingNumber = trackingInfo.trackingNumber;
+        if (trackingInfo.trackingNumber) updateData.tracking_number = trackingInfo.trackingNumber;
+        if (trackingInfo.trackingUrl) updateData.tracking_url = trackingInfo.trackingUrl;
+        if (trackingInfo.carrier) updateData.carrier = trackingInfo.carrier;
       }
-      if (trackingInfo.trackingUrl) {
-        updateData.tracking_url = trackingInfo.trackingUrl;
-      }
-      if (trackingInfo.carrier) {
-        updateData.carrier = trackingInfo.carrier;
-      }
-      updateData.shipped_at = new Date().toISOString();
-      updateData.print_fulfillment_finished_at = new Date().toISOString();
     }
     
     // Handle error states
