@@ -185,11 +185,12 @@ export async function GET(
 
     if (lineItemStatuses.length > 0) {
       const firstItem = lineItemStatuses[0];
-      trackingNumber = firstItem.tracking_id || firstItem.trackingId || null;
-      trackingUrl = Array.isArray(firstItem.tracking_urls)
-        ? firstItem.tracking_urls[0] || null
+      const msgs = firstItem.messages || firstItem.status?.messages || {};
+      trackingNumber = msgs.tracking_id || firstItem.tracking_id || firstItem.trackingId || null;
+      const trackingUrls = msgs.tracking_urls || firstItem.tracking_urls;
+      trackingUrl = Array.isArray(trackingUrls) ? trackingUrls[0] || null
         : firstItem.tracking_url || firstItem.trackingUrl || null;
-      carrier = firstItem.carrier || null;
+      carrier = msgs.carrier_name || firstItem.carrier_name || firstItem.carrier || null;
     }
 
     // Extract error message if status is REJECTED
@@ -339,6 +340,48 @@ export async function GET(
       oldStatus: order.lulu_status,
       newStatus
     });
+
+    // Confirm shipment in Seller Central when SHIPPED/DELIVERED and it's an Amazon order
+    const orderIdentifier = updatedOrder.orderId || updatedOrder.order_id || updatedOrder.amazon_order_id;
+    if ((newStatus === 'SHIPPED' || newStatus === 'DELIVERED') && order.amazon_order_id && (order.platform ?? 'amazon') !== 'd2c') {
+      const { data: existingConfirm } = await supabase
+        .from('notification_logs')
+        .select('id')
+        .eq('order_id', String(orderIdentifier))
+        .eq('notification_type', 'amazon_confirm_shipment')
+        .eq('status', 'sent')
+        .maybeSingle();
+
+      if (existingConfirm) {
+        console.log(`[Refresh Lulu Status] Shipment already confirmed for ${orderIdentifier}`);
+      } else {
+        try {
+          const { confirmAmazonShipment } = await import('@/lib/notifications/amazon-shipment');
+          const result = await confirmAmazonShipment({
+            amazonOrderId: String(order.amazon_order_id),
+            order,
+            trackingNumber: trackingNumber ?? undefined,
+            carrier: carrier ?? undefined,
+            trackingUrl: trackingUrl ?? undefined,
+          });
+          if (result.success) {
+            console.log(`[Refresh Lulu Status] Amazon shipment confirmed for ${orderIdentifier}`);
+          } else {
+            console.warn(`[Refresh Lulu Status] Amazon confirmShipment failed for ${orderIdentifier}:`, result.error);
+          }
+          await supabase.from('notification_logs').insert({
+            order_id: String(orderIdentifier),
+            notification_type: 'amazon_confirm_shipment',
+            status: result.success ? 'sent' : 'failed',
+            recipient: String(order.amazon_order_id),
+            error_message: result.error ?? null,
+            sent_at: result.success ? new Date().toISOString() : null,
+          });
+        } catch (err: any) {
+          console.warn('[Refresh Lulu Status] confirmShipment error:', err?.message ?? err);
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,

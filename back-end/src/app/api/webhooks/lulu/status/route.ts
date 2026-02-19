@@ -257,7 +257,52 @@ export async function POST(request: NextRequest) {
     await auditLog({ printJobId, statusName, orderFound: true, orderId: orderIdentifier, updated: true, errorMessage: null });
     console.log(`[LULU WEBHOOK] Successfully updated order ${orderIdentifier} with status ${statusName}`);
 
-    // Send "your book has shipped" notification when SHIPPED: D2C → email, Amazon → Message Center
+    // Confirm shipment in Seller Central (gives buyer tracking via Amazon's built-in email)
+    if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {
+      const platform = (order.platform ?? 'amazon') as string;
+      const amazonOrderId = order.amazon_order_id ?? null;
+      if (platform !== 'd2c' && amazonOrderId) {
+        const { data: existingConfirm } = await supabase
+          .from('notification_logs')
+          .select('id')
+          .eq('order_id', String(orderIdentifier))
+          .eq('notification_type', 'amazon_confirm_shipment')
+          .eq('status', 'sent')
+          .maybeSingle();
+
+        if (existingConfirm) {
+          console.log(`[LULU WEBHOOK] Shipment already confirmed for ${orderIdentifier}, skipping`);
+        } else {
+          try {
+            const { confirmAmazonShipment } = await import('@/lib/notifications/amazon-shipment');
+            const result = await confirmAmazonShipment({
+              amazonOrderId: String(amazonOrderId),
+              order,
+              trackingNumber: shippingTrackingNumber ?? undefined,
+              carrier: updateData.carrier ?? undefined,
+              trackingUrl: shippingTrackingUrl ?? undefined,
+            });
+            if (result.success) {
+              console.log(`[LULU WEBHOOK] Amazon shipment confirmed for ${orderIdentifier}`);
+            } else {
+              console.warn(`[LULU WEBHOOK] Amazon confirmShipment failed for ${orderIdentifier}:`, result.error);
+            }
+            await supabase.from('notification_logs').insert({
+              order_id: String(orderIdentifier),
+              notification_type: 'amazon_confirm_shipment',
+              status: result.success ? 'sent' : 'failed',
+              recipient: String(amazonOrderId),
+              error_message: result.error ?? null,
+              sent_at: result.success ? new Date().toISOString() : null,
+            });
+          } catch (err: any) {
+            console.warn('[LULU WEBHOOK] confirmShipment error:', err?.message ?? err);
+          }
+        }
+      }
+    }
+
+    // D2C shipped email (Amazon orders use confirmShipment above which triggers Amazon's built-in email)
     if (statusName === 'SHIPPED') {
       const platform = (order.platform ?? 'amazon') as string;
       const childName =
@@ -279,48 +324,6 @@ export async function POST(request: NextRequest) {
           }
         } catch (notifyErr: any) {
           console.warn(`[LULU WEBHOOK] D2C shipped notification error:`, notifyErr?.message ?? notifyErr);
-        }
-      } else if (platform !== 'd2c') {
-        // Enable if env var is 'true' OR if running in production (Vercel env var fallback)
-        const shippedEnvValue = (process.env.AMAZON_SHIPPED_NOTIFICATIONS_ENABLED ?? '').trim().toLowerCase();
-        const isProductionEnv = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
-        const shippedNotificationsEnabled = shippedEnvValue === 'true' || isProductionEnv;
-        const amazonOrderId = order.amazon_order_id ?? null;
-        if (shippedNotificationsEnabled && amazonOrderId) {
-          try {
-            const { sendAmazonShippedMessage } = await import('@/lib/notifications/amazon-message-center');
-            const result = await sendAmazonShippedMessage({
-              amazonOrderId: String(amazonOrderId),
-              trackingUrl: shippingTrackingUrl ?? undefined,
-              trackingNumber: shippingTrackingNumber ?? undefined,
-              childName: childName ?? undefined,
-            });
-            const logStatus = result.success ? 'sent' : 'failed';
-            if (result.success) {
-              console.log(`[LULU WEBHOOK] Amazon shipped message sent for order ${orderIdentifier}`);
-            } else {
-              console.warn(`[LULU WEBHOOK] Amazon shipped message failed for ${orderIdentifier}:`, result.error);
-            }
-            // Persist attempt so we can debug "worked then stopped" without Vercel logs
-            await supabase.from('notification_logs').insert({
-              order_id: String(orderIdentifier),
-              notification_type: 'amazon_message',
-              status: logStatus,
-              recipient: String(amazonOrderId),
-              error_message: result.error ?? null,
-              sent_at: result.success ? new Date().toISOString() : null,
-            });
-          } catch (notifyErr: any) {
-            console.warn(`[LULU WEBHOOK] Amazon shipped notification error:`, notifyErr?.message ?? notifyErr);
-            await supabase.from('notification_logs').insert({
-              order_id: String(orderIdentifier),
-              notification_type: 'amazon_message',
-              status: 'failed',
-              recipient: String(amazonOrderId),
-              error_message: notifyErr?.message ?? String(notifyErr),
-              sent_at: null,
-            });
-          }
         }
       }
     }

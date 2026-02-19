@@ -172,6 +172,94 @@ export async function GET(request: NextRequest) {
       lifecycleSummary = { markedDelivered: 0, archived: 0, errors: 1 };
     }
 
+    // 0d. Poll Lulu for tracking on IN_PRODUCTION orders (fallback for missed webhooks)
+    const luluPollStart = Date.now();
+    let luluPollSummary: { checked: number; updated: number; confirmed: number; errors: number } = { checked: 0, updated: 0, confirmed: 0, errors: 0 };
+    try {
+      const TIME_BUDGET_MS = 10_000;
+      const { data: inProdOrders } = await supabase
+        .from('orders')
+        .select('id,amazon_order_id,lulu_job_id,lulu_status,platform,product_info')
+        .not('lulu_job_id', 'is', null)
+        .in('lulu_status', ['IN_PRODUCTION', 'SHIPPED'])
+        .is('shipped_at', null)
+        .is('tracking_number', null)
+        .limit(3);
+
+      if (inProdOrders && inProdOrders.length > 0) {
+        // Get Lulu access token once for all polls
+        const luluClientId = process.env.LULU_CLIENT_ID || process.env.LULU_CLIENT_KEY;
+        const luluClientSecret = process.env.LULU_CLIENT_SECRET || process.env.LULU_API_SECRET;
+        const luluApiBase = process.env.LULU_API_BASE || 'https://api.lulu.com';
+        let luluToken: string | null = null;
+
+        if (luluClientId && luluClientSecret) {
+          const tokenRes = await fetch('https://api.lulu.com/auth/realms/glasstree/protocol/openid-connect/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Basic ${Buffer.from(`${luluClientId}:${luluClientSecret}`).toString('base64')}` },
+            body: 'grant_type=client_credentials',
+          });
+          if (tokenRes.ok) {
+            const td = await tokenRes.json();
+            luluToken = td.access_token ?? null;
+          }
+        }
+
+        if (luluToken) {
+          for (const o of inProdOrders) {
+            if (Date.now() - luluPollStart > TIME_BUDGET_MS) break;
+            luluPollSummary.checked++;
+            try {
+              const res = await fetch(`${luluApiBase}/print-jobs/${o.lulu_job_id}/status/`, {
+                headers: { Authorization: `Bearer ${luluToken}`, 'Cache-Control': 'no-cache' },
+              });
+              if (!res.ok) continue;
+              const sd = await res.json();
+              const name = sd.name || sd.status || null;
+              if (name !== 'SHIPPED' && name !== 'DELIVERED') continue;
+
+              // Extract tracking using the nested messages pattern
+              const items = sd.line_item_statuses || [];
+              const first = items[0];
+              const msgs = first?.messages || first?.status?.messages || {};
+              const tn = msgs.tracking_id || first?.tracking_id || null;
+              const tuArr = msgs.tracking_urls || first?.tracking_urls;
+              const tu = Array.isArray(tuArr) ? tuArr[0] || null : first?.tracking_url || null;
+              const cr = msgs.carrier_name || first?.carrier_name || first?.carrier || null;
+
+              const nowIso = new Date().toISOString();
+              const updates: Record<string, any> = { lulu_status: name, shipped_at: nowIso, print_fulfillment_finished_at: nowIso, updated_at: nowIso };
+              if (tn) updates.tracking_number = tn;
+              if (tu) updates.tracking_url = tu;
+              if (cr) updates.carrier = cr;
+
+              const { error: ue } = await supabase.from('orders').update(updates).eq('id', o.id);
+              if (ue) { luluPollSummary.errors++; continue; }
+              luluPollSummary.updated++;
+
+              // Confirm shipment for Amazon orders
+              if ((o.platform ?? 'amazon') !== 'd2c' && o.amazon_order_id) {
+                const orderId = o.amazon_order_id;
+                const { data: already } = await supabase.from('notification_logs').select('id').eq('order_id', String(orderId)).eq('notification_type', 'amazon_confirm_shipment').eq('status', 'sent').maybeSingle();
+                if (!already) {
+                  const { confirmAmazonShipment } = await import('@/lib/notifications/amazon-shipment');
+                  const r = await confirmAmazonShipment({ amazonOrderId: String(orderId), order: o, trackingNumber: tn, carrier: cr, trackingUrl: tu });
+                  await supabase.from('notification_logs').insert({ order_id: String(orderId), notification_type: 'amazon_confirm_shipment', status: r.success ? 'sent' : 'failed', recipient: String(orderId), error_message: r.error ?? null, sent_at: r.success ? nowIso : null });
+                  if (r.success) luluPollSummary.confirmed++;
+                }
+              }
+            } catch (pollErr: any) {
+              luluPollSummary.errors++;
+              console.warn(`[Cron Router] [${executionId}] Lulu poll error for ${o.lulu_job_id}:`, pollErr?.message);
+            }
+          }
+        }
+      }
+      console.log(`[Cron Router] [${executionId}] Lulu poll fallback (${Date.now() - luluPollStart}ms):`, luluPollSummary);
+    } catch (luluPollErr: any) {
+      console.warn(`[Cron Router] [${executionId}] Lulu poll fallback failed:`, luluPollErr?.message);
+    }
+
     // 1. Check capacity using queue_status view
     const capacityCheckStart = Date.now();
     const { data: capacityData, error: capacityError } = await supabase
@@ -229,6 +317,7 @@ export async function GET(request: NextRequest) {
         queuedCount,
         reminders: remindersSummary,
         lifecycle: lifecycleSummary,
+        luluPoll: luluPollSummary,
         metrics,
         timestamp: new Date().toISOString()
       });
@@ -382,6 +471,7 @@ export async function GET(request: NextRequest) {
         fetched: orders?.length || 0,
         reminders: remindersSummary,
         lifecycle: lifecycleSummary,
+        luluPoll: luluPollSummary,
         metrics,
         timestamp: new Date().toISOString()
       });
@@ -492,6 +582,7 @@ export async function GET(request: NextRequest) {
       queuedCount,
       reminders: remindersSummary,
       lifecycle: lifecycleSummary,
+      luluPoll: luluPollSummary,
       metrics,
       n8nExecutions: 1,
       timestamp: new Date().toISOString(),
