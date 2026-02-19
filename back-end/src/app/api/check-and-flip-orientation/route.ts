@@ -40,10 +40,64 @@ function extractR2Key(url: string): string | null {
  * Determine bucket from R2 key
  */
 function getBucketFromKey(key: string): string {
-  // Orders bucket: book-mvp-simple-adventure/orders/...
-  // Public bucket: everything else
   const isOrderAsset = key.startsWith('book-mvp-simple-adventure/orders/');
   return isOrderAsset ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
+}
+
+/**
+ * Compute horizontal center of mass of opaque pixels, normalized to [0, 1].
+ * Characters facing right tend toward >0.5; facing left toward <0.5.
+ * Returns null if image has no opaque pixels.
+ */
+function horizontalCenterOfMass(imageBuffer: Buffer): number | null {
+  const png = PNG.sync.read(imageBuffer);
+  let sumX = 0;
+  let opaqueCount = 0;
+
+  for (let y = 0; y < png.height; y++) {
+    for (let x = 0; x < png.width; x++) {
+      const alpha = png.data[(y * png.width + x) * 4 + 3];
+      if (alpha > 128) {
+        sumX += x;
+        opaqueCount++;
+      }
+    }
+  }
+
+  if (opaqueCount === 0) return null;
+  return sumX / opaqueCount / png.width;
+}
+
+/**
+ * Deterministic orientation check: compare horizontal center-of-mass of the
+ * generated image and the reference. If flipping the generated image brings
+ * its center-of-mass closer to the reference, the image needs flipping.
+ *
+ * Returns { needsFlip, confidence, refCenter, genCenter } or null if inconclusive.
+ * Confidence is the ratio of the larger distance to the smaller (>1 = decisive).
+ */
+function deterministicOrientationCheck(
+  refBuffer: Buffer,
+  genBuffer: Buffer,
+): { needsFlip: boolean; confidence: number; refCenter: number; genCenter: number } | null {
+  const refCenter = horizontalCenterOfMass(refBuffer);
+  const genCenter = horizontalCenterOfMass(genBuffer);
+
+  if (refCenter === null || genCenter === null) return null;
+
+  const distOriginal = Math.abs(refCenter - genCenter);
+  const distFlipped = Math.abs(refCenter - (1 - genCenter));
+
+  // If both distances are very close, we can't decide deterministically
+  const delta = Math.abs(distOriginal - distFlipped);
+  if (delta < 0.01) return null; // inconclusive — defer to Gemini
+
+  return {
+    needsFlip: distFlipped < distOriginal,
+    confidence: Math.max(distOriginal, distFlipped) / (Math.min(distOriginal, distFlipped) + 1e-6),
+    refCenter,
+    genCenter,
+  };
 }
 
 /**
@@ -230,157 +284,114 @@ export async function POST(request: NextRequest) {
       poseRefMimeType,
     });
     
-    // Check for Gemini API key
-    const geminiApiKey = process.env.GOOGLE_GEMINI_API_KEY;
-    if (!geminiApiKey) {
-      console.error('[Auto-Flip] Gemini API key not found');
-      return NextResponse.json(
-        { success: false, error: 'Gemini API key not configured' },
-        { status: 500 }
-      );
-    }
-    
-    // Build a more robust decision: compare ORIGINAL vs FLIPPED against the reference.
-    // Style differences can fool "SAME/DIFFERENT", so we ask which option matches the reference direction.
+    // ── Step 1: Deterministic silhouette check (fast, no API call) ──
+    const detResult = deterministicOrientationCheck(poseRefBuffer, imageBuffer);
+    const detTag = detResult
+      ? `refCenter=${detResult.refCenter.toFixed(3)}, genCenter=${detResult.genCenter.toFixed(3)}, conf=${detResult.confidence.toFixed(2)}`
+      : 'inconclusive';
+    console.log('[Auto-Flip] Deterministic check:', detTag, detResult ? `needsFlip=${detResult.needsFlip}` : '');
+
+    // Pre-compute flipped image (needed by both decision paths and the actual flip)
     let flippedCandidateBuffer: Buffer | null = null;
     try {
       flippedCandidateBuffer = await flipPngHorizontally(imageBuffer);
     } catch (e: any) {
-      console.warn('[Auto-Flip] Failed to precompute flipped candidate; falling back to SAME/DIFFERENT style check', e?.message ?? e);
+      console.warn('[Auto-Flip] Failed to precompute flipped candidate:', e?.message ?? e);
     }
 
-    const flippedCandidateBase64 = flippedCandidateBuffer ? flippedCandidateBuffer.toString('base64') : null;
+    let needsFlip: boolean;
+    let decisionSource: string;
+    let geminiRawAnswer: string | null = null;
 
-    // Call Gemini API to compare orientations
-    console.log('[Auto-Flip] Calling Gemini API to compare orientations...');
-    // Flash Lite: simple image classification; lower cost/latency than 2.5-flash
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`;
+    // Use deterministic result if confident enough (confidence > 1.5 means the distances differ by ≥50%)
+    if (detResult && detResult.confidence > 1.5) {
+      needsFlip = detResult.needsFlip;
+      decisionSource = `deterministic (${detTag})`;
+    } else {
+      // ── Step 2: Gemini fallback with interleaved image labels ──
+      const geminiApiKey = process.env.GOOGLE_GEMINI_API_KEY;
+      if (!geminiApiKey) {
+        // No API key — trust deterministic even at low confidence, or default to no-flip
+        needsFlip = detResult?.needsFlip ?? false;
+        decisionSource = detResult ? `deterministic-low-conf (${detTag})` : 'default-no-flip (no Gemini key)';
+        console.warn('[Auto-Flip] Gemini API key not found; using fallback:', decisionSource);
+      } else {
+        console.log('[Auto-Flip] Calling Gemini API (deterministic was inconclusive)...');
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
 
-    const parts: any[] = [
-      {
-        text: [
-          'Reference is the correct pose orientation.',
-          'Image A is the GENERATED image (ORIGINAL).',
-          'Image B is the GENERATED image flipped horizontally (FLIPPED).',
-          '',
-          'Which one matches the REFERENCE facing direction?',
-          'Answer ONLY: ORIGINAL or FLIPPED',
-        ].join('\n'),
-      },
-      { inlineData: { mimeType: poseRefMimeType, data: poseRefBase64 } }, // Reference first
-      { inlineData: { mimeType: imageMimeType, data: imageBase64 } }, // ORIGINAL
-    ];
-    if (flippedCandidateBase64) {
-      parts.push({ inlineData: { mimeType: imageMimeType, data: flippedCandidateBase64 } }); // FLIPPED
-    }
+        const flippedCandidateBase64 = flippedCandidateBuffer ? flippedCandidateBuffer.toString('base64') : null;
 
-    const geminiRequestBody = {
-      contents: [{ role: 'user', parts }],
-      generationConfig: {
-        temperature: 0,
-        topK: 1,
-        topP: 0.6,
-        maxOutputTokens: 80,
-      },
-    };
-    
-    let geminiResponse: Response;
-    try {
-      geminiResponse = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(geminiRequestBody),
-      });
-      
-      if (!geminiResponse.ok) {
-        const errorText = await geminiResponse.text();
-        console.error('[Auto-Flip] Gemini API error:', {
-          status: geminiResponse.status,
-          statusText: geminiResponse.statusText,
-          body: errorText.substring(0, 500),
+        // Interleave labels with images so the model knows exactly which is which
+        const parts: any[] = [
+          { text: 'REFERENCE pose (this is the correct facing direction):' },
+          { inlineData: { mimeType: poseRefMimeType, data: poseRefBase64 } },
+          { text: 'IMAGE A — the ORIGINAL generated character:' },
+          { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
+        ];
+        if (flippedCandidateBase64) {
+          parts.push(
+            { text: 'IMAGE B — the same character FLIPPED horizontally:' },
+            { inlineData: { mimeType: imageMimeType, data: flippedCandidateBase64 } },
+          );
+        }
+        parts.push({
+          text: 'Look at the direction the character\'s body and face are turned. Which generated image faces the same direction as the REFERENCE? Answer with a single word: ORIGINAL or FLIPPED',
         });
-        return NextResponse.json(
-          { success: false, error: `Gemini API error: ${geminiResponse.status} ${geminiResponse.statusText}` },
-          { status: geminiResponse.status }
-        );
-      }
-    } catch (error: any) {
-      console.error('[Auto-Flip] Network error calling Gemini API:', error);
-      return NextResponse.json(
-        { success: false, error: `Failed to call Gemini API: ${error.message || 'Unknown error'}` },
-        { status: 500 }
-      );
-    }
-    
-    // Parse Gemini response
-    const geminiData = await geminiResponse.json();
-    const candidates = geminiData.candidates || [];
-    
-    if (candidates.length === 0) {
-      // Check for safety ratings or blocked content
-      const safetyRatings = geminiData.promptFeedback?.safetyRatings || [];
-      const blocked = safetyRatings.some((rating: any) => rating.blocked === true);
-      
-      if (blocked) {
-        const blockedReasons = safetyRatings
-          .filter((rating: any) => rating.blocked)
-          .map((rating: any) => `${rating.category}: ${rating.probability}`)
-          .join(', ');
-        
-        console.error('[Auto-Flip] Content blocked by Gemini safety filters:', blockedReasons);
-        return NextResponse.json(
-          { success: false, error: 'Content was blocked by Gemini safety filters', details: blockedReasons },
-          { status: 400 }
-        );
-      }
-      
-      console.error('[Auto-Flip] No candidates in Gemini response:', geminiData);
-      return NextResponse.json(
-        { success: false, error: 'No response from Gemini API', details: geminiData.error?.message || 'Unknown reason' },
-        { status: 500 }
-      );
-    }
-    
-    const firstCandidate = candidates[0];
-    const textParts = firstCandidate.content?.parts || [];
-    const rawText = textParts
-      .filter((p: any) => p.text)
-      .map((p: any) => p.text)
-      .join(' ')
-      .trim();
-    const textResponse = rawText.toUpperCase();
-    console.log('[Auto-Flip] Gemini raw response:', rawText);
 
-    // Fail on bad finish reason only if we don't have a usable answer (MAX_TOKENS can still contain SAME/DIFFERENT)
-    const hasUsableAnswer =
-      textResponse.includes('ORIGINAL') ||
-      textResponse.includes('FLIPPED') ||
-      textResponse.includes('SAME') ||
-      textResponse.includes('DIFFERENT');
-    if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP' && !hasUsableAnswer) {
-      console.error('[Auto-Flip] Generation stopped:', firstCandidate.finishReason);
-      return NextResponse.json(
-        { success: false, error: `Generation stopped: ${firstCandidate.finishReason}` },
-        { status: 400 }
-      );
-    }
-    if (firstCandidate.finishReason === 'MAX_TOKENS' && hasUsableAnswer) {
-      console.log('[Auto-Flip] Used truncated response (MAX_TOKENS) — answer was present');
+        const geminiRequestBody = {
+          contents: [{ role: 'user', parts }],
+          generationConfig: { temperature: 0, topK: 1, topP: 0.6, maxOutputTokens: 80 },
+        };
+
+        try {
+          const geminiResponse = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(geminiRequestBody),
+          });
+
+          if (!geminiResponse.ok) {
+            const errorText = await geminiResponse.text();
+            console.error('[Auto-Flip] Gemini API error:', geminiResponse.status, errorText.substring(0, 300));
+            // Fall back to deterministic or no-flip
+            needsFlip = detResult?.needsFlip ?? false;
+            decisionSource = detResult ? `deterministic-fallback (${detTag})` : 'default-no-flip (Gemini error)';
+          } else {
+            const geminiData = await geminiResponse.json();
+            const candidates = geminiData.candidates || [];
+            const rawText = (candidates[0]?.content?.parts || [])
+              .filter((p: any) => p.text)
+              .map((p: any) => p.text)
+              .join(' ')
+              .trim();
+            geminiRawAnswer = rawText;
+            const upper = rawText.toUpperCase();
+            console.log('[Auto-Flip] Gemini raw response:', rawText);
+
+            const wantsFlipped = upper.includes('FLIPPED');
+            const wantsOriginal = upper.includes('ORIGINAL');
+            const wantsDifferent = upper.includes('DIFFERENT');
+            const wantsSame = upper.includes('SAME');
+
+            if (wantsFlipped || wantsOriginal || wantsDifferent || wantsSame) {
+              needsFlip = (wantsFlipped && !wantsOriginal) || (wantsDifferent && !wantsSame);
+              decisionSource = `gemini (${rawText})`;
+            } else {
+              // Gemini gave nonsense — fall back
+              needsFlip = detResult?.needsFlip ?? false;
+              decisionSource = detResult ? `deterministic-fallback (${detTag})` : 'default-no-flip (Gemini unusable)';
+            }
+          }
+        } catch (error: any) {
+          console.error('[Auto-Flip] Gemini network error:', error?.message);
+          needsFlip = detResult?.needsFlip ?? false;
+          decisionSource = detResult ? `deterministic-fallback (${detTag})` : 'default-no-flip (Gemini unreachable)';
+        }
+      }
     }
 
-    console.log('[Auto-Flip] Gemini response:', textResponse);
-    
-    // Decision: prefer explicit ORIGINAL/FLIPPED. Fallback: SAME/DIFFERENT.
-    const wantsFlipped = textResponse.includes('FLIPPED');
-    const wantsOriginal = textResponse.includes('ORIGINAL');
-    const wantsDifferent = textResponse.includes('DIFFERENT');
-    const wantsSame = textResponse.includes('SAME');
-    const needsFlip =
-      (wantsFlipped && !wantsOriginal) ||
-      (wantsDifferent && !wantsSame);
-    
+    console.log(`[Auto-Flip] Decision: needsFlip=${needsFlip}, source=${decisionSource}`);
+
     if (!needsFlip) {
       console.log('[Auto-Flip] Orientations match, no flip needed');
       recordRequest(characterHash, poseNumber, false, true);
@@ -389,6 +400,7 @@ export async function POST(request: NextRequest) {
         flipped: false,
         imageUrl,
         message: 'Orientations match, no flip needed',
+        _debug: { decisionSource, deterministic: detTag, geminiRaw: geminiRawAnswer },
       });
     }
     
@@ -443,6 +455,7 @@ export async function POST(request: NextRequest) {
       flipped: true,
       imageUrl,
       message: 'Image was flipped and overwritten in R2',
+      _debug: { decisionSource, deterministic: detTag, geminiRaw: geminiRawAnswer },
     });
     
   } catch (error: any) {

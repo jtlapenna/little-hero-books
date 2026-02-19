@@ -94,3 +94,15 @@ The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) was not wo
 - **Cause:** Ambiguous prompt; model could over-index on style differences or interpret \"facing\" loosely.
 - **Fix:** New prompt clearly defines roles (REFERENCE vs ORIGINAL vs FLIPPED) and asks for **ORIGINAL** or **FLIPPED** only. Also log the raw Gemini response for debugging.
 
+### 2026-02-19: Deterministic silhouette check + Gemini prompt restructure
+
+- **Symptom:** For pose03 (character hash `129ceb168e2432ed`), endpoint returned `"flipped": false, "message": "Orientations match, no flip needed"` when the image was clearly facing the wrong direction.
+- **Root cause (two problems):**
+  1. **Prompt structure:** All text was in one block, followed by three unlabeled inline images. Gemini had to guess which image was which by position alone — unreliable, especially with flash-lite.
+  2. **Model choice:** `gemini-2.5-flash-lite` is optimized for speed/cost, not vision accuracy. It's the wrong model for nuanced 3-image orientation comparison.
+- **Fix (three changes):**
+  1. **Primary: Deterministic silhouette check.** Computes horizontal center-of-mass of opaque pixels for reference and generated images. Characters facing right have center-of-mass shifted right; facing left, shifted left. If flipping brings the generated center closer to the reference, it needs flipping. No API call needed — fast, deterministic, zero cost. Confidence threshold (1.5x ratio) prevents false positives on near-centered characters.
+  2. **Gemini fallback with interleaved labels.** When the deterministic check is inconclusive (character nearly centered), falls back to Gemini with each image explicitly labeled inline (`REFERENCE pose:` → image → `IMAGE A — ORIGINAL:` → image → `IMAGE B — FLIPPED:` → image → question). This eliminates the ambiguity.
+  3. **Upgraded Gemini model** from `gemini-2.5-flash-lite` to `gemini-2.0-flash` for better vision accuracy in the fallback path.
+- **Debug output:** Response now includes `_debug: { decisionSource, deterministic, geminiRaw }` so we can see exactly which path was taken and why.
+
