@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     const stuckThreshold = new Date(Date.now() - 30 * 60 * 1000);
     const { data: stuckOrders, error: stuckError } = await supabase
       .from('orders')
-      .select('id,amazon_order_id,current_workflow,started_at,retry_count,error_message')
+      .select('id,"orderId",amazon_order_id,current_workflow,started_at,retry_count,error_message')
       .eq('execution_status', 'processing')
       .lt('started_at', stuckThreshold.toISOString())
       // Exclude orders that are legitimately idle (approval, done, post-fulfillment)
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
     const retryQueryStart = Date.now();
     const { data: retryOrders, error: retryError } = await supabase
       .from('orders')
-      .select('id,amazon_order_id,next_workflow,retry_count,error_message,error_type,character_specs,character_hash,one_manifest_url,next_retry_at')
+      .select('id,"orderId",amazon_order_id,next_workflow,retry_count,error_message,error_type,character_specs,character_hash,one_manifest_url,next_retry_at')
       .eq('execution_status', 'error')
       .lte('next_retry_at', new Date().toISOString())
       .lt('retry_count', 3)

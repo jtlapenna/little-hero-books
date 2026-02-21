@@ -1,32 +1,25 @@
 # Moving the Second Item From an Order Forward (Sibling Order)
 
-**Related files (verified):**
+**Status:** Steps 1–5 and manual script are implemented. Automated aggregation (one Lulu job for sibling groups, combined shipping) is **Phase 2** — see **[24-sibling-aggregation-for-print-phase-2.md](24-sibling-aggregation-for-print-phase-2.md)**.
 
-| Purpose | File |
-|--------|------|
-| CSV upload (populate `product_info.line_items`) | `back-end/src/app/api/admin/amazon-orders/upload-csv/route.ts` |
-| CSV parsing, `buildLineItemFromRow`, `customized-url` / `order_item_id` columns | `back-end/src/lib/csv-upload-helpers.ts` |
-| Admin UI: Upload CSV | `back-end/src/app/admin/csv-upload/page.tsx` |
-| Create sibling (CLI, uses `line_items[1]` or `--url`) | `back-end/scripts/create-sibling-order-from-line-item.ts` |
-| Create sibling API (pasted JSON, no Amazon download) | `back-end/src/app/api/admin/orders/[orderId]/create-sibling/route.ts` |
-| Set `line_items` manually if CSV didn’t persist | `back-end/src/app/api/admin/orders/[orderId]/set-line-items/route.ts` |
-| Manual: submit 2 sibling orders to Lulu as one job | `scripts/submit-sibling-orders-to-lulu.js` |
-| Docs for sibling + Lulu | `docs/lulu/SIBLING_ORDERS_LULU.md` |
+**Scope: 2+ items.** The system should support orders with **two or more** books (e.g. 4 books = 4 line items). CSV upload already stores N `line_items`. Create-sibling CLI and manual script currently support only the **second** item / exactly **two** orders; both phases should be updated for N (see below).
 
-## When one Amazon order has two books (two line items)
+## When one Amazon order has two or more books (multiple line items)
 
-If an order has quantity 2 or two rows in the CSV, we process one book per order. To get the second book into the pipeline you create a **sibling order** and run the pipeline for it.
+If an order has quantity 2+ or multiple rows in the CSV for the same order, we process one book per order. To get the 2nd, 3rd, 4th, … book into the pipeline you create **sibling orders** (one per extra item) and run the pipeline for each.
 
 ## 1. Re-upload CSV so `product_info.line_items` is populated
 
-- Use **Admin → Amazon Orders → Upload CSV** with the file that has **two rows** for the same order (e.g. `114-7080737-5512234`).
-- The upload groups rows by `order-id` and stores `product_info: { _created_via_csv: true, line_items: lineItems }`.
+- Use **Admin → Amazon Orders → Upload CSV** with the file that has **two or more rows** for the same order (e.g. `114-7080737-5512234`).
+- The upload groups rows by `order-id` and stores `product_info: { _created_via_csv: true, line_items: lineItems }` (already supports N items).
 - Each line item should have `order_item_id` and `customization_url` (from the CSV column `customized-url`).
-- After upload, confirm in Supabase that the order row has `product_info.line_items` with length 2.
+- After upload, confirm in Supabase that the order row has `product_info.line_items` with length ≥ 2.
 
 **If the order already exists with `product_info: { _retry_on_next_cron, _customization_missing }`** (no `line_items`), the CSV upload **update** path should still overwrite `product_info` with `{ _created_via_csv: true, line_items: lineItems }`. If it doesn’t, the order may have been matched by a different key or the update may be failing; check the upload response and Supabase after upload.
 
-## 2. Create sibling order (from back-end directory)
+## 2. Create sibling order(s) (from back-end directory)
+
+**Currently:** The CLI creates **one** sibling (the second line item, `line_items[1]`). For 3 or 4 books, run it multiple times with different `--url` values, or use the create-sibling API once per extra item (each call creates one sibling). **To fully support 2+:** extend the CLI to accept an optional item index (e.g. `--item 2` for third item) or a “create all siblings” mode that loops over `line_items[1..N-1]`.
 
 ```bash
 cd back-end
@@ -35,7 +28,7 @@ npm run create-sibling -- 114-7080737-5512234
 
 If the script says **"No customization URL for the second item"**:
 
-- Re-check that the CSV was the one with two rows for this order and that the column is named `customized-url`.
+- Re-check that the CSV was the one with multiple rows for this order and that the column is named `customized-url`.
 - If the order still has no `line_items`, run with the **exact** URL from the second row of your CSV:
 
 ```bash
@@ -64,23 +57,24 @@ Or use a `.json` file: `-d @payload.json` where `payload.json` contains `{"custo
 
 The API creates the sibling order and triggers W0; no download from Amazon is required.
 
-## 4. After sibling order is created
+## 4. After sibling order(s) are created
 
-- The new order has a synthetic id like `114-7080737-5512234-item-152767221930001`.
-- It is queued for W0 so it goes through 2A → 2B → 3 → 4 like the first book.
-- **Without aggregation:** you get two separate Lulu jobs (two shipments). Use the manual script below for one-off combined shipment, or implement the aggregation workflow for automatic combined print.
+- Each new order has a synthetic id like `114-7080737-5512234-item-152767221930001`.
+- Each is queued for W0 and goes through 2A → 2B → 3 → 4 like the first book.
+- **Without aggregation:** you get one Lulu job per order (N shipments). Use the manual script below for one-off combined shipment (currently **2 orders only**; script to be generalized to N), or implement the aggregation workflow (Phase 2) for automatic combined print.
 
 ---
 
 ## 5. Sending sibling orders to print together (manual script)
 
-When both books are ready for print (W4 / proof approved), you can submit them as **one Lulu print job** (one shipment, two line items) using:
+When all sibling books are ready for print (W4 / proof approved), you can submit them as **one Lulu print job** (one shipment, N line items) using:
 
 - **Script:** `scripts/submit-sibling-orders-to-lulu.js`
-- **Input:** A JSON file with exactly 2 order objects (same Amazon order, two line items). Each must have `orderId`, interior/cover PDF R2 keys, and `shipping_address`.
+- **Input:** A JSON file of order objects (same Amazon order). Each must have `orderId`, interior/cover PDF R2 keys, and `shipping_address`.
+- **Currently:** Script accepts **exactly 2** orders (hardcoded). **To support 4 books (or any N):** generalize the script to accept an array of 2+ orders, build `line_items` and PATCH all N orders with the same `lulu_job_id`.
 - **Docs:** `docs/lulu/SIBLING_ORDERS_LULU.md`
 
-Example:
+Example (2 orders today):
 
 ```bash
 node scripts/submit-sibling-orders-to-lulu.js scripts/sibling-orders-114-7080737-5512234.json
@@ -92,11 +86,11 @@ The script fetches signed PDF URLs, gets a Lulu token, POSTs one print job with 
 
 ## 6. Full system: aggregating sibling orders for print (automated workflow)
 
-**Goal:** Once both sibling orders are processed through W3 (book assembly done, approved for print), automatically aggregate them into a **single Lulu print job** (one order, multiple line items) instead of running W4 twice and creating two shipments.
+**Goal:** Once **all** sibling orders in a group (2 or more; e.g. 4 books) are processed through W3 (book assembly done, approved for print), automatically aggregate them into a **single Lulu print job** (one order, N line items, one shipment) instead of running W4 per order and creating N shipments.
 
 ### 6.1 Data model and identification
 
-- **Sibling group:** All orders that share the same **Amazon order id** (e.g. `114-7080737-5512234`). Main order has that id; sibling has synthetic id like `114-7080737-5512234-item-152767221930001`.
+- **Sibling group:** All orders that share the same **Amazon order id** (e.g. `114-7080737-5512234`). Main order has that id; siblings have synthetic ids like `114-7080737-5512234-item-152767221930001`. A group can be 2, 3, 4, or more orders.
 - **Stored in Supabase:** Either:
   - Derive siblings by `amazon_order_id` (strip `-item-*` from synthetic ids to get the root order id), or
   - Add optional `sibling_group_id` (e.g. root order id) and/or `sibling_order_ids` on the main order for fast lookup.
@@ -131,8 +125,17 @@ Recommendation: **Option A** keeps Lulu and Supabase logic in one place (backend
 
 ### 6.5 Implementation checklist (when building the full system)
 
-- [ ] Define sibling group in DB (e.g. by `amazon_order_id` or `sibling_group_id`).
+**Done (Phase 1):** CSV upload with `line_items`; create-sibling CLI + API; set-line-items API; manual script `submit-sibling-orders-to-lulu.js`; router W4 eligibility; Amazon order ID resolution for siblings (messaging/shipment).
+
+**2+ items (e.g. 4 books):**
+
+- [ ] Create-sibling CLI: extend to support 3rd, 4th, … item (e.g. `--item <index>` or “create all siblings” from `line_items`).
+- [ ] Manual script: generalize `submit-sibling-orders-to-lulu.js` from exactly 2 orders to N orders (array of 2+; build N `line_items`, PATCH all N).
+
+**Remaining (Phase 2 — see [24-sibling-aggregation-for-print-phase-2.md](24-sibling-aggregation-for-print-phase-2.md)):**
+
+- [ ] Define sibling group in DB (optional; can derive by `amazon_order_id`).
 - [ ] Cron or router: detect “sibling group all ready for W4” and call aggregation path instead of W4 per order.
-- [ ] Backend: endpoint or internal function that builds one Lulu job from N orders and PATCHes all N.
+- [ ] Backend: endpoint or internal function that builds one Lulu job from **N** orders (2+) and PATCHes all N.
 - [ ] Ensure W4 single-order path is not triggered for orders that were aggregated (e.g. set `execution_status`/flag when aggregated).
-- [ ] Lulu webhook: when `lulu_job_id` is updated (e.g. SHIPPED), update all orders sharing that `lulu_job_id`.
+- [ ] Lulu webhook: when `lulu_job_id` is updated (e.g. SHIPPED), update **all** orders sharing that `lulu_job_id` (currently only one row is updated).

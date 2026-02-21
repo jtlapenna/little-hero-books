@@ -225,6 +225,7 @@ export async function POST(request: NextRequest) {
 
         // Use first row that has a customization URL for order-level character_specs
         let characterSpecs: Record<string, unknown> | null = null;
+        let customizationFailure: string | null = null;
         for (const { row } of group) {
           const customizationUrl = extractCustomizationUrl(row, headers);
           if (customizationUrl) {
@@ -233,9 +234,12 @@ export async function POST(request: NextRequest) {
               if (customizationData) {
                 characterSpecs = parseAmazonCustomization(customizationData);
                 if (characterSpecs) break;
+                customizationFailure = customizationFailure ?? 'Parse failed: customization format not recognized (missing childName/age)';
               }
             } catch (e) {
-              // try next row
+              const msg = e instanceof Error ? e.message : String(e);
+              customizationFailure = customizationFailure ?? `Download/extract failed: ${msg}`;
+              console.warn(`[CSV Upload] [${requestId}] Customization for ${amazonOrderId}: ${msg}`);
             }
           }
         }
@@ -405,7 +409,13 @@ export async function POST(request: NextRequest) {
               w0Skipped.push({ orderId: amazonOrderId, reason: `W0 webhook failed: ${w0Response.status} ${responseText.substring(0, 200)}` });
             }
           } else {
-            const reason = !hasShipping ? 'missing shipping_address' : !hasCharacterSpecs ? 'missing character_specs' : !n8nW0WebhookUrl ? 'N8N_W0_WEBHOOK_URL not configured' : 'unknown';
+            const reason = !hasShipping
+              ? 'missing shipping_address'
+              : !hasCharacterSpecs
+                ? (customizationFailure ?? 'missing character_specs (no customization URL in CSV or download/parse failed)')
+                : !n8nW0WebhookUrl
+                  ? 'N8N_W0_WEBHOOK_URL not configured'
+                  : 'unknown';
             w0Skipped.push({ orderId: amazonOrderId, reason });
           }
         } catch (w0Error: unknown) {
