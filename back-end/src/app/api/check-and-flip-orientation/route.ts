@@ -1,22 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { decode, encode } from 'fast-png';
 import { getObject, putObject } from '@/lib/r2-client';
 import { extractR2Key, getBucketFromKey } from '@/lib/r2-utils';
-import { PNG } from 'pngjs';
 import { recordRequest } from './stats/route';
 
 /**
  * Compute horizontal center of mass of opaque pixels, normalized to [0, 1].
  * Characters facing right tend toward >0.5; facing left toward <0.5.
  * Returns null if image has no opaque pixels.
+ * Uses fast-png (fflate-based) — compatible with Cloudflare Workers (avoids pngjs/zlib Inflate).
  */
 function horizontalCenterOfMass(imageBuffer: Buffer): number | null {
-  const png = PNG.sync.read(imageBuffer);
+  const decoded = decode(imageBuffer);
+  const { width, height, data, channels } = decoded;
+  const bytesPerPixel = channels;
   let sumX = 0;
   let opaqueCount = 0;
 
-  for (let y = 0; y < png.height; y++) {
-    for (let x = 0; x < png.width; x++) {
-      const alpha = png.data[(y * png.width + x) * 4 + 3];
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = data[(y * width + x) * bytesPerPixel + (bytesPerPixel - 1)];
       if (alpha > 128) {
         sumX += x;
         opaqueCount++;
@@ -25,7 +28,7 @@ function horizontalCenterOfMass(imageBuffer: Buffer): number | null {
   }
 
   if (opaqueCount === 0) return null;
-  return sumX / opaqueCount / png.width;
+  return sumX / opaqueCount / width;
 }
 
 /**
@@ -61,65 +64,38 @@ function deterministicOrientationCheck(
 }
 
 /**
- * Flip PNG image horizontally using pngjs (pure JavaScript, works in Workers)
- * This is the same approach as manual flip, but server-side
+ * Flip PNG image horizontally using fast-png (fflate-based, Workers-compatible).
+ * Avoids pngjs which uses Node zlib.Inflate — incompatible with Cloudflare Workers.
  */
 async function flipPngHorizontally(imageBuffer: Buffer): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      // Parse PNG using pngjs
-      const png = PNG.sync.read(imageBuffer);
-      
-      console.log(`[Auto-Flip] PNG parsed: ${png.width}x${png.height}, colorType: ${png.colorType}, alpha: ${png.alpha}`);
-      
-      // Determine bytes per pixel based on color type
-      // PNG color types: 0=grayscale, 2=RGB, 3=indexed, 4=grayscale+alpha, 6=RGBA
-      // pngjs always converts to RGBA format, so we can safely use 4 bytes per pixel
-      const bytesPerPixel = 4; // pngjs always outputs RGBA
-      const rowLength = png.width * bytesPerPixel;
-      
-      // Create new buffer for flipped image
-      const flippedData = Buffer.alloc(png.data.length);
-      
-      // Flip each row horizontally
-      for (let y = 0; y < png.height; y++) {
-        const rowStart = y * rowLength;
-        
-        // Copy row in reverse order (flip horizontally)
-        for (let x = 0; x < png.width; x++) {
-          const sourcePixelStart = rowStart + (x * bytesPerPixel);
-          const targetPixelStart = rowStart + ((png.width - 1 - x) * bytesPerPixel);
-          
-          // Copy RGBA values (pngjs always provides RGBA format)
-          flippedData[targetPixelStart] = png.data[sourcePixelStart];         // R
-          flippedData[targetPixelStart + 1] = png.data[sourcePixelStart + 1]; // G
-          flippedData[targetPixelStart + 2] = png.data[sourcePixelStart + 2]; // B
-          flippedData[targetPixelStart + 3] = png.data[sourcePixelStart + 3]; // A
-        }
+  const decoded = decode(imageBuffer);
+  const { width, height, data, channels } = decoded;
+  const bytesPerPixel = channels;
+  const rowLength = width * bytesPerPixel;
+
+  console.log(`[Auto-Flip] PNG parsed: ${width}x${height}, channels: ${channels}`);
+
+  const flippedData = new Uint8Array(data.length);
+  for (let y = 0; y < height; y++) {
+    const rowStart = y * rowLength;
+    for (let x = 0; x < width; x++) {
+      const srcOff = rowStart + x * bytesPerPixel;
+      const tgtOff = rowStart + (width - 1 - x) * bytesPerPixel;
+      for (let c = 0; c < bytesPerPixel; c++) {
+        flippedData[tgtOff + c] = data[srcOff + c];
       }
-      
-      // Create new PNG with flipped data
-      const flippedPng = new PNG({
-        width: png.width,
-        height: png.height,
-        colorType: png.colorType,
-        inputColorType: png.colorType,
-        inputHasAlpha: png.alpha,
-      });
-      
-      flippedPng.data = flippedData;
-      
-      // Pack PNG back to buffer
-      const flippedBuffer = PNG.sync.write(flippedPng);
-      
-      console.log(`[Auto-Flip] Image flipped: ${imageBuffer.length} bytes → ${flippedBuffer.length} bytes`);
-      
-      resolve(flippedBuffer);
-    } catch (error: any) {
-      console.error('[Auto-Flip] Error flipping PNG:', error);
-      reject(new Error(`Failed to flip PNG: ${error.message || 'Unknown error'}`));
     }
+  }
+
+  const out = encode({
+    width,
+    height,
+    data: flippedData,
+    depth: (decoded.depth as 8) ?? 8,
+    channels,
   });
+  console.log(`[Auto-Flip] Image flipped: ${imageBuffer.length} bytes → ${out.length} bytes`);
+  return Buffer.from(out);
 }
 
 

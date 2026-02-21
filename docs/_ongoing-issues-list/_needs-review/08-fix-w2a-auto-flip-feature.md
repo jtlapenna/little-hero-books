@@ -106,3 +106,9 @@ The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) was not wo
   3. **Upgraded Gemini model** from `gemini-2.5-flash-lite` to `gemini-2.0-flash` for better vision accuracy in the fallback path.
 - **Debug output:** Response now includes `_debug: { decisionSource, deterministic, geminiRaw }` so we can see exactly which path was taken and why.
 
+### 2026-02-21: Replace pngjs with fast-png (Cloudflare Workers compatibility)
+
+- **Symptom:** API returned `500 - "Class constructor Inflate cannot be invoked without 'new'"`. SW3 Upload node failed when calling check-and-flip-orientation.
+- **Root cause:** `pngjs` uses Node's `zlib.Inflate` via `zlib.Inflate.call(this, opts)`. On Cloudflare Workers, the zlib polyfill (or Node compat layer) provides an ES6 class `Inflate` that cannot be invoked with `.call()` — it must be used with `new`, causing the constructor error.
+- **Fix:** Replaced `pngjs` with `fast-png` (uses `fflate` for decompression, pure JS, Workers-compatible). Updated `horizontalCenterOfMass` and `flipPngHorizontally` to use `decode`/`encode` from fast-png.
+
