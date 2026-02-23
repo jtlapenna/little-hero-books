@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject } from '@/lib/r2-client';
 import { extractR2Key, getBucketFromKey } from '@/lib/r2-utils';
-import { PNG } from 'pngjs';
+import { decode, encode } from 'fast-png';
 
 export const maxDuration = 30;
 
@@ -14,14 +14,44 @@ const OFFSET_TOLERANCE = 0.03;   // 3 % of image height
 // Bounding-box helpers
 // -----------------------------------------------------------------
 
+type DecodedPng = { width: number; height: number; data: Uint8Array; channels: number; depth?: number };
 interface BBox { top: number; bottom: number; left: number; right: number; width: number; height: number; }
+
+function alphaAt(png: DecodedPng, x: number, y: number): number {
+  // Purpose: handle both RGBA (4) and GA (2) decoded formats.
+  const i = (y * png.width + x) * png.channels;
+  if (png.channels === 4) return png.data[i + 3];
+  if (png.channels === 2) return png.data[i + 1];
+  return 255;
+}
+
+function writeRgba(out: Uint8Array, outW: number, x: number, y: number, r: number, g: number, b: number, a: number) {
+  // Purpose: write a single pixel into RGBA output buffer.
+  const di = (y * outW + x) * 4;
+  out[di] = r;
+  out[di + 1] = g;
+  out[di + 2] = b;
+  out[di + 3] = a;
+}
+
+function readRgba(png: DecodedPng, x: number, y: number): [number, number, number, number] {
+  // Purpose: read a pixel as RGBA regardless of source channels.
+  const i = (y * png.width + x) * png.channels;
+  if (png.channels === 4) return [png.data[i], png.data[i + 1], png.data[i + 2], png.data[i + 3]];
+  if (png.channels === 2) {
+    const v = png.data[i];
+    return [v, v, v, png.data[i + 1]];
+  }
+  const v = png.data[i] ?? 0;
+  return [v, v, v, 255];
+}
 
 /**
  * Compute the trimmed bounding box of opaque pixels.
  * Rows/columns with fewer opaque pixels than 1% of the densest row are
  * treated as stray artifacts and excluded.
  */
-function opaqueBoundingBox(png: PNG): BBox | null {
+function opaqueBoundingBox(png: DecodedPng): BBox | null {
   const { width, height, data } = png;
 
   // Per-row opaque pixel count (used to filter stray rows)
@@ -29,12 +59,14 @@ function opaqueBoundingBox(png: PNG): BBox | null {
   for (let y = 0; y < height; y++) {
     let count = 0;
     for (let x = 0; x < width; x++) {
-      if (data[(y * width + x) * 4 + 3] > ALPHA_THRESHOLD) count++;
+      if (alphaAt(png, x, y) > ALPHA_THRESHOLD) count++;
     }
     rowCounts[y] = count;
   }
 
-  const maxRowCount = Math.max(...rowCounts);
+  // Purpose: avoid Math.max(...bigArray) (slow/stack-heavy).
+  let maxRowCount = 0;
+  for (let y = 0; y < height; y++) if (rowCounts[y] > maxRowCount) maxRowCount = rowCounts[y];
   if (maxRowCount === 0) return null;
   const rowMin = Math.max(1, Math.floor(maxRowCount * 0.01));
 
@@ -43,7 +75,7 @@ function opaqueBoundingBox(png: PNG): BBox | null {
   for (let y = 0; y < height; y++) {
     if (rowCounts[y] < rowMin) continue;
     for (let x = 0; x < width; x++) {
-      if (data[(y * width + x) * 4 + 3] > ALPHA_THRESHOLD) {
+      if (alphaAt(png, x, y) > ALPHA_THRESHOLD) {
         if (y < top) top = y;
         if (y > bottom) bottom = y;
         if (x < left) left = x;
@@ -61,11 +93,11 @@ function opaqueBoundingBox(png: PNG): BBox | null {
 // -----------------------------------------------------------------
 
 function normalizeImage(
-  srcPng: PNG,
+  srcPng: DecodedPng,
   srcBox: BBox,
   refBox: BBox,
-  refPng: PNG,
-): PNG {
+  refPng: DecodedPng,
+): DecodedPng {
   const { width: canvasW, height: canvasH } = srcPng;
 
   // Map refBox from reference image coords → generated image coords
@@ -93,9 +125,8 @@ function normalizeImage(
   const refCenterX = (mappedRef.left + mappedRef.right) / 2;
   const dstLeft = Math.round(refCenterX - scaledW / 2);
 
-  const out = new PNG({ width: canvasW, height: canvasH });
-  // Canvas starts fully transparent (all zeros)
-  out.data.fill(0);
+  // Purpose: output is a fresh transparent RGBA canvas.
+  const outData = new Uint8Array(canvasW * canvasH * 4);
 
   for (let dy = 0; dy < scaledH; dy++) {
     const outY = dstTop + dy;
@@ -110,17 +141,12 @@ function normalizeImage(
 
       const srcX = srcBox.left + Math.min(Math.floor(dx / scale), srcBox.width - 1);
 
-      const si = (srcY * canvasW + srcX) * 4;
-      const di = (outY * canvasW + outX) * 4;
-
-      out.data[di]     = srcPng.data[si];
-      out.data[di + 1] = srcPng.data[si + 1];
-      out.data[di + 2] = srcPng.data[si + 2];
-      out.data[di + 3] = srcPng.data[si + 3];
+      const [r, g, b, a] = readRgba(srcPng, srcX, srcY);
+      writeRgba(outData, canvasW, outX, outY, r, g, b, a);
     }
   }
 
-  return out;
+  return { width: canvasW, height: canvasH, data: outData, channels: 4, depth: 8 };
 }
 
 // -----------------------------------------------------------------
@@ -170,11 +196,11 @@ export async function POST(request: NextRequest) {
     const refBuf = Buffer.from(await refResp.arrayBuffer());
 
     // ── Parse PNGs ──
-    let imagePng: PNG;
-    let refPng: PNG;
+    let imagePng: DecodedPng;
+    let refPng: DecodedPng;
     try {
-      imagePng = PNG.sync.read(imageBuf);
-      refPng = PNG.sync.read(refBuf);
+      imagePng = decode(imageBuf);
+      refPng = decode(refBuf);
     } catch (err: any) {
       console.error(`${tag} PNG parse failed:`, err?.message);
       return NextResponse.json({ success: false, error: `PNG parse failed: ${err?.message}` });
@@ -216,7 +242,13 @@ export async function POST(request: NextRequest) {
     // ── Normalize ──
     console.log(`${tag} Normalizing (scale=${scaleFactor.toFixed(3)}, vOffset=${verticalOffset.toFixed(3)})…`);
     const normalizedPng = normalizeImage(imagePng, genBox, refBox, refPng);
-    const normalizedBuf = PNG.sync.write(normalizedPng);
+    const normalizedBuf = Buffer.from(encode({
+      width: normalizedPng.width,
+      height: normalizedPng.height,
+      data: normalizedPng.data,
+      channels: 4,
+      depth: 8,
+    }));
 
     // ── Overwrite in R2 ──
     await putObject(imageBucket, imageKey, normalizedBuf, 'image/png');
