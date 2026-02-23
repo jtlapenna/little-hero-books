@@ -101,9 +101,9 @@ The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) was not wo
   1. **Prompt structure:** All text was in one block, followed by three unlabeled inline images. Gemini had to guess which image was which by position alone — unreliable, especially with flash-lite.
   2. **Model choice:** `gemini-2.5-flash-lite` is optimized for speed/cost, not vision accuracy. It's the wrong model for nuanced 3-image orientation comparison.
 - **Fix (three changes):**
-  1. **Primary: Deterministic silhouette check.** Computes horizontal center-of-mass of opaque pixels for reference and generated images. Characters facing right have center-of-mass shifted right; facing left, shifted left. If flipping brings the generated center closer to the reference, it needs flipping. No API call needed — fast, deterministic, zero cost. Confidence threshold (1.5x ratio) prevents false positives on near-centered characters.
+  1. **Primary: Deterministic silhouette check.** Compares the **reference silhouette mask** to the generated mask, and also compares the reference to the **horizontally mirrored** generated mask. Uses a bounding-box-normalized grid so scale/position differences don’t dominate. No API call needed — fast, deterministic, zero cost. Confidence threshold (1.5x ratio) prevents false positives when the two comparisons are too close.
   2. **Gemini fallback with interleaved labels.** When the deterministic check is inconclusive (character nearly centered), falls back to Gemini with each image explicitly labeled inline (`REFERENCE pose:` → image → `IMAGE A — ORIGINAL:` → image → `IMAGE B — FLIPPED:` → image → question). This eliminates the ambiguity.
-  3. **Upgraded Gemini model** from `gemini-2.5-flash-lite` to `gemini-2.0-flash` for better vision accuracy in the fallback path.
+  3. **Upgraded Gemini model** to `gemini-2.5-flash` for better vision accuracy in the fallback path (and broader availability than `gemini-2.0-flash`).
 - **Debug output:** Response now includes `_debug: { decisionSource, deterministic, geminiRaw }` so we can see exactly which path was taken and why.
 
 ### 2026-02-21: Replace pngjs with fast-png (Cloudflare Workers compatibility)
@@ -111,4 +111,71 @@ The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) was not wo
 - **Symptom:** API returned `500 - "Class constructor Inflate cannot be invoked without 'new'"`. SW3 Upload node failed when calling check-and-flip-orientation.
 - **Root cause:** `pngjs` uses Node's `zlib.Inflate` via `zlib.Inflate.call(this, opts)`. On Cloudflare Workers, the zlib polyfill (or Node compat layer) provides an ES6 class `Inflate` that cannot be invoked with `.call()` — it must be used with `new`, causing the constructor error.
 - **Fix:** Replaced `pngjs` with `fast-png` (uses `fflate` for decompression, pure JS, Workers-compatible). Updated `horizontalCenterOfMass` and `flipPngHorizontally` to use `decode`/`encode` from fast-png.
+
+---
+
+## Testing the endpoint (without n8n)
+
+You can test `POST /api/check-and-flip-orientation` directly with curl or a script.
+
+### Required payload
+
+```json
+{
+  "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/{characterHash}/poses/pose{N}.png",
+  "poseRefUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/characters/poses/pose{N}.png",
+  "characterHash": "d442cde92b91c581",
+  "poseNumber": 3
+}
+```
+
+- `imageUrl`: Full public R2 URL to the **generated** character pose
+- `poseRefUrl`: Full public R2 URL to the **reference** pose (from `characters/poses/poseNN.png`)
+- `characterHash`: Character hash from the order
+- `poseNumber`: Pose index (0–14 typically)
+
+### Local (backend on port 3001)
+
+```bash
+curl -X POST http://localhost:3001/api/check-and-flip-orientation \
+  -H "Content-Type: application/json" \
+  -d '{
+    "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/d442cde92b91c581/poses/pose03.png",
+    "poseRefUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/characters/poses/pose03.png",
+    "characterHash": "d442cde92b91c581",
+    "poseNumber": 3
+  }'
+```
+
+### Production
+
+```bash
+curl -X POST https://admin.littleherolabs.com/api/check-and-flip-orientation \
+  -H "Content-Type: application/json" \
+  -d '{
+    "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/d442cde92b91c581/poses/pose03.png",
+    "poseRefUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/characters/poses/pose03.png",
+    "characterHash": "d442cde92b91c581",
+    "poseNumber": 3
+  }'
+```
+
+### Expected response
+
+- **Success (no flip needed):** `{"success":true,"flipped":false,"imageUrl":"...","message":"Orientations match, no flip needed","_debug":{...}}`
+- **Success (flipped):** `{"success":true,"flipped":true,"imageUrl":"...","message":"Image was flipped and overwritten in R2","_debug":{...}}`
+- **Error:** `{"success":false,"error":"..."}` with HTTP 4xx/5xx
+
+Replace `d442cde92b91c581` and `pose03` with real values from an order that has generated poses in R2.
+
+### Test script (from back-end/)
+
+```bash
+cd back-end
+npx tsx scripts/test-check-and-flip.ts [baseUrl] [characterHash] [poseNumber]
+```
+
+Examples:
+- `npx tsx scripts/test-check-and-flip.ts` — localhost:3001, default hash/pose
+- `npx tsx scripts/test-check-and-flip.ts https://admin.littleherolabs.com d442cde92b91c581 3` — production
 

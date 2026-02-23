@@ -5,62 +5,124 @@ import { extractR2Key, getBucketFromKey } from '@/lib/r2-utils';
 import { recordRequest } from './stats/route';
 
 /**
- * Compute horizontal center of mass of opaque pixels, normalized to [0, 1].
- * Characters facing right tend toward >0.5; facing left toward <0.5.
- * Returns null if image has no opaque pixels.
- * Uses fast-png (fflate-based) — compatible with Cloudflare Workers (avoids pngjs/zlib Inflate).
+ * Build a "background color" guess from the 4 corners.
  */
-function horizontalCenterOfMass(imageBuffer: Buffer): number | null {
-  const decoded = decode(imageBuffer);
+function inferBackground(decoded: { width: number; height: number; data: Uint8Array; channels: number }) {
   const { width, height, data, channels } = decoded;
-  const bytesPerPixel = channels;
-  let sumX = 0;
-  let opaqueCount = 0;
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const alpha = data[(y * width + x) * bytesPerPixel + (bytesPerPixel - 1)];
-      if (alpha > 128) {
-        sumX += x;
-        opaqueCount++;
-      }
-    }
-  }
-
-  if (opaqueCount === 0) return null;
-  return sumX / opaqueCount / width;
+  const bpp = channels;
+  const corner = (x: number, y: number) => {
+    const i = (y * width + x) * bpp;
+    const r = data[i];
+    const g = channels >= 3 ? data[i + 1] : r;
+    const b = channels >= 3 ? data[i + 2] : r;
+    return { r, g, b };
+  };
+  const c1 = corner(0, 0);
+  const c2 = corner(width - 1, 0);
+  const c3 = corner(0, height - 1);
+  const c4 = corner(width - 1, height - 1);
+  return {
+    r: (c1.r + c2.r + c3.r + c4.r) / 4,
+    g: (c1.g + c2.g + c3.g + c4.g) / 4,
+    b: (c1.b + c2.b + c3.b + c4.b) / 4,
+  };
 }
 
 /**
- * Deterministic orientation check: compare horizontal center-of-mass of the
- * generated image and the reference. If flipping the generated image brings
- * its center-of-mass closer to the reference, the image needs flipping.
- *
- * Returns { needsFlip, confidence, refCenter, genCenter } or null if inconclusive.
- * Confidence is the ratio of the larger distance to the smaller (>1 = decisive).
+ * Foreground mask: pixel is foreground if it's opaque and not background-colored.
+ */
+function isForegroundAt(
+  decoded: { width: number; height: number; data: Uint8Array; channels: number },
+  bg: { r: number; g: number; b: number },
+  x: number,
+  y: number,
+): boolean {
+  const { width, data, channels } = decoded;
+  const bpp = channels;
+  const i = (y * width + x) * bpp;
+  const a = channels === 4 ? data[i + 3] : channels === 2 ? data[i + 1] : 255;
+  if (a <= 128) return false;
+  const r = data[i];
+  const g = channels >= 3 ? data[i + 1] : r;
+  const b = channels >= 3 ? data[i + 2] : r;
+  return !(Math.abs(r - bg.r) <= 10 && Math.abs(g - bg.g) <= 10 && Math.abs(b - bg.b) <= 10);
+}
+
+/**
+ * Deterministic orientation check: compare the silhouette mask of the generated
+ * image to the reference, and also compare the reference to the horizontally
+ * mirrored generated silhouette. Pick the better match.
  */
 function deterministicOrientationCheck(
   refBuffer: Buffer,
   genBuffer: Buffer,
-): { needsFlip: boolean; confidence: number; refCenter: number; genCenter: number } | null {
-  const refCenter = horizontalCenterOfMass(refBuffer);
-  const genCenter = horizontalCenterOfMass(genBuffer);
+): { needsFlip: boolean; confidence: number; refDiff: number; flippedDiff: number } | null {
+  const ref = decode(refBuffer);
+  const gen = decode(genBuffer);
+  const refBg = inferBackground(ref);
+  const genBg = inferBackground(gen);
 
-  if (refCenter === null || genCenter === null) return null;
-
-  const distOriginal = Math.abs(refCenter - genCenter);
-  const distFlipped = Math.abs(refCenter - (1 - genCenter));
-
-  // If both distances are very close, we can't decide deterministically
-  const delta = Math.abs(distOriginal - distFlipped);
-  if (delta < 0.01) return null; // inconclusive — defer to Gemini
-
-  return {
-    needsFlip: distFlipped < distOriginal,
-    confidence: Math.max(distOriginal, distFlipped) / (Math.min(distOriginal, distFlipped) + 1e-6),
-    refCenter,
-    genCenter,
+  const bboxGrid = 96;
+  const findBbox = (
+    img: { width: number; height: number; data: Uint8Array; channels: number },
+    bg: { r: number; g: number; b: number },
+  ) => {
+    let minX = img.width,
+      minY = img.height,
+      maxX = -1,
+      maxY = -1;
+    for (let gy = 0; gy < bboxGrid; gy++) {
+      const y = Math.min(img.height - 1, Math.floor(((gy + 0.5) * img.height) / bboxGrid));
+      for (let gx = 0; gx < bboxGrid; gx++) {
+        const x = Math.min(img.width - 1, Math.floor(((gx + 0.5) * img.width) / bboxGrid));
+        if (!isForegroundAt(img, bg, x, y)) continue;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+    if (maxX < 0 || maxY < 0) return null;
+    return { minX, minY, maxX, maxY };
   };
+
+  const refBbox = findBbox(ref, refBg);
+  const genBbox = findBbox(gen, genBg);
+  if (!refBbox || !genBbox) return null;
+
+  const grid = 64;
+  let diffOriginal = 0;
+  let diffFlipped = 0;
+
+  for (let gy = 0; gy < grid; gy++) {
+    const ry = Math.min(
+      ref.height - 1,
+      Math.floor(refBbox.minY + ((gy + 0.5) * (refBbox.maxY - refBbox.minY + 1)) / grid),
+    );
+    const gy2 = Math.min(
+      gen.height - 1,
+      Math.floor(genBbox.minY + ((gy + 0.5) * (genBbox.maxY - genBbox.minY + 1)) / grid),
+    );
+    for (let gx = 0; gx < grid; gx++) {
+      const rx = Math.min(
+        ref.width - 1,
+        Math.floor(refBbox.minX + ((gx + 0.5) * (refBbox.maxX - refBbox.minX + 1)) / grid),
+      );
+      const gx2 = Math.min(
+        gen.width - 1,
+        Math.floor(genBbox.minX + ((gx + 0.5) * (genBbox.maxX - genBbox.minX + 1)) / grid),
+      );
+      const gx2Flipped = genBbox.minX + (genBbox.maxX - gx2);
+      const refFg = isForegroundAt(ref, refBg, rx, ry);
+      const genFg = isForegroundAt(gen, genBg, gx2, gy2);
+      const genFgFlipped = isForegroundAt(gen, genBg, gx2Flipped, gy2);
+      if (refFg !== genFg) diffOriginal++;
+      if (refFg !== genFgFlipped) diffFlipped++;
+    }
+  }
+
+  const confidence = (Math.max(diffOriginal, diffFlipped) + 1) / (Math.min(diffOriginal, diffFlipped) + 1);
+  return { needsFlip: diffFlipped < diffOriginal, confidence, refDiff: diffOriginal, flippedDiff: diffFlipped };
 }
 
 /**
@@ -223,7 +285,7 @@ export async function POST(request: NextRequest) {
     // ── Step 1: Deterministic silhouette check (fast, no API call) ──
     const detResult = deterministicOrientationCheck(poseRefBuffer, imageBuffer);
     const detTag = detResult
-      ? `refCenter=${detResult.refCenter.toFixed(3)}, genCenter=${detResult.genCenter.toFixed(3)}, conf=${detResult.confidence.toFixed(2)}`
+      ? `refDiff=${detResult.refDiff}, flippedDiff=${detResult.flippedDiff}, conf=${detResult.confidence.toFixed(2)}`
       : 'inconclusive';
     console.log('[Auto-Flip] Deterministic check:', detTag, detResult ? `needsFlip=${detResult.needsFlip}` : '');
 
@@ -253,7 +315,8 @@ export async function POST(request: NextRequest) {
         console.warn('[Auto-Flip] Gemini API key not found; using fallback:', decisionSource);
       } else {
         console.log('[Auto-Flip] Calling Gemini API (deterministic was inconclusive)...');
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+        const geminiModel = process.env.GOOGLE_GEMINI_MODEL || 'gemini-2.5-flash';
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`;
 
         const flippedCandidateBase64 = flippedCandidateBuffer ? flippedCandidateBuffer.toString('base64') : null;
 
@@ -289,6 +352,7 @@ export async function POST(request: NextRequest) {
           if (!geminiResponse.ok) {
             const errorText = await geminiResponse.text();
             console.error('[Auto-Flip] Gemini API error:', geminiResponse.status, errorText.substring(0, 300));
+            geminiRawAnswer = `ERROR ${geminiResponse.status}: ${errorText.substring(0, 200)}`;
             // Fall back to deterministic or no-flip
             needsFlip = detResult?.needsFlip ?? false;
             decisionSource = detResult ? `deterministic-fallback (${detTag})` : 'default-no-flip (Gemini error)';
