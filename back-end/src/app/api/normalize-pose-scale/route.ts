@@ -17,12 +17,140 @@ const OFFSET_TOLERANCE = 0.03;   // 3 % of image height
 type DecodedPng = { width: number; height: number; data: Uint8Array; channels: number; depth?: number };
 interface BBox { top: number; bottom: number; left: number; right: number; width: number; height: number; }
 
+function inferBackground(png: DecodedPng) {
+  // Purpose: guess the background color from 4 corners (works when alpha is opaque).
+  const { width, height, data, channels } = png;
+  const bpp = channels;
+  const corner = (x: number, y: number) => {
+    const i = (y * width + x) * bpp;
+    const r = data[i];
+    const g = channels >= 3 ? data[i + 1] : r;
+    const b = channels >= 3 ? data[i + 2] : r;
+    return { r, g, b };
+  };
+  const c1 = corner(0, 0);
+  const c2 = corner(width - 1, 0);
+  const c3 = corner(0, height - 1);
+  const c4 = corner(width - 1, height - 1);
+  return {
+    r: (c1.r + c2.r + c3.r + c4.r) / 4,
+    g: (c1.g + c2.g + c3.g + c4.g) / 4,
+    b: (c1.b + c2.b + c3.b + c4.b) / 4,
+  };
+}
+
 function alphaAt(png: DecodedPng, x: number, y: number): number {
   // Purpose: handle both RGBA (4) and GA (2) decoded formats.
   const i = (y * png.width + x) * png.channels;
   if (png.channels === 4) return png.data[i + 3];
   if (png.channels === 2) return png.data[i + 1];
   return 255;
+}
+
+function rgbAt(png: DecodedPng, x: number, y: number) {
+  // Purpose: read pixel RGB regardless of channel layout.
+  const i = (y * png.width + x) * png.channels;
+  const r = png.data[i];
+  const g = png.channels >= 3 ? png.data[i + 1] : r;
+  const b = png.channels >= 3 ? png.data[i + 2] : r;
+  return { r, g, b };
+}
+
+function isNearBg(rgb: { r: number; g: number; b: number }, bg: { r: number; g: number; b: number }) {
+  // Purpose: tolerate compression/antialias differences.
+  return Math.abs(rgb.r - bg.r) <= 12 && Math.abs(rgb.g - bg.g) <= 12 && Math.abs(rgb.b - bg.b) <= 12;
+}
+
+function hasMeaningfulTransparency(png: DecodedPng) {
+  // Purpose: if alpha is truly used, trust alpha-only (avoid removing white details like eyes/teeth).
+  const hasAlpha = png.channels === 4 || png.channels === 2;
+  if (!hasAlpha) return false;
+  const { width, height } = png;
+  const sample = [
+    [0, 0],
+    [width - 1, 0],
+    [0, height - 1],
+    [width - 1, height - 1],
+    [Math.floor(width / 2), 0],
+    [0, Math.floor(height / 2)],
+  ] as const;
+  return sample.some(([x, y]) => alphaAt(png, x, y) < 20);
+}
+
+type BgClassifier = { isBg: (x: number, y: number) => boolean; bg: { r: number; g: number; b: number } };
+
+function buildBgClassifier(png: DecodedPng): BgClassifier {
+  // Purpose: classify background robustly for opaque-matte images without punching holes in interior whites.
+  const bg = inferBackground(png);
+  const useAlpha = hasMeaningfulTransparency(png);
+  if (useAlpha) {
+    return { bg, isBg: (x, y) => alphaAt(png, x, y) <= ALPHA_THRESHOLD };
+  }
+
+  const grid = 160;
+  const w = png.width;
+  const h = png.height;
+  const cells = new Uint8Array(grid * grid); // 1 = background-connected-to-edge
+  const seen = new Uint8Array(grid * grid);
+
+  const cellRgb = (cx: number, cy: number) => {
+    const x = Math.min(w - 1, Math.floor(((cx + 0.5) * w) / grid));
+    const y = Math.min(h - 1, Math.floor(((cy + 0.5) * h) / grid));
+    return rgbAt(png, x, y);
+  };
+  const isCellBgCandidate = (cx: number, cy: number) => {
+    const x = Math.min(w - 1, Math.floor(((cx + 0.5) * w) / grid));
+    const y = Math.min(h - 1, Math.floor(((cy + 0.5) * h) / grid));
+    if (alphaAt(png, x, y) <= ALPHA_THRESHOLD) return true;
+    return isNearBg(cellRgb(cx, cy), bg);
+  };
+
+  // Seed flood-fill from border cells that look like background.
+  const qx = new Int16Array(grid * grid);
+  const qy = new Int16Array(grid * grid);
+  let qh = 0,
+    qt = 0;
+  const push = (cx: number, cy: number) => {
+    const idx = cy * grid + cx;
+    if (seen[idx]) return;
+    seen[idx] = 1;
+    if (!isCellBgCandidate(cx, cy)) return;
+    cells[idx] = 1;
+    qx[qt] = cx;
+    qy[qt] = cy;
+    qt++;
+  };
+
+  for (let x = 0; x < grid; x++) {
+    push(x, 0);
+    push(x, grid - 1);
+  }
+  for (let y = 0; y < grid; y++) {
+    push(0, y);
+    push(grid - 1, y);
+  }
+
+  while (qh < qt) {
+    const cx = qx[qh];
+    const cy = qy[qh];
+    qh++;
+    if (cx > 0) push(cx - 1, cy);
+    if (cx + 1 < grid) push(cx + 1, cy);
+    if (cy > 0) push(cx, cy - 1);
+    if (cy + 1 < grid) push(cx, cy + 1);
+  }
+
+  return {
+    bg,
+    isBg: (x, y) => {
+      const cx = Math.min(grid - 1, Math.floor((x * grid) / w));
+      const cy = Math.min(grid - 1, Math.floor((y * grid) / h));
+      const idx = cy * grid + cx;
+      if (!cells[idx]) return false; // interior region -> not background
+      if (alphaAt(png, x, y) <= ALPHA_THRESHOLD) return true;
+      return isNearBg(rgbAt(png, x, y), bg);
+    },
+  };
 }
 
 function writeRgba(out: Uint8Array, outW: number, x: number, y: number, r: number, g: number, b: number, a: number) {
@@ -53,13 +181,14 @@ function readRgba(png: DecodedPng, x: number, y: number): [number, number, numbe
  */
 function opaqueBoundingBox(png: DecodedPng): BBox | null {
   const { width, height, data } = png;
+  const { isBg } = buildBgClassifier(png);
 
   // Per-row opaque pixel count (used to filter stray rows)
   const rowCounts = new Uint32Array(height);
   for (let y = 0; y < height; y++) {
     let count = 0;
     for (let x = 0; x < width; x++) {
-      if (alphaAt(png, x, y) > ALPHA_THRESHOLD) count++;
+      if (alphaAt(png, x, y) > ALPHA_THRESHOLD && !isBg(x, y)) count++;
     }
     rowCounts[y] = count;
   }
@@ -75,7 +204,7 @@ function opaqueBoundingBox(png: DecodedPng): BBox | null {
   for (let y = 0; y < height; y++) {
     if (rowCounts[y] < rowMin) continue;
     for (let x = 0; x < width; x++) {
-      if (alphaAt(png, x, y) > ALPHA_THRESHOLD) {
+      if (alphaAt(png, x, y) > ALPHA_THRESHOLD && !isBg(x, y)) {
         if (y < top) top = y;
         if (y > bottom) bottom = y;
         if (x < left) left = x;
@@ -99,6 +228,7 @@ function normalizeImage(
   refPng: DecodedPng,
 ): DecodedPng {
   const { width: canvasW, height: canvasH } = srcPng;
+  const { isBg: srcIsBg } = buildBgClassifier(srcPng);
 
   // Map refBox from reference image coords → generated image coords
   const xScale = canvasW / refPng.width;
@@ -141,6 +271,8 @@ function normalizeImage(
 
       const srcX = srcBox.left + Math.min(Math.floor(dx / scale), srcBox.width - 1);
 
+      // Purpose: preserve transparency even when src background is opaque.
+      if (alphaAt(srcPng, srcX, srcY) <= ALPHA_THRESHOLD || srcIsBg(srcX, srcY)) continue;
       const [r, g, b, a] = readRgba(srcPng, srcX, srcY);
       writeRgba(outData, canvasW, outX, outY, r, g, b, a);
     }
