@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 
 export const maxDuration = 25;
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 /**
  * Fetch from R2 and protect against truncated reads.
@@ -112,18 +114,10 @@ export async function GET(
       );
     }
     
-    // Determine cache strategy based on image type
-    // Background-removed images (nobg.png) should refresh more frequently to show updated versions
-    const isBackgroundRemoved = key.toLowerCase().includes('nobg') || 
-                                key.toLowerCase().includes('bg-removed') ||
-                                key.toLowerCase().includes('background-removed');
-    // v= token is content-addressed (changes only when the asset changes), so
-    // the browser can safely cache the response for that exact URL.
-    const cacheControl = cacheBuster
-      ? 'public, max-age=600, immutable'
-      : isBackgroundRemoved
-        ? 'public, max-age=60, must-revalidate, s-maxage=0'
-        : 'public, max-age=3600, s-maxage=3600';
+    // Purpose: ALWAYS serve the latest bytes from R2.
+    // Many assets are overwritten in-place (UI replace, flip tool, normalize tool, manual R2 edits).
+    // Any caching here can cause the UI to show an older version that no longer exists in R2.
+    const cacheControl = 'no-store, max-age=0';
     
     // Return image with proper headers (including CORS)
     const response = new NextResponse(imageBuffer, {
@@ -132,6 +126,10 @@ export async function GET(
         'Content-Type': contentType,
         ...(contentLength ? { 'Content-Length': String(contentLength) } : {}),
         'Cache-Control': cacheControl,
+        // Hint CDNs/proxies (including Cloudflare) not to cache even if configured aggressively.
+        'CDN-Cache-Control': cacheControl,
+        'Pragma': 'no-cache',
+        'Expires': '0',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
@@ -224,7 +222,11 @@ export async function HEAD(
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+        // Purpose: HEAD should also never be cached (used for freshness checks).
+        'Cache-Control': 'no-store, max-age=0',
+        'CDN-Cache-Control': 'no-store, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
   } catch (error: any) {
