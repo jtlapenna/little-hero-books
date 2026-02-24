@@ -48,7 +48,7 @@ export const ShippingSchema = z.object({
 export const RenderRequestSchema = z.object({
   orderId: z.string(),
   spec: z.object({
-    trim: z.string().default("8x10"),
+    trim: z.string().default("8.5x8.5"),
     bleed: z.string().default("0.125in"),
     pages: z.number().default(16), // 14 interior + 2 covers
     color: z.enum(["CMYK", "RGB"]).default("CMYK"),

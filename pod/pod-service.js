@@ -241,6 +241,8 @@ class PODService {
 
 // Helper function to create order from renderer output
 export function createPODOrderFromRenderer(rendererOutput, shippingAddress, childName) {
+  // Purpose: centralize SKU to env (provider-specific).
+  const sku = process.env.POD_BOOK_SKU || 'PB-8.5x8.5-16p-SC';
   return {
     orderId: rendererOutput.orderId,
     contactEmail: process.env.POD_CONTACT_EMAIL || 'ops@littleherobooks.com',
@@ -249,7 +251,7 @@ export function createPODOrderFromRenderer(rendererOutput, shippingAddress, chil
       title: `${childName} and the Adventure Compass`,
       printFileUrl: rendererOutput.bookPdfUrl,
       coverFileUrl: rendererOutput.coverPdfUrl,
-      sku: 'PB-8x10-16p-SC', // Personalized Book - 8x10 - 16 pages - Soft Cover
+      sku: sku,
       quantity: 1
     }],
     shippingMethod: 'ECONOMY'

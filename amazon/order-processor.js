@@ -254,7 +254,7 @@ async function processOrder(orderId) {
       const renderData = {
         orderId: `${orderId}-${child.name}`,
         spec: {
-          trim: "8x10",
+          trim: "8.5x8.5",
           bleed: "0.125in",
           pages: 16,
           color: "CMYK",

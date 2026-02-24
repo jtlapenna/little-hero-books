@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { determineNextWorkflow } from '@/lib/determine-next-workflow';
+import { fetchOrderRowByAnyId, updateOrderRowByAnyId } from '@/lib/order-lookup';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,15 +55,10 @@ export async function POST(
 
   try {
     // Fetch order from Supabase
-    const { data: order, error: fetchError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('amazon_order_id', orderId)
-      .single();
-
-    if (fetchError || !order) {
+    const { row: order } = await fetchOrderRowByAnyId<any>(supabase as any, orderId, '*');
+    if (!order) {
       return NextResponse.json(
-        { error: 'Order not found', details: fetchError?.message },
+        { error: 'Order not found' },
         { status: 404 }
       );
     }
@@ -110,7 +106,8 @@ export async function POST(
     };
 
     // Build R2 key
-    const r2Key = `book-mvp-simple-adventure/orders/${orderId}/manifests/1-manifest.json`;
+    const perBookOrderId = (order.orderId ?? order.order_id ?? orderId) as string;
+    const r2Key = `book-mvp-simple-adventure/orders/${perBookOrderId}/manifests/1-manifest.json`;
 
     // Upload to R2
     const manifestJson = JSON.stringify(manifest, null, 2);
@@ -136,28 +133,23 @@ export async function POST(
     });
 
     // Update Supabase with manifest URL (store key, not full URL)
-    const { error: updateError } = await supabase
-      .from('orders')
-      .update({
+    try {
+      await updateOrderRowByAnyId(supabase as any, perBookOrderId, {
         one_manifest_url: r2Key,
         execution_status: 'ready_for_processing',
         next_workflow: nextWorkflow, // Use determined workflow, not hardcoded '2A'
         error_message: null,
         error_type: null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('amazon_order_id', orderId);
-
-    if (updateError) {
+        updated_at: new Date().toISOString(),
+      });
+    } catch (updateError: unknown) {
       console.error('[Create Manifest] Failed to update Supabase:', updateError);
-      // Manifest was uploaded but Supabase update failed - still return success
-      // but log the error
     }
 
     return NextResponse.json({
       success: true,
       manifestKey: r2Key,
-      orderId: orderId,
+      orderId: perBookOrderId,
       message: 'Manifest created and uploaded successfully'
     });
 

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { determineNextWorkflow } from '@/lib/determine-next-workflow';
+import { fetchOrderRowByAnyId, updateOrderRowByAnyId } from '@/lib/order-lookup';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,18 +58,14 @@ export async function POST(
 
   try {
     // Fetch new order from Supabase
-    const { data: newOrder, error: fetchError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('amazon_order_id', newOrderId)
-      .single();
-
-    if (fetchError || !newOrder) {
+    const { row: newOrder } = await fetchOrderRowByAnyId<any>(supabase as any, newOrderId, '*');
+    if (!newOrder) {
       return NextResponse.json(
-        { error: 'Order not found', details: fetchError?.message },
+        { error: 'Order not found' },
         { status: 404 }
       );
     }
+    const perBookOrderId = (newOrder.orderId ?? newOrder.order_id ?? newOrderId) as string;
 
     // Check if order already has a 2B manifest (verify file actually exists in R2)
     if (newOrder.manifest_2b_url) {
@@ -95,17 +92,11 @@ export async function POST(
         }
         // File doesn't exist, clear the URL from Supabase and continue
         console.log(`[Create 2B Manifest] Supabase has manifest_2b_url but file doesn't exist, clearing URL and continuing`);
-        await supabase
-          .from('orders')
-          .update({ manifest_2b_url: null })
-          .eq('amazon_order_id', newOrderId);
+        await updateOrderRowByAnyId(supabase as any, perBookOrderId, { manifest_2b_url: null });
       } catch (error: any) {
         // File doesn't exist (404 or other error), clear the URL from Supabase and continue
         console.log(`[Create 2B Manifest] Manifest file not found in R2, clearing Supabase URL and continuing:`, error?.message);
-        await supabase
-          .from('orders')
-          .update({ manifest_2b_url: null })
-          .eq('amazon_order_id', newOrderId);
+        await updateOrderRowByAnyId(supabase as any, perBookOrderId, { manifest_2b_url: null });
       }
     }
 
@@ -125,11 +116,14 @@ export async function POST(
       .from('orders')
       .select('amazon_order_id, orderId, manifest_2b_url, character_hash')
       .eq('character_hash', newOrder.character_hash)
-      .neq('amazon_order_id', newOrderId)
       .not('manifest_2b_url', 'is', null)
-      .limit(1);
+      .limit(5);
 
-    if (sourceError || !sourceOrders || sourceOrders.length === 0) {
+    const filtered = (sourceOrders ?? []).filter((o: any) => {
+      const id = String(o?.orderId ?? o?.amazon_order_id ?? '').trim();
+      return id && id !== perBookOrderId;
+    });
+    if (sourceError || filtered.length === 0) {
       return NextResponse.json(
         { 
           error: 'No source order found',
@@ -139,7 +133,7 @@ export async function POST(
       );
     }
 
-    const sourceOrder = sourceOrders[0];
+    const sourceOrder = filtered[0];
     const sourceOrderId = sourceOrder.amazon_order_id || sourceOrder.orderId;
 
     if (!sourceOrder.manifest_2b_url) {
@@ -322,29 +316,24 @@ export async function POST(
 
     // Update Supabase with manifest URL and workflow step
     const updateNow = new Date().toISOString();
-    const { error: updateError } = await supabase
-      .from('orders')
-      .update({
+    try {
+      await updateOrderRowByAnyId(supabase as any, perBookOrderId, {
         manifest_2b_url: newManifestKey,
         workflow_step: 'bria_processing_complete',
         execution_status: 'ready_for_processing', // Ready for next workflow (usually 3)
         next_workflow: nextWorkflow, // Usually '3' for book assembly
         queued_at: updateNow, // Set queued_at so router picks it up
-        updated_at: updateNow
-      })
-      .eq('amazon_order_id', newOrderId);
-
-    if (updateError) {
+        updated_at: updateNow,
+      });
+    } catch (updateError: unknown) {
       console.error('[Create 2B Manifest] Failed to update Supabase:', updateError);
-      // Manifest was uploaded but Supabase update failed - still return success
-      // but log the error
     }
 
     return NextResponse.json({
       success: true,
       manifestKey: newManifestKey,
       manifestUrl: newManifestUrl,
-      orderId: newOrderId,
+      orderId: perBookOrderId,
       sourceOrderId: sourceOrderId,
       entriesCount: newManifest.entries.length,
       message: `2B manifest created successfully by reusing images from order ${sourceOrderId}`

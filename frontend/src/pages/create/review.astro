@@ -1,0 +1,16 @@
+---
+import CreateLayout from '../../layouts/CreateLayout.astro';
+import BookListSummary from '../../components/create/islands/BookListSummary.tsx';
+---
+
+<CreateLayout step="review" title="Review — Create Your Book | Little Hero Labs">
+  <section class="section-padding">
+    <BookListSummary client:load />
+  </section>
+</CreateLayout>
+
+<style>
+  .section-padding {
+    padding-top: var(--spacing-sm, 0.5rem);
+  }
+</style>

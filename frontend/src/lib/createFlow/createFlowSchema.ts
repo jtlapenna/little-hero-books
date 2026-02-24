@@ -65,8 +65,17 @@ export interface CreateFlowBook {
   dedication?: string;
 }
 
+/** One entry in the multi-book cart. */
+export interface CreateFlowBookEntry {
+  id: string;
+  character: CreateFlowCharacter;
+  preview?: CreateFlowPreview;
+  dedication?: string;
+}
+
 export interface CreateFlowCheckoutShipping {
   name: string;
+  phone: string;
   address1: string;
   address2?: string;
   city: string;
@@ -79,6 +88,10 @@ export interface CreateFlowCheckout {
   email?: string;
   shipping?: CreateFlowCheckoutShipping;
   shippingTier?: ShippingTierId;
+  /** Purpose: reuse the same idempotency key on transient checkout retries. */
+  idempotencyKey?: string;
+  /** Purpose: bound reuse window to avoid stale keys. Unix ms timestamp. */
+  idempotencyKeyCreatedAt?: number;
 }
 
 export interface CreateFlowOrder {
@@ -88,19 +101,42 @@ export interface CreateFlowOrder {
 }
 
 export interface CreateFlowState {
+  /** Current single-book fields (backward compat, used when books[] is empty). */
   character: CreateFlowCharacter;
   preview?: CreateFlowPreview;
   book?: CreateFlowBook;
+
+  /** Multi-book cart (preferred over single-book fields when non-empty). */
+  books: CreateFlowBookEntry[];
+  currentBookIndex: number;
+
   checkout?: CreateFlowCheckout;
   order?: CreateFlowOrder;
 }
 
+/** Generate a simple client-side ID for a book entry. */
+export function generateBookId(): string {
+  return crypto.randomUUID?.() ?? `book-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 /** Default state used when user starts the flow fresh. */
 export function getDefaultState(): CreateFlowState {
+  const id = generateBookId();
   return {
     character: { pronouns: 'they-them' },
     preview: { status: 'none', generationCount: 0 },
     book: { dedication: '' },
+    books: [{ id, character: { pronouns: 'they-them' }, preview: { status: 'none', generationCount: 0 } }],
+    currentBookIndex: 0,
     checkout: {},
   };
+}
+
+/** Helpers for working with the current book in the cart. */
+export function getCurrentBook(state: CreateFlowState): CreateFlowBookEntry {
+  return state.books[state.currentBookIndex] ?? state.books[0];
+}
+
+export function getBookCount(state: CreateFlowState): number {
+  return state.books.length;
 }

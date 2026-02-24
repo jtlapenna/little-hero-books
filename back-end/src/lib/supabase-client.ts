@@ -131,97 +131,85 @@ export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
 // Note: Database uses integer `id` as PK with snake_case columns
 // We can query by: id (integer), or any text field that matches
 export async function getOrderFromSupabase(orderId: string) {
-  // Trim orderId to handle trailing/leading spaces from data entry issues
+  // Purpose: tolerate trailing spaces and mixed identifier semantics.
   const trimmedOrderId = orderId.trim();
-  
-  // If orderId is numeric, try as integer id first (most common case)
-  const numericId = parseInt(trimmedOrderId);
-  if (!isNaN(numericId)) {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', numericId)
-      .single();
-    
-    if (!error) return data;
+  if (!trimmedOrderId) return null;
+
+  const numericId = /^\d+$/.test(trimmedOrderId) ? parseInt(trimmedOrderId, 10) : NaN;
+  if (!Number.isNaN(numericId)) {
+    const { data, error } = await supabase.from('orders').select('*').eq('id', numericId).maybeSingle();
+    if (error && error.code !== 'PGRST116') throw error;
+    if (data) return data;
   }
-  
-  // Try camelCase (orderId field) - might exist in some schemas
-  // First try exact match with trimmed orderId
-  let { data, error } = await supabase
+
+  const trySingleBy = async (column: string): Promise<Record<string, unknown> | null> => {
+    const { data, error } = await supabase.from('orders').select('*').eq(column, trimmedOrderId).maybeSingle();
+    if (error?.code === '42703') return null;
+    if (error) throw error;
+    if (data) return data as Record<string, unknown>;
+
+    const like = await supabase.from('orders').select('*').ilike(column, `${trimmedOrderId}%`).limit(1);
+    if (like.error?.code === '42703') return null;
+    if (like.error) throw like.error;
+    return (like.data?.[0] as Record<string, unknown> | undefined) ?? null;
+  };
+
+  // Purpose: prefer per-book identifiers first.
+  const byOrderId = await trySingleBy('orderId');
+  if (byOrderId) return byOrderId;
+
+  const byOrderIdSnake = await trySingleBy('order_id');
+  if (byOrderIdSnake) return byOrderIdSnake;
+
+  // Purpose: root_order_id may be a group key; return primary deterministically.
+  const { data: byRoot, error: rootError } = await supabase
     .from('orders')
     .select('*')
-    .eq('orderId', trimmedOrderId)
-    .single();
-  
-  // If exact match fails, try with trailing space pattern (database may have trailing spaces)
-  if (error && (error.code === 'PGRST116' || error.code === 'PGRST204')) {
-    ({ data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .ilike('orderId', `${trimmedOrderId}%`)
-      .single());
+    .eq('root_order_id', trimmedOrderId)
+    .limit(50);
+  if (rootError?.code !== '42703' && rootError) throw rootError;
+  if (byRoot && byRoot.length > 0) {
+    const primary =
+      byRoot.find((o: any) => String(o?.orderId ?? '').trim() === trimmedOrderId) ??
+      byRoot.find((o: any) => String(o?.order_id ?? '').trim() === trimmedOrderId) ??
+      byRoot[0];
+    return primary as any;
   }
-  
-  // If that fails, try snake_case (order_id field)
-  if (error && (error.code === '42703' || error.code === 'PGRST116' || error.code === 'PGRST204')) {
-    ({ data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('order_id', trimmedOrderId)
-      .single());
-    
-    // If exact match fails, try with trailing space pattern
-    if (error && (error.code === 'PGRST116' || error.code === 'PGRST204')) {
-      ({ data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .ilike('order_id', `${trimmedOrderId}%`)
-        .single());
-    }
-  }
-  
-  // If that fails, try amazon_order_id (text field) - this is the most common case
-  if (error && (error.code === '42703' || error.code === 'PGRST116' || error.code === 'PGRST204')) {
-    ({ data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('amazon_order_id', trimmedOrderId)
-      .single());
-    
-    // If exact match fails, try with trailing space pattern (handles trailing spaces in database)
-    if (error && (error.code === 'PGRST116' || error.code === 'PGRST204')) {
-      ({ data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .ilike('amazon_order_id', `${trimmedOrderId}%`)
-        .single());
-    }
-  }
-  
-  if (error) {
-    const noRows =
-      error.code === 'PGRST116' ||
-      error.code === 'PGRST204' ||
-      (typeof error.message === 'string' &&
-        error.message.toLowerCase().includes('contains 0 rows'));
 
-    if (noRows) {
-      return null;
-    }
-
-    console.error(`[Supabase] Error fetching order ${orderId}:`, error);
-    throw error;
+  // Purpose: legacy fallback during transition.
+  const { data: byAmazon, error: amazonError } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('amazon_order_id', trimmedOrderId)
+    .limit(50);
+  if (amazonError?.code !== '42703' && amazonError) throw amazonError;
+  if (byAmazon && byAmazon.length > 0) {
+    const primary =
+      byAmazon.find((o: any) => String(o?.orderId ?? '').trim() === trimmedOrderId) ??
+      byAmazon.find((o: any) => String(o?.order_id ?? '').trim() === trimmedOrderId) ??
+      byAmazon[0];
+    return primary as any;
   }
-  return data;
+
+  const byRootLike = await supabase
+    .from('orders')
+    .select('*')
+    .ilike('root_order_id', `${trimmedOrderId}%`)
+    .limit(1);
+  if (byRootLike.error?.code !== '42703' && byRootLike.error) throw byRootLike.error;
+  if (byRootLike.data?.[0]) return byRootLike.data[0] as any;
+
+  const byAmazonLike = await supabase
+    .from('orders')
+    .select('*')
+    .ilike('amazon_order_id', `${trimmedOrderId}%`)
+    .limit(1);
+  if (byAmazonLike.error?.code !== '42703' && byAmazonLike.error) throw byAmazonLike.error;
+  return (byAmazonLike.data?.[0] as any) ?? null;
 }
 
 export async function updateOrderInSupabase(orderId: string, updates: any) {
-  // PSEUDOCODE
-  // - Convert update payload to DB column names
-  // - Try UPDATE by the most common identifier fields (amazon_order_id, orderId, order_id, id)
-  // - Avoid `.single()` on UPDATE results (it can error even when the UPDATE applied)
-  // - Only INSERT when we are confident no existing row matches
+  // Purpose: update an existing order by per-book identity (fail if not found).
 
   // Convert camelCase to snake_case for database columns
   const updateData: any = {};
@@ -259,171 +247,75 @@ export async function updateOrderInSupabase(orderId: string, updates: any) {
   // Always add updated_at timestamp
   updateData.updated_at = new Date().toISOString();
   
-  // Try to find order by multiple possible fields
-  // This handles both:
-  // - Real Amazon orders (stored in amazon_order_id)
-  // - Manual/dummy orders (stored in orderId, order_id, or id)
-  // Priority: Try all possible fields to ensure we find the order regardless of type
-  let data: any = null;
-  let error: any = null;
-  
-  // Strategy: Try all possible identifier fields in parallel-friendly order
-  // 1. Try amazon_order_id (for real Amazon orders)
-  const result1 = await supabase
-      .from('orders')
-      .update(updateData)
-    .eq('amazon_order_id', orderId)
-      .select('id');
-  data = result1.data?.[0] || null;
-  error = result1.error;
-  
-  // 2. If that fails, try orderId (camelCase - for manual/dummy orders)
-  if (!data && error && (error.code === '42703' || error.code === 'PGRST116')) {
-    const result2 = await supabase
-      .from('orders')
-      .update(updateData)
-      .eq('orderId', orderId)
-      .select('id');
-    data = result2.data?.[0] || null;
-    error = result2.error;
+  const trimmedOrderId = String(orderId ?? '').trim();
+  if (!trimmedOrderId) throw new Error('[Supabase] Missing orderId for update');
+
+  const numericId = /^\d+$/.test(trimmedOrderId) ? parseInt(trimmedOrderId, 10) : NaN;
+
+  const tryUpdate = async (applyFilters: (q: any) => any): Promise<any | null> => {
+    // Purpose: treat 0-row updates as a miss so we can try the next identifier.
+    const { data, error } = await applyFilters(supabase.from('orders').update(updateData)).select('id');
+    if (error?.code === '42703') return null; // Purpose: column missing in this schema.
+    if (error) throw error;
+    return data?.[0] ?? null; // Purpose: 0 rows updated → null (trigger fallback).
+  };
+
+  // Purpose: prefer per-book identifiers, then a safe amazon root lookup (primary row only).
+  const byOrderId = await tryUpdate((q) => q.eq('orderId', trimmedOrderId));
+  if (byOrderId) return byOrderId;
+
+  const byOrderIdSnake = await tryUpdate((q) => q.eq('order_id', trimmedOrderId));
+  if (byOrderIdSnake) return byOrderIdSnake;
+
+  if (!Number.isNaN(numericId)) {
+    const byId = await tryUpdate((q) => q.eq('id', numericId));
+    if (byId) return byId;
   }
-  
-  // 3. If that fails, try order_id (snake_case - alternative for manual orders)
-  if (!data && error && (error.code === '42703' || error.code === 'PGRST116')) {
-    const result3 = await supabase
-      .from('orders')
-      .update(updateData)
-      .eq('order_id', orderId)
-      .select('id');
-    data = result3.data?.[0] || null;
-    error = result3.error;
-  }
-  
-  // 4. If that fails and orderId is numeric, try id (for numeric IDs)
-  const numericId = parseInt(orderId);
-  if (!data && error && (error.code === '42703' || error.code === 'PGRST116') && !isNaN(numericId)) {
-    const result4 = await supabase
-      .from('orders')
-      .update(updateData)
-      .eq('id', numericId)
-      .select('id');
-    data = result4.data?.[0] || null;
-    error = result4.error;
-  }
-  
-  // If we updated at least one row, we're done.
-  if (data && !error) return data;
 
-  if (error) {
-    // Only try to insert if the error is "no rows found" (PGRST116)
-    // If it's a different error (like duplicate key), don't try to insert
-    if (
-      error.code === 'PGRST116' ||
-      (typeof error.message === 'string' && error.message.toLowerCase().includes('results contain 0 rows'))
-    ) {
-      // Double-check that the order doesn't exist before inserting
-      // Try to find it by all possible identifier fields (supports both Amazon and manual orders)
-      let checkResult = await supabase
-        .from('orders')
-        .select('id, amazon_order_id, orderId, order_id')
-        .eq('amazon_order_id', orderId)
-        .maybeSingle();
-      
-      // If not found by amazon_order_id, try orderId
-      if (!checkResult.data) {
-        checkResult = await supabase
-          .from('orders')
-          .select('id, amazon_order_id, orderId, order_id')
-          .eq('orderId', orderId)
-          .maybeSingle();
-      }
-      
-      // If not found by orderId, try order_id
-      if (!checkResult.data) {
-        checkResult = await supabase
-          .from('orders')
-          .select('id, amazon_order_id, orderId, order_id')
-          .eq('order_id', orderId)
-          .maybeSingle();
-      }
-      
-      // If not found and orderId is numeric, try id
-      if (!checkResult.data && !isNaN(numericId)) {
-        checkResult = await supabase
-          .from('orders')
-          .select('id, amazon_order_id, orderId, order_id')
-          .eq('id', numericId)
-          .maybeSingle();
-      }
-      
-      if (checkResult.data) {
-        // Order exists, determine which field to use for update
-        const order = checkResult.data;
-        let retryResult;
-        
-        if (order.amazon_order_id === orderId) {
-          retryResult = await supabase
-            .from('orders')
-            .update(updateData)
-            .eq('amazon_order_id', orderId)
-            .select('id');
-        } else if (order.orderId === orderId) {
-          retryResult = await supabase
-            .from('orders')
-            .update(updateData)
-            .eq('orderId', orderId)
-            .select('id');
-        } else if (order.order_id === orderId) {
-          retryResult = await supabase
-            .from('orders')
-            .update(updateData)
-            .eq('order_id', orderId)
-            .select('id');
-        } else if (!isNaN(numericId) && order.id === numericId) {
-          retryResult = await supabase
-            .from('orders')
-            .update(updateData)
-            .eq('id', numericId)
-            .select('id');
-        }
-        
-        if (retryResult?.data?.length) {
-          console.log(`[Supabase] Order ${orderId} found and updated successfully`);
-          return retryResult.data[0];
-        }
-        // If retry still fails, throw the error
-        console.error(`[Supabase] Retry update failed for order ${orderId}:`, retryResult?.error);
-        throw retryResult?.error || error;
-      }
-      
-      // Order doesn't exist, safe to insert
-      const insertPayload: any = {
-        amazon_order_id: orderId,
-        orderId: orderId, // Ensure orderId is set (required column)
-        status: updateData.status || 'pending_processing',
-        created_at: new Date().toISOString(),
-        updated_at: updateData.updated_at,
-        ...updateData
-      };
+  // Purpose: root_order_id may be group key; only update the primary row when caller passes root id.
+  const byRootPrimary =
+    (await tryUpdate(
+      (q) => q.eq('root_order_id', trimmedOrderId).eq('orderId', trimmedOrderId)
+    )) ||
+    (await tryUpdate(
+      (q) => q.eq('root_order_id', trimmedOrderId).eq('order_id', trimmedOrderId)
+    ));
+  if (byRootPrimary) return byRootPrimary;
 
-      const { data: insertData, error: insertError } = await supabase
-        .from('orders')
-        .insert(insertPayload)
-        .select('id');
+  // Purpose: legacy fallback during transition.
+  const byAmazonPrimary =
+    (await tryUpdate(
+      (q) => q.eq('amazon_order_id', trimmedOrderId).eq('orderId', trimmedOrderId)
+    )) ||
+    (await tryUpdate(
+      (q) => q.eq('amazon_order_id', trimmedOrderId).eq('order_id', trimmedOrderId)
+    ));
+  if (byAmazonPrimary) return byAmazonPrimary;
 
-      if (insertError) {
-        console.error(`[Supabase] Error inserting order ${orderId}:`, insertError);
-        throw insertError;
-      }
+  throw new Error(`[Supabase] Order not found for update: ${trimmedOrderId}`);
+}
 
-      return insertData?.[0] || null;
-    }
+export async function listOrdersByAmazonRootId(amazonOrderId: string) {
+  // Purpose: list sibling groups by canonical root key, with legacy fallback.
+  const root = amazonOrderId.trim();
+  if (!root) return [];
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('root_order_id', root)
+    .order('created_at', { ascending: true })
+    .limit(200);
+  if (error?.code !== '42703' && error) throw error;
+  if (data && data.length > 0) return data;
 
-    // For other errors (like duplicate key, constraint violations, etc.), just throw
-    console.error(`[Supabase] Error updating order ${orderId}:`, error);
-    throw error;
-  }
-  return data;
+  const legacy = await supabase
+    .from('orders')
+    .select('*')
+    .eq('amazon_order_id', root)
+    .order('created_at', { ascending: true })
+    .limit(200);
+  if (legacy.error) throw legacy.error;
+  return legacy.data ?? [];
 }
 
 export async function createOrderInSupabase(order: any) {

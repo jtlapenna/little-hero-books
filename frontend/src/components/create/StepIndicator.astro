@@ -1,13 +1,14 @@
 ---
 interface Props {
-  currentStep: 'character' | 'customize' | 'checkout' | 'processing';
+  currentStep: 'character' | 'customize' | 'review' | 'checkout' | 'processing';
 }
 
 const { currentStep } = Astro.props;
 
-const steps: { id: 'character' | 'customize' | 'checkout' | 'processing'; label: string }[] = [
+const steps: { id: string; label: string }[] = [
   { id: 'character', label: 'Character' },
   { id: 'customize', label: 'Customize' },
+  { id: 'review', label: 'Review' },
   { id: 'checkout', label: 'Checkout' },
   { id: 'processing', label: 'Processing' },
 ];
@@ -24,7 +25,20 @@ const steps: { id: 'character' | 'customize' | 'checkout' | 'processing'; label:
       </li>
     ))}
   </ol>
+  <span class="step-book-count" id="step-book-count" style="display:none;"></span>
 </nav>
+
+<script>
+  import { load } from '../../lib/createFlow/createFlowStorage';
+  const state = load();
+  if (state && state.books && state.books.length > 1) {
+    const badge = document.getElementById('step-book-count');
+    if (badge) {
+      badge.textContent = `${state.books.length} books`;
+      badge.style.display = 'inline-block';
+    }
+  }
+</script>
 
 <style>
   .step-indicator {
@@ -67,6 +81,18 @@ const steps: { id: 'character' | 'customize' | 'checkout' | 'processing'; label:
     white-space: nowrap;
   }
 
+  .step-book-count {
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--color-teal, #5AC6B1);
+    border-radius: 12px;
+    padding: 0.125rem 0.5rem;
+    margin-left: var(--spacing-sm, 0.5rem);
+    vertical-align: middle;
+  }
+
   /* Scale down on narrow screens to keep all steps on one line */
   @media (max-width: 420px) {
     .step-item { font-size: 0.75rem; }
@@ -74,5 +100,6 @@ const steps: { id: 'character' | 'customize' | 'checkout' | 'processing'; label:
       margin-left: 0.25rem;
       margin-right: 0.25rem;
     }
+    .step-book-count { font-size: 0.625rem; }
   }
 </style>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase-client';
+import { supabase, getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 import { LULU_TO_ORDER_STATUS } from '@/lib/lulu-status-map';
 
 // Force dynamic rendering
@@ -26,57 +26,8 @@ export async function GET(
 
     console.log('[Refresh Lulu Status] Looking up order:', orderId);
 
-    // Fetch order from Supabase - try multiple identifier fields
-    let order = null;
-    let findError = null;
-    
-    // Try amazon_order_id first (most common)
-    const result1 = await supabase
-      .from('orders')
-      .select('*')
-      .eq('amazon_order_id', orderId)
-      .maybeSingle();
-    
-    if (result1.data) {
-      order = result1.data;
-    } else if (result1.error && result1.error.code !== 'PGRST116') {
-      findError = result1.error;
-    } else {
-      // Try orderId (camelCase)
-      const result2 = await supabase
-        .from('orders')
-        .select('*')
-        .eq('orderId', orderId)
-        .maybeSingle();
-      
-      if (result2.data) {
-        order = result2.data;
-      } else if (result2.error && result2.error.code !== 'PGRST116') {
-        findError = result2.error;
-      } else {
-        // Try order_id (snake_case)
-        const result3 = await supabase
-          .from('orders')
-          .select('*')
-          .eq('order_id', orderId)
-          .maybeSingle();
-        
-        if (result3.data) {
-          order = result3.data;
-        } else {
-          findError = result3.error;
-        }
-      }
-    }
-
-    if (findError) {
-      console.error('[Refresh Lulu Status] Error finding order:', findError);
-      return NextResponse.json(
-        { error: 'Failed to find order', details: findError.message },
-        { status: 500 }
-      );
-    }
-
+    // Purpose: resolve per-book row (amazon_order_id may be a sibling group key).
+    const order = await getOrderFromSupabase(orderId).catch(() => null);
     if (!order) {
       console.error('[Refresh Lulu Status] Order not found for orderId:', orderId);
       return NextResponse.json(
@@ -215,10 +166,17 @@ export async function GET(
     if (carrier) {
       updates.carrier = carrier;
     }
-    // When SHIPPED or DELIVERED, set timestamps so manual refresh matches webhook behavior
+    // When SHIPPED/DELIVERED, set timestamps (but never overwrite shipped_at on delivery).
     if (newStatus === 'SHIPPED' || newStatus === 'DELIVERED') {
       const now = new Date().toISOString();
-      updates.shipped_at = now;
+      if (newStatus === 'SHIPPED' && !order.shipped_at) {
+        updates.shipped_at = now;
+      }
+      if (newStatus === 'DELIVERED') {
+        if (!order.delivered_at) updates.delivered_at = now;
+        updates.lifecycle_status = 'recently_delivered';
+        updates.assumed_delivered_at = now;
+      }
       updates.print_fulfillment_finished_at = now;
     }
 
@@ -240,106 +198,13 @@ export async function GET(
       }
     }
 
-    // Update using the identifier that was used to find the order
-    // Try multiple fields to ensure we update correctly
-    let updatedOrder = null;
-    let updateError = null;
-    
-    // Try updating by amazon_order_id first (if it exists)
-    if (order.amazon_order_id) {
-      const result1 = await supabase
-        .from('orders')
-        .update(updates)
-        .eq('amazon_order_id', order.amazon_order_id)
-        .select()
-        .single();
-      
-      if (!result1.error) {
-        updatedOrder = result1.data;
-      } else {
-        updateError = result1.error;
-      }
-    }
-    
-    // If that didn't work or amazon_order_id doesn't exist, try orderId
-    if (!updatedOrder && order.orderId) {
-      const result2 = await supabase
-        .from('orders')
-        .update(updates)
-        .eq('orderId', order.orderId)
-        .select()
-        .single();
-      
-      if (!result2.error) {
-        updatedOrder = result2.data;
-        updateError = null;
-      } else {
-        updateError = result2.error;
-      }
-    }
-    
-    // If that didn't work, try order_id
-    if (!updatedOrder && order.order_id) {
-      const result3 = await supabase
-        .from('orders')
-        .update(updates)
-        .eq('order_id', order.order_id)
-        .select()
-        .single();
-      
-      if (!result3.error) {
-        updatedOrder = result3.data;
-        updateError = null;
-      } else {
-        updateError = result3.error;
-      }
-    }
-    
-    // Last resort: try by id if it exists
-    if (!updatedOrder && order.id) {
-      const result4 = await supabase
-        .from('orders')
-        .update(updates)
-        .eq('id', order.id)
-        .select()
-        .single();
-      
-      if (!result4.error) {
-        updatedOrder = result4.data;
-        updateError = null;
-      } else {
-        updateError = result4.error;
-      }
-    }
-
-    if (updateError) {
-      console.error('[Refresh Lulu Status] Update failed:', {
-        error: updateError,
-        orderId,
-        orderIdentifier: order.amazon_order_id || order.orderId || order.order_id,
-        updates
-      });
-      return NextResponse.json(
-        { 
-          error: 'Failed to update order', 
-          details: updateError.message,
-          orderId,
-          triedFields: ['amazon_order_id', 'orderId', 'order_id', 'id']
-        },
-        { status: 500 }
-      );
-    }
-
+    // Purpose: update per-book row safely (amazon_order_id can be a sibling group key).
+    const perBookId = (order as any).orderId || (order as any).order_id || orderId;
+    await updateOrderInSupabase(String(perBookId), updates);
+    const updatedOrder = await getOrderFromSupabase(String(perBookId)).catch(() => null);
     if (!updatedOrder) {
-      console.error('[Refresh Lulu Status] Update returned no data:', {
-        orderId,
-        orderIdentifier: order.amazon_order_id || order.orderId || order.order_id
-      });
       return NextResponse.json(
-        { 
-          error: 'Update succeeded but no order data returned',
-          orderId
-        },
+        { error: 'Update succeeded but order could not be reloaded', orderId: String(perBookId) },
         { status: 500 }
       );
     }

@@ -59,7 +59,7 @@ app.post("/render", async (req: Request, res: Response) => {
     
     const renderData = {
       orderId,
-      spec: spec || { format: '8x10', pages: 16, binding: 'softcover' },
+      spec: spec || { format: '8.5x8.5', pages: 16, binding: 'softcover' },
       manuscript,
       assets: assets || {}, // Prefab backgrounds and overlays
       child,

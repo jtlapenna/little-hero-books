@@ -81,6 +81,29 @@ export async function processAmazonOrders(
     console.log(`[Cron Amazon Orders] [${executionId}] ⚠️ TEST MODE ENABLED - Using mock Amazon order data`);
   }
 
+  const upsertByPerBookOrderId = async (payload: Record<string, unknown>) => {
+    // Purpose: avoid relying on DB ON CONFLICT shape; update by per-book id when row exists.
+    const perBookId = String(payload.orderId ?? payload.order_id ?? '').trim();
+    if (!perBookId) return { data: null, error: new Error('Missing orderId for upsert') };
+
+    const byOrderId = await supabase.from('orders').select('id').eq('orderId', perBookId).maybeSingle();
+    if (byOrderId.error?.code !== 'PGRST116' && byOrderId.error?.code !== '42703' && byOrderId.error) {
+      return { data: null, error: byOrderId.error };
+    }
+    const byOrderIdSnake = byOrderId.error?.code === '42703'
+      ? await supabase.from('orders').select('id').eq('order_id', perBookId).maybeSingle()
+      : null;
+    if (byOrderIdSnake?.error && byOrderIdSnake.error.code !== 'PGRST116') {
+      return { data: null, error: byOrderIdSnake.error };
+    }
+
+    const existingId = (byOrderId.data as any)?.id ?? (byOrderIdSnake?.data as any)?.id;
+    if (typeof existingId === 'number') {
+      return await supabase.from('orders').update(payload).eq('id', existingId).select().single();
+    }
+    return await supabase.from('orders').insert(payload).select().single();
+  };
+
   try {
     let amazonOrders: any[] = [];
     let accessToken: string | null = null;
@@ -162,7 +185,7 @@ export async function processAmazonOrders(
           const { data: existingRow } = await supabase
             .from('orders')
             .select('character_specs, execution_status, next_workflow')
-            .eq('amazon_order_id', retryOrderIdValue)
+            .eq('root_order_id', retryOrderIdValue)
             .maybeSingle();
 
           const existingSpecs = existingRow?.character_specs;
@@ -173,7 +196,21 @@ export async function processAmazonOrders(
             // Trigger W0 if still pending (CSV may have failed to trigger it, e.g. W0 was inactive)
             if (existingRow?.execution_status === 'pending_w0' && !existingRow?.next_workflow && n8nW0WebhookUrl) {
               try {
-                const { data: fullOrder } = await supabase.from('orders').select('*').eq('amazon_order_id', retryOrderIdValue).single();
+                // Purpose: amazon_order_id can be a group key; prefer per-book lookup for the primary row.
+                const byOrderId = await supabase.from('orders').select('*').eq('orderId', retryOrderIdValue).maybeSingle();
+                const byOrderIdSnake = byOrderId.error?.code === '42703'
+                  ? await supabase.from('orders').select('*').eq('order_id', retryOrderIdValue).maybeSingle()
+                  : null;
+                const byAmazon = (!byOrderId.data && !byOrderIdSnake?.data)
+                  ? await supabase.from('orders').select('*').eq('root_order_id', retryOrderIdValue).limit(50)
+                  : null;
+
+                const fullOrder =
+                  (byOrderId.data as any) ??
+                  (byOrderIdSnake?.data as any) ??
+                  (byAmazon?.data
+                    ? (byAmazon.data as any[]).find((o) => String(o?.orderId ?? '').trim() === retryOrderIdValue) ?? (byAmazon.data as any[])[0]
+                    : null);
                 if (fullOrder) {
                   let sa = fullOrder.shipping_address;
                   if (typeof sa === 'string') { try { sa = JSON.parse(sa); } catch { sa = null; } }
@@ -216,10 +253,9 @@ export async function processAmazonOrders(
             }
           } else {
             console.warn(`[Cron Amazon Orders] [${executionId}] Order ${retryOrderIdValue} has no customization data - storing for retry`);
-            const { error: storeError } = await supabase
-              .from('orders')
-              .upsert({
+            const { error: storeError } = await upsertByPerBookOrderId({
                 orderId: retryOrderIdValue,
+                root_order_id: retryOrderIdValue,
                 amazon_order_id: retryOrderIdValue,
                 execution_status: 'pending_w0',
                 next_workflow: null,
@@ -229,9 +265,6 @@ export async function processAmazonOrders(
                 purchase_date: amazonOrder.PurchaseDate || new Date().toISOString(),
                 updated_at: new Date().toISOString(),
                 product_info: { _customization_missing: true, _retry_on_next_cron: true },
-              }, {
-                onConflict: 'amazon_order_id',
-                ignoreDuplicates: false,
               });
 
             if (storeError) {
@@ -257,12 +290,38 @@ export async function processAmazonOrders(
         const characterSpecs = orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs || {};
         const characterHash = calculateCharacterHash(characterSpecs, orderIdValue);
         
-        // Check if order already exists to avoid overwriting w0's progress
-        const { data: existingOrder } = await supabase
+        // Check if order already exists to avoid overwriting W0 progress.
+        // Purpose: amazon_order_id can be a sibling group key; prefer per-book lookup first.
+        const byOrderId = await supabase
           .from('orders')
-          .select('execution_status, next_workflow, workflow_step')
-          .eq('amazon_order_id', orderIdValue)
-          .single();
+          .select('execution_status, next_workflow, workflow_step, orderId')
+          .eq('orderId', orderIdValue)
+          .maybeSingle();
+        if (byOrderId.error?.code !== '42703' && byOrderId.error) throw byOrderId.error;
+        const byOrderIdSnake = byOrderId.error?.code === '42703'
+          ? await supabase
+              .from('orders')
+              .select('execution_status, next_workflow, workflow_step, orderId')
+              .eq('order_id', orderIdValue)
+              .maybeSingle()
+          : null;
+        if (byOrderIdSnake?.error) throw byOrderIdSnake.error;
+        const byAmazon = (!byOrderId.data && !byOrderIdSnake?.data)
+          ? await supabase
+              .from('orders')
+              .select('execution_status, next_workflow, workflow_step, orderId')
+              .eq('root_order_id', orderIdValue)
+              .limit(50)
+          : null;
+        if (byAmazon?.error) throw byAmazon.error;
+        const existingOrder =
+          (byOrderId.data as any) ??
+          (byOrderIdSnake?.data as any) ??
+          (byAmazon?.data
+            ? (byAmazon.data as any[]).find((o) => String(o?.orderId ?? '').trim() === orderIdValue) ??
+              (byAmazon.data as any[]).find((o) => String(o?.order_id ?? '').trim() === orderIdValue) ??
+              (byAmazon.data as any[])[0]
+            : null);
         
         // Only set execution_status and next_workflow if order is new or still in initial state
         // Don't overwrite if w0 has already processed it
@@ -271,6 +330,7 @@ export async function processAmazonOrders(
         
         const supabaseOrderData: any = {
           orderId: orderIdValue,
+          root_order_id: orderIdValue,
           amazon_order_id: orderIdValue,
           character_hash: characterHash,
           order_status: orderData.status || 'Unshipped',
@@ -298,14 +358,7 @@ export async function processAmazonOrders(
         }
         // If order already exists and w0 has processed it, don't overwrite those fields
         
-        const { data: storedOrder, error: storeError } = await supabase
-          .from('orders')
-          .upsert(supabaseOrderData, {
-            onConflict: 'amazon_order_id',
-            ignoreDuplicates: false,
-          })
-          .select()
-          .single();
+        const { data: storedOrder, error: storeError } = await upsertByPerBookOrderId(supabaseOrderData);
 
         if (storeError) {
           throw new Error(`Supabase store failed: ${storeError.message}`);

@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase } from '@/lib/supabase-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,18 +20,15 @@ export async function DELETE(
     return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
   }
 
-  // Try deleting by orderId first, then amazon_order_id
-  let deleted = false;
-
-  const r1 = await supabase.from('orders').delete().eq('orderId', orderId).select('id');
-  if (r1.data && r1.data.length > 0) deleted = true;
-
-  if (!deleted) {
-    const r2 = await supabase.from('orders').delete().eq('amazon_order_id', orderId).select('id');
-    if (r2.data && r2.data.length > 0) deleted = true;
+  // Purpose: delete exactly one per-book row (amazon_order_id can be a group key).
+  const existing = await getOrderFromSupabase(orderId).catch(() => null);
+  const id = (existing as any)?.id;
+  if (!existing || typeof id !== 'number') {
+    return NextResponse.json({ error: 'Order not found', orderId }, { status: 404 });
   }
 
-  if (!deleted) {
+  const r = await supabase.from('orders').delete().eq('id', id).select('id');
+  if (!r.data || r.data.length === 0) {
     return NextResponse.json({ error: 'Order not found', orderId }, { status: 404 });
   }
 

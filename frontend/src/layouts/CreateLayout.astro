@@ -7,7 +7,7 @@ import StepIndicator from '../components/create/StepIndicator.astro';
 import BackLink from '../components/create/BackLink.astro';
 
 interface Props {
-  step: 'character' | 'customize' | 'checkout' | 'processing';
+  step: 'character' | 'customize' | 'review' | 'checkout' | 'processing';
   title: string;
   description?: string;
   image?: string;
@@ -24,13 +24,15 @@ const ogImage = image || `${siteUrl}/og-image.jpg`;
 const backHrefByStep: Record<typeof step, string> = {
   character: '/our-books',
   customize: '/create/character',
-  checkout: '/create/customize',
+  review: '/create/customize',
+  checkout: '/create/review',
   processing: '',
 };
 const backLabelByStep: Record<typeof step, string> = {
   character: 'Back to books',
   customize: 'Back to character',
-  checkout: 'Back to customize',
+  review: 'Back to customize',
+  checkout: 'Back to review',
   processing: '',
 };
 const showBackLink = step !== 'processing';
@@ -97,7 +99,7 @@ const showStartOver = step !== 'character';
   const step = document.body?.dataset?.createStep as string | undefined;
   if (step && step !== 'character') {
     const state = load();
-    if (!canAccessStep(step as 'customize' | 'checkout' | 'processing', state)) {
+    if (!canAccessStep(step as 'customize' | 'review' | 'checkout' | 'processing', state)) {
       window.location.href = '/create/character?toast=missing_state';
     }
   }

@@ -12,7 +12,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 
 // Delivery time assumptions by shipping level (days after SHIPPED)
-// Lulu does not provide DELIVERED status, so we assume based on service level
+// Purpose: when we only know SHIPPED, assume delivery based on service level.
 const DELIVERY_DAYS: Record<string, number> = {
   EXPRESS: 3,
   EXPEDITED: 5,
@@ -104,11 +104,11 @@ export async function processOrderLifecycle(supabase: SupabaseClient): Promise<L
     result.errors.push(`Delivered-no-shipped processing: ${err.message}`);
   }
 
-  // 1b. Shipped/delivered orders WITH shipped_at — use delivery window calculation
+  // 1b. Shipped orders WITH shipped_at — use delivery window calculation
   try {
     const { data: shippedOrders, error: shippedError } = await supabase
       .from('orders')
-      .select('orderId, shipped_at, amazon_shipment_service_level')
+      .select('orderId, lulu_status, shipped_at, amazon_shipment_service_level, updated_at')
       .in('lulu_status', ['SHIPPED', 'DELIVERED'])
       .or('lifecycle_status.eq.active,lifecycle_status.is.null')
       .not('shipped_at', 'is', null);
@@ -117,6 +117,25 @@ export async function processOrderLifecycle(supabase: SupabaseClient): Promise<L
       result.errors.push(`Fetch shipped orders: ${shippedError.message}`);
     } else if (shippedOrders) {
       for (const order of shippedOrders) {
+        // Purpose: if we have an explicit DELIVERED from Lulu, move immediately (do not wait the assumed window).
+        if (order.lulu_status === 'DELIVERED') {
+          const deliveredAt = order.updated_at || now.toISOString();
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+              lifecycle_status: 'recently_delivered',
+              assumed_delivered_at: deliveredAt,
+            })
+            .eq('orderId', order.orderId);
+
+          if (updateError) {
+            result.errors.push(`Mark delivered (explicit) ${order.orderId}: ${updateError.message}`);
+          } else {
+            result.markedDelivered++;
+          }
+          continue;
+        }
+
         const level = order.amazon_shipment_service_level || 'MAIL';
         const deliveryDays = getDeliveryDaysForShippingLevel(level);
         const shippedDate = new Date(order.shipped_at);

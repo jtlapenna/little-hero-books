@@ -6,6 +6,6 @@ Authorization: Bearer {{POD_API_KEY}}
 
 {
   "recipient": { "name": "{{shipping_name}}", "address1": "{{address1}}", "city": "{{city}}", "state": "{{state}}", "postal_code": "{{zip}}", "country": "US" },
-  "items": [{ "sku": "PB-8x10-16p-SC", "qty": 1, "files": { "interior": "{{bookPdfUrl}}", "cover": "{{coverPdfUrl}}" } }],
+  "items": [{ "sku": "{{POD_BOOK_SKU}}", "qty": 1, "files": { "interior": "{{bookPdfUrl}}", "cover": "{{coverPdfUrl}}" } }],
   "service": "ECONOMY"
 }

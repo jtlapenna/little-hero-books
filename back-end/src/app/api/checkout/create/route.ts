@@ -9,6 +9,7 @@ import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase-client';
 import { withIdempotency } from '@/lib/idempotency';
 import { calculateCharacterHash, calculatePreviewHash } from '@/lib/character-hash';
+import { buildSiblingOrderId } from '@/lib/sibling-order-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,7 @@ export async function OPTIONS(request: NextRequest) {
 
 const ShippingAddressSchema = z.object({
   name: z.string().min(1),
+  phone_number: z.string().min(7).optional(),
   address_line1: z.string().min(1),
   address_line2: z.string().optional(),
   city: z.string().min(1),
@@ -77,22 +79,31 @@ const SHIPPING_LABEL_BY_TIER: Record<ShippingTier, string> = {
   express: 'Express Shipping',
 };
 
+const CharacterSpecsSchema = z.object({
+  childName: z.string().min(1).optional(),
+  name: z.string().min(1).optional(),
+  age: z.union([z.number().int().min(0).max(10), z.string()]).transform((v) => (typeof v === 'string' ? parseInt(v, 10) : v)),
+}).passthrough().refine(
+  (data) => data.childName || data.name,
+  { message: 'Either childName or name is required' }
+);
+
+const BookItemSchema = z.object({
+  character_specs: CharacterSpecsSchema,
+  dedication: z.string().optional(),
+});
+
 const BodySchema = z.object({
   shipping_address: ShippingAddressSchema,
   customer_email: z.string().email(),
   customer_name: z.string().optional(),
-  character_specs: z.object({
-    // Accept either childName or name (frontend uses 'name', normalize to 'childName')
-    childName: z.string().min(1).optional(),
-    name: z.string().min(1).optional(),
-    age: z.union([z.number().int().min(0).max(10), z.string()]).transform((v) => (typeof v === 'string' ? parseInt(v, 10) : v)),
-  }).passthrough().refine(
-    (data) => data.childName || data.name,
-    { message: 'Either childName or name is required' }
-  ),
+  // Single book (backward compat)
+  character_specs: CharacterSpecsSchema.optional(),
   dedication: z.string().optional(),
   product_info: z.record(z.unknown()).optional(),
   shipping_tier: SHIPPING_TIER_ENUM.optional().default('mail'),
+  // Multi-book
+  books: z.array(BookItemSchema).min(1).max(5).optional(),
 });
 
 const DEFAULT_AMOUNT_CENTS = 2999; // $29.99
@@ -146,76 +157,89 @@ export async function POST(request: NextRequest) {
     const response = await withIdempotency(
       idempotencyKey,
       async () => {
-        const order_id = crypto.randomUUID();
-        // Generate customer-friendly display ID: LH-XXXXX (first 5 chars of UUID, uppercase)
-        const display_order_id = `LH-${order_id.substring(0, 5).toUpperCase()}`;
-
-        // Purpose: persist customer-selected shipping tier on the order (used by W4 → Lulu shipping_level).
+        const root_order_id = crypto.randomUUID();
+        const display_order_id = `LH-${root_order_id.substring(0, 5).toUpperCase()}`;
         const shippingTier = parsed.shipping_tier as ShippingTier;
-
-        // Normalize character_specs to match Amazon order format:
-        // - childName (frontend may send 'name')
-        // - animalGuide (frontend sends 'favoriteAnimal')
-        // - clothingStyle (inferred from pronouns if not provided)
-        const rawSpecs = parsed.character_specs as Record<string, unknown>;
-        const character_specs = {
-          ...rawSpecs,
-          childName: rawSpecs.childName ?? rawSpecs.name,
-          animalGuide: rawSpecs.animalGuide ?? rawSpecs.favoriteAnimal,
-          clothingStyle: rawSpecs.clothingStyle ?? inferClothingFromPronouns(rawSpecs.pronouns),
-        };
-
-        const character_hash = calculateCharacterHash(character_specs, order_id);
-        // Preview hash uses only visual traits (for caching) - different from character_hash
-        const preview_hash = calculatePreviewHash(character_specs);
-
         const now = new Date().toISOString();
 
-        // Build book_specs with defaults for D2C orders (admin panel reads from this)
-        const childName = character_specs.childName as string;
-        const book_specs = {
-          title: `${childName} and the Adventure Compass`,
-          totalPages: 16,
-          format: '8.5x8.5_softcover',
-          bookType: 'adventure',
-        };
-
-        // Also store in product_info for compatibility with other systems
-        const product_info = {
-          ...book_specs,
-          ...parsed.product_info, // Allow override from request if provided
-        };
-
-        const orderPayload = {
-          orderId: order_id,
-          display_order_id,
-          platform: 'd2c',
-          amazon_order_id: null,
-          customer_email: parsed.customer_email,
-          customer_name: parsed.customer_name ?? parsed.shipping_address.name ?? null,
-          shipping_address: parsed.shipping_address,
-          shipping_tier: shippingTier,
-          character_specs,
-          character_hash,
-          preview_hash, // Store preview hash for copying preview to pose 0 after payment
-          dedication_text: parsed.dedication ?? null,
-          book_specs, // For admin panel display (format, pages, title)
-          product_info, // For workflow compatibility
-          status: 'pending_payment',
-          execution_status: 'pending_payment',
-          next_workflow: null,
-          created_at: now,
-          updated_at: now,
-        };
-
-        const { error: insertError } = await supabase.from('orders').insert(orderPayload).select().single();
-
-        if (insertError) {
-          console.error('[Checkout] Order insert failed:', insertError.message);
-          throw new Error('Failed to create order');
+        // Normalize into a books array (backward-compatible with single-book)
+        const bookInputs: Array<{ character_specs: Record<string, unknown>; dedication?: string }> = [];
+        if (parsed.books && parsed.books.length > 0) {
+          for (const b of parsed.books) {
+            bookInputs.push({ character_specs: b.character_specs as Record<string, unknown>, dedication: b.dedication });
+          }
+        } else if (parsed.character_specs) {
+          bookInputs.push({ character_specs: parsed.character_specs as Record<string, unknown>, dedication: parsed.dedication });
+        } else {
+          throw new Error('Validation failed');
         }
 
-        // Use sandbox key if available, otherwise fall back to live key
+        const isSingleBook = bookInputs.length === 1;
+        // For single book: use root_order_id directly (backward compat)
+        // For multi-book: each book gets root-item-{index}
+        const orderIds: string[] = [];
+
+        for (let i = 0; i < bookInputs.length; i++) {
+          const { character_specs: rawSpecs, dedication } = bookInputs[i];
+          const orderId = isSingleBook
+            ? root_order_id
+            : buildSiblingOrderId(root_order_id, String(i + 1));
+          orderIds.push(orderId);
+
+          const character_specs = {
+            ...rawSpecs,
+            childName: rawSpecs.childName ?? rawSpecs.name,
+            animalGuide: rawSpecs.animalGuide ?? rawSpecs.favoriteAnimal,
+            clothingStyle: rawSpecs.clothingStyle ?? inferClothingFromPronouns(rawSpecs.pronouns),
+          };
+
+          const character_hash = calculateCharacterHash(character_specs, orderId);
+          const preview_hash = calculatePreviewHash(character_specs);
+          const childName = character_specs.childName as string;
+
+          const book_specs = {
+            title: `${childName} and the Adventure Compass`,
+            totalPages: 16,
+            format: '8.5x8.5_softcover',
+            bookType: 'adventure',
+          };
+
+          const product_info = {
+            ...book_specs,
+            ...parsed.product_info,
+            ...(!isSingleBook ? { _sibling_order: i > 0, _root_order_id: root_order_id } : {}),
+          };
+
+          const orderPayload = {
+            orderId,
+            display_order_id: isSingleBook ? display_order_id : `${display_order_id}-${i + 1}`,
+            platform: 'd2c',
+            root_order_id: root_order_id,
+            amazon_order_id: null,
+            customer_email: parsed.customer_email,
+            customer_name: parsed.customer_name ?? parsed.shipping_address.name ?? null,
+            shipping_address: parsed.shipping_address,
+            shipping_tier: shippingTier,
+            character_specs,
+            character_hash,
+            preview_hash,
+            dedication_text: dedication ?? null,
+            book_specs,
+            product_info,
+            status: 'pending_payment',
+            execution_status: 'pending_payment',
+            next_workflow: null,
+            created_at: now,
+            updated_at: now,
+          };
+
+          const { error: insertError } = await supabase.from('orders').insert(orderPayload).select().single();
+          if (insertError) {
+            console.error(`[Checkout] Order insert failed for book ${i + 1}:`, insertError.message);
+            throw new Error('Failed to create order');
+          }
+        }
+
         const stripeSecretKey = process.env.STRIPE_SANDBOX_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
         if (!stripeSecretKey) {
           console.error('[Checkout] STRIPE_SANDBOX_SECRET_KEY or STRIPE_SECRET_KEY not configured');
@@ -226,36 +250,43 @@ export async function POST(request: NextRequest) {
         const shippingCents = SHIPPING_CENTS_BY_TIER[shippingTier];
         const shippingLabel = SHIPPING_LABEL_BY_TIER[shippingTier];
 
-        // Purpose: Cloudflare Workers runtime — use fetch-based Stripe client to avoid socket/TLS issues.
         const stripe = new Stripe(stripeSecretKey, {
           httpClient: Stripe.createFetchHttpClient(),
           maxNetworkRetries: 2,
         });
 
-        const successUrl = `${frontendOrigin}/create/processing?order_id=${encodeURIComponent(order_id)}`;
+        // One Stripe line item per book + one for shipping
+        const bookLineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = bookInputs.map((b, i) => {
+          const name = (b.character_specs.childName ?? b.character_specs.name ?? 'Child') as string;
+          return {
+            quantity: 1,
+            price_data: {
+              currency: 'usd',
+              unit_amount: bookCents,
+              product_data: {
+                name: bookInputs.length === 1
+                  ? 'Little Hero Book \u2014 Personalized Children\'s Book'
+                  : `Little Hero Book \u2014 ${name}'s Book`,
+                description: `Custom storybook starring ${name} as the hero.`,
+              },
+            },
+          };
+        });
+
+        const successUrl = `${frontendOrigin}/create/processing?order_id=${encodeURIComponent(isSingleBook ? root_order_id : root_order_id)}`;
         const cancelUrl = `${frontendOrigin}/create/checkout`;
 
         const session = await stripe.checkout.sessions.create({
           mode: 'payment',
           line_items: [
-            {
-              quantity: 1,
-              price_data: {
-                currency: 'usd',
-                unit_amount: bookCents,
-                product_data: {
-                  name: 'Little Hero Book — Personalized Children\'s Book',
-                  description: 'Custom storybook starring your child as the hero.',
-                },
-              },
-            },
+            ...bookLineItems,
             {
               quantity: 1,
               price_data: {
                 currency: 'usd',
                 unit_amount: shippingCents,
                 product_data: {
-                  name: `Shipping — ${shippingLabel}`,
+                  name: `Shipping \u2014 ${shippingLabel}`,
                   description: 'Delivery to your address.',
                 },
               },
@@ -263,7 +294,9 @@ export async function POST(request: NextRequest) {
           ],
           success_url: successUrl,
           cancel_url: cancelUrl,
-          metadata: { order_id },
+          metadata: isSingleBook
+            ? { order_id: root_order_id }
+            : { root_order_id, book_count: String(bookInputs.length) },
           customer_email: parsed.customer_email,
         });
 
@@ -274,8 +307,10 @@ export async function POST(request: NextRequest) {
         return {
           status: 201,
           body: {
-            order_id,
+            order_id: root_order_id,
+            order_ids: orderIds,
             display_order_id,
+            book_count: bookInputs.length,
             stripe_checkout_session_url: session.url,
           },
         };

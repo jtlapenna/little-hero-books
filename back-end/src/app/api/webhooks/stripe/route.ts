@@ -6,9 +6,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
+import { supabase, getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 import { withIdempotency } from '@/lib/idempotency';
 import { buildD2CW0Payload } from '@/lib/w0-payload';
+import { triggerW0 } from '@/lib/sibling-order-helpers';
 import { sendD2COrderConfirmationEmail } from '@/lib/notifications/d2c-email';
 import { getObject, putObject, headObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFIX } from '@/lib/r2-client';
 import { getSignedUrlForObject } from '@/lib/r2-service';
@@ -96,120 +97,138 @@ export async function POST(request: NextRequest) {
   const response = await withIdempotency(
     event.id,
     async () => {
-      let order_id: string | undefined;
+      let singleOrderId: string | undefined;
+      let rootOrderId: string | undefined;
 
       if (event.type === 'checkout.session.completed') {
         const session = event.data.object as Stripe.Checkout.Session;
-        order_id = session.metadata?.order_id as string | undefined;
-        if (!order_id) {
-          console.warn('[Webhook Stripe] checkout.session.completed missing metadata.order_id');
+        singleOrderId = session.metadata?.order_id as string | undefined;
+        rootOrderId = session.metadata?.root_order_id as string | undefined;
+        if (!singleOrderId && !rootOrderId) {
+          console.warn('[Webhook Stripe] checkout.session.completed missing metadata.order_id/root_order_id');
           return { status: 200, body: { received: true } };
         }
       } else if (event.type === 'payment_intent.succeeded') {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        order_id = paymentIntent.metadata?.order_id as string | undefined;
-        if (!order_id) {
-          console.warn('[Webhook Stripe] payment_intent.succeeded missing metadata.order_id');
+        singleOrderId = paymentIntent.metadata?.order_id as string | undefined;
+        rootOrderId = paymentIntent.metadata?.root_order_id as string | undefined;
+        if (!singleOrderId && !rootOrderId) {
+          console.warn('[Webhook Stripe] payment_intent.succeeded missing metadata.order_id/root_order_id');
           return { status: 200, body: { received: true } };
         }
       } else {
         return { status: 200, body: { received: true } };
       }
 
-      const order = await getOrderFromSupabase(order_id).catch(() => null);
-      if (!order) {
-        console.warn('[Webhook Stripe] Order not found:', order_id);
-        return { status: 200, body: { received: true } };
-      }
-
-      const executionStatus = (order as Record<string, unknown>).execution_status as string | undefined;
-      console.log('[Webhook Stripe] Order status gate', { order_id, executionStatus: executionStatus ?? 'undefined' });
-      if (executionStatus !== 'pending_payment') {
-        console.log('[Webhook Stripe] Order already processed (execution_status=%s), skipping email and W0', executionStatus ?? 'undefined');
-        return { status: 200, body: { received: true } };
-      }
-
-      const now = new Date().toISOString();
-      await updateOrderInSupabase(order_id, {
-        execution_status: 'pending_w0',
-        next_workflow: null,
-        status: 'pending_w0',
-        purchase_date: now,
-        updated_at: now,
-      });
-
-      // Extract order data for processing
-      const orderData = order as Record<string, unknown>;
-      const platform = orderData.platform as string | undefined;
-      const customerEmail = orderData.customer_email as string | undefined;
-      const characterSpecs = orderData.character_specs as Record<string, unknown> | undefined;
-      const childName = (characterSpecs?.childName ?? characterSpecs?.name) as string | undefined;
-      const previewHash = orderData.preview_hash as string | undefined;
-      const characterHash = orderData.character_hash as string | undefined;
-      
-      // Generate display order ID: LH-XXXXX (use stored value or generate)
-      const displayOrderId = (orderData.display_order_id as string) || `LH-${order_id.substring(0, 5).toUpperCase()}`;
-
-      // For D2C orders: copy preview image to character hash location as base-character.png
-      // Note: This is NOT pose 0 - pose 0 is the cover image created separately by the workflow
-      if (platform === 'd2c' && previewHash && characterHash) {
-        const copyResult = await copyPreviewToCharacterHash(previewHash, characterHash);
-        if (!copyResult.success) {
-          console.warn('[Webhook Stripe] Preview copy failed (non-fatal):', copyResult.error);
-          // Continue processing - the W0 workflow can generate the image if needed
+      // Resolve the list of order IDs to process
+      let orderIds: string[];
+      if (rootOrderId) {
+        // Multi-book: find all sibling orders ({root}-item-{N})
+        const { data: siblings } = await supabase
+          .from('orders')
+          .select('orderId')
+          .like('orderId', `${rootOrderId}-item-%`);
+        orderIds = (siblings ?? []).map((s: { orderId: string }) => s.orderId);
+        // Purpose: deterministic primary selection for the confirmation email.
+        const parseItemIndex = (id: string): number | null => {
+          const m = id.match(/-item-(\d+)$/);
+          return m ? parseInt(m[1], 10) : null;
+        };
+        orderIds.sort((a, b) => {
+          const ai = parseItemIndex(a);
+          const bi = parseItemIndex(b);
+          if (ai != null && bi != null) return ai - bi;
+          if (ai != null) return -1;
+          if (bi != null) return 1;
+          return a.localeCompare(b);
+        });
+        if (orderIds.length === 0) {
+          console.warn('[Webhook Stripe] No sibling orders found for root_order_id:', rootOrderId);
+          return { status: 200, body: { received: true } };
         }
+        console.log(`[Webhook Stripe] Multi-book: found ${orderIds.length} orders for root ${rootOrderId}`);
+      } else {
+        orderIds = [singleOrderId!];
       }
 
-      // Send order confirmation email for D2C orders
-      console.log(
-        '[Webhook Stripe] Confirmation email check: platform=%s, customer_email=%s',
-        platform ?? 'undefined',
-        customerEmail ? `${customerEmail.substring(0, 3)}...` : 'missing'
-      );
-      if (platform === 'd2c' && customerEmail?.trim()) {
-        // Generate signed URL for preview image (valid for 7 days)
-        let previewImageUrl: string | undefined;
-        if (previewHash) {
-          try {
-            const previewKey = `${R2_CHARACTERS_PREFIX}${previewHash}/preview.png`;
-            previewImageUrl = await getSignedUrlForObject(previewKey, R2_PUBLIC_BUCKET, 604800); // 7 days
-          } catch (err) {
-            console.warn('[Webhook Stripe] Failed to generate preview image URL:', err);
+      // Email sent once (using first order for data)
+      let emailSent = false;
+
+      for (const order_id of orderIds) {
+        const order = await getOrderFromSupabase(order_id).catch(() => null);
+        if (!order) {
+          console.warn('[Webhook Stripe] Order not found:', order_id);
+          continue;
+        }
+
+        const orderData = order as Record<string, unknown>;
+        const executionStatus = orderData.execution_status as string | undefined;
+        console.log('[Webhook Stripe] Order status gate', { order_id, executionStatus: executionStatus ?? 'undefined' });
+        if (executionStatus !== 'pending_payment') {
+          console.log('[Webhook Stripe] Order already processed (execution_status=%s), skipping', executionStatus ?? 'undefined');
+          continue;
+        }
+
+        const now = new Date().toISOString();
+        await updateOrderInSupabase(order_id, {
+          execution_status: 'pending_w0',
+          next_workflow: null,
+          status: 'pending_w0',
+          purchase_date: now,
+          updated_at: now,
+        });
+
+        const platform = orderData.platform as string | undefined;
+        const customerEmail = orderData.customer_email as string | undefined;
+        const characterSpecs = orderData.character_specs as Record<string, unknown> | undefined;
+        const childName = (characterSpecs?.childName ?? characterSpecs?.name) as string | undefined;
+        const previewHash = orderData.preview_hash as string | undefined;
+        const characterHash = orderData.character_hash as string | undefined;
+        const displayOrderId = (orderData.display_order_id as string) || `LH-${order_id.substring(0, 5).toUpperCase()}`;
+
+        // Copy preview image to character hash location
+        if (platform === 'd2c' && previewHash && characterHash) {
+          const copyResult = await copyPreviewToCharacterHash(previewHash, characterHash);
+          if (!copyResult.success) {
+            console.warn('[Webhook Stripe] Preview copy failed (non-fatal):', copyResult.error);
           }
         }
 
-        console.log('[Webhook Stripe] Sending order confirmation email to:', customerEmail.trim());
-        const emailResult = await sendD2COrderConfirmationEmail({
-          to: customerEmail.trim(),
-          childName,
-          displayOrderId,
-          orderId: order_id,
-          previewImageUrl,
-        });
-        if (!emailResult.success) {
-          console.warn('[Webhook Stripe] Order confirmation email failed:', emailResult.error);
-        } else {
-          console.log('[Webhook Stripe] Order confirmation email sent to:', customerEmail);
+        // Send one confirmation email for the whole checkout
+        if (!emailSent && platform === 'd2c' && customerEmail?.trim()) {
+          let previewImageUrl: string | undefined;
+          if (previewHash) {
+            try {
+              const previewKey = `${R2_CHARACTERS_PREFIX}${previewHash}/preview.png`;
+              previewImageUrl = await getSignedUrlForObject(previewKey, R2_PUBLIC_BUCKET, 604800);
+            } catch (err) {
+              console.warn('[Webhook Stripe] Failed to generate preview image URL:', err);
+            }
+          }
+
+          const emailResult = await sendD2COrderConfirmationEmail({
+            to: customerEmail.trim(),
+            childName,
+            displayOrderId,
+            orderId: order_id,
+            previewImageUrl,
+          });
+          if (!emailResult.success) {
+            console.warn('[Webhook Stripe] Order confirmation email failed:', emailResult.error);
+          } else {
+            console.log('[Webhook Stripe] Order confirmation email sent to:', customerEmail);
+          }
+          emailSent = true;
         }
-      } else if (platform === 'd2c' && !customerEmail?.trim()) {
-        console.warn('[Webhook Stripe] Skipping confirmation email: order has no customer_email');
-      }
 
-      if (!n8nW0WebhookUrl) {
-        console.error('[Webhook Stripe] N8N_W0_WEBHOOK_URL not configured');
-        return { status: 200, body: { received: true } };
-      }
-
-      const payload = buildD2CW0Payload(order as Record<string, unknown>);
-      const w0Response = await fetch(n8nW0WebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!w0Response.ok) {
-        const text = await w0Response.text();
-        console.error('[Webhook Stripe] W0 webhook failed:', w0Response.status, text.substring(0, 200));
+        // Trigger W0 for this book
+        const payload = buildD2CW0Payload(orderData);
+        const w0Result = await triggerW0(payload);
+        if (!w0Result.ok) {
+          console.error(`[Webhook Stripe] W0 trigger failed for ${order_id}:`, w0Result.error);
+        } else {
+          console.log(`[Webhook Stripe] W0 triggered for ${order_id}`);
+        }
       }
 
       return { status: 200, body: { received: true } };

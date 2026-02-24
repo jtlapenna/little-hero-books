@@ -231,7 +231,15 @@ export async function GET(request: NextRequest) {
               const nowIso = new Date().toISOString();
               const updates: Record<string, any> = {
                 lulu_status: name,
-                shipped_at: nowIso,
+                // IMPORTANT: only set shipped_at when we see SHIPPED (never overwrite it on DELIVERED).
+                ...(name === 'SHIPPED' ? { shipped_at: nowIso } : {}),
+                ...(name === 'DELIVERED'
+                  ? {
+                      delivered_at: nowIso,
+                      lifecycle_status: 'recently_delivered',
+                      assumed_delivered_at: nowIso,
+                    }
+                  : {}),
                 print_fulfillment_finished_at: nowIso,
                 updated_at: nowIso,
                 status: LULU_TO_ORDER_STATUS[name] ?? 'pending_print',

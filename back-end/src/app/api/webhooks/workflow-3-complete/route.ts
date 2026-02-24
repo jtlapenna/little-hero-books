@@ -28,19 +28,24 @@ export async function POST(request: NextRequest) {
       return m?.[1] ? String(m[1]) : null;
     };
 
-    const updateOrderRowResilient = async (amazonOrderId: string, updateData: Record<string, unknown>) => {
+    const updateOrderRowResilient = async (orderId: string, updateData: Record<string, unknown>) => {
       const dataToUpdate: Record<string, unknown> = { ...updateData };
       let lastError: any = null;
 
       for (let i = 0; i < 6; i++) {
-        const { data, error } = await supabase
+        // Purpose: update by per-book identity (orderId), not amazon_order_id (which can be a group key).
+        const attempt1 = await supabase
           .from('orders')
           .update(dataToUpdate)
-          .eq('amazon_order_id', amazonOrderId)
+          .eq('orderId', orderId)
           .select('id');
+        const { data, error } =
+          attempt1.error?.code === '42703'
+            ? await supabase.from('orders').update(dataToUpdate).eq('order_id', orderId).select('id')
+            : attempt1;
 
         if (!error) {
-          if (!data || data.length === 0) throw new Error(`Order not found for update: ${amazonOrderId}`);
+          if (!data || data.length === 0) throw new Error(`Order not found for update: ${orderId}`);
           return;
         }
 

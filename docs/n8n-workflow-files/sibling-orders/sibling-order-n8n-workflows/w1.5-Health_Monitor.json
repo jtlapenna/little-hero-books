@@ -131,11 +131,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
             }
           ]
         },
@@ -170,11 +170,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
             }
           ]
         },
@@ -266,11 +266,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
             }
           ]
         },
@@ -327,11 +327,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
             }
           ]
         },
@@ -399,7 +399,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate & flatten retry orders from Vercel\n// Note: Vercel cron already filters for retry-ready orders, so we just need to flatten\nconst inputItems = $input.all();\nconst orders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    orders.push(data);\n  }\n}\n\nconsole.log(`[Retry Path] Received ${orders.length} order(s) from Vercel`);\n\n// Vercel cron already validated retry conditions:\n// - execution_status = 'error'\n// - next_retry_at <= NOW()\n// - retry_count < 3\n// So we can trust all incoming orders are retry-ready\n// Just do a basic sanity check\nconst validatedOrders = [];\n\nfor (const order of orders) {\n  // Basic validation - ensure we have required fields\n  if (order.amazon_order_id && order.id && (order.retry_count || 0) < 3) {\n    validatedOrders.push(order);\n    console.log(`[Retry Path] Validated order: ${order.amazon_order_id} (retry_count: ${order.retry_count || 0})`);\n  } else {\n    console.warn(`[Retry Path] Skipping invalid order:`, {\n      amazon_order_id: order.amazon_order_id,\n      id: order.id,\n      retry_count: order.retry_count\n    });\n  }\n}\n\nconsole.log(`[Retry Path] Validated ${validatedOrders.length} retry-ready order(s) out of ${orders.length} received`);\n\nif (validatedOrders.length === 0) {\n  console.warn(`[Retry Path] No valid retry orders - workflow will stop`);\n  return [];\n}\n\nreturn validatedOrders.map(order => ({ json: order }));"
+        "jsCode": "// Validate & flatten retry orders from Vercel\n// Note: Vercel cron already filters for retry-ready orders, so we just need to flatten\nconst inputItems = $input.all();\nconst orders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    orders.push(data);\n  }\n}\n\nconsole.log(`[Retry Path] Received ${orders.length} order(s) from Vercel`);\n\n// Vercel cron already validated retry conditions:\n// - execution_status = 'error'\n// - next_retry_at <= NOW()\n// - retry_count < 3\n// So we can trust all incoming orders are retry-ready\n// Just do a basic sanity check\nconst validatedOrders = [];\n\nfor (const order of orders) {\n  // Basic validation - ensure we have required fields\n  if ((order.orderId || order.order_id || order.root_order_id || order.amazon_order_id) && order.id && (order.retry_count || 0) < 3) {\n    validatedOrders.push(order);\n    console.log(`[Retry Path] Validated order: ${order.amazon_order_id} (retry_count: ${order.retry_count || 0})`);\n  } else {\n    console.warn(`[Retry Path] Skipping invalid order:`, {\n      amazon_order_id: order.amazon_order_id,\n      id: order.id,\n      retry_count: order.retry_count\n    });\n  }\n}\n\nconsole.log(`[Retry Path] Validated ${validatedOrders.length} retry-ready order(s) out of ${orders.length} received`);\n\nif (validatedOrders.length === 0) {\n  console.warn(`[Retry Path] No valid retry orders - workflow will stop`);\n  return [];\n}\n\nreturn validatedOrders.map(order => ({ json: order }));"
       },
       "id": "71075dfd-4ad2-4382-9e18-b80b536254ae",
       "name": "Retry: Validate & Flatten",
@@ -436,11 +436,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
             }
           ]
         },
@@ -460,7 +460,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare order for router\nconst order = $input.first().json;\n\nreturn [{\n  json: {\n    orderId: order.orderId || order.amazon_order_id,\n    amazonOrderId: order.amazon_order_id,\n    characterHash: order.character_hash || null,\n    characterSpecs: order.character_specs,\n    orderDbId: order.id,\n    workflow: order.next_workflow || '2A',\n    isRetry: true,\n    retryCount: order.retry_count,\n    _workType: order._workType || 'retry'\n  }\n}];"
+        "jsCode": "// Prepare order for router\nconst order = $input.first().json;\n\nreturn [{\n  json: {\n    orderId: order.orderId || order.order_id,\n    rootOrderId: order.root_order_id || order.amazon_order_id || order.amazonOrderId || order.product_info?._root_order_id || order.orderId || order.order_id,\n    amazonOrderId: order.amazon_order_id,\n    characterHash: order.character_hash || null,\n    characterSpecs: order.character_specs,\n    orderDbId: order.id,\n    workflow: order.next_workflow || '2A',\n    isRetry: true,\n    retryCount: order.retry_count,\n    _workType: order._workType || 'retry'\n  }\n}];"
       },
       "id": "8f0429e1-c6b8-47cf-b764-c0a98f43a515",
       "name": "Retry: Prep for Router",
@@ -473,7 +473,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Log retry attempt\nconst order = $input.first().json;\n\nconsole.log(`[Retry Path] 🔄 Retrying order ${order.orderId || order.amazon_order_id} (attempt ${(order.retryCount || 0) + 1})`);\nconsole.log(`[Retry Path] Workflow: ${order.workflow || order.next_workflow || '2A'}`);\nconsole.log(`[Retry Path] Order DB ID: ${order.orderDbId || order.id}`);\n\n// Preserve _workType marker for classification\nconst output = {\n  ...order,\n  _workType: order._workType || 'retry'\n};\n\nreturn [{ json: output }];"
+        "jsCode": "// Log retry attempt\nconst order = $input.first().json;\n\nconsole.log(`[Retry Path] 🔄 Retrying order ${order.orderId || order.order_id || order.root_order_id || order.amazon_order_id} (attempt ${(order.retryCount || 0) + 1})`);\nconsole.log(`[Retry Path] Workflow: ${order.workflow || order.next_workflow || '2A'}`);\nconsole.log(`[Retry Path] Order DB ID: ${order.orderDbId || order.id}`);\n\n// Preserve _workType marker for classification\nconst output = {\n  ...order,\n  _workType: order._workType || 'retry'\n};\n\nreturn [{ json: output }];"
       },
       "id": "de908b56-92e9-43f7-8065-33e147c287fc",
       "name": "Retry: Log Retry",
@@ -629,7 +629,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://admin.littleherolabs.com/api/admin/orders/{{ $json.amazon_order_id }}/create-manifest",
+        "url": "=https://admin.littleherolabs.com/api/admin/orders/{{ $json.orderId || $json.order_id || $json.root_order_id || $json.amazon_order_id }}/create-manifest",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -772,11 +772,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
             }
           ]
         },
@@ -867,11 +867,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
             }
           ]
         },
@@ -962,11 +962,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
             }
           ]
         },

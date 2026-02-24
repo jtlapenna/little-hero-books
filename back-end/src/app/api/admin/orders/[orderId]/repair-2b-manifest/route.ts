@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { downloadManifest, buildManifestKey, getCharacterAssets } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { determineNextWorkflow } from '@/lib/determine-next-workflow';
-import { supabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -159,37 +159,30 @@ export async function POST(
   }
 
   // Purpose: Ensure router/W3 can progress using Supabase as source of truth.
-  const { data: orderRow } = await supabase
-    .from('orders')
-    .select('one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url, workflow_step, review_stages, next_workflow, customer_approval_required, customer_approval_status')
-    .eq('amazon_order_id', orderIdValue)
-    .single();
+  const orderRow = await getOrderFromSupabase(orderIdValue).catch(() => null);
 
   const nextWorkflow = determineNextWorkflow({
-    one_manifest_url: orderRow?.one_manifest_url || null,
-    manifest_2a_url: orderRow?.manifest_2a_url || manifest2aKey,
+    one_manifest_url: (orderRow as any)?.one_manifest_url || null,
+    manifest_2a_url: (orderRow as any)?.manifest_2a_url || manifest2aKey,
     manifest_2b_url: manifest2bKey,
-    manifest_3_url: orderRow?.manifest_3_url || null,
-    workflow_step: orderRow?.workflow_step || null,
-    review_stages: (orderRow?.review_stages as any) || null,
-    next_workflow: orderRow?.next_workflow || null,
-    customer_approval_required: orderRow?.customer_approval_required ?? undefined,
-    customer_approval_status: orderRow?.customer_approval_status ?? undefined,
+    manifest_3_url: (orderRow as any)?.manifest_3_url || null,
+    workflow_step: (orderRow as any)?.workflow_step || null,
+    review_stages: ((orderRow as any)?.review_stages as any) || null,
+    next_workflow: (orderRow as any)?.next_workflow || null,
+    customer_approval_required: (orderRow as any)?.customer_approval_required ?? undefined,
+    customer_approval_status: (orderRow as any)?.customer_approval_status ?? undefined,
   });
 
-  await supabase
-    .from('orders')
-    .update({
-      manifest_2b_url: manifest2bKey,
-      workflow_step: '2B-complete',
-      execution_status: 'ready_for_processing',
-      next_workflow: nextWorkflow || '3',
-      current_workflow: null,
-      started_at: null,
-      queued_at: now,
-      updated_at: now,
-    })
-    .eq('amazon_order_id', orderIdValue);
+  await updateOrderInSupabase(orderIdValue, {
+    manifest_2b_url: manifest2bKey,
+    workflow_step: '2B-complete',
+    execution_status: 'ready_for_processing',
+    next_workflow: nextWorkflow || '3',
+    current_workflow: null,
+    started_at: null,
+    queued_at: now,
+    updated_at: now,
+  });
 
   const r2PoseNumbers = Array.from(bgRemovedByPose.keys()).sort((a, b) => a - b);
 

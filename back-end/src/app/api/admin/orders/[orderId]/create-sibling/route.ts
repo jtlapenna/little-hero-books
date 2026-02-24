@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto';
-import { supabase } from '@/lib/supabase-client';
+import { supabase, getOrderFromSupabase } from '@/lib/supabase-client';
 import { parseAmazonCustomization } from '@/lib/amazon-customization-parser';
+import { requireAdminAuth } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,26 +14,14 @@ export const dynamic = 'force-dynamic';
  * Body: { customization_json: { ... } }  — raw JSON from the Amazon customization ZIP
  *   OR  { character_specs: { childName, age, pronouns, skinTone, hairColor, hairStyle, favoriteColor, animalGuide, dedication?, hometown? }, order_item_id?: string }
  */
-function isSameOrigin(request: NextRequest): boolean {
-  const origin = request.headers.get('origin');
-  const referer = request.headers.get('referer');
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
-  return (
-    !origin ||
-    origin.includes(siteUrl) ||
-    referer?.includes(siteUrl) ||
-    origin.includes('littleherolabs.com') ||
-    referer?.includes('littleherolabs.com')
-  );
-}
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Purpose: fail-closed admin auth (strict same-origin OR Bearer BACKEND_API_TOKEN).
+  const adminAuth = requireAdminAuth(request);
+  if (!adminAuth.ok) return adminAuth.response;
 
   const { orderId: parentOrderId } = await params;
   const orderIdValue = String(parentOrderId || '').trim();
@@ -77,17 +66,26 @@ export async function POST(
   }
 
   const orderItemId = typeof body.order_item_id === 'string' ? body.order_item_id.trim() : null;
-  const syntheticOrderId = orderItemId
-    ? `${orderIdValue}-item-${orderItemId}`
-    : `${orderIdValue}-item-${Date.now()}`;
+  // Purpose: deterministic fallback suffix for retry safety when order_item_id is missing.
+  const fallbackSuffix = createHash('sha256').update(JSON.stringify(characterSpecs)).digest('hex').slice(0, 12);
+  const suffix = (orderItemId || fallbackSuffix).trim();
+  const syntheticOrderId = `${orderIdValue}-item-${suffix}`;
 
-  const { data: order, error: fetchError } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('amazon_order_id', orderIdValue)
-    .maybeSingle();
+  // Purpose: idempotency for manual retries (avoid creating duplicates).
+  const existingSibling = await getOrderFromSupabase(syntheticOrderId).catch(() => null);
+  if (existingSibling) {
+    return NextResponse.json({
+      success: true,
+      orderId: orderIdValue,
+      siblingOrderId: syntheticOrderId,
+      w0Triggered: false,
+      message: 'Sibling order already exists (idempotent retry).',
+    });
+  }
 
-  if (fetchError || !order) {
+  // Purpose: fetch parent/primary by per-book id (safe when amazon_order_id is a group key).
+  const order = await getOrderFromSupabase(orderIdValue).catch(() => null);
+  if (!order) {
     return NextResponse.json(
       { error: 'Order not found', orderId: orderIdValue },
       { status: 404 }
@@ -109,7 +107,9 @@ export async function POST(
   const now = new Date().toISOString();
   const siblingOrder = {
     orderId: syntheticOrderId,
-    amazon_order_id: syntheticOrderId,
+    // Purpose: root_order_id is canonical group id; amazon_order_id is legacy mirror.
+    root_order_id: orderIdValue,
+    amazon_order_id: orderIdValue,
     platform: order.platform ?? 'amazon',
     shipping_address: order.shipping_address,
     customer_name: order.customer_name,
@@ -140,6 +140,29 @@ export async function POST(
     .single();
 
   if (insertError) {
+    const dupe = await getOrderFromSupabase(syntheticOrderId).catch(() => null);
+    if (dupe) {
+      return NextResponse.json({
+        success: true,
+        orderId: orderIdValue,
+        siblingOrderId: syntheticOrderId,
+        w0Triggered: false,
+        message: 'Sibling order already exists (idempotent retry).',
+      });
+    }
+    const insertMsg = String(insertError.message || '');
+    if (insertMsg.includes('orders_amazon_order_id_key')) {
+      return NextResponse.json(
+        {
+          error: 'Sibling storage blocked by database constraint',
+          details:
+            'Unique constraint on orders.amazon_order_id prevents multiple sibling rows under one Amazon root ID. Remove or relax this constraint before creating siblings.',
+          orderId: orderIdValue,
+          siblingOrderId: syntheticOrderId,
+        },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to create sibling order', details: insertError.message },
       { status: 500 }
@@ -157,7 +180,8 @@ export async function POST(
       }
     }
     const w0Payload = {
-      amazonOrderId: syntheticOrderId,
+      // Purpose: amazonOrderId is the root group id; orderId is per-book.
+      amazonOrderId: orderIdValue,
       orderId: syntheticOrderId,
       id: syntheticOrderId,
       orderDate: order.purchase_date ?? now,

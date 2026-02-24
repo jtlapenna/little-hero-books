@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { load, save, clear } from '../../../lib/createFlow/createFlowStorage';
-import type { CreateFlowState, CreateFlowCheckoutShipping, ShippingTierId } from '../../../lib/createFlow/createFlowSchema';
+import type { CreateFlowState, CreateFlowCheckout, CreateFlowCheckoutShipping, ShippingTierId } from '../../../lib/createFlow/createFlowSchema';
 import { isCharacterStepComplete } from '../../../lib/createFlow/createFlowSelectors';
 
 /** Backend base URL for API calls. */
@@ -16,6 +16,9 @@ const API_BASE =
 
 /** Book price (cents). Must match backend DEFAULT_AMOUNT_CENTS. */
 const BOOK_PRICE_CENTS = 2999;
+
+/** Reuse window for checkout idempotency key (ms). */
+const IDEMPOTENCY_TTL_MS = 30 * 60 * 1000;
 
 /** Shipping options (rounded customer-facing prices). Match backend SHIPPING_CENTS_BY_TIER. */
 const SHIPPING_OPTIONS: { id: ShippingTierId; label: string; priceCents: number; estimate: string }[] = [
@@ -50,6 +53,7 @@ const US_STATES = [
 interface FormErrors {
   email?: string;
   name?: string;
+  phone?: string;
   address1?: string;
   city?: string;
   state?: string;
@@ -65,11 +69,35 @@ function isValidZip(zip: string): boolean {
   return /^\d{5}(-\d{4})?$/.test(zip.trim());
 }
 
+function isValidPhone(phone: string): boolean {
+  // Purpose: basic US phone sanity check (digits count).
+  const digits = phone.replace(/\D/g, '');
+  return digits.length >= 10 && digits.length <= 15;
+}
+
+function getOrCreateIdempotencyKey(
+  checkout: CreateFlowCheckout | undefined
+): { key: string; createdAtMs: number; reused: boolean } {
+  // Purpose: prevent duplicate orders if the user retries after a transient failure.
+  const existingKey = checkout?.idempotencyKey?.trim();
+  const existingCreatedAt = checkout?.idempotencyKeyCreatedAt;
+  const nowMs = Date.now();
+  const canReuse =
+    !!existingKey &&
+    typeof existingCreatedAt === 'number' &&
+    Number.isFinite(existingCreatedAt) &&
+    nowMs - existingCreatedAt < IDEMPOTENCY_TTL_MS;
+
+  if (canReuse) return { key: existingKey!, createdAtMs: existingCreatedAt!, reused: true };
+  return { key: crypto.randomUUID(), createdAtMs: nowMs, reused: false };
+}
+
 function CheckoutForm() {
   const [state, setState] = useState<CreateFlowState | null>(null);
   const [email, setEmail] = useState('');
   const [shipping, setShipping] = useState<CreateFlowCheckoutShipping>({
     name: '',
+    phone: '',
     address1: '',
     address2: '',
     city: '',
@@ -122,6 +150,8 @@ function CheckoutForm() {
     if (!email.trim()) errs.email = 'Email is required';
     else if (!isValidEmail(email)) errs.email = 'Please enter a valid email';
     if (!shipping.name?.trim()) errs.name = 'Name is required';
+    if (!shipping.phone?.trim()) errs.phone = 'Phone is required';
+    else if (!isValidPhone(shipping.phone)) errs.phone = 'Please enter a valid phone number';
     if (!shipping.address1?.trim()) errs.address1 = 'Address is required';
     if (!shipping.city?.trim()) errs.city = 'City is required';
     if (!shipping.state?.trim()) errs.state = 'State is required';
@@ -165,7 +195,7 @@ function CheckoutForm() {
     // Validate all fields
     const validationErrors = validate();
     setErrors(validationErrors);
-    setTouched({ email: true, name: true, address1: true, city: true, state: true, zip: true });
+    setTouched({ email: true, name: true, phone: true, address1: true, city: true, state: true, zip: true });
     
     if (Object.keys(validationErrors).length > 0) {
       // Focus first error field
@@ -180,36 +210,71 @@ function CheckoutForm() {
     setErrors({});
 
     try {
-      // Generate idempotency key
-      const idempotencyKey = crypto.randomUUID();
+      // Purpose: reuse Idempotency-Key across transient retries (bounded by TTL).
+      // Note: `state` is React state; sessionStorage may be more up to date after a prior attempt.
+      const latestState = load() ?? state;
+      const id = getOrCreateIdempotencyKey(latestState.checkout);
+      if (!id.reused) {
+        save({
+          checkout: {
+            email: email.trim(),
+            shipping,
+            shippingTier,
+            idempotencyKey: id.key,
+            idempotencyKeyCreatedAt: id.createdAtMs,
+          },
+        });
+        setState((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            checkout: {
+              ...(prev.checkout ?? {}),
+              idempotencyKey: id.key,
+              idempotencyKeyCreatedAt: id.createdAtMs,
+            },
+          };
+        });
+      }
 
-      // Build request payload
-      const payload = {
+      // Build request payload (supports single-book backward compat and multi-book)
+      const shippingAddress = {
+        name: shipping.name?.trim(),
+        phone_number: shipping.phone?.trim(),
+        address_line1: shipping.address1?.trim(),
+        address_line2: shipping.address2?.trim() || undefined,
+        city: shipping.city?.trim(),
+        state: shipping.state?.trim(),
+        postal_code: shipping.zip?.trim(),
+        country: 'US',
+      };
+
+      const books = state.books;
+      const isMultiBook = books.length > 1;
+
+      const payload: Record<string, unknown> = {
         customer_email: email.trim(),
         customer_name: shipping.name?.trim(),
-        shipping_address: {
-          name: shipping.name?.trim(),
-          address_line1: shipping.address1?.trim(),
-          address_line2: shipping.address2?.trim() || undefined,
-          city: shipping.city?.trim(),
-          state: shipping.state?.trim(),
-          postal_code: shipping.zip?.trim(),
-          country: 'US',
-        },
-        character_specs: {
-          ...state.character,
-          // Ensure childName is set (backend expects this)
-          childName: state.character.name,
-        },
-        dedication: state.book?.dedication || undefined,
+        shipping_address: shippingAddress,
         shipping_tier: shippingTier,
       };
+
+      if (isMultiBook) {
+        payload.books = books.map((b) => ({
+          character_specs: { ...b.character, childName: b.character.name },
+          dedication: b.dedication || undefined,
+        }));
+      } else {
+        const book = books[0];
+        payload.character_specs = { ...book.character, childName: book.character.name };
+        payload.dedication = book.dedication || undefined;
+      }
 
       const response = await fetch(`${API_BASE}/api/checkout/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Idempotency-Key': idempotencyKey,
+          'Idempotency-Key': id.key,
         },
         body: JSON.stringify(payload),
       });
@@ -221,12 +286,13 @@ function CheckoutForm() {
       }
 
       // Save order info before redirect
-      save({ 
-        order: { 
+      save({
+        checkout: { idempotencyKey: undefined, idempotencyKeyCreatedAt: undefined },
+        order: {
           orderId: data.order_id,
           displayOrderId: data.display_order_id,
-          stripeCheckoutUrl: data.stripe_checkout_session_url 
-        } 
+          stripeCheckoutUrl: data.stripe_checkout_session_url,
+        },
       });
 
       // Redirect to Stripe
@@ -238,14 +304,15 @@ function CheckoutForm() {
   };
 
   const handleBack = useCallback(() => {
-    window.location.href = '/create/customize';
+    window.location.href = '/create/review';
   }, []);
 
   if (!state) {
     return <p className="create-loading">Loading…</p>;
   }
 
-  const charName = state.character?.name || 'Your character';
+  const books = state.books;
+  const bookCount = books.length;
 
   return (
     <div className="checkout-form">
@@ -301,6 +368,27 @@ function CheckoutForm() {
               />
               {touched.name && errors.name && (
                 <span className="checkout-form__error" role="alert">{errors.name}</span>
+              )}
+            </div>
+
+            <div className="checkout-form__field">
+              <label className="checkout-form__label" htmlFor="checkout-phone">
+                Phone number
+              </label>
+              <input
+                id="checkout-phone"
+                type="tel"
+                inputMode="tel"
+                className={`checkout-form__input ${touched.phone && errors.phone ? 'checkout-form__input--error' : ''}`}
+                value={shipping.phone}
+                onChange={(e) => handleShippingChange('phone', e.target.value)}
+                onBlur={() => handleBlur('phone')}
+                placeholder="(555) 123-4567"
+                disabled={isSubmitting}
+                aria-invalid={touched.phone && !!errors.phone}
+              />
+              {touched.phone && errors.phone && (
+                <span className="checkout-form__error" role="alert">{errors.phone}</span>
               )}
             </div>
 
@@ -468,29 +556,41 @@ function CheckoutForm() {
         <aside className="checkout-form__summary">
           <h2 className="checkout-form__summary-title">Order Summary</h2>
           <div className="checkout-form__summary-card">
-            <div className="checkout-form__summary-row">
-              {state.preview?.imageUrl && (
-                <img
-                  src={state.preview.imageUrl}
-                  alt={`${charName} preview`}
-                  className="checkout-form__summary-preview"
-                />
-              )}
-              <div className="checkout-form__summary-details">
-                <p className="checkout-form__summary-product">Little Hero Book</p>
-                <p className="checkout-form__summary-char">Starring: {charName}</p>
-                {state.book?.dedication && (
-                  <p className="checkout-form__summary-dedication">
-                    Dedication: "{state.book.dedication.slice(0, 50)}{state.book.dedication.length > 50 ? '…' : ''}"
-                  </p>
-                )}
-              </div>
-            </div>
+            {books.map((book, i) => {
+              const name = book.character?.name || 'Your character';
+              return (
+                <div key={book.id} className="checkout-form__summary-row">
+                  {book.preview?.imageUrl && (
+                    <img
+                      src={book.preview.imageUrl}
+                      alt={`${name} preview`}
+                      className="checkout-form__summary-preview"
+                    />
+                  )}
+                  <div className="checkout-form__summary-details">
+                    <p className="checkout-form__summary-product">
+                      {bookCount > 1 ? `Book ${i + 1}` : 'Little Hero Book'}
+                    </p>
+                    <p className="checkout-form__summary-char">Starring: {name}</p>
+                    {book.dedication && (
+                      <p className="checkout-form__summary-dedication">
+                        Dedication: &ldquo;{book.dedication.slice(0, 50)}{book.dedication.length > 50 ? '\u2026' : ''}&rdquo;
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
             <div className="checkout-form__summary-lines">
-              <div className="checkout-form__summary-line">
-                <span>Little Hero Book</span>
-                <span>${(BOOK_PRICE_CENTS / 100).toFixed(2)}</span>
-              </div>
+              {books.map((book, i) => {
+                const name = book.character?.name || 'Book';
+                return (
+                  <div key={book.id} className="checkout-form__summary-line">
+                    <span>{bookCount > 1 ? `${name}'s Book` : 'Little Hero Book'}</span>
+                    <span>${(BOOK_PRICE_CENTS / 100).toFixed(2)}</span>
+                  </div>
+                );
+              })}
               <div className="checkout-form__summary-line">
                 <span>Shipping — {SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.label ?? 'Economy'}</span>
                 <span>${((SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.priceCents ?? 599) / 100).toFixed(2)}</span>
@@ -499,7 +599,7 @@ function CheckoutForm() {
             <div className="checkout-form__summary-total">
               <span>Total</span>
               <span className="checkout-form__summary-price">
-                ${((BOOK_PRICE_CENTS + (SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.priceCents ?? 599)) / 100).toFixed(2)}
+                ${((BOOK_PRICE_CENTS * bookCount + (SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.priceCents ?? 599)) / 100).toFixed(2)}
               </span>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase-client';
+import { updateOrderInSupabase, getOrderFromSupabase } from '@/lib/supabase-client';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -141,23 +142,9 @@ export async function POST(
     const cancelData = await cancelResponse.json();
 
     // Step 3: Update order in Supabase
-    const { data: updatedOrder, error: updateError } = await supabase
-      .from('orders')
-      .update({
-        lulu_status: 'CANCELED',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('amazon_order_id', orderId)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error('[Cancel Lulu Order] Update failed:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to update order', details: updateError.message },
-        { status: 500 }
-      );
-    }
+    const now = new Date().toISOString();
+    await updateOrderInSupabase(orderId, { lulu_status: 'CANCELED', updated_at: now });
+    const updatedOrder = await getOrderFromSupabase(orderId).catch(() => null);
 
     return NextResponse.json({
       success: true,

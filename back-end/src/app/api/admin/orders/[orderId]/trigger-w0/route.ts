@@ -28,34 +28,51 @@ export async function POST(
     // Fetch order: support id (numeric) or amazon_order_id / orderId (string)
     const numericId = parseInt(orderId, 10);
     const byId = !isNaN(numericId) && String(numericId) === orderId;
-    let order: any = null;
-    let fetchError: any = null;
+    let order: Record<string, unknown> | null = null;
+    let fetchError: unknown = null;
     if (byId) {
       const r = await supabase.from('orders').select('*').eq('id', numericId).single();
-      order = r.data;
+      order = (r.data as Record<string, unknown> | null) ?? null;
       fetchError = r.error;
     } else {
-      // Use .eq() so string values (e.g. with hyphens) are encoded correctly
-      const r = await supabase.from('orders').select('*').eq('amazon_order_id', orderId).single();
-      if (r.error && !r.data) {
-        const r2 = await supabase.from('orders').select('*').eq('orderId', orderId).single();
-        order = r2.data;
-        fetchError = r2.error;
+      // Purpose: prefer per-book id lookup; amazon_order_id can be a group key.
+      const r1 = await supabase.from('orders').select('*').eq('orderId', orderId).maybeSingle();
+      if (!r1.error && r1.data) {
+        order = r1.data as Record<string, unknown>;
+      } else if (r1.error && r1.error.code !== '42703') {
+        fetchError = r1.error;
       } else {
-        order = r.data;
-        fetchError = r.error;
+        const r2 = await supabase.from('orders').select('*').eq('order_id', orderId).maybeSingle();
+        if (!r2.error && r2.data) {
+          order = r2.data as Record<string, unknown>;
+        } else if (r2.error && r2.error.code !== '42703') {
+          fetchError = r2.error;
+        } else {
+          const r3 = await supabase.from('orders').select('*').eq('amazon_order_id', orderId).limit(50);
+          if (r3.error) {
+            fetchError = r3.error;
+          } else if (r3.data && r3.data.length > 0) {
+            order =
+              (r3.data as any[]).find((o) => String(o?.orderId ?? '').trim() === orderId) ??
+              (r3.data as any[])[0];
+          }
+        }
       }
     }
 
-    if (fetchError || !order) {
+    if (!order) {
+      const msg =
+        fetchError instanceof Error
+          ? fetchError.message
+          : (fetchError as any)?.message || 'Not found';
       return NextResponse.json(
-        { error: `Order not found: ${fetchError?.message || 'Not found'}` },
+        { error: `Order not found: ${msg}` },
         { status: 404 }
       );
     }
 
     // Parse JSONB fields
-    let shippingAddress = order.shipping_address;
+    let shippingAddress = (order as any).shipping_address;
     if (typeof shippingAddress === 'string') {
       try {
         shippingAddress = JSON.parse(shippingAddress);
@@ -64,7 +81,7 @@ export async function POST(
       }
     }
 
-    let characterSpecs = order.character_specs;
+    let characterSpecs = (order as any).character_specs;
     if (typeof characterSpecs === 'string') {
       try {
         characterSpecs = JSON.parse(characterSpecs);
@@ -100,9 +117,9 @@ export async function POST(
     }
 
     // Calculate character_hash if missing
-    let characterHash = order.character_hash;
+    let characterHash = (order as any).character_hash;
     if (!characterHash && characterSpecs) {
-      const orderIdValue = order.orderId || order.amazon_order_id;
+      const orderIdValue = (order as any).orderId || (order as any).amazon_order_id;
       const sortedSpecs = Object.keys(characterSpecs)
         .sort()
         .reduce((acc, key) => {
@@ -117,22 +134,22 @@ export async function POST(
       await supabase
         .from('orders')
         .update({ character_hash: characterHash })
-        .eq('id', order.id);
+        .eq('id', (order as any).id);
     }
 
     // Build W0 payload
     const w0Payload = {
-      amazonOrderId: order.amazon_order_id,
-      orderId: order.orderId || order.amazon_order_id,
-      id: order.orderId || order.amazon_order_id,
-      orderDate: order.purchase_date,
-      purchaseDate: order.purchase_date,
+      amazonOrderId: (order as any).amazon_order_id,
+      orderId: (order as any).orderId || (order as any).amazon_order_id,
+      id: (order as any).orderId || (order as any).amazon_order_id,
+      orderDate: (order as any).purchase_date,
+      purchaseDate: (order as any).purchase_date,
       status: 'pending_w0',
-      marketplaceId: order.marketplace_id,
-      customerEmail: order.customer_email,
+      marketplaceId: (order as any).marketplace_id,
+      customerEmail: (order as any).customer_email,
       buyer: {
-        email: order.customer_email,
-        name: order.customer_name,
+        email: (order as any).customer_email,
+        name: (order as any).customer_name,
       },
       shippingAddress: shippingAddress,
       characterSpecs: characterSpecs,

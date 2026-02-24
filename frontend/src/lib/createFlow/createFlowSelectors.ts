@@ -25,7 +25,7 @@ export function isCharacterStepComplete(state: CreateFlowState): boolean {
  * Note: processing must be accessible even if storage was cleared.
  */
 export function canAccessStep(
-  step: 'customize' | 'checkout' | 'processing',
+  step: 'customize' | 'review' | 'checkout' | 'processing',
   state: CreateFlowState | null
 ): boolean {
   if (step === 'processing') return true;

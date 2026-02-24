@@ -1,10 +1,10 @@
 /**
  * D2C Phase 0: Book customization form (dedication page).
- * Loads/saves dedication to sessionStorage; Continue → /create/checkout.
+ * Loads/saves dedication to sessionStorage; Continue → /create/review.
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { load, save } from '../../../lib/createFlow/createFlowStorage';
+import { load, save, saveBook } from '../../../lib/createFlow/createFlowStorage';
 import { getDefaultState } from '../../../lib/createFlow/createFlowSchema';
 import type { CreateFlowState } from '../../../lib/createFlow/createFlowSchema';
 import { isCharacterStepComplete } from '../../../lib/createFlow/createFlowSelectors';
@@ -45,8 +45,12 @@ function BookCustomizationForm() {
   );
 
   const handleContinue = useCallback(() => {
-    window.location.href = '/create/checkout';
-  }, []);
+    // Persist dedication to the current book entry before navigating
+    if (state) {
+      saveBook(state.currentBookIndex, { dedication: state.book?.dedication });
+    }
+    window.location.href = '/create/review';
+  }, [state]);
 
   const handleBack = useCallback(() => {
     window.location.href = '/create/character';
@@ -132,7 +136,7 @@ function BookCustomizationForm() {
           className="book-customization__btn book-customization__btn--primary"
           onClick={handleContinue}
         >
-          Continue to checkout
+          Continue
         </button>
         <button
           type="button"

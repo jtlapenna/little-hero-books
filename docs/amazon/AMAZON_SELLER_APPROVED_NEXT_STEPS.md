@@ -229,7 +229,7 @@ You need **7 high-quality images** (1000×1000px minimum):
 
 4. **Size Comparison**:
    - Book next to common object (coffee mug, tablet, etc.)
-   - Shows actual 8×10" size
+   - Shows actual 8.5×8.5" size
    - Helps customers understand dimensions
 
 5. **All 12 Character Poses**:

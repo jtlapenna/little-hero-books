@@ -36,6 +36,9 @@ export function buildD2CW0Payload(order: Record<string, unknown>): Record<string
       email: customerEmail ?? '',
       name: customerName ?? (shippingAddress as Record<string, unknown>)?.name ?? '',
     },
+    // Purpose: match Amazon payload shape for downstream workflow compatibility.
+    shippingAddress,
+    shipping_address: shippingAddress,
     characterSpecs,
     character_specs: characterSpecs,
     bookSpecs,

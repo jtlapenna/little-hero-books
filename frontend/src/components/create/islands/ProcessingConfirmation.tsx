@@ -14,9 +14,13 @@ const API_BASE =
   ((import.meta as { env?: { PROD?: boolean } }).env?.PROD ? 'https://admin.littleherolabs.com' : '');
 
 interface OrderStatus {
-  status: string;
-  statusMessage: string;
   previewUrl?: string;
+  /** Customer-facing status label from the status API (e.g. "Preparing for Print"). */
+  statusLabel?: string;
+  /** Internal status code (optional fallback) (e.g. "pending_w0", "shipped"). */
+  statusCode?: string;
+  /** Customer-facing long description from the status API. */
+  statusLong?: string;
   trackingUrl?: string;
   trackingNumber?: string;
 }
@@ -26,11 +30,22 @@ function formatDisplayOrderId(orderId: string): string {
   return `LH-${orderId.substring(0, 5).toUpperCase()}`;
 }
 
+function firstNonEmptyString(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  if (Array.isArray(value)) {
+    for (const v of value) {
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+  }
+  return undefined;
+}
+
 function ProcessingConfirmation() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [displayOrderId, setDisplayOrderId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
-  const [charName, setCharName] = useState<string>('your little hero');
+  const [charNames, setCharNames] = useState<string[]>(['your little hero']);
+  const [bookCount, setBookCount] = useState(1);
   const [showLookup, setShowLookup] = useState(false);
   const [lookupOrderId, setLookupOrderId] = useState('');
   const [lookupEmail, setLookupEmail] = useState('');
@@ -44,28 +59,30 @@ function ProcessingConfirmation() {
     const urlOrderId = params.get('order_id');
     const state = load();
 
-    // Get order ID (prefer URL param, fallback to storage)
     const finalOrderId = urlOrderId || state?.order?.orderId || null;
     setOrderId(finalOrderId);
     
-    // Get display order ID (prefer storage, fallback to generating from orderId)
     const finalDisplayOrderId = state?.order?.displayOrderId || 
       (finalOrderId ? formatDisplayOrderId(finalOrderId) : null);
     setDisplayOrderId(finalDisplayOrderId);
 
-    // Get email and character name from storage
     if (state?.checkout?.email) {
       setEmail(state.checkout.email);
       setLookupEmail(state.checkout.email);
     }
-    if (state?.character?.name) {
-      setCharName(state.character.name);
+
+    // Extract names from all books
+    if (state?.books && state.books.length > 0) {
+      setCharNames(state.books.map((b) => b.character?.name || 'your little hero'));
+      setBookCount(state.books.length);
+    } else if (state?.character?.name) {
+      setCharNames([state.character.name]);
     }
+
     if (finalDisplayOrderId) {
       setLookupOrderId(finalDisplayOrderId);
     }
 
-    // Clear sessionStorage after successful order
     if (finalOrderId) {
       clear();
     }
@@ -91,12 +108,24 @@ function ProcessingConfirmation() {
       }
 
       const data = await response.json();
+      const statusLabel = firstNonEmptyString((data as any).status);
+      const statusCode = firstNonEmptyString((data as any).orderStatus ?? (data as any).order_status);
+      const statusLong =
+        firstNonEmptyString((data as any).statusLong ?? (data as any).status_long) ??
+        firstNonEmptyString((data as any).statusMessage ?? (data as any).status_message);
+
+      const trackingUrl =
+        firstNonEmptyString((data as any).trackingUrls ?? (data as any).tracking_urls) ??
+        firstNonEmptyString((data as any).trackingUrl ?? (data as any).tracking_url);
+
       setLookupStatus({
-        status: data.status || 'unknown',
-        statusMessage: data.statusMessage || data.status_message || 'Processing your order',
-        previewUrl: data.previewUrl || data.preview_url,
-        trackingUrl: data.trackingUrl || data.tracking_url,
-        trackingNumber: data.trackingNumber || data.tracking_number,
+        // Purpose: display what the backend returns (label + long text), fall back to internal code only if needed.
+        statusLabel,
+        statusCode,
+        statusLong: statusLong ?? 'Processing your order',
+        previewUrl: (data as any).previewUrl || (data as any).preview_url,
+        trackingUrl,
+        trackingNumber: (data as any).trackingNumber || (data as any).tracking_number,
       });
     } catch (err) {
       setLookupError(err instanceof Error ? err.message : 'Failed to look up order status.');
@@ -127,7 +156,9 @@ function ProcessingConfirmation() {
         <div className="processing__checkmark">✓</div>
         <h1 className="processing__title">Order Received!</h1>
         <p className="processing__subtitle">
-          Thank you for your order. {charName}'s adventure is about to begin!
+          {bookCount === 1
+            ? `Thank you for your order. ${charNames[0]}'s adventure is about to begin!`
+            : `Thank you for your order! ${charNames.join(' & ')}'s adventures are about to begin!`}
         </p>
       </div>
 
@@ -154,8 +185,12 @@ function ProcessingConfirmation() {
           <li className="processing__step">
             <span className="processing__step-num">1</span>
             <div>
-              <strong>We create your book</strong>
-              <p>Our team will generate the personalized story and illustrations.</p>
+              <strong>We create your {bookCount > 1 ? 'books' : 'book'}</strong>
+              <p>
+                {bookCount > 1
+                  ? `Each of your ${bookCount} books will be created with its own personalized story and illustrations.`
+                  : 'Our team will generate the personalized story and illustrations.'}
+              </p>
             </div>
           </li>
           <li className="processing__step">
@@ -230,10 +265,10 @@ function ProcessingConfirmation() {
             {lookupStatus && (
               <div className="processing__lookup-result">
                 <div className="processing__status-badge">
-                  {formatStatus(lookupStatus.status).label}
+                  {lookupStatus.statusLabel || formatStatus(lookupStatus.statusCode || '').label}
                 </div>
                 <p className="processing__status-desc">
-                  {lookupStatus.statusMessage || formatStatus(lookupStatus.status).description}
+                  {lookupStatus.statusLong || formatStatus(lookupStatus.statusCode || '').description}
                 </p>
                 {lookupStatus.trackingUrl && (
                   <a

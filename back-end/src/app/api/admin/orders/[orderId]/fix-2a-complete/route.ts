@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { determineNextWorkflow } from '@/lib/determine-next-workflow';
 import { updateOrderStatus } from '@/lib/status-service';
+import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,18 +58,18 @@ export async function POST(
 
   try {
     // Get current order state
-    const { data: order, error: fetchError } = await supabase
-      .from('orders')
-      .select('id, amazon_order_id, one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url, workflow_step, review_stages, next_workflow, execution_status, current_workflow')
-      .eq('amazon_order_id', orderIdValue)
-      .single();
-
-    if (fetchError || !order) {
+    const { row: order } = await fetchOrderRowByAnyId<any>(
+      supabase as any,
+      orderIdValue,
+      'id, amazon_order_id, orderId, order_id, one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url, workflow_step, review_stages, next_workflow, execution_status, current_workflow'
+    );
+    if (!order) {
       return NextResponse.json(
-        { error: 'Order not found', details: fetchError?.message },
+        { error: 'Order not found' },
         { status: 404 }
       );
     }
+    const perBookId = (order.orderId ?? order.order_id ?? orderIdValue) as string;
 
     // Construct manifest URL if not provided
     let manifestUrl = order.manifest_2a_url;
@@ -81,7 +82,7 @@ export async function POST(
       
       // If still not provided, construct from orderId
       if (!manifestUrl) {
-        manifestUrl = `book-mvp-simple-adventure/orders/${orderIdValue}/manifests/2a-manifest.json`;
+        manifestUrl = `book-mvp-simple-adventure/orders/${perBookId}/manifests/2a-manifest.json`;
       }
     }
 
@@ -100,7 +101,7 @@ export async function POST(
                         reviewStages?.preBria?.needsHumanReview === true;
 
     // Use updateOrderStatus to properly set all fields
-    await updateOrderStatus(orderIdValue, {
+    await updateOrderStatus(perBookId, {
       workflow_step: '2A-complete',
       manifest_2a_url: manifestUrl,
       execution_status: needsReview ? 'processing' : 'done',
@@ -109,15 +110,15 @@ export async function POST(
     });
 
     // Get updated order to return
-    const { data: updatedOrder } = await supabase
-      .from('orders')
-      .select('workflow_step, manifest_2a_url, execution_status, current_workflow, next_workflow')
-      .eq('amazon_order_id', orderIdValue)
-      .single();
+    const { row: updatedOrder } = await fetchOrderRowByAnyId<any>(
+      supabase as any,
+      perBookId,
+      'workflow_step, manifest_2a_url, execution_status, current_workflow, next_workflow'
+    );
 
     return NextResponse.json({
       success: true,
-      orderId: orderIdValue,
+      orderId: perBookId,
       updates: {
         workflow_step: updatedOrder?.workflow_step,
         manifest_2a_url: updatedOrder?.manifest_2a_url,

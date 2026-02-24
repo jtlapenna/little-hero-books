@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createHash } from 'crypto';
 import Papa from 'papaparse';
 import {
   validateCsvHeaders,
   extractAmazonOrderId,
-  buildLineItemFromRow,
+  extractOrderItemId,
   buildShippingAddress,
   extractCustomerName,
   extractCustomerEmail,
@@ -14,13 +15,18 @@ import {
 import { updateOrderInSupabase, getOrderFromSupabase } from '@/lib/supabase-client';
 import { downloadAndExtractCustomizationZip } from '@/lib/zip-downloader';
 import { parseAmazonCustomization } from '@/lib/amazon-customization-parser';
-import { createHash } from 'crypto';
+import {
+  calculateSiblingCharacterHash,
+  buildSiblingOrderRow,
+  buildW0Payload,
+  triggerW0,
+} from '@/lib/sibling-order-helpers';
+import { requireAdminAuth } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
-const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -39,20 +45,13 @@ export async function POST(request: NextRequest) {
   console.log(`[CSV Upload] [${requestId}] Timestamp: ${new Date().toISOString()}`);
   
   try {
-    // Allow same-origin requests (internal admin page) without auth
-    const origin = request.headers.get('origin');
-    const referer = request.headers.get('referer');
-    const isSameOrigin =
-      origin?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') ||
-      referer?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') ||
-      !origin;
-
-    console.log(`[CSV Upload] [${requestId}] Origin check: origin=${origin}, referer=${referer}, isSameOrigin=${isSameOrigin}`);
-
-    if (!isSameOrigin) {
-      console.error(`[CSV Upload] [${requestId}] ❌ Unauthorized - origin check failed`);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Purpose: fail-closed admin auth (strict same-origin OR Bearer BACKEND_API_TOKEN).
+    const adminAuth = requireAdminAuth(request);
+    if (!adminAuth.ok) {
+      console.error(`[CSV Upload] [${requestId}] ❌ Unauthorized`);
+      return adminAuth.response;
     }
+    console.log(`[CSV Upload] [${requestId}] ✅ Admin auth accepted via ${adminAuth.mode}`);
 
     if (!supabaseUrl || !supabaseKey) {
       console.error(`[CSV Upload] [${requestId}] ❌ Supabase credentials missing`);
@@ -165,36 +164,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Process rows (skip header row): group by order-id so one order with multiple line items is created/updated once
+    // Process rows: group by amazon-order-id, then create ONE order per row
+    // (primary for first row, sibling for subsequent rows in same group)
     const dataRows = rows.slice(1);
     const summary = {
       total_rows: dataRows.length,
-      total_orders: 0, // Unique orders (after grouping)
+      total_orders: 0,
       matched: 0,
       created: 0,
+      sibling_created: 0,
       pending: 0,
       errors: 0,
     };
 
     const matchedOrders: string[] = [];
     const createdOrders: string[] = [];
+    const siblingOrdersCreated: string[] = [];
     const pendingOrders: string[] = [];
     const errors: Array<{ row: number; orderId: string | null; error: string }> = [];
     const w0Triggered: string[] = [];
     const w0Skipped: Array<{ orderId: string; reason: string }> = [];
 
-    // Group rows by order-id (same order can have multiple line items / rows)
-    const orderIdToRows = new Map<string, { row: any; rowNumber: number }[]>();
+    // Group rows by order-id to extract shared shipping/customer data
+    const orderIdToRows = new Map<string, { row: unknown; rowNumber: number }[]>();
     for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i];
       const rowNumber = i + 2;
-      const amazonOrderId = extractAmazonOrderId(row, headers);
+      const amazonOrderId = extractAmazonOrderId(row as string[], headers);
       if (!amazonOrderId) {
         errors.push({ row: rowNumber, orderId: null, error: 'Missing or invalid amazon_order_id' });
         summary.errors++;
         continue;
       }
-      const shippingAddress = buildShippingAddress(row, headers);
+      const shippingAddress = buildShippingAddress(row as string[], headers);
       if (!shippingAddress) {
         errors.push({ row: rowNumber, orderId: amazonOrderId, error: 'Missing required shipping address fields' });
         summary.errors++;
@@ -211,254 +213,258 @@ export async function POST(request: NextRequest) {
 
     for (const [amazonOrderId, group] of orderIdToRows) {
       const firstRow = group[0].row;
-      const firstRowNumber = group[0].rowNumber;
+      const shippingAddress = buildShippingAddress(firstRow, headers)!;
+      const customerName = extractCustomerName(firstRow, headers);
+      const customerEmail = extractCustomerEmail(firstRow, headers);
+      const purchaseDate = extractPurchaseDate(firstRow, headers);
 
-      try {
-        const shippingAddress = buildShippingAddress(firstRow, headers)!;
-        const customerName = extractCustomerName(firstRow, headers);
-        const customerEmail = extractCustomerEmail(firstRow, headers);
-        const purchaseDate = extractPurchaseDate(firstRow, headers);
+      // Download customization per row (each row may be a different child)
+      const rowSpecs: Array<{
+        rowNumber: number;
+        orderItemId: string | null;
+        customizationUrl: string | null;
+        customizedUrlHash: string | null;
+        characterSpecs: Record<string, unknown> | null;
+        customizationFailure: string | null;
+      }> = [];
 
-        // Build line_items from every row in this order (multiple items per order)
-        const lineItems = group.map(({ row }) => buildLineItemFromRow(row, headers));
-        console.log(`[CSV Upload] [${requestId}] Order ${amazonOrderId}: ${lineItems.length} line item(s)`);
-
-        // Use first row that has a customization URL for order-level character_specs
-        let characterSpecs: Record<string, unknown> | null = null;
-        let customizationFailure: string | null = null;
-        for (const { row } of group) {
-          const customizationUrl = extractCustomizationUrl(row, headers);
-          if (customizationUrl) {
-            try {
-              const customizationData = await downloadAndExtractCustomizationZip(customizationUrl);
-              if (customizationData) {
-                characterSpecs = parseAmazonCustomization(customizationData);
-                if (characterSpecs) break;
-                customizationFailure = customizationFailure ?? 'Parse failed: customization format not recognized (missing childName/age)';
+      for (const { row, rowNumber } of group) {
+        const orderItemId = extractOrderItemId(row as string[], headers);
+        const customizationUrl = extractCustomizationUrl(row as string[], headers);
+        const stableCustomizationKey = customizationUrl
+          ? (() => {
+              // Purpose: ignore query params that may rotate between downloads.
+              try {
+                const u = new URL(customizationUrl);
+                return `${u.origin}${u.pathname}`;
+              } catch {
+                return customizationUrl;
               }
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : String(e);
-              customizationFailure = customizationFailure ?? `Download/extract failed: ${msg}`;
-              console.warn(`[CSV Upload] [${requestId}] Customization for ${amazonOrderId}: ${msg}`);
-            }
-          }
-        }
+            })()
+          : null;
+        const customizedUrlHash = stableCustomizationKey
+          ? createHash('sha256').update(stableCustomizationKey).digest('hex').slice(0, 12)
+          : null;
+        let specs: Record<string, unknown> | null = null;
+        let failure: string | null = null;
 
-        const { data: orderCheck, error: queryError } = await supabase
-          .from('orders')
-          .select('amazon_order_id')
-          .eq('amazon_order_id', amazonOrderId)
-          .single();
-
-        const orderExists = !queryError && orderCheck;
-
-        if (!orderExists) {
-          let characterHash: string | null = null;
-          if (characterSpecs) {
-            const characterHashSpec = {
-              clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts',
-              favoriteColor: characterSpecs.favoriteColor || 'blue',
-              hairColor: characterSpecs.hairColor || 'brown',
-              hairStyle: characterSpecs.hairStyle || 'short/straight',
-              skinTone: characterSpecs.skinTone || 'medium'
-            };
-            characterHash = createHash('sha256').update(JSON.stringify(characterHashSpec)).digest('hex').substring(0, 16);
-          }
-
-          const newOrderData: Record<string, unknown> = {
-            orderId: amazonOrderId,
-            amazon_order_id: amazonOrderId,
-            shipping_address: shippingAddress,
-            customer_name: customerName || null,
-            customer_email: customerEmail || null,
-            character_specs: characterSpecs || null,
-            character_hash: characterHash,
-            dedication_text: characterSpecs?.dedication || null,
-            status: 'new',
-            execution_status: 'pending_w0',
-            next_workflow: null,
-            workflow_step: null,
-            marketplace_id: 'ATVPDKIKX0DER',
-            purchase_date: purchaseDate || new Date().toISOString(),
-            product_info: { _created_via_csv: true, line_items: lineItems },
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-
-          const { error: createError } = await supabase
-            .from('orders')
-            .insert(newOrderData)
-            .select()
-            .single();
-
-          if (createError) {
-            errors.push({ row: firstRowNumber, orderId: amazonOrderId, error: `Failed to create order: ${createError.message}` });
-            summary.errors++;
-            continue;
-          }
-          console.log(`[CSV Upload] [${requestId}] ✅ Created order ${amazonOrderId} with ${lineItems.length} line item(s)`);
-          createdOrders.push(amazonOrderId);
-          summary.created++;
-        } else {
-          const existingOrderFull = await getOrderFromSupabase(amazonOrderId).catch(() => null);
-          const updates: Record<string, unknown> = {
-            shipping_address: shippingAddress,
-            customer_name: customerName ?? undefined,
-            customer_email: customerEmail ?? undefined,
-            product_info: { _created_via_csv: true, line_items: lineItems },
-            updated_at: new Date().toISOString(),
-          };
-          if (characterSpecs) {
-            updates.character_specs = characterSpecs;
-            updates.character_hash = createHash('sha256').update(JSON.stringify({
-              clothingStyle: characterSpecs.clothingStyle || 't-shirt and shorts',
-              favoriteColor: characterSpecs.favoriteColor || 'blue',
-              hairColor: characterSpecs.hairColor || 'brown',
-              hairStyle: characterSpecs.hairStyle || 'short/straight',
-              skinTone: characterSpecs.skinTone || 'medium'
-            })).digest('hex').substring(0, 16);
-          }
-          if (existingOrderFull?.review_stages) {
-            updates.review_stages = existingOrderFull.review_stages;
-          }
+        if (customizationUrl) {
           try {
-            await updateOrderInSupabase(amazonOrderId, updates);
-            matchedOrders.push(amazonOrderId);
-            summary.matched++;
-          } catch (updateException: unknown) {
-            const msg = updateException instanceof Error ? updateException.message : String(updateException);
-            errors.push({ row: firstRowNumber, orderId: amazonOrderId, error: `Exception updating order: ${msg}` });
-            summary.errors++;
-            continue;
-          }
-        }
-
-        // W0 trigger (once per order)
-        try {
-          const { data: updatedOrder, error: fetchError } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('amazon_order_id', amazonOrderId)
-            .single();
-
-          if (fetchError || !updatedOrder) {
-            w0Skipped.push({ orderId: amazonOrderId, reason: fetchError?.message || 'Failed to fetch order' });
-            continue;
-          }
-
-          let shippingAddressObj = updatedOrder.shipping_address;
-          if (typeof shippingAddressObj === 'string') {
-            try { shippingAddressObj = JSON.parse(shippingAddressObj); } catch { shippingAddressObj = null; }
-          }
-          let characterSpecsObj = updatedOrder.character_specs;
-          if (typeof characterSpecsObj === 'string') {
-            try { characterSpecsObj = JSON.parse(characterSpecsObj); } catch { characterSpecsObj = null; }
-          }
-
-          const hasShipping = shippingAddressObj && typeof shippingAddressObj === 'object' && !Array.isArray(shippingAddressObj) && Object.keys(shippingAddressObj).length > 0;
-          const hasCharacterSpecs = characterSpecsObj && typeof characterSpecsObj === 'object' && !Array.isArray(characterSpecsObj) && Object.keys(characterSpecsObj).length > 0;
-
-          if (hasShipping && hasCharacterSpecs && n8nW0WebhookUrl) {
-            let characterHash = updatedOrder.character_hash;
-            if (!characterHash && characterSpecsObj) {
-              const orderIdValue = updatedOrder.orderId || updatedOrder.amazon_order_id;
-              const sortedSpecs = Object.keys(characterSpecsObj as object).sort().reduce((acc: Record<string, unknown>, key: string) => {
-                acc[key] = (characterSpecsObj as Record<string, unknown>)[key];
-                return acc;
-              }, {});
-              characterHash = createHash('md5').update(JSON.stringify({ ...sortedSpecs, orderId: orderIdValue })).digest('hex').substring(0, 16);
-              await supabase.from('orders').update({ character_hash: characterHash }).eq('amazon_order_id', amazonOrderId);
+            const zipData = await downloadAndExtractCustomizationZip(customizationUrl);
+            if (zipData) {
+              specs = parseAmazonCustomization(zipData);
+              if (!specs) failure = 'Parse failed: customization format not recognized';
+            } else {
+              failure = 'Download returned no data';
             }
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            failure = `Download/extract failed: ${msg}`;
+            console.warn(`[CSV Upload] [${requestId}] Customization row ${rowNumber}: ${msg}`);
+          }
+        } else {
+          failure = 'No customization URL in this row';
+        }
+        rowSpecs.push({
+          rowNumber,
+          orderItemId,
+          customizationUrl: customizationUrl ?? null,
+          customizedUrlHash,
+          characterSpecs: specs,
+          customizationFailure: failure,
+        });
+      }
 
-            const productInfo = updatedOrder.product_info as Record<string, unknown> | undefined;
-            const items = (productInfo?.line_items as unknown[]) ?? (Array.isArray(productInfo) ? productInfo : []);
+      // Process each row as its own order
+      for (let idx = 0; idx < rowSpecs.length; idx++) {
+        const { rowNumber, orderItemId, characterSpecs, customizationFailure, customizedUrlHash } = rowSpecs[idx];
+        const isSibling = idx > 0;
+        // Purpose: deterministic per-book orderId, even when order-item-id is missing.
+        const suffix = (orderItemId?.trim() || customizedUrlHash || String(idx + 1)).trim();
+        const effectiveOrderId = isSibling ? `${amazonOrderId}-item-${suffix}` : amazonOrderId;
 
-            const w0Payload = {
-              amazonOrderId: updatedOrder.amazon_order_id || amazonOrderId,
-              orderId: updatedOrder.orderId || updatedOrder.amazon_order_id || amazonOrderId,
-              id: updatedOrder.orderId || updatedOrder.amazon_order_id || amazonOrderId,
-              orderDate: updatedOrder.purchase_date,
-              purchaseDate: updatedOrder.purchase_date,
-              status: 'pending_w0',
-              marketplaceId: updatedOrder.marketplace_id,
-              customerEmail: updatedOrder.customer_email,
-              buyer: { email: updatedOrder.customer_email, name: updatedOrder.customer_name },
-              shippingAddress: shippingAddressObj,
-              characterSpecs: characterSpecsObj,
-              character_specs: characterSpecsObj,
-              CharacterSpecs: characterSpecsObj,
-              bookSpecs: {
-                title: `${(characterSpecsObj && typeof characterSpecsObj === 'object' && (characterSpecsObj as Record<string, unknown>)?.childName) || 'Child'} and the Adventure Compass`,
-                totalPages: 16,
-                format: '8.5x8.5_softcover',
-                bookType: 'adventure',
-              },
-              orderDetails: { quantity: lineItems.length, shippingAddress: shippingAddressObj },
-              dedication: (characterSpecsObj as Record<string, unknown>)?.dedication || updatedOrder.dedication_text || null,
-              Dedication: (characterSpecsObj as Record<string, unknown>)?.dedication || updatedOrder.dedication_text || null,
-              items,
-              characterHash: characterHash ?? updatedOrder.character_hash,
-              character_hash: characterHash ?? updatedOrder.character_hash,
+        try {
+          // Purpose: existence check by per-book identity (orderId), not amazon_order_id.
+          const existing = await getOrderFromSupabase(effectiveOrderId).catch(() => null);
+          if (existing) {
+            const existingRecord = existing as Record<string, unknown>;
+            // Update existing order with latest shipping/specs
+            const updates: Record<string, unknown> = {
+              shipping_address: shippingAddress,
+              customer_name: customerName ?? undefined,
+              customer_email: customerEmail ?? undefined,
+              root_order_id: amazonOrderId,
+              amazon_order_id: amazonOrderId,
+              updated_at: new Date().toISOString(),
+            };
+            if (characterSpecs) {
+              updates.character_specs = characterSpecs;
+              updates.character_hash = calculateSiblingCharacterHash(characterSpecs);
+            }
+            if (existingRecord.review_stages) updates.review_stages = existingRecord.review_stages;
+            updates.product_info = {
+              ...(((existingRecord.product_info as Record<string, unknown> | null) ?? {})),
+              _created_via_csv: true,
+              _csv_sibling_index: idx,
+              _customized_url_hash: customizedUrlHash,
+              ...(isSibling ? { _sibling_order: true, _parent_amazon_order_id: amazonOrderId, _order_item_id: orderItemId ?? null } : {}),
             };
 
-            const w0Response = await fetch(n8nW0WebhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(w0Payload) });
-            const responseText = await w0Response.text();
-            if (w0Response.ok) {
-              w0Triggered.push(amazonOrderId);
-            } else {
-              w0Skipped.push({ orderId: amazonOrderId, reason: `W0 webhook failed: ${w0Response.status} ${responseText.substring(0, 200)}` });
+            try {
+              await updateOrderInSupabase(effectiveOrderId, updates);
+              matchedOrders.push(effectiveOrderId);
+              summary.matched++;
+            } catch (ue: unknown) {
+              const msg = ue instanceof Error ? ue.message : String(ue);
+              errors.push({ row: rowNumber, orderId: effectiveOrderId, error: `Update failed: ${msg}` });
+              summary.errors++;
+              continue;
             }
           } else {
-            const reason = !hasShipping
-              ? 'missing shipping_address'
-              : !hasCharacterSpecs
-                ? (customizationFailure ?? 'missing character_specs (no customization URL in CSV or download/parse failed)')
-                : !n8nW0WebhookUrl
-                  ? 'N8N_W0_WEBHOOK_URL not configured'
-                  : 'unknown';
-            w0Skipped.push({ orderId: amazonOrderId, reason });
+            // Create new order row
+            if (!characterSpecs) {
+              errors.push({
+                row: rowNumber,
+                orderId: effectiveOrderId,
+                error: customizationFailure ?? 'No character_specs available for this row',
+              });
+              summary.errors++;
+              continue;
+            }
+
+            const characterHash = calculateSiblingCharacterHash(characterSpecs);
+            const orderRow = buildSiblingOrderRow({
+              orderId: effectiveOrderId,
+              parentOrderId: amazonOrderId,
+              platform: 'amazon',
+              shippingAddress,
+              customerName: customerName || null,
+              customerEmail: customerEmail || null,
+              characterSpecs,
+              characterHash,
+              marketplaceId: 'ATVPDKIKX0DER',
+              purchaseDate,
+              orderItemId,
+              isSibling,
+            });
+            // Purpose: stable debug keys for re-upload + recovery.
+            const orderRowRecord = orderRow as Record<string, unknown>;
+            orderRowRecord.product_info = {
+              ...(((orderRowRecord.product_info as Record<string, unknown> | null) ?? {})),
+              _csv_sibling_index: idx,
+              _customized_url_hash: customizedUrlHash,
+            };
+
+            const { error: insertError } = await supabase
+              .from('orders')
+              .insert(orderRow)
+              .select()
+              .single();
+
+            if (insertError) {
+              const insertMsg = String(insertError.message || '');
+              if (insertMsg.includes('orders_amazon_order_id_key')) {
+                errors.push({
+                  row: rowNumber,
+                  orderId: effectiveOrderId,
+                  error:
+                    'DB constraint blocks sibling groups: orders.amazon_order_id is unique. Remove/relax this constraint to allow multiple siblings under one Amazon root.',
+                });
+                summary.errors++;
+                continue;
+              }
+              errors.push({ row: rowNumber, orderId: effectiveOrderId, error: `Insert failed: ${insertError.message}` });
+              summary.errors++;
+              continue;
+            }
+
+            if (isSibling) {
+              siblingOrdersCreated.push(effectiveOrderId);
+              summary.sibling_created++;
+            }
+            createdOrders.push(effectiveOrderId);
+            summary.created++;
+            console.log(`[CSV Upload] [${requestId}] ✅ Created ${isSibling ? 'sibling' : 'primary'} order ${effectiveOrderId}`);
           }
-        } catch (w0Error: unknown) {
-          const msg = w0Error instanceof Error ? w0Error.message : String(w0Error);
-          w0Skipped.push({ orderId: amazonOrderId, reason: `Exception: ${msg}` });
+
+          // Trigger W0 for this order
+          if (!characterSpecs && !existing) continue; // already errored above
+
+          const specsForW0 = characterSpecs ?? (await (async () => {
+            const q1 = await supabase.from('orders').select('character_specs').eq('orderId', effectiveOrderId).maybeSingle();
+            if (q1.error?.code !== '42703' && q1.error) throw q1.error;
+            const q2 = q1.error?.code === '42703'
+              ? await supabase.from('orders').select('character_specs').eq('order_id', effectiveOrderId).maybeSingle()
+              : null;
+            if (q2?.error) throw q2.error;
+            const s = (q2?.data ?? q1.data)?.character_specs;
+            return (s && typeof s === 'object' && !Array.isArray(s) && Object.keys(s).length > 0)
+              ? (s as Record<string, unknown>)
+              : null;
+          })());
+
+          if (!specsForW0) {
+            w0Skipped.push({ orderId: effectiveOrderId, reason: customizationFailure ?? 'missing character_specs' });
+            continue;
+          }
+
+          const charHash = calculateSiblingCharacterHash(specsForW0);
+          const payload = buildW0Payload({
+            orderId: effectiveOrderId,
+            amazonOrderId,
+            purchaseDate,
+            marketplaceId: 'ATVPDKIKX0DER',
+            customerEmail,
+            customerName,
+            shippingAddress,
+            characterSpecs: specsForW0,
+            characterHash: charHash,
+          });
+
+          const w0Result = await triggerW0(payload);
+          if (w0Result.ok) {
+            w0Triggered.push(effectiveOrderId);
+          } else {
+            w0Skipped.push({ orderId: effectiveOrderId, reason: w0Result.error ?? 'unknown' });
+          }
+        } catch (orderError: unknown) {
+          const msg = orderError instanceof Error ? orderError.message : String(orderError);
+          errors.push({ row: rowNumber, orderId: effectiveOrderId, error: `Processing error: ${msg}` });
+          summary.errors++;
         }
-      } catch (orderError: unknown) {
-        const msg = orderError instanceof Error ? orderError.message : String(orderError);
-        errors.push({ row: firstRowNumber, orderId: amazonOrderId, error: `Order processing error: ${msg}` });
-        summary.errors++;
       }
     }
 
-    // Return summary
     const response = {
       success: true,
       summary,
       details: {
-        matched_orders: matchedOrders, // Orders that existed and were updated
-        created_orders: createdOrders, // Orders that were created from CSV
+        matched_orders: matchedOrders,
+        created_orders: createdOrders,
+        sibling_orders_created: siblingOrdersCreated,
         pending_orders: pendingOrders,
-        errors: errors,
-        w0_triggered: w0Triggered, // Orders that had W0 automatically triggered
-        w0_skipped: w0Skipped, // Orders where W0 was skipped and why
+        errors,
+        w0_triggered: w0Triggered,
+        w0_skipped: w0Skipped,
       },
       timestamp: new Date().toISOString(),
-      request_id: requestId, // Include request ID for log correlation
+      request_id: requestId,
     };
     
     console.log(`[CSV Upload] [${requestId}] ====== Request Completed Successfully ======`);
-    console.log(`[CSV Upload] [${requestId}] Summary: ${summary.total_orders} unique order(s), ${summary.matched} matched, ${summary.created} created, ${summary.pending} pending, ${summary.errors} errors`);
-    console.log(`[CSV Upload] [${requestId}] W0 triggered for: ${w0Triggered.length} orders`);
+    console.log(`[CSV Upload] [${requestId}] Summary: ${summary.total_orders} group(s), ${summary.created} created (${summary.sibling_created} siblings), ${summary.matched} matched, ${summary.errors} errors`);
+    console.log(`[CSV Upload] [${requestId}] W0 triggered for: ${w0Triggered.length} order(s)`);
     
     return NextResponse.json(response);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[CSV Upload] [${requestId}] ====== ERROR ======`);
-    console.error(`[CSV Upload] [${requestId}] Error message:`, error?.message || 'Unknown error');
-    console.error(`[CSV Upload] [${requestId}] Error stack:`, error?.stack);
-    console.error(`[CSV Upload] [${requestId}] Full error:`, JSON.stringify(error, null, 2));
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[CSV Upload] [${requestId}] Error message:`, message);
+    if (error instanceof Error) console.error(`[CSV Upload] [${requestId}] Error stack:`, error.stack);
     return NextResponse.json(
       {
         error: 'Failed to process CSV file',
-        details: error?.message || 'Unknown error',
+        details: message,
         request_id: requestId,
       },
       { status: 500 }

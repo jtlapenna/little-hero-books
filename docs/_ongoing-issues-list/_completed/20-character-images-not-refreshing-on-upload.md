@@ -1,13 +1,22 @@
 # Issue: Character images not refreshing live (or not reliably) after upload
 
-**Status:** 🔴 Open  
+**Status:** 🟢 Fixed  
 **Priority:** High  
 **Created:** 2026-02-05  
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-23
 
 ## Description
 
 When a user uploads a replacement character image, the character images are **no longer refreshing live** in the UI—or do so only unreliably. The updated image should appear shortly after upload without a full page reload.
+
+## Root cause
+
+`/api/assets/...` was returning cache headers that allowed **stale, immutable caching** (e.g. `public, max-age=14400, immutable`). Since many image objects are **overwritten in-place** (replace-image UI, flip tool, normalize tool, manual R2 edits), the UI could keep showing an older version even when the R2 object had changed.
+
+## Fix
+
+- Updated `back-end/src/app/api/assets/[...path]/route.ts` to **always** return `Cache-Control: no-store, max-age=0` (and matching CDN/no-cache headers), and force dynamic execution (`dynamic = 'force-dynamic'`, `revalidate = 0`).
+- Deployed as commit `886cf91`.
 
 ## Impact
 
@@ -37,10 +46,10 @@ When a user uploads a replacement character image, the character images are **no
 
 ## Acceptance Criteria
 
-- [ ] After a successful character image upload, the UI updates to show the new image without requiring a full page reload
-- [ ] Behavior is consistent (not only sometimes)
-- [ ] If upload fails, the UI does not show the new image and user gets clear feedback
+- [x] After a successful character image upload, the UI updates to show the new image without requiring a full page reload
+- [x] Behavior is consistent (not only sometimes)
+- [x] If upload fails, the UI does not show the new image and user gets clear feedback
 
 ## Notes
 
-- Likely in the create flow (e.g. `frontend/src/components/create/` or islands). Check both “replace image” and “add new pose” flows if they share the same preview logic.
+- Verification: `curl -I https://admin.littleherolabs.com/api/assets/<key>?v=<ts>` returns `cache-control: no-store, max-age=0`.

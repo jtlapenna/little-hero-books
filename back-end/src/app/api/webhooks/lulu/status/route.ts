@@ -183,13 +183,34 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
     
-    // Set shipped_at / tracking for SHIPPED or DELIVERED
+    // Set shipped_at / delivered_at / tracking for terminal shipping statuses.
     let shippingTrackingUrl: string | null = null;
     let shippingTrackingNumber: string | null = null;
     if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {
       const nowIso = new Date().toISOString();
-      updateData.shipped_at = nowIso;
-      updateData.print_fulfillment_finished_at = nowIso;
+      const changedAt =
+        statusRaw && typeof statusRaw === 'object' && statusRaw.changed
+          ? String(statusRaw.changed)
+          : null;
+      const terminalAt = changedAt || nowIso;
+
+      // CRITICAL: never overwrite shipped_at on DELIVERED.
+      // If we overwrite shipped_at at delivery time, lifecycle + “recently delivered” logic uses the wrong ship date.
+      if (statusName === 'SHIPPED' && !order.shipped_at) {
+        updateData.shipped_at = terminalAt;
+      }
+      if (statusName === 'DELIVERED') {
+        // Store an explicit delivery timestamp if the column exists (it does in Supabase schema).
+        if (!order.delivered_at) {
+          updateData.delivered_at = terminalAt;
+        }
+        // Move out of active immediately when Lulu says DELIVERED (do not wait for assumed delivery window).
+        updateData.lifecycle_status = 'recently_delivered';
+        updateData.assumed_delivered_at = terminalAt;
+      }
+
+      // print_fulfillment_finished_at should reflect the terminal event time (ship or delivery).
+      updateData.print_fulfillment_finished_at = terminalAt;
 
       if (lineItemStatuses.length > 0) {
         const trackingInfo = extractTrackingInfo(lineItemStatuses);
@@ -224,41 +245,13 @@ export async function POST(request: NextRequest) {
     // Update order in database
     // Use orderId, order_id, or amazon_order_id depending on what exists
     const orderIdentifier = order.orderId || order.order_id || order.amazon_order_id;
-    
-    let updateError: any = null;
-    
-    // Try updating by orderId first
-    if (order.orderId) {
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('orderId', order.orderId);
-      updateError = error;
-    }
-    
-    // If that fails, try order_id
-    if (updateError && order.order_id) {
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('order_id', order.order_id);
-      updateError = error;
-    }
-    
-    // If that fails, try amazon_order_id
-    if (updateError && order.amazon_order_id) {
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('amazon_order_id', order.amazon_order_id);
-      updateError = error;
-    }
-    
-    if (updateError) {
-      console.error('[LULU WEBHOOK] Error updating order:', updateError);
-      await auditLog({ printJobId, statusName, orderFound: true, orderId: orderIdentifier, updated: false, errorMessage: updateError.message });
+
+    const { error: updateErr } = await supabase.from('orders').update(updateData).eq('id', order.id);
+    if (updateErr) {
+      console.error('[LULU WEBHOOK] Error updating order:', updateErr.message);
+      await auditLog({ printJobId, statusName, orderFound: true, orderId: orderIdentifier, updated: false, errorMessage: updateErr.message });
       return NextResponse.json(
-        { received: true, error: 'Update failed', details: updateError.message },
+        { received: true, error: 'Update failed', details: updateErr.message },
         { status: 200, headers: corsHeaders }
       );
     }

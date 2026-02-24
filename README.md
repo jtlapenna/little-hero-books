@@ -93,7 +93,7 @@ npm run dev:templates # Template system only
 
 ## 📊 **Technical Specifications**
 
-- **Book Format**: 8×10 softcover, 16 pages (14 interior + covers)
+- **Book Format**: 8.5×8.5 softcover, 16 pages (14 interior + covers)
 - **Target Age**: 3-7 years old
 - **Personalization**: Name, appearance, favorite things, hometown, dedication
 - **Art Style**: Watercolor illustrations with character overlays

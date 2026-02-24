@@ -4,7 +4,7 @@
 ### Product Information
 - **Title**: Personalized Children's Book - The Adventure Compass
 - **Category**: Books > Children's Books > Action & Adventure
-- **Format**: 8×10 Softcover, 16 pages (14 interior + covers)
+- **Format**: 8.5×8.5 Softcover, 16 pages (14 interior + covers)
 - **Price**: $29.99
 - **Processing Time**: 3-5 business days
 - **Age Range**: 3-7 years
@@ -44,7 +44,7 @@ Each book is custom-created with your child's unique details and printed
 on-demand to ensure the highest quality.
 
 SPECIFICATIONS:
-• Size: 8×10 inches
+• Size: 8.5×8.5 inches
 • Pages: 16 (including covers)
 • Binding: Softcover, perfect bound
 • Paper: 80lb matte
@@ -166,7 +166,7 @@ SPECIFICATIONS:
 - 🎨 CUSTOM CHARACTER: Professionally illustrated character matching your child's skin tone, hair color, hair style, and clothing preferences
 - 📖 ENGAGING STORY: Age-appropriate adventure (3-7 years) with warm, rhythmic language and 12 beautifully illustrated scenes
 - 🎁 PERFECT GIFT: Unique keepsake for birthdays, holidays, or any special occasion - comes with optional dedication message
-- 📦 QUALITY CRAFTED: 8×10 softcover, 16 pages, professional printing, made to order in 3-5 business days
+- 📦 QUALITY CRAFTED: 8.5×8.5 softcover, 16 pages, professional printing, made to order in 3-5 business days
 
 ### Search Keywords
 ```

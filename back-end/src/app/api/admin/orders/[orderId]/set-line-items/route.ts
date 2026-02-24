@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase-client';
+import { supabase, getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,40 +57,22 @@ export async function POST(
     customization_url: typeof item.customization_url === 'string' ? item.customization_url.trim() : null,
   }));
 
-  const { data: order, error: fetchError } = await supabase
-    .from('orders')
-    .select('id, product_info')
-    .eq('amazon_order_id', orderIdValue)
-    .maybeSingle();
-
-  if (fetchError || !order) {
+  const order = await getOrderFromSupabase(orderIdValue).catch(() => null);
+  if (!order) {
     return NextResponse.json(
       { error: 'Order not found', orderId: orderIdValue },
       { status: 404 }
     );
   }
 
-  const existingProductInfo = (order.product_info as Record<string, unknown>) || {};
+  const existingProductInfo = ((order as any).product_info as Record<string, unknown>) || {};
   const updatedProductInfo = {
     ...existingProductInfo,
     _created_via_csv: true,
     line_items: normalized,
   };
 
-  const { error: updateError } = await supabase
-    .from('orders')
-    .update({
-      product_info: updatedProductInfo,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('amazon_order_id', orderIdValue);
-
-  if (updateError) {
-    return NextResponse.json(
-      { error: 'Failed to update order', details: updateError.message },
-      { status: 500 }
-    );
-  }
+  await updateOrderInSupabase(orderIdValue, { product_info: updatedProductInfo });
 
   return NextResponse.json({
     success: true,
