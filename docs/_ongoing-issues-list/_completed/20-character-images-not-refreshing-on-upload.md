@@ -1,9 +1,9 @@
 # Issue: Character images not refreshing live (or not reliably) after upload
 
-**Status:** 🟢 Fixed  
+**Status:** 🟡 Regression found (2026-02-25)  
 **Priority:** High  
 **Created:** 2026-02-05  
-**Last Updated:** 2026-02-23
+**Last Updated:** 2026-02-25
 
 ## Description
 
@@ -53,3 +53,6 @@ When a user uploads a replacement character image, the character images are **no
 ## Notes
 
 - Verification: `curl -I https://admin.littleherolabs.com/api/assets/<key>?v=<ts>` returns `cache-control: no-store, max-age=0`.
+- 2026-02-25 regression: image rendering in backend review Tabs 1/2 can still fail transiently in-grid/modal without full-page refresh. Additional client retry/self-heal logic was added in:
+  - `back-end/src/components/assets/asset-grid.tsx`
+  - `back-end/src/components/assets/image-lightbox.tsx`
