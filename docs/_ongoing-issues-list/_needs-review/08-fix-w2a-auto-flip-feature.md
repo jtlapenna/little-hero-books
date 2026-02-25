@@ -112,6 +112,16 @@ The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) was not wo
 - **Root cause:** `pngjs` uses Node's `zlib.Inflate` via `zlib.Inflate.call(this, opts)`. On Cloudflare Workers, the zlib polyfill (or Node compat layer) provides an ES6 class `Inflate` that cannot be invoked with `.call()` — it must be used with `new`, causing the constructor error.
 - **Fix:** Replaced `pngjs` with `fast-png` (uses `fflate` for decompression, pure JS, Workers-compatible). Updated `horizontalCenterOfMass` and `flipPngHorizontally` to use `decode`/`encode` from fast-png.
 
+### 2026-02-25: Guard against non-PNG inputs (wrong PNG signature)
+
+- **Symptom:** API returned `500 - "{\"success\":false,\"error\":\"wrong PNG signature\"}"` from n8n HTTP node.
+- **Cause:** Deterministic silhouette and flip steps attempted PNG decode on buffers that were not PNG (or had wrong key/format), which threw before fallback handling.
+- **Fix:** `check-and-flip-orientation` now:
+  - Validates PNG signatures before deterministic/flip decode.
+  - Skips deterministic PNG path when either image is non-PNG.
+  - Logs MIME/signature diagnostics (`imageSig`, `poseRefSig`) for fast root-cause tracing.
+  - Returns success with `skipped: true` (instead of 500) when a non-PNG generated image cannot be flipped.
+
 ---
 
 ## Testing the endpoint (without n8n)

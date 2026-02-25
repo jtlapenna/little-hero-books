@@ -5,6 +5,27 @@ import { extractR2Key, getBucketFromKey } from '@/lib/r2-utils';
 import { recordRequest } from './stats/route';
 
 /**
+ * Quick PNG signature check (89 50 4E 47 0D 0A 1A 0A).
+ */
+function isPngBuffer(buf: Buffer): boolean {
+  if (!buf || buf.length < 8) return false;
+  return (
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47 &&
+    buf[4] === 0x0d &&
+    buf[5] === 0x0a &&
+    buf[6] === 0x1a &&
+    buf[7] === 0x0a
+  );
+}
+
+function signatureHex(buf: Buffer, bytes = 8): string {
+  return Buffer.from(buf.slice(0, Math.max(0, bytes))).toString('hex');
+}
+
+/**
  * Build a "background color" guess from the 4 corners.
  */
 function inferBackground(decoded: { width: number; height: number; data: Uint8Array; channels: number }) {
@@ -282,19 +303,48 @@ export async function POST(request: NextRequest) {
       poseRefMimeType,
     });
     
+    const imageIsPng = isPngBuffer(imageBuffer);
+    const poseRefIsPng = isPngBuffer(poseRefBuffer);
+    if (!imageIsPng || !poseRefIsPng) {
+      console.warn('[Auto-Flip] Non-PNG input detected:', {
+        imageMimeType,
+        poseRefMimeType,
+        imageSig: signatureHex(imageBuffer),
+        poseRefSig: signatureHex(poseRefBuffer),
+        imageIsPng,
+        poseRefIsPng,
+      });
+    }
+
     // ── Step 1: Deterministic silhouette check (fast, no API call) ──
-    const detResult = deterministicOrientationCheck(poseRefBuffer, imageBuffer);
+    let detResult:
+      | { needsFlip: boolean; confidence: number; refDiff: number; flippedDiff: number }
+      | null = null;
+    if (imageIsPng && poseRefIsPng) {
+      try {
+        detResult = deterministicOrientationCheck(poseRefBuffer, imageBuffer);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn('[Auto-Flip] Deterministic check skipped:', msg);
+      }
+    }
     const detTag = detResult
       ? `refDiff=${detResult.refDiff}, flippedDiff=${detResult.flippedDiff}, conf=${detResult.confidence.toFixed(2)}`
-      : 'inconclusive';
+      : imageIsPng && poseRefIsPng
+        ? 'inconclusive'
+        : 'skipped-non-png';
     console.log('[Auto-Flip] Deterministic check:', detTag, detResult ? `needsFlip=${detResult.needsFlip}` : '');
 
     // Pre-compute flipped image (needed by both decision paths and the actual flip)
     let flippedCandidateBuffer: Buffer | null = null;
-    try {
-      flippedCandidateBuffer = await flipPngHorizontally(imageBuffer);
-    } catch (e: any) {
-      console.warn('[Auto-Flip] Failed to precompute flipped candidate:', e?.message ?? e);
+    if (imageIsPng) {
+      try {
+        flippedCandidateBuffer = await flipPngHorizontally(imageBuffer);
+      } catch (e: any) {
+        console.warn('[Auto-Flip] Failed to precompute flipped candidate:', e?.message ?? e);
+      }
+    } else {
+      console.warn('[Auto-Flip] Generated image is not PNG; skipping precomputed flip candidate');
     }
 
     let needsFlip: boolean;
@@ -404,8 +454,21 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Flip the image using the same pattern as manual flip, but server-side
-    // We'll use a simple pixel manipulation approach that works in Workers
+    if (!imageIsPng) {
+      const reason = `Generated image is not PNG (mime=${imageMimeType || 'unknown'}, sig=${signatureHex(imageBuffer)}). Auto-flip skipped.`;
+      console.warn('[Auto-Flip]', reason);
+      recordRequest(characterHash, poseNumber, false, true);
+      return NextResponse.json({
+        success: true,
+        flipped: false,
+        imageUrl,
+        skipped: true,
+        message: reason,
+        _debug: { decisionSource, deterministic: detTag, geminiRaw: geminiRawAnswer },
+      });
+    }
+
+    // Flip the image using the same pattern as manual flip, but server-side.
     console.log('[Auto-Flip] Flipping image horizontally using pixel manipulation...');
     
     let flippedBuffer: Buffer;
