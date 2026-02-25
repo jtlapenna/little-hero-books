@@ -110,6 +110,9 @@ export default function OrderDetailPage() {
   const [creating2bManifest, setCreating2bManifest] = useState(false);
   const [resettingOrder, setResettingOrder] = useState(false);
   const [normalizingShipping, setNormalizingShipping] = useState(false);
+  const [editingSpecs, setEditingSpecs] = useState(false);
+  const [specsForm, setSpecsForm] = useState<Record<string, string>>({});
+  const [savingSpecs, setSavingSpecs] = useState(false);
   const printRequestInProgressRef = useRef(false);
   const rawResetToggle = process.env.NEXT_PUBLIC_ENABLE_ORDER_RESET;
   const enableResetButton =
@@ -1350,35 +1353,126 @@ export default function OrderDetailPage() {
 
           {/* Character & Book Details */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Character Information */}
+            {/* Character Information (editable) */}
             <div className="space-y-4">
-              <h3 className="text-md font-semibold text-gray-900 border-b border-gray-200 pb-2">Character Details</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Child's Name</p>
-                  <p className="text-sm text-gray-600">{order.characterSpecs?.childName || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Age</p>
-                  <p className="text-sm text-gray-600">{order.characterSpecs?.age || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Skin Tone</p>
-                  <p className="text-sm text-gray-600 capitalize">{order.characterSpecs?.skinTone || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Hair</p>
-                  <p className="text-sm text-gray-600 capitalize">{order.characterSpecs?.hairColor || 'N/A'} {order.characterSpecs?.hairStyle || ''}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Animal Guide</p>
-                  <p className="text-sm text-gray-600 capitalize">{order.characterSpecs?.animalGuide || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Clothing</p>
-                  <p className="text-sm text-gray-600 capitalize">{order.characterSpecs?.clothingStyle || 'N/A'}</p>
-                </div>
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+                <h3 className="text-md font-semibold text-gray-900">Character Details</h3>
+                {!editingSpecs && (
+                  <button
+                    onClick={() => {
+                      setSpecsForm({
+                        childName: order.characterSpecs?.childName ?? '',
+                        age: String(order.characterSpecs?.age ?? ''),
+                        skinTone: order.characterSpecs?.skinTone ?? '',
+                        hairColor: order.characterSpecs?.hairColor ?? '',
+                        hairStyle: order.characterSpecs?.hairStyle ?? '',
+                        pronouns: order.characterSpecs?.pronouns ?? '',
+                        animalGuide: order.characterSpecs?.animalGuide ?? '',
+                        clothingStyle: order.characterSpecs?.clothingStyle ?? '',
+                        favoriteColor: order.characterSpecs?.favoriteColor ?? '',
+                        hometown: order.characterSpecs?.hometown ?? '',
+                      });
+                      setEditingSpecs(true);
+                    }}
+                    className="px-2 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded transition-colors"
+                  >
+                    Edit
+                  </button>
+                )}
               </div>
+
+              {editingSpecs ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { key: 'childName', label: "Child's Name" },
+                      { key: 'age', label: 'Age', type: 'number' },
+                      { key: 'skinTone', label: 'Skin Tone' },
+                      { key: 'hairColor', label: 'Hair Color' },
+                      { key: 'hairStyle', label: 'Hair Style' },
+                      { key: 'pronouns', label: 'Pronouns' },
+                      { key: 'animalGuide', label: 'Animal Guide' },
+                      { key: 'clothingStyle', label: 'Clothing' },
+                      { key: 'favoriteColor', label: 'Favorite Color' },
+                      { key: 'hometown', label: 'Hometown' },
+                    ].map(({ key, label, type }) => (
+                      <div key={key}>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+                        <input
+                          type={type || 'text'}
+                          value={specsForm[key] ?? ''}
+                          onChange={(e) => setSpecsForm(prev => ({ ...prev, [key]: e.target.value }))}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      disabled={savingSpecs}
+                      onClick={async () => {
+                        if (!confirm('This will update character specs, rebuild the manifest, and regenerate from W2A. All downstream work (2A, 2B, W3) will be re-done. Continue?')) return;
+                        setSavingSpecs(true);
+                        try {
+                          const specs: Record<string, unknown> = { ...specsForm };
+                          if (specs.age) specs.age = Number(specs.age);
+                          const resp = await fetch(`/api/admin/orders/${order.orderId}/character-specs`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ specs, regenerate: true }),
+                          });
+                          const result = await resp.json();
+                          if (!resp.ok) throw new Error(result.error || 'Update failed');
+                          alert('Character specs updated. Order queued for W2A regeneration.');
+                          setEditingSpecs(false);
+                          await fetchOrder(order.orderId);
+                        } catch (err: any) {
+                          alert(`Error: ${err.message}`);
+                        } finally {
+                          setSavingSpecs(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {savingSpecs ? 'Saving...' : 'Save & Regenerate from 2A'}
+                    </button>
+                    <button
+                      disabled={savingSpecs}
+                      onClick={() => setEditingSpecs(false)}
+                      className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Child's Name</p>
+                    <p className="text-sm text-gray-600">{order.characterSpecs?.childName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Age</p>
+                    <p className="text-sm text-gray-600">{order.characterSpecs?.age || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Skin Tone</p>
+                    <p className="text-sm text-gray-600 capitalize">{order.characterSpecs?.skinTone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Hair</p>
+                    <p className="text-sm text-gray-600 capitalize">{order.characterSpecs?.hairColor || 'N/A'} {order.characterSpecs?.hairStyle || ''}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Animal Guide</p>
+                    <p className="text-sm text-gray-600 capitalize">{order.characterSpecs?.animalGuide || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Clothing</p>
+                    <p className="text-sm text-gray-600 capitalize">{order.characterSpecs?.clothingStyle || 'N/A'}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Book & Order Information */}
