@@ -71,26 +71,43 @@ export async function GET(
       );
     }
 
-    // Get content type from response or default to JSON
-    const contentType = r2Response.headers.get('content-type') || 'application/json';
-    
     // Get manifest data
     const text = await r2Response.text();
+
+    // Validate that manifest content is parseable JSON (n8n expects JSON responses)
+    const isJsonFile = key.endsWith('.json');
+    if (isJsonFile) {
+      try {
+        JSON.parse(text);
+      } catch {
+        console.error(`[GET /api/manifests] R2 object is not valid JSON (key=${key}, length=${text.length}, first100=${text.substring(0, 100)})`);
+        return NextResponse.json(
+          { error: 'Manifest file exists but contains invalid JSON', key, length: text.length },
+          {
+            status: 502,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type',
+            }
+          }
+        );
+      }
+    }
     
     // Check for cache-busting query parameter
     const { searchParams } = new URL(request.url);
     const cacheBuster = searchParams.get('v');
     
     // Return manifest with proper headers (including CORS)
-    // If cache-busting parameter is present, disable caching to ensure fresh manifest
     const cacheControl = cacheBuster
-      ? 'no-cache, no-store, must-revalidate' // Force fresh fetch when cache-busting
-      : 'public, max-age=60, must-revalidate, s-maxage=0'; // Reduced cache time (1 minute, no CDN cache)
+      ? 'no-cache, no-store, must-revalidate'
+      : 'public, max-age=60, must-revalidate, s-maxage=0';
     
     return new NextResponse(text, {
       status: 200,
       headers: {
-        'Content-Type': contentType,
+        'Content-Type': isJsonFile ? 'application/json' : (r2Response.headers.get('content-type') || 'application/octet-stream'),
         'Cache-Control': cacheControl,
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
