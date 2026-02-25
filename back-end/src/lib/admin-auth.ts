@@ -16,13 +16,6 @@ function unauthorized(): AdminAuthFail {
   return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
 }
 
-function misconfigured(details: string): AdminAuthFail {
-  return {
-    ok: false,
-    response: NextResponse.json({ error: 'Admin auth misconfigured', details }, { status: 500 }),
-  };
-}
-
 /**
  * Purpose: fail-closed auth for admin endpoints.
  * Accept if either:
@@ -31,16 +24,21 @@ function misconfigured(details: string): AdminAuthFail {
  */
 export function requireAdminAuth(request: NextRequest): AdminAuthOk | AdminAuthFail {
   const configuredSiteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').trim();
-  if (!configuredSiteUrl) return misconfigured('NEXT_PUBLIC_SITE_URL is missing');
+  const allowlistedHosts = new Set<string>();
+  const configuredHost = parseHost(configuredSiteUrl);
+  if (configuredHost) allowlistedHosts.add(configuredHost);
 
-  const allowlistedHost = parseHost(configuredSiteUrl);
-  if (!allowlistedHost) return misconfigured('NEXT_PUBLIC_SITE_URL is not a valid URL');
+  // Purpose: avoid hard dependency on NEXT_PUBLIC_SITE_URL and support reverse proxies/CDNs.
+  const forwardedHost = (request.headers.get('x-forwarded-host') ?? '').split(',')[0]?.trim() || null;
+  const requestHost = (request.headers.get('host') ?? '').trim() || null;
+  if (forwardedHost) allowlistedHosts.add(forwardedHost);
+  if (requestHost) allowlistedHosts.add(requestHost);
 
   const originHost = parseHost(request.headers.get('origin'));
   const refererHost = parseHost(request.headers.get('referer'));
   const isSameOrigin =
-    (originHost && originHost === allowlistedHost) ||
-    (refererHost && refererHost === allowlistedHost);
+    (originHost && allowlistedHosts.has(originHost)) ||
+    (refererHost && allowlistedHosts.has(refererHost));
   if (isSameOrigin) return { ok: true, mode: 'same_origin' };
 
   const expectedToken = (process.env.BACKEND_API_TOKEN ?? '').trim();
