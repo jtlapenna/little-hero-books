@@ -92,9 +92,12 @@ export function AssetGrid({
   // Retry-with-backoff for transient image load failures.
   const retryCountRef = useRef<Map<string, number>>(new Map());
   const retryTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const selfHealCountRef = useRef<Map<string, number>>(new Map());
   const [retrySuffix, setRetrySuffix] = useState<Map<string, number>>(() => new Map());
-  const MAX_RETRIES = 3;
-  const RETRY_DELAYS = [3_000, 10_000, 15_000];
+  const MAX_RETRIES = 5;
+  const RETRY_DELAYS = [1_000, 2_000, 4_000, 8_000, 15_000];
+  const MAX_SELF_HEAL_CYCLES = 3;
+  const SELF_HEAL_DELAYS = [30_000, 60_000, 120_000];
 
   // Update selectedAsset when the corresponding asset in the assets array changes
   // This ensures the modal shows the updated image after operations like flip, flag, or revision updates
@@ -161,8 +164,8 @@ export function AssetGrid({
         const nextUrl = asset?.url || '';
         if (prevUrl !== nextUrl) {
           changed = true;
-          // Reset retry state when URL changes (replace/cache-bust)
           retryCountRef.current.delete(id);
+          selfHealCountRef.current.delete(id);
           const timer = retryTimerRef.current.get(id);
           if (timer) { clearTimeout(timer); retryTimerRef.current.delete(id); }
           continue;
@@ -279,6 +282,7 @@ export function AssetGrid({
                 decoding="async"
                 onLoad={() => {
                   retryCountRef.current.delete(asset.id);
+                  selfHealCountRef.current.delete(asset.id);
                   const timer = retryTimerRef.current.get(asset.id);
                   if (timer) { clearTimeout(timer); retryTimerRef.current.delete(asset.id); }
                   setFailedAssetIds(prev => {
@@ -304,6 +308,27 @@ export function AssetGrid({
                     retryTimerRef.current.set(asset.id, timer);
                   } else {
                     setFailedAssetIds(prev => (prev.has(asset.id) ? prev : new Set(prev).add(asset.id)));
+                    const healCycle = selfHealCountRef.current.get(asset.id) ?? 0;
+                    if (healCycle < MAX_SELF_HEAL_CYCLES) {
+                      const delay = SELF_HEAL_DELAYS[healCycle] ?? 120_000;
+                      selfHealCountRef.current.set(asset.id, healCycle + 1);
+                      const timer = setTimeout(() => {
+                        retryTimerRef.current.delete(asset.id);
+                        retryCountRef.current.delete(asset.id);
+                        setFailedAssetIds(prev => {
+                          if (!prev.has(asset.id)) return prev;
+                          const next = new Set(prev);
+                          next.delete(asset.id);
+                          return next;
+                        });
+                        setRetrySuffix(prev => {
+                          const next = new Map(prev);
+                          next.set(asset.id, Date.now());
+                          return next;
+                        });
+                      }, delay);
+                      retryTimerRef.current.set(asset.id, timer);
+                    }
                   }
                 }}
               />

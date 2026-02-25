@@ -80,7 +80,34 @@ export function ImageLightbox({
   const [isReplacing, setIsReplacing] = useState(false);
   const [comparisonImageLoading, setComparisonImageLoading] = useState(false);
   const [comparisonImageError, setComparisonImageError] = useState(false);
+  const [mainImageRetry, setMainImageRetry] = useState(0);
+  const [comparisonImageRetry, setComparisonImageRetry] = useState(0);
+  const mainRetryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const comparisonRetryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const RETRY_DELAYS_MS = [1000, 3000, 7000, 15000];
+
+  const withRetryParam = (url: string, retry: number, key: string): string => {
+    if (!url || !retry) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}${key}=${retry}`;
+  };
+
+  const scheduleMainRetry = () => {
+    const next = mainImageRetry + 1;
+    if (next > RETRY_DELAYS_MS.length) return;
+    const delay = RETRY_DELAYS_MS[next - 1];
+    if (mainRetryTimerRef.current) clearTimeout(mainRetryTimerRef.current);
+    mainRetryTimerRef.current = setTimeout(() => setMainImageRetry(next), delay);
+  };
+
+  const scheduleComparisonRetry = () => {
+    const next = comparisonImageRetry + 1;
+    if (next > RETRY_DELAYS_MS.length) return;
+    const delay = RETRY_DELAYS_MS[next - 1];
+    if (comparisonRetryTimerRef.current) clearTimeout(comparisonRetryTimerRef.current);
+    comparisonRetryTimerRef.current = setTimeout(() => setComparisonImageRetry(next), delay);
+  };
 
   // Regeneration UI state
   const [showRegenerateUI, setShowRegenerateUI] = useState(false);
@@ -113,6 +140,20 @@ export function ImageLightbox({
       document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
+
+  // Reset retries when displayed URLs change (or on open) and cleanup timers on unmount.
+  useEffect(() => {
+    setMainImageRetry(0);
+    setComparisonImageRetry(0);
+    setComparisonImageError(false);
+    setComparisonImageLoading(false);
+    if (mainRetryTimerRef.current) clearTimeout(mainRetryTimerRef.current);
+    if (comparisonRetryTimerRef.current) clearTimeout(comparisonRetryTimerRef.current);
+    return () => {
+      if (mainRetryTimerRef.current) clearTimeout(mainRetryTimerRef.current);
+      if (comparisonRetryTimerRef.current) clearTimeout(comparisonRetryTimerRef.current);
+    };
+  }, [isOpen, imageUrl, newOptionUrl, showNewOption, comparisonImageUrl]);
 
   // Handle click outside to close
   const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -744,12 +785,14 @@ export function ImageLightbox({
                       <>
                         <img
                           key={`${newOptionUrl}-${imageCacheBusterRef.current}`} // Force re-render when URL or cache-buster changes
-                          src={newOptionUrl} // URL already includes cache-busting parameters from parent
+                          src={withRetryParam(newOptionUrl, mainImageRetry, 'lr')} // URL already includes cache-busting from parent; add retry suffix for transient failures
                           alt="New Option"
                           className="max-w-full max-h-full object-contain"
+                          onLoad={() => {
+                            if (mainRetryTimerRef.current) clearTimeout(mainRetryTimerRef.current);
+                          }}
                           onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
+                            scheduleMainRetry();
                           }}
                         />
                         {/* Accept/Reject/Revise buttons - only visible when new option is shown */}
@@ -808,12 +851,14 @@ export function ImageLightbox({
                     ) : imageUrl ? (
                       // Show original image
                       <img
-                        src={imageUrl}
+                        src={withRetryParam(imageUrl, mainImageRetry, 'lr')}
                         alt={imageName}
                         className="max-w-full max-h-full object-contain"
+                        onLoad={() => {
+                          if (mainRetryTimerRef.current) clearTimeout(mainRetryTimerRef.current);
+                        }}
                         onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
+                          scheduleMainRetry();
                         }}
                       />
                     ) : (
@@ -852,16 +897,22 @@ export function ImageLightbox({
                       </div>
                     ) : comparisonImageUrl ? (
                       <img
-                        src={comparisonImageUrl}
+                        src={withRetryParam(comparisonImageUrl, comparisonImageRetry, 'cr')}
                         alt={comparisonLabel || 'Reference'}
                         className="max-w-full max-h-full object-contain"
                         onLoad={() => {
+                          if (comparisonRetryTimerRef.current) clearTimeout(comparisonRetryTimerRef.current);
                           setComparisonImageLoading(false);
                           setComparisonImageError(false);
                         }}
                         onError={() => {
                           setComparisonImageLoading(false);
-                          setComparisonImageError(true);
+                          if (comparisonImageRetry < RETRY_DELAYS_MS.length) {
+                            setComparisonImageError(false);
+                            scheduleComparisonRetry();
+                          } else {
+                            setComparisonImageError(true);
+                          }
                         }}
                         onLoadStart={() => {
                           setComparisonImageLoading(true);
@@ -883,9 +934,15 @@ export function ImageLightbox({
               }`}
             >
               <img
-                src={imageUrl}
+                src={withRetryParam(imageUrl, mainImageRetry, 'lr')}
                 alt={imageName}
                 className="max-w-full max-h-[60vh] object-contain mx-auto"
+                onLoad={() => {
+                  if (mainRetryTimerRef.current) clearTimeout(mainRetryTimerRef.current);
+                }}
+                onError={() => {
+                  scheduleMainRetry();
+                }}
               />
               
               {/* Background Toggle for Transparent Images */}
