@@ -1,9 +1,9 @@
 # Issue: Fix W2A Auto-Flip Feature (not working)
 
-**Status:** 🟡 Fix applied (backend); verify in production  
+**Status:** 🟡 Fix applied (2026-02-25); verify in production  
 **Priority:** High  
 **Created:** 2026-01-28  
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-25
 
 ## Description
 
@@ -112,7 +112,7 @@ The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) was not wo
 - **Root cause:** `pngjs` uses Node's `zlib.Inflate` via `zlib.Inflate.call(this, opts)`. On Cloudflare Workers, the zlib polyfill (or Node compat layer) provides an ES6 class `Inflate` that cannot be invoked with `.call()` — it must be used with `new`, causing the constructor error.
 - **Fix:** Replaced `pngjs` with `fast-png` (uses `fflate` for decompression, pure JS, Workers-compatible). Updated `horizontalCenterOfMass` and `flipPngHorizontally` to use `decode`/`encode` from fast-png.
 
-### 2026-02-25: Guard against non-PNG inputs (wrong PNG signature)
+### 2026-02-25 (first): Guard against non-PNG inputs (wrong PNG signature)
 
 - **Symptom:** API returned `500 - "{\"success\":false,\"error\":\"wrong PNG signature\"}"` from n8n HTTP node.
 - **Cause:** Deterministic silhouette and flip steps attempted PNG decode on buffers that were not PNG (or had wrong key/format), which threw before fallback handling.
@@ -121,6 +121,20 @@ The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) was not wo
   - Skips deterministic PNG path when either image is non-PNG.
   - Logs MIME/signature diagnostics (`imageSig`, `poseRefSig`) for fast root-cause tracing.
   - Returns success with `skipped: true` (instead of 500) when a non-PNG generated image cannot be flipped.
+
+### 2026-02-25 (second): Non-PNG images silently bypass all flip logic
+
+- **Symptom:** API returned `success: true, flipped: false` with `deterministic: "skipped-non-png"` and `geminiRaw: "ORIGINAL"` even though the generated character clearly faced the wrong direction compared to the reference pose.
+- **Root cause (two cascading problems):**
+  1. **Images stored as non-PNG (likely WebP):** Generated images from AI model are sometimes WebP despite having `.png` R2 key/extension. The previous fix correctly detected this but *skipped all processing* — both the deterministic silhouette check and the flip candidate computation.
+  2. **Gemini only saw one candidate:** Because `flippedCandidateBuffer` was null (couldn't flip a non-PNG), Gemini only received the REFERENCE + ORIGINAL images. Asked "ORIGINAL or FLIPPED?", it had no flipped image to compare against, so it always answered "ORIGINAL".
+- **Fix:** Complete rework of format handling:
+  1. **Format detection:** New `detectImageFormat()` identifies actual format (PNG/WebP/JPEG) from magic bytes, independent of R2 `content-type` header.
+  2. **Automatic conversion:** New `ensurePngBuffer()` uses `sharp` (already a dependency) to convert any image format to PNG before processing. Both the generated image and pose reference are normalized to PNG.
+  3. **All paths now work:** Deterministic check, flipped candidate computation, Gemini comparison, and the actual flip all operate on PNG buffers regardless of the original R2 format.
+  4. **Correct MIME types for Gemini:** Images sent to Gemini always use `image/png` (the actual format after conversion), not the potentially wrong R2 content-type header.
+  5. **Flipped result uploaded as PNG:** The flipped image is always uploaded to R2 as `image/png` with correct content-type.
+  6. **Debug output** now includes `imageFormat` and `poseRefFormat` fields showing the detected source formats.
 
 ---
 

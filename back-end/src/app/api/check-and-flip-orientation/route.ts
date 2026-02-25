@@ -1,28 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decode, encode } from 'fast-png';
+import sharp from 'sharp';
 import { getObject, putObject } from '@/lib/r2-client';
 import { extractR2Key, getBucketFromKey } from '@/lib/r2-utils';
 import { recordRequest } from './stats/route';
 
-/**
- * Quick PNG signature check (89 50 4E 47 0D 0A 1A 0A).
- */
-function isPngBuffer(buf: Buffer): boolean {
-  if (!buf || buf.length < 8) return false;
-  return (
-    buf[0] === 0x89 &&
-    buf[1] === 0x50 &&
-    buf[2] === 0x4e &&
-    buf[3] === 0x47 &&
-    buf[4] === 0x0d &&
-    buf[5] === 0x0a &&
-    buf[6] === 0x1a &&
-    buf[7] === 0x0a
-  );
+type ImageFormat = 'png' | 'webp' | 'jpeg' | 'unknown';
+
+function detectImageFormat(buf: Buffer): ImageFormat {
+  if (!buf || buf.length < 12) return 'unknown';
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'png';
+  if (buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP') return 'webp';
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg';
+  return 'unknown';
 }
+
+const FORMAT_TO_MIME: Record<ImageFormat, string> = {
+  png: 'image/png',
+  webp: 'image/webp',
+  jpeg: 'image/jpeg',
+  unknown: 'application/octet-stream',
+};
 
 function signatureHex(buf: Buffer, bytes = 8): string {
   return Buffer.from(buf.slice(0, Math.max(0, bytes))).toString('hex');
+}
+
+/**
+ * Convert any supported image buffer to PNG via sharp.
+ * Returns the original buffer unchanged if already PNG.
+ */
+async function ensurePngBuffer(buf: Buffer, label: string): Promise<Buffer> {
+  const fmt = detectImageFormat(buf);
+  if (fmt === 'png') return buf;
+  console.log(`[Auto-Flip] Converting ${label} from ${fmt} to PNG (${buf.length} bytes)`);
+  return Buffer.from(await sharp(buf).png().toBuffer());
 }
 
 /**
@@ -290,61 +302,62 @@ export async function POST(request: NextRequest) {
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
     const poseRefBuffer = Buffer.from(await poseRefResponse.arrayBuffer());
     
-    const imageBase64 = imageBuffer.toString('base64');
-    const poseRefBase64 = poseRefBuffer.toString('base64');
-    
-    const imageMimeType = imageResponse.headers.get('content-type') || 'image/png';
-    const poseRefMimeType = poseRefResponse.headers.get('content-type') || 'image/png';
+    // Detect actual image formats (may differ from R2 content-type header)
+    const imageFormat = detectImageFormat(imageBuffer);
+    const poseRefFormat = detectImageFormat(poseRefBuffer);
+    const imageMimeType = FORMAT_TO_MIME[imageFormat];
+    const poseRefMimeType = FORMAT_TO_MIME[poseRefFormat];
     
     console.log('[Auto-Flip] Images downloaded:', {
       imageSize: imageBuffer.length,
       poseRefSize: poseRefBuffer.length,
+      imageFormat,
+      poseRefFormat,
       imageMimeType,
       poseRefMimeType,
+      r2ImageContentType: imageResponse.headers.get('content-type'),
+      r2PoseRefContentType: poseRefResponse.headers.get('content-type'),
     });
-    
-    const imageIsPng = isPngBuffer(imageBuffer);
-    const poseRefIsPng = isPngBuffer(poseRefBuffer);
-    if (!imageIsPng || !poseRefIsPng) {
-      console.warn('[Auto-Flip] Non-PNG input detected:', {
-        imageMimeType,
-        poseRefMimeType,
-        imageSig: signatureHex(imageBuffer),
-        poseRefSig: signatureHex(poseRefBuffer),
-        imageIsPng,
-        poseRefIsPng,
-      });
+
+    // Normalize both buffers to PNG so deterministic check + flip always work
+    let imagePng: Buffer;
+    let poseRefPng: Buffer;
+    try {
+      [imagePng, poseRefPng] = await Promise.all([
+        ensurePngBuffer(imageBuffer, 'generated image'),
+        ensurePngBuffer(poseRefBuffer, 'pose reference'),
+      ]);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[Auto-Flip] Failed to normalize images to PNG:', msg);
+      recordRequest(characterHash, poseNumber, false, false);
+      return NextResponse.json(
+        { success: false, error: `Image conversion failed: ${msg}` },
+        { status: 500 },
+      );
     }
 
     // ── Step 1: Deterministic silhouette check (fast, no API call) ──
     let detResult:
       | { needsFlip: boolean; confidence: number; refDiff: number; flippedDiff: number }
       | null = null;
-    if (imageIsPng && poseRefIsPng) {
-      try {
-        detResult = deterministicOrientationCheck(poseRefBuffer, imageBuffer);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        console.warn('[Auto-Flip] Deterministic check skipped:', msg);
-      }
+    try {
+      detResult = deterministicOrientationCheck(poseRefPng, imagePng);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('[Auto-Flip] Deterministic check failed:', msg);
     }
     const detTag = detResult
       ? `refDiff=${detResult.refDiff}, flippedDiff=${detResult.flippedDiff}, conf=${detResult.confidence.toFixed(2)}`
-      : imageIsPng && poseRefIsPng
-        ? 'inconclusive'
-        : 'skipped-non-png';
+      : 'inconclusive';
     console.log('[Auto-Flip] Deterministic check:', detTag, detResult ? `needsFlip=${detResult.needsFlip}` : '');
 
-    // Pre-compute flipped image (needed by both decision paths and the actual flip)
+    // Pre-compute flipped image (needed by both Gemini comparison and the actual flip)
     let flippedCandidateBuffer: Buffer | null = null;
-    if (imageIsPng) {
-      try {
-        flippedCandidateBuffer = await flipPngHorizontally(imageBuffer);
-      } catch (e: any) {
-        console.warn('[Auto-Flip] Failed to precompute flipped candidate:', e?.message ?? e);
-      }
-    } else {
-      console.warn('[Auto-Flip] Generated image is not PNG; skipping precomputed flip candidate');
+    try {
+      flippedCandidateBuffer = await flipPngHorizontally(imagePng);
+    } catch (e: any) {
+      console.warn('[Auto-Flip] Failed to precompute flipped candidate:', e?.message ?? e);
     }
 
     let needsFlip: boolean;
@@ -368,19 +381,22 @@ export async function POST(request: NextRequest) {
         const geminiModel = process.env.GOOGLE_GEMINI_MODEL || 'gemini-2.5-flash';
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`;
 
+        // Use normalized PNG buffers for Gemini (guaranteed valid image data)
+        const poseRefPngBase64 = poseRefPng.toString('base64');
+        const imagePngBase64 = imagePng.toString('base64');
         const flippedCandidateBase64 = flippedCandidateBuffer ? flippedCandidateBuffer.toString('base64') : null;
 
         // Interleave labels with images so the model knows exactly which is which
         const parts: any[] = [
           { text: 'REFERENCE pose (this is the correct facing direction):' },
-          { inlineData: { mimeType: poseRefMimeType, data: poseRefBase64 } },
+          { inlineData: { mimeType: 'image/png', data: poseRefPngBase64 } },
           { text: 'IMAGE A — the ORIGINAL generated character:' },
-          { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
+          { inlineData: { mimeType: 'image/png', data: imagePngBase64 } },
         ];
         if (flippedCandidateBase64) {
           parts.push(
             { text: 'IMAGE B — the same character FLIPPED horizontally:' },
-            { inlineData: { mimeType: imageMimeType, data: flippedCandidateBase64 } },
+            { inlineData: { mimeType: 'image/png', data: flippedCandidateBase64 } },
           );
         }
         parts.push({
@@ -450,31 +466,17 @@ export async function POST(request: NextRequest) {
         flipped: false,
         imageUrl,
         message: 'Orientations match, no flip needed',
-        _debug: { decisionSource, deterministic: detTag, geminiRaw: geminiRawAnswer },
+        _debug: { decisionSource, deterministic: detTag, geminiRaw: geminiRawAnswer, imageFormat, poseRefFormat },
       });
     }
     
-    if (!imageIsPng) {
-      const reason = `Generated image is not PNG (mime=${imageMimeType || 'unknown'}, sig=${signatureHex(imageBuffer)}). Auto-flip skipped.`;
-      console.warn('[Auto-Flip]', reason);
-      recordRequest(characterHash, poseNumber, false, true);
-      return NextResponse.json({
-        success: true,
-        flipped: false,
-        imageUrl,
-        skipped: true,
-        message: reason,
-        _debug: { decisionSource, deterministic: detTag, geminiRaw: geminiRawAnswer },
-      });
-    }
-
     // Flip the image using the same pattern as manual flip, but server-side.
-    console.log('[Auto-Flip] Flipping image horizontally using pixel manipulation...');
+    console.log('[Auto-Flip] Flipping image horizontally...');
     
     let flippedBuffer: Buffer;
     try {
-      // Reuse candidate if we already computed it
-      flippedBuffer = flippedCandidateBuffer ?? (await flipPngHorizontally(imageBuffer));
+      // Reuse candidate if we already computed it (PNG-normalized)
+      flippedBuffer = flippedCandidateBuffer ?? (await flipPngHorizontally(imagePng));
       
       console.log('[Auto-Flip] Image flipped:', {
         originalSize: imageBuffer.length,
@@ -492,7 +494,7 @@ export async function POST(request: NextRequest) {
     // Upload flipped image back to R2 (overwrites original)
     console.log('[Auto-Flip] Uploading flipped image to R2...');
     try {
-      await putObject(imageBucket, imageKey, flippedBuffer, imageMimeType);
+      await putObject(imageBucket, imageKey, flippedBuffer, 'image/png');
       console.log('[Auto-Flip] Flipped image uploaded successfully');
     } catch (error: any) {
       console.error('[Auto-Flip] Error uploading flipped image:', error);
@@ -518,7 +520,7 @@ export async function POST(request: NextRequest) {
       flipped: true,
       imageUrl,
       message: 'Image was flipped and overwritten in R2',
-      _debug: { decisionSource, deterministic: detTag, geminiRaw: geminiRawAnswer },
+      _debug: { decisionSource, deterministic: detTag, geminiRaw: geminiRawAnswer, imageFormat, poseRefFormat },
     });
     
   } catch (error: any) {
