@@ -6,8 +6,8 @@ When an order ships (Lulu status changes to `SHIPPED`), we are not automatically
 ## Expected behavior
 - When Lulu marks a print job as `SHIPPED` and provides tracking info:
   1. Our system updates the order with tracking number, carrier, and tracking URL.
-  2. For Amazon orders (`platform = 'amazon'`), we automatically send a "your book has shipped" message via Amazon Messaging API (`confirmOrderDetails`).
-  3. Amazon delivers that message to the customer (Message Center / email).
+  2. For Amazon orders (`platform = 'amazon'`), we call Orders API `confirmShipment` with carrier + tracking.
+  3. Amazon marks the order shipped and sends its standard shipment notification to the buyer (Amazon email/message center flow).
 
 ## Root cause
 The Amazon shipped notification code lives **inside the Lulu webhook handler** (`POST /api/webhooks/lulu/status`). It only runs when the webhook fires with `statusName === 'SHIPPED'`.
@@ -17,10 +17,9 @@ The Amazon shipped notification code lives **inside the Lulu webhook handler** (
 This explains "worked then stopped": the webhook briefly worked, sending notifications, then stopped delivering events. Manual refreshes kept `lulu_status` current but never triggered notifications.
 
 ## Implementation (already exists)
-- **Trigger:** Lulu webhook handler when status is `SHIPPED` and `platform !== 'd2c'`.
-- **Enable flag:** `AMAZON_SHIPPED_NOTIFICATIONS_ENABLED=true` or running in production.
-- **Code:** `sendAmazonShippedMessage()` in `amazon-message-center.ts` → `confirmOrderDetails` with tracking text.
-- **Logging:** Every attempt (success or failure) is written to `notification_logs` (`notification_type = 'amazon_message'`).
+- **Trigger:** Lulu webhook handler when status is `SHIPPED` or `DELIVERED` and `platform !== 'd2c'`.
+- **Code path:** `confirmAmazonShipment()` in `amazon-shipment.ts` (Orders API `shipmentConfirmation`).
+- **Logging:** Attempts are written to `notification_logs` as `notification_type = 'amazon_confirm_shipment'`.
 
 ## Fixes applied
 - **401 recovery:** On 401 from SP-API, the LWA access token cache is cleared so the next call gets a fresh token.
@@ -33,10 +32,10 @@ This explains "worked then stopped": the webhook briefly worked, sending notific
 This issue is **blocked by #24** — until the Lulu webhook reliably delivers SHIPPED events, notifications won't fire. See #24 action items.
 
 ### After #24 is resolved
-- [ ] Check `notification_logs` for `amazon_message` rows: `GET /api/admin/webhook-diagnostics` returns these.
+- [ ] Check `notification_logs` for `amazon_confirm_shipment` rows: `GET /api/admin/webhook-diagnostics` returns these.
 - [ ] If `status = 'failed'`, check `error_message` (token issue, rate limit, permissions, etc.).
-- [ ] Ensure Amazon Messaging env vars are set: `AMZ_APP_CLIENT_ID`, `AMZ_APP_CLIENT_SECRET`, `AMZ_REFRESH_TOKEN`, `AMZ_SELLER_ID`, `AMZ_MARKETPLACE_ID`, `AMZ_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`.
-- [ ] After webhook delivers a SHIPPED event, confirm a `notification_logs` row with `status = 'sent'`.
+- [ ] Ensure Amazon SP-API env vars are set: `AMZ_APP_CLIENT_ID`, `AMZ_APP_CLIENT_SECRET`, `AMZ_REFRESH_TOKEN`, `AMZ_SELLER_ID`, `AMZ_MARKETPLACE_ID`, `AMZ_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`.
+- [ ] After webhook delivers a SHIPPED event, confirm a `notification_logs` row with `notification_type='amazon_confirm_shipment'` and `status='sent'`.
 
 ### Potential improvement
 Consider adding notification capability to the manual refresh endpoint as a fallback, so even when the webhook fails, manual refresh can optionally send the Amazon shipped message.

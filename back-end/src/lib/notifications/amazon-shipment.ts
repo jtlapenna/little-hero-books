@@ -21,12 +21,14 @@ const CARRIER_MAP: Record<string, { carrierCode: string; carrierName: string }> 
   UPS:   { carrierCode: 'UPS',   carrierName: 'UPS' },
   FEDEX: { carrierCode: 'FedEx', carrierName: 'FedEx' },
   DHL:   { carrierCode: 'DHL',   carrierName: 'DHL' },
+  OSM:   { carrierCode: 'OSM',   carrierName: 'OSM' },
+  'OSM WORLDWIDE': { carrierCode: 'OSM', carrierName: 'OSM' },
 };
 
 export function mapCarrierCode(luluCarrier: string | null | undefined): { carrierCode: string; carrierName: string } {
-  if (!luluCarrier) return { carrierCode: 'OTHER', carrierName: 'Unknown' };
+  if (!luluCarrier) return { carrierCode: 'Other', carrierName: 'Unknown' };
   const key = luluCarrier.trim().toUpperCase();
-  return CARRIER_MAP[key] ?? { carrierCode: 'OTHER', carrierName: luluCarrier.trim() };
+  return CARRIER_MAP[key] ?? { carrierCode: 'Other', carrierName: luluCarrier.trim() };
 }
 
 // ---------------------------------------------------------------------------

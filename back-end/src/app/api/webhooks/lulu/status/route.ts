@@ -48,12 +48,20 @@ function extractTrackingInfo(lineItemStatuses: any[]): {
   const msgs = firstItem.messages || firstItem.status?.messages || {};
 
   const trackingUrls = msgs.tracking_urls || firstItem.tracking_urls;
+  const trackingUrl = Array.isArray(trackingUrls) ? trackingUrls[0] || null
+    : firstItem.tracking_url || firstItem.trackingUrl || null;
+  const carrierRaw = msgs.carrier_name || firstItem.carrier_name || firstItem.carrier || null;
+
+  // Lulu sometimes omits carrier_name for OSM. Infer from tracking URL to avoid "Other/Unknown".
+  const inferredCarrier =
+    typeof trackingUrl === 'string' && /osmworldwide\.com/i.test(trackingUrl)
+      ? 'OSM'
+      : null;
 
   return {
     trackingNumber: msgs.tracking_id || firstItem.tracking_id || firstItem.trackingId || null,
-    trackingUrl: Array.isArray(trackingUrls) ? trackingUrls[0] || null
-      : firstItem.tracking_url || firstItem.trackingUrl || null,
-    carrier: msgs.carrier_name || firstItem.carrier_name || firstItem.carrier || null,
+    trackingUrl,
+    carrier: carrierRaw || inferredCarrier,
   };
 }
 
