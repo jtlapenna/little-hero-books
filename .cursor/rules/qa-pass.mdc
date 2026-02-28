@@ -1,0 +1,75 @@
+---
+description: When the user says "QA Pass", run a structured quality assurance review on all work produced in the current session.
+alwaysApply: true
+---
+
+# QA Pass
+
+When the user types **"QA Pass"** (case-insensitive), perform the following structured review on all work produced in the current conversation. Do NOT skip sections — mark each as PASS, FAIL, or N/A with a one-line rationale.
+
+## 1. Completeness
+
+- Every task, to-do, or requirement discussed in the session has a corresponding deliverable.
+- No partial implementations left unfinished without explicit acknowledgment.
+- All files referenced or promised actually exist and are non-empty.
+
+## 2. Accuracy
+
+- Facts, file paths, endpoint names, and references match their source documents.
+- Code logic matches stated intent (no off-by-one, wrong variable, inverted condition).
+- Cross-references between documents point to correct, current targets.
+
+## 3. Quality
+
+- Code follows project conventions (naming, structure, comments-only-where-non-obvious).
+- Documentation is clear, concise, and free of placeholder text or unresolved TODOs.
+- No secrets, credentials, or PII committed to tracked files.
+
+## 4. Effectiveness
+
+- The work actually solves the problem or achieves the stated goal.
+- Edge cases and failure modes are handled or explicitly documented as known gaps.
+
+## 5. Efficiency
+
+- No unnecessary duplication of logic, data, or files.
+- No over-engineering beyond what was requested.
+
+## 6. Unintended consequences
+
+- Changes do not break existing functionality (check for stale imports, broken links, removed dependencies).
+- File moves or renames have corresponding reference updates.
+- Scripts are safe to run (no destructive operations without flags/confirmation).
+
+## 7. Verification actions
+
+For each category of work produced, run the appropriate checks:
+
+- **Markdown/docs**: Verify internal links resolve. Scan for placeholder tokens (`<SET_ME>`, `TODO`, `FIXME`).
+- **Code files**: Run linter (`ReadLints`). Compile or syntax-check if applicable. Confirm dry-run works if a CLI tool.
+- **File operations**: Confirm source removed and target exists. Spot-check 1-2 files for correct content.
+- **Git operations**: Show `git status` and `git diff --stat` summary if changes are uncommitted.
+
+## Output format
+
+Present results as a checklist:
+
+```
+## QA Pass Results
+
+1. Completeness:  PASS | FAIL | N/A — <one-line rationale>
+2. Accuracy:      PASS | FAIL | N/A — <one-line rationale>
+3. Quality:       PASS | FAIL | N/A — <one-line rationale>
+4. Effectiveness: PASS | FAIL | N/A — <one-line rationale>
+5. Efficiency:    PASS | FAIL | N/A — <one-line rationale>
+6. Side effects:  PASS | FAIL | N/A — <one-line rationale>
+7. Verification:  PASS | FAIL | N/A — <one-line rationale>
+
+Issues found: <count>
+<bulleted list of specific issues, or "None">
+
+Suggested fixes: <count>
+<bulleted list of recommended actions, or "None">
+```
+
+If any category is FAIL, propose a concrete fix. Ask the user before applying fixes.

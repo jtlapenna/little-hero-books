@@ -8,6 +8,8 @@ This file provides copy/paste-ready test data for:
 
 - Scenario A: 2-book sibling order
 - Scenario B: 3-book sibling order
+- Scenario C: D2C multi-book order (2 books)
+- Scenario D: D2C multi-book order (3 books)
 
 ## Test pseudocode
 
@@ -332,4 +334,98 @@ Expected response: `order_ids` array with 2 entries (e.g. `["{root}-item-1", "{r
 - W0 Normalize Payload detects siblings via `deriveRootOrderId()` regex
 - Both books flow through pipeline independently
 - W4.1 aggregates both into single Lulu print job
+
+---
+
+## Scenario D: D2C Multi-Book Order (3 books)
+
+Tests D2C sibling behavior at N=3 (same as Amazon stagger test, but from frontend/checkout source).
+
+### D2C checkout API payload (3 books)
+
+```json
+{
+  "customer_email": "test-d2c-3@example.com",
+  "customer_name": "Three Book Parent",
+  "shipping_address": {
+    "name": "Three Book Parent",
+    "address_line1": "789 Cedar Street",
+    "city": "Seattle",
+    "state": "WA",
+    "postal_code": "98101",
+    "country": "US"
+  },
+  "shipping_tier": "mail",
+  "books": [
+    {
+      "character_specs": {
+        "childName": "Aria",
+        "name": "Aria",
+        "age": 5,
+        "pronouns": "she-her",
+        "skinTone": "light-medium",
+        "hairColor": "brown",
+        "hairStyle": "braids",
+        "favoriteColor": "pink",
+        "favoriteAnimal": "fox",
+        "hometown": "Seattle"
+      },
+      "dedication": "For Aria, our bright little hero."
+    },
+    {
+      "character_specs": {
+        "childName": "Theo",
+        "name": "Theo",
+        "age": 6,
+        "pronouns": "he-him",
+        "skinTone": "medium",
+        "hairColor": "black",
+        "hairStyle": "short-wavy",
+        "favoriteColor": "blue",
+        "favoriteAnimal": "bear",
+        "hometown": "Seattle"
+      },
+      "dedication": "For Theo, our fearless explorer."
+    },
+    {
+      "character_specs": {
+        "childName": "Nia",
+        "name": "Nia",
+        "age": 4,
+        "pronouns": "she-her",
+        "skinTone": "deep",
+        "hairColor": "black",
+        "hairStyle": "puffs",
+        "favoriteColor": "yellow",
+        "favoriteAnimal": "butterfly",
+        "hometown": "Seattle"
+      },
+      "dedication": "For Nia, who brings joy everywhere."
+    }
+  ]
+}
+```
+
+### Direct API test (backend validation)
+
+```bash
+BACKEND_URL="https://admin.littleherolabs.com"
+curl -X POST "${BACKEND_URL}/api/checkout/create" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: test-d2c-multi3-$(date +%s)" \
+  -d @d2c-multi-book-3.json
+```
+
+Expected response: `order_ids` array with 3 entries, `book_count: 3`.
+
+### Assertions
+
+- 3 order rows created in Supabase, each `platform: 'd2c'`
+- All `orderId` values are unique and share one root group identity
+- Each row has distinct `character_specs` and `character_hash`
+- Stripe checkout session has 4 line items (3 books + 1 shipping)
+- After payment: all transition to `pending_w0`, W0 triggered per sibling
+- No partial W4.1 aggregate for 2/3 readiness
+- Final W4.1 aggregate submits once with `line_items.length == 3`
+- All 3 sibling rows share one `lulu_job_id`
 

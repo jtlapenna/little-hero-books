@@ -58,6 +58,72 @@ async function updateOrderRowResilientById(orderRowId: number, updateData: Recor
 }
 
 /**
+ * Restore an order from archived_orders back into orders table.
+ * Returns the restored order row, or null if not found in archives.
+ */
+async function restoreArchivedOrder(orderId: string): Promise<Record<string, unknown> | null> {
+  const trimmed = orderId.trim();
+
+  const { data: archivedRow, error: fetchErr } = await supabase
+    .from('archived_orders')
+    .select('*')
+    .or(`order_id.eq.${trimmed},amazon_order_id.eq.${trimmed}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (fetchErr && fetchErr.code !== 'PGRST116') {
+    throw new Error(`Failed to query archived_orders: ${fetchErr.message}`);
+  }
+  if (!archivedRow?.order_data) return null;
+
+  const orderData: Record<string, unknown> = { ...archivedRow.order_data };
+  // Remove PK so the DB assigns a fresh auto-increment id
+  delete orderData.id;
+
+  // Schema-drift-tolerant insert: drop unknown columns and retry
+  let lastInsertError: any = null;
+  for (let i = 0; i < 8; i++) {
+    const { data: inserted, error: insertErr } = await supabase
+      .from('orders')
+      .insert(orderData)
+      .select('*')
+      .maybeSingle();
+
+    if (!insertErr && inserted) {
+      // Successfully restored — remove from archive
+      await supabase.from('archived_orders').delete().eq('id', archivedRow.id);
+      console.log(`[Regenerate 4] Deleted archive row id=${archivedRow.id} for ${trimmed}`);
+      return inserted as Record<string, unknown>;
+    }
+
+    lastInsertError = insertErr;
+    const msg = String(insertErr?.message || '');
+    const details = String(insertErr?.details || '');
+    const code = String(insertErr?.code || '');
+    const combined = `${msg}\n${details}`.toLowerCase();
+
+    const isUnknownColumn =
+      code === 'PGRST204' || code === '42703' ||
+      (combined.includes('could not find the') && combined.includes('column')) ||
+      (combined.includes('column') && combined.includes('does not exist'));
+    if (!isUnknownColumn) break;
+
+    const m =
+      msg.match(/'([^']+)' column/i) ||
+      details.match(/'([^']+)' column/i) ||
+      msg.match(/column\s+[\w.]+\.([\w_]+)\s+does not exist/i) ||
+      details.match(/column\s+[\w.]+\.([\w_]+)\s+does not exist/i);
+    const missingCol = m?.[1];
+    if (!missingCol || !(missingCol in orderData)) break;
+
+    console.warn(`[Regenerate 4] Restore: dropping missing column "${missingCol}" and retrying`);
+    delete orderData[missingCol];
+  }
+
+  throw lastInsertError || new Error('Failed to restore order from archive');
+}
+
+/**
  * POST /api/admin/orders/[orderId]/regenerate-4
  * 
  * Force regeneration of 4 workflow (Print Fulfillment) by clearing Lulu status fields and triggering workflow.
@@ -99,17 +165,22 @@ export async function POST(
   }
 
   try {
-    // PSEUDOCODE
-    // - Load order (by any identifier) to get numeric `id` and amazon_order_id
-    // - Preserve review_stages (parse if string)
-    // - Clear Lulu status fields + queue W4 for W1.1 router (next_workflow='4', execution_status='ready_for_processing')
+    // 1. Try to find in orders table (active / recently_delivered)
+    let currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
+    let wasArchived = false;
 
-    const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
+    // 2. If not in orders, check archived_orders and restore
     if (!currentOrder) {
-      return NextResponse.json(
-        { error: 'Order not found' },
-        { status: 404 }
-      );
+      const archived = await restoreArchivedOrder(orderId);
+      if (!archived) {
+        return NextResponse.json(
+          { error: 'Order not found in active orders or archives' },
+          { status: 404 }
+        );
+      }
+      currentOrder = archived;
+      wasArchived = true;
+      console.log(`[Regenerate 4] Restored order ${orderId} from archived_orders`);
     }
 
     const orderRowId = Number((currentOrder as { id?: unknown }).id);
@@ -132,43 +203,43 @@ export async function POST(
       }
     }
 
-    // Clear Lulu status fields and trigger workflow
-    // IMPORTANT: Must clear any existing processing state to allow router to pick it up
-    // Use direct update to ensure execution_status is actually persisted
     const queuedAt = new Date().toISOString();
     await updateOrderRowResilientById(orderRowId, {
-      next_workflow: '4', // Uppercase '4' (router expects uppercase)
-      execution_status: 'ready_for_processing', // Router only picks up 'ready_for_processing'
+      next_workflow: '4',
+      execution_status: 'ready_for_processing',
       status: 'queued_for_processing',
-      lulu_job_id: null, // Clear Lulu job ID
-      lulu_status: null, // Clear Lulu status
-      lulu_cost: null, // Clear Lulu cost
-      lulu_estimated_ship_date: null, // Clear estimated ship date
-      lulu_tracking_number: null, // Clear tracking number
-      lulu_tracking_url: null, // Clear tracking URL
-      lulu_carrier: null, // Clear carrier
+      lifecycle_status: 'active',
+      lulu_job_id: null,
+      lulu_status: null,
+      lulu_cost: null,
+      lulu_estimated_ship_date: null,
+      lulu_tracking_number: null,
+      lulu_tracking_url: null,
+      lulu_carrier: null,
+      printFulfillmentStatus: null,
+      printFulfillmentStartedAt: null,
+      printFulfillmentFinishedAt: null,
       queued_at: queuedAt,
-      started_at: null, // Clear started_at
-      current_workflow: null, // Clear current_workflow
-      review_stages, // Preserve review stages
-      // Clear any error/retry state that might prevent routing
+      started_at: null,
+      current_workflow: null,
+      review_stages,
       error_message: null,
       error_type: null,
       retry_count: 0,
       last_error_at: null,
       next_retry_at: null,
-      // Ensure updated_at changes even if DB has no trigger
       updated_at: queuedAt,
     });
-    console.log(`[Regenerate 4] Successfully updated order ${amazonOrderId} (id=${orderRowId}) - cleared Lulu fields and set execution_status to ready_for_processing`);
 
-    console.log(`[Regenerate 4] Order ${amazonOrderId} queued for router. Router will pick it up on next cron run.`);
+    const source = wasArchived ? 'restored from archive' : 'active orders';
+    console.log(`[Regenerate 4] Queued order ${amazonOrderId} (id=${orderRowId}, ${source}) for W4 regeneration`);
 
     return NextResponse.json({
       success: true,
       orderId,
-      message: '4 workflow regeneration queued. Lulu fields cleared. Router will pick up this order on next cron run.',
-      luluFieldsCleared: true
+      message: `4 regeneration queued (${source}). Router will pick up on next cron run.`,
+      luluFieldsCleared: true,
+      wasArchived,
     });
   } catch (error: any) {
     console.error('[Regenerate 4] Error:', error);

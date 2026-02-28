@@ -1336,8 +1336,7 @@ export default function OrderDetailPage() {
                         ].filter(Boolean);
                         throw new Error(msgParts.join('\n'));
                       }
-                      alert('4 regeneration queued successfully');
-                      // Refresh order data
+                      alert(data?.message || '4 regeneration queued successfully');
                       window.location.reload();
                     } catch (error: any) {
                       alert(`Error: ${error.message}`);
