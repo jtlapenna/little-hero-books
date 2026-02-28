@@ -1098,6 +1098,69 @@
     },
     {
       "parameters": {
+        "jsCode": "// QA Check Interior PDF: calls backend deterministic QA endpoint before print submit.\nconst item = $input.first()?.json || {};\nconst orderId = item.orderId || item.amazonOrderId || item.amazon_order_id;\nconst pdfR2Key = item.pdfR2Key || item.interiorPdfR2Key;\nif (!orderId || !pdfR2Key) {\n  throw new Error(`[QA Check Interior PDF] Missing orderId/pdfR2Key (orderId=${orderId || 'n/a'})`);\n}\n\nconst token = item.CONFIG?.backendApiToken || '';\nif (!token) throw new Error('[QA Check Interior PDF] Missing CONFIG.backendApiToken');\n\nconst assetBase = item.CONFIG?.defaults?.trimIn?.assetBase || 'https://admin.littleherolabs.com/api/assets/';\nconst backendUrl = String(assetBase).replace(/\\/api\\/assets\\/?$/, '');\nconst url = `${backendUrl}/api/render/qa-check-pdf`;\nconst http = this.helpers.httpRequest;\n\nconst resp = await http({\n  method: 'POST',\n  url,\n  headers: {\n    Authorization: `Bearer ${token}`,\n    'Content-Type': 'application/json'\n  },\n  body: {\n    orderId,\n    pdfR2Key,\n    expectedPageCount: 17,\n    type: 'interior'\n  },\n  json: true,\n  ignoreHttpStatusErrors: true,\n  timeout: 45000\n});\n\nconst statusCode = Number(resp?.statusCode || resp?.status || 200);\nconst payload = resp?.body && typeof resp.body === 'object' ? resp.body : resp;\nif (!payload || typeof payload !== 'object') {\n  throw new Error(`[QA Check Interior PDF] Invalid response payload (status=${statusCode})`);\n}\n\nconst qaInterior = {\n  statusCode,\n  passed: Boolean(payload.passed),\n  reasonCode: payload.reasonCode || 'unknown',\n  reason: payload.reason || 'unknown',\n  failedPages: Array.isArray(payload.failedPages) ? payload.failedPages : [],\n  warnings: Array.isArray(payload.warnings) ? payload.warnings : [],\n  raw: payload\n};\n\nreturn [{ json: { ...item, qaInterior } }];"
+      },
+      "id": "6b2f6f06-8642-4eb0-bcbe-36051e2db0ee",
+      "name": "QA Check Interior PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4160,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// QA Check Cover PDF: validates cover render and emits aggregate qaPassed.\nconst item = $input.first()?.json || {};\nconst orderId = item.orderId || item.amazonOrderId || item.amazon_order_id;\nconst pdfR2Key = item.coverPdfR2Key;\nif (!orderId || !pdfR2Key) {\n  throw new Error(`[QA Check Cover PDF] Missing orderId/coverPdfR2Key (orderId=${orderId || 'n/a'})`);\n}\n\nconst token = item.CONFIG?.backendApiToken || '';\nif (!token) throw new Error('[QA Check Cover PDF] Missing CONFIG.backendApiToken');\n\nconst assetBase = item.CONFIG?.defaults?.trimIn?.assetBase || 'https://admin.littleherolabs.com/api/assets/';\nconst backendUrl = String(assetBase).replace(/\\/api\\/assets\\/?$/, '');\nconst url = `${backendUrl}/api/render/qa-check-pdf`;\nconst http = this.helpers.httpRequest;\n\nconst resp = await http({\n  method: 'POST',\n  url,\n  headers: {\n    Authorization: `Bearer ${token}`,\n    'Content-Type': 'application/json'\n  },\n  body: {\n    orderId,\n    pdfR2Key,\n    expectedPageCount: 1,\n    type: 'cover'\n  },\n  json: true,\n  ignoreHttpStatusErrors: true,\n  timeout: 45000\n});\n\nconst statusCode = Number(resp?.statusCode || resp?.status || 200);\nconst payload = resp?.body && typeof resp.body === 'object' ? resp.body : resp;\nif (!payload || typeof payload !== 'object') {\n  throw new Error(`[QA Check Cover PDF] Invalid response payload (status=${statusCode})`);\n}\n\nconst qaCover = {\n  statusCode,\n  passed: Boolean(payload.passed),\n  reasonCode: payload.reasonCode || 'unknown',\n  reason: payload.reason || 'unknown',\n  failedPages: Array.isArray(payload.failedPages) ? payload.failedPages : [],\n  warnings: Array.isArray(payload.warnings) ? payload.warnings : [],\n  raw: payload\n};\n\nconst qaInterior = item.qaInterior || {};\nconst qaPassed = Boolean(qaInterior.passed) && Boolean(qaCover.passed);\n\nreturn [{\n  json: {\n    ...item,\n    qaCover,\n    qaPassed,\n    qaFailedPages: [...(qaInterior.failedPages || []), ...(qaCover.failedPages || [])]\n  }\n}];"
+      },
+      "id": "f2933ee3-486f-4ac5-a17e-83d67faf393e",
+      "name": "QA Check Cover PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3936,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [],
+          "number": [],
+          "string": [
+            {
+              "value1": "={{$json.qaPassed}}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3e0959ad-ac90-45a6-b307-8a46343bb29f",
+      "name": "IF QA Passed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3712,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// QA Failed Error Handler: normalize error payload for existing error persistence branch.\nconst j = $input.first()?.json || {};\nconst orderId = j.orderId || j.amazonOrderId || j.amazon_order_id || 'unknown-order';\nconst hasValidOrderId = orderId !== 'unknown-order';\n\nconst supabaseProjectUrl = j.CONFIG?.supabase?.projectUrl || 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseServiceRoleKey = j.CONFIG?.supabase?.serviceRoleKey || '';\nif (!supabaseServiceRoleKey) {\n  throw new Error('[QA Failed Error Handler] Missing CONFIG.supabase.serviceRoleKey');\n}\n\nconst interior = j.qaInterior || {};\nconst cover = j.qaCover || {};\nconst reasons = [\n  interior?.passed ? null : `interior:${interior.reasonCode || 'failed'}`,\n  cover?.passed ? null : `cover:${cover.reasonCode || 'failed'}`\n].filter(Boolean);\nconst failedPages = Array.isArray(j.qaFailedPages) ? j.qaFailedPages : [];\n\nconst errorMessage = `[W4 QA] Failed before Lulu submit (${reasons.join(', ') || 'unknown'}). Failed pages: ${failedPages.join(', ') || 'n/a'}`;\nconst qaManifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/4-qa-fail-manifest.json`;\n\nreturn [{\n  json: {\n    ...j,\n    orderId,\n    hasValidOrderId,\n    supabaseProjectUrl,\n    supabaseServiceRoleKey,\n    supabasePatch: {\n      execution_status: 'error',\n      error_type: 'print_qa_failed',\n      workflow_step: 'print_fulfillment',\n      error_message: errorMessage,\n      printFulfillmentStatus: 'error',\n      printFulfillmentErrorPhase: 'qa_gate',\n      printFulfillmentErrorMessage: errorMessage\n    },\n    manifestKey: qaManifestKey,\n    _errorManifest: {\n      schema: 'lhb.run-manifest@v2.0',\n      stage: '4-print-fulfillment',\n      createdAt: new Date().toISOString(),\n      orderId,\n      status: 'error',\n      errorType: 'print_qa_failed',\n      errorPhase: 'qa_gate',\n      errorMessage,\n      qaInterior: interior,\n      qaCover: cover\n    }\n  }\n}];"
+      },
+      "id": "16cb3672-848f-48f9-a2ca-4f8bc744d770",
+      "name": "QA Failed Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3504,
+        832
+      ]
+    },
+    {
+      "parameters": {
         "jsCode": "// Merge the PDFMonkey response with the preserved workflow context\nconst httpResp = $input.first().json || {};\nlet ctx = {};\ntry { ctx = ($items('Build Pages HTML (8.75in)1', 0, $runIndex)?.[0]?.json) || {}; } catch {}\nif (!ctx.orderId) {\n  try { ctx = ($items('Validate & Normalize W4 Input', 0, $runIndex)?.[0]?.json) || ctx; } catch {}\n}\n\n// Keep the top-level shape that Poll node expects (document/data)\nconst docObj = httpResp.document || httpResp.data || httpResp;\nreturn [{\n  json: {\n    ...ctx,\n    document: docObj\n  }\n}];"
       },
       "id": "7bbb45e5-0087-4728-8268-bc72a168655c",
@@ -1723,7 +1786,7 @@
       "main": [
         [
           {
-            "node": "Generate Signed URLs (R2 GET)",
+            "node": "QA Check Interior PDF",
             "type": "main",
             "index": 0
           },
@@ -1741,6 +1804,57 @@
             "node": "Merge",
             "type": "main",
             "index": 1
+          }
+        ]
+      ]
+    },
+    "QA Check Interior PDF": {
+      "main": [
+        [
+          {
+            "node": "QA Check Cover PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Check Cover PDF": {
+      "main": [
+        [
+          {
+            "node": "IF QA Passed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF QA Passed": {
+      "main": [
+        [
+          {
+            "node": "Generate Signed URLs (R2 GET)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QA Failed Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Failed Error Handler": {
+      "main": [
+        [
+          {
+            "node": "IF has valid orderId (Error)",
+            "type": "main",
+            "index": 0
           }
         ]
       ]

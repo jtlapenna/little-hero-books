@@ -73,6 +73,7 @@ function getPhaseForDisplayStatus(displayStatus: DisplayStatus, revisionCount?: 
     case DisplayStatus.MAX_RETRIES:
     case DisplayStatus.WORKFLOW_TIMEOUT:
     case DisplayStatus.API_ERROR:
+    case DisplayStatus.PRINT_QA_FAILED:
     case DisplayStatus.STUCK_PROCESSING:
     case DisplayStatus.NOT_PICKED_UP:
     case DisplayStatus.MULTIPLE_ERRORS:
@@ -127,6 +128,7 @@ export type ErrorType =
   | DisplayStatus.MAX_RETRIES
   | DisplayStatus.WORKFLOW_TIMEOUT
   | DisplayStatus.API_ERROR
+  | DisplayStatus.PRINT_QA_FAILED
   | DisplayStatus.STUCK_PROCESSING
   | DisplayStatus.NOT_PICKED_UP;
 
@@ -162,6 +164,8 @@ function detectOrderErrors(order: Order): ErrorType[] {
       errors.push(DisplayStatus.WORKFLOW_TIMEOUT);
     } else if (order.errorType === 'api_error' || order.errorType === 'api_error') {
       errors.push(DisplayStatus.API_ERROR);
+    } else if (order.errorType === 'print_qa_failed') {
+      errors.push(DisplayStatus.PRINT_QA_FAILED);
     } else if (order.errorType === 'missing_manifest') {
       errors.push(DisplayStatus.MISSING_MANIFEST);
     }
@@ -254,8 +258,9 @@ function getErrorPriority(errorType: ErrorType): number {
     [DisplayStatus.WORKFLOW_TIMEOUT]: 2,
     [DisplayStatus.MISSING_MANIFEST]: 3,
     [DisplayStatus.API_ERROR]: 4,
-    [DisplayStatus.STUCK_PROCESSING]: 5,
-    [DisplayStatus.NOT_PICKED_UP]: 6,
+    [DisplayStatus.PRINT_QA_FAILED]: 5,
+    [DisplayStatus.STUCK_PROCESSING]: 6,
+    [DisplayStatus.NOT_PICKED_UP]: 7,
   };
   return priorities[errorType] || 99;
 }

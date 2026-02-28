@@ -24,6 +24,7 @@ export function ErrorBadgeTooltip({ errorType, className = '', children }: Error
     [DisplayStatus.MAX_RETRIES]: 'Maximum retry attempts (3) exceeded',
     [DisplayStatus.WORKFLOW_TIMEOUT]: 'Workflow timed out after multiple attempts',
     [DisplayStatus.API_ERROR]: 'API request failed',
+    [DisplayStatus.PRINT_QA_FAILED]: 'Final PDF failed pre-print QA checks and was blocked before Lulu submit',
     [DisplayStatus.STUCK_PROCESSING]: 'Order stuck in processing state for over 30 minutes',
     [DisplayStatus.NOT_PICKED_UP]: 'Order ready for processing but not picked up by router for over 60 minutes',
     [DisplayStatus.MULTIPLE_ERRORS]: 'Multiple errors detected',

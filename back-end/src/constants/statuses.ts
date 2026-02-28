@@ -84,6 +84,7 @@ export enum DisplayStatus {
   MAX_RETRIES = 'max_retries',
   WORKFLOW_TIMEOUT = 'workflow_timeout',
   API_ERROR = 'api_error',
+  PRINT_QA_FAILED = 'print_qa_failed',
   STUCK_PROCESSING = 'stuck_processing',
   NOT_PICKED_UP = 'not_picked_up',
   MULTIPLE_ERRORS = 'multiple_errors'
@@ -208,6 +209,7 @@ export const StatusLabels: Record<string, string> = {
   [DisplayStatus.MAX_RETRIES]: 'Max Retries Exceeded',
   [DisplayStatus.WORKFLOW_TIMEOUT]: 'Workflow Timeout',
   [DisplayStatus.API_ERROR]: 'API Error',
+  [DisplayStatus.PRINT_QA_FAILED]: 'Print QA Failed',
   [DisplayStatus.STUCK_PROCESSING]: 'Stuck Processing',
   [DisplayStatus.NOT_PICKED_UP]: 'Not Picked Up',
   [DisplayStatus.MULTIPLE_ERRORS]: 'Multiple Errors',
@@ -448,6 +450,11 @@ export const StatusColors: Record<string, {
     border: 'border-red-200'
   },
   [DisplayStatus.API_ERROR]: {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    border: 'border-red-200'
+  },
+  [DisplayStatus.PRINT_QA_FAILED]: {
     bg: 'bg-red-100',
     text: 'text-red-800',
     border: 'border-red-200'

@@ -1,9 +1,9 @@
 # Issue: W4 final PDFs sometimes have half-rendered pages
 
-**Status:** 🟡 In Progress (Layer 1b implemented, Layers 2–3 pending)  
+**Status:** 🟡 In Progress (Layer 1b complete + auth fix, Layer 2 planning complete, Layer 3 pending)  
 **Priority:** Critical  
 **Created:** 2026-02-27  
-**Last Updated:** 2026-02-27
+**Last Updated:** 2026-02-28
 
 ## Description
 
@@ -82,7 +82,7 @@ Three layers, applied in order. Each layer is independently valuable.
 
 ---
 
-### Layer 1b: Presigned R2 URLs — replace proxy with direct R2 fetch (planned)
+### Layer 1b: Presigned R2 URLs — replace proxy with direct R2 fetch — COMPLETE
 
 **Goal:** PDFMonkey fetches images directly from R2's edge instead of through the Vercel serverless proxy, eliminating cold starts, proxy timeouts, and the extra network hop that causes half-renders.
 
@@ -189,188 +189,367 @@ throw error with orderId (stops W4)
 
 ---
 
-### Layer 2: QA subworkflow — automated pre-print render check
+### Layer 2: QA gate — automated pre-print render check (DETAILED PLAN)
 
-**Goal:** After W4 generates final PDFs but before Lulu submit, verify every page rendered correctly. If any page fails, stop the workflow and flag the order.
+**Goal:** After W4 generates final PDFs and uploads them to R2, but before Lulu submit, verify every page rendered correctly. If any page fails, stop the workflow and flag the order.
 
-#### 2a. New backend endpoint
+**Design philosophy:**
+- Use only existing dependencies (`pdfjs-dist` v5.4.394, `sharp` v0.34.5)
+- No system-level dependencies (no Poppler — not available on Vercel)
+- No external APIs or vision models
+- Lightweight enough to run within Vercel's 60s serverless timeout and 1GB memory
+- Smart about what we're detecting: the failure mode is specifically "image didn't load before PDFMonkey captured the page"
 
-**Path:** `POST /api/render/qa-check-pdf`
+---
+
+#### 2a. What the defect looks like in a PDF
+
+When PDFMonkey captures HTML to PDF and an image hasn't fully loaded:
+- The PDF page **exists** (page count is correct)
+- But the image area is **white/blank** or **partially rendered**
+- The page's embedded image data is either **absent** or **much smaller** than expected
+- A fully rendered 8.75x8.75" page at print quality has a large image (~200-500KB compressed)
+- A half-rendered page may have 0KB, a few KB, or a truncated image
+
+**What this means for detection:** Page count alone is not sufficient. We need per-page content verification.
+
+---
+
+#### 2b. Detection strategy — two-tier approach
+
+**Tier 1: Structural PDF analysis (fast, no rendering needed)**
+
+Uses `pdfjs-dist` to parse the PDF and inspect each page's draw operations without rendering.
+
+```text
+For each page in the PDF:
+  1. getOperatorList() → list of all draw commands
+  2. Count OPS.paintImageXObject operations (image draws)
+  3. For each image operation, look up the image in page resources:
+     - Get image width, height, and data byte length
+  4. Check: does this page have at least 1 image operation?
+  5. Check: is the image data size above a minimum threshold?
+  6. Check: do image dimensions match expected print dimensions?
+```
+
+**Tier 1 catches:** Missing images (page has no image XObject), truncated images (image data undersized), wrong dimensions (resize artifact).
+
+**Tier 1 cost:** ~1-3 seconds total. No image rendering, just PDF structure parsing.
+
+**Tier 2: White-space analysis (catches partial renders)**
+
+Uses `pdfjs-dist` image extraction + `sharp` pixel analysis.
+
+```text
+For each page in the PDF:
+  1. Extract the raw image bitmap from the page's image XObject
+     (using pdfjs-dist page.objs API — returns width, height, RGBA data)
+  2. Feed the raw pixel buffer into sharp
+  3. Resize to 200x200 (thumbnail — fast to analyze)
+  4. Count pixels where R > 240 AND G > 240 AND B > 240 (near-white)
+  5. white_space_ratio = white_pixels / total_pixels
+  6. If white_space_ratio > threshold (e.g., 0.40) → flag page
+```
+
+**Tier 2 catches:** Partially rendered images where the image exists but has large white areas (the main failure mode we've observed).
+
+**Important:** This QA does **not** do strict source-vs-output pixel comparison against original page PNGs. It verifies embedded page image integrity and white-space anomalies in the final PDF itself.
+
+**Tier 2 cost:** ~3-8 seconds total. Image extraction is lightweight (no canvas rendering). Sharp thumbnail analysis is fast.
+
+**Why NOT full page rendering:** Rendering a full PDF page to a canvas image requires a `canvas` npm package (native module, Vercel compatibility issues). Extracting just the image XObject from each page avoids this entirely since our pages ARE full-bleed images — the XObject IS the page content.
+
+**Why NOT image-to-image comparison against source:** The source images (from `pageImageUrls`) go through PDFMonkey's HTML-to-PDF pipeline which adds compression, color space conversion, and slight quality changes. A pixel-diff comparison would produce false positives. White-space detection is more robust for this specific defect.
+
+---
+
+#### 2c. New backend endpoint: `POST /api/render/qa-check-pdf`
+
+**Path:** `back-end/src/app/api/render/qa-check-pdf/route.ts`
+
+**Auth:** Same pattern as `presign-page-assets` — Bearer token when `BACKEND_API_TOKEN` is set.
 
 **Input:**
 
 ```json
 {
-  "orderId": "SIB-E2E-...-item-001",
-  "pdfR2Key": "book-mvp-simple-adventure/orders/.../interior_....pdf",
-  "expectedPageKeys": [
-    "book-mvp-simple-adventure/orders/.../preview-images/p00.png",
-    "book-mvp-simple-adventure/orders/.../preview-images/p01.png"
-  ]
+  "orderId": "114-5264473-5909869",
+  "pdfR2Key": "book-mvp-simple-adventure/orders/114-5264473-5909869/interior_114-5264473-5909869.pdf",
+  "expectedPageCount": 15,
+  "type": "interior"
 }
 ```
 
-**Logic (pseudocode):**
-
-```text
-download PDF from R2 (pdfR2Key)
-save to temp file
-
-render each page to low-res PNG using Poppler pdftoppm:
-  pdftoppm -png -r 100 input.pdf output_prefix
-  produces output_prefix-1.png, output_prefix-2.png, ...
-
-validate page count:
-  if rendered page count != expectedPageKeys.length:
-    return { passed: false, reason: 'page_count_mismatch', ... }
-
-for each page index:
-  download expected source image from R2 (expectedPageKeys[i])
-  resize expected image to match rendered page dimensions
-  compute similarity score (pixel diff or perceptual hash)
-  compute white-space percentage (near-white pixel ratio)
-
-  if similarity < HARD_THRESHOLD (e.g. 0.85 SSIM):
-    mark page as failed
-  if white_space > WHITE_THRESHOLD (e.g. 60%):
-    mark page as failed
-
-clean up temp files
-
-return {
-  passed: (no failed pages),
-  pageCount: N,
-  scores: [ { page, similarity, whiteSpace, passed } ],
-  failedPages: [ page numbers ],
-  reason: (first failure reason or 'all_passed')
-}
-```
-
-**Dependencies:**
-
-- `poppler-utils` system package (provides `pdftoppm`) — install on Vercel build or deploy container
-- `sharp` (already in project devDependencies) — for image resize + pixel comparison
-- No external API calls
-
-**Implementation notes:**
-
-- Render at 100 DPI (fast, ~612×612px per 8.5" page — enough for defect detection)
-- Use `sharp` to load both images, resize to same dimensions, compute raw pixel buffer diff
-- Similarity = 1 - (diffPixels / totalPixels) with a tolerance band per pixel (e.g. ±15 RGB)
-- White-space = count of pixels where R > 240 AND G > 240 AND B > 240, divided by total
-- Early-exit on first hard failure for speed
-- Store failure evidence (rendered page PNG) to R2 under `orders/{orderId}/qa/` only on failure
-- Total expected time: 5–15 seconds per book (15–17 pages at 100 DPI)
-
-**Poppler availability:**
-
-- Vercel serverless: Poppler is NOT pre-installed. Options:
-  - (a) Use a Lambda layer or custom Docker runtime with poppler-utils
-  - (b) Run QA endpoint on a separate lightweight service (e.g. the existing renderer container)
-  - (c) Use `pdf-poppler` npm wrapper (bundles a Poppler binary for Linux)
-  - (d) Fall back to `pdfjs-dist` + `canvas` (pure JS, no system dep, slower)
-- **Recommendation:** Try `pdf-poppler` npm package first (simplest). If Vercel rejects the binary, fall back to `pdfjs-dist` + `canvas`.
-
-#### 2b. New n8n subworkflow: `w4-sw-qa-render-check`
-
-**Trigger:** Execute Workflow (called by W4 main)
-
-**Input contract (from W4):**
+For cover:
 
 ```json
 {
-  "orderId": "...",
-  "pdfR2Key": "...",
-  "coverPdfR2Key": "...",
-  "expectedPageKeys": ["..."],
-  "expectedCoverKey": "...",
-  "backendUrl": "https://admin.littleherolabs.com"
+  "orderId": "114-5264473-5909869",
+  "pdfR2Key": "book-mvp-simple-adventure/orders/114-5264473-5909869/cover_114-5264473-5909869.pdf",
+  "expectedPageCount": 1,
+  "type": "cover"
 }
 ```
 
-**Nodes:**
+**Response (pass):**
 
-```text
-1. Validate QA Input
-   - Confirm orderId, pdfR2Key, expectedPageKeys present
-
-2. QA Check Interior PDF
-   - POST backendUrl + '/api/render/qa-check-pdf'
-   - body: { orderId, pdfR2Key, expectedPageKeys }
-   - timeout: 120s
-
-3. QA Check Cover PDF
-   - POST backendUrl + '/api/render/qa-check-pdf'
-   - body: { orderId, pdfR2Key: coverPdfR2Key, expectedPageKeys: [expectedCoverKey] }
-   - timeout: 60s
-
-4. Merge Results
-   - Combine interior + cover QA results
-
-5. Build QA Response
-   - Return compact result to W4:
-     {
-       qaPassed: boolean,
-       interiorPassed: boolean,
-       coverPassed: boolean,
-       failedPages: [],
-       reason: string,
-       scores: []
-     }
+```json
+{
+  "passed": true,
+  "orderId": "114-5264473-5909869",
+  "type": "interior",
+  "pageCount": 15,
+  "expectedPageCount": 15,
+  "totalPdfBytes": 4521033,
+  "avgBytesPerPage": 301402,
+  "pages": [
+    { "page": 1, "hasImage": true, "imageBytes": 312044, "whiteSpaceRatio": 0.08, "passed": true },
+    { "page": 2, "hasImage": true, "imageBytes": 289011, "whiteSpaceRatio": 0.12, "passed": true }
+  ],
+  "failedPages": [],
+  "reason": "all_passed",
+  "durationMs": 4200
+}
 ```
 
-**No large image payloads returned to W4.** Only JSON metrics + pass/fail.
+**Response (fail):**
 
-#### 2c. W4 integration point
-
-Insert QA gate in W4 main workflow **after** `Upload PDF to R2` + `Upload Cover PDF to R2` and **before** `Generate Signed URLs (R2 GET)`.
-
-```text
-New nodes in W4 (between upload and Lulu submit):
-
-1. Build QA Input
-   - Assemble orderId, pdfR2Key, coverPdfR2Key, expectedPageKeys
-     (expectedPageKeys derived from pageImageUrls used in Build Pages HTML,
-      stripped of cache-bust query params)
-
-2. Execute Workflow: w4-sw-qa-render-check
-   - Pass QA input
-   - Wait for response
-
-3. IF QA Passed
-   - true branch → continue to Generate Signed URLs → Lulu submit (existing path)
-   - false branch → QA Failed Error Handler (new)
-
-4. QA Failed Error Handler (false branch)
-   - Set Supabase fields:
-       execution_status: 'error'
-       error_type: 'print_qa_failed'
-       error_message: reason + failed page list
-       workflow_step: 'print_fulfillment'
-   - Upload QA manifest to R2:
-       orders/{orderId}/manifests/4-qa-fail-manifest.json
-   - Notify backend (POST /api/webhooks/print-qa-failed)
-   - Stop workflow (do NOT proceed to Lulu)
+```json
+{
+  "passed": false,
+  "orderId": "114-5264473-5909869",
+  "type": "interior",
+  "pageCount": 15,
+  "expectedPageCount": 15,
+  "totalPdfBytes": 2100000,
+  "avgBytesPerPage": 140000,
+  "pages": [
+    { "page": 1, "hasImage": true, "imageBytes": 312044, "whiteSpaceRatio": 0.08, "passed": true },
+    { "page": 5, "hasImage": true, "imageBytes": 14200, "whiteSpaceRatio": 0.72, "passed": false,
+      "failReasons": ["white_space_ratio 0.72 > 0.40", "image_bytes 14200 < 50000"] }
+  ],
+  "failedPages": [5],
+  "reason": "page_5_failed: white_space_ratio 0.72 > 0.40, image_bytes 14200 < 50000",
+  "durationMs": 5100
+}
 ```
 
-**Pseudocode (W4 QA gate):**
+**Implementation pseudocode:**
 
 ```text
-after uploading interior + cover PDFs to R2:
-  build QA input from current context
-  call w4-sw-qa-render-check subworkflow
+POST /api/render/qa-check-pdf
+  verify auth (Bearer token)
+  parse body: { orderId, pdfR2Key, expectedPageCount, type }
+  validate: all fields present, expectedPageCount > 0
 
-  if qaResult.qaPassed:
-    continue to signed URL generation and Lulu submit
-  else:
-    write to supabase:
-      execution_status = 'error'
-      error_type = 'print_qa_failed'
-      error_message = qaResult.reason + ' | pages: ' + qaResult.failedPages
-    upload qa-fail manifest to R2
-    notify backend webhook
-    stop (do not submit to Lulu)
+  // Download PDF from R2
+  pdfResponse = getObject(R2_ORDERS_BUCKET, pdfR2Key)
+  pdfBuffer = await pdfResponse.arrayBuffer()
+  totalPdfBytes = pdfBuffer.byteLength
+
+  // Quick size sanity check
+  MIN_BYTES_PER_PAGE = 30000  // ~30KB minimum per page
+  if totalPdfBytes < expectedPageCount * MIN_BYTES_PER_PAGE:
+    return { passed: false, reason: 'pdf_too_small', ... }
+
+  // Load with pdfjs-dist
+  pdf = await pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) }).promise
+
+  // Tier 1: Page count check
+  if pdf.numPages != expectedPageCount:
+    return { passed: false, reason: 'page_count_mismatch', ... }
+
+  results = []
+  failedPages = []
+
+  for pageNum = 1 to pdf.numPages:
+    page = await pdf.getPage(pageNum)
+    ops = await page.getOperatorList()
+
+    // Tier 1: Check for image paint operations
+    imageOps = ops.fnArray indices where fn == OPS.paintImageXObject
+    hasImage = imageOps.length > 0
+
+    imageBytes = 0
+    whiteSpaceRatio = 0.0
+
+    if hasImage:
+      // Get the image object name from the first paintImageXObject arg
+      imageName = ops.argsArray[imageOps[0]][0]
+
+      // Tier 1: Get image metadata from page resources
+      // pdfjs-dist exposes image data through page.objs after rendering operators
+      imageObj = await page.objs.get(imageName)  // { width, height, data: Uint8ClampedArray }
+      imageBytes = imageObj?.data?.byteLength || 0
+
+      // Tier 2: White-space analysis (only if image data available)
+      if imageObj?.data && imageObj.width && imageObj.height:
+        // Use sharp to create thumbnail from raw RGBA pixels
+        thumbnail = await sharp(Buffer.from(imageObj.data), {
+          raw: { width: imageObj.width, height: imageObj.height, channels: 4 }
+        }).resize(200, 200).raw().toBuffer()
+
+        // Count near-white pixels (RGBA, 4 bytes per pixel)
+        whiteCount = 0
+        totalPixels = thumbnail.length / 4
+        for i = 0 to totalPixels:
+          r = thumbnail[i*4], g = thumbnail[i*4+1], b = thumbnail[i*4+2]
+          if r > 240 AND g > 240 AND b > 240:
+            whiteCount++
+        whiteSpaceRatio = whiteCount / totalPixels
+
+    // Evaluate pass/fail for this page
+    failReasons = []
+    if NOT hasImage:
+      failReasons.push('no_image_on_page')
+    if imageBytes < IMAGE_BYTES_THRESHOLD (50000):
+      failReasons.push('image_bytes too small')
+    if whiteSpaceRatio > WHITE_SPACE_THRESHOLD (0.40):
+      failReasons.push('white_space_ratio too high')
+
+    pagePassed = failReasons.length == 0
+    results.push({ page: pageNum, hasImage, imageBytes, whiteSpaceRatio, passed: pagePassed, failReasons })
+    if NOT pagePassed:
+      failedPages.push(pageNum)
+
+  passed = failedPages.length == 0
+  return { passed, orderId, type, pageCount, expectedPageCount, totalPdfBytes, pages: results, failedPages, reason, durationMs }
 ```
+
+**Dependencies (all already installed):**
+- `pdfjs-dist` v5.4.394 — PDF parsing + operator list + image extraction
+- `sharp` v0.34.5 — thumbnail creation + pixel analysis
+- `@/lib/r2-client` — download PDF from R2
+
+**No new npm packages needed. No system dependencies. No external APIs.**
+
+**pdfjs-dist Node.js setup note:** Must configure worker properly for Node.js environment:
+
+```typescript
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = ''; // disable worker in serverless
+```
+
+**Performance estimate:**
+- PDF download from R2: ~500ms (same region)
+- PDF parse + page iteration: ~500ms
+- Per-page operator list + image extraction: ~200ms x 15 pages = ~3s
+- Per-page sharp thumbnail + white-space: ~100ms x 15 pages = ~1.5s
+- **Total: ~5-7 seconds for a 15-page interior PDF**
+- Well within Vercel's 60s timeout
+
+**Memory estimate:**
+- PDF buffer: ~5-8MB
+- pdfjs-dist document object: ~20MB (includes decompressed streams)
+- Per-page image extraction: ~3MB (RGBA for one page at a time, released between pages)
+- Sharp thumbnail: ~160KB (200x200x4)
+- **Peak: ~30MB** — well within Vercel's 1GB limit
+
+**Edge cases and mitigations:**
+
+| Edge case | Detection | Handling |
+|---|---|---|
+| PDF is corrupted / can't parse | pdfjs-dist throws | Catch error, return `{ passed: false, reason: 'pdf_parse_error' }` |
+| Page has multiple images (overlays) | Multiple paintImageXObject ops | Sum all image bytes, check largest image |
+| Image is present but fully white (loaded blank) | White-space ratio catches it | Tier 2 detects even if Tier 1 says "hasImage: true" |
+| PDF pages use vector graphics instead of images | No paintImageXObject found | Would flag as "no_image_on_page" — correct for our books |
+| pdfjs-dist image extraction fails for a page | Try/catch around objs.get() | Fall back to Tier 1 only (image bytes from stream), log warning |
+| Vercel cold start adds latency | First request slower | 3-attempt retry in n8n node absorbs this |
+| R2 key doesn't exist | getObject throws 404 | Return `{ passed: false, reason: 'pdf_not_found' }` |
+
+---
+
+#### 2d. n8n integration — direct backend call (no subworkflow)
+
+**Revised approach:** After analysis, a separate n8n subworkflow adds complexity without benefit. The QA check is a single HTTP call per PDF. We'll add the QA gate directly in W4's main workflow using Code nodes.
+
+**Integration point:** After `Merge (after interior + meta)1` and before `Generate Signed URLs (R2 GET)`.
+
+**Current connection chain:**
+```text
+Merge (after interior + meta)1 → Generate Signed URLs (R2 GET) → Decide Lulu Source URLs
+```
+
+**New connection chain:**
+```text
+Merge (after interior + meta)1 → QA Check Interior PDF → QA Check Cover PDF → IF QA Passed
+  → true:  Generate Signed URLs (R2 GET) → ... (existing path)
+  → false: QA Failed Error Handler → STOP
+```
+
+**New nodes (4 total per W4 workflow):**
+
+**Node 1: `QA Check Interior PDF`** (Code node)
+
+```text
+Input: merged context from Merge node (contains pdfR2Key, expectedPageCount, orderId, CONFIG)
+Logic:
+  derive backendUrl from CONFIG.defaults.trimIn.assetBase
+  POST backendUrl + '/api/render/qa-check-pdf'
+  body: { orderId, pdfR2Key, expectedPageCount, type: 'interior' }
+  headers: { Authorization: Bearer CONFIG.backendApiToken }
+  timeout: 45s, 2-attempt retry
+Output: { ...item, interiorQA: response }
+```
+
+**Node 2: `QA Check Cover PDF`** (Code node)
+
+```text
+Input: output from QA Check Interior (contains coverPdfR2Key, orderId, CONFIG, interiorQA)
+Logic:
+  derive backendUrl from CONFIG.defaults.trimIn.assetBase
+  POST backendUrl + '/api/render/qa-check-pdf'
+  body: { orderId, pdfR2Key: coverPdfR2Key, expectedPageCount: 1, type: 'cover' }
+  headers: { Authorization: Bearer CONFIG.backendApiToken }
+  timeout: 30s, 2-attempt retry
+Output: { ...item, interiorQA, coverQA: response }
+```
+
+**Node 3: `IF QA Passed`** (IF node)
+
+```text
+Condition: $json.interiorQA.passed === true AND $json.coverQA.passed === true
+True branch → Generate Signed URLs (R2 GET)
+False branch → QA Failed Error Handler
+```
+
+**Node 4: `QA Failed Error Handler`** (Code node)
+
+```text
+Input: merged context with interiorQA and coverQA results
+Logic:
+  1. Build error message from QA results:
+     - List failed pages with scores
+     - Include both interior and cover results
+  2. POST to Supabase (direct REST):
+     UPDATE orders SET
+       execution_status = 'error',
+       error_type = 'print_qa_failed',
+       error_message = <built message>,
+       workflow_step = 'print_fulfillment'
+     WHERE amazon_order_id = orderId
+  3. Upload QA failure manifest to R2:
+     key: book-mvp-simple-adventure/orders/{orderId}/manifests/4-qa-fail-manifest.json
+     body: { orderId, interiorQA, coverQA, timestamp }
+  4. POST to backend webhook /api/webhooks/print-qa-failed (Layer 3)
+Output: stops workflow (throw or return empty to prevent downstream execution)
+```
+
+**Why not a subworkflow:**
+- A subworkflow adds an extra workflow to maintain, version, and debug
+- The QA check is just 2 HTTP calls + 1 IF + 1 error handler = 4 nodes
+- Keeping it inline means QA results are immediately available in the same execution context
+- n8n memory is not a concern — QA responses are ~2KB JSON, no image data
+
+**Data available at integration point:**
+
+At the `Merge (after interior + meta)1` output, the following fields are present:
+- `orderId` — the Amazon order ID
+- `pdfR2Key` — e.g., `book-mvp-simple-adventure/orders/{orderId}/interior_{orderId}.pdf`
+- `coverPdfR2Key` — e.g., `book-mvp-simple-adventure/orders/{orderId}/cover_{orderId}.pdf`
+- `expectedPageCount` — from `Validate & Normalize W4 Input` (15 or 17)
+- `CONFIG.backendApiToken` — added in Layer 1b auth fix
+- `CONFIG.defaults.trimIn.assetBase` — for deriving backendUrl
 
 ---
 
@@ -451,10 +630,13 @@ This is a safety net — W4 also writes directly to Supabase, but the webhook en
 
 ## Implementation sequence
 
-### Phase 0: Prerequisites
+### Phase 0: Prerequisites — ✅ SATISFIED
 
-1. Verify `poppler-utils` or `pdf-poppler` npm package works in deployment environment.
-2. Verify `sharp` is available for image comparison (already in `devDependencies`).
+1. ~~Verify `poppler-utils` or `pdf-poppler` npm package works in deployment environment.~~ Not needed. Using `pdfjs-dist` (already installed v5.4.394) for PDF parsing and image extraction.
+2. ✅ `sharp` is available (v0.34.5 in `dependencies`).
+3. ✅ `pdfjs-dist` is available (v5.4.394 in `dependencies`).
+4. ✅ R2 client (`getObject`) available for downloading PDFs.
+5. ✅ Auth pattern established (Bearer token via `CONFIG.backendApiToken`).
 
 ### Phase 1a: Inline hardening via base64 (Layer 1a) — ❌ FAILED 2026-02-27
 
@@ -475,9 +657,7 @@ Estimated: 1–2 hours | Actual: ~3 hours (including 503 hotfix)
 
 ### Phase 1b: Presigned R2 URLs (Layer 1b) — ✅ IMPLEMENTED 2026-02-27
 
-Estimated: 30 minutes
-
-**Prerequisite:** None — the backend endpoint `POST /api/render/presign-page-assets` already exists and is production-ready.
+Estimated: 30 minutes | Actual: ~1 hour (including auth fix)
 
 **Steps:**
 
@@ -490,7 +670,11 @@ Estimated: 30 minutes
 
 3. ✅ **Connection keys and upstream references renamed in both files.**
 
-4. ⬜ **Test:** Import updated workflows to n8n, run a single order through W4:
+4. ✅ **Auth fix (2026-02-27):** Initial deployment returned 401 because `presign-page-assets` requires `Authorization: Bearer <BACKEND_API_TOKEN>` in production. Fixed by:
+   - Adding `backendApiToken` to CONFIG node in both W4 workflows
+   - Updating presign node `jsCode` to read `item.CONFIG.backendApiToken` and pass as `Authorization` header
+
+5. ⬜ **Test:** Import updated workflows to n8n, run a single order through W4:
    - Verify n8n logs show presign endpoint called (no 503, no OOM)
    - Verify PDFMonkey receives HTML with `r2.cloudflarestorage.com` URLs (not `/api/assets/`)
    - Verify final PDF has all pages fully rendered
@@ -509,6 +693,8 @@ const backendUrl = (item.CONFIG?.defaults?.trimIn?.assetBase || 'https://admin.l
   .replace(/\/api\/assets\/?$/, '');
 const url = `${backendUrl}/api/render/presign-page-assets`;
 const http = this.helpers.httpRequest;
+const token = item.CONFIG?.backendApiToken || '';
+const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function jitter(max = 200) { return Math.floor(Math.random() * max); }
@@ -519,6 +705,7 @@ for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await http({
       method: 'POST',
       url,
+      headers,
       body: { html: pagesHtml, expiresInSeconds: 21600 },
       json: true,
       timeout: 30000,
@@ -550,6 +737,8 @@ const backendUrl = (item.CONFIG?.defaults?.trimIn?.assetBase || 'https://admin.l
   .replace(/\/api\/assets\/?$/, '');
 const url = `${backendUrl}/api/render/presign-page-assets`;
 const http = this.helpers.httpRequest;
+const token = item.CONFIG?.backendApiToken || '';
+const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function jitter(max = 200) { return Math.floor(Math.random() * max); }
@@ -560,6 +749,7 @@ for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await http({
       method: 'POST',
       url,
+      headers,
       body: { html: coverHtml, expiresInSeconds: 21600 },
       json: true,
       timeout: 30000,
@@ -584,45 +774,117 @@ throw new Error(`[Presign Cover Assets] Failed after 3 attempts (orderId=${order
 
 **No backend changes needed.** Endpoint already exists and is tested.
 
-### Phase 2: QA endpoint + subworkflow (Layer 2)
+### Phase A: Backend QA endpoint only (build + calibration)
 
-Estimated: 4–6 hours
+Estimated: 2–3 hours
 
-1. Build `POST /api/render/qa-check-pdf` backend endpoint.
-2. Build `w4-sw-qa-render-check` n8n subworkflow.
-3. Add QA gate nodes to W4 main workflow (Build QA Input → Execute Subworkflow → IF Passed → branch).
-4. Add QA Failed Error Handler branch.
-5. Test: run orders with known-good PDFs (should pass). Simulate a bad PDF (should fail and flag).
+**Objective:** Ship and validate `POST /api/render/qa-check-pdf` in isolation before touching W4 routing.
 
-### Phase 3: Backend status tag (Layer 3)
+**Tasks:**
+1. Create `back-end/src/app/api/render/qa-check-pdf/route.ts`.
+2. Implement Tier 1 checks:
+   - page count exact match
+   - image draw presence per page
+   - per-page image byte minimum
+   - total PDF size minimum
+3. Implement Tier 2 check:
+   - white-space ratio from thumbnail pixels (`sharp`)
+4. Add Bearer auth (same pattern as `presign-page-assets`).
+5. Add structured response payload (`passed`, `reason`, `failedPages`, per-page metrics, `durationMs`).
+6. Add failure reasons for all expected conditions (`pdf_not_found`, `pdf_parse_error`, `page_count_mismatch`, etc.).
+7. Validate endpoint manually with:
+   - one known-good interior PDF
+   - one intentionally bad/truncated PDF
+   - one cover PDF
+
+**Go/No-Go criteria to exit Phase A:**
+- Good PDFs consistently return `passed: true`.
+- Synthetic bad PDFs consistently return `passed: false` with correct failed page(s).
+- P95 response time stays below 10 seconds for interior PDFs.
+- No memory/timeout errors in backend logs.
+
+---
+
+### Phase B: W4 QA gate integration (both workflows)
 
 Estimated: 1–2 hours
 
+**Objective:** Insert QA gate nodes into W4 only after endpoint behavior is verified.
+
+**Tasks per workflow (`finals` and `sibling`):**
+1. Add `QA Check Interior PDF` node after `Merge (after interior + meta)1`.
+2. Add `QA Check Cover PDF` node after interior QA node.
+3. Add `IF QA Passed` node.
+4. Add `QA Failed Error Handler` node on false branch.
+5. Rewire path:
+   - `Merge (after interior + meta)1` → `QA Check Interior` → `QA Check Cover` → `IF QA Passed`
+   - true branch → `Generate Signed URLs (R2 GET)` (existing path)
+   - false branch → `QA Failed Error Handler` → stop before Lulu submit
+6. In QA nodes, derive `backendUrl` from `CONFIG.defaults.trimIn.assetBase` and use `CONFIG.backendApiToken`.
+7. In error handler, set:
+   - `execution_status = 'error'`
+   - `error_type = 'print_qa_failed'`
+   - `error_message` with reason + failed pages
+8. Write QA failure manifest to R2 (`orders/{orderId}/manifests/4-qa-fail-manifest.json`).
+
+**Go/No-Go criteria to exit Phase B:**
+- Known-good order passes QA and proceeds to Lulu.
+- Injected bad PDF fails QA and never reaches Lulu submit.
+- Both workflows (`finals`, `sibling`) behave identically.
+
+---
+
+### Phase C: Backend status visibility (Layer 3)
+
+Estimated: 1–2 hours
+
+**Objective:** Ensure QA failures are clear in admin.
+
+**Tasks:**
 1. Add `PRINT_QA_FAILED` to `DisplayStatus` enum.
-2. Add display mapping in `status-display.ts`.
-3. Add label in `StatusLabels`.
-4. Create `POST /api/webhooks/print-qa-failed` endpoint.
-5. Test: verify admin panel shows "Print QA Failed" badge for flagged orders.
+2. Add mapping logic in `status-display.ts`.
+3. Add label in `StatusLabels` (`Print QA Failed`).
+4. Add `POST /api/webhooks/print-qa-failed` as backend safety-net update path.
+5. Validate badge and message visibility in order detail and list views.
 
-### Phase 4: Full matrix validation
+**Go/No-Go criteria to exit Phase C:**
+- Failed QA orders show `Print QA Failed` badge in admin.
+- Error message contains actionable detail (pages + reason).
 
-Run all four test scenarios (Amazon 2-book, Amazon 3-book, D2C 2-book, D2C 3-book):
-- Verify Layer 1b prevents half-render defects.
-- Verify Layer 2 catches intentionally degraded test PDFs.
-- Verify Layer 3 correctly tags and surfaces failures in admin panel.
+---
+
+### Phase D: Full matrix validation (release gate)
+
+Run all four test scenarios:
+1. Amazon, 2 items
+2. Amazon, 3+ items
+3. D2C, 2 items
+4. D2C, 3+ items
+
+**Required checks:**
+- Layer 1b prevents proxy-related rendering issues.
+- Layer 2 catches intentionally degraded PDFs.
+- Layer 3 surfaces failures correctly in admin.
+- No false-positive QA blocks across repeated good runs.
 
 ---
 
 ## QA thresholds (starting values, tune after first runs)
 
-| Metric | Threshold | Action |
-|---|---|---|
-| Page count mismatch | exact match required | hard fail |
-| Per-page similarity (SSIM or pixel-diff) | < 0.85 | hard fail |
-| Per-page white-space % | > 60% | hard fail |
-| All pages pass both checks | — | proceed to Lulu |
+| Check | Metric | Threshold | Action | Tier |
+|---|---|---|---|---|
+| Page count | `pdf.numPages` vs `expectedPageCount` | exact match | hard fail | 1 |
+| PDF total size | `totalPdfBytes` | < `expectedPageCount * 30KB` | hard fail | 1 |
+| Per-page image presence | `hasImage` (paintImageXObject exists) | must be true | hard fail | 1 |
+| Per-page image byte size | `imageBytes` from XObject | < 50,000 bytes | hard fail | 1 |
+| Per-page white-space ratio | white pixels / total pixels (200x200 thumbnail) | > 0.40 (40%) | hard fail | 2 |
 
-These thresholds should be tuned after the first batch of test runs. Log all scores to make tuning data-driven.
+**Threshold rationale:**
+- **50KB image minimum:** A fully rendered 8.75x8.75" page image at print quality compresses to 200-500KB. 50KB catches truncated images while allowing for compression variation.
+- **40% white-space:** Our page images are full-bleed illustrations with rich colors. Even the lightest page (e.g., snow scene) should have < 30% white. 40% threshold provides margin while catching half-rendered pages (which are typically 50-100% white).
+- **30KB/page PDF minimum:** An empty PDF page is ~1-2KB. A 15-page PDF under 450KB total almost certainly has missing content.
+
+All scores are logged in the QA response for data-driven threshold tuning after the first batch of real-world runs.
 
 ---
 
@@ -644,16 +906,16 @@ Run all four scenarios and capture evidence for each:
 For each scenario:
 
 - Verify presigned HTML sent to PDFMonkey (signed R2 URLs, no `/api/assets/` proxy URLs in payload).
-- Verify QA subworkflow runs and returns pass.
+- Verify QA check nodes run inline and return pass (check n8n execution log for QA results).
 - Verify no partial/blank/cut-off render in final interior or cover.
 - Verify one correct print submit behavior for sibling groups.
-- Intentionally degrade one PDF and verify QA catches it and flags the order.
+- Intentionally upload a truncated PDF to R2 and verify QA catches it, flags the order as `print_qa_failed`, and prevents Lulu submission.
 
 ## Acceptance criteria
 
-- [ ] ~~Layer 1a deployed: base64 inlining~~ — ❌ Failed (OOM). Superseded by Layer 1b.
-- [x] Layer 1b deployed: W4 sends presigned-R2-URL HTML to PDFMonkey for both interior and cover. (Implemented 2026-02-27 — needs import to n8n + live test)
-- [ ] Layer 2 deployed: QA subworkflow runs after PDF upload and before Lulu submit.
+- [x] ~~Layer 1a deployed: base64 inlining~~ — ❌ Failed (OOM). Superseded by Layer 1b.
+- [x] Layer 1b deployed: W4 sends presigned-R2-URL HTML to PDFMonkey for both interior and cover. (Implemented 2026-02-27, auth fix 2026-02-27 — needs import to n8n + live test)
+- [ ] Layer 2 deployed: `POST /api/render/qa-check-pdf` endpoint operational. QA gate nodes in both W4 workflows. Interior + cover checked before Lulu submit.
 - [ ] Layer 3 deployed: `print_qa_failed` error type visible in admin panel with "Print QA Failed" badge.
 - [ ] 0 half-rendered pages in W4 final PDFs across all 4 scenario types.
 - [ ] QA gate correctly blocks print submission when a defect is detected.
@@ -664,5 +926,8 @@ For each scenario:
 
 - Goal is to keep automation end-to-end with the QA gate as the safety net.
 - Print safety is higher priority than full automation; if QA gate is not reliable, add human review gate.
-- QA subworkflow is intentionally separate from W4 to avoid payload bloat and allow independent versioning.
-- No AI/vision model needed unless deterministic checks prove insufficient.
+- QA checks are inline in W4 (not a subworkflow) — simpler to maintain, no payload bloat since QA responses are ~2KB JSON.
+- No AI/vision model needed — the two-tier deterministic approach (structural + white-space) directly targets the known failure mode.
+- All QA scores are logged for threshold tuning. Initial thresholds are conservative and should be tightened after real-world data.
+- No new npm packages required. `pdfjs-dist` + `sharp` (both already installed) handle everything.
+- The `page.objs.get()` API in pdfjs-dist may behave differently across versions. If image extraction fails for a page, the endpoint falls back to Tier 1 only (structural checks) and logs a warning rather than hard-failing.
