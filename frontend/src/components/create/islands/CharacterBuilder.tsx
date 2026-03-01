@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { load, save } from '../../../lib/createFlow/createFlowStorage';
+import { load, save, saveBook } from '../../../lib/createFlow/createFlowStorage';
 import { getDefaultState } from '../../../lib/createFlow/createFlowSchema';
 import type { CreateFlowState, CreateFlowCharacter } from '../../../lib/createFlow/createFlowSchema';
 import { isCharacterStepComplete } from '../../../lib/createFlow/createFlowSelectors';
@@ -222,6 +222,8 @@ function CharacterBuilder() {
 
   const handleContinue = useCallback(() => {
     if (!state || !isCharacterStepComplete(state)) return;
+    // Sync character + preview into current book before navigating (Review reads from books[].character)
+    saveBook(state.currentBookIndex, { character: state.character, preview: state.preview });
     window.location.href = '/create/customize';
   }, [state]);
 

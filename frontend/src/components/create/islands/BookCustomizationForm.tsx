@@ -45,9 +45,13 @@ function BookCustomizationForm() {
   );
 
   const handleContinue = useCallback(() => {
-    // Persist dedication to the current book entry before navigating
+    // Persist dedication + character + preview to current book before navigating (Review reads from books[].character)
     if (state) {
-      saveBook(state.currentBookIndex, { dedication: state.book?.dedication });
+      saveBook(state.currentBookIndex, {
+        dedication: state.book?.dedication,
+        character: state.character,
+        preview: state.preview,
+      });
     }
     window.location.href = '/create/review';
   }, [state]);

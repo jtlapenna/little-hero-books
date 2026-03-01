@@ -425,7 +425,7 @@ export async function GET(request: NextRequest) {
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level')
+      .select('id,"orderId",amazon_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier')
       .eq('execution_status', 'ready_for_processing')
       .not('next_workflow', 'is', null)
       .is('started_at', null)

@@ -167,13 +167,12 @@ function BookListSummary() {
           width: 80px;
           height: 80px;
           border-radius: 8px;
-          background: #e0e0e0;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 2rem;
           flex-shrink: 0;
         }
+        .book-card__placeholder svg { display: block; }
         .book-card__info { flex: 1; min-width: 0; }
         .book-card__number {
           font-family: var(--font-ui);
@@ -242,7 +241,12 @@ function BookCard({
       {book.preview?.imageUrl ? (
         <img src={book.preview.imageUrl} alt={`${name} preview`} className="book-card__preview" />
       ) : (
-        <div className="book-card__placeholder">📖</div>
+        <div className="book-card__placeholder" aria-hidden>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80" aria-hidden>
+            <rect fill="var(--color-warm-sand, #F1FAEE)" width="80" height="80" rx="8" />
+            <path fill="rgba(45,49,66,0.15)" d="M24 22h32v36H24zm4 4v28h24V26H28z" />
+          </svg>
+        </div>
       )}
       <div className="book-card__info">
         <div className="book-card__number">Book {index + 1}</div>

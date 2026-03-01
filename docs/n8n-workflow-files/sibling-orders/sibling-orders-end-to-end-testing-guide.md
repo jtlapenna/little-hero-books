@@ -72,6 +72,15 @@ Recommended run order:
 3. A2 (Amazon 3-book)
 4. D2 (D2C 3-book)
 
+## E2E Test Completion Status
+
+| Case | Platform | Quantity | Status | Notes |
+|---|---|---:|---|---|
+| A1 | Amazon | 2 books | ✅ Passed | One full e2e run completed (W0 → W4.1) |
+| A2 | Amazon | 3 books | ⬜ Pending | |
+| D1 | D2C | 2 books | ⬜ Pending | |
+| D2 | D2C | 3 books | ⬜ Pending | |
+
 ## Pass criteria (must all pass)
 
 - Per-book data isolation:
@@ -451,7 +460,7 @@ If any case fails, mark **no-go**, log root cause, fix, and re-run the full matr
 
 ## Reusable go/no-go checklist
 
-- [ ] Scenario A1 (Amazon 2-book) passed all assertions.
+- [x] Scenario A1 (Amazon 2-book) passed all assertions.
 - [ ] Scenario A2 (Amazon 3-book) passed all assertions.
 - [ ] Scenario D1 (D2C 2-book) passed all assertions.
 - [ ] Scenario D2 (D2C 3-book) passed all assertions.
