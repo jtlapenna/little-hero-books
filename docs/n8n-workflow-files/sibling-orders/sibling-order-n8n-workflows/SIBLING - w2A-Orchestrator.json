@@ -324,7 +324,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "2a-start",
+        "path": "2a-start-sibtest",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -693,11 +693,11 @@
           "parameters": [
             {
               "name": "apikey",
-              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "Authorization",
-              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "Content-Type",
@@ -971,7 +971,7 @@
             "last_error_at": null,
             "next_retry_at": null
           },
-          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/2a-start",
+          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/2a-start-sibtest",
           "executionMode": "production"
         }
       }

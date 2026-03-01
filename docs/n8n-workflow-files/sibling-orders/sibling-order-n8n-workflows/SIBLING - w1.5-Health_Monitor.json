@@ -4,7 +4,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "health-monitor",
+        "path": "health-monitor-sibtest",
         "responseMode": "lastNode",
         "options": {}
       },
@@ -131,11 +131,11 @@
             },
             {
               "name": "apikey",
-              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "Authorization",
-              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             }
           ]
         },
@@ -170,11 +170,11 @@
             },
             {
               "name": "apikey",
-              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "Authorization",
-              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             }
           ]
         },
@@ -266,11 +266,11 @@
             },
             {
               "name": "apikey",
-              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "Authorization",
-              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             }
           ]
         },
@@ -290,7 +290,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Log alert for manual review\nconst order = $input.first().json;\n\nconsole.error('[Stuck Path] 🚨 MANUAL REVIEW REQUIRED');\nconsole.error(`[Stuck Path] Order: ${order.amazon_order_id || order.orderId || 'unknown'}`);\nconsole.error(`[Stuck Path] Workflow: ${order.current_workflow || 'unknown'}`);\nconsole.error(`[Stuck Path] Error: ${order.error_message || 'Workflow timeout'}`);\nconsole.error(`[Stuck Path] Retry Count: ${order.retry_count || 0}`);\nconsole.error(`[Stuck Path] Running Minutes: ${order.runningMinutes || 'unknown'}`);\n\n// Preserve _workType marker for classification\nconst output = {\n  ...order,\n  _workType: 'stuck'\n};\n\n// TODO: Send to Slack/Email/Dashboard\n\nreturn [{ json: output }];"
+        "jsCode": "// Log alert for manual review\nconst order = $input.first().json;\n\nconsole.error('[Stuck Path] \ud83d\udea8 MANUAL REVIEW REQUIRED');\nconsole.error(`[Stuck Path] Order: ${order.amazon_order_id || order.orderId || 'unknown'}`);\nconsole.error(`[Stuck Path] Workflow: ${order.current_workflow || 'unknown'}`);\nconsole.error(`[Stuck Path] Error: ${order.error_message || 'Workflow timeout'}`);\nconsole.error(`[Stuck Path] Retry Count: ${order.retry_count || 0}`);\nconsole.error(`[Stuck Path] Running Minutes: ${order.runningMinutes || 'unknown'}`);\n\n// Preserve _workType marker for classification\nconst output = {\n  ...order,\n  _workType: 'stuck'\n};\n\n// TODO: Send to Slack/Email/Dashboard\n\nreturn [{ json: output }];"
       },
       "id": "d63c0a13-e326-415c-a3b0-ca6c5f020a48",
       "name": "Stuck: Alert: Manual Review",
@@ -327,11 +327,11 @@
             },
             {
               "name": "apikey",
-              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "Authorization",
-              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             }
           ]
         },
@@ -436,11 +436,11 @@
             },
             {
               "name": "apikey",
-              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "Authorization",
-              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             }
           ]
         },
@@ -473,7 +473,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Log retry attempt\nconst order = $input.first().json;\n\nconsole.log(`[Retry Path] 🔄 Retrying order ${order.orderId || order.order_id || order.root_order_id || order.amazon_order_id} (attempt ${(order.retryCount || 0) + 1})`);\nconsole.log(`[Retry Path] Workflow: ${order.workflow || order.next_workflow || '2A'}`);\nconsole.log(`[Retry Path] Order DB ID: ${order.orderDbId || order.id}`);\n\n// Preserve _workType marker for classification\nconst output = {\n  ...order,\n  _workType: order._workType || 'retry'\n};\n\nreturn [{ json: output }];"
+        "jsCode": "// Log retry attempt\nconst order = $input.first().json;\n\nconsole.log(`[Retry Path] \ud83d\udd04 Retrying order ${order.orderId || order.order_id || order.root_order_id || order.amazon_order_id} (attempt ${(order.retryCount || 0) + 1})`);\nconsole.log(`[Retry Path] Workflow: ${order.workflow || order.next_workflow || '2A'}`);\nconsole.log(`[Retry Path] Order DB ID: ${order.orderDbId || order.id}`);\n\n// Preserve _workType marker for classification\nconst output = {\n  ...order,\n  _workType: order._workType || 'retry'\n};\n\nreturn [{ json: output }];"
       },
       "id": "de908b56-92e9-43f7-8065-33e147c287fc",
       "name": "Retry: Log Retry",
@@ -772,11 +772,11 @@
             },
             {
               "name": "apikey",
-              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "Authorization",
-              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             }
           ]
         },
@@ -867,11 +867,11 @@
             },
             {
               "name": "apikey",
-              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "Authorization",
-              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             }
           ]
         },
@@ -962,11 +962,11 @@
             },
             {
               "name": "apikey",
-              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             },
             {
               "name": "Authorization",
-              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
             }
           ]
         },
@@ -1013,7 +1013,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Classify and summarize results from all paths\n// This node processes all items from the Merge node and classifies them by work type\nconst allItems = $input.all();\n\nconsole.log(`\\n[Classification Node] ========================================`);\nconsole.log(`[Classification Node] Processing ${allItems.length} item(s) from Merge node`);\nconsole.log(`[Classification Node] Timestamp: ${new Date().toISOString()}`);\n\n// Log raw input structure for debugging\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  console.log(`[Classification Node] Raw input ${i + 1}:`, {\n    hasError: !!item.error,\n    jsonType: Array.isArray(item.json) ? 'array' : typeof item.json,\n    jsonLength: Array.isArray(item.json) ? item.json.length : 'N/A',\n    jsonKeys: Array.isArray(item.json) ? 'array' : Object.keys(item.json || {}).slice(0, 10).join(', ')\n  });\n}\n\nconst stuckProcessed = [];\nconst retriesProcessed = [];\nconst orphanedProcessed = [];\nconst unclassified = [];\nconst processedOrderIds = new Set(); // Dedupe by order ID\n\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  let data = item.json;\n  \n  // Supabase returns arrays with return=representation, extract first element if array\n  // Also handle error items from continueOnFail\n  if (item.error) {\n    console.warn(`[Classification Node] Item ${i + 1} has error:`, item.error.message || item.error);\n    // Try to extract order info from error context\n    const errorData = item.json || {};\n    if (errorData.amazon_order_id || errorData.id) {\n      data = errorData;\n      console.log(`[Classification Node] Extracted order data from error item`);\n    } else {\n      console.warn(`[Classification Node] Skipping error item with no order identifier`);\n      continue;\n    }\n  } else if (Array.isArray(data)) {\n    if (data.length > 0) {\n      data = data[0];\n      console.log(`[Classification Node] Extracted first element from Supabase array response`);\n    } else {\n      console.warn(`[Classification Node] Received empty array, skipping`);\n      continue;\n    }\n  }\n  \n  const orderId = data.amazon_order_id || data.orderId || data.id || 'unknown';\n  \n  // Dedupe: skip if we've already processed this order\n  if (processedOrderIds.has(orderId)) {\n    console.log(`[Classification Node] Skipping duplicate order: ${orderId}`);\n    continue;\n  }\n  processedOrderIds.add(orderId);\n  \n  console.log(`\\n[Classification Node] Processing item ${i + 1}/${allItems.length}:`);\n  console.log(`  Order ID: ${orderId}`);\n  console.log(`  Has _workType: ${!!data._workType} (value: ${data._workType || 'none'})`);\n  console.log(`  Has isRetry: ${data.isRetry === true}`);\n  console.log(`  Has runningMinutes: ${data.runningMinutes !== undefined} (value: ${data.runningMinutes})`);\n  console.log(`  Has error_type: ${!!data.error_type} (value: ${data.error_type || 'none'})`);\n  console.log(`  Has orphan_reason: ${!!data.orphan_reason} (value: ${data.orphan_reason || 'none'})`);\n  console.log(`  Has action: ${!!data.action} (value: ${data.action || 'none'})`);\n  \n  let classified = false;\n  let classificationReason = '';\n  \n  // Identify work type by data characteristics\n  if (data._workType) {\n    // Explicit marker (from Prep for Router)\n    classificationReason = `Explicit _workType marker: ${data._workType}`;\n    if (data._workType === 'stuck') {\n      stuckProcessed.push(data);\n      classified = true;\n    } else if (data._workType === 'retry') {\n      retriesProcessed.push(data);\n      classified = true;\n    } else if (data._workType === 'orphaned') {\n      orphanedProcessed.push(data);\n      classified = true;\n    }\n  } else if (data.isRetry === true && data.orderId) {\n    // Retry path: Prep for Router output\n    classificationReason = 'Retry path: isRetry=true and orderId present';\n    retriesProcessed.push(data);\n    classified = true;\n  } else if (data.runningMinutes !== undefined || data.error_type === 'workflow_timeout') {\n    // Stuck path: has runningMinutes or workflow_timeout error\n    classificationReason = data.runningMinutes !== undefined \n      ? `Stuck path: runningMinutes=${data.runningMinutes}`\n      : `Stuck path: error_type=workflow_timeout`;\n    stuckProcessed.push(data);\n    classified = true;\n  } else if (data.orphan_reason || data.action) {\n    // Orphaned path: has orphan classification\n    classificationReason = data.orphan_reason \n      ? `Orphaned path: orphan_reason=${data.orphan_reason}`\n      : `Orphaned path: action=${data.action}`;\n    orphanedProcessed.push(data);\n    classified = true;\n  } else if (data.amazon_order_id) {\n    // Fallback: default to orphaned if we can't determine\n    classificationReason = 'Fallback: defaulting to orphaned (has amazon_order_id but no clear markers)';\n    orphanedProcessed.push(data);\n    classified = true;\n  } else {\n    classificationReason = 'UNCLASSIFIED: No identifying markers found';\n    unclassified.push({ orderId, data });\n  }\n  \n  console.log(`  Classification: ${classified ? '✅ CLASSIFIED' : '❌ UNCLASSIFIED'}`);\n  console.log(`  Reason: ${classificationReason}`);\n}\n\nconsole.log(`\\n[Classification Node] Classification Summary:`);\nconsole.log(`  Stuck: ${stuckProcessed.length} item(s)`);\nconsole.log(`  Retries: ${retriesProcessed.length} item(s)`);\nconsole.log(`  Orphaned: ${orphanedProcessed.length} item(s)`);\nconsole.log(`  Unclassified: ${unclassified.length} item(s)`);\n\nif (unclassified.length > 0) {\n  console.error(`\\n[Classification Node] ⚠️  WARNING: ${unclassified.length} unclassified item(s) found!`);\n  for (const unclass of unclassified) {\n    console.error(`  - Order ID: ${unclass.orderId}`);\n    console.error(`    Data keys: ${Object.keys(unclass.data).join(', ')}`);\n  }\n}\n\nconst summary = {\n  timestamp: new Date().toISOString(),\n  stuck: {\n    count: stuckProcessed.length,\n    orders: stuckProcessed.map(o => o.amazon_order_id || o.orderId).filter(Boolean)\n  },\n  retries: {\n    count: retriesProcessed.length,\n    orders: retriesProcessed.map(o => o.amazon_order_id || o.orderId).filter(Boolean)\n  },\n  orphaned: {\n    count: orphanedProcessed.length,\n    orders: orphanedProcessed.map(o => o.amazon_order_id).filter(Boolean)\n  },\n  unclassified: {\n    count: unclassified.length,\n    items: unclassified.map(u => u.orderId)\n  },\n  total: processedOrderIds.size\n};\n\nconsole.log(`\\n[Classification Node] Final Summary:`);\nconsole.log(JSON.stringify(summary, null, 2));\nconsole.log(`[Classification Node] ========================================\\n`);\n\nreturn [{ json: summary }];"
+        "jsCode": "// Classify and summarize results from all paths\n// This node processes all items from the Merge node and classifies them by work type\nconst allItems = $input.all();\n\nconsole.log(`\\n[Classification Node] ========================================`);\nconsole.log(`[Classification Node] Processing ${allItems.length} item(s) from Merge node`);\nconsole.log(`[Classification Node] Timestamp: ${new Date().toISOString()}`);\n\n// Log raw input structure for debugging\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  console.log(`[Classification Node] Raw input ${i + 1}:`, {\n    hasError: !!item.error,\n    jsonType: Array.isArray(item.json) ? 'array' : typeof item.json,\n    jsonLength: Array.isArray(item.json) ? item.json.length : 'N/A',\n    jsonKeys: Array.isArray(item.json) ? 'array' : Object.keys(item.json || {}).slice(0, 10).join(', ')\n  });\n}\n\nconst stuckProcessed = [];\nconst retriesProcessed = [];\nconst orphanedProcessed = [];\nconst unclassified = [];\nconst processedOrderIds = new Set(); // Dedupe by order ID\n\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  let data = item.json;\n  \n  // Supabase returns arrays with return=representation, extract first element if array\n  // Also handle error items from continueOnFail\n  if (item.error) {\n    console.warn(`[Classification Node] Item ${i + 1} has error:`, item.error.message || item.error);\n    // Try to extract order info from error context\n    const errorData = item.json || {};\n    if (errorData.amazon_order_id || errorData.id) {\n      data = errorData;\n      console.log(`[Classification Node] Extracted order data from error item`);\n    } else {\n      console.warn(`[Classification Node] Skipping error item with no order identifier`);\n      continue;\n    }\n  } else if (Array.isArray(data)) {\n    if (data.length > 0) {\n      data = data[0];\n      console.log(`[Classification Node] Extracted first element from Supabase array response`);\n    } else {\n      console.warn(`[Classification Node] Received empty array, skipping`);\n      continue;\n    }\n  }\n  \n  const orderId = data.amazon_order_id || data.orderId || data.id || 'unknown';\n  \n  // Dedupe: skip if we've already processed this order\n  if (processedOrderIds.has(orderId)) {\n    console.log(`[Classification Node] Skipping duplicate order: ${orderId}`);\n    continue;\n  }\n  processedOrderIds.add(orderId);\n  \n  console.log(`\\n[Classification Node] Processing item ${i + 1}/${allItems.length}:`);\n  console.log(`  Order ID: ${orderId}`);\n  console.log(`  Has _workType: ${!!data._workType} (value: ${data._workType || 'none'})`);\n  console.log(`  Has isRetry: ${data.isRetry === true}`);\n  console.log(`  Has runningMinutes: ${data.runningMinutes !== undefined} (value: ${data.runningMinutes})`);\n  console.log(`  Has error_type: ${!!data.error_type} (value: ${data.error_type || 'none'})`);\n  console.log(`  Has orphan_reason: ${!!data.orphan_reason} (value: ${data.orphan_reason || 'none'})`);\n  console.log(`  Has action: ${!!data.action} (value: ${data.action || 'none'})`);\n  \n  let classified = false;\n  let classificationReason = '';\n  \n  // Identify work type by data characteristics\n  if (data._workType) {\n    // Explicit marker (from Prep for Router)\n    classificationReason = `Explicit _workType marker: ${data._workType}`;\n    if (data._workType === 'stuck') {\n      stuckProcessed.push(data);\n      classified = true;\n    } else if (data._workType === 'retry') {\n      retriesProcessed.push(data);\n      classified = true;\n    } else if (data._workType === 'orphaned') {\n      orphanedProcessed.push(data);\n      classified = true;\n    }\n  } else if (data.isRetry === true && data.orderId) {\n    // Retry path: Prep for Router output\n    classificationReason = 'Retry path: isRetry=true and orderId present';\n    retriesProcessed.push(data);\n    classified = true;\n  } else if (data.runningMinutes !== undefined || data.error_type === 'workflow_timeout') {\n    // Stuck path: has runningMinutes or workflow_timeout error\n    classificationReason = data.runningMinutes !== undefined \n      ? `Stuck path: runningMinutes=${data.runningMinutes}`\n      : `Stuck path: error_type=workflow_timeout`;\n    stuckProcessed.push(data);\n    classified = true;\n  } else if (data.orphan_reason || data.action) {\n    // Orphaned path: has orphan classification\n    classificationReason = data.orphan_reason \n      ? `Orphaned path: orphan_reason=${data.orphan_reason}`\n      : `Orphaned path: action=${data.action}`;\n    orphanedProcessed.push(data);\n    classified = true;\n  } else if (data.amazon_order_id) {\n    // Fallback: default to orphaned if we can't determine\n    classificationReason = 'Fallback: defaulting to orphaned (has amazon_order_id but no clear markers)';\n    orphanedProcessed.push(data);\n    classified = true;\n  } else {\n    classificationReason = 'UNCLASSIFIED: No identifying markers found';\n    unclassified.push({ orderId, data });\n  }\n  \n  console.log(`  Classification: ${classified ? '\u2705 CLASSIFIED' : '\u274c UNCLASSIFIED'}`);\n  console.log(`  Reason: ${classificationReason}`);\n}\n\nconsole.log(`\\n[Classification Node] Classification Summary:`);\nconsole.log(`  Stuck: ${stuckProcessed.length} item(s)`);\nconsole.log(`  Retries: ${retriesProcessed.length} item(s)`);\nconsole.log(`  Orphaned: ${orphanedProcessed.length} item(s)`);\nconsole.log(`  Unclassified: ${unclassified.length} item(s)`);\n\nif (unclassified.length > 0) {\n  console.error(`\\n[Classification Node] \u26a0\ufe0f  WARNING: ${unclassified.length} unclassified item(s) found!`);\n  for (const unclass of unclassified) {\n    console.error(`  - Order ID: ${unclass.orderId}`);\n    console.error(`    Data keys: ${Object.keys(unclass.data).join(', ')}`);\n  }\n}\n\nconst summary = {\n  timestamp: new Date().toISOString(),\n  stuck: {\n    count: stuckProcessed.length,\n    orders: stuckProcessed.map(o => o.amazon_order_id || o.orderId).filter(Boolean)\n  },\n  retries: {\n    count: retriesProcessed.length,\n    orders: retriesProcessed.map(o => o.amazon_order_id || o.orderId).filter(Boolean)\n  },\n  orphaned: {\n    count: orphanedProcessed.length,\n    orders: orphanedProcessed.map(o => o.amazon_order_id).filter(Boolean)\n  },\n  unclassified: {\n    count: unclassified.length,\n    items: unclassified.map(u => u.orderId)\n  },\n  total: processedOrderIds.size\n};\n\nconsole.log(`\\n[Classification Node] Final Summary:`);\nconsole.log(JSON.stringify(summary, null, 2));\nconsole.log(`[Classification Node] ========================================\\n`);\n\nreturn [{ json: summary }];"
       },
       "id": "679cc20a-9dae-4a89-9cc7-71917ce42a64",
       "name": "Classify and Summarize Results",
@@ -1026,7 +1026,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Alert: Health Monitor Summary\nconst summary = $input.first().json;\n\nconsole.log('\\n=== HEALTH MONITOR SUMMARY ===');\nconsole.log(`Timestamp: ${summary.timestamp}`);\nconsole.log(`\\nStuck Orders Processed: ${summary.stuck.count}`);\nif (summary.stuck.count > 0) {\n  console.log(`  Orders: ${summary.stuck.orders.join(', ')}`);\n}\nconsole.log(`\\nRetry Orders Processed: ${summary.retries.count}`);\nif (summary.retries.count > 0) {\n  console.log(`  Orders: ${summary.retries.orders.join(', ')}`);\n}\nconsole.log(`\\nOrphaned Orders Processed: ${summary.orphaned.count}`);\nif (summary.orphaned.count > 0) {\n  console.log(`  Orders: ${summary.orphaned.orders.join(', ')}`);\n}\nif (summary.unclassified && summary.unclassified.count > 0) {\n  console.error(`\\n⚠️  UNCLASSIFIED ITEMS: ${summary.unclassified.count}`);\n  console.error(`  Items: ${summary.unclassified.items.join(', ')}`);\n  console.error('  This indicates a potential issue with work type identification!');\n}\nconsole.log(`\\nTotal Items Processed: ${summary.total}`);\nconsole.log('==============================\\n');\n\n// TODO: Send to Slack/Email/Dashboard\n\nreturn [{ json: summary }];"
+        "jsCode": "// Alert: Health Monitor Summary\nconst summary = $input.first().json;\n\nconsole.log('\\n=== HEALTH MONITOR SUMMARY ===');\nconsole.log(`Timestamp: ${summary.timestamp}`);\nconsole.log(`\\nStuck Orders Processed: ${summary.stuck.count}`);\nif (summary.stuck.count > 0) {\n  console.log(`  Orders: ${summary.stuck.orders.join(', ')}`);\n}\nconsole.log(`\\nRetry Orders Processed: ${summary.retries.count}`);\nif (summary.retries.count > 0) {\n  console.log(`  Orders: ${summary.retries.orders.join(', ')}`);\n}\nconsole.log(`\\nOrphaned Orders Processed: ${summary.orphaned.count}`);\nif (summary.orphaned.count > 0) {\n  console.log(`  Orders: ${summary.orphaned.orders.join(', ')}`);\n}\nif (summary.unclassified && summary.unclassified.count > 0) {\n  console.error(`\\n\u26a0\ufe0f  UNCLASSIFIED ITEMS: ${summary.unclassified.count}`);\n  console.error(`  Items: ${summary.unclassified.items.join(', ')}`);\n  console.error('  This indicates a potential issue with work type identification!');\n}\nconsole.log(`\\nTotal Items Processed: ${summary.total}`);\nconsole.log('==============================\\n');\n\n// TODO: Send to Slack/Email/Dashboard\n\nreturn [{ json: summary }];"
       },
       "id": "a750f211-8842-402e-8cef-c57cf7370688",
       "name": "Alert: Health Monitor Summary",

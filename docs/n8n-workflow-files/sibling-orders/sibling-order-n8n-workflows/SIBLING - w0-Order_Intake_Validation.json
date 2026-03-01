@@ -9,29 +9,38 @@
       "name": "Mock Order (STANDARD Testing)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [608, 368],
+      "position": [
+        608,
+        368
+      ],
       "notes": "STANDARD mock. Set SIBLING_MODE = true to test sibling/multi-book path. Disable for production."
     },
     {
       "parameters": {
-        "jsCode": "// Mock Order Generator for Testing - AMAZON ORDERS\n// Modify TEST_CONFIG values as needed for different test scenarios\n// Set SIBLING_MODE = true to test the Amazon sibling/multi-book path through W0\nconst SIBLING_MODE = false;\n\nconst TEST_CONFIG = {\n  orderId: \"NB3-AMAZON-01\",\n  childName: \"Jada\",\n  childAge: 5,\n  skinTone: \"skin-brown-deep\",\n  hairColor: \"dark-brown\",\n  hairStyle: \"puffy-ponytail\",\n  pronouns: \"she/her\",\n  favoriteColor: \"purple\",\n  animalGuide: \"unicorn\",\n  clothingStyle: \"dress\",\n  customerEmail: \"john.s.capogna@gmail.com\",\n  shippingName: \"John LaPenna\",\n  shippingAddress: \"12207 Sunset Ave.\",\n  shippingCity: \"Grass Valley\",\n  shippingState: \"CA\",\n  shippingZip: \"95945\",\n  shippingPhone: \"+1-678-478-3477\"\n};\n\n// Sibling variant: real Amazon ID pattern — orderId is synthetic (root-item-ASIN), amazonOrderId is root\n// Toggle SIBLING_MODE = true above to activate\nconst SIBLING_CONFIG = {\n  rootOrderId: \"114-7080737-5512234\",\n  itemSuffix: \"item-152767221930001\",\n  childName: \"Marcus\",\n  childAge: 6,\n  skinTone: \"skin-brown-deep\",\n  hairColor: \"dark-brown\",\n  hairStyle: \"short-flat-top\",\n  pronouns: \"he/him\",\n  favoriteColor: \"blue\",\n  animalGuide: \"lion\",\n  clothingStyle: \"tee-shorts\",\n  customerEmail: \"john.s.capogna@gmail.com\",\n  shippingName: \"John LaPenna\",\n  shippingAddress: \"12207 Sunset Ave.\",\n  shippingCity: \"Grass Valley\",\n  shippingState: \"CA\",\n  shippingZip: \"95945\",\n  shippingPhone: \"+1-678-478-3477\"\n};\n\nconst siblingOrderId = `${SIBLING_CONFIG.rootOrderId}-${SIBLING_CONFIG.itemSuffix}`;\nconst cfg = SIBLING_MODE ? SIBLING_CONFIG : TEST_CONFIG;\n\nconst mockOrder = SIBLING_MODE ? {\n  // Amazon sibling shape: per-book synthetic orderId + root amazonOrderId shared by all siblings\n  orderId: siblingOrderId,\n  amazonOrderId: SIBLING_CONFIG.rootOrderId,\n  id: siblingOrderId,\n  orderDate: new Date().toISOString(),\n  purchaseDate: new Date().toISOString(),\n  createdAt: new Date().toISOString(),\n  status: \"queued_for_processing\",\n  marketplaceId: \"ATVPDKIKX0DER\",\n  customerEmail: cfg.customerEmail,\n  buyer: { email: cfg.customerEmail, name: cfg.shippingName },\n  characterSpecs: {\n    childName: cfg.childName,\n    age: cfg.childAge,\n    skinTone: cfg.skinTone,\n    hairColor: cfg.hairColor,\n    hairStyle: cfg.hairStyle,\n    pronouns: cfg.pronouns,\n    favoriteColor: cfg.favoriteColor,\n    animalGuide: cfg.animalGuide,\n    clothingStyle: cfg.clothingStyle\n  },\n  bookSpecs: {\n    title: `${cfg.childName} and the Adventure Compass`,\n    totalPages: 17,\n    format: \"8.5x8.5_softcover\",\n    bookType: \"adventure\"\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: cfg.shippingName,\n      address: cfg.shippingAddress,\n      city: cfg.shippingCity,\n      state: cfg.shippingState,\n      zip: cfg.shippingZip,\n      phone: cfg.shippingPhone,\n      phoneNumber: cfg.shippingPhone,\n      phone_number: cfg.shippingPhone,\n      country: \"US\"\n    }\n  },\n  dedication: \"Marcus! You are brave and strong. We love you!\",\n  items: [{\n    sku: \"LHB-8.5X8.5-SOFTCOVER\",\n    quantity: 1,\n    customizations: [\n      { name: \"dedication\", label: \"Dedication Message\", type: \"text\", value: \"Marcus! You are brave and strong. We love you!\" },\n      { name: \"childName\", label: \"Child's Name\", type: \"text\", value: cfg.childName }\n    ]\n  }],\n  lineItems: [{\n    customizationFields: [{ name: \"dedication\", text: \"Marcus! You are brave and strong. We love you!\" }]\n  }]\n} : {\n  amazonOrderId: TEST_CONFIG.orderId,\n  orderId: TEST_CONFIG.orderId,\n  id: TEST_CONFIG.orderId,\n  orderDate: new Date().toISOString(),\n  purchaseDate: new Date().toISOString(),\n  createdAt: new Date().toISOString(),\n  status: \"queued_for_processing\",\n  marketplaceId: \"ATVPDKIKX0DER\",\n  customerEmail: TEST_CONFIG.customerEmail,\n  buyer: { email: TEST_CONFIG.customerEmail, name: TEST_CONFIG.shippingName },\n  characterSpecs: {\n    childName: TEST_CONFIG.childName,\n    age: TEST_CONFIG.childAge,\n    skinTone: TEST_CONFIG.skinTone,\n    hairColor: TEST_CONFIG.hairColor,\n    hairStyle: TEST_CONFIG.hairStyle,\n    pronouns: TEST_CONFIG.pronouns,\n    favoriteColor: TEST_CONFIG.favoriteColor,\n    animalGuide: TEST_CONFIG.animalGuide,\n    clothingStyle: TEST_CONFIG.clothingStyle\n  },\n  bookSpecs: {\n    title: `${TEST_CONFIG.childName} and the Adventure Compass`,\n    totalPages: 17,\n    format: \"8.5x8.5_softcover\",\n    bookType: \"adventure\"\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: TEST_CONFIG.shippingName,\n      address: TEST_CONFIG.shippingAddress,\n      city: TEST_CONFIG.shippingCity,\n      state: TEST_CONFIG.shippingState,\n      zip: TEST_CONFIG.shippingZip,\n      phone: TEST_CONFIG.shippingPhone,\n      phoneNumber: TEST_CONFIG.shippingPhone,\n      phone_number: TEST_CONFIG.shippingPhone,\n      country: \"US\"\n    }\n  },\n  dedication: \"This is the real dedication field.\",\n  items: [{\n    sku: \"LHB-8.5X8.5-SOFTCOVER\",\n    quantity: 1,\n    customizations: [\n      { name: \"dedication\", label: \"Dedication Message\", type: \"text\", value: \"Luca! We hope you enjoy this story about finding the brave, trustworthy voice inside of you.  Love always, your Dads!\" },\n      { name: \"childName\", label: \"Child's Name\", type: \"text\", value: TEST_CONFIG.childName }\n    ]\n  }],\n  lineItems: [{\n    customizationFields: [{ name: \"dedication\", text: \"Luca! We hope you enjoy this story about finding the brave, trustworthy voice inside of you.  Love always, your Dads!\" }]\n  }]\n};\n\nreturn [{ json: mockOrder }];"
+        "jsCode": "// Mock Order Generator for Testing - AMAZON ORDERS\n// Modify TEST_CONFIG values as needed for different test scenarios\n// Set SIBLING_MODE = true to test the Amazon sibling/multi-book path through W0\nconst SIBLING_MODE = false;\n\nconst TEST_CONFIG = {\n  orderId: \"NB3-AMAZON-01\",\n  childName: \"Jada\",\n  childAge: 5,\n  skinTone: \"skin-brown-deep\",\n  hairColor: \"dark-brown\",\n  hairStyle: \"puffy-ponytail\",\n  pronouns: \"she/her\",\n  favoriteColor: \"purple\",\n  animalGuide: \"unicorn\",\n  clothingStyle: \"dress\",\n  customerEmail: \"john.s.capogna@gmail.com\",\n  shippingName: \"John LaPenna\",\n  shippingAddress: \"12207 Sunset Ave.\",\n  shippingCity: \"Grass Valley\",\n  shippingState: \"CA\",\n  shippingZip: \"95945\",\n  shippingPhone: \"+1-678-478-3477\"\n};\n\n// Sibling variant: real Amazon ID pattern \u2014 orderId is synthetic (root-item-ASIN), amazonOrderId is root\n// Toggle SIBLING_MODE = true above to activate\nconst SIBLING_CONFIG = {\n  rootOrderId: \"114-7080737-5512234\",\n  itemSuffix: \"item-152767221930001\",\n  childName: \"Marcus\",\n  childAge: 6,\n  skinTone: \"skin-brown-deep\",\n  hairColor: \"dark-brown\",\n  hairStyle: \"short-flat-top\",\n  pronouns: \"he/him\",\n  favoriteColor: \"blue\",\n  animalGuide: \"lion\",\n  clothingStyle: \"tee-shorts\",\n  customerEmail: \"john.s.capogna@gmail.com\",\n  shippingName: \"John LaPenna\",\n  shippingAddress: \"12207 Sunset Ave.\",\n  shippingCity: \"Grass Valley\",\n  shippingState: \"CA\",\n  shippingZip: \"95945\",\n  shippingPhone: \"+1-678-478-3477\"\n};\n\nconst siblingOrderId = `${SIBLING_CONFIG.rootOrderId}-${SIBLING_CONFIG.itemSuffix}`;\nconst cfg = SIBLING_MODE ? SIBLING_CONFIG : TEST_CONFIG;\n\nconst mockOrder = SIBLING_MODE ? {\n  // Amazon sibling shape: per-book synthetic orderId + root amazonOrderId shared by all siblings\n  orderId: siblingOrderId,\n  amazonOrderId: SIBLING_CONFIG.rootOrderId,\n  id: siblingOrderId,\n  orderDate: new Date().toISOString(),\n  purchaseDate: new Date().toISOString(),\n  createdAt: new Date().toISOString(),\n  status: \"queued_for_processing\",\n  marketplaceId: \"ATVPDKIKX0DER\",\n  customerEmail: cfg.customerEmail,\n  buyer: { email: cfg.customerEmail, name: cfg.shippingName },\n  characterSpecs: {\n    childName: cfg.childName,\n    age: cfg.childAge,\n    skinTone: cfg.skinTone,\n    hairColor: cfg.hairColor,\n    hairStyle: cfg.hairStyle,\n    pronouns: cfg.pronouns,\n    favoriteColor: cfg.favoriteColor,\n    animalGuide: cfg.animalGuide,\n    clothingStyle: cfg.clothingStyle\n  },\n  bookSpecs: {\n    title: `${cfg.childName} and the Adventure Compass`,\n    totalPages: 17,\n    format: \"8.5x8.5_softcover\",\n    bookType: \"adventure\"\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: cfg.shippingName,\n      address: cfg.shippingAddress,\n      city: cfg.shippingCity,\n      state: cfg.shippingState,\n      zip: cfg.shippingZip,\n      phone: cfg.shippingPhone,\n      phoneNumber: cfg.shippingPhone,\n      phone_number: cfg.shippingPhone,\n      country: \"US\"\n    }\n  },\n  dedication: \"Marcus! You are brave and strong. We love you!\",\n  items: [{\n    sku: \"LHB-8.5X8.5-SOFTCOVER\",\n    quantity: 1,\n    customizations: [\n      { name: \"dedication\", label: \"Dedication Message\", type: \"text\", value: \"Marcus! You are brave and strong. We love you!\" },\n      { name: \"childName\", label: \"Child's Name\", type: \"text\", value: cfg.childName }\n    ]\n  }],\n  lineItems: [{\n    customizationFields: [{ name: \"dedication\", text: \"Marcus! You are brave and strong. We love you!\" }]\n  }]\n} : {\n  amazonOrderId: TEST_CONFIG.orderId,\n  orderId: TEST_CONFIG.orderId,\n  id: TEST_CONFIG.orderId,\n  orderDate: new Date().toISOString(),\n  purchaseDate: new Date().toISOString(),\n  createdAt: new Date().toISOString(),\n  status: \"queued_for_processing\",\n  marketplaceId: \"ATVPDKIKX0DER\",\n  customerEmail: TEST_CONFIG.customerEmail,\n  buyer: { email: TEST_CONFIG.customerEmail, name: TEST_CONFIG.shippingName },\n  characterSpecs: {\n    childName: TEST_CONFIG.childName,\n    age: TEST_CONFIG.childAge,\n    skinTone: TEST_CONFIG.skinTone,\n    hairColor: TEST_CONFIG.hairColor,\n    hairStyle: TEST_CONFIG.hairStyle,\n    pronouns: TEST_CONFIG.pronouns,\n    favoriteColor: TEST_CONFIG.favoriteColor,\n    animalGuide: TEST_CONFIG.animalGuide,\n    clothingStyle: TEST_CONFIG.clothingStyle\n  },\n  bookSpecs: {\n    title: `${TEST_CONFIG.childName} and the Adventure Compass`,\n    totalPages: 17,\n    format: \"8.5x8.5_softcover\",\n    bookType: \"adventure\"\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: TEST_CONFIG.shippingName,\n      address: TEST_CONFIG.shippingAddress,\n      city: TEST_CONFIG.shippingCity,\n      state: TEST_CONFIG.shippingState,\n      zip: TEST_CONFIG.shippingZip,\n      phone: TEST_CONFIG.shippingPhone,\n      phoneNumber: TEST_CONFIG.shippingPhone,\n      phone_number: TEST_CONFIG.shippingPhone,\n      country: \"US\"\n    }\n  },\n  dedication: \"This is the real dedication field.\",\n  items: [{\n    sku: \"LHB-8.5X8.5-SOFTCOVER\",\n    quantity: 1,\n    customizations: [\n      { name: \"dedication\", label: \"Dedication Message\", type: \"text\", value: \"Luca! We hope you enjoy this story about finding the brave, trustworthy voice inside of you.  Love always, your Dads!\" },\n      { name: \"childName\", label: \"Child's Name\", type: \"text\", value: TEST_CONFIG.childName }\n    ]\n  }],\n  lineItems: [{\n    customizationFields: [{ name: \"dedication\", text: \"Luca! We hope you enjoy this story about finding the brave, trustworthy voice inside of you.  Love always, your Dads!\" }]\n  }]\n};\n\nreturn [{ json: mockOrder }];"
       },
       "id": "1882df1c-aa65-4aa7-a483-04a0ee00ec5b",
       "name": "Mock Order (AMAZON Testing)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [608, 0],
+      "position": [
+        608,
+        0
+      ],
       "notes": "AMAZON mock. Set SIBLING_MODE = true to test Amazon sibling/multi-book path. Disable for production."
     },
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "order-intake",
+        "path": "order-intake-sibtest",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [-128, 176],
+      "position": [
+        -128,
+        176
+      ],
       "id": "baffba16-23d0-4457-9e12-43666e707011",
       "name": "Webhook",
       "webhookId": "80783083-859a-4a7d-a0ec-1c398bd166da"
@@ -44,7 +53,10 @@
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
-      "position": [2352, 64],
+      "position": [
+        2352,
+        64
+      ],
       "id": "a5bff985-7264-4bb2-9f6c-750c0cdd0447",
       "name": "Merge"
     },
@@ -59,7 +71,10 @@
       "name": "Upload 1-manifest.json to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
-      "position": [1872, 176],
+      "position": [
+        1872,
+        176
+      ],
       "credentials": {
         "s3": {
           "id": "7tJOX9QjL1jqyEjf",
@@ -76,7 +91,10 @@
       "name": "Create Binary (manifest.json)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1648, 176]
+      "position": [
+        1648,
+        176
+      ]
     },
     {
       "parameters": {
@@ -86,7 +104,10 @@
       "name": "Fallback (Skip Upload)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2160, 416],
+      "position": [
+        2160,
+        416
+      ],
       "notes": "Use this path temporarily if signed PUT or S3 creds are not ready."
     },
     {
@@ -97,7 +118,10 @@
       "name": "Extract & Validate Dedication",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1024, 48]
+      "position": [
+        1024,
+        48
+      ]
     },
     {
       "parameters": {
@@ -107,17 +131,23 @@
       "name": "Normalize Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [832, 176]
+      "position": [
+        832,
+        176
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Central config (fill tokens/keys after import)\n// SECURITY: do not commit real secrets in workflow exports.\n// n8n webhook wraps POST data in .body \u2014 extract it so order fields are at top level\nconst input = $input.first().json || {};\nconst orderData = input.body || input;\nreturn [{ json: {\n  ...orderData,\n  supabase: {\n    url: \"https://mdnthwpcnphjnnblbvxk.supabase.co\",\n    serviceKey: \"<SUPABASE_SERVICE_ROLE_KEY>\"\n  },\n  r2: {\n    bucket: \"little-hero-orders\",\n    signedUrlEndpoint: \"https://admin.littleherolabs.com/api/r2/signed-url\",\n    apiToken: \"<BACKEND_API_TOKEN>\",\n    expiresIn: 600,\n    keyPrefix: \"book-mvp-simple-adventure/orders\",\n    useBackendSignedUpload: true\n  },\n  s3: {\n    endpoint: \"https://3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com\",\n    accessKeyId: \"<R2_ACCESS_KEY_ID>\",\n    secretAccessKey: \"<R2_SECRET_ACCESS_KEY>\",\n    accountId: \"3daae940fcb6fc5b8bbd9bb8fcc62854\"\n  }\n} }];"
+        "jsCode": "// Central config (fill tokens/keys after import)\n// n8n webhook wraps POST data in .body \u2014 extract it so order fields are at top level\nconst input = $input.first().json || {};\nconst orderData = input.body || input;\nreturn [{ json: {\n  ...orderData,\n  supabase: {\n    url: \"https://mdnthwpcnphjnnblbvxk.supabase.co\",\n    serviceKey: \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs\"\n  },\n  r2: {\n    bucket: \"little-hero-orders\",\n    signedUrlEndpoint: \"https://admin.littleherolabs.com/api/r2/signed-url\",\n    apiToken: \"e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646\",\n    expiresIn: 600,\n    keyPrefix: \"book-mvp-simple-adventure/orders\",\n    useBackendSignedUpload: true\n  },\n  s3: {\n    endpoint: \"https://3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com\",\n    accessKeyId: \"b0a481f17d8641a232e0aae8a3efeb7a\",\n    secretAccessKey: \"745ade64f37a8def63e44ae9bfb2fb286c23a500b437c722461a33c7820d43cd\",\n    accountId: \"3daae940fcb6fc5b8bbd9bb8fcc62854\"\n  }\n} }];"
       },
       "id": "994bedac-d9ac-4637-aa88-199bf30b5926",
       "name": "CONFIG (PRODUCTION)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [288, 176],
+      "position": [
+        288,
+        176
+      ],
       "notes": "Fill Supabase serviceKey + BACKEND_API_TOKEN (for signed URL) and/or S3 credentials (for direct PUT)."
     },
     {
@@ -126,7 +156,10 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [-128, 416],
+      "position": [
+        -128,
+        416
+      ],
       "disabled": true
     },
     {
@@ -137,7 +170,10 @@
       "name": "Supabase Upsert (orders)2",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2656, 64],
+      "position": [
+        2656,
+        64
+      ],
       "notes": "Stores r2Key in one_manifest_url (key-only). W1.1 will fetch a signed URL at runtime."
     },
     {
@@ -148,51 +184,146 @@
       "name": "Build 1\u2011manifest.json",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1440, 176]
+      "position": [
+        1440,
+        176
+      ]
     }
   ],
   "pinData": {},
   "connections": {
-    "Mock Order (STANDARD Testing)": { "main": [[]] },
+    "Mock Order (STANDARD Testing)": {
+      "main": [
+        []
+      ]
+    },
     "Upload 1-manifest.json to R2": {
       "main": [
-        [{ "node": "Merge", "type": "main", "index": 1 }],
-        [{ "node": "Fallback (Skip Upload)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Fallback (Skip Upload)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Create Binary (manifest.json)": {
-      "main": [[{ "node": "Upload 1-manifest.json to R2", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upload 1-manifest.json to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Merge": {
-      "main": [[{ "node": "Supabase Upsert (orders)2", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Supabase Upsert (orders)2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fallback (Skip Upload)": {
-      "main": [[{ "node": "Supabase Upsert (orders)2", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Supabase Upsert (orders)2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Extract & Validate Dedication": {
-      "main": [[
-        { "node": "Merge", "type": "main", "index": 0 },
-        { "node": "Build 1\u2011manifest.json", "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build 1\u2011manifest.json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize Payload": {
-      "main": [[{ "node": "Extract & Validate Dedication", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Extract & Validate Dedication",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "CONFIG (PRODUCTION)": {
-      "main": [[{ "node": "Normalize Payload", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Manual Trigger": {
-      "main": [[{ "node": "CONFIG (PRODUCTION)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "CONFIG (PRODUCTION)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build 1\u2011manifest.json": {
-      "main": [[{ "node": "Create Binary (manifest.json)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Create Binary (manifest.json)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook": {
-      "main": [[{ "node": "CONFIG (PRODUCTION)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "CONFIG (PRODUCTION)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "versionId": "1d5f7a54-f1a4-498b-b6f9-5ca4a64b82d2",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"

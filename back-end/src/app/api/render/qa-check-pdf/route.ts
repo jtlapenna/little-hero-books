@@ -53,6 +53,8 @@ interface PdfJsModule {
   }) => { promise: Promise<PdfJsDocument> };
 }
 
+export const maxDuration = 60;
+
 const MAX_PAGES = 40;
 const MIN_BYTES_PER_PAGE = 30_000;
 const MIN_IMAGE_BYTES = 50_000;

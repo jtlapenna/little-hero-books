@@ -84,7 +84,7 @@ const nextConfig: NextConfig = {
         // Externalize selected native deps without `Function` typing (lint-safe).
         (context: string, request: string, callback: (err?: Error | null, result?: string) => void) => {
           // Only externalize sharp and canvas, let other modules bundle normally
-          if (request === 'sharp' || request === '@napi-rs/canvas') {
+          if (request === 'sharp' || request === '@napi-rs/canvas' || request === 'pdfjs-dist' || request.startsWith('pdfjs-dist/')) {
             return callback(null, `commonjs ${request}`);
           }
           // For other modules, use the original externals logic
