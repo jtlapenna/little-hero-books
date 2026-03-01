@@ -340,8 +340,34 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. First, check for orders that completed W0 but weren't updated properly
-    // These orders have one_manifest_url and workflow_step='order_intake' but still have execution_status='pending_w0'
+    // 3a. Re-trigger W0 for stuck pending_w0 orders (Stripe webhook ran but W0 never completed)
+    // These have next_workflow NULL and one_manifest_url NULL — W0 was triggered but didn't update Supabase
+    const w0RetriggerStart = Date.now();
+    const { data: stuckPendingW0 } = await supabase
+      .from('orders')
+      .select('id,"orderId",platform,character_specs,shipping_address,customer_email,customer_name,purchase_date,dedication_text,product_info,character_hash,root_order_id,created_at')
+      .eq('execution_status', 'pending_w0')
+      .is('next_workflow', null)
+      .is('one_manifest_url', null)
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Only last 24h
+      .limit(5);
+    if (stuckPendingW0 && stuckPendingW0.length > 0) {
+      const { buildD2CW0Payload } = await import('@/lib/w0-payload');
+      const { triggerW0 } = await import('@/lib/sibling-order-helpers');
+      for (const o of stuckPendingW0) {
+        const orderData = o as Record<string, unknown>;
+        const oid = orderData.orderId ?? orderData.order_id ?? orderData.id;
+        console.log(`[Cron Router] [${executionId}] Re-triggering W0 for stuck order ${oid}`);
+        const payload = buildD2CW0Payload(orderData);
+        const res = await triggerW0(payload);
+        if (!res.ok) console.error(`[Cron Router] [${executionId}] W0 re-trigger failed for ${oid}:`, res.error);
+      }
+    }
+    const w0RetriggerMs = Date.now() - w0RetriggerStart;
+    if (w0RetriggerMs > 0) metrics.w0CleanupMs = (metrics.w0CleanupMs || 0) + w0RetriggerMs;
+
+    // 3b. Check for orders that completed W0 but weren't updated properly
+    // These orders have one_manifest_url but still have execution_status='pending_w0' (W0 wrote manifest, Supabase update missed)
     const w0CleanupStart = Date.now();
     const { data: w0CompletedOrders, error: w0CleanupError } = await supabase
       .from('orders')

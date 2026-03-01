@@ -206,6 +206,17 @@ function CheckoutForm() {
 
     if (!state) return;
 
+    // Pre-check: each book must have character name (API requires childName/name)
+    const booksMissingName = (state.books ?? []).map((b, i) => ({ book: i + 1, name: b.character?.name?.trim() })).filter((x) => !x.name);
+    if (booksMissingName.length > 0) {
+      const msg =
+        booksMissingName.length === 1
+          ? `Book ${booksMissingName[0].book} is missing the character's name. Please use Edit to go back and add it.`
+          : `Books ${booksMissingName.map((x) => x.book).join(', ')} are missing character names. Please use Edit to go back and add them.`;
+      setErrors({ submit: msg });
+      return;
+    }
+
     setIsSubmitting(true);
     setErrors({});
 

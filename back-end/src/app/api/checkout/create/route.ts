@@ -229,14 +229,17 @@ export async function POST(request: NextRequest) {
             status: 'pending_payment',
             execution_status: 'pending_payment',
             next_workflow: null,
+            workflow_step: null,
+            marketplace_id: 'ATVPDKIKX0DER',
+            purchase_date: now,
             created_at: now,
             updated_at: now,
           };
 
           const { error: insertError } = await supabase.from('orders').insert(orderPayload).select().single();
           if (insertError) {
-            console.error(`[Checkout] Order insert failed for book ${i + 1}:`, insertError.message);
-            throw new Error('Failed to create order');
+            console.error(`[Checkout] Order insert failed for book ${i + 1}:`, insertError.message, insertError.code, insertError.details);
+            throw new Error(`Failed to create order: ${insertError.code ?? insertError.message}`);
           }
         }
 
@@ -276,7 +279,9 @@ export async function POST(request: NextRequest) {
         const successUrl = `${frontendOrigin}/create/processing?order_id=${encodeURIComponent(isSingleBook ? root_order_id : root_order_id)}`;
         const cancelUrl = `${frontendOrigin}/create/checkout`;
 
-        const session = await stripe.checkout.sessions.create({
+        let session: Stripe.Checkout.Session;
+        try {
+          session = await stripe.checkout.sessions.create({
           mode: 'payment',
           line_items: [
             ...bookLineItems,
@@ -299,6 +304,12 @@ export async function POST(request: NextRequest) {
             : { root_order_id, book_count: String(bookInputs.length) },
           customer_email: parsed.customer_email,
         });
+        } catch (stripeErr: unknown) {
+          const msg = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
+          const code = (stripeErr as { code?: string })?.code;
+          console.error('[Checkout] Stripe session create failed:', msg, code);
+          throw new Error(code ? `Stripe error: ${code}` : 'Payment setup failed');
+        }
 
         if (!session.url) {
           throw new Error('Stripe did not return checkout session URL');
@@ -322,14 +333,15 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error('[Checkout] Unhandled error:', err);
     // Purpose: return a safe, actionable message (and keep CORS headers) so the frontend doesn't show "Failed to fetch".
+    const knownErrors = [
+      'Checkout configuration error',
+      'Payment configuration error',
+      'Stripe did not return checkout session URL',
+      'Payment setup failed',
+    ];
     const safeMessage =
       err instanceof Error &&
-      [
-        'Checkout configuration error',
-        'Payment configuration error',
-        'Failed to create order',
-        'Stripe did not return checkout session URL',
-      ].includes(err.message)
+      (knownErrors.includes(err.message) || err.message.startsWith('Failed to create order:') || err.message.startsWith('Stripe error:'))
         ? err.message
         : 'Checkout failed';
     return NextResponse.json({ error: safeMessage }, { status: 500, headers: corsHeaders });

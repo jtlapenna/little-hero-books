@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
 
   console.log('[Webhook Stripe] Verified event', { id: event.id, type: event.type, livemode: (event as any).livemode });
 
+  try {
   const response = await withIdempotency(
     event.id,
     async () => {
@@ -104,6 +105,7 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         singleOrderId = session.metadata?.order_id as string | undefined;
         rootOrderId = session.metadata?.root_order_id as string | undefined;
+        console.log('[Webhook Stripe] checkout.session.completed metadata:', { order_id: singleOrderId, root_order_id: rootOrderId, book_count: session.metadata?.book_count });
         if (!singleOrderId && !rootOrderId) {
           console.warn('[Webhook Stripe] checkout.session.completed missing metadata.order_id/root_order_id');
           return { status: 200, body: { received: true } };
@@ -124,12 +126,16 @@ export async function POST(request: NextRequest) {
       let orderIds: string[];
       if (rootOrderId) {
         // Multi-book: find all sibling orders ({root}-item-{N})
-        const { data: siblings } = await supabase
-          .from('orders')
-          .select('orderId')
-          .like('orderId', `${rootOrderId}-item-%`);
-        orderIds = (siblings ?? []).map((s: { orderId: string }) => s.orderId);
-        // Purpose: deterministic primary selection for the confirmation email.
+        const pattern = `${rootOrderId}-item-%`;
+        let siblingsRes = await supabase.from('orders').select('orderId').like('orderId', pattern);
+        if ((siblingsRes.data?.length ?? 0) === 0) {
+          // Fallback: try order_id column (schema may use snake_case)
+          siblingsRes = await supabase.from('orders').select('order_id').like('order_id', pattern);
+        }
+        const siblings = siblingsRes.data ?? [];
+        orderIds = siblings
+          .map((s: { orderId?: string; order_id?: string }) => s.orderId ?? s.order_id ?? '')
+          .filter(Boolean);
         const parseItemIndex = (id: string): number | null => {
           const m = id.match(/-item-(\d+)$/);
           return m ? parseInt(m[1], 10) : null;
@@ -143,10 +149,10 @@ export async function POST(request: NextRequest) {
           return a.localeCompare(b);
         });
         if (orderIds.length === 0) {
-          console.warn('[Webhook Stripe] No sibling orders found for root_order_id:', rootOrderId);
+          console.warn('[Webhook Stripe] No sibling orders found for root_order_id:', rootOrderId, 'pattern:', pattern, 'siblingsResError:', siblingsRes.error?.message);
           return { status: 200, body: { received: true } };
         }
-        console.log(`[Webhook Stripe] Multi-book: found ${orderIds.length} orders for root ${rootOrderId}`);
+        console.log('[Webhook Stripe] Multi-book: found', orderIds.length, 'orders for root', rootOrderId, 'orderIds:', orderIds);
       } else {
         orderIds = [singleOrderId!];
       }
@@ -163,20 +169,24 @@ export async function POST(request: NextRequest) {
 
         const orderData = order as Record<string, unknown>;
         const executionStatus = orderData.execution_status as string | undefined;
-        console.log('[Webhook Stripe] Order status gate', { order_id, executionStatus: executionStatus ?? 'undefined' });
-        if (executionStatus !== 'pending_payment') {
-          console.log('[Webhook Stripe] Order already processed (execution_status=%s), skipping', executionStatus ?? 'undefined');
+        const nextWorkflow = orderData.next_workflow as string | null | undefined;
+        const isPendingPayment = executionStatus === 'pending_payment';
+        const isStuckPendingW0 = executionStatus === 'pending_w0' && (nextWorkflow == null || nextWorkflow === '');
+        if (!isPendingPayment && !isStuckPendingW0) {
+          console.log('[Webhook Stripe] Order already processed (execution_status=%s, next_workflow=%s), skipping', executionStatus ?? 'undefined', nextWorkflow ?? 'null');
           continue;
         }
 
-        const now = new Date().toISOString();
-        await updateOrderInSupabase(order_id, {
-          execution_status: 'pending_w0',
-          next_workflow: null,
-          status: 'pending_w0',
-          purchase_date: now,
-          updated_at: now,
-        });
+        if (isPendingPayment) {
+          const now = new Date().toISOString();
+          await updateOrderInSupabase(order_id, {
+            execution_status: 'pending_w0',
+            next_workflow: null,
+            status: 'pending_w0',
+            purchase_date: now,
+            updated_at: now,
+          });
+        }
 
         const platform = orderData.platform as string | undefined;
         const customerEmail = orderData.customer_email as string | undefined;
@@ -194,8 +204,8 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Send one confirmation email for the whole checkout
-        if (!emailSent && platform === 'd2c' && customerEmail?.trim()) {
+        // Send one confirmation email for the whole checkout (only on initial processing, not retries)
+        if (isPendingPayment && !emailSent && platform === 'd2c' && customerEmail?.trim()) {
           let previewImageUrl: string | undefined;
           if (previewHash) {
             try {
@@ -221,14 +231,17 @@ export async function POST(request: NextRequest) {
           emailSent = true;
         }
 
-        // Trigger W0 for this book
+        // Trigger W0 for this book — throw on failure so Stripe retries and failure is visible
+        const w0Url = process.env.N8N_W0_WEBHOOK_URL;
+        if (!w0Url) {
+          throw new Error('N8N_W0_WEBHOOK_URL not configured — cannot trigger W0. Set env var and ensure n8n webhook is active.');
+        }
         const payload = buildD2CW0Payload(orderData);
         const w0Result = await triggerW0(payload);
         if (!w0Result.ok) {
-          console.error(`[Webhook Stripe] W0 trigger failed for ${order_id}:`, w0Result.error);
-        } else {
-          console.log(`[Webhook Stripe] W0 triggered for ${order_id}`);
+          throw new Error(`W0 trigger failed for ${order_id}: ${w0Result.error}. Check N8N_W0_WEBHOOK_URL points to an active n8n webhook.`);
         }
+        console.log('[Webhook Stripe] W0 triggered successfully for', order_id);
       }
 
       return { status: 200, body: { received: true } };
@@ -237,4 +250,12 @@ export async function POST(request: NextRequest) {
   );
 
   return NextResponse.json(response.body, { status: response.status });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Webhook Stripe] Handler error:', message);
+    return NextResponse.json(
+      { error: message },
+      { status: 500 }
+    );
+  }
 }
