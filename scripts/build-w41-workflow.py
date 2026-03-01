@@ -173,8 +173,29 @@ const siblings=items.map(s=>{
 });
 
 const line_items=siblings.map(s=>({external_id:s.orderId,title:`Little Hero Book – ${s.childName}`,quantity:1,printable_normalization:{interior:{source_url:s.interiorSignedUrl},cover:{source_url:s.coverSignedUrl},pod_package_id:podPackageId}}));
-const luluPayload={external_id:`sibling-${first.rootGroupId||first.orderId}-${Date.now()}`,contact_email:first.customer?.email||'orders@littleherolabs.com',shipping_level:first.CONFIG?.defaults?.shippingLevel||'MAIL',shipping_address:shipAddr,line_items};
-return[{json:{...first,siblings,luluPayload,CONFIG:cfg}}];"""
+// Map storefront/internal shipping labels to Lulu's accepted enum values.
+function normalizeShippingLevel(raw){
+  const s=String(raw||'').trim().toUpperCase();
+  if(!s) return 'MAIL';
+  const table={
+    MAIL:'MAIL',
+    STANDARD:'MAIL',
+    ECONOMY:'MAIL',
+    GROUND:'MAIL',
+    PRIORITY:'PRIORITY',
+    EXPEDITED:'EXPRESS',
+    EXPRESS:'EXPRESS',
+    OVERNIGHT:'EXPRESS',
+    NEXT_DAY:'EXPRESS',
+    NEXTDAY:'EXPRESS',
+    RUSH:'EXPRESS'
+  };
+  return table[s] || 'MAIL';
+}
+const requestedShipping=first.CONFIG?.defaults?.shippingLevel;
+const shippingLevel=normalizeShippingLevel(requestedShipping);
+const luluPayload={external_id:`sibling-${first.rootGroupId||first.orderId}-${Date.now()}`,contact_email:first.customer?.email||'orders@littleherolabs.com',shipping_level:shippingLevel,shipping_address:shipAddr,line_items};
+return[{json:{...first,siblings,luluPayload,CONFIG:cfg,shippingLevelRequested:requestedShipping||null,shippingLevelSent:shippingLevel}}];"""
 
 LULU_TOKEN_JS = r"""// Lulu PRODUCTION: Get Token
 const j=$input.first().json||{};

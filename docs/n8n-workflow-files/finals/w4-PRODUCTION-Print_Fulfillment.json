@@ -20,6 +20,19 @@
     },
     {
       "parameters": {
+        "jsCode": "// Normalize shipping_level to Lulu enum. Constrain Amazon to MAIL/EXPEDITED.\nconst j = $input.first().json || {};\nfunction toLuluLevel(raw){\n  const s = String(raw || '').trim().toUpperCase();\n  if (!s) return null;\n  const map = { MAIL:'MAIL', STANDARD:'MAIL', ECONOMY:'MAIL', PRIORITY_MAIL:'PRIORITY_MAIL', PRIORITY:'PRIORITY_MAIL', GROUND:'GROUND', GROUND_HD:'GROUND_HD', GROUND_HOME:'GROUND_HD', GROUND_BUS:'GROUND_BUS', GROUND_BUSINESS:'GROUND_BUS', EXPEDITED:'EXPEDITED', EXPRESS:'EXPRESS', OVERNIGHT:'EXPRESS', NEXT_DAY:'EXPRESS', NEXTDAY:'EXPRESS' };\n  return map[s] || null;\n}\nconst amazonSignal = [j.order?.ShipmentServiceLevelCategory,j.order?.ShipServiceLevel,j.ShipmentServiceLevelCategory,j.ShipServiceLevel,j.amazon_shipment_service_level,j.manifest?.order?.ShipmentServiceLevelCategory,j.manifest?.order?.ShipServiceLevel].find(Boolean);\nconst requested = j.luluPayload?.shipping_level || j.printOptions?.shippingLevel || j.CONFIG?.defaults?.shippingLevel || j.shipping_tier || j.shippingTier;\nconst candidate = toLuluLevel(requested) || 'MAIL';\nconst amazonText = String(amazonSignal || '').toUpperCase();\nconst amazonMapped = !amazonSignal ? null : ((amazonText.includes('EXPEDITED') || amazonText.includes('2-DAY') || amazonText.includes('2DAY') || amazonText.includes('PRIORITY') || amazonText.includes('OVERNIGHT') || amazonText.includes('EXPRESS')) ? 'EXPEDITED' : 'MAIL');\nconst shipping_level = amazonMapped || candidate;\nreturn [{ json: { ...j, luluPayload: { ...(j.luluPayload || {}), shipping_level }, shippingLevelRequested: requested || null, shippingLevelSent: shipping_level } }];"
+      },
+      "id": "6fa7f6df-3c89-4f61-a33f-779688f23a01",
+      "name": "Normalize Shipping Level (Lulu Enum)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11840,
+        -400
+      ]
+    },
+    {
+      "parameters": {
         "jsCode": "// Centralized configuration & secrets (hardcoded per request)\n// TODO: USE N8N CREDENTIALS for tokens/keys in production\n/* PRODUCTION CONFIG */\nconst CONFIG = {\n  pdfMonkey: {\n    token: '2zpxHdmsse2ECXgVVtVR', // replace if you use a separate prod PDFMonkey token\n    templateId: '5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172' // interior template (pages_html)\n  },\n  lulu: {\n    apiBase: 'https://api.lulu.com',\n    clientKey: '9b388aaa-f0c9-448d-b3d1-8561a8cf2094',\n    clientSecret: '3fsYZ7GbbXvdQhsOSxstzIbqdbdJMMtS',\n    // base64(clientKey:clientSecret)\n    basicAuth: null\n  },\n  supabase: {\n    projectUrl: 'https://mdnthwpcnphjnnblbvxk.supabase.co',\n    serviceRoleKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs'\n  },\n  r2: {\n    bucket: 'little-hero-orders',\n    endpointHost: '3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com',\n    region: 'auto',\n    accessKeyId: '320e3b8228c5ff7bd2395043886f03d3',\n    secretAccessKey: 'a1ba025ddbe2d8ef7032d2d6635dce3b6fbc4bdbf9c19c68d0b0bd566c989572'\n  },\n  backendApiToken: 'e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n  defaults: {\n    debug: false,\n    testMode: false,\n    // 🔑 Lulu POD package (8.5x8.5, premium-color, saddle-stitch, 80# text, matte) - 15 pages\n    podPackageId: '0850X0850FCPRESS080CW444MXX',  // Saddle-stitch for 15 pages\n    trimIn: {\n      w: 8.5, h: 8.5,\n      assetBase: 'https://admin.littleherolabs.com/api/assets/',\n      podPackageId: null // kept null; top-level defaults.podPackageId is source of truth\n    },\n    bleedIn: { w: 8.75, h: 8.75 },\n    print: { color: 'premium-color', stock: '80#-text', binding: 'saddle-stitch', coverFinish: 'matte' },\n    quantity: 1,\n    shippingLevel: 'STANDARD'\n  }\n};\n\n// --- derive basicAuth from client credentials (computed here to avoid expression quirks) ---\ntry {\n  const k = CONFIG?.lulu?.clientKey || '';\n  const s = CONFIG?.lulu?.clientSecret || '';\n  const b = Buffer.from(`${k}:${s}`).toString('base64');\n  if (!CONFIG.lulu) CONFIG.lulu = {};\n  CONFIG.lulu.basicAuth = 'Basic ' + b;\n} catch (e) {\n  // leave basicAuth as-is if Buffer not available (should be available in Code nodes)\n}\n\n\nreturn [{ json: { CONFIG } }];\n"
       },
       "id": "bb44b93d-90e9-4e68-81f9-1ed69ef28f33",
@@ -1931,6 +1944,17 @@
       ]
     },
     "Build Lulu Print Job Payload": {
+      "main": [
+        [
+          {
+            "node": "Normalize Shipping Level (Lulu Enum)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Shipping Level (Lulu Enum)": {
       "main": [
         [
           {
