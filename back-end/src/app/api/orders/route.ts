@@ -60,11 +60,22 @@ async function getOrders(request: NextRequest) {
   
   console.log(`[GET /api/orders] Starting orders fetch (lifecycle=${lifecycle || 'all'}, includeArchived=${includeArchived})...`);
 
+  const safeFallback = (err?: unknown) => {
+    console.warn('[GET /api/orders] Returning empty orders due to error.', err);
+    return NextResponse.json([]);
+  };
+
   try {
-    const supabaseRecords = await listOrdersFromSupabase({
-      lifecycle: lifecycle || undefined,
-      includeArchived,
-    });
+    let supabaseRecords: any[] = [];
+    try {
+      supabaseRecords = await listOrdersFromSupabase({
+        lifecycle: lifecycle || undefined,
+        includeArchived,
+      });
+    } catch (supabaseError) {
+      console.error('[GET /api/orders] Supabase listOrdersFromSupabase failed:', supabaseError);
+      supabaseRecords = [];
+    }
 
     if (supabaseRecords.length > 0) {
       console.log('[GET /api/orders] Supabase returned', supabaseRecords.length, 'orders');
@@ -132,21 +143,34 @@ async function getOrders(request: NextRequest) {
 
     console.warn('[GET /api/orders] Supabase returned 0 orders. Falling back to R2 manifests.');
   } catch (error) {
-    console.error('[GET /api/orders] Error loading orders from Supabase. Falling back to R2 manifests.', error);
+    console.error('[GET /api/orders] Error in main orders flow:', error);
+    return safeFallback(error);
   }
 
-  const fallback = await buildOrdersFromR2();
-
-  const response = NextResponse.json(fallback.orders);
-
-  if (fallback.debugInfo) {
-    response.headers.set('X-Debug-Info', JSON.stringify(fallback.debugInfo));
+  try {
+    const fallback = await buildOrdersFromR2();
+    const response = NextResponse.json(fallback.orders);
+    if (fallback.debugInfo) {
+      response.headers.set('X-Debug-Info', JSON.stringify(fallback.debugInfo));
+    }
+    return response;
+  } catch (error) {
+    console.error('[GET /api/orders] Fallback to R2 also failed:', error);
+    return safeFallback(error);
   }
-
-  return response;
 }
 
-export const GET = withErrorHandling(getOrders);
+// Wrap in additional safety: always return 200 with [] if anything throws
+async function getOrdersSafe(request: NextRequest) {
+  try {
+    return await getOrders(request);
+  } catch (err) {
+    console.error('[GET /api/orders] Unhandled error:', err);
+    return NextResponse.json([]);
+  }
+}
+
+export const GET = withErrorHandling(getOrdersSafe);
 
 // POST /api/orders - Receive Amazon Custom orders and store in Supabase immediately
 // This ensures orders are tracked in the backend even if n8n fails

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
+import { extractApiErrorMessage } from '@/lib/error-handler';
 import { AssetGrid } from '@/components/assets/asset-grid';
 import { formatDate } from '@/lib/utils';
 
@@ -1829,9 +1830,9 @@ export function PostPdfStage({
       if (!response.ok) {
         let errorMessage = 'Failed to replace image';
         try {
-          const error = await response.json();
-          errorMessage = error.error || errorMessage;
-          console.error('[PostPdfStage] API error response:', error);
+          const errorBody = await response.json();
+          errorMessage = extractApiErrorMessage(errorBody, errorMessage);
+          console.error('[PostPdfStage] API error response:', errorBody);
         } catch {
           errorMessage = `Server error: ${response.status} ${response.statusText}`;
           console.error('[PostPdfStage] Failed to parse error response');
@@ -2100,7 +2101,7 @@ export function PostPdfStage({
       if (onSendToPrint) {
         await onSendToPrint();
       }
-      alert('Book Successfully Sent to Print Service');
+      alert('Order queued for print. It will be processed by the router when capacity is available (usually within 1–2 minutes).');
     } catch (error: any) {
       console.error('[PostPdfStage] Failed to send to print:', error);
       alert(error?.message || 'Failed to send to print. Please try again.');

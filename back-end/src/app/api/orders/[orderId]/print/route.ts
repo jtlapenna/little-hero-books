@@ -57,13 +57,28 @@ async function sendToPrint(
         'Please upload CSV to populate customer data.'
       );
     }
+
+    // Validate 3-manifest (book assembly) exists before queueing for W4
+    const hasWorkflow3 = !!(
+      currentOrder.manifest_3_url ||
+      currentOrder.workflow_step === 'book_assembly_completed'
+    );
+    if (!hasWorkflow3) {
+      throw createValidationError(
+        'Order cannot be sent to print: book assembly (workflow 3) has not completed. 3-manifest not found.'
+      );
+    }
     
     const updates: any = {
       next_workflow: '4',
       execution_status: 'ready_for_processing',
       queued_at: new Date().toISOString(),
       started_at: null,
-      current_workflow: null
+      current_workflow: null,
+      error_type: null,
+      error_message: null,
+      // Admin "Send to Print" bypasses customer approval; set approved so cron router includes the order
+      customer_approval_status: 'approved'
     };
     
     // Preserve review_stages if they exist (to maintain approvals)

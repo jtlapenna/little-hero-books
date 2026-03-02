@@ -44,6 +44,13 @@ export async function POST(
     if (normalized.address && !normalized.address_line_1) {
       normalized.address_line_1 = normalized.address;
     }
+    // D2C uses address_line1 (no underscore before 1)
+    if (normalized.address_line1 && !normalized.address_line_1) {
+      normalized.address_line_1 = normalized.address_line1;
+    }
+    if (normalized.address_line2 && !normalized.address_line_2) {
+      normalized.address_line_2 = normalized.address_line2;
+    }
     if (normalized.zip && !normalized.postal_code) {
       normalized.postal_code = normalized.zip;
     }

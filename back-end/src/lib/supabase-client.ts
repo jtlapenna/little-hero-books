@@ -292,7 +292,14 @@ export async function updateOrderInSupabase(orderId: string, updates: any) {
     ));
   if (byAmazonPrimary) return byAmazonPrimary;
 
-  throw new Error(`[Supabase] Order not found for update: ${trimmedOrderId}`);
+  // Purpose: sibling/line-item orders (e.g. {uuid}-item-1) may use amazon_order_id as the sole per-book ID.
+  const byAmazonOnly = await tryUpdate((q) => q.eq('amazon_order_id', trimmedOrderId));
+  if (byAmazonOnly) return byAmazonOnly;
+
+  // Purpose: order may exist only in manifests (e.g. sibling not yet synced to Supabase). Log and no-op instead of throwing
+  // so flag updates don't crash the UI — manifest is source of truth for flags.
+  console.warn(`[Supabase] Order not found for update (will skip): ${trimmedOrderId}`);
+  return null;
 }
 
 export async function listOrdersByAmazonRootId(amazonOrderId: string) {

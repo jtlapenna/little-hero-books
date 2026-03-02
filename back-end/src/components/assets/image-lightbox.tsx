@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Download, Upload, Flag, CheckCircle, RotateCcw } from 'lucide-react';
+import { X, Download, Upload, Flag, CheckCircle, RotateCcw, Sparkles } from 'lucide-react';
 
 interface ImageLightboxProps {
   isOpen: boolean;
@@ -47,6 +47,14 @@ interface ImageLightboxProps {
     includePreviousOption: boolean;
     previousOptionR2Key?: string;
   }) => Promise<void>;
+  // Fix transparency (Post-Bria modal)
+  showFixTransparency?: boolean;
+  onFixTransparency?: (options: {
+    fixEyes: boolean;
+    fixTeeth: boolean;
+    eyes?: { leftEye: { x: number; y: number }; rightEye: { x: number; y: number }; radius?: number; leftRadius?: number; rightRadius?: number };
+    teeth?: { center: { x: number; y: number }; rx: number; ry: number };
+  }) => Promise<void>;
 }
 
 export function ImageLightbox({
@@ -75,7 +83,9 @@ export function ImageLightbox({
   onRegenerate,
   onAcceptRevision,
   onRejectRevision,
-  onReviseRevision
+  onReviseRevision,
+  showFixTransparency = false,
+  onFixTransparency
 }: ImageLightboxProps) {
   const [isReplacing, setIsReplacing] = useState(false);
   const [comparisonImageLoading, setComparisonImageLoading] = useState(false);
@@ -120,6 +130,131 @@ export function ImageLightbox({
   const [showNewOption, setShowNewOption] = useState(false); // Toggle between original and new option
   const [newOptionUrl, setNewOptionUrl] = useState<string | null>(pendingRevisionUrl || null);
   const [temporaryR2Key, setTemporaryR2Key] = useState<string | null>(null);
+  // Fix transparency (Post-Bria)
+  const [showFixTransparencyPanel, setShowFixTransparencyPanel] = useState(false);
+  const [fixEyes, setFixEyes] = useState(true);
+  const [fixTeeth, setFixTeeth] = useState(true);
+  const [isFixing, setIsFixing] = useState(false);
+  const [fixError, setFixError] = useState<string | null>(null);
+  // Shape positions (0–1 normalized), aligned with API defaults
+  const [eyesShape, setEyesShape] = useState({
+    leftEye: { x: 0.4, y: 0.28 },
+    rightEye: { x: 0.6, y: 0.28 },
+    leftRadius: 0.045,
+    rightRadius: 0.045,
+  });
+  const [teethShape, setTeethShape] = useState({
+    center: { x: 0.5, y: 0.42 },
+    rx: 0.08,
+    ry: 0.04,
+  });
+  const dragStateRef = useRef<{
+    shape: 'leftEye' | 'rightEye' | 'teeth';
+    startClientX: number;
+    startClientY: number;
+    startX: number;
+    startY: number;
+  } | null>(null);
+  const resizeStateRef = useRef<{
+    shape: 'eyesRadiusLeft' | 'eyesRadiusRight' | 'teethRx' | 'teethRy';
+    startClientX: number;
+    startClientY: number;
+    startValue: number;
+  } | null>(null);
+
+  const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+  const handleShapePointerDown = (
+    shape: 'leftEye' | 'rightEye' | 'teeth',
+    e: React.PointerEvent
+  ) => {
+    e.stopPropagation();
+    const svg = (e.target as SVGElement).ownerSVGElement;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const normX = (e.clientX - rect.left) / rect.width;
+    const normY = (e.clientY - rect.top) / rect.height;
+    let startX: number;
+    let startY: number;
+    if (shape === 'leftEye') {
+      startX = eyesShape.leftEye.x;
+      startY = eyesShape.leftEye.y;
+    } else if (shape === 'rightEye') {
+      startX = eyesShape.rightEye.x;
+      startY = eyesShape.rightEye.y;
+    } else {
+      startX = teethShape.center.x;
+      startY = teethShape.center.y;
+    }
+    dragStateRef.current = { shape, startClientX: e.clientX, startClientY: e.clientY, startX, startY };
+    (e.target as Element).setPointerCapture(e.pointerId);
+  };
+
+  const handleShapePointerMove = (e: React.PointerEvent) => {
+    const state = dragStateRef.current;
+    if (!state) return;
+    const svg = (e.target as SVGElement).ownerSVGElement;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const deltaNormX = (e.clientX - state.startClientX) / rect.width;
+    const deltaNormY = (e.clientY - state.startClientY) / rect.height;
+    const newX = clamp01(state.startX + deltaNormX);
+    const newY = clamp01(state.startY + deltaNormY);
+    if (state.shape === 'leftEye') {
+      setEyesShape((prev) => ({ ...prev, leftEye: { x: newX, y: newY } }));
+    } else if (state.shape === 'rightEye') {
+      setEyesShape((prev) => ({ ...prev, rightEye: { x: newX, y: newY } }));
+    } else {
+      setTeethShape((prev) => ({ ...prev, center: { x: newX, y: newY } }));
+    }
+  };
+
+  const handleShapePointerUp = (e: React.PointerEvent) => {
+    dragStateRef.current = null;
+    resizeStateRef.current = null;
+    (e.target as Element).releasePointerCapture(e.pointerId);
+  };
+
+  const handleResizePointerDown = (
+    shape: 'eyesRadiusLeft' | 'eyesRadiusRight' | 'teethRx' | 'teethRy',
+    e: React.PointerEvent
+  ) => {
+    e.stopPropagation();
+    const startValue =
+      shape === 'eyesRadiusLeft' ? eyesShape.leftRadius
+      : shape === 'eyesRadiusRight' ? eyesShape.rightRadius
+      : shape === 'teethRx' ? teethShape.rx
+      : teethShape.ry;
+    resizeStateRef.current = {
+      shape,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startValue,
+    };
+    (e.target as Element).setPointerCapture(e.pointerId);
+  };
+
+  const handleResizePointerMove = (e: React.PointerEvent) => {
+    const state = resizeStateRef.current;
+    if (!state) return;
+    const svg = (e.target as SVGElement).ownerSVGElement;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const scale = 2; // Sensitivity: pixels to normalized delta
+    const deltaY = (e.clientY - state.startClientY) / rect.height;
+    const deltaX = (e.clientX - state.startClientX) / rect.width;
+    const delta = state.shape === 'teethRx' ? deltaX * scale : deltaY * scale;
+    const newValue = Math.max(0.01, Math.min(0.3, state.startValue + delta));
+    if (state.shape === 'eyesRadiusLeft') {
+      setEyesShape((prev) => ({ ...prev, leftRadius: newValue }));
+    } else if (state.shape === 'eyesRadiusRight') {
+      setEyesShape((prev) => ({ ...prev, rightRadius: newValue }));
+    } else if (state.shape === 'teethRx') {
+      setTeethShape((prev) => ({ ...prev, rx: newValue }));
+    } else {
+      setTeethShape((prev) => ({ ...prev, ry: newValue }));
+    }
+  };
 
   // Handle keyboard events
   useEffect(() => {
@@ -426,6 +561,26 @@ export function ImageLightbox({
       // Don't clear state on error - let user retry
     } finally {
       setIsGenerating(wasGenerating);
+    }
+  };
+
+  const handleFixTransparency = async () => {
+    if (!onFixTransparency || (!fixEyes && !fixTeeth)) return;
+    setIsFixing(true);
+    setFixError(null);
+    try {
+      await onFixTransparency({
+        fixEyes,
+        fixTeeth,
+        eyes: fixEyes ? eyesShape : undefined,
+        teeth: fixTeeth ? teethShape : undefined,
+      });
+      setShowFixTransparencyPanel(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setFixError(msg);
+    } finally {
+      setIsFixing(false);
     }
   };
 
@@ -880,6 +1035,113 @@ export function ImageLightbox({
                         </button>
                       </div>
                     )}
+                    {/* Fix transparency overlay (shapes driven by checkboxes, draggable) */}
+                    {showFixTransparencyPanel && showFixTransparency && (
+                      <svg
+                        viewBox="0 0 1 1"
+                        preserveAspectRatio="xMidYMid meet"
+                        className="absolute inset-0 w-full h-full pointer-events-none"
+                      >
+                        {fixEyes && (
+                          <g pointerEvents="auto">
+                            <circle
+                              cx={eyesShape.leftEye.x}
+                              cy={eyesShape.leftEye.y}
+                              r={eyesShape.leftRadius}
+                              fill="#f2e2bb"
+                              className="cursor-grab active:cursor-grabbing"
+                              onPointerDown={(e) => handleShapePointerDown('leftEye', e)}
+                              onPointerMove={handleShapePointerMove}
+                              onPointerUp={handleShapePointerUp}
+                              onPointerCancel={handleShapePointerUp}
+                            />
+                            <circle
+                              cx={eyesShape.rightEye.x}
+                              cy={eyesShape.rightEye.y}
+                              r={eyesShape.rightRadius}
+                              fill="#f2e2bb"
+                              className="cursor-grab active:cursor-grabbing"
+                              onPointerDown={(e) => handleShapePointerDown('rightEye', e)}
+                              onPointerMove={handleShapePointerMove}
+                              onPointerUp={handleShapePointerUp}
+                              onPointerCancel={handleShapePointerUp}
+                            />
+                            {/* Resize handle for left eye radius */}
+                            <circle
+                              cx={eyesShape.leftEye.x}
+                              cy={eyesShape.leftEye.y + eyesShape.leftRadius}
+                              r={0.015}
+                              fill="#d4a84b"
+                              stroke="#fff"
+                              strokeWidth={0.005}
+                              className="cursor-n-resize"
+                              onPointerDown={(e) => handleResizePointerDown('eyesRadiusLeft', e)}
+                              onPointerMove={handleResizePointerMove}
+                              onPointerUp={handleShapePointerUp}
+                              onPointerCancel={handleShapePointerUp}
+                            />
+                            {/* Resize handle for right eye radius */}
+                            <circle
+                              cx={eyesShape.rightEye.x}
+                              cy={eyesShape.rightEye.y + eyesShape.rightRadius}
+                              r={0.015}
+                              fill="#d4a84b"
+                              stroke="#fff"
+                              strokeWidth={0.005}
+                              className="cursor-n-resize"
+                              onPointerDown={(e) => handleResizePointerDown('eyesRadiusRight', e)}
+                              onPointerMove={handleResizePointerMove}
+                              onPointerUp={handleShapePointerUp}
+                              onPointerCancel={handleShapePointerUp}
+                            />
+                          </g>
+                        )}
+                        {fixTeeth && (
+                          <g pointerEvents="auto">
+                            <ellipse
+                              cx={teethShape.center.x}
+                              cy={teethShape.center.y}
+                              rx={teethShape.rx}
+                              ry={teethShape.ry}
+                              fill="#FFFFFF"
+                              className="cursor-grab active:cursor-grabbing"
+                              onPointerDown={(e) => handleShapePointerDown('teeth', e)}
+                              onPointerMove={handleShapePointerMove}
+                              onPointerUp={handleShapePointerUp}
+                              onPointerCancel={handleShapePointerUp}
+                            />
+                            {/* Resize handle for teeth rx (right edge) */}
+                            <circle
+                              cx={teethShape.center.x + teethShape.rx}
+                              cy={teethShape.center.y}
+                              r={0.015}
+                              fill="#999"
+                              stroke="#fff"
+                              strokeWidth={0.005}
+                              className="cursor-ew-resize"
+                              onPointerDown={(e) => handleResizePointerDown('teethRx', e)}
+                              onPointerMove={handleResizePointerMove}
+                              onPointerUp={handleShapePointerUp}
+                              onPointerCancel={handleShapePointerUp}
+                            />
+                            {/* Resize handle for teeth ry (bottom edge) */}
+                            <circle
+                              cx={teethShape.center.x}
+                              cy={teethShape.center.y + teethShape.ry}
+                              r={0.015}
+                              fill="#999"
+                              stroke="#fff"
+                              strokeWidth={0.005}
+                              className="cursor-ns-resize"
+                              onPointerDown={(e) => handleResizePointerDown('teethRy', e)}
+                              onPointerMove={handleResizePointerMove}
+                              onPointerUp={handleShapePointerUp}
+                              onPointerCancel={handleShapePointerUp}
+                            />
+                          </g>
+                        )}
+                      </svg>
+                    )}
                   </div>
                 </div>
                 
@@ -959,6 +1221,109 @@ export function ImageLightbox({
                     {showBlackBackground ? 'Hide' : 'Show'} Background
                   </button>
                 </div>
+              )}
+              {/* Fix transparency overlay (single image mode, draggable) */}
+              {showFixTransparencyPanel && showFixTransparency && (
+                <svg
+                  viewBox="0 0 1 1"
+                  preserveAspectRatio="xMidYMid meet"
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                >
+                  {fixEyes && (
+                    <g pointerEvents="auto">
+                      <circle
+                        cx={eyesShape.leftEye.x}
+                        cy={eyesShape.leftEye.y}
+                        r={eyesShape.leftRadius}
+                        fill="#f2e2bb"
+                        className="cursor-grab active:cursor-grabbing"
+                        onPointerDown={(e) => handleShapePointerDown('leftEye', e)}
+                        onPointerMove={handleShapePointerMove}
+                        onPointerUp={handleShapePointerUp}
+                        onPointerCancel={handleShapePointerUp}
+                      />
+                      <circle
+                        cx={eyesShape.rightEye.x}
+                        cy={eyesShape.rightEye.y}
+                        r={eyesShape.rightRadius}
+                        fill="#f2e2bb"
+                        className="cursor-grab active:cursor-grabbing"
+                        onPointerDown={(e) => handleShapePointerDown('rightEye', e)}
+                        onPointerMove={handleShapePointerMove}
+                        onPointerUp={handleShapePointerUp}
+                        onPointerCancel={handleShapePointerUp}
+                      />
+                      <circle
+                        cx={eyesShape.leftEye.x}
+                        cy={eyesShape.leftEye.y + eyesShape.leftRadius}
+                        r={0.015}
+                        fill="#d4a84b"
+                        stroke="#fff"
+                        strokeWidth={0.005}
+                        className="cursor-n-resize"
+                        onPointerDown={(e) => handleResizePointerDown('eyesRadiusLeft', e)}
+                        onPointerMove={handleResizePointerMove}
+                        onPointerUp={handleShapePointerUp}
+                        onPointerCancel={handleShapePointerUp}
+                      />
+                      <circle
+                        cx={eyesShape.rightEye.x}
+                        cy={eyesShape.rightEye.y + eyesShape.rightRadius}
+                        r={0.015}
+                        fill="#d4a84b"
+                        stroke="#fff"
+                        strokeWidth={0.005}
+                        className="cursor-n-resize"
+                        onPointerDown={(e) => handleResizePointerDown('eyesRadiusRight', e)}
+                        onPointerMove={handleResizePointerMove}
+                        onPointerUp={handleShapePointerUp}
+                        onPointerCancel={handleShapePointerUp}
+                      />
+                    </g>
+                  )}
+                  {fixTeeth && (
+                    <g pointerEvents="auto">
+                      <ellipse
+                        cx={teethShape.center.x}
+                        cy={teethShape.center.y}
+                        rx={teethShape.rx}
+                        ry={teethShape.ry}
+                        fill="#FFFFFF"
+                        className="cursor-grab active:cursor-grabbing"
+                        onPointerDown={(e) => handleShapePointerDown('teeth', e)}
+                        onPointerMove={handleShapePointerMove}
+                        onPointerUp={handleShapePointerUp}
+                        onPointerCancel={handleShapePointerUp}
+                      />
+                      <circle
+                        cx={teethShape.center.x + teethShape.rx}
+                        cy={teethShape.center.y}
+                        r={0.015}
+                        fill="#999"
+                        stroke="#fff"
+                        strokeWidth={0.005}
+                        className="cursor-ew-resize"
+                        onPointerDown={(e) => handleResizePointerDown('teethRx', e)}
+                        onPointerMove={handleResizePointerMove}
+                        onPointerUp={handleShapePointerUp}
+                        onPointerCancel={handleShapePointerUp}
+                      />
+                      <circle
+                        cx={teethShape.center.x}
+                        cy={teethShape.center.y + teethShape.ry}
+                        r={0.015}
+                        fill="#999"
+                        stroke="#fff"
+                        strokeWidth={0.005}
+                        className="cursor-ns-resize"
+                        onPointerDown={(e) => handleResizePointerDown('teethRy', e)}
+                        onPointerMove={handleResizePointerMove}
+                        onPointerUp={handleShapePointerUp}
+                        onPointerCancel={handleShapePointerUp}
+                      />
+                    </g>
+                  )}
+                </svg>
               )}
             </div>
           )}
@@ -1086,12 +1451,79 @@ export function ImageLightbox({
                   )}
                 </button>
               )}
-            </div>
 
-            <div className="text-sm text-gray-500 flex-shrink-0 whitespace-nowrap">
-              Press Esc or click outside to close
+              {/* Fix transparency (Post-Bria only) */}
+              {showFixTransparency && onFixTransparency && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowFixTransparencyPanel(!showFixTransparencyPanel);
+                    setFixError(null);
+                  }}
+                  className="inline-flex items-center justify-center w-[160px] px-4 py-2 border border-amber-300 rounded-md shadow-sm text-sm font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 whitespace-nowrap"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Fix Transparency
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Fix transparency panel (Post-Bria) */}
+          {showFixTransparencyPanel && showFixTransparency && onFixTransparency && (
+            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <h4 className="text-sm font-semibold text-amber-900 mb-3">Fix transparency (eyes / teeth)</h4>
+              <p className="text-xs text-amber-800 mb-3">Drag shapes to reposition; use handles to resize. Uncheck to remove.</p>
+              <div className="flex flex-wrap items-center gap-4 mb-3">
+                <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={fixEyes}
+                    onChange={(e) => setFixEyes(e.target.checked)}
+                    disabled={isFixing}
+                    className="h-4 w-4 text-amber-600 border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gray-700">Eyes (default #f2e2bb)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={fixTeeth}
+                    onChange={(e) => setFixTeeth(e.target.checked)}
+                    disabled={isFixing}
+                    className="h-4 w-4 text-amber-600 border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gray-700">Teeth (default #FFFFFF)</span>
+                </label>
+              </div>
+              {fixError && (
+                <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">{fixError}</div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleFixTransparency();
+                  }}
+                  disabled={isFixing || (!fixEyes && !fixTeeth)}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-amber-600 rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isFixing ? 'Applying...' : 'Apply'}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowFixTransparencyPanel(false);
+                    setFixError(null);
+                  }}
+                  disabled={isFixing}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Hidden file input for replacement */}
           <input

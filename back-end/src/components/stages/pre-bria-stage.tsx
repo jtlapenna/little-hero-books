@@ -5,6 +5,7 @@ import { AssetGrid } from '@/components/assets/asset-grid';
 import { CheckCircle, Play, X, Info } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
+import { extractApiErrorMessage } from '@/lib/error-handler';
 
 interface PreBriaStageProps {
   orderId: string;
@@ -525,9 +526,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       if (!response.ok) {
         let errorMessage = 'Failed to upload flipped image';
         try {
-          const error = await response.json();
-          errorMessage = error.error || errorMessage;
-          console.error('[PreBriaStage] API error response:', error);
+          const errorBody = await response.json();
+          errorMessage = extractApiErrorMessage(errorBody, errorMessage);
+          console.error('[PreBriaStage] API error response:', errorBody);
         } catch {
           errorMessage = `Server error: ${response.status} ${response.statusText}`;
         }
@@ -657,9 +658,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       if (!response.ok) {
         let errorMessage = 'Failed to replace image';
         try {
-          const error = await response.json();
-          errorMessage = error.error || errorMessage;
-          console.error('[PreBriaStage] API error response:', error);
+          const errorBody = await response.json();
+          errorMessage = extractApiErrorMessage(errorBody, errorMessage);
+          console.error('[PreBriaStage] API error response:', errorBody);
         } catch {
           errorMessage = `Server error: ${response.status} ${response.statusText}`;
           console.error('[PreBriaStage] Failed to parse error response');
@@ -875,11 +876,11 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        const errorObj = new Error(error.error || 'Failed to regenerate pose');
+        const errorBody = await response.json();
+        const errorObj = new Error(extractApiErrorMessage(errorBody, 'Failed to regenerate pose'));
         // Preserve rate limit info for user-friendly messages
         if (response.status === 429) {
-          (errorObj as any).retryAfter = error.retryAfter;
+          (errorObj as any).retryAfter = (errorBody as any)?.retryAfter;
         }
         throw errorObj;
       }
@@ -1077,9 +1078,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        const errorBody = await response.json();
         operationInProgressRef.current.delete(revisionKey);
-        throw new Error(error.error || 'Failed to accept revision');
+        throw new Error(extractApiErrorMessage(errorBody, 'Failed to accept revision'));
       }
 
       // Remove from pending revisions (use functional update)
@@ -1133,9 +1134,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        const errorBody = await response.json();
         operationInProgressRef.current.delete(revisionKey);
-        throw new Error(error.error || 'Failed to reject revision');
+        throw new Error(extractApiErrorMessage(errorBody, 'Failed to reject revision'));
       }
 
       // Remove from pending revisions (use functional update)

@@ -18,6 +18,7 @@ import { useState as useStateReact, useEffect as useEffectReact } from 'react';
 import { ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer } from 'lucide-react';
 import { getDisplayStatusForOrder, getStageBadgeStatus } from '@/lib/status-display';
 import { ManualReviewAlert } from '@/components/ui/manual-review-alert';
+import { extractApiErrorMessage } from '@/lib/error-handler';
 
 const correctionReasonLabels: Record<string, string> = {
   name_typo: 'Name typo',
@@ -244,7 +245,7 @@ export default function OrderDetailPage() {
       if (!response.ok) {
         const errorBody = await response.json().catch(() => null);
         console.error('[SendToPrint] Error response:', errorBody);
-        throw new Error(errorBody?.error || `Failed to trigger print workflow: ${response.status} ${response.statusText}`);
+        throw new Error(extractApiErrorMessage(errorBody, `Failed to trigger print workflow: ${response.status} ${response.statusText}`));
       }
 
       const result = await response.json().catch(() => null);
@@ -268,7 +269,7 @@ export default function OrderDetailPage() {
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => null);
-      throw new Error(errorBody?.error || `Failed to refresh Lulu status: ${response.status} ${response.statusText}`);
+      throw new Error(extractApiErrorMessage(errorBody, `Failed to refresh Lulu status: ${response.status} ${response.statusText}`));
     }
 
     const result = await response.json().catch(() => null);
@@ -290,7 +291,7 @@ export default function OrderDetailPage() {
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => null);
-      throw new Error(errorBody?.error || `Failed to cancel Lulu order: ${response.status} ${response.statusText}`);
+      throw new Error(extractApiErrorMessage(errorBody, `Failed to cancel Lulu order: ${response.status} ${response.statusText}`));
     }
 
     const result = await response.json().catch(() => null);
@@ -562,7 +563,7 @@ export default function OrderDetailPage() {
       printRequestInProgressRef.current = true;
       setManualPrintLoading(true);
       await handleSendToPrint('manual-admin');
-      alert('Book Successfully Sent to Print Service');
+      alert('Order queued for print. It will be processed by the router when capacity is available (usually within 1–2 minutes).');
     } catch (error: any) {
       console.error('Error sending order to print:', error);
       alert(error?.message || 'Failed to send order to print. Please try again.');
@@ -591,8 +592,8 @@ export default function OrderDetailPage() {
         });
 
         if (!response.ok) {
-          const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(error.error || 'Failed to trigger background removal workflow');
+          const errorBody = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(extractApiErrorMessage(errorBody, 'Failed to trigger background removal workflow'));
         }
 
         await response.json();
@@ -621,8 +622,8 @@ export default function OrderDetailPage() {
         });
 
         if (!response.ok) {
-          const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(error.error || 'Failed to trigger book assembly workflow');
+          const errorBody = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(extractApiErrorMessage(errorBody, 'Failed to trigger book assembly workflow'));
         }
 
         await response.json();

@@ -192,7 +192,7 @@ function normalizeShippingLevel(raw){
   };
   return table[s] || 'MAIL';
 }
-const requestedShipping=first.CONFIG?.defaults?.shippingLevel;
+const requestedShipping=first.shipping_tier||first.shippingTier||first.CONFIG?.defaults?.shippingLevel;
 const shippingLevel=normalizeShippingLevel(requestedShipping);
 const luluPayload={external_id:`sibling-${first.rootGroupId||first.orderId}-${Date.now()}`,contact_email:first.customer?.email||'orders@littleherolabs.com',shipping_level:shippingLevel,shipping_address:shipAddr,line_items};
 return[{json:{...first,siblings,luluPayload,CONFIG:cfg,shippingLevelRequested:requestedShipping||null,shippingLevelSent:shippingLevel}}];"""

@@ -62,14 +62,33 @@ const ShippingAddressSchema = z.object({
 const SHIPPING_TIER_ENUM = z.enum(['mail', 'ground_home', 'priority_mail', 'expedited', 'express']);
 export type ShippingTier = z.infer<typeof SHIPPING_TIER_ENUM>;
 
-/** Rounded customer-facing shipping prices (cents). Labels for Stripe line item. */
-const SHIPPING_CENTS_BY_TIER: Record<ShippingTier, number> = {
+/** Base shipping (cents) for 1 book, by tier. Multi-book scales per Lulu/observed data. */
+const SHIPPING_BASE_CENTS: Record<ShippingTier, number> = {
   mail: 599,
   ground_home: 1299,
   priority_mail: 1499,
   expedited: 2099,
   express: 3099,
 };
+/** Extra cents per additional book (2nd, 3rd, …). Lulu express: 1→$30.99, 3→$38.24 ⇒ ~$3.63/book. */
+const SHIPPING_INCREMENT_PER_BOOK: Record<ShippingTier, number> = {
+  mail: 200,
+  ground_home: 250,
+  priority_mail: 275,
+  expedited: 300,
+  express: 363,
+};
+/** Lulu fulfillment fee per order (cents). Added to shipping line. */
+const FULFILLMENT_FEE_CENTS = 75;
+
+/** Shipping + fulfillment total (cents) for Stripe. Must match frontend display. */
+function getShippingAndFulfillmentCents(tier: ShippingTier, bookCount: number): number {
+  const base = SHIPPING_BASE_CENTS[tier];
+  const increment = SHIPPING_INCREMENT_PER_BOOK[tier];
+  const extraBooks = Math.max(0, bookCount - 1);
+  const shippingCents = base + extraBooks * increment;
+  return shippingCents + FULFILLMENT_FEE_CENTS;
+}
 
 const SHIPPING_LABEL_BY_TIER: Record<ShippingTier, string> = {
   mail: 'Economy',
@@ -250,7 +269,8 @@ export async function POST(request: NextRequest) {
         }
 
         const bookCents = parseInt(process.env.D2C_CHECKOUT_AMOUNT_CENTS ?? '', 10) || DEFAULT_AMOUNT_CENTS;
-        const shippingCents = SHIPPING_CENTS_BY_TIER[shippingTier];
+        const bookCount = bookInputs.length;
+        const shippingCents = getShippingAndFulfillmentCents(shippingTier, bookCount);
         const shippingLabel = SHIPPING_LABEL_BY_TIER[shippingTier];
 
         const stripe = new Stripe(stripeSecretKey, {
@@ -291,8 +311,8 @@ export async function POST(request: NextRequest) {
                 currency: 'usd',
                 unit_amount: shippingCents,
                 product_data: {
-                  name: `Shipping \u2014 ${shippingLabel}`,
-                  description: 'Delivery to your address.',
+                  name: `Shipping & handling \u2014 ${shippingLabel}`,
+                  description: 'Delivery to your address. Includes fulfillment.',
                 },
               },
             },
@@ -303,6 +323,8 @@ export async function POST(request: NextRequest) {
             ? { order_id: root_order_id }
             : { root_order_id, book_count: String(bookInputs.length) },
           customer_email: parsed.customer_email,
+          // Stripe calculates and collects sales tax from the customer's address. Enable Stripe Tax in Dashboard.
+          automatic_tax: { enabled: true },
         });
         } catch (stripeErr: unknown) {
           const msg = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);

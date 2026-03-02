@@ -20,13 +20,39 @@ const BOOK_PRICE_CENTS = 2999;
 /** Reuse window for checkout idempotency key (ms). */
 const IDEMPOTENCY_TTL_MS = 30 * 60 * 1000;
 
-/** Shipping options (rounded customer-facing prices). Match backend SHIPPING_CENTS_BY_TIER. */
-const SHIPPING_OPTIONS: { id: ShippingTierId; label: string; priceCents: number; estimate: string }[] = [
-  { id: 'mail', label: 'Economy', priceCents: 599, estimate: '11–13 business days' },
-  { id: 'ground_home', label: 'Ground', priceCents: 1299, estimate: '9–11 business days' },
-  { id: 'priority_mail', label: 'Priority Mail', priceCents: 1499, estimate: '9–11 business days' },
-  { id: 'expedited', label: 'Expedited Shipping', priceCents: 2099, estimate: '6–8 business days' },
-  { id: 'express', label: 'Express Shipping', priceCents: 3099, estimate: '5–7 business days' },
+/** Base shipping (cents) for 1 book. Multi-book scales; see getShippingAndFulfillmentCents. */
+const SHIPPING_BASE: Record<ShippingTierId, number> = {
+  mail: 599,
+  ground_home: 1299,
+  priority_mail: 1499,
+  expedited: 2099,
+  express: 3099,
+};
+/** Extra cents per additional book. Lulu express: 1→$30.99, 3→$38.24 ⇒ ~363¢/book. */
+const SHIPPING_INCREMENT: Record<ShippingTierId, number> = {
+  mail: 200,
+  ground_home: 250,
+  priority_mail: 275,
+  expedited: 300,
+  express: 363,
+};
+const FULFILLMENT_FEE_CENTS = 75;
+
+/** Shipping + fulfillment (cents). Must match backend getShippingAndFulfillmentCents. */
+function getShippingAndFulfillmentCents(tier: ShippingTierId, bookCount: number): number {
+  const base = SHIPPING_BASE[tier];
+  const inc = SHIPPING_INCREMENT[tier];
+  const extra = Math.max(0, bookCount - 1);
+  return base + extra * inc + FULFILLMENT_FEE_CENTS;
+}
+
+/** Shipping options (labels/estimates). Price is quantity-dependent; use getShippingAndFulfillmentCents(id, bookCount). */
+const SHIPPING_OPTIONS: { id: ShippingTierId; label: string; estimate: string }[] = [
+  { id: 'mail', label: 'Economy', estimate: '11–13 business days' },
+  { id: 'ground_home', label: 'Ground', estimate: '9–11 business days' },
+  { id: 'priority_mail', label: 'Priority Mail', estimate: '9–11 business days' },
+  { id: 'expedited', label: 'Expedited Shipping', estimate: '6–8 business days' },
+  { id: 'express', label: 'Express Shipping', estimate: '5–7 business days' },
 ];
 
 /** US states for dropdown. */
@@ -526,7 +552,7 @@ function CheckoutForm() {
                   />
                   <span className="checkout-form__shipping-option-label">{opt.label}</span>
                   <span className="checkout-form__shipping-option-estimate">{opt.estimate}</span>
-                  <span className="checkout-form__shipping-option-price">${(opt.priceCents / 100).toFixed(2)}</span>
+                  <span className="checkout-form__shipping-option-price">${(getShippingAndFulfillmentCents(opt.id, bookCount) / 100).toFixed(2)}</span>
                 </label>
               ))}
             </div>
@@ -603,14 +629,14 @@ function CheckoutForm() {
                 );
               })}
               <div className="checkout-form__summary-line">
-                <span>Shipping — {SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.label ?? 'Economy'}</span>
-                <span>${((SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.priceCents ?? 599) / 100).toFixed(2)}</span>
+                <span>Shipping & handling — {SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.label ?? 'Economy'}</span>
+                <span>${(getShippingAndFulfillmentCents(shippingTier, bookCount) / 100).toFixed(2)}</span>
               </div>
             </div>
             <div className="checkout-form__summary-total">
               <span>Total</span>
               <span className="checkout-form__summary-price">
-                ${((BOOK_PRICE_CENTS * bookCount + (SHIPPING_OPTIONS.find((o) => o.id === shippingTier)?.priceCents ?? 599)) / 100).toFixed(2)}
+                ${((BOOK_PRICE_CENTS * bookCount + getShippingAndFulfillmentCents(shippingTier, bookCount)) / 100).toFixed(2)}
               </span>
             </div>
           </div>

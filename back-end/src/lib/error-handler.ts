@@ -17,6 +17,23 @@ export enum ErrorSeverity {
   CRITICAL = "critical",
 }
 
+/**
+ * Extract a human-readable error message from API response body.
+ * Handles both { error: "string" } and { error: { type, message } } shapes.
+ */
+export function extractApiErrorMessage(
+  errorBody: unknown,
+  fallback: string
+): string {
+  if (!errorBody || typeof errorBody !== 'object') return fallback;
+  const err = (errorBody as Record<string, unknown>).error;
+  if (typeof err === 'string' && err.trim()) return err;
+  if (err && typeof err === 'object' && typeof (err as Record<string, unknown>).message === 'string') {
+    return (err as Record<string, unknown>).message as string;
+  }
+  return fallback;
+}
+
 export function createValidationError(message: string): NextResponse {
   return NextResponse.json(
     { error: { type: ErrorType.VALIDATION, message } },

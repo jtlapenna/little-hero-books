@@ -61,6 +61,14 @@ interface AssetGridProps {
     includePreviousOption: boolean;
     previousOptionR2Key?: string;
   }) => Promise<void>;
+  // Fix transparency (Tab 2 / Post-Bria only)
+  showFixTransparency?: boolean;
+  onFixTransparency?: (poseNumber: number, options: {
+    fixEyes: boolean;
+    fixTeeth: boolean;
+    eyes?: { leftEye: { x: number; y: number }; rightEye: { x: number; y: number }; radius?: number; leftRadius?: number; rightRadius?: number };
+    teeth?: { center: { x: number; y: number }; rx: number; ry: number };
+  }) => Promise<void>;
 }
 
 export function AssetGrid({
@@ -81,7 +89,9 @@ export function AssetGrid({
   onRegenerate,
   onAcceptRevision,
   onRejectRevision,
-  onReviseRevision
+  onReviseRevision,
+  showFixTransparency = false,
+  onFixTransparency
 }: AssetGridProps) {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   // Track which images permanently failed (after all retries exhausted).
@@ -563,6 +573,10 @@ export function AssetGrid({
             if (onReviseRevision) {
               await onReviseRevision(data);
             }
+          } : undefined}
+          showFixTransparency={showFixTransparency}
+          onFixTransparency={selectedAsset.poseNumber !== undefined && onFixTransparency ? async (options) => {
+            await onFixTransparency(selectedAsset.poseNumber!, options);
           } : undefined}
         />
       )}

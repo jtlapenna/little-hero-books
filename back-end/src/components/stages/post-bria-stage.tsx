@@ -5,6 +5,7 @@ import { AssetGrid } from '@/components/assets/asset-grid';
 import { CheckCircle, Play, Eye, RefreshCw, Info } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
+import { extractApiErrorMessage } from '@/lib/error-handler';
 // Note: getBackgroundImageUrl is server-side only, so we'll fetch URLs via API
 
 interface PostBriaStageProps {
@@ -422,9 +423,9 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       if (!response.ok) {
         let errorMessage = 'Failed to upload flipped image';
         try {
-          const error = await response.json();
-          errorMessage = error.error || errorMessage;
-          console.error('[PostBriaStage] API error response:', error);
+          const errorBody = await response.json();
+          errorMessage = extractApiErrorMessage(errorBody, errorMessage);
+          console.error('[PostBriaStage] API error response:', errorBody);
         } catch {
           errorMessage = `Server error: ${response.status} ${response.statusText}`;
         }
@@ -462,6 +463,37 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       alert(`Failed to flip image: ${error.message || 'Unknown error'}`);
     } finally {
       setFlippingPoseId(null);
+    }
+  };
+
+  const handleFixTransparency = async (
+    poseNumber: number,
+    options: {
+      fixEyes: boolean;
+      fixTeeth: boolean;
+      eyes?: { leftEye: { x: number; y: number }; rightEye: { x: number; y: number }; radius?: number; leftRadius?: number; rightRadius?: number };
+      teeth?: { center: { x: number; y: number }; rx: number; ry: number };
+    }
+  ) => {
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/fix-eye-transparency`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          poseNumber,
+          fixEyes: options.fixEyes,
+          fixTeeth: options.fixTeeth,
+          eyes: options.eyes,
+          teeth: options.teeth,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.details || 'Fix failed');
+      if (onRefresh) await onRefresh();
+      bumpBust();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(msg);
     }
   };
 
@@ -549,9 +581,9 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       if (!response.ok) {
         let errorMessage = 'Failed to replace image';
         try {
-          const error = await response.json();
-          errorMessage = error.error || errorMessage;
-          console.error('[PostBriaStage] API error response:', error);
+          const errorBody = await response.json();
+          errorMessage = extractApiErrorMessage(errorBody, errorMessage);
+          console.error('[PostBriaStage] API error response:', errorBody);
         } catch {
           errorMessage = `Server error: ${response.status} ${response.statusText}`;
           console.error('[PostBriaStage] Failed to parse error response');
@@ -889,14 +921,14 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           onDownload={handleDownload}
           onReplace={handleReplace}
           onFlag={handleFlag}
-          onApprove={() => {
-            // AssetGrid expects () => void, but onApprove takes a status parameter
-            // Since AssetGrid doesn't actually call onApprove, this is a no-op wrapper
-          }}
+          onApprove={() => {}}
           canApprove={true}
           isApproved={isApproved}
           showBlackBackground={showBlackBackground}
           isReplacing={isReplacing}
+          orderId={orderId}
+          showFixTransparency={true}
+          onFixTransparency={handleFixTransparency}
         />
       ) : (
         <div className="bg-gray-50 rounded-lg p-8 text-center">
