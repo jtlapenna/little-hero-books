@@ -47,6 +47,13 @@ export async function POST(
     );
   }
 
+  let body: { regeneration_instructions?: string | null } = {};
+  try {
+    body = await request.json();
+  } catch {
+    // Empty or invalid JSON body is fine
+  }
+
   try {
     // Get current order to preserve review_stages and get numeric id / amazon_order_id
     const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
@@ -173,6 +180,7 @@ export async function POST(
       next_retry_at: null,
       // Ensure updated_at changes even if DB has no trigger
       updated_at: queuedAt,
+      ...(body.regeneration_instructions !== undefined ? { regeneration_instructions: body.regeneration_instructions ?? null } : {}),
     };
 
     await updateOrderRowResilientById(orderRowId, updateData);

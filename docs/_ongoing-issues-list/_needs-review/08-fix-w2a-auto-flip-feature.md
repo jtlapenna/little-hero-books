@@ -1,9 +1,9 @@
 # Issue: Fix W2A Auto-Flip Feature (not working)
 
-**Status:** 🟡 Fix applied (2026-02-25); verify in production  
+**Status:** 🟡 Fix applied (2026-03-02); verify in production  
 **Priority:** High  
 **Created:** 2026-01-28  
-**Last Updated:** 2026-02-25
+**Last Updated:** 2026-03-02
 
 ## Description
 
@@ -191,6 +191,48 @@ curl -X POST https://admin.littleherolabs.com/api/check-and-flip-orientation \
 - **Error:** `{"success":false,"error":"..."}` with HTTP 4xx/5xx
 
 Replace `d442cde92b91c581` and `pose03` with real values from an order that has generated poses in R2.
+
+---
+
+## Why it was STILL not working (2026-03-02)
+
+### Root cause: wrong pose reference path
+
+The **orchestrator** (`w2A-Orchestrator.json`) node **Init / Validate Inputs** (Entry Shim) was setting:
+
+- `poseRefKey` = `templates/poses/pose-09.png` (using `templatePath` + hyphenated filename)
+- So `poseRefPublicUrl` = `https://pub-xxx.r2.dev/templates/poses/pose-09.png`
+
+The **actual** pose library in R2 (and used by SW2, SW3 pinData, and audits) is:
+
+- Key: `book-mvp-simple-adventure/characters/poses/pose09.png` (no hyphen, different path)
+
+So when SW3 called `POST /api/check-and-flip-orientation` with that `poseRefUrl`, the backend:
+
+1. Extracted key `templates/poses/pose-09.png`
+2. Tried to download from R2 — that object does **not** exist
+3. Returned **500** "Failed to download images" (or 404 from R2)
+
+The HTTP Request node in SW3 has `onError: "continueRegularOutput"`, so the failure did not stop the workflow; the flip step simply never succeeded.
+
+### Fix applied (2026-03-02, revised)
+
+- **Orchestrator unchanged** so existing behaviour is preserved: `poseRefKey` stays as `templates/poses/pose-${NN}.png` for SW1/SW2 and any other consumers.
+- **SW3 only:** In **w2A-SW3-Upload.json** → **HTTP Request1** (check-and-flip), `poseRefUrl` is no longer taken from `$json.poseRefPublicUrl`. It is now built in the node as:  
+  `{publicR2Url}/book-mvp-simple-adventure/characters/poses/pose{NN}.png`  
+  so only the check-and-flip call uses the canonical pose path; nothing else in the pipeline changes.
+- No backend changes required.
+
+### Curl check (2026-03-02)
+
+- Both `.../book-mvp-simple-adventure/characters/poses/pose03.png` and `.../templates/poses/pose-03.png` return **401 Unauthorized** from the public R2 domain (likely locked down). The backend uses credentials and can fetch either key from R2 if it exists; curl cannot confirm which path is present in the bucket.
+
+### Verification
+
+1. Run a full W2A flow (or at least SW2 → SW3) for an order that has a pose that should be flipped.
+2. In n8n, open the **HTTP Request1** (check-and-flip) execution: response should be **200** with `success: true` and either `flipped: true` or `flipped: false`; no 400/500.
+3. Optionally call the API with curl (see above) using the same `poseRefUrl` format:  
+   `https://pub-xxx.r2.dev/book-mvp-simple-adventure/characters/poses/pose{N}.png`.
 
 ### Test script (from back-end/)
 

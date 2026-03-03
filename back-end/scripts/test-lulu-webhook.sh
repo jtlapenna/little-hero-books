@@ -27,7 +27,9 @@ curl -X POST "$WEBHOOK_URL" \
         "tracking_urls": [
           "https://www.ups.com/track?tracknum=1Z999AA10123456784"
         ],
-        "carrier": "UPS"
+        "carrier": "UPS",
+        "carrier_name": "UPS",
+        "CARRIER_NAME": "UPS"
       }
     ]
   }' \

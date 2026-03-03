@@ -1,6 +1,6 @@
 # Moving the Second Item From an Order Forward (Sibling Order)
 
-**Status: CSV auto-sibling creation is implemented.** Uploading a CSV with multiple rows for the same `amazon-order-id` now automatically creates one Supabase order per row (primary + N-1 siblings) and triggers W0 for each. Manual CLI/API path is retained as a fallback. Automated aggregation (one Lulu job for sibling groups, combined shipping) is **Phase 2** — see **[24-sibling-aggregation-for-print-phase-2.md](24-sibling-aggregation-for-print-phase-2.md)**.
+**Status: CSV auto-sibling creation is implemented.** Uploading a CSV with multiple rows for the same `amazon-order-id` now automatically creates one Supabase order per row (primary + N-1 siblings) and triggers W0 for each. Manual CLI/API path is retained as a fallback. Automated aggregation (one Lulu job for sibling groups, combined shipping) is **Phase 2** — see **[24-sibling-aggregation-for-print-phase-2.md](_completed/24-sibling-aggregation-for-print-phase-2.md)**.
 
 **Scope: 2+ items.** The system supports orders with **two or more** books (e.g. 4 books = 4 line items). CSV upload creates N orders automatically. Create-sibling CLI and manual script are available as fallbacks.
 
@@ -111,7 +111,7 @@ The script fetches signed PDF URLs, gets a Lulu token, POSTs one print job with 
 - [x] Amazon order ID resolution for siblings (messaging/shipment)
 - [x] Shared helper library `sibling-order-helpers.ts`
 
-**Remaining (Phase 2 — see [24-sibling-aggregation-for-print-phase-2.md](24-sibling-aggregation-for-print-phase-2.md)):**
+**Remaining (Phase 2 — see [24-sibling-aggregation-for-print-phase-2.md](_completed/24-sibling-aggregation-for-print-phase-2.md)):**
 
 - [ ] Define sibling group in DB (optional; can derive by `amazon_order_id`).
 - [ ] Cron or router: detect "sibling group all ready for W4" and call aggregation path instead of W4 per order.

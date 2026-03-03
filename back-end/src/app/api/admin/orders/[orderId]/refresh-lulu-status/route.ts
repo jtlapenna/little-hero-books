@@ -142,7 +142,7 @@ export async function GET(
       const trackingUrls = msgs.tracking_urls || firstItem.tracking_urls;
       trackingUrl = Array.isArray(trackingUrls) ? trackingUrls[0] || null
         : firstItem.tracking_url || firstItem.trackingUrl || null;
-      carrier = msgs.carrier_name || firstItem.carrier_name || firstItem.carrier || null;
+      carrier = msgs.CARRIER_NAME || msgs.carrier_name || firstItem.CARRIER_NAME || firstItem.carrier_name || firstItem.carrier || null;
     }
 
     // Extract error message if status is REJECTED

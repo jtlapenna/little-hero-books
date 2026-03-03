@@ -26,6 +26,8 @@ export async function POST(
     const { orderId } = params;
     const body = await request.json();
     const { token, feedback } = body;
+    const qa_notes = body.qa_notes ?? feedback?.qaNotes;
+    const regeneration_instructions = body.regeneration_instructions ?? feedback?.regenerationInstructions;
 
     if (!token) {
       return NextResponse.json(
@@ -112,7 +114,6 @@ export async function POST(
 
     // Update order status, increment revision count, and reset all review stages to Pending
     // When customer requests revision, all stages must be re-approved in sequence
-    const existingReviewStages = order.review_stages || {};
     await updateOrderInSupabase(orderId, {
       customer_approval_status: 'revision_requested',
       revision_count: currentRevisionCount + 1,
@@ -120,7 +121,9 @@ export async function POST(
         preBria: { status: 'pending' },
         postBria: { status: 'pending' },
         postPdf: { status: 'pending' }
-      }
+      },
+      ...(typeof qa_notes !== 'undefined' && qa_notes !== null ? { qa_notes: String(qa_notes).trim() || null } : {}),
+      ...(typeof regeneration_instructions !== 'undefined' && regeneration_instructions !== null ? { regeneration_instructions: String(regeneration_instructions).trim() || null } : {}),
     });
 
     return NextResponse.json({

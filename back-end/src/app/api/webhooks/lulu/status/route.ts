@@ -50,7 +50,7 @@ function extractTrackingInfo(lineItemStatuses: any[]): {
   const trackingUrls = msgs.tracking_urls || firstItem.tracking_urls;
   const trackingUrl = Array.isArray(trackingUrls) ? trackingUrls[0] || null
     : firstItem.tracking_url || firstItem.trackingUrl || null;
-  const carrierRaw = msgs.carrier_name || firstItem.carrier_name || firstItem.carrier || null;
+  const carrierRaw = msgs.CARRIER_NAME || msgs.carrier_name || firstItem.CARRIER_NAME || firstItem.carrier_name || firstItem.carrier || null;
 
   // Lulu sometimes omits carrier_name for OSM. Infer from tracking URL to avoid "Other/Unknown".
   const inferredCarrier =
@@ -160,12 +160,11 @@ export async function POST(request: NextRequest) {
     // Extract line item statuses — webhook sends print job detail (`line_items`) not status endpoint format (`line_item_statuses`)
     const lineItemStatuses = payload.line_item_statuses || payload.lineItemStatuses || payload.line_items || [];
     
-    // Find order by lulu_job_id (printJobId already string)
-    const { data: order, error: findError } = await supabase
+    // Find all orders with this lulu_job_id (sibling orders share one job)
+    const { data: orders, error: findError } = await supabase
       .from('orders')
       .select('*')
-      .eq('lulu_job_id', printJobId)
-      .maybeSingle();
+      .eq('lulu_job_id', printJobId);
 
     if (findError) {
       console.error('[LULU WEBHOOK] Error finding order:', findError);
@@ -176,7 +175,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!order) {
+    const orderList = Array.isArray(orders) ? orders : orders ? [orders] : [];
+    if (orderList.length === 0) {
       console.warn(`[LULU WEBHOOK] Order not found for lulu_job_id: ${printJobId}`);
       await auditLog({ printJobId, statusName, orderFound: false, orderId: null, updated: false, errorMessage: 'Order not found' });
       return NextResponse.json(
@@ -184,42 +184,26 @@ export async function POST(request: NextRequest) {
         { status: 200, headers: corsHeaders }
       );
     }
-    
-    // Prepare update data
-    const updateData: any = {
-      lulu_status: statusName,
-      updated_at: new Date().toISOString(),
-    };
-    
-    // Set shipped_at / delivered_at / tracking for terminal shipping statuses.
-    let shippingTrackingUrl: string | null = null;
-    let shippingTrackingNumber: string | null = null;
-    if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {
-      const nowIso = new Date().toISOString();
-      const changedAt =
+
+    const nowIso = new Date().toISOString();
+    const changedAt =
         statusRaw && typeof statusRaw === 'object' && statusRaw.changed
           ? String(statusRaw.changed)
           : null;
-      const terminalAt = changedAt || nowIso;
+    const terminalAt = changedAt || nowIso;
 
-      // CRITICAL: never overwrite shipped_at on DELIVERED.
-      // If we overwrite shipped_at at delivery time, lifecycle + “recently delivered” logic uses the wrong ship date.
-      if (statusName === 'SHIPPED' && !order.shipped_at) {
-        updateData.shipped_at = terminalAt;
-      }
-      if (statusName === 'DELIVERED') {
-        // Store an explicit delivery timestamp if the column exists (it does in Supabase schema).
-        if (!order.delivered_at) {
-          updateData.delivered_at = terminalAt;
-        }
-        // Move out of active immediately when Lulu says DELIVERED (do not wait for assumed delivery window).
-        updateData.lifecycle_status = 'recently_delivered';
-        updateData.assumed_delivered_at = terminalAt;
-      }
+    const updateData: any = {
+      lulu_status: statusName,
+      updated_at: nowIso,
+      status: LULU_TO_ORDER_STATUS[statusName] ?? 'pending_print',
+    };
 
-      // print_fulfillment_finished_at should reflect the terminal event time (ship or delivery).
+    let shippingTrackingUrl: string | null = null;
+    let shippingTrackingNumber: string | null = null;
+    if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {
       updateData.print_fulfillment_finished_at = terminalAt;
-
+      updateData.workflow_step = 'done';
+      updateData.execution_status = 'done';
       if (lineItemStatuses.length > 0) {
         const trackingInfo = extractTrackingInfo(lineItemStatuses);
         shippingTrackingUrl = trackingInfo.trackingUrl;
@@ -229,124 +213,135 @@ export async function POST(request: NextRequest) {
         if (trackingInfo.carrier) updateData.carrier = trackingInfo.carrier;
       }
     }
+
     
     // Handle error states
     if (statusName === 'REJECTED') {
       const errorDetails = extractErrorDetails(lineItemStatuses);
-      console.error(`[LULU WEBHOOK] Order ${order.orderId || order.order_id || order.amazon_order_id} REJECTED:`, errorDetails);
+      console.error(`[LULU WEBHOOK] REJECTED for lulu_job_id ${printJobId}:`, errorDetails);
       // Error details could be stored in a separate field if needed
       // For now, we just log it and set the status
     }
     
     if (statusName === 'CANCELED') {
-      console.warn(`[LULU WEBHOOK] Order ${order.orderId || order.order_id || order.amazon_order_id} CANCELED`);
+      console.warn(`[LULU WEBHOOK] CANCELED for lulu_job_id ${printJobId}`);
     }
 
-    // Recalculate display status from Lulu status
-    updateData.status = LULU_TO_ORDER_STATUS[statusName] ?? 'pending_print';
+    // Update each order (per-order: do not overwrite shipped_at on DELIVERED)
+    let updateCount = 0;
+    for (const ord of orderList) {
+      const rowUpdate = { ...updateData };
+      if (statusName === 'SHIPPED') {
+        if (!ord.shipped_at) rowUpdate.shipped_at = terminalAt;
+        if (!ord.delivered_at) rowUpdate.delivered_at = terminalAt;
+      }
+      if (statusName === 'DELIVERED') {
+        if (!ord.delivered_at) rowUpdate.delivered_at = terminalAt;
+        rowUpdate.lifecycle_status = 'recently_delivered';
+        rowUpdate.assumed_delivered_at = terminalAt;
+      }
+      const { error: updateErr } = await supabase.from('orders').update(rowUpdate).eq('id', ord.id);
+      if (updateErr) {
+        console.error('[LULU WEBHOOK] Error updating order', ord.orderId || ord.order_id || ord.amazon_order_id, updateErr.message);
+        continue;
+      }
+      updateCount++;
+    }
 
+    const firstOrderId = orderList[0].orderId || orderList[0].order_id || orderList[0].amazon_order_id;
+    await auditLog({ printJobId, statusName, orderFound: true, orderId: firstOrderId, updated: updateCount > 0, errorMessage: updateCount < orderList.length ? `Updated ${updateCount}/${orderList.length}` : null });
+    console.log(`[LULU WEBHOOK] Updated ${updateCount} order(s) for lulu_job_id ${printJobId} with status ${statusName}`);
+
+    // Confirm shipment in Seller Central: once per distinct Amazon order (siblings share one Lulu job)
     if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {
-      updateData.workflow_step = 'done';
-      updateData.execution_status = 'done';
-    }
-    
-    // Update order in database
-    // Use orderId, order_id, or amazon_order_id depending on what exists
-    const orderIdentifier = order.orderId || order.order_id || order.amazon_order_id;
-
-    const { error: updateErr } = await supabase.from('orders').update(updateData).eq('id', order.id);
-    if (updateErr) {
-      console.error('[LULU WEBHOOK] Error updating order:', updateErr.message);
-      await auditLog({ printJobId, statusName, orderFound: true, orderId: orderIdentifier, updated: false, errorMessage: updateErr.message });
-      return NextResponse.json(
-        { received: true, error: 'Update failed', details: updateErr.message },
-        { status: 200, headers: corsHeaders }
-      );
-    }
-
-    await auditLog({ printJobId, statusName, orderFound: true, orderId: orderIdentifier, updated: true, errorMessage: null });
-    console.log(`[LULU WEBHOOK] Successfully updated order ${orderIdentifier} with status ${statusName}`);
-
-    // Confirm shipment in Seller Central (gives buyer tracking via Amazon's built-in email)
-    if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {
-      const platform = (order.platform ?? 'amazon') as string;
-      const amazonOrderId = order.amazon_order_id ?? null;
-      if (platform !== 'd2c' && amazonOrderId) {
+      const amazonOrders = orderList.filter((o) => (o.platform ?? 'amazon') !== 'd2c' && o.amazon_order_id);
+      const byAmazonOrderId = new Map<string, typeof orderList>();
+      for (const o of amazonOrders) {
+        const aid = String(o.amazon_order_id);
+        if (!byAmazonOrderId.has(aid)) byAmazonOrderId.set(aid, []);
+        byAmazonOrderId.get(aid)!.push(o);
+      }
+      for (const [amazonOrderId, orders] of byAmazonOrderId) {
         const { data: existingConfirm } = await supabase
           .from('notification_logs')
           .select('id')
-          .eq('order_id', String(orderIdentifier))
+          .eq('order_id', amazonOrderId)
           .eq('notification_type', 'amazon_confirm_shipment')
           .eq('status', 'sent')
           .maybeSingle();
-
         if (existingConfirm) {
-          console.log(`[LULU WEBHOOK] Shipment already confirmed for ${orderIdentifier}, skipping`);
-        } else {
-          try {
-            const { confirmAmazonShipment } = await import('@/lib/notifications/amazon-shipment');
-            const result = await confirmAmazonShipment({
-              amazonOrderId: String(amazonOrderId),
-              order,
-              trackingNumber: shippingTrackingNumber ?? undefined,
-              carrier: updateData.carrier ?? undefined,
-              trackingUrl: shippingTrackingUrl ?? undefined,
-            });
-            if (result.success) {
-              console.log(`[LULU WEBHOOK] Amazon shipment confirmed for ${orderIdentifier}`);
-            } else {
-              console.warn(`[LULU WEBHOOK] Amazon confirmShipment failed for ${orderIdentifier}:`, result.error);
-            }
-            await supabase.from('notification_logs').insert({
-              order_id: String(orderIdentifier),
-              notification_type: 'amazon_confirm_shipment',
-              status: result.success ? 'sent' : 'failed',
-              recipient: String(amazonOrderId),
-              error_message: result.error ?? null,
-              sent_at: result.success ? new Date().toISOString() : null,
-            });
-          } catch (err: any) {
-            console.warn('[LULU WEBHOOK] confirmShipment error:', err?.message ?? err);
-          }
+          console.log(`[LULU WEBHOOK] Shipment already confirmed for ${amazonOrderId}, skipping`);
+          continue;
+        }
+        const order = orders[0];
+        try {
+          const { confirmAmazonShipment } = await import('@/lib/notifications/amazon-shipment');
+          const result = await confirmAmazonShipment({
+            amazonOrderId,
+            order,
+            trackingNumber: shippingTrackingNumber ?? undefined,
+            carrier: updateData.carrier ?? undefined,
+            trackingUrl: shippingTrackingUrl ?? undefined,
+          });
+          await supabase.from('notification_logs').insert({
+            order_id: amazonOrderId,
+            notification_type: 'amazon_confirm_shipment',
+            status: result.success ? 'sent' : 'failed',
+            recipient: amazonOrderId,
+            error_message: result.error ?? null,
+            sent_at: result.success ? new Date().toISOString() : null,
+          });
+          if (result.success) console.log(`[LULU WEBHOOK] Amazon shipment confirmed for ${amazonOrderId}`);
+          else console.warn(`[LULU WEBHOOK] Amazon confirmShipment failed for ${amazonOrderId}:`, result.error);
+        } catch (err: any) {
+          console.warn('[LULU WEBHOOK] confirmShipment error:', err?.message ?? err);
         }
       }
     }
 
-    // D2C shipped email (Amazon orders use confirmShipment above which triggers Amazon's built-in email)
-    if (statusName === 'SHIPPED') {
-      const platform = (order.platform ?? 'amazon') as string;
-      const childName =
-        order.character_specs?.childName ?? order.character_specs?.child_name ?? undefined;
-      if (platform === 'd2c' && order.customer_email?.trim()) {
+    // D2C shipped email: one per D2C order row with customer_email
+    if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {
+      for (const ord of orderList) {
+        if ((ord.platform ?? 'amazon') !== 'd2c' || !ord.customer_email?.trim()) continue;
+        const orderIdForLog = ord.order_id ?? ord.orderId ?? String(ord.id);
+        const { data: existingSent } = await supabase
+          .from('notification_logs')
+          .select('id')
+          .eq('order_id', String(orderIdForLog))
+          .eq('notification_type', 'd2c_shipped_email')
+          .eq('status', 'sent')
+          .maybeSingle();
+        if (existingSent) continue;
         try {
           const { sendD2CShippedEmail } = await import('@/lib/notifications/d2c-email');
+          const childName = ord.character_specs?.childName ?? ord.character_specs?.child_name ?? undefined;
           const result = await sendD2CShippedEmail({
-            to: order.customer_email.trim(),
+            to: ord.customer_email.trim(),
             childName: childName ?? undefined,
             trackingUrl: shippingTrackingUrl ?? undefined,
             trackingNumber: shippingTrackingNumber ?? undefined,
             carrier: updateData.carrier ?? undefined,
-            orderId: orderIdentifier,
+            orderId: orderIdForLog,
           });
-          if (result.success) {
-            console.log(`[LULU WEBHOOK] D2C shipped email sent for order ${orderIdentifier}`);
-          } else {
-            console.warn(`[LULU WEBHOOK] D2C shipped email failed for ${orderIdentifier}:`, result.error);
-          }
+          await supabase.from('notification_logs').insert({
+            order_id: String(orderIdForLog),
+            notification_type: 'd2c_shipped_email',
+            status: result.success ? 'sent' : 'failed',
+            recipient: ord.customer_email.trim(),
+            error_message: result.error ?? null,
+            sent_at: result.success ? new Date().toISOString() : null,
+          });
+          if (result.success) console.log(`[LULU WEBHOOK] D2C shipped email sent for order ${orderIdForLog}`);
+          else console.warn(`[LULU WEBHOOK] D2C shipped email failed for ${orderIdForLog}:`, result.error);
         } catch (notifyErr: any) {
-          console.warn(`[LULU WEBHOOK] D2C shipped notification error:`, notifyErr?.message ?? notifyErr);
+          console.warn('[LULU WEBHOOK] D2C shipped notification error:', notifyErr?.message ?? notifyErr);
         }
       }
     }
 
     // Always return 200 OK - Lulu expects this to acknowledge receipt
     return NextResponse.json(
-      { 
-        received: true, 
-        orderId: orderIdentifier,
-        status: statusName,
-        updated: true 
-      },
+      { received: true, orderId: firstOrderId, status: statusName, updated: true, ordersUpdated: updateCount },
       { status: 200, headers: corsHeaders }
     );
     

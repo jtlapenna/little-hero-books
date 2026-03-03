@@ -135,6 +135,9 @@ export async function approveStage(
       review_stages: reviewStages,
       // When a stage is approved, queue the next workflow so cron routing can't send it backwards.
       ...queueUpdateOnApproval,
+      ...(nextStatus === 'approved'
+        ? { human_approved: true, human_reviewed_at: approvedAt, human_reviewer: reviewer }
+        : {}),
       ...(shouldClearCustomerRevision
         ? {
             customer_approval_status: null,

@@ -268,8 +268,8 @@ export function LuluStage({
         </dl>
       </div>
 
-      {/* Tracking Section (when shipped) */}
-      {status === LuluStatus.SHIPPED && (
+      {/* Tracking Section (when shipped or delivered) */}
+      {(status === LuluStatus.SHIPPED || status === LuluStatus.DELIVERED) && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <Truck className="h-5 w-5 mr-2 text-green-600" />

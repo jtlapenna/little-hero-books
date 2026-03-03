@@ -164,6 +164,13 @@ export async function POST(
     );
   }
 
+  let body: { regeneration_instructions?: string | null } = {};
+  try {
+    body = await request.json();
+  } catch {
+    // Empty or invalid JSON body is fine
+  }
+
   try {
     // 1. Try to find in orders table (active / recently_delivered)
     let currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
@@ -229,6 +236,7 @@ export async function POST(
       last_error_at: null,
       next_retry_at: null,
       updated_at: queuedAt,
+      ...(body.regeneration_instructions !== undefined ? { regeneration_instructions: body.regeneration_instructions ?? null } : {}),
     });
 
     const source = wasArchived ? 'restored from archive' : 'active orders';

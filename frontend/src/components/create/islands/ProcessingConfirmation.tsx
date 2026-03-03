@@ -23,6 +23,8 @@ interface OrderStatus {
   statusLong?: string;
   trackingUrl?: string;
   trackingNumber?: string;
+  /** Carrier name from status API when shipped (e.g. "UPS"). */
+  carrier?: string;
 }
 
 /** Generate display order ID from full UUID: LH-XXXXX */
@@ -119,13 +121,13 @@ function ProcessingConfirmation() {
         firstNonEmptyString((data as any).trackingUrl ?? (data as any).tracking_url);
 
       setLookupStatus({
-        // Purpose: display what the backend returns (label + long text), fall back to internal code only if needed.
         statusLabel,
         statusCode,
         statusLong: statusLong ?? 'Processing your order',
         previewUrl: (data as any).previewUrl || (data as any).preview_url,
         trackingUrl,
         trackingNumber: (data as any).trackingNumber || (data as any).tracking_number,
+        carrier: (data as any).carrierName ?? (data as any).carrier ?? undefined,
       });
     } catch (err) {
       setLookupError(err instanceof Error ? err.message : 'Failed to look up order status.');
@@ -270,15 +272,20 @@ function ProcessingConfirmation() {
                 <p className="processing__status-desc">
                   {lookupStatus.statusLong || formatStatus(lookupStatus.statusCode || '').description}
                 </p>
-                {lookupStatus.trackingUrl && (
-                  <a
-                    href={lookupStatus.trackingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="processing__tracking-link"
-                  >
-                    Track your shipment →
-                  </a>
+                {(lookupStatus.trackingUrl || lookupStatus.carrier) && (
+                  <p className="processing__tracking-info">
+                    {lookupStatus.carrier && <span className="processing__carrier">Shipped via {lookupStatus.carrier}</span>}
+                    {lookupStatus.trackingUrl && (
+                      <a
+                        href={lookupStatus.trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="processing__tracking-link"
+                      >
+                        Track your shipment →
+                      </a>
+                    )}
+                  </p>
                 )}
               </div>
             )}
@@ -502,6 +509,8 @@ function ProcessingConfirmation() {
           color: var(--color-soft-charcoal);
           margin: 0;
         }
+        .processing__tracking-info { margin-top: var(--spacing-sm); }
+        .processing__carrier { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: var(--color-soft-charcoal); }
         .processing__tracking-link {
           display: inline-block;
           margin-top: var(--spacing-sm);

@@ -51,7 +51,7 @@ This creates routing/debug ambiguity because:
    - set `null`.
 2. For each route/workflow writer, verify:
    - identifier used for update (`orderId`, `order_id`, `amazon_order_id`, numeric `id`),
-   - rows affected behavior (must fail loudly on 0-row update when required).
+   - rows affected behavior (log or alert on 0-row update for diagnostics; do not fail workflows).
 
 ### Phase C - Repro with controlled orders
 
@@ -66,7 +66,7 @@ This creates routing/debug ambiguity because:
 
 1. Enforce deterministic fallback key on 2A completion:
    - `book-mvp-simple-adventure/orders/{orderId}/manifests/2a-manifest.json`
-2. Add “0 rows updated” hard failure + structured logs on critical 2A pointer writes.
+2. Add structured logs (and optional alerts) when 0 rows updated on critical 2A pointer writes; do not throw or block workflow.
 3. Ensure archive/restore preserves pointer fidelity between `orders` and `archived_orders`.
 4. Restrict manifest clearing to explicit regeneration flows only.
 

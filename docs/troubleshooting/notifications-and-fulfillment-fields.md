@@ -40,7 +40,7 @@ Lulu doesn’t have a “webhook URL” field in a dashboard. **Option A – Bac
    ```
 4. After that, Lulu will POST to that URL whenever a print job’s status changes (e.g. to SHIPPED).
 
-See `docs/lulu/LULU_WEBHOOK_AND_W4_PRINT_NOTIFY.md` and `docs/lulu/LULU_ERROR_HANDLING.md` (Webhook Setup) for more detail.
+See `docs/lulu/LULU_WEBHOOK_AND_W4_PRINT_NOTIFY.md` and `docs/lulu/LULU_ERROR_HANDLING.md` (Webhook Setup) for more detail. The `carrier` field on orders is populated from Lulu’s webhook or API; we accept `CARRIER_NAME`, `carrier_name`, or `carrier` in the payload.
 
 ---
 

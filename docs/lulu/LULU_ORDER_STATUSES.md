@@ -36,7 +36,7 @@ Orders typically progress through these statuses in order:
 
 7. **SHIPPED** - Print-Job is fully shipped
    - All items have been shipped
-   - Tracking information available
+   - Tracking information available (tracking_id, tracking_urls; carrier may be in `CARRIER_NAME`, `carrier_name`, or `carrier`)
    - Final state before delivery
 
 ---

@@ -226,13 +226,13 @@ export async function GET(request: NextRequest) {
               const tn = msgs.tracking_id || first?.tracking_id || null;
               const tuArr = msgs.tracking_urls || first?.tracking_urls;
               const tu = Array.isArray(tuArr) ? tuArr[0] || null : first?.tracking_url || null;
-              const cr = msgs.carrier_name || first?.carrier_name || first?.carrier || null;
+              const cr = msgs.CARRIER_NAME || msgs.carrier_name || first?.CARRIER_NAME || first?.carrier_name || first?.carrier || null;
 
               const nowIso = new Date().toISOString();
               const updates: Record<string, any> = {
                 lulu_status: name,
                 // IMPORTANT: only set shipped_at when we see SHIPPED (never overwrite it on DELIVERED).
-                ...(name === 'SHIPPED' ? { shipped_at: nowIso } : {}),
+                ...(name === 'SHIPPED' ? { shipped_at: nowIso, delivered_at: nowIso } : {}),
                 ...(name === 'DELIVERED'
                   ? {
                       delivered_at: nowIso,

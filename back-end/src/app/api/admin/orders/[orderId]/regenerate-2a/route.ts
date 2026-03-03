@@ -50,6 +50,13 @@ export async function POST(
     );
   }
 
+  let body: { regeneration_instructions?: string | null } = {};
+  try {
+    body = await request.json();
+  } catch {
+    // Empty or invalid JSON body is fine
+  }
+
   try {
     // Get current order (by id or amazon_order_id) to preserve review_stages and get numeric id
     const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
@@ -79,7 +86,7 @@ export async function POST(
       for (let i = 0; i < 8; i++) {
         const { data, error } = await supabase
           .from('orders')
-          .update(dataToUpdate)
+                    .update(dataToUpdate as never) // Supabase generated types expect 'never'; payload is schema-drift tolerant
           .eq('id', id)
           .select('id');
         if (!error) {
@@ -179,6 +186,7 @@ export async function POST(
       last_error_at: null,
       next_retry_at: null,
       updated_at: queuedAt,
+      ...(body.regeneration_instructions !== undefined ? { regeneration_instructions: body.regeneration_instructions ?? null } : {}),
     };
 
     await updateOrderRowResilientById(orderRowId, updateData);
