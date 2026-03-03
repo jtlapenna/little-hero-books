@@ -19,6 +19,38 @@ Create new pose reference images **without cheek blush** for only these two skin
 
 Do not change reference sets for other skin tones in this issue.
 
+## Implementation plan (update)
+
+### 1) Store the no-blush pose references (done)
+
+- Upload the new no-blush pose reference PNGs to:
+  - `little-hero-assets/book-mvp-simple-adventure/characters/poses/skin-deep/`
+
+### 2) Update W2A pose reference selection (finals + sibling)
+
+**Goal:** Only `medium-dark` and `deep-dark` should use the `skin-deep/` pose reference set. All other tones keep using the existing pose references.
+
+**Files:**
+
+- `docs/n8n-workflow-files/finals/w2A-SW1-Pose_Generation.json`
+- `docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-SW1-Pose_Generation.json`
+
+**Node:** `Resolve Pose Ref (IMAGE P)`
+
+**Change:** In the node’s `jsCode`, change the base poses path used to build `poseRefUrl`/`poseRefKey` to choose a skin-tone-specific poses root:
+
+- Default (existing): `book-mvp-simple-adventure/characters/poses`
+- For `medium-dark` and `deep-dark`: `book-mvp-simple-adventure/characters/poses/skin-deep`
+
+**Why this node:** It emits `poseRefKey` early, and `Schema Check + Defaults1` preserves an incoming `poseRefKey` (it only computes a default if none exists). This keeps the change isolated to pose reference selection and avoids touching prompt logic.
+
+### 3) Verification checklist (targeted)
+
+- For a `medium-dark` order, confirm `poseRefKey` points to `.../characters/poses/skin-deep/poseNN.png`.
+- For a `deep-dark` order, confirm `poseRefKey` points to `.../characters/poses/skin-deep/poseNN.png`.
+- For a non-target skin tone, confirm `poseRefKey` remains `.../characters/poses/poseNN.png` (no `skin-deep`).
+- Run a small set of W2A pose generations for both tones and confirm cheek blush does not appear (and that overall face contrast/skin hue are not unintentionally shifted).
+
 ## Scope
 
 1. Regenerate pose reference image set for medium-dark skin tone with strict no-blush target.
