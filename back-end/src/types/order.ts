@@ -42,6 +42,9 @@ export interface Order {
   customerApprovalRequestedAt?: string;
   customerApprovalApprovedAt?: string;
   revisionCount?: number;
+  reprintCount?: number;
+  reprintReason?: string;
+  reprintNote?: string;
   hasFlags?: boolean;
   flags?: Record<string, any>;
   finalBookUrl?: string;
@@ -116,6 +119,9 @@ export interface OrderListItem {
   hasFlags?: boolean;
   flags?: Record<string, any>;
   revisionCount?: number;
+  reprintCount?: number;
+  reprintReason?: string;
+  reprintNote?: string;
   errors?: DisplayStatus[]; // Array of errors for multiple errors badge
   lifecycle_status?: string; // Order lifecycle status: 'active' | 'recently_delivered' | 'archived'
 }

@@ -111,6 +111,10 @@ export async function mapSupabaseOrderToOrder(
     ),
     revisionCount:
       typeof record.revision_count === 'number' ? record.revision_count : 0,
+    reprintCount:
+      typeof record.reprint_count === 'number' ? record.reprint_count : 0,
+    reprintReason: typeof record.reprint_reason === 'string' ? record.reprint_reason : undefined,
+    reprintNote: typeof record.reprint_note === 'string' ? record.reprint_note : undefined,
     hasFlags: record.has_flags ?? false,
     flags: record.flags || undefined,
     finalBookUrl: record.final_book_url || undefined,

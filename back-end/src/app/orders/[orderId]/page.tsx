@@ -6,6 +6,7 @@ import { Order, ReviewStage } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
+import { ReprintBadge } from '@/components/ui/reprint-badge';
 import { formatDate, getInitials } from '@/lib/utils';
 import { getOrderById } from '@/lib/mock-data';
 import { PreBriaStage } from '@/components/stages/pre-bria-stage';
@@ -227,18 +228,20 @@ export default function OrderDetailPage() {
   };
 
   const handleSendToPrint = useCallback(
-    async (source: 'manual-admin' | 'post-pdf-stage' | 'customer-approval') => {
+    async (
+      source: 'manual-admin' | 'post-pdf-stage' | 'customer-approval',
+      reprint?: { reprint_reason?: string; reprint_note?: string }
+    ) => {
       if (!order) {
         throw new Error('Order is not loaded');
       }
-
 
       const response = await fetch(`/api/orders/${order.orderId}/print`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ source })
+        body: JSON.stringify({ source, ...(reprint || {}) })
       });
 
 
@@ -562,7 +565,16 @@ export default function OrderDetailPage() {
     try {
       printRequestInProgressRef.current = true;
       setManualPrintLoading(true);
-      await handleSendToPrint('manual-admin');
+      const isReprint = String(order.lifecycle_status || '').toLowerCase() === 'recently_delivered';
+      let reprint_reason: string | undefined;
+      let reprint_note: string | undefined;
+      if (isReprint) {
+        const reason = window.prompt('Optional reprint reason (blank for default):')?.trim();
+        if (reason) reprint_reason = reason;
+        const note = window.prompt('Optional reprint note (internal):')?.trim();
+        if (note) reprint_note = note;
+      }
+      await handleSendToPrint('manual-admin', { reprint_reason, reprint_note });
       alert('Order queued for print. It will be processed by the router when capacity is available (usually within 1–2 minutes).');
     } catch (error: any) {
       console.error('Error sending order to print:', error);
@@ -928,6 +940,11 @@ export default function OrderDetailPage() {
                   <FlaggedBadge count={(flagCounts.preBria || 0) + (flagCounts.postBria || 0) + (flagCounts.postPdf || 0)} />
                 </span>
               )}
+              <ReprintBadge
+                count={order.reprintCount ?? 0}
+                reason={order.reprintReason}
+                note={order.reprintNote}
+              />
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-gray-200 bg-white text-gray-700">
                 <span className="mr-1 text-[10px] uppercase tracking-wide text-gray-500">
                   Order Status
@@ -1325,7 +1342,23 @@ export default function OrderDetailPage() {
                   onClick={async () => {
                     if (!confirm('This will clear 4 (Print Fulfillment) status and regenerate. Continue?')) return;
                     try {
-                      const res = await fetch(`/api/admin/orders/${order.orderId}/regenerate-4`, { method: 'POST' });
+                      const isReprint =
+                        String(order.lifecycle_status || '').toLowerCase() === 'recently_delivered' ||
+                        String(order.lifecycle_status || '').toLowerCase() === 'archived';
+                      const reason = isReprint
+                        ? window.prompt('Optional reprint reason (blank for default):')?.trim()
+                        : undefined;
+                      const note = isReprint
+                        ? window.prompt('Optional reprint note (internal):')?.trim()
+                        : undefined;
+                      const res = await fetch(`/api/admin/orders/${order.orderId}/regenerate-4`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          ...(reason ? { reprint_reason: reason } : {}),
+                          ...(note ? { reprint_note: note } : {}),
+                        }),
+                      });
                       const data = await res.json();
                       // Prefer server-provided details for debugging
                       if (!res.ok) {

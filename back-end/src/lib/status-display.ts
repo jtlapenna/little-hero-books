@@ -542,6 +542,9 @@ export function buildOrderListItem(order: Order): OrderListItem {
     hasFlags: order.hasFlags ?? false,
     flags: order.flags ?? {},
     revisionCount: typeof order.revisionCount === 'number' ? order.revisionCount : 0,
+    reprintCount: typeof order.reprintCount === 'number' ? order.reprintCount : 0,
+    reprintReason: order.reprintReason,
+    reprintNote: order.reprintNote,
     errors: display.errors,
     lifecycle_status: (order as any).lifecycle_status || 'active',
   };

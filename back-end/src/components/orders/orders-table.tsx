@@ -5,6 +5,7 @@ import { OrderListItem } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
+import { ReprintBadge } from '@/components/ui/reprint-badge';
 import { formatDate } from '@/lib/utils';
 import { getOrderFlagSummary, getActiveStageFlagCount } from '@/lib/review-state';
 import { DisplayStatus } from '@/constants/statuses';
@@ -150,6 +151,11 @@ export function OrdersTable({ orders, onOrderClick, onArchiveOrder }: OrdersTabl
                           technicalStatus={order.technicalStatus}
                           revisionCount={order.revisionCount}
                           errors={order.errors}
+                        />
+                        <ReprintBadge
+                          count={order.reprintCount ?? 0}
+                          reason={order.reprintReason}
+                          note={order.reprintNote}
                         />
                         {needsAttention && (
                           <FlaggedBadge count={activeStageFlagCount} />

@@ -164,7 +164,11 @@ export async function POST(
     );
   }
 
-  let body: { regeneration_instructions?: string | null } = {};
+  let body: {
+    regeneration_instructions?: string | null;
+    reprint_reason?: string | null;
+    reprint_note?: string | null;
+  } = {};
   try {
     body = await request.json();
   } catch {
@@ -199,6 +203,16 @@ export async function POST(
     }
 
     const amazonOrderId = (currentOrder as { amazon_order_id?: string }).amazon_order_id ?? orderId.trim();
+
+    const isReprint =
+      wasArchived || String((currentOrder as any).lifecycle_status || '').toLowerCase() === 'recently_delivered';
+    const currentReprintCount =
+      typeof (currentOrder as any).reprint_count === 'number' ? (currentOrder as any).reprint_count : 0;
+    const reprintReasonRaw = typeof body.reprint_reason === 'string' ? body.reprint_reason.trim() : '';
+    const reprintNoteRaw = typeof body.reprint_note === 'string' ? body.reprint_note.trim() : '';
+    const reprintReason =
+      reprintReasonRaw || (wasArchived ? 'restored_from_archive' : 'reprint_after_delivery');
+    const reprintNote = reprintNoteRaw || null;
 
     // Preserve review_stages when updating (parse JSON string if needed)
     let review_stages: unknown = (currentOrder as { review_stages?: unknown }).review_stages || {};
@@ -237,6 +251,13 @@ export async function POST(
       next_retry_at: null,
       updated_at: queuedAt,
       ...(body.regeneration_instructions !== undefined ? { regeneration_instructions: body.regeneration_instructions ?? null } : {}),
+      ...(isReprint
+        ? {
+            reprint_count: currentReprintCount + 1,
+            reprint_reason: reprintReason,
+            reprint_note: reprintNote,
+          }
+        : {}),
     });
 
     const source = wasArchived ? 'restored from archive' : 'active orders';

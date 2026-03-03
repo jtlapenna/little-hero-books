@@ -13,6 +13,10 @@ async function sendToPrint(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
+  // PSEUDOCODE
+  // - Load order row
+  // - Queue W4 via updateOrderStatus (must not depend on reprint_* columns)
+  // - If lifecycle_status is recently_delivered, best-effort bump reprint_count (+ optional reason/note)
   const { orderId } = await params;
 
   if (!orderId || typeof orderId !== 'string') {
@@ -24,9 +28,17 @@ async function sendToPrint(
   // Queue order for W4 via W1.1 router
   // IMPORTANT: Preserve review_stages when updating to avoid losing approvals
   const { updateOrderStatus } = await import('@/lib/status-service');
-  const { getOrderFromSupabase } = await import('@/lib/supabase-client');
+  const { getOrderFromSupabase, updateOrderInSupabase } = await import('@/lib/supabase-client');
   
   try {
+    let body: { source?: string; reprint_reason?: string; reprint_note?: string } = {};
+    try {
+      body = await request.json();
+    } catch {
+      // Purpose: empty/invalid JSON is fine.
+      body = {};
+    }
+
     // Get current order to preserve review_stages
     const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
     
@@ -87,6 +99,19 @@ async function sendToPrint(
     }
     
     await updateOrderStatus(orderId, updates);
+
+    const isReprint = String(currentOrder.lifecycle_status || '').toLowerCase() === 'recently_delivered';
+    if (isReprint) {
+      const currentCount = typeof currentOrder.reprint_count === 'number' ? currentOrder.reprint_count : 0;
+      const reason = (body.reprint_reason || '').trim() || 'reprint_after_delivery';
+      const note = (body.reprint_note || '').trim() || null;
+      await updateOrderInSupabase(orderId, {
+        reprint_count: currentCount + 1,
+        reprint_reason: reason,
+        reprint_note: note,
+      });
+    }
+
     console.log(`[POST /api/orders/[orderId]/print] ✅ Queued order ${orderId} for W4 via router`);
     
     return NextResponse.json({
@@ -94,7 +119,8 @@ async function sendToPrint(
       message: 'Order queued for print fulfillment workflow. Router will process it when capacity is available.',
       orderId,
       next_workflow: '4',
-      execution_status: 'ready_for_processing'
+      execution_status: 'ready_for_processing',
+      isReprint
     });
   } catch (error: any) {
     console.error(`[POST /api/orders/[orderId]/print] Error queueing order:`, error);
