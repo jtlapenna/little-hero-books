@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decode, encode } from 'fast-png';
-import sharp from 'sharp';
 import { getObject, putObject } from '@/lib/r2-client';
 import { extractR2Key, getBucketFromKey } from '@/lib/r2-utils';
 import { recordRequest } from './stats/route';
@@ -27,14 +26,15 @@ function signatureHex(buf: Buffer, bytes = 8): string {
 }
 
 /**
- * Convert any supported image buffer to PNG via sharp.
- * Returns the original buffer unchanged if already PNG.
+ * Ensure PNG input for deterministic decode/flip.
+ * NOTE: This route runs on OpenNext/Workers where native sharp can crash.
  */
 async function ensurePngBuffer(buf: Buffer, label: string): Promise<Buffer> {
   const fmt = detectImageFormat(buf);
   if (fmt === 'png') return buf;
-  console.log(`[Auto-Flip] Converting ${label} from ${fmt} to PNG (${buf.length} bytes)`);
-  return Buffer.from(await sharp(buf).png().toBuffer());
+  throw new Error(
+    `Unsupported ${label} format '${fmt}'. Auto-flip expects PNG inputs for deterministic processing.`,
+  );
 }
 
 /**
