@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import sharp from 'sharp';
 import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { buildManifestKey } from '@/lib/r2-service';
 import { updateOrderInSupabase } from '@/lib/supabase-client';
@@ -109,7 +108,14 @@ function parseJsonSafe<T>(text: string): T | null {
 }
 
 async function flipImageHorizontallyToPng(input: Buffer): Promise<Buffer> {
-  return sharp(input).flop().png().toBuffer();
+  try {
+    // Lazy-load sharp so route validation can still run on runtimes without native sharp support.
+    const sharpModule = await import('sharp');
+    const sharpFactory = sharpModule.default;
+    return sharpFactory(input).flop().png().toBuffer();
+  } catch (error) {
+    throw new Error(`IMAGE_FLIP_RUNTIME_UNSUPPORTED:${safeErrorMessage(error)}`);
+  }
 }
 
 export async function POST(
@@ -308,6 +314,17 @@ export async function POST(
       flippedImage = await flipImageHorizontallyToPng(sourceImage);
     } catch (error) {
       const message = safeErrorMessage(error);
+      if (message.startsWith('IMAGE_FLIP_RUNTIME_UNSUPPORTED:')) {
+        console.error('[AutoFlipPoseAPI] runtime_unsupported', { ...logContext, canonicalKey, message });
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              'Auto-flip runtime unsupported in this deployment. Use non-Worker runtime for pixel flip operations.',
+          },
+          { status: 501 },
+        );
+      }
       console.error('[AutoFlipPoseAPI] image_flip_failed', { ...logContext, canonicalKey, message });
       return NextResponse.json({ success: false, error: 'Failed to flip image bytes' }, { status: 500 });
     }
