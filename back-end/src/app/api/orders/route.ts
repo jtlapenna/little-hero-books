@@ -4,7 +4,7 @@ import { Order } from '@/types/order';
 import { withErrorHandling, getRequestContext } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
 import { OrderStatus, ReviewStageStatus } from '@/constants/statuses';
-import { listOrdersFromSupabase } from '@/lib/supabase-client';
+import { listOrdersFromSupabase, upsertOrderByPerBookId } from '@/lib/supabase-client';
 import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
 import { cleanPhoneNumber } from '@/lib/phone-utils';
 
@@ -180,11 +180,13 @@ async function postOrder(request: NextRequest) {
   try {
     const json = await request.json();
     
-    // Extract Amazon order ID (required)
+    // Extract root/group Amazon order ID (required for Amazon-origin payloads).
     const amazonOrderId = json.amazonOrderId || json.AmazonOrderId || json.orderId || json.id;
     if (!amazonOrderId) {
       throw createValidationError('Missing amazonOrderId. Required field.');
     }
+    // Sibling-safe identity: per-book order id is the write key; root id can be shared.
+    const perBookOrderId = String(json.orderId || json.order_id || amazonOrderId).trim();
 
     // Normalize Amazon order data to Supabase schema
     // This matches what W0 expects, but stores immediately without waiting for n8n
@@ -192,6 +194,7 @@ async function postOrder(request: NextRequest) {
     // Amazon cron will use 'pending_w0' to prevent router from picking up orders before W0 processes them
     const requestedStatus = json.execution_status || json.executionStatus;
     const orderData: any = {
+      orderId: perBookOrderId,
       amazon_order_id: amazonOrderId,
       execution_status: requestedStatus || 'ready_for_processing', // Default or caller-specified
       next_workflow: requestedStatus === 'pending_w0' ? null : (json.next_workflow || json.nextWorkflow || '2A'), // W0 will set to '2A' if pending_w0
@@ -259,34 +262,23 @@ async function postOrder(request: NextRequest) {
       product_info: json.Items || json.items || json.lineItems || json,
     };
 
-    // Upsert to Supabase using native upsert (more reliable than update-then-insert)
-    const { supabase } = await import('@/lib/supabase-client');
-
     // Ensure timestamps are set
     const now = new Date().toISOString();
     if (!orderData.created_at) orderData.created_at = now;
     orderData.updated_at = now;
 
-    // Use upsert with conflict resolution on amazon_order_id
-    const { data: result, error } = await supabase
-      .from('orders')
-      .upsert(orderData, {
-        onConflict: 'amazon_order_id',
-        ignoreDuplicates: false, // Update if exists
-      })
-      .select()
-      .single();
+    const { data: result, error } = await upsertOrderByPerBookId(orderData);
 
     if (error) {
       console.error('[POST /api/orders] Supabase upsert error:', error);
       throw new Error(`Failed to store order in Supabase: ${error.message}`);
     }
 
-    console.log(`[POST /api/orders] ✅ Order ${amazonOrderId} stored in Supabase`);
+    console.log(`[POST /api/orders] ✅ Order ${perBookOrderId} stored in Supabase`);
 
     return NextResponse.json({
       success: true,
-      orderId: amazonOrderId,
+      orderId: perBookOrderId,
       amazonOrderId,
       message: 'Order received and stored in Supabase',
       storedAt: new Date().toISOString(),

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
+import { upsertOrderByPerBookId } from '@/lib/supabase-client';
 import { createHash } from 'crypto';
 
 /**
@@ -30,14 +31,14 @@ async function postAmazonOrder(request: NextRequest) {
     const json = await request.json();
     
     // Extract Amazon order ID (required for idempotency)
-    const amazonOrderId = json.amazonOrderId || json.orderId || json.id;
+    const amazonOrderId = json.amazonOrderId || json.id || json.orderId;
     if (!amazonOrderId) {
       throw createValidationError('Missing amazonOrderId. Required field for idempotency.');
     }
 
-    // Trim order ID to prevent trailing space issues
-    const orderIdValue = String(amazonOrderId).trim();
-    if (!orderIdValue || orderIdValue.length === 0) {
+    const rootAmazonOrderId = String(amazonOrderId).trim();
+    const perBookOrderId = String(json.orderId || json.order_id || amazonOrderId).trim();
+    if (!perBookOrderId || perBookOrderId.length === 0) {
       throw createValidationError('Invalid amazonOrderId: cannot be empty after trimming.');
     }
 
@@ -77,7 +78,7 @@ async function postAmazonOrder(request: NextRequest) {
         return acc;
       }, {} as Record<string, any>);
     
-    const hashInput = JSON.stringify({ ...sortedSpecs, orderId: orderIdValue });
+    const hashInput = JSON.stringify({ ...sortedSpecs, orderId: perBookOrderId });
     const characterHash = createHash('md5')
       .update(hashInput)
       .digest('hex')
@@ -96,8 +97,8 @@ async function postAmazonOrder(request: NextRequest) {
 
     // Build order data for Supabase
     const orderData: any = {
-      orderId: orderIdValue, // Primary key
-      amazon_order_id: orderIdValue, // Unique constraint
+      orderId: perBookOrderId, // Per-book key (unique row identity)
+      amazon_order_id: rootAmazonOrderId, // Root/group id (can repeat for siblings)
       character_hash: characterHash,
       order_status: json.orderStatus || 'Unshipped',
       purchase_date: json.purchaseDate || new Date().toISOString(),
@@ -120,25 +121,15 @@ async function postAmazonOrder(request: NextRequest) {
       orderData.created_at = now;
     }
 
-    // Upsert to Supabase (idempotent via amazon_order_id unique constraint)
-    const { supabase } = await import('@/lib/supabase-client');
-
-    const { data: result, error } = await supabase
-      .from('orders')
-      .upsert(orderData, {
-        onConflict: 'amazon_order_id',
-        ignoreDuplicates: false, // Update if exists (idempotent)
-      })
-      .select()
-      .single();
+    const { data: result, error, wasInsert } = await upsertOrderByPerBookId(orderData);
 
     if (error) {
       console.error('[POST /api/amazon/orders] Supabase upsert error:', error);
       throw new Error(`Failed to store order in Supabase: ${error.message}`);
     }
 
-    const isNewOrder = result?.created_at === result?.updated_at;
-    console.log(`[POST /api/amazon/orders] ${isNewOrder ? '✅ Created' : '✅ Updated'} order ${orderIdValue} (idempotent)`);
+    const isNewOrder = wasInsert;
+    console.log(`[POST /api/amazon/orders] ${isNewOrder ? '✅ Created' : '✅ Updated'} order ${perBookOrderId} (idempotent)`);
 
     // Call W0 webhook if this is a new order (or if explicitly requested)
     // W0 will process the order and update execution_status to 'ready_for_processing'
@@ -147,9 +138,9 @@ async function postAmazonOrder(request: NextRequest) {
       try {
         // Build W0-compatible payload (matches what cron route sends)
         const webhookPayload = {
-          amazonOrderId: orderIdValue,
-          orderId: orderIdValue,
-          id: orderIdValue,
+          amazonOrderId: rootAmazonOrderId,
+          orderId: perBookOrderId,
+          id: perBookOrderId,
           orderDate: orderData.purchase_date,
           purchaseDate: orderData.purchase_date,
           status: 'pending_w0',
@@ -199,7 +190,7 @@ async function postAmazonOrder(request: NextRequest) {
           console.warn(`[POST /api/amazon/orders] W0 webhook call failed (${webhookResponse.status}): ${errorText.substring(0, 200)}`);
           // Don't fail the request - order is stored, W0 can be called manually if needed
         } else {
-          console.log(`[POST /api/amazon/orders] ✅ Called W0 webhook for order ${orderIdValue}`);
+          console.log(`[POST /api/amazon/orders] ✅ Called W0 webhook for order ${perBookOrderId}`);
         }
       } catch (error: any) {
         console.warn(`[POST /api/amazon/orders] W0 webhook call error: ${error.message}`);
@@ -209,8 +200,8 @@ async function postAmazonOrder(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      orderId: orderIdValue,
-      amazonOrderId: orderIdValue,
+      orderId: perBookOrderId,
+      amazonOrderId: rootAmazonOrderId,
       characterHash,
       isNewOrder,
       message: isNewOrder ? 'Order created' : 'Order updated (idempotent)',

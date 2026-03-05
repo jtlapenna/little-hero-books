@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { calculateCharacterHash } from '@/lib/character-hash';
+import { upsertOrderByPerBookId } from '@/lib/supabase-client';
 
 export const dynamic = 'force-dynamic';
 // Note: Cron jobs require Node.js runtime, not Edge
@@ -80,29 +81,6 @@ export async function processAmazonOrders(
   if (testMode) {
     console.log(`[Cron Amazon Orders] [${executionId}] ⚠️ TEST MODE ENABLED - Using mock Amazon order data`);
   }
-
-  const upsertByPerBookOrderId = async (payload: Record<string, unknown>) => {
-    // Purpose: avoid relying on DB ON CONFLICT shape; update by per-book id when row exists.
-    const perBookId = String(payload.orderId ?? payload.order_id ?? '').trim();
-    if (!perBookId) return { data: null, error: new Error('Missing orderId for upsert') };
-
-    const byOrderId = await supabase.from('orders').select('id').eq('orderId', perBookId).maybeSingle();
-    if (byOrderId.error?.code !== 'PGRST116' && byOrderId.error?.code !== '42703' && byOrderId.error) {
-      return { data: null, error: byOrderId.error };
-    }
-    const byOrderIdSnake = byOrderId.error?.code === '42703'
-      ? await supabase.from('orders').select('id').eq('order_id', perBookId).maybeSingle()
-      : null;
-    if (byOrderIdSnake?.error && byOrderIdSnake.error.code !== 'PGRST116') {
-      return { data: null, error: byOrderIdSnake.error };
-    }
-
-    const existingId = (byOrderId.data as any)?.id ?? (byOrderIdSnake?.data as any)?.id;
-    if (typeof existingId === 'number') {
-      return await supabase.from('orders').update(payload).eq('id', existingId).select().single();
-    }
-    return await supabase.from('orders').insert(payload).select().single();
-  };
 
   try {
     let amazonOrders: any[] = [];
@@ -253,7 +231,7 @@ export async function processAmazonOrders(
             }
           } else {
             console.warn(`[Cron Amazon Orders] [${executionId}] Order ${retryOrderIdValue} has no customization data - storing for retry`);
-            const { error: storeError } = await upsertByPerBookOrderId({
+            const { error: storeError } = await upsertOrderByPerBookId({
                 orderId: retryOrderIdValue,
                 root_order_id: retryOrderIdValue,
                 amazon_order_id: retryOrderIdValue,
@@ -358,7 +336,7 @@ export async function processAmazonOrders(
         }
         // If order already exists and w0 has processed it, don't overwrite those fields
         
-        const { data: storedOrder, error: storeError } = await upsertByPerBookOrderId(supabaseOrderData);
+        const { data: storedOrder, error: storeError } = await upsertOrderByPerBookId(supabaseOrderData);
 
         if (storeError) {
           throw new Error(`Supabase store failed: ${storeError.message}`);

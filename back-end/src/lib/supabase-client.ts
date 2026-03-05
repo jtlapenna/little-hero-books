@@ -353,6 +353,87 @@ export async function createOrderInSupabase(order: any) {
   return data;
 }
 
+export interface UpsertByPerBookIdResult {
+  data: Record<string, unknown> | null;
+  error: Error | null;
+  wasInsert: boolean;
+}
+
+export async function upsertOrderByPerBookId(
+  payload: Record<string, unknown>
+): Promise<UpsertByPerBookIdResult> {
+  // Use per-book order id as the write key so sibling rows can share amazon_order_id safely.
+  const perBookIdRaw = payload.orderId ?? payload.order_id;
+  const perBookId = String(perBookIdRaw ?? '').trim();
+  if (!perBookId) {
+    return {
+      data: null,
+      error: new Error('Missing orderId/order_id for per-book upsert'),
+      wasInsert: false,
+    };
+  }
+
+  const normalizedPayload: Record<string, unknown> = {
+    ...payload,
+    orderId: payload.orderId ?? perBookId,
+  };
+
+  const byOrderId = await supabase
+    .from('orders')
+    .select('id')
+    .eq('orderId', perBookId)
+    .maybeSingle();
+
+  if (byOrderId.error && byOrderId.error.code !== 'PGRST116' && byOrderId.error.code !== '42703') {
+    return { data: null, error: new Error(byOrderId.error.message), wasInsert: false };
+  }
+
+  const byOrderIdSnake = byOrderId.error?.code === '42703'
+    ? await supabase.from('orders').select('id').eq('order_id', perBookId).maybeSingle()
+    : null;
+
+  if (byOrderIdSnake?.error && byOrderIdSnake.error.code !== 'PGRST116') {
+    return { data: null, error: new Error(byOrderIdSnake.error.message), wasInsert: false };
+  }
+
+  const existingId = (byOrderId.data as { id?: number } | null)?.id
+    ?? (byOrderIdSnake?.data as { id?: number } | null)?.id;
+
+  if (typeof existingId === 'number') {
+    const updated = await supabase
+      .from('orders')
+      .update(normalizedPayload)
+      .eq('id', existingId)
+      .select()
+      .single();
+
+    if (updated.error) {
+      return { data: null, error: new Error(updated.error.message), wasInsert: false };
+    }
+    return {
+      data: (updated.data as Record<string, unknown> | null) ?? null,
+      error: null,
+      wasInsert: false,
+    };
+  }
+
+  const inserted = await supabase
+    .from('orders')
+    .insert(normalizedPayload)
+    .select()
+    .single();
+
+  if (inserted.error) {
+    return { data: null, error: new Error(inserted.error.message), wasInsert: true };
+  }
+
+  return {
+    data: (inserted.data as Record<string, unknown> | null) ?? null,
+    error: null,
+    wasInsert: true,
+  };
+}
+
 export interface ListOrdersOptions {
   limit?: number;
   lifecycle?: 'active' | 'recently_delivered' | 'all'; // Filter by lifecycle status
