@@ -319,7 +319,8 @@ export async function POST(request: NextRequest) {
       r2PoseRefContentType: poseRefResponse.headers.get('content-type'),
     });
 
-    // Normalize both buffers to PNG so deterministic check + flip always work
+    // Normalize both buffers to PNG so deterministic check + flip always work.
+    // If input bytes are non-PNG, skip flip gracefully so W2A does not hard-fail.
     let imagePng: Buffer;
     let poseRefPng: Buffer;
     try {
@@ -330,11 +331,24 @@ export async function POST(request: NextRequest) {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[Auto-Flip] Failed to normalize images to PNG:', msg);
+      if (msg.includes('Unsupported')) {
+        recordRequest(characterHash, poseNumber, false, true);
+        return NextResponse.json({
+          success: true,
+          flipped: false,
+          skipped: true,
+          message: 'Skipped auto-flip: unsupported image format.',
+          _debug: {
+            reason: msg,
+            imageFormat,
+            poseRefFormat,
+            imageSignature: signatureHex(imageBuffer),
+            poseRefSignature: signatureHex(poseRefBuffer),
+          },
+        });
+      }
       recordRequest(characterHash, poseNumber, false, false);
-      return NextResponse.json(
-        { success: false, error: `Image conversion failed: ${msg}` },
-        { status: 500 },
-      );
+      return NextResponse.json({ success: false, error: `Image conversion failed: ${msg}` }, { status: 500 });
     }
 
     // ── Step 1: Deterministic silhouette check (fast, no API call) ──

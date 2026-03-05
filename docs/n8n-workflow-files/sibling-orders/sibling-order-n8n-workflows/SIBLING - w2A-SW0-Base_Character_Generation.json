@@ -45,6 +45,20 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
+        "jsCode": "// Preserve Character Specs for SW1 — restore traits after SW0 slimming\nconst j = $json || {};\nlet upstream = {};\ntry {\n  const arr = (typeof $items === 'function') ? $items('Compute Upload Keys') : [];\n  const ix = typeof $itemIndex === 'number' ? $itemIndex : 0;\n  upstream = (arr[ix]?.json) || (arr[0]?.json) || {};\n} catch {}\n\nconst specs = j.characterSpecs || upstream.characterSpecs || upstream.character_specs || upstream.ctx?.characterSpecs || {};\n\nreturn {\n  json: {\n    ...j,\n    characterSpecs: specs,\n    ctx: {\n      ...(upstream.ctx || {}),\n      ...(j.ctx || {}),\n      characterSpecs: j.ctx?.characterSpecs || upstream.ctx?.characterSpecs || specs\n    },\n    orderContext: {\n      ...(upstream.orderContext || {}),\n      ...(j.orderContext || {}),\n      characterSpecs: j.orderContext?.characterSpecs || upstream.orderContext?.characterSpecs || specs\n    },\n    hairPromptBlock: j.hairPromptBlock || upstream.hairPromptBlock || ''\n  },\n  binary: $binary || {}\n};"
+      },
+      "id": "f52ac82b-beb7-48c4-8d31-90fca2c2f666",
+      "name": "Preserve Character Specs for SW1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
         "jsCode": "// Memory Cleanup After Upload1 \u2014 reattach identity, keep keys, drop heavy bits\n// Mode: EACH\n\nconst j = $json || {};\nconst b = $binary || {};\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\n\n// If the uploader nuked context, reattach from a stable upstream node.\nconst UPSTREAM_NODE = 'Compute Upload Keys'; // <-- keep this name in sync\nlet upstream = {};\ntry {\n  const arr = (typeof $items === 'function') ? $items(UPSTREAM_NODE) : [];\n  // pick same item index if available, else first\n  const ix = typeof $itemIndex === 'number' ? $itemIndex : 0;\n  upstream = (arr[ix]?.json) || (arr[0]?.json) || {};\n} catch { /* ignore */ }\n\n// Prefer current JSON, but fill gaps from upstream\nconst root = { ...upstream, ...j };\n\n// Pull any filename/key hints (set earlier by extractor or compute)\nconst fileNameHint = pick(\n  b?.data?.fileName,\n  root.baseGeneratedFileName,\n  root.__meta?.generatedAttemptKey,\n  null\n);\n\n// Identity\nconst fromCharactersPath = (p) => {\n  if (!p || typeof p !== 'string') return null;\n  const m = p.match(/characters\\/([^/]+)/);\n  return m ? m[1] : null;\n};\nconst fromCharsFile = (name) => {\n  if (!name || typeof name !== 'string') return null;\n  const m = name.match(/characters_([A-Za-z0-9]+)_base\\./);\n  return m ? m[1] : null;\n};\n\nlet characterHash =\n  pick(root.characterHash, root.ctx?.characterHash, null)\n  || fromCharactersPath(root.characterPath)\n  || fromCharactersPath(root.__meta?.storageKey)\n  || fromCharsFile(fileNameHint)\n  || null;\n\nconst assetsRoot  = pick(root.assetsRoot, 'book-mvp-simple-adventure/order-generated-assets');\nconst publicR2Url = pick(root.publicR2Url, root.ctx?.publicR2Url, null);\nconst characterPath = pick(root.characterPath, characterHash ? `characters/${characterHash}` : null);\n\n// Canonical storage key (even if uploader didn\u2019t return one)\nconst storageKey =\n  pick(root.__meta?.storageKey, null)\n  || (characterPath ? `${assetsRoot}/${characterPath}/base-character.png` : null);\n\n// Size/mime\nconst bytes = pick(root.base?.bytes, root.__meta?.bytes, root.uploadResult?.ContentLength, root.generatedImage?.size, null);\nconst mime  = pick(root.base?.mime, b?.data?.mimeType, root.generatedImage?.mimeType, 'image/png');\n\n// Build slim JSON\nconst out = {\n  ...(characterHash ? { characterHash } : {}),\n  ...(characterPath ? { characterPath } : {}),\n  assetsRoot,\n  ...(publicR2Url ? { publicR2Url } : {}),\n  __testMode: !!(root.__testMode || root.testMode || root.ctx?.__testMode || root.ctx?.testMode),\n  __meta: {\n    ...(root.__meta || {}),\n    ...(storageKey ? { storageKey } : {}),\n    ...(bytes ? { bytes } : {}),\n    ...(fileNameHint ? { generatedAttemptKey: fileNameHint } : {})\n  },\n  // pass canonicals if present\n  skinToneCanonical: root.skinToneCanonical,\n  clothingTypeCanonical: root.clothingTypeCanonical,\n  hairStyleCanonical: root.hairStyleCanonical,\n  hairPromptMeta: root.hairPromptMeta,\n  shortsHex: root.shortsHex,\n  ...(fileNameHint ? { baseGeneratedFileName: fileNameHint } : {}),\n  base: {\n    ...(root.base || {}),\n    ...(storageKey ? { uploadKey: storageKey } : {}),\n    ...(bytes ? { bytes } : {}),\n    ...(mime ? { mime } : {})\n  }\n};\n\n// Drop binaries to reduce memory\nreturn { json: out, binary: {} };\n"
       },
       "id": "776b1155-7257-44d3-8eb0-d0b089184647",
@@ -905,6 +919,17 @@
       ]
     },
     "SW0 Out \u2014 Pack Envelope": {
+      "main": [
+        [
+          {
+            "node": "Preserve Character Specs for SW1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preserve Character Specs for SW1": {
       "main": [
         [
           {
