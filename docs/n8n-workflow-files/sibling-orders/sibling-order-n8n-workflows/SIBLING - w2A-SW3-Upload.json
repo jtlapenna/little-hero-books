@@ -173,6 +173,152 @@
       "id": "dd567f9e-f818-4eb5-8130-cd064e5acf20",
       "name": "HTTP Request1",
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Resolve Phase 5A backend-only auto-flip action and default status.\nconst j = { ...($json || {}) };\nconst useBackendFlipOnly = true;\nconst rawVerdict = String(\n  j.geminiVerdict ??\n  j.orientationVerdict ??\n  j.autoFlipVerdict ??\n  j.__meta?.geminiVerdict ??\n  ''\n).toUpperCase();\nconst geminiVerdict = ['ORIGINAL', 'FLIPPED', 'UNSURE'].includes(rawVerdict) ? rawVerdict : 'UNSURE';\nconst autoFlipAction = geminiVerdict === 'FLIPPED' ? 'backend_flip' : 'no_call';\nconst autoFlipStatus = geminiVerdict === 'ORIGINAL' ? 'no_flip_needed' : (geminiVerdict === 'UNSURE' ? 'verdict_unusable' : null);\nconst generatedImageUrl = (j.generatedImageUrl && String(j.generatedImageUrl).trim().length)\n  ? j.generatedImageUrl\n  : ((j.publicR2Url && j.__meta?.storageKey)\n    ? `${String(j.publicR2Url).replace(/\\/+$/, '')}/${String(j.__meta.storageKey).replace(/^\\/+/, '')}`\n    : null);\nreturn {\n  json: {\n    ...j,\n    useBackendFlipOnly,\n    geminiVerdict,\n    autoFlipAction,\n    autoFlipStatus,\n    generatedImageUrl\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        64
+      ],
+      "id": "2d7802e4-f74f-4f8f-b6d6-03b47795bfaf",
+      "name": "Resolve Auto Flip Action"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "296a2f31-2e07-4207-bee5-b0a6b5e513d2",
+              "leftValue": "={{ $json.autoFlipAction }}",
+              "rightValue": "legacy_check",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1616,
+        64
+      ],
+      "id": "13f34764-e6a9-4b7c-8a10-e4a53997baf5",
+      "name": "Route Legacy Auto Flip"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3cedad93-85a9-4fcf-9ed2-2579d394eb70",
+              "leftValue": "={{ $json.autoFlipAction }}",
+              "rightValue": "backend_flip",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1856,
+        192
+      ],
+      "id": "9e2059bb-c4c4-433e-83bf-f05cc9531791",
+      "name": "Route Backend Auto Flip"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://admin.littleherolabs.com/api/orders/' + encodeURIComponent(String($json.amazonOrderId || $json.orderId || '')) + '/auto-flip-pose' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.BACKEND_INTERNAL_TOKEN ? ('Bearer ' + $env.BACKEND_INTERNAL_TOKEN) : '' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const orderId = String($json.amazonOrderId || $json.orderId || '').trim(); const poseNum = Number($json.poseNumber ?? $json.currentPoseNumber ?? 0); const safePoseNum = Number.isFinite(poseNum) ? poseNum : 0; const poseNN = String(safePoseNum).padStart(2, '0'); const runId = String($execution.id || $json.runId || Date.now()); return { poseNumber: safePoseNum, stage: 'preBria', decisionSource: 'gemini', generatedImageUrl: $json.generatedImageUrl || null, flipRequestId: `AUTOFLIP-${orderId}-preBria-pose${poseNN}-${runId}` }; })() }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2080,
+        128
+      ],
+      "id": "2432b293-c444-4d1d-b61c-d260147768f4",
+      "name": "HTTP Request Backend Auto Flip",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Stamp deterministic backend outcome for fail-open QA visibility.\nconst j = { ...($json || {}) };\nconst explicitSuccess = j.success === true || j.body?.success === true;\nconst fallbackOk = Number.isFinite(j.statusCode) ? (j.statusCode >= 200 && j.statusCode < 300) : false;\nreturn {\n  json: {\n    ...j,\n    autoFlipStatus: explicitSuccess || fallbackOk ? 'flipped' : 'flip_failed'\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        128
+      ],
+      "id": "f63a22cf-f463-4261-af8f-44ca67d8fd7c",
+      "name": "Finalize Backend Auto Flip Status"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lightweight fail-open alert for backend flip failures.\nconst j = { ...($json || {}) };\nif (j.autoFlipStatus !== 'flip_failed') {\n  return { json: j };\n}\n\nconst orderId = String(j.amazonOrderId || j.orderId || '').trim();\nconst poseNumber = Number(j.poseNumber ?? j.currentPoseNumber ?? 0);\nconst alert = {\n  event: 'auto_flip_failed',\n  orderId,\n  poseNumber: Number.isFinite(poseNumber) ? poseNumber : 0,\n  geminiVerdict: j.geminiVerdict || null,\n  autoFlipAction: j.autoFlipAction || null,\n  autoFlipStatus: j.autoFlipStatus,\n  statusCode: Number.isFinite(j.statusCode) ? j.statusCode : null,\n  responseSnippet: String(j.error || j.message || j.body?.error || j.body?.message || '').slice(0, 500),\n  correlationId: j.correlationId || null,\n  at: new Date().toISOString()\n};\n\nconst webhookUrl = String($env.AUTO_FLIP_ALERT_WEBHOOK_URL || '').trim();\nif (webhookUrl) {\n  try {\n    await fetch(webhookUrl, {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify(alert),\n    });\n  } catch (e) {\n    console.error('[AUTO_FLIP_ALERT_SEND_FAILED]', e?.message || e, alert);\n  }\n} else {\n  console.log('[AUTO_FLIP_ALERT]', JSON.stringify(alert));\n}\n\nreturn { json: j };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        128
+      ],
+      "id": "cf4cc0d8-1d95-4251-bf8c-b6b794ca5f4e",
+      "name": "Emit Flip Failed Alert"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Keep status assigned by resolver for ORIGINAL/UNSURE backend-mode paths.\nreturn { json: { ...($json || {}) } };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        272
+      ],
+      "id": "01f1923c-4a78-4fca-afee-b7ca5dd6ec0c",
+      "name": "Keep Auto Flip Status"
     }
   ],
   "pinData": {
@@ -417,7 +563,7 @@
       "main": [
         [
           {
-            "node": "HTTP Request1",
+            "node": "Resolve Auto Flip Action",
             "type": "main",
             "index": 0
           }
@@ -526,6 +672,75 @@
         [
           {
             "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Auto Flip Action": {
+      "main": [
+        [
+          {
+            "node": "Route Legacy Auto Flip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Legacy Auto Flip": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Backend Auto Flip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Backend Auto Flip": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Backend Auto Flip",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Keep Auto Flip Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Backend Auto Flip": {
+      "main": [
+        [
+          {
+            "node": "Finalize Backend Auto Flip Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Backend Auto Flip Status": {
+      "main": [
+        [
+          {
+            "node": "Emit Flip Failed Alert",
             "type": "main",
             "index": 0
           }

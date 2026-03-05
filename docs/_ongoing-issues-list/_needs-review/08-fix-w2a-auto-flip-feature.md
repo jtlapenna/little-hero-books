@@ -1,247 +1,441 @@
-# Issue: Fix W2A Auto-Flip Feature (not working)
+# Issue: Fix W2A Auto-Flip Feature (production bottleneck)
 
-**Status:** 🟡 Fix applied (2026-03-02); verify in production  
+**Status:** 🟡 Backend-only path implemented; runtime verification pending  
 **Priority:** High  
 **Created:** 2026-01-28  
-**Last Updated:** 2026-03-02
+**Last Updated:** 2026-03-05
 
-## Description
+## Problem Summary
 
-The **auto-flip** feature in the W2A workflow (`w2A-SW3-Upload.json`) was not working. The API returned 400: "Could not extract R2 key from imageUrl" when the workflow sent **public R2 URLs** (e.g. `https://pub-....r2.dev/.../pose11.png`). The backend only accepted URLs in the form `/api/assets/{key}`.
+The prior W2A auto-flip path called `POST /api/check-and-flip-orientation` on `admin.littleherolabs.com`.  
+Historical live tests showed:
 
-## Root cause (2026-02-02)
+- `GET /api/check-and-flip-orientation/stats` returns 200
+- `POST /api/check-and-flip-orientation` fails intermittently with Cloudflare Error 1102 (`Worker exceeded resource limits`)
 
-- **Backend** `check-and-flip-orientation` (`back-end/src/app/api/check-and-flip-orientation/route.ts`) used `extractR2Key()` which only matched `/api/assets/{key}`.
-- **Workflow** sends full public R2 URLs for `imageUrl` and `poseRefUrl` (built from `publicR2Url` + storage key). So extraction failed and the API returned 400.
+Result at the time: flip decisions were unreliable, and SW3 could continue without correcting orientation.
 
-## Fix applied
+## Why this keeps failing
 
-- **`extractR2Key()`** now also accepts **public R2 URLs**: hostname ending with `.r2.dev`; the path (without leading slash) is used as the R2 object key. Existing `/api/assets/{key}` behavior is unchanged.
-- No workflow changes required; the same payload (public `imageUrl` / `poseRefUrl`) now works.
+The route currently mixes too many responsibilities in a Worker runtime:
 
-## Impact
+1. Download two images from R2
+2. Decode/normalize image formats
+3. Run deterministic orientation logic
+4. Optionally call Gemini
+5. Build flipped candidate
+6. Flip image bytes
+7. Upload back to R2
 
-- Character poses may be oriented incorrectly (mirrored the wrong way)
-- Increased QA time / manual intervention
-- Potential downstream layout issues (W3 composition assumes a specific facing/orientation)
+Even with code fixes, this is too heavy for Worker resource limits during real traffic.
 
-## Affected File(s)
+## Target Architecture (final)
 
-- `docs/n8n-workflow-files/finals/w2A-SW3-Upload.json`
+Keep **decision** and **mutation** separated:
 
-## Symptoms / Repro
+- **In SW3 (n8n):** ask Gemini only for orientation verdict (`ORIGINAL`, `FLIPPED`, or `UNSURE`)
+- **In backend (non-Worker path):** if `FLIPPED`, do the actual pixel flip + R2/manifest update
 
-- Auto-flip does not trigger when expected
-- Output images do not reflect the intended flip decision
-- Any “flipped” metadata (if present) does not match the actual image orientation
+This keeps n8n simple and removes expensive image processing from Cloudflare Worker.
 
-## Investigation Needed
+### Final flow hardening snapshot (Phase 6)
 
-1. **Locate the auto-flip decision point**
-   - Where is flip computed (prompting vs post-processing)?
-   - Is flip driven by pose metadata, a model response, or deterministic rules?
+- SW3 sends Gemini verdicts and only calls backend mutation on `FLIPPED`.
+- Backend mutation route: `POST /api/orders/[orderId]/auto-flip-pose` (preBria only).
+- Route hardening in place:
+  - bearer auth when `BACKEND_INTERNAL_TOKEN` is configured
+  - idempotent no-op via deterministic `flipRequestId`
+  - canonical key overwrite + manifest/order timestamp update
+- Legacy `POST /api/check-and-flip-orientation` is retained for diagnostics/manual checks only and is not part of the production SW3 critical path.
 
-2. **Verify data flow**
-   - Does flip state propagate through nodes to the upload/output?
-   - Is it overwritten/reset by later nodes?
+## Step-by-step pseudocode (source of truth)
 
-3. **Verify output handling**
-   - If flip is done via image transform: confirm the transform actually runs
-   - If flip is encoded in URLs/keys: confirm the correct asset is referenced
+```text
+for each pose in SW3:
+  generatedImageUrl = uploaded pose image URL
+  poseRefUrl = canonical pose reference URL
 
-4. **Check for schema/field mismatches**
-   - E.g., `flip` vs `flipped` vs `shouldFlip`, or numeric vs boolean
+  geminiVerdict = call Gemini with [REFERENCE, GENERATED] and strict answer format
 
-## Proposed Fix (likely)
+  if geminiVerdict == "ORIGINAL":
+    mark autoFlip.status = "no_flip_needed"
+    continue
 
-- Ensure the flip decision is **computed once** and carried through as a single field (e.g., `flipped: boolean`)
-- Apply flip consistently either:
-  - **At generation time** (prompt/model), or
-  - **As an explicit image transform step** prior to upload
-- Add/update manifest fields so downstream steps can rely on:
-  - `poseNumber`
-  - `flipped`
-  - final `imagePath` / `r2Key`
+  if geminiVerdict == "FLIPPED":
+    call backend POST /api/orders/{orderId}/auto-flip-pose
+      body: { poseNumber, stage, generatedImageUrl, reason: "gemini_mismatch" }
 
-## Acceptance Criteria
+    if backend returns success:
+      mark autoFlip.status = "flipped"
+    else:
+      mark autoFlip.status = "flip_failed"
+      continue pipeline (fail-open) but flag for QA
 
-- [ ] Auto-flip reliably flips images when expected across multiple poses/orders
-- [ ] Flip metadata is correct and matches the rendered image
-- [ ] Downstream workflows (W2B/W3) receive consistent orientation and do not regress
+  if geminiVerdict == "UNSURE" or geminiVerdict is invalid/empty:
+    mark autoFlip.status = "verdict_unusable"
+    continue pipeline (fail-open) and flag for QA
+```
 
-## Notes
+## Implementation Plan
 
-- Coordinate with W3 composition assumptions (pose placement + any per-pose transforms).
-- **Verification:** After deploying the backend fix, run W2A with an order that uses public R2 URLs; confirm check-and-flip-orientation returns 200 and flips when Gemini reports DIFFERENT.
+### Phase 0 - Alignment and freeze (small, 30-60 min)
 
-### 2026-02-05: MAX_TOKENS fix
+**Goal:** lock scope before touching workflow/runtime behavior.
 
-- **Symptom:** API returned `400 - "Generation stopped: MAX_TOKENS"`; auto-flip never ran.
-- **Cause:** `maxOutputTokens` was too low; Gemini sometimes needs more tokens to complete even a one-word answer.
-- **Fix:** (1) Increased `maxOutputTokens`. (2) When `finishReason === 'MAX_TOKENS'`, still accept the response if it already contains a usable answer (use the truncated answer instead of failing).
+Tasks:
+- confirm final contract fields: `orderId`, `poseNumber`, `stage`, `decisionSource`
+- confirm SW3 should be fail-open on flip failures
+- freeze any unrelated auto-flip edits during rollout
 
-### 2026-02-05: Gemini model update
+Exit criteria:
+- agreed request/response contract
+- agreed rollback switch (`useBackendFlipOnly`)
 
-- **Cause:** `gemini-1.5-flash` is no longer accessible via API.
-- **Choice:** Use **`gemini-2.5-flash-lite`** (not 2.5-flash). Rationale:
-  - Task is simple **classification** (orientation) — Flash Lite is recommended for classification and latency-sensitive tasks.
-  - Flash Lite is cheaper and faster than 2.5-flash, and supports vision.
-- **Fix:** Route now calls `gemini-2.5-flash-lite`.
+### Phase 0 Decision Log (locked 2026-03-05)
 
-### 2026-02-05: Orientation prompt tightened (false matches)
+- SW3 behavior on flip failure: **fail-open = yes** (continue pipeline, flag for QA)
+- Gemini verdict set: **`ORIGINAL` / `FLIPPED` / `UNSURE`**
+- Initial backend scope: **`preBria` only**
+- Source of truth for image to mutate: **manifest lookup by `orderId + poseNumber + stage`** (do not trust URL as authoritative)
+- Rollout switch: **workflow flag `useBackendFlipOnly`** (default off for canary, on after validation)
+- Canary size: **a few tests (3-5 controlled runs)**
 
-- **Symptom:** Gemini sometimes returned a \"no flip\" answer even when the generated image and reference were mirrored.
-- **Cause:** Ambiguous prompt; model could over-index on style differences or interpret \"facing\" loosely.
-- **Fix:** New prompt clearly defines roles (REFERENCE vs ORIGINAL vs FLIPPED) and asks for **ORIGINAL** or **FLIPPED** only. Also log the raw Gemini response for debugging.
+### Phase 1 - Backend endpoint scaffold (small, 1-2 hrs)
 
-### 2026-02-19: Deterministic silhouette check + Gemini prompt restructure
+**Goal:** create a callable endpoint with strict validation and no workflow dependency.
 
-- **Symptom:** For pose03 (character hash `129ceb168e2432ed`), endpoint returned `"flipped": false, "message": "Orientations match, no flip needed"` when the image was clearly facing the wrong direction.
-- **Root cause (two problems):**
-  1. **Prompt structure:** All text was in one block, followed by three unlabeled inline images. Gemini had to guess which image was which by position alone — unreliable, especially with flash-lite.
-  2. **Model choice:** `gemini-2.5-flash-lite` is optimized for speed/cost, not vision accuracy. It's the wrong model for nuanced 3-image orientation comparison.
-- **Fix (three changes):**
-  1. **Primary: Deterministic silhouette check.** Compares the **reference silhouette mask** to the generated mask, and also compares the reference to the **horizontally mirrored** generated mask. Uses a bounding-box-normalized grid so scale/position differences don’t dominate. No API call needed — fast, deterministic, zero cost. Confidence threshold (1.5x ratio) prevents false positives when the two comparisons are too close.
-  2. **Gemini fallback with interleaved labels.** When the deterministic check is inconclusive (character nearly centered), falls back to Gemini with each image explicitly labeled inline (`REFERENCE pose:` → image → `IMAGE A — ORIGINAL:` → image → `IMAGE B — FLIPPED:` → image → question). This eliminates the ambiguity.
-  3. **Upgraded Gemini model** to `gemini-2.5-flash` for better vision accuracy in the fallback path (and broader availability than `gemini-2.0-flash`).
-- **Debug output:** Response now includes `_debug: { decisionSource, deterministic, geminiRaw }` so we can see exactly which path was taken and why.
+Create endpoint:
+- `POST /api/orders/[orderId]/auto-flip-pose`
 
-### 2026-02-21: Replace pngjs with fast-png (Cloudflare Workers compatibility)
+Tasks:
+- add input validation with early returns
+- return typed error payloads for invalid requests
+- add structured logs (`orderId`, `poseNumber`, `stage`, `decisionSource`)
+- enforce `stage=preBria` for initial release
 
-- **Symptom:** API returned `500 - "Class constructor Inflate cannot be invoked without 'new'"`. SW3 Upload node failed when calling check-and-flip-orientation.
-- **Root cause:** `pngjs` uses Node's `zlib.Inflate` via `zlib.Inflate.call(this, opts)`. On Cloudflare Workers, the zlib polyfill (or Node compat layer) provides an ES6 class `Inflate` that cannot be invoked with `.call()` — it must be used with `new`, causing the constructor error.
-- **Fix:** Replaced `pngjs` with `fast-png` (uses `fflate` for decompression, pure JS, Workers-compatible). Updated `horizontalCenterOfMass` and `flipPngHorizontally` to use `decode`/`encode` from fast-png.
+Exit criteria:
+- endpoint returns 400 on bad payloads
+- endpoint returns 501/500 placeholder for unimplemented flip path (temporary)
 
-### 2026-02-25 (first): Guard against non-PNG inputs (wrong PNG signature)
+### Phase 2 - Flip engine + persistence wiring (medium, 0.5-1 day)
 
-- **Symptom:** API returned `500 - "{\"success\":false,\"error\":\"wrong PNG signature\"}"` from n8n HTTP node.
-- **Cause:** Deterministic silhouette and flip steps attempted PNG decode on buffers that were not PNG (or had wrong key/format), which threw before fallback handling.
-- **Fix:** `check-and-flip-orientation` now:
-  - Validates PNG signatures before deterministic/flip decode.
-  - Skips deterministic PNG path when either image is non-PNG.
-  - Logs MIME/signature diagnostics (`imageSig`, `poseRefSig`) for fast root-cause tracing.
-  - Returns success with `skipped: true` (instead of 500) when a non-PNG generated image cannot be flipped.
+**Goal:** make endpoint fully functional using existing persistence flow.
 
-### 2026-02-25 (second): Non-PNG images silently bypass all flip logic
+Tasks:
+- extract/reuse helpers from `back-end/src/app/api/orders/[orderId]/replace-image/route.ts`
+  - resolve canonical pose key from manifest
+  - update manifest replacement fields/history
+  - persist manifest
+  - update Supabase `updated_at`
+- implement server-side horizontal flip and upload to same canonical R2 key
 
-- **Symptom:** API returned `success: true, flipped: false` with `deterministic: "skipped-non-png"` and `geminiRaw: "ORIGINAL"` even though the generated character clearly faced the wrong direction compared to the reference pose.
-- **Root cause (two cascading problems):**
-  1. **Images stored as non-PNG (likely WebP):** Generated images from AI model are sometimes WebP despite having `.png` R2 key/extension. The previous fix correctly detected this but *skipped all processing* — both the deterministic silhouette check and the flip candidate computation.
-  2. **Gemini only saw one candidate:** Because `flippedCandidateBuffer` was null (couldn't flip a non-PNG), Gemini only received the REFERENCE + ORIGINAL images. Asked "ORIGINAL or FLIPPED?", it had no flipped image to compare against, so it always answered "ORIGINAL".
-- **Fix:** Complete rework of format handling:
-  1. **Format detection:** New `detectImageFormat()` identifies actual format (PNG/WebP/JPEG) from magic bytes, independent of R2 `content-type` header.
-  2. **Automatic conversion:** New `ensurePngBuffer()` uses `sharp` (already a dependency) to convert any image format to PNG before processing. Both the generated image and pose reference are normalized to PNG.
-  3. **All paths now work:** Deterministic check, flipped candidate computation, Gemini comparison, and the actual flip all operate on PNG buffers regardless of the original R2 format.
-  4. **Correct MIME types for Gemini:** Images sent to Gemini always use `image/png` (the actual format after conversion), not the potentially wrong R2 content-type header.
-  5. **Flipped result uploaded as PNG:** The flipped image is always uploaded to R2 as `image/png` with correct content-type.
-  6. **Debug output** now includes `imageFormat` and `poseRefFormat` fields showing the detected source formats.
+Exit criteria:
+- local/manual API test flips a real pose and persists manifest updates
+- response returns `{ success: true, flipped: true, r2Key, replacedAt }`
 
----
+### Phase 3 - SW3 integration behind flag (medium, 0.5 day)
 
-## Testing the endpoint (without n8n)
+**Goal:** route only post-Gemini mutation to backend endpoint.
 
-You can test `POST /api/check-and-flip-orientation` directly with curl or a script.
+Workflow changes (`w2A-SW3-Upload.json` + sibling copy):
+- keep upload path unchanged
+- keep Gemini orientation check
+- branch on verdict:
+  - `ORIGINAL` -> continue
+  - `FLIPPED` -> call `/api/orders/{orderId}/auto-flip-pose`
+  - `UNSURE` -> continue + set `autoFlipStatus=verdict_unusable`
+- write `autoFlipStatus` (`no_flip_needed`, `flipped`, `flip_failed`, `verdict_unusable`)
+- gate behavior with `useBackendFlipOnly`
 
-### Required payload
+Exit criteria:
+- with flag off: old behavior unchanged
+- with flag on: backend endpoint is used for flip
+
+### Phase 4 - Canary rollout (small, 2-4 hrs)
+
+**Goal:** validate stability on a controlled batch.
+
+Tasks:
+- run 3-5 controlled W2A orders (mix of expected flip/no-flip)
+- capture n8n execution evidence and backend logs
+- verify R2 key overwrite + manifest consistency
+
+Exit criteria:
+- zero Cloudflare 1102 in canary path
+- no W2B/W3 regressions from flipped assets
+
+### Phase 5 - Full rollout + disable heavy path (small, 1-2 hrs)
+
+**Goal:** move production fully to backend-flip path.
+
+Tasks:
+- enable `useBackendFlipOnly` for all runs
+- stop SW3 calls to `/api/check-and-flip-orientation`
+- keep legacy endpoint for manual diagnostics only
+
+Exit criteria:
+- production workflow no longer depends on Worker-heavy auto-flip route
+
+### Phase 6 - Cleanup and hardening (optional, 0.5 day)
+
+**Goal:** reduce future drift and simplify operations.
+
+Tasks:
+- document final flow in workflow notes and issue docs
+- add lightweight alert for `autoFlipStatus=flip_failed`
+- add regression checklist for pose orientation in release QA
+
+Exit criteria:
+- docs and runbook reflect new architecture
+- monitoring path exists for silent flip failures
+
+## API Contract (proposed)
+
+### Request
 
 ```json
 {
-  "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/{characterHash}/poses/pose{N}.png",
-  "poseRefUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/characters/poses/pose{N}.png",
-  "characterHash": "d442cde92b91c581",
-  "poseNumber": 3
+  "poseNumber": 3,
+  "stage": "preBria",
+  "decisionSource": "gemini",
+  "generatedImageUrl": "https://pub-.../book-mvp-simple-adventure/order-generated-assets/characters/{hash}/poses/pose03.png",
+  "flipRequestId": "AUTOFLIP-{orderId}-preBria-pose03-{runId}"
 }
 ```
 
-- `imageUrl`: Full public R2 URL to the **generated** character pose
-- `poseRefUrl`: Full public R2 URL to the **reference** pose (from `characters/poses/poseNN.png`)
-- `characterHash`: Character hash from the order
-- `poseNumber`: Pose index (0–14 typically)
+Notes:
+- `stage` is restricted to `preBria` in Phase 1-5 scope.
+- `generatedImageUrl` is optional and diagnostic-only; backend resolves the target from manifest.
+- `flipRequestId` should be deterministic per SW3 attempt and is used for idempotent no-op on retries.
+- If `BACKEND_INTERNAL_TOKEN` is configured, callers must send `Authorization: Bearer <token>`.
 
-### Local (backend on port 3001)
+### Success response
 
-```bash
-curl -X POST http://localhost:3001/api/check-and-flip-orientation \
-  -H "Content-Type: application/json" \
-  -d '{
-    "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/d442cde92b91c581/poses/pose03.png",
-    "poseRefUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/characters/poses/pose03.png",
-    "characterHash": "d442cde92b91c581",
-    "poseNumber": 3
-  }'
+```json
+{
+  "success": true,
+  "flipped": true,
+  "orderId": "TEST-AMZ-...",
+  "poseNumber": 3,
+  "stage": "preBria",
+  "r2Key": "book-mvp-simple-adventure/order-generated-assets/characters/{hash}/poses/pose03.png",
+  "replacedAt": "2026-03-05T00:00:00.000Z"
+}
 ```
 
-### Production
+### Error response
 
-```bash
-curl -X POST https://admin.littleherolabs.com/api/check-and-flip-orientation \
-  -H "Content-Type: application/json" \
-  -d '{
-    "imageUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/d442cde92b91c581/poses/pose03.png",
-    "poseRefUrl": "https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/characters/poses/pose03.png",
-    "characterHash": "d442cde92b91c581",
-    "poseNumber": 3
-  }'
+```json
+{
+  "success": false,
+  "error": "message"
+}
 ```
 
-### Expected response
+## Acceptance Criteria
 
-- **Success (no flip needed):** `{"success":true,"flipped":false,"imageUrl":"...","message":"Orientations match, no flip needed","_debug":{...}}`
-- **Success (flipped):** `{"success":true,"flipped":true,"imageUrl":"...","message":"Image was flipped and overwritten in R2","_debug":{...}}`
-- **Error:** `{"success":false,"error":"..."}` with HTTP 4xx/5xx
+- [ ] No SW3 calls to `/api/check-and-flip-orientation` in production workflow path
+- [ ] Gemini verdict is visible in SW3 execution logs (`ORIGINAL`/`FLIPPED`/`UNSURE`)
+- [ ] `FLIPPED` verdict triggers backend flip endpoint and returns 200
+- [ ] Flipped image is overwritten at canonical R2 key (no retry-suffix drift)
+- [ ] Manifest and order `updated_at` are updated after flip
+- [ ] W2B/W3 consume corrected image without manual intervention
+- [ ] No Cloudflare 1102 errors in this path
 
-Replace `d442cde92b91c581` and `pose03` with real values from an order that has generated poses in R2.
+## Validation Plan
 
----
+### Test matrix
 
-## Why it was STILL not working (2026-03-02)
+1. Pose that should stay original
+2. Pose that should flip
+3. Non-PNG source bytes (jpeg/webp) with `.png` key
+4. Missing pose entry in manifest
+5. Backend flip endpoint transient failure (verify fail-open and QA flag)
 
-### Root cause: wrong pose reference path
+### Runtime checks
 
-The **orchestrator** (`w2A-Orchestrator.json`) node **Init / Validate Inputs** (Entry Shim) was setting:
+- n8n execution:
+  - Gemini verdict node output
+  - flip endpoint HTTP status/body
+  - `autoFlipStatus` field
+- Backend logs:
+  - resolved key, stage, pose number
+  - upload success
+  - manifest update success
 
-- `poseRefKey` = `templates/poses/pose-09.png` (using `templatePath` + hyphenated filename)
-- So `poseRefPublicUrl` = `https://pub-xxx.r2.dev/templates/poses/pose-09.png`
+## Phase 6 Orientation Regression Checklist (release QA)
 
-The **actual** pose library in R2 (and used by SW2, SW3 pinData, and audits) is:
+- [ ] `ORIGINAL` verdict case:
+  - `autoFlipAction=no_call`
+  - `autoFlipStatus=no_flip_needed`
+  - no backend flip mutation call recorded
+- [ ] `FLIPPED` verdict case:
+  - `autoFlipAction=backend_flip`
+  - backend route returns success JSON
+  - canonical R2 key overwritten (no retry-suffix drift)
+  - `autoFlipStatus=flipped`
+- [ ] `UNSURE` verdict case:
+  - `autoFlipAction=no_call`
+  - `autoFlipStatus=verdict_unusable`
+  - pipeline continues (fail-open)
+- [ ] Retry/idempotency replay:
+  - repeat backend call with same `flipRequestId`
+  - backend returns idempotent no-op (no second pixel flip)
+  - manifest `lastAutoFlipRequestId` unchanged
+- [ ] Downstream consumption:
+  - W2B uses corrected preBria source after `FLIPPED`
+  - W3 output reflects corrected orientation without manual override
 
-- Key: `book-mvp-simple-adventure/characters/poses/pose09.png` (no hyphen, different path)
+### Evidence fields to capture per sampled run
 
-So when SW3 called `POST /api/check-and-flip-orientation` with that `poseRefUrl`, the backend:
+- SW3 execution: `geminiVerdict`, `autoFlipAction`, `autoFlipStatus`, request payload (`poseNumber`, `stage`, `flipRequestId`)
+- Backend response: `success`, `flipped`, `idempotent` (if replay), `r2Key`, `replacedAt`, HTTP status
+- Persistence evidence: 2a manifest entry (`approvedKey`, `replacedAt`, `replacementCount`, `lastAutoFlipRequestId`), order `updated_at`
 
-1. Extracted key `templates/poses/pose-09.png`
-2. Tried to download from R2 — that object does **not** exist
-3. Returned **500** "Failed to download images" (or 404 from R2)
+## Rollout / Risk Control
 
-The HTTP Request node in SW3 has `onError: "continueRegularOutput"`, so the failure did not stop the workflow; the flip step simply never succeeded.
+1. Deploy backend flip endpoint first (no n8n changes yet)
+2. Add SW3 branch + endpoint call behind a workflow flag (`useBackendFlipOnly=true`)
+3. Run 5-10 controlled orders
+4. If stable, enable for all W2A runs
+5. Keep rollback: switch flag off to bypass flip call (pipeline still runs)
 
-### Fix applied (2026-03-02, revised)
+## Minimal change list
 
-- **Orchestrator unchanged** so existing behaviour is preserved: `poseRefKey` stays as `templates/poses/pose-${NN}.png` for SW1/SW2 and any other consumers.
-- **SW3 only:** In **w2A-SW3-Upload.json** → **HTTP Request1** (check-and-flip), `poseRefUrl` is no longer taken from `$json.poseRefPublicUrl`. It is now built in the node as:  
-  `{publicR2Url}/book-mvp-simple-adventure/characters/poses/pose{NN}.png`  
-  so only the check-and-flip call uses the canonical pose path; nothing else in the pipeline changes.
-- No backend changes required.
+- Backend:
+  - `back-end/src/app/api/orders/[orderId]/auto-flip-pose/route.ts` (new)
+  - `back-end/src/app/api/orders/[orderId]/replace-image/...` (extract shared helper)
+- Workflow:
+  - `docs/n8n-workflow-files/finals/w2A-SW3-Upload.json`
+  - `docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-SW3-Upload.json`
 
-### Curl check (2026-03-02)
+## Notes
 
-- Both `.../book-mvp-simple-adventure/characters/poses/pose03.png` and `.../templates/poses/pose-03.png` return **401 Unauthorized** from the public R2 domain (likely locked down). The backend uses credentials and can fetch either key from R2 if it exists; curl cannot confirm which path is present in the bucket.
+- This plan intentionally reuses the same persistence/update model as the existing Tab 1/Tab 2 manual flip workflow (`replace-image`) so automation and manual tools stay consistent.
+- If needed, keep the old endpoint available for diagnostics, but it should not be in the critical W2A production path.
 
-### Verification
+## Phase 4 Canary Execution Log (2026-03-05)
 
-1. Run a full W2A flow (or at least SW2 → SW3) for an order that has a pose that should be flipped.
-2. In n8n, open the **HTTP Request1** (check-and-flip) execution: response should be **200** with `success: true` and either `flipped: true` or `flipped: false`; no 400/500.
-3. Optionally call the API with curl (see above) using the same `poseRefUrl` format:  
-   `https://pub-xxx.r2.dev/book-mvp-simple-adventure/characters/poses/pose{N}.png`.
+Status: **NO-GO (blocked before SW3 validation)**
 
-### Test script (from back-end/)
+### Batch prepared
 
-```bash
-cd back-end
-npx tsx scripts/test-check-and-flip.ts [baseUrl] [characterHash] [poseNumber]
-```
+- Created 5 controlled canary orders via `POST /api/amazon/orders` (all HTTP 201, `w0Called: true`):
+  - `CANARY2-ORIG-A-1772732951`
+  - `CANARY2-ORIG-B-1772732951`
+  - `CANARY2-FLIP-A-1772732951`
+  - `CANARY2-FLIP-B-1772732951`
+  - `CANARY2-UNSURE-A-1772732951`
 
-Examples:
-- `npx tsx scripts/test-check-and-flip.ts` — localhost:3001, default hash/pose
-- `npx tsx scripts/test-check-and-flip.ts https://admin.littleherolabs.com d442cde92b91c581 3` — production
+### Blocking evidence
+
+- All canary orders remain `executionStatus: pending_w0` / `workflowStep: order_intake` (no W2A/SW3 progression observed).
+- Direct W0 trigger (`POST https://thepeakbeyond.app.n8n.cloud/webhook/order-intake`) returns HTTP 404:
+  - `The requested webhook "POST order-intake" is not registered.`
+- Phase 3 backend flip route is not live in production:
+  - `POST https://admin.littleherolabs.com/api/orders/CANARY2-ORIG-A-1772732951/auto-flip-pose` returns HTTP 404 (Next.js HTML page).
+
+### Sanity checks
+
+- Legacy route health:
+  - `GET /api/check-and-flip-orientation/stats` -> HTTP 200 JSON
+  - `POST /api/check-and-flip-orientation` -> HTTP 400 JSON (validation path)
+
+### Phase 4 decision
+
+- **No-go for Phase 5.**
+- Canary cannot validate SW3 backend-flip behavior until both are true:
+  1. W0 intake webhook is active/reachable in production environment, and
+  2. `POST /api/orders/{orderId}/auto-flip-pose` is deployed and returns JSON (not 404).
+
+### Immediate next actions
+
+1. Deploy backend route `POST /api/orders/[orderId]/auto-flip-pose`.
+2. Confirm deployed route with a smoke call using a known valid order ID.
+3. Re-enable or correct W0 intake webhook target.
+4. Re-run this exact 5-order canary batch and collect SW3 evidence fields (`geminiVerdict`, `autoFlipAction`, `autoFlipStatus`) plus manifest persistence checks.
+
+## Phase 5A Full Rollout Execution Log (2026-03-05)
+
+Status: **IMPLEMENTED IN WORKFLOW JSONS; RUNTIME BLOCKED (preflight 404s)**
+
+### What was changed
+
+- Updated both SW3 workflow source JSONs to enforce backend-only routing in the action resolver:
+  - `docs/n8n-workflow-files/finals/w2A-SW3-Upload.json`
+  - `docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-SW3-Upload.json`
+- `useBackendFlipOnly` is now hard-set to `true` in resolver logic for Phase 5A full rollout.
+- `autoFlipAction` now resolves to:
+  - `backend_flip` when `geminiVerdict=FLIPPED`
+  - `no_call` otherwise (`ORIGINAL`/`UNSURE`)
+- `autoFlipStatus` remains deterministic:
+  - `no_flip_needed` for `ORIGINAL`
+  - `verdict_unusable` for `UNSURE`
+  - backend response mapper still stamps `flipped` or `flip_failed` for `FLIPPED` branch.
+
+### Preflight checks run
+
+- `POST https://thepeakbeyond.app.n8n.cloud/webhook/order-intake` -> **404**
+  - `The requested webhook "POST order-intake" is not registered.`
+- `POST https://admin.littleherolabs.com/api/orders/TEST-AMZ-PHASE5A-SMOKE/auto-flip-pose` -> **404 HTML**
+  - endpoint route not live on deployed backend host.
+
+### Rollback trigger (unchanged)
+
+- Roll back by setting `useBackendFlipOnly=false` if `flip_failed` rises above baseline, backend instability appears, or downstream regressions are observed.
+
+### Next runtime step to complete rollout
+
+1. Import/publish updated SW3 workflow JSONs in n8n.
+2. Deploy backend route `POST /api/orders/[orderId]/auto-flip-pose` to production host.
+3. Re-run live verification sample and confirm:
+   - evidence fields (`geminiVerdict`, `autoFlipAction`, `autoFlipStatus`)
+   - canonical R2 overwrite for `FLIPPED`
+   - manifest and order timestamp persistence.
+
+## Phase 6 Closeout (2026-03-05)
+
+Status: **SOURCE CHANGES COMPLETE; awaiting runtime publish/verification**
+
+### Hardening completed in source
+
+- Docs synced to backend-only architecture and legacy endpoint posture (diagnostics-only).
+- Backend mutation contract includes:
+  - bearer auth expectation when `BACKEND_INTERNAL_TOKEN` is configured
+  - deterministic idempotency via `flipRequestId`
+- Both SW3 source workflow JSONs now include lightweight `flip_failed` alert emission:
+  - if `AUTO_FLIP_ALERT_WEBHOOK_URL` exists, send webhook payload
+  - otherwise emit structured log marker (`[AUTO_FLIP_ALERT]`)
+
+### Checklist location
+
+- Release QA orientation checklist lives in:
+  - `Phase 6 Orientation Regression Checklist (release QA)` in this issue doc.
+
+### Rollback guardrail (unchanged)
+
+- Keep rollback switch: set `useBackendFlipOnly=false` if `flip_failed` rises above baseline, backend instability appears, or downstream regressions are observed.
+
+### Runtime import/publish checklist (final pass)
+
+1. Import both updated SW3 workflow JSONs into n8n and publish the active versions.
+2. Confirm n8n env vars are present:
+   - `BACKEND_INTERNAL_TOKEN` (if backend auth is enabled)
+   - `AUTO_FLIP_ALERT_WEBHOOK_URL` (optional, alert sink)
+3. Deploy backend route `POST /api/orders/[orderId]/auto-flip-pose` to production host.
+4. Run one smoke order that is expected to produce `geminiVerdict=FLIPPED`.
+5. Verify SW3 evidence fields:
+   - `geminiVerdict`, `autoFlipAction`, `autoFlipStatus`, `flipRequestId`
+6. Verify persistence:
+   - canonical R2 key updated for flipped pose
+   - manifest replacement metadata updated
+   - order `updated_at` advanced after flip mutation
+
+### Smoke execution record template
+
+Use one row per smoke order:
+
+| orderId | poseNumber | expectedVerdict | actualVerdict | autoFlipAction | autoFlipStatus | flipRequestId | backendStatusCode | r2OverwriteVerified | manifestUpdated | updatedAtAdvanced | alertEmitted | notes |
+|---|---:|---|---|---|---|---|---:|---|---|---|---|---|
+| TEST-ORDER-001 | 1 | FLIPPED |  |  |  |  |  |  |  |  |  |  |
 

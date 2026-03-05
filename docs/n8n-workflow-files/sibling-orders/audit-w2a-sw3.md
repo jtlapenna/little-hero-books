@@ -1,14 +1,14 @@
 # W2A-SW3 Audit — Upload
 **Sibling Order N+ Support Audit**
 **File:** `w2A-SW3-Upload.json`
-**Audited:** 2026-02-19
-**Status:** Complete
+**Audited:** 2026-03-05
+**Status:** Updated for backend-only auto-flip flow
 
 ---
 
 ## Sub-Workflow Overview
 
-SW3 is the final sub-workflow in the W2A chain. It receives the QA-approved generated pose image from SW2, resolves the correct R2 storage key, and uploads the image. It also calls an orientation-check API endpoint that can flip the image if needed before the upload is finalized.
+SW3 is the final sub-workflow in the W2A chain. It receives the QA-approved generated pose image from SW2, resolves the correct R2 storage key, uploads the image, asks Gemini for orientation verdict, and conditionally calls the backend auto-flip route when needed.
 
 **Full flow:**
 ```
@@ -16,7 +16,9 @@ When Executed by Another Workflow
   → Schema Check + Defaults
   → Capture Lean Meta
   → Prepare Upload (ensure generated)     ← QA pass gate + key resolution
-  → HTTP Request1 (orientation check)
+  → Gemini orientation verdict
+  → Route Backend Auto Flip (FLIPPED only)
+  → HTTP Request Backend Auto Flip
   → Merge
   → Add Upload to R2 (S3)
   → Wait
@@ -119,22 +121,28 @@ Again, purely for context continuity — never used for path construction. No ch
 
 ---
 
-### 5. HTTP Request1 (orientation check)
+### 5. Backend auto-flip routing + call
 **Tag: `NO CHANGE`**
 
-Calls the orientation-check API before the final upload, which may flip the image if the character is facing the wrong direction:
+SW3 now uses backend-only mutation semantics:
 
 ```
-POST https://admin.littleherolabs.com/api/check-and-flip-orientation
+POST https://admin.littleherolabs.com/api/orders/{orderId}/auto-flip-pose
 {
-  "imageUrl": "{{ publicR2Url }}/{{ __meta.storageKey }}",
-  "poseRefUrl": "{{ poseRefPublicUrl }}",
-  "characterHash": "{{ characterHash }}",
-  "poseNumber": {{ poseNumber }}
+  "poseNumber": <number>,
+  "stage": "preBria",
+  "decisionSource": "gemini",
+  "generatedImageUrl": "<optional-diagnostic-url>",
+  "flipRequestId": "AUTOFLIP-{orderId}-preBria-pose{NN}-{runId}"
 }
 ```
 
-`imageUrl` is constructed from `publicR2Url` + `__meta.storageKey` — both character-hash keyed. `poseRefPublicUrl` is a static template path. `characterHash` and `poseNumber` are identifiers, not order paths. No order ID in any parameter. No changes needed.
+Behavior:
+- `ORIGINAL` and `UNSURE` verdicts skip backend call (`autoFlipAction=no_call`).
+- `FLIPPED` verdict calls backend mutation route (`autoFlipAction=backend_flip`).
+- `autoFlipStatus` stays fail-open and deterministic (`flipped` or `flip_failed` for backend branch).
+
+This keeps expensive image mutation outside the Worker-heavy orientation endpoint and aligns with the production backend-only design.
 
 ---
 
@@ -195,7 +203,7 @@ This is the correct behavior — the orchestrator needs `amazonOrderId` to route
 | Schema Check + Defaults | `NO CHANGE` | amazonOrderId carried as context, not used for paths |
 | Capture Lean Meta | `NO CHANGE` | All storage keys character-hash keyed |
 | Prepare Upload (ensure generated) | `NO CHANGE` | QA gate + character-hash keyed key resolution |
-| HTTP Request1 | `NO CHANGE` | orientation check; character-hash keyed URL |
+| Backend auto-flip routing + call | `NO CHANGE` | FLIPPED-only backend mutation call with fail-open status handling |
 | Merge / Merge1 | `NO CHANGE` | Branch merges only |
 | Add Upload to R2 | `NO CHANGE` | Character-hash keyed S3 write; all fallbacks also character-hash keyed |
 | Wait | `NO CHANGE` | Delay only |
