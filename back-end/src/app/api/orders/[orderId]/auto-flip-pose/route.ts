@@ -64,6 +64,16 @@ async function loadBuffer(bucket: string, key: string): Promise<Buffer> {
   return Buffer.from(await response.arrayBuffer());
 }
 
+async function loadFromKnownBuckets(key: string): Promise<{ buffer: Buffer; bucket: string }> {
+  try {
+    return { buffer: await loadBuffer(R2_ORDERS_BUCKET, key), bucket: R2_ORDERS_BUCKET };
+  } catch (ordersError) {
+    const ordersMessage = safeErrorMessage(ordersError);
+    if (!isNotFoundError(ordersMessage)) throw ordersError;
+    return { buffer: await loadBuffer(R2_PUBLIC_BUCKET, key), bucket: R2_PUBLIC_BUCKET };
+  }
+}
+
 async function loadManifest2A(
   orderId: string,
   logContext: Record<string, unknown>,
@@ -290,15 +300,18 @@ export async function POST(
     const poseRefKey = buildPoseReferenceKey(poseNumberValue);
 
     let sourceImage: Buffer | null = null;
+    let sourceBucket = R2_ORDERS_BUCKET;
     let resolvedSourceKey = canonicalKey;
     try {
-      sourceImage = await loadBuffer(R2_ORDERS_BUCKET, canonicalKey);
+      const source = await loadFromKnownBuckets(canonicalKey);
+      sourceImage = source.buffer;
+      sourceBucket = source.bucket;
     } catch (canonicalError) {
       const canonicalMessage = safeErrorMessage(canonicalError);
       if (!isNotFoundError(canonicalMessage) || sourceKey === canonicalKey) {
         console.error('[AutoFlipPoseAPI] source_image_load_failed', {
           ...logContext,
-          bucket: R2_ORDERS_BUCKET,
+          bucket: sourceBucket,
           sourceKey,
           canonicalKey,
           message: canonicalMessage,
@@ -310,13 +323,15 @@ export async function POST(
       }
 
       try {
-        sourceImage = await loadBuffer(R2_ORDERS_BUCKET, sourceKey);
+        const source = await loadFromKnownBuckets(sourceKey);
+        sourceImage = source.buffer;
+        sourceBucket = source.bucket;
         resolvedSourceKey = sourceKey;
       } catch (sourceError) {
         const sourceMessage = safeErrorMessage(sourceError);
         console.error('[AutoFlipPoseAPI] source_image_load_failed', {
           ...logContext,
-          bucket: R2_ORDERS_BUCKET,
+          bucket: sourceBucket,
           sourceKey,
           canonicalKey,
           message: sourceMessage,
@@ -436,12 +451,12 @@ export async function POST(
     }
 
     try {
-      await putObject(R2_ORDERS_BUCKET, canonicalKey, flippedImage, 'image/png');
+      await putObject(sourceBucket, canonicalKey, flippedImage, 'image/png');
     } catch (error) {
       const message = safeErrorMessage(error);
       console.error('[AutoFlipPoseAPI] r2_upload_failed', {
         ...logContext,
-        bucket: R2_ORDERS_BUCKET,
+        bucket: sourceBucket,
         canonicalKey,
         message,
       });
