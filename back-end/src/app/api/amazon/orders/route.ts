@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
-import { upsertOrderByPerBookId } from '@/lib/supabase-client';
+import { getOrderFromSupabase, upsertOrderByPerBookId } from '@/lib/supabase-client';
 import { createHash } from 'crypto';
 
 /**
@@ -95,6 +95,15 @@ async function postAmazonOrder(request: NextRequest) {
       phone: null,
     };
 
+    // Preserve progressed workflow state on idempotent updates.
+    const existingOrder = await getOrderFromSupabase(perBookOrderId) as Record<string, unknown> | null;
+    const existingExecutionStatus = String(existingOrder?.execution_status ?? '').trim();
+    const existingNextWorkflow = String(existingOrder?.next_workflow ?? '').trim();
+    const existingStatus = String(existingOrder?.status ?? '').trim();
+    const shouldSeedPendingW0State =
+      !existingOrder ||
+      (existingExecutionStatus === 'pending_w0' && !existingNextWorkflow);
+
     // Build order data for Supabase
     const orderData: any = {
       orderId: perBookOrderId, // Per-book key (unique row identity)
@@ -109,11 +118,18 @@ async function postAmazonOrder(request: NextRequest) {
       character_specs: characterSpecs,
       dedication_text: characterSpecs.dedication || null,
       product_info: json.items || json._raw?.items || [],
-      status: 'pending_w0',
-      execution_status: 'pending_w0', // W0 will update to 'ready_for_processing'
-      next_workflow: null, // W0 will set to '2A'
       updated_at: new Date().toISOString(),
     };
+    if (shouldSeedPendingW0State) {
+      orderData.status = 'pending_w0';
+      orderData.execution_status = 'pending_w0'; // W0 will update to 'ready_for_processing'
+      orderData.next_workflow = null; // W0 will set to '2A'
+    } else {
+      // Keep current execution state when order already moved past W0.
+      orderData.status = existingStatus || null;
+      orderData.execution_status = existingExecutionStatus || null;
+      orderData.next_workflow = existingOrder?.next_workflow ?? null;
+    }
 
     // Ensure created_at is set (for new orders)
     const now = new Date().toISOString();
@@ -131,10 +147,17 @@ async function postAmazonOrder(request: NextRequest) {
     const isNewOrder = wasInsert;
     console.log(`[POST /api/amazon/orders] ${isNewOrder ? '✅ Created' : '✅ Updated'} order ${perBookOrderId} (idempotent)`);
 
-    // Call W0 webhook if this is a new order (or if explicitly requested)
+    // Call W0 webhook if needed.
     // W0 will process the order and update execution_status to 'ready_for_processing'
     const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL;
-    if (n8nW0WebhookUrl && (isNewOrder || json.triggerW0 === true)) {
+    const shouldTriggerW0 = !!n8nW0WebhookUrl && (
+      json.triggerW0 === true || isNewOrder || shouldSeedPendingW0State
+    );
+    let w0Attempted = false;
+    let w0Succeeded = false;
+    let w0Error: string | null = null;
+    if (shouldTriggerW0) {
+      w0Attempted = true;
       try {
         // Build W0-compatible payload (matches what cron route sends)
         const webhookPayload = {
@@ -187,12 +210,15 @@ async function postAmazonOrder(request: NextRequest) {
 
         if (!webhookResponse.ok) {
           const errorText = await webhookResponse.text();
+          w0Error = `W0 webhook failed (${webhookResponse.status}): ${errorText.substring(0, 200)}`;
           console.warn(`[POST /api/amazon/orders] W0 webhook call failed (${webhookResponse.status}): ${errorText.substring(0, 200)}`);
           // Don't fail the request - order is stored, W0 can be called manually if needed
         } else {
+          w0Succeeded = true;
           console.log(`[POST /api/amazon/orders] ✅ Called W0 webhook for order ${perBookOrderId}`);
         }
       } catch (error: any) {
+        w0Error = error?.message || 'Unknown W0 webhook error';
         console.warn(`[POST /api/amazon/orders] W0 webhook call error: ${error.message}`);
         // Don't fail the request - order is stored
       }
@@ -208,7 +234,9 @@ async function postAmazonOrder(request: NextRequest) {
       storedAt: new Date().toISOString(),
       executionStatus: orderData.execution_status,
       nextWorkflow: orderData.next_workflow,
-      w0Called: !!n8nW0WebhookUrl && (isNewOrder || json.triggerW0 === true),
+      w0Called: w0Succeeded,
+      w0Attempted,
+      w0Error,
     }, { status: isNewOrder ? 201 : 200 });
 
   } catch (error: any) {
