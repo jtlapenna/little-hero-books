@@ -18,7 +18,7 @@ import {
   parseJsonSafe,
   safeErrorMessage,
 } from '@/lib/auto-flip-pose';
-import { ensurePngBuffer, flipPngHorizontally } from '@/lib/image-flip';
+import { detectImageFormat, ensurePngBuffer, flipPngHorizontally } from '@/lib/image-flip';
 
 type AutoFlipPoseRequestBody = {
   poseNumber?: unknown;
@@ -26,6 +26,7 @@ type AutoFlipPoseRequestBody = {
   decisionSource?: unknown;
   generatedImageUrl?: unknown;
   flipRequestId?: unknown;
+  dryRun?: unknown;
 };
 
 // Build a consistent error payload for all validation failures.
@@ -172,8 +173,9 @@ export async function POST(
     return badRequest('Invalid JSON body');
   }
 
-  const { poseNumber, stage, decisionSource, generatedImageUrl, flipRequestId } = body;
+  const { poseNumber, stage, decisionSource, generatedImageUrl, flipRequestId, dryRun } = body;
   const poseNumberValue = Number(poseNumber);
+  const dryRunEnabled = dryRun === true;
 
   if (!Number.isInteger(poseNumber) || poseNumberValue < 0) {
     console.error('[AutoFlipPoseAPI] validation_failed', { orderId, error: 'Invalid poseNumber', poseNumber });
@@ -220,6 +222,15 @@ export async function POST(
       flipRequestId,
     });
     return badRequest('Invalid flipRequestId');
+  }
+
+  if (dryRun !== undefined && typeof dryRun !== 'boolean') {
+    console.error('[AutoFlipPoseAPI] validation_failed', {
+      orderId,
+      error: 'Invalid dryRun',
+      dryRun,
+    });
+    return badRequest('Invalid dryRun: must be a boolean');
   }
 
   const logContext: {
@@ -344,6 +355,30 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Failed to load source image for flipping' }, { status: 500 });
     }
 
+    const poseRefKey = buildPoseReferenceKey(poseNumberValue);
+    const sourceFormat = detectImageFormat(sourceImage);
+
+    // Diagnostic mode: validate manifest/key/bucket/source bytes without mutating data.
+    if (dryRunEnabled) {
+      return jsonSuccess({
+        checked: true,
+        flipped: false,
+        dryRun: true,
+        orderId,
+        poseNumber: poseNumberValue,
+        stage: 'preBria',
+        sourceBucket,
+        sourceKey: resolvedSourceKey,
+        canonicalKey,
+        sourceBytes: sourceImage.length,
+        sourceFormat,
+        poseRefKey,
+        decisionSource: 'deterministic',
+        policy: 'force_flip_supported_pose',
+        skipReason: 'dry_run',
+      });
+    }
+
     let sourcePng: Buffer;
     try {
       sourcePng = ensurePngBuffer(sourceImage, 'preBria_pose');
@@ -364,7 +399,6 @@ export async function POST(
     }
 
     // Force flip for backend-managed poses to avoid Worker-heavy orientation checks.
-    const poseRefKey = buildPoseReferenceKey(poseNumberValue);
 
     let flippedImage: Buffer;
     try {
