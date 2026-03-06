@@ -36,6 +36,11 @@ export type AutoFlipManifest2A = {
 export const AUTO_FLIP_SUPPORTED_POSES = new Set([3, 11]);
 export const AUTO_FLIP_CONFIDENCE_THRESHOLD = 1.5;
 
+export type RendererFlipResult = {
+  mimeType: string;
+  flippedImageBase64: string;
+};
+
 // Keep error messages deterministic across routes.
 export function safeErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -53,6 +58,20 @@ export function parseJsonSafe<T>(text: string): T | null {
   } catch {
     return null;
   }
+}
+
+// Validate renderer response shape before decoding and persisting bytes.
+export function parseRendererFlipResult(payload: unknown): RendererFlipResult | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const body = payload as Record<string, unknown>;
+  if (body.success !== true) return null;
+  if (typeof body.flippedImageBase64 !== 'string' || !body.flippedImageBase64.trim()) return null;
+  const mimeType =
+    typeof body.mimeType === 'string' && body.mimeType.trim() ? body.mimeType.trim() : 'image/png';
+  return {
+    mimeType,
+    flippedImageBase64: body.flippedImageBase64,
+  };
 }
 
 // Strip retry suffixes so flips always overwrite the canonical pose asset.

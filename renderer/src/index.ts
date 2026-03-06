@@ -3,18 +3,20 @@ import express, { Request, Response } from "express";
 import { renderBook } from "./render.js";
 import { config } from "dotenv";
 import { uploadToStorage } from "./storage.js";
+import sharp from "sharp";
 
 // Load environment variables from parent directory
 config({ path: '../.env' });
 
 const app = express();
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "20mb" }));
 
 // Environment configuration
 const port = process.env.RENDERER_PORT || process.env.PORT || 8787;
 const nodeEnv = process.env.NODE_ENV || 'development';
 const debugMode = process.env.DEBUG_MODE === 'true';
 const testMode = process.env.ENABLE_TEST_MODE === 'true';
+const rendererInternalToken = process.env.RENDERER_INTERNAL_TOKEN || '';
 
 // Logging helper
 function log(level: string, message: string, data?: any) {
@@ -29,6 +31,27 @@ function log(level: string, message: string, data?: any) {
   }
 }
 
+type FlipImageBody = {
+  imageBase64?: unknown;
+  imageUrl?: unknown;
+  mimeType?: unknown;
+};
+
+// Shared auth gate for internal service-to-service endpoints.
+function requireInternalToken(req: Request, res: Response): boolean {
+  if (!rendererInternalToken) return true;
+  const auth = req.headers.authorization || '';
+  if (!auth.startsWith('Bearer ')) {
+    res.status(401).json({ success: false, error: 'Unauthorized - missing bearer token' });
+    return false;
+  }
+  if (auth.slice(7) !== rendererInternalToken) {
+    res.status(401).json({ success: false, error: 'Unauthorized - invalid bearer token' });
+    return false;
+  }
+  return true;
+}
+
 // Health check with environment info
 app.get("/health", (_: Request, res: Response) => {
   res.json({ 
@@ -40,6 +63,68 @@ app.get("/health", (_: Request, res: Response) => {
     testMode: testMode,
     timestamp: new Date().toISOString()
   });
+});
+
+// Internal utility endpoint: flips an input image horizontally and returns PNG bytes.
+app.post("/flip-image", async (req: Request, res: Response) => {
+  const startedAt = Date.now();
+  if (!requireInternalToken(req, res)) return;
+
+  try {
+    const { imageBase64, imageUrl, mimeType } = (req.body || {}) as FlipImageBody;
+
+    const normalizedMime = typeof mimeType === 'string' && mimeType.trim() ? mimeType.trim() : 'image/png';
+    if (!normalizedMime.startsWith('image/')) {
+      res.status(400).json({ success: false, error: 'Invalid mimeType' });
+      return;
+    }
+
+    // Accept either inline bytes or URL to avoid sending very large payloads through edge workers.
+    let sourceBuffer: Buffer;
+    if (typeof imageBase64 === 'string' && imageBase64.trim()) {
+      sourceBuffer = Buffer.from(imageBase64, 'base64');
+    } else if (typeof imageUrl === 'string' && imageUrl.trim()) {
+      const sourceResponse = await fetch(imageUrl, { method: 'GET' });
+      if (!sourceResponse.ok) {
+        res.status(400).json({
+          success: false,
+          error: `Failed to fetch imageUrl (${sourceResponse.status})`,
+        });
+        return;
+      }
+      sourceBuffer = Buffer.from(await sourceResponse.arrayBuffer());
+    } else {
+      res.status(400).json({ success: false, error: 'Missing imageBase64 or imageUrl' });
+      return;
+    }
+
+    if (!sourceBuffer.length) {
+      res.status(400).json({ success: false, error: 'Decoded image is empty' });
+      return;
+    }
+
+    // Flip pixels in Node runtime using sharp and always emit PNG for deterministic writes.
+    const { data: flippedPngBuffer } = await sharp(sourceBuffer)
+      .flop()
+      .png()
+      .toBuffer({ resolveWithObject: true });
+
+    res.json({
+      success: true,
+      mimeType: 'image/png',
+      flippedImageBase64: flippedPngBuffer.toString('base64'),
+      bytesIn: sourceBuffer.length,
+      bytesOut: flippedPngBuffer.length,
+      durationMs: Date.now() - startedAt,
+    });
+  } catch (error: any) {
+    log('error', 'Flip-image failed', { message: error?.message, stack: error?.stack });
+    res.status(500).json({
+      success: false,
+      error: error?.message || 'Flip-image failed',
+      durationMs: Date.now() - startedAt,
+    });
+  }
 });
 
 // Render endpoint - n8n compatible with R2/S3 storage

@@ -12,6 +12,7 @@ import {
   findOrCreatePoseEntry,
   isIdempotentAutoFlipReplay,
   isNotFoundError,
+  parseRendererFlipResult,
 } from '../src/lib/auto-flip-pose';
 import { deterministicOrientationCheck } from '../src/lib/orientation-check';
 
@@ -154,6 +155,24 @@ function testDeterministicOrientationCheck() {
   assert.equal(mirroredResult?.needsFlip, true);
 }
 
+// Verify renderer payload parsing used by the backend delegation path.
+function testRendererFlipPayloadParser() {
+  const sampleBuffer = Buffer.from('hello-image');
+  const validPayload = {
+    success: true,
+    mimeType: 'image/png',
+    flippedImageBase64: sampleBuffer.toString('base64'),
+  };
+  const parsedValid = parseRendererFlipResult(validPayload);
+  assert.ok(parsedValid);
+  assert.equal(parsedValid?.mimeType, 'image/png');
+  assert.equal(parsedValid?.flippedImageBase64, sampleBuffer.toString('base64'));
+
+  assert.equal(parseRendererFlipResult({ success: true, mimeType: 'image/png' }), null);
+  assert.equal(parseRendererFlipResult({ success: false, flippedImageBase64: 'abc' }), null);
+  assert.equal(parseRendererFlipResult(null), null);
+}
+
 function main() {
   testKeyHelpers();
   testEntryHelpers();
@@ -162,6 +181,7 @@ function main() {
   testMissingSourceClassification();
   testSupportedPoses();
   testDeterministicOrientationCheck();
+  testRendererFlipPayloadParser();
   console.log('Auto-flip support helper checks passed.');
 }
 
