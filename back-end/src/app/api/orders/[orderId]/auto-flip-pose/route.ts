@@ -3,7 +3,6 @@ import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/
 import { buildManifestKey } from '@/lib/r2-service';
 import { updateOrderInSupabase } from '@/lib/supabase-client';
 import {
-  AUTO_FLIP_CONFIDENCE_THRESHOLD,
   AUTO_FLIP_SUPPORTED_POSES,
   type AutoFlipDecisionSource,
   type AutoFlipManifest2A,
@@ -20,7 +19,6 @@ import {
   safeErrorMessage,
 } from '@/lib/auto-flip-pose';
 import { ensurePngBuffer, flipPngHorizontally } from '@/lib/image-flip';
-import { deterministicOrientationCheck, type OrientationCheckResult } from '@/lib/orientation-check';
 
 type AutoFlipPoseRequestBody = {
   poseNumber?: unknown;
@@ -297,8 +295,6 @@ export async function POST(
     const fallbackKey = buildCanonicalPoseKey(characterHash, poseNumberValue);
     const sourceKey = typeof entry.approvedKey === 'string' && entry.approvedKey ? entry.approvedKey : fallbackKey;
     const canonicalKey = canonicalizePoseKey(sourceKey);
-    const poseRefKey = buildPoseReferenceKey(poseNumberValue);
-
     let sourceImage: Buffer | null = null;
     let sourceBucket = R2_ORDERS_BUCKET;
     let resolvedSourceKey = canonicalKey;
@@ -348,26 +344,12 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Failed to load source image for flipping' }, { status: 500 });
     }
 
-    let poseReference: Buffer;
-    try {
-      poseReference = await loadBuffer(R2_PUBLIC_BUCKET, poseRefKey);
-    } catch (error) {
-      const message = safeErrorMessage(error);
-      console.error('[AutoFlipPoseAPI] pose_reference_load_failed', { ...logContext, poseRefKey, message });
-      return NextResponse.json(
-        { success: false, error: 'Failed to load pose reference image' },
-        { status: isNotFoundError(message) ? 404 : 500 },
-      );
-    }
-
     let sourcePng: Buffer;
-    let poseRefPng: Buffer;
     try {
       sourcePng = ensurePngBuffer(sourceImage, 'preBria_pose');
-      poseRefPng = ensurePngBuffer(poseReference, 'pose_reference');
     } catch (error) {
       const message = safeErrorMessage(error);
-      console.warn('[AutoFlipPoseAPI] unsupported_source_format', { ...logContext, canonicalKey, poseRefKey, message });
+      console.warn('[AutoFlipPoseAPI] unsupported_source_format', { ...logContext, canonicalKey, message });
       return jsonSuccess({
         checked: true,
         flipped: false,
@@ -381,62 +363,8 @@ export async function POST(
       });
     }
 
-    let orientationResult: OrientationCheckResult | null = null;
-    try {
-      orientationResult = deterministicOrientationCheck(poseRefPng, sourcePng);
-    } catch (error) {
-      console.warn('[AutoFlipPoseAPI] deterministic_check_failed', {
-        ...logContext,
-        canonicalKey,
-        poseRefKey,
-        message: safeErrorMessage(error),
-      });
-    }
-
-    if (!orientationResult) {
-      return jsonSuccess({
-        checked: true,
-        flipped: false,
-        orderId,
-        poseNumber: poseNumberValue,
-        stage: 'preBria',
-        r2Key: canonicalKey,
-        decisionSource: 'deterministic',
-        skipReason: 'inconclusive',
-      });
-    }
-
-    if (orientationResult.confidence < AUTO_FLIP_CONFIDENCE_THRESHOLD) {
-      return jsonSuccess({
-        checked: true,
-        flipped: false,
-        orderId,
-        poseNumber: poseNumberValue,
-        stage: 'preBria',
-        r2Key: canonicalKey,
-        decisionSource: 'deterministic',
-        confidence: orientationResult.confidence,
-        refDiff: orientationResult.refDiff,
-        flippedDiff: orientationResult.flippedDiff,
-        skipReason: 'inconclusive',
-      });
-    }
-
-    if (!orientationResult.needsFlip) {
-      return jsonSuccess({
-        checked: true,
-        flipped: false,
-        orderId,
-        poseNumber: poseNumberValue,
-        stage: 'preBria',
-        r2Key: canonicalKey,
-        decisionSource: 'deterministic',
-        confidence: orientationResult.confidence,
-        refDiff: orientationResult.refDiff,
-        flippedDiff: orientationResult.flippedDiff,
-        skipReason: 'no_flip_needed',
-      });
-    }
+    // Force flip for backend-managed poses to avoid Worker-heavy orientation checks.
+    const poseRefKey = buildPoseReferenceKey(poseNumberValue);
 
     let flippedImage: Buffer;
     try {
@@ -502,9 +430,8 @@ export async function POST(
       r2Key: canonicalKey,
       replacedAt,
       decisionSource: 'deterministic',
-      confidence: orientationResult.confidence,
-      refDiff: orientationResult.refDiff,
-      flippedDiff: orientationResult.flippedDiff,
+      policy: 'force_flip_supported_pose',
+      poseRefKey,
     });
   } catch (error) {
     console.error('[AutoFlipPoseAPI] unexpected_error', {
