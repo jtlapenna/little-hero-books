@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, deleteObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { buildManifestKey } from '@/lib/r2-service';
+import { clear2BEntryForReprocessing } from '@/lib/auto-flip-pose';
 
 // Helper to parse JSON safely
 async function readJsonSafe<T = any>(res: Response): Promise<T> {
@@ -913,16 +914,7 @@ export async function POST(
           if (entry2b) {
             // Clear 2B processing fields to force reprocessing
             console.log(`[Replace Image API] Clearing 2B manifest entry for pose ${poseNumber} to force reprocessing`);
-            delete entry2b.bgRemovedKey;
-            delete entry2b.bgRemovedFilename;
-            delete entry2b.bgRemovedImageUrl;
-            delete entry2b.bgRemovedPublicUrl;
-            entry2b.bgRemoved = false;
-            entry2b.bgRemovedStatus = undefined;
-            // Clear Bria processing status so 2B will resubmit
-            delete entry2b.briaStatusUrl;
-            delete entry2b.briaRequestId;
-            delete entry2b.briaStatus;
+            clear2BEntryForReprocessing(entry2b);
             
             // Save updated 2B manifest
             const updated2bManifestJson = JSON.stringify(manifest2b, null, 2);

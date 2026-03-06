@@ -2,8 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { buildManifestKey } from '@/lib/r2-service';
 import { updateOrderInSupabase } from '@/lib/supabase-client';
+import {
+  AUTO_FLIP_CONFIDENCE_THRESHOLD,
+  AUTO_FLIP_SUPPORTED_POSES,
+  type AutoFlipDecisionSource,
+  type AutoFlipManifest2A,
+  type AutoFlipManifestEntry,
+  applyPreBriaFlipMetadata,
+  buildCanonicalPoseKey,
+  buildPoseReferenceKey,
+  canonicalizePoseKey,
+  clear2BEntryForReprocessing,
+  findOrCreatePoseEntry,
+  isIdempotentAutoFlipReplay,
+  isNotFoundError,
+  parseJsonSafe,
+  safeErrorMessage,
+} from '@/lib/auto-flip-pose';
+import { ensurePngBuffer, flipPngHorizontally } from '@/lib/image-flip';
+import { deterministicOrientationCheck, type OrientationCheckResult } from '@/lib/orientation-check';
 
-type DecisionSource = 'gemini';
 type AutoFlipPoseRequestBody = {
   poseNumber?: unknown;
   stage?: unknown;
@@ -12,35 +30,13 @@ type AutoFlipPoseRequestBody = {
   flipRequestId?: unknown;
 };
 
-type ManifestEntry = {
-  poseNumber?: number;
-  approvedKey?: string;
-  approvedFilename?: string;
-  approved?: boolean;
-  status?: string;
-  needsReview?: boolean;
-  reviewReason?: string | null;
-  briaStatusUrl?: string | null;
-  briaRequestId?: string | null;
-  briaStatus?: string | null;
-  publicUrl?: string;
-  replacedAt?: string;
-  replacementCount?: number;
-  replacedBy?: string | null;
-  replacementHistory?: Array<{ replacedAt: string; replacedBy: string | null }>;
-  lastAutoFlipRequestId?: string | null;
-  lastAutoFlipAt?: string | null;
-};
-
-type Manifest2A = {
-  characterHash?: string;
-  order?: { characterHash?: string; publicR2Url?: string };
-  entries?: ManifestEntry[];
-};
-
 // Build a consistent error payload for all validation failures.
 function badRequest(error: string) {
   return NextResponse.json({ success: false, error }, { status: 400 });
+}
+
+function jsonSuccess(body: Record<string, unknown>) {
+  return NextResponse.json({ success: true, ...body });
 }
 
 // Parse JSON safely so invalid JSON returns deterministic 400.
@@ -63,16 +59,64 @@ function isValidUrlLike(value: string): boolean {
   }
 }
 
-function canonicalizePoseKey(rawKey: string): string {
-  return rawKey.replace(/_r\d+\.png$/i, '.png').replace(/_TRY\d+\.png$/i, '.png');
+async function loadBuffer(bucket: string, key: string): Promise<Buffer> {
+  const response = await getObject(bucket, key);
+  return Buffer.from(await response.arrayBuffer());
 }
 
-function isNotFoundError(message: string): boolean {
-  return message.includes('404') || message.includes('Not Found');
+async function loadManifest2A(
+  orderId: string,
+  logContext: Record<string, unknown>,
+): Promise<
+  | { manifestKey: string; manifest: AutoFlipManifest2A | null }
+  | { manifestKey: string; error: NextResponse }
+> {
+  const manifestKey = buildManifestKey(orderId, '2a');
+  try {
+    const manifestResponse = await getObject(R2_ORDERS_BUCKET, manifestKey);
+    const manifestText = await manifestResponse.text();
+    const manifest = parseJsonSafe<AutoFlipManifest2A>(manifestText);
+    return { manifestKey, manifest };
+  } catch (error) {
+    const message = safeErrorMessage(error);
+    console.error('[AutoFlipPoseAPI] manifest_load_failed', { ...logContext, manifestKey, message });
+    return {
+      manifestKey,
+      error: NextResponse.json(
+        { success: false, error: 'Failed to load 2a manifest' },
+        { status: isNotFoundError(message) ? 404 : 500 },
+      ),
+    };
+  }
 }
 
-function safeErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+async function invalidate2BManifest(orderId: string, poseNumber: number, logContext: Record<string, unknown>) {
+  try {
+    const manifest2bKey = buildManifestKey(orderId, '2b');
+    let manifest2b: { entries?: AutoFlipManifestEntry[] } | null = null;
+
+    try {
+      const manifest2bResponse = await getObject(R2_ORDERS_BUCKET, manifest2bKey);
+      const manifest2bText = await manifest2bResponse.text();
+      manifest2b = parseJsonSafe<{ entries?: AutoFlipManifestEntry[] }>(manifest2bText);
+    } catch (error) {
+      const message = safeErrorMessage(error);
+      if (!isNotFoundError(message)) {
+        console.warn('[AutoFlipPoseAPI] manifest_2b_load_failed', { ...logContext, manifest2bKey, message });
+      }
+      return;
+    }
+
+    const entry2b = manifest2b?.entries?.find((item) => item.poseNumber === poseNumber);
+    if (!manifest2b || !entry2b) return;
+    clear2BEntryForReprocessing(entry2b);
+    await putObject(R2_ORDERS_BUCKET, manifest2bKey, JSON.stringify(manifest2b, null, 2), 'application/json');
+  } catch (error) {
+    console.warn('[AutoFlipPoseAPI] manifest_2b_invalidation_failed', {
+      ...logContext,
+      message: safeErrorMessage(error),
+    });
+  }
 }
 
 // Enforce bearer token for internal callers when configured.
@@ -99,25 +143,6 @@ function requireInternalToken(request: NextRequest): { ok: true } | { ok: false;
   return { ok: true };
 }
 
-function parseJsonSafe<T>(text: string): T | null {
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    return null;
-  }
-}
-
-async function flipImageHorizontallyToPng(input: Buffer): Promise<Buffer> {
-  try {
-    // Lazy-load sharp so route validation can still run on runtimes without native sharp support.
-    const sharpModule = await import('sharp');
-    const sharpFactory = sharpModule.default;
-    return sharpFactory(input).flop().png().toBuffer();
-  } catch (error) {
-    throw new Error(`IMAGE_FLIP_RUNTIME_UNSUPPORTED:${safeErrorMessage(error)}`);
-  }
-}
-
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> },
@@ -140,8 +165,9 @@ export async function POST(
   }
 
   const { poseNumber, stage, decisionSource, generatedImageUrl, flipRequestId } = body;
+  const poseNumberValue = Number(poseNumber);
 
-  if (!Number.isInteger(poseNumber) || Number(poseNumber) < 0) {
+  if (!Number.isInteger(poseNumber) || poseNumberValue < 0) {
     console.error('[AutoFlipPoseAPI] validation_failed', { orderId, error: 'Invalid poseNumber', poseNumber });
     return badRequest('Invalid poseNumber: must be an integer >= 0');
   }
@@ -151,7 +177,11 @@ export async function POST(
     return badRequest('Invalid stage. auto-flip-pose currently supports preBria only');
   }
 
-  if (decisionSource !== undefined && decisionSource !== 'gemini') {
+  if (
+    decisionSource !== undefined &&
+    decisionSource !== 'gemini' &&
+    decisionSource !== 'deterministic'
+  ) {
     console.error('[AutoFlipPoseAPI] validation_failed', {
       orderId,
       error: 'Invalid decisionSource',
@@ -189,55 +219,51 @@ export async function POST(
     orderId: string;
     poseNumber: number;
     stage: 'preBria';
-    decisionSource: DecisionSource | null;
+    decisionSource: AutoFlipDecisionSource | null;
   } = {
     route: 'POST /api/orders/[orderId]/auto-flip-pose',
     orderId,
-    poseNumber: Number(poseNumber),
+    poseNumber: poseNumberValue,
     stage: 'preBria',
-    decisionSource: decisionSource === 'gemini' ? 'gemini' : null,
+    decisionSource:
+      decisionSource === 'gemini' || decisionSource === 'deterministic'
+        ? (decisionSource as AutoFlipDecisionSource)
+        : null,
   };
   console.log('[AutoFlipPoseAPI] request_validated', logContext);
 
   try {
-    const manifestKey = buildManifestKey(orderId, '2a');
-    let manifest: Manifest2A | null = null;
-
-    try {
-      const manifestResponse = await getObject(R2_ORDERS_BUCKET, manifestKey);
-      const manifestText = await manifestResponse.text();
-      manifest = parseJsonSafe<Manifest2A>(manifestText);
-    } catch (error) {
-      const message = safeErrorMessage(error);
-      console.error('[AutoFlipPoseAPI] manifest_load_failed', { ...logContext, manifestKey, message });
-      return NextResponse.json(
-        { success: false, error: 'Failed to load 2a manifest' },
-        { status: isNotFoundError(message) ? 404 : 500 },
-      );
+    if (!AUTO_FLIP_SUPPORTED_POSES.has(poseNumberValue)) {
+      return jsonSuccess({
+        checked: false,
+        flipped: false,
+        orderId,
+        poseNumber: poseNumberValue,
+        stage: 'preBria',
+        skipReason: 'pose_not_supported',
+      });
     }
+
+    const manifestResult = await loadManifest2A(orderId, logContext);
+    if ('error' in manifestResult) return manifestResult.error;
+    const { manifestKey, manifest } = manifestResult;
 
     if (!manifest || !Array.isArray(manifest.entries)) {
       console.error('[AutoFlipPoseAPI] manifest_invalid', { ...logContext, manifestKey });
       return NextResponse.json({ success: false, error: 'Invalid 2a manifest structure' }, { status: 400 });
     }
 
-    const poseNumberValue = Number(poseNumber);
-    let entry = manifest.entries.find((item) => item.poseNumber === poseNumberValue);
-    if (!entry) {
-      entry = { poseNumber: poseNumberValue, status: 'approved', approved: true };
-      manifest.entries.push(entry);
-      manifest.entries.sort((a, b) => Number(a.poseNumber ?? 0) - Number(b.poseNumber ?? 0));
-    }
+    const entry = findOrCreatePoseEntry(manifest, poseNumberValue);
 
     // Idempotency guard: duplicate request id should be a safe no-op.
     const requestId = typeof flipRequestId === 'string' ? flipRequestId.trim() : '';
-    if (requestId && entry.lastAutoFlipRequestId === requestId) {
+    if (isIdempotentAutoFlipReplay(entry, requestId)) {
       console.log('[AutoFlipPoseAPI] idempotent_replay_noop', {
         ...logContext,
         requestId,
       });
-      return NextResponse.json({
-        success: true,
+      return jsonSuccess({
+        checked: true,
         flipped: false,
         idempotent: true,
         orderId,
@@ -245,6 +271,7 @@ export async function POST(
         stage: 'preBria',
         r2Key: entry.approvedKey || null,
         replacedAt: entry.replacedAt || null,
+        decisionSource: 'deterministic',
       });
     }
 
@@ -257,23 +284,21 @@ export async function POST(
       );
     }
 
-    const poseNN = String(poseNumberValue).padStart(2, '0');
-    const fallbackKey = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/poses/pose${poseNN}.png`;
+    const fallbackKey = buildCanonicalPoseKey(characterHash, poseNumberValue);
     const sourceKey = typeof entry.approvedKey === 'string' && entry.approvedKey ? entry.approvedKey : fallbackKey;
     const canonicalKey = canonicalizePoseKey(sourceKey);
-    const bucket = canonicalKey.includes('/characters/') ? R2_PUBLIC_BUCKET : R2_ORDERS_BUCKET;
+    const poseRefKey = buildPoseReferenceKey(poseNumberValue);
 
     let sourceImage: Buffer | null = null;
     let resolvedSourceKey = canonicalKey;
     try {
-      const canonicalImageResponse = await getObject(bucket, canonicalKey);
-      sourceImage = Buffer.from(await canonicalImageResponse.arrayBuffer());
+      sourceImage = await loadBuffer(R2_ORDERS_BUCKET, canonicalKey);
     } catch (canonicalError) {
       const canonicalMessage = safeErrorMessage(canonicalError);
       if (!isNotFoundError(canonicalMessage) || sourceKey === canonicalKey) {
         console.error('[AutoFlipPoseAPI] source_image_load_failed', {
           ...logContext,
-          bucket,
+          bucket: R2_ORDERS_BUCKET,
           sourceKey,
           canonicalKey,
           message: canonicalMessage,
@@ -285,14 +310,13 @@ export async function POST(
       }
 
       try {
-        const sourceImageResponse = await getObject(bucket, sourceKey);
-        sourceImage = Buffer.from(await sourceImageResponse.arrayBuffer());
+        sourceImage = await loadBuffer(R2_ORDERS_BUCKET, sourceKey);
         resolvedSourceKey = sourceKey;
       } catch (sourceError) {
         const sourceMessage = safeErrorMessage(sourceError);
         console.error('[AutoFlipPoseAPI] source_image_load_failed', {
           ...logContext,
-          bucket,
+          bucket: R2_ORDERS_BUCKET,
           sourceKey,
           canonicalKey,
           message: sourceMessage,
@@ -309,60 +333,134 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Failed to load source image for flipping' }, { status: 500 });
     }
 
-    let flippedImage: Buffer;
+    let poseReference: Buffer;
     try {
-      flippedImage = await flipImageHorizontallyToPng(sourceImage);
+      poseReference = await loadBuffer(R2_PUBLIC_BUCKET, poseRefKey);
     } catch (error) {
       const message = safeErrorMessage(error);
-      if (message.startsWith('IMAGE_FLIP_RUNTIME_UNSUPPORTED:')) {
-        console.error('[AutoFlipPoseAPI] runtime_unsupported', { ...logContext, canonicalKey, message });
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              'Auto-flip runtime unsupported in this deployment. Use non-Worker runtime for pixel flip operations.',
-          },
-          { status: 501 },
-        );
-      }
-      console.error('[AutoFlipPoseAPI] image_flip_failed', { ...logContext, canonicalKey, message });
+      console.error('[AutoFlipPoseAPI] pose_reference_load_failed', { ...logContext, poseRefKey, message });
+      return NextResponse.json(
+        { success: false, error: 'Failed to load pose reference image' },
+        { status: isNotFoundError(message) ? 404 : 500 },
+      );
+    }
+
+    let sourcePng: Buffer;
+    let poseRefPng: Buffer;
+    try {
+      sourcePng = ensurePngBuffer(sourceImage, 'preBria_pose');
+      poseRefPng = ensurePngBuffer(poseReference, 'pose_reference');
+    } catch (error) {
+      const message = safeErrorMessage(error);
+      console.warn('[AutoFlipPoseAPI] unsupported_source_format', { ...logContext, canonicalKey, poseRefKey, message });
+      return jsonSuccess({
+        checked: true,
+        flipped: false,
+        orderId,
+        poseNumber: poseNumberValue,
+        stage: 'preBria',
+        r2Key: canonicalKey,
+        decisionSource: 'deterministic',
+        skipReason: 'unsupported_image_format',
+        message: 'Deterministic auto-flip currently supports PNG inputs only.',
+      });
+    }
+
+    let orientationResult: OrientationCheckResult | null = null;
+    try {
+      orientationResult = deterministicOrientationCheck(poseRefPng, sourcePng);
+    } catch (error) {
+      console.warn('[AutoFlipPoseAPI] deterministic_check_failed', {
+        ...logContext,
+        canonicalKey,
+        poseRefKey,
+        message: safeErrorMessage(error),
+      });
+    }
+
+    if (!orientationResult) {
+      return jsonSuccess({
+        checked: true,
+        flipped: false,
+        orderId,
+        poseNumber: poseNumberValue,
+        stage: 'preBria',
+        r2Key: canonicalKey,
+        decisionSource: 'deterministic',
+        skipReason: 'inconclusive',
+      });
+    }
+
+    if (orientationResult.confidence < AUTO_FLIP_CONFIDENCE_THRESHOLD) {
+      return jsonSuccess({
+        checked: true,
+        flipped: false,
+        orderId,
+        poseNumber: poseNumberValue,
+        stage: 'preBria',
+        r2Key: canonicalKey,
+        decisionSource: 'deterministic',
+        confidence: orientationResult.confidence,
+        refDiff: orientationResult.refDiff,
+        flippedDiff: orientationResult.flippedDiff,
+        skipReason: 'inconclusive',
+      });
+    }
+
+    if (!orientationResult.needsFlip) {
+      return jsonSuccess({
+        checked: true,
+        flipped: false,
+        orderId,
+        poseNumber: poseNumberValue,
+        stage: 'preBria',
+        r2Key: canonicalKey,
+        decisionSource: 'deterministic',
+        confidence: orientationResult.confidence,
+        refDiff: orientationResult.refDiff,
+        flippedDiff: orientationResult.flippedDiff,
+        skipReason: 'no_flip_needed',
+      });
+    }
+
+    let flippedImage: Buffer;
+    try {
+      flippedImage = flipPngHorizontally(sourcePng);
+    } catch (error) {
+      console.error('[AutoFlipPoseAPI] image_flip_failed', {
+        ...logContext,
+        canonicalKey,
+        message: safeErrorMessage(error),
+      });
       return NextResponse.json({ success: false, error: 'Failed to flip image bytes' }, { status: 500 });
     }
 
     try {
-      await putObject(bucket, canonicalKey, flippedImage, 'image/png');
+      await putObject(R2_ORDERS_BUCKET, canonicalKey, flippedImage, 'image/png');
     } catch (error) {
       const message = safeErrorMessage(error);
-      console.error('[AutoFlipPoseAPI] r2_upload_failed', { ...logContext, bucket, canonicalKey, message });
+      console.error('[AutoFlipPoseAPI] r2_upload_failed', {
+        ...logContext,
+        bucket: R2_ORDERS_BUCKET,
+        canonicalKey,
+        message,
+      });
       return NextResponse.json({ success: false, error: 'Failed to upload flipped image' }, { status: 500 });
     }
 
     const replacedAt = new Date().toISOString();
-    const publicR2Url = manifest.order?.publicR2Url;
-    const backendUrl = 'https://admin.littleherolabs.com';
-    entry.approvedKey = canonicalKey;
-    entry.approvedFilename = `pose${poseNN}.png`;
-    entry.approved = true;
-    entry.status = 'approved';
-    entry.needsReview = false;
-    entry.reviewReason = null;
-    entry.briaStatusUrl = null;
-    entry.briaRequestId = null;
-    entry.briaStatus = null;
-    entry.publicUrl = publicR2Url
-      ? `${publicR2Url}/${canonicalKey}`
-      : `${backendUrl}/api/assets/${canonicalKey}`;
-    entry.replacedAt = replacedAt;
-    entry.replacementCount = (entry.replacementCount || 0) + 1;
-    entry.replacedBy = null;
-    entry.lastAutoFlipRequestId = requestId || null;
-    entry.lastAutoFlipAt = replacedAt;
-    entry.replacementHistory = [
-      ...(entry.replacementHistory || []),
-      { replacedAt, replacedBy: null },
-    ];
+    applyPreBriaFlipMetadata({
+      entry,
+      poseNumber: poseNumberValue,
+      canonicalKey,
+      publicR2Url: manifest.order?.publicR2Url,
+      replacedAt,
+      requestId,
+    });
 
     await putObject(R2_ORDERS_BUCKET, manifestKey, JSON.stringify(manifest, null, 2), 'application/json');
+
+    await invalidate2BManifest(orderId, poseNumberValue, logContext);
 
     try {
       await updateOrderInSupabase(orderId, { updated_at: replacedAt });
@@ -381,12 +479,17 @@ export async function POST(
     });
     return NextResponse.json({
       success: true,
+      checked: true,
       flipped: true,
       orderId,
       poseNumber: poseNumberValue,
       stage: 'preBria',
       r2Key: canonicalKey,
       replacedAt,
+      decisionSource: 'deterministic',
+      confidence: orientationResult.confidence,
+      refDiff: orientationResult.refDiff,
+      flippedDiff: orientationResult.flippedDiff,
     });
   } catch (error) {
     console.error('[AutoFlipPoseAPI] unexpected_error', {

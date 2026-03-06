@@ -1,31 +1,17 @@
 {
-  "name": "w2A-SW3-Upload",
+  "name": "SIBLING - w2A-SW3-Upload",
   "nodes": [
-    {
-      "parameters": {
-        "amount": 3
-      },
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        1184,
-        64
-      ],
-      "id": "e93bd5a8-c1ce-4681-8445-68e864e4f2b8",
-      "name": "Wait",
-      "webhookId": "cac9f23e-4e21-499a-ac2c-3aad35ed652c"
-    },
     {
       "parameters": {
         "inputSource": "passthrough"
       },
-      "id": "e399df47-9a08-49db-ac51-7e4872a2fae8",
+      "id": "0567aee6-c374-4ce2-9eaa-325623b7ddbc",
       "typeVersion": 1.1,
       "name": "When Executed by Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "position": [
-        -1088,
-        448
+        -13328,
+        -464
       ]
     },
     {
@@ -35,10 +21,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -848,
-        448
+        -13088,
+        -464
       ],
-      "id": "9c565a84-7b9e-4b14-a776-fed12ba29745",
+      "id": "0d2530c1-6cfe-40bb-9ac5-0eba14d001e9",
       "name": "Schema Check + Defaults"
     },
     {
@@ -49,10 +35,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -608,
-        448
+        -12848,
+        -464
       ],
-      "id": "9ad77faf-e6a1-4496-a98f-38e6f5e0a5ee",
+      "id": "7e94855a-d0c9-4cc7-b9b1-404a76145ba2",
       "name": "Capture Lean Meta"
     },
     {
@@ -66,10 +52,10 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -80,
-        288
+        -12320,
+        -624
       ],
-      "id": "9d02b918-a089-4ee4-8392-f70d1c9df9bd",
+      "id": "bd1c4254-3fa9-43e7-821d-2c3b8e2413f8",
       "name": "Add Upload to R2",
       "retryOnFail": true,
       "maxTries": 5,
@@ -89,10 +75,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -336,
-        448
+        -12576,
+        -464
       ],
-      "id": "ccd056e0-6e49-44cb-b38d-0221a4774dc8",
+      "id": "588d7b8c-c3ea-437d-b3f0-e030a2ba082a",
       "name": "Prepare Upload (ensure generated)"
     },
     {
@@ -100,13 +86,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Memory Hygiene After Upload (SW3-05) — per-item\nconst j = $json || {};\nconst itemIdx = $itemIndex ?? 0;\n\n// clear binaries by returning an empty binary object\nconst out = {\n  json: j,\n  binary: {}, // important: single object, not array\n  pairedItem: $input?.item?.pairedItem ?? { item: itemIdx },\n};\n\nconsole.log(`🧹 Cleared binaries for ${j.characterHash || 'unknown'} pose ${j.poseNumber ?? j.currentPoseNumber ?? '?'} (item ${itemIdx})`);\n\nif (global && typeof global.gc === 'function') {\n  try { global.gc(); } catch {}\n}\n\nreturn out;\n"
       },
-      "id": "71321947-7bf7-4667-96a7-1e5236c65165",
+      "id": "18ff21c9-2398-4689-8dbe-56b010822ce9",
       "name": "Memory Cleanup After Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        144,
-        288
+        -12096,
+        -624
       ],
       "notesInFlow": true,
       "notes": "Explicit memory cleanup after upload (SW3-05)"
@@ -118,10 +104,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        624,
-        432
+        -11616,
+        -480
       ],
-      "id": "6ffaeacc-3e5e-4c9a-988d-4e76f3547e45",
+      "id": "d663ddd2-dacb-4c76-ae86-bca766e15529",
       "name": "Return Upload Results"
     },
     {
@@ -133,237 +119,11 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        400,
-        432
+        -11840,
+        -480
       ],
-      "id": "796f827d-8d66-46c8-9bf6-5f7a070d6df3",
+      "id": "8e43a96c-3068-4f6c-8a85-884ae3c28e05",
       "name": "Merge"
-    },
-    {
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
-        "numberInputs": 3,
-        "options": {}
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
-      "position": [
-        960,
-        48
-      ],
-      "id": "cf39bac6-f5e2-472e-8092-037c0a2e5799",
-      "name": "Merge1"
-    },
-    {
-      "parameters": {
-        "bucketName": "little-hero-assets",
-        "fileKey": "={{ $json.poseRefKey ?? (($json.poseRefUrl || '').replace(/^https?:\\/\\/[^/]+\\//, '')) }}",
-        "binaryPropertyName": "pose"
-      },
-      "type": "n8n-nodes-base.s3",
-      "typeVersion": 1,
-      "position": [
-        1168,
-        64
-      ],
-      "id": "8caebfe3-0c55-4488-9a8a-7ce3abf4c1f2",
-      "name": "Download Pose Reference For Flip",
-      "credentials": {
-        "s3": {
-          "id": "7tJOX9QjL1jqyEjf",
-          "name": "S3 account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Build Gemini flip verdict request from attached pose + generated binaries.\nconst j = { ...($json || {}) };\nconst b = $binary || {};\nconst itemIx = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\n// Helper: pick first non-empty value.\nfunction first(...vals){ for (const v of vals){ if (v !== undefined && v !== null && v !== '') return v; } return null; }\n// Helper: infer mime type from a filename.\nfunction mimeFromName(name){\n  const s = String(name || '').toLowerCase();\n  if (s.endsWith('.jpg') || s.endsWith('.jpeg')) return 'image/jpeg';\n  if (s.endsWith('.webp')) return 'image/webp';\n  return 'image/png';\n}\n// Helper: normalize mime labels.\nfunction normMime(v){\n  const s = String(v || '').toLowerCase().trim();\n  if (s === 'jpg' || s === 'jpeg' || s === 'image/jpeg') return 'image/jpeg';\n  if (s === 'webp' || s === 'image/webp') return 'image/webp';\n  if (s === 'png' || s === 'image/png') return 'image/png';\n  return '';\n}\n// Helper: convert an attached binary to Gemini inlineData payload.\nasync function readInline(key, fallbackName){\n  if (!b[key]) return null;\n  try {\n    const buf = await this.helpers.getBinaryDataBuffer(itemIx, key);\n    if (!buf || !buf.length) return null;\n    const fileName = b[key]?.fileName || b[key]?.fileNameOriginal || fallbackName;\n    const mimeType = normMime(b[key]?.mimeType) || normMime(b[key]?.mimetype) || mimeFromName(fileName);\n    return { mimeType, data: buf.toString('base64'), bytes: buf.length, fileName };\n  } catch {\n    return null;\n  }\n}\n\nconst generatedImageUrl = first(\n  j.generatedImageUrl,\n  j.publicUrl,\n  (j.publicR2Url && j.__meta?.storageKey)\n    ? `${String(j.publicR2Url).replace(/\\/+$/, '')}/${String(j.__meta.storageKey).replace(/^\\/+/, '')}`\n    : null\n);\nconst poseRefUrl = first(j.poseRefPublicUrl, j.poseRefUrl, null);\n\nconst generated = (await readInline('generated', 'generated.png')) || (await readInline('final_generated', 'generated.png'));\nconst pose = (await readInline('pose', 'pose.png')) || (await readInline('pose_ref', 'pose.png'));\n\nif (!generated || !pose) {\n  return {\n    json: {\n      ...j,\n      generatedImageUrl: generatedImageUrl || null,\n      poseRefUrl: poseRefUrl || null,\n      flipVerdictRequestBody: null,\n      __meta: {\n        ...(j.__meta || {}),\n        flipVerdictBuildError: !generated ? 'missing_generated_binary' : 'missing_pose_binary'\n      }\n    },\n    binary: b\n  };\n}\n\nconst prompt = [\n  'You validate left/right facing direction only.',\n  'Image 1 is REFERENCE. Image 2 is GENERATED.',\n  'Are both characters facing the same direction?',\n  'Return ORIGINAL when yes, the generated character faces the same direction as the reference.',\n  'Return FLIPPED when no, the generated character is mirrored or faces the opposite direction.',\n  'Return UNSURE only when the facing direction cannot be determined confidently.',\n  'Return ONLY strict JSON: {\"geminiVerdict\":\"ORIGINAL|FLIPPED|UNSURE\",\"reason\":\"short\"}'\n].join('\\n');\n\nconst flipVerdictRequestBody = {\n  systemInstruction: { role: 'system', parts: [{ text: prompt }] },\n  contents: [{\n    role: 'user',\n    parts: [\n      { text: 'REFERENCE' },\n      { inlineData: pose },\n      { text: 'GENERATED' },\n      { inlineData: generated }\n    ]\n  }],\n  generationConfig: { temperature: 0, responseMimeType: 'application/json' }\n};\n\nreturn {\n  json: {\n    ...j,\n    generatedImageUrl,\n    poseRefUrl,\n    flipVerdictRequestBody,\n    __meta: {\n      ...(j.__meta || {}),\n      flipVerdictBuildError: undefined,\n      flipVerdictInputMode: { reference: 'inlineData', generated: 'inlineData' },\n      flipVerdictBinaryInfo: {\n        referenceBytes: pose.bytes,\n        referenceFileName: pose.fileName,\n        generatedBytes: generated.bytes,\n        generatedFileName: generated.fileName\n      }\n    }\n  },\n  binary: b\n};\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1296,
-        64
-      ],
-      "id": "0fdbbc63-4ab9-4d47-9e1b-4ef631db93fc",
-      "name": "Build Gemini Flip Verdict Request"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googlePalmApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json.flipVerdictRequestBody || { contents:[{ role:'user', parts:[{ text:'{\"geminiVerdict\":\"UNSURE\",\"reason\":\"missing_request_body\"}' }] }] } }}",
-        "options": {
-          "timeout": 120000
-        }
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        1392,
-        64
-      ],
-      "id": "dd567f9e-f818-4eb5-8130-cd064e5acf20",
-      "name": "HTTP Request1",
-      "onError": "continueRegularOutput",
-      "credentials": {
-        "googlePalmApi": {
-          "id": "7jdcfc9T2O9vensv",
-          "name": "Google Gemini(PaLM) Api account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Resolve auto-flip action from pre-IF Gemini HTTP response.\nconst inJson = $json || {};\nconst itemIx = (typeof $itemIndex === 'number') ? $itemIndex : 0;\nlet upstream = {};\ntry {\n  const arr = (typeof $items === 'function') ? $items('Build Gemini Flip Verdict Request') : [];\n  upstream = (arr[itemIx]?.json) || (arr[0]?.json) || {};\n} catch {}\n\nconst j = { ...upstream, ...inJson };\nconst useBackendFlipOnly = true;\n\nfunction normalizeVerdict(v){\n  const x = String(v || '').trim().toUpperCase();\n  return ['ORIGINAL', 'FLIPPED', 'UNSURE'].includes(x) ? x : '';\n}\nfunction pickGeminiText(payload){\n  const parts = payload?.candidates?.[0]?.content?.parts;\n  if (!Array.isArray(parts)) return '';\n  const hit = parts.find(p => typeof p?.text === 'string' && p.text.trim());\n  return hit?.text || '';\n}\n\nconst generatedImageUrl = (j.generatedImageUrl && String(j.generatedImageUrl).trim().length)\n  ? String(j.generatedImageUrl)\n  : ((j.publicR2Url && j.__meta?.storageKey)\n    ? `${String(j.publicR2Url).replace(/\\/+$/, '')}/${String(j.__meta.storageKey).replace(/^\\/+/, '')}`\n    : null);\n\nconst poseNumber = Number(j.poseNumber ?? j.currentPoseNumber ?? 0);\nconst safePose = Number.isFinite(poseNumber) ? poseNumber : 0;\nconst poseRefUrl = String(\n  j.poseRefPublicUrl ||\n  j.poseRefUrl ||\n  ((j.publicR2Url)\n    ? `${String(j.publicR2Url).replace(/\\/+$/, '')}/book-mvp-simple-adventure/characters/poses/pose${String(safePose).padStart(2, '0')}.png`\n    : '')\n);\n\nconst geminiText = pickGeminiText(j);\nlet geminiJson = {};\ntry {\n  const t = String(geminiText || '').trim().replace(/^```json\\s*/i, '').replace(/```$/i, '').trim();\n  geminiJson = t ? JSON.parse(t) : {};\n} catch { geminiJson = {}; }\n\nlet geminiVerdict = normalizeVerdict(\n  j.geminiVerdict ??\n  j.orientationVerdict ??\n  j.autoFlipVerdict ??\n  j.__meta?.geminiVerdict ??\n  geminiJson.geminiVerdict ??\n  geminiJson.verdict ??\n  geminiJson.decision\n);\n\nif (!geminiVerdict) {\n  const shouldFlip = (geminiJson.shouldFlip ?? j.shouldFlip);\n  if (typeof shouldFlip === 'boolean') {\n    geminiVerdict = shouldFlip ? 'FLIPPED' : 'ORIGINAL';\n  }\n}\n\nif (!geminiVerdict) geminiVerdict = 'UNSURE';\n\nconst autoFlipAction = geminiVerdict === 'FLIPPED' ? 'backend_flip' : 'no_call';\nconst autoFlipStatus = geminiVerdict === 'ORIGINAL' ? 'no_flip_needed' : (geminiVerdict === 'UNSURE' ? 'verdict_unusable' : null);\n\nreturn {\n  json: {\n    ...j,\n    useBackendFlipOnly,\n    geminiVerdict,\n    autoFlipAction,\n    autoFlipStatus,\n    generatedImageUrl,\n    poseRefUrl,\n    autoFlipVerdictSource: 'gemini_http_pre_if',\n    __meta: {\n      ...(j.__meta || {}),\n      geminiVerdict,\n      autoFlipVerdictSource: 'gemini_http_pre_if'\n    }\n  }\n};\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1392,
-        64
-      ],
-      "id": "2d7802e4-f74f-4f8f-b6d6-03b47795bfaf",
-      "name": "Resolve Auto Flip Action"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "296a2f31-2e07-4207-bee5-b0a6b5e513d2",
-              "leftValue": "={{ $json.autoFlipAction }}",
-              "rightValue": "legacy_check",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1616,
-        64
-      ],
-      "id": "13f34764-e6a9-4b7c-8a10-e4a53997baf5",
-      "name": "Route Legacy Auto Flip"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "3cedad93-85a9-4fcf-9ed2-2579d394eb70",
-              "leftValue": "={{ $json.autoFlipAction }}",
-              "rightValue": "backend_flip",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1856,
-        192
-      ],
-      "id": "9e2059bb-c4c4-433e-83bf-f05cc9531791",
-      "name": "Route Backend Auto Flip"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ 'https://admin.littleherolabs.com/api/orders/' + encodeURIComponent(String($json.amazonOrderId || $json.orderId || '')) + '/auto-flip-pose' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ $env.BACKEND_INTERNAL_TOKEN ? ('Bearer ' + $env.BACKEND_INTERNAL_TOKEN) : '' }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ (() => { const orderId = String($json.amazonOrderId || $json.orderId || '').trim(); const poseNum = Number($json.poseNumber ?? $json.currentPoseNumber ?? 0); const safePoseNum = Number.isFinite(poseNum) ? poseNum : 0; const poseNN = String(safePoseNum).padStart(2, '0'); const runId = String($execution.id || $json.runId || Date.now()); return { poseNumber: safePoseNum, stage: 'preBria', decisionSource: 'gemini', generatedImageUrl: $json.generatedImageUrl || null, flipRequestId: `AUTOFLIP-${orderId}-preBria-pose${poseNN}-${runId}` }; })() }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        2080,
-        128
-      ],
-      "id": "2432b293-c444-4d1d-b61c-d260147768f4",
-      "name": "HTTP Request Backend Auto Flip",
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Stamp deterministic backend outcome for fail-open QA visibility.\nconst j = { ...($json || {}) };\nconst explicitSuccess = j.success === true || j.body?.success === true;\nconst fallbackOk = Number.isFinite(j.statusCode) ? (j.statusCode >= 200 && j.statusCode < 300) : false;\nreturn {\n  json: {\n    ...j,\n    autoFlipStatus: explicitSuccess || fallbackOk ? 'flipped' : 'flip_failed'\n  }\n};\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2304,
-        128
-      ],
-      "id": "f63a22cf-f463-4261-af8f-44ca67d8fd7c",
-      "name": "Finalize Backend Auto Flip Status"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Lightweight fail-open alert for backend flip failures.\nconst j = { ...($json || {}) };\nif (j.autoFlipStatus !== 'flip_failed') {\n  return { json: j };\n}\n\nconst orderId = String(j.amazonOrderId || j.orderId || '').trim();\nconst poseNumber = Number(j.poseNumber ?? j.currentPoseNumber ?? 0);\nconst alert = {\n  event: 'auto_flip_failed',\n  orderId,\n  poseNumber: Number.isFinite(poseNumber) ? poseNumber : 0,\n  geminiVerdict: j.geminiVerdict || null,\n  autoFlipAction: j.autoFlipAction || null,\n  autoFlipStatus: j.autoFlipStatus,\n  statusCode: Number.isFinite(j.statusCode) ? j.statusCode : null,\n  responseSnippet: String(j.error || j.message || j.body?.error || j.body?.message || '').slice(0, 500),\n  correlationId: j.correlationId || null,\n  at: new Date().toISOString()\n};\n\nconst webhookUrl = String($env.AUTO_FLIP_ALERT_WEBHOOK_URL || '').trim();\nif (webhookUrl) {\n  try {\n    await fetch(webhookUrl, {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify(alert),\n    });\n  } catch (e) {\n    console.error('[AUTO_FLIP_ALERT_SEND_FAILED]', e?.message || e, alert);\n  }\n} else {\n  console.log('[AUTO_FLIP_ALERT]', JSON.stringify(alert));\n}\n\nreturn { json: j };\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2528,
-        128
-      ],
-      "id": "cf4cc0d8-1d95-4251-bf8c-b6b794ca5f4e",
-      "name": "Emit Flip Failed Alert"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Keep status assigned by resolver for ORIGINAL/UNSURE backend-mode paths.\nreturn { json: { ...($json || {}) } };\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2080,
-        272
-      ],
-      "id": "01f1923c-4a78-4fca-afee-b7ca5dd6ec0c",
-      "name": "Keep Auto Flip Status"
     }
   ],
   "pinData": {
@@ -604,60 +364,11 @@
     ]
   },
   "connections": {
-    "Wait": {
-      "main": [
-        [
-          {
-            "node": "Download Pose Reference For Flip",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Download Pose Reference For Flip": {
-      "main": [
-        [
-          {
-            "node": "Build Gemini Flip Verdict Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Gemini Flip Verdict Request": {
-      "main": [
-        [
-          {
-            "node": "HTTP Request1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP Request1": {
-      "main": [
-        [
-          {
-            "node": "Resolve Auto Flip Action",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "When Executed by Another Workflow": {
       "main": [
         [
           {
             "node": "Schema Check + Defaults",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Merge1",
             "type": "main",
             "index": 0
           }
@@ -709,11 +420,6 @@
             "node": "Merge",
             "type": "main",
             "index": 1
-          },
-          {
-            "node": "Merge1",
-            "type": "main",
-            "index": 1
           }
         ]
       ]
@@ -736,91 +442,6 @@
             "node": "Return Upload Results",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Merge1",
-            "type": "main",
-            "index": 2
-          }
-        ]
-      ]
-    },
-    "Merge1": {
-      "main": [
-        [
-          {
-            "node": "Wait",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Resolve Auto Flip Action": {
-      "main": [
-        [
-          {
-            "node": "Route Legacy Auto Flip",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Route Legacy Auto Flip": {
-      "main": [
-        [
-          {
-            "node": "Route Backend Auto Flip",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Route Backend Auto Flip",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Route Backend Auto Flip": {
-      "main": [
-        [
-          {
-            "node": "HTTP Request Backend Auto Flip",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Keep Auto Flip Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP Request Backend Auto Flip": {
-      "main": [
-        [
-          {
-            "node": "Finalize Backend Auto Flip Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Finalize Backend Auto Flip Status": {
-      "main": [
-        [
-          {
-            "node": "Emit Flip Failed Alert",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -830,10 +451,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "995fe0cd-4431-4896-971b-6effcdb85df5",
+  "versionId": "4e551508-b2ee-42dd-85b6-67158b94c9c0",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },
-  "id": "aghaFG3Aubtke7kd",
+  "id": "oKsq2x0gARt43k5U",
   "tags": []
 }

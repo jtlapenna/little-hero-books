@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { decode, encode } from 'fast-png';
 import { getObject, putObject } from '@/lib/r2-client';
+import { detectImageFormat, ensurePngBuffer, flipPngHorizontally, type ImageFormat } from '@/lib/image-flip';
+import { deterministicOrientationCheck } from '@/lib/orientation-check';
 import { extractR2Key, getBucketFromKey } from '@/lib/r2-utils';
 import { recordRequest } from './stats/route';
-
-type ImageFormat = 'png' | 'webp' | 'jpeg' | 'unknown';
-
-function detectImageFormat(buf: Buffer): ImageFormat {
-  if (!buf || buf.length < 12) return 'unknown';
-  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'png';
-  if (buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP') return 'webp';
-  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg';
-  return 'unknown';
-}
 
 const FORMAT_TO_MIME: Record<ImageFormat, string> = {
   png: 'image/png',
@@ -21,176 +12,13 @@ const FORMAT_TO_MIME: Record<ImageFormat, string> = {
   unknown: 'application/octet-stream',
 };
 
+type GeminiRequestPart = { text: string } | { inlineData: { mimeType: string; data: string } };
+type GeminiResponse = {
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+};
+
 function signatureHex(buf: Buffer, bytes = 8): string {
   return Buffer.from(buf.slice(0, Math.max(0, bytes))).toString('hex');
-}
-
-/**
- * Ensure PNG input for deterministic decode/flip.
- * NOTE: This route runs on OpenNext/Workers where native sharp can crash.
- */
-async function ensurePngBuffer(buf: Buffer, label: string): Promise<Buffer> {
-  const fmt = detectImageFormat(buf);
-  if (fmt === 'png') return buf;
-  throw new Error(
-    `Unsupported ${label} format '${fmt}'. Auto-flip expects PNG inputs for deterministic processing.`,
-  );
-}
-
-/**
- * Build a "background color" guess from the 4 corners.
- */
-function inferBackground(decoded: { width: number; height: number; data: Uint8Array; channels: number }) {
-  const { width, height, data, channels } = decoded;
-  const bpp = channels;
-  const corner = (x: number, y: number) => {
-    const i = (y * width + x) * bpp;
-    const r = data[i];
-    const g = channels >= 3 ? data[i + 1] : r;
-    const b = channels >= 3 ? data[i + 2] : r;
-    return { r, g, b };
-  };
-  const c1 = corner(0, 0);
-  const c2 = corner(width - 1, 0);
-  const c3 = corner(0, height - 1);
-  const c4 = corner(width - 1, height - 1);
-  return {
-    r: (c1.r + c2.r + c3.r + c4.r) / 4,
-    g: (c1.g + c2.g + c3.g + c4.g) / 4,
-    b: (c1.b + c2.b + c3.b + c4.b) / 4,
-  };
-}
-
-/**
- * Foreground mask: pixel is foreground if it's opaque and not background-colored.
- */
-function isForegroundAt(
-  decoded: { width: number; height: number; data: Uint8Array; channels: number },
-  bg: { r: number; g: number; b: number },
-  x: number,
-  y: number,
-): boolean {
-  const { width, data, channels } = decoded;
-  const bpp = channels;
-  const i = (y * width + x) * bpp;
-  const a = channels === 4 ? data[i + 3] : channels === 2 ? data[i + 1] : 255;
-  if (a <= 128) return false;
-  const r = data[i];
-  const g = channels >= 3 ? data[i + 1] : r;
-  const b = channels >= 3 ? data[i + 2] : r;
-  return !(Math.abs(r - bg.r) <= 10 && Math.abs(g - bg.g) <= 10 && Math.abs(b - bg.b) <= 10);
-}
-
-/**
- * Deterministic orientation check: compare the silhouette mask of the generated
- * image to the reference, and also compare the reference to the horizontally
- * mirrored generated silhouette. Pick the better match.
- */
-function deterministicOrientationCheck(
-  refBuffer: Buffer,
-  genBuffer: Buffer,
-): { needsFlip: boolean; confidence: number; refDiff: number; flippedDiff: number } | null {
-  const ref = decode(refBuffer);
-  const gen = decode(genBuffer);
-  const refBg = inferBackground(ref);
-  const genBg = inferBackground(gen);
-
-  const bboxGrid = 96;
-  const findBbox = (
-    img: { width: number; height: number; data: Uint8Array; channels: number },
-    bg: { r: number; g: number; b: number },
-  ) => {
-    let minX = img.width,
-      minY = img.height,
-      maxX = -1,
-      maxY = -1;
-    for (let gy = 0; gy < bboxGrid; gy++) {
-      const y = Math.min(img.height - 1, Math.floor(((gy + 0.5) * img.height) / bboxGrid));
-      for (let gx = 0; gx < bboxGrid; gx++) {
-        const x = Math.min(img.width - 1, Math.floor(((gx + 0.5) * img.width) / bboxGrid));
-        if (!isForegroundAt(img, bg, x, y)) continue;
-        if (x < minX) minX = x;
-        if (y < minY) minY = y;
-        if (x > maxX) maxX = x;
-        if (y > maxY) maxY = y;
-      }
-    }
-    if (maxX < 0 || maxY < 0) return null;
-    return { minX, minY, maxX, maxY };
-  };
-
-  const refBbox = findBbox(ref, refBg);
-  const genBbox = findBbox(gen, genBg);
-  if (!refBbox || !genBbox) return null;
-
-  const grid = 64;
-  let diffOriginal = 0;
-  let diffFlipped = 0;
-
-  for (let gy = 0; gy < grid; gy++) {
-    const ry = Math.min(
-      ref.height - 1,
-      Math.floor(refBbox.minY + ((gy + 0.5) * (refBbox.maxY - refBbox.minY + 1)) / grid),
-    );
-    const gy2 = Math.min(
-      gen.height - 1,
-      Math.floor(genBbox.minY + ((gy + 0.5) * (genBbox.maxY - genBbox.minY + 1)) / grid),
-    );
-    for (let gx = 0; gx < grid; gx++) {
-      const rx = Math.min(
-        ref.width - 1,
-        Math.floor(refBbox.minX + ((gx + 0.5) * (refBbox.maxX - refBbox.minX + 1)) / grid),
-      );
-      const gx2 = Math.min(
-        gen.width - 1,
-        Math.floor(genBbox.minX + ((gx + 0.5) * (genBbox.maxX - genBbox.minX + 1)) / grid),
-      );
-      const gx2Flipped = genBbox.minX + (genBbox.maxX - gx2);
-      const refFg = isForegroundAt(ref, refBg, rx, ry);
-      const genFg = isForegroundAt(gen, genBg, gx2, gy2);
-      const genFgFlipped = isForegroundAt(gen, genBg, gx2Flipped, gy2);
-      if (refFg !== genFg) diffOriginal++;
-      if (refFg !== genFgFlipped) diffFlipped++;
-    }
-  }
-
-  const confidence = (Math.max(diffOriginal, diffFlipped) + 1) / (Math.min(diffOriginal, diffFlipped) + 1);
-  return { needsFlip: diffFlipped < diffOriginal, confidence, refDiff: diffOriginal, flippedDiff: diffFlipped };
-}
-
-/**
- * Flip PNG image horizontally using fast-png (fflate-based, Workers-compatible).
- * Avoids pngjs which uses Node zlib.Inflate — incompatible with Cloudflare Workers.
- */
-async function flipPngHorizontally(imageBuffer: Buffer): Promise<Buffer> {
-  const decoded = decode(imageBuffer);
-  const { width, height, data, channels } = decoded;
-  const bytesPerPixel = channels;
-  const rowLength = width * bytesPerPixel;
-
-  console.log(`[Auto-Flip] PNG parsed: ${width}x${height}, channels: ${channels}`);
-
-  const flippedData = new Uint8Array(data.length);
-  for (let y = 0; y < height; y++) {
-    const rowStart = y * rowLength;
-    for (let x = 0; x < width; x++) {
-      const srcOff = rowStart + x * bytesPerPixel;
-      const tgtOff = rowStart + (width - 1 - x) * bytesPerPixel;
-      for (let c = 0; c < bytesPerPixel; c++) {
-        flippedData[tgtOff + c] = data[srcOff + c];
-      }
-    }
-  }
-
-  const out = encode({
-    width,
-    height,
-    data: flippedData,
-    depth: (decoded.depth as 8) ?? 8,
-    channels,
-  });
-  console.log(`[Auto-Flip] Image flipped: ${imageBuffer.length} bytes → ${out.length} bytes`);
-  return Buffer.from(out);
 }
 
 
@@ -290,10 +118,11 @@ export async function POST(request: NextRequest) {
     try {
       imageResponse = await getObject(imageBucket, imageKey);
       poseRefResponse = await getObject(poseRefBucket, poseRefKey);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('[Auto-Flip] Error downloading images:', error);
       return NextResponse.json(
-        { success: false, error: `Failed to download images: ${error.message || 'Unknown error'}` },
+        { success: false, error: `Failed to download images: ${message || 'Unknown error'}` },
         { status: 500 }
       );
     }
@@ -331,7 +160,7 @@ export async function POST(request: NextRequest) {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[Auto-Flip] Failed to normalize images to PNG:', msg);
-      if (msg.includes('Unsupported')) {
+      if (msg.startsWith('UNSUPPORTED_IMAGE_FORMAT:')) {
         recordRequest(characterHash, poseNumber, false, true);
         return NextResponse.json({
           success: true,
@@ -370,8 +199,9 @@ export async function POST(request: NextRequest) {
     let flippedCandidateBuffer: Buffer | null = null;
     try {
       flippedCandidateBuffer = await flipPngHorizontally(imagePng);
-    } catch (e: any) {
-      console.warn('[Auto-Flip] Failed to precompute flipped candidate:', e?.message ?? e);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn('[Auto-Flip] Failed to precompute flipped candidate:', message);
     }
 
     let needsFlip: boolean;
@@ -401,7 +231,7 @@ export async function POST(request: NextRequest) {
         const flippedCandidateBase64 = flippedCandidateBuffer ? flippedCandidateBuffer.toString('base64') : null;
 
         // Interleave labels with images so the model knows exactly which is which
-        const parts: any[] = [
+        const parts: GeminiRequestPart[] = [
           { text: 'REFERENCE pose (this is the correct facing direction):' },
           { inlineData: { mimeType: 'image/png', data: poseRefPngBase64 } },
           { text: 'IMAGE A — the ORIGINAL generated character:' },
@@ -437,11 +267,11 @@ export async function POST(request: NextRequest) {
             needsFlip = detResult?.needsFlip ?? false;
             decisionSource = detResult ? `deterministic-fallback (${detTag})` : 'default-no-flip (Gemini error)';
           } else {
-            const geminiData = await geminiResponse.json();
+            const geminiData = (await geminiResponse.json()) as GeminiResponse;
             const candidates = geminiData.candidates || [];
             const rawText = (candidates[0]?.content?.parts || [])
-              .filter((p: any) => p.text)
-              .map((p: any) => p.text)
+              .filter((part) => typeof part.text === 'string' && part.text.trim())
+              .map((part) => part.text)
               .join(' ')
               .trim();
             geminiRawAnswer = rawText;
@@ -462,8 +292,9 @@ export async function POST(request: NextRequest) {
               decisionSource = detResult ? `deterministic-fallback (${detTag})` : 'default-no-flip (Gemini unusable)';
             }
           }
-        } catch (error: any) {
-          console.error('[Auto-Flip] Gemini network error:', error?.message);
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error('[Auto-Flip] Gemini network error:', message);
           needsFlip = detResult?.needsFlip ?? false;
           decisionSource = detResult ? `deterministic-fallback (${detTag})` : 'default-no-flip (Gemini unreachable)';
         }
@@ -496,11 +327,12 @@ export async function POST(request: NextRequest) {
         originalSize: imageBuffer.length,
         flippedSize: flippedBuffer.length,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('[Auto-Flip] Error flipping image:', error);
       recordRequest(characterHash, poseNumber, false, false);
       return NextResponse.json(
-        { success: false, error: `Failed to flip image: ${error.message || 'Unknown error'}` },
+        { success: false, error: `Failed to flip image: ${message || 'Unknown error'}` },
         { status: 500 }
       );
     }
@@ -510,11 +342,12 @@ export async function POST(request: NextRequest) {
     try {
       await putObject(imageBucket, imageKey, flippedBuffer, 'image/png');
       console.log('[Auto-Flip] Flipped image uploaded successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('[Auto-Flip] Error uploading flipped image:', error);
       recordRequest(characterHash, poseNumber, false, false);
       return NextResponse.json(
-        { success: false, error: `Failed to upload flipped image: ${error.message || 'Unknown error'}` },
+        { success: false, error: `Failed to upload flipped image: ${message || 'Unknown error'}` },
         { status: 500 }
       );
     }
@@ -537,12 +370,13 @@ export async function POST(request: NextRequest) {
       _debug: { decisionSource, deterministic: detTag, geminiRaw: geminiRawAnswer, imageFormat, poseRefFormat },
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Auto-Flip] Unexpected error:', error);
     // Record error with available data
     recordRequest(characterHash, poseNumber, false, false);
     return NextResponse.json(
-      { success: false, error: error?.message || 'Internal server error' },
+      { success: false, error: message || 'Internal server error' },
       { status: 500 }
     );
   }
