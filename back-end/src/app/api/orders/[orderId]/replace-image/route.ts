@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, deleteObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { buildManifestKey } from '@/lib/r2-service';
 import { clear2BEntryForReprocessing } from '@/lib/auto-flip-pose';
+import { PoseAutoFlipFormatError, transformPoseUploadBuffer } from '@/lib/pose-auto-flip';
 
 // Helper to parse JSON safely
 async function readJsonSafe<T = any>(res: Response): Promise<T> {
@@ -36,7 +37,8 @@ export async function POST(
     // Parse multipart form data
     console.log('[Replace Image API] Parsing form data...');
     const formData = await request.formData();
-    console.log('[Replace Image API] FormData keys:', Array.from(formData.keys()));
+    const formDataKeys = Array.from(formData.keys());
+    console.log('[Replace Image API] FormData keys:', formDataKeys);
     
     const poseNumberStr = formData.get('poseNumber')?.toString();
     const pageNumberStr = formData.get('pageNumber')?.toString();
@@ -212,7 +214,36 @@ export async function POST(
         console.log(`[Replace Image API] Copying from temporary location: ${temporaryR2Key}`);
         
         // Read file from temporary location
-        const tempFileRes = await getObject(R2_ORDERS_BUCKET, temporaryR2Key);
+        let tempFileRes: Response;
+        try {
+          tempFileRes = await getObject(R2_ORDERS_BUCKET, temporaryR2Key);
+        } catch (error: any) {
+          console.error('[Replace Image API] Temporary page source fetch failed', {
+            orderId,
+            stage,
+            pageNumber,
+            temporaryR2Key,
+            formDataKeys,
+            hasFile: !!file,
+            fileSummary: file ? { name: file.name, size: file.size, type: file.type } : null,
+          });
+          return NextResponse.json(
+            {
+              error: `Temporary R2 source fetch failed: ${error.message || String(error)}`,
+              diagnostics: {
+                branch: 'temporaryR2Key',
+                orderId,
+                stage,
+                pageNumber,
+                temporaryR2Key,
+                formDataKeys,
+                hasFile: !!file,
+                fileSummary: file ? { name: file.name, size: file.size, type: file.type } : null,
+              },
+            },
+            { status: 500 }
+          );
+        }
         fileBuffer = await tempFileRes.arrayBuffer();
         contentType = tempFileRes.headers.get('content-type') || 'image/png';
         
@@ -742,15 +773,57 @@ export async function POST(
       console.log(`[Replace Image API] Copying from temporary location: ${temporaryR2Key}`);
       
       // Read file from temporary location
-      const tempFileRes = await getObject(R2_ORDERS_BUCKET, temporaryR2Key);
+      let tempFileRes: Response;
+      try {
+        tempFileRes = await getObject(R2_ORDERS_BUCKET, temporaryR2Key);
+      } catch (error: any) {
+        console.error('[Replace Image API] Temporary pose source fetch failed', {
+          orderId,
+          stage,
+          poseNumber,
+          temporaryR2Key,
+          formDataKeys,
+          hasFile: !!file,
+          fileSummary: file ? { name: file.name, size: file.size, type: file.type } : null,
+        });
+        return NextResponse.json(
+          {
+            error: `Temporary R2 source fetch failed: ${error.message || String(error)}`,
+            diagnostics: {
+              branch: 'temporaryR2Key',
+              orderId,
+              stage,
+              poseNumber,
+              temporaryR2Key,
+              formDataKeys,
+              hasFile: !!file,
+              fileSummary: file ? { name: file.name, size: file.size, type: file.type } : null,
+            },
+          },
+          { status: 500 }
+        );
+      }
       fileBuffer = await tempFileRes.arrayBuffer();
       contentType = tempFileRes.headers.get('content-type') || 'image/png';
       
       console.log(`[Replace Image API] Copied file size:`, fileBuffer.byteLength, 'bytes');
       console.log(`[Replace Image API] Content type:`, contentType);
       
+      const transformedUpload = transformPoseUploadBuffer({
+        stage,
+        poseNumber,
+        buffer: Buffer.from(fileBuffer),
+      });
+      fileBuffer = transformedUpload.buffer.buffer.slice(
+        transformedUpload.buffer.byteOffset,
+        transformedUpload.buffer.byteOffset + transformedUpload.buffer.byteLength,
+      );
+
       // Upload to final location
       console.log(`[Replace Image API] Uploading to final location: ${bucket}/${originalKey}`);
+      if (transformedUpload.flipped) {
+        console.log(`[Replace Image API] Auto-flipped pose ${poseNumber} before canonical upload`);
+      }
       await putObject(bucket, originalKey, fileBuffer, contentType);
       console.log(`[Replace Image API] File copied successfully`);
       
@@ -776,6 +849,18 @@ export async function POST(
       contentType = file.type || 'image/png';
     console.log(`[Replace Image API] Content type:`, contentType);
     
+    const transformedUpload = transformPoseUploadBuffer({
+      stage,
+      poseNumber,
+      buffer: Buffer.from(fileBuffer),
+    });
+    fileBuffer = transformedUpload.buffer.buffer.slice(
+      transformedUpload.buffer.byteOffset,
+      transformedUpload.buffer.byteOffset + transformedUpload.buffer.byteLength,
+    );
+    if (transformedUpload.flipped) {
+      console.log(`[Replace Image API] Auto-flipped pose ${poseNumber} before canonical upload`);
+    }
     console.log(`[Replace Image API] Calling putObject...`);
     await putObject(bucket, originalKey, fileBuffer, contentType);
     console.log(`[Replace Image API] putObject completed successfully`);
@@ -796,6 +881,10 @@ export async function POST(
     entry.replacementCount = replacementCount;
     if (replacedBy) {
       entry.replacedBy = replacedBy;
+    }
+    if (stage === 'preBria' && (poseNumber === 3 || poseNumber === 11)) {
+      entry.lastAutoFlipAt = replacedAt;
+      entry.lastAutoFlipReason = 'pose_policy';
     }
     
     // For postBria stage, also update source tracking fields for workflow cache-busting
@@ -962,6 +1051,12 @@ export async function POST(
     });
 
   } catch (error: any) {
+    if (error instanceof PoseAutoFlipFormatError) {
+      return NextResponse.json(
+        { error: `Auto-flip only supports PNG uploads for poses 3 and 11. Received ${error.format}.` },
+        { status: 400 }
+      );
+    }
     console.error('[Replace Image] Error:', error);
     return NextResponse.json(
       { error: error?.message || 'Internal server error' },
@@ -969,4 +1064,3 @@ export async function POST(
     );
   }
 }
-

@@ -1,9 +1,9 @@
 # Issue: Fix W2A Auto-Flip Feature (production bottleneck)
 
-**Status:** 🟡 Backend-only path implemented; runtime verification pending  
+**Status:** 🟡 Inline backend flip implemented for canonical backend publish paths; workflow source still needs runtime alignment where direct R2 writes bypass backend  
 **Priority:** High  
 **Created:** 2026-01-28  
-**Last Updated:** 2026-03-05
+**Last Updated:** 2026-03-06
 
 ## Problem Summary
 
@@ -29,14 +29,15 @@ The route currently mixes too many responsibilities in a Worker runtime:
 
 Even with code fixes, this is too heavy for Worker resource limits during real traffic.
 
-## Target Architecture (final)
+## Target Architecture (current)
 
-Keep **decision** and **mutation** separated:
+Make the backend canonical publish path the source of truth:
 
-- **In SW3 (n8n):** ask Gemini only for orientation verdict (`ORIGINAL`, `FLIPPED`, or `UNSURE`)
-- **In backend (non-Worker path):** if `FLIPPED`, do the actual pixel flip + R2/manifest update
+- **In backend canonical publish (`/api/orders/[orderId]/replace-image`):** flip pre-Bria poses `3` and `11` inline before writing the canonical `poseNN.png` object.
+- **In backend remediation route (`/api/orders/[orderId]/auto-flip-pose`):** keep a manual/backfill-compatible route, but use the same local inline flip logic instead of a renderer service.
+- **In workflows:** avoid relying on a second post-upload repair call when the final asset can be committed through the backend publish path directly.
 
-This keeps n8n simple and removes expensive image processing from Cloudflare Worker.
+This removes renderer dependency from the production flip logic and ensures backend-owned canonical writes land in the correct orientation immediately.
 
 ### Final flow hardening snapshot (Phase 6)
 
@@ -47,6 +48,50 @@ This keeps n8n simple and removes expensive image processing from Cloudflare Wor
   - idempotent no-op via deterministic `flipRequestId`
   - canonical key overwrite + manifest/order timestamp update
 - Legacy `POST /api/check-and-flip-orientation` is retained for diagnostics/manual checks only and is not part of the production SW3 critical path.
+
+## Current Runtime Reality (Phase 7 - 2026-03-06)
+
+Status: **RENDERER NO LONGER REQUIRED FOR BACKEND FLIP LOGIC**
+
+### Verified true
+
+- Canonical backend pre-Bria publishes can now auto-flip poses `3` and `11` inline with local PNG processing.
+- `POST /api/orders/[orderId]/auto-flip-pose` no longer needs renderer connectivity for the actual flip operation.
+- Targeted non-PNG uploads now fail closed instead of silently publishing the wrong orientation.
+
+### Remaining gap
+
+- The checked-in SW3 workflow source still uploads canonical pose assets directly to R2 before calling backend auto-flip follow-up logic.
+- That means production correctness still depends on runtime workflow alignment until SW3 final publish is routed through backend canonical commit or the direct-upload leg is otherwise changed.
+
+### Required fixes (current)
+
+1. Import/publish the updated backend so inline local flipping is live on backend-owned canonical writes.
+2. Update any active SW3 runtime that still writes canonical pre-Bria pose keys directly to R2:
+   - upload to temporary storage first, or
+   - finalize via backend canonical publish
+3. Keep `/api/orders/[orderId]/auto-flip-pose` only as remediation/backfill support, not the desired steady-state production path.
+4. Re-run live checks on poses `3` and `11` and verify the first published canonical asset is already correctly oriented.
+
+### Important implementation note
+
+- **The live `w2A-SW3-Upload` workflow in n8n Cloud still needs to be updated/published to match this backend-first process.**
+- The required runtime behavior is:
+  - SW3 must **not** publish the final canonical pre-Bria pose asset directly to R2 as the first write.
+  - SW3 should either:
+    - upload to a temporary key and let backend commit the canonical pose asset, or
+    - call the backend canonical publish path directly for the final write.
+- Until the active n8n Cloud workflow is changed, production W2A may still behave as "upload first, flip second", which means the wrong-facing image can still land in R2 before remediation.
+
+### Required runtime confirmation
+
+- After importing/publishing the revised SW3 workflow in n8n Cloud, run a live test and confirm the workflow is behaving correctly.
+- Minimum confirmation:
+  - one pose `3` run
+  - one pose `11` run
+  - verify the first canonical image written to R2 is already correctly flipped
+  - verify backend `/replace-image` is the canonical publish step being used
+  - verify no second mutation call is required to correct orientation
 
 ## Step-by-step pseudocode (source of truth)
 
@@ -439,3 +484,11 @@ Use one row per smoke order:
 |---|---:|---|---|---|---|---|---:|---|---|---|---|---|
 | TEST-ORDER-001 | 1 | FLIPPED |  |  |  |  |  |  |  |  |  |  |
 
+## Phase 7 Verification Matrix (renderer offload)
+
+| check | expected | latest observed | status |
+|---|---|---|---|
+| `GET <renderer>/health` | 200 JSON | 401 auth wall (Vercel) in latest direct probe | ❌ |
+| `auto-flip dryRun` | 200 + renderer probe ok=true | 200, but probe shows stale/invalid host (`530/1016`) | ❌ |
+| `auto-flip real` | 200 JSON success | 502 upstream error | ❌ |
+| idempotent replay | 200 JSON idempotent=true | blocked (real flip not succeeding yet) | ❌ |

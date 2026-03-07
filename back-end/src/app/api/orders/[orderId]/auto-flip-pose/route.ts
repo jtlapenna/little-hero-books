@@ -15,11 +15,11 @@ import {
   findOrCreatePoseEntry,
   isIdempotentAutoFlipReplay,
   isNotFoundError,
-  parseRendererFlipResult,
   parseJsonSafe,
   safeErrorMessage,
 } from '@/lib/auto-flip-pose';
-import { detectImageFormat, type ImageFormat } from '@/lib/image-flip';
+import { detectImageFormat } from '@/lib/image-flip';
+import { PoseAutoFlipFormatError, transformPoseUploadBuffer } from '@/lib/pose-auto-flip';
 
 type AutoFlipPoseRequestBody = {
   poseNumber?: unknown;
@@ -37,51 +37,6 @@ function badRequest(error: string) {
 
 function jsonSuccess(body: Record<string, unknown>) {
   return NextResponse.json({ success: true, ...body });
-}
-
-type RendererConfig = { rendererUrl: string; rendererToken: string };
-type RendererProbeResult = {
-  host: string;
-  reachable: boolean;
-  ok: boolean;
-  status: number | null;
-  latencyMs: number;
-  error: string | null;
-  responseSnippet: string | null;
-};
-
-// Resolve renderer service config once per request and fail clearly when missing.
-function resolveRendererConfig():
-  | { ok: true; config: RendererConfig }
-  | { ok: false; response: NextResponse } {
-  const rendererUrl = (process.env.RENDERER_URL || '').trim().replace(/\/+$/, '');
-  const rendererToken = (process.env.RENDERER_INTERNAL_TOKEN || '').trim();
-  if (!rendererUrl) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { success: false, error: 'Renderer service is not configured (missing RENDERER_URL)' },
-        { status: 500 },
-      ),
-    };
-  }
-  if (!rendererToken) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { success: false, error: 'Renderer service token is not configured (missing RENDERER_INTERNAL_TOKEN)' },
-        { status: 500 },
-      ),
-    };
-  }
-  return { ok: true, config: { rendererUrl, rendererToken } };
-}
-
-function imageFormatToMimeType(format: ImageFormat): string {
-  if (format === 'jpeg') return 'image/jpeg';
-  if (format === 'webp') return 'image/webp';
-  if (format === 'png') return 'image/png';
-  return 'application/octet-stream';
 }
 
 // Parse JSON safely so invalid JSON returns deterministic 400.
@@ -116,143 +71,6 @@ async function loadFromKnownBuckets(key: string): Promise<{ buffer: Buffer; buck
     const ordersMessage = safeErrorMessage(ordersError);
     if (!isNotFoundError(ordersMessage)) throw ordersError;
     return { buffer: await loadBuffer(R2_PUBLIC_BUCKET, key), bucket: R2_PUBLIC_BUCKET };
-  }
-}
-
-async function requestRendererFlip(input: {
-  renderer: RendererConfig;
-  sourceImageUrl: string;
-  sourceFormat: ImageFormat;
-  logContext: Record<string, unknown>;
-}): Promise<{ ok: true; flippedBuffer: Buffer; mimeType: string } | { ok: false; response: NextResponse }> {
-  const { renderer, sourceImageUrl, sourceFormat, logContext } = input;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45000);
-
-  try {
-    const response = await fetch(`${renderer.rendererUrl}/flip-image`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${renderer.rendererToken}`,
-      },
-      body: JSON.stringify({
-        imageUrl: sourceImageUrl,
-        mimeType: imageFormatToMimeType(sourceFormat),
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      const responseText = await response.text();
-      console.error('[AutoFlipPoseAPI] renderer_flip_failed', {
-        ...logContext,
-        status: response.status,
-        responseSnippet: responseText.slice(0, 400),
-      });
-      return {
-        ok: false,
-        response: NextResponse.json(
-          { success: false, error: 'Renderer flip request failed' },
-          { status: 502 },
-        ),
-      };
-    }
-
-    const payload = await response.json();
-    const parsed = parseRendererFlipResult(payload);
-    if (!parsed) {
-      console.error('[AutoFlipPoseAPI] renderer_flip_invalid_payload', {
-        ...logContext,
-        payloadType: typeof payload,
-      });
-      return {
-        ok: false,
-        response: NextResponse.json(
-          { success: false, error: 'Renderer flip returned invalid payload' },
-          { status: 502 },
-        ),
-      };
-    }
-
-    const flippedBuffer = Buffer.from(parsed.flippedImageBase64, 'base64');
-    if (!flippedBuffer.length) {
-      return {
-        ok: false,
-        response: NextResponse.json(
-          { success: false, error: 'Renderer flip returned empty image data' },
-          { status: 502 },
-        ),
-      };
-    }
-
-    return { ok: true, flippedBuffer, mimeType: parsed.mimeType };
-  } catch (error) {
-    console.error('[AutoFlipPoseAPI] renderer_flip_request_error', {
-      ...logContext,
-      message: safeErrorMessage(error),
-    });
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { success: false, error: 'Renderer flip request failed unexpectedly' },
-        { status: 502 },
-      ),
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-// Dry-run diagnostics helper to verify renderer reachability without flipping bytes.
-async function probeRendererHealth(
-  renderer: RendererConfig,
-  logContext: Record<string, unknown>,
-): Promise<RendererProbeResult> {
-  const startedAt = Date.now();
-  const host = (() => {
-    try {
-      return new URL(renderer.rendererUrl).host;
-    } catch {
-      return 'invalid_renderer_url';
-    }
-  })();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 4000);
-
-  try {
-    const response = await fetch(`${renderer.rendererUrl}/health`, {
-      method: 'GET',
-      signal: controller.signal,
-    });
-    const responseText = await response.text();
-    return {
-      host,
-      reachable: true,
-      ok: response.ok,
-      status: response.status,
-      latencyMs: Date.now() - startedAt,
-      error: null,
-      responseSnippet: responseText.slice(0, 240) || null,
-    };
-  } catch (error) {
-    const message = safeErrorMessage(error);
-    console.warn('[AutoFlipPoseAPI] renderer_health_probe_failed', {
-      ...logContext,
-      host,
-      message,
-    });
-    return {
-      host,
-      reachable: false,
-      ok: false,
-      status: null,
-      latencyMs: Date.now() - startedAt,
-      error: message,
-      responseSnippet: null,
-    };
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -435,10 +253,6 @@ export async function POST(
   console.log('[AutoFlipPoseAPI] request_validated', logContext);
 
   try {
-    const rendererConfigResult = resolveRendererConfig();
-    if (!rendererConfigResult.ok) return rendererConfigResult.response;
-    const renderer = rendererConfigResult.config;
-
     if (!AUTO_FLIP_SUPPORTED_POSES.has(poseNumberValue)) {
       return jsonSuccess({
         checked: false,
@@ -553,11 +367,6 @@ export async function POST(
 
     // Diagnostic mode: validate manifest/key/bucket/source bytes without mutating data.
     if (dryRunEnabled) {
-      const rendererProbe = await probeRendererHealth(renderer, {
-        ...logContext,
-        sourceBucket,
-        sourceKey: resolvedSourceKey,
-      });
       return jsonSuccess({
         checked: true,
         flipped: false,
@@ -572,43 +381,20 @@ export async function POST(
         sourceFormat,
         sourceImageUrl,
         poseRefKey,
-        rendererProbe,
         decisionSource: 'deterministic',
         policy: 'force_flip_supported_pose',
         skipReason: 'dry_run',
       });
     }
 
-    if (sourceFormat === 'unknown') {
-      console.warn('[AutoFlipPoseAPI] unsupported_source_format', {
-        ...logContext,
-        canonicalKey,
-        sourceFormat,
-      });
-      return jsonSuccess({
-        checked: true,
-        flipped: false,
-        orderId,
-        poseNumber: poseNumberValue,
-        stage: 'preBria',
-        r2Key: canonicalKey,
-        decisionSource: 'deterministic',
-        skipReason: 'unsupported_image_format',
-        message: 'Auto-flip source format is unsupported.',
-      });
-    }
-
-    // Delegate heavy pixel flip work to the Node-based renderer service.
-    const rendererFlip = await requestRendererFlip({
-      renderer,
-      sourceImageUrl,
-      sourceFormat,
-      logContext: { ...logContext, canonicalKey, sourceBucket, sourceImageUrl },
+    const transformedUpload = transformPoseUploadBuffer({
+      stage: 'preBria',
+      poseNumber: poseNumberValue,
+      buffer: sourceImage,
     });
-    if (!rendererFlip.ok) return rendererFlip.response;
 
     try {
-      await putObject(sourceBucket, canonicalKey, rendererFlip.flippedBuffer, rendererFlip.mimeType || 'image/png');
+      await putObject(sourceBucket, canonicalKey, transformedUpload.buffer, 'image/png');
     } catch (error) {
       const message = safeErrorMessage(error);
       console.error('[AutoFlipPoseAPI] r2_upload_failed', {
@@ -628,6 +414,7 @@ export async function POST(
       publicR2Url: manifest.order?.publicR2Url,
       replacedAt,
       requestId,
+      reason: 'pose_policy',
     });
 
     await putObject(R2_ORDERS_BUCKET, manifestKey, JSON.stringify(manifest, null, 2), 'application/json');
@@ -659,11 +446,20 @@ export async function POST(
       r2Key: canonicalKey,
       replacedAt,
       decisionSource: 'deterministic',
-      policy: 'renderer_force_flip_supported_pose',
+      policy: 'inline_force_flip_supported_pose',
       poseRefKey,
       sourceFormat,
     });
   } catch (error) {
+    if (error instanceof PoseAutoFlipFormatError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Auto-flip only supports PNG source images for poses 3 and 11. Received ${error.format}.`,
+        },
+        { status: 400 },
+      );
+    }
     console.error('[AutoFlipPoseAPI] unexpected_error', {
       ...logContext,
       message: safeErrorMessage(error),

@@ -18,6 +18,7 @@ export type AutoFlipManifestEntry = {
   replacementHistory?: Array<{ replacedAt: string; replacedBy: string | null }>;
   lastAutoFlipRequestId?: string | null;
   lastAutoFlipAt?: string | null;
+  lastAutoFlipReason?: string | null;
   bgRemovedKey?: string;
   bgRemovedFilename?: string;
   bgRemovedImageUrl?: string;
@@ -121,8 +122,9 @@ export function applyPreBriaFlipMetadata(input: {
   publicR2Url?: string | null;
   replacedAt: string;
   requestId?: string;
+  reason?: string;
 }): void {
-  const { entry, poseNumber, canonicalKey, publicR2Url, replacedAt, requestId } = input;
+  const { entry, poseNumber, canonicalKey, publicR2Url, replacedAt, requestId, reason } = input;
   const poseNN = String(poseNumber).padStart(2, '0');
 
   entry.approvedKey = canonicalKey;
@@ -140,6 +142,7 @@ export function applyPreBriaFlipMetadata(input: {
   entry.replacedBy = null;
   entry.lastAutoFlipRequestId = requestId || null;
   entry.lastAutoFlipAt = replacedAt;
+  entry.lastAutoFlipReason = reason || null;
   entry.replacementHistory = [
     ...(entry.replacementHistory || []),
     { replacedAt, replacedBy: null },

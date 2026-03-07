@@ -15,6 +15,11 @@ import {
   parseRendererFlipResult,
 } from '../src/lib/auto-flip-pose';
 import { deterministicOrientationCheck } from '../src/lib/orientation-check';
+import {
+  PoseAutoFlipFormatError,
+  shouldAutoFlipPoseUpload,
+  transformPoseUploadBuffer,
+} from '../src/lib/pose-auto-flip';
 
 // Verify canonical key stripping and fallback key construction.
 function testKeyHelpers() {
@@ -56,6 +61,7 @@ function testPreBriaFlipMetadata() {
   assert.equal(entry.publicUrl, 'https://pub.example.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/abcd1234/poses/pose03.png');
   assert.equal(entry.replacementCount, 2);
   assert.equal(entry.lastAutoFlipRequestId, 'REQ-2');
+  assert.equal(entry.lastAutoFlipReason, null);
 }
 
 // Verify stale 2B fields are cleared after a 2A flip.
@@ -173,6 +179,46 @@ function testRendererFlipPayloadParser() {
   assert.equal(parseRendererFlipResult(null), null);
 }
 
+function testInlinePoseAutoFlipPolicy() {
+  const source = makePosePng(false);
+  const targeted = transformPoseUploadBuffer({
+    stage: 'preBria',
+    poseNumber: 3,
+    buffer: source,
+  });
+  const untargeted = transformPoseUploadBuffer({
+    stage: 'preBria',
+    poseNumber: 2,
+    buffer: source,
+  });
+  const postBria = transformPoseUploadBuffer({
+    stage: 'postBria',
+    poseNumber: 11,
+    buffer: source,
+  });
+
+  assert.equal(shouldAutoFlipPoseUpload('preBria', 3), true);
+  assert.equal(shouldAutoFlipPoseUpload('preBria', 11), true);
+  assert.equal(shouldAutoFlipPoseUpload('postBria', 3), false);
+  assert.equal(targeted.flipped, true);
+  assert.equal(targeted.format, 'png');
+  assert.notDeepEqual(targeted.buffer, source);
+  assert.equal(untargeted.flipped, false);
+  assert.deepEqual(untargeted.buffer, source);
+  assert.equal(postBria.flipped, false);
+  assert.deepEqual(postBria.buffer, source);
+
+  assert.throws(
+    () =>
+      transformPoseUploadBuffer({
+        stage: 'preBria',
+        poseNumber: 3,
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0x00]),
+      }),
+    (error: unknown) => error instanceof PoseAutoFlipFormatError && error.format === 'unknown',
+  );
+}
+
 function main() {
   testKeyHelpers();
   testEntryHelpers();
@@ -182,6 +228,7 @@ function main() {
   testSupportedPoses();
   testDeterministicOrientationCheck();
   testRendererFlipPayloadParser();
+  testInlinePoseAutoFlipPolicy();
   console.log('Auto-flip support helper checks passed.');
 }
 
