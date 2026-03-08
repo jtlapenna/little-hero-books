@@ -1,5 +1,6 @@
 import { AUTO_FLIP_SUPPORTED_POSES } from '@/lib/auto-flip-pose';
 import { detectImageFormat, flipPngHorizontally } from '@/lib/image-flip';
+import sharp from 'sharp';
 
 export type PoseAutoFlipStage = 'preBria' | 'postBria' | 'postPdf';
 
@@ -17,25 +18,41 @@ export function shouldAutoFlipPoseUpload(stage: PoseAutoFlipStage, poseNumber: n
   return stage === 'preBria' && AUTO_FLIP_SUPPORTED_POSES.has(poseNumber);
 }
 
-export function transformPoseUploadBuffer(input: {
+export async function transformPoseUploadBuffer(input: {
   stage: PoseAutoFlipStage;
   poseNumber: number;
   buffer: Buffer;
-}): { buffer: Buffer; flipped: boolean; format: string } {
+}): Promise<{ buffer: Buffer; flipped: boolean; format: string; contentType: string }> {
   const { stage, poseNumber, buffer } = input;
   const format = detectImageFormat(buffer);
 
   if (!shouldAutoFlipPoseUpload(stage, poseNumber)) {
-    return { buffer, flipped: false, format };
+    return {
+      buffer,
+      flipped: false,
+      format,
+      contentType: format === 'jpeg' ? 'image/jpeg' : format === 'webp' ? 'image/webp' : 'image/png',
+    };
   }
 
-  if (format !== 'png') {
-    throw new PoseAutoFlipFormatError(format);
+  if (format === 'png') {
+    return {
+      buffer: flipPngHorizontally(buffer),
+      flipped: true,
+      format,
+      contentType: 'image/png',
+    };
   }
 
-  return {
-    buffer: flipPngHorizontally(buffer),
-    flipped: true,
-    format,
-  };
+  if (format === 'jpeg' || format === 'webp') {
+    const normalizedPng = await sharp(buffer).png().toBuffer();
+    return {
+      buffer: flipPngHorizontally(normalizedPng),
+      flipped: true,
+      format,
+      contentType: 'image/png',
+    };
+  }
+
+  throw new PoseAutoFlipFormatError(format);
 }

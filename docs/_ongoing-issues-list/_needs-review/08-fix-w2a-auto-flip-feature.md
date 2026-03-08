@@ -77,6 +77,8 @@ Status: **RENDERER NO LONGER REQUIRED FOR BACKEND FLIP LOGIC**
 
 - **The live `w2A-SW3-Upload` workflow in n8n Cloud still needs to be updated/published to match this backend-first process.**
 - The required runtime behavior is:
+  - SW3 must **not** depend on `2a-manifest.json` to determine the canonical upload target.
+  - `2a-manifest.json` is only created after all 2A pose uploads complete, so it does not exist yet during the individual SW3 pose upload/finalize step.
   - SW3 must **not** publish the final canonical pre-Bria pose asset directly to R2 as the first write.
   - SW3 should either:
     - upload to a temporary key and let backend commit the canonical pose asset, or

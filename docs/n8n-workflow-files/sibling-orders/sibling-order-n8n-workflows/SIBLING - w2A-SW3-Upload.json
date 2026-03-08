@@ -8,10 +8,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        -15232,
-        -2352
+        -19088,
+        -2112
       ],
-      "id": "24c0d700-ce23-4cc6-bfe3-aa2c775dbed1",
+      "id": "ff0b5566-5a5b-4999-8e47-3df0bd3fe5ac",
       "name": "Wait",
       "webhookId": "cac9f23e-4e21-499a-ac2c-3aad35ed652c"
     },
@@ -19,13 +19,13 @@
       "parameters": {
         "inputSource": "passthrough"
       },
-      "id": "166f0007-f06f-42fa-89f0-2dbd58eafd3c",
+      "id": "342b8f00-d2bd-4e51-b99b-7b41ede4d68f",
       "typeVersion": 1.1,
       "name": "When Executed by Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "position": [
-        -17584,
-        -1984
+        -19552,
+        -2432
       ]
     },
     {
@@ -35,10 +35,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -17344,
-        -1984
+        -19312,
+        -2432
       ],
-      "id": "9399644f-2e2a-4205-9abb-5021ff40a8db",
+      "id": "c5e8262c-047c-4df8-92d4-b5b7952841f3",
       "name": "Schema Check + Defaults"
     },
     {
@@ -49,10 +49,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -17104,
-        -1984
+        -19072,
+        -2432
       ],
-      "id": "f1bf9602-f46b-4293-ab39-40da1916a12d",
+      "id": "34c8c57c-488a-4c92-a090-255f246d64c7",
       "name": "Capture Lean Meta"
     },
     {
@@ -63,10 +63,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16832,
-        -1984
+        -18800,
+        -2432
       ],
-      "id": "117fe04e-ee3b-4ac5-982d-1d385ddfcd33",
+      "id": "b0475ea6-43b1-4aac-8f7b-7139758da10b",
       "name": "Prepare Upload (ensure generated)"
     },
     {
@@ -74,13 +74,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Memory Hygiene After Upload (SW3-05) — per-item\nconst j = $json || {};\nconst itemIdx = $itemIndex ?? 0;\n\n// clear binaries by returning an empty binary object\nconst out = {\n  json: j,\n  binary: {}, // important: single object, not array\n  pairedItem: $input?.item?.pairedItem ?? { item: itemIdx },\n};\n\nconsole.log(`🧹 Cleared binaries for ${j.characterHash || 'unknown'} pose ${j.poseNumber ?? j.currentPoseNumber ?? '?'} (item ${itemIdx})`);\n\nif (global && typeof global.gc === 'function') {\n  try { global.gc(); } catch {}\n}\n\nreturn out;\n"
       },
-      "id": "0c10c702-0963-497d-8c07-d5d67a47906d",
+      "id": "6d1bdcef-8270-49e7-a7b5-84ca9c23140a",
       "name": "Memory Cleanup After Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -15968,
-        -2144
+        -18208,
+        -2592
       ],
       "notesInFlow": true,
       "notes": "Explicit memory cleanup after upload (SW3-05)"
@@ -92,10 +92,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -15488,
-        -2000
+        -17728,
+        -2448
       ],
-      "id": "11f84a1d-63b7-4aef-a4dc-bda497378a53",
+      "id": "e5010576-6260-4663-b225-73c1b4699057",
       "name": "Return Upload Results"
     },
     {
@@ -107,10 +107,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -15712,
-        -2000
+        -17952,
+        -2448
       ],
-      "id": "5038e023-ea2e-4a4a-a212-b515c28a57a4",
+      "id": "ce5fd47d-c8d5-4eab-8e82-1eaa1e0eddbe",
       "name": "Merge"
     },
     {
@@ -123,10 +123,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -15424,
-        -2368
+        -19280,
+        -2128
       ],
-      "id": "383ee705-5dd7-4c7c-9020-46c55f720958",
+      "id": "101fafe3-3dfc-4c03-8752-0653bc1a2088",
       "name": "Merge1"
     },
     {
@@ -138,10 +138,10 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -14992,
-        -2352
+        -18848,
+        -2112
       ],
-      "id": "708be528-e72d-44ed-9c9b-4ecf4024a631",
+      "id": "66285a99-3409-4b21-b4e4-e4fc1e2f1da2",
       "name": "Download Pose Reference For Flip",
       "credentials": {
         "s3": {
@@ -158,10 +158,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -14736,
-        -2352
+        -18592,
+        -2112
       ],
-      "id": "1d653860-f8b4-4778-a11a-68baae156542",
+      "id": "5fe590e9-9d0a-46e3-bdd6-479067506dd0",
       "name": "Build Gemini Flip Verdict Request"
     },
     {
@@ -171,10 +171,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -14528,
-        -2352
+        -18384,
+        -2112
       ],
-      "id": "871064a5-3536-4ae2-a72e-eaa624fb7f83",
+      "id": "4dafd238-2f4c-40f1-a840-51de98914ea3",
       "name": "Resolve Auto Flip Action"
     },
     {
@@ -204,10 +204,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -14304,
-        -2352
+        -18160,
+        -2112
       ],
-      "id": "031ddcae-1153-49ee-9df4-b2c2f284ef5a",
+      "id": "bdaf32f3-86c3-4de0-89ba-fd033bf06c5d",
       "name": "Route Legacy Auto Flip"
     },
     {
@@ -237,10 +237,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -14032,
-        -2352
+        -17888,
+        -2112
       ],
-      "id": "c93d18d8-cfed-41c6-88d3-ad9727297781",
+      "id": "b07927fa-92e5-4a17-8dbd-2afe593febdc",
       "name": "Route Backend Auto Flip"
     },
     {
@@ -249,7 +249,12 @@
         "url": "={{ (() => { const orderId = String($json.amazonOrderId || $json.orderData?.amazonOrderId || $json.__meta?.amazonOrderId || $json.orderId || '').trim(); if (!orderId) { throw new Error('Missing amazonOrderId/orderId for replace-image publish'); } return 'https://admin.littleherolabs.com/api/orders/' + encodeURIComponent(orderId) + '/replace-image'; })() }}",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": []
+          "parameters": [
+            {
+              "name": "x-lhb-upload-mode",
+              "value": "direct-file"
+            }
+          ]
         },
         "sendBody": true,
         "contentType": "multipart-form-data",
@@ -267,6 +272,10 @@
             {
               "name": "stage",
               "value": "preBria"
+            },
+            {
+              "name": "storageKey",
+              "value": "={{ (() => { const key = String($json.storageKey || $json.uploadKey || $json.__meta?.storageKey || $json.__meta?.uploadKey || '').trim(); if (!key) { throw new Error('Missing storageKey for replace-image publish'); } return key; })() }}"
             }
           ]
         },
@@ -281,10 +290,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        -16176,
-        -2144
+        -18416,
+        -2592
       ],
-      "id": "d4ab6e47-baf3-406c-b2b7-e81c2a2664bf",
+      "id": "81304cc9-8a31-4046-aeb8-3ce15e367a25",
       "name": "HTTP Request Finalize Canonical Publish"
     },
     {
@@ -294,10 +303,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -13696,
-        -2352
+        -17552,
+        -2112
       ],
-      "id": "21fa4437-f422-4d43-b011-6a548288bb6b",
+      "id": "c230f636-3eb4-47c7-8fd2-933d70f2067c",
       "name": "Keep Auto Flip Status"
     }
   ],
@@ -726,7 +735,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "b325e6ed-b023-4ceb-baf1-05785326e05b",
+  "versionId": "50f03f58-f38e-4582-9286-983f658d37a8",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },

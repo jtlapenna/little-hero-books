@@ -278,7 +278,12 @@
         "url": "={{ (() => { const orderId = String($json.amazonOrderId || $json.orderData?.amazonOrderId || $json.__meta?.amazonOrderId || $json.orderId || '').trim(); if (!orderId) { throw new Error('Missing amazonOrderId/orderId for replace-image publish'); } return 'https://admin.littleherolabs.com/api/orders/' + encodeURIComponent(orderId) + '/replace-image'; })() }}",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": []
+          "parameters": [
+            {
+              "name": "x-lhb-upload-mode",
+              "value": "direct-file"
+            }
+          ]
         },
         "sendBody": true,
         "contentType": "multipart-form-data",
@@ -296,6 +301,10 @@
             {
               "name": "stage",
               "value": "preBria"
+            },
+            {
+              "name": "storageKey",
+              "value": "={{ (() => { const key = String($json.storageKey || $json.uploadKey || $json.__meta?.storageKey || $json.__meta?.uploadKey || '').trim(); if (!key) { throw new Error('Missing storageKey for replace-image publish'); } return key; })() }}"
             }
           ]
         },
