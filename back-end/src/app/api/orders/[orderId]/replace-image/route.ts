@@ -40,6 +40,11 @@ export async function POST(
     const formDataKeys = Array.from(formData.keys());
     console.log('[Replace Image API] FormData keys:', formDataKeys);
     
+    const uploadMode = request.headers.get('x-lhb-upload-mode')?.toString() || null;
+    const forceDirectFile = uploadMode === 'direct-file';
+    const requestedTemporaryR2Key = formData.get('temporaryR2Key')?.toString(); // Optional: for accepting revisions
+    const temporaryR2Key = forceDirectFile ? undefined : requestedTemporaryR2Key;
+
     const poseNumberStr = formData.get('poseNumber')?.toString();
     const pageNumberStr = formData.get('pageNumber')?.toString();
     const stage = formData.get('stage')?.toString();
@@ -47,7 +52,6 @@ export async function POST(
     const file = formData.get('file') as File | null;
     const replacedBy = formData.get('replacedBy')?.toString() || null; // Optional
     const isFlipped = formData.get('isFlipped')?.toString() === 'true'; // Indicates this is a flip operation
-    const temporaryR2Key = formData.get('temporaryR2Key')?.toString(); // Optional: for accepting revisions
 
     console.log('[Replace Image API] Extracted values:', {
       poseNumberStr,
@@ -55,6 +59,9 @@ export async function POST(
       stage,
       isBaseCharacter,
       file: file ? { name: file.name, size: file.size, type: file.type } : null,
+      uploadMode,
+      forceDirectFile,
+      requestedTemporaryR2Key,
       temporaryR2Key,
       replacedBy
     });
@@ -73,6 +80,13 @@ export async function POST(
       });
       return NextResponse.json(
         { error: 'Missing required fields: (poseNumber or pageNumber or isBaseCharacter), stage, and (file or temporaryR2Key)' },
+        { status: 400 }
+      );
+    }
+
+    if (forceDirectFile && !file) {
+      return NextResponse.json(
+        { error: 'Direct-file upload mode requires a file field' },
         { status: 400 }
       );
     }
