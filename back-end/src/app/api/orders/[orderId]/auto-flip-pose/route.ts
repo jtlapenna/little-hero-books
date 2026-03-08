@@ -455,7 +455,7 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          error: `Auto-flip only supports PNG source images for poses 3 and 11. Received ${error.format}.`,
+          error: `Auto-flip only supports PNG or JPEG source images for poses 3 and 11. Received ${error.format}.`,
         },
         { status: 400 },
       );

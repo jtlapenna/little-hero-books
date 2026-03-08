@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 import assert from 'node:assert/strict';
-import { encode } from 'fast-png';
-import sharp from 'sharp';
+import { decode, encode } from 'fast-png';
+import jpeg from 'jpeg-js';
 import {
   AUTO_FLIP_CONFIDENCE_THRESHOLD,
   AUTO_FLIP_SUPPORTED_POSES,
@@ -197,7 +197,17 @@ async function testInlinePoseAutoFlipPolicy() {
     poseNumber: 11,
     buffer: source,
   });
-  const jpegSource = await sharp(source).jpeg().toBuffer();
+  const decodedSource = decode(source);
+  const jpegSource = Buffer.from(
+    jpeg.encode(
+      {
+        data: Buffer.from(decodedSource.data),
+        width: decodedSource.width,
+        height: decodedSource.height,
+      },
+      90,
+    ).data,
+  );
   const targetedJpeg = await transformPoseUploadBuffer({
     stage: 'preBria',
     poseNumber: 11,

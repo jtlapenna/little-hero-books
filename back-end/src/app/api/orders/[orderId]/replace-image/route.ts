@@ -1141,7 +1141,7 @@ export async function POST(
   } catch (error: any) {
     if (error instanceof PoseAutoFlipFormatError) {
       return NextResponse.json(
-        { error: `Auto-flip only supports PNG, JPEG, or WebP uploads for poses 3 and 11. Received ${error.format}.` },
+        { error: `Auto-flip only supports PNG or JPEG uploads for poses 3 and 11. Received ${error.format}.` },
         { status: 400 }
       );
     }

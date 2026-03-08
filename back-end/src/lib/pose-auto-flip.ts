@@ -1,5 +1,7 @@
 import { AUTO_FLIP_SUPPORTED_POSES } from '@/lib/auto-flip-pose';
 import { detectImageFormat, flipPngHorizontally } from '@/lib/image-flip';
+import { encode } from 'fast-png';
+import jpeg from 'jpeg-js';
 
 export type PoseAutoFlipStage = 'preBria' | 'postBria' | 'postPdf';
 
@@ -11,15 +13,6 @@ export class PoseAutoFlipFormatError extends Error {
     super(`POSE_AUTO_FLIP_UNSUPPORTED_FORMAT:${format}`);
     this.format = format;
   }
-}
-
-let sharpModulePromise: Promise<typeof import('sharp')> | null = null;
-
-async function loadSharp() {
-  if (!sharpModulePromise) {
-    sharpModulePromise = import('sharp');
-  }
-  return sharpModulePromise;
 }
 
 export function shouldAutoFlipPoseUpload(stage: PoseAutoFlipStage, poseNumber: number): boolean {
@@ -53,9 +46,19 @@ export async function transformPoseUploadBuffer(input: {
   }
 
   if (format === 'jpeg' || format === 'webp') {
-    const sharpModule = await loadSharp();
-    const sharp = sharpModule.default;
-    const normalizedPng = await sharp(buffer).png().toBuffer();
+    if (format === 'webp') {
+      throw new PoseAutoFlipFormatError(format);
+    }
+    const decoded = jpeg.decode(buffer, { useTArray: true });
+    const normalizedPng = Buffer.from(
+      encode({
+        width: decoded.width,
+        height: decoded.height,
+        data: decoded.data,
+        channels: 4,
+        depth: 8,
+      }),
+    );
     return {
       buffer: flipPngHorizontally(normalizedPng),
       flipped: true,
