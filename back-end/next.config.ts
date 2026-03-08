@@ -76,15 +76,16 @@ const nextConfig: NextConfig = {
         })
       );
       
-      // Make sharp and canvas external (not bundled, loaded at runtime)
+      // Make only the truly incompatible native deps external.
+      // Keep `sharp` bundleable so OpenNext can include the worker-compatible build.
       // Use a function to conditionally externalize only when these modules are imported
       const originalExternals = config.externals;
       config.externals = [
         ...(Array.isArray(originalExternals) ? originalExternals : [originalExternals || {}]),
         // Externalize selected native deps without `Function` typing (lint-safe).
         (context: string, request: string, callback: (err?: Error | null, result?: string) => void) => {
-          // Only externalize sharp and canvas, let other modules bundle normally
-          if (request === 'sharp' || request === '@napi-rs/canvas' || request === 'pdfjs-dist' || request.startsWith('pdfjs-dist/')) {
+          // Only externalize canvas/pdfjs, let `sharp` bundle for worker runtime.
+          if (request === '@napi-rs/canvas' || request === 'pdfjs-dist' || request.startsWith('pdfjs-dist/')) {
             return callback(null, `commonjs ${request}`);
           }
           // For other modules, use the original externals logic
