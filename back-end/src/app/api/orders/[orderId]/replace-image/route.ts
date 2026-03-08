@@ -142,7 +142,7 @@ export async function POST(
       let fileBuffer = await file.arrayBuffer();
       const contentType = file.type || 'image/png';
 
-      const transformedUpload = transformPoseUploadBuffer({
+      const transformedUpload = await transformPoseUploadBuffer({
         stage,
         poseNumber,
         buffer: Buffer.from(fileBuffer),
@@ -159,12 +159,12 @@ export async function POST(
         targetKey,
         canonicalKey,
         bucket,
-        contentType,
+        contentType: transformedUpload.contentType,
         storageKey,
         formDataKeys,
       });
 
-      await putObject(bucket, canonicalKey, fileBuffer, contentType);
+      await putObject(bucket, canonicalKey, fileBuffer, transformedUpload.contentType);
 
       const replacedAt = new Date().toISOString();
       return NextResponse.json({
@@ -897,7 +897,7 @@ export async function POST(
       console.log(`[Replace Image API] Copied file size:`, fileBuffer.byteLength, 'bytes');
       console.log(`[Replace Image API] Content type:`, contentType);
       
-      const transformedUpload = transformPoseUploadBuffer({
+      const transformedUpload = await transformPoseUploadBuffer({
         stage,
         poseNumber,
         buffer: Buffer.from(fileBuffer),
@@ -912,7 +912,7 @@ export async function POST(
       if (transformedUpload.flipped) {
         console.log(`[Replace Image API] Auto-flipped pose ${poseNumber} before canonical upload`);
       }
-      await putObject(bucket, originalKey, fileBuffer, contentType);
+      await putObject(bucket, originalKey, fileBuffer, transformedUpload.contentType);
       console.log(`[Replace Image API] File copied successfully`);
       
       // Delete temporary file
@@ -937,7 +937,7 @@ export async function POST(
       contentType = file.type || 'image/png';
     console.log(`[Replace Image API] Content type:`, contentType);
     
-    const transformedUpload = transformPoseUploadBuffer({
+    const transformedUpload = await transformPoseUploadBuffer({
       stage,
       poseNumber,
       buffer: Buffer.from(fileBuffer),
@@ -950,7 +950,7 @@ export async function POST(
       console.log(`[Replace Image API] Auto-flipped pose ${poseNumber} before canonical upload`);
     }
     console.log(`[Replace Image API] Calling putObject...`);
-    await putObject(bucket, originalKey, fileBuffer, contentType);
+    await putObject(bucket, originalKey, fileBuffer, transformedUpload.contentType);
     console.log(`[Replace Image API] putObject completed successfully`);
     } else {
       // This should never happen due to validation, but TypeScript needs it
@@ -1141,7 +1141,7 @@ export async function POST(
   } catch (error: any) {
     if (error instanceof PoseAutoFlipFormatError) {
       return NextResponse.json(
-        { error: `Auto-flip only supports PNG uploads for poses 3 and 11. Received ${error.format}.` },
+        { error: `Auto-flip only supports PNG, JPEG, or WebP uploads for poses 3 and 11. Received ${error.format}.` },
         { status: 400 }
       );
     }

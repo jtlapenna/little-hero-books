@@ -387,14 +387,14 @@ export async function POST(
       });
     }
 
-    const transformedUpload = transformPoseUploadBuffer({
+    const transformedUpload = await transformPoseUploadBuffer({
       stage: 'preBria',
       poseNumber: poseNumberValue,
       buffer: sourceImage,
     });
 
     try {
-      await putObject(sourceBucket, canonicalKey, transformedUpload.buffer, 'image/png');
+      await putObject(sourceBucket, canonicalKey, transformedUpload.buffer, transformedUpload.contentType);
     } catch (error) {
       const message = safeErrorMessage(error);
       console.error('[AutoFlipPoseAPI] r2_upload_failed', {

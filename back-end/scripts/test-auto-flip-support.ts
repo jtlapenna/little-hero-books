@@ -1,6 +1,7 @@
 #!/usr/bin/env npx tsx
 import assert from 'node:assert/strict';
 import { encode } from 'fast-png';
+import sharp from 'sharp';
 import {
   AUTO_FLIP_CONFIDENCE_THRESHOLD,
   AUTO_FLIP_SUPPORTED_POSES,
@@ -179,22 +180,28 @@ function testRendererFlipPayloadParser() {
   assert.equal(parseRendererFlipResult(null), null);
 }
 
-function testInlinePoseAutoFlipPolicy() {
+async function testInlinePoseAutoFlipPolicy() {
   const source = makePosePng(false);
-  const targeted = transformPoseUploadBuffer({
+  const targeted = await transformPoseUploadBuffer({
     stage: 'preBria',
     poseNumber: 3,
     buffer: source,
   });
-  const untargeted = transformPoseUploadBuffer({
+  const untargeted = await transformPoseUploadBuffer({
     stage: 'preBria',
     poseNumber: 2,
     buffer: source,
   });
-  const postBria = transformPoseUploadBuffer({
+  const postBria = await transformPoseUploadBuffer({
     stage: 'postBria',
     poseNumber: 11,
     buffer: source,
+  });
+  const jpegSource = await sharp(source).jpeg().toBuffer();
+  const targetedJpeg = await transformPoseUploadBuffer({
+    stage: 'preBria',
+    poseNumber: 11,
+    buffer: jpegSource,
   });
 
   assert.equal(shouldAutoFlipPoseUpload('preBria', 3), true);
@@ -202,13 +209,17 @@ function testInlinePoseAutoFlipPolicy() {
   assert.equal(shouldAutoFlipPoseUpload('postBria', 3), false);
   assert.equal(targeted.flipped, true);
   assert.equal(targeted.format, 'png');
+  assert.equal(targeted.contentType, 'image/png');
   assert.notDeepEqual(targeted.buffer, source);
   assert.equal(untargeted.flipped, false);
   assert.deepEqual(untargeted.buffer, source);
   assert.equal(postBria.flipped, false);
   assert.deepEqual(postBria.buffer, source);
+  assert.equal(targetedJpeg.flipped, true);
+  assert.equal(targetedJpeg.format, 'jpeg');
+  assert.equal(targetedJpeg.contentType, 'image/png');
 
-  assert.throws(
+  await assert.rejects(
     () =>
       transformPoseUploadBuffer({
         stage: 'preBria',
@@ -219,7 +230,7 @@ function testInlinePoseAutoFlipPolicy() {
   );
 }
 
-function main() {
+async function main() {
   testKeyHelpers();
   testEntryHelpers();
   testPreBriaFlipMetadata();
@@ -228,7 +239,7 @@ function main() {
   testSupportedPoses();
   testDeterministicOrientationCheck();
   testRendererFlipPayloadParser();
-  testInlinePoseAutoFlipPolicy();
+  await testInlinePoseAutoFlipPolicy();
   console.log('Auto-flip support helper checks passed.');
 }
 
