@@ -50,6 +50,7 @@ export async function POST(
     const stage = formData.get('stage')?.toString();
     const isBaseCharacter = formData.get('isBaseCharacter')?.toString() === 'true';
     const file = formData.get('file') as File | null;
+    const storageKey = formData.get('storageKey')?.toString() || null;
     const replacedBy = formData.get('replacedBy')?.toString() || null; // Optional
     const isFlipped = formData.get('isFlipped')?.toString() === 'true'; // Indicates this is a flip operation
 
@@ -59,6 +60,7 @@ export async function POST(
       stage,
       isBaseCharacter,
       file: file ? { name: file.name, size: file.size, type: file.type } : null,
+      storageKey,
       uploadMode,
       forceDirectFile,
       requestedTemporaryR2Key,
@@ -123,6 +125,62 @@ export async function POST(
 
     const poseNumber = poseNumberStr ? parseInt(poseNumberStr, 10) : null;
     const pageNumber = pageNumberStr ? parseInt(pageNumberStr, 10) : null;
+
+    const normalizeCanonicalPoseKey = (key: string) =>
+      key.replace(/_r\d+\.png$/i, '.png').replace(/_TRY\d+\.png$/i, '.png');
+
+    const uploadDirectCanonicalPoseWithoutManifest = async (targetKey: string) => {
+      if (poseNumber === null || !file || stage !== 'preBria') {
+        return NextResponse.json(
+          { error: 'Direct canonical fallback requires preBria stage, poseNumber, and file' },
+          { status: 400 }
+        );
+      }
+
+      const canonicalKey = normalizeCanonicalPoseKey(targetKey);
+      const bucket = canonicalKey.includes('/characters/') ? R2_PUBLIC_BUCKET : R2_ORDERS_BUCKET;
+      let fileBuffer = await file.arrayBuffer();
+      const contentType = file.type || 'image/png';
+
+      const transformedUpload = transformPoseUploadBuffer({
+        stage,
+        poseNumber,
+        buffer: Buffer.from(fileBuffer),
+      });
+      fileBuffer = transformedUpload.buffer.buffer.slice(
+        transformedUpload.buffer.byteOffset,
+        transformedUpload.buffer.byteOffset + transformedUpload.buffer.byteLength,
+      );
+
+      console.log('[Replace Image API] Direct canonical fallback upload', {
+        orderId,
+        stage,
+        poseNumber,
+        targetKey,
+        canonicalKey,
+        bucket,
+        contentType,
+        storageKey,
+        formDataKeys,
+      });
+
+      await putObject(bucket, canonicalKey, fileBuffer, contentType);
+
+      const replacedAt = new Date().toISOString();
+      return NextResponse.json({
+        success: true,
+        orderId,
+        stage,
+        poseNumber,
+        r2Key: canonicalKey,
+        approvedKey: canonicalKey,
+        replacedAt,
+        replacementCount: 1,
+        manifestUpdated: false,
+        manifestMissing: true,
+        flipped: transformedUpload.flipped,
+      });
+    };
 
     if (poseNumber !== null && (isNaN(poseNumber) || poseNumber < 0)) {
       return NextResponse.json(
@@ -589,8 +647,24 @@ export async function POST(
     
     // Download current manifest
     console.log(`[Replace Image] Loading manifest: ${manifestKey}`);
-    const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-    const manifest = await readJsonSafe<any>(manifestRes);
+    let manifest: any;
+    try {
+      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
+      manifest = await readJsonSafe<any>(manifestRes);
+    } catch (error: any) {
+      const isMissingManifest = error?.message?.includes('404') || error?.message?.includes('Not Found');
+      if (isMissingManifest && forceDirectFile && stage === 'preBria' && file && storageKey) {
+        console.warn('[Replace Image API] 2A manifest missing during direct-file publish; falling back to storageKey upload', {
+          orderId,
+          manifestKey,
+          storageKey,
+          poseNumber,
+          formDataKeys,
+        });
+        return await uploadDirectCanonicalPoseWithoutManifest(storageKey);
+      }
+      throw error;
+    }
 
     if (!manifest || !manifest.entries || !Array.isArray(manifest.entries)) {
       return NextResponse.json(
