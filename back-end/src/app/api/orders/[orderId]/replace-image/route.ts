@@ -139,8 +139,40 @@ export async function POST(
 
       const canonicalKey = normalizeCanonicalPoseKey(targetKey);
       const bucket = canonicalKey.includes('/characters/') ? R2_PUBLIC_BUCKET : R2_ORDERS_BUCKET;
-      let fileBuffer = await file.arrayBuffer();
       const contentType = file.type || 'image/png';
+
+      if (isFlipped) {
+        console.log('[Replace Image API] Direct canonical fallback upload (streaming pre-flipped file)', {
+          orderId,
+          stage,
+          poseNumber,
+          targetKey,
+          canonicalKey,
+          bucket,
+          contentType,
+          storageKey,
+          formDataKeys,
+        });
+
+        await putObject(bucket, canonicalKey, file.stream(), contentType);
+
+        const replacedAt = new Date().toISOString();
+        return NextResponse.json({
+          success: true,
+          orderId,
+          stage,
+          poseNumber,
+          r2Key: canonicalKey,
+          approvedKey: canonicalKey,
+          replacedAt,
+          replacementCount: 1,
+          manifestUpdated: false,
+          manifestMissing: true,
+          flipped: true,
+        });
+      }
+
+      let fileBuffer = await file.arrayBuffer();
 
       const transformedUpload = await transformPoseUploadBuffer({
         stage,
@@ -178,7 +210,7 @@ export async function POST(
         replacementCount: 1,
         manifestUpdated: false,
         manifestMissing: true,
-        flipped: transformedUpload.flipped,
+        flipped: isFlipped || transformedUpload.flipped,
       });
     };
 
@@ -897,11 +929,18 @@ export async function POST(
       console.log(`[Replace Image API] Copied file size:`, fileBuffer.byteLength, 'bytes');
       console.log(`[Replace Image API] Content type:`, contentType);
       
-      const transformedUpload = await transformPoseUploadBuffer({
-        stage,
-        poseNumber,
-        buffer: Buffer.from(fileBuffer),
-      });
+      const transformedUpload = isFlipped
+        ? {
+            buffer: Buffer.from(fileBuffer),
+            flipped: false,
+            format: 'png',
+            contentType,
+          }
+        : await transformPoseUploadBuffer({
+            stage,
+            poseNumber,
+            buffer: Buffer.from(fileBuffer),
+          });
       fileBuffer = transformedUpload.buffer.buffer.slice(
         transformedUpload.buffer.byteOffset,
         transformedUpload.buffer.byteOffset + transformedUpload.buffer.byteLength,
@@ -909,7 +948,9 @@ export async function POST(
 
       // Upload to final location
       console.log(`[Replace Image API] Uploading to final location: ${bucket}/${originalKey}`);
-      if (transformedUpload.flipped) {
+      if (isFlipped) {
+        console.log(`[Replace Image API] Upstream pre-flipped pose ${poseNumber}; skipping worker-side transform`);
+      } else if (transformedUpload.flipped) {
         console.log(`[Replace Image API] Auto-flipped pose ${poseNumber} before canonical upload`);
       }
       await putObject(bucket, originalKey, fileBuffer, transformedUpload.contentType);
@@ -931,27 +972,35 @@ export async function POST(
       size: file.size,
       type: file.type
     });
-    
-      fileBuffer = await file.arrayBuffer();
-    console.log(`[Replace Image API] File buffer size:`, fileBuffer.byteLength, 'bytes');
+
       contentType = file.type || 'image/png';
     console.log(`[Replace Image API] Content type:`, contentType);
-    
-    const transformedUpload = await transformPoseUploadBuffer({
-      stage,
-      poseNumber,
-      buffer: Buffer.from(fileBuffer),
-    });
-    fileBuffer = transformedUpload.buffer.buffer.slice(
-      transformedUpload.buffer.byteOffset,
-      transformedUpload.buffer.byteOffset + transformedUpload.buffer.byteLength,
-    );
-    if (transformedUpload.flipped) {
-      console.log(`[Replace Image API] Auto-flipped pose ${poseNumber} before canonical upload`);
+
+    if (isFlipped) {
+      console.log(`[Replace Image API] Upstream pre-flipped pose ${poseNumber}; streaming upload to canonical key`);
+      console.log(`[Replace Image API] Calling putObject...`);
+      await putObject(bucket, originalKey, file.stream(), contentType);
+      console.log(`[Replace Image API] putObject completed successfully`);
+    } else {
+      fileBuffer = await file.arrayBuffer();
+      console.log(`[Replace Image API] File buffer size:`, fileBuffer.byteLength, 'bytes');
+
+      const transformedUpload = await transformPoseUploadBuffer({
+        stage,
+        poseNumber,
+        buffer: Buffer.from(fileBuffer),
+      });
+      fileBuffer = transformedUpload.buffer.buffer.slice(
+        transformedUpload.buffer.byteOffset,
+        transformedUpload.buffer.byteOffset + transformedUpload.buffer.byteLength,
+      );
+      if (transformedUpload.flipped) {
+        console.log(`[Replace Image API] Auto-flipped pose ${poseNumber} before canonical upload`);
+      }
+      console.log(`[Replace Image API] Calling putObject...`);
+      await putObject(bucket, originalKey, fileBuffer, transformedUpload.contentType);
+      console.log(`[Replace Image API] putObject completed successfully`);
     }
-    console.log(`[Replace Image API] Calling putObject...`);
-    await putObject(bucket, originalKey, fileBuffer, transformedUpload.contentType);
-    console.log(`[Replace Image API] putObject completed successfully`);
     } else {
       // This should never happen due to validation, but TypeScript needs it
       return NextResponse.json(
@@ -972,7 +1021,7 @@ export async function POST(
     }
     if (stage === 'preBria' && (poseNumber === 3 || poseNumber === 11)) {
       entry.lastAutoFlipAt = replacedAt;
-      entry.lastAutoFlipReason = 'pose_policy';
+      entry.lastAutoFlipReason = isFlipped ? 'sw3_preflip_policy' : 'pose_policy';
     }
     
     // For postBria stage, also update source tracking fields for workflow cache-busting
