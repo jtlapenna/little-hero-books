@@ -49,41 +49,38 @@ This removes renderer dependency from the production flip logic and ensures back
   - canonical key overwrite + manifest/order timestamp update
 - Legacy `POST /api/check-and-flip-orientation` is retained for diagnostics/manual checks only and is not part of the production SW3 critical path.
 
-## Current Runtime Reality (Phase 7 - 2026-03-06)
+## Current Runtime Reality (Phase 8 - 2026-03-08)
 
 Status: **RENDERER NO LONGER REQUIRED FOR BACKEND FLIP LOGIC**
 
 ### Verified true
 
-- Canonical backend pre-Bria publishes can now auto-flip poses `3` and `11` inline with local PNG processing.
-- `POST /api/orders/[orderId]/auto-flip-pose` no longer needs renderer connectivity for the actual flip operation.
-- Targeted non-PNG uploads now fail closed instead of silently publishing the wrong orientation.
+- Canonical backend pre-Bria publishes can now accept direct-file SW3 uploads without depending on `2a-manifest.json`.
+- The prior worker-side image transform path for poses `3` and `11` is not stable for production JPEG uploads because it can exceed Cloudflare worker CPU/memory limits.
+- The new production-safe direction is to pre-flip targeted poses upstream in SW3 and let the backend perform canonical publish only.
 
 ### Remaining gap
 
-- The checked-in SW3 workflow source still uploads canonical pose assets directly to R2 before calling backend auto-flip follow-up logic.
-- That means production correctness still depends on runtime workflow alignment until SW3 final publish is routed through backend canonical commit or the direct-upload leg is otherwise changed.
+- The active SW3 runtime must use the new pre-flip path for poses `3` and `11` before the final backend publish call.
+- The backend must receive those uploads with `isFlipped=true` so it skips worker-side transform work and only performs canonical publish.
 
 ### Required fixes (current)
 
-1. Import/publish the updated backend so inline local flipping is live on backend-owned canonical writes.
-2. Update any active SW3 runtime that still writes canonical pre-Bria pose keys directly to R2:
-   - upload to temporary storage first, or
-   - finalize via backend canonical publish
+1. Import/publish the updated SW3 workflow so poses `3` and `11` fetch a flipped PNG upstream before finalize.
+2. Import/publish the updated backend so `/api/orders/[orderId]/replace-image` trusts `isFlipped=true` and skips worker-side auto-flip transforms for those requests.
 3. Keep `/api/orders/[orderId]/auto-flip-pose` only as remediation/backfill support, not the desired steady-state production path.
 4. Re-run live checks on poses `3` and `11` and verify the first published canonical asset is already correctly oriented.
 
 ### Important implementation note
 
-- **The live `w2A-SW3-Upload` workflow in n8n Cloud still needs to be updated/published to match this backend-first process.**
+- **The live `w2A-SW3-Upload` workflow in n8n Cloud still needs to be updated/published to match this SW3-preflip + backend-publish process.**
 - The required runtime behavior is:
   - SW3 must **not** depend on `2a-manifest.json` to determine the canonical upload target.
   - `2a-manifest.json` is only created after all 2A pose uploads complete, so it does not exist yet during the individual SW3 pose upload/finalize step.
   - SW3 must **not** publish the final canonical pre-Bria pose asset directly to R2 as the first write.
-  - SW3 should either:
-    - upload to a temporary key and let backend commit the canonical pose asset, or
-    - call the backend canonical publish path directly for the final write.
-- Until the active n8n Cloud workflow is changed, production W2A may still behave as "upload first, flip second", which means the wrong-facing image can still land in R2 before remediation.
+  - For poses `3` and `11`, SW3 should fetch a horizontally flipped PNG upstream and then call the backend canonical publish path directly with `isFlipped=true`.
+  - For all other poses, SW3 should continue calling the backend canonical publish path directly without pre-flip.
+- Until the active n8n Cloud workflow is changed, production W2A may still hit worker resource limits on targeted poses or still rely on the old repair-style flow.
 
 ### Required runtime confirmation
 
