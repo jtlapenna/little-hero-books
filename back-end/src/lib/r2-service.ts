@@ -12,7 +12,19 @@ export async function getCharacterAssets(characterHash: string): Promise<Charact
   const prefix = `${R2_CHARACTERS_PREFIX}${characterHash}/`;
   const res = await listObjects(R2_PUBLIC_BUCKET, { prefix });
 
-  const items = (res.Contents || []).filter(o => !!o.Key).map(o => o.Key as string);
+  const items = (res.Contents || [])
+    .filter(o => !!o.Key)
+    .map(o => o.Key as string)
+    .filter((key) => {
+      const lower = key.toLowerCase();
+
+      // SW3 pre-flip source objects are temporary workflow artifacts, not review assets.
+      // Excluding them prevents Tab 1 from showing the pre-flipped source instead of
+      // the canonical pose file when both share the same pose number.
+      if (lower.includes('/sw3-preflip-source/')) return false;
+
+      return true;
+    });
 
   // Generate URLs using API proxy endpoint (works for both public and private buckets)
   const assets: CharacterAsset[] = items.map((key) => {
@@ -258,4 +270,3 @@ export async function getSignedUrlForObject(
     throw new Error(`Failed to generate signed URL: ${error?.message || 'Unknown error'}`);
   }
 }
-
