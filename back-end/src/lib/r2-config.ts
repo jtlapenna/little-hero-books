@@ -8,14 +8,14 @@ import { FetchHttpHandler } from '@smithy/fetch-http-handler';
 // - R2_SECRET_ACCESS_KEY
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
 const ACCESS_KEY_ID =
-  process.env.R2_ACCESS_KEY_ID ||
-  process.env.R2_ACCESS_ID_KEY ||
   process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
-  process.env.CLOUDFLARE_R2_ACCESS_KEY;
+  process.env.CLOUDFLARE_R2_ACCESS_KEY ||
+  process.env.R2_ACCESS_KEY_ID ||
+  process.env.R2_ACCESS_ID_KEY;
 const SECRET_ACCESS_KEY =
-  process.env.R2_SECRET_ACCESS_KEY ||
   process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
-  process.env.CLOUDFLARE_R2_SECRET_KEY;
+  process.env.CLOUDFLARE_R2_SECRET_KEY ||
+  process.env.R2_SECRET_ACCESS_KEY;
 
 // Validate required environment variables
 const missingVars: string[] = [];
@@ -61,4 +61,3 @@ export const R2_PUBLIC_BUCKET = process.env.R2_PUBLIC_BUCKET_NAME || process.env
 export const R2_ORDERS_BUCKET = process.env.R2_ORDERS_BUCKET_NAME || process.env.R2_ORDERS_BUCKET || 'little-hero-orders';
 // Match actual R2 structure: book-mvp-simple-adventure/order-generated-assets/characters/
 export const R2_CHARACTERS_PREFIX = process.env.R2_CHARACTERS_PREFIX || 'book-mvp-simple-adventure/order-generated-assets/characters/';
-
