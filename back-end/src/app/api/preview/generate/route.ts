@@ -9,10 +9,11 @@
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, putObject, headObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFIX } from '@/lib/r2-client';
+import { getObject, putObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFIX } from '@/lib/r2-client';
 import { resolvePreviewCanonicals, type CharacterSpecsInput } from '@/lib/preview-canonicals';
 import { buildPreviewGeminiRequest } from '@/lib/preview-gemini';
 import { calculatePreviewHash } from '@/lib/character-hash';
+import { resolveReusablePreviewAsset } from '@/lib/preview-cache';
 
 // CORS: allow D2C frontend (e.g. localhost:4321) to call this API
 const corsHeaders = {
@@ -28,12 +29,6 @@ export async function OPTIONS() {
 
 const GEMINI_MODEL = 'gemini-3-pro-image-preview';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-
-function requireString(obj: unknown, key: string): string | null {
-  if (!obj || typeof obj !== 'object') return null;
-  const v = (obj as Record<string, unknown>)[key];
-  return typeof v === 'string' ? v : null;
-}
 
 /**
  * Extract inline image from Gemini response (same shape as regenerate-pose).
@@ -71,11 +66,13 @@ export async function POST(request: NextRequest) {
     // Check cache first (unless force regenerate)
     if (!forceRegenerate) {
       try {
-        const cacheCheck = await headObject(R2_PUBLIC_BUCKET, previewKey);
-        if (cacheCheck.ok) {
-          console.log('[Preview Generate] Cache hit:', previewHash);
-          const imageUrl = `/api/assets/${previewKey}`;
-          return NextResponse.json({ imageUrl, hash: previewHash, cached: true }, { headers: corsHeaders });
+        const cachedAsset = await resolveReusablePreviewAsset(previewHash);
+        if (cachedAsset) {
+          console.log('[Preview Generate] Cache hit:', previewHash, 'source:', cachedAsset.source);
+          return NextResponse.json(
+            { imageUrl: cachedAsset.imageUrl, hash: previewHash, cached: true },
+            { headers: corsHeaders }
+          );
         }
       } catch (e) {
         // Cache check failed, proceed with generation

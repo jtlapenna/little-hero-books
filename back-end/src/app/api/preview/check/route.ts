@@ -6,8 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { headObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFIX } from '@/lib/r2-client';
 import { calculatePreviewHash } from '@/lib/character-hash';
+import { resolveReusablePreviewAsset } from '@/lib/preview-cache';
 
 // CORS headers for cross-origin requests
 const corsHeaders = {
@@ -21,15 +21,13 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
 
-/** Check cache by hash (HEAD request to R2). */
-async function checkCacheByHash(hash: string): Promise<{ exists: boolean; imageUrl?: string }> {
-  const previewKey = `${R2_CHARACTERS_PREFIX}${hash}/preview.png`;
-  const response = await headObject(R2_PUBLIC_BUCKET, previewKey);
-  
-  if (response.ok) {
-    return { exists: true, imageUrl: `/api/assets/${previewKey}` };
+/** Check cache by hash. Falls back to a previously-paid order's base-character image. */
+async function checkCacheByHash(hash: string): Promise<{ exists: boolean; imageUrl?: string; source?: string }> {
+  const resolved = await resolveReusablePreviewAsset(hash);
+  if (resolved) {
+    return { exists: true, imageUrl: resolved.imageUrl, source: resolved.source };
   }
-  return { exists: false };
+  return { exists: false, source: undefined };
 }
 
 /** GET: check by hash query param. */
@@ -75,7 +73,7 @@ export async function POST(request: NextRequest) {
     // First check the D2C preview cache (preview_hash location)
     const previewResult = await checkCacheByHash(hash);
     if (previewResult.exists) {
-      return NextResponse.json({ ...previewResult, hash, source: 'preview' }, { headers: corsHeaders });
+      return NextResponse.json({ ...previewResult, hash }, { headers: corsHeaders });
     }
     return NextResponse.json({ exists: false, hash }, { headers: corsHeaders });
   } catch (err: unknown) {

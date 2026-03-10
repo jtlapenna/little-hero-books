@@ -11,14 +11,15 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 
-// Delivery time assumptions by shipping level (days after SHIPPED)
-// Purpose: when we only know SHIPPED, assume delivery based on service level.
-const DELIVERY_DAYS: Record<string, number> = {
-  EXPRESS: 3,
-  EXPEDITED: 5,
-  GROUND: 10,
-  PRIORITY_MAIL: 10,
-  MAIL: 14,
+// Total turnaround assumptions by shipping tier (business days from print submission/start of production).
+// Purpose: move orders to recently_delivered based on the advertised delivery window, not only carrier scan time.
+const DELIVERY_WINDOW_BUSINESS_DAYS: Record<string, { min: number; max: number }> = {
+  EXPRESS: { min: 5, max: 7 },
+  EXPEDITED: { min: 6, max: 8 },
+  GROUND: { min: 9, max: 11 },
+  GROUND_HD: { min: 9, max: 11 },
+  PRIORITY_MAIL: { min: 9, max: 11 },
+  MAIL: { min: 11, max: 13 },
 };
 
 // How long orders stay in "recently_delivered" before archiving
@@ -57,9 +58,71 @@ function subDays(date: Date, days: number): Date {
  * Get assumed delivery days for a shipping level
  */
 export function getDeliveryDaysForShippingLevel(level: string | null | undefined): number {
-  if (!level) return DELIVERY_DAYS.MAIL;
+  if (!level) return DELIVERY_WINDOW_BUSINESS_DAYS.MAIL.max;
   const normalized = level.toUpperCase().replace(/[^A-Z_]/g, '');
-  return DELIVERY_DAYS[normalized] ?? DELIVERY_DAYS.MAIL;
+  return DELIVERY_WINDOW_BUSINESS_DAYS[normalized]?.max ?? DELIVERY_WINDOW_BUSINESS_DAYS.MAIL.max;
+}
+
+function addBusinessDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  let remaining = Math.max(0, days);
+  while (remaining > 0) {
+    result.setDate(result.getDate() + 1);
+    const day = result.getDay();
+    if (day !== 0 && day !== 6) remaining--;
+  }
+  return result;
+}
+
+function resolveLifecycleShippingLevel(order: {
+  shipping_tier?: string | null;
+  shipping_tier_resolved?: string | null;
+  amazon_shipment_service_level?: string | null;
+}): string {
+  const raw =
+    order.shipping_tier_resolved ||
+    order.shipping_tier ||
+    order.amazon_shipment_service_level ||
+    'MAIL';
+
+  const normalized = String(raw).toUpperCase().replace(/[^A-Z_]/g, '_');
+  if (normalized === 'GROUND_HOME') return 'GROUND_HD';
+  return normalized;
+}
+
+function resolveLifecycleAnchorAt(order: {
+  print_submitted_at?: string | null;
+  print_fulfillment_started_at?: string | null;
+  shipped_at?: string | null;
+  updated_at?: string | null;
+}): string | null {
+  return (
+    order.print_submitted_at ||
+    order.print_fulfillment_started_at ||
+    order.shipped_at ||
+    order.updated_at ||
+    null
+  );
+}
+
+function calculateAssumedDeliveredAt(order: {
+  shipping_tier?: string | null;
+  shipping_tier_resolved?: string | null;
+  amazon_shipment_service_level?: string | null;
+  print_submitted_at?: string | null;
+  print_fulfillment_started_at?: string | null;
+  shipped_at?: string | null;
+  updated_at?: string | null;
+}): string | null {
+  const anchorAt = resolveLifecycleAnchorAt(order);
+  if (!anchorAt) return null;
+
+  const anchorDate = new Date(anchorAt);
+  if (Number.isNaN(anchorDate.getTime())) return null;
+
+  const level = resolveLifecycleShippingLevel(order);
+  const businessDays = getDeliveryDaysForShippingLevel(level);
+  return addBusinessDays(anchorDate, businessDays).toISOString();
 }
 
 /**
@@ -104,22 +167,22 @@ export async function processOrderLifecycle(supabase: SupabaseClient): Promise<L
     result.errors.push(`Delivered-no-shipped processing: ${err.message}`);
   }
 
-  // 1b. Shipped orders WITH shipped_at — use delivery window calculation
+  // 1b. Completed shipped/delivered orders — use explicit delivery signals or the tier-based business-day window.
   try {
     const { data: shippedOrders, error: shippedError } = await supabase
       .from('orders')
-      .select('orderId, lulu_status, shipped_at, amazon_shipment_service_level, updated_at')
+      .select('orderId, lulu_status, delivered_at, shipped_at, print_submitted_at, print_fulfillment_started_at, shipping_tier, shipping_tier_resolved, amazon_shipment_service_level, updated_at')
       .in('lulu_status', ['SHIPPED', 'DELIVERED'])
       .or('lifecycle_status.eq.active,lifecycle_status.is.null')
-      .not('shipped_at', 'is', null);
+      .or('shipped_at.not.is.null,print_submitted_at.not.is.null,print_fulfillment_started_at.not.is.null,delivered_at.not.is.null');
 
     if (shippedError) {
       result.errors.push(`Fetch shipped orders: ${shippedError.message}`);
     } else if (shippedOrders) {
       for (const order of shippedOrders) {
-        // Purpose: if we have an explicit DELIVERED from Lulu, move immediately (do not wait the assumed window).
-        if (order.lulu_status === 'DELIVERED') {
-          const deliveredAt = order.updated_at || now.toISOString();
+        // Purpose: if we have any explicit delivery signal, move immediately.
+        if (order.lulu_status === 'DELIVERED' || order.delivered_at) {
+          const deliveredAt = order.delivered_at || order.updated_at || now.toISOString();
           const { error: updateError } = await supabase
             .from('orders')
             .update({
@@ -136,17 +199,16 @@ export async function processOrderLifecycle(supabase: SupabaseClient): Promise<L
           continue;
         }
 
-        const level = order.amazon_shipment_service_level || 'MAIL';
-        const deliveryDays = getDeliveryDaysForShippingLevel(level);
-        const shippedDate = new Date(order.shipped_at);
-        const assumedDeliveryDate = addDays(shippedDate, deliveryDays);
+        const assumedDeliveredAt = calculateAssumedDeliveredAt(order);
+        if (!assumedDeliveredAt) continue;
+        const assumedDeliveryDate = new Date(assumedDeliveredAt);
 
         if (now >= assumedDeliveryDate) {
           const { error: updateError } = await supabase
             .from('orders')
             .update({
               lifecycle_status: 'recently_delivered',
-              assumed_delivered_at: assumedDeliveryDate.toISOString(),
+              assumed_delivered_at: assumedDeliveredAt,
             })
             .eq('orderId', order.orderId);
 
