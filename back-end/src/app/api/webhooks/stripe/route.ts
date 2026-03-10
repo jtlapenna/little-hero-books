@@ -12,7 +12,6 @@ import { buildD2CW0Payload } from '@/lib/w0-payload';
 import { triggerW0 } from '@/lib/sibling-order-helpers';
 import { sendD2COrderConfirmationEmail } from '@/lib/notifications/d2c-email';
 import { getObject, putObject, headObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFIX } from '@/lib/r2-client';
-import { getSignedUrlForObject } from '@/lib/r2-service';
 
 export const dynamic = 'force-dynamic';
 const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
@@ -225,22 +224,11 @@ export async function POST(request: NextRequest) {
 
         // Send one confirmation email for the whole checkout (only on initial processing, not retries)
         if (wasPendingPayment && !emailSent && platform === 'd2c' && customerEmail?.trim()) {
-          let previewImageUrl: string | undefined;
-          if (previewHash) {
-            try {
-              const previewKey = `${R2_CHARACTERS_PREFIX}${previewHash}/preview.png`;
-              previewImageUrl = await getSignedUrlForObject(previewKey, R2_PUBLIC_BUCKET, 604800);
-            } catch (err) {
-              console.warn('[Webhook Stripe] Failed to generate preview image URL:', err);
-            }
-          }
-
           const emailResult = await sendD2COrderConfirmationEmail({
             to: customerEmail.trim(),
             childName,
             displayOrderId,
             orderId: order_id,
-            previewImageUrl,
           });
           if (!emailResult.success) {
             console.warn('[Webhook Stripe] Order confirmation email failed:', emailResult.error);
