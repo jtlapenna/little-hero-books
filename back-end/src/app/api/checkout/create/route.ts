@@ -22,17 +22,37 @@ function inferClothingFromPronouns(pronouns: unknown): string {
   return 't-shirt and shorts';
 }
 
+function isAllowedFrontendOrigin(origin: string): boolean {
+  return (
+    origin === 'https://littleherolabs.com' ||
+    origin.endsWith('.littleherolabs.com') ||
+    /^https?:\/\/localhost(:\d+)?$/.test(origin)
+  );
+}
+
+function resolveFrontendOrigin(request: NextRequest): string {
+  const configuredOrigin = (process.env.D2C_FRONTEND_ORIGIN ?? '').trim().replace(/\/+$/, '');
+  const customerSiteUrl = (process.env.CUSTOMER_SITE_URL ?? '').trim().replace(/\/+$/, '');
+  const requestOrigin = (request.headers.get('origin') ?? '').trim().replace(/\/+$/, '');
+
+  if (requestOrigin && isAllowedFrontendOrigin(requestOrigin)) {
+    return requestOrigin;
+  }
+
+  if (configuredOrigin && isAllowedFrontendOrigin(configuredOrigin)) {
+    return configuredOrigin;
+  }
+
+  if (customerSiteUrl && isAllowedFrontendOrigin(customerSiteUrl)) {
+    return customerSiteUrl;
+  }
+
+  return '';
+}
+
 function getCorsHeaders(request: NextRequest): Record<string, string> {
   // Purpose: allow the D2C frontend to call this API cross-origin.
-  const configuredOrigin = (process.env.D2C_FRONTEND_ORIGIN ?? '').trim();
-  const requestOrigin = (request.headers.get('origin') ?? '').trim();
-  const isAllowedRequestOrigin =
-    requestOrigin === 'https://littleherolabs.com' ||
-    requestOrigin.endsWith('.littleherolabs.com') ||
-    /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin);
-
-  // Purpose: prefer explicit allowlist, otherwise fall back to safe request origin.
-  const allowOrigin = configuredOrigin || (isAllowedRequestOrigin ? requestOrigin : '*');
+  const allowOrigin = resolveFrontendOrigin(request) || '*';
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -161,15 +181,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Purpose: build Stripe redirect URLs. Prefer env, fall back to allowed request Origin.
-    const configuredOrigin = (process.env.D2C_FRONTEND_ORIGIN ?? '').trim();
-    const requestOrigin = (request.headers.get('origin') ?? '').trim();
-    const isAllowedRequestOrigin =
-      requestOrigin === 'https://littleherolabs.com' ||
-      requestOrigin.endsWith('.littleherolabs.com') ||
-      /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin);
-    const frontendOrigin = configuredOrigin || (isAllowedRequestOrigin ? requestOrigin : '');
+    const frontendOrigin = resolveFrontendOrigin(request);
     if (!frontendOrigin) {
-      console.error('[Checkout] Missing D2C_FRONTEND_ORIGIN and request Origin not allowed');
+      console.error('[Checkout] Missing valid frontend origin configuration and request Origin not allowed');
       return NextResponse.json({ error: 'Checkout configuration error' }, { status: 500, headers: corsHeaders });
     }
 
