@@ -54,7 +54,7 @@ Search for:
 
 - Vercel → Project → Settings → Environment Variables
 - Ensure `N8N_W0_WEBHOOK_URL` is set for Production (and Preview if testing)
-- Value should be the n8n webhook URL (e.g. `https://xxx.app.n8n.cloud/webhook/order-intake`)
+- Value should be the n8n webhook URL (currently `https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest`)
 
 ### 3. Check Stripe webhook configuration
 

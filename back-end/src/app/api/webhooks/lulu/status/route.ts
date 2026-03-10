@@ -231,6 +231,10 @@ export async function POST(request: NextRequest) {
     let updateCount = 0;
     for (const ord of orderList) {
       const rowUpdate = { ...updateData };
+      if (ord.error_type === 'workflow_timeout') {
+        rowUpdate.error_type = null;
+        rowUpdate.error_message = null;
+      }
       if (statusName === 'SHIPPED') {
         if (!ord.shipped_at) rowUpdate.shipped_at = terminalAt;
         if (!ord.delivered_at) rowUpdate.delivered_at = terminalAt;
@@ -354,4 +358,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

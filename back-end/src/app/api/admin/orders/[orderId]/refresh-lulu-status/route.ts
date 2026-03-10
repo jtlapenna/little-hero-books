@@ -195,6 +195,10 @@ export async function GET(
       if (newStatus === 'SHIPPED' || newStatus === 'DELIVERED') {
         updates.workflow_step = 'done';
         updates.execution_status = 'done';
+        if (order.error_type === 'workflow_timeout') {
+          updates.error_type = null;
+          updates.error_message = null;
+        }
       }
     }
 
@@ -275,4 +279,3 @@ export async function GET(
     );
   }
 }
-

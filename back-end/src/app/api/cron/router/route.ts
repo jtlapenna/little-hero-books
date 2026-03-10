@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
         executionId: `${executionId}-amazon`,
         supabaseUrl,
         supabaseKey,
-        n8nW0WebhookUrl: process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake',
+        n8nW0WebhookUrl: process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest',
         amazonClientId: process.env.AMZ_LWA_CLIENT_ID_PROD 
           || process.env.AMZ_APP_CLIENT_ID 
           || process.env.AMAZON_SP_API_CLIENT_ID,
@@ -180,7 +180,7 @@ export async function GET(request: NextRequest) {
       const TIME_BUDGET_MS = 10_000;
       const { data: inProdOrders } = await supabase
         .from('orders')
-        .select('id,amazon_order_id,lulu_job_id,lulu_status,platform,product_info')
+        .select('id,amazon_order_id,lulu_job_id,lulu_status,platform,product_info,error_type')
         .not('lulu_job_id', 'is', null)
         .in('lulu_status', ['IN_PRODUCTION', 'SHIPPED'])
         .is('shipped_at', null)
@@ -245,6 +245,9 @@ export async function GET(request: NextRequest) {
                 status: LULU_TO_ORDER_STATUS[name] ?? 'pending_print',
                 workflow_step: 'done',
                 execution_status: 'done',
+                ...(o.error_type === 'workflow_timeout'
+                  ? { error_type: null, error_message: null }
+                  : {}),
               };
               if (tn) updates.tracking_number = tn;
               if (tu) updates.tracking_url = tu;
@@ -653,4 +656,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

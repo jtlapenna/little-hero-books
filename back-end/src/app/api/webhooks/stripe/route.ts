@@ -56,8 +56,6 @@ async function copyPreviewToCharacterHash(previewHash: string, characterHash: st
   }
 }
 
-const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL;
-
 export async function POST(request: NextRequest) {
   // Purpose: make webhook receipt obvious in Cloudflare logs.
   console.log('[Webhook Stripe] Received request');
@@ -92,7 +90,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Webhook signature verification failed: ${message}` }, { status: 401 });
   }
 
-  console.log('[Webhook Stripe] Verified event', { id: event.id, type: event.type, livemode: (event as any).livemode });
+  console.log('[Webhook Stripe] Verified event', { id: event.id, type: event.type, livemode: event.livemode });
 
   try {
   const response = await withIdempotency(
@@ -157,9 +155,13 @@ export async function POST(request: NextRequest) {
         orderIds = [singleOrderId!];
       }
 
-      // Email sent once (using first order for data)
-      let emailSent = false;
+      const ordersToProcess: Array<{
+        orderId: string;
+        orderData: Record<string, unknown>;
+        wasPendingPayment: boolean;
+      }> = [];
 
+      // Normalize the whole sibling set first so a W0 outage doesn't leave mixed sibling states.
       for (const order_id of orderIds) {
         const order = await getOrderFromSupabase(order_id).catch(() => null);
         if (!order) {
@@ -186,8 +188,24 @@ export async function POST(request: NextRequest) {
             purchase_date: now,
             updated_at: now,
           });
+          orderData.execution_status = 'pending_w0';
+          orderData.next_workflow = null;
+          orderData.status = 'pending_w0';
+          orderData.purchase_date = now;
+          orderData.updated_at = now;
         }
 
+        ordersToProcess.push({
+          orderId: order_id,
+          orderData,
+          wasPendingPayment: isPendingPayment,
+        });
+      }
+
+      // Email sent once (using first order for data)
+      let emailSent = false;
+
+      for (const { orderId: order_id, orderData, wasPendingPayment } of ordersToProcess) {
         const platform = orderData.platform as string | undefined;
         const customerEmail = orderData.customer_email as string | undefined;
         const characterSpecs = orderData.character_specs as Record<string, unknown> | undefined;
@@ -205,7 +223,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Send one confirmation email for the whole checkout (only on initial processing, not retries)
-        if (isPendingPayment && !emailSent && platform === 'd2c' && customerEmail?.trim()) {
+        if (wasPendingPayment && !emailSent && platform === 'd2c' && customerEmail?.trim()) {
           let previewImageUrl: string | undefined;
           if (previewHash) {
             try {
