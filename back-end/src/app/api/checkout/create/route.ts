@@ -262,7 +262,8 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const stripeSecretKey = process.env.STRIPE_SANDBOX_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
+        // Purpose: prefer live Stripe in production when both live and sandbox keys exist.
+        const stripeSecretKey = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SANDBOX_SECRET_KEY;
         if (!stripeSecretKey) {
           console.error('[Checkout] STRIPE_SANDBOX_SECRET_KEY or STRIPE_SECRET_KEY not configured');
           throw new Error('Payment configuration error');
