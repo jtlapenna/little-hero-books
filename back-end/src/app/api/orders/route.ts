@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAvailableCharacterHashes, getCharacterAssets, getAvailableOrderIds, downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { getAvailableCharacterHashes, getCharacterAssets, downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { Order } from '@/types/order';
 import { withErrorHandling, getRequestContext } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
@@ -123,39 +123,13 @@ async function getOrders(request: NextRequest) {
         })
       );
 
-      const existingOrderIds = new Set(
-        orders.map((order) => order.orderId.toLowerCase())
-      );
-      const existingAmazonIds = new Set(
-        (supabaseRecords as any[])
-          .map((record: any) => (record.amazon_order_id || record.orderId || record.order_id || '').toString().toLowerCase())
-          .filter(Boolean)
-      );
-
-      const supplementalOrders = await loadMissingOrdersFromR2(existingOrderIds, existingAmazonIds);
-
-      if (supplementalOrders.length > 0) {
-        console.log('[GET /api/orders] Added', supplementalOrders.length, 'orders from R2 manifests to supplement Supabase list');
-      }
-
-      return NextResponse.json([...orders, ...supplementalOrders]);
+      return NextResponse.json(orders);
     }
 
-    console.warn('[GET /api/orders] Supabase returned 0 orders. Falling back to R2 manifests.');
+    console.warn('[GET /api/orders] Supabase returned 0 orders. Returning empty list.');
+    return NextResponse.json([]);
   } catch (error) {
     console.error('[GET /api/orders] Error in main orders flow:', error);
-    return safeFallback(error);
-  }
-
-  try {
-    const fallback = await buildOrdersFromR2();
-    const response = NextResponse.json(fallback.orders);
-    if (fallback.debugInfo) {
-      response.headers.set('X-Debug-Info', JSON.stringify(fallback.debugInfo));
-    }
-    return response;
-  } catch (error) {
-    console.error('[GET /api/orders] Fallback to R2 also failed:', error);
     return safeFallback(error);
   }
 }
