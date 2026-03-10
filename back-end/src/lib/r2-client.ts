@@ -1,6 +1,5 @@
 import { AwsClient } from 'aws4fetch';
 import { XMLParser } from 'fast-xml-parser';
-import { Buffer } from 'buffer';
 
 // R2 configuration from environment
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
@@ -36,9 +35,6 @@ export const r2Client = new AwsClient({
   region: 'auto',
 });
 
-// R2 endpoint base URL
-const R2_ENDPOINT = ACCOUNT_ID ? `https://${ACCOUNT_ID}.r2.cloudflarestorage.com` : '';
-
 // XML parser for S3 ListObjectsV2 responses
 // Configure to handle arrays properly (S3 may return single or multiple Contents/CommonPrefixes)
 const xmlParser = new XMLParser({
@@ -64,6 +60,93 @@ export function validateR2Config(): { valid: boolean; missing: string[] } {
 export const R2_PUBLIC_BUCKET = process.env.R2_PUBLIC_BUCKET_NAME || process.env.R2_ASSETS_BUCKET_NAME || process.env.R2_PUBLIC_BUCKET || 'little-hero-assets';
 export const R2_ORDERS_BUCKET = process.env.R2_ORDERS_BUCKET_NAME || process.env.R2_ORDERS_BUCKET || 'little-hero-orders';
 export const R2_CHARACTERS_PREFIX = process.env.R2_CHARACTERS_PREFIX || 'book-mvp-simple-adventure/order-generated-assets/characters/';
+
+const EMPTY_PAYLOAD_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
+async function sha256HexFromBytes(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+async function normalizeBodyForSigning(
+  body?: BodyInit | null
+): Promise<{ body?: BodyInit; payloadHash: string; contentLength?: number }> {
+  if (body == null) {
+    return { payloadHash: EMPTY_PAYLOAD_SHA256 };
+  }
+
+  if (typeof body === 'string') {
+    const bytes = new TextEncoder().encode(body);
+    return {
+      body,
+      payloadHash: await sha256HexFromBytes(bytes),
+      contentLength: bytes.byteLength,
+    };
+  }
+
+  if (body instanceof Uint8Array) {
+    return {
+      body,
+      payloadHash: await sha256HexFromBytes(body),
+      contentLength: body.byteLength,
+    };
+  }
+
+  if (body instanceof ArrayBuffer) {
+    const bytes = new Uint8Array(body);
+    return {
+      body,
+      payloadHash: await sha256HexFromBytes(bytes),
+      contentLength: bytes.byteLength,
+    };
+  }
+
+  if (typeof Blob !== 'undefined' && body instanceof Blob) {
+    const bytes = new Uint8Array(await body.arrayBuffer());
+    return {
+      body,
+      payloadHash: await sha256HexFromBytes(bytes),
+      contentLength: body.size,
+    };
+  }
+
+  // ReadableStream bodies are uncommon in this codebase. Buffer them so R2 gets a real payload hash.
+  const bytes = new Uint8Array(await new Response(body).arrayBuffer());
+  return {
+    body: bytes,
+    payloadHash: await sha256HexFromBytes(bytes),
+    contentLength: bytes.byteLength,
+  };
+}
+
+async function signR2Request(input: {
+  url: string;
+  method: 'GET' | 'HEAD' | 'PUT' | 'DELETE';
+  headers?: Record<string, string>;
+  body?: BodyInit | null;
+}): Promise<Request> {
+  const urlObj = new URL(input.url);
+  const normalized = await normalizeBodyForSigning(input.body);
+  const headers: Record<string, string> = {
+    Host: urlObj.hostname,
+    'x-amz-content-sha256': normalized.payloadHash,
+    ...input.headers,
+  };
+
+  if (normalized.contentLength !== undefined) {
+    headers['Content-Length'] = String(normalized.contentLength);
+  }
+
+  const unsignedRequest = new Request(input.url, {
+    method: input.method,
+    headers,
+    body: normalized.body,
+  });
+
+  return r2Client.sign(unsignedRequest);
+}
 
 /**
  * ListObjectsV2 response structure (parsed from XML)
@@ -128,12 +211,10 @@ export async function listObjects(
   
   // For direct API calls, we need to sign the request manually
   // Unlike presigned URLs (which sign query params), direct calls sign headers
-  const unsignedRequest = new Request(url, {
+  const signedRequest = await signR2Request({
+    url,
     method: 'GET',
   });
-  
-  // Sign the request (default behavior signs headers, not query params)
-  const signedRequest = await r2Client.sign(unsignedRequest);
   
   // Fetch the signed request
   const response = await fetch(signedRequest);
@@ -200,24 +281,16 @@ export async function getObject(bucket: string, key: string): Promise<Response> 
   // For direct API calls, we need to sign the request manually
   // Unlike presigned URLs (which sign query params), direct calls sign headers
   // CRITICAL: The Host header must be explicitly set and included in signed headers
-  const urlObj = new URL(url);
-  const unsignedRequest = new Request(url, {
+  const signedRequest = await signR2Request({
+    url,
     method: 'GET',
-    headers: {
-      'Host': urlObj.hostname, // Explicitly set Host header for signing
-    },
   });
   
-  console.log('[R2 getObject] Unsigned request:', {
-    method: unsignedRequest.method,
-    url: unsignedRequest.url,
-    hostname: urlObj.hostname,
-    headers: Object.fromEntries(unsignedRequest.headers.entries()),
+  console.log('[R2 getObject] Signed request:', {
+    method: signedRequest.method,
+    url: signedRequest.url,
+    headers: Object.fromEntries(signedRequest.headers.entries()),
   });
-  
-  // Sign the request (default behavior signs headers, not query params)
-  // The Host header will be included in the signature
-  const signedRequest = await r2Client.sign(unsignedRequest);
   
   // Log signed request details (but don't log Authorization header value for security)
   const signedHeaders: Record<string, string> = {};
@@ -269,16 +342,10 @@ export async function headObject(bucket: string, key: string): Promise<Response>
 
   const encodedKey = encodeS3Key(key);
   const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodedKey}`;
-  const urlObj = new URL(url);
-
-  const unsignedRequest = new Request(url, {
+  const signedRequest = await signR2Request({
+    url,
     method: 'HEAD',
-    headers: {
-      'Host': urlObj.hostname,
-    },
   });
-
-  const signedRequest = await r2Client.sign(unsignedRequest);
   const response = await fetch(signedRequest);
 
   console.log('[R2 headObject] Response:', {
@@ -337,43 +404,25 @@ export async function putObject(
   }
 
   let requestBody: BodyInit;
-  let contentLength: number | undefined;
 
   if (typeof body === 'string') {
-    const buffer = Buffer.from(body);
-    requestBody = buffer;
-    contentLength = buffer.byteLength;
+    requestBody = body;
   } else if (body instanceof Uint8Array) {
     requestBody = body;
-    contentLength = body.byteLength;
   } else if (body instanceof ArrayBuffer) {
-    const buffer = Buffer.from(body);
-    requestBody = buffer;
-    contentLength = buffer.byteLength;
+    requestBody = new Uint8Array(body);
   } else if (typeof Blob !== 'undefined' && body instanceof Blob) {
     requestBody = body;
-    contentLength = body.size;
   } else {
-    // For streams we can't determine length ahead of time
     requestBody = body as BodyInit;
   }
-
-  if (contentLength !== undefined) {
-    headers['Content-Length'] = contentLength.toString();
-  }
-
-  const urlObj = new URL(url);
-  const unsignedRequest = new Request(url, {
+  
+  const signedRequest = await signR2Request({
+    url,
     method: 'PUT',
-    headers: {
-      'Host': urlObj.hostname,
-      ...headers,
-    },
+    headers,
     body: requestBody,
   });
-  
-  // Sign the request
-  const signedRequest = await r2Client.sign(unsignedRequest);
   
   // Fetch the signed request
   const response = await fetch(signedRequest);
@@ -419,16 +468,10 @@ export async function deleteObject(bucket: string, key: string): Promise<Respons
     hasCredentials: !!(ACCESS_KEY_ID && SECRET_ACCESS_KEY),
   });
   
-  const urlObj = new URL(url);
-  const unsignedRequest = new Request(url, {
+  const signedRequest = await signR2Request({
+    url,
     method: 'DELETE',
-    headers: {
-      'Host': urlObj.hostname,
-    },
   });
-  
-  // Sign the request
-  const signedRequest = await r2Client.sign(unsignedRequest);
   
   // Fetch the signed request
   const response = await fetch(signedRequest);
@@ -462,4 +505,3 @@ export function getObjectUrl(bucket: string, key: string): string {
   // Use subdomain-style addressing (required for private buckets)
   return `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodeS3Key(key)}`;
 }
-
