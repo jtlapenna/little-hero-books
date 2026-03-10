@@ -11,9 +11,13 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: production
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DEPLOY_ENVIRONMENT: production
+      CLOUDFLARE_PAGES_PROJECT: little-hero-labs-admin
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -70,7 +74,10 @@ jobs:
       - name: Pre-deploy diagnostics
         run: |
           cd back-end
+          set -euo pipefail
           echo "=== PRE-DEPLOY DIAGNOSTICS ==="
+          echo "Deploy environment: $DEPLOY_ENVIRONMENT"
+          echo "Target project: $CLOUDFLARE_PAGES_PROJECT"
           echo "Current directory: $(pwd)"
           echo "Build output exists: $([ -d ".open-next/cloudflare" ] && echo "YES" || echo "NO")"
           echo "Build output size: $(du -sh .open-next/cloudflare 2>/dev/null || echo "N/A")"
@@ -84,11 +91,32 @@ jobs:
           echo "Environment variables check:"
           echo "  CLOUDFLARE_API_TOKEN: $([ -n "$CLOUDFLARE_API_TOKEN" ] && echo "SET (${#CLOUDFLARE_API_TOKEN} chars)" || echo "NOT SET")"
           echo "  CLOUDFLARE_ACCOUNT_ID: $([ -n "$CLOUDFLARE_ACCOUNT_ID" ] && echo "SET" || echo "NOT SET")"
+          if [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "  CLOUDFLARE_ACCOUNT_ID preview: ${CLOUDFLARE_ACCOUNT_ID:0:6}...${CLOUDFLARE_ACCOUNT_ID: -4}"
+          fi
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "❌ ERROR: Required environment variables are not set!"
             exit 1
           fi
           echo "=============================="
+
+      - name: Fail-fast account/project wiring checks
+        run: |
+          set -euo pipefail
+          WRANGLER_PROJECT_NAME=$(node -e "const fs=require('fs');const txt=fs.readFileSync('back-end/wrangler.toml','utf8');const match=txt.match(/^name\\s*=\\s*\"([^\"]+)\"/m);if(!match){console.error('Missing name in back-end/wrangler.toml');process.exit(1);}process.stdout.write(match[1]);")
+          echo "wrangler.toml project: $WRANGLER_PROJECT_NAME"
+          echo "workflow project: $CLOUDFLARE_PAGES_PROJECT"
+          if [ "$WRANGLER_PROJECT_NAME" != "$CLOUDFLARE_PAGES_PROJECT" ]; then
+            echo "❌ ERROR: wrangler.toml project name does not match workflow target project."
+            exit 1
+          fi
+          echo "Checking whether project exists in provided Cloudflare account..."
+          PROJECT_LIST_JSON=$(npx wrangler pages project list --json)
+          node -e "const projects=JSON.parse(process.argv[1]);const name=process.env.CLOUDFLARE_PAGES_PROJECT;const found=Array.isArray(projects)&&projects.some((p)=>p&&p.name===name);if(!found){console.error('❌ ERROR: target project not found in this Cloudflare account.');process.exit(1);}console.log('✅ Project found in target account:',name);" "$PROJECT_LIST_JSON"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PAGES_PROJECT: ${{ env.CLOUDFLARE_PAGES_PROJECT }}
 
       - name: Deploy to Cloudflare Pages
         id: deploy
@@ -97,7 +125,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: back-end
-          command: pages deploy .open-next/cloudflare --project-name=little-hero-labs-admin
+          command: pages deploy .open-next/cloudflare --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
