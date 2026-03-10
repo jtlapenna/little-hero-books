@@ -1,152 +1,19 @@
-import { AwsClient } from 'aws4fetch';
-import { XMLParser } from 'fast-xml-parser';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+} from '@aws-sdk/client-s3';
+import {
+  r2Client,
+  R2_CHARACTERS_PREFIX,
+  R2_ORDERS_BUCKET,
+  R2_PUBLIC_BUCKET,
+  validateR2Config,
+} from './r2-config';
 
-// R2 configuration from environment
-const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
-const ACCESS_KEY_ID =
-  process.env.R2_ACCESS_KEY_ID ||
-  process.env.R2_ACCESS_ID_KEY ||
-  process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
-  process.env.CLOUDFLARE_R2_ACCESS_KEY;
-const SECRET_ACCESS_KEY =
-  process.env.R2_SECRET_ACCESS_KEY ||
-  process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
-  process.env.CLOUDFLARE_R2_SECRET_KEY;
-
-// Validate required environment variables
-const missingVars: string[] = [];
-if (!ACCOUNT_ID) missingVars.push('CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID');
-if (!ACCESS_KEY_ID) {
-  missingVars.push(
-    'R2_ACCESS_KEY_ID (or CLOUDFLARE_R2_ACCESS_KEY_ID / CLOUDFLARE_R2_ACCESS_KEY / R2_ACCESS_ID_KEY)'
-  );
-}
-if (!SECRET_ACCESS_KEY) {
-  missingVars.push(
-    'R2_SECRET_ACCESS_KEY (or CLOUDFLARE_R2_SECRET_ACCESS_KEY / CLOUDFLARE_R2_SECRET_KEY)'
-  );
-}
-
-// Create aws4fetch client for R2 (Cloudflare Workers compatible)
-export const r2Client = new AwsClient({
-  accessKeyId: ACCESS_KEY_ID || '',
-  secretAccessKey: SECRET_ACCESS_KEY || '',
-  service: 's3',
-  region: 'auto',
-});
-
-// XML parser for S3 ListObjectsV2 responses
-// Configure to handle arrays properly (S3 may return single or multiple Contents/CommonPrefixes)
-const xmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: '',
-  textNodeName: '#text',
-  parseAttributeValue: true,
-  isArray: (name, jPath) => {
-    // Always treat Contents and CommonPrefixes as arrays (even if single element)
-    return name === 'Contents' || name === 'CommonPrefixes';
-  },
-});
-
-// Export validation helper (same interface as r2-config.ts)
-export function validateR2Config(): { valid: boolean; missing: string[] } {
-  return {
-    valid: missingVars.length === 0,
-    missing: missingVars,
-  };
-}
-
-// Export bucket names and prefix (same as r2-config.ts)
-export const R2_PUBLIC_BUCKET = process.env.R2_PUBLIC_BUCKET_NAME || process.env.R2_ASSETS_BUCKET_NAME || process.env.R2_PUBLIC_BUCKET || 'little-hero-assets';
-export const R2_ORDERS_BUCKET = process.env.R2_ORDERS_BUCKET_NAME || process.env.R2_ORDERS_BUCKET || 'little-hero-orders';
-export const R2_CHARACTERS_PREFIX = process.env.R2_CHARACTERS_PREFIX || 'book-mvp-simple-adventure/order-generated-assets/characters/';
-
-const EMPTY_PAYLOAD_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
-
-async function sha256HexFromBytes(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-async function normalizeBodyForSigning(
-  body?: BodyInit | null
-): Promise<{ body?: BodyInit; payloadHash: string; contentLength?: number }> {
-  if (body == null) {
-    return { payloadHash: EMPTY_PAYLOAD_SHA256 };
-  }
-
-  if (typeof body === 'string') {
-    const bytes = new TextEncoder().encode(body);
-    return {
-      body,
-      payloadHash: await sha256HexFromBytes(bytes),
-      contentLength: bytes.byteLength,
-    };
-  }
-
-  if (body instanceof Uint8Array) {
-    return {
-      body,
-      payloadHash: await sha256HexFromBytes(body),
-      contentLength: body.byteLength,
-    };
-  }
-
-  if (body instanceof ArrayBuffer) {
-    const bytes = new Uint8Array(body);
-    return {
-      body,
-      payloadHash: await sha256HexFromBytes(bytes),
-      contentLength: bytes.byteLength,
-    };
-  }
-
-  if (typeof Blob !== 'undefined' && body instanceof Blob) {
-    const bytes = new Uint8Array(await body.arrayBuffer());
-    return {
-      body,
-      payloadHash: await sha256HexFromBytes(bytes),
-      contentLength: body.size,
-    };
-  }
-
-  // ReadableStream bodies are uncommon in this codebase. Buffer them so R2 gets a real payload hash.
-  const bytes = new Uint8Array(await new Response(body).arrayBuffer());
-  return {
-    body: bytes,
-    payloadHash: await sha256HexFromBytes(bytes),
-    contentLength: bytes.byteLength,
-  };
-}
-
-async function signR2Request(input: {
-  url: string;
-  method: 'GET' | 'HEAD' | 'PUT' | 'DELETE';
-  headers?: Record<string, string>;
-  body?: BodyInit | null;
-}): Promise<Request> {
-  const urlObj = new URL(input.url);
-  const normalized = await normalizeBodyForSigning(input.body);
-  const headers: Record<string, string> = {
-    Host: urlObj.hostname,
-    'x-amz-content-sha256': normalized.payloadHash,
-    ...input.headers,
-  };
-
-  if (normalized.contentLength !== undefined) {
-    headers['Content-Length'] = String(normalized.contentLength);
-  }
-
-  const unsignedRequest = new Request(input.url, {
-    method: input.method,
-    headers,
-    body: normalized.body,
-  });
-
-  return r2Client.sign(unsignedRequest);
-}
+export { r2Client, R2_CHARACTERS_PREFIX, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET, validateR2Config };
 
 /**
  * ListObjectsV2 response structure (parsed from XML)
@@ -189,58 +56,39 @@ export async function listObjects(
     continuationToken?: string;
   } = {}
 ): Promise<ListObjectsV2Response['ListBucketResult']> {
-  // Validate configuration
-  if (!ACCOUNT_ID) {
-    throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
-  }
-  
   const { prefix, delimiter, maxKeys, continuationToken } = options;
-  
-  // Build query parameters for ListObjectsV2
-  const params = new URLSearchParams({
-    'list-type': '2',
-  });
-  
-  if (prefix) params.set('prefix', prefix);
-  if (delimiter) params.set('delimiter', delimiter);
-  if (maxKeys) params.set('max-keys', String(maxKeys));
-  if (continuationToken) params.set('continuation-token', continuationToken);
-  
-  // Use subdomain-style addressing (required for private buckets)
-  const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com?${params.toString()}`;
-  
-  // For direct API calls, we need to sign the request manually
-  // Unlike presigned URLs (which sign query params), direct calls sign headers
-  const signedRequest = await signR2Request({
-    url,
-    method: 'GET',
-  });
-  
-  // Fetch the signed request
-  const response = await fetch(signedRequest);
-  
-  // Read response body once - can't read it twice in Cloudflare Workers
-  const responseText = await response.text();
-  
-  if (!response.ok) {
-    throw new Error(`R2 listObjects failed: ${response.status} ${response.statusText} - ${responseText}`);
+  try {
+    const result = await r2Client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        Delimiter: delimiter,
+        MaxKeys: maxKeys,
+        ContinuationToken: continuationToken,
+      })
+    );
+
+    return {
+      IsTruncated: result.IsTruncated,
+      Contents: (result.Contents || []).map((item) => ({
+        Key: item.Key || '',
+        LastModified: item.LastModified?.toISOString(),
+        ETag: item.ETag,
+        Size: item.Size,
+        StorageClass: item.StorageClass,
+      })),
+      CommonPrefixes: (result.CommonPrefixes || []).map((item) => ({
+        Prefix: item.Prefix || '',
+      })),
+      KeyCount: result.KeyCount,
+      MaxKeys: result.MaxKeys,
+      Prefix: result.Prefix,
+      Delimiter: result.Delimiter,
+      NextContinuationToken: result.NextContinuationToken,
+    };
+  } catch (error: any) {
+    throw new Error(`R2 listObjects failed: ${error?.name || 'Error'} - ${error?.message || error}`);
   }
-  
-  // Parse XML response (already read above)
-  const xmlText = responseText;
-  const parsed = xmlParser.parse(xmlText) as ListObjectsV2Response;
-  
-  const result = parsed.ListBucketResult;
-  
-  // Normalize arrays (ensure Contents and CommonPrefixes are always arrays)
-  if (result.Contents && !Array.isArray(result.Contents)) {
-    result.Contents = [result.Contents];
-  }
-  if (result.CommonPrefixes && !Array.isArray(result.CommonPrefixes)) {
-    result.CommonPrefixes = [result.CommonPrefixes];
-  }
-  
-  return result;
 }
 
 /**
@@ -258,75 +106,33 @@ function encodeS3Key(key: string): string {
  * @returns Response with body that can be read as text/JSON/blob
  */
 export async function getObject(bucket: string, key: string): Promise<Response> {
-  // Validate configuration
-  if (!ACCOUNT_ID) {
-    throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
-  }
-  
-  // Build R2 URL with subdomain-style addressing (required for private buckets)
-  // Format: https://{bucket}.{account_id}.r2.cloudflarestorage.com/{key}
-  // Encode key while preserving slashes
-  const encodedKey = encodeS3Key(key);
-  const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodedKey}`;
-  
   console.log('[R2 getObject] Debug:', {
     bucket,
     key,
-    encodedKey,
-    url,
-    accountId: ACCOUNT_ID?.substring(0, 8) + '...',
-    hasCredentials: !!(ACCESS_KEY_ID && SECRET_ACCESS_KEY),
   });
-  
-  // For direct API calls, we need to sign the request manually
-  // Unlike presigned URLs (which sign query params), direct calls sign headers
-  // CRITICAL: The Host header must be explicitly set and included in signed headers
-  const signedRequest = await signR2Request({
-    url,
-    method: 'GET',
-  });
-  
-  console.log('[R2 getObject] Signed request:', {
-    method: signedRequest.method,
-    url: signedRequest.url,
-    headers: Object.fromEntries(signedRequest.headers.entries()),
-  });
-  
-  // Log signed request details (but don't log Authorization header value for security)
-  const signedHeaders: Record<string, string> = {};
-  signedRequest.headers.forEach((value, key) => {
-    if (key.toLowerCase() === 'authorization') {
-      signedHeaders[key] = value.substring(0, 20) + '...' + value.substring(value.length - 10);
-    } else {
-      signedHeaders[key] = value;
+  try {
+    const result = await r2Client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      })
+    );
+
+    if (!result.Body) {
+      throw new Error('R2 getObject returned empty body');
     }
-  });
-  
-  console.log('[R2 getObject] Signed request:', {
-    method: signedRequest.method,
-    url: signedRequest.url,
-    headers: signedHeaders,
-    hasAuthHeader: signedRequest.headers.has('Authorization'),
-    authHeaderLength: signedRequest.headers.get('Authorization')?.length || 0,
-  });
-  
-  // Fetch the signed request
-  const response = await fetch(signedRequest);
-  
-  console.log('[R2 getObject] Response:', {
-    status: response.status,
-    statusText: response.statusText,
-    ok: response.ok,
-    headers: Object.fromEntries(response.headers.entries()),
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[R2 getObject] Error response body:', errorText.substring(0, 500));
-    throw new Error(`R2 getObject failed: ${response.status} ${response.statusText} - ${errorText}`);
+
+    return new Response(result.Body as BodyInit, {
+      status: 200,
+      headers: {
+        ...(result.ContentType ? { 'content-type': result.ContentType } : {}),
+        ...(result.ContentLength != null ? { 'content-length': String(result.ContentLength) } : {}),
+        ...(result.ETag ? { etag: result.ETag } : {}),
+      },
+    });
+  } catch (error: any) {
+    throw new Error(`R2 getObject failed: ${error?.name || 'Error'} - ${error?.message || error}`);
   }
-  
-  return response;
 }
 
 /**
@@ -336,32 +142,29 @@ export async function getObject(bucket: string, key: string): Promise<Response> 
  * @returns Response containing headers (Content-Type, Content-Length, etc.)
  */
 export async function headObject(bucket: string, key: string): Promise<Response> {
-  if (!ACCOUNT_ID) {
-    throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
+  try {
+    const result = await r2Client.send(
+      new HeadObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      })
+    );
+
+    return new Response(null, {
+      status: 200,
+      headers: {
+        ...(result.ContentType ? { 'content-type': result.ContentType } : {}),
+        ...(result.ContentLength != null ? { 'content-length': String(result.ContentLength) } : {}),
+        ...(result.ETag ? { etag: result.ETag } : {}),
+      },
+    });
+  } catch (error: any) {
+    const httpStatus = error?.$metadata?.httpStatusCode;
+    if (httpStatus === 404 || error?.name === 'NotFound') {
+      return new Response(null, { status: 404 });
+    }
+    throw new Error(`R2 headObject failed: ${error?.name || 'Error'} - ${error?.message || error}`);
   }
-
-  const encodedKey = encodeS3Key(key);
-  const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodedKey}`;
-  const signedRequest = await signR2Request({
-    url,
-    method: 'HEAD',
-  });
-  const response = await fetch(signedRequest);
-
-  console.log('[R2 headObject] Response:', {
-    status: response.status,
-    statusText: response.statusText,
-    ok: response.ok,
-    headers: Object.fromEntries(response.headers.entries()),
-    bucket,
-    key,
-  });
-
-  if (!response.ok && response.status !== 404) {
-    throw new Error(`R2 headObject failed: ${response.status} ${response.statusText} - ${bucket}/${key}`);
-  }
-
-  return response;
 }
 
 /**
@@ -378,69 +181,42 @@ export async function putObject(
   body: Blob | ArrayBuffer | ReadableStream | Uint8Array | string,
   contentType?: string
 ): Promise<Response> {
-  // Validate configuration
-  if (!ACCOUNT_ID) {
-    throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
-  }
-  
-  // Build R2 URL with subdomain-style addressing (required for private buckets)
-  const encodedKey = encodeS3Key(key);
-  const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodedKey}`;
-  
   console.log('[R2 putObject] Uploading:', {
     bucket,
     key,
-    encodedKey,
-    url,
     contentType,
-    accountId: ACCOUNT_ID?.substring(0, 8) + '...',
-    hasCredentials: !!(ACCESS_KEY_ID && SECRET_ACCESS_KEY),
   });
-  
-  // Build request with body and content type
-  const headers: Record<string, string> = {};
-  if (contentType) {
-    headers['Content-Type'] = contentType;
-  }
 
-  let requestBody: BodyInit;
-
-  if (typeof body === 'string') {
+  let requestBody: Uint8Array | string | Blob;
+  if (typeof body === 'string' || (typeof Blob !== 'undefined' && body instanceof Blob)) {
     requestBody = body;
   } else if (body instanceof Uint8Array) {
     requestBody = body;
   } else if (body instanceof ArrayBuffer) {
     requestBody = new Uint8Array(body);
-  } else if (typeof Blob !== 'undefined' && body instanceof Blob) {
-    requestBody = body;
   } else {
-    requestBody = body as BodyInit;
+    requestBody = new Uint8Array(await new Response(body).arrayBuffer());
   }
-  
-  const signedRequest = await signR2Request({
-    url,
-    method: 'PUT',
-    headers,
-    body: requestBody,
-  });
-  
-  // Fetch the signed request
-  const response = await fetch(signedRequest);
-  
-  console.log('[R2 putObject] Response:', {
-    status: response.status,
-    statusText: response.statusText,
-    ok: response.ok,
-    headers: Object.fromEntries(response.headers.entries()),
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[R2 putObject] Error response body:', errorText.substring(0, 500));
-    throw new Error(`R2 putObject failed: ${response.status} ${response.statusText} - ${errorText}`);
+
+  try {
+    const result = await r2Client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: requestBody,
+        ContentType: contentType,
+      })
+    );
+
+    return new Response(null, {
+      status: 200,
+      headers: {
+        ...(result.ETag ? { etag: result.ETag } : {}),
+      },
+    });
+  } catch (error: any) {
+    throw new Error(`R2 putObject failed: ${error?.name || 'Error'} - ${error?.message || error}`);
   }
-  
-  return response;
 }
 
 /**
@@ -450,46 +226,21 @@ export async function putObject(
  * @returns Response from R2
  */
 export async function deleteObject(bucket: string, key: string): Promise<Response> {
-  // Validate configuration
-  if (!ACCOUNT_ID) {
-    throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
-  }
-  
-  // Build R2 URL with subdomain-style addressing (required for private buckets)
-  const encodedKey = encodeS3Key(key);
-  const url = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodedKey}`;
-  
   console.log('[R2 deleteObject] Deleting:', {
     bucket,
     key,
-    encodedKey,
-    url,
-    accountId: ACCOUNT_ID?.substring(0, 8) + '...',
-    hasCredentials: !!(ACCESS_KEY_ID && SECRET_ACCESS_KEY),
   });
-  
-  const signedRequest = await signR2Request({
-    url,
-    method: 'DELETE',
-  });
-  
-  // Fetch the signed request
-  const response = await fetch(signedRequest);
-  
-  console.log('[R2 deleteObject] Response:', {
-    status: response.status,
-    statusText: response.statusText,
-    ok: response.ok,
-    headers: Object.fromEntries(response.headers.entries()),
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[R2 deleteObject] Error response body:', errorText.substring(0, 500));
-    throw new Error(`R2 deleteObject failed: ${response.status} ${response.statusText} - ${errorText}`);
+  try {
+    await r2Client.send(
+      new DeleteObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      })
+    );
+    return new Response(null, { status: 204 });
+  } catch (error: any) {
+    throw new Error(`R2 deleteObject failed: ${error?.name || 'Error'} - ${error?.message || error}`);
   }
-  
-  return response;
 }
 
 /**
@@ -499,9 +250,5 @@ export async function deleteObject(bucket: string, key: string): Promise<Respons
  * For now, this returns a URL that requires authentication via the client
  */
 export function getObjectUrl(bucket: string, key: string): string {
-  if (!ACCOUNT_ID) {
-    throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
-  }
-  // Use subdomain-style addressing (required for private buckets)
-  return `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodeS3Key(key)}`;
+  throw new Error(`Direct object URL is not supported for private R2 buckets: ${bucket}/${key}`);
 }
