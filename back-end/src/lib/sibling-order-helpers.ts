@@ -5,6 +5,8 @@
 
 import { createHash } from 'crypto';
 
+const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
+
 /** Generate a synthetic per-book orderId from a parent/root ID and a suffix. */
 export function buildSiblingOrderId(
   parentOrderId: string,
@@ -148,7 +150,7 @@ export function buildW0Payload(opts: {
 export async function triggerW0(
   payload: Record<string, unknown>
 ): Promise<{ ok: boolean; error?: string }> {
-  const url = process.env.N8N_W0_WEBHOOK_URL;
+  const url = process.env.N8N_W0_WEBHOOK_URL || DEFAULT_W0_WEBHOOK_URL;
   if (!url) return { ok: false, error: 'N8N_W0_WEBHOOK_URL not configured' };
   try {
     const res = await fetch(url, {

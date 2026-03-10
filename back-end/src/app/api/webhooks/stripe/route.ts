@@ -15,6 +15,7 @@ import { getObject, putObject, headObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFI
 import { getSignedUrlForObject } from '@/lib/r2-service';
 
 export const dynamic = 'force-dynamic';
+const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
 
 /**
  * Copy the D2C preview image to base-character.png at the character hash location.
@@ -250,7 +251,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Trigger W0 for this book — throw on failure so Stripe retries and failure is visible
-        const w0Url = process.env.N8N_W0_WEBHOOK_URL;
+        const w0Url = process.env.N8N_W0_WEBHOOK_URL || DEFAULT_W0_WEBHOOK_URL;
         if (!w0Url) {
           throw new Error('N8N_W0_WEBHOOK_URL not configured — cannot trigger W0. Set env var and ensure n8n webhook is active.');
         }

@@ -17,6 +17,7 @@ import { triggerW0 } from '@/lib/sibling-order-helpers';
 import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 
 export const dynamic = 'force-dynamic';
+const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
 
 export async function POST(request: NextRequest) {
   const auth = verifyBearerAuth(request);
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const w0Url = process.env.N8N_W0_WEBHOOK_URL;
+  const w0Url = process.env.N8N_W0_WEBHOOK_URL || DEFAULT_W0_WEBHOOK_URL;
   if (!w0Url) {
     return NextResponse.json(
       { error: 'N8N_W0_WEBHOOK_URL not configured' },
