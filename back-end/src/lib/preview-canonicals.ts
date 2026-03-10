@@ -4,6 +4,8 @@
  * (Resolve Skin Tone & Base Path, Resolve Hairstyle Key & Asset Path).
  */
 
+import { SKIN_TONE_HEX_MAP } from '@/types/customization';
+
 const ASSET_ROOT_BASES = 'book-mvp-simple-adventure/characters/bases';
 const ASSET_ROOT_HAIR = 'book-mvp-simple-adventure/characters/hairstyles';
 
@@ -71,6 +73,8 @@ const DEFAULT_HAIR_COLOR_CHIP = 'medium-brown';
 
 export interface PreviewResolved {
   skinToneCanonical: string;
+  skinToneHex: string | null;
+  skinToneLabel: string | null;
   clothingTypeCanonical: string;
   baseRefKey: string;
   hairStyleCanonical: string;
@@ -151,6 +155,8 @@ export function resolvePreviewCanonicals(specs: CharacterSpecsInput): PreviewRes
 
   return {
     skinToneCanonical,
+    skinToneHex: SKIN_TONE_HEX_MAP[skinToneCanonical as keyof typeof SKIN_TONE_HEX_MAP]?.hex ?? null,
+    skinToneLabel: SKIN_TONE_HEX_MAP[skinToneCanonical as keyof typeof SKIN_TONE_HEX_MAP]?.label ?? null,
     clothingTypeCanonical,
     baseRefKey,
     hairStyleCanonical,

@@ -32,6 +32,7 @@ export function calculateCharacterHash(
  * Note: We use clothingType instead of pronouns since he/him and they/them both use t-shirt.
  */
 const VISUAL_TRAIT_KEYS = ['skinTone', 'hairStyle', 'hairColor', 'favoriteColor'] as const;
+const PREVIEW_HASH_VERSION = 'v2';
 
 /**
  * Map pronouns to clothing type for hash calculation.
@@ -71,5 +72,8 @@ export function calculatePreviewHash(
       return acc;
     }, {} as Record<string, unknown>);
 
-  return createHash('md5').update(JSON.stringify(sorted)).digest('hex').substring(0, 16);
+  return createHash('md5')
+    .update(JSON.stringify({ ...sorted, previewVersion: PREVIEW_HASH_VERSION }))
+    .digest('hex')
+    .substring(0, 16);
 }

@@ -66,7 +66,7 @@ Status: **RENDERER NO LONGER REQUIRED FOR BACKEND FLIP LOGIC**
 
 ### Required fixes (current)
 
-1. Import/publish the updated SW3 workflow so poses `3` and `11` fetch a flipped PNG upstream before finalize.
+1. Import/publish the updated SW3 workflow so poses `3` and `11` first upload to a temporary public source key, then fetch a flipped PNG from Cloudflare Images, and only then call backend finalize.
 2. Import/publish the updated backend so `/api/orders/[orderId]/replace-image` trusts `isFlipped=true` and skips worker-side auto-flip transforms for those requests.
 3. Keep `/api/orders/[orderId]/auto-flip-pose` only as remediation/backfill support, not the desired steady-state production path.
 4. Re-run live checks on poses `3` and `11` and verify the first published canonical asset is already correctly oriented.
@@ -78,7 +78,7 @@ Status: **RENDERER NO LONGER REQUIRED FOR BACKEND FLIP LOGIC**
   - SW3 must **not** depend on `2a-manifest.json` to determine the canonical upload target.
   - `2a-manifest.json` is only created after all 2A pose uploads complete, so it does not exist yet during the individual SW3 pose upload/finalize step.
   - SW3 must **not** publish the final canonical pre-Bria pose asset directly to R2 as the first write.
-  - For poses `3` and `11`, SW3 should fetch a horizontally flipped PNG upstream and then call the backend canonical publish path directly with `isFlipped=true`.
+  - For poses `3` and `11`, SW3 should upload the generated image to a temporary public R2 key under `sw3-preflip-source/`, fetch a horizontally flipped PNG from that temporary public URL, and then call the backend canonical publish path directly with `isFlipped=true`.
   - For all other poses, SW3 should continue calling the backend canonical publish path directly without pre-flip.
 - Until the active n8n Cloud workflow is changed, production W2A may still hit worker resource limits on targeted poses or still rely on the old repair-style flow.
 

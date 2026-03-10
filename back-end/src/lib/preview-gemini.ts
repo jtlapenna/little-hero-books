@@ -19,7 +19,14 @@ export interface BuildPreviewRequestInput {
  */
 export function buildPreviewGeminiRequest(input: BuildPreviewRequestInput): Record<string, unknown> {
   const { resolved, base64Base, baseMime, base64Hair, hairMime } = input;
-  const { favoriteColorHex, hairColorLabel, shortsHex, clothingTypeCanonical } = resolved;
+  const {
+    favoriteColorHex,
+    hairColorLabel,
+    shortsHex,
+    clothingTypeCanonical,
+    skinToneHex,
+    skinToneLabel,
+  } = resolved;
   
   const isDress = clothingTypeCanonical === 'dress';
 
@@ -83,7 +90,14 @@ export function buildPreviewGeminiRequest(input: BuildPreviewRequestInput): Reco
 
   const shortsRule = isDress ? null : `SHORTS COLOR LOCK: Neutral denim ${shortsHex} (fixed). Never recolor shorts.`;
 
-  const skinToneLine = 'SKIN-TONE LOCK: Keep skin tone identical to the base reference (no lightening/darkening; do not change undertone).';
+  const skinToneLine = skinToneHex
+    ? [
+        `SKIN-TONE LOCK (CRITICAL): Target skin tone is ${skinToneLabel ?? 'selected tone'} ${skinToneHex}.`,
+        `Match the child's skin to ${skinToneHex} exactly; do not lighten or darken it.`,
+        'If IMAGE A suggests a different skin tone, keep only the face/body structure from IMAGE A and follow the requested skin tone instead.',
+        'Do not drift toward lighter peach, tan, or deep-brown tones unless they match the requested value.',
+      ].join('\n')
+    : 'SKIN-TONE LOCK: Match the requested child skin tone exactly. Do not lighten or darken it.';
 
   const hairLockShared = [
     'HAIRSTYLE LOCK:',
@@ -136,6 +150,7 @@ export function buildPreviewGeminiRequest(input: BuildPreviewRequestInput): Reco
   const systemTextParts = [
     'You are a precise illustration tool.',
     colorInstruction,
+    skinToneHex ? `CRITICAL: The child skin tone MUST be ${skinToneHex}. Do not preserve a conflicting tone from IMAGE A.` : null,
     'CRITICAL: Show FULL BODY from head to feet. Feet must be visible. Do not crop the character.',
     'CRITICAL: Preserve EXACT requested traits. Use IMAGE A only for overall style; use IMAGE B only for hair.',
     'Do not add text, logos, props, or backgrounds.',
