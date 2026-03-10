@@ -15,6 +15,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // No-op deployment marker for Cloudflare Pages verification.
   return (
     <html lang="en">
       <body className={inter.className}>

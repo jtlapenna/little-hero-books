@@ -12,7 +12,8 @@ interface Props {
 
 const { title, description = "Little Hero Labs - Become the hero of your own story", image } = Astro.props;
 
-// Get current URL for canonical and og:url (env-driven for correct domain in all environments)
+// Get current URL for canonical and og:url (env-driven for correct domain in all environments).
+// No-op deployment marker for Cloudflare Pages verification.
 const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.com';
 const currentPath = Astro.url.pathname;
 const canonicalUrl = `${siteUrl}${currentPath}`;
