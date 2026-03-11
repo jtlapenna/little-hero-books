@@ -49,9 +49,10 @@ function normalizeManifestRef(value: string | null | undefined): string {
 }
 
 async function resolveExactOrderRow(orderId: string): Promise<ExactOrderRow> {
+  const exactSelect = 'id, orderId, root_order_id, amazon_order_id';
   const byOrderId = await supabase
     .from('orders')
-    .select('id, orderId, order_id, root_order_id, amazon_order_id')
+    .select(exactSelect)
     .eq('orderId', orderId);
   if (byOrderId.error && byOrderId.error.code !== '42703') throw byOrderId.error;
   if (byOrderId.data && byOrderId.data.length > 1) {
@@ -63,7 +64,7 @@ async function resolveExactOrderRow(orderId: string): Promise<ExactOrderRow> {
 
   const byOrderIdSnake = await supabase
     .from('orders')
-    .select('id, orderId, order_id, root_order_id, amazon_order_id')
+    .select(exactSelect)
     .eq('order_id', orderId);
   if (byOrderIdSnake.error && byOrderIdSnake.error.code !== '42703') throw byOrderIdSnake.error;
   if (byOrderIdSnake.data && byOrderIdSnake.data.length > 1) {

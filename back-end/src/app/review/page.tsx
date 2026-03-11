@@ -7,7 +7,6 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
 import { formatDate, formatPlatformName } from '@/lib/utils';
-import { getOrderListItems } from '@/lib/mock-data';
 import { getOrderFlagSummary } from '@/lib/review-state';
 import { OrderStatus } from '@/constants/statuses';
 import { ArrowRight, Clock, AlertCircle, Search, Grid3X3, List, ChevronDown, RefreshCw } from 'lucide-react';
@@ -19,6 +18,7 @@ export default function ReviewPage() {
   const [allOrders, setAllOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ReviewTabId>('poses');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'orderDate' | 'firstName' | 'lastName' | 'platform'>('orderDate');
@@ -44,12 +44,11 @@ export default function ReviewPage() {
         .map((order) => buildOrderListItem(order));
       
       setAllOrders(orderListItems);
+      setLoadError(null);
     } catch (error) {
       console.error('Error fetching orders:', error);
-      // Fallback to mock data
-      const allOrders = getOrderListItems()
-        .filter(order => order.rawStatus !== OrderStatus.COMPLETED);
-      setAllOrders(allOrders);
+      setAllOrders([]);
+      setLoadError('Unable to load real order data. Please refresh or check the backend/API.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -122,6 +121,38 @@ export default function ReviewPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading pending reviews...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-xl rounded-xl border border-red-200 bg-white p-8 shadow-sm">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-6 w-6 text-red-600" />
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-gray-900">Unable to load review queue</h1>
+              <p className="mt-2 text-sm text-gray-700">{loadError}</p>
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  Retry
+                </button>
+                <button
+                  onClick={() => router.push('/')}
+                  className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Back to Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

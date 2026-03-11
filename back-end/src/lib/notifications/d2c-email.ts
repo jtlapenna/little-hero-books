@@ -4,7 +4,7 @@
  */
 
 import { supabase } from '@/lib/supabase-client';
-import { buildEmailHtml, buildStepsList, buildParagraph, buildEmphasis } from './email-templates';
+import { buildEmailHtml, buildStepsList, buildParagraph, buildEmphasis, buildSiblingItemRows } from './email-templates';
 
 export type D2CReminderType =
   | 'initial'
@@ -18,6 +18,13 @@ export interface SendD2COrderConfirmationEmailParams {
   displayOrderId: string;
   orderId?: string;
   previewImageUrl?: string;
+}
+
+export interface SendD2CSiblingOrderConfirmationEmailParams {
+  to: string;
+  items: Array<{ childName?: string }>;
+  displayOrderId: string;
+  orderId?: string;
 }
 
 export interface SendD2CPreviewEmailParams {
@@ -185,6 +192,116 @@ export async function sendD2COrderConfirmationEmail(
     previewImageUrl: params.previewImageUrl,
     infoBox: infoBoxHtml,
     childName: params.childName,
+  });
+
+  try {
+    const from = getFromAddress();
+    const { id, error } = await sendViaResendHttp({ apiKey, from, to: params.to, subject, text, html });
+    if (error) {
+      if (params.orderId) {
+        await logNotification({
+          orderId: params.orderId,
+          recipient: params.to,
+          status: 'failed',
+          errorMessage: error,
+        });
+      }
+      return { success: false, error };
+    }
+
+    const messageId = id ?? undefined;
+    if (params.orderId) {
+      await logNotification({
+        orderId: params.orderId,
+        recipient: params.to,
+        status: 'sent',
+        messageId: messageId ?? null,
+      });
+    }
+    return { success: true, messageId };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (params.orderId) {
+      await logNotification({
+        orderId: params.orderId,
+        recipient: params.to,
+        status: 'failed',
+        errorMessage: message,
+      });
+    }
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Send one D2C order confirmation email for a multi-item checkout.
+ */
+export async function sendD2CSiblingOrderConfirmationEmail(
+  params: SendD2CSiblingOrderConfirmationEmailParams
+): Promise<D2CEmailResult> {
+  if (!isD2CEmailEnabled()) {
+    console.warn('[D2C Email] Sibling order confirmation skipped: D2C_EMAIL_ENABLED is not true');
+    if (params.orderId) {
+      await logNotification({
+        orderId: params.orderId,
+        recipient: params.to,
+        status: 'failed',
+        errorMessage: 'Skipped: D2C_EMAIL_ENABLED is not true',
+      });
+    }
+    return { success: false, error: 'D2C email notifications are disabled' };
+  }
+
+  const apiKey = getResendApiKey();
+  if (!apiKey) {
+    console.warn('[D2C Email] Sibling order confirmation skipped: RESEND_API_KEY is not set');
+    if (params.orderId) {
+      await logNotification({
+        orderId: params.orderId,
+        recipient: params.to,
+        status: 'failed',
+        errorMessage: 'Skipped: RESEND_API_KEY is not set',
+      });
+    }
+    return { success: false, error: 'RESEND_API_KEY is not set' };
+  }
+
+  const items = params.items.length ? params.items : [{ childName: 'Your little hero' }];
+  const subject = 'Your Little Hero Labs order is confirmed!';
+  const itemLines = items.map((item, index) => `${index + 1}. ${item.childName?.trim() || 'Your little hero'}`).join('\n');
+
+  const text =
+    `Thank you for your order!\n\n` +
+    `We've received your multi-book Little Hero Labs order.\n\n` +
+    `Books in your order:\n${itemLines}\n\n` +
+    `Order ID: ${params.displayOrderId}\n\n` +
+    `What happens next?\n` +
+    `1. We'll create your personalized stories and illustrations\n` +
+    `2. You'll receive preview approval emails for each book as they are ready\n` +
+    `3. Once approved, we'll print and ship your books!\n\n` +
+    `Every child is the hero of their own story.\n— Little Hero Labs`;
+
+  const stepsHtml = buildStepsList([
+    "We'll create your personalized stories and illustrations",
+    "You'll receive preview approval emails for each book as they are ready",
+    "Once approved, we'll print and ship your books!",
+  ]);
+
+  const bodyHtml =
+    buildParagraph("Thank you for your order! We've received your multi-book <strong>Little Hero Labs</strong> order.") +
+    buildParagraph('<strong>What happens next?</strong>') +
+    stepsHtml;
+
+  const infoBoxHtml = `
+    <p style="margin: 0; font-size: 14px; color: #666;">Order ID</p>
+    <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: #2D3142;">${params.displayOrderId}</p>
+  `;
+
+  const html = buildEmailHtml({
+    heading: 'Your adventure books are on their way!',
+    body: bodyHtml,
+    supplementalContent: buildSiblingItemRows(items),
+    infoBox: infoBoxHtml,
   });
 
   try {

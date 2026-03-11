@@ -12,6 +12,25 @@ function pickPrimary<T extends Record<string, unknown>>(rows: T[], requested: st
   );
 }
 
+function stripMissingOrderIdField(select: string): string {
+  return select
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part && part !== 'order_id')
+    .join(', ');
+}
+
+async function runSelect<T>(
+  build: (select: string) => Promise<{ data?: T | T[] | null; error?: { code?: string } | null }>,
+  select: string,
+): Promise<{ data?: T | T[] | null; error?: { code?: string } | null }> {
+  const result = await build(select);
+  if (result.error?.code !== '42703' || !select.includes('order_id')) {
+    return result;
+  }
+  return build(stripMissingOrderIdField(select));
+}
+
 /**
  * Purpose: fetch exactly one order row when a group key may match multiple rows.
  * Tries per-book identifiers first, then falls back to group lookup and picks a deterministic primary.
@@ -26,26 +45,26 @@ export async function fetchOrderRowByAnyId<T extends Record<string, unknown>>(
 
   const numericId = /^\d+$/.test(id) ? parseInt(id, 10) : NaN;
   if (!Number.isNaN(numericId)) {
-    const r = await supabase.from('orders').select(select).eq('id', numericId).maybeSingle();
+    const r = await runSelect<T>((safeSelect) => supabase.from('orders').select(safeSelect).eq('id', numericId).maybeSingle(), select);
     if (r.error && r.error.code !== 'PGRST116') throw r.error;
     if (r.data) return { row: r.data as T, used: 'id' };
   }
 
-  const r1 = await supabase.from('orders').select(select).eq('orderId', id).maybeSingle();
+  const r1 = await runSelect<T>((safeSelect) => supabase.from('orders').select(safeSelect).eq('orderId', id).maybeSingle(), select);
   if (!r1.error && r1.data) return { row: r1.data as T, used: 'orderId' };
   if (r1.error && r1.error.code !== 'PGRST116' && r1.error.code !== '42703') throw r1.error;
 
-  const r2 = await supabase.from('orders').select(select).eq('order_id', id).maybeSingle();
+  const r2 = await runSelect<T>((safeSelect) => supabase.from('orders').select(safeSelect).eq('order_id', id).maybeSingle(), select);
   if (!r2.error && r2.data) return { row: r2.data as T, used: 'order_id' };
   if (r2.error && r2.error.code !== 'PGRST116' && r2.error.code !== '42703') throw r2.error;
 
-  const r3 = await supabase.from('orders').select(select).eq('root_order_id', id).limit(50);
+  const r3 = await runSelect<T[]>((safeSelect) => supabase.from('orders').select(safeSelect).eq('root_order_id', id).limit(50), select);
   if (r3.error && r3.error.code !== '42703') throw r3.error;
   if (r3.data && r3.data.length > 0) {
     return { row: pickPrimary(r3.data as T[], id), used: 'root_order_id' };
   }
 
-  const r4 = await supabase.from('orders').select(select).eq('amazon_order_id', id).limit(50);
+  const r4 = await runSelect<T[]>((safeSelect) => supabase.from('orders').select(safeSelect).eq('amazon_order_id', id).limit(50), select);
   if (r4.error && r4.error.code !== '42703') throw r4.error;
   if (r4.data && r4.data.length > 0) {
     return { row: pickPrimary(r4.data as T[], id), used: 'amazon_order_id' };
@@ -67,4 +86,3 @@ export async function updateOrderRowByAnyId(
   if (r.error) throw r.error;
   return { updated: true };
 }
-

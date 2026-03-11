@@ -39,6 +39,8 @@ export interface EmailTemplateOptions {
   };
   /** Optional info box content */
   infoBox?: string;
+  /** Optional extra content block shown after the body and before any CTA */
+  supplementalContent?: string;
   /** Child's name for personalization */
   childName?: string;
 }
@@ -145,15 +147,54 @@ function buildPreviewImage(imageUrl: string, childName?: string): string {
 }
 
 /**
+ * Build a names-only sibling order summary block for confirmation emails.
+ */
+export function buildSiblingItemRows(items: Array<{ childName?: string }>): string {
+  if (!items.length) return '';
+
+  const rows = items.map((item, index) => {
+    const childName = item.childName?.trim() || 'Your little hero';
+    return `
+      <tr>
+        <td style="padding: 14px 16px; border: 1px solid #F1E6D6; border-radius: 12px; background-color: #FFFCF8;">
+          <p style="margin: 0 0 4px 0; font-family: ${FONTS.body}; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: ${COLORS.teal};">
+            Book ${index + 1}
+          </p>
+          <p style="margin: 0; font-family: ${FONTS.body}; font-size: 17px; line-height: 1.5; color: ${COLORS.navy}; font-weight: 600;">
+            ${childName}
+          </p>
+        </td>
+      </tr>
+    `;
+  }).join(`
+      <tr><td style="height: 10px; line-height: 10px; font-size: 0;">&nbsp;</td></tr>
+  `);
+
+  return `
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 24px 0;">
+      <tr>
+        <td>
+          <p style="margin: 0 0 12px 0; font-family: ${FONTS.body}; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: ${COLORS.navy};">
+            Books in your order
+          </p>
+        </td>
+      </tr>
+      ${rows}
+    </table>
+  `;
+}
+
+/**
  * Build the complete branded HTML email.
  */
 export function buildEmailHtml(options: EmailTemplateOptions): string {
-  const { heading, body, previewImageUrl, ctaButton, infoBox, childName } = options;
+  const { heading, body, previewImageUrl, ctaButton, infoBox, supplementalContent, childName } = options;
 
   // Build optional sections
   const imageSection = previewImageUrl ? buildPreviewImage(previewImageUrl, childName) : '';
   const buttonSection = ctaButton ? buildButton(ctaButton.text, ctaButton.url) : '';
   const infoSection = infoBox ? buildInfoBox(infoBox) : '';
+  const supplementalSection = supplementalContent ?? '';
 
   return `
 <!DOCTYPE html>
@@ -198,6 +239,8 @@ export function buildEmailHtml(options: EmailTemplateOptions): string {
               <div style="font-family: ${FONTS.body}; font-size: 16px; line-height: 1.6; color: ${COLORS.charcoal};">
                 ${body}
               </div>
+
+              ${supplementalSection}
               
               ${buttonSection}
               

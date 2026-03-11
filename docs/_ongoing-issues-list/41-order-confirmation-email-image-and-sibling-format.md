@@ -51,6 +51,16 @@ For each order row in `ordersToProcess`:
 
 For sibling orders, `ordersToProcess` contains **all sibling rows** (item-1, item-2, item-3), each with their own `character_hash` and `character_specs`.
 
+## Recommended implementation approach
+
+All required changes should stay inside the backend. The best approach is:
+
+1. restore single-item preview images using the public R2 CDN URL
+2. add a dedicated sibling-order confirmation email format
+3. verify image existence before including any image URL in either email
+
+This keeps the fix local to the Stripe webhook and email template layer without requiring broader order-pipeline changes.
+
 ## Required Changes
 
 ### Fix 1: Restore preview image (single-item orders)
@@ -76,10 +86,159 @@ For sibling orders, `ordersToProcess` contains **all sibling rows** (item-1, ite
 - If the copy failed or image is missing, pass `previewImageUrl: undefined` → email renders without image
 - This prevents broken `<img>` tags in the email
 
+## Implementation plan
+
+### Key file locations
+
+| File | Role |
+|---|---|
+| `back-end/src/app/api/webhooks/stripe/route.ts` | Triggers email; has sibling detection and `copyPreviewToCharacterHash` |
+| `back-end/src/lib/notifications/d2c-email.ts` | `sendD2COrderConfirmationEmail()` and all other send functions |
+| `back-end/src/lib/notifications/email-templates.ts` | `buildEmailHtml()`, `buildPreviewImage()`, template helpers |
+| `back-end/src/lib/r2-client.ts` | `headObject()`, `R2_PUBLIC_BUCKET`, `R2_CHARACTERS_PREFIX` |
+
+### Image URL approach
+
+The preview image lives in `R2_PUBLIC_BUCKET` at:
+
+```text
+characters/{characterHash}/base-character.png
+```
+
+Public CDN base URL:
+
+```text
+https://pub-92cec53654f84771956bc84dfea65baa.r2.dev
+```
+
+Full image URL for email:
+
+```text
+https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/characters/{characterHash}/base-character.png
+```
+
+This is the preferred approach for email because mail clients cannot send auth headers.
+
+### Step 1 - Add sibling email template support
+
+Add a new template helper in `email-templates.ts`:
+
+```ts
+export function buildSiblingItemRows(
+  items: Array<{ childName: string; previewImageUrl?: string }>
+): string
+```
+
+Requirements:
+
+- render each child as its own row/card
+- show the preview image when present
+- render cleanly if an image is missing
+- support up to 3 items cleanly, but not break if more exist
+- use smaller images than the single-item template
+
+### Step 2 - Add sibling email sender
+
+Add a new function in `d2c-email.ts`:
+
+```ts
+interface SendD2CSiblingOrderConfirmationEmailParams {
+  to: string;
+  items: Array<{ childName?: string; previewImageUrl?: string }>;
+  displayOrderId: string;
+  orderId: string;
+}
+```
+
+```ts
+export async function sendD2CSiblingOrderConfirmationEmail(
+  params: SendD2CSiblingOrderConfirmationEmailParams
+): Promise<D2CEmailResult>
+```
+
+Content differences from the single-item email:
+
+- pluralized heading and intro
+- list all children/books
+- show one shared order reference
+- keep the same next-steps structure, updated for plural wording
+
+### Step 3 - Add image existence helper in Stripe webhook
+
+Add a helper in `back-end/src/app/api/webhooks/stripe/route.ts`:
+
+```ts
+async function buildPreviewImageUrl(characterHash: string): Promise<string | undefined>
+```
+
+Expected behavior:
+
+- return `undefined` if `characterHash` is missing
+- use `headObject(R2_PUBLIC_BUCKET, key)` or equivalent existence check
+- if the file exists, return the public R2 CDN URL
+- if the file does not exist or the check fails, return `undefined`
+
+Run sibling checks with `Promise.all` so multi-item orders do not pay unnecessary serial latency.
+
+### Step 4 - Update email branching in Stripe webhook
+
+Replace the current one-format email send block with:
+
+- single-item path -> `sendD2COrderConfirmationEmail`
+- sibling path -> `sendD2CSiblingOrderConfirmationEmail`
+
+The sibling path should:
+
+- iterate all `ordersToProcess`
+- extract `childName` from each item's `character_specs`
+- derive preview URL per item via `buildPreviewImageUrl`
+- send one email containing all sibling items
+
+The single-item path should:
+
+- derive one preview URL for the single order
+- pass `previewImageUrl` into the existing sender
+
+### Step 5 - Make `emailSent` handling reliable
+
+`emailSent` should still prevent duplicate sends, but a failed email should not block the rest of the Stripe webhook flow.
+
+Implementation rule:
+
+- the webhook should continue even if the email send fails
+- email failures should be logged clearly
+- the email branch should not prevent downstream W0 triggering or other order processing
+
+## Edge cases
+
+| Scenario | Expected behavior |
+|---|---|
+| Character preview does not exist in R2 | omit the image from the email |
+| `copyPreviewToCharacterHash` failed | omit the image from the email |
+| Sibling order has only one item | use the single-item path |
+| One sibling row has no `childName` | fall back to a neutral label like `Your little hero` |
+| All sibling previews are missing | send sibling email with names only, no broken images |
+
+## Checklist
+
+- [ ] `buildSiblingItemRows()` added to `email-templates.ts`
+- [ ] `sendD2CSiblingOrderConfirmationEmail()` added to `d2c-email.ts`
+- [ ] `buildPreviewImageUrl()` helper added to `stripe/route.ts`
+- [ ] Single-item email image restored via public R2 URL
+- [ ] Sibling email branch added to Stripe webhook
+- [ ] Image existence check prevents broken `<img>` tags
+- [ ] `emailSent` logic remains safe and non-blocking
+- [ ] Test: single-item order with preview
+- [ ] Test: single-item order without preview
+- [ ] Test: sibling order with multiple previews
+- [ ] Test: sibling order with no previews
+- [ ] Public R2 URL confirmed accessible externally
+
+## Environment note
+
+The public R2 CDN base URL is a good candidate for an env var such as `R2_PUBLIC_CDN_URL` if it is not already centrally configured. Avoid introducing new hardcoded copies if a reusable existing config already exists.
+
 ## Open Questions
 - Is `R2_PUBLIC_BUCKET` publicly readable for `characters/{hash}/base-character.png`? If yes, use public URL directly. If no, need a different serving approach for email images (emails can't send auth headers).
 - Should the sibling email show all previews inline, or link to a "view your order" page?
 - Should we add a `displayOrderId` that covers the whole sibling group, or list each item's display ID?
-
-## Implementation Plan
-See `41-IMPLEMENTATION-PLAN.md` (to be created alongside this document).

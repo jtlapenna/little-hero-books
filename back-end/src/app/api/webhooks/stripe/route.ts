@@ -10,11 +10,36 @@ import { supabase, getOrderFromSupabase, updateOrderInSupabase } from '@/lib/sup
 import { withIdempotency } from '@/lib/idempotency';
 import { buildD2CW0Payload } from '@/lib/w0-payload';
 import { triggerW0 } from '@/lib/sibling-order-helpers';
-import { sendD2COrderConfirmationEmail } from '@/lib/notifications/d2c-email';
+import { sendD2COrderConfirmationEmail, sendD2CSiblingOrderConfirmationEmail } from '@/lib/notifications/d2c-email';
 import { getObject, putObject, headObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFIX } from '@/lib/r2-client';
 
 export const dynamic = 'force-dynamic';
 const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
+
+function getPublicR2BaseUrl(): string {
+  return (
+    process.env.R2_PUBLIC_URL?.trim() ||
+    process.env.R2_PUBLIC_CDN_URL?.trim() ||
+    process.env.PUBLIC_R2_URL?.trim() ||
+    process.env.NEXT_PUBLIC_R2_URL?.trim() ||
+    'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev'
+  ).replace(/\/+$/, '');
+}
+
+async function buildPreviewImageUrl(characterHash?: string): Promise<string | undefined> {
+  const trimmedHash = characterHash?.trim();
+  if (!trimmedHash) return undefined;
+
+  const key = `${R2_CHARACTERS_PREFIX}${trimmedHash}/base-character.png`;
+  try {
+    const response = await headObject(R2_PUBLIC_BUCKET, key);
+    if (!response.ok) return undefined;
+    return `${getPublicR2BaseUrl()}/${key}`;
+  } catch (err) {
+    console.warn('[Webhook Stripe] Preview image not available for email:', key, err instanceof Error ? err.message : String(err));
+    return undefined;
+  }
+}
 
 /**
  * Copy the D2C preview image to base-character.png at the character hash location.
@@ -202,42 +227,75 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Email sent once (using first order for data)
-      let emailSent = false;
-
-      for (const { orderId: order_id, orderData, wasPendingPayment } of ordersToProcess) {
+      // Copy previews first so confirmation emails can use the copied base-character key when present.
+      for (const { orderData } of ordersToProcess) {
         const platform = orderData.platform as string | undefined;
-        const customerEmail = orderData.customer_email as string | undefined;
-        const characterSpecs = orderData.character_specs as Record<string, unknown> | undefined;
-        const childName = (characterSpecs?.childName ?? characterSpecs?.name) as string | undefined;
         const previewHash = orderData.preview_hash as string | undefined;
         const characterHash = orderData.character_hash as string | undefined;
-        const displayOrderId = (orderData.display_order_id as string) || `LH-${order_id.substring(0, 5).toUpperCase()}`;
 
-        // Copy preview image to character hash location
         if (platform === 'd2c' && previewHash && characterHash) {
           const copyResult = await copyPreviewToCharacterHash(previewHash, characterHash);
           if (!copyResult.success) {
             console.warn('[Webhook Stripe] Preview copy failed (non-fatal):', copyResult.error);
           }
         }
+      }
 
-        // Send one confirmation email for the whole checkout (only on initial processing, not retries)
-        if (wasPendingPayment && !emailSent && platform === 'd2c' && customerEmail?.trim()) {
+      // Send one confirmation email per checkout, not per row.
+      const emailEligibleOrders = ordersToProcess.filter(({ orderData, wasPendingPayment }) =>
+        wasPendingPayment &&
+        (orderData.platform as string | undefined) === 'd2c' &&
+        Boolean((orderData.customer_email as string | undefined)?.trim())
+      );
+
+      if (emailEligibleOrders.length > 0) {
+        const firstEmailOrder = emailEligibleOrders[0];
+        const orderData = firstEmailOrder.orderData;
+        const customerEmail = (orderData.customer_email as string).trim();
+        const displayOrderId =
+          (orderData.display_order_id as string) ||
+          `LH-${String(firstEmailOrder.orderId).substring(0, 5).toUpperCase()}`;
+
+        if (emailEligibleOrders.length > 1) {
+          const items = emailEligibleOrders.map(({ orderData: itemOrderData }) => {
+            const characterSpecs = itemOrderData.character_specs as Record<string, unknown> | undefined;
+            const childName = (characterSpecs?.childName ?? characterSpecs?.name) as string | undefined;
+            return { childName };
+          });
+
+          const emailResult = await sendD2CSiblingOrderConfirmationEmail({
+            to: customerEmail,
+            items,
+            displayOrderId,
+            orderId: firstEmailOrder.orderId,
+          });
+          if (!emailResult.success) {
+            console.warn('[Webhook Stripe] Sibling order confirmation email failed:', emailResult.error);
+          } else {
+            console.log('[Webhook Stripe] Sibling order confirmation email sent to:', customerEmail);
+          }
+        } else {
+          const characterSpecs = orderData.character_specs as Record<string, unknown> | undefined;
+          const childName = (characterSpecs?.childName ?? characterSpecs?.name) as string | undefined;
+          const previewImageUrl = await buildPreviewImageUrl(orderData.character_hash as string | undefined);
+
           const emailResult = await sendD2COrderConfirmationEmail({
-            to: customerEmail.trim(),
+            to: customerEmail,
             childName,
             displayOrderId,
-            orderId: order_id,
+            orderId: firstEmailOrder.orderId,
+            previewImageUrl,
           });
           if (!emailResult.success) {
             console.warn('[Webhook Stripe] Order confirmation email failed:', emailResult.error);
           } else {
             console.log('[Webhook Stripe] Order confirmation email sent to:', customerEmail);
           }
-          emailSent = true;
         }
 
+      }
+
+      for (const { orderId: order_id, orderData } of ordersToProcess) {
         // Trigger W0 for this book — throw on failure so Stripe retries and failure is visible
         const w0Url = process.env.N8N_W0_WEBHOOK_URL || DEFAULT_W0_WEBHOOK_URL;
         if (!w0Url) {

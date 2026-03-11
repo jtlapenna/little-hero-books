@@ -8,7 +8,6 @@ import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
 import { ReprintBadge } from '@/components/ui/reprint-badge';
 import { formatDate, getInitials } from '@/lib/utils';
-import { getOrderById } from '@/lib/mock-data';
 import { PreBriaStage } from '@/components/stages/pre-bria-stage';
 import { PostBriaStage } from '@/components/stages/post-bria-stage';
 import { PostPdfStage } from '@/components/stages/post-pdf-stage';
@@ -16,7 +15,7 @@ import { LuluStage } from '@/components/stages/lulu-stage';
 import { getStageFlaggedCount, getOrderFlagSummary } from '@/lib/review-state';
 import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
-import { ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer } from 'lucide-react';
+import { AlertCircle, ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer } from 'lucide-react';
 import { getDisplayStatusForOrder, getStageBadgeStatus } from '@/lib/status-display';
 import { ManualReviewAlert } from '@/components/ui/manual-review-alert';
 import { extractApiErrorMessage } from '@/lib/error-handler';
@@ -100,6 +99,7 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeStage, setActiveStage] = useState<ReviewStage>('preBria' as unknown as ReviewStage);
   const [flagCounts, setFlagCounts] = useStateReact({ preBria: 0, postBria: 0, postPdf: 0 });
   const [finalApprovalResult, setFinalApprovalResult] = useState<FinalApprovalResult | null>(null);
@@ -153,6 +153,7 @@ export default function OrderDetailPage() {
         throw new Error(errorMessage);
       }
       setOrder(data);
+      setLoadError(null);
       
       // Initialize flagCounts from order.flags if available (for immediate UI update)
       if (data.flags) {
@@ -167,11 +168,14 @@ export default function OrderDetailPage() {
       return data;
     } catch (error) {
       console.error('Error fetching order:', error);
-      // Fallback to mock data
-      const foundOrder = getOrderById(orderId);
-      setOrder(foundOrder || null);
+      setOrder(null);
+      setLoadError(
+        error instanceof Error && error.message
+          ? `Unable to load real order data. ${error.message}`
+          : 'Unable to load real order data. Please refresh or check the backend/API.',
+      );
       setLoading(false);
-      return foundOrder;
+      return null;
     }
   };
 
@@ -215,6 +219,7 @@ export default function OrderDetailPage() {
       setFinalApprovalResult(null);
       setFinalApprovalError(null);
       setFinalApprovalLoading(false);
+      setLoadError(null);
       fetchOrder(orderId);
     }
   }, [params.orderId]);
@@ -377,6 +382,40 @@ export default function OrderDetailPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading order...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !order) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-xl rounded-xl border border-red-200 bg-white p-8 shadow-sm">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-6 w-6 text-red-600" />
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-gray-900">Unable to load order</h1>
+              <p className="mt-2 text-sm text-gray-700">
+                {loadError ?? 'Unable to load real order data. Please refresh or check the backend/API.'}
+              </p>
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={handleRefreshOrder}
+                  className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Retry
+                </button>
+                <button
+                  onClick={() => router.push('/orders')}
+                  className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Orders
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
