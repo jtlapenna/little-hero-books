@@ -487,8 +487,22 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           teeth: options.teeth,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.details || 'Fix failed');
+
+      const responseText = await res.text();
+      let data: any = null;
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        const fallbackMessage = responseText.startsWith('<!DOCTYPE')
+          ? `Fix transparency failed: ${res.status} ${res.statusText}`
+          : (responseText || `Fix transparency failed: ${res.status} ${res.statusText}`);
+        throw new Error(extractApiErrorMessage(data, fallbackMessage));
+      }
+
       if (onRefresh) await onRefresh();
       bumpBust();
     } catch (err: unknown) {
