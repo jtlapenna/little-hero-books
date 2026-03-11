@@ -8,10 +8,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        -18192,
-        -3680
+        -18608,
+        -3840
       ],
-      "id": "da4de13f-0f52-4838-a8bd-f7d971173480",
+      "id": "975caa64-f155-4c2d-90d7-2e2a8d7d3ea4",
       "name": "Wait",
       "webhookId": "cac9f23e-4e21-499a-ac2c-3aad35ed652c"
     },
@@ -19,26 +19,26 @@
       "parameters": {
         "inputSource": "passthrough"
       },
-      "id": "1a05c351-d9ca-4a03-8d56-9771657970b8",
+      "id": "659bd998-2768-4ea4-af49-38b55e0d323c",
       "typeVersion": 1.1,
       "name": "When Executed by Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "position": [
-        -18656,
-        -4000
+        -19072,
+        -4160
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Schema Check + Defaults (SAFE) — SW3 Upload\n// JSON-only flags (no $env/process), preserve wiring, add top-level mirrors.\n\nconst jIn = $json || {};\nconst b   = $binary || {};\n\n/* helpers */\nconst num   = (v,d)=>Number.isFinite(+v)?+v:d;\nconst pick  = (...v)=>v.find(x=>x!==undefined&&x!==null&&x!=='');\nconst asInt = (v)=>{ const n = Number(v); return Number.isFinite(n) ? Math.floor(n) : null; };\n\n/* flags & defaults */\nconst isTest = !!(jIn.__testMode || jIn.testMode || jIn.__meta?.__testMode || jIn.ctx?.__testMode || jIn.ctx?.testMode);\nconst route  = jIn.__route || (isTest ? 'TEST' : 'REAL');\n\nconst assetsRoot   = jIn.assetsRoot   || 'book-mvp-simple-adventure/order-generated-assets';\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url  = jIn.publicR2Url  || null;\nconst templatePath = jIn.templatePath || 'templates';\nconst ctx = jIn.ctx || {};\n\n/* identity */\nconst characterHash = pick(jIn.characterHash, ctx.characterHash, jIn.__meta?.characterHash, null);\nconst poseNum = num(pick(jIn.pose?.poseNumber, jIn.poseNumber, jIn.currentPoseNumber), null);\n\n/* required checks */\nfunction req(ok, msg){ if(!ok) throw new Error(msg); }\nreq(!!characterHash, 'SW3 Schema: characterHash is required');\nreq(Number.isFinite(poseNum), 'SW3 Schema: poseNumber is required');\n\n/* retry (robust, default 0) */\nconst retryAttempt = asInt(pick(jIn.retryAttempt, jIn.retry?.attempt, jIn.qaRetry)) ?? 0;\nconst retryTag     = pick(jIn.retryTag, jIn.retry?.tag, (retryAttempt > 0 ? `retry${retryAttempt}` : '')) || '';\n\n/* pass flags (mirror for Prepare Upload) */\nconst qaCombinedPass = !!(jIn.qaCombinedPass === true || jIn.combinedQaPass === true || jIn.qa?.combined?.pass === true);\nconst qaPassTop      = !!(jIn.qaPass === true || qaCombinedPass);\n\n/* carry IDs that Prepare Upload uses for key building */\nconst correlationId = pick(jIn.correlationId, jIn.__meta?.correlationId, null);\nconst amazonOrderId = pick(\n  jIn.amazonOrderId,\n  jIn.orderId,\n  jIn.orderContext?.amazonOrderId,\n  jIn.orderContext?.orderId,\n  jIn.orderData?.amazonOrderId,\n  jIn.orderData?.orderId,\n  jIn.__meta?.amazonOrderId,\n  jIn.__meta?.orderId,\n  jIn.__meta?.deriveQaPass?.snapshot?.amazonOrderId,\n  jIn.__meta?.deriveQaPass?.snapshot?.orderId,\n  jIn.__meta?.deriveQaPass?.snapshot?.rootOrderId,\n  jIn.__meta?.deriveQaPass?.snapshot?.orderContext?.amazonOrderId,\n  jIn.__meta?.deriveQaPass?.snapshot?.orderContext?.orderId,\n  null\n);\nconst generatedFileName = pick(jIn.generatedFileName, null);\n\n/* build lean envelope (keep nested shapes + add top-level mirrors) */\nconst out = {\n  // ---- top-level mirrors (NEW) ----\n  characterHash,\n  poseNumber: Number(poseNum),\n  retryAttempt,\n  retryTag,\n  qaPass: qaPassTop,\n  qaCombinedPass,\n\n  correlationId,\n  amazonOrderId,\n  orderId: amazonOrderId,\n  generatedFileName,\n\n  // ---- existing nested shapes (kept for compatibility) ----\n  ctx: { ...ctx, characterHash },\n  pose: { poseNumber: Number(poseNum) },\n  retry: { attempt: retryAttempt, tag: retryTag },\n\n  // QA block passthrough\n  qa: jIn.qa || {},\n  orderContext: jIn.orderContext || jIn.__meta?.deriveQaPass?.snapshot?.orderContext || null,\n  orderData: {\n    ...(jIn.orderData || {}),\n    amazonOrderId: pick(jIn.orderData?.amazonOrderId, amazonOrderId, null),\n    orderId: pick(jIn.orderData?.orderId, amazonOrderId, null)\n  },\n\n  // normalized defaults\n  assetsRoot, publicR2Url, templatePath,\n\n  // route/test flags\n  __route: route,\n  __testMode: isTest,\n  testMode: isTest,\n\n  // preserve meta + size budget\n  __meta: { ...(jIn.__meta || {}), __testMode: isTest, sizeBudget: jIn.__meta?.sizeBudget ?? 120000, amazonOrderId: pick(jIn.__meta?.amazonOrderId, amazonOrderId, null), orderId: pick(jIn.__meta?.orderId, amazonOrderId, null) }\n};\n\n/* binaries expected by Prepare Upload (rehydrates if needed) */\nconst bin = {\n  character: b.character || null,\n  pose: b.pose || null,\n  generated: b.generated || b.generated_inline || null,\n};\n\nreturn { json: out, binary: bin };\n"
+        "jsCode": "// Schema Check + Defaults (SAFE) — SW3 Upload\n// JSON-only flags (no $env/process), preserve wiring, enforce sibling-safe identity.\n\nconst jIn = $json || {};\nconst b   = $binary || {};\n\n/* helpers */\nconst num   = (v,d)=>Number.isFinite(+v)?+v:d;\nconst pick  = (...v)=>v.find(x=>x!==undefined&&x!==null&&x!=='');\nconst asInt = (v)=>{ const n = Number(v); return Number.isFinite(n) ? Math.floor(n) : null; };\nconst same = (a,b) => String(a || '').trim() === String(b || '').trim();\n\n/* flags & defaults */\nconst isTest = !!(jIn.__testMode || jIn.testMode || jIn.__meta?.__testMode || jIn.ctx?.__testMode || jIn.ctx?.testMode);\nconst route  = jIn.__route || (isTest ? 'TEST' : 'REAL');\n\nconst assetsRoot   = jIn.assetsRoot   || 'book-mvp-simple-adventure/order-generated-assets';\nconst publicR2Url  = jIn.publicR2Url  || null;\nconst templatePath = jIn.templatePath || 'templates';\nconst ctx = jIn.ctx || {};\nconst snapshot = jIn.__meta?.deriveQaPass?.snapshot || {};\nconst incomingOrderContext = jIn.orderContext || snapshot.orderContext || {};\nconst orderContext = {\n  ...(snapshot.orderContext || {}),\n  ...(jIn.orderContext || {})\n};\n\n/* identity */\nconst characterHash = pick(jIn.characterHash, ctx.characterHash, jIn.__meta?.characterHash, null);\nconst poseNum = num(pick(jIn.pose?.poseNumber, jIn.poseNumber, jIn.currentPoseNumber), null);\nconst orderId = pick(\n  jIn.orderId,\n  incomingOrderContext.orderId,\n  jIn.orderData?.orderId,\n  jIn.__meta?.orderId,\n  snapshot.orderId,\n  snapshot.orderContext?.orderId,\n  null\n);\nconst rootOrderId = pick(\n  jIn.rootOrderId,\n  incomingOrderContext.rootOrderId,\n  jIn.amazonOrderId,\n  incomingOrderContext.amazonOrderId,\n  jIn.orderData?.amazonOrderId,\n  jIn.__meta?.amazonOrderId,\n  snapshot.rootOrderId,\n  snapshot.amazonOrderId,\n  snapshot.orderContext?.rootOrderId,\n  snapshot.orderContext?.amazonOrderId,\n  null\n);\nconst manifestKey = pick(jIn.manifestKey, jIn.__meta?.manifestKey, snapshot.manifestKey, null);\n\n/* required checks */\nfunction req(ok, msg){ if(!ok) throw new Error(msg); }\nreq(!!characterHash, 'SW3 Schema: characterHash is required');\nreq(Number.isFinite(poseNum), 'SW3 Schema: poseNumber is required');\nreq(!!orderId, 'SW3 Schema: per-item orderId is required');\nreq(!!rootOrderId, 'SW3 Schema: rootOrderId/amazonOrderId is required');\nif (incomingOrderContext.orderId && !same(incomingOrderContext.orderId, orderId)) {\n  throw new Error('SW3 Schema: orderContext.orderId does not match per-item orderId');\n}\nif (same(orderId, rootOrderId)) {\n  throw new Error('SW3 Schema: per-item orderId collapsed to rootOrderId');\n}\nif (String(orderId).includes('-item-') && manifestKey && !String(manifestKey).includes('/orders/' + String(orderId) + '/')) {\n  throw new Error('SW3 Schema: manifestKey does not contain the per-item orderId');\n}\n\n/* retry (robust, default 0) */\nconst retryAttempt = asInt(pick(jIn.retryAttempt, jIn.retry?.attempt, jIn.qaRetry)) ?? 0;\nconst retryTag     = pick(jIn.retryTag, jIn.retry?.tag, (retryAttempt > 0 ? 'retry' + retryAttempt : '')) || '';\n\n/* pass flags (mirror for Prepare Upload) */\nconst qaCombinedPass = !!(jIn.qaCombinedPass === true || jIn.combinedQaPass === true || jIn.qa?.combined?.pass === true);\nconst qaPassTop      = !!(jIn.qaPass === true || qaCombinedPass);\n\n/* carry IDs that Prepare Upload uses for key building */\nconst correlationId = pick(jIn.correlationId, jIn.__meta?.correlationId, null);\nconst generatedFileName = pick(jIn.generatedFileName, null);\nconst normalizedOrderContext = {\n  ...orderContext,\n  orderId,\n  rootOrderId,\n  amazonOrderId: rootOrderId\n};\n\n/* build lean envelope (keep nested shapes + add top-level mirrors) */\nconst out = {\n  characterHash,\n  poseNumber: Number(poseNum),\n  retryAttempt,\n  retryTag,\n  qaPass: qaPassTop,\n  qaCombinedPass,\n\n  correlationId,\n  rootOrderId,\n  amazonOrderId: rootOrderId,\n  orderId,\n  manifestKey,\n  generatedFileName,\n\n  ctx: { ...ctx, characterHash },\n  pose: { poseNumber: Number(poseNum) },\n  retry: { attempt: retryAttempt, tag: retryTag },\n\n  qa: jIn.qa || {},\n  orderContext: normalizedOrderContext,\n  orderData: {\n    ...(jIn.orderData || {}),\n    amazonOrderId: rootOrderId,\n    orderId\n  },\n\n  assetsRoot, publicR2Url, templatePath,\n\n  __route: route,\n  __testMode: isTest,\n  testMode: isTest,\n\n  __meta: {\n    ...(jIn.__meta || {}),\n    __testMode: isTest,\n    sizeBudget: jIn.__meta?.sizeBudget ?? 120000,\n    manifestKey: manifestKey || jIn.__meta?.manifestKey || undefined,\n    rootOrderId,\n    amazonOrderId: rootOrderId,\n    orderId\n  }\n};\n\nconst bin = {\n  character: b.character || null,\n  pose: b.pose || null,\n  generated: b.generated || b.generated_inline || null,\n};\n\nreturn { json: out, binary: bin };\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -18416,
-        -4000
+        -18832,
+        -4160
       ],
-      "id": "f14c3efe-5151-4824-b87c-7d782892b858",
+      "id": "9e799d97-0654-4521-a258-590e179b75fa",
       "name": "Schema Check + Defaults"
     },
     {
@@ -49,24 +49,24 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -18176,
-        -4000
+        -18592,
+        -4160
       ],
-      "id": "1bba6b4a-0ee9-48db-9a0f-8de57af7d894",
+      "id": "7026b0b1-4a21-438d-a383-204371a3781c",
       "name": "Capture Lean Meta"
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Prepare Upload (per-item, PASS branch only) — v2.3 (direct canonical finalize)\n// - Preserves poseNumber: 0 when explicitly provided\n// - Refuses to invent amazonOrderId / poseNumber fallback values\n// - Prefers SW1-provided __meta.storageKey/uploadedFilename (single source of truth)\n// - Fallback filename format matches live structure: poseNN[_rM].png (NO dash), /poses/ subfolder\n// - Uses retry suffix _r1, _r2\n// - Removes legacy temporaryR2Key staging state from the active path\n\nconst j0 = $json   || {};\nconst b0 = $binary || {};\nconst out = { json: { ...j0 }, binary: { ...b0 } };\n\n/* helpers */\nfunction firstDefined(...vals){ for (const v of vals){ if (v !== undefined && v !== null && v !== '') return v; } }\nfunction asInt(v){ const n = Number(v); return Number.isFinite(n) ? Math.floor(n) : null; }\nfunction pad2(n){ return String(n).padStart(2,'0'); }\nfunction isNonEmptyStr(x){ return typeof x === 'string' && x.trim().length > 0; }\nfunction hasPose00Str(s){ return typeof s === 'string' && /(?:^|\\/|_)(pose[-_]?0{2})(?:\\.|_|\\/|$)/i.test(s); }\n\n/* 0) strict pass gate */\nconst passed =\n  j0.qaPass === true ||\n  j0.qaCombinedPass === true ||\n  (j0.qa && j0.qa.combined && j0.qa.combined.pass === true) ||\n  j0.qaRetryPass === true;\n\nif (!passed) {\n  throw new Error('Prepare Upload: not on QA-pass path (qaPass/qaCombinedPass/qa.combined.pass).');\n}\n\n/* 1) choose the passing binary */\nlet gen = out.binary.generated || out.binary.final_generated || out.binary.generated_inline || null;\nlet sourceTag =\n  (out.binary.generated ? 'generated'\n    : out.binary.final_generated ? 'final_generated'\n    : out.binary.generated_inline ? 'generated_inline'\n    : null);\n\nif (!gen) {\n  const keys = Object.keys(out.binary || {});\n  throw new Error(`Prepare Upload: missing image binary. Expected \"generated\". Present keys: [${keys.join(', ')}]`);\n}\n\n/* 2) identity */\nconst hash = firstDefined(\n  out.json.characterHash,\n  out.json.__meta?.characterHash,\n  out.json.ctx?.characterHash\n);\nif (!isNonEmptyStr(hash) || hash.length < 4) {\n  throw new Error('Prepare Upload: characterHash missing/invalid.');\n}\n\n/* 3) ZERO-SAFE pose resolution */\nconst explicitPoseRaw = firstDefined(\n  out.json.poseNumber,\n  out.json.currentPoseNumber,\n  out.json.__meta?.poseNumber,\n  out.json.pose?.poseNumber\n);\nconst poseNum = asInt(explicitPoseRaw);\nif (poseNum === null || poseNum < 0 || poseNum > 99) {\n  throw new Error(`Prepare Upload: valid poseNumber is required before canonical publish. Received: ${String(explicitPoseRaw)}`);\n}\nconst allowZero = poseNum === 0 ||\n  out.json.__meta?.allowZeroPose === true ||\n  out.json.allowZeroPose === true ||\n  out.json.orderContext?.allowZeroPose === true ||\n  hasPose00Str(out.json.generatedFileName) ||\n  hasPose00Str(out.json.storageKey) ||\n  hasPose00Str(out.json.uploadKey) ||\n  hasPose00Str(out.json.__meta?.storageKey) ||\n  hasPose00Str(out.json.__meta?.uploadedFilename);\nconst NN = pad2(poseNum);\n\n/* 4) retry info */\nconst retryAttempt = asInt(firstDefined(\n  out.json.retryAttempt,\n  out.json.qaRetry,\n  out.json.__meta?.qaRetry\n)) || 0;\nconst retrySuffix = retryAttempt > 0 ? `_r${retryAttempt}` : '';\n\n/* 5) Use SW1-provided keys if available (single source of truth) */\nlet storageKey = out.json.__meta?.storageKey || out.json.uploadKey;\nlet filename   = out.json.__meta?.uploadedFilename || out.json.generatedFileName;\n\nif (!storageKey || !filename) {\n  const ASSETS_ROOT = firstDefined(out.json.assetsRoot, 'book-mvp-simple-adventure/order-generated-assets');\n  filename  = `pose${NN}${retrySuffix}.png`;\n  storageKey = `${ASSETS_ROOT}/characters/${hash}/poses/${filename}`.replace(/\\/{2,}/g, '/');\n  console.log('⚠ Computed storageKey (not provided by SW1):', storageKey);\n} else {\n  console.log('✓ Using SW1-provided storageKey:', storageKey);\n}\n\n/* 6) normalize binary */\nconst normalized = {\n  ...gen,\n  fileName: filename,\n  mimeType: gen.mimeType || 'image/png',\n  fileExtension: gen.fileExtension || 'png',\n};\nout.binary = { generated: normalized };\n\n/* 7) annotate JSON */\nconst DEFAULT_R2 = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\nout.json.publicR2Url = out.json.publicR2Url || DEFAULT_R2;\nconst amazonOrderId = String(firstDefined(\n  out.json.amazonOrderId,\n  out.json.orderId,\n  out.json.orderContext?.amazonOrderId,\n  out.json.orderContext?.orderId,\n  out.json.orderData?.amazonOrderId,\n  out.json.orderData?.orderId,\n  out.json.__meta?.amazonOrderId,\n  out.json.__meta?.orderId,\n  out.json.__meta?.deriveQaPass?.snapshot?.amazonOrderId,\n  out.json.__meta?.deriveQaPass?.snapshot?.orderId,\n  out.json.__meta?.deriveQaPass?.snapshot?.rootOrderId,\n  out.json.__meta?.deriveQaPass?.snapshot?.orderContext?.amazonOrderId,\n  out.json.__meta?.deriveQaPass?.snapshot?.orderContext?.orderId,\n  ''\n) || '').trim();\nif (!amazonOrderId) {\n  throw new Error('Prepare Upload: amazonOrderId/orderId is required before canonical publish.');\n}\n\nout.json.poseNumber = poseNum;\nout.json.currentPoseNumber = poseNum;\nout.json.index = allowZero ? poseNum : (poseNum - 1);\n\nconst bytes = Number(\n  normalized.fileSize ??\n  normalized.fileSizeInBytes ??\n  normalized.size ??\n  j0.generatedImage?.size ??\n  j0.__meta?.bytes ??\n  NaN\n);\nconst bytesNum = Number.isFinite(bytes) ? bytes : null;\n\nconst nextMeta = {\n  ...(out.json.__meta || {}),\n  allowZeroPose: allowZero,\n  storageKey,\n  uploadKey: storageKey,\n  amazonOrderId,\n  orderId: firstDefined(out.json.__meta?.orderId, amazonOrderId),\n  uploadedFilename: filename,\n  characterHash: hash,\n  poseNumber: poseNum,\n  bytes: bytesNum,\n  sw1Compatible: true,\n  prepareUpload: {\n    version: '2.3',\n    filename,\n    source: sourceTag || 'generated',\n    usedSW1Keys: !!(out.json.__meta?.storageKey || out.json.uploadKey),\n    publishMode: 'direct_file_upload'\n  }\n};\n\ndelete nextMeta.temporaryR2Key;\nout.json.__meta = nextMeta;\n\nout.json.characterHash = hash;\nout.json.amazonOrderId = amazonOrderId;\nout.json.orderId = firstDefined(out.json.orderId, amazonOrderId);\ndelete out.json.temporaryR2Key;\n\nconsole.log('✅ Prepare Upload v2.3', {\n  itemIndex: $itemIndex,\n  poseNum,\n  hash: hash.slice(0,8)+'…',\n  amazonOrderId,\n  filename,\n  storageKey,\n  bytes: bytesNum,\n  source: sourceTag,\n  publishMode: 'direct_file_upload'\n});\n\nreturn out;\n"
+        "jsCode": "// Prepare Upload (per-item, PASS branch only) — v2.4 (direct canonical finalize)\n// Enforces sibling-safe identity for canonical publish.\n\nconst j0 = $json   || {};\nconst b0 = $binary || {};\nconst out = { json: { ...j0 }, binary: { ...b0 } };\n\nfunction firstDefined(...vals){ for (const v of vals){ if (v !== undefined && v !== null && v !== '') return v; } }\nfunction asInt(v){ const n = Number(v); return Number.isFinite(n) ? Math.floor(n) : null; }\nfunction pad2(n){ return String(n).padStart(2,'0'); }\nfunction isNonEmptyStr(x){ return typeof x === 'string' && x.trim().length > 0; }\nfunction hasPose00Str(s){ return typeof s === 'string' && /(?:^|\\/|_)(pose[-_]?0{2})(?:\\.|_|\\/|$)/i.test(s); }\nfunction same(a,b){ return String(a || '').trim() === String(b || '').trim(); }\n\nconst passed =\n  j0.qaPass === true ||\n  j0.qaCombinedPass === true ||\n  (j0.qa && j0.qa.combined && j0.qa.combined.pass === true) ||\n  j0.qaRetryPass === true;\nif (!passed) {\n  throw new Error('Prepare Upload: not on QA-pass path (qaPass/qaCombinedPass/qa.combined.pass).');\n}\n\nlet gen = out.binary.generated || out.binary.final_generated || out.binary.generated_inline || null;\nlet sourceTag =\n  (out.binary.generated ? 'generated'\n    : out.binary.final_generated ? 'final_generated'\n    : out.binary.generated_inline ? 'generated_inline'\n    : null);\nif (!gen) {\n  const keys = Object.keys(out.binary || {});\n  throw new Error('Prepare Upload: missing image binary. Expected \"generated\". Present keys: [' + keys.join(', ') + ']');\n}\n\nconst hash = firstDefined(\n  out.json.characterHash,\n  out.json.__meta?.characterHash,\n  out.json.ctx?.characterHash\n);\nif (!isNonEmptyStr(hash) || hash.length < 4) {\n  throw new Error('Prepare Upload: characterHash missing/invalid.');\n}\n\nconst explicitPoseRaw = firstDefined(\n  out.json.poseNumber,\n  out.json.currentPoseNumber,\n  out.json.__meta?.poseNumber,\n  out.json.pose?.poseNumber\n);\nconst poseNum = asInt(explicitPoseRaw);\nif (poseNum === null || poseNum < 0 || poseNum > 99) {\n  throw new Error('Prepare Upload: valid poseNumber is required before canonical publish. Received: ' + String(explicitPoseRaw));\n}\nconst allowZero = poseNum === 0 ||\n  out.json.__meta?.allowZeroPose === true ||\n  out.json.allowZeroPose === true ||\n  out.json.orderContext?.allowZeroPose === true ||\n  hasPose00Str(out.json.generatedFileName) ||\n  hasPose00Str(out.json.storageKey) ||\n  hasPose00Str(out.json.uploadKey) ||\n  hasPose00Str(out.json.__meta?.storageKey) ||\n  hasPose00Str(out.json.__meta?.uploadedFilename);\nconst NN = pad2(poseNum);\n\nconst retryAttempt = asInt(firstDefined(\n  out.json.retryAttempt,\n  out.json.qaRetry,\n  out.json.__meta?.qaRetry\n)) || 0;\nconst retrySuffix = retryAttempt > 0 ? '_r' + retryAttempt : '';\n\nlet storageKey = out.json.__meta?.storageKey || out.json.uploadKey;\nlet filename   = out.json.__meta?.uploadedFilename || out.json.generatedFileName;\nif (!storageKey || !filename) {\n  const ASSETS_ROOT = firstDefined(out.json.assetsRoot, 'book-mvp-simple-adventure/order-generated-assets');\n  filename  = 'pose' + NN + retrySuffix + '.png';\n  storageKey = (ASSETS_ROOT + '/characters/' + hash + '/poses/' + filename).replace(/\\/{2,}/g, '/');\n  console.log('Computed storageKey (not provided by SW1):', storageKey);\n} else {\n  console.log('Using SW1-provided storageKey:', storageKey);\n}\n\nconst normalized = {\n  ...gen,\n  fileName: filename,\n  mimeType: gen.mimeType || 'image/png',\n  fileExtension: gen.fileExtension || 'png',\n};\nout.binary = { generated: normalized };\n\nconst DEFAULT_R2 = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\nout.json.publicR2Url = out.json.publicR2Url || DEFAULT_R2;\nconst orderId = String(firstDefined(\n  out.json.orderId,\n  out.json.orderContext?.orderId,\n  out.json.orderData?.orderId,\n  out.json.__meta?.orderId,\n  ''\n) || '').trim();\nconst rootOrderId = String(firstDefined(\n  out.json.rootOrderId,\n  out.json.amazonOrderId,\n  out.json.orderContext?.rootOrderId,\n  out.json.orderContext?.amazonOrderId,\n  out.json.orderData?.amazonOrderId,\n  out.json.__meta?.rootOrderId,\n  out.json.__meta?.amazonOrderId,\n  ''\n) || '').trim();\nconst manifestKey = firstDefined(out.json.manifestKey, out.json.__meta?.manifestKey, null);\nif (!orderId) {\n  throw new Error('Prepare Upload: per-item orderId is required before canonical publish.');\n}\nif (!rootOrderId) {\n  throw new Error('Prepare Upload: rootOrderId/amazonOrderId is required before canonical publish.');\n}\nif (same(orderId, rootOrderId)) {\n  throw new Error('Prepare Upload: canonical publish would use the root ID instead of the per-item orderId.');\n}\nif (out.json.orderContext?.orderId && !same(out.json.orderContext.orderId, orderId)) {\n  throw new Error('Prepare Upload: orderContext.orderId does not match top-level orderId.');\n}\nif (String(orderId).includes('-item-') && manifestKey && !String(manifestKey).includes('/orders/' + orderId + '/')) {\n  throw new Error('Prepare Upload: manifestKey does not contain the per-item orderId.');\n}\n\nout.json.poseNumber = poseNum;\nout.json.currentPoseNumber = poseNum;\nout.json.index = allowZero ? poseNum : (poseNum - 1);\n\nconst bytes = Number(\n  normalized.fileSize ??\n  normalized.fileSizeInBytes ??\n  normalized.size ??\n  j0.generatedImage?.size ??\n  j0.__meta?.bytes ??\n  NaN\n);\nconst bytesNum = Number.isFinite(bytes) ? bytes : null;\n\nconst nextMeta = {\n  ...(out.json.__meta || {}),\n  allowZeroPose: allowZero,\n  storageKey,\n  uploadKey: storageKey,\n  rootOrderId,\n  amazonOrderId: rootOrderId,\n  orderId,\n  manifestKey: manifestKey || out.json.__meta?.manifestKey || undefined,\n  uploadedFilename: filename,\n  characterHash: hash,\n  poseNumber: poseNum,\n  bytes: bytesNum,\n  sw1Compatible: true,\n  prepareUpload: {\n    version: '2.4',\n    filename,\n    source: sourceTag || 'generated',\n    usedSW1Keys: !!(out.json.__meta?.storageKey || out.json.uploadKey),\n    publishMode: 'direct_file_upload'\n  }\n};\ndelete nextMeta.temporaryR2Key;\nout.json.__meta = nextMeta;\n\nout.json.characterHash = hash;\nout.json.rootOrderId = rootOrderId;\nout.json.amazonOrderId = rootOrderId;\nout.json.orderId = orderId;\nout.json.orderContext = {\n  ...(out.json.orderContext || {}),\n  orderId,\n  rootOrderId,\n  amazonOrderId: rootOrderId\n};\nout.json.orderData = {\n  ...(out.json.orderData || {}),\n  orderId,\n  amazonOrderId: rootOrderId,\n  characterHash: hash,\n  characterPath: out.json.characterPath,\n  r2BucketName: firstDefined(out.json.orderData?.r2BucketName, 'little-hero-assets')\n};\ndelete out.json.temporaryR2Key;\n\nconsole.log('Prepare Upload v2.4', {\n  itemIndex: $itemIndex,\n  poseNum,\n  orderId,\n  rootOrderId,\n  filename,\n  storageKey,\n  bytes: bytesNum,\n  source: sourceTag,\n  publishMode: 'direct_file_upload'\n});\n\nreturn out;\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -17904,
-        -4000
+        -18320,
+        -4160
       ],
-      "id": "f2f194ed-c48a-4f3a-9328-cf2fe9e38af7",
+      "id": "703991ce-711b-4d22-b6fe-f36e05e2ffdd",
       "name": "Prepare Upload (ensure generated)"
     },
     {
@@ -74,28 +74,28 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Memory Hygiene After Upload (SW3-05) — per-item\nconst j = $json || {};\nconst itemIdx = $itemIndex ?? 0;\n\n// clear binaries by returning an empty binary object\nconst out = {\n  json: j,\n  binary: {}, // important: single object, not array\n  pairedItem: $input?.item?.pairedItem ?? { item: itemIdx },\n};\n\nconsole.log(`🧹 Cleared binaries for ${j.characterHash || 'unknown'} pose ${j.poseNumber ?? j.currentPoseNumber ?? '?'} (item ${itemIdx})`);\n\nif (global && typeof global.gc === 'function') {\n  try { global.gc(); } catch {}\n}\n\nreturn out;\n"
       },
-      "id": "5c1d5a4d-43b8-4b2d-98e5-ab57ce31aa98",
+      "id": "9f47ccce-3fca-44e9-a178-1e576501e03d",
       "name": "Memory Cleanup After Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16880,
-        -4144
+        -16608,
+        -4304
       ],
       "notesInFlow": true,
       "notes": "Explicit memory cleanup after upload (SW3-05)"
     },
     {
       "parameters": {
-        "jsCode": "// SW3 - Return Upload Results (Complete Data) — v2.2 ZERO-SAFE\n// - Preserves pose 0 (no 0→1 coercion)\n// - Uses firstDefined() instead of || for numeric pose fields\n// - Keeps storageKey/uploadKey symmetry and builds publicUrl safely\n// - Does not republish legacy temporaryR2Key staging state\n\nconst input = $json || {};\n\n// helpers\nfunction firstDefined(...vals){\n  for (const v of vals){\n    if (v !== undefined && v !== null && v !== '') return v;\n  }\n  return undefined;\n}\nfunction joinUrl(base, path){\n  if (!base || !path) return undefined;\n  return `${String(base).replace(/\\/+$/,'')}/${String(path).replace(/^\\/+/,'')}`;\n}\n\n// zero-safe pose resolution\nconst poseNumber = firstDefined(\n  input.poseNumber,\n  input.currentPoseNumber,\n  input.__meta?.poseNumber,\n  input.pose?.poseNumber,\n  input.index\n);\n\n// keys/paths\nconst storageKey = firstDefined(input.storageKey, input.__meta?.storageKey, input.uploadKey, input.r2Key);\nconst uploadKey  = firstDefined(input.__meta?.uploadKey, input.uploadKey, storageKey, input.r2Key);\nconst publicUrl  = firstDefined(\n  input.publicUrl,\n  joinUrl(input.publicR2Url, uploadKey)\n);\n\n// qa fields\nconst qaPass           = firstDefined(input.qaCombinedPass, input.qaPass, false) === true;\nconst qaCombinedPass   = qaPass;\nconst qaScore          = firstDefined(input.qa?.pose?.score, input.qaScore, null);\nconst styleScore       = firstDefined(input.qa?.style?.score?.style_cohesion, input.styleScore, null);\nconst qaReasons        = firstDefined(input.qa?.style?.reasons, input.qaReasons, []) || [];\n\n// identity\nconst characterHash = firstDefined(input.characterHash, input.ctx?.characterHash);\nconst amazonOrderId = firstDefined(\n  input.amazonOrderId,\n  input.orderId,\n  input.orderContext?.amazonOrderId,\n  input.orderContext?.orderId,\n  input.orderData?.amazonOrderId,\n  input.orderData?.orderId,\n  input.__meta?.amazonOrderId,\n  input.__meta?.orderId,\n  input.__meta?.deriveQaPass?.snapshot?.amazonOrderId,\n  input.__meta?.deriveQaPass?.snapshot?.orderId,\n  input.__meta?.deriveQaPass?.snapshot?.rootOrderId,\n  input.__meta?.deriveQaPass?.snapshot?.orderContext?.amazonOrderId,\n  input.__meta?.deriveQaPass?.snapshot?.orderContext?.orderId\n);\n\n// build output\nreturn {\n  json: {\n    success: input.success !== false,\n    uploadSuccess: input.success !== false,\n    characterHash,\n    poseNumber,\n    currentPoseNumber: poseNumber,\n    amazonOrderId,\n    orderId: firstDefined(input.orderId, amazonOrderId),\n    retryAttempt: firstDefined(input.retryAttempt, input.retry?.attempt, 0) || 0,\n    retryTag: firstDefined(input.retryTag, input.retry?.tag, null),\n    qaPass,\n    qaCombinedPass,\n    qaScore,\n    styleScore,\n    qaReasons,\n    qa: input.qa || null,\n    uploadKey,\n    storageKey,\n    approvedKey: firstDefined(uploadKey, storageKey),\n    generatedFileName: input.generatedFileName,\n    publicUrl,\n    correlationId: input.correlationId,\n    replacedAt: input.replacedAt,\n    replacementCount: input.replacementCount,\n    assetsRoot: input.assetsRoot,\n    publicR2Url: input.publicR2Url,\n    characterPath: input.characterPath,\n    orderContext: input.orderContext || null,\n    orderData: input.orderData || null\n  },\n  binary: {}\n};\n"
+        "jsCode": "// SW3 - Return Upload Results (Complete Data) — v2.3 ZERO-SAFE\n// Preserves sibling-safe order identity in the returned transport envelope.\n\nconst input = $json || {};\n\nfunction firstDefined(...vals){\n  for (const v of vals){\n    if (v !== undefined && v !== null && v !== '') return v;\n  }\n  return undefined;\n}\nfunction joinUrl(base, path){\n  if (!base || !path) return undefined;\n  return String(base).replace(/\\/+$/,'') + '/' + String(path).replace(/^\\/+/,'');\n}\nfunction same(a,b){ return String(a || '').trim() === String(b || '').trim(); }\n\nconst poseNumber = firstDefined(\n  input.poseNumber,\n  input.currentPoseNumber,\n  input.__meta?.poseNumber,\n  input.pose?.poseNumber,\n  input.index\n);\n\nconst storageKey = firstDefined(input.storageKey, input.__meta?.storageKey, input.uploadKey, input.r2Key);\nconst uploadKey  = firstDefined(input.__meta?.uploadKey, input.uploadKey, storageKey, input.r2Key);\nconst publicUrl  = firstDefined(\n  input.publicUrl,\n  joinUrl(input.publicR2Url, uploadKey)\n);\n\nconst qaPass           = firstDefined(input.qaCombinedPass, input.qaPass, false) === true;\nconst qaCombinedPass   = qaPass;\nconst qaScore          = firstDefined(input.qa?.pose?.score, input.qaScore, null);\nconst styleScore       = firstDefined(input.qa?.style?.score?.style_cohesion, input.styleScore, null);\nconst qaReasons        = firstDefined(input.qa?.style?.reasons, input.qaReasons, []) || [];\n\nconst characterHash = firstDefined(input.characterHash, input.ctx?.characterHash);\nconst orderId = firstDefined(\n  input.orderId,\n  input.orderContext?.orderId,\n  input.orderData?.orderId,\n  input.__meta?.orderId\n);\nconst rootOrderId = firstDefined(\n  input.rootOrderId,\n  input.amazonOrderId,\n  input.orderContext?.rootOrderId,\n  input.orderContext?.amazonOrderId,\n  input.orderData?.amazonOrderId,\n  input.__meta?.rootOrderId,\n  input.__meta?.amazonOrderId\n);\nconst manifestKey = firstDefined(input.manifestKey, input.__meta?.manifestKey, undefined);\nif (!orderId) {\n  throw new Error('Return Upload Results: missing per-item orderId');\n}\nif (!rootOrderId) {\n  throw new Error('Return Upload Results: missing rootOrderId/amazonOrderId');\n}\nif (input.orderContext?.orderId && !same(input.orderContext.orderId, orderId)) {\n  throw new Error('Return Upload Results: orderContext.orderId does not match top-level orderId');\n}\nif (same(orderId, rootOrderId)) {\n  throw new Error('Return Upload Results: per-item orderId collapsed to rootOrderId');\n}\nif (String(orderId).includes('-item-') && manifestKey && !String(manifestKey).includes('/orders/' + String(orderId) + '/')) {\n  throw new Error('Return Upload Results: manifestKey does not contain the per-item orderId');\n}\n\nreturn {\n  json: {\n    success: input.success !== false,\n    uploadSuccess: input.success !== false,\n    characterHash,\n    poseNumber,\n    currentPoseNumber: poseNumber,\n    rootOrderId,\n    amazonOrderId: rootOrderId,\n    orderId,\n    retryAttempt: firstDefined(input.retryAttempt, input.retry?.attempt, 0) || 0,\n    retryTag: firstDefined(input.retryTag, input.retry?.tag, null),\n    qaPass,\n    qaCombinedPass,\n    qaScore,\n    styleScore,\n    qaReasons,\n    qa: input.qa || null,\n    uploadKey,\n    storageKey,\n    approvedKey: firstDefined(uploadKey, storageKey),\n    generatedFileName: input.generatedFileName,\n    publicUrl,\n    correlationId: input.correlationId,\n    replacedAt: input.replacedAt,\n    replacementCount: input.replacementCount,\n    assetsRoot: input.assetsRoot,\n    publicR2Url: input.publicR2Url,\n    characterPath: input.characterPath,\n    manifestKey,\n    orderContext: {\n      ...(input.orderContext || {}),\n      orderId,\n      rootOrderId,\n      amazonOrderId: rootOrderId\n    },\n    orderData: {\n      ...(input.orderData || {}),\n      orderId,\n      amazonOrderId: rootOrderId\n    },\n    __meta: {\n      ...(input.__meta || {}),\n      rootOrderId,\n      amazonOrderId: rootOrderId,\n      orderId,\n      manifestKey: manifestKey || input.__meta?.manifestKey || undefined\n    }\n  },\n  binary: {}\n};\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16416,
-        -4016
+        -16144,
+        -4160
       ],
-      "id": "0c49f0a8-049f-470e-80e2-8b3159f6114a",
+      "id": "b03143b8-d8f2-43a3-8508-a2cf38d6caaa",
       "name": "Return Upload Results"
     },
     {
@@ -107,10 +107,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -16640,
-        -4016
+        -16368,
+        -4160
       ],
-      "id": "d9401993-8430-4e88-af1b-b62bd1eba215",
+      "id": "d92b5c0f-749d-40d1-a29b-21ed88a17036",
       "name": "Merge"
     },
     {
@@ -123,10 +123,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -18384,
-        -3696
+        -18800,
+        -3856
       ],
-      "id": "d1fa7434-4cc5-427f-bc29-d1d07e2e2b46",
+      "id": "9d599542-0b11-4f78-a856-dc72282d1b90",
       "name": "Merge1"
     },
     {
@@ -140,10 +140,10 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -17952,
-        -3680
+        -17696,
+        -4416
       ],
-      "id": "00fa002b-80be-4c20-bc83-a34db847c453",
+      "id": "f0452837-a8e4-4862-a958-48b1b4350b36",
       "name": "Upload Pre-Flip Source to R2",
       "credentials": {
         "s3": {
@@ -160,10 +160,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -17696,
-        -3680
+        -18112,
+        -3840
       ],
-      "id": "27d2dffc-8024-45ce-9f0b-62e986b77dce",
+      "id": "7315ee65-e63a-4eb1-bc6f-4849e1e1349a",
       "name": "Build Gemini Flip Verdict Request"
     },
     {
@@ -173,10 +173,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -17488,
-        -3680
+        -17904,
+        -3840
       ],
-      "id": "78a33eeb-5761-438a-8f15-bd80e7fd7942",
+      "id": "5265752e-5bba-4bbc-9a56-17667cffe1f7",
       "name": "Resolve Auto Flip Action"
     },
     {
@@ -206,10 +206,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -17264,
-        -3680
+        -17680,
+        -3840
       ],
-      "id": "40fd0e53-b664-4270-b40a-87a30997afab",
+      "id": "cdd368cd-87f1-4268-953f-43022842d1c0",
       "name": "Route Legacy Auto Flip"
     },
     {
@@ -239,16 +239,16 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -16992,
-        -3680
+        -17408,
+        -3840
       ],
-      "id": "c6466a8d-d25d-4c12-8ade-d4922591f45b",
+      "id": "c13bb5d8-5bea-4c74-9968-656f8b1416e0",
       "name": "Route Backend Auto Flip"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ (() => { const orderId = String($json.amazonOrderId || $json.orderData?.amazonOrderId || $json.__meta?.amazonOrderId || $json.orderId || '').trim(); if (!orderId) { throw new Error('Missing amazonOrderId/orderId for replace-image publish'); } return 'https://admin.littleherolabs.com/api/orders/' + encodeURIComponent(orderId) + '/replace-image'; })() }}",
+        "url": "={{ (() => { const orderId = String($json.orderId || $json.orderData?.orderId || $json.orderContext?.orderId || $json.__meta?.orderId || '').trim(); const rootOrderId = String($json.rootOrderId || $json.amazonOrderId || $json.orderData?.amazonOrderId || $json.orderContext?.rootOrderId || $json.orderContext?.amazonOrderId || $json.__meta?.rootOrderId || $json.__meta?.amazonOrderId || '').trim(); if (!orderId) { throw new Error('Missing per-item orderId for replace-image publish'); } if (!rootOrderId) { throw new Error('Missing rootOrderId/amazonOrderId for replace-image publish'); } if (orderId === rootOrderId) { throw new Error('Canonical publish would target the root order ID instead of the per-item orderId'); } return 'https://admin.littleherolabs.com/api/orders/' + encodeURIComponent(orderId) + '/replace-image'; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -296,10 +296,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        -17088,
-        -4144
+        -16816,
+        -4304
       ],
-      "id": "be269548-e554-4f68-a2f5-607ce6c8e329",
+      "id": "ecd68818-b25f-46d2-b7a2-afae7ae9e5a8",
       "name": "HTTP Request Finalize Canonical Publish"
     },
     {
@@ -309,10 +309,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16656,
-        -3680
+        -17072,
+        -3840
       ],
-      "id": "d9a4ebca-9c99-440e-b120-218ef70174ac",
+      "id": "c1dbeee9-9495-44e6-bb56-101b4a0aeb12",
       "name": "Keep Auto Flip Status"
     },
     {
@@ -343,10 +343,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -17744,
-        -4160
+        -18160,
+        -4320
       ],
-      "id": "43ffe495-3743-4ff4-a0d5-97dcf0549a40",
+      "id": "668bc035-58aa-48dd-a072-5056961818f0",
       "name": "Route SW3 Pre-Flip Policy"
     },
     {
@@ -357,10 +357,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -17536,
-        -4448
+        -17952,
+        -4336
       ],
-      "id": "b5dfdbf7-2200-4db4-a2e7-8d8304a2d9ff",
+      "id": "ccda25db-0a2c-4de9-a99e-7865f741eac4",
       "name": "Prepare Pre-Flip Source Upload"
     },
     {
@@ -372,10 +372,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -17344,
-        -4448
+        -17472,
+        -4416
       ],
-      "id": "50789f96-5e54-42e9-a9c0-a3047014de99",
+      "id": "40f4704b-0a40-4dc1-8240-80f0a328c6e3",
       "name": "Merge Pre-Flip Upload Context"
     },
     {
@@ -393,10 +393,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        -17536,
-        -4288
+        -17248,
+        -4416
       ],
-      "id": "a6c9bb3b-bf1e-4b58-b1b8-516df19402c2",
+      "id": "59cca1b6-5810-47fa-9b4e-d9d6c0bbcf1a",
       "name": "Fetch Cloudflare Flipped PNG"
     },
     {
@@ -407,10 +407,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -17344,
-        -4288
+        -17056,
+        -4416
       ],
-      "id": "d91ffcab-b836-4333-9b63-31063cc7967c",
+      "id": "2c01950d-cfe4-4391-b096-f81cad8b278c",
       "name": "Preserve Pre-Flipped Context"
     }
   ],
@@ -906,7 +906,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "8b68366e-a9bf-4c37-a1a7-fd4a96c7b91e",
+  "versionId": "13fe0a99-d022-48f0-8ce7-59821ed0b6dc",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },

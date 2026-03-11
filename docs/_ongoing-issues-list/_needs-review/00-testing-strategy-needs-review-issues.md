@@ -8,12 +8,13 @@
 ## Can n8n be tested with 1 E2E run?
 
 - **Short answer:** **Yes, mostly** — one **D2C paid multi-book order** (3 items) can validate most n8n-path fixes in one pass.
-- **Covered well in one run:** `08`, `09`, `12`, `22`, `29`, `35`, `36`, `37` (plus portions of `31`/`32` via DB evidence from that run).
+- **Covered well in one run:** `12`, `22`, `29` (plus portions of `31`/`32` via DB evidence from that run).
+- **Already validated / can be treated as closed from recent production testing:** `08`, `34`, `35`, `36`, `37`
 - **Not fully guaranteed by one run:**
   - `10` (2B artifact-catching) needs a known-bad sample or repeated attempts.
-  - `34` needs Lulu shipped webhook/tracking timing.
   - `05` needs at least one controlled failure-path test.
   - `30` reprint flow is a separate regeneration scenario.
+  - `09` was attempted, but still needs follow-up verification because the issue remains open.
 
 ---
 
@@ -91,18 +92,16 @@ capture evidence:
 
 ## High-leverage test runs (minimal executions, maximum coverage)
 
-### Run 1 — “W2A Pose Quality + Pose Ref Selection + Auto-flip” (covers 09, 33, 08)
+### Run 1 — “W2A Pose Quality + Pose Ref Selection” (covers 09, 33)
 
 - **Primary issues validated**
   - `09-improve-pose-01-prompt-front-facing.md`
   - `33-cheek-blush-persists-medium-dark-deep-dark-skin-tones.md`
-  - `08-fix-w2a-auto-flip-feature.md`
 
 - **Why this run is efficient**
   - A single W2A run exercises:
     - pose 01 prompt quality
-    - pose reference key selection (including skin-tone branching)
-    - the SW3 check-and-flip endpoint path end-to-end (including non-PNG normalization + correct pose ref URL path)
+    - pose reference key selection for the targeted skin tones
 
 - **Inputs / order(s)**
   - **B**: skin tone `medium-dark` (should use `.../characters/poses/skin-deep/...`)
@@ -113,9 +112,6 @@ capture evidence:
   - **Pose ref selection**
     - For B/C: `poseRefKey` (or equivalent) contains `book-mvp-simple-adventure/characters/poses/skin-deep/poseNN.png`
     - For non-target: `poseRefKey` remains `book-mvp-simple-adventure/characters/poses/poseNN.png`
-  - **Auto-flip endpoint health**
-    - SW3 “check-and-flip” node returns **200** and `success: true` (no silent continue with 400/500)
-    - Response includes `_debug` showing deterministic vs gemini path (and image formats detected)
   - **Pose 01 quality**
     - Save a small sample: 5–10 runs (same spec, multiple seeds/reruns) and score:
       - front-facing shoulders, both eyes visible, no 3/4 rotation, centered gaze
@@ -123,8 +119,8 @@ capture evidence:
     - For B/C: at least 3 representative poses show **no visible cheek blush tint**
 
 - **Pass / fail criteria**
-  - **Pass**: pose refs route correctly for only the two target tones, auto-flip returns 200 consistently, and pose 01 is consistently front-facing across repeated runs.
-  - **Fail**: any target tone still points to non-`skin-deep` refs, or auto-flip errors/gets skipped unexpectedly, or pose 01 still frequently produces 3/4 turns.
+  - **Pass**: pose refs route correctly for only the two target tones, and pose 01 is consistently front-facing across repeated runs.
+  - **Fail**: any target tone still points to non-`skin-deep` refs, or pose 01 still frequently produces 3/4 turns.
 
 ---
 
@@ -180,31 +176,34 @@ capture evidence:
 
 ---
 
-### Run 4 — “D2C payment → W0 trigger → cron pickup” (covers 35, 36)
+### Run 4 — “D2C shipping tier + sibling flow + downstream routing” (post-W0)
 
-- **Primary issues validated**
-  - `35-d2c-orders-not-picked-up-by-cron.md`
-  - `36-investigate-stripe-webhook-not-triggering-w0.md`
+- **Status**
+  - `35-d2c-orders-not-picked-up-by-cron.md` — validated, can be treated as closed
+  - `36-investigate-stripe-webhook-not-triggering-w0.md` — validated, can be treated as closed
+  - Remaining D2C checks from this run are `12` and `22`
 
 - **Strategy**
-  - Create a D2C checkout and complete payment (or use the resync endpoint if that’s the intended “test harness”).
-  - Observe the exact lifecycle transitions:
-    - `pending_payment` → `pending_w0` (Stripe webhook) → `ready_for_processing` + `next_workflow='2A'` (W0 completion) → W1.1 router picks up
+  - Use a paid D2C multi-book order after W0 completion is confirmed.
+  - Observe sibling propagation and downstream routing after the now-working Stripe → W0 handoff.
 
 - **What to capture**
-  - Stripe webhook logs show success **or** a visible failure (webhook throws on W0 trigger failure)
-  - n8n W0 execution exists for each item in the root group
-  - DB shows the expected status transitions for each item
+  - each sibling item reaches the expected downstream state after W0
+  - shipping tier remains populated through prep/W4 inputs
+  - root-group siblings stay in sync operationally
 
 - **Pass / fail**
-  - **Pass**: W0 is reliably triggered and the cron router then routes the order(s).
-  - **Fail**: orders stuck in `pending_w0` with `next_workflow` null, or webhook failures are not visible/actionable.
+  - **Pass**: sibling items remain aligned after W0 and shipping tier survives through the downstream handoff.
+  - **Fail**: sibling items diverge, or shipping tier is lost/mapped incorrectly later in the flow.
 
 ---
 
 ## Non-n8n (or “outside workflow”) validation blocks
 
 ### Block A — Lulu carrier name + tracking UI (covers 34)
+
+- **Status**
+  - `34-lulu-carrier-name-and-tracking-ui-updates.md` — validated, can be treated as closed
 
 - **Issue**
   - `34-lulu-carrier-name-and-tracking-ui-updates.md`
@@ -299,13 +298,13 @@ Outcome:
 ## Mapping: issue → best verification surface
 
 - **W2A execution evidence**
-  - `08`, `09`, `33`
+  - `09`, `33`
 - **2B execution evidence**
   - `10`
 - **W4 execution + UI + PDF inspection**
   - `29`, `22`, `37`
-- **Stripe + D2C lifecycle + cron**
-  - `35`, `36`
+- **Already validated from recent production testing**
+  - `08`, `35`, `36`
 - **Webhook parsing + admin UI**
   - `34`
 - **DB audit snapshots + controlled negative tests**
@@ -320,7 +319,6 @@ Outcome:
 ## Quick “minimal order matrix” recommendation (3–4 orders total)
 
 - **Order A (Amazon, single-book)**: validates general routing, W4 reliability, Send-to-Print.
-- **Order B (Amazon, medium-dark)**: validates skin-deep pose refs + no blush + auto-flip.
-- **Order C (Amazon, deep-dark)**: validates skin-deep pose refs + no blush + auto-flip.
-- **Order D (D2C, paid, 2+ books if possible, expedited/express)**: validates Stripe→W0→cron, and shipping tier mapping into W4/W4.1.
-
+- **Order B (Amazon, medium-dark)**: validates skin-deep pose refs + no blush.
+- **Order C (Amazon, deep-dark)**: validates skin-deep pose refs + no blush.
+- **Order D (D2C, paid, 2+ books if possible, expedited/express)**: validates sibling flow and shipping tier mapping into W4/W4.1.

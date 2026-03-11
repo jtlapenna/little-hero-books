@@ -126,94 +126,6 @@ export async function POST(
     const poseNumber = poseNumberStr ? parseInt(poseNumberStr, 10) : null;
     const pageNumber = pageNumberStr ? parseInt(pageNumberStr, 10) : null;
 
-    const normalizeCanonicalPoseKey = (key: string) =>
-      key.replace(/_r\d+\.png$/i, '.png').replace(/_TRY\d+\.png$/i, '.png');
-
-    const uploadDirectCanonicalPoseWithoutManifest = async (targetKey: string) => {
-      if (poseNumber === null || !file || stage !== 'preBria') {
-        return NextResponse.json(
-          { error: 'Direct canonical fallback requires preBria stage, poseNumber, and file' },
-          { status: 400 }
-        );
-      }
-
-      const canonicalKey = normalizeCanonicalPoseKey(targetKey);
-      const bucket = canonicalKey.includes('/characters/') ? R2_PUBLIC_BUCKET : R2_ORDERS_BUCKET;
-      const contentType = file.type || 'image/png';
-
-      if (isFlipped) {
-        console.log('[Replace Image API] Direct canonical fallback upload (streaming pre-flipped file)', {
-          orderId,
-          stage,
-          poseNumber,
-          targetKey,
-          canonicalKey,
-          bucket,
-          contentType,
-          storageKey,
-          formDataKeys,
-        });
-
-        await putObject(bucket, canonicalKey, file.stream(), contentType);
-
-        const replacedAt = new Date().toISOString();
-        return NextResponse.json({
-          success: true,
-          orderId,
-          stage,
-          poseNumber,
-          r2Key: canonicalKey,
-          approvedKey: canonicalKey,
-          replacedAt,
-          replacementCount: 1,
-          manifestUpdated: false,
-          manifestMissing: true,
-          flipped: true,
-        });
-      }
-
-      let fileBuffer = await file.arrayBuffer();
-
-      const transformedUpload = await transformPoseUploadBuffer({
-        stage,
-        poseNumber,
-        buffer: Buffer.from(fileBuffer),
-      });
-      fileBuffer = transformedUpload.buffer.buffer.slice(
-        transformedUpload.buffer.byteOffset,
-        transformedUpload.buffer.byteOffset + transformedUpload.buffer.byteLength,
-      );
-
-      console.log('[Replace Image API] Direct canonical fallback upload', {
-        orderId,
-        stage,
-        poseNumber,
-        targetKey,
-        canonicalKey,
-        bucket,
-        contentType: transformedUpload.contentType,
-        storageKey,
-        formDataKeys,
-      });
-
-      await putObject(bucket, canonicalKey, fileBuffer, transformedUpload.contentType);
-
-      const replacedAt = new Date().toISOString();
-      return NextResponse.json({
-        success: true,
-        orderId,
-        stage,
-        poseNumber,
-        r2Key: canonicalKey,
-        approvedKey: canonicalKey,
-        replacedAt,
-        replacementCount: 1,
-        manifestUpdated: false,
-        manifestMissing: true,
-        flipped: isFlipped || transformedUpload.flipped,
-      });
-    };
-
     if (poseNumber !== null && (isNaN(poseNumber) || poseNumber < 0)) {
       return NextResponse.json(
         { error: 'Invalid poseNumber' },
@@ -685,15 +597,27 @@ export async function POST(
       manifest = await readJsonSafe<any>(manifestRes);
     } catch (error: any) {
       const isMissingManifest = error?.message?.includes('404') || error?.message?.includes('Not Found');
-      if (isMissingManifest && forceDirectFile && stage === 'preBria' && file && storageKey) {
-        console.warn('[Replace Image API] 2A manifest missing during direct-file publish; falling back to storageKey upload', {
+      if (isMissingManifest && forceDirectFile && stage === 'preBria') {
+        const storageKeyCharacterHash = storageKey?.match(/characters\/([a-f0-9]{8,64})\//i)?.[1] ?? null;
+        console.error('[Replace Image API] Rejecting preBria publish because sibling 2A manifest is missing', {
           orderId,
           manifestKey,
+          characterHash: storageKeyCharacterHash,
           storageKey,
           poseNumber,
           formDataKeys,
         });
-        return await uploadDirectCanonicalPoseWithoutManifest(storageKey);
+        return NextResponse.json(
+          {
+            error: 'Missing 2A manifest for sibling preBria publish',
+            orderId,
+            manifestKey,
+            characterHash: storageKeyCharacterHash,
+            poseNumber,
+            manifestMissing: true,
+          },
+          { status: 409 }
+        );
       }
       throw error;
     }
@@ -703,6 +627,46 @@ export async function POST(
         { error: 'Invalid manifest structure' },
         { status: 400 }
       );
+    }
+
+    if (stage === 'preBria') {
+      const manifestOrderId = String(manifest.order?.orderId ?? manifest.orderId ?? '').trim();
+      const manifestRootOrderId = String(
+        manifest.order?.rootOrderId ?? manifest.rootOrderId ?? manifest.order?.amazonOrderId ?? manifest.amazonOrderId ?? '',
+      ).trim();
+      const manifestCharacterHash = String(
+        manifest.characterHash ?? manifest.order?.characterHash ?? '',
+      ).trim() || null;
+      const manifestBodyKey = String(
+        manifest.manifestUrl ?? manifest.originalManifestUrl ?? '',
+      )
+        .split('/api/manifests/')
+        .pop()
+        ?.trim() || null;
+
+      if (manifestOrderId !== orderId || (manifestBodyKey && manifestBodyKey !== manifestKey)) {
+        console.error('[Replace Image API] Rejecting preBria publish because 2A manifest identity is mismatched', {
+          orderId,
+          manifestKey,
+          manifestOrderId,
+          manifestBodyKey,
+          manifestRootOrderId: manifestRootOrderId || null,
+          characterHash: manifestCharacterHash,
+          poseNumber,
+        });
+        return NextResponse.json(
+          {
+            error: '2A manifest identity mismatch for sibling preBria publish',
+            orderId,
+            manifestKey,
+            manifestOrderId,
+            manifestRootOrderId: manifestRootOrderId || null,
+            characterHash: manifestCharacterHash,
+            poseNumber,
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // Find the entry for this pose

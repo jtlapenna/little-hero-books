@@ -211,6 +211,13 @@ export async function POST(
       );
     }
 
+    const rootOrderId = String(
+      newOrder.root_order_id ?? newOrder.amazon_order_id ?? perBookOrderId,
+    ).trim() || perBookOrderId;
+    const oneManifestUrl = String(
+      newOrder.one_manifest_url ?? oneManifest.order?.oneManifestUrl ?? '',
+    ).trim() || null;
+
     // Build new 2A manifest by:
     // 1. Using image references from source 2A manifest (approvedKey, publicUrl, etc.)
     // 2. Using order-specific information from 1-manifest (customer info, dedication, etc.)
@@ -224,7 +231,10 @@ export async function POST(
       order: {
         ...source2aManifest.order,
         // Override with order-specific information from 1-manifest
-        amazonOrderId: newOrderId,
+        orderId: perBookOrderId,
+        rootOrderId,
+        amazonOrderId: rootOrderId,
+        oneManifestUrl,
         purchaseDate: newOrder.purchase_date || newOrder.created_at || oneManifest.order?.purchaseDate || null,
         buyer: {
           email: newOrder.customer_email || oneManifest.order?.buyer?.email || null,
@@ -258,15 +268,16 @@ export async function POST(
         pending: {}
       },
       // Update top-level orderId
-      orderId: newOrderId,
-      amazonOrderId: newOrderId,
+      orderId: perBookOrderId,
+      rootOrderId,
+      amazonOrderId: rootOrderId,
       // Update manifest URL references
       manifestUrl: null, // Will be set after upload
       originalManifestUrl: null, // Will be set after upload
     };
 
     // Build R2 key for new manifest
-    const newManifestKey = buildManifestKey(newOrderId, '2a');
+    const newManifestKey = buildManifestKey(perBookOrderId, '2a');
     const newManifestUrl = `${backendUrl}/api/manifests/${newManifestKey}`;
 
     // Update manifest URLs in the manifest itself
@@ -362,4 +373,3 @@ export async function POST(
     );
   }
 }
-
