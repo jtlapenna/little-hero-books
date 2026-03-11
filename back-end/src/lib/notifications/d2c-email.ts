@@ -22,7 +22,7 @@ export interface SendD2COrderConfirmationEmailParams {
 
 export interface SendD2CSiblingOrderConfirmationEmailParams {
   to: string;
-  items: Array<{ childName?: string }>;
+  items: Array<{ childName?: string; previewImageUrl?: string }>;
   displayOrderId: string;
   orderId?: string;
 }
@@ -267,6 +267,7 @@ export async function sendD2CSiblingOrderConfirmationEmail(
   }
 
   const items = params.items.length ? params.items : [{ childName: 'Your little hero' }];
+  const showImages = items.length > 0 && items.every((item) => Boolean(item.previewImageUrl?.trim()));
   const subject = 'Your Little Hero Labs order is confirmed!';
   const itemLines = items.map((item, index) => `${index + 1}. ${item.childName?.trim() || 'Your little hero'}`).join('\n');
 
@@ -300,7 +301,11 @@ export async function sendD2CSiblingOrderConfirmationEmail(
   const html = buildEmailHtml({
     heading: 'Your adventure books are on their way!',
     body: bodyHtml,
-    supplementalContent: buildSiblingItemRows(items),
+    supplementalContent: buildSiblingItemRows(
+      showImages
+        ? items
+        : items.map((item) => ({ childName: item.childName }))
+    ),
     infoBox: infoBoxHtml,
   });
 

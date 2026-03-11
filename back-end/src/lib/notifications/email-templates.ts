@@ -147,22 +147,44 @@ function buildPreviewImage(imageUrl: string, childName?: string): string {
 }
 
 /**
- * Build a names-only sibling order summary block for confirmation emails.
+ * Build a sibling order summary block for confirmation emails.
+ * If previewImageUrl is present for all items, render each child with image + name.
+ * Otherwise callers should fall back to names-only data only.
  */
-export function buildSiblingItemRows(items: Array<{ childName?: string }>): string {
+export function buildSiblingItemRows(items: Array<{ childName?: string; previewImageUrl?: string }>): string {
   if (!items.length) return '';
 
   const rows = items.map((item, index) => {
     const childName = item.childName?.trim() || 'Your little hero';
+    const imageCell = item.previewImageUrl
+      ? `
+          <td style="width: 112px; vertical-align: top; padding-right: 14px;">
+            <img
+              src="${item.previewImageUrl}"
+              alt="${childName}'s character preview"
+              width="98"
+              style="display: block; width: 98px; max-width: 98px; height: auto; border-radius: 14px; border: 3px solid ${COLORS.gold};"
+            />
+          </td>
+        `
+      : '';
+
     return `
       <tr>
         <td style="padding: 14px 16px; border: 1px solid #F1E6D6; border-radius: 12px; background-color: #FFFCF8;">
-          <p style="margin: 0 0 4px 0; font-family: ${FONTS.body}; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: ${COLORS.teal};">
-            Book ${index + 1}
-          </p>
-          <p style="margin: 0; font-family: ${FONTS.body}; font-size: 17px; line-height: 1.5; color: ${COLORS.navy}; font-weight: 600;">
-            ${childName}
-          </p>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              ${imageCell}
+              <td style="vertical-align: middle;">
+                <p style="margin: 0 0 4px 0; font-family: ${FONTS.body}; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: ${COLORS.teal};">
+                  Book ${index + 1}
+                </p>
+                <p style="margin: 0; font-family: ${FONTS.body}; font-size: 17px; line-height: 1.5; color: ${COLORS.navy}; font-weight: 600;">
+                  ${childName}
+                </p>
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
     `;

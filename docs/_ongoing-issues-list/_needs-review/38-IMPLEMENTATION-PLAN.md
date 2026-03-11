@@ -1,7 +1,7 @@
 # Issue 38: Audit-Backed Status and Remaining Work
 
 ## Summary
-- Detailed source of truth: [38-implementation-audit-log.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_artifacts/38-implementation-audit-log.md)
+- Detailed source of truth: [38-implementation-audit-log.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_needs-review/38-implementation-audit-log.md)
 - Runtime/spec evidence: [38-d2c-sibling-2a-manifest-collision-and-pose-cross-talk.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_needs-review/38-d2c-sibling-2a-manifest-collision-and-pose-cross-talk.md)
 - Current status: all source-level code fixes are complete. Remaining work is deployment, verification, and production-repair only.
 - All backend routes, sibling W2A/SW3 workflow nodes, and both W1.1 router variants now have source-level fixes in place.
@@ -31,7 +31,7 @@
 - `V10`: repair production order `2243b28c-413a-4f58-ac14-948a74043f94` — recreate per-item 2A manifests, update DB pointers, re-run sibling publish, then remove the stale root-level manifest.
 
 ## Closed/Open Checklist
-- [x] Audit matrix created and maintained in [38-implementation-audit-log.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_artifacts/38-implementation-audit-log.md)
+- [x] Audit matrix created and maintained in [38-implementation-audit-log.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_needs-review/38-implementation-audit-log.md)
 - [x] Repo/worktree/backend/runtime audit completed for W1.1, sibling W2A, sibling SW2, sibling SW3, `workflow-2a-complete`, `replace-image`, and `create-2a-manifest`
 - [x] Both W1.1 router variants use per-item identity split in `Prep 2A Orders`
 - [x] SW3 per-item identity contract fixed at source level

@@ -6,6 +6,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { FlaggedBadge } from '@/components/ui/flagged-badge';
 import { ReprintBadge } from '@/components/ui/reprint-badge';
+import { SiblingCountBadge } from '@/components/ui/sibling-count-badge';
 import { formatDate } from '@/lib/utils';
 import { getOrderFlagSummary, getActiveStageFlagCount } from '@/lib/review-state';
 import { DisplayStatus } from '@/constants/statuses';
@@ -136,6 +137,10 @@ export function OrdersTable({ orders, onOrderClick, onArchiveOrder }: OrdersTabl
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       <div className="flex items-center space-x-2 min-w-0">
                         <span className="truncate">{order.orderId}</span>
+                        <SiblingCountBadge
+                          isSibling={order.isSibling}
+                          totalSiblings={order.totalSiblings}
+                        />
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

@@ -8,18 +8,60 @@ import { listOrdersFromSupabase, upsertOrderByPerBookId } from '@/lib/supabase-c
 import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
 import { cleanPhoneNumber } from '@/lib/phone-utils';
 
+function attachListSiblingMetadata(orders: Order[]): Order[] {
+  const siblingGroupSizes = new Map<string, number>();
+
+  for (const order of orders) {
+    if (!order.rootOrderId) continue;
+    siblingGroupSizes.set(
+      order.rootOrderId,
+      (siblingGroupSizes.get(order.rootOrderId) || 0) + 1
+    );
+  }
+
+  return orders.map((order) => {
+    if (!order.rootOrderId) {
+      return order;
+    }
+
+    const groupSize = siblingGroupSizes.get(order.rootOrderId) || 0;
+    return {
+      ...order,
+      isSibling: groupSize > 1 ? true : order.isSibling,
+      totalSiblings: groupSize > 1 ? groupSize : order.totalSiblings,
+    };
+  });
+}
+
 /**
  * Create a minimal order with error indicator when mapping fails
  * This ensures orders with bad data still appear in the UI with error indicators
  */
 function createErrorOrder(record: any, error: any): Order {
-  const orderId = record.amazon_order_id || record.orderId || record.order_id || (record.id ? String(record.id) : 'unknown');
+  const orderId = record.orderId || record.order_id || record.amazon_order_id || (record.id ? String(record.id) : 'unknown');
   const errorMessage = error?.message || String(error) || 'Unknown mapping error';
   
   return {
     orderId,
     platform: record.platform || 'amazon',
     amazonOrderId: record.amazon_order_id || undefined,
+    rootOrderId:
+      typeof record.root_order_id === 'string' && record.root_order_id.trim().length > 0
+        ? record.root_order_id.trim()
+        : undefined,
+    isSibling:
+      typeof record.root_order_id === 'string' &&
+      record.root_order_id.trim().length > 0 &&
+      record.root_order_id.trim() !== orderId,
+    itemNumber:
+      typeof orderId === 'string'
+        ? (() => {
+            const match = /-item-(\d+)$/.exec(orderId);
+            if (!match) return undefined;
+            const parsed = Number.parseInt(match[1], 10);
+            return Number.isFinite(parsed) ? parsed : undefined;
+          })()
+        : undefined,
     project: record.project || 'book-mvp-simple-adventure',
     customer: {
       firstName: record.customer_name ? String(record.customer_name).split(' ')[0] || 'Unknown' : 'Unknown',
@@ -86,7 +128,7 @@ async function getOrders(request: NextRequest) {
           try {
             return await mapSupabaseOrderToOrder(record);
           } catch (error: any) {
-            const orderId = record.amazon_order_id || record.orderId || record.id || 'unknown';
+            const orderId = record.orderId || record.order_id || record.amazon_order_id || record.id || 'unknown';
             console.error(
               `[GET /api/orders] Failed to map Supabase order ${orderId}:`,
               error?.message || error
@@ -123,7 +165,7 @@ async function getOrders(request: NextRequest) {
         })
       );
 
-      return NextResponse.json(orders);
+      return NextResponse.json(attachListSiblingMetadata(orders));
     }
 
     console.warn('[GET /api/orders] Supabase returned 0 orders. Returning empty list.');

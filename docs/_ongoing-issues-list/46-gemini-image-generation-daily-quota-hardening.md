@@ -16,6 +16,28 @@ On March 10, 2026 at 10:51:54 PM, the sibling-order image generation flow hit a 
 
 This is not a transient per-minute spike. It is a project-level daily quota exhaustion event.
 
+## Current AI Studio status
+
+AI Studio dashboard evidence reviewed on March 11, 2026 for project `Little Hero Books`:
+
+- the project is currently on `Tier 1`
+- the constrained model is `Nano Banana Pro (Gemini 3 Pro Image)`
+- peak daily usage for that model reached `251 / 250` RPD over the last 28 days
+- peak minute usage for that model was only `10 / 20` RPM
+- peak input-token usage for that model was only `19.92K / 100K` TPM
+- the dashboard’s `Compare: Tier 2` view shows `+14.75K` additional daily headroom for this model, which implies a Tier 2 daily limit of about `15,000` RPD for the current model/project combination
+
+This means the active bottleneck is the daily per-model request cap, not requests-per-minute and not tokens-per-minute.
+
+Other model usage in the same 28-day window appears low relative to their limits:
+
+- `Gemini 2.5 Flash`: `21 / 10K` RPD
+- `Gemini 3 Flash`: `1 / 10K` RPD
+- `Gemini 2 Flash`: `2 / Unlimited` RPD
+- `Gemini 2.5 Flash Lite`: `18 / Unlimited` RPD
+
+So the current practical limit problem is concentrated in image generation on `Nano Banana Pro (Gemini 3 Pro Image)`.
+
 ## Repo context
 
 Current repo references show the system is still calling the Gemini Developer API preview image endpoint in multiple places:
@@ -36,6 +58,20 @@ Official sources reviewed on March 11, 2026:
 - Google says a project only counts as paid when the specific project/key shows a paid quota tier, and some accounts require a one-time prepayment before paid limits activate: [Gemini API billing](https://ai.google.dev/gemini-api/docs/billing/)
 - Google Cloud terms prohibit using the service in a way intended to avoid fees or to circumvent usage limits, including creating multiple applications, accounts, or projects to simulate a single one: [Google Cloud Platform Terms, section 3.3](https://cloud.google.com/terms/)
 - Google provides both a paid-tier rate-limit increase path and a separate higher-capacity Vertex AI path for enterprise throughput needs: [Gemini API rate limits](https://ai.google.dev/gemini-api/docs/rate-limits), [Provisioned Throughput on Vertex AI](https://cloud.google.com/vertex-ai/generative-ai/docs/provisioned-throughput/overview)
+
+Important current official details:
+
+- Gemini Developer API usage tiers are based on the billing account linked to the project:
+  - `Tier 1`: full paid billing account linked to the project
+  - `Tier 2`: total spend `> $250` and at least `30` days since successful payment
+  - `Tier 3`: total spend `> $1,000` and at least `30` days since successful payment
+- Google says tier upgrades are automatic once the project meets the criteria, and subsequent tier upgrades usually take effect within about `10` minutes
+- Google says paid-tier rate-limit increase requests can also be submitted through their quota form
+
+Official upgrade and billing references:
+
+- [Gemini API rate limits](https://ai.google.dev/gemini-api/docs/rate-limits)
+- [Gemini API billing](https://ai.google.dev/gemini-api/docs/billing/)
 
 ## Direct answer to the multi-project question
 
@@ -71,9 +107,137 @@ The immediate cause is straightforward:
 
 Additional inference from the docs and current repo state:
 
-- If the active project is still showing `Free` or `Action needed` in AI Studio instead of `Tier 1/2/3`, then billing may not be fully activated for the exact key/project being used.
+- The active project is already confirmed as `Tier 1`, so the current issue is not “billing never activated.” It is “paid Tier 1 is still too small for current image-generation volume.”
 - Even if billing is enabled, preview image models can still have relatively tight limits compared with stable paid production paths.
 - Because failed requests still count against quota, repeated retries after exhaustion make the situation worse rather than better.
+
+## Direct answer: how to get to Tier 2 and what it costs
+
+How to get to Tier 2:
+
+1. keep the current Gemini project linked to a real Google Cloud Billing account
+2. ensure billing is fully active and any required one-time prepayment verification is completed
+3. exceed `>$250` in total cumulative Google Cloud spend on the linked billing account
+4. wait until at least `30` days have passed since a successful payment
+5. confirm the project tier changed in AI Studio
+
+Important nuance:
+
+- this is not a separate “buy Tier 2” button with a fixed subscription price
+- it is a usage-based eligibility threshold on the linked billing account
+- if the billing account has already crossed the threshold and the payment-age requirement is already satisfied, the incremental upgrade cost is effectively `$0`
+- if not, the incremental cost is simply whatever additional Google Cloud spend is needed to push the billing account above `$250`
+
+So the practical answer to “how much would Tier 2 cost?” is:
+
+- **there is no separate Tier 2 fee**
+- **the gating requirement is cumulative billing-account spend above `$250`, plus 30 days since successful payment**
+
+## Direct answer: should this move to Vertex AI?
+
+### What Vertex AI is
+
+Vertex AI is Google Cloud’s fuller managed AI platform. It is not just “Gemini with a different URL.” It is the broader Google Cloud environment for running, governing, deploying, monitoring, and scaling AI workloads.
+
+Google’s own migration guide summarizes the main differences:
+
+- Gemini Developer API uses `generativelanguage.googleapis.com`
+- Vertex AI uses `aiplatform.googleapis.com`
+- Gemini Developer API typically uses API keys / AI Studio
+- Vertex AI typically uses Google Cloud service accounts / Vertex AI Studio
+- Vertex AI adds stronger governance, compliance, IAM, regional deployment, logging, and broader MLOps support
+
+### How pricing differs
+
+For the same Google model family, the raw per-token / per-image prices are often broadly similar between Gemini Developer API standard pricing and Vertex AI standard pricing.
+
+For the currently relevant image model class, official pricing shows:
+
+- Gemini Developer API `Gemini 3 Pro Image Preview` paid tier:
+  - image output: `$120 / 1M output tokens`
+  - about `$0.134` per `1K/2K` image
+  - about `$0.24` per `4K` image
+- Vertex AI pricing for the same model class also shows:
+  - image output: `$120 / 1M output tokens`
+  - about `$0.134` per `1K/2K` image
+  - about `$0.24` per `4K` image
+
+Where Vertex differs more materially is structure, not just base price:
+
+- Vertex offers regional quotas instead of only AI Studio project-tier framing
+- Vertex supports additional commercial modes such as priority / flex-batch pricing and Provisioned Throughput
+- Vertex integrates into Google Cloud IAM, logging, networking, and governance
+
+### How the structure differs
+
+Current setup:
+
+- Gemini Developer API
+- AI Studio project and API key
+- project-tier limits like `Tier 1`
+- good for developer-first API usage
+
+Vertex AI setup:
+
+- Google Cloud / Vertex AI project
+- usually service-account auth and regional endpoints
+- optional Vertex AI express mode for API-key-based access on Vertex endpoints
+- stronger enterprise controls, regional deployment choices, and long-term production scaling options
+
+### Should this project switch now?
+
+Recommendation: **not as the first response to yesterday’s quota event**.
+
+Why:
+
+- the immediate bottleneck is clearly the `Tier 1` daily request cap on `Nano Banana Pro (Gemini 3 Pro Image)`
+- your screenshots show RPM and TPM are not the problem
+- Tier 2 would likely remove the immediate pain by moving this model from roughly `250` RPD to roughly `15,000` RPD in the current project
+- migrating to Vertex adds operational work, auth changes, endpoint changes, and new deployment decisions
+
+Recommendation order:
+
+1. harden the current Tier 1 workflow so daily exhaustion stops cleanly
+2. push the production project to Tier 2 eligibility
+3. keep measuring actual daily image volume
+4. evaluate Vertex AI if image generation remains production-critical and you need enterprise-grade scaling, regional quota planning, or provisioned capacity
+
+So:
+
+- **short-term:** stay on Gemini Developer API and get out of Tier 1
+- **medium/long-term:** consider Vertex AI if this becomes a real production throughput problem rather than a one-project paid-tier problem
+
+## What the Google AI plans page is, and why it is different
+
+This page:
+
+- [Google AI plans](https://one.google.com/intl/en/about/google-ai-plans/)
+
+is a **consumer Google One subscription offering**, not a backend API quota plan for the Gemini Developer API.
+
+It bundles things like:
+
+- Gemini app access
+- Google Search AI features
+- NotebookLM
+- Flow / Whisk / Veo consumer usage
+- Gemini in Gmail / Docs
+- Google One storage
+
+Google’s own page says:
+
+- these are `Google AI Plus`, `Google AI Pro`, and `Google AI Ultra` consumer plans
+- `Google AI Premium` was renamed to `Google AI Pro`
+- these plans are for personal Google accounts
+
+What it is **not**:
+
+- not a Gemini Developer API quota upgrade
+- not a Vertex AI quota purchase
+- not a replacement for Google Cloud billing on your backend project
+- not a way to move your n8n production project from Gemini API Tier 1 to Tier 2
+
+So for Little Hero Books backend capacity planning, that page is mostly unrelated. It is about consumer app access and Google One storage benefits, not production API throughput.
 
 ## Recommended strategy order
 

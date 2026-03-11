@@ -13,6 +13,14 @@ interface MapOptions {
   includeStatus?: boolean;
 }
 
+export function parseSiblingItemNumber(orderId: string): number | undefined {
+  const match = /-item-(\d+)$/.exec(orderId);
+  if (!match) return undefined;
+
+  const itemNumber = Number.parseInt(match[1], 10);
+  return Number.isFinite(itemNumber) ? itemNumber : undefined;
+}
+
 export async function mapSupabaseOrderToOrder(
   record: SupabaseOrderRecord,
   options: MapOptions = {}
@@ -22,14 +30,21 @@ export async function mapSupabaseOrderToOrder(
   }
 
   const orderId =
-    record.amazon_order_id ||
     record.orderId ||
     record.order_id ||
+    record.amazon_order_id ||
     (record.id ? String(record.id) : null);
 
   if (!orderId) {
     throw new Error('Supabase order record is missing a valid identifier');
   }
+
+  const rootOrderId =
+    typeof record.root_order_id === 'string' && record.root_order_id.trim().length > 0
+      ? record.root_order_id.trim()
+      : undefined;
+  const isSibling = !!(rootOrderId && rootOrderId !== orderId);
+  const itemNumber = parseSiblingItemNumber(orderId);
 
   const status =
     options.includeStatus === false && typeof record.status === 'string'
@@ -78,6 +93,9 @@ export async function mapSupabaseOrderToOrder(
     displayOrderId: record.display_order_id || undefined,
     platform: record.platform || 'amazon',
     amazonOrderId: record.amazon_order_id || undefined,
+    rootOrderId,
+    isSibling,
+    itemNumber,
     project: defaultProject,
     customer: {
       firstName,
@@ -469,7 +487,7 @@ function normalizeReviewStage(stageData: any): ReviewStage {
   };
 }
 
-function splitName(fullName?: string, fallback?: string) {
+export function splitName(fullName?: string, fallback?: string) {
   const safeName = fullName?.trim() || fallback?.trim() || '';
 
   if (!safeName.length) {
@@ -528,4 +546,3 @@ function isUnknownName(name: string) {
     normalized === 'customer pending'
   );
 }
-

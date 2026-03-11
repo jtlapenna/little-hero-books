@@ -16,13 +16,12 @@ import { getObject, putObject, headObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFI
 export const dynamic = 'force-dynamic';
 const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
 
-function getPublicR2BaseUrl(): string {
+function getPublicAssetBaseUrl(): string {
   return (
-    process.env.R2_PUBLIC_URL?.trim() ||
-    process.env.R2_PUBLIC_CDN_URL?.trim() ||
-    process.env.PUBLIC_R2_URL?.trim() ||
-    process.env.NEXT_PUBLIC_R2_URL?.trim() ||
-    'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev'
+    process.env.ADMIN_BASE_URL?.trim() ||
+    process.env.BACKEND_URL?.trim() ||
+    process.env.NEXT_PUBLIC_BACKEND_URL?.trim() ||
+    'https://admin.littleherolabs.com'
   ).replace(/\/+$/, '');
 }
 
@@ -34,7 +33,7 @@ async function buildPreviewImageUrl(characterHash?: string): Promise<string | un
   try {
     const response = await headObject(R2_PUBLIC_BUCKET, key);
     if (!response.ok) return undefined;
-    return `${getPublicR2BaseUrl()}/${key}`;
+    return `${getPublicAssetBaseUrl()}/api/assets/${key}`;
   } catch (err) {
     console.warn('[Webhook Stripe] Preview image not available for email:', key, err instanceof Error ? err.message : String(err));
     return undefined;
@@ -257,11 +256,12 @@ export async function POST(request: NextRequest) {
           `LH-${String(firstEmailOrder.orderId).substring(0, 5).toUpperCase()}`;
 
         if (emailEligibleOrders.length > 1) {
-          const items = emailEligibleOrders.map(({ orderData: itemOrderData }) => {
+          const items = await Promise.all(emailEligibleOrders.map(async ({ orderData: itemOrderData }) => {
             const characterSpecs = itemOrderData.character_specs as Record<string, unknown> | undefined;
             const childName = (characterSpecs?.childName ?? characterSpecs?.name) as string | undefined;
-            return { childName };
-          });
+            const previewImageUrl = await buildPreviewImageUrl(itemOrderData.character_hash as string | undefined);
+            return { childName, previewImageUrl };
+          }));
 
           const emailResult = await sendD2CSiblingOrderConfirmationEmail({
             to: customerEmail,

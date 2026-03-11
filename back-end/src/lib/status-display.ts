@@ -528,6 +528,10 @@ export function buildOrderListItem(order: Order): OrderListItem {
   return {
     orderId: order.orderId,
     platform: order.platform,
+    rootOrderId: order.rootOrderId,
+    isSibling: order.isSibling,
+    itemNumber: order.itemNumber,
+    totalSiblings: order.totalSiblings,
     firstName: order.customer?.firstName || '',
     lastName: order.customer?.lastName || '',
     workflowStatus: display.workflowStatus,      // NEW: Always shows workflow position
@@ -549,4 +553,3 @@ export function buildOrderListItem(order: Order): OrderListItem {
     lifecycle_status: (order as any).lifecycle_status || 'active',
   };
 }
-

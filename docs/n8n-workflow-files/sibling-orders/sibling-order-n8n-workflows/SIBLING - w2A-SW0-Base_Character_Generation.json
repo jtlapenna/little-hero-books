@@ -5,13 +5,13 @@
       "parameters": {
         "inputSource": "passthrough"
       },
-      "id": "9e83030a-7b43-44e5-a3c4-2045b92efb4c",
+      "id": "8f5fc4b2-fd12-4308-9750-2aedafbd578b",
       "typeVersion": 1.1,
       "name": "When Executed by Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "position": [
-        -2720,
-        -64
+        -368,
+        1136
       ]
     },
     {
@@ -19,13 +19,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// SW0 In — Parse Envelope (EACH) — preserve identity and merge\nconst env = $json || {};\nconst out = {\n  ...env,\n  ctx: env.ctx || {},\n  characterSpecs: env.characterSpecs || env.ctx?.characterSpecs || {},\n  // UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\n  publicR2Url: env.publicR2Url || null\n};\nreturn { json: out, binary: $binary || {} };\n"
       },
-      "id": "8dc8658b-50aa-4bb1-bd65-0479cc5d2421",
+      "id": "5a137006-a606-4921-9e67-2ef69a8630bd",
       "name": "SW0 In — Parse Envelope",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1920,
-        -64
+        432,
+        1136
       ]
     },
     {
@@ -33,13 +33,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// SW0 Out — Pack Envelope (lean, but keeps the fields Return & SW1 need) — v1.1 (adds hair refs)\nconst j = $json || {};\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\n\n// ---------------- Normalize test flag once ----------------\nconst isTest = !!(j.__testMode || j.testMode || j.__meta?.__testMode || j.ctx?.__testMode || j.ctx?.testMode);\n\n// ---------------- Derive storage paths/URLs ----------------\nconst assetsRoot   = j.assetsRoot || 'book-mvp-simple-adventure/order-generated-assets';\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url  = j.publicR2Url || null;\n\n// Prefer existing contract, then SW0 meta from upload, then derive from hash\nconst baseCharacterKey =\n  j.baseCharacterKey ||\n  j.__meta?.storageKey ||\n  (j.characterHash ? `${assetsRoot}/characters/${j.characterHash}/base-character.png` : null);\n\n// Helpful public URL (used by SW1 HTTP fallback in tests)\n// UPDATE: Only construct if publicR2Url is available (use signed URL API for external access)\nconst baseRefPublicUrl = (baseCharacterKey && publicR2Url) ? `${publicR2Url}/${baseCharacterKey}` : undefined;\n\n// Hair reference fields (constructed in Restore Metadata)\nconst hairRefS3Key = j.hairRefS3Key || null;\nconst hairRefPublicUrl = j.hairRefPublicUrl || null;\n\n// ---------------- Build lean, explicit envelope ----------------\nconst out = {\n  // identity + context\n  ctx: { ...(j.ctx || {}), characterHash: j.characterHash || j.ctx?.characterHash || null },\n  amazonOrderId: j.amazonOrderId,\n  characterHash: j.characterHash,\n  characterPath: j.characterPath,\n  assetsRoot,\n  publicR2Url,\n  \n  // canonicals + prompt data\n  characterSpecs: j.characterSpecs || {},\n  hairStyleCanonical: pick(j.hairStyleCanonical, j.hairPromptMeta?.styleKey, j.characterSpecs?.hairStyle, 'generic'),\n  clothingTypeCanonical: pick(j.clothingTypeCanonical, j.hairPromptMeta?.clothingTypeCanonical, 'tee-shorts'),\n  hairPromptMeta: j.hairPromptMeta || {},\n  hairPromptBlock: j.hairPromptBlock || '',\n  \n  // handy bytes/mime mirrors (so binaries can be dropped safely)\n  generatedImage: j.generatedImage\n    ? {\n        mimeType: j.generatedImage.mimeType,\n        size: j.generatedImage.size,\n        modelVersion: j.generatedImage.modelVersion,\n        isMock: j.generatedImage.isMock\n      }\n    : undefined,\n  base: j.base\n    ? { mime: j.base.mime, bytes: j.base.bytes, uploadKey: j.base.uploadKey }\n    : undefined,\n  \n  // storage contract for downstream sub-workflows\n  baseCharacterKey,          // <— SW1/SW2/SW3 need this\n  baseRefPublicUrl,          // <— convenient public URL (HTTP fallback in tests)\n  hairRefS3Key,              // <— SW1 needs this for Download Hair Reference\n  hairRefPublicUrl,          // <— convenient public URL for hair chip\n  \n  // meta (preserve existing, plus normalized base key mirror)\n  __meta: { ...(j.__meta || {}), baseUploadKey: baseCharacterKey },\n  \n  // test flag (duplicated for convenience)\n  __testMode: isTest,\n  testMode: isTest,\n};\n\nreturn { json: out, binary: {} };"
       },
-      "id": "2a376e50-d24f-476e-9069-4b18d46cfc24",
+      "id": "0b6fa310-9b48-423f-874b-8d2bf9847b0c",
       "name": "SW0 Out — Pack Envelope",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
-        -64
+        3472,
+        1136
       ]
     },
     {
@@ -47,13 +47,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Preserve Character Specs for SW1 — restore traits after SW0 slimming\nconst j = $json || {};\nlet upstream = {};\ntry {\n  const arr = (typeof $items === 'function') ? $items('Compute Upload Keys') : [];\n  const ix = typeof $itemIndex === 'number' ? $itemIndex : 0;\n  upstream = (arr[ix]?.json) || (arr[0]?.json) || {};\n} catch {}\n\nconst specs = j.characterSpecs || upstream.characterSpecs || upstream.character_specs || upstream.ctx?.characterSpecs || {};\n\nreturn {\n  json: {\n    ...j,\n    characterSpecs: specs,\n    ctx: {\n      ...(upstream.ctx || {}),\n      ...(j.ctx || {}),\n      characterSpecs: j.ctx?.characterSpecs || upstream.ctx?.characterSpecs || specs\n    },\n    orderContext: {\n      ...(upstream.orderContext || {}),\n      ...(j.orderContext || {}),\n      characterSpecs: j.orderContext?.characterSpecs || upstream.orderContext?.characterSpecs || specs\n    },\n    hairPromptBlock: j.hairPromptBlock || upstream.hairPromptBlock || ''\n  },\n  binary: $binary || {}\n};"
       },
-      "id": "f52ac82b-beb7-48c4-8d31-90fca2c2f666",
+      "id": "96a2c61b-8dfe-4c1b-b694-4a9fe2a82925",
       "name": "Preserve Character Specs for SW1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1360,
-        -64
+        3712,
+        1136
       ]
     },
     {
@@ -61,13 +61,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Memory Cleanup After Upload1 — reattach identity, keep keys, drop heavy bits\n// Mode: EACH\n\nconst j = $json || {};\nconst b = $binary || {};\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\n\n// If the uploader nuked context, reattach from a stable upstream node.\nconst UPSTREAM_NODE = 'Compute Upload Keys'; // <-- keep this name in sync\nlet upstream = {};\ntry {\n  const arr = (typeof $items === 'function') ? $items(UPSTREAM_NODE) : [];\n  // pick same item index if available, else first\n  const ix = typeof $itemIndex === 'number' ? $itemIndex : 0;\n  upstream = (arr[ix]?.json) || (arr[0]?.json) || {};\n} catch { /* ignore */ }\n\n// Prefer current JSON, but fill gaps from upstream\nconst root = { ...upstream, ...j };\n\n// Pull any filename/key hints (set earlier by extractor or compute)\nconst fileNameHint = pick(\n  b?.data?.fileName,\n  root.baseGeneratedFileName,\n  root.__meta?.generatedAttemptKey,\n  null\n);\n\n// Identity\nconst fromCharactersPath = (p) => {\n  if (!p || typeof p !== 'string') return null;\n  const m = p.match(/characters\\/([^/]+)/);\n  return m ? m[1] : null;\n};\nconst fromCharsFile = (name) => {\n  if (!name || typeof name !== 'string') return null;\n  const m = name.match(/characters_([A-Za-z0-9]+)_base\\./);\n  return m ? m[1] : null;\n};\n\nlet characterHash =\n  pick(root.characterHash, root.ctx?.characterHash, null)\n  || fromCharactersPath(root.characterPath)\n  || fromCharactersPath(root.__meta?.storageKey)\n  || fromCharsFile(fileNameHint)\n  || null;\n\nconst assetsRoot  = pick(root.assetsRoot, 'book-mvp-simple-adventure/order-generated-assets');\nconst publicR2Url = pick(root.publicR2Url, root.ctx?.publicR2Url, null);\nconst characterPath = pick(root.characterPath, characterHash ? `characters/${characterHash}` : null);\n\n// Canonical storage key (even if uploader didn’t return one)\nconst storageKey =\n  pick(root.__meta?.storageKey, null)\n  || (characterPath ? `${assetsRoot}/${characterPath}/base-character.png` : null);\n\n// Size/mime\nconst bytes = pick(root.base?.bytes, root.__meta?.bytes, root.uploadResult?.ContentLength, root.generatedImage?.size, null);\nconst mime  = pick(root.base?.mime, b?.data?.mimeType, root.generatedImage?.mimeType, 'image/png');\n\n// Build slim JSON\nconst out = {\n  ...(characterHash ? { characterHash } : {}),\n  ...(characterPath ? { characterPath } : {}),\n  assetsRoot,\n  ...(publicR2Url ? { publicR2Url } : {}),\n  __testMode: !!(root.__testMode || root.testMode || root.ctx?.__testMode || root.ctx?.testMode),\n  __meta: {\n    ...(root.__meta || {}),\n    ...(storageKey ? { storageKey } : {}),\n    ...(bytes ? { bytes } : {}),\n    ...(fileNameHint ? { generatedAttemptKey: fileNameHint } : {})\n  },\n  // pass canonicals if present\n  skinToneCanonical: root.skinToneCanonical,\n  clothingTypeCanonical: root.clothingTypeCanonical,\n  hairStyleCanonical: root.hairStyleCanonical,\n  hairPromptMeta: root.hairPromptMeta,\n  shortsHex: root.shortsHex,\n  ...(fileNameHint ? { baseGeneratedFileName: fileNameHint } : {}),\n  base: {\n    ...(root.base || {}),\n    ...(storageKey ? { uploadKey: storageKey } : {}),\n    ...(bytes ? { bytes } : {}),\n    ...(mime ? { mime } : {})\n  }\n};\n\n// Drop binaries to reduce memory\nreturn { json: out, binary: {} };\n"
       },
-      "id": "776b1155-7257-44d3-8eb0-d0b089184647",
+      "id": "22712f23-0448-4191-a48c-525b3f5cb8c4",
       "name": "Memory Cleanup After Upload1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        624,
-        -64
+        2976,
+        1136
       ],
       "notesInFlow": true,
       "notes": "Explicit memory cleanup after binary upload operations"
@@ -97,13 +97,13 @@
         },
         "options": {}
       },
-      "id": "80c71f63-fb9c-43e8-941e-9a2eeb5df010",
+      "id": "ce87a574-c727-4d21-9aa1-b07e46984433",
       "name": "IF: Test Mode? (1)1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -480,
-        -304
+        1872,
+        896
       ],
       "notes": "Routes to MOCK (true) or REAL API (false)"
     },
@@ -111,13 +111,13 @@
       "parameters": {
         "jsCode": "// 🧪 MOCK: Gemini Image Generation — EACH mode\n// Emits a realistic Gemini response with a tiny 1x1 PNG.\n// Sets flags so downstream extractor accepts tiny images in test mode.\n\nconst j = $json || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\n\n// 1×1 transparent PNG (base64)\nconst TINY_PNG_BASE64 =\n  \"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\";\n\n// Choose response shape: 'top' (default) or 'body' to simulate HTTP wrappers\nconst shape = j.__mockShape === 'body' ? 'body' : 'top';\n\nconst payload = {\n  candidates: [{\n    content: {\n      parts: [{\n        inlineData: {\n          mimeType: \"image/png\",\n          data: TINY_PNG_BASE64\n        }\n      }]\n    },\n    finishReason: \"STOP\",\n    safetyRatings: []\n  }],\n  usageMetadata: {\n    promptTokenCount: 100,\n    candidatesTokenCount: 50,\n    totalTokenCount: 150\n  },\n  modelVersion: \"gemini-2.5-flash-image-mock\"\n};\n\n// Wrap under body if requested (lets you test extractor's pickRoot logic)\nconst mockResponse = shape === 'body' ? { body: payload } : payload;\n\n// Mark this as a mock so the extractor relaxes size checks\nmockResponse.modelVersion = mockResponse.modelVersion || \"gemini-2.5-flash-image-mock\";\nmockResponse.__testMode = true;\nmockResponse.__allowTinyImage = true;\n// Optional: force a very low size gate in case flags aren’t seen\nmockResponse.minImageBytes = 1;\n\nconsole.log('🧪 MOCK: Returning fake image for base/pose',\n  j.poseNumber ?? j.currentPoseNumber ?? '?', 'shape=', shape);\n\nreturn {\n  json: { ...($json || {}), ...mockResponse },\n  binary: $binary || {},\n  pairedItem: ($input && $input.item && $input.item.pairedItem) ? $input.item.pairedItem : { item: itemIx }\n};\n"
       },
-      "id": "114724d4-3685-45eb-bd0f-142397d23891",
+      "id": "950a5713-232c-4258-be09-8b381f026d2b",
       "name": "🧪 MOCK: Generate Custom Base Character1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -288,
-        -304
+        2064,
+        896
       ],
       "notes": "Mock response for testing - no API calls made"
     },
@@ -128,10 +128,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        -64
+        1328,
+        1136
       ],
-      "id": "a7b59716-7310-4d60-8094-2fe3dcd34e8d",
+      "id": "cbda8784-aeb0-4c07-8ebf-9a1c72f16f1a",
       "name": "Canonical Skin Ton Preserver1"
     },
     {
@@ -142,10 +142,10 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -1472,
-        -224
+        880,
+        976
       ],
-      "id": "dfac9340-8c45-4197-bec2-99c665e020bf",
+      "id": "544aa660-52e0-4d73-b39a-26eb4e9fc489",
       "name": "Load Base Character Image1",
       "credentials": {
         "s3": {
@@ -162,10 +162,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1680,
-        -224
+        672,
+        976
       ],
-      "id": "a72ba245-50af-4fe2-a147-d8095a4f7152",
+      "id": "d79fef73-6ee9-4b77-957e-3ad3539015ab",
       "name": "Resolve Skin Tone & Base Path1"
     },
     {
@@ -173,13 +173,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Prepare Gemini API request for CUSTOM BASE CHARACTER (hair ref optional, skin swatch optional)\n// + Clothing type & color locks (top-only color; neutral denim shorts) with HARD wardrobe override\n// Mode: Run once for EACH item — returns a single object\n\n// NOTE: Binary operations use filesystem mode for memory efficiency\n\nconst j  = { ...($json || {}) };\nconst cs = j.characterSpecs || {};\nconst b  = $binary || {};\nconst itemIx = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\n// ---------- helpers ----------\nfunction norm(s){\n  return String(s||'')\n    .toLowerCase()\n    .replace(/[^a-z0-9#+\\s-]/g,' ') // SAFE: hyphen at end\n    .replace(/\\s+/g,' ')\n    .trim();\n}\nfunction title(s){ return String(s||'').replace(/\\b\\w/g, c => c.toUpperCase()); }\n\n// ---------- clothing type canonicalization (prefer Shared Utils if available) ----------\nconst canonicalClothingType =\n  (typeof global !== 'undefined' && global && typeof global.canonicalClothingType === 'function')\n    ? global.canonicalClothingType\n    : function canonicalClothingTypeLocal(raw){\n        const s = norm(raw || '');\n        if (/dress|sundress|gown/.test(s)) return 'dress';\n        // default → tee+shorts\n        return 'tee-shorts';\n      };\n\n// Map from pronouns if clothing not explicitly provided\nfunction mapClothingFromPronouns(pronouns, explicitClothing) {\n  // If clothing explicitly provided, use it\n  if (explicitClothing && String(explicitClothing).trim()) {\n    return String(explicitClothing).trim();\n  }\n  \n  // Map from pronouns if no explicit clothing\n  if (!pronouns) return null; // let canonicalClothing handle default\n  \n  const p = String(pronouns).toLowerCase().trim();\n  \n  // girl or she/her → dress\n  if (p.includes('girl') || p.includes('she')) {\n    return 'dress';\n  }\n  \n  // boy, he/him, they/them → tee-shorts\n  if (p.includes('boy') || p.includes('he') || p.includes('they')) {\n    return 'tee-shorts';\n  }\n  \n  return null; // let canonicalClothing handle default\n}\n\nconst clothingTypeCanonical = canonicalClothingType(\n  mapClothingFromPronouns(cs.pronouns, \n  cs.clothingType ?? cs.clothingStyle ?? j.clothingType ?? j.clothingStyle ?? j.clothingTypeCanonical\n || 'tee-shorts';\n\n// Fixed neutral denim for shorts (muted to match book palette)\nconst SHORTS_HEX = '#5C7393';\n\n// ---------- favorite color (top or dress body) → HEX map ----------\nconst CLOTHING_COLOR_MAP = {\n  'red':      '#C83f3C',\n  'orange':   '#DB8A2B',\n  'yellow':   '#E2C351',\n  'green':    '#76A355',\n  'blue':     '#4575A5',\n  'pink':     '#D77A8B',\n  'purple':   '#6E5A93',\n  'brown':    '#6B4E38',\n  'black':    '#212327'\n};\n\n// accept synonyms & raw hex\nfunction resolveTopColor(raw){\n  const s = norm(raw);\n  if (!s) return { label: 'unspecified', hex: null, source: 'empty' };\n\n  const m = s.match(/#?[0-9a-f]{6}\\b/i);\n  if (m){\n    const hex = ('#'+m[0].replace('#','')).toUpperCase();\n    return { label: 'custom-hex', hex, source: 'hex' };\n  }\n\n  const table = [\n    [/sky\\s*blue|navy|blue/, 'blue'],\n    [/lime|forest|green/, 'green'],\n    [/gold|sun|yellow/, 'yellow'],\n    [/peach|orange/, 'orange'],\n    [/rose|hot\\s*pink|pink/, 'pink'],\n    [/violet|lavender|purple/, 'purple'],\n    [/chocolate|brown/, 'brown'],\n    [/jet\\s*black|black/, 'black'],\n    [/scarlet|brick|red/, 'red'],\n  ];\n  for (const [re,label] of table){\n    if (re.test(s)) return { label, hex: CLOTHING_COLOR_MAP[label], source: 'label' };\n  }\n  if (CLOTHING_COLOR_MAP[s]) return { label: s, hex: CLOTHING_COLOR_MAP[s], source: 'label-exact' };\n  return { label: 'unspecified', hex: null, source: 'unknown' };\n}\nconst topColorIn = cs.favoriteColor || j.favoriteColor || cs.topColor || '';\nconst topColor = resolveTopColor(topColorIn);\n\n// ---------- 1) Resolve base reference binary ----------\nconst basePreferred = ['data','image','file','character','reference'];\nconst baseKey = basePreferred.find(k => b[k]);\nif (!baseKey) {\n  throw new Error('Prepare Binary (Base): No base reference image found. Expected one of binary.' + basePreferred.join('|'));\n}\nlet baseBuf;\ntry { baseBuf = await this.helpers.getBinaryDataBuffer(itemIx, baseKey); }\ncatch { throw new Error('Prepare Binary (Base): Failed to read base buffer from key \"' + baseKey + '\".'); }\nconst base64Base = baseBuf.toString('base64');\nif (!base64Base || base64Base.length < 100) throw new Error('Prepare Binary (Base): Base image base64 too short.');\nconst baseMime = (b[baseKey] && b[baseKey].mimeType) || 'image/png';\n\n// ---------- 2) Optional hairstyle & skin-swatch binaries ----------\nconst hasHair = !!b.hair;\nif (j.requireHairRef === true && !hasHair) {\n  throw new Error('Prepare Binary (Base): hairstyle reference required (binary.hair) but missing.');\n}\n\nlet hair64 = null, hairMime = null;\nif (hasHair) {\n  try {\n    const hairBuf = await this.helpers.getBinaryDataBuffer(itemIx, 'hair');\n    hair64 = hairBuf.toString('base64');\n    hairMime = (b.hair && b.hair.mimeType) || 'image/png';\n    if (!hair64 || hair64.length < 100) throw new Error('hair base64 too short');\n  } catch {\n    throw new Error('Prepare Binary (Base): Failed to read hairstyle reference from binary.hair.');\n  }\n}\n\n// Optional skin swatch\nlet skin64 = null, skinMime = null;\nconst hasSkin = !!b.skin;\nif (hasSkin) {\n  try {\n    const skinBuf = await this.helpers.getBinaryDataBuffer(itemIx, 'skin');\n    skin64 = skinBuf.toString('base64');\n    skinMime = (b.skin && b.skin.mimeType) || 'image/png';\n    if (!skin64 || skin64.length < 50) throw new Error('skin swatch base64 too short');\n  } catch {\n    skin64 = null; skinMime = null;\n  }\n}\n\n// ---------- 3) Build prompt text blocks (ordered) ----------\nconst styleKey = j.hairPromptMeta?.styleKey || j.hairStyleCanonical || norm(cs.hairStyle) || 'generic';\nconst hairColor = String(cs.hairColor || j.hairPromptMeta?.color || '').trim() || 'unspecified';\n\n// (A) CRITICAL: CLOTHING COLOR LOCK FIRST (most prominent position)\nconst topColorLock =\n  clothingTypeCanonical === 'dress'\n    ? (topColor.hex\n        ? [\n            `CRITICAL — DRESS COLOR: ${topColor.hex}`,\n            `The dress fabric MUST be ${topColor.hex} (${topColor.label}).`,\n            'This is the REQUIRED color. Do not use any other color for the dress.',\n            'Subtle book-style shading allowed within this hue only.',\n            `BANNED COLORS FOR DRESS: Do not use white, gray, blue, red, green, yellow, orange, pink, purple, brown, or black UNLESS it matches ${topColor.hex}.`\n          ].join('\\n')\n        : [\n            'CRITICAL — DRESS COLOR: Use a single solid color.',\n            'Keep this color consistent across all generations.',\n            'Subtle book-style shading allowed.'\n          ].join('\\n'))\n    : (topColor.hex\n        ? [\n            `CRITICAL — T-SHIRT COLOR: ${topColor.hex}`,\n            `The t-shirt fabric MUST be ${topColor.hex} (${topColor.label}).`,\n            'This is the REQUIRED color for the shirt. Do not use any other color.',\n            `Shorts MUST be neutral denim ${SHORTS_HEX} (never change shorts color).`,\n            'Subtle book-style shading allowed within these hues only.',\n            `BANNED COLORS FOR SHIRT: Do not use white, gray, or any color except ${topColor.hex}.`\n          ].join('\\n')\n        : [\n            'CRITICAL — T-SHIRT COLOR: Use a single solid color for the shirt.',\n            `Shorts MUST be neutral denim ${SHORTS_HEX}.`,\n            'Keep shirt color consistent across all generations.'\n          ].join('\\n'));\n\n// (B) Book style + BG rules\nconst styleRules = [\n  'BOOK STYLE: flat, clean vector-like forms with soft textured shading; no outlines on clothing folds.',\n  'BACKGROUND: pure white (#FFFFFF). No props, logos, or text. No transparency.'\n].join('\\n');\n\n// (C) SUBJECT LIMIT\nconst subjectLimit = 'SUBJECT LIMIT: Render exactly one child in frame. No additional people, duplicates, reflections, or background characters.';\n\n// (D) CLOTHING TYPE LOCK (with HARD OVERRIDE + NEGATIVES)\nconst clothingTypeLine =\n  clothingTypeCanonical === 'dress'\n    ? [\n        'CLOTHING STYLE LOCK — DRESS (HARD OVERRIDE):',\n        '- Outfit must be a single-piece dress even if any reference image suggests otherwise.',\n        '- Ignore any cues for T-shirts, shorts, pants, skirts, or layered outfits.',\n        '- Dress silhouette: short sleeves or sleeveless OK; continuous skirt panel with no visible inseam; hem roughly mid-thigh; no leg openings that imply shorts.',\n      ].join('\\n')\n    : [\n        'CLOTHING STYLE LOCK — T-SHIRT & SHORTS:',\n        '- Short-sleeve T-shirt paired with shorts.',\n        '- No skirts, dresses, pants, or jackets.',\n      ].join('\\n');\n\nconst clothingNegatives =\n  clothingTypeCanonical === 'dress'\n    ? 'WARDROBE NEGATIVES (DRESS): No T-shirt seams/graphics, no waistband or fly, no leg cuffs, no pockets typical of shorts, no split at the crotch (no inseam).'\n    : null;\n\nconst shortsRule = (clothingTypeCanonical === 'tee-shorts')\n  ? `SHORTS COLOR LOCK: Neutral denim ${SHORTS_HEX} (fixed). Never recolor shorts.`\n  : null;\n\n// (E) SKIN-TONE LOCK\nconst skinToneLine = (j.skinColorLock || j.skinToneId || j.skinHexBase)\n  ? [\n      'SKIN-TONE LOCK:',\n      j.skinColorLock\n        ? `- ${j.skinColorLock}`\n        : `- Use palette ${j.skinToneId || 'unspecified'} — base ${j.skinHexBase || '(missing hex)'}; keep highlights/shadows within the provided swatch; do not lighten/darken between images; do not change undertone.`\n    ].join('\\n')\n  : 'SKIN-TONE LOCK: Keep skin tone identical to the base reference across all outputs (no lightening/darkening; do not change undertone).';\n\n// (F) HAIRSTYLE LOCK\nconst hairLockShared = [\n  'HAIRSTYLE LOCK:',\n  '- Haircut is LOCKED to the base result (or IMAGE B if provided). Do not change cut, part side, ear visibility, or maximum length.',\n  '- Motion may deflect strands slightly, but silhouette/part/length remain unchanged.',\n  `- Hair color: ${hairColor} (do not recolor).`\n].join('\\n');\n\n// Normalize the lookup key (avoid undefined and case mismatches)\nconst styleKeyNorm = String(styleKey || '').toLowerCase();\n\n// Shared lines (make sure this is a string; default to empty)\nconst shared = typeof hairLockShared === 'string' ? hairLockShared : '';\n\n// Style-specific rules map\nconst STYLE_RULES = {\n  'side-part': [\n    \"- PART: on the character's RIGHT (viewer’s LEFT); sweep LEFT.\",\n    '- Both ears fully visible. No hair below the TOP of the ear.',\n    '- Back follows skull curve; absolutely no straight \"bob\" hem.',\n    '- Forelock curves sideways above eyebrows; never a curtain bang.'\n  ],\n  'pom-poms': [\n    '- Two high puffs with small ties; clean center part.',\n    '- Each puff ≤30% head width; combined span ≤90%; do not overlap the face.'\n  ],\n  'ponytail': [\n    '- Single ponytail gathered back; sits behind head/neck; no loose face strands.'\n  ],\n  'pigtails': [\n    '- Two mid-height tails; solid masses; keep face/ears clear.'\n  ],\n  'afro': [\n    '- Even rounded halo; continuous outline without pinholes.'\n  ],\n  'locs': [\n    '- Grouped neatly; continuous outer outline; interior detail via tone/lines only.'\n  ],\n};\n\n// Pick rules (falls back to empty array)\nconst perStyle = STYLE_RULES[styleKeyNorm] || [];\n\n// Final lock text\nconst hairstyleLock = [shared, ...perStyle].filter(Boolean).join('\\n');\n\n\n// (G) Image roles / annotations\nconst rolesLegend = [\n  'IMAGE ROLES:',\n  '- IMAGE A = base character style guide (bald/neutral head). Do not infer haircut from IMAGE A.',\n  '- IMAGE B = hairstyle reference (if present). Use ONLY for part location, silhouette, maximum length, and placement.',\n  '- IMAGE C = SKIN-TONE SWATCH (if present). SKIN COLORS ONLY — do not copy to hair/clothes.',\n  'Priority: if IMAGE A and IMAGE B ever conflict about hair, FOLLOW IMAGE B for silhouette/part/length.'\n].join('\\n');\n\nconst ann = j.hairPromptMeta?.annotations || {};\nconst annotLegend = (ann.partColor || ann.rightEarDotColor)\n  ? [\n      'ANNOTATION LEGEND (IMAGE B):',\n      ann.partColor ? (`- ${ann.partColor} line = hair part (character's RIGHT / viewer's LEFT).`) : null,\n      ann.rightEarDotColor ? (`- ${ann.rightEarDotColor} dot = right ear; keep BOTH ears fully visible.`) : null,\n    ].filter(Boolean).join('\\n')\n  : '';\n\n// Hair prompt block (fallback)\nconst hairPromptBlock = (j.hairPromptBlock && String(j.hairPromptBlock).trim()) || [\n  'HAIRSTYLE DESCRIPTION — GENERIC',\n  `- Color: ${hairColor}.`,\n  '- Hair silhouette is a single, opaque, connected mass with clean, closed edges.',\n  '- Keep face and both ears unobstructed unless the style requires otherwise.'\n].join('\\n');\n\n// Hygiene (BG removal)\nconst hygiene = [\n  'HAIR OUTPUT POLICY:',\n  '- Hair renders as a single, opaque, connected mass; closed edges.',\n  '- No halos, gaps, or semi-transparent strokes.'\n].join('\\n');\n\n// NEW ORDER: Clothing color at the VERY TOP, then everything else\nconst userTextParts = [\n  topColorLock,        // MOVED TO TOP - most important\n  styleRules,\n  subjectLimit,\n  clothingTypeLine,\n  clothingNegatives,\n  shortsRule,\n  skinToneLine,\n  hairstyleLock,\n  rolesLegend,\n  annotLegend || null,\n  hairPromptBlock,\n  hygiene\n].filter(Boolean);\nconst userText = userTextParts.join('\\n\\n');\n\n// ---------- 4) System & generation config (ADD CLOTHING COLOR TO SYSTEM) ----------\nconst systemTextParts = [\n  'You are a precise illustration tool.',\n  topColor.hex \n    ? (clothingTypeCanonical === 'dress'\n        ? `CRITICAL: The dress MUST be ${topColor.hex}. This is non-negotiable.`\n        : `CRITICAL: The t-shirt MUST be ${topColor.hex}. Shorts MUST be ${SHORTS_HEX}. These colors are non-negotiable.`)\n    : null,\n  'CRITICAL: Preserve EXACT requested traits. Use IMAGE A only for overall style; use IMAGE B only for hair; use IMAGE C only for skin color matching.',\n  'Do not add text, logos, props, or backgrounds.'\n].filter(Boolean);\nconst systemText = systemTextParts.join('\\n');\n\nconst generationConfig = {\n  imageConfig: { \n    aspectRatio: j.aspectRatio || '1:1',\n    imageSize: \"2K\"\n  },\n  temperature: (typeof j.temperature === 'number') ? j.temperature : 0.15  // LOWERED from 0.3 for more consistency\n};\n\n// ---------- 5) Build request body (images last) ----------\nconst parts = [];\nparts.push({ text: userText });\n\n// IMAGE A — base\nparts.push({ text: 'IMAGE A — BASE STYLE GUIDE (do not infer haircut).' });\nparts.push({ inlineData: { mimeType: baseMime, data: base64Base } });\n\n// IMAGE B — hairstyle ref (optional)\nif (hasHair && hair64) {\n  parts.push({ text: 'IMAGE B — HAIRSTYLE REFERENCE. Use ONLY for hair silhouette/part/length/placement. Do not copy face/skin/eyes/clothes.' });\n  parts.push({ inlineData: { mimeType: hairMime, data: hair64 } });\n}\n\n// IMAGE C — skin-tone swatch (optional)\nif (hasSkin && skin64) {\n  parts.push({ text: 'IMAGE C — COLOR SWATCH (SKIN ONLY). Match base/highlight/shadow exactly. Do NOT apply to hair/clothes.' });\n  parts.push({ inlineData: { mimeType: skinMime, data: skin64 } });\n}\n\nconst requestBody = {\n  systemInstruction: { role: 'system', parts: [{ text: systemText }] },\n  contents: [{ role: 'user', parts }],\n  generationConfig,\n  ...(j.model ? { model: j.model } : {})\n};\n\n// ---------- 6) Trace meta & correlation ----------\nconst characterHash = j.characterHash || cs.hash || 'nohash';\nconst correlationId = `${characterHash}-BASE-${Date.now()}`;\n\n// ---------- 7) Emit (EACH mode: single object) ----------\nreturn {\n  json: {\n    ...j,\n    correlationId,\n    generationConfig,\n    requestBody,\n    requestBodyMeta: {\n      hasHairRef: !!hair64,\n      hasSkinSwatch: !!skin64,\n      hairStyleKey: styleKey,\n      hairRefKey: j.hairRefS3Key || null,\n      baseBinaryKey: baseKey,\n      skinToneId: j.skinToneId || null,\n      skinHexBase: j.skinHexBase || null,\n      clothingColorHex: topColor.hex || null,\n      clothingColorLabel: topColor.label || null\n    },\n    // clothing metadata to carry into pose loop\n    clothingTypeCanonical,\n    clothingColorLabel: topColor.label,\n    clothingColorHex: topColor.hex,\n    shortsHex: SHORTS_HEX\n  },\n  binary: b,\n  pairedItem: ($input && $input.item && $input.item.pairedItem) ? $input.item.pairedItem : { item: itemIx }\n};"
       },
-      "id": "b72566c0-fa62-4faa-9064-d3b706439a34",
+      "id": "e276cdca-7e35-4513-8369-f1c365ca0d1c",
       "name": "Prepare Binary (Base Gen, dual-image)1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -656,
-        -64
+        1696,
+        1136
       ]
     },
     {
@@ -188,13 +188,13 @@
         "combinationMode": "mergeByPosition",
         "options": {}
       },
-      "id": "8f101806-9436-41f1-a61d-8ad159ce0c93",
+      "id": "6b016b34-7b86-4d6a-9a53-4c20fdc271e5",
       "name": "Merge Base & Hair Refs1",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2,
       "position": [
-        -1200,
-        -64
+        1152,
+        1136
       ]
     },
     {
@@ -203,13 +203,13 @@
         "fileKey": "={{$json.hairRefS3Key}}",
         "binaryPropertyName": "hair"
       },
-      "id": "f5bd16d5-8429-4913-ba2b-3293c17e8570",
+      "id": "9d720d7d-0c6b-42cd-bbd8-f8475a88f09c",
       "name": "Load Hairstyle Reference (R2/S3)1",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -1472,
-        80
+        880,
+        1280
       ],
       "credentials": {
         "s3": {
@@ -223,13 +223,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Resolve Hairstyle Key and Asset Path — EACH mode (utils-aware + robust fallbacks)\n// Inputs: json.characterSpecs.hairStyle, json.characterSpecs.hairColor (required for colored chips)\n// Outputs: hairStyleCanonical, hairColorCanonical, hairRefFilename, hairRefS3Key, hairRefPublicUrl, hairPromptMeta (augmented)\n\nconst j  = { ...($json || {}) };\nconst b  = $binary || {};\nconst cs = j.characterSpecs || {};\n\n// ---------- try to use Shared Utils (Init) norm() if available ----------\nlet norm = function normLocal(s){\n  return String(s || '')\n    .toLowerCase()\n    .replace(/[^a-z0-9+#\\s-]/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n};\n\ntry {\n  const utilsNode = $('Shared Utils (Init)').first();\n  const utils = utilsNode?.json || {};\n  const candidate = utils?.fns?.norm;\n\n  if (typeof candidate === 'function') {\n    norm = candidate;\n  } else if (typeof candidate === 'string') {\n    try {\n      const fn = eval(`(${candidate})`);\n      if (typeof fn === 'function') norm = fn;\n    } catch (e) {\n      console.warn(\"Shared norm string could not be evaluated; using local norm. Reason:\", e?.message);\n    }\n  }\n} catch {\n  // ignore and keep local norm\n}\n\n// 18 canonical styles\nconst CANONICAL = [\n  'ponytail','pigtails',\n  'straight-short','straight-medium','straight-long',\n  'curly-short','curly-medium','curly-long',\n  'afro','pom-poms','bun','locs','side-part',\n  'buzz','curly-crop','curly-tight','puffy-ponytail','small-puffy-ponytail'\n];\n\n// Canonical hair colors (matching filename convention)\nconst CANONICAL_COLORS = [\n  'blonde','dark-brown','light-brown','medium-brown','red',\n  'strawberry-blonde','auburn','black'\n];\n\n// Canonicalizer tolerant to synonyms\nfunction canonicalStyle(styleRaw) {\n  const s  = norm(styleRaw);\n  if (!s) return 'generic';\n  const sh = s.replace(/-/g, ' ');\n\n  if (/buzz|buzzcut|buzz\\s*cut/.test(sh)) return 'buzz';\n  \n  if (/puffy\\s*ponytail|puff\\s*ponytail/.test(sh) && /(large|big)/.test(sh)) return 'puffy-ponytail';\n  if (/puffy\\s*ponytail|puff\\s*ponytail/.test(sh) && /(small|compact)/.test(sh)) return 'small-puffy-ponytail';\n  if (/puffy\\s*ponytail|puff\\s*ponytail/.test(sh)) return 'puffy-ponytail';\n  \n  if (/curly\\s*crop|crop\\s*curly/.test(sh)) return 'curly-crop';\n  if (/curly\\s*tight|tight\\s*curly|tightly?\\s*coiled/.test(sh)) return 'curly-tight';\n\n  if (/(^|\\s)pom\\s*poms?($|\\s)|space\\s*buns?|puffs?/.test(sh)) return 'pom-poms';\n  if (/pig[-\\s]*tails?/.test(s)) return 'pigtails';\n  if (/side\\s*part/.test(sh)) return 'side-part';\n  if (/(^|\\s)bun($|\\s)/.test(sh)) return 'bun';\n  if (/(locs|dreadlocks|dreads)/.test(sh)) return 'locs';\n  if (/afro/.test(sh)) return 'afro';\n  if (/ponytail|pony\\s*tail/.test(sh)) return 'ponytail';\n\n  if (/straight/.test(sh) && /(short|above\\s*chin|chin)/.test(sh)) return 'straight-short';\n  if (/straight/.test(sh) && /(medium|shoulder|to\\s*shoulders?)/.test(sh)) return 'straight-medium';\n  if (/straight/.test(sh) && /(long|below\\s*shoulders?)/.test(sh)) return 'straight-long';\n  if (/straight/.test(sh)) return 'straight-medium';\n\n  if (/(curly|curls)/.test(sh) && /(short|halo)/.test(sh)) return 'curly-short';\n  if (/(curly|curls)/.test(sh) && /(medium|shoulder)/.test(sh)) return 'curly-medium';\n  if (/(curly|curls)/.test(sh) && /(long|below\\s*shoulders?)/.test(sh)) return 'curly-long';\n  if (/(curly|curls)/.test(sh)) return 'curly-medium';\n\n  return 'generic';\n}\n\n// Canonicalize hair color\nfunction canonicalColor(colorRaw) {\n  const c = norm(colorRaw).replace(/\\s+/g, '-');\n  if (!c) return 'medium-brown';\n  \n  if (CANONICAL_COLORS.includes(c)) return c;\n  \n  if (/^(dark[_\\s-]?brown|darkbrown)$/.test(c)) return 'dark-brown';\n  if (/^(light[_\\s-]?brown|lightbrown)$/.test(c)) return 'light-brown';\n  if (/^(medium[_\\s-]?brown|mediumbrown|brown)$/.test(c)) return 'medium-brown';\n  if (/^(strawberry[_\\s-]?blonde|strawberryblonde)$/.test(c)) return 'strawberry-blonde';\n  if (/^blonde?$/.test(c)) return 'blonde';\n  if (/^(ginger|orange)$/.test(c)) return 'red';\n  if (/^auburn$/.test(c)) return 'auburn';\n  if (/^black$/.test(c)) return 'black';\n  \n  return 'medium-brown';\n}\n\nconst styleKeyRaw =\n  j.hairPromptMeta?.styleKey ??\n  j.hairStyleCanonical ??\n  cs.hairStyle ??\n  j.hairStyle ??\n  cs.hair ??\n  j.hair ??\n  null;\n\nconst colorKeyRaw =\n  cs.hairColor ??\n  j.hairColor ??\n  null;\n\nlet hairStyleCanonical = canonicalStyle(styleKeyRaw);\n\nif (hairStyleCanonical === 'generic' && CANONICAL.includes(norm(styleKeyRaw))) {\n  hairStyleCanonical = norm(styleKeyRaw);\n}\n\nlet fallbackUsed = false;\nif (!CANONICAL.includes(hairStyleCanonical)) {\n  console.warn('Resolve Hairstyle: missing/unknown hairStyle, falling back to side-part. Raw:', styleKeyRaw);\n  hairStyleCanonical = 'side-part';\n  fallbackUsed = true;\n}\n\nconst hairColorCanonical = canonicalColor(colorKeyRaw);\n\nconst basePrefix = (typeof j.hairRefBasePrefix === 'string' && j.hairRefBasePrefix.trim())\n  ? j.hairRefBasePrefix.replace(/\\/+$/,'')\n  : 'book-mvp-simple-adventure/characters/hairstyles';\n\nconst hairRefFilename = `${hairStyleCanonical}-${hairColorCanonical}.jpg`;\nconst hairRefS3Key    = `${basePrefix}/${hairRefFilename}`.replace(/\\/{2,}/g,'/');\n\nlet hairRefPublicUrl;\nif (typeof j.r2PublicBase === 'string' && j.r2PublicBase.trim()) {\n  const trimmed = j.r2PublicBase.replace(/\\/+$/,'');\n  hairRefPublicUrl = `${trimmed}/${hairRefS3Key}`.replace(/\\/{2,}/g,'/');\n}\n\nconst hairPromptMeta = {\n  ...(j.hairPromptMeta || {}),\n  styleKey: hairStyleCanonical,\n  colorKey: hairColorCanonical,\n  referenceKey: `${hairStyleCanonical}-${hairColorCanonical}`,\n  referenceUrl: hairRefPublicUrl,\n  _resolver: {\n    source: 'resolve-hairstyle-key+asset-path',\n    receivedStyleRaw: styleKeyRaw ?? null,\n    receivedColorRaw: colorKeyRaw ?? null,\n    fallbackUsed\n  }\n};\n\nconst out = {\n  ...j,\n  hairStyleCanonical,\n  hairColorCanonical,\n  hairRefFilename,\n  hairRefS3Key,\n  hairRefPublicUrl,\n  hairPromptMeta\n};\n\nreturn {\n  json: out,\n  binary: b,\n  pairedItem: ($input && $input.item && $input.item.pairedItem) ? $input.item.pairedItem : { item: $itemIndex }\n};"
       },
-      "id": "1dce8243-b1f6-4055-b1ac-8dc43a40333b",
+      "id": "a3ab8488-01d1-416d-8d78-31fccda1ae32",
       "name": "Resolve Hairstyle Key & Asset Path1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1680,
-        80
+        672,
+        1280
       ]
     },
     {
@@ -242,10 +242,10 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        416,
-        -64
+        2768,
+        1136
       ],
-      "id": "3690f0a4-7964-4a0a-9077-8aa97802b737",
+      "id": "1c662a7e-59b2-4c9b-9c5b-32605d9ba7e5",
       "name": "Upload a file1",
       "credentials": {
         "s3": {
@@ -262,10 +262,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        -64
+        2256,
+        1136
       ],
-      "id": "3a74e45d-56a7-4e55-9d58-9b3ee972af66",
+      "id": "a5aa7316-e653-4271-ac84-7e2dd1a66bf3",
       "name": "Process Gemini API response and extract generated image1"
     },
     {
@@ -297,10 +297,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -320,
-        -64
+        2032,
+        1136
       ],
-      "id": "03c94290-9c64-4284-9c0d-3911c67289cc",
+      "id": "0d53fa49-d9dc-4495-a680-dcb544f1093e",
       "name": "Generate Custom Base Character1",
       "credentials": {
         "googlePalmApi": {
@@ -314,13 +314,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Restore Metadata After Upload1 — derive identity + finalize base.* + construct hair refs — v1.2\n// Mode: EACH\nconst j = $json || {};\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\nconst sanitize = (s) => String(s || '').replace(/\\/+$/, '');\n\nconst fromCharactersPath = (p) => {\n  if (!p || typeof p !== 'string') return null;\n  const m = p.match(/characters\\/([^/]+)/);\n  return m ? m[1] : null;\n};\n\nconst fromCharsFile = (name) => {\n  if (!name || typeof name !== 'string') return null;\n  const m = name.match(/characters_([A-Za-z0-9]+)_base\\./);\n  return m ? m[1] : null;\n};\n\n// If we already have an uploadKey, just add publicUrl and return (with hair fields preserved).\nif (j.base?.uploadKey) {\n  const publicR2Url = pick(j.publicR2Url, j.ctx?.publicR2Url, null);\n  const publicUrl = publicR2Url ? `${publicR2Url}/${j.base.uploadKey}`.replace(/\\/{2,}/g,'/') : null;\n  \n  // Construct hair refs if not present\n  const hairRoot = sanitize(j.hairRoot || 'book-mvp-simple-adventure/characters/hairstyles');\n  const hairPromptMeta = (typeof j.hairPromptMeta === 'object') ? j.hairPromptMeta : {};\n  const styleKey = pick(\n    j.hairRefS3Key,  // if already set, use it\n    hairPromptMeta.styleKey,\n    hairPromptMeta.referenceKey,\n    j.hairStyleCanonical,\n    null\n  );\n  const hairRefS3Key = (styleKey && !styleKey.includes('/')) \n    ? `${hairRoot}/${styleKey}.png` \n    : styleKey;  // if already a full path, use as-is\n  const hairRefPublicUrl = (hairRefS3Key && publicR2Url) \n    ? `${publicR2Url}/${hairRefS3Key}`.replace(/\\/{2,}/g, '/')\n    : null;\n  \n  return { \n    json: { \n      ...j, \n      base: { ...j.base, ...(publicUrl ? { publicUrl } : {}) },\n      hairRefS3Key,\n      hairRefPublicUrl\n    }, \n    binary: {} \n  };\n}\n\n// Try to re-derive identity; also allow reattaching from upstream if needed.\nconst UPSTREAM_NODE = 'Compute Upload Keys';\nlet upstream = {};\ntry {\n  const arr = (typeof $items === 'function') ? $items(UPSTREAM_NODE) : [];\n  const ix = typeof $itemIndex === 'number' ? $itemIndex : 0;\n  upstream = (arr[ix]?.json) || (arr[0]?.json) || {};\n} catch { /* ignore */ }\n\nconst root = { ...upstream, ...j };\n\nlet characterHash =\n  pick(root.characterHash, root.ctx?.characterHash, null) ||\n  fromCharactersPath(root.characterPath) ||\n  fromCharactersPath(root.__meta?.storageKey) ||\n  fromCharsFile(root.baseGeneratedFileName) ||\n  fromCharsFile(root.__meta?.generatedAttemptKey) ||\n  null;\n\nif (!characterHash) {\n  throw new Error('SW0/Restore: characterHash missing (could not derive from characterPath/storageKey/filename)');\n}\n\nconst assetsRoot    = pick(root.assetsRoot, 'book-mvp-simple-adventure/order-generated-assets');\nconst characterPath = pick(root.characterPath, `characters/${characterHash}`);\nconst storageKey    = pick(root.__meta?.storageKey, `${assetsRoot}/${characterPath}/base-character.png`).replace(/\\/{2,}/g,'/');\nconst publicR2Url   = pick(root.publicR2Url, root.ctx?.publicR2Url, null);\nconst bytes = pick(root.base?.bytes, root.__meta?.bytes, root.uploadResult?.ContentLength, root.generatedImage?.size, null);\nconst mime  = pick(root.base?.mime, root.generatedImage?.mimeType, 'image/png');\nconst publicUrl = publicR2Url ? `${publicR2Url}/${storageKey}`.replace(/\\/{2,}/g,'/') : null;\n\n// Construct hair references from available hairstyle data\nconst hairRoot = sanitize(pick(root.hairRoot, 'book-mvp-simple-adventure/characters/hairstyles'));\nconst hairPromptMeta = (typeof root.hairPromptMeta === 'object') ? root.hairPromptMeta : {};\nconst styleKey = pick(\n  root.hairRefS3Key,  // if already set, use it\n  hairPromptMeta.styleKey,\n  hairPromptMeta.referenceKey,\n  root.hairStyleCanonical,\n  root.ctx?.hairStyleCanonical,\n  null\n);\nconst hairRefS3Key = (styleKey && !styleKey.includes('/')) \n  ? `${hairRoot}/${styleKey}.png` \n  : styleKey;  // if already a full path, use as-is\nconst hairRefPublicUrl = (hairRefS3Key && publicR2Url) \n  ? `${publicR2Url}/${hairRefS3Key}`.replace(/\\/{2,}/g, '/')\n  : null;\n\nreturn {\n  json: {\n    ...root,\n    characterHash,\n    characterPath,\n    // Hair references (constructed from hairstyle data)\n    hairRefS3Key,\n    hairRefPublicUrl,\n    __meta: { ...(root.__meta || {}), storageKey, ...(bytes ? { bytes } : {}) },\n    base: { uploadKey: storageKey, publicUrl, mime, bytes }\n  },\n  binary: {}\n};"
       },
-      "id": "83489065-ffc6-49c3-b361-16d0d1f4e53c",
+      "id": "0226b3f7-6a24-43f7-8942-e374d1678230",
       "name": "Restore Metadata After Upload1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
-        -64
+        3232,
+        1136
       ]
     },
     {
@@ -330,10 +330,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2512,
-        -64
+        -160,
+        1136
       ],
-      "id": "5d0590c2-62a3-4c9b-b210-89d763a579c6",
+      "id": "e02c1eaf-c19e-4aa8-9021-31bdf1742a1e",
       "name": "Schema Check + Defaults"
     },
     {
@@ -344,10 +344,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2096,
-        -64
+        256,
+        1136
       ],
-      "id": "256c2c9a-898e-412c-89f0-77b046256e13",
+      "id": "1d6be3d4-fc8a-4bea-9f31-c52223ebad5e",
       "name": "Stamp Pose Index"
     },
     {
@@ -359,10 +359,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        176,
-        -64
+        2528,
+        1136
       ],
-      "id": "c6782ac0-93d8-403b-b4e6-82128c19a3d0"
+      "id": "ddc12765-778d-4206-9ad0-8b0d994ac89d"
     },
     {
       "parameters": {
@@ -477,13 +477,13 @@
           "dotNotation": true
         }
       },
-      "id": "ec158fe4-918c-47cc-80f8-bdf4c2a162cd",
+      "id": "ec9c356f-a836-47c6-9bd2-bdd60e5590fc",
       "name": "Return Generated Image1",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1408,
-        -64
+        3904,
+        1136
       ],
       "notesInFlow": true,
       "notes": "Returns envelope with bin.generated and slimmed payload"
@@ -495,10 +495,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2304,
-        -64
+        48,
+        1136
       ],
-      "id": "4def9056-d2c8-4bec-a2e9-a5d7e9413a15",
+      "id": "fc812c04-020e-448e-81ba-034df15e8d01",
       "name": "Normalize Test Flag"
     },
     {
@@ -509,10 +509,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -832,
-        -64
+        1520,
+        1136
       ],
-      "id": "c4a04f81-0c8d-49f5-8964-7d3753cad6cd",
+      "id": "79029585-c4e0-41c7-b5f0-7c625d68238f",
       "name": "Build Dynamic Hairstyle Prompt1"
     }
   ],
@@ -1161,10 +1161,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "a4aa8bd1-c4d5-4458-a2c4-8d6892cdc873",
+  "versionId": "97278112-1d91-43c5-a9d7-0914364b410e",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },
-  "id": "JoHCxEPAASmch6m1",
+  "id": "KhB78G1R2T0mIUmx",
   "tags": []
 }

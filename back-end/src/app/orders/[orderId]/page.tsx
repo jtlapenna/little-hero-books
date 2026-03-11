@@ -18,6 +18,7 @@ import { useState as useStateReact, useEffect as useEffectReact } from 'react';
 import { AlertCircle, ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer } from 'lucide-react';
 import { getDisplayStatusForOrder, getStageBadgeStatus } from '@/lib/status-display';
 import { ManualReviewAlert } from '@/components/ui/manual-review-alert';
+import { SiblingGroupPanel } from '@/components/ui/sibling-group-panel';
 import { extractApiErrorMessage } from '@/lib/error-handler';
 
 const correctionReasonLabels: Record<string, string> = {
@@ -937,6 +938,17 @@ export default function OrderDetailPage() {
     }
   };
 
+  const siblingOrders = order?.siblingOrders ?? [];
+  const totalSiblingCount = order?.totalSiblings ?? siblingOrders.length;
+  const showSiblingBanner = !!(
+    order &&
+    (order.isSibling || (order.rootOrderId && order.rootOrderId !== order.orderId))
+  );
+  const hasSiblingManifestMismatch =
+    siblingOrders.length > 1 &&
+    siblingOrders.some((sibling) => !!sibling.manifest2aUrl) &&
+    siblingOrders.some((sibling) => !sibling.manifest2aUrl);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -949,6 +961,19 @@ export default function OrderDetailPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Orders
           </button>
+
+          {showSiblingBanner && order && (
+            <SiblingGroupPanel
+              rootOrderId={order.rootOrderId}
+              platform={order.platform}
+              totalSiblings={totalSiblingCount}
+              itemNumber={order.itemNumber}
+              siblingOrders={siblingOrders}
+              currentOrderId={order.orderId}
+              showManifestWarning={hasSiblingManifestMismatch}
+              onSelectSibling={(siblingOrderId) => router.push(`/orders/${siblingOrderId}`)}
+            />
+          )}
           
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="min-w-0 flex-1">
@@ -1051,6 +1076,17 @@ export default function OrderDetailPage() {
         )}
 
         {/* Recovery Actions Section - Only show if there are actual recovery actions available */}
+        {hasSiblingManifestMismatch && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
+            <p className="text-sm font-semibold text-yellow-900">
+              Sibling manifest mismatch
+            </p>
+            <p className="mt-1 text-sm text-yellow-800">
+              Not all books in this group have a 2A manifest. Some siblings may have stalled in workflow 2A and should be reviewed together.
+            </p>
+          </div>
+        )}
+
         {order && (() => {
           // Check which buttons would actually be visible
           const canShowCreate1Manifest = !order.oneManifestUrl;

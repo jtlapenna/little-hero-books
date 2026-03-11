@@ -11,6 +11,7 @@ import { getOrderFlagSummary } from '@/lib/review-state';
 import { OrderPhase, groupOrdersByPhase, PHASE_ORDER, ACTIVE_PHASE_ORDER } from '@/constants/phases';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DualStatusBadge } from '@/components/ui/dual-status-badge';
+import { SiblingCountBadge } from '@/components/ui/sibling-count-badge';
 import { formatDate } from '@/lib/utils';
 import { buildOrderListItem } from '@/lib/status-display';
 import { RefreshCw, Archive, ChevronDown, ChevronUp } from 'lucide-react';
@@ -51,6 +52,10 @@ export default function OrdersPage() {
             return {
               orderId: order.orderId || 'unknown',
               platform: order.platform || 'amazon',
+              rootOrderId: order.rootOrderId,
+              isSibling: order.isSibling,
+              itemNumber: order.itemNumber,
+              totalSiblings: order.totalSiblings,
               firstName: order.customer?.firstName || 'Unknown',
               lastName: order.customer?.lastName || '',
               workflowStatus: 'action_required' as any,
@@ -294,6 +299,10 @@ export default function OrdersPage() {
                               <span className="text-xs text-gray-500">
                                 ({order.orderId})
                               </span>
+                              <SiblingCountBadge
+                                isSibling={order.isSibling}
+                                totalSiblings={order.totalSiblings}
+                              />
                             </div>
                             <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
                               <span>{order.platform}</span>
@@ -359,6 +368,10 @@ export default function OrdersPage() {
                           {order.firstName} {order.lastName}
                         </span>
                         <span className="text-xs text-gray-500">({order.orderId})</span>
+                        <SiblingCountBadge
+                          isSibling={order.isSibling}
+                          totalSiblings={order.totalSiblings}
+                        />
                       </div>
                       <div className="mt-1 text-xs text-gray-500">
                         {formatDate(order.orderDate)}
@@ -412,6 +425,10 @@ export default function OrdersPage() {
                         {order.firstName} {order.lastName}
                       </span>
                       <span className="text-xs text-gray-400">({order.orderId})</span>
+                      <SiblingCountBadge
+                        isSibling={order.isSibling}
+                        totalSiblings={order.totalSiblings}
+                      />
                     </div>
                     <div className="mt-1 text-xs text-gray-400">
                       {formatDate(order.orderDate)}

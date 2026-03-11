@@ -3,7 +3,7 @@ import { getCharacterAssets, downloadManifest, buildManifestKey } from '@/lib/r2
 import { Order } from '@/types/order';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
-import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase, listOrdersByAmazonRootId, supabase } from '@/lib/supabase-client';
 import { getArchivedOrderById } from '@/lib/order-lifecycle';
 function isTableMissingError(error: any, tableName: string) {
   if (!error) return false;
@@ -18,6 +18,7 @@ function isTableMissingError(error: any, tableName: string) {
 
 import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
 import { getActivePreviewToken } from '@/lib/preview-tokens';
+import { attachSiblingOrderSummaries } from '@/lib/order-sibling-summary';
 
 
 async function getOrder(
@@ -142,6 +143,18 @@ async function getOrder(
     order = manifestOrder;
   } else {
     throw createNotFoundError(`Order ${orderId} not found`);
+  }
+
+  if (order.rootOrderId && order.rootOrderId !== order.orderId) {
+    try {
+      const siblingRows = await listOrdersByAmazonRootId(order.rootOrderId);
+      order = attachSiblingOrderSummaries(order, siblingRows);
+    } catch (error: any) {
+      console.warn(
+        `[GET /api/orders/[orderId]] Failed to enrich sibling orders for ${order.orderId}:`,
+        error?.message || error
+      );
+    }
   }
 
   try {
@@ -271,14 +284,14 @@ async function getOrder(
       try {
         const { data: ordersWithSameHash, error: hashCheckError } = await supabase
           .from('orders')
-          .select('amazon_order_id, orderId, manifest_2a_url, manifest_2b_url')
+          .select('amazon_order_id, orderId, order_id, manifest_2a_url, manifest_2b_url')
           .eq('character_hash', order.characterHash)
-          .neq('amazon_order_id', orderId)
+          .neq('orderId', order.orderId)
           .limit(10);
         
         if (!hashCheckError && ordersWithSameHash && ordersWithSameHash.length > 0) {
           const sourceOrderIds = ordersWithSameHash
-            .map(o => o.amazon_order_id || o.orderId)
+            .map(o => o.orderId || o.order_id || o.amazon_order_id)
             .filter(Boolean) as string[];
           
           // Check if any source order has 2A or 2B manifest (for button visibility)

@@ -14,11 +14,32 @@ export interface ReviewStage {
   comments?: string;
 }
 
+export interface SiblingOrderSummary {
+  orderId: string;
+  displayOrderId?: string;
+  itemNumber?: number;
+  isCurrent?: boolean;
+  executionStatus?: string;
+  workflowStep?: string;
+  nextWorkflow?: string;
+  manifest2aUrl?: string;
+  characterHash?: string;
+  customer: {
+    firstName: string;
+    lastName: string;
+  };
+}
+
 export interface Order {
   orderId: string;
   displayOrderId?: string; // Customer-friendly ID: LH-XXXXX for D2C orders
   platform: string;
   amazonOrderId?: string;
+  rootOrderId?: string;
+  isSibling?: boolean;
+  itemNumber?: number;
+  totalSiblings?: number;
+  siblingOrders?: SiblingOrderSummary[];
   project: string;
   customer: Customer;
   customerEmail?: string;
@@ -105,6 +126,10 @@ export interface Order {
 export interface OrderListItem {
   orderId: string;
   platform: string;
+  rootOrderId?: string;
+  isSibling?: boolean;
+  itemNumber?: number;
+  totalSiblings?: number;
   firstName: string;
   lastName: string;
   workflowStatus: DisplayStatus;      // NEW: Always shows workflow position
@@ -142,4 +167,3 @@ export interface OrdersResponse {
   pageSize: number;
   total: number;
 }
-

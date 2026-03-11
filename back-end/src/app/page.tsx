@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Users, Settings, AlertTriangle } from 'lucide-react';
-import { DisplayStatus } from '@/constants/statuses';
+import { ArrowRight, BookOpen, Users, Settings, AlertTriangle, BarChart3 } from 'lucide-react';
 
 interface ErrorSummary {
   total: number;
   byType: Record<string, number>;
+}
+
+interface OrdersNeedingAttentionResponse {
+  orders?: Array<{ error_type?: string | null; errorReason?: string | null }>;
 }
 
 export default function HomePage() {
@@ -20,12 +23,12 @@ export default function HomePage() {
         const response = await fetch('/api/admin/orders-needing-attention');
         if (!response.ok) return;
         
-        const data = await response.json();
+        const data = (await response.json()) as OrdersNeedingAttentionResponse;
         const orders = data.orders || [];
         
         // Count errors by type
         const byType: Record<string, number> = {};
-        orders.forEach((order: any) => {
+        orders.forEach((order) => {
           const errorType = order.error_type || order.errorReason || 'unknown';
           byType[errorType] = (byType[errorType] || 0) + 1;
         });
@@ -54,7 +57,7 @@ export default function HomePage() {
             Human-in-the-Loop Asset Review System
           </h1>
           <p className="text-xl text-gray-600 mb-12">
-            Review and approve AI-generated assets for personalized children's books
+            Review and approve AI-generated assets for personalized children&apos;s books
           </p>
         </div>
 
@@ -88,7 +91,7 @@ export default function HomePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 max-w-6xl mx-auto">
           <Link
             href="/orders"
             className="group bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
@@ -136,6 +139,23 @@ export default function HomePage() {
             </p>
             <div className="flex items-center text-purple-600 group-hover:text-purple-800">
               <span className="text-sm font-medium">Upload CSV</span>
+              <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          <Link
+            href="/admin/analytics"
+            className="group bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+          >
+            <div className="flex items-center mb-4">
+              <BarChart3 className="h-8 w-8 text-amber-600 mr-3" />
+              <h2 className="text-xl font-semibold text-gray-900">Analytics</h2>
+            </div>
+            <p className="text-gray-600 mb-4">
+              View current operational reporting for live order activity
+            </p>
+            <div className="flex items-center text-amber-600 group-hover:text-amber-800">
+              <span className="text-sm font-medium">Open Analytics</span>
               <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </div>
           </Link>
