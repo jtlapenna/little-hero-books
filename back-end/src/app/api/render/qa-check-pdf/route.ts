@@ -164,6 +164,17 @@ async function computeWhiteSpaceRatio(
 }
 
 async function getPdfJsLib() {
+  if (typeof (globalThis as { DOMMatrix?: unknown }).DOMMatrix === 'undefined') {
+    try {
+      const canvasMod = await import('@napi-rs/canvas');
+      if (canvasMod.DOMMatrix) {
+        (globalThis as { DOMMatrix?: unknown }).DOMMatrix = canvasMod.DOMMatrix;
+      }
+    } catch {
+      // no-op; pdfjs import will surface the real error if the polyfill is unavailable.
+    }
+  }
+
   const mod = await import('pdfjs-dist/legacy/build/pdf.mjs');
   try {
     const workerOptions = (mod as unknown as PdfJsModule).GlobalWorkerOptions;
