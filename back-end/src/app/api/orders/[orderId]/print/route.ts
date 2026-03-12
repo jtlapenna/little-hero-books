@@ -84,11 +84,22 @@ async function sendToPrint(
     const updates: any = {
       next_workflow: '4',
       execution_status: 'ready_for_processing',
+      status: 'queued_for_processing',
       queued_at: new Date().toISOString(),
       started_at: null,
       current_workflow: null,
       error_type: null,
       error_message: null,
+      lulu_job_id: null,
+      lulu_status: null,
+      lulu_cost: null,
+      lulu_estimated_ship_date: null,
+      lulu_tracking_number: null,
+      lulu_tracking_url: null,
+      lulu_carrier: null,
+      printFulfillmentStatus: null,
+      printFulfillmentStartedAt: null,
+      printFulfillmentFinishedAt: null,
       // Admin "Send to Print" bypasses customer approval; set approved so cron router includes the order
       customer_approval_status: 'approved'
     };
@@ -133,4 +144,3 @@ async function sendToPrint(
 }
 
 export const POST = withErrorHandling(sendToPrint);
-
