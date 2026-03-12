@@ -3,6 +3,7 @@ import { PNG } from 'pngjs';
 
 import { verifyBearerAuth } from '@/lib/auth';
 import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { getSignedUrlForObject } from '@/lib/r2-service';
 
 type PdfType = 'interior' | 'cover';
 
@@ -315,7 +316,7 @@ async function decodePreviewPngSample(key: string): Promise<{
   sample: Uint8Array;
   whiteSpaceRatio: number | null;
 }> {
-  const response = await getObject(R2_ORDERS_BUCKET, key);
+  const response = await fetchOrdersBucketObject(key);
   const pngBuffer = Buffer.from(await response.arrayBuffer());
   const decoded = PNG.sync.read(pngBuffer, { skipRescale: true });
   const { width, height, data } = decoded;
@@ -341,6 +342,28 @@ async function decodePreviewPngSample(key: string): Promise<{
     sample,
     whiteSpaceRatio: whiteCount / (THUMBNAIL_SIZE * THUMBNAIL_SIZE),
   };
+}
+
+async function fetchOrdersBucketObject(key: string): Promise<Response> {
+  try {
+    return await getObject(R2_ORDERS_BUCKET, key);
+  } catch (primaryError: unknown) {
+    const signedUrl = await getSignedUrlForObject(key, R2_ORDERS_BUCKET, 900);
+    const fallbackResponse = await fetch(signedUrl, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+
+    if (!fallbackResponse.ok) {
+      const primaryMessage = getErrorMessage(primaryError);
+      const fallbackText = await fallbackResponse.text().catch(() => '');
+      throw new Error(
+        `R2 fallback fetch failed for ${key}: primary=${primaryMessage}; fallback=${fallbackResponse.status} ${fallbackResponse.statusText} ${fallbackText}`
+      );
+    }
+
+    return fallbackResponse;
+  }
 }
 
 function fallbackAnalyzePdfBytes(pdfArray: ArrayBuffer): {
@@ -387,7 +410,7 @@ export async function POST(request: NextRequest) {
 
     let pdfArray: ArrayBuffer;
     try {
-      const r2Response = await getObject(R2_ORDERS_BUCKET, pdfR2Key);
+      const r2Response = await fetchOrdersBucketObject(pdfR2Key);
       pdfArray = await r2Response.arrayBuffer();
     } catch (error: unknown) {
       const message = getErrorMessage(error);
