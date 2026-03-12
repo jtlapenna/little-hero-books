@@ -10,8 +10,10 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.96",
     "dotenv": "^17.2.2",
     "express": "^4.19.2",
+    "pdfjs-dist": "^5.5.207",
     "playwright": "^1.47.2",
     "sharp": "^0.34.5",
     "zod": "^3.23.8"
