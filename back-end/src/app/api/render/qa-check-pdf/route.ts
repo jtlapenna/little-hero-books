@@ -352,6 +352,46 @@ function ensureDomMatrixPolyfill() {
   }
 }
 
+function ensurePdfJsBrowserGlobals() {
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://admin.littleherolabs.com').replace(/\/+$/, '') + '/';
+  const globalScope = globalThis as {
+    window?: { location?: string };
+    document?: { baseURI?: string };
+    navigator?: { language?: string; platform?: string; userAgent?: string };
+  };
+
+  if (!globalScope.window) {
+    globalScope.window = { location: baseUrl };
+  } else if (!globalScope.window.location) {
+    globalScope.window.location = baseUrl;
+  }
+
+  if (!globalScope.document) {
+    globalScope.document = { baseURI: baseUrl };
+  } else if (!globalScope.document.baseURI) {
+    globalScope.document.baseURI = baseUrl;
+  }
+
+  if (!globalScope.navigator?.language) {
+    globalScope.navigator = {
+      language: 'en-US',
+      platform: '',
+      userAgent: '',
+    };
+  }
+}
+
+function resolvePdfJsWorkerSrc(): string {
+  try {
+    if (typeof import.meta.resolve === 'function') {
+      return import.meta.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
+    }
+  } catch {
+    // no-op
+  }
+  return '/pdf.worker.mjs';
+}
+
 async function computeWhiteSpaceRatio(
   imageData: Uint8Array,
   width: number,
@@ -392,18 +432,32 @@ async function computeWhiteSpaceRatio(
 
 async function getPdfJsLib() {
   ensureDomMatrixPolyfill();
+  ensurePdfJsBrowserGlobals();
 
-  const mod = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const globalScope = globalThis as { process?: unknown };
+  const hadProcess = Object.prototype.hasOwnProperty.call(globalScope, 'process');
+  const originalProcess = globalScope.process;
+
   try {
-    const workerOptions = (mod as unknown as PdfJsModule).GlobalWorkerOptions;
-    // Required by pdfjs-dist in Node runtime to avoid fake-worker init errors.
-    if (workerOptions && !workerOptions.workerSrc) {
-      workerOptions.workerSrc = '/pdf.worker.mjs';
+    if (hadProcess || typeof globalScope.process !== 'undefined') {
+      delete globalScope.process;
     }
-  } catch {
-    // no-op
+
+    const mod = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    try {
+      const workerOptions = (mod as unknown as PdfJsModule).GlobalWorkerOptions;
+      if (workerOptions && !workerOptions.workerSrc) {
+        workerOptions.workerSrc = resolvePdfJsWorkerSrc();
+      }
+    } catch {
+      // no-op
+    }
+    return mod as unknown as PdfJsModule;
+  } finally {
+    if (hadProcess || typeof originalProcess !== 'undefined') {
+      globalScope.process = originalProcess;
+    }
   }
-  return mod as unknown as PdfJsModule;
 }
 
 function jsonFail(status: number, payload: Record<string, unknown>) {
@@ -835,7 +889,7 @@ export async function POST(request: NextRequest) {
           pdfR2Key,
           totalPdfBytes,
           reasonCode: 'pdf_download_failed',
-          reason: 'Failed to stream PDF from R2 for QA',
+          reason: `Failed to stream PDF from R2 for QA: ${getErrorMessage(error)}`,
         });
       }
 
