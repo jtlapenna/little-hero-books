@@ -56,6 +56,15 @@ export function buildSiblingOrderSummaries(
 ): SiblingOrderSummary[] {
   const summaries = siblingRows
     .map((row) => {
+      const rowOrderId = String(row.orderId ?? row.order_id ?? row.amazon_order_id ?? '').trim();
+      if (
+        currentOrder.rootOrderId &&
+        rowOrderId === currentOrder.rootOrderId &&
+        rowOrderId !== currentOrder.orderId
+      ) {
+        return null;
+      }
+
       const summary = toSiblingSummary(row, currentOrder.orderId);
       if (!summary) return null;
 

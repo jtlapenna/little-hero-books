@@ -57,6 +57,17 @@ async function run() {
 
   const enriched = attachSiblingOrderSummaries(currentSibling, [
     {
+      orderId: 'root-uuid',
+      root_order_id: 'root-uuid',
+      display_order_id: 'LH-ROOT',
+      customer_name: 'Parent Root',
+      execution_status: 'queued',
+      workflow_step: '1',
+      manifest_2a_url: '',
+      character_hash: 'hash-root',
+      created_at: '2026-03-11T10:00:00.000Z',
+    },
+    {
       orderId: 'root-uuid-item-3',
       root_order_id: 'root-uuid',
       display_order_id: 'LH-ROOT-3',

@@ -3,26 +3,42 @@ import assert from 'node:assert/strict';
 import { buildOrderListItem } from '../src/lib/status-display';
 import { Order } from '../src/types/order';
 
+function isChildBookRow(order: Order): boolean {
+  return !!(order.rootOrderId && order.rootOrderId !== order.orderId);
+}
+
+function isRootGroupRow(order: Order): boolean {
+  return !!(order.rootOrderId && order.rootOrderId === order.orderId);
+}
+
 function attachListSiblingMetadata(orders: Order[]): Order[] {
-  const siblingGroupSizes = new Map<string, number>();
+  const childGroupSizes = new Map<string, number>();
 
   for (const order of orders) {
-    if (!order.rootOrderId) continue;
-    siblingGroupSizes.set(
+    if (!isChildBookRow(order) || !order.rootOrderId) continue;
+    childGroupSizes.set(
       order.rootOrderId,
-      (siblingGroupSizes.get(order.rootOrderId) || 0) + 1
+      (childGroupSizes.get(order.rootOrderId) || 0) + 1
     );
   }
 
-  return orders.map((order) => {
+  return orders
+    .filter((order) => {
+      if (!isRootGroupRow(order) || !order.rootOrderId) {
+        return true;
+      }
+
+      return (childGroupSizes.get(order.rootOrderId) || 0) === 0;
+    })
+    .map((order) => {
     if (!order.rootOrderId) {
       return order;
     }
 
-    const groupSize = siblingGroupSizes.get(order.rootOrderId) || 0;
+    const groupSize = childGroupSizes.get(order.rootOrderId) || 0;
     return {
       ...order,
-      isSibling: groupSize > 1 ? true : order.isSibling,
+      isSibling: isChildBookRow(order) ? true : order.isSibling,
       totalSiblings: groupSize > 1 ? groupSize : order.totalSiblings,
     };
   });
@@ -57,6 +73,12 @@ function buildBaseOrder(overrides: Partial<Order> = {}): Order {
 }
 
 async function run() {
+  const parentRow = buildBaseOrder({
+    orderId: 'root-uuid',
+    rootOrderId: 'root-uuid',
+    isSibling: false,
+    itemNumber: undefined,
+  });
   const siblingA = buildBaseOrder({
     orderId: 'root-uuid-item-1',
     rootOrderId: 'root-uuid',
@@ -84,17 +106,20 @@ async function run() {
   });
 
   const enriched = attachListSiblingMetadata([
+    parentRow,
     siblingA,
     siblingB,
     singleton,
     errorSibling,
   ]);
 
+  const enrichedParent = enriched.find((o) => o.orderId === 'root-uuid');
   const enrichedA = enriched.find((o) => o.orderId === 'root-uuid-item-1');
   const enrichedB = enriched.find((o) => o.orderId === 'root-uuid-item-2');
   const enrichedSingleton = enriched.find((o) => o.orderId === 'solo-order');
   const enrichedErrorSibling = enriched.find((o) => o.orderId === 'other-root-item-9');
 
+  assert.equal(enrichedParent, undefined);
   assert.equal(enrichedA?.totalSiblings, 2);
   assert.equal(enrichedB?.totalSiblings, 2);
   assert.equal(enrichedA?.isSibling, true);
