@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PNG } from 'pngjs';
 
 import { verifyBearerAuth } from '@/lib/auth';
-import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { getObject, headObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getSignedUrlForObject } from '@/lib/r2-service';
 
 type PdfType = 'interior' | 'cover';
@@ -60,8 +60,10 @@ interface PdfJsModule {
   OPS?: Record<string, number>;
   getDocument: (options: {
     data: Uint8Array;
+    url?: string;
     useWorkerFetch?: boolean;
     disableWorker?: boolean;
+    rangeChunkSize?: number;
   }) => { promise: Promise<PdfJsDocument> };
 }
 
@@ -76,6 +78,7 @@ const PREVIEW_DIFF_THRESHOLD = 20;
 const PREVIEW_HALF_DIFF_THRESHOLD = 25;
 const PREVIEW_HALF_IMBALANCE_THRESHOLD = 15;
 const PREVIEW_STRONG_MATCH_THRESHOLD = 5;
+const LARGE_PDF_REMOTE_THRESHOLD_BYTES = 150_000_000;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null;
@@ -366,6 +369,17 @@ async function fetchOrdersBucketObject(key: string): Promise<Response> {
   }
 }
 
+async function getOrdersBucketContentLength(key: string): Promise<number | null> {
+  try {
+    const response = await headObject(R2_ORDERS_BUCKET, key);
+    const header = response.headers.get('content-length');
+    const size = header ? Number(header) : NaN;
+    return Number.isFinite(size) && size > 0 ? size : null;
+  } catch {
+    return null;
+  }
+}
+
 function fallbackAnalyzePdfBytes(pdfArray: ArrayBuffer): {
   pageCount: number;
   hasImage: boolean;
@@ -408,148 +422,158 @@ export async function POST(request: NextRequest) {
 
     const { orderId, pdfR2Key, expectedPageCount, type = 'interior' } = input.data;
 
-    let pdfArray: ArrayBuffer;
-    try {
-      const r2Response = await fetchOrdersBucketObject(pdfR2Key);
-      pdfArray = await r2Response.arrayBuffer();
-    } catch (error: unknown) {
-      const message = getErrorMessage(error);
-      const isNotFound =
-        message.includes('404') || message.includes('NoSuchKey') || message.includes('Not Found');
-      return jsonFail(isNotFound ? 404 : 500, {
-        orderId,
-        type,
-        pdfR2Key,
-        reasonCode: isNotFound ? 'pdf_not_found' : 'pdf_download_failed',
-        reason: isNotFound ? 'PDF not found in R2' : 'Failed to download PDF from R2',
-      });
-    }
+    const knownContentLength = await getOrdersBucketContentLength(pdfR2Key);
+    const shouldUseRemotePdfJs =
+      knownContentLength !== null && knownContentLength >= LARGE_PDF_REMOTE_THRESHOLD_BYTES;
 
-    const totalPdfBytes = pdfArray.byteLength;
-    if (totalPdfBytes <= 0) {
-      return jsonFail(422, {
-        orderId,
-        type,
-        pdfR2Key,
-        reasonCode: 'pdf_empty',
-        reason: 'Downloaded PDF has zero bytes',
-      });
-    }
-    if (totalPdfBytes < expectedPageCount * MIN_BYTES_PER_PAGE) {
-      return jsonFail(422, {
-        orderId,
-        type,
-        pdfR2Key,
-        totalPdfBytes,
-        expectedPageCount,
-        reasonCode: 'pdf_too_small',
-        reason: `PDF size below minimum heuristic (${MIN_BYTES_PER_PAGE} bytes/page)`,
-      });
-    }
+    let pdfArray: ArrayBuffer | null = null;
+    let totalPdfBytes = knownContentLength || 0;
 
-    const extracted = extractFlateImageStreams(pdfArray);
-    if (extracted.images.length === expectedPageCount) {
-      const pages: PageResult[] = [];
-      const failedPages: number[] = [];
-      const warnings = [...extracted.warnings, 'direct_image_stream_compare_used'];
-      const previewCache = new Map<string, { sample: Uint8Array; whiteSpaceRatio: number | null }>();
-
-      for (const image of extracted.images) {
-        const pageWarnings: string[] = [];
-        const failReasons: string[] = [];
-        let rawImage: Uint8Array;
-        let pdfWhiteSpaceRatio: number | null = null;
-        let previewMeanAbsDiff: number | null = null;
-        let previewTopHalfMeanAbsDiff: number | null = null;
-        let previewBottomHalfMeanAbsDiff: number | null = null;
-
-        try {
-          rawImage = await inflatePdfStream(image.data);
-        } catch (error) {
-          throw new Error(`Failed to inflate embedded page image ${image.page}: ${getErrorMessage(error)}`);
-        }
-
-        const sample = sampleRgbNearest(rawImage, image.width, image.height);
-        pdfWhiteSpaceRatio = await computeWhiteSpaceRatio(rawImage, image.width, image.height);
-
-        try {
-          const previewKey = buildExpectedPreviewKey(orderId, type, image.page, expectedPageCount);
-          let preview = previewCache.get(previewKey);
-          if (!preview) {
-            preview = await decodePreviewPngSample(previewKey);
-            previewCache.set(previewKey, preview);
-          }
-
-          previewMeanAbsDiff = computeSampleMeanAbsDiff(sample, preview.sample);
-          previewTopHalfMeanAbsDiff = computeSampleMeanAbsDiff(sample, preview.sample, 0, THUMBNAIL_SIZE / 2);
-          previewBottomHalfMeanAbsDiff = computeSampleMeanAbsDiff(sample, preview.sample, THUMBNAIL_SIZE / 2, THUMBNAIL_SIZE);
-
-          if (previewMeanAbsDiff > PREVIEW_DIFF_THRESHOLD) {
-            failReasons.push(`preview_diff_too_high:${previewMeanAbsDiff.toFixed(2)}>${PREVIEW_DIFF_THRESHOLD}`);
-          }
-          if (
-            Math.max(previewTopHalfMeanAbsDiff, previewBottomHalfMeanAbsDiff) > PREVIEW_HALF_DIFF_THRESHOLD &&
-            Math.abs(previewTopHalfMeanAbsDiff - previewBottomHalfMeanAbsDiff) > PREVIEW_HALF_IMBALANCE_THRESHOLD
-          ) {
-            failReasons.push(
-              `preview_half_diff_imbalance:${previewTopHalfMeanAbsDiff.toFixed(2)}/${previewBottomHalfMeanAbsDiff.toFixed(2)}`
-            );
-          }
-        } catch (error) {
-          pageWarnings.push(`preview_compare_unavailable:${getErrorMessage(error)}`);
-          warnings.push(`page_${image.page}:preview_compare_unavailable`);
-        }
-
-        const hasStrongPreviewMatch =
-          previewMeanAbsDiff !== null && previewMeanAbsDiff <= PREVIEW_STRONG_MATCH_THRESHOLD;
-
-        if (!hasStrongPreviewMatch && image.compressedBytes < MIN_IMAGE_BYTES) {
-          failReasons.push(`image_bytes_too_small:${image.compressedBytes}<${MIN_IMAGE_BYTES}`);
-        }
-        if (!hasStrongPreviewMatch && pdfWhiteSpaceRatio !== null && pdfWhiteSpaceRatio > WHITE_SPACE_THRESHOLD) {
-          failReasons.push(`white_space_ratio_too_high:${pdfWhiteSpaceRatio.toFixed(3)}>${WHITE_SPACE_THRESHOLD}`);
-        }
-
-        const passed = failReasons.length === 0;
-        if (!passed) failedPages.push(image.page);
-
-        pages.push({
-          page: image.page,
-          hasImage: true,
-          imageBytes: image.compressedBytes,
-          whiteSpaceRatio: pdfWhiteSpaceRatio,
-          previewMeanAbsDiff,
-          previewTopHalfMeanAbsDiff,
-          previewBottomHalfMeanAbsDiff,
-          passed,
-          failReasons,
-          ...(pageWarnings.length ? { warnings: pageWarnings } : {}),
-        });
-      }
-
-      const passed = failedPages.length === 0;
-      const durationMs = Date.now() - startedAt;
-      const avgBytesPerPage = Math.floor(totalPdfBytes / Math.max(expectedPageCount, 1));
-
-      return NextResponse.json(
-        {
-          passed,
+    if (!shouldUseRemotePdfJs) {
+      try {
+        const r2Response = await fetchOrdersBucketObject(pdfR2Key);
+        pdfArray = await r2Response.arrayBuffer();
+        totalPdfBytes = pdfArray.byteLength;
+      } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        const isNotFound =
+          message.includes('404') || message.includes('NoSuchKey') || message.includes('Not Found');
+        return jsonFail(isNotFound ? 404 : 500, {
           orderId,
           type,
           pdfR2Key,
-          reasonCode: passed ? 'all_passed' : 'page_checks_failed',
-          reason: passed ? 'all_passed' : `Failed pages: ${failedPages.join(', ')}`,
-          pageCount: expectedPageCount,
-          expectedPageCount,
+          reasonCode: isNotFound ? 'pdf_not_found' : 'pdf_download_failed',
+          reason: isNotFound ? 'PDF not found in R2' : 'Failed to download PDF from R2',
+        });
+      }
+
+      if (totalPdfBytes <= 0) {
+        return jsonFail(422, {
+          orderId,
+          type,
+          pdfR2Key,
+          reasonCode: 'pdf_empty',
+          reason: 'Downloaded PDF has zero bytes',
+        });
+      }
+      if (totalPdfBytes < expectedPageCount * MIN_BYTES_PER_PAGE) {
+        return jsonFail(422, {
+          orderId,
+          type,
+          pdfR2Key,
           totalPdfBytes,
-          avgBytesPerPage,
-          failedPages,
-          pages,
-          warnings,
-          durationMs,
-        },
-        { status: 200 }
-      );
+          expectedPageCount,
+          reasonCode: 'pdf_too_small',
+          reason: `PDF size below minimum heuristic (${MIN_BYTES_PER_PAGE} bytes/page)`,
+        });
+      }
+    }
+
+    if (pdfArray) {
+      const extracted = extractFlateImageStreams(pdfArray);
+      if (extracted.images.length === expectedPageCount) {
+        const pages: PageResult[] = [];
+        const failedPages: number[] = [];
+        const warnings = [...extracted.warnings, 'direct_image_stream_compare_used'];
+        const previewCache = new Map<string, { sample: Uint8Array; whiteSpaceRatio: number | null }>();
+
+        for (const image of extracted.images) {
+          const pageWarnings: string[] = [];
+          const failReasons: string[] = [];
+          let rawImage: Uint8Array;
+          let pdfWhiteSpaceRatio: number | null = null;
+          let previewMeanAbsDiff: number | null = null;
+          let previewTopHalfMeanAbsDiff: number | null = null;
+          let previewBottomHalfMeanAbsDiff: number | null = null;
+
+          try {
+            rawImage = await inflatePdfStream(image.data);
+          } catch (error) {
+            throw new Error(`Failed to inflate embedded page image ${image.page}: ${getErrorMessage(error)}`);
+          }
+
+          const sample = sampleRgbNearest(rawImage, image.width, image.height);
+          pdfWhiteSpaceRatio = await computeWhiteSpaceRatio(rawImage, image.width, image.height);
+
+          try {
+            const previewKey = buildExpectedPreviewKey(orderId, type, image.page, expectedPageCount);
+            let preview = previewCache.get(previewKey);
+            if (!preview) {
+              preview = await decodePreviewPngSample(previewKey);
+              previewCache.set(previewKey, preview);
+            }
+
+            previewMeanAbsDiff = computeSampleMeanAbsDiff(sample, preview.sample);
+            previewTopHalfMeanAbsDiff = computeSampleMeanAbsDiff(sample, preview.sample, 0, THUMBNAIL_SIZE / 2);
+            previewBottomHalfMeanAbsDiff = computeSampleMeanAbsDiff(sample, preview.sample, THUMBNAIL_SIZE / 2, THUMBNAIL_SIZE);
+
+            if (previewMeanAbsDiff > PREVIEW_DIFF_THRESHOLD) {
+              failReasons.push(`preview_diff_too_high:${previewMeanAbsDiff.toFixed(2)}>${PREVIEW_DIFF_THRESHOLD}`);
+            }
+            if (
+              Math.max(previewTopHalfMeanAbsDiff, previewBottomHalfMeanAbsDiff) > PREVIEW_HALF_DIFF_THRESHOLD &&
+              Math.abs(previewTopHalfMeanAbsDiff - previewBottomHalfMeanAbsDiff) > PREVIEW_HALF_IMBALANCE_THRESHOLD
+            ) {
+              failReasons.push(
+                `preview_half_diff_imbalance:${previewTopHalfMeanAbsDiff.toFixed(2)}/${previewBottomHalfMeanAbsDiff.toFixed(2)}`
+              );
+            }
+          } catch (error) {
+            pageWarnings.push(`preview_compare_unavailable:${getErrorMessage(error)}`);
+            warnings.push(`page_${image.page}:preview_compare_unavailable`);
+          }
+
+          const hasStrongPreviewMatch =
+            previewMeanAbsDiff !== null && previewMeanAbsDiff <= PREVIEW_STRONG_MATCH_THRESHOLD;
+
+          if (!hasStrongPreviewMatch && image.compressedBytes < MIN_IMAGE_BYTES) {
+            failReasons.push(`image_bytes_too_small:${image.compressedBytes}<${MIN_IMAGE_BYTES}`);
+          }
+          if (!hasStrongPreviewMatch && pdfWhiteSpaceRatio !== null && pdfWhiteSpaceRatio > WHITE_SPACE_THRESHOLD) {
+            failReasons.push(`white_space_ratio_too_high:${pdfWhiteSpaceRatio.toFixed(3)}>${WHITE_SPACE_THRESHOLD}`);
+          }
+
+          const passed = failReasons.length === 0;
+          if (!passed) failedPages.push(image.page);
+
+          pages.push({
+            page: image.page,
+            hasImage: true,
+            imageBytes: image.compressedBytes,
+            whiteSpaceRatio: pdfWhiteSpaceRatio,
+            previewMeanAbsDiff,
+            previewTopHalfMeanAbsDiff,
+            previewBottomHalfMeanAbsDiff,
+            passed,
+            failReasons,
+            ...(pageWarnings.length ? { warnings: pageWarnings } : {}),
+          });
+        }
+
+        const passed = failedPages.length === 0;
+        const durationMs = Date.now() - startedAt;
+        const avgBytesPerPage = Math.floor(totalPdfBytes / Math.max(expectedPageCount, 1));
+
+        return NextResponse.json(
+          {
+            passed,
+            orderId,
+            type,
+            pdfR2Key,
+            reasonCode: passed ? 'all_passed' : 'page_checks_failed',
+            reason: passed ? 'all_passed' : `Failed pages: ${failedPages.join(', ')}`,
+            pageCount: expectedPageCount,
+            expectedPageCount,
+            totalPdfBytes,
+            avgBytesPerPage,
+            failedPages,
+            pages,
+            warnings,
+            durationMs,
+          },
+          { status: 200 }
+        );
+      }
     }
 
     const pdfjs = await getPdfJsLib();
@@ -558,13 +582,34 @@ export async function POST(request: NextRequest) {
     let pdfDoc: PdfJsDocument | null = null;
     let usedFallbackParser = false;
     try {
-      const task = pdfjs.getDocument({
-        data: new Uint8Array(pdfArray),
-        useWorkerFetch: false,
-        disableWorker: true,
-      });
-      pdfDoc = await task.promise;
+      if (pdfArray) {
+        const task = pdfjs.getDocument({
+          data: new Uint8Array(pdfArray),
+          useWorkerFetch: false,
+          disableWorker: true,
+        });
+        pdfDoc = await task.promise;
+      } else {
+        const signedUrl = await getSignedUrlForObject(pdfR2Key, R2_ORDERS_BUCKET, 900);
+        const task = pdfjs.getDocument({
+          url: signedUrl,
+          disableWorker: true,
+          rangeChunkSize: 1 << 20,
+        });
+        pdfDoc = await task.promise;
+      }
     } catch (error: unknown) {
+      if (!pdfArray) {
+        return jsonFail(500, {
+          orderId,
+          type,
+          pdfR2Key,
+          totalPdfBytes,
+          reasonCode: 'pdf_download_failed',
+          reason: 'Failed to stream PDF from R2 for QA',
+        });
+      }
+
       const fallback = fallbackAnalyzePdfBytes(pdfArray);
       if (!fallback) {
         return jsonFail(422, {
@@ -641,6 +686,8 @@ export async function POST(request: NextRequest) {
     const pages: PageResult[] = [];
     const failedPages: number[] = [];
     const warnings: string[] = [];
+    if (shouldUseRemotePdfJs) warnings.push('large_pdf_remote_pdfjs_used');
+    const previewCache = new Map<string, { sample: Uint8Array; whiteSpaceRatio: number | null }>();
 
     const imageOpFns = new Set<number>([
       OPS.paintImageXObject,
@@ -666,6 +713,10 @@ export async function POST(request: NextRequest) {
 
       let bestImageBytes = 0;
       let whiteSpaceRatio: number | null = null;
+      let bestSample: Uint8Array | null = null;
+      let previewMeanAbsDiff: number | null = null;
+      let previewTopHalfMeanAbsDiff: number | null = null;
+      let previewBottomHalfMeanAbsDiff: number | null = null;
       const pageWarnings: string[] = [];
 
       // Best-effort extraction from pdfjs object cache.
@@ -723,8 +774,17 @@ export async function POST(request: NextRequest) {
 
         if (bytes > bestImageBytes) bestImageBytes = bytes;
 
-        if (data && width > 0 && height > 0 && whiteSpaceRatio === null) {
-          whiteSpaceRatio = await computeWhiteSpaceRatio(data, width, height);
+        if (data && width > 0 && height > 0) {
+          if (whiteSpaceRatio === null) {
+            whiteSpaceRatio = await computeWhiteSpaceRatio(data, width, height);
+          }
+          if (!bestSample || bytes >= bestImageBytes) {
+            try {
+              bestSample = sampleRgbNearest(data, width, height);
+            } catch {
+              // no-op
+            }
+          }
         }
       }
 
@@ -733,14 +793,49 @@ export async function POST(request: NextRequest) {
         warnings.push(`page_${pageNum}: image_extract_unavailable`);
       }
 
+      if (bestSample) {
+        try {
+          const previewKey = buildExpectedPreviewKey(orderId, type, pageNum, expectedPageCount);
+          let preview = previewCache.get(previewKey);
+          if (!preview) {
+            preview = await decodePreviewPngSample(previewKey);
+            previewCache.set(previewKey, preview);
+          }
+
+          previewMeanAbsDiff = computeSampleMeanAbsDiff(bestSample, preview.sample);
+          previewTopHalfMeanAbsDiff = computeSampleMeanAbsDiff(bestSample, preview.sample, 0, THUMBNAIL_SIZE / 2);
+          previewBottomHalfMeanAbsDiff = computeSampleMeanAbsDiff(bestSample, preview.sample, THUMBNAIL_SIZE / 2, THUMBNAIL_SIZE);
+        } catch (error) {
+          pageWarnings.push(`preview_compare_unavailable:${getErrorMessage(error)}`);
+          warnings.push(`page_${pageNum}:preview_compare_unavailable`);
+        }
+      }
+
       const failReasons: string[] = [];
       if (!hasImage) {
         failReasons.push('no_image_on_page');
       }
-      if (hasImage && bestImageBytes > 0 && bestImageBytes < MIN_IMAGE_BYTES) {
-        failReasons.push(`image_bytes_too_small:${bestImageBytes}<${MIN_IMAGE_BYTES}`);
+      if (previewMeanAbsDiff !== null && previewMeanAbsDiff > PREVIEW_DIFF_THRESHOLD) {
+        failReasons.push(`preview_diff_too_high:${previewMeanAbsDiff.toFixed(2)}>${PREVIEW_DIFF_THRESHOLD}`);
       }
-      if (whiteSpaceRatio !== null && whiteSpaceRatio > WHITE_SPACE_THRESHOLD) {
+      if (
+        previewTopHalfMeanAbsDiff !== null &&
+        previewBottomHalfMeanAbsDiff !== null &&
+        Math.max(previewTopHalfMeanAbsDiff, previewBottomHalfMeanAbsDiff) > PREVIEW_HALF_DIFF_THRESHOLD &&
+        Math.abs(previewTopHalfMeanAbsDiff - previewBottomHalfMeanAbsDiff) > PREVIEW_HALF_IMBALANCE_THRESHOLD
+      ) {
+        failReasons.push(
+          `preview_half_diff_imbalance:${previewTopHalfMeanAbsDiff.toFixed(2)}/${previewBottomHalfMeanAbsDiff.toFixed(2)}`
+        );
+      }
+      const hasStrongPreviewMatch =
+        previewMeanAbsDiff !== null && previewMeanAbsDiff <= PREVIEW_STRONG_MATCH_THRESHOLD;
+      if (hasImage && bestImageBytes > 0 && bestImageBytes < MIN_IMAGE_BYTES) {
+        if (!hasStrongPreviewMatch) {
+          failReasons.push(`image_bytes_too_small:${bestImageBytes}<${MIN_IMAGE_BYTES}`);
+        }
+      }
+      if (!hasStrongPreviewMatch && whiteSpaceRatio !== null && whiteSpaceRatio > WHITE_SPACE_THRESHOLD) {
         failReasons.push(`white_space_ratio_too_high:${whiteSpaceRatio.toFixed(3)}>${WHITE_SPACE_THRESHOLD}`);
       }
 
@@ -752,6 +847,9 @@ export async function POST(request: NextRequest) {
         hasImage,
         imageBytes: bestImageBytes,
         whiteSpaceRatio,
+        previewMeanAbsDiff,
+        previewTopHalfMeanAbsDiff,
+        previewBottomHalfMeanAbsDiff,
         passed: pagePassed,
         failReasons,
         ...(pageWarnings.length ? { warnings: pageWarnings } : {}),
