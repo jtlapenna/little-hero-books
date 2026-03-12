@@ -3,12 +3,11 @@
   "crons": [
     {
       "path": "/api/cron/router",
-      "schedule": "0 0 * * *"
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/cron/health-monitor",
-      "schedule": "0 12 * * *"
+      "schedule": "*/10 * * * *"
     }
   ]
 }
-

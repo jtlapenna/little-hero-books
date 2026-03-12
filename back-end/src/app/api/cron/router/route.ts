@@ -497,14 +497,105 @@ export async function GET(request: NextRequest) {
       return true;
     });
 
+    type HeldSiblingGroup = {
+      rootOrderId: string;
+      reason: string;
+      members: Array<{
+        orderId: string | null;
+        executionStatus: string | null;
+        currentWorkflow: string | null;
+        nextWorkflow: string | null;
+      }>;
+    };
+
+    const heldSiblingGroups: HeldSiblingGroup[] = [];
+    const siblingOrders = eligibleOrders.filter((o) => {
+      const next = String(o.next_workflow || '');
+      return next === '4' && !!o.root_order_id && !!o.orderId && o.root_order_id !== o.orderId;
+    });
+    const siblingRootIds = [...new Set(siblingOrders.map((o) => String(o.root_order_id)))];
+    const siblingGroupMembers = new Map<string, any[]>();
+
+    if (siblingRootIds.length > 0) {
+      const { data: siblingRows, error: siblingRowsError } = await supabase
+        .from('orders')
+        .select('id,"orderId",root_order_id,execution_status,current_workflow,next_workflow,customer_approval_required,customer_approval_status,lulu_job_id,lulu_status')
+        .in('root_order_id', siblingRootIds);
+
+      if (siblingRowsError) {
+        console.error(`[Cron Router] [${executionId}] Failed to fetch sibling group states:`, {
+          error: siblingRowsError.message,
+          code: siblingRowsError.code,
+          details: siblingRowsError.details,
+          rootOrderIds: siblingRootIds,
+        });
+
+        siblingRootIds.forEach((rootOrderId) => {
+          heldSiblingGroups.push({
+            rootOrderId,
+            reason: 'group_lookup_failed',
+            members: [],
+          });
+        });
+      } else {
+        for (const row of siblingRows || []) {
+          const rootOrderId = String(row.root_order_id || '');
+          if (!siblingGroupMembers.has(rootOrderId)) siblingGroupMembers.set(rootOrderId, []);
+          siblingGroupMembers.get(rootOrderId)!.push(row);
+        }
+
+        for (const rootOrderId of siblingRootIds) {
+          const members = (siblingGroupMembers.get(rootOrderId) || []).filter((row) => row.orderId !== rootOrderId);
+          if (members.length < 2) continue;
+
+          const allReady = members.every((member) => {
+            const next = String(member.next_workflow || '');
+            const approvalRequired = member.customer_approval_required === true;
+            const approved = member.customer_approval_status === 'approved';
+            return (
+              member.execution_status === 'ready_for_processing' &&
+              !member.current_workflow &&
+              (next === '4' || next === '4-aggregate') &&
+              !member.lulu_job_id &&
+              !member.lulu_status &&
+              (!approvalRequired || approved)
+            );
+          });
+
+          if (!allReady) {
+            heldSiblingGroups.push({
+              rootOrderId,
+              reason: 'group_not_fully_ready',
+              members: members.map((member) => ({
+                orderId: member.orderId ?? null,
+                executionStatus: member.execution_status ?? null,
+                currentWorkflow: member.current_workflow ?? null,
+                nextWorkflow: member.next_workflow ?? null,
+              })),
+            });
+          }
+        }
+      }
+    }
+
+    const heldSiblingRootIds = new Set(heldSiblingGroups.map((group) => group.rootOrderId));
+    const routableEligibleOrders = eligibleOrders.filter((order) => {
+      const next = String(order.next_workflow || '');
+      if (next !== '4' || !order.root_order_id || !order.orderId || order.root_order_id === order.orderId) {
+        return true;
+      }
+      return !heldSiblingRootIds.has(String(order.root_order_id));
+    });
+
     // 6. If no eligible orders, return early (0 n8n executions)
-    if (!eligibleOrders || eligibleOrders.length === 0) {
+    if (!routableEligibleOrders || routableEligibleOrders.length === 0) {
       metrics.totalMs = Date.now() - startTime;
       console.log(`[Cron Router] [${executionId}] No eligible ready orders found - skipped n8n call:`, {
         processing: processingCount,
         available: availableSlots,
         queued: queuedCount,
         fetched: orders?.length || 0,
+        heldSiblingGroups,
         totalDuration: `${metrics.totalMs}ms`
       });
       return NextResponse.json({
@@ -515,6 +606,7 @@ export async function GET(request: NextRequest) {
         availableSlots,
         queuedCount,
         fetched: orders?.length || 0,
+        heldSiblingGroups,
         reminders: remindersSummary,
         lifecycle: lifecycleSummary,
         luluPoll: luluPollSummary,
@@ -523,7 +615,85 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const ordersToRoute = eligibleOrders.slice(0, availableSlots);
+    const siblingOrdersByRoot = new Map<string, typeof routableEligibleOrders>();
+    for (const order of routableEligibleOrders) {
+      const next = String(order.next_workflow || '');
+      if (next !== '4' || !order.root_order_id || !order.orderId || order.root_order_id === order.orderId) continue;
+      const rootOrderId = String(order.root_order_id);
+      if (!siblingOrdersByRoot.has(rootOrderId)) siblingOrdersByRoot.set(rootOrderId, []);
+      siblingOrdersByRoot.get(rootOrderId)!.push(order);
+    }
+
+    const ordersToRoute: typeof routableEligibleOrders = [];
+    const capacityHeldSiblingGroups: HeldSiblingGroup[] = [];
+    const routedSiblingRoots = new Set<string>();
+    let remainingSlots = availableSlots;
+
+    for (const order of routableEligibleOrders) {
+      if (remainingSlots <= 0) break;
+
+      const next = String(order.next_workflow || '');
+      const isSiblingChild = next === '4' && !!order.root_order_id && !!order.orderId && order.root_order_id !== order.orderId;
+      if (!isSiblingChild) {
+        ordersToRoute.push(order);
+        remainingSlots -= 1;
+        continue;
+      }
+
+      const rootOrderId = String(order.root_order_id);
+      if (routedSiblingRoots.has(rootOrderId)) continue;
+
+      const groupOrders = siblingOrdersByRoot.get(rootOrderId) || [order];
+      if (groupOrders.length > remainingSlots) {
+        capacityHeldSiblingGroups.push({
+          rootOrderId,
+          reason: 'insufficient_capacity',
+          members: groupOrders.map((member) => ({
+            orderId: member.orderId ?? null,
+            executionStatus: member.execution_status ?? null,
+            currentWorkflow: member.current_workflow ?? null,
+            nextWorkflow: member.next_workflow ?? null,
+          })),
+        });
+        routedSiblingRoots.add(rootOrderId);
+        continue;
+      }
+
+      ordersToRoute.push(...groupOrders);
+      remainingSlots -= groupOrders.length;
+      routedSiblingRoots.add(rootOrderId);
+    }
+
+    if (capacityHeldSiblingGroups.length > 0) {
+      heldSiblingGroups.push(...capacityHeldSiblingGroups);
+    }
+
+    if (ordersToRoute.length === 0) {
+      metrics.totalMs = Date.now() - startTime;
+      console.log(`[Cron Router] [${executionId}] No routable orders after sibling-group gating - skipped n8n call:`, {
+        processing: processingCount,
+        available: availableSlots,
+        queued: queuedCount,
+        fetched: orders?.length || 0,
+        heldSiblingGroups,
+        totalDuration: `${metrics.totalMs}ms`
+      });
+      return NextResponse.json({
+        skipped: true,
+        reason: 'sibling_groups_waiting',
+        executionId,
+        processingCount,
+        availableSlots,
+        queuedCount,
+        fetched: orders?.length || 0,
+        heldSiblingGroups,
+        reminders: remindersSummary,
+        lifecycle: lifecycleSummary,
+        luluPoll: luluPollSummary,
+        metrics,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     // Log order details for diagnostics
     const displayOrderId = (order: { orderId?: string | null; amazon_order_id?: string | null }) =>
@@ -541,6 +711,7 @@ export async function GET(request: NextRequest) {
       fetched: orders?.length || 0,
       byWorkflow: ordersByWorkflow,
       orderIds: ordersToRoute.map(displayOrderId),
+      heldSiblingGroups,
       oldestQueued: ordersToRoute[0]?.queued_at,
       priorities: ordersToRoute.map(o => ({ id: displayOrderId(o), priority: o.priority })),
       fetchDuration: `${metrics.ordersFetchMs}ms`
@@ -600,6 +771,7 @@ export async function GET(request: NextRequest) {
           details: errorText.substring(0, 500),
           ordersProcessed: ordersToRoute.length,
           orderIds: ordersToRoute.map(displayOrderId),
+          heldSiblingGroups,
           metrics
         },
         { status: 502 }
@@ -629,6 +801,7 @@ export async function GET(request: NextRequest) {
       processingCount,
       availableSlots,
       queuedCount,
+      heldSiblingGroups,
       reminders: remindersSummary,
       lifecycle: lifecycleSummary,
       luluPoll: luluPollSummary,
