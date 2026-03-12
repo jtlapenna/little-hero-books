@@ -3,6 +3,32 @@ import { R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-config';
 import { verifyBearerAuth } from '@/lib/auth';
 import { getSignedUrlForObject } from '@/lib/r2-service';
 
+function normalizeKeyInput(value: string): { key: string; original: string } {
+  const original = String(value || '').trim();
+  if (!original) return { key: '', original };
+
+  const trimPath = (path: string) => path.replace(/^\/+/, '').split('?')[0].split('#')[0];
+
+  if (original.includes('/api/manifests/')) {
+    return { key: trimPath(original.split('/api/manifests/')[1] || ''), original };
+  }
+
+  if (original.includes('/api/assets/')) {
+    return { key: trimPath(original.split('/api/assets/')[1] || ''), original };
+  }
+
+  if (/^https?:\/\//i.test(original)) {
+    try {
+      const url = new URL(original);
+      return { key: trimPath(url.pathname), original };
+    } catch {
+      return { key: trimPath(original), original };
+    }
+  }
+
+  return { key: trimPath(original), original };
+}
+
 /**
  * Generate signed URL for R2 object access
  * 
@@ -34,9 +60,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const key = searchParams.get('key');
+    const keyInput = searchParams.get('key');
     const bucket = searchParams.get('bucket') || R2_PUBLIC_BUCKET;
     const expiresIn = parseInt(searchParams.get('expiresIn') || '3600', 10);
+    const { key, original } = normalizeKeyInput(keyInput || '');
     
     // Validation
     if (!key) {
@@ -75,6 +102,7 @@ export async function GET(request: NextRequest) {
       expiresIn,
       bucket,
       key,
+      original,
       generatedAt: new Date().toISOString()
     });
     
@@ -89,4 +117,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

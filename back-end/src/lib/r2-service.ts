@@ -227,8 +227,15 @@ export async function getSignedUrlForObject(
   try {
     // Get R2 credentials from environment variables
     const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
-    const ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
-    const SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
+    const ACCESS_KEY_ID =
+      process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
+      process.env.CLOUDFLARE_R2_ACCESS_KEY ||
+      process.env.R2_ACCESS_KEY_ID ||
+      process.env.R2_ACCESS_ID_KEY;
+    const SECRET_ACCESS_KEY =
+      process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
+      process.env.CLOUDFLARE_R2_SECRET_KEY ||
+      process.env.R2_SECRET_ACCESS_KEY;
     
     if (!ACCOUNT_ID || !ACCESS_KEY_ID || !SECRET_ACCESS_KEY) {
       throw new Error('Missing R2 credentials. Required: CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY');

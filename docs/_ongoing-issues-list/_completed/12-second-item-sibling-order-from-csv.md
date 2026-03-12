@@ -1,8 +1,15 @@
 # Moving the Second Item From an Order Forward (Sibling Order)
 
-**Status: CSV auto-sibling creation is implemented.** Uploading a CSV with multiple rows for the same `amazon-order-id` now automatically creates one Supabase order per row (primary + N-1 siblings) and triggers W0 for each. Manual CLI/API path is retained as a fallback. Automated aggregation (one Lulu job for sibling groups, combined shipping) is **Phase 2** — see **[24-sibling-aggregation-for-print-phase-2.md](_completed/24-sibling-aggregation-for-print-phase-2.md)**.
+**Status: Completed for Phase 1.** Uploading a CSV with multiple rows for the same `amazon-order-id` now automatically creates one Supabase order per row (primary + N-1 siblings) and triggers W0 for each. Manual CLI/API path is retained as a fallback. Automated aggregation (one Lulu job for sibling groups, combined shipping) is separate follow-up work tracked in **[24-sibling-aggregation-for-print-phase-2.md](_completed/24-sibling-aggregation-for-print-phase-2.md)**.
 
-**Scope: 2+ items.** The system supports orders with **two or more** books (e.g. 4 books = 4 line items). CSV upload creates N orders automatically. Create-sibling CLI and manual script are available as fallbacks.
+**Scope: 2+ items.** This issue is considered complete for sibling creation and forwarding: the system supports orders with **two or more** books (e.g. 4 books = 4 line items), CSV upload creates N orders automatically, and Create-sibling CLI/API fallbacks exist when CSV/download paths fail.
+
+**Completion note:** This issue is not the home for automatic combined-print aggregation. That work is intentionally separate. The implemented/validated outcome here is:
+
+- one order row per line item
+- synthetic sibling IDs for second+ items
+- W0 trigger for each sibling
+- sibling rows carry their own character data forward instead of stopping at the first item
 
 ## When one Amazon order has two or more books (multiple line items)
 
@@ -68,7 +75,7 @@ The API creates the sibling order and triggers W0; no download from Amazon is re
 
 ---
 
-## 5. Sending sibling orders to print together (manual script)
+## 5. Sending sibling orders to print together (manual script / separate follow-up)
 
 When all sibling books are ready for print (W4 / proof approved), you can submit them as **one Lulu print job** (one shipment, N line items) using:
 
@@ -87,7 +94,7 @@ The script fetches signed PDF URLs, gets a Lulu token, POSTs one print job with 
 
 ---
 
-## 6. Full system: aggregating sibling orders for print (automated workflow)
+## 6. Full system: aggregating sibling orders for print (automated workflow, separate follow-up)
 
 **Goal:** Once **all** sibling orders in a group (2 or more; e.g. 4 books) are processed through W3 (book assembly done, approved for print), automatically aggregate them into a **single Lulu print job** (one order, N line items, one shipment) instead of running W4 per order and creating N shipments.
 
