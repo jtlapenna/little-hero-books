@@ -16,8 +16,23 @@ function installPdfRenderGlobals() {
 
 async function getPdfJs() {
   if (!pdfjsPromise) {
-    installPdfRenderGlobals();
-    pdfjsPromise = import('pdfjs-dist/legacy/build/pdf.mjs');
+    pdfjsPromise = (async () => {
+      installPdfRenderGlobals();
+
+      const [{ WorkerMessageHandler }, pdfjs] = await Promise.all([
+        import('pdfjs-dist/legacy/build/pdf.worker.mjs'),
+        import('pdfjs-dist/legacy/build/pdf.mjs'),
+      ]);
+
+      // Pre-register the main-thread worker handler so pdfjs never falls back
+      // to importing "./pdf.worker.mjs" via a runtime-resolved workerSrc path.
+      globalThis.pdfjsWorker = {
+        ...(globalThis.pdfjsWorker || {}),
+        WorkerMessageHandler,
+      };
+
+      return pdfjs;
+    })();
   }
   return pdfjsPromise;
 }
