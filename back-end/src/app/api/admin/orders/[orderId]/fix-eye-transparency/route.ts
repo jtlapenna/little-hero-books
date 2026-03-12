@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PNG } from 'pngjs';
+import { decode, encode } from 'fast-png';
 import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { buildManifestKey } from '@/lib/r2-service';
 
@@ -149,18 +149,17 @@ function pointInShape(x: number, y: number, shape: ShapeFill): boolean {
 }
 
 function applyTransparencyFill(
-  png: PNG,
+  png: {
+    width: number;
+    height: number;
+    data: Uint8Array | Uint8ClampedArray;
+    channels: number;
+    depth?: number;
+  },
   shapes: ShapeFill[],
   alphaThreshold = 8
-): PNG {
-  const output = new PNG({
-    width: png.width,
-    height: png.height,
-    colorType: png.colorType,
-    inputHasAlpha: true,
-  });
-
-  png.data.copy(output.data);
+): Uint8Array {
+  const output = new Uint8Array(png.data);
 
   for (let y = 0; y < png.height; y += 1) {
     for (let x = 0; x < png.width; x += 1) {
@@ -176,10 +175,10 @@ function applyTransparencyFill(
         continue;
       }
 
-      output.data[idx] = shape.color.r;
-      output.data[idx + 1] = shape.color.g;
-      output.data[idx + 2] = shape.color.b;
-      output.data[idx + 3] = 255;
+      output[idx] = shape.color.r;
+      output[idx + 1] = shape.color.g;
+      output[idx + 2] = shape.color.b;
+      output[idx + 3] = 255;
     }
   }
 
@@ -296,9 +295,18 @@ export async function POST(
       }
     }
     const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
-    const png = PNG.sync.read(imageBuffer);
+    const png = decode(imageBuffer);
     const shapes = buildFillShapes(png.width, png.height, eyesOptions, teethOptions);
-    const resultBuffer = PNG.sync.write(applyTransparencyFill(png, shapes));
+    const resultData = applyTransparencyFill(png, shapes);
+    const resultBuffer = Buffer.from(
+      encode({
+        width: png.width,
+        height: png.height,
+        data: resultData,
+        channels: 4,
+        depth: 8,
+      }),
+    );
 
     await putObject(bucket, originalKey, resultBuffer, 'image/png');
 
