@@ -125,6 +125,233 @@ function inferChannels(dataLength: number, width: number, height: number): numbe
   return null;
 }
 
+function toFiniteNumber(value: unknown, fallback: number): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function multiplyAffineMatrices(
+  left: readonly [number, number, number, number, number, number],
+  right: readonly [number, number, number, number, number, number]
+): [number, number, number, number, number, number] {
+  return [
+    left[0] * right[0] + left[2] * right[1],
+    left[1] * right[0] + left[3] * right[1],
+    left[0] * right[2] + left[2] * right[3],
+    left[1] * right[2] + left[3] * right[3],
+    left[0] * right[4] + left[2] * right[5] + left[4],
+    left[1] * right[4] + left[3] * right[5] + left[5],
+  ];
+}
+
+class ServerDOMMatrix {
+  a = 1;
+  b = 0;
+  c = 0;
+  d = 1;
+  e = 0;
+  f = 0;
+  m11 = 1;
+  m12 = 0;
+  m13 = 0;
+  m14 = 0;
+  m21 = 0;
+  m22 = 1;
+  m23 = 0;
+  m24 = 0;
+  m31 = 0;
+  m32 = 0;
+  m33 = 1;
+  m34 = 0;
+  m41 = 0;
+  m42 = 0;
+  m43 = 0;
+  m44 = 1;
+  is2D = true;
+  isIdentity = true;
+
+  constructor(init?: unknown) {
+    const values = this.readInit(init);
+    this.assign(values[0], values[1], values[2], values[3], values[4], values[5]);
+  }
+
+  static fromMatrix(init?: unknown) {
+    return new ServerDOMMatrix(init);
+  }
+
+  multiplySelf(other?: unknown) {
+    const result = multiplyAffineMatrices(this.toTuple(), new ServerDOMMatrix(other).toTuple());
+    this.assign(result[0], result[1], result[2], result[3], result[4], result[5]);
+    return this;
+  }
+
+  preMultiplySelf(other?: unknown) {
+    const result = multiplyAffineMatrices(new ServerDOMMatrix(other).toTuple(), this.toTuple());
+    this.assign(result[0], result[1], result[2], result[3], result[4], result[5]);
+    return this;
+  }
+
+  translate(tx = 0, ty = 0) {
+    return this.clone().translateSelf(tx, ty);
+  }
+
+  translateSelf(tx = 0, ty = 0) {
+    return this.multiplySelf([1, 0, 0, 1, Number(tx) || 0, Number(ty) || 0]);
+  }
+
+  scale(scaleX = 1, scaleY = scaleX) {
+    return this.clone().scaleSelf(scaleX, scaleY);
+  }
+
+  scaleSelf(scaleX = 1, scaleY = scaleX) {
+    return this.multiplySelf([Number(scaleX) || 0, 0, 0, Number(scaleY) || 0, 0, 0]);
+  }
+
+  rotate(angle = 0) {
+    return this.clone().rotateSelf(angle);
+  }
+
+  rotateSelf(angle = 0) {
+    const theta = ((Number(angle) || 0) * Math.PI) / 180;
+    const cos = Math.cos(theta);
+    const sin = Math.sin(theta);
+    return this.multiplySelf([cos, sin, -sin, cos, 0, 0]);
+  }
+
+  invertSelf() {
+    const det = this.a * this.d - this.b * this.c;
+    if (!Number.isFinite(det) || Math.abs(det) < 1e-12) {
+      this.assign(NaN, NaN, NaN, NaN, NaN, NaN);
+      this.isIdentity = false;
+      return this;
+    }
+    this.assign(
+      this.d / det,
+      -this.b / det,
+      -this.c / det,
+      this.a / det,
+      (this.c * this.f - this.d * this.e) / det,
+      (this.b * this.e - this.a * this.f) / det
+    );
+    return this;
+  }
+
+  inverse() {
+    return this.clone().invertSelf();
+  }
+
+  multiply(other?: unknown) {
+    return this.clone().multiplySelf(other);
+  }
+
+  toFloat64Array() {
+    return new Float64Array([
+      this.m11,
+      this.m12,
+      this.m13,
+      this.m14,
+      this.m21,
+      this.m22,
+      this.m23,
+      this.m24,
+      this.m31,
+      this.m32,
+      this.m33,
+      this.m34,
+      this.m41,
+      this.m42,
+      this.m43,
+      this.m44,
+    ]);
+  }
+
+  toString() {
+    return `matrix(${this.a}, ${this.b}, ${this.c}, ${this.d}, ${this.e}, ${this.f})`;
+  }
+
+  private clone() {
+    return new ServerDOMMatrix(this);
+  }
+
+  private toTuple(): [number, number, number, number, number, number] {
+    return [this.a, this.b, this.c, this.d, this.e, this.f];
+  }
+
+  private assign(a: number, b: number, c: number, d: number, e: number, f: number) {
+    this.a = a;
+    this.b = b;
+    this.c = c;
+    this.d = d;
+    this.e = e;
+    this.f = f;
+
+    this.m11 = a;
+    this.m12 = b;
+    this.m13 = 0;
+    this.m14 = 0;
+    this.m21 = c;
+    this.m22 = d;
+    this.m23 = 0;
+    this.m24 = 0;
+    this.m31 = 0;
+    this.m32 = 0;
+    this.m33 = 1;
+    this.m34 = 0;
+    this.m41 = e;
+    this.m42 = f;
+    this.m43 = 0;
+    this.m44 = 1;
+    this.is2D = true;
+    this.isIdentity = a === 1 && b === 0 && c === 0 && d === 1 && e === 0 && f === 0;
+  }
+
+  private readInit(init: unknown): [number, number, number, number, number, number] {
+    if (!init) return [1, 0, 0, 1, 0, 0];
+
+    if (Array.isArray(init) || ArrayBuffer.isView(init)) {
+      const arr = Array.from(init as ArrayLike<unknown>, (value) => toFiniteNumber(value, 0));
+      if (arr.length >= 16) {
+        return [arr[0], arr[1], arr[4], arr[5], arr[12], arr[13]];
+      }
+      if (arr.length >= 6) {
+        return [arr[0], arr[1], arr[2], arr[3], arr[4], arr[5]];
+      }
+    }
+
+    if (typeof init === 'object') {
+      const src = init as Record<string, unknown>;
+      if ('a' in src || 'b' in src || 'c' in src || 'd' in src || 'e' in src || 'f' in src) {
+        return [
+          toFiniteNumber(src.a, 1),
+          toFiniteNumber(src.b, 0),
+          toFiniteNumber(src.c, 0),
+          toFiniteNumber(src.d, 1),
+          toFiniteNumber(src.e, 0),
+          toFiniteNumber(src.f, 0),
+        ];
+      }
+      if ('m11' in src || 'm12' in src || 'm21' in src || 'm22' in src || 'm41' in src || 'm42' in src) {
+        return [
+          toFiniteNumber(src.m11, 1),
+          toFiniteNumber(src.m12, 0),
+          toFiniteNumber(src.m21, 0),
+          toFiniteNumber(src.m22, 1),
+          toFiniteNumber(src.m41, 0),
+          toFiniteNumber(src.m42, 0),
+        ];
+      }
+    }
+
+    return [1, 0, 0, 1, 0, 0];
+  }
+}
+
+function ensureDomMatrixPolyfill() {
+  if (typeof (globalThis as { DOMMatrix?: unknown }).DOMMatrix === 'undefined') {
+    (globalThis as { DOMMatrix?: typeof ServerDOMMatrix }).DOMMatrix = ServerDOMMatrix;
+  }
+}
+
 async function computeWhiteSpaceRatio(
   imageData: Uint8Array,
   width: number,
@@ -164,16 +391,7 @@ async function computeWhiteSpaceRatio(
 }
 
 async function getPdfJsLib() {
-  if (typeof (globalThis as { DOMMatrix?: unknown }).DOMMatrix === 'undefined') {
-    try {
-      const canvasMod = await import('@napi-rs/canvas');
-      if (canvasMod.DOMMatrix) {
-        (globalThis as { DOMMatrix?: unknown }).DOMMatrix = canvasMod.DOMMatrix;
-      }
-    } catch {
-      // no-op; pdfjs import will surface the real error if the polyfill is unavailable.
-    }
-  }
+  ensureDomMatrixPolyfill();
 
   const mod = await import('pdfjs-dist/legacy/build/pdf.mjs');
   try {
