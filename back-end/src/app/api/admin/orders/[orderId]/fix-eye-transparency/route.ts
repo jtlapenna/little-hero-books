@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import sharp from 'sharp';
+import { PNG } from 'pngjs';
 import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { buildManifestKey } from '@/lib/r2-service';
 
@@ -13,8 +13,8 @@ function requireSameOrigin(request: NextRequest): boolean {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
   return (
     !origin ||
-    origin?.includes(siteUrl) ||
-    referer?.includes(siteUrl) ||
+    (!!siteUrl && origin.includes(siteUrl)) ||
+    (!!siteUrl && !!referer && referer.includes(siteUrl)) ||
     origin?.includes('littleherolabs.com') ||
     referer?.includes('littleherolabs.com')
   );
@@ -67,24 +67,30 @@ async function readJsonSafe<T>(res: Response): Promise<T> {
   }
 }
 
-/** Escape for SVG attributes (prevent XSS) */
-function escapeSvgAttr(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c] ?? c));
+function parseHexColor(hex: string): { r: number; g: number; b: number } {
+  const normalized = hex.trim().replace(/^#/, '');
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+    throw new Error(`Invalid hex color: ${hex}`);
+  }
+
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
 }
 
-/**
- * Build SVG with filled shapes for eyes and/or teeth.
- * Transparent base; only the shapes are filled.
- */
-function buildFillSvg(
+type ShapeFill =
+  | { type: 'circle'; cx: number; cy: number; radius: number; color: { r: number; g: number; b: number } }
+  | { type: 'ellipse'; cx: number; cy: number; rx: number; ry: number; color: { r: number; g: number; b: number } };
+
+function buildFillShapes(
   width: number,
   height: number,
   eyesOptions: EyesOptions | null,
   teethOptions: TeethOptions | null
-): string {
-  const parts: string[] = [];
+): ShapeFill[] {
+  const shapes: ShapeFill[] = [];
 
   if (eyesOptions) {
     const defaultRadiusNorm = eyesOptions.radius ?? DEFAULTS_EYES.radius;
@@ -94,7 +100,7 @@ function buildFillSvg(
     const rightRadiusNorm = eyesOptions.rightRadius ?? defaultRadiusNorm;
     const leftRadiusPx = toPx(leftRadiusNorm);
     const rightRadiusPx = toPx(rightRadiusNorm);
-    const color = escapeSvgAttr(eyesOptions.color ?? DEFAULTS_EYES.color);
+    const color = parseHexColor(eyesOptions.color ?? DEFAULTS_EYES.color);
 
     if (eyesOptions.useSingleEllipse) {
       const left = eyesOptions.leftEye ?? DEFAULTS_EYES.leftEye;
@@ -104,7 +110,7 @@ function buildFillSvg(
       const cy = ((left.y + right.y) / 2) * height;
       const rx = Math.max(radiusPx * 2, (Math.abs((right.x - left.x) * width) / 2) + radiusPx);
       const ry = radiusPx * 1.2;
-      parts.push(`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${color}"/>`);
+      shapes.push({ type: 'ellipse', cx, cy, rx, ry, color });
     } else {
       const left = eyesOptions.leftEye ?? DEFAULTS_EYES.leftEye;
       const right = eyesOptions.rightEye ?? DEFAULTS_EYES.rightEye;
@@ -112,8 +118,8 @@ function buildFillSvg(
       const y1 = left.y * height;
       const x2 = right.x * width;
       const y2 = right.y * height;
-      parts.push(`<circle cx="${x1}" cy="${y1}" r="${leftRadiusPx}" fill="${color}"/>`);
-      parts.push(`<circle cx="${x2}" cy="${y2}" r="${rightRadiusPx}" fill="${color}"/>`);
+      shapes.push({ type: 'circle', cx: x1, cy: y1, radius: leftRadiusPx, color });
+      shapes.push({ type: 'circle', cx: x2, cy: y2, radius: rightRadiusPx, color });
     }
   }
 
@@ -121,16 +127,63 @@ function buildFillSvg(
     const c = teethOptions.center ?? DEFAULTS_TEETH.center;
     const rx = (teethOptions.rx ?? DEFAULTS_TEETH.rx) * width;
     const ry = (teethOptions.ry ?? DEFAULTS_TEETH.ry) * height;
-    const color = escapeSvgAttr(teethOptions.color ?? DEFAULTS_TEETH.color);
+    const color = parseHexColor(teethOptions.color ?? DEFAULTS_TEETH.color);
     const cx = c.x * width;
     const cy = c.y * height;
-    parts.push(`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${color}"/>`);
+    shapes.push({ type: 'ellipse', cx, cy, rx, ry, color });
   }
 
-  if (parts.length === 0) return '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-  ${parts.join('\n  ')}
-</svg>`;
+  return shapes;
+}
+
+function pointInShape(x: number, y: number, shape: ShapeFill): boolean {
+  if (shape.type === 'circle') {
+    const dx = x - shape.cx;
+    const dy = y - shape.cy;
+    return (dx * dx) + (dy * dy) <= shape.radius * shape.radius;
+  }
+
+  const dx = (x - shape.cx) / shape.rx;
+  const dy = (y - shape.cy) / shape.ry;
+  return (dx * dx) + (dy * dy) <= 1;
+}
+
+function applyTransparencyFill(
+  png: PNG,
+  shapes: ShapeFill[],
+  alphaThreshold = 8
+): PNG {
+  const output = new PNG({
+    width: png.width,
+    height: png.height,
+    colorType: png.colorType,
+    inputHasAlpha: true,
+  });
+
+  png.data.copy(output.data);
+
+  for (let y = 0; y < png.height; y += 1) {
+    for (let x = 0; x < png.width; x += 1) {
+      const idx = (png.width * y + x) << 2;
+      const alpha = png.data[idx + 3];
+
+      if (alpha > alphaThreshold) {
+        continue;
+      }
+
+      const shape = shapes.find((candidate) => pointInShape(x, y, candidate));
+      if (!shape) {
+        continue;
+      }
+
+      output.data[idx] = shape.color.r;
+      output.data[idx + 1] = shape.color.g;
+      output.data[idx + 2] = shape.color.b;
+      output.data[idx + 3] = 255;
+    }
+  }
+
+  return output;
 }
 
 /**
@@ -205,7 +258,7 @@ export async function POST(
     const manifest = await readJsonSafe<{
       characterHash?: string;
       order?: { characterHash?: string };
-      entries?: Array<{ poseNumber: number; bgRemovedKey?: string }>;
+      entries?: Array<{ poseNumber: number; bgRemovedKey?: string; bgRemovedFilename?: string }>;
     }>(manifestRes);
 
     const characterHash = manifest.characterHash ?? manifest.order?.characterHash;
@@ -243,24 +296,9 @@ export async function POST(
       }
     }
     const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
-
-    const { width, height } = await sharp(imageBuffer).metadata();
-    if (!width || !height) {
-      return NextResponse.json(
-        { error: 'Could not read image dimensions' },
-        { status: 500 }
-      );
-    }
-
-    // Build fill SVG (transparent base + eyes and/or teeth shapes)
-    const fillSvg = buildFillSvg(width, height, eyesOptions, teethOptions);
-
-    // Composite: fill layer as base, character on top (transparent pixels show fill)
-    const resultBuffer = await sharp(Buffer.from(fillSvg))
-      .resize(width, height)
-      .composite([{ input: imageBuffer, top: 0, left: 0 }])
-      .png()
-      .toBuffer();
+    const png = PNG.sync.read(imageBuffer);
+    const shapes = buildFillShapes(png.width, png.height, eyesOptions, teethOptions);
+    const resultBuffer = PNG.sync.write(applyTransparencyFill(png, shapes));
 
     await putObject(bucket, originalKey, resultBuffer, 'image/png');
 
