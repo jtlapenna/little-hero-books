@@ -325,7 +325,7 @@ export async function POST(
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[fix-transparency]', msg);
     return NextResponse.json(
-      { error: 'Failed to fix transparency', details: msg },
+      { error: 'Failed to fix transparency', details: msg, message: msg },
       { status: 500 }
     );
   }

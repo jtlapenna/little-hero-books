@@ -26,7 +26,11 @@ export function extractApiErrorMessage(
   fallback: string
 ): string {
   if (!errorBody || typeof errorBody !== 'object') return fallback;
-  const err = (errorBody as Record<string, unknown>).error;
+  const body = errorBody as Record<string, unknown>;
+  const err = body.error;
+
+  if (typeof body.details === 'string' && body.details.trim()) return body.details;
+  if (typeof body.message === 'string' && body.message.trim()) return body.message;
   if (typeof err === 'string' && err.trim()) return err;
   if (err && typeof err === 'object' && typeof (err as Record<string, unknown>).message === 'string') {
     return (err as Record<string, unknown>).message as string;
@@ -107,4 +111,3 @@ export const errorHandler = {
   getErrorStats: getStatsInternal,
   resolveError: resolveInternal,
 };
-
