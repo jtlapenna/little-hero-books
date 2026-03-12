@@ -9,12 +9,8 @@
         "queryParameters": {
           "parameters": [
             {
-              "name": "id",
-              "value": "={{ 'eq.' + String($json.orderDbId) }}"
-            },
-            {
-              "name": "execution_status",
-              "value": "eq.ready_for_processing"
+              "name": "or",
+              "value": "={{ $json._route === 'sibling' ? `(and(root_order_id.eq.${$json.rootOrderId},orderId.neq.${$json.rootOrderId},execution_status.eq.ready_for_processing,next_workflow.in.(4,4-aggregate)),and(id.eq.${String($json.orderDbId)},execution_status.eq.ready_for_processing))` : `(and(id.eq.${String($json.orderDbId)},execution_status.eq.ready_for_processing))` }}"
             }
           ]
         },

@@ -526,10 +526,13 @@ export async function GET(request: NextRequest) {
     const ordersToRoute = eligibleOrders.slice(0, availableSlots);
 
     // Log order details for diagnostics
+    const displayOrderId = (order: { orderId?: string | null; amazon_order_id?: string | null }) =>
+      order.orderId || order.amazon_order_id || 'unknown';
+
     const ordersByWorkflow = ordersToRoute.reduce((acc, order) => {
       const workflow = order.next_workflow || 'unknown';
       if (!acc[workflow]) acc[workflow] = [];
-      acc[workflow].push(order.amazon_order_id);
+      acc[workflow].push(displayOrderId(order));
       return acc;
     }, {} as Record<string, string[]>);
 
@@ -537,9 +540,9 @@ export async function GET(request: NextRequest) {
       total: ordersToRoute.length,
       fetched: orders?.length || 0,
       byWorkflow: ordersByWorkflow,
-      orderIds: ordersToRoute.map(o => o.amazon_order_id),
+      orderIds: ordersToRoute.map(displayOrderId),
       oldestQueued: ordersToRoute[0]?.queued_at,
-      priorities: ordersToRoute.map(o => ({ id: o.amazon_order_id, priority: o.priority })),
+      priorities: ordersToRoute.map(o => ({ id: displayOrderId(o), priority: o.priority })),
       fetchDuration: `${metrics.ordersFetchMs}ms`
     });
 
@@ -585,7 +588,7 @@ export async function GET(request: NextRequest) {
         statusText: webhookResponse.statusText,
         error: errorText.substring(0, 500), // Limit error text length
         ordersAttempted: ordersToRoute.length,
-        orderIds: ordersToRoute.map(o => o.amazon_order_id),
+        orderIds: ordersToRoute.map(displayOrderId),
         webhookDuration: `${metrics.webhookCallMs}ms`,
         totalDuration: `${metrics.totalMs}ms`
       });
@@ -596,7 +599,7 @@ export async function GET(request: NextRequest) {
           status: webhookResponse.status,
           details: errorText.substring(0, 500),
           ordersProcessed: ordersToRoute.length,
-          orderIds: ordersToRoute.map(o => o.amazon_order_id),
+          orderIds: ordersToRoute.map(displayOrderId),
           metrics
         },
         { status: 502 }
@@ -608,7 +611,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Cron Router] [${executionId}] Successfully triggered n8n:`, {
       ordersProcessed: ordersToRoute.length,
-      orderIds: ordersToRoute.map(o => o.amazon_order_id),
+      orderIds: ordersToRoute.map(displayOrderId),
       byWorkflow: ordersByWorkflow,
       webhookStatus: webhookResponse.status,
       webhookDuration: `${metrics.webhookCallMs}ms`,
@@ -621,7 +624,7 @@ export async function GET(request: NextRequest) {
       message: 'Router triggered',
       executionId,
       ordersProcessed: ordersToRoute.length,
-      orderIds: ordersToRoute.map(o => o.amazon_order_id),
+      orderIds: ordersToRoute.map(displayOrderId),
       ordersByWorkflow,
       processingCount,
       availableSlots,
