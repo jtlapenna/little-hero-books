@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import sharp from 'sharp';
+import { PNG } from 'pngjs';
 
 import { verifyBearerAuth } from '@/lib/auth';
 import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
@@ -18,9 +18,20 @@ interface PageResult {
   hasImage: boolean;
   imageBytes: number;
   whiteSpaceRatio: number | null;
+  previewMeanAbsDiff?: number | null;
+  previewTopHalfMeanAbsDiff?: number | null;
+  previewBottomHalfMeanAbsDiff?: number | null;
   passed: boolean;
   failReasons: string[];
   warnings?: string[];
+}
+
+interface ExtractedPdfImage {
+  page: number;
+  width: number;
+  height: number;
+  compressedBytes: number;
+  data: Uint8Array;
 }
 
 interface PdfJsOperatorList {
@@ -60,6 +71,10 @@ const MIN_BYTES_PER_PAGE = 30_000;
 const MIN_IMAGE_BYTES = 50_000;
 const WHITE_SPACE_THRESHOLD = 0.4;
 const THUMBNAIL_SIZE = 200;
+const PREVIEW_DIFF_THRESHOLD = 20;
+const PREVIEW_HALF_DIFF_THRESHOLD = 25;
+const PREVIEW_HALF_IMBALANCE_THRESHOLD = 15;
+const PREVIEW_STRONG_MATCH_THRESHOLD = 5;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null;
@@ -114,25 +129,30 @@ async function computeWhiteSpaceRatio(
   try {
     const channels = inferChannels(imageData.byteLength, width, height);
     if (!channels) return null;
-
-    const thumbnail = await sharp(Buffer.from(imageData), {
-      raw: { width, height, channels },
-    })
-      .ensureAlpha()
-      .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'fill' })
-      .raw()
-      .toBuffer();
-
-    const totalPixels = thumbnail.length / 4;
-    if (totalPixels <= 0) return null;
+    const sampleWidth = Math.min(THUMBNAIL_SIZE, width);
+    const sampleHeight = Math.min(THUMBNAIL_SIZE, height);
+    if (sampleWidth <= 0 || sampleHeight <= 0) return null;
 
     let whiteCount = 0;
-    for (let i = 0; i < thumbnail.length; i += 4) {
-      const r = thumbnail[i];
-      const g = thumbnail[i + 1];
-      const b = thumbnail[i + 2];
-      if (r > 240 && g > 240 && b > 240) whiteCount += 1;
+    let totalPixels = 0;
+
+    for (let y = 0; y < sampleHeight; y += 1) {
+      const srcY = Math.min(height - 1, Math.floor((y * height) / sampleHeight));
+      for (let x = 0; x < sampleWidth; x += 1) {
+        const srcX = Math.min(width - 1, Math.floor((x * width) / sampleWidth));
+        const idx = (srcY * width + srcX) * channels;
+        if (idx < 0 || idx + channels > imageData.length) continue;
+
+        const r = imageData[idx];
+        const g = channels >= 3 ? imageData[idx + 1] : r;
+        const b = channels >= 3 ? imageData[idx + 2] : r;
+
+        if (r > 240 && g > 240 && b > 240) whiteCount += 1;
+        totalPixels += 1;
+      }
     }
+
+    if (totalPixels <= 0) return null;
     return whiteCount / totalPixels;
   } catch {
     return null;
@@ -160,6 +180,167 @@ function jsonFail(status: number, payload: Record<string, unknown>) {
 function countRegexMatches(text: string, re: RegExp): number {
   const m = text.match(re);
   return m ? m.length : 0;
+}
+
+function buildInteriorPageNames(expectedPageCount: number): string[] {
+  return Array.from({ length: expectedPageCount }, (_, i) => 'p' + String(i).padStart(2, '0'));
+}
+
+function buildExpectedPreviewKey(orderId: string, type: PdfType, page: number, expectedPageCount: number): string {
+  if (type === 'cover') {
+    return `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover-spread.png`;
+  }
+  const pageNames = buildInteriorPageNames(expectedPageCount);
+  const pageName = pageNames[page - 1];
+  return `book-mvp-simple-adventure/orders/${orderId}/preview-images/${pageName}.png`;
+}
+
+async function inflatePdfStream(stream: Uint8Array): Promise<Uint8Array> {
+  if (typeof DecompressionStream !== 'undefined') {
+    const ds = new DecompressionStream('deflate');
+    const decompressed = await new Response(
+      new Blob([stream]).stream().pipeThrough(ds)
+    ).arrayBuffer();
+    return new Uint8Array(decompressed);
+  }
+
+  const zlib = await import('node:zlib');
+  return zlib.inflateSync(Buffer.from(stream));
+}
+
+function extractFlateImageStreams(pdfArray: ArrayBuffer): {
+  images: ExtractedPdfImage[];
+  warnings: string[];
+} {
+  const pdfBuffer = Buffer.from(pdfArray);
+  const pdfText = pdfBuffer.toString('latin1');
+  const images: ExtractedPdfImage[] = [];
+  const warnings: string[] = [];
+
+  let searchStart = 0;
+  while (true) {
+    const imageIdx = pdfText.indexOf('/Subtype /Image', searchStart);
+    if (imageIdx === -1) break;
+
+    const dictStart = pdfText.lastIndexOf('<<', imageIdx);
+    const streamIdx = pdfText.indexOf('stream', imageIdx);
+    if (dictStart === -1 || streamIdx === -1 || streamIdx - dictStart > 2000) {
+      searchStart = imageIdx + 1;
+      continue;
+    }
+
+    const dictText = pdfText.slice(dictStart, streamIdx);
+    const width = Number(dictText.match(/\/Width\s+(\d+)/)?.[1] || 0);
+    const height = Number(dictText.match(/\/Height\s+(\d+)/)?.[1] || 0);
+    const length = Number(dictText.match(/\/Length\s+(\d+)/)?.[1] || 0);
+    const filter = dictText.match(/\/Filter\s*\/([A-Za-z0-9]+)/)?.[1] || '';
+    const bitsPerComponent = Number(dictText.match(/\/BitsPerComponent\s+(\d+)/)?.[1] || 0);
+
+    if (!width || !height || !length || filter !== 'FlateDecode' || bitsPerComponent !== 8) {
+      searchStart = streamIdx + 6;
+      continue;
+    }
+
+    let streamStart = streamIdx + 6;
+    if (pdfText[streamStart] === '\r' && pdfText[streamStart + 1] === '\n') streamStart += 2;
+    else if (pdfText[streamStart] === '\n') streamStart += 1;
+
+    const streamEnd = streamStart + length;
+    if (streamEnd > pdfBuffer.length) {
+      warnings.push(`image_stream_truncated_at_page_${images.length + 1}`);
+      break;
+    }
+
+    images.push({
+      page: images.length + 1,
+      width,
+      height,
+      compressedBytes: length,
+      data: pdfBuffer.subarray(streamStart, streamEnd),
+    });
+
+    searchStart = streamEnd;
+  }
+
+  return { images, warnings };
+}
+
+function sampleRgbNearest(
+  imageData: Uint8Array,
+  width: number,
+  height: number,
+  targetWidth = THUMBNAIL_SIZE,
+  targetHeight = THUMBNAIL_SIZE
+): Uint8Array {
+  const channels = inferChannels(imageData.byteLength, width, height);
+  if (!channels || channels < 3) {
+    throw new Error(`Unable to infer RGB channels for ${width}x${height}`);
+  }
+
+  const out = new Uint8Array(targetWidth * targetHeight * 3);
+  let outIdx = 0;
+  for (let y = 0; y < targetHeight; y += 1) {
+    const srcY = Math.min(height - 1, Math.floor((y * height) / targetHeight));
+    for (let x = 0; x < targetWidth; x += 1) {
+      const srcX = Math.min(width - 1, Math.floor((x * width) / targetWidth));
+      const srcIdx = (srcY * width + srcX) * channels;
+      out[outIdx++] = imageData[srcIdx];
+      out[outIdx++] = imageData[srcIdx + 1];
+      out[outIdx++] = imageData[srcIdx + 2];
+    }
+  }
+  return out;
+}
+
+function computeSampleMeanAbsDiff(
+  left: Uint8Array,
+  right: Uint8Array,
+  startRow = 0,
+  endRow = THUMBNAIL_SIZE
+): number {
+  if (left.length !== right.length) throw new Error('Sample buffers must match length');
+  const width = THUMBNAIL_SIZE;
+  const start = startRow * width * 3;
+  const end = Math.min(left.length, endRow * width * 3);
+  let total = 0;
+  let count = 0;
+  for (let i = start; i < end; i += 1) {
+    total += Math.abs(left[i] - right[i]);
+    count += 1;
+  }
+  return count > 0 ? total / count : 0;
+}
+
+async function decodePreviewPngSample(key: string): Promise<{
+  sample: Uint8Array;
+  whiteSpaceRatio: number | null;
+}> {
+  const response = await getObject(R2_ORDERS_BUCKET, key);
+  const pngBuffer = Buffer.from(await response.arrayBuffer());
+  const decoded = PNG.sync.read(pngBuffer, { skipRescale: true });
+  const { width, height, data } = decoded;
+  const sample = new Uint8Array(THUMBNAIL_SIZE * THUMBNAIL_SIZE * 3);
+  let outIdx = 0;
+  for (let y = 0; y < THUMBNAIL_SIZE; y += 1) {
+    const srcY = Math.min(height - 1, Math.floor((y * height) / THUMBNAIL_SIZE));
+    for (let x = 0; x < THUMBNAIL_SIZE; x += 1) {
+      const srcX = Math.min(width - 1, Math.floor((x * width) / THUMBNAIL_SIZE));
+      const srcIdx = (srcY * width + srcX) * 4;
+      sample[outIdx++] = data[srcIdx];
+      sample[outIdx++] = data[srcIdx + 1];
+      sample[outIdx++] = data[srcIdx + 2];
+    }
+  }
+
+  let whiteCount = 0;
+  for (let i = 0; i < sample.length; i += 3) {
+    if (sample[i] > 240 && sample[i + 1] > 240 && sample[i + 2] > 240) whiteCount += 1;
+  }
+
+  return {
+    sample,
+    whiteSpaceRatio: whiteCount / (THUMBNAIL_SIZE * THUMBNAIL_SIZE),
+  };
 }
 
 function fallbackAnalyzePdfBytes(pdfArray: ArrayBuffer): {
@@ -241,6 +422,111 @@ export async function POST(request: NextRequest) {
         reasonCode: 'pdf_too_small',
         reason: `PDF size below minimum heuristic (${MIN_BYTES_PER_PAGE} bytes/page)`,
       });
+    }
+
+    const extracted = extractFlateImageStreams(pdfArray);
+    if (extracted.images.length === expectedPageCount) {
+      const pages: PageResult[] = [];
+      const failedPages: number[] = [];
+      const warnings = [...extracted.warnings, 'direct_image_stream_compare_used'];
+      const previewCache = new Map<string, { sample: Uint8Array; whiteSpaceRatio: number | null }>();
+
+      for (const image of extracted.images) {
+        const pageWarnings: string[] = [];
+        const failReasons: string[] = [];
+        let rawImage: Uint8Array;
+        let pdfWhiteSpaceRatio: number | null = null;
+        let previewMeanAbsDiff: number | null = null;
+        let previewTopHalfMeanAbsDiff: number | null = null;
+        let previewBottomHalfMeanAbsDiff: number | null = null;
+
+        try {
+          rawImage = await inflatePdfStream(image.data);
+        } catch (error) {
+          throw new Error(`Failed to inflate embedded page image ${image.page}: ${getErrorMessage(error)}`);
+        }
+
+        const sample = sampleRgbNearest(rawImage, image.width, image.height);
+        pdfWhiteSpaceRatio = await computeWhiteSpaceRatio(rawImage, image.width, image.height);
+
+        try {
+          const previewKey = buildExpectedPreviewKey(orderId, type, image.page, expectedPageCount);
+          let preview = previewCache.get(previewKey);
+          if (!preview) {
+            preview = await decodePreviewPngSample(previewKey);
+            previewCache.set(previewKey, preview);
+          }
+
+          previewMeanAbsDiff = computeSampleMeanAbsDiff(sample, preview.sample);
+          previewTopHalfMeanAbsDiff = computeSampleMeanAbsDiff(sample, preview.sample, 0, THUMBNAIL_SIZE / 2);
+          previewBottomHalfMeanAbsDiff = computeSampleMeanAbsDiff(sample, preview.sample, THUMBNAIL_SIZE / 2, THUMBNAIL_SIZE);
+
+          if (previewMeanAbsDiff > PREVIEW_DIFF_THRESHOLD) {
+            failReasons.push(`preview_diff_too_high:${previewMeanAbsDiff.toFixed(2)}>${PREVIEW_DIFF_THRESHOLD}`);
+          }
+          if (
+            Math.max(previewTopHalfMeanAbsDiff, previewBottomHalfMeanAbsDiff) > PREVIEW_HALF_DIFF_THRESHOLD &&
+            Math.abs(previewTopHalfMeanAbsDiff - previewBottomHalfMeanAbsDiff) > PREVIEW_HALF_IMBALANCE_THRESHOLD
+          ) {
+            failReasons.push(
+              `preview_half_diff_imbalance:${previewTopHalfMeanAbsDiff.toFixed(2)}/${previewBottomHalfMeanAbsDiff.toFixed(2)}`
+            );
+          }
+        } catch (error) {
+          pageWarnings.push(`preview_compare_unavailable:${getErrorMessage(error)}`);
+          warnings.push(`page_${image.page}:preview_compare_unavailable`);
+        }
+
+        const hasStrongPreviewMatch =
+          previewMeanAbsDiff !== null && previewMeanAbsDiff <= PREVIEW_STRONG_MATCH_THRESHOLD;
+
+        if (!hasStrongPreviewMatch && image.compressedBytes < MIN_IMAGE_BYTES) {
+          failReasons.push(`image_bytes_too_small:${image.compressedBytes}<${MIN_IMAGE_BYTES}`);
+        }
+        if (!hasStrongPreviewMatch && pdfWhiteSpaceRatio !== null && pdfWhiteSpaceRatio > WHITE_SPACE_THRESHOLD) {
+          failReasons.push(`white_space_ratio_too_high:${pdfWhiteSpaceRatio.toFixed(3)}>${WHITE_SPACE_THRESHOLD}`);
+        }
+
+        const passed = failReasons.length === 0;
+        if (!passed) failedPages.push(image.page);
+
+        pages.push({
+          page: image.page,
+          hasImage: true,
+          imageBytes: image.compressedBytes,
+          whiteSpaceRatio: pdfWhiteSpaceRatio,
+          previewMeanAbsDiff,
+          previewTopHalfMeanAbsDiff,
+          previewBottomHalfMeanAbsDiff,
+          passed,
+          failReasons,
+          ...(pageWarnings.length ? { warnings: pageWarnings } : {}),
+        });
+      }
+
+      const passed = failedPages.length === 0;
+      const durationMs = Date.now() - startedAt;
+      const avgBytesPerPage = Math.floor(totalPdfBytes / Math.max(expectedPageCount, 1));
+
+      return NextResponse.json(
+        {
+          passed,
+          orderId,
+          type,
+          pdfR2Key,
+          reasonCode: passed ? 'all_passed' : 'page_checks_failed',
+          reason: passed ? 'all_passed' : `Failed pages: ${failedPages.join(', ')}`,
+          pageCount: expectedPageCount,
+          expectedPageCount,
+          totalPdfBytes,
+          avgBytesPerPage,
+          failedPages,
+          pages,
+          warnings,
+          durationMs,
+        },
+        { status: 200 }
+      );
     }
 
     const pdfjs = await getPdfJsLib();
@@ -485,4 +771,3 @@ export async function POST(request: NextRequest) {
     });
   }
 }
-
