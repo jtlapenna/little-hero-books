@@ -751,31 +751,83 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "const item = $input.item.json || {};\nconst orderId = item.orderId || item.amazonOrderId || item.amazon_order_id;\nconst apiBase = String(item.CONFIG?.renderer?.apiBase || '').replace(/\\/$/, '');\nconst rendererTokenFromVars = typeof $vars !== 'undefined' && $vars ? $vars.RENDERER_INTERNAL_TOKEN : undefined;\nconst rendererTokenFromEnv = typeof $env !== 'undefined' && $env ? $env.RENDERER_INTERNAL_TOKEN : undefined;\nconst token = String(rendererTokenFromVars ?? rendererTokenFromEnv ?? '').trim();\nconst pdfUrl = item.interiorSignedUrl || '';\nconst expectedPageCount = Number(item.expectedPageCount);\nconst previewImageUrls = Array.isArray(item.interiorPreviewImageUrls) ? item.interiorPreviewImageUrls : [];\nconst pageLabels = Array.isArray(item.pageLabels) ? item.pageLabels : [];\nif (!orderId) throw new Error('[QA Check Interior PDF] Missing orderId');\nif (!apiBase) throw new Error('[QA Check Interior PDF] Missing CONFIG.renderer.apiBase');\nif (!token) throw new Error('[QA Check Interior PDF] Missing RENDERER_INTERNAL_TOKEN in $vars or $env');\nif (!pdfUrl) throw new Error('[QA Check Interior PDF] Missing interiorSignedUrl');\nif (!Number.isFinite(expectedPageCount) || expectedPageCount < 1) throw new Error('[QA Check Interior PDF] Invalid expectedPageCount');\nif (previewImageUrls.length !== expectedPageCount) throw new Error('[QA Check Interior PDF] Invalid interiorPreviewImageUrls length');\nif (pageLabels.length !== expectedPageCount) throw new Error('[QA Check Interior PDF] Invalid pageLabels length');\nconst url = apiBase + '/qa-pdf';\nconst http = this.helpers.httpRequest;\nfunction sleep(ms){ return new Promise(r => setTimeout(r, ms)); }\nlet resp = null;\nlet lastErr = null;\nfor (let attempt = 1; attempt <= 3; attempt++) {\n  try {\n    resp = await http({ method: 'POST', url, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: { orderId, type: 'interior', pdfUrl, expectedPageCount, previewImageUrls, pageLabels }, json: true, ignoreHttpStatusErrors: true, returnFullResponse: true, timeout: 65000 });\n  } catch (error) {\n    lastErr = error;\n    resp = null;\n  }\n  const statusCode = resp ? Number(resp.statusCode || resp.status || 200) : 502;\n  if (statusCode >= 500 && attempt < 3) { await sleep(1000 * attempt); continue; }\n  break;\n}\nif (!resp) {\n  throw new Error('[QA Check Interior PDF] QA unavailable after 3 attempts for orderId=' + orderId + ': ' + (lastErr?.message || 'unknown'));\n}\nconst statusCode = Number(resp.statusCode || resp.status || 200);\nconst headers = resp && typeof resp === 'object' && resp.headers && typeof resp.headers === 'object' ? resp.headers : {};\nconst contentType = String(headers['content-type'] || headers['Content-Type'] || '');\nconst rawBody = Object.prototype.hasOwnProperty.call(resp || {}, 'body') ? resp.body : resp;\nlet payload = null;\nif (rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody)) payload = rawBody;\nelse if (typeof rawBody === 'string') { const trimmed = rawBody.trim(); if (trimmed.startsWith('{') || trimmed.startsWith('[')) { try { payload = JSON.parse(trimmed); } catch (error) {} } }\nconst bodyPreview = (() => { try { return typeof rawBody === 'string' ? rawBody.slice(0, 280) : JSON.stringify(rawBody).slice(0, 280); } catch (error) { return String(rawBody).slice(0, 280); } })();\nif (statusCode === 401 || statusCode === 403) throw new Error('[QA Check Interior PDF] Auth failure (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\nif (statusCode >= 500) throw new Error('[QA Check Interior PDF] QA renderer returned ' + statusCode + ' for orderId=' + orderId + ' after retries' + ' (body=' + (bodyPreview || 'n/a') + ')');\nif (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('[QA Check Interior PDF] Invalid response payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\nif (statusCode >= 400) throw new Error('[QA Check Interior PDF] Client error (status=' + statusCode + ', orderId=' + orderId + ', reason=' + (payload.reasonCode || payload.error || 'unknown') + ', body=' + (bodyPreview || 'n/a') + ')');\nconst qaInterior = {\n  statusCode,\n  passed: Boolean(payload.passed),\n  skipped: false,\n  reasonCode: payload.reasonCode || 'unknown',\n  reason: payload.reason || 'unknown',\n  failedPages: Array.isArray(payload.failedPages) ? payload.failedPages : [],\n  warnings: Array.isArray(payload.warnings) ? payload.warnings : [],\n  raw: payload,\n};\nreturn { json: { ...item, qaInterior } };"
+        "method": "POST",
+        "url": "={{String($json.CONFIG?.renderer?.apiBase || '').replace(/\\/$/, '') + '/qa-pdf'}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { orderId: $json.orderId || $json.amazonOrderId || $json.amazon_order_id, type: 'interior', pdfUrl: $json.interiorSignedUrl || '', expectedPageCount: Number($json.expectedPageCount), previewImageUrls: Array.isArray($json.interiorPreviewImageUrls) ? $json.interiorPreviewImageUrls : [], pageLabels: Array.isArray($json.pageLabels) ? $json.pageLabels : [] } }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 65000
+        }
       },
       "id": "4dde9210-f56e-4f50-ad4f-1b065acf33bb",
       "name": "QA Check Interior PDF",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         35616,
         18192
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "const item = $input.item.json || {};\nconst orderId = item.orderId || item.amazonOrderId || item.amazon_order_id;\nconst apiBase = String(item.CONFIG?.renderer?.apiBase || '').replace(/\\/$/, '');\nconst rendererTokenFromVars = typeof $vars !== 'undefined' && $vars ? $vars.RENDERER_INTERNAL_TOKEN : undefined;\nconst rendererTokenFromEnv = typeof $env !== 'undefined' && $env ? $env.RENDERER_INTERNAL_TOKEN : undefined;\nconst token = String(rendererTokenFromVars ?? rendererTokenFromEnv ?? '').trim();\nconst pdfUrl = item.coverSignedUrl || '';\nconst previewImageUrls = Array.isArray(item.coverPreviewImageUrls) ? item.coverPreviewImageUrls : [];\nif (!orderId) throw new Error('[QA Check Cover PDF] Missing orderId');\nif (!apiBase) throw new Error('[QA Check Cover PDF] Missing CONFIG.renderer.apiBase');\nif (!token) throw new Error('[QA Check Cover PDF] Missing RENDERER_INTERNAL_TOKEN in $vars or $env');\nif (!pdfUrl) throw new Error('[QA Check Cover PDF] Missing coverSignedUrl');\nif (previewImageUrls.length !== 1) throw new Error('[QA Check Cover PDF] Invalid coverPreviewImageUrls length');\nconst url = apiBase + '/qa-pdf';\nconst http = this.helpers.httpRequest;\nfunction sleep(ms){ return new Promise(r => setTimeout(r, ms)); }\nlet resp = null;\nlet lastErr = null;\nfor (let attempt = 1; attempt <= 3; attempt++) {\n  try {\n    resp = await http({ method: 'POST', url, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: { orderId, type: 'cover', pdfUrl, expectedPageCount: 1, previewImageUrls, pageLabels: ['cover'] }, json: true, ignoreHttpStatusErrors: true, returnFullResponse: true, timeout: 65000 });\n  } catch (error) {\n    lastErr = error;\n    resp = null;\n  }\n  const statusCode = resp ? Number(resp.statusCode || resp.status || 200) : 502;\n  if (statusCode >= 500 && attempt < 3) { await sleep(1000 * attempt); continue; }\n  break;\n}\nif (!resp) {\n  throw new Error('[QA Check Cover PDF] QA unavailable after 3 attempts for orderId=' + orderId + ': ' + (lastErr?.message || 'unknown'));\n}\nconst statusCode = Number(resp.statusCode || resp.status || 200);\nconst headers = resp && typeof resp === 'object' && resp.headers && typeof resp.headers === 'object' ? resp.headers : {};\nconst contentType = String(headers['content-type'] || headers['Content-Type'] || '');\nconst rawBody = Object.prototype.hasOwnProperty.call(resp || {}, 'body') ? resp.body : resp;\nlet payload = null;\nif (rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody)) payload = rawBody;\nelse if (typeof rawBody === 'string') { const trimmed = rawBody.trim(); if (trimmed.startsWith('{') || trimmed.startsWith('[')) { try { payload = JSON.parse(trimmed); } catch (error) {} } }\nconst bodyPreview = (() => { try { return typeof rawBody === 'string' ? rawBody.slice(0, 280) : JSON.stringify(rawBody).slice(0, 280); } catch (error) { return String(rawBody).slice(0, 280); } })();\nif (statusCode === 401 || statusCode === 403) throw new Error('[QA Check Cover PDF] Auth failure (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\nif (statusCode >= 500) throw new Error('[QA Check Cover PDF] QA renderer returned ' + statusCode + ' for orderId=' + orderId + ' after retries' + ' (body=' + (bodyPreview || 'n/a') + ')');\nif (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('[QA Check Cover PDF] Invalid response payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\nif (statusCode >= 400) throw new Error('[QA Check Cover PDF] Client error (status=' + statusCode + ', orderId=' + orderId + ', reason=' + (payload.reasonCode || payload.error || 'unknown') + ', body=' + (bodyPreview || 'n/a') + ')');\nconst qaCover = {\n  statusCode,\n  passed: Boolean(payload.passed),\n  skipped: false,\n  reasonCode: payload.reasonCode || 'unknown',\n  reason: payload.reason || 'unknown',\n  failedPages: Array.isArray(payload.failedPages) ? payload.failedPages : [],\n  warnings: Array.isArray(payload.warnings) ? payload.warnings : [],\n  raw: payload,\n};\nconst qaInterior = item.qaInterior || {};\nconst qaPassed = Boolean(qaInterior.passed) && Boolean(qaCover.passed);\nreturn { json: { ...item, qaCover, qaPassed, qaSkipped: false, qaFailedPages: [...(qaInterior.failedPages || []), ...(qaCover.failedPages || [])] } };"
+        "method": "POST",
+        "url": "={{String($json.CONFIG?.renderer?.apiBase || '').replace(/\\/$/, '') + '/qa-pdf'}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { orderId: $json.orderId || $json.amazonOrderId || $json.amazon_order_id, type: 'cover', pdfUrl: $json.coverSignedUrl || '', expectedPageCount: 1, previewImageUrls: Array.isArray($json.coverPreviewImageUrls) ? $json.coverPreviewImageUrls : [], pageLabels: ['cover'] } }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 65000
+        }
       },
       "id": "dbc644db-08dd-4939-8ba3-48256fe737b5",
       "name": "QA Check Cover PDF",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        33248,
-        18528
-      ]
+        36064,
+        18192
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -808,7 +860,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const j = $input.item.json || {};\nconst missing = [];\nconst expectedPageCount = Number(j.expectedPageCount);\nconst rendererApiBase = String(j.CONFIG?.renderer?.apiBase || '').trim();\nconst rendererTokenFromVars = typeof $vars !== 'undefined' && $vars ? $vars.RENDERER_INTERNAL_TOKEN : undefined;\nconst rendererTokenFromEnv = typeof $env !== 'undefined' && $env ? $env.RENDERER_INTERNAL_TOKEN : undefined;\nconst rendererToken = String(rendererTokenFromVars ?? rendererTokenFromEnv ?? '').trim();\nconst rendererQaUrl = rendererApiBase ? rendererApiBase.replace(/\\/$/, '') + '/qa-pdf' : '';\nif (!(j.orderId || j.amazonOrderId || j.amazon_order_id)) missing.push('orderId');\nif (!Number.isFinite(expectedPageCount) || expectedPageCount < 1) missing.push('expectedPageCount');\nif (!rendererApiBase) missing.push('CONFIG.renderer.apiBase');\nif (!rendererToken) missing.push('RENDERER_INTERNAL_TOKEN($vars|$env)');\nif (!j.interiorSignedUrl) missing.push('interiorSignedUrl');\nif (!j.coverSignedUrl) missing.push('coverSignedUrl');\nif (!Array.isArray(j.interiorPreviewImageUrls) || j.interiorPreviewImageUrls.length !== expectedPageCount) missing.push('interiorPreviewImageUrls');\nif (!Array.isArray(j.coverPreviewImageUrls) || j.coverPreviewImageUrls.length !== 1) missing.push('coverPreviewImageUrls');\nif (!Array.isArray(j.pageLabels) || j.pageLabels.length !== expectedPageCount) missing.push('pageLabels');\nif (rendererApiBase && !/^https?:\\/\\/[^\\s]+$/i.test(rendererApiBase)) missing.push('rendererApiBaseFormat');\nif (missing.length) {\n  throw new Error('[Guard QA Inputs] Missing ' + missing.join(', ') + ' (hasOrderId=' + !!(j.orderId || j.amazonOrderId || j.amazon_order_id) + ', hasInteriorSignedUrl=' + !!j.interiorSignedUrl + ', hasCoverSignedUrl=' + !!j.coverSignedUrl + ', interiorPreviewCount=' + (Array.isArray(j.interiorPreviewImageUrls) ? j.interiorPreviewImageUrls.length : 0) + ', coverPreviewCount=' + (Array.isArray(j.coverPreviewImageUrls) ? j.coverPreviewImageUrls.length : 0) + ', expectedPageCount=' + (Number.isFinite(expectedPageCount) ? expectedPageCount : 'n/a') + ', rendererQaUrl=' + (rendererQaUrl || 'n/a') + ', sourceNode=Prepare Renderer QA Inputs)');\n}\nreturn { json: j };"
+        "jsCode": "const j = $input.item.json || {};\nconst missing = [];\nconst expectedPageCount = Number(j.expectedPageCount);\nconst rendererApiBase = String(j.CONFIG?.renderer?.apiBase || '').trim();\nconst rendererQaUrl = rendererApiBase ? rendererApiBase.replace(/\\/$/, '') + '/qa-pdf' : '';\nif (!(j.orderId || j.amazonOrderId || j.amazon_order_id)) missing.push('orderId');\nif (!Number.isFinite(expectedPageCount) || expectedPageCount < 1) missing.push('expectedPageCount');\nif (!rendererApiBase) missing.push('CONFIG.renderer.apiBase');\nif (!j.interiorSignedUrl) missing.push('interiorSignedUrl');\nif (!j.coverSignedUrl) missing.push('coverSignedUrl');\nif (!Array.isArray(j.interiorPreviewImageUrls) || j.interiorPreviewImageUrls.length !== expectedPageCount) missing.push('interiorPreviewImageUrls');\nif (!Array.isArray(j.coverPreviewImageUrls) || j.coverPreviewImageUrls.length !== 1) missing.push('coverPreviewImageUrls');\nif (!Array.isArray(j.pageLabels) || j.pageLabels.length !== expectedPageCount) missing.push('pageLabels');\nif (rendererApiBase && !/^https?:\\/\\/[^\\s]+$/i.test(rendererApiBase)) missing.push('rendererApiBaseFormat');\nif (missing.length) {\n  throw new Error('[Guard QA Inputs] Missing ' + missing.join(', ') + ' (hasOrderId=' + !!(j.orderId || j.amazonOrderId || j.amazon_order_id) + ', hasInteriorSignedUrl=' + !!j.interiorSignedUrl + ', hasCoverSignedUrl=' + !!j.coverSignedUrl + ', interiorPreviewCount=' + (Array.isArray(j.interiorPreviewImageUrls) ? j.interiorPreviewImageUrls.length : 0) + ', coverPreviewCount=' + (Array.isArray(j.coverPreviewImageUrls) ? j.coverPreviewImageUrls.length : 0) + ', expectedPageCount=' + (Number.isFinite(expectedPageCount) ? expectedPageCount : 'n/a') + ', rendererQaUrl=' + (rendererQaUrl || 'n/a') + ', sourceNode=Prepare Renderer QA Inputs)');\n}\nreturn { json: j };"
       },
       "id": "a93c8068-e3eb-4106-b3e9-4e7d6c86b4b0",
       "name": "Guard QA Inputs",
@@ -853,8 +905,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        33472,
-        18752
+        36512,
+        18192
       ]
     },
     {
@@ -869,6 +921,32 @@
       "position": [
         33696,
         18896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const responseItems = $input.all();\nif (!responseItems.length) {\n  throw new Error('[Parse Interior QA Response] Missing renderer response items');\n}\nlet sourceItems = [];\ntry {\n  sourceItems = $items(\"Guard QA Inputs\", 0, $runIndex).map((entry) => entry.json || {});\n} catch (error) {\n  sourceItems = [];\n}\nreturn responseItems.map((entry, index) => {\n  const item = sourceItems[index] || {};\n  const orderId = item.orderId || item.amazonOrderId || item.amazon_order_id;\n  if (!orderId) throw new Error('[Parse Interior QA Response] Missing orderId');\n  const resp = entry?.json || {};\n  const statusCode = Number(resp.statusCode || resp.status || 200);\n  const headers = resp && typeof resp === 'object' && resp.headers && typeof resp.headers === 'object' ? resp.headers : {};\n  const contentType = String(headers['content-type'] || headers['Content-Type'] || '');\n  const rawBody = Object.prototype.hasOwnProperty.call(resp || {}, 'body') ? resp.body : resp;\n  let payload = null;\n  if (rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody)) payload = rawBody;\n  else if (typeof rawBody === 'string') {\n    const trimmed = rawBody.trim();\n    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {\n      try { payload = JSON.parse(trimmed); } catch (error) {}\n    }\n  }\n  const bodyPreview = (() => {\n    try {\n      return typeof rawBody === 'string' ? rawBody.slice(0, 280) : JSON.stringify(rawBody).slice(0, 280);\n    } catch (error) {\n      return String(rawBody).slice(0, 280);\n    }\n  })();\n  if (statusCode === 401 || statusCode === 403) throw new Error('[Parse Interior QA Response] Auth failure (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 500) throw new Error('[Parse Interior QA Response] QA renderer returned ' + statusCode + ' for orderId=' + orderId + ' (body=' + (bodyPreview || 'n/a') + ')');\n  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('[Parse Interior QA Response] Invalid response payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 400) throw new Error('[Parse Interior QA Response] Client error (status=' + statusCode + ', orderId=' + orderId + ', reason=' + (payload.reasonCode || payload.error || 'unknown') + ', body=' + (bodyPreview || 'n/a') + ')');\n  const qaInterior = {\n    statusCode,\n    passed: Boolean(payload.passed),\n    skipped: false,\n    reasonCode: payload.reasonCode || 'unknown',\n    reason: payload.reason || 'unknown',\n    failedPages: Array.isArray(payload.failedPages) ? payload.failedPages : [],\n    warnings: Array.isArray(payload.warnings) ? payload.warnings : [],\n    raw: payload,\n  };\n  return { json: { ...item, qaInterior } };\n});"
+      },
+      "id": "223556c3-e995-420e-b1e9-658ae0a57efb",
+      "name": "Parse Interior QA Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        35840,
+        18192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const responseItems = $input.all();\nif (!responseItems.length) {\n  throw new Error('[Parse Cover QA Response] Missing renderer response items');\n}\nlet sourceItems = [];\ntry {\n  sourceItems = $items(\"Parse Interior QA Response\", 0, $runIndex).map((entry) => entry.json || {});\n} catch (error) {\n  sourceItems = [];\n}\nreturn responseItems.map((entry, index) => {\n  const item = sourceItems[index] || {};\n  const orderId = item.orderId || item.amazonOrderId || item.amazon_order_id;\n  if (!orderId) throw new Error('[Parse Cover QA Response] Missing orderId');\n  const resp = entry?.json || {};\n  const statusCode = Number(resp.statusCode || resp.status || 200);\n  const headers = resp && typeof resp === 'object' && resp.headers && typeof resp.headers === 'object' ? resp.headers : {};\n  const contentType = String(headers['content-type'] || headers['Content-Type'] || '');\n  const rawBody = Object.prototype.hasOwnProperty.call(resp || {}, 'body') ? resp.body : resp;\n  let payload = null;\n  if (rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody)) payload = rawBody;\n  else if (typeof rawBody === 'string') {\n    const trimmed = rawBody.trim();\n    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {\n      try { payload = JSON.parse(trimmed); } catch (error) {}\n    }\n  }\n  const bodyPreview = (() => {\n    try {\n      return typeof rawBody === 'string' ? rawBody.slice(0, 280) : JSON.stringify(rawBody).slice(0, 280);\n    } catch (error) {\n      return String(rawBody).slice(0, 280);\n    }\n  })();\n  if (statusCode === 401 || statusCode === 403) throw new Error('[Parse Cover QA Response] Auth failure (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 500) throw new Error('[Parse Cover QA Response] QA renderer returned ' + statusCode + ' for orderId=' + orderId + ' (body=' + (bodyPreview || 'n/a') + ')');\n  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('[Parse Cover QA Response] Invalid response payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 400) throw new Error('[Parse Cover QA Response] Client error (status=' + statusCode + ', orderId=' + orderId + ', reason=' + (payload.reasonCode || payload.error || 'unknown') + ', body=' + (bodyPreview || 'n/a') + ')');\n  const qaCover = {\n    statusCode,\n    passed: Boolean(payload.passed),\n    skipped: false,\n    reasonCode: payload.reasonCode || 'unknown',\n    reason: payload.reason || 'unknown',\n    failedPages: Array.isArray(payload.failedPages) ? payload.failedPages : [],\n    warnings: Array.isArray(payload.warnings) ? payload.warnings : [],\n    raw: payload,\n  };\n  const qaInterior = item.qaInterior || {};\n  const qaPassed = Boolean(qaInterior.passed) && Boolean(qaCover.passed);\n  const out = { ...item, qaCover, qaPassed, qaFailedPages: [...(qaInterior.failedPages || []), ...(qaCover.failedPages || [])], qaSkipped: false };\n  return { json: out };\n});"
+      },
+      "id": "682765de-fa8b-4a98-9caa-cc5c92f8e8c2",
+      "name": "Parse Cover QA Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        36288,
+        18192
       ]
     }
   ],
@@ -1201,7 +1279,7 @@
       "main": [
         [
           {
-            "node": "QA Check Cover PDF",
+            "node": "Parse Interior QA Response",
             "type": "main",
             "index": 0
           }
@@ -1212,7 +1290,7 @@
       "main": [
         [
           {
-            "node": "IF QA Passed (W4.1)",
+            "node": "Parse Cover QA Response",
             "type": "main",
             "index": 0
           }
@@ -1399,6 +1477,28 @@
           },
           {
             "node": "Build Error Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Interior QA Response": {
+      "main": [
+        [
+          {
+            "node": "QA Check Cover PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Cover QA Response": {
+      "main": [
+        [
+          {
+            "node": "IF QA Passed (W4.1)",
             "type": "main",
             "index": 0
           }
