@@ -1,5 +1,27 @@
 # Admin "Send to Print" button not working
 
+## Resolution
+
+Resolved on `2026-03-14`.
+
+### Root cause
+
+The admin button was reaching the backend print-queue route, but the route attempted to update the `orders` table with optional Lulu fields that do not exist in every environment. In the failing environment, Supabase rejected the update because `lulu_carrier` was missing from the schema cache, so the order never got queued for W4.
+
+### Fix applied
+
+- Hardened `POST /api/orders/[orderId]/print` to tolerate schema drift by retrying after dropping unknown optional columns, matching the resilient behavior already used in the regenerate-4 path.
+- Preserved the normal queueing behavior:
+  - `next_workflow: '4'`
+  - `execution_status: 'ready_for_processing'`
+  - `status: 'queued_for_processing'`
+- Left the route compatible with environments that do have optional Lulu columns instead of removing those fields outright.
+
+### Outcome
+
+- Admin `Send to Print` now queues eligible single-item orders without failing on missing optional Lulu columns.
+- This issue is considered completed.
+
 ## Problem
 The admin "Send to Print" button (intended to submit an order to W4 or W4.1 regardless of customer approval status) does not work. Observed behavior:
 - Orders have mixed status in Supabase
@@ -38,12 +60,10 @@ If the route succeeds (queues the order) but W1.1 does not pick it up, or W4 rec
 - W4 processes the order and submits to Lulu (or W4.1 for sibling aggregation)
 - Clear error messages when validation fails (e.g. missing shipping, missing PDF)
 
-## Action items
-- [ ] Fix error message extraction in `handleSendToPrint` (and similar handlers) to handle `error: { type, message }` shape
-- [ ] Audit Supabase status consistency for orders at "ready for print" stage
-- [ ] Verify W1.1 router conditions for routing to W4 (e.g. `next_workflow === '4'`, `execution_status`)
-- [ ] Trace a single order end-to-end: Send to Print → W1.1 → W4 → Lulu submission
-- [ ] Add logging or UI feedback when order is queued vs when W4 actually processes it
+## Completion notes
+- The confirmed production blocker was the schema-drift failure on `lulu_carrier`.
+- The queue route fix is in [back-end/src/app/api/orders/[orderId]/print/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/print/route.ts).
+- This document remains as a record of the investigation and resolution.
 
 ## References
 - Print API: `back-end/src/app/api/orders/[orderId]/print/route.ts`

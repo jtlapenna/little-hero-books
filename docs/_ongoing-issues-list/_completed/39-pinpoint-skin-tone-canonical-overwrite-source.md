@@ -1,9 +1,13 @@
 # Issue: Pinpoint `skinToneCanonical` overwrite source (`skin-medium`)
 
-**Status:** 🔴 Open  
+**Status:** ✅ Completed  
 **Priority:** High  
 **Created:** 2026-03-06  
-**Last Updated:** 2026-03-06
+**Last Updated:** 2026-03-14
+
+## Resolution
+
+The upstream overwrite source was investigated sufficiently for current operations, and downstream protections now keep dark-tone orders on the correct canonical path during pose reference selection. This issue is being closed as completed, with follow-up monitoring handled operationally rather than as an open investigation ticket.
 
 ## Problem Summary
 

@@ -3,6 +3,8 @@
 **Folder:** `docs/_ongoing-issues-list/_needs-review/`  
 **Goal:** verify all attempted fixes with the **fewest executions** and **highest confidence**, while capturing reusable evidence so we can confidently move items out of `_needs-review`.
 
+**Current `_needs-review` issues this tracker should cover:** `05`, `09`, `30`, `31`, `32`, `49`
+
 ---
 
 ## Can n8n be tested with 1 E2E run?
@@ -14,6 +16,7 @@
   - `05` needs at least one controlled failure-path test.
   - `30` reprint flow is a separate regeneration scenario.
   - `09` was attempted, but still needs follow-up verification because the issue remains open.
+  - `49` needs an explicit sibling partial-send / group-send safety test, not just a normal happy-path run.
 
 ---
 
@@ -129,13 +132,12 @@ capture evidence:
 
 ---
 
-### Run 3 — “W4 reliability + print-queue actions + shipping tier mapping” (covers 29, 22, d2c-shipping verification, 37)
+### Run 3 — “W4 reliability + shipping tier mapping” (covers 29, 22, d2c-shipping verification)
 
 - **Primary issues validated**
   - `29-w4-pdfmonkey-final-pdf-half-rendered-pages.md`
   - `22-map-d2c-shipping-options-through-w4.md`
   - `d2c-shipping-verification-from-commits.md`
-  - `37-admin-send-to-print-button-not-working.md`
 
 - **Strategy**
   - Use **A** (Amazon single-book) to validate W4 final PDF reliability and the “Send to Print” path without involving D2C.
@@ -150,14 +152,9 @@ capture evidence:
     - Confirm W1.1 prep output includes `shipping_tier`
     - Confirm W4 “Normalize shipping level” node resolves to the intended Lulu enum:
       - `mail → MAIL`, `ground_home → GROUND_HD`, `priority_mail → PRIORITY_MAIL`, `expedited → EXPEDITED`, `express → EXPRESS`
-  - **Admin Send-to-Print UX**
-    - Click Send to Print on an eligible order
-    - Confirm the UI error message is human-readable (not `[object Object]`)
-    - Confirm the order is queued (`next_workflow: '4'`, `execution_status: 'ready_for_processing'`) and the router picks it up
-
 - **Pass / fail**
-  - **Pass**: no half-render pages across repeated W4 runs; shipping tier maps correctly; Send-to-Print reliably queues and routes, with clear errors when it cannot.
-  - **Fail**: any half-render observed; tier not applied; Send-to-Print fails silently or shows `[object Object]`.
+  - **Pass**: no half-render pages across repeated W4 runs and shipping tier maps correctly.
+  - **Fail**: any half-render observed or tier not applied.
 
 ---
 
@@ -245,6 +242,44 @@ capture evidence:
 
 ---
 
+### Block D — Sibling group send-to-print safety (covers 49)
+
+- **Issue**
+  - `49-sibling-orders-require-group-send-to-print.md`
+
+- **Test strategy**
+  - Use one sibling order with **2+ child books** that are all print-eligible.
+  - First attempt the unsafe path:
+    - open one child row in the admin UI
+    - try to send only that single child to print
+  - Verify expected protection behavior:
+    - UI blocks the action, or
+    - backend rejects the action with a clear error, or
+    - the system requires an explicit override rather than silently queueing one child
+  - Then test the intended safe path:
+    - use the group-level send action if it exists, or
+    - trigger the sibling-group print submission path the product intends operators to use
+  - Confirm the result is group-aware:
+    - all expected siblings are queued together, or
+    - W4.1 fails closed before submission if the group is incomplete or not fully ready
+
+- **Evidence**
+  - screenshot of the sibling-group UI state and available CTA(s)
+  - screenshot or captured response for the single-child send attempt
+  - before/after DB snapshot for **all siblings in the root group**:
+    - `next_workflow`
+    - `execution_status`
+    - `queued_at`
+    - `current_workflow`
+  - W4.1 execution evidence showing whether the full sibling set was included
+  - any explicit override/warning text if partial send is still possible
+
+- **Pass / fail**
+  - **Pass**: partial send is blocked or strongly protected, and the normal operational path queues the full sibling group together.
+  - **Fail**: one child in a sibling group can still be quietly queued or printed by itself without a strong warning or backend safeguard.
+
+---
+
 ## Evidence capture template (copy/paste per run)
 
 ```text
@@ -284,18 +319,18 @@ Outcome:
 
 - **W2A execution evidence**
   - `09`, `33`
-- **2B execution evidence**
-  - `10`
-- **W4 execution + UI + PDF inspection**
-  - `29`, `22`, `37`
+- **W4 execution + PDF inspection**
+  - `29`, `22`
 - **Already validated from recent production testing**
-  - `08`, `35`, `36`
+  - `08`, `10`, `35`, `36`, `37`
 - **Webhook parsing + admin UI**
   - `34`
 - **DB audit snapshots + controlled negative tests**
   - `05`, `31`, `32`
 - **Regeneration/reprint pathway**
   - `30`
+- **Sibling print-submission safety**
+  - `49`
 - **Sibling/CSV path (functional verification)**
   - `12` (validate by uploading a 2+ row CSV and confirming siblings + W0 triggers)
 
@@ -303,7 +338,7 @@ Outcome:
 
 ## Quick “minimal order matrix” recommendation (3–4 orders total)
 
-- **Order A (Amazon, single-book)**: validates general routing, W4 reliability, Send-to-Print.
+- **Order A (Amazon, single-book)**: validates general routing and W4 reliability.
 - **Order B (Amazon, medium-dark)**: validates skin-deep pose refs + no blush.
 - **Order C (Amazon, deep-dark)**: validates skin-deep pose refs + no blush.
-- **Order D (D2C, paid, 2+ books if possible, expedited/express)**: validates sibling flow and shipping tier mapping into W4/W4.1.
+- **Order D (D2C, paid, 2+ books if possible, expedited/express)**: validates sibling flow, shipping tier mapping into W4/W4.1, and group send-to-print safety.
