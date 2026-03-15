@@ -9,6 +9,7 @@ Companion docs:
 - [BOOK-2-PREP-PRIORITY.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-2-PREP-PRIORITY.md)
 - [BOOK-CONFIG-SCHEMA-DRAFT.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-CONFIG-SCHEMA-DRAFT.md)
 - [BOOK-MANIFEST-CONTRACT-DRAFT.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-MANIFEST-CONTRACT-DRAFT.md)
+- [PHASE-0-CHECKLIST.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/checklists/PHASE-0-CHECKLIST.md)
 - [book2-hybrid-move-from-n8n.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/book2-hybrid-move-from-n8n.md)
 
 ---
@@ -171,6 +172,8 @@ Do **not** start with a full workflow rewrite.
 - inventory list of hardcoded Book 1 touchpoints
 - asset taxonomy and pathing rules
 - one decision doc naming the first repo-owned step
+- execution checklist:
+  - [PHASE-0-CHECKLIST.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/checklists/PHASE-0-CHECKLIST.md)
 
 ### Validation
 
