@@ -32,10 +32,15 @@ Phase 0 is complete when:
 - [ ] Finalized v1 config contract
 - [ ] Finalized v1 manifest contract
 - [ ] Written `book_config` source-of-truth and publish model
+  - [BOOK-CONFIG-SOURCE-OF-TRUTH-AND-PUBLISH-MODEL.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-CONFIG-SOURCE-OF-TRUTH-AND-PUBLISH-MODEL.md)
 - [ ] Written manifest v2/v3 coexistence and rollback plan
+  - [MANIFEST-V2-V3-CUTOVER-STRATEGY.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/MANIFEST-V2-V3-CUTOVER-STRATEGY.md)
 - [ ] Hardcoded Book 1 audit
+  - [BOOK-1-HARDCODED-AUDIT.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-1-HARDCODED-AUDIT.md)
 - [ ] Asset taxonomy and pathing rules
+  - [ASSET-TAXONOMY-AND-PATHING-RULES.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/ASSET-TAXONOMY-AND-PATHING-RULES.md)
 - [ ] Explicit decision note for the first repo-owned implementation boundary
+  - [FIRST-REPO-OWNED-BOUNDARY.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/FIRST-REPO-OWNED-BOUNDARY.md)
 
 ---
 
@@ -80,7 +85,8 @@ Definition of done:
 
 Output to produce:
 
-- [ ] A short written source-of-truth and publish-model note, either added to [BOOK-CONFIG-SCHEMA-DRAFT.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-CONFIG-SCHEMA-DRAFT.md) or broken into a separate companion doc
+- [ ] A short written source-of-truth and publish-model note
+  - [BOOK-CONFIG-SOURCE-OF-TRUTH-AND-PUBLISH-MODEL.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-CONFIG-SOURCE-OF-TRUTH-AND-PUBLISH-MODEL.md)
 
 Definition of done:
 
@@ -119,6 +125,7 @@ Files and workflows to inspect:
 Output to produce:
 
 - [ ] A concise manifest cutover note with coexistence and rollback rules
+  - [MANIFEST-V2-V3-CUTOVER-STRATEGY.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/MANIFEST-V2-V3-CUTOVER-STRATEGY.md)
 
 Definition of done:
 
@@ -157,6 +164,7 @@ Priority files:
 Output to produce:
 
 - [ ] A hardcoded Book 1 audit doc or table
+  - [BOOK-1-HARDCODED-AUDIT.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-1-HARDCODED-AUDIT.md)
 
 Definition of done:
 
@@ -191,6 +199,7 @@ Files to inspect while drafting:
 Output to produce:
 
 - [ ] An asset taxonomy and pathing rules doc in `docs/book-2-planning/`
+  - [ASSET-TAXONOMY-AND-PATHING-RULES.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/ASSET-TAXONOMY-AND-PATHING-RULES.md)
 
 Definition of done:
 
@@ -218,7 +227,8 @@ Definition of done:
 
 Output to produce:
 
-- [ ] A short boundary decision note or section added to [BOOK-2-IMPLEMENTATION-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-2-IMPLEMENTATION-PLAN.md)
+- [ ] A short boundary decision note
+  - [FIRST-REPO-OWNED-BOUNDARY.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/FIRST-REPO-OWNED-BOUNDARY.md)
 
 Definition of done:
 
