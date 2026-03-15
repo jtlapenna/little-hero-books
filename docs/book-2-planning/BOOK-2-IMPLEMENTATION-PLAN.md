@@ -29,6 +29,13 @@ The goal is not just "support Book 2." The goal is:
 
 **support Book 2 by introducing a shared, config-driven kernel that Book 1 also uses.**
 
+Operational planning assumptions for implementation:
+
+- `book_config` should be **authored and versioned in the repo**, then published into Supabase as a runtime-readable snapshot
+- the system will need a **mixed-manifest period** where current `lhb.run-manifest@v2.0` readers and new `lhb.run-manifest@v3` readers can coexist safely
+- asset taxonomy should be treated as a first-class implementation deliverable, not just a planning concept
+- replay tooling should arrive early enough to support migration work, not only final validation
+
 ---
 
 ## 2. Current system touchpoints that this plan must address
@@ -125,10 +132,24 @@ Book 2 should be considered implementation-ready only when:
 - Freeze the first contract set:
   - [BOOK-CONFIG-SCHEMA-DRAFT.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-CONFIG-SCHEMA-DRAFT.md)
   - [BOOK-MANIFEST-CONTRACT-DRAFT.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-MANIFEST-CONTRACT-DRAFT.md)
+- Decide and document the `book_config` lifecycle:
+  - repo authoring location
+  - publish process into Supabase
+  - runtime lookup semantics
+  - version pinning rules
+- Define the manifest cutover strategy:
+  - how `v2.0` and `v3` manifests coexist
+  - which readers must support both
+  - whether cutover is by stage, by workflow, or by order cohort
 - Produce a hardcoded-book audit covering:
   - `book-mvp-simple-adventure`
   - Book 1-specific background path assumptions
   - fixed manifest filenames and page count assumptions
+- Produce an asset taxonomy and storage-rules doc covering:
+  - book-scoped asset roots
+  - format-aware manifests
+  - named asset slots
+  - generated asset path rules
 - Decide the first repo-owned implementation boundary.
 
 ### Recommended boundary
@@ -145,7 +166,10 @@ Do **not** start with a full workflow rewrite.
 ### Deliverables
 
 - final v1 planning docs
+- documented `book_config` source-of-truth and publish model
+- documented manifest v2/v3 coexistence strategy
 - inventory list of hardcoded Book 1 touchpoints
+- asset taxonomy and pathing rules
 - one decision doc naming the first repo-owned step
 
 ### Validation
@@ -209,12 +233,22 @@ Do **not** start with a full workflow rewrite.
   - page-plan resolver
   - manifest builder
   - manifest validator
+- Implement the config publication/runtime pattern:
+  - canonical config files in repo
+  - validation at publish time
+  - Supabase runtime snapshot write/read path
+  - explicit `bookId + version + formatId` lookup semantics
 - Add central path/key helpers for:
   - order prefix
   - character prefix
   - manifest keys
   - preview image keys
   - cover/interior PDF keys
+- Implement asset taxonomy helpers for:
+  - named background slots
+  - named overlay slots
+  - pose asset roots
+  - generated order/character prefixes
 
 ### Current files this should replace or de-hardcode over time
 
@@ -236,6 +270,7 @@ Do **not** start with a full workflow rewrite.
 ### Deliverables
 
 - one reusable typed module that can resolve Book 1 today and Book 2 later
+- one publish/read path for `book_config`
 - unit tests for:
   - config loading
   - format selection
@@ -246,6 +281,36 @@ Do **not** start with a full workflow rewrite.
 
 - Book 1 can be expressed through the new config model
 - the backend can resolve page plans without hardcoded `page00` / `page05` assumptions in business logic
+
+---
+
+## Phase 2.5: Early replay harness for migration work
+
+**Goal:** ensure contract and migration work can be tested locally before W0 and downstream cutovers begin.
+
+### Tasks
+
+- Build a minimum repo-local runner that can:
+  - load a Book 1 fixture
+  - load `book_config`
+  - resolve the page plan
+  - build and validate `1-manifest` v3
+- Add fixture cases for:
+  - Book 1 standard single-item
+  - Book 1 amazon single-item
+  - Book 1 sibling order
+- Add a compatibility check for mixed-manifest handling where needed.
+
+### Deliverables
+
+- a minimum replay command for config -> page plan -> `1-manifest`
+- a small fixture set checked into the repo
+- schema validation in CI for the minimum harness
+
+### Exit criteria
+
+- W0 conversion can be tested locally before live workflow changes
+- the team can validate config and manifest changes without relying on n8n runs
 
 ---
 
@@ -263,6 +328,10 @@ Do **not** start with a full workflow rewrite.
   - resolve print settings
   - resolve QA policy
   - write `lhb.run-manifest@v3`
+- Add mixed-manifest compatibility rules:
+  - define whether W0 writes both v2 and v3 temporarily, or only v3 with fallback readers
+  - identify every downstream reader that must tolerate both shapes during migration
+  - document rollback behavior if a downstream stage is not yet v3-ready
 - Keep the surrounding orchestration in n8n, but move the heavy logic into repo code if possible.
 - Preserve support for:
   - single-item orders
@@ -279,6 +348,7 @@ Do **not** start with a full workflow rewrite.
 ### Deliverables
 
 - W0 manifest builder that outputs `1-manifest` v3
+- a documented cutover/rollback plan for W0 manifest production
 - migration notes from current `lhb.run-manifest@v2.0` shape
 - one Book 1 fixture manifest and one Book 2 fixture manifest
 
@@ -352,6 +422,7 @@ Do **not** start with a full workflow rewrite.
 - Render interior pages from `pagePlan` instead of hardcoded Book 1 page expectations.
 - Resolve backgrounds and overlays from named asset slots in config.
 - Generate page previews, cover previews, and PDFs from the manifest-driven plan.
+- enforce the asset taxonomy rules agreed in Phase 0 so W3 is not forced to infer Book 1 paths
 - Ensure W3 summary data aligns with:
   - `expectedPageCount`
   - `pageLabels`
@@ -424,6 +495,7 @@ Do **not** start with a full workflow rewrite.
   - load a recorded manifest fixture
   - invoke one stage locally
   - validate outputs against schema
+- extend the early harness from Phase 2.5 rather than building a second test path
 - Capture fixture sets for:
   - Book 1 single-item standard
   - Book 1 sibling order
@@ -511,18 +583,20 @@ These matter, but they should not derail the core book-config -> manifest -> sha
 1. Phase 0
 2. Phase 1
 3. Phase 2
-4. Phase 3
-5. Phase 4
-6. Phase 5
-7. Phase 7
-8. Phase 6
-9. Phase 8
+4. Phase 2.5
+5. Phase 3
+6. Phase 4
+7. Phase 5
+8. Phase 7
+9. Phase 6
+10. Phase 8
 
 Why this order:
 
 - contracts must exist before migration work
 - runtime contract cleanup reduces false starts
 - repo kernel should exist before W0 conversion
+- the first replay harness should exist before the first workflow cutover
 - W0 must freeze the page plan before W2A / W2B / W3 can fully consume it
 - replay tooling should exist before final rollout hardening and Book 2 onboarding
 
