@@ -1,6 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createValidationError, createNotFoundError } from '@/lib/error-handler';
+import { supabase } from '@/lib/supabase-client';
+
+/**
+ * Update an order row while tolerating optional-column drift between environments.
+ * If PostgREST reports an unknown column, drop it and retry.
+ */
+async function updateOrderRowResilientById(orderRowId: number, updateData: Record<string, unknown>) {
+  const dataToUpdate: Record<string, unknown> = { ...updateData };
+  let lastError: unknown = null;
+
+  for (let i = 0; i < 8; i++) {
+    const { data, error } = await supabase
+      .from('orders')
+      .update(dataToUpdate)
+      .eq('id', orderRowId)
+      .select('id');
+
+    if (!error) {
+      if (!data || data.length === 0) {
+        throw new Error(`Order not found for update (id=${orderRowId})`);
+      }
+      return;
+    }
+
+    lastError = error;
+    const msg = String(error?.message || '');
+    const details = String(error?.details || '');
+    const code = String(error?.code || '');
+    const combined = `${msg}\n${details}`.toLowerCase();
+
+    const isUnknownColumn =
+      code === 'PGRST204' ||
+      code === '42703' ||
+      (combined.includes('could not find the') && combined.includes('column')) ||
+      (combined.includes('column') && combined.includes('does not exist'));
+    if (!isUnknownColumn) break;
+
+    const match =
+      msg.match(/'([^']+)' column/i) ||
+      details.match(/'([^']+)' column/i) ||
+      msg.match(/column\s+[\w.]+\.([\w_]+)\s+does not exist/i) ||
+      details.match(/column\s+[\w.]+\.([\w_]+)\s+does not exist/i);
+    const missingColumn = match?.[1];
+    if (!missingColumn || !(missingColumn in dataToUpdate)) break;
+
+    console.warn(`[POST /api/orders/[orderId]/print] Dropping missing column and retrying: ${missingColumn}`);
+    delete dataToUpdate[missingColumn];
+  }
+
+  throw lastError || new Error('Failed to update order (unknown error)');
+}
+
+async function updateOrderStatusResilient(
+  orderRowId: number,
+  orderLookupId: string,
+  updates: Record<string, unknown>
+) {
+  const { calculateOrderStatus } = await import('@/lib/status-service');
+
+  await updateOrderRowResilientById(orderRowId, {
+    ...updates,
+    updated_at: new Date().toISOString(),
+  });
+
+  const calculatedStatus = await calculateOrderStatus(orderLookupId);
+
+  if (updates.status !== calculatedStatus) {
+    await updateOrderRowResilientById(orderRowId, {
+      status: calculatedStatus,
+      updated_at: new Date().toISOString(),
+    });
+  }
+}
 
 /**
  * Queue order for 4 workflow (Print Fulfillment) via router
@@ -27,7 +100,6 @@ async function sendToPrint(
 
   // Queue order for W4 via W1.1 router
   // IMPORTANT: Preserve review_stages when updating to avoid losing approvals
-  const { updateOrderStatus } = await import('@/lib/status-service');
   const { getOrderFromSupabase, updateOrderInSupabase } = await import('@/lib/supabase-client');
   
   try {
@@ -44,6 +116,11 @@ async function sendToPrint(
     
     if (!currentOrder) {
       throw createNotFoundError(`Order ${orderId} not found`);
+    }
+
+    const orderRowId = Number((currentOrder as { id?: unknown }).id);
+    if (!Number.isFinite(orderRowId)) {
+      throw new Error(`Order ${orderId} is missing numeric id; cannot queue print safely`);
     }
     
     // Validate shipping address exists and has required fields
@@ -81,7 +158,7 @@ async function sendToPrint(
       );
     }
     
-    const updates: any = {
+    const updates: Record<string, unknown> = {
       next_workflow: '4',
       execution_status: 'ready_for_processing',
       status: 'queued_for_processing',
@@ -109,7 +186,7 @@ async function sendToPrint(
       updates.review_stages = currentOrder.review_stages;
     }
     
-    await updateOrderStatus(orderId, updates);
+    await updateOrderStatusResilient(orderRowId, orderId, updates);
 
     const isReprint = String(currentOrder.lifecycle_status || '').toLowerCase() === 'recently_delivered';
     if (isReprint) {
@@ -133,13 +210,14 @@ async function sendToPrint(
       execution_status: 'ready_for_processing',
       isReprint
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[POST /api/orders/[orderId]/print] Error queueing order:`, error);
     // If it's already a NextResponse (e.g., from createNotFoundError), re-throw it
     if (error instanceof NextResponse) {
       throw error;
     }
-    throw new Error(`Failed to queue order for print fulfillment workflow: ${error?.message || error}`);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to queue order for print fulfillment workflow: ${message}`);
   }
 }
 

@@ -3,7 +3,7 @@
 **Status:** 🔴 Open  
 **Priority:** Medium  
 **Created:** 2026-01-28  
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-03-13
 
 ## Description
 
@@ -46,6 +46,13 @@ Pose 01 is not reliably generating a **straight, front-facing** character. The p
   - body rotation / head turned
   - extreme perspective
 
+## Next Attempt
+
+- Prompt tightening alone did not fix pose 01 reliably enough.
+- Next test: for **pose 01 only**, change Gemini request assembly so the **POSE** reference image is sent **before** the **BASE** character image.
+- Rationale: the model may still be over-anchoring on the base character image and “naturalizing” the pose into a slight 3/4 walking angle even when the prompt is strict.
+- Keep the stronger pose 01 prompt, but test image-order priority before doing another wording pass.
+
 ## Acceptance Criteria
 
 - [ ] Pose 01 generates front-facing correctly in repeated test runs (same character spec, multiple seeds/runs)
@@ -55,4 +62,3 @@ Pose 01 is not reliably generating a **straight, front-facing** character. The p
 ## Notes
 
 - Once fixed, capture a small “before/after” sample set (5–10 renders) for reference.
-

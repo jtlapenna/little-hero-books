@@ -8,13 +8,13 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "fbf40bd3-8af7-445a-97b9-ac16b93dccfe",
+      "id": "fde2fe18-199a-4535-895d-935799ec5a0c",
       "name": "Webhook (W4.1 Intake)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        33232,
-        17888
+        40080,
+        19200
       ],
       "webhookId": "w41-sibling-aggregate"
     },
@@ -22,13 +22,13 @@
       "parameters": {
         "jsCode": "// Normalize shipping_level to Lulu enum. Constrain Amazon to MAIL/EXPEDITED.\nconst j = $input.first().json || {};\nfunction toLuluLevel(raw){\n  const s = String(raw || '').trim().toUpperCase();\n  if (!s) return null;\n  const map = { MAIL:'MAIL', STANDARD:'MAIL', ECONOMY:'MAIL', PRIORITY_MAIL:'PRIORITY_MAIL', PRIORITY:'PRIORITY_MAIL', GROUND:'GROUND', GROUND_HD:'GROUND_HD', GROUND_HOME:'GROUND_HD', GROUND_BUS:'GROUND_BUS', GROUND_BUSINESS:'GROUND_BUS', EXPEDITED:'EXPEDITED', EXPRESS:'EXPRESS', OVERNIGHT:'EXPRESS', NEXT_DAY:'EXPRESS', NEXTDAY:'EXPRESS' };\n  return map[s] || null;\n}\n// Only real shipping-level fields; do NOT use order IDs (amazonOrderId) as signal or D2C orders get MAIL.\nconst amazonSignal = [j.order?.ShipmentServiceLevelCategory,j.order?.ShipServiceLevel,j.ShipmentServiceLevelCategory,j.ShipServiceLevel,j.amazon_shipment_service_level,j.manifest?.order?.ShipmentServiceLevelCategory,j.manifest?.order?.ShipServiceLevel].find(Boolean);\nconst requested = j.shipping_tier || j.shippingTier || j.luluPayload?.shipping_level || j.printOptions?.shippingLevel || j.CONFIG?.defaults?.shippingLevel;\nconst candidate = toLuluLevel(requested) || 'MAIL';\nconst amazonText = String(amazonSignal || '').toUpperCase();\nconst amazonMapped = !amazonSignal ? null : ((amazonText.includes('EXPEDITED') || amazonText.includes('2-DAY') || amazonText.includes('2DAY') || amazonText.includes('PRIORITY') || amazonText.includes('OVERNIGHT') || amazonText.includes('EXPRESS')) ? 'EXPEDITED' : 'MAIL');\nconst shipping_level = amazonMapped || candidate;\nreturn [{ json: { ...j, luluPayload: { ...(j.luluPayload || {}), shipping_level }, shippingLevelRequested: requested || null, shippingLevelSent: shipping_level } }];"
       },
-      "id": "7123c72f-be46-4857-be05-951f525abe10",
+      "id": "4fda642a-58f1-437d-882a-067334c9d587",
       "name": "Normalize Shipping Level (Lulu Enum)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        33616,
-        18528
+        40752,
+        19840
       ]
     },
     {
@@ -39,10 +39,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        32544,
-        17584
+        39392,
+        18896
       ],
-      "id": "b362cd56-ea5a-4960-a2a3-4c49fe528faf",
+      "id": "bb4c33e0-5d1c-44ac-8c4c-3cfd006e9568",
       "name": "[LEGACY] Normalize Per Sibling A"
     },
     {
@@ -53,23 +53,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        34048,
-        17888
+        40896,
+        19200
       ],
-      "id": "57bcc748-2434-4d7d-8d37-7aa745666397",
+      "id": "59c8a373-65f0-418f-8ff2-a6832b371eed",
       "name": "Validate & Normalize Per Sibling"
     },
     {
       "parameters": {
-        "jsCode": "// Config + Validate Sibling Group — add CONFIG, validate, emit N items (one per sibling)\n// SECURITY: never commit real secrets in workflow exports.\nconst root = $input.first()?.json || {};\nconst body = root.body && typeof root.body === 'object' ? root.body : root;\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    if (typeof v === 'string') {\n      const s = v.trim();\n      if (s !== '') return s;\n    } else {\n      return v;\n    }\n  }\n}\n\nfunction deriveRootOrderId(id) {\n  if (!id) return id;\n  const m = String(id).match(/^(.+?)-item-/);\n  return m ? m[1] : id;\n}\n\nconst CONFIG = {\n  pdfMonkey: { token: '2zpxHdmsse2ECXgVVtVR', templateId: '5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172', coverTemplateId: 'D52F14C8-BBC3-4058-929F-195DFC707E75' },\n  lulu: { apiBase: 'https://api.lulu.com', clientKey: '9b388aaa-f0c9-448d-b3d1-8561a8cf2094', clientSecret: '3fsYZ7GbbXvdQhsOSxstzIbqdbdJMMtS', basicAuth: null },\n  supabase: { projectUrl: 'https://mdnthwpcnphjnnblbvxk.supabase.co', serviceRoleKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs' },\n  r2: { bucket: 'little-hero-orders', endpointHost: '3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com', region: 'auto', accessKeyId: '320e3b8228c5ff7bd2395043886f03d3', secretAccessKey: 'a1ba025ddbe2d8ef7032d2d6635dce3b6fbc4bdbf9c19c68d0b0bd566c989572' },\n  backendApiToken: 'e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n  renderer: {\n    apiBase: 'https://renderer-eta.vercel.app'\n  },\n  defaults: { debug: false, testMode: false, podPackageId: '0850X0850FCPRESS080CW444MXX', trimIn: { w: 8.5, h: 8.5, assetBase: 'https://admin.littleherolabs.com/api/assets/', podPackageId: null }, bleedIn: { w: 8.75, h: 8.75 }, print: { color: 'premium-color', stock: '80#-text', binding: 'saddle-stitch', coverFinish: 'matte' }, quantity: 1, shippingLevel: 'MAIL' }\n};\ntry { const k = CONFIG.lulu?.clientKey || ''; const s = CONFIG.lulu?.clientSecret || ''; CONFIG.lulu.basicAuth = 'Basic ' + Buffer.from(`${k}:${s}`).toString('base64'); } catch (e) {}\n\nconst siblingGroup = body.siblingGroup || body.siblingOrders || body.orders || [];\nif (!Array.isArray(siblingGroup) || siblingGroup.length < 2) throw new Error('W4.1: siblingGroup must be an array with at least 2 items');\n\nconst rootGroupId = firstNonEmpty(\n  body.rootOrderId,\n  body.root_order_id,\n  root.rootOrderId,\n  root.root_order_id,\n  siblingGroup[0]?.rootOrderId,\n  siblingGroup[0]?.root_order_id,\n  siblingGroup[0]?.product_info?._root_order_id,\n  deriveRootOrderId(siblingGroup[0]?.orderId || siblingGroup[0]?.amazon_order_id || siblingGroup[0]?.amazonOrderId)\n) || null;\n\nfor (let i = 0; i < siblingGroup.length; i++) {\n  const s = siblingGroup[i];\n  if (!s.orderId && !s.amazon_order_id) throw new Error(`W4.1: sibling ${i} missing orderId`);\n  const addr = s.shipping_address || s.shippingAddress || siblingGroup[0].shipping_address || siblingGroup[0].shippingAddress;\n  if (!addr?.phone_number && !addr?.phone) throw new Error(`W4.1: sibling ${i} missing shipping_address.phone_number`);\n}\n\nreturn siblingGroup.map(s => {\n  const orderId = firstNonEmpty(s.orderId, s.order_id, s.amazon_order_id, s.amazonOrderId);\n  const rootOrderId = firstNonEmpty(s.rootOrderId, s.root_order_id, rootGroupId, deriveRootOrderId(orderId));\n  const manifest3Key = firstNonEmpty(\n    s.manifest3Key,\n    s.three_manifest_url,\n    s.manifest3Url,\n    s.manifestUrl,\n    orderId ? `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json` : null\n  );\n  const oneManifestUrl = firstNonEmpty(s.one_manifest_url, s.oneManifestUrl, s.oneManifestKey);\n  return {\n    json: {\n      ...s,\n      CONFIG,\n      rootGroupId,\n      rootOrderId,\n      orderId,\n      manifest3Key,\n      one_manifest_url: oneManifestUrl || null\n    }\n  };\n});"
+        "jsCode": "// Config + Validate Sibling Group — add CONFIG, validate, emit N items (one per sibling)\n// SECURITY: never commit real secrets in workflow exports.\nconst inputItems = $input.all();\nconst root = $input.first()?.json || {};\nconst body = root.body && typeof root.body === 'object' ? root.body : root;\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    if (typeof v === 'string') {\n      const s = v.trim();\n      if (s !== '') return s;\n    } else {\n      return v;\n    }\n  }\n}\n\nfunction deriveRootOrderId(id) {\n  if (!id) return id;\n  const m = String(id).match(/^(.+?)-item-/);\n  return m ? m[1] : id;\n}\n\nfunction extractSiblingGroup(candidate) {\n  if (!candidate || typeof candidate !== 'object') return null;\n  const direct = candidate.siblingGroup || candidate.siblingOrders || candidate.orders;\n  if (Array.isArray(direct) && direct.length) return direct;\n  const nestedBody = candidate.body && typeof candidate.body === 'object' ? extractSiblingGroup(candidate.body) : null;\n  if (nestedBody) return nestedBody;\n  const nestedData = candidate.data && typeof candidate.data === 'object' ? extractSiblingGroup(candidate.data) : null;\n  if (nestedData) return nestedData;\n  const nestedPayload = candidate.payload && typeof candidate.payload === 'object' ? extractSiblingGroup(candidate.payload) : null;\n  if (nestedPayload) return nestedPayload;\n  return null;\n}\n\nconst CONFIG = {\n  pdfMonkey: { token: '2zpxHdmsse2ECXgVVtVR', templateId: '5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172', coverTemplateId: 'D52F14C8-BBC3-4058-929F-195DFC707E75' },\n  lulu: { apiBase: 'https://api.lulu.com', clientKey: '9b388aaa-f0c9-448d-b3d1-8561a8cf2094', clientSecret: '3fsYZ7GbbXvdQhsOSxstzIbqdbdJMMtS', basicAuth: null },\n  supabase: { projectUrl: 'https://mdnthwpcnphjnnblbvxk.supabase.co', serviceRoleKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs' },\n  r2: { bucket: 'little-hero-orders', endpointHost: '3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com', region: 'auto', accessKeyId: '320e3b8228c5ff7bd2395043886f03d3', secretAccessKey: 'a1ba025ddbe2d8ef7032d2d6635dce3b6fbc4bdbf9c19c68d0b0bd566c989572' },\n  backendApiToken: 'e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n  renderer: {\n    apiBase: 'https://renderer-eta.vercel.app'\n  },\n  defaults: { debug: false, testMode: false, podPackageId: '0850X0850FCPRESS080CW444MXX', trimIn: { w: 8.5, h: 8.5, assetBase: 'https://admin.littleherolabs.com/api/assets/', podPackageId: null }, bleedIn: { w: 8.75, h: 8.75 }, print: { color: 'premium-color', stock: '80#-text', binding: 'saddle-stitch', coverFinish: 'matte' }, quantity: 1, shippingLevel: 'MAIL' }\n};\ntry { const k = CONFIG.lulu?.clientKey || ''; const s = CONFIG.lulu?.clientSecret || ''; CONFIG.lulu.basicAuth = 'Basic ' + Buffer.from(`${k}:${s}`).toString('base64'); } catch (e) {}\n\nlet siblingGroup = extractSiblingGroup(body) || extractSiblingGroup(root);\n\nif ((!Array.isArray(siblingGroup) || siblingGroup.length === 0) && inputItems.length > 1) {\n  const groupedItems = inputItems\n    .map((item) => item?.json || {})\n    .map((item) => item.body && typeof item.body === 'object' ? item.body : item)\n    .filter((item) => Boolean(firstNonEmpty(item.orderId, item.order_id, item.amazon_order_id, item.amazonOrderId)));\n  if (groupedItems.length) siblingGroup = groupedItems;\n}\n\nif (!Array.isArray(siblingGroup) || siblingGroup.length < 2) {\n  const keys = Object.keys(body || {}).sort().join(', ') || 'none';\n  const inputCount = Array.isArray(inputItems) ? inputItems.length : 0;\n  const resolvedLength = Array.isArray(siblingGroup) ? siblingGroup.length : 0;\n  throw new Error(`W4.1: siblingGroup must contain at least 2 items (resolved=${resolvedLength}, inputItems=${inputCount}, bodyKeys=${keys})`);\n}\n\nconst rootGroupId = firstNonEmpty(\n  body.rootOrderId,\n  body.root_order_id,\n  root.rootOrderId,\n  root.root_order_id,\n  siblingGroup[0]?.rootOrderId,\n  siblingGroup[0]?.root_order_id,\n  siblingGroup[0]?.product_info?._root_order_id,\n  deriveRootOrderId(siblingGroup[0]?.orderId || siblingGroup[0]?.amazon_order_id || siblingGroup[0]?.amazonOrderId)\n) || null;\n\nfor (let i = 0; i < siblingGroup.length; i++) {\n  const s = siblingGroup[i];\n  if (!s.orderId && !s.amazon_order_id) throw new Error(`W4.1: sibling ${i} missing orderId`);\n  const addr = s.shipping_address || s.shippingAddress || siblingGroup[0].shipping_address || siblingGroup[0].shippingAddress;\n  if (!addr?.phone_number && !addr?.phone) throw new Error(`W4.1: sibling ${i} missing shipping_address.phone_number`);\n}\n\nreturn siblingGroup.map(s => {\n  const orderId = firstNonEmpty(s.orderId, s.order_id, s.amazon_order_id, s.amazonOrderId);\n  const rootOrderId = firstNonEmpty(s.rootOrderId, s.root_order_id, rootGroupId, deriveRootOrderId(orderId));\n  const manifest3Key = firstNonEmpty(\n    s.manifest3Key,\n    s.three_manifest_url,\n    s.manifest3Url,\n    s.manifestUrl,\n    orderId ? `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json` : null\n  );\n  const oneManifestUrl = firstNonEmpty(s.one_manifest_url, s.oneManifestUrl, s.oneManifestKey);\n  return {\n    json: {\n      ...s,\n      CONFIG,\n      rootGroupId,\n      rootOrderId,\n      orderId,\n      manifest3Key,\n      one_manifest_url: oneManifestUrl || null\n    }\n  };\n});"
       },
-      "id": "11a24a10-3e9b-483f-bc73-7988ef5ff9a7",
+      "id": "568ce392-08f9-4419-928d-05c479b7d604",
       "name": "Config + Validate Sibling Group",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        33456,
-        17888
+        40304,
+        19200
       ]
     },
     {
@@ -80,13 +80,13 @@
           "responseCode": 200
         }
       },
-      "id": "4a420af5-9402-4185-9d79-e684342eb4eb",
+      "id": "1ffa7c08-b04a-47a5-a551-a5e00009f5a3",
       "name": "Respond to Webhook (Ack)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        33696,
-        17616
+        40544,
+        18928
       ]
     },
     {
@@ -94,13 +94,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// LEGACY normalize node retained only for rollback safety; active path uses canonical node above.\nreturn { json: { ...($input.item.json || {}) } };"
       },
-      "id": "6df6d353-2ebe-4b55-9775-8ac57d6afc8a",
+      "id": "3fc3e524-aa61-4f5c-ba8f-e0edb60fbe46",
       "name": "[LEGACY] Validate & Normalize Per Sibling old",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        32752,
-        17584
+        39600,
+        18896
       ]
     },
     {
@@ -108,13 +108,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Build pages_html for PDFMonkey at 8.75×8.75 in\nconst j=$input.item.json||{};\nconst pages=Array.isArray(j.pageImageUrls)?j.pageImageUrls:[];\nif(!pages.length)throw new Error('No pageImageUrls');\nconst css=`\\n  <style>\\n    @page { size: 8.75in 8.75in; margin: 0; }\\n    html, body { margin:0; padding:0; }\\n    .page { width:8.75in; height:8.75in; page-break-after: always; }\\n    .bg { width:100%; height:100%; object-fit: cover; display:block; }\\n  </style>\\n`;\nconst pagesHtml=pages.map(url=>`<section class=\"page\"><img class=\"bg\" src=\"${url}\" alt=\"\" /></section>`).join('\\n');\nreturn{json:{...j,pages_html:`${css}\\n${pagesHtml}`}};"
       },
-      "id": "2b361390-c54a-40d8-b45f-e9add96db720",
+      "id": "ac0f01cd-ef2b-4471-b69d-d0c2cc3393cb",
       "name": "Build Pages HTML (8.75in)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        34448,
-        17888
+        41136,
+        19200
       ]
     },
     {
@@ -122,13 +122,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Presign Interior Assets: replace /api/assets/ proxy URLs with signed R2 URLs\n// so PDFMonkey fetches directly from Cloudflare R2 edge (no Vercel proxy).\nconst item = $input.item.json || {};\nconst pagesHtml = item.pages_html;\nif (!pagesHtml || typeof pagesHtml !== 'string') {\n  throw new Error('[Presign Interior Assets] Missing pages_html');\n}\nconst backendUrl = (item.CONFIG?.defaults?.trimIn?.assetBase || 'https://admin.littleherolabs.com/api/assets/').replace(/\\/api\\/assets\\/?$/, '');\nconst url = `${backendUrl}/api/render/presign-page-assets`;\nconst http = this.helpers.httpRequest;\nconst token = item.CONFIG?.backendApiToken || '';\nconst headers = token ? { Authorization: `Bearer ${token}` } : {};\nfunction sleep(ms) { return new Promise(r => setTimeout(r, ms)); }\nfunction jitter(max = 200) { return Math.floor(Math.random() * max); }\nlet lastErr = null;\nfor (let attempt = 1; attempt <= 3; attempt++) {\n  try {\n    const res = await http({ method: 'POST', url, headers, body: { html: pagesHtml, expiresInSeconds: 21600 }, json: true, timeout: 30000 });\n    if (res?.html && typeof res.html === 'string') {\n      return { json: { ...item, pages_html: res.html } };\n    }\n    throw new Error('Presign endpoint returned no html');\n  } catch (e) {\n    lastErr = e;\n    if (attempt < 3) await sleep(300 + attempt * 300 + jitter());\n  }\n}\nconst orderId = item.orderId || item.amazonOrderId || 'UNKNOWN';\nthrow new Error(`[Presign Interior Assets] Failed after 3 attempts (orderId=${orderId}): ${lastErr?.message || lastErr}`);\n"
       },
-      "id": "52d5fa18-71ae-4d50-a536-81704283f0e9",
+      "id": "6185eb44-72df-4c34-9fa1-0ea5fc6d6c26",
       "name": "Presign Interior Assets",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        34640,
-        17888
+        41376,
+        19200
       ],
       "notesInFlow": true,
       "notes": "Replaces /api/assets/ proxy URLs with signed R2 URLs so PDFMonkey fetches directly from R2 edge."
@@ -138,13 +138,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "const d=$input.item.json;\nconst tpl=d.CONFIG?.pdfMonkey?.templateId;\nif(!tpl)throw new Error('Missing PDFMonkey templateId');\nreturn{json:{...d,document:{document_template_id:tpl,status:'pending',meta:{_filename:d.pdfFilename},payload:{pages_html:d.pages_html}}}};"
       },
-      "id": "337c56aa-9bd7-4781-b893-9540f7de5fe3",
+      "id": "8f102496-fb5c-49de-a215-b67aa8e23a31",
       "name": "Prepare PDFMonkey Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        34832,
-        17888
+        41616,
+        19200
       ]
     },
     {
@@ -171,13 +171,13 @@
           "timeout": 30000
         }
       },
-      "id": "ae3f8e1f-c408-4021-9f93-368386567dc1",
+      "id": "a55d6270-37c2-484e-800f-cf4c00683374",
       "name": "Generate Interior PDF",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        35024,
-        17888
+        41840,
+        19200
       ]
     },
     {
@@ -185,13 +185,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Reattach context + Poll PDFMonkey until ready\nconst httpResp=$input.item.json||{};\nlet ctx={}; try{ctx=($items('Build Pages HTML (8.75in)',0,$runIndex)?.[0]?.json)||{};}catch{}\nif(!ctx.orderId)try{ctx=($items('Validate & Normalize Per Sibling',0,$runIndex)?.[0]?.json)||ctx;}catch{}\nconst doc=httpResp.document||httpResp.data||httpResp;\nconst docId=doc.id||doc.data?.id; if(!docId)throw new Error('PDFMonkey missing id');\nconst token=ctx.CONFIG?.pdfMonkey?.token; if(!token)throw new Error('Missing token');\nconst http=this.helpers.httpRequest; const AUTH={Authorization:`Bearer ${token}`};\nlet status=doc.status||'queued'; let downloadUrl=doc.download_url||null;\nasync function sleep(ms){return new Promise(r=>setTimeout(r,ms));}\nfor(let a=0;a<40;a++){\n  if(status==='success'&&downloadUrl)break;\n  try{const r=await http({method:'GET',url:`https://api.pdfmonkey.io/api/v1/documents/${docId}`,json:true,headers:AUTH});\n  const d=r?.document||r?.data||r; status=d?.status||status; downloadUrl=d?.download_url||d?.file_url||downloadUrl;\n  if(status==='error'||status==='failure')throw new Error('PDFMonkey error: '+(d?.failure_cause||status));}\n  catch(e){if(e.message.includes('PDFMonkey error'))throw e; await sleep(1500); continue;}\n  await sleep(1200+Math.min(a*150,3800));\n}\nif(status!=='success'||!downloadUrl)throw new Error('PDF not ready');\nreturn{json:{...ctx,pdfMonkeyDocumentId:docId,pdfDownloadUrl:downloadUrl,pdfR2Key:ctx.pdfR2Key}};"
       },
-      "id": "83784db6-3c85-4ad1-a05c-c48c86f8a36e",
+      "id": "47a0ab5e-ae5e-404f-add6-15226ed8536d",
       "name": "Poll PDFMonkey until ready",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        35216,
-        17888
+        42064,
+        19200
       ]
     },
     {
@@ -206,13 +206,13 @@
           "timeout": 30000
         }
       },
-      "id": "e6c3b707-4269-4726-8a27-e01936f7c81f",
+      "id": "dffa2dec-65a7-4c2b-8e7f-4bc3428eea78",
       "name": "Download Interior PDF",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        35408,
-        17888
+        42256,
+        19200
       ]
     },
     {
@@ -222,13 +222,13 @@
         "fileName": "={{ $json.pdfR2Key }}",
         "additionalFields": {}
       },
-      "id": "8ee4ba99-c270-47ae-951a-140ebdcaad20",
+      "id": "f9923781-a8d0-4b1e-b817-5fbd083c8da4",
       "name": "Upload Interior PDF to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        35808,
-        17888
+        42736,
+        19200
       ],
       "credentials": {
         "s3": {
@@ -242,13 +242,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Build cover HTML for PDFMonkey\nconst j=$input.item.json||{};\nconst cfg=j.CONFIG||{};\nconst assetBase=(cfg.defaults?.trimIn?.assetBase||'https://admin.littleherolabs.com/api/assets/').replace(/\\/+$/,'');\nconst orderId=j.orderId||'unknown';\nconst runStamp=j.runStamp||new Date().toISOString();\nfunction isUrl(s){return typeof s==='string'&&/^https?:\\/\\//i.test(s);}\nfunction toAssetUrl(p){if(!p)return undefined;if(isUrl(p))return p; return `${assetBase}/${String(p).replace(/^\\/+/,'')}`;}\nlet coverRef=j.coverImageUrl||(Array.isArray(j.coverImageUrls)&&j.coverImageUrls[0])||j.coverPngR2Key||j.pngGeneration?.coverSpreadImage||`book-mvp-simple-adventure/orders/${orderId}/preview-images/cover-spread.png`;\nconst coverUrl=(toAssetUrl(coverRef)||'')+(coverRef?`?v=${encodeURIComponent(runStamp)}`:'');\nif(!coverUrl)throw new Error('Missing cover image');\nconst css=`\\n  <style>\\n    @page { size: 17.25in 8.75in; margin: 0; }\\n    html, body { margin:0; padding:0; }\\n    .page { width:17.25in; height:8.75in; page-break-after: always; overflow:hidden; }\\n    .bg { width:100%; height:100%; display:block; object-fit:cover; }\\n  </style>\\n`;\nconst html=`<section class=\"page\"><img class=\"bg\" src=\"${coverUrl}\" alt=\"\" /></section>`;\nreturn{json:{...j,cover_html:`${css}\\n${html}`,coverPdfFilename:`cover_${orderId}.pdf`}};"
       },
-      "id": "d57c37a5-8dd7-4d07-904d-6fa9205c4b60",
+      "id": "1c2a3359-55c7-4be6-9458-b7d282ab775b",
       "name": "Build Cover HTML",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        33216,
-        18192
+        40064,
+        19504
       ]
     },
     {
@@ -256,13 +256,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Presign Cover Assets: replace /api/assets/ proxy URLs with signed R2 URLs\n// so PDFMonkey fetches directly from Cloudflare R2 edge (no Vercel proxy).\nconst item = $input.item.json || {};\nconst orderId = item.orderId || item.amazonOrderId || item.amazon_order_id || '';\nconst coverHtml = item.cover_html;\nconst token = item.CONFIG?.backendApiToken || '';\nconst backendUrl = (item.CONFIG?.defaults?.trimIn?.assetBase || 'https://admin.littleherolabs.com/api/assets/').replace(/\\/api\\/assets\\/?$/, '');\nconst url = `${backendUrl}/api/render/presign-page-assets`;\n\nif (!orderId) {\n  throw new Error(`[Presign Cover Assets] Missing orderId (hasConfig=${!!item.CONFIG}, hasCoverHtml=${typeof coverHtml === 'string' && coverHtml.length > 0}, presignUrl=${url})`);\n}\nif (!coverHtml || typeof coverHtml !== 'string') {\n  throw new Error(`[Presign Cover Assets] Missing cover_html (orderId=${orderId}, hasConfig=${!!item.CONFIG}, presignUrl=${url})`);\n}\nif (!token) {\n  throw new Error(`[Presign Cover Assets] Missing CONFIG.backendApiToken (orderId=${orderId}, hasConfig=${!!item.CONFIG}, hasCoverHtml=true, presignUrl=${url})`);\n}\n\nconst http = this.helpers.httpRequest;\nconst headers = { Authorization: `Bearer ${token}` };\nfunction sleep(ms) { return new Promise(r => setTimeout(r, ms)); }\nfunction jitter(max = 200) { return Math.floor(Math.random() * max); }\nlet lastErr = null;\nfor (let attempt = 1; attempt <= 3; attempt++) {\n  try {\n    const res = await http({ method: 'POST', url, headers, body: { html: coverHtml, expiresInSeconds: 21600 }, json: true, timeout: 30000, returnFullResponse: true, ignoreHttpStatusErrors: true });\n    const status = Number(res?.statusCode || res?.status || 200);\n    const body = res?.body !== undefined ? res.body : res;\n    if (status >= 200 && status < 300 && body?.html && typeof body.html === 'string') {\n      return { json: { ...item, cover_html: body.html } };\n    }\n    const message = body?.message || body?.error || `HTTP ${status}`;\n    const transient = status === 429 || status >= 500 || status === 0;\n    lastErr = new Error(String(message));\n    if (attempt < 3 && transient) {\n      await sleep(300 + attempt * 300 + jitter());\n      continue;\n    }\n    break;\n  } catch (e) {\n    lastErr = e;\n    if (attempt < 3) {\n      await sleep(300 + attempt * 300 + jitter());\n      continue;\n    }\n  }\n}\nthrow new Error(`[Presign Cover Assets] Failed after 3 attempts (orderId=${orderId}, hasConfig=${!!item.CONFIG}, hasBackendToken=${!!token}, hasCoverHtml=${!!coverHtml}, presignUrl=${url}): ${lastErr?.message || lastErr}`);\n"
       },
-      "id": "76789b17-2b7a-4a37-a1b5-9dd3f29cf352",
+      "id": "80e3235a-755d-4df6-8d5c-542436c7fec5",
       "name": "Presign Cover Assets",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        33392,
-        18192
+        40240,
+        19504
       ],
       "notesInFlow": true,
       "notes": "Replaces /api/assets/ proxy URLs with signed R2 URLs so PDFMonkey fetches directly from R2 edge."
@@ -272,13 +272,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "const d=$input.item.json;\nconst tpl=d.CONFIG?.pdfMonkey?.coverTemplateId||'D52F14C8-BBC3-4058-929F-195DFC707E75';\nif(!tpl)throw new Error('Missing coverTemplateId');\nreturn{json:{...d,coverDocument:{document_template_id:tpl,status:'pending',meta:{_filename:d.coverPdfFilename},payload:{cover_html:d.cover_html}}}};"
       },
-      "id": "5cbce2f7-0fb3-4990-8f4f-a251336a6c69",
+      "id": "dc5c4549-d880-47cb-95f4-c173f62c300f",
       "name": "Prepare Cover PDFMonkey Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        33632,
-        18192
+        40448,
+        19504
       ]
     },
     {
@@ -305,13 +305,13 @@
           "timeout": 30000
         }
       },
-      "id": "d696c6e9-d14e-4f22-8250-0b81b169ef1b",
+      "id": "1a8bb479-942c-47a0-a980-a7c13927a64f",
       "name": "Generate Cover PDF",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        33904,
-        18192
+        40656,
+        19504
       ]
     },
     {
@@ -319,13 +319,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Reattach Cover Context — merge PDFMonkey response with Build Cover HTML context (preserves coverPdfR2Key, orderId)\nconst httpResp=$input.item.json||{};\nlet ctx={};\ntry{ctx=($items('Build Cover HTML',0,$runIndex)?.[0]?.json)||{};}catch{}\nif(!ctx.orderId&&!ctx.rootOrderId&&!ctx.root_order_id&&!ctx.amazonOrderId){try{ctx=($items('Validate & Normalize Per Sibling',0,$runIndex)?.[0]?.json)||ctx;}catch{}}\nconst docObj=httpResp.document||httpResp.data||httpResp;\nreturn{json:{...ctx,coverDocument:docObj}};"
       },
-      "id": "d154c056-eb4b-4873-a555-9ac393ce7d4a",
+      "id": "8ab49d10-b215-4e79-b0fe-1c241005c300",
       "name": "Reattach Cover Context (PDFM)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        34128,
-        18192
+        40880,
+        19504
       ]
     },
     {
@@ -333,13 +333,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Poll Cover PDFMonkey until ready\nconst ctxIn=$input.item.json||{};\nconst src=ctxIn.coverDocument||ctxIn.document||ctxIn;\nconst docId=src?.id||src?.document?.id||null; if(!docId)throw new Error('Cover PDFMonkey missing id');\nconst token=ctxIn.CONFIG?.pdfMonkey?.token; if(!token)throw new Error('Missing token');\nconst http=this.helpers.httpRequest; const AUTH={Authorization:`Bearer ${token}`};\nlet status=src?.status||'queued'; let downloadUrl=src?.download_url||null;\nasync function sleep(ms){return new Promise(r=>setTimeout(r,ms));}\nfor(let a=0;a<40;a++){\n  if(status==='success'&&downloadUrl)break;\n  try{const r=await http({method:'GET',url:`https://api.pdfmonkey.io/api/v1/documents/${docId}`,json:true,headers:AUTH});\n  const d=r?.document||r?.data||r; status=d?.status||status; downloadUrl=d?.download_url||d?.file_url||downloadUrl;\n  if(status==='error'||status==='failure')throw new Error('Cover PDFMonkey error');}catch(e){if(e.message.includes('error'))throw e; await sleep(1500); continue;}\n  await sleep(1200+Math.min(a*150,3800));\n}\nif(status!=='success'||!downloadUrl)throw new Error('Cover PDF not ready');\nreturn{json:{...ctxIn,coverPdfDownloadUrl:downloadUrl}};"
       },
-      "id": "865d0ddf-ceb5-4752-a796-c5c18df1e7fe",
+      "id": "54fdb424-cd39-43ee-ab32-95dd8e18953e",
       "name": "Poll Cover PDFMonkey until ready",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        34336,
-        18192
+        41088,
+        19504
       ]
     },
     {
@@ -354,13 +354,13 @@
           "timeout": 30000
         }
       },
-      "id": "b7d3f380-c465-4990-ac82-4b519b39ef14",
+      "id": "c216334e-1bcc-462a-93a3-fc30b0d51ed8",
       "name": "Download Cover PDF",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        34560,
-        18192
+        41296,
+        19504
       ]
     },
     {
@@ -370,13 +370,13 @@
         "fileName": "={{ $json.coverPdfR2Key }}",
         "additionalFields": {}
       },
-      "id": "d60fe0bb-2b0b-40ba-b19c-c08f2d7ad1f0",
+      "id": "f6b3709e-ebcd-4a6c-b0ff-46243d0ffa91",
       "name": "Upload Cover PDF to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        34752,
-        18192
+        41520,
+        19504
       ],
       "credentials": {
         "s3": {
@@ -389,52 +389,52 @@
       "parameters": {
         "jsCode": "// Aggregate all siblings: presign R2 URLs, build Lulu payload with N line_items\nconst crypto=require('crypto');\nconst items=$input.all().map(i=>i.json);\nif(!items.length)throw new Error('No items to aggregate');\nconst cfg=items[0].CONFIG||{};\nconst {bucket,endpointHost,region,accessKeyId,secretAccessKey}=cfg.r2||{};\nif(!bucket||!endpointHost||!accessKeyId||!secretAccessKey)throw new Error('R2 config incomplete');\n\nfunction presignKey(key,expires=3600){\n  const now=new Date(); const amzDate=now.toISOString().replace(/[-:]/g,'').replace(/\\..+/, '')+'Z';\n  const date=amzDate.slice(0,8); const rgn=region||'auto'; const svc='s3';\n  const objectKey=encodeURIComponent(String(key).replace(/^\\/+/, '')).replace(/%2F/g,'/');\n  const canonicalUri=`/${bucket}/${objectKey}`; const credentialScope=`${date}/${rgn}/${svc}/aws4_request`;\n  const credential=`${accessKeyId}/${credentialScope}`; const signedHeaders='host';\n  const queryParams={'X-Amz-Algorithm':'AWS4-HMAC-SHA256','X-Amz-Credential':credential,'X-Amz-Date':amzDate,'X-Amz-Expires':String(expires),'X-Amz-SignedHeaders':signedHeaders};\n  const canonicalQueryString=Object.entries(queryParams).map(([k,v])=>`${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');\n  const canonicalHeaders=`host:${endpointHost}\\n`; const payloadHash='UNSIGNED-PAYLOAD';\n  const canonicalRequest=['GET',canonicalUri,canonicalQueryString,canonicalHeaders,signedHeaders,payloadHash].join('\\n');\n  const stringToSign=['AWS4-HMAC-SHA256',amzDate,credentialScope,crypto.createHash('sha256').update(canonicalRequest).digest('hex')].join('\\n');\n  const kDate=crypto.createHmac('sha256',Buffer.from('AWS4'+secretAccessKey,'utf8')).update(date).digest();\n  const kRegion=crypto.createHmac('sha256',kDate).update(rgn).digest();\n  const kService=crypto.createHmac('sha256',kRegion).update(svc).digest();\n  const kSigning=crypto.createHmac('sha256',kService).update('aws4_request').digest();\n  const signature=crypto.createHmac('sha256',kSigning).update(stringToSign).digest('hex');\n  return `https://${endpointHost}/${bucket}/${objectKey}?${canonicalQueryString}&X-Amz-Signature=${signature}`;\n}\n\nfunction normAddr(addr){if(!addr||typeof addr!=='object')return null;\n  return{name:addr.name||'',street1:(addr.street1||addr.address||addr.street||'').trim(),street2:addr.street2||'',city:addr.city||'',state_code:(addr.state_code||addr.state||'').toString().toUpperCase().slice(0,2),postcode:(addr.postcode||addr.zip||'').toString().trim(),country_code:(addr.country_code||addr.country||'US').toString().toUpperCase().slice(0,2),phone_number:addr.phone_number||addr.phone||''};\n}\n\n// Map storefront/internal shipping labels to Lulu's accepted enum values.\nfunction normalizeShippingLevel(raw){\n  const s=String(raw||'').trim().toUpperCase();\n  if(!s) return 'MAIL';\n  const table={\n    MAIL:'MAIL',\n    STANDARD:'MAIL',\n    ECONOMY:'MAIL',\n    GROUND:'MAIL',\n    PRIORITY:'PRIORITY',\n    EXPEDITED:'EXPRESS',\n    EXPRESS:'EXPRESS',\n    OVERNIGHT:'EXPRESS',\n    NEXT_DAY:'EXPRESS',\n    NEXTDAY:'EXPRESS',\n    RUSH:'EXPRESS'\n  };\n  return table[s] || 'MAIL';\n}\n\nconst podPackageId=cfg.defaults?.podPackageId||'0850X0850FCPRESS080CW444MXX';\nconst first=items[0]; const shipAddr=normAddr(first.shippingAddress||first.shipping_address);\nif(!shipAddr?.phone_number)throw new Error('shipping_address.phone_number required');\n\nconst siblings=items.map(s=>{\n  const interiorUrl=s.interiorSignedUrl||presignKey(s.pdfR2Key); const coverUrl=s.coverSignedUrl||presignKey(s.coverPdfR2Key);\n  const childName=(s.childName||'Book').toString().trim()||'Book';\n  return{...s,interiorSignedUrl:interiorUrl,coverSignedUrl:coverUrl,childName};\n});\n\nconst line_items=siblings.map(s=>({external_id:s.orderId,title:`Little Hero Book – ${s.childName}`,quantity:1,printable_normalization:{interior:{source_url:s.interiorSignedUrl},cover:{source_url:s.coverSignedUrl},pod_package_id:podPackageId}}));\nconst requestedShipping=first.shipping_tier||first.shippingTier||first.CONFIG?.defaults?.shippingLevel;\nconst shippingLevel=normalizeShippingLevel(requestedShipping);\nconst luluPayload={external_id:`sibling-${first.rootGroupId||first.orderId}-${Date.now()}`,contact_email:first.customer?.email||'orders@littleherolabs.com',shipping_level:shippingLevel,shipping_address:shipAddr,line_items};\nreturn[{json:{...first,siblings,luluPayload,CONFIG:cfg,shippingLevelRequested:requestedShipping||null,shippingLevelSent:shippingLevel}}];"
       },
-      "id": "36e53345-cbe5-4384-97cf-4dab65765b56",
+      "id": "107a3ec7-f22f-45c3-a75a-156cbb2ba4bd",
       "name": "Aggregate + Signed URLs + Build Lulu Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        33440,
-        18528
+        40576,
+        19840
       ]
     },
     {
       "parameters": {
         "jsCode": "// Lulu PRODUCTION: Get Token (Retry) — 3 attempts, exponential backoff on 429/5xx\nconst http = this.helpers.httpRequest;\nconst j = $input.first().json || {};\nconst basic = j.CONFIG?.lulu?.basicAuth;\nif (!basic) throw new Error('Missing CONFIG.lulu.basicAuth');\nconst tokenUrl = 'https://api.lulu.com/auth/realms/glasstree/protocol/openid-connect/token';\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\nlet lastErr = null; let statusCode = null;\nfor (let attempts = 1; attempts <= 3; attempts++){\n  try {\n    const resp = await http({ method: 'POST', url: tokenUrl, headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', Authorization: basic }, body: 'grant_type=client_credentials', json: true, ignoreHttpStatusErrors: true });\n    let body = resp;\n    if (resp && typeof resp === 'object' && 'body' in resp && typeof resp.body === 'object') { body = resp.body; statusCode = Number(resp.statusCode || resp.status || 200); }\n    else if (resp && typeof resp === 'object' && ('statusCode' in resp || 'status' in resp)) { statusCode = Number(resp.statusCode || resp.status || 200); body = resp.body !== undefined ? resp.body : resp; }\n    else { body = resp; statusCode = 200; }\n    if (body?.error || body?.error_description) { lastErr = new Error(`Lulu API error: ${body.error || 'unknown'}`); if (attempts < 3) await sleep(1000 * Math.pow(2, attempts-1)); continue; }\n    if (statusCode >= 500 || statusCode === 429) { lastErr = new Error(`Token fetch failed (status=${statusCode})`); if (attempts < 3) await sleep(1000 * Math.pow(2, attempts-1)); continue; }\n    const access = body?.access_token || body?.token;\n    if (!access) { lastErr = new Error(`Token not found (status=${statusCode}, keys=${body && typeof body === 'object' ? Object.keys(body).join(',') : 'n/a'})`); if (attempts < 3) await sleep(1000 * Math.pow(2, attempts-1)); continue; }\n    return [{ json: { ...j, luluAccessToken: access, luluTokenIssuedAt: new Date().toISOString(), retryCountToken: attempts } }];\n  } catch (e) { lastErr = e; if (attempts < 3) await sleep(1000 * Math.pow(2, attempts-1)); }\n}\nthrow new Error(`Token fetch failed after 3 retries: ${lastErr?.message||lastErr}`);"
       },
-      "id": "c5d2655b-b522-4555-bb14-36ecbfe15c85",
+      "id": "6ac32b68-c75e-45d7-945e-96816143b443",
       "name": "Lulu: Get Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        33776,
-        18528
+        40944,
+        19840
       ]
     },
     {
       "parameters": {
         "jsCode": "// Submit Lulu Print Job (Retry) — 3 attempts on 429/5xx; respects guard skip.\n// Accept success responses that provide job id in body OR location/self URL.\nconst j = $input.first().json || {};\nif (j.__skipLulu) {\n  console.log('W4.1: Lulu submission skipped (reason: ' + (j.guard?.reason || 'unknown') + ')');\n  return [{ json: { ...j, luluJobId: j.luluJobId || 'SKIPPED', luluStatus: j.luluStatus || 'SKIPPED' } }];\n}\n\nconst token = j.luluAccessToken;\nconst payload = j.luluPayload;\nif (!token || !payload) throw new Error('Missing token or payload');\n\nconst http = this.helpers.httpRequest;\nconst apiBase = (j.CONFIG?.lulu?.apiBase || 'https://api.lulu.com').replace(/\\/$/, '');\nconst submitUrl = `${apiBase}/print-jobs/`;\nconst headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };\n\nfunction firstNonEmpty(...vals){ for (const v of vals) { if (v !== undefined && v !== null && String(v).trim() !== '') return v; } return null; }\nfunction getFromPath(obj, path){ try { return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj); } catch { return undefined; } }\nfunction pickHeader(h, key){\n  if (!h || typeof h !== 'object') return '';\n  return String(h[key] || h[key.toLowerCase()] || h[key.toUpperCase()] || '').trim();\n}\nfunction extractIdFromUrl(url){\n  if (!url || typeof url !== 'string') return null;\n  const m = url.match(/\\/print-jobs\\/([^/?#]+)/i);\n  return m?.[1] || null;\n}\nfunction preview(v){\n  try { return (typeof v === 'string' ? v : JSON.stringify(v)).slice(0, 500); }\n  catch { return String(v).slice(0, 500); }\n}\nasync function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }\n\nlet lastErr = null;\nlet statusCode = null;\nfor (let attempts = 1; attempts <= 3; attempts++) {\n  try {\n    const resp = await http({\n      method: 'POST',\n      url: submitUrl,\n      headers,\n      body: payload,\n      json: true,\n      ignoreHttpStatusErrors: true,\n      returnFullResponse: true,\n      timeout: 60000,\n    });\n\n    statusCode = Number(resp?.statusCode || resp?.status || 200);\n    const respHeaders = (resp && typeof resp === 'object' && resp.headers && typeof resp.headers === 'object') ? resp.headers : {};\n    const body = (resp && typeof resp === 'object' && Object.prototype.hasOwnProperty.call(resp, 'body')) ? resp.body : resp;\n\n    if (statusCode >= 500 || statusCode === 429) {\n      lastErr = new Error(`Submit retryable error (status=${statusCode})`);\n      if (attempts < 3) await sleep(1000 * Math.pow(2, attempts - 1));\n      continue;\n    }\n\n    if (statusCode >= 400) {\n      throw new Error(`Submit 4xx error (status=${statusCode}) — ${preview(body)}`);\n    }\n\n    const selfUrl = firstNonEmpty(\n      pickHeader(respHeaders, 'location'),\n      getFromPath(body, 'location'),\n      getFromPath(body, 'url'),\n      getFromPath(body, 'self'),\n      getFromPath(body, 'links.self.href'),\n      getFromPath(body, 'links.self'),\n      getFromPath(body, 'data.links.self.href'),\n      getFromPath(body, 'data.links.self')\n    );\n\n    const jobId = firstNonEmpty(\n      getFromPath(body, 'id'),\n      getFromPath(body, 'job_id'),\n      getFromPath(body, 'print_job_id'),\n      getFromPath(body, 'data.id'),\n      extractIdFromUrl(String(selfUrl || ''))\n    );\n\n    const status = firstNonEmpty(\n      getFromPath(body, 'status'),\n      getFromPath(body, 'data.status'),\n      'CREATED'\n    );\n\n    if (!jobId) {\n      throw new Error(`Lulu response missing job id (status=${statusCode}, location=${selfUrl || 'n/a'}, body=${preview(body)})`);\n    }\n\n    return [{\n      json: {\n        ...j,\n        luluJobId: String(jobId).slice(0, 50),\n        luluStatus: String(status),\n        luluSubmitStatusCode: statusCode,\n        retryCountSubmit: attempts,\n        luluSubmitLocation: selfUrl || null,\n        luluSubmitResponse: body,\n      }\n    }];\n  } catch (e) {\n    lastErr = e;\n    const msg = e?.message || String(e);\n    if (msg.includes('4xx')) throw e;\n    if (attempts < 3) await sleep(1000 * Math.pow(2, attempts - 1));\n  }\n}\n\nthrow new Error(`Submit failed after 3 retries: ${lastErr?.message || lastErr}`);\n"
       },
-      "id": "74803b9c-e54e-4c88-bcf2-656680dc77df",
+      "id": "e77f9ecd-a44e-4c37-b9cb-7b07128b9f3f",
       "name": "Submit Lulu Print Job",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        34160,
-        18528
+        41472,
+        19840
       ]
     },
     {
       "parameters": {
         "jsCode": "// Split for Supabase: emit N items (one per sibling) with shared luluJobId\nconst j=$input.first().json||{};\nconst siblings=j.siblings||[];\nconst luluJobId=j.luluJobId; const luluStatus=j.luluStatus||'SUBMITTED';\nif(!siblings.length)throw new Error('No siblings');\nreturn siblings.map(s=>({json:{...s,luluJobId,luluStatus}}));"
       },
-      "id": "5761deb4-0232-4159-a44d-bb936265b9c1",
+      "id": "ed231148-6b84-4dcd-8802-1c5e5f464651",
       "name": "Split for Supabase PATCH",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        34400,
-        18528
+        41696,
+        19840
       ]
     },
     {
@@ -467,13 +467,13 @@
         "jsonBody": "={{ JSON.stringify({ lulu_job_id: $json.luluJobId, lulu_status: $json.luluStatus, print_submitted_at: new Date().toISOString(), workflow_step: 'print_fulfillment', status: 'pending_print', updated_at: new Date().toISOString() }) }}",
         "options": {}
       },
-      "id": "69695bb9-3ca1-4b45-9f90-bcbcb39a807f",
+      "id": "98af82c0-53f2-4c45-87bb-ba2eff3a7ca0",
       "name": "Supabase: PATCH N rows",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        34656,
-        18656
+        41952,
+        19968
       ]
     },
     {
@@ -481,13 +481,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "const j=$input.item.json||{};\nconst manifest={schema:'lhb.run-manifest@v2.0',stage:'4-print-fulfillment',createdAt:new Date().toISOString(),orderId:j.orderId,artifacts:{interiorPdfR2Key:j.pdfR2Key,coverPdfR2Key:j.coverPdfR2Key},lulu:{jobId:j.luluJobId,status:j.luluStatus}};\nconst key=`book-mvp-simple-adventure/orders/${j.orderId}/manifests/4-manifest.json`;\nreturn{json:{...j,manifestKey:key,_manifest:manifest}};"
       },
-      "id": "4da3d0fd-b5fb-4d45-8129-a45e17114472",
+      "id": "1686b524-05e3-4ff0-8edc-21e0c7c3ec9a",
       "name": "Build 4-Manifest JSON",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        34816,
-        18528
+        42112,
+        19840
       ]
     },
     {
@@ -498,13 +498,13 @@
         "binaryData": false,
         "additionalFields": {}
       },
-      "id": "e132b1ea-d3a3-4314-a33e-724bbc092a3e",
+      "id": "9d312d6b-4f4e-4c54-8d74-5c1c26f7936b",
       "name": "Upload 4-Manifest to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        35056,
-        18640
+        42352,
+        19952
       ],
       "credentials": {
         "s3": {
@@ -517,13 +517,13 @@
       "parameters": {
         "jsCode": "// Aggregate to one item with orderIds + CONFIG for single Notify call (CONFIG needed for Bearer auth)\nconst items=$input.all().map(i=>i.json);\nconst orderIds=items.map(i=>i.orderId);\nconst CONFIG=items[0]?.CONFIG;\nreturn[{json:{orderIds,CONFIG}}];"
       },
-      "id": "858b0363-ded8-44af-9f22-33786bd6c31b",
+      "id": "f2d442ac-cc8d-429f-9945-f42e7071f4d8",
       "name": "Aggregate for Notify",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        35264,
-        18528
+        42560,
+        19840
       ]
     },
     {
@@ -548,13 +548,13 @@
         "jsonBody": "={{ JSON.stringify({ orderIds: $json.orderIds }) }}",
         "options": {}
       },
-      "id": "823c9523-d4e8-4f2f-a1e4-881c4691f696",
+      "id": "1c6f3922-5596-49b8-95b3-cccda5c57259",
       "name": "Notify: Sent to Print",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        35504,
-        18528
+        42800,
+        19840
       ]
     },
     {
@@ -590,10 +590,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        33696,
-        17888
+        40544,
+        19200
       ],
-      "id": "235be753-966d-4e2e-80e4-9f4145f7a07c",
+      "id": "79d8beaa-0e5f-41d7-9b16-1c57f4cfceee",
       "name": "Supabase: mark start (N rows)"
     },
     {
@@ -603,10 +603,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        33952,
-        18528
+        41136,
+        19840
       ],
-      "id": "f6682744-1ce1-482c-a5e4-608cc0fcda4e",
+      "id": "564b215c-a8ed-4c8a-92fd-3d9ff8cf8bab",
       "name": "Validate PDFs + Guard Lulu"
     },
     {
@@ -614,10 +614,10 @@
       "type": "n8n-nodes-base.errorTrigger",
       "typeVersion": 1,
       "position": [
-        33520,
-        16992
+        40976,
+        20448
       ],
-      "id": "0f1fa1e4-737b-42f2-9146-f15f13d7c463",
+      "id": "7dcc12fa-b044-4c61-aaf9-132ca48b3a9e",
       "name": "On Error (W4.1)"
     },
     {
@@ -627,10 +627,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        33824,
-        16992
+        41280,
+        20448
       ],
-      "id": "025a023c-c6f0-4b6e-b520-1fea43ce3bfb",
+      "id": "0a986db3-82d0-4833-bc89-66a8bda96da8",
       "name": "Build Error Context (W4.1)"
     },
     {
@@ -650,7 +650,7 @@
             },
             {
               "name": "Authorization",
-              "value": "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "={{'Bearer ' + $json.supabaseServiceRoleKey}}"
             },
             {
               "name": "Prefer",
@@ -666,10 +666,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        34128,
-        17104
+        41584,
+        20560
       ],
-      "id": "481cf9cd-ccf3-43f6-81e5-166ea7d8dfc6",
+      "id": "3d5ab767-d696-4bb2-ad2d-fbe8b3b35afb",
       "name": "Supabase: mark error (N rows)"
     },
     {
@@ -680,10 +680,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        34416,
-        16992
+        41872,
+        20448
       ],
-      "id": "6b94ef7a-b127-4ded-9ca5-be2756c4ced9",
+      "id": "10472dd4-ba4a-4e96-adec-8f3bc923b8e5",
       "name": "Build Error Manifest"
     },
     {
@@ -697,10 +697,10 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        34720,
-        16992
+        42176,
+        20448
       ],
-      "id": "9ba984d0-ef4d-448f-9a67-2ccf936094d1",
+      "id": "3bc5dd75-881f-4d16-a52d-05c2aed41031",
       "name": "Upload Error Manifest to R2",
       "credentials": {
         "s3": {
@@ -739,13 +739,13 @@
         "jsonBody": "={{ JSON.stringify({ interiorPdfR2Key: $json.pdfR2Key, coverPdfR2Key: $json.coverPdfR2Key, updated_at: new Date().toISOString() }) }}",
         "options": {}
       },
-      "id": "3ea761fa-21cf-4bdf-a44e-184b478a16a5",
+      "id": "eda61b1c-58e7-432a-8a5b-344683e5d3b3",
       "name": "Supabase: set PDF keys (per sibling)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        35008,
-        18096
+        41744,
+        19408
       ],
       "continueOnFail": true
     },
@@ -777,17 +777,23 @@
           "timeout": 65000
         }
       },
-      "id": "4dde9210-f56e-4f50-ad4f-1b065acf33bb",
+      "id": "2d31e13f-a59f-4031-b608-b012687ec143",
       "name": "QA Check Interior PDF",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        35616,
-        18192
+        42544,
+        19504
       ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 1000
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ZqZx5b2yHtMHV0p8",
+          "name": "Renderer Bearer Auth account"
+        }
+      }
     },
     {
       "parameters": {
@@ -817,30 +823,36 @@
           "timeout": 65000
         }
       },
-      "id": "dbc644db-08dd-4939-8ba3-48256fe737b5",
+      "id": "7e0355e0-5dfe-4818-900e-13f42471da2b",
       "name": "QA Check Cover PDF",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        36064,
-        18192
+        42912,
+        19504
       ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 1000
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ZqZx5b2yHtMHV0p8",
+          "name": "Renderer Bearer Auth account"
+        }
+      }
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "// Reattach context after interior file download to preserve json + binary for R2 upload.\nconst item = $input.item;\nconst out = item?.json || {};\nfunction latest(node){ try { return ($items(node, 0, $runIndex)?.[0]?.json) || null; } catch { return null; } }\nconst ctx = latest('Poll PDFMonkey until ready') || latest('Validate & Normalize Per Sibling') || {};\nreturn { json: { ...ctx, ...out }, binary: item?.binary };"
       },
-      "id": "e00a3704-225b-41b4-a3fe-dfb0358a790b",
+      "id": "e3d9e9f2-8c43-4ba0-8955-9f703fe32338",
       "name": "Reattach Interior Context (Post Download)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        35600,
-        17888
+        42496,
+        19200
       ]
     },
     {
@@ -848,13 +860,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Reattach canonical context after cover upload/PATCH side-effects before QA.\nconst out = $input.item.json || {};\nfunction latest(node){ try { return ($items(node, 0, $runIndex)?.[0]?.json) || null; } catch { return null; } }\nconst ctx = latest('Poll Cover PDFMonkey until ready') || latest('Reattach Cover Context (PDFM)') || latest('Validate & Normalize Per Sibling') || {};\nreturn { json: { ...ctx, ...out } };"
       },
-      "id": "4504a650-03c4-40c9-827f-116faacc185a",
+      "id": "54a4a025-e3f2-4a4c-abf6-e7bb203c4582",
       "name": "Reattach QA Context (Post Cover Upload)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        35232,
-        18192
+        41984,
+        19504
       ]
     },
     {
@@ -862,13 +874,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "const j = $input.item.json || {};\nconst missing = [];\nconst expectedPageCount = Number(j.expectedPageCount);\nconst rendererApiBase = String(j.CONFIG?.renderer?.apiBase || '').trim();\nconst rendererQaUrl = rendererApiBase ? rendererApiBase.replace(/\\/$/, '') + '/qa-pdf' : '';\nif (!(j.orderId || j.amazonOrderId || j.amazon_order_id)) missing.push('orderId');\nif (!Number.isFinite(expectedPageCount) || expectedPageCount < 1) missing.push('expectedPageCount');\nif (!rendererApiBase) missing.push('CONFIG.renderer.apiBase');\nif (!j.interiorSignedUrl) missing.push('interiorSignedUrl');\nif (!j.coverSignedUrl) missing.push('coverSignedUrl');\nif (!Array.isArray(j.interiorPreviewImageUrls) || j.interiorPreviewImageUrls.length !== expectedPageCount) missing.push('interiorPreviewImageUrls');\nif (!Array.isArray(j.coverPreviewImageUrls) || j.coverPreviewImageUrls.length !== 1) missing.push('coverPreviewImageUrls');\nif (!Array.isArray(j.pageLabels) || j.pageLabels.length !== expectedPageCount) missing.push('pageLabels');\nif (rendererApiBase && !/^https?:\\/\\/[^\\s]+$/i.test(rendererApiBase)) missing.push('rendererApiBaseFormat');\nif (missing.length) {\n  throw new Error('[Guard QA Inputs] Missing ' + missing.join(', ') + ' (hasOrderId=' + !!(j.orderId || j.amazonOrderId || j.amazon_order_id) + ', hasInteriorSignedUrl=' + !!j.interiorSignedUrl + ', hasCoverSignedUrl=' + !!j.coverSignedUrl + ', interiorPreviewCount=' + (Array.isArray(j.interiorPreviewImageUrls) ? j.interiorPreviewImageUrls.length : 0) + ', coverPreviewCount=' + (Array.isArray(j.coverPreviewImageUrls) ? j.coverPreviewImageUrls.length : 0) + ', expectedPageCount=' + (Number.isFinite(expectedPageCount) ? expectedPageCount : 'n/a') + ', rendererQaUrl=' + (rendererQaUrl || 'n/a') + ', sourceNode=Prepare Renderer QA Inputs)');\n}\nreturn { json: j };"
       },
-      "id": "a93c8068-e3eb-4106-b3e9-4e7d6c86b4b0",
+      "id": "1bc83c1c-d6e8-49b4-a5f4-1c13f2fa853d",
       "name": "Guard QA Inputs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        35440,
-        18192
+        42352,
+        19504
       ]
     },
     {
@@ -876,77 +888,88 @@
         "mode": "runOnceForEachItem",
         "jsCode": "const crypto = require('crypto');\n\nconst item = $input.item.json || {};\nconst cfg = item.CONFIG || {};\nconst renderer = cfg.renderer || {};\nconst http = this.helpers.httpRequest;\nconst ordersBucket = cfg.r2?.bucket || 'little-hero-orders';\nconst publicBucket = cfg.r2?.publicBucket || 'little-hero-assets';\nconst endpointHost = cfg.r2?.endpointHost || '';\nconst region = cfg.r2?.region || 'auto';\nconst accessKeyId = cfg.r2?.accessKeyId || '';\nconst secretAccessKey = cfg.r2?.secretAccessKey || '';\nconst backendToken = cfg.backendApiToken || '';\nconst backendUrl = String(cfg.defaults?.trimIn?.assetBase || 'https://admin.littleherolabs.com/api/assets/').replace(/\\/api\\/assets\\/?$/, '');\nconst orderId = item.orderId || item.amazonOrderId || item.amazon_order_id || '';\nconst expectedPageCount = Number(item.expectedPageCount);\nconst pageImageUrls = Array.isArray(item.pageImageUrls) ? item.pageImageUrls : [];\nconst pageLabels = Array.isArray(item.pageLabels) && item.pageLabels.length === pageImageUrls.length\n  ? item.pageLabels.map((value) => String(value))\n  : Array.from({ length: pageImageUrls.length }, (_, index) => 'p' + String(index).padStart(2, '0'));\nconst coverPreviewUrl = typeof item.coverPreviewUrl === 'string' ? item.coverPreviewUrl.trim() : '';\nconst interiorRef = item.pdfR2Key || item.interiorPdfR2Key || item.interiorSignedUrl || item.pdfUrl || item.pdfDownloadUrl || '';\nconst coverRef = item.coverPdfR2Key || item.coverSignedUrl || item.coverPdfUrl || item.coverPdfDownloadUrl || '';\n\nif (!orderId) throw new Error('[Prepare Renderer QA Inputs] Missing orderId');\nif (!renderer.apiBase) throw new Error('[Prepare Renderer QA Inputs] Missing CONFIG.renderer.apiBase');\nif (!endpointHost || !accessKeyId || !secretAccessKey) throw new Error('[Prepare Renderer QA Inputs] R2 config incomplete');\nif (!backendToken) throw new Error('[Prepare Renderer QA Inputs] Missing CONFIG.backendApiToken');\nif (!interiorRef || !coverRef) throw new Error('[Prepare Renderer QA Inputs] Missing interior/cover PDF refs');\nif (!Number.isFinite(expectedPageCount) || expectedPageCount < 1) throw new Error('[Prepare Renderer QA Inputs] Invalid expectedPageCount');\nif (pageImageUrls.length !== expectedPageCount) throw new Error('[Prepare Renderer QA Inputs] pageImageUrls length mismatch');\nif (pageLabels.length !== expectedPageCount) throw new Error('[Prepare Renderer QA Inputs] pageLabels length mismatch');\nif (!coverPreviewUrl) throw new Error('[Prepare Renderer QA Inputs] Missing coverPreviewUrl');\n\nfunction isUrl(value) { return typeof value === 'string' && /^https?:\\/\\//i.test(value); }\nconst now = new Date();\nconst amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\\..+/, '') + 'Z';\nconst date = amzDate.slice(0, 8);\nconst service = 's3';\n\nfunction hmac(key, data) {\n  return crypto.createHmac('sha256', key).update(data).digest();\n}\n\nfunction sha256Hex(data) {\n  return crypto.createHash('sha256').update(data).digest('hex');\n}\n\nfunction toHex(buffer) {\n  return buffer.toString('hex');\n}\n\nfunction buildQuery(params) {\n  return Object.entries(params)\n    .map(([key, value]) => encodeURIComponent(key) + '=' + encodeURIComponent(String(value)))\n    .join('&');\n}\n\nfunction presignKey(key, expires) {\n  const objectKey = encodeURIComponent(String(key).replace(/^\\/+/, '')).replace(/%2F/g, '/');\n  const canonicalUri = '/' + ordersBucket + '/' + objectKey;\n  const credentialScope = date + '/' + region + '/' + service + '/aws4_request';\n  const credential = accessKeyId + '/' + credentialScope;\n  const signedHeaders = 'host';\n  const queryParams = {\n    'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',\n    'X-Amz-Credential': credential,\n    'X-Amz-Date': amzDate,\n    'X-Amz-Expires': String(expires),\n    'X-Amz-SignedHeaders': signedHeaders,\n  };\n  const canonicalQueryString = buildQuery(queryParams);\n  const canonicalHeaders = 'host:' + endpointHost + '\\n';\n  const payloadHash = 'UNSIGNED-PAYLOAD';\n  const canonicalRequest = [\n    'GET',\n    canonicalUri,\n    canonicalQueryString,\n    canonicalHeaders,\n    signedHeaders,\n    payloadHash,\n  ].join('\\n');\n  const stringToSign = [\n    'AWS4-HMAC-SHA256',\n    amzDate,\n    credentialScope,\n    sha256Hex(canonicalRequest),\n  ].join('\\n');\n  const kDate = hmac(Buffer.from('AWS4' + secretAccessKey, 'utf8'), date);\n  const kRegion = hmac(kDate, region);\n  const kService = hmac(kRegion, service);\n  const kSigning = hmac(kService, 'aws4_request');\n  const signature = toHex(hmac(kSigning, stringToSign));\n  return 'https://' + endpointHost + '/' + ordersBucket + '/' + objectKey + '?' + canonicalQueryString + '&X-Amz-Signature=' + signature;\n}\n\nfunction cleanPath(value) {\n  return String(value || '').trim().split('#')[0].split('?')[0].replace(/^\\/+/, '');\n}\n\nfunction extractAssetKey(ref) {\n  if (!ref) return '';\n  const raw = String(ref).trim();\n  if (!raw) return '';\n  if (!isUrl(raw)) return cleanPath(raw);\n  if (raw.includes('/api/assets/')) {\n    return cleanPath(raw.split('/api/assets/')[1] || '');\n  }\n  const hostMatch = raw.match(/^https?:\\/\\/([^/]+)/i);\n  const hostname = hostMatch ? hostMatch[1] : '';\n  const pathname = cleanPath(raw.replace(/^https?:\\/\\/[^/]+/i, ''));\n  if (pathname.startsWith(ordersBucket + '/')) return pathname.slice(ordersBucket.length + 1);\n  if (pathname.startsWith(publicBucket + '/')) return pathname.slice(publicBucket.length + 1);\n  if (/cloudflarestorage\\.com$/i.test(hostname)) return pathname;\n  return '';\n}\n\nfunction bucketForKey(key) {\n  return key.startsWith('book-mvp-simple-adventure/orders/') ? ordersBucket : publicBucket;\n}\n\nasync function signPreviewRef(ref) {\n  const key = extractAssetKey(ref);\n  if (!key) {\n    if (isUrl(ref)) return String(ref).trim();\n    throw new Error('[Prepare Renderer QA Inputs] Could not derive preview key from ref: ' + String(ref));\n  }\n  const bucketName = bucketForKey(key);\n  const query = buildQuery({ key, bucket: bucketName, expiresIn: '21600' });\n  const response = await http({\n    method: 'GET',\n    url: backendUrl + '/api/r2/signed-url?' + query,\n    headers: { Authorization: 'Bearer ' + backendToken },\n    json: true,\n    ignoreHttpStatusErrors: true,\n    returnFullResponse: true,\n    timeout: 30000,\n  });\n  const statusCode = Number(response?.statusCode || response?.status || 200);\n  const payload = response?.body !== undefined ? response.body : response;\n  if (statusCode >= 400 || !payload || typeof payload !== 'object' || !payload.url) {\n    throw new Error('[Prepare Renderer QA Inputs] Failed to sign preview URL (status=' + statusCode + ', ref=' + ref + ')');\n  }\n  return payload.url;\n}\n\nconst interiorSignedUrl = isUrl(interiorRef) ? String(interiorRef).trim() : presignKey(interiorRef, 21600);\nconst coverSignedUrl = isUrl(coverRef) ? String(coverRef).trim() : presignKey(coverRef, 21600);\nconst interiorPreviewImageUrls = [];\nfor (const ref of pageImageUrls) {\n  interiorPreviewImageUrls.push(await signPreviewRef(ref));\n}\nconst coverPreviewImageUrls = [await signPreviewRef(coverPreviewUrl)];\n\nreturn { json: { ...item, interiorSignedUrl, coverSignedUrl, interiorPreviewImageUrls, coverPreviewImageUrls, pageLabels } };"
       },
-      "id": "b2c45937-f4dc-4c0c-808b-8aa2755656e8",
+      "id": "876d5487-624a-41be-a029-e27de69c19a8",
       "name": "Prepare Renderer QA Inputs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        35328,
-        18192
+        42176,
+        19504
       ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [],
-          "number": [],
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
             {
-              "value1": "={{$json.qaPassed}}",
-              "operation": "equal",
-              "value2": "true"
+              "id": "d6dc7ea2-bd00-4009-a264-b46104cf5d82",
+              "leftValue": "={{$json.qaPassed}}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
             }
-          ]
+          ],
+          "combinator": "and"
         },
-        "options": {}
+        "options": {
+          "looseTypeValidation": true
+        }
       },
-      "id": "e1dc0912-8b4a-468e-893c-213bd9741e88",
+      "id": "9efc1321-1779-4272-9ac7-c86f0a68c688",
       "name": "IF QA Passed (W4.1)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        36512,
-        18192
+        40272,
+        19856
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "const j = $input.item.json || {};\nconst orderId = j.orderId || j.amazonOrderId || j.amazon_order_id || 'unknown-order';\nconst supabaseProjectUrl = j.CONFIG?.supabase?.projectUrl || 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseServiceRoleKey = j.CONFIG?.supabase?.serviceRoleKey || '';\nif (!supabaseServiceRoleKey) {\n  throw new Error('[QA Failed Error Handler (W4.1)] Missing CONFIG.supabase.serviceRoleKey');\n}\nconst interior = j.qaInterior || {};\nconst cover = j.qaCover || {};\nconst reasons = [\n  interior?.passed ? null : `interior:${interior.reasonCode || 'failed'}`,\n  cover?.passed ? null : `cover:${cover.reasonCode || 'failed'}`\n].filter(Boolean);\nconst failedPages = Array.isArray(j.qaFailedPages) ? j.qaFailedPages : [];\nconst errorMessage = `[W4.1 QA] Failed before Lulu submit (${reasons.join(', ') || 'unknown'}). Failed pages: ${failedPages.join(', ') || 'n/a'}`;\nreturn {\n  json: {\n    ...j,\n    orderId,\n    supabaseProjectUrl,\n    supabaseServiceRoleKey,\n    supabasePatch: JSON.stringify({\n      execution_status: 'error',\n      error_type: 'print_qa_failed',\n      workflow_step: 'print_fulfillment',\n      error_message: errorMessage,\n      printFulfillmentStatus: 'error',\n      printFulfillmentErrorPhase: 'qa_gate',\n      printFulfillmentErrorMessage: errorMessage\n    }),\n    manifestKey: `book-mvp-simple-adventure/orders/${orderId}/manifests/4-qa-fail-manifest.json`,\n    _errorManifest: {\n      schema: 'lhb.run-manifest@v2.0',\n      stage: '4.1-sibling-aggregation',\n      createdAt: new Date().toISOString(),\n      orderId,\n      status: 'error',\n      errorType: 'print_qa_failed',\n      errorPhase: 'qa_gate',\n      errorMessage,\n      qaInterior: interior,\n      qaCover: cover,\n      qaFailedPages: failedPages\n    }\n  }\n};"
+        "jsCode": "const j = $input.item.json || {};\nconst supabaseProjectUrl = j.CONFIG?.supabase?.projectUrl || 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseServiceRoleKey = j.CONFIG?.supabase?.serviceRoleKey || '';\nif (!supabaseServiceRoleKey) {\n  throw new Error('[QA Failed Error Handler (W4.1)] Missing CONFIG.supabase.serviceRoleKey');\n}\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    if (typeof v === 'string') {\n      const s = v.trim();\n      if (s) return s;\n      continue;\n    }\n    return v;\n  }\n}\n\nfunction findSiblingItems() {\n  try {\n    const configItems = $items('Config + Validate Sibling Group', 0, $runIndex)\n      .map((entry) => entry?.json || {})\n      .filter((entry) => Boolean(firstNonEmpty(entry.orderId, entry.amazonOrderId, entry.amazon_order_id)));\n    if (configItems.length) return configItems;\n  } catch (error) {}\n  return [j];\n}\n\nconst siblingItems = findSiblingItems();\nconst interior = j.qaInterior || {};\nconst cover = j.qaCover || {};\nconst reasons = [\n  interior?.passed ? null : `interior:${interior.reasonCode || 'failed'}`,\n  cover?.passed ? null : `cover:${cover.reasonCode || 'failed'}`\n].filter(Boolean);\nconst failedPages = Array.isArray(j.qaFailedPages) ? j.qaFailedPages : [];\nconst errorMessage = `[W4.1 QA] Failed before Lulu submit (${reasons.join(', ') || 'unknown'}). Failed pages: ${failedPages.join(', ') || 'n/a'}`;\n\nreturn siblingItems.map((sibling) => {\n  const orderId = firstNonEmpty(sibling.orderId, sibling.amazonOrderId, sibling.amazon_order_id, 'unknown-order');\n  return {\n    json: {\n      ...sibling,\n      CONFIG: sibling.CONFIG || j.CONFIG,\n      qaInterior: interior,\n      qaCover: cover,\n      qaPassed: false,\n      qaFailedPages: failedPages,\n      qaSkipped: false,\n      supabaseProjectUrl,\n      supabaseServiceRoleKey,\n      supabasePatch: JSON.stringify({\n        execution_status: 'error',\n        error_type: 'print_qa_failed',\n        workflow_step: 'print_fulfillment',\n        error_message: errorMessage\n      }),\n      manifestKey: `book-mvp-simple-adventure/orders/${orderId}/manifests/4-qa-fail-manifest.json`,\n      _errorManifest: {\n        schema: 'lhb.run-manifest@v2.0',\n        stage: '4.1-sibling-aggregation',\n        createdAt: new Date().toISOString(),\n        orderId,\n        status: 'error',\n        errorType: 'print_qa_failed',\n        errorPhase: 'qa_gate',\n        errorMessage,\n        qaInterior: interior,\n        qaCover: cover,\n        qaFailedPages: failedPages\n      }\n    }\n  };\n});\n"
       },
-      "id": "8e899302-35b7-4cdd-9fae-30e91319e3d3",
+      "id": "eb2cdb6d-b1b8-4580-befd-8a1e4c39fcea",
       "name": "QA Failed Error Handler (W4.1)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        33696,
-        18896
+        40752,
+        20208
       ]
     },
     {
       "parameters": {
         "jsCode": "const responseItems = $input.all();\nif (!responseItems.length) {\n  throw new Error('[Parse Interior QA Response] Missing renderer response items');\n}\nlet sourceItems = [];\ntry {\n  sourceItems = $items(\"Guard QA Inputs\", 0, $runIndex).map((entry) => entry.json || {});\n} catch (error) {\n  sourceItems = [];\n}\nreturn responseItems.map((entry, index) => {\n  const item = sourceItems[index] || {};\n  const orderId = item.orderId || item.amazonOrderId || item.amazon_order_id;\n  if (!orderId) throw new Error('[Parse Interior QA Response] Missing orderId');\n  const resp = entry?.json || {};\n  const statusCode = Number(resp.statusCode || resp.status || 200);\n  const headers = resp && typeof resp === 'object' && resp.headers && typeof resp.headers === 'object' ? resp.headers : {};\n  const contentType = String(headers['content-type'] || headers['Content-Type'] || '');\n  const rawBody = Object.prototype.hasOwnProperty.call(resp || {}, 'body') ? resp.body : resp;\n  let payload = null;\n  if (rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody)) payload = rawBody;\n  else if (typeof rawBody === 'string') {\n    const trimmed = rawBody.trim();\n    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {\n      try { payload = JSON.parse(trimmed); } catch (error) {}\n    }\n  }\n  const bodyPreview = (() => {\n    try {\n      return typeof rawBody === 'string' ? rawBody.slice(0, 280) : JSON.stringify(rawBody).slice(0, 280);\n    } catch (error) {\n      return String(rawBody).slice(0, 280);\n    }\n  })();\n  const looksLikeProbePayload = Boolean(\n    payload &&\n    typeof payload === 'object' &&\n    !Array.isArray(payload) &&\n    Array.isArray(payload.renderedPages) &&\n    typeof payload.pageCount === 'number' &&\n    !Object.prototype.hasOwnProperty.call(payload, 'passed')\n  );\n  if (statusCode === 401 || statusCode === 403) throw new Error('[Parse Interior QA Response] Auth failure (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 500) throw new Error('[Parse Interior QA Response] QA renderer returned ' + statusCode + ' for orderId=' + orderId + ' (body=' + (bodyPreview || 'n/a') + ')');\n  if (looksLikeProbePayload) throw new Error('[Parse Interior QA Response] Renderer returned probe payload instead of QA payload (status=' + statusCode + ', orderId=' + orderId + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('[Parse Interior QA Response] Invalid response payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (!Object.prototype.hasOwnProperty.call(payload, 'passed') || typeof payload.passed !== 'boolean' || !Array.isArray(payload.failedPages)) throw new Error('[Parse Interior QA Response] Invalid QA payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 400) throw new Error('[Parse Interior QA Response] Client error (status=' + statusCode + ', orderId=' + orderId + ', reason=' + (payload.reasonCode || payload.error || 'unknown') + ', body=' + (bodyPreview || 'n/a') + ')');\n  const qaInterior = {\n    statusCode,\n    passed: payload.passed,\n    skipped: false,\n    reasonCode: payload.reasonCode || 'unknown',\n    reason: payload.reason || 'unknown',\n    failedPages: payload.failedPages,\n    warnings: Array.isArray(payload.warnings) ? payload.warnings : [],\n    raw: payload,\n  };\n  return { json: { ...item, qaInterior } };\n});"
       },
-      "id": "223556c3-e995-420e-b1e9-658ae0a57efb",
+      "id": "606256e8-4e4a-4c8a-a0df-f5e965ffd04f",
       "name": "Parse Interior QA Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        35840,
-        18192
+        42720,
+        19504
       ]
     },
     {
       "parameters": {
         "jsCode": "const responseItems = $input.all();\nif (!responseItems.length) {\n  throw new Error('[Parse Cover QA Response] Missing renderer response items');\n}\nlet sourceItems = [];\ntry {\n  sourceItems = $items(\"Parse Interior QA Response\", 0, $runIndex).map((entry) => entry.json || {});\n} catch (error) {\n  sourceItems = [];\n}\nreturn responseItems.map((entry, index) => {\n  const item = sourceItems[index] || {};\n  const orderId = item.orderId || item.amazonOrderId || item.amazon_order_id;\n  if (!orderId) throw new Error('[Parse Cover QA Response] Missing orderId');\n  const resp = entry?.json || {};\n  const statusCode = Number(resp.statusCode || resp.status || 200);\n  const headers = resp && typeof resp === 'object' && resp.headers && typeof resp.headers === 'object' ? resp.headers : {};\n  const contentType = String(headers['content-type'] || headers['Content-Type'] || '');\n  const rawBody = Object.prototype.hasOwnProperty.call(resp || {}, 'body') ? resp.body : resp;\n  let payload = null;\n  if (rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody)) payload = rawBody;\n  else if (typeof rawBody === 'string') {\n    const trimmed = rawBody.trim();\n    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {\n      try { payload = JSON.parse(trimmed); } catch (error) {}\n    }\n  }\n  const bodyPreview = (() => {\n    try {\n      return typeof rawBody === 'string' ? rawBody.slice(0, 280) : JSON.stringify(rawBody).slice(0, 280);\n    } catch (error) {\n      return String(rawBody).slice(0, 280);\n    }\n  })();\n  const looksLikeProbePayload = Boolean(\n    payload &&\n    typeof payload === 'object' &&\n    !Array.isArray(payload) &&\n    Array.isArray(payload.renderedPages) &&\n    typeof payload.pageCount === 'number' &&\n    !Object.prototype.hasOwnProperty.call(payload, 'passed')\n  );\n  if (statusCode === 401 || statusCode === 403) throw new Error('[Parse Cover QA Response] Auth failure (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 500) throw new Error('[Parse Cover QA Response] QA renderer returned ' + statusCode + ' for orderId=' + orderId + ' (body=' + (bodyPreview || 'n/a') + ')');\n  if (looksLikeProbePayload) throw new Error('[Parse Cover QA Response] Renderer returned probe payload instead of QA payload (status=' + statusCode + ', orderId=' + orderId + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('[Parse Cover QA Response] Invalid response payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (!Object.prototype.hasOwnProperty.call(payload, 'passed') || typeof payload.passed !== 'boolean' || !Array.isArray(payload.failedPages)) throw new Error('[Parse Cover QA Response] Invalid QA payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 400) throw new Error('[Parse Cover QA Response] Client error (status=' + statusCode + ', orderId=' + orderId + ', reason=' + (payload.reasonCode || payload.error || 'unknown') + ', body=' + (bodyPreview || 'n/a') + ')');\n  const qaCover = {\n    statusCode,\n    passed: payload.passed,\n    skipped: false,\n    reasonCode: payload.reasonCode || 'unknown',\n    reason: payload.reason || 'unknown',\n    failedPages: payload.failedPages,\n    warnings: Array.isArray(payload.warnings) ? payload.warnings : [],\n    raw: payload,\n  };\n  const qaInterior = item.qaInterior || {};\n  const qaPassed = Boolean(qaInterior.passed) && Boolean(qaCover.passed);\n  const out = { ...item, qaCover, qaPassed, qaFailedPages: [...(qaInterior.failedPages || []), ...(qaCover.failedPages || [])], qaSkipped: false };\n  return { json: out };\n});"
       },
-      "id": "682765de-fa8b-4a98-9caa-cc5c92f8e8c2",
+      "id": "6e4c7327-5202-4377-992a-1fa299a08602",
       "name": "Parse Cover QA Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        36288,
-        18192
+        40080,
+        19856
       ]
     }
   ],
@@ -957,23 +980,23 @@
           "headers": {
             "host": "thepeakbeyond.app.n8n.cloud",
             "user-agent": "axios/1.13.5",
-            "content-length": "3430",
+            "content-length": "6135",
             "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
             "accept-encoding": "gzip, br",
             "cdn-loop": "cloudflare; loops=1; subreqs=1",
             "cf-connecting-ip": "4.182.88.118",
             "cf-ew-via": "15",
             "cf-ipcountry": "DE",
-            "cf-ray": "9d53b25b7b20d3a4-FRA",
+            "cf-ray": "9db8a07c6e2f9170-FRA",
             "cf-visitor": "{\"scheme\":\"https\"}",
             "cf-worker": "n8n.cloud",
             "content-type": "application/json",
-            "idempotency-key": "SIB-E2E-2026-02-28-A-4.1",
-            "x-forwarded-for": "4.182.88.118, 172.71.172.80",
+            "idempotency-key": "196e18e4-096b-4dde-9773-04b01273c098-4.1",
+            "x-forwarded-for": "4.182.88.118, 172.70.250.35",
             "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
             "x-forwarded-port": "443",
             "x-forwarded-proto": "https",
-            "x-forwarded-server": "traefik-prod-users-gwc-3-78ddd45589-dkw6m",
+            "x-forwarded-server": "traefik-prod-users-gwc-3-78ddd45589-7c5wz",
             "x-is-trusted": "yes",
             "x-real-ip": "4.182.88.118"
           },
@@ -982,60 +1005,121 @@
           "body": {
             "siblingGroup": [
               {
-                "orderId": "SIB-E2E-2026-02-28-A-item-001-r2",
-                "rootOrderId": "SIB-E2E-2026-02-28-A",
-                "amazonOrderId": "SIB-E2E-2026-02-28-A-item-001-r2",
-                "characterHash": "645cdd3fe632cbfa",
-                "orderDbId": 746,
+                "orderId": "196e18e4-096b-4dde-9773-04b01273c098-item-1",
+                "rootOrderId": "196e18e4-096b-4dde-9773-04b01273c098",
+                "amazonOrderId": "196e18e4-096b-4dde-9773-04b01273c098",
+                "characterHash": "e99b2eb08d5ba968",
+                "orderDbId": 803,
                 "workflow": "4",
                 "shipping_address": {
-                  "zip": "78701",
-                  "city": "Austin",
-                  "name": "Sibling QA",
-                  "phone": "5125550101",
-                  "state": "TX",
-                  "address": "100 Main St",
-                  "address_line_1": "100 Main St",
-                  "state_code": "TX",
-                  "postal_code": "78701",
-                  "phone_number": "5125550101"
+                  "zip": "95945",
+                  "city": "Grass Valley",
+                  "name": "Jeff LaPenna",
+                  "phone": "6784783477",
+                  "state": "CA",
+                  "address": "12207 Sunset Ave.",
+                  "country": "US",
+                  "state_code": "CA",
+                  "postal_code": "95945",
+                  "phone_number": "6784783477",
+                  "address_line_1": "12207 Sunset Ave.",
+                  "address_line1": "12207 Sunset Ave."
                 },
-                "manifest3Key": "book-mvp-simple-adventure/orders/SIB-E2E-2026-02-28-A-item-001-r2/manifests/3-manifest.json",
-                "oneManifestKey": "book-mvp-simple-adventure/orders/SIB-E2E-2026-02-28-A-item-001-r2/manifests/1-manifest.json",
-                "ShipmentServiceLevelCategory": "Expedited",
-                "ShipServiceLevel": "Expedited",
+                "manifest3Key": "book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-1/manifests/3-manifest.json",
+                "oneManifestKey": "book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-1/manifests/1-manifest.json",
+                "ShipmentServiceLevelCategory": null,
+                "ShipServiceLevel": null,
+                "shipping_tier": "expedited",
                 "_route": "sibling",
-                "oneManifestUrl": "https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book-mvp-simple-adventure/orders/SIB-E2E-2026-02-28-A-item-001-r2/manifests/1-manifest.json?X-Amz-Expires=600&X-Amz-Date=20260228T232808Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=320e3b8228c5ff7bd2395043886f03d3%2F20260228%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=0cc2d18b1b311af081ebef73874fcf79ae7a98350a2940c095918fdba6154fc3",
-                "claimedAt": "2026-02-28T23:28:09.066",
-                "one_manifest_url": "https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book-mvp-simple-adventure/orders/SIB-E2E-2026-02-28-A-item-001-r2/manifests/1-manifest.json?X-Amz-Expires=600&X-Amz-Date=20260228T232808Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=320e3b8228c5ff7bd2395043886f03d3%2F20260228%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=0cc2d18b1b311af081ebef73874fcf79ae7a98350a2940c095918fdba6154fc3"
+                "claimOrderDbIds": [
+                  "803",
+                  "804",
+                  "805"
+                ],
+                "claimGroupSize": 3,
+                "claimRootOrderId": "196e18e4-096b-4dde-9773-04b01273c098",
+                "claimStartedAt": "2026-03-13T05:26:58.506Z",
+                "oneManifestUrl": "https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-1/manifests/1-manifest.json?X-Amz-Expires=600&X-Amz-Date=20260313T052658Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=320e3b8228c5ff7bd2395043886f03d3%2F20260313%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=3e4656c27b10ea5d9adf9f3820c74608947a1b54c99001393aa56bf64bd2b085",
+                "claimedAt": "2026-03-13T05:26:58.506",
+                "one_manifest_url": "https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-1/manifests/1-manifest.json?X-Amz-Expires=600&X-Amz-Date=20260313T052658Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=320e3b8228c5ff7bd2395043886f03d3%2F20260313%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=3e4656c27b10ea5d9adf9f3820c74608947a1b54c99001393aa56bf64bd2b085"
               },
               {
-                "orderId": "SIB-E2E-2026-02-28-A-item-002-r2",
-                "rootOrderId": "SIB-E2E-2026-02-28-A",
-                "amazonOrderId": "SIB-E2E-2026-02-28-A-item-002-r2",
-                "characterHash": "9522f08369e15549",
-                "orderDbId": 745,
+                "orderId": "196e18e4-096b-4dde-9773-04b01273c098-item-2",
+                "rootOrderId": "196e18e4-096b-4dde-9773-04b01273c098",
+                "amazonOrderId": "196e18e4-096b-4dde-9773-04b01273c098",
+                "characterHash": "34273ce13b2a1e21",
+                "orderDbId": 804,
                 "workflow": "4",
                 "shipping_address": {
-                  "zip": "78701",
-                  "city": "Austin",
-                  "name": "Sibling QA",
-                  "phone": "5125550101",
-                  "state": "TX",
-                  "address": "100 Main St",
-                  "address_line_1": "100 Main St",
-                  "state_code": "TX",
-                  "postal_code": "78701",
-                  "phone_number": "5125550101"
+                  "zip": "95945",
+                  "city": "Grass Valley",
+                  "name": "Jeff LaPenna",
+                  "phone": "6784783477",
+                  "state": "CA",
+                  "address": "12207 Sunset Ave.",
+                  "country": "US",
+                  "state_code": "CA",
+                  "postal_code": "95945",
+                  "phone_number": "6784783477",
+                  "address_line_1": "12207 Sunset Ave.",
+                  "address_line1": "12207 Sunset Ave."
                 },
-                "manifest3Key": "book-mvp-simple-adventure/orders/SIB-E2E-2026-02-28-A-item-002-r2/manifests/3-manifest.json",
-                "oneManifestKey": "book-mvp-simple-adventure/orders/SIB-E2E-2026-02-28-A-item-002-r2/manifests/1-manifest.json",
-                "ShipmentServiceLevelCategory": "Expedited",
-                "ShipServiceLevel": "Expedited",
+                "manifest3Key": "book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-2/manifests/3-manifest.json",
+                "oneManifestKey": "book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-2/manifests/1-manifest.json",
+                "ShipmentServiceLevelCategory": null,
+                "ShipServiceLevel": null,
+                "shipping_tier": "expedited",
                 "_route": "sibling",
-                "oneManifestUrl": "https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book-mvp-simple-adventure/orders/SIB-E2E-2026-02-28-A-item-002-r2/manifests/1-manifest.json?X-Amz-Expires=600&X-Amz-Date=20260228T232808Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=320e3b8228c5ff7bd2395043886f03d3%2F20260228%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=ab4c1cef07e736ce418f95c392199c62f24e9064beaa5412594b75b4fe0d5686",
-                "claimedAt": "2026-02-28T23:28:09.067",
-                "one_manifest_url": "https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book-mvp-simple-adventure/orders/SIB-E2E-2026-02-28-A-item-002-r2/manifests/1-manifest.json?X-Amz-Expires=600&X-Amz-Date=20260228T232808Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=320e3b8228c5ff7bd2395043886f03d3%2F20260228%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=ab4c1cef07e736ce418f95c392199c62f24e9064beaa5412594b75b4fe0d5686"
+                "claimOrderDbIds": [
+                  "803",
+                  "804",
+                  "805"
+                ],
+                "claimGroupSize": 3,
+                "claimRootOrderId": "196e18e4-096b-4dde-9773-04b01273c098",
+                "claimStartedAt": "2026-03-13T05:26:58.506Z",
+                "oneManifestUrl": "https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-2/manifests/1-manifest.json?X-Amz-Expires=600&X-Amz-Date=20260313T052658Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=320e3b8228c5ff7bd2395043886f03d3%2F20260313%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=6ffe604bfc23000e257dcb196526226fb2292c3e18790e5ddbd4889e3fa29448",
+                "claimedAt": "2026-03-13T05:26:58.506",
+                "one_manifest_url": "https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-2/manifests/1-manifest.json?X-Amz-Expires=600&X-Amz-Date=20260313T052658Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=320e3b8228c5ff7bd2395043886f03d3%2F20260313%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=6ffe604bfc23000e257dcb196526226fb2292c3e18790e5ddbd4889e3fa29448"
+              },
+              {
+                "orderId": "196e18e4-096b-4dde-9773-04b01273c098-item-3",
+                "rootOrderId": "196e18e4-096b-4dde-9773-04b01273c098",
+                "amazonOrderId": "196e18e4-096b-4dde-9773-04b01273c098",
+                "characterHash": "1e5a1a460b11b89e",
+                "orderDbId": 805,
+                "workflow": "4",
+                "shipping_address": {
+                  "zip": "95945",
+                  "city": "Grass Valley",
+                  "name": "Jeff LaPenna",
+                  "phone": "6784783477",
+                  "state": "CA",
+                  "address": "12207 Sunset Ave.",
+                  "country": "US",
+                  "state_code": "CA",
+                  "postal_code": "95945",
+                  "phone_number": "6784783477",
+                  "address_line_1": "12207 Sunset Ave.",
+                  "address_line1": "12207 Sunset Ave."
+                },
+                "manifest3Key": "book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-3/manifests/3-manifest.json",
+                "oneManifestKey": "book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-3/manifests/1-manifest.json",
+                "ShipmentServiceLevelCategory": null,
+                "ShipServiceLevel": null,
+                "shipping_tier": "expedited",
+                "_route": "sibling",
+                "claimOrderDbIds": [
+                  "803",
+                  "804",
+                  "805"
+                ],
+                "claimGroupSize": 3,
+                "claimRootOrderId": "196e18e4-096b-4dde-9773-04b01273c098",
+                "claimStartedAt": "2026-03-13T05:26:58.506Z",
+                "oneManifestUrl": "https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-3/manifests/1-manifest.json?X-Amz-Expires=600&X-Amz-Date=20260313T052658Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=320e3b8228c5ff7bd2395043886f03d3%2F20260313%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=d4b76d3a1dc75059e8f592e5decd0d7538617c6aaf1ffeb26c8819a89574e938",
+                "claimedAt": "2026-03-13T05:26:58.506",
+                "one_manifest_url": "https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book-mvp-simple-adventure/orders/196e18e4-096b-4dde-9773-04b01273c098-item-3/manifests/1-manifest.json?X-Amz-Expires=600&X-Amz-Date=20260313T052658Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=320e3b8228c5ff7bd2395043886f03d3%2F20260313%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=d4b76d3a1dc75059e8f592e5decd0d7538617c6aaf1ffeb26c8819a89574e938"
               }
             ]
           },
@@ -1395,11 +1479,6 @@
         ]
       ]
     },
-    "Validate PDFs + Guard Lulu": {
-      "main": [
-        []
-      ]
-    },
     "On Error (W4.1)": {
       "main": [
         [
@@ -1504,13 +1583,24 @@
           }
         ]
       ]
+    },
+    "Validate PDFs + Guard Lulu": {
+      "main": [
+        [
+          {
+            "node": "Submit Lulu Print Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "c3a2012b-bc18-4c57-820a-4944abb9ba98",
+  "versionId": "c4ea593a-81d9-41f7-b2bb-157777c27385",
   "meta": {
     "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
   },

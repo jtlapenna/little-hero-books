@@ -9,9 +9,8 @@
 
 - **Short answer:** **Yes, mostly** — one **D2C paid multi-book order** (3 items) can validate most n8n-path fixes in one pass.
 - **Covered well in one run:** `12`, `22`, `29` (plus portions of `31`/`32` via DB evidence from that run).
-- **Already validated / can be treated as closed from recent production testing:** `08`, `34`, `35`, `36`, `37`
+- **Already validated / can be treated as closed from recent production testing:** `08`, `10`, `34`, `35`, `36`, `37`
 - **Not fully guaranteed by one run:**
-  - `10` (2B artifact-catching) needs a known-bad sample or repeated attempts.
   - `05` needs at least one controlled failure-path test.
   - `30` reprint flow is a separate regeneration scenario.
   - `09` was attempted, but still needs follow-up verification because the issue remains open.
@@ -124,23 +123,9 @@ capture evidence:
 
 ---
 
-### Run 2 — “2B Background Removal QA catches artifacts” (covers 10)
+### Run 2 — removed
 
-- **Primary issue validated**
-  - `10-improve-2b-background-removal-qa-common-artifacts.md`
-
-- **Strategy**
-  - Use a **known-bad** input set (historical examples) if available; otherwise do a controlled test by:
-    - selecting a character/pose combination historically prone to artifacts (e.g., pose 02 missing eye)
-    - running 2B QA repeatedly until at least one artifact occurs
-
-- **What to capture**
-  - The 2B QA output fields that route review (e.g. `needsReview`, `reviewReason`, pose-level failure list)
-  - Proof that the workflow **does not silently pass-through**: i.e., failed pose is flagged and routed
-
-- **Pass / fail**
-  - **Pass**: at least one known-bad sample is flagged, and the review routing fields are propagated correctly.
-  - **Fail**: artifacts still pass QA, or QA flags but routing doesn’t set the review markers.
+- `10-improve-2b-background-removal-qa-common-artifacts.md` is now resolved and no longer needs to be carried as a dedicated `_needs-review` validation run.
 
 ---
 

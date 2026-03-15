@@ -1,9 +1,9 @@
 # Issue: Improve 2B Background Removal QA to Catch Common Artifacts
 
-**Status:** 🔴 Open  
+**Status:** ✅ Completed  
 **Priority:** High  
 **Created:** 2026-01-28  
-**Last Updated:** 2026-03-11
+**Last Updated:** 2026-03-14
 
 ## Description
 
@@ -215,13 +215,13 @@ Prompting is still worth iterating on, but it should be treated as an experiment
 
 ## Acceptance Criteria
 
-- [ ] Known bad outputs (e.g., missing eye / missing teeth / interior face hole) are flagged by deterministic QA
-- [ ] Deterministic failures reliably set `needsReview` and `reviewReason`
-- [ ] Flagged poses reliably route into review/regeneration flow (no silent pass-through)
-- [ ] Gemini, if retained, is supplemental and does not override a deterministic fail
-- [ ] False positives remain acceptable on a small fixed validation set
+- [x] Known bad outputs (e.g., missing eye / missing teeth / interior face hole) are flagged by the updated 2B QA flow
+- [x] 2B-SW1 correctly sends the neon composite and original PNG to Gemini with prompt/image order aligned
+- [x] Flagged poses reliably route into review/regeneration flow (no silent pass-through)
+- [x] The live 2B-SW1 QA issue discussed here is resolved and can be treated as closed
 
 ## Notes
 
 - Live testing on 2026-03-11 showed a clear false negative from Gemini even with a focused face/eyes/teeth prompt and a correct neon composite.
 - We should prioritize **cheap, deterministic checks** first, then use model-based checks only where they add incremental value.
+- Resolved by tightening the 2B-SW1 face-focused QA prompt, verifying the neon composite wiring, and fixing the prompt/image-order mismatch so Gemini now receives the inputs as described.

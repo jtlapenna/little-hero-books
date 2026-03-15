@@ -1,16 +1,33 @@
 # Issue: W4 final PDFs sometimes have half-rendered pages
 
-**Status:** 🟠 Active (Layer 1b complete; serverless PDF QA approach proved unstable in production; renderer-based final-PDF QA is now the recommended path)  
+**Status:** ✅ Completed  
 **Priority:** Critical  
 **Created:** 2026-02-27  
-**Last Updated:** 2026-03-12
+**Last Updated:** 2026-03-13
 
 ## Description
 
 Some recent orders printed with a half-rendered page in the final PDF output from W4.  
 W3 previews/assets were created correctly, so the failure appears to happen during W4 PDFMonkey rendering/capture for interior or cover PDF generation.
 
-## 2026-03-12 architecture update
+## Resolution Summary
+
+Completed on **2026-03-13**.
+
+The issue is considered resolved because the production renderer QA path and the live sibling W4.1 workflow now fail closed before Lulu submission when final-PDF QA detects a bad render.
+
+Resolved outcomes:
+
+- `renderer/api/qa-pdf.js` is live in QA mode and returns structured QA payloads (`passed`, `reasonCode`, `failedPages`)
+- interior QA correctly detects the known bad half-rendered final PDF pages
+- cover QA remains green for the same run
+- W4.1 now routes logical QA failures through a dedicated false branch instead of collapsing into the generic runtime-error path
+- the QA-failure branch emits one error item per sibling order, patches each child row in Supabase to `print_qa_failed`, and writes per-child `4-qa-fail-manifest.json`
+- the failed sibling group does not reach Lulu submission
+
+Follow-up work may still happen to simplify W4 architecture, but the original incident and rollout blocker for final-PDF QA enforcement are closed.
+
+## 2026-03-13 architecture update
 
 The original Layer 2 plan was implemented as a heavy Next.js backend route:
 
@@ -30,8 +47,9 @@ The product requirement has not changed: **QA must validate the actual final PDF
 Move final-PDF QA out of the Next.js backend route and into the dedicated renderer service:
 
 - service: `renderer`
-- entrypoint: `renderer/src/index.ts`
-- new internal endpoint: `POST /qa-pdf`
+- live route: `renderer/api/qa-pdf.js`
+- shared implementation: `renderer/src/qa-pdf.js`
+- public path: `POST /qa-pdf` (via Vercel rewrite to `renderer/api/qa-pdf.js`)
 
 Why this is the recommended path:
 
@@ -49,6 +67,130 @@ Why this is the recommended path:
 ### What is now superseded
 
 The old plan to make `POST /api/render/qa-check-pdf` in the backend app the primary final-PDF QA engine is now superseded. Keep the earlier section below for historical context, but do not treat it as the recommended implementation target.
+
+## 2026-03-13 QA review follow-up: remaining blockers
+
+The renderer migration was reviewed after implementation work landed in repo. The high-level direction is still correct, but the current state is **not ready to deploy/import as-is**.
+
+### Confirmed blocker 1: renderer auth token mismatch
+
+The three migrated workflow exports currently set:
+
+- `CONFIG.renderer.apiBase = 'https://renderer-eta.vercel.app'`
+- `CONFIG.renderer.internalToken = CONFIG.backendApiToken` value copied inline
+
+Affected workflow exports:
+
+- `docs/n8n-workflow-files/finals/w4-PRODUCTION-Print_Fulfillment.json`
+- `docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w4-PRODUCTION-Print_Fulfillment.json`
+- `docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w4.1-Sibling-Aggregation.json`
+
+This token assumption is wrong for the live renderer deployment. Verified on **2026-03-13**:
+
+- `POST https://renderer-eta.vercel.app/qa-pdf` with no auth returns `401 Unauthorized`
+- `POST https://renderer-eta.vercel.app/qa-pdf` with the currently hardcoded backend token also returns `401 Unauthorized`
+
+**Implication:** every migrated QA call currently fails closed before any PDF QA logic runs.
+
+**Required fix:**
+
+1. Get the actual deployed `RENDERER_INTERNAL_TOKEN` value for `renderer-eta.vercel.app`
+2. Update all three active workflow exports to use that value in `CONFIG.renderer.internalToken`
+3. Re-import/update the live n8n workflows with the corrected token
+4. Re-run a live `/qa-pdf` auth smoke test before doing any PDF comparison testing
+
+### Confirmed blocker 2: W4.1 loses QA payload on logical QA failure
+
+In W4.1, the new renderer QA nodes preserve retry/fail-closed behavior for transport/runtime errors, but the current logical-failure path still throws too early.
+
+Current problem:
+
+- `QA Check Cover PDF` in `docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w4.1-Sibling-Aggregation.json`
+- builds `qaCover`
+- then throws immediately if `qaInterior.passed === false` or `qaCover.passed === false`
+
+That means the item never returns downstream with:
+
+- `qaInterior`
+- `qaCover`
+- `qaPassed`
+- `qaFailedPages`
+
+The existing error path then falls back to generic error reconstruction in `Build Error Context (W4.1)`, which only restores sibling IDs and a generic error message. The detailed QA payload is lost.
+
+**Implication:** the implementation does **not** yet satisfy the requirement to preserve QA payloads on forced QA failures in W4.1.
+
+**Required fix:**
+
+1. Refactor W4.1 QA handling so logical QA failures return structured item data instead of throwing away the payload
+2. Keep throwing only for renderer unavailability / 5xx / malformed response / auth failures
+3. Gate logical pass/fail with a downstream branch or explicit aggregator check that still has access to `qaInterior`, `qaCover`, and `qaFailedPages`
+4. Re-test the error manifest / Supabase failure path to confirm detailed QA context survives
+
+### Confirmed blocker 3: renderer request validation regressed for `type`
+
+In `renderer/src/qa-pdf.js`, `normalizeType()` currently maps any unknown value to `'interior'` instead of rejecting bad input.
+
+That differs from the previous backend route behavior in `back-end/src/app/api/render/qa-check-pdf/route.ts`, which explicitly rejected invalid values (`type must be interior or cover`).
+
+Verified locally on **2026-03-13**:
+
+- calling `qaPdfFromUrl({ type: 'bogus', ... })` succeeds
+- returned payload reports `type: 'interior'`
+
+**Implication:** bad caller payloads can be silently accepted and misclassified instead of surfacing as a clear client/input error.
+
+**Required fix:**
+
+1. Restore strict `type` validation in `renderer/src/qa-pdf.js`
+2. Invalid values should raise `invalid_input`
+3. `renderer/api/qa-pdf.js` should continue mapping that to HTTP `400`
+
+### Local validation completed during review
+
+These checks passed locally and are useful as handoff context:
+
+- synthetic blank 1-page PDF vs white preview PNG: `passed: true`
+- synthetic intentionally mismatched 1-page PDF: `passed: false`
+- mismatch response included expected diff/half-imbalance failure reasons
+- `renderer/src/qa-pdf.js` imports cleanly in local Node
+
+These checks are **still outstanding** because the repo does not contain stable real order fixtures:
+
+- live known-good interior QA run using real signed PDF + preview URLs
+- live known-bad half-rendered interior QA run using real signed PDF + preview URLs
+- live cover QA run with one signed cover preview
+- end-to-end W4/W4.1 workflow smoke tests against live signed order assets
+
+## Immediate next tasks
+
+1. Fix renderer auth first. Do not spend time on page-diff tuning until `/qa-pdf` accepts authenticated requests from the workflows.
+2. Fix W4.1 logical QA failure handling so detailed QA payload survives and can be written into manifests/error state.
+3. Restore strict `type` validation in `renderer/src/qa-pdf.js`.
+4. After those fixes, run live smoke tests against:
+   - one known-good interior final PDF
+   - one known-bad half-rendered interior final PDF
+   - one cover PDF
+5. Only after smoke tests pass, import/update the active n8n workflows and validate:
+   - single-book W4
+   - sibling-copy W4
+   - W4.1 sibling aggregation
+
+## Handoff for next thread
+
+If the chat window changes again, start from this order:
+
+1. Read:
+   - `renderer/api/qa-pdf.js`
+   - `renderer/src/qa-pdf.js`
+   - `docs/n8n-workflow-files/finals/w4-PRODUCTION-Print_Fulfillment.json`
+   - `docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w4-PRODUCTION-Print_Fulfillment.json`
+   - `docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w4.1-Sibling-Aggregation.json`
+2. Assume the current repo state already contains the renderer migration work; this is now a **stabilization / unblock / validation** pass, not a greenfield implementation.
+3. Fix the live auth blocker before anything else. The current hardcoded renderer token is known-bad against `renderer-eta.vercel.app`.
+4. Preserve detailed QA payloads in W4.1 on logical QA failures; that is the main workflow-behavior gap still open after auth.
+5. Keep the backend route in place but deprecated; do not switch the workflows back to it.
+6. Use real signed order assets for final smoke testing; there is no permanent repo fixture pack for this issue yet.
 
 ## Known facts
 
@@ -822,7 +964,8 @@ throw new Error(`[Presign Cover Assets] Failed after 3 attempts (orderId=${order
 
 **Implementation target:**
 
-- Add `POST /qa-pdf` to `renderer/src/index.ts`
+- Add/maintain `POST /qa-pdf` at `renderer/api/qa-pdf.js`
+- Keep the shared PDF QA logic in `renderer/src/qa-pdf.js`
 - Authenticate it the same way as the renderer's other internal endpoints
 - Give it either:
   - a signed R2 URL to the final PDF, or
