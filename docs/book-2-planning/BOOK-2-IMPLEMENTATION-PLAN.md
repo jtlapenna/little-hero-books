@@ -252,7 +252,7 @@ Phase 0 deliverable docs:
 
 **Goal:** reduce ambiguity in the existing Book 1 pipeline before adding Book 2.
 
-**Current status:** still open. The plan is unchanged here; the cleanup work is still needed before Book 2 rollout is safe.
+**Current status:** complete as of 2026-03-17. The Phase 1 deliverables now exist and the main runtime guardrail gap for sibling print submission is closed.
 
 ### Tasks
 
@@ -275,8 +275,9 @@ Phase 0 deliverable docs:
 ### Deliverables
 
 - a field-ownership table for `orders`
-- a manifest pointer ownership table
-- documented sibling send-to-print policy
+- [orders-column-ownership-matrix.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_artifacts/orders-column-ownership-matrix.md)
+- [manifest-pointer-ownership-table.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_artifacts/manifest-pointer-ownership-table.md)
+- documented sibling send-to-print policy in [49-sibling-orders-require-group-send-to-print.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_needs-review/49-sibling-orders-require-group-send-to-print.md)
 
 ### Exit criteria
 
@@ -752,6 +753,10 @@ Progress update as of 2026-03-17:
 - [background-images.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/background-images.ts), [get-url/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/backgrounds/get-url/route.ts), and [get-urls/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/backgrounds/get-urls/route.ts) now resolve fallback background asset keys from bundled `book_config` page/background slots with optional `bookId` / `formatId`, while still honoring the legacy Cloudflare mapping env for current Book 1 deployments.
 - [preview-canonicals.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/preview-canonicals.ts), [preview/generate/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/preview/generate/route.ts), and the bundled [v1.json](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/configs/book-mvp-simple-adventure/v1.json) config now resolve preview base/hair asset prefixes from book config instead of a literal Book 1 root, with a convention fallback when preview-specific config is absent.
 - [order-mapper.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/order-mapper.ts) now infers `project` and `assetPrefix` from existing manifest/asset references before falling back to the Book 1 namespace, and now looks up `4-manifest` via the resolved order root instead of a Book 1-only builder.
+- Phase 1 runtime cleanup is now closed through the committed ownership artifacts plus the sibling print guardrail:
+  - [orders-column-ownership-matrix.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_artifacts/orders-column-ownership-matrix.md)
+  - [manifest-pointer-ownership-table.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_artifacts/manifest-pointer-ownership-table.md)
+  - [49-sibling-orders-require-group-send-to-print.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_needs-review/49-sibling-orders-require-group-send-to-print.md)
 - The next remaining contract gap is now centered in whether the debug-only manifest routes should be migrated onto the shared seam or deliberately left legacy, plus any future multi-book preview/background clients that still omit `bookId` / `formatId` hints.
 - That new path is intentionally additive and non-default because downstream readers are not yet dual-version capable.
 

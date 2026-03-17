@@ -1,84 +1,92 @@
 # 32 - Missing `manifest_2a_url` on completed orders
 
 ## Status
-🟡 In Progress
+🟢 Phase 1 complete. The current runtime ownership is now documented, and the primary 2A completion writer is no longer a likely silent-failure path for new orders.
+
+Related artifacts:
+
+- [manifest-pointer-ownership-table.md](../_artifacts/manifest-pointer-ownership-table.md)
+- [orders-column-ownership-matrix.md](../_artifacts/orders-column-ownership-matrix.md)
+- [orders-column-investigation-findings.md](../_artifacts/orders-column-investigation-findings.md)
 
 ## Problem
 
-Many completed/shipped orders do not show a value in `orders.manifest_2a_url`, while newer sibling test orders do show populated `manifest_2a_url`.
+Many completed or shipped historical orders do not show a value in `orders.manifest_2a_url`, while newer sibling test orders and newer repaired rows do.
 
-This creates routing/debug ambiguity because:
-- downstream logic may infer stage readiness from manifest pointers,
-- historical run diagnostics become inconsistent,
-- the UI/data review can suggest manifests are missing when R2 files may still exist.
+That created ambiguity about whether the current runtime was still:
 
-## Questions to answer
+- failing to write the 2A pointer on completion,
+- writing to the wrong row for sibling orders,
+- or intentionally clearing the pointer later during regenerate/repair flows.
 
-1. Is `manifest_2a_url` actually missing, or are those orders moved to `archived_orders` and only absent from the active `orders` table view?
-2. Which production code paths explicitly clear `manifest_2a_url` (intentional reset) vs accidentally overwrite it?
-3. Are 2A completion writes succeeding with 0 rows affected for some order ID variants?
-4. Do completed-order lifecycle actions (archive/regenerate/repair) preserve or wipe manifest pointers consistently?
+## Phase 1 findings
 
-## Current known suspect paths
+### 1. The primary writer is now strict and per-item-safe
 
-- `back-end/src/app/api/webhooks/workflow-2a-complete/route.ts`
-  - primary writer for `manifest_2a_url`.
-- `back-end/src/app/api/admin/orders/[orderId]/regenerate-2a/route.ts`
-  - explicitly clears 2A/2B/3 manifest columns.
-- `back-end/src/app/api/admin/orders/[orderId]/character-specs/route.ts`
-  - with regenerate path, clears manifest columns.
-- `back-end/src/app/api/admin/orders/[orderId]/create-2a-manifest/route.ts`
-  - clears `manifest_2a_url` if pointer exists but file check fails.
-- `back-end/src/lib/order-lifecycle.ts`
-  - archives completed orders into `archived_orders` (can make values appear “missing” if only `orders` is inspected).
+The current primary writer is [workflow-2a-complete/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/workflow-2a-complete/route.ts).
 
-## Investigation plan
+It now:
 
-### Phase A - Data reality check (orders vs archived_orders)
+- resolves the exact per-item row by `orderId` / `order_id`
+- rejects fallback lookup through `root_order_id` or `amazon_order_id`
+- validates that the payload manifest key matches the expected per-item 2A key candidates
+- updates by numeric `orders.id`
+- throws if the update does not affect exactly one row
 
-1. Measure population of `manifest_2a_url` in:
-   - active `orders`,
-   - `archived_orders.order_data->>'manifest_2a_url'`.
-2. Segment by lifecycle/status:
-   - completed, shipped, delivered, archived.
-3. Identify if “missing” is mostly a table-location artifact.
+So for new runs, `manifest_2a_url` is no longer mainly a “writer silently matched 0 rows” problem.
 
-### Phase B - Write-path audit
+### 2. The remaining clear/reset paths are explicit
 
-1. Trace all updates to `manifest_2a_url` and classify:
-   - set non-empty,
-   - set `''`,
-   - set `null`.
-2. For each route/workflow writer, verify:
-   - identifier used for update (`orderId`, `order_id`, `amazon_order_id`, numeric `id`),
-   - rows affected behavior (log or alert on 0-row update for diagnostics; do not fail workflows).
+The current codebase still intentionally clears `manifest_2a_url` in a few places:
 
-### Phase C - Repro with controlled orders
+- [regenerate-2a/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/regenerate-2a/route.ts)
+- [character-specs/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/character-specs/route.ts) when `regenerate` is true
+- [create-2a-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-2a-manifest/route.ts) when Supabase points at a file that no longer exists
 
-1. Run controlled test orders through:
-   - normal path (0 → 2A complete → shipped/archive),
-   - regenerate-2A path,
-   - character-specs regenerate path.
-2. Capture per-step DB snapshots for `manifest_2a_url` and lifecycle columns.
-3. Confirm exact step where value is lost (if any).
+Those are explicit rewind/repair behaviors, not accidental hot-path wipes.
 
-### Phase D - Fixes
+### 3. There are now supporting repair writers
 
-1. Enforce deterministic fallback key on 2A completion:
-   - `book-mvp-simple-adventure/orders/{orderId}/manifests/2a-manifest.json`
-2. Add structured logs (and optional alerts) when 0 rows updated on critical 2A pointer writes; do not throw or block workflow.
-3. Ensure archive/restore preserves pointer fidelity between `orders` and `archived_orders`.
-4. Restrict manifest clearing to explicit regeneration flows only.
+Besides the primary completion webhook, these routes can re-establish the pointer:
 
-## Acceptance criteria
+- [create-2a-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-2a-manifest/route.ts)
+- [fix-2a-complete/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/fix-2a-complete/route.ts)
 
-- Root cause is identified with evidence (exact code path + condition).
-- New completed orders consistently retain a valid `manifest_2a_url` in their canonical storage location.
-- For archived orders, pointer availability is documented and queryable.
-- Critical writer paths no longer silently pass when no row is updated.
+### 4. Pointer shape is intentionally normalized, not forced to one string form
 
-## Deliverables
+Phase 1 standardization is:
 
-- This issue doc updated with root cause findings.
-- SQL diagnostic snippets used during investigation.
-- Code fixes + verification notes for normal + regenerate + archive flows.
+- `manifest_2a_url` is the canonical per-item 2A pointer field on `orders`
+- readers normalize it via [order-paths.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/order-paths.ts)
+- writers may still store either a raw manifest key or a manifest URL, as long as it normalizes back to the same key
+
+This is documented in [manifest-pointer-ownership-table.md](../_artifacts/manifest-pointer-ownership-table.md).
+
+## Root cause summary
+
+For current runtime behavior, the main causes of missing `manifest_2a_url` are now:
+
+1. legacy historical runs from before the stricter per-item-safe completion path
+2. explicit regenerate/repair flows that intentionally clear the field
+3. archived/completed-order analysis that looks only at live `orders` and not the lifecycle context
+
+The current primary writer is not the main remaining risk.
+
+## Phase 1 decision
+
+Close this as a runtime-contract ownership issue, not as an active hot-path bug.
+
+What Phase 1 requires going forward:
+
+- keep `manifest_2a_url` ownership documented as above
+- continue using per-item `orderId` as the only acceptable identity for 2A completion
+- keep explicit pointer clearing limited to regeneration/repair paths
+- use the pointer ownership table plus archived-order queries when investigating historical nulls
+
+## Follow-up, if needed later
+
+If historical coverage still matters operationally, the next follow-up is not a new hot-path writer. It is:
+
+1. an archive-aware audit query for `orders` plus `archived_orders`
+2. a scoped repair/backfill pass for rows where the 2A manifest can be deterministically reconstructed
+3. keeping regenerate flows explicit so a cleared pointer always means “rewound on purpose”

@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createValidationError, createNotFoundError } from '@/lib/error-handler';
 import { supabase } from '@/lib/supabase-client';
+import {
+  describeSiblingPrintSubmissionBlockers,
+  getPerBookOrderId,
+  getRootOrderId,
+  getShippingAddressMissingFields,
+  getSiblingChildMembers,
+  hasWorkflow3Complete,
+  isSiblingChildOrder,
+} from '@/lib/sibling-print-policy';
+
+type OrderRowLike = Record<string, unknown>;
+
+function parseMissingColumn(error: unknown): string | null {
+  const msg = String((error as { message?: string })?.message || '');
+  const details = String((error as { details?: string })?.details || '');
+
+  const match =
+    msg.match(/'([^']+)' column/i) ||
+    details.match(/'([^']+)' column/i) ||
+    msg.match(/column\s+[\w.]+\.([\w_]+)\s+does not exist/i) ||
+    details.match(/column\s+[\w.]+\.([\w_]+)\s+does not exist/i);
+
+  return match?.[1] ?? null;
+}
 
 /**
  * Update an order row while tolerating optional-column drift between environments.
@@ -14,7 +38,7 @@ async function updateOrderRowResilientById(orderRowId: number, updateData: Recor
   for (let i = 0; i < 8; i++) {
     const { data, error } = await supabase
       .from('orders')
-      .update(dataToUpdate)
+      .update(dataToUpdate as never)
       .eq('id', orderRowId)
       .select('id');
 
@@ -38,12 +62,7 @@ async function updateOrderRowResilientById(orderRowId: number, updateData: Recor
       (combined.includes('column') && combined.includes('does not exist'));
     if (!isUnknownColumn) break;
 
-    const match =
-      msg.match(/'([^']+)' column/i) ||
-      details.match(/'([^']+)' column/i) ||
-      msg.match(/column\s+[\w.]+\.([\w_]+)\s+does not exist/i) ||
-      details.match(/column\s+[\w.]+\.([\w_]+)\s+does not exist/i);
-    const missingColumn = match?.[1];
+    const missingColumn = parseMissingColumn(error);
     if (!missingColumn || !(missingColumn in dataToUpdate)) break;
 
     console.warn(`[POST /api/orders/[orderId]/print] Dropping missing column and retrying: ${missingColumn}`);
@@ -53,10 +72,65 @@ async function updateOrderRowResilientById(orderRowId: number, updateData: Recor
   throw lastError || new Error('Failed to update order (unknown error)');
 }
 
+async function updateOrderRowsResilientByIds(orderRowIds: number[], updateData: Record<string, unknown>) {
+  const uniqueOrderRowIds = [...new Set(orderRowIds.filter((id) => Number.isFinite(id)))];
+  if (uniqueOrderRowIds.length === 0) {
+    throw new Error('No valid order row ids provided for update');
+  }
+
+  const dataToUpdate: Record<string, unknown> = { ...updateData };
+  let lastError: unknown = null;
+
+  for (let i = 0; i < 8; i++) {
+    const { data, error } = await supabase
+      .from('orders')
+      .update(dataToUpdate as never)
+      .in('id', uniqueOrderRowIds)
+      .select('id');
+
+    if (!error) {
+      const updatedIds = new Set(
+        (data ?? [])
+          .map((row) => Number((row as { id?: unknown }).id))
+          .filter((id) => Number.isFinite(id)),
+      );
+      if (updatedIds.size !== uniqueOrderRowIds.length) {
+        throw new Error(
+          `Expected ${uniqueOrderRowIds.length} order rows updated, got ${updatedIds.size}`,
+        );
+      }
+      return;
+    }
+
+    lastError = error;
+    const msg = String(error?.message || '');
+    const details = String(error?.details || '');
+    const code = String(error?.code || '');
+    const combined = `${msg}\n${details}`.toLowerCase();
+
+    const isUnknownColumn =
+      code === 'PGRST204' ||
+      code === '42703' ||
+      (combined.includes('could not find the') && combined.includes('column')) ||
+      (combined.includes('column') && combined.includes('does not exist'));
+    if (!isUnknownColumn) break;
+
+    const missingColumn = parseMissingColumn(error);
+    if (!missingColumn || !(missingColumn in dataToUpdate)) break;
+
+    console.warn(
+      `[POST /api/orders/[orderId]/print] Dropping missing column and retrying batch update: ${missingColumn}`,
+    );
+    delete dataToUpdate[missingColumn];
+  }
+
+  throw lastError || new Error('Failed to update orders (unknown error)');
+}
+
 async function updateOrderStatusResilient(
   orderRowId: number,
   orderLookupId: string,
-  updates: Record<string, unknown>
+  updates: Record<string, unknown>,
 ) {
   const { calculateOrderStatus } = await import('@/lib/status-service');
 
@@ -75,21 +149,61 @@ async function updateOrderStatusResilient(
   }
 }
 
+async function updateOrderStatusesResilient(
+  orderTargets: Array<{ orderRowId: number; orderLookupId: string }>,
+  updates: Record<string, unknown>,
+) {
+  const { calculateOrderStatus } = await import('@/lib/status-service');
+
+  await updateOrderRowsResilientByIds(
+    orderTargets.map((target) => target.orderRowId),
+    {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    },
+  );
+
+  for (const target of orderTargets) {
+    const calculatedStatus = await calculateOrderStatus(target.orderLookupId);
+    if (updates.status !== calculatedStatus) {
+      await updateOrderRowResilientById(target.orderRowId, {
+        status: calculatedStatus,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+}
+
+function validateOrderReadinessForPrint(orderRow: OrderRowLike, targetOrderId: string) {
+  const missingShippingFields = getShippingAddressMissingFields(orderRow.shipping_address);
+  if (missingShippingFields.length > 0) {
+    const shippingMessage =
+      missingShippingFields[0] === 'shipping_address'
+        ? 'shipping information not yet available. Please upload CSV to populate customer data.'
+        : `shipping information is incomplete. Missing: ${missingShippingFields.join(', ')}. Please upload CSV to populate customer data.`;
+    throw createValidationError(
+      `Order cannot be sent to print fulfillment: ${shippingMessage}`,
+    );
+  }
+
+  if (!hasWorkflow3Complete(orderRow)) {
+    throw createValidationError(
+      `Order ${targetOrderId} cannot be sent to print: book assembly (workflow 3) has not completed. 3-manifest not found.`,
+    );
+  }
+}
+
 /**
  * Queue order for 4 workflow (Print Fulfillment) via router
  * POST /api/orders/[orderId]/print
- * 
+ *
  * This endpoint queues the order for the router system instead of calling
  * the n8n webhook directly, ensuring we respect the 5-execution limit.
  */
 async function sendToPrint(
   request: NextRequest,
-  { params }: { params: Promise<{ orderId: string }> }
+  { params }: { params: Promise<{ orderId: string }> },
 ) {
-  // PSEUDOCODE
-  // - Load order row
-  // - Queue W4 via updateOrderStatus (must not depend on reprint_* columns)
-  // - If lifecycle_status is recently_delivered, best-effort bump reprint_count (+ optional reason/note)
   const { orderId } = await params;
 
   if (!orderId || typeof orderId !== 'string') {
@@ -98,66 +212,87 @@ async function sendToPrint(
 
   console.log(`[POST /api/orders/[orderId]/print] Queueing order ${orderId} for 4 workflow via router`);
 
-  // Queue order for W4 via W1.1 router
-  // IMPORTANT: Preserve review_stages when updating to avoid losing approvals
-  const { getOrderFromSupabase, updateOrderInSupabase } = await import('@/lib/supabase-client');
-  
+  const { getOrderFromSupabase, listOrdersByAmazonRootId, updateOrderInSupabase } = await import(
+    '@/lib/supabase-client'
+  );
+
   try {
     let body: { source?: string; reprint_reason?: string; reprint_note?: string } = {};
     try {
       body = await request.json();
     } catch {
-      // Purpose: empty/invalid JSON is fine.
       body = {};
     }
 
-    // Get current order to preserve review_stages
-    const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
-    
+    const currentOrder = (await getOrderFromSupabase(orderId).catch(() => null)) as OrderRowLike | null;
     if (!currentOrder) {
       throw createNotFoundError(`Order ${orderId} not found`);
     }
 
-    const orderRowId = Number((currentOrder as { id?: unknown }).id);
-    if (!Number.isFinite(orderRowId)) {
+    const currentOrderRowId = Number(currentOrder.id);
+    if (!Number.isFinite(currentOrderRowId)) {
       throw new Error(`Order ${orderId} is missing numeric id; cannot queue print safely`);
     }
-    
-    // Validate shipping address exists and has required fields
-    const shippingAddress = currentOrder.shipping_address;
 
-    if (!shippingAddress || typeof shippingAddress !== 'object') {
-      throw createValidationError(
-        'Order cannot be sent to print fulfillment: shipping information not yet available. ' +
-        'Please upload CSV to populate customer data.'
-      );
+    const currentPerBookOrderId = getPerBookOrderId(currentOrder) || orderId;
+    const currentRootOrderId = getRootOrderId(currentOrder);
+    const isReprint = String(currentOrder.lifecycle_status || '').toLowerCase() === 'recently_delivered';
+
+    validateOrderReadinessForPrint(currentOrder, currentPerBookOrderId);
+
+    let orderTargets = [
+      {
+        orderRowId: currentOrderRowId,
+        orderLookupId: currentPerBookOrderId,
+      },
+    ];
+
+    if (!isReprint && isSiblingChildOrder(currentOrder)) {
+      const siblingRows = (await listOrdersByAmazonRootId(currentRootOrderId)) as OrderRowLike[];
+      const siblingMembers = getSiblingChildMembers(siblingRows, currentRootOrderId);
+
+      if (siblingMembers.length < 2) {
+        throw createValidationError(
+          `Sibling order ${currentPerBookOrderId} must be sent to print as a group, but only ${siblingMembers.length} sibling row${siblingMembers.length === 1 ? '' : 's'} were found for root order ${currentRootOrderId}.`,
+        );
+      }
+
+      const blockedMembers = siblingMembers
+        .map((member) => {
+          const memberOrderId = getPerBookOrderId(member);
+          const blockers = describeSiblingPrintSubmissionBlockers(member);
+          return memberOrderId && blockers.length > 0
+            ? { orderId: memberOrderId, blockers }
+            : null;
+        })
+        .filter((entry): entry is { orderId: string; blockers: string[] } => !!entry);
+
+      if (blockedMembers.length > 0) {
+        const detail = blockedMembers
+          .map((member) => `${member.orderId}: ${member.blockers.join('; ')}`)
+          .join(' | ');
+        throw createValidationError(
+          `Sibling orders must be sent to print together. The group for root order ${currentRootOrderId} is not fully ready: ${detail}`,
+        );
+      }
+
+      orderTargets = siblingMembers.map((member) => {
+        const memberRowId = Number(member.id);
+        const memberOrderId = getPerBookOrderId(member);
+
+        if (!Number.isFinite(memberRowId) || !memberOrderId) {
+          throw new Error(
+            `Sibling order ${memberOrderId || '(unknown)'} is missing required identifiers; cannot queue group print safely`,
+          );
+        }
+
+        return {
+          orderRowId: memberRowId,
+          orderLookupId: memberOrderId,
+        };
+      });
     }
 
-    // Check for required fields (support both 'address' and 'address1' field names)
-    const addressLine = shippingAddress.address || shippingAddress.address1 || shippingAddress.address_line_1;
-    const city = shippingAddress.city;
-    const state = shippingAddress.state;
-    const zip = shippingAddress.zip || shippingAddress.postal_code;
-
-    if (!addressLine || !city || !state || !zip) {
-      throw createValidationError(
-        'Order cannot be sent to print fulfillment: shipping information is incomplete. ' +
-        'Required fields (address, city, state, zip) must be populated. ' +
-        'Please upload CSV to populate customer data.'
-      );
-    }
-
-    // Validate 3-manifest (book assembly) exists before queueing for W4
-    const hasWorkflow3 = !!(
-      currentOrder.manifest_3_url ||
-      currentOrder.workflow_step === 'book_assembly_completed'
-    );
-    if (!hasWorkflow3) {
-      throw createValidationError(
-        'Order cannot be sent to print: book assembly (workflow 3) has not completed. 3-manifest not found.'
-      );
-    }
-    
     const updates: Record<string, unknown> = {
       next_workflow: '4',
       execution_status: 'ready_for_processing',
@@ -177,42 +312,53 @@ async function sendToPrint(
       printFulfillmentStatus: null,
       printFulfillmentStartedAt: null,
       printFulfillmentFinishedAt: null,
-      // Admin "Send to Print" bypasses customer approval; set approved so cron router includes the order
-      customer_approval_status: 'approved'
+      // Admin "Send to Print" bypasses customer approval; set approved so cron router includes the order.
+      customer_approval_status: 'approved',
     };
-    
-    // Preserve review_stages if they exist (to maintain approvals)
-    if (currentOrder.review_stages) {
-      updates.review_stages = currentOrder.review_stages;
-    }
-    
-    await updateOrderStatusResilient(orderRowId, orderId, updates);
 
-    const isReprint = String(currentOrder.lifecycle_status || '').toLowerCase() === 'recently_delivered';
+    if (orderTargets.length === 1) {
+      await updateOrderStatusResilient(
+        orderTargets[0].orderRowId,
+        orderTargets[0].orderLookupId,
+        updates,
+      );
+    } else {
+      await updateOrderStatusesResilient(orderTargets, updates);
+    }
+
     if (isReprint) {
       const currentCount = typeof currentOrder.reprint_count === 'number' ? currentOrder.reprint_count : 0;
       const reason = (body.reprint_reason || '').trim() || 'reprint_after_delivery';
       const note = (body.reprint_note || '').trim() || null;
-      await updateOrderInSupabase(orderId, {
+      await updateOrderInSupabase(currentPerBookOrderId, {
         reprint_count: currentCount + 1,
         reprint_reason: reason,
         reprint_note: note,
       });
     }
 
-    console.log(`[POST /api/orders/[orderId]/print] ✅ Queued order ${orderId} for W4 via router`);
-    
+    const grouped = orderTargets.length > 1;
+    const queuedOrderIds = orderTargets.map((target) => target.orderLookupId);
+
+    console.log(
+      `[POST /api/orders/[orderId]/print] ✅ Queued ${grouped ? `${orderTargets.length} sibling orders` : 'order'} ${queuedOrderIds.join(', ')} for W4 via router`,
+    );
+
     return NextResponse.json({
       success: true,
-      message: 'Order queued for print fulfillment workflow. Router will process it when capacity is available.',
-      orderId,
+      message: grouped
+        ? `Queued ${orderTargets.length} sibling orders for print fulfillment. Router will process the group together when capacity is available.`
+        : 'Order queued for print fulfillment workflow. Router will process it when capacity is available.',
+      orderId: currentPerBookOrderId,
+      queuedOrderIds,
+      rootOrderId: grouped ? currentRootOrderId : null,
+      grouped,
       next_workflow: '4',
       execution_status: 'ready_for_processing',
-      isReprint
+      isReprint,
     });
   } catch (error: unknown) {
     console.error(`[POST /api/orders/[orderId]/print] Error queueing order:`, error);
-    // If it's already a NextResponse (e.g., from createNotFoundError), re-throw it
     if (error instanceof NextResponse) {
       throw error;
     }

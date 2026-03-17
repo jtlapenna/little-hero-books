@@ -85,7 +85,7 @@ interface PostPdfStageProps {
   finalApprovalResult?: FinalApprovalStateProps | null;
   finalApprovalError?: string | null;
   finalApprovalLoading?: boolean;
-  onSendToPrint?: () => Promise<void> | void;
+  onSendToPrint?: () => Promise<{ message?: string } | void> | { message?: string } | void;
   onOrderUpdate?: (updates: Partial<Order>) => void;
 }
 
@@ -2131,10 +2131,14 @@ export function PostPdfStage({
 
     try {
       setSendingToPrint(true);
+      let result: { message?: string } | void = undefined;
       if (onSendToPrint) {
-        await onSendToPrint();
+        result = await onSendToPrint();
       }
-      alert('Order queued for print. It will be processed by the router when capacity is available (usually within 1–2 minutes).');
+      alert(
+        result?.message ||
+          'Order queued for print. It will be processed by the router when capacity is available (usually within 1–2 minutes).'
+      );
     } catch (error: any) {
       console.error('[PostPdfStage] Failed to send to print:', error);
       alert(error?.message || 'Failed to send to print. Please try again.');

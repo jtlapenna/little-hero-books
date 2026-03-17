@@ -611,8 +611,16 @@ export default function OrderDetailPage() {
       return;
     }
 
+    const siblingCount = order.totalSiblings ?? order.siblingOrders?.length ?? 0;
+    const groupedSiblingPrint =
+      siblingCount > 1 &&
+      order.rootOrderId &&
+      order.rootOrderId !== order.orderId &&
+      String(order.lifecycle_status || '').toLowerCase() !== 'recently_delivered';
     const confirmed = window.confirm(
-      'Send this order to print now? This will start production and further changes may not be possible.'
+      groupedSiblingPrint
+        ? `Send all ${siblingCount} sibling books to print now? This will queue the full group together and further changes may not be possible.`
+        : 'Send this order to print now? This will start production and further changes may not be possible.'
     );
     if (!confirmed) {
       return;
@@ -630,8 +638,11 @@ export default function OrderDetailPage() {
         const note = window.prompt('Optional reprint note (internal):')?.trim();
         if (note) reprint_note = note;
       }
-      await handleSendToPrint('manual-admin', { reprint_reason, reprint_note });
-      alert('Order queued for print. It will be processed by the router when capacity is available (usually within 1–2 minutes).');
+      const result = await handleSendToPrint('manual-admin', { reprint_reason, reprint_note });
+      alert(
+        result?.message ||
+          'Order queued for print. It will be processed by the router when capacity is available (usually within 1–2 minutes).'
+      );
     } catch (error: any) {
       console.error('Error sending order to print:', error);
       alert(error?.message || 'Failed to send order to print. Please try again.');

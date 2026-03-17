@@ -1,161 +1,90 @@
 # Issue 49: Prevent partial print submission for sibling orders
 
-**Status:** 🔴 Open  
+**Status:** 🟢 Phase 1 runtime guardrail complete  
 **Priority:** High  
 **Created:** 2026-03-12  
-**Last Updated:** 2026-03-12
+**Last Updated:** 2026-03-17
 
 ## Summary
 
-Sibling orders currently create one child order per book, but the operational flow still makes it too easy for an admin to send only some of the siblings into W4.1 / print fulfillment.
+Sibling orders now have a backend group-send guardrail at the print API boundary.
 
-This creates a real risk that:
+For **initial sibling print submission**:
 
-- 2 of 3 books are sent to print and 1 is left behind
-- a mixed-status sibling group looks "mostly done" in the backend
-- fulfillment and customer support have to manually reconcile what was actually printed
+- manual send-to-print now loads the full sibling group by `root_order_id`
+- the request fails closed if the group is incomplete or any sibling is not print-ready
+- if the group is ready, the backend queues **all sibling child rows together**
 
-The backend should make sibling print submission group-aware by default, so an admin cannot casually send an incomplete sibling set to print.
+This closes the main Phase 1 risk: accidentally sending only part of a sibling group into W4.
 
-## Problem Statement
+## Implemented runtime policy
 
-For sibling orders, the unit of customer intent is the full order group, not the individual child row.
+### API boundary
 
-Today, the system treats each child as operationally independent in too many places. That is useful for asset generation and debugging, but it is unsafe at print-submission time. The print action should strongly prefer "all siblings together" and should fail or require an explicit override when not all expected items are present and ready.
-
-## Desired Outcome
-
-For sibling orders, the backend should support a safety mode where all books in the group must be sent to print together.
-
-At minimum, we need one of these solutions:
-
-1. A backend setting on sibling orders such as `requireGroupPrintSubmission = true`
-   - if enabled, W4.1 refuses to proceed unless all expected child items for the root order are present and eligible
-
-2. A backend admin action such as `Send all items from this order`
-   - launching the sibling W4.1 flow for the entire group automatically
-   - not requiring the admin to manually select each child
-
-3. Another design with the same practical effect
-   - it should be hard to accidentally omit one sibling
-   - omission should require an explicit override, not happen silently
-
-## Recommended Direction
-
-Preferred approach:
-
-- sibling orders default to group-send behavior in the backend review UI
-- the primary CTA for sibling groups becomes `Send all items from this order`
-- individual child `Send to print` actions are hidden, disabled, or protected by an explicit override confirmation
-- W4.1 validates the full sibling group before submission
-
-This keeps the safe path as the default path.
-
-## Functional Requirements
-
-### Backend review UI
-
-When viewing a sibling child order:
-
-- clearly show that the order belongs to a multi-book sibling group
-- show the total expected sibling count
-- show readiness state for each sibling in the group
-- offer a single group-level send action
-
-If the admin tries to send only one child:
-
-- block the action, or
-- require a strong explicit override with warning copy
-
-### W4.1 / print gating
-
-Before Lulu submission, sibling print flow should verify:
-
-- all expected sibling items for the root order exist
-- all expected sibling items are in a printable-ready state
-- all required PDFs/manifests/QA checks exist for each sibling
-
-If any sibling is missing or not ready:
-
-- fail before print submission
-- surface which sibling is missing or blocked
-- do not submit a partial Lulu job
-
-## Example Failure Modes This Should Prevent
-
-- sibling order has 3 books, but only 2 children are sent to W4.1
-- one child is filtered out by mistake in the admin UI
-- one child is still missing a final PDF but the others are submitted anyway
-- an admin assumes the root order send action includes all siblings when it actually does not
-
-## Possible Implementation Approaches
-
-### Option A: Group-level backend setting
-
-Add a sibling-order policy flag in backend logic:
-
-- `requireGroupPrintSubmission: boolean`
+The guardrail now lives in [print/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/print/route.ts).
 
 Behavior:
 
-- default `true` for D2C sibling orders
-- W4.1 checks sibling completeness before doing any print submission
-- single-child submission is blocked unless an explicit override is recorded
+1. If the requested order is **not** a sibling child, the route behaves as before.
+2. If the requested order **is** a sibling child and is **not** a reprint:
+   - load all sibling child rows for the same `root_order_id`
+   - require at least 2 sibling child rows
+   - block the request if any sibling:
+     - is missing shipping info
+     - has not completed W3 / lacks a `manifest_3_url`
+     - is currently processing another workflow
+     - already has Lulu submission state
+   - if all siblings are ready, queue the whole group together
+3. Reprints (`lifecycle_status = recently_delivered`) remain single-order actions.
 
-Pros:
+### Router alignment
 
-- strongest safety guarantee
-- protects against UI mistakes and API misuse
+The cron router already had sibling-group gating. It now uses the shared helper semantics in:
 
-Cons:
+- [sibling-print-policy.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/sibling-print-policy.ts)
+- [cron/router/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/cron/router/route.ts)
 
-- requires policy-aware backend changes, not just UI changes
+That keeps the manual print API and router sibling logic aligned instead of maintaining two slightly different readiness rules.
 
-### Option B: Group send action in admin UI
+## What this now prevents
 
-Add a group-level button:
+- queuing one sibling child for initial print while another sibling is still blocked
+- queueing a partial sibling set because the admin happened to open only one child detail page
+- silently treating a sibling child like an independent print unit before W4
 
-- `Send all items from this order`
+## Current scope
 
-Behavior:
+This issue is now closed for **Phase 1 runtime contract cleanup**.
 
-- backend collects all siblings by `rootOrderId`
-- validates the full set
-- launches the sibling W4.1 flow for all of them together
+What is done:
 
-Pros:
+- backend fail-closed group guardrail
+- backend group queueing when all siblings are ready
+- router + print endpoint aligned on sibling-child detection and W4 group readiness
+- admin detail page copy updated so the manual action reflects grouped queueing when applicable
 
-- clean operator experience
-- matches mental model of one customer order with multiple books
+What is **not** part of this Phase 1 closure:
 
-Cons:
+- a separate dedicated `Send all items from this order` UI control
+- an explicit override path for bypassing group-send
+- broader admin UX improvements beyond the current runtime-safe behavior
 
-- still needs backend guardrails if child-level endpoints remain available
+Those can still be added later, but they are no longer required to make the runtime safe for Book 2 prep.
 
-### Option C: Both
+## Acceptance criteria status
 
-Best long-term option:
-
-- UI defaults to group-send
-- backend enforces completeness
-
-This gives both usability and safety.
-
-## Acceptance Criteria
-
-- sibling orders cannot be casually sent to print one child at a time without warning
-- backend can determine the expected sibling count for a root order
-- W4.1 fails closed if not all required siblings are present and ready
-- admin UI exposes a clear group-level print action
-- any override path is explicit, logged, and difficult to trigger accidentally
-- operationally, it should be very hard for one book in a 3-book sibling order to be left out of print fulfillment
+- sibling orders cannot be casually sent to print one child at a time without warning: **done**
+- backend can determine the sibling group by `rootOrderId`: **done**
+- W4 routing fails closed when not all sibling children are ready: **done at API boundary and preserved in router**
+- any broader override path is explicit: **not implemented yet; safer default is no override**
 
 ## Related Areas
 
-- backend review UI sibling awareness
-- sibling order grouping by `rootOrderId`
-- W4.1 sibling aggregation and print submission
-- admin send-to-print actions
+- [print/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/print/route.ts)
+- [cron/router/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/cron/router/route.ts)
+- [order-mapper.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/order-mapper.ts)
+- [page.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/app/orders/[orderId]/page.tsx)
+- [post-pdf-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/post-pdf-stage.tsx)
 
 ## Related Issues
 

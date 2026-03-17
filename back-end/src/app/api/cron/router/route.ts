@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { LULU_TO_ORDER_STATUS } from '@/lib/lulu-status-map';
+import {
+  getPerBookOrderId,
+  isReadyForSiblingPrintRouting,
+  isSiblingChildOrder,
+} from '@/lib/sibling-print-policy';
 
 export const dynamic = 'force-dynamic';
 // Note: Cron jobs require Node.js runtime, not Edge
@@ -374,7 +379,7 @@ export async function GET(request: NextRequest) {
     const w0CleanupStart = Date.now();
     const { data: w0CompletedOrders, error: w0CleanupError } = await supabase
       .from('orders')
-      .select('id,amazon_order_id,one_manifest_url,manifest_2a_url,manifest_2b_url,manifest_3_url,workflow_step,execution_status,next_workflow,review_stages')
+      .select('id,amazon_order_id,one_manifest_url,manifest_2a_url,manifest_2b_url,manifest_3_url,workflow_step,execution_status,next_workflow,review_stages,customer_approval_required,customer_approval_status')
       .eq('execution_status', 'pending_w0')
       .not('one_manifest_url', 'is', null);
     
@@ -454,7 +459,7 @@ export async function GET(request: NextRequest) {
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,root_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier')
+      .select('id,"orderId",amazon_order_id,root_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,current_workflow,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier')
       .eq('execution_status', 'ready_for_processing')
       .not('next_workflow', 'is', null)
       .is('started_at', null)
@@ -509,10 +514,9 @@ export async function GET(request: NextRequest) {
     };
 
     const heldSiblingGroups: HeldSiblingGroup[] = [];
-    const siblingOrders = eligibleOrders.filter((o) => {
-      const next = String(o.next_workflow || '');
-      return next === '4' && !!o.root_order_id && !!o.orderId && o.root_order_id !== o.orderId;
-    });
+    const siblingOrders = eligibleOrders.filter(
+      (o) => String(o.next_workflow || '') === '4' && isSiblingChildOrder(o),
+    );
     const siblingRootIds = [...new Set(siblingOrders.map((o) => String(o.root_order_id)))];
     const siblingGroupMembers = new Map<string, any[]>();
 
@@ -545,22 +549,12 @@ export async function GET(request: NextRequest) {
         }
 
         for (const rootOrderId of siblingRootIds) {
-          const members = (siblingGroupMembers.get(rootOrderId) || []).filter((row) => row.orderId !== rootOrderId);
+          const members = (siblingGroupMembers.get(rootOrderId) || []).filter(
+            (row) => getPerBookOrderId(row) !== rootOrderId,
+          );
           if (members.length < 2) continue;
 
-          const allReady = members.every((member) => {
-            const next = String(member.next_workflow || '');
-            const approvalRequired = member.customer_approval_required === true;
-            const approved = member.customer_approval_status === 'approved';
-            return (
-              member.execution_status === 'ready_for_processing' &&
-              !member.current_workflow &&
-              (next === '4' || next === '4-aggregate') &&
-              !member.lulu_job_id &&
-              !member.lulu_status &&
-              (!approvalRequired || approved)
-            );
-          });
+          const allReady = members.every((member) => isReadyForSiblingPrintRouting(member));
 
           if (!allReady) {
             heldSiblingGroups.push({

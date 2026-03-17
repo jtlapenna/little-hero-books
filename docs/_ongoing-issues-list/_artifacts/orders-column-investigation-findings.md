@@ -2,7 +2,7 @@
 
 **Purpose:** Document where we think each never-populated column’s issue comes from (exact file, node, route, payload, condition) so we can review and agree before making any code or workflow changes. Do not fix as we go; investigate and document first.
 
-**Source:** Issue [#31](../31-supabase-columns-not-populated-audit-and-fixes.md); builds on [orders-column-ownership-matrix.md](orders-column-ownership-matrix.md).
+**Source:** Issue [#31](../_needs-review/31-supabase-columns-not-populated-audit-and-fixes.md); builds on [orders-column-ownership-matrix.md](orders-column-ownership-matrix.md).
 
 **How to use:** For each column below, fill in “Suspected issue”, “Evidence”, and (after review) “Proposed fix”. Add rows for any column that needs a deeper write-up.
 

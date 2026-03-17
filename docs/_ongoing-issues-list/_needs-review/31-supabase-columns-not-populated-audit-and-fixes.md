@@ -1,14 +1,14 @@
 # 31 - Supabase columns not populated (audit + fixes)
 
 ## Status
-🟡 In Progress — **Phase A (investigation) complete.** The [ownership matrix](_artifacts/orders-column-ownership-matrix.md) documents intended vs actual writers and high-level root cause for the 22 never-populated columns. **Next: deep investigation and documentation per column (and per workflow/code path), then fix only after review.** Do not fix as we look through workflow JSONs; first document where we think each issue comes from, then implement changes.
+🟢 Phase 1 complete for Book 2 prep. The field-ownership inventory is now documented in the [ownership matrix](../_artifacts/orders-column-ownership-matrix.md) and the [deep-dive findings doc](../_artifacts/orders-column-investigation-findings.md). The remaining null/legacy columns are now separated into: critical runtime fields already fixed or materially reduced, additive QA/D2C follow-up writers, and explicitly legacy/deprecated fields.
 
 ## Investigate first, then fix
 
 Before changing any code or workflow JSONs:
 
 1. **For each of the 22 columns** (and for each relevant n8n workflow or backend path): investigate and document in a single place *where we think the issue comes from* — e.g. exact workflow file and node name, exact backend file and function, which payload keys are used (or missing), which conditions determine whether the write runs, and why the column stays empty (no writer, wrong identifier, path not taken, overwrite, or legacy).
-2. **Deliverable:** [orders-column-investigation-findings.md](_artifacts/orders-column-investigation-findings.md) — per-column (and where useful, per writer-path) write-up with suspected root cause and evidence (file paths, node IDs, line numbers, payload snippets). This is the place to record findings from systematically going through the .json workflow files and backend routes.
+2. **Deliverable:** [orders-column-investigation-findings.md](../_artifacts/orders-column-investigation-findings.md) — per-column (and where useful, per writer-path) write-up with suspected root cause and evidence (file paths, node IDs, line numbers, payload snippets). This is the place to record findings from systematically going through the .json workflow files and backend routes.
 3. **Review:** Once the findings doc is complete (or complete enough for a batch of columns), review and agree on fixes. Only then implement Phase B changes. No fixes should be applied “as we go” while scanning workflows; investigation and documentation come first.
 
 ## Problem
@@ -77,7 +77,7 @@ As of the last audit (Supabase MCP query against `orders`), the following column
 
 ## Investigation plan: why are these columns never populated?
 
-Use this plan to determine, for each never-populated column (or group), why no writer ever sets a value. **Investigate and document first;** do not fix as you go. Outcomes: document “no writer” vs “writer exists but path not taken” vs “intentionally unused” in the [ownership matrix](_artifacts/orders-column-ownership-matrix.md), and record detailed suspected root cause and evidence in [orders-column-investigation-findings.md](_artifacts/orders-column-investigation-findings.md). Only after findings are complete and reviewed, proceed to Phase B (fixes).
+Use this plan to determine, for each never-populated column (or group), why no writer ever sets a value. **Investigate and document first;** do not fix as you go. Outcomes: document “no writer” vs “writer exists but path not taken” vs “intentionally unused” in the [ownership matrix](../_artifacts/orders-column-ownership-matrix.md), and record detailed suspected root cause and evidence in [orders-column-investigation-findings.md](../_artifacts/orders-column-investigation-findings.md). Only after findings are complete and reviewed, proceed to Phase B (fixes).
 
 ### Step 1 – Confirm intended source of truth
 
@@ -91,7 +91,7 @@ Use this plan to determine, for each never-populated column (or group), why no w
   - Webhook handlers (e.g. Lulu status, workflow-2a-complete, workflow-2b-complete),
   - Admin API routes (e.g. refresh-lulu-status, regenerate-2a, character-specs, create-2a-manifest).
 - **n8n:** In workflow JSONs under `docs/n8n-workflow-files/`, search for the column name or for Supabase “Update row” / “Upsert” nodes that write to `orders`; note which workflow and node (if any) set the field.
-- **Artifact:** For each column, list “writer locations” (file + function/node) or “no writer found”. Record detailed findings (exact file, node name, payload keys, conditions) in [orders-column-investigation-findings.md](_artifacts/orders-column-investigation-findings.md).
+- **Artifact:** For each column, list “writer locations” (file + function/node) or “no writer found”. Record detailed findings (exact file, node name, payload keys, conditions) in [orders-column-investigation-findings.md](../_artifacts/orders-column-investigation-findings.md).
 
 ### Step 3 – Classify root cause per column
 
@@ -117,13 +117,13 @@ For each never-populated column, assign one (or document multiple):
   - “Actual writer(s)” or “None”
   - “Root cause” (from Step 3)
   - “Decision” (keep+populate, keep+derived, deprecate).
-- **Fill [orders-column-investigation-findings.md](_artifacts/orders-column-investigation-findings.md)** with suspected issue and evidence per column (exact workflow node, route, payload, condition). Review findings before implementing any fix.
+- **Fill [orders-column-investigation-findings.md](../_artifacts/orders-column-investigation-findings.md)** with suspected issue and evidence per column (exact workflow node, route, payload, condition). Review findings before implementing any fix.
 - Only after review, use the findings to drive Phase B (add/fix writers, merge-safe updates) and Phase C (backfill only where safe).
 
 ### Verification
 
 - Re-run the “never populated” query (e.g. `docs/_ongoing-issues-list/_artifacts/orders-column-population-check.sql` or Supabase MCP) after fixes; the list of never-populated columns should shrink for any column we chose to populate.
-- **To re-check population:** Run [orders-column-population-check.sql](_artifacts/orders-column-population-check.sql) via Supabase MCP (project `mdnthwpcnphjnnblbvxk`) or in Supabase SQL Editor. Documented in [orders-column-ownership-matrix.md](_artifacts/orders-column-ownership-matrix.md).
+- **To re-check population:** Run [orders-column-population-check.sql](../_artifacts/orders-column-population-check.sql) via Supabase MCP (project `mdnthwpcnphjnnblbvxk`) or in Supabase SQL Editor. Documented in [orders-column-ownership-matrix.md](../_artifacts/orders-column-ownership-matrix.md).
 
 ## Implementation plan
 
@@ -143,7 +143,7 @@ For each never-populated column, assign one (or document multiple):
    - `decision (keep/populate, keep/derived, deprecate)`.
 
 Deliverable:
-- [orders-column-ownership-matrix.md](_artifacts/orders-column-ownership-matrix.md) (created 2026-03-01; covers 22 never-populated columns)
+- [orders-column-ownership-matrix.md](../_artifacts/orders-column-ownership-matrix.md) (created 2026-03-01; covers 22 never-populated columns)
 
 ### Phase B - Reliability fixes for fields we keep
 
