@@ -15,22 +15,28 @@ import { config } from 'dotenv';
 config({ path: join(process.cwd(), '.env.local') });
 
 const backgrounds = [
-  { pageNumber: 0, filename: 'page00-dedication.png', slug: 'dedication' },
-  { pageNumber: 1, filename: 'page01-twilight-walk.png', slug: 'twilight-walk' },
-  { pageNumber: 2, filename: 'page02-night-forest.png', slug: 'night-forest' },
-  { pageNumber: 3, filename: 'page03-magic-doorway.png', slug: 'magic-doorway' },
-  { pageNumber: 4, filename: 'page04-courage-leap.png', slug: 'courage-leap' },
-  { pageNumber: 5, filename: 'page05-morning-meadow.png', slug: 'morning-meadow' },
-  { pageNumber: 6, filename: 'page06-tall-forest.png', slug: 'tall-forest' },
-  { pageNumber: 7, filename: 'page07-mountain-vista.png', slug: 'mountain-vista' },
-  { pageNumber: 8, filename: 'page08-picnic-surprise.png', slug: 'picnic-surprise' },
-  { pageNumber: 9, filename: 'page09-beach-discovery.png', slug: 'beach-discovery' },
-  { pageNumber: 10, filename: 'page10-crystal-cave.png', slug: 'crystal-cave' },
-  { pageNumber: 11, filename: 'page11-giant-flowers.png', slug: 'giant-flowers' },
-  { pageNumber: 12, filename: 'page12-almost-there.png', slug: 'almost-there' },
-  { pageNumber: 13, filename: 'page13-animal-reveal.png', slug: 'animal-reveal' },
-  { pageNumber: 14, filename: 'page14-flying-home.png', slug: 'flying-home' },
+  { pageNumber: 0, filename: 'page00-dedication.jpeg', slug: 'dedication' },
+  { pageNumber: 1, filename: 'page01-twilight-walk.jpg', slug: 'twilight-walk' },
+  { pageNumber: 2, filename: 'page02-night-forest.jpeg', slug: 'night-forest' },
+  { pageNumber: 3, filename: 'page03-magic-doorway.jpeg', slug: 'magic-doorway' },
+  { pageNumber: 4, filename: 'page04-courage-leap.jpeg', slug: 'courage-leap' },
+  { pageNumber: 5, filename: 'page05-morning-meadow.jpeg', slug: 'morning-meadow' },
+  { pageNumber: 6, filename: 'page06-tall-forest.jpg', slug: 'tall-forest' },
+  { pageNumber: 7, filename: 'page07-mountain-vista.jpg', slug: 'mountain-vista' },
+  { pageNumber: 8, filename: 'page08-picnic-surprise.jpg', slug: 'picnic-surprise' },
+  { pageNumber: 9, filename: 'page09-beach-discovery.jpg', slug: 'beach-discovery' },
+  { pageNumber: 10, filename: 'page10-crystal-cave.jpg', slug: 'crystal-cave' },
+  { pageNumber: 11, filename: 'page11-giant-flowers.jpg', slug: 'giant-flowers' },
+  { pageNumber: 12, filename: 'page12-almost-there.jpg', slug: 'almost-there' },
+  { pageNumber: 13, filename: 'page13-animal-reveal.jpg', slug: 'animal-reveal' },
+  { pageNumber: 14, filename: 'page14-flying-home.jpg', slug: 'flying-home' },
 ];
+
+function contentTypeForFilename(filename: string): string {
+  if (/\.png$/i.test(filename)) return 'image/png';
+  if (/\.jpe?g$/i.test(filename)) return 'image/jpeg';
+  return 'application/octet-stream';
+}
 
 async function uploadBackgroundImages() {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -71,11 +77,11 @@ async function uploadBackgroundImages() {
       console.log(`📤 Uploading ${bg.filename}...`);
 
       const imageBuffer = await readFile(imagePath);
-      const contentType = 'image/png';
+      const contentType = contentTypeForFilename(bg.filename);
 
       // Create FormData for multipart/form-data upload
       const cloudflareFormData = new FormData();
-      const blob = new Blob([imageBuffer], { type: contentType });
+      const blob = new Blob([new Uint8Array(imageBuffer)], { type: contentType });
       cloudflareFormData.append('file', blob, bg.filename);
       cloudflareFormData.append('metadata', JSON.stringify({
         type: 'background',
@@ -193,4 +199,3 @@ uploadBackgroundImages().catch((error) => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
-

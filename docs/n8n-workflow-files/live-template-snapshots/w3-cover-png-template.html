@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ characterSpecs.childName }} - Cover</title>
+</head>
+<body>
+  {{ pages_html }}
+  <script>
+    (function () {
+      const EMERGENCY_MIN_FONT_SIZE = 24;
+
+      function readNumber(el, attrName) {
+        const raw = el.getAttribute(attrName);
+        if (raw == null || raw === '') return null;
+        const value = Number(raw);
+        return Number.isFinite(value) ? value : null;
+      }
+
+      function getFitContainer(el) {
+        return el.closest('[data-fit-container="single-line"]') || el.parentElement;
+      }
+
+      function fitsWithin(el, container) {
+        const availableWidth =
+          container.clientWidth ||
+          container.getBoundingClientRect().width ||
+          0;
+        return {
+          availableWidth,
+          fits: el.scrollWidth <= availableWidth + 0.5,
+        };
+      }
+
+      function fitSingleLine(el) {
+        const container = getFitContainer(el);
+        if (!container) return;
+
+        const computed = window.getComputedStyle(el);
+        let fontSize = readNumber(el, 'data-fit-max');
+        if (!Number.isFinite(fontSize)) {
+          fontSize = parseFloat(computed.fontSize) || 120;
+        }
+
+        const softMin = readNumber(el, 'data-fit-soft-min');
+
+        el.style.display = 'inline-block';
+        el.style.whiteSpace = 'nowrap';
+        el.style.maxWidth = 'none';
+        el.style.fontSize = fontSize + 'px';
+
+        let state = fitsWithin(el, container);
+        while (!state.fits && fontSize > EMERGENCY_MIN_FONT_SIZE) {
+          fontSize -= 1;
+          el.style.fontSize = fontSize + 'px';
+          state = fitsWithin(el, container);
+        }
+
+        el.dataset.fitApplied = String(fontSize);
+        if (softMin !== null && fontSize < softMin) {
+          el.dataset.fitSoftMinExceeded = 'true';
+        }
+
+        if (!state.fits) {
+          el.dataset.fitOverflow = 'true';
+          document.documentElement.setAttribute('data-fit-overflow', 'true');
+        }
+      }
+
+      function runFitPass() {
+        const targets = document.querySelectorAll('[data-fit-mode="single-line"]');
+        targets.forEach((target) => fitSingleLine(target));
+      }
+
+      function start() {
+        window.requestAnimationFrame(() => {
+          runFitPass();
+          window.requestAnimationFrame(runFitPass);
+        });
+      }
+
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(start).catch(start);
+      } else if (document.readyState === 'complete') {
+        start();
+      } else {
+        window.addEventListener('load', start, { once: true });
+      }
+    })();
+  </script>
+</body>
+</html>
