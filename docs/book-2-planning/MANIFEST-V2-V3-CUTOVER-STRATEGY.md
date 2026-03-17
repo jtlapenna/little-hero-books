@@ -16,7 +16,8 @@ Companion docs:
 
 The repo already has a mixed pre-v3 world:
 
-- W0 and recovery routes emit `lhb.run-manifest@v2.1`
+- n8n W0 and sibling W0 still emit `lhb.run-manifest@v2.1`
+- the backend recovery route [create-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-manifest/route.ts) now defaults to `lhb.run-manifest@v2.1` but has an explicit opt-in path for validated `lhb.run-manifest@v3`
 - several W2A / W3 / W4 paths still emit or expect `lhb.run-manifest@v2.0`
 - the same canonical filenames are used regardless of shape:
   - `1-manifest.json`
@@ -33,6 +34,24 @@ Examples:
 - [w4-PRODUCTION-Print_Fulfillment.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w4-PRODUCTION-Print_Fulfillment.json)
 
 This means v3 should be treated as a compatibility migration, not a clean-sheet reset.
+
+Working note as of 2026-03-17:
+
+- the repo-owned builder seam now exists in backend code
+- a shared W0 manifest normalizer now exists in backend code, and both [create-2a-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-2a-manifest/route.ts) and [create-2b-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-2b-manifest/route.ts) now use it
+- a shared `2b-manifest` reader and pose-requirement helper now exists in backend code, and both [sync-2b-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/sync-2b-manifest/route.ts) and [trigger-book-assembly/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/trigger-book-assembly/route.ts) now use it
+- that same 2B helper boundary now also covers [repair-2b-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/repair-2b-manifest/route.ts), and [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/route.ts) now exposes manifest-derived `bookContext` / review page semantics to the admin UI
+- the first committed Book 1 fixture pair for shared dual-reader checks now exists under [fixtures/w0-manifests](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/fixtures/w0-manifests)
+- [w2B-main-orchestrator.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w2B-main-orchestrator.json) now resolves 2A/2B manifest keys dynamically, reads required-pose semantics from the companion `1-manifest` when available, and keeps the legacy `2b-manifest` shape on the same canonical key
+- [w3-Book-Assembly.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w3-Book-Assembly.json) now consumes the companion `1-manifest` when available, propagates W0-frozen `pagePlan` and required-pose semantics through active assembly nodes, and keeps the legacy `3-manifest` schema/key in place with additive metadata
+- [post-bria-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/post-bria-stage.tsx), [post-pdf-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/post-pdf-stage.tsx), and [w4-PRODUCTION-Print_Fulfillment.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w4-PRODUCTION-Print_Fulfillment.json) now read dynamic order roots and manifest-frozen page semantics in their active paths, while preserving legacy output schemas/keys
+- [qa-check-pdf/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/render/qa-check-pdf/route.ts), [generate-approval-pdf/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/generate-approval-pdf/route.ts), and [api/assets/[...path]/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/assets/[...path]/route.ts) now accept dynamic order roots / explicit preview refs in their active paths, while preserving the current legacy fallback behavior
+- [pre-bria-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/pre-bria-stage.tsx), [page.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/app/orders/[orderId]/page.tsx), [presign-page-assets/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/render/presign-page-assets/route.ts), [inline-page-assets/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/render/inline-page-assets/route.ts), and [order-mapper.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/order-mapper.ts) now sit on the same shared `order-paths` seam for dynamic order roots and manifest URLs
+- that same shared seam now also covers the active review actions in [approve/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/approve/route.ts), [flag/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/flag/route.ts), [unflag/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/unflag/route.ts), [regenerate-pose/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/regenerate-pose/route.ts), [regenerate-pose/[jobId]/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/regenerate-pose/[jobId]/route.ts), and [reject-revision/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/reject-revision/route.ts), which now prefer explicit `bookId` / `orderPrefix` hints from the UI before falling back
+- [create-2a-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-2a-manifest/route.ts), [create-2b-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-2b-manifest/route.ts), and [repair-2b-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/repair-2b-manifest/route.ts) now derive active manifest keys from companion manifest URLs before relying on the default order root
+- the next major legacy assumptions are now centered in the intentionally unresolved debug-only manifest callers and any request boundaries that still omit explicit `bookId` / `formatId` hints for preview/background flows
+- this does not change the cutover rule because downstream readers are still not dual-version capable
+- the current safe posture remains: same key, explicit schema, non-default v3 creation only
 
 ---
 
@@ -137,13 +156,18 @@ These should read derived fields or artifact pointers rather than raw old manife
 
 This sequence is intentionally conservative because W0 is the schema origin point.
 
+Working note:
+
+- step 3 has now started in repo code via committed Book 1 legacy/v3 W0 fixtures and normalization checks, but broader replay coverage is still pending
+- the first shared 2B helper smoke coverage now exists in repo code as well, proving that W0-derived required poses can flow into non-admin 2B readers without changing the 2B manifest filename
+
 ---
 
 ## 7. W0 cutover rule
 
 W0 should not emit v3 globally until:
 
-- W2A, W2B, W3, W4, and backend repair/review readers are dual-version capable
+- W2A, W2B, W3, W4, and the current admin review readers are dual-version capable
 - replay harness validates representative Book 1 fixtures across both schemas
 
 Recommended behavior once ready:
@@ -188,6 +212,10 @@ The early replay harness should prove:
 
 - the same order can be loaded correctly under old readers and new readers
 - v3 orders are rejected early only when a reader truly lacks support, not because the schema is unknown
+
+Working note:
+
+- the first checked-in fixture pair currently proves shared W0 normalization across legacy and v3 plus preservation of v3 page-plan data
 
 ---
 

@@ -1,8 +1,9 @@
 # Book 2 Implementation Plan
 
 **Purpose:** define the concrete phased execution plan for making the pipeline Book-2-ready without forking Book 1 and Book 2 into permanently separate workflow trees.
-**Status:** Draft
+**Status:** In progress
 **Created:** 2026-03-14
+**Last Updated:** 2026-03-17
 
 Companion docs:
 
@@ -16,6 +17,58 @@ Companion docs:
 - [FIRST-REPO-OWNED-BOUNDARY.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/FIRST-REPO-OWNED-BOUNDARY.md)
 - [PHASE-0-CHECKLIST.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/checklists/PHASE-0-CHECKLIST.md)
 - [book2-hybrid-move-from-n8n.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/book2-hybrid-move-from-n8n.md)
+
+---
+
+## Current status snapshot (2026-03-17)
+
+### Commit-backed milestones
+
+The committed planning history for this work currently looks like:
+
+- `dbe48e9` - initial Book 2 implementation planning doc
+- `5d9f351` - refinement of the implementation plan
+- `3b3c288` - addition of the Phase 0 execution checklist
+- `12f098c` - completion/signoff of the Phase 0 deliverables
+- `f809c61` - shared repo-owned book kernel foundation
+- `ff2c870` - runtime wiring onto the shared book kernel
+
+### Current repo state
+
+- Phase 0 is complete and committed.
+- The first repo-owned shared kernel is now committed under:
+  - `back-end/src/lib/books/`
+  - `back-end/src/lib/w0-manifest-builder.ts`
+  - `back-end/scripts/test-book-kernel.ts`
+- That kernel currently covers:
+  - typed `BookConfig` and `RunManifest` schemas
+- bundled config loading
+- page-plan resolution
+- W0 `lhb.run-manifest@v3` building and validation
+- legacy/v3 manifest normalization
+- 2B pose-requirement loading from companion W0 manifests
+- review page-plan fallback helpers
+- The first runtime-adoption slice is also now committed, including:
+  - repo-backed admin manifest creation and normalization paths
+  - dynamic manifest/order-root resolution via `order-paths`
+  - review UI consumers using `bookContext` / manifest-derived page semantics
+  - dynamic order-root handling in W2B, W3, and W4
+  - generalized render/asset helpers for non-Book-1 order roots
+- The kernel test harness currently passes via `npm run test:book-kernel`.
+- The current bundled config set is still Book-1-only:
+  - `back-end/src/lib/books/configs/book-mvp-simple-adventure/v1.json`
+- There is no actual Book 2 authored config, fixture set, or asset/config onboarding in the repo yet.
+- Several runtime paths still carry Book 1 defaults or fallback assumptions, so full Book 2 onboarding is not ready yet.
+
+### Practical status
+
+The project is no longer in pure planning mode, but it is also not yet at “add Book 2 config and ship.”
+
+The real state today is:
+
+1. the contracts and migration direction are defined
+2. the shared kernel and first runtime-adoption slice are now committed in repo code
+3. the system still needs the remaining de-hardcoding work plus an actual Book 2 config before Book 2 can ride the shared path
 
 ---
 
@@ -199,6 +252,8 @@ Phase 0 deliverable docs:
 
 **Goal:** reduce ambiguity in the existing Book 1 pipeline before adding Book 2.
 
+**Current status:** still open. The plan is unchanged here; the cleanup work is still needed before Book 2 rollout is safe.
+
 ### Tasks
 
 - Resolve or materially reduce the risk in:
@@ -234,6 +289,24 @@ Phase 0 deliverable docs:
 ## Phase 2: Create the shared repo-owned book kernel
 
 **Goal:** introduce typed repo code that owns book-specific decisions instead of leaving them embedded in n8n Code nodes or UI helpers.
+
+**Current status:** initial foundation committed in `f809c61`.
+
+Current implementation includes:
+
+- `back-end/src/lib/books/types.ts`
+- `back-end/src/lib/books/load-book-config.ts`
+- `back-end/src/lib/books/resolve-page-plan.ts`
+- `back-end/src/lib/books/build-run-manifest.ts`
+- `back-end/src/lib/books/validate-run-manifest.ts`
+- `back-end/src/lib/books/normalize-w0-manifest.ts`
+- `back-end/src/lib/books/read-2b-manifest.ts`
+- `back-end/src/lib/books/review-page-plan.ts`
+
+Important limitation:
+
+- only Book 1 is currently bundled as config input
+- the publish/read path into Supabase is still planned rather than finished here
 
 ### Tasks
 
@@ -304,6 +377,26 @@ Phase 0 deliverable docs:
 
 **Goal:** ensure contract and migration work can be tested locally before W0 and downstream cutovers begin.
 
+**Current status:** initial harness committed in `f809c61`.
+
+Current harness:
+
+- `back-end/scripts/test-book-kernel.ts`
+
+What it already covers:
+
+- Book 1 standard page-plan resolution
+- Book 1 Amazon page-plan resolution
+- W0 manifest v3 building/validation
+- legacy/v3 normalization checks
+- workflow contract assertions for W3/W4
+
+What is still missing for the original goal:
+
+- a real Book 2 fixture
+- a real Book 2 config in the bundle set
+- a broader stage runner beyond the current kernel checks
+
 ### Tasks
 
 - Build a minimum repo-local runner that can:
@@ -333,6 +426,19 @@ Phase 0 deliverable docs:
 ## Phase 3: W0 conversion to config-driven `1-manifest`
 
 **Goal:** make W0 the first shared kernel entry point.
+
+**Current status:** started, but not fully cut over.
+
+Current working-tree implementation already includes:
+
+- `back-end/src/lib/w0-manifest-builder.ts`
+- repo-side W0 v3 manifest generation through `buildW0RunManifest()`
+
+What is not done yet:
+
+- full live W0 workflow cutover to repo-owned manifest generation
+- actual Book 2 selection/onboarding path
+- final mixed-manifest production rollout across live workflow boundaries
 
 ### Tasks
 
@@ -620,16 +726,39 @@ Why this order:
 
 ## 7. Immediate next actions
 
-If implementation started now, the first concrete actions should be:
+Progress update as of 2026-03-17:
 
-1. Create the shared backend module skeleton under `back-end/src/lib/books/`
-2. Add `BookConfig` and manifest v3 types under `back-end/src/types/` or `back-end/src/lib/books/types.ts`
-3. Build a Book 1 `book_config` object that reproduces current `standard` and `amazon` behavior
-4. Implement page-plan resolution for Book 1
-5. Build a repo function that produces `1-manifest` v3 from:
-   - order input
-   - `book_config`
-   - selected `formatId`
-6. Add one Book 1 fixture test proving that the v3 `1-manifest` matches current operational expectations
+- Phase 0 planning/docs were completed in commit `12f098c`.
+- The repo-owned `back-end/src/lib/books/` kernel is now committed in `f809c61` for Book 1 `standard` and `amazon`.
+- The first runtime-adoption slice is now committed in `ff2c870`.
+- The admin recovery path in [create-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-manifest/route.ts) now routes through repo-owned manifest code, keeps the canonical `1-manifest.json` key, defaults to `lhb.run-manifest@v2.1`, and can explicitly emit validated `lhb.run-manifest@v3`.
+- A shared W0 manifest normalizer now exists in repo code and both [create-2a-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-2a-manifest/route.ts) and [create-2b-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-2b-manifest/route.ts) now consume either legacy or v3 `1-manifest` shape through that normalizer.
+- The first committed dual-reader fixtures now exist at [book1-amazon-legacy-v2_1.json](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/fixtures/w0-manifests/book1-amazon-legacy-v2_1.json) and [book1-amazon-v3.json](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/fixtures/w0-manifests/book1-amazon-v3.json), and the current kernel smoke script uses them to prove shared normalization plus v3 page-plan preservation.
+- A shared `2b-manifest` reader and pose-requirement helper now exists in repo code, and both [sync-2b-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/sync-2b-manifest/route.ts) and [trigger-book-assembly/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/trigger-book-assembly/route.ts) now use it to resolve required poses from companion W0 data when available, with the current Book 1 fallback preserved when it is not.
+- That same shared `2b-manifest` helper is now also used by [repair-2b-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/repair-2b-manifest/route.ts), and the order-detail API at [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/route.ts) now also exposes a shared `bookContext` plus manifest-derived Post-Bria page/background associations for review UI consumers.
+- [w2B-main-orchestrator.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w2B-main-orchestrator.json) now resolves 2A/2B manifest keys dynamically, derives required-pose coverage from the companion `1-manifest` when available, and keeps the current legacy `2b-manifest` key/shape in place.
+- [w3-Book-Assembly.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w3-Book-Assembly.json) now resolves dynamic `2b`/`1-manifest` keys, loads the companion W0 manifest when available, carries `pagePlan` and required-pose semantics through the active assembly path, writes preview and `3-manifest` keys on the resolved order root, and keeps the current legacy `3-manifest` schema/key in place.
+- [post-bria-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/post-bria-stage.tsx) now reads dynamic manifest roots from `order.bookContext` and consumes manifest-derived comparison page/background metadata instead of the fixed Book 1 `poseToFirstPage` map.
+- [post-pdf-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/post-pdf-stage.tsx) now reads dynamic `3-manifest` / preview roots from `order.bookContext`, builds spreads from the resolved page sequence, and uses page labels instead of Book 1-only `p00_dedication` / fixed `15/17` fallback reconstruction.
+- [w4-PRODUCTION-Print_Fulfillment.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w4-PRODUCTION-Print_Fulfillment.json) now accepts manifest-provided `orderPrefix`, `pageLabels`, and `pagePlan`-derived counts in the active validation path, and writes `4-manifest` / QA-failure manifests on the resolved order root while keeping the legacy manifest schema in place.
+- [qa-check-pdf/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/render/qa-check-pdf/route.ts) now accepts either canonical `pdfR2Key` or signed `pdfUrl`, prefers explicit `previewImageUrls`, and only reconstructs preview refs from `orderPrefix` / `pageLabels` as a fallback.
+- [generate-approval-pdf/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/generate-approval-pdf/route.ts) now resolves the final PDF root from `asset_prefix` or `project` instead of assuming the Book 1 namespace.
+- [api/assets/[...path]/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/assets/[...path]/route.ts) now routes order assets by the generic `{bookId}/orders/` pattern through shared helpers instead of a Book 1-only prefix check.
+- A new pure path helper now exists at [order-paths.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/order-paths.ts), and [pre-bria-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/pre-bria-stage.tsx), [page.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/app/orders/[orderId]/page.tsx), [presign-page-assets/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/render/presign-page-assets/route.ts), and [inline-page-assets/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/render/inline-page-assets/route.ts) now use shared order-root and bucket-routing semantics instead of literal Book 1 paths in their active code paths.
+- That same `order-paths` layer now also provides manifest-key candidate resolution, and the active review actions in [pre-bria-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/pre-bria-stage.tsx), [post-bria-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/post-bria-stage.tsx), [post-pdf-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/post-pdf-stage.tsx), and [page.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/app/orders/[orderId]/page.tsx) now pass explicit `bookId` / `orderPrefix` hints into [approve/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/approve/route.ts), [flag/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/flag/route.ts), [unflag/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/unflag/route.ts), [regenerate-pose/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/regenerate-pose/route.ts), [regenerate-pose/[jobId]/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/regenerate-pose/[jobId]/route.ts), and [reject-revision/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/reject-revision/route.ts) so those routes only fall back to the Book 1 default root as a last resort.
+- [create-2a-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-2a-manifest/route.ts), [create-2b-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/create-2b-manifest/route.ts), and [repair-2b-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/repair-2b-manifest/route.ts) now derive their active manifest publish/read keys from the companion `1-manifest` or stored manifest URLs before they fall back to the default order root.
+- That same `order-paths` seam now also resolves order-like manifest hints for [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/route.ts), [validate-token/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/preview/validate-token/route.ts), [workflow-2a-complete/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/workflow-2a-complete/route.ts), [workflow-2b-complete/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/workflow-2b-complete/route.ts), [workflow-3-complete/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/workflow-3-complete/route.ts), [regenerate-2a/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/regenerate-2a/route.ts), [regenerate-2b/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/regenerate-2b/route.ts), [regenerate-3/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/regenerate-3/route.ts), [character-specs/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/character-specs/route.ts), and [fix-eye-transparency/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/fix-eye-transparency/route.ts), so those active runtime/admin paths now prefer stored manifest or asset roots before the Book 1 default.
+- The remaining runtime/admin bare callers and route-local fallback chains have now also been moved onto that same seam in [order-reset.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/order-reset.ts), [read-2b-manifest.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/read-2b-manifest.ts), [sync-2b-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/sync-2b-manifest/route.ts), [trigger-book-assembly/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/trigger-book-assembly/route.ts), [repair-workflow-step/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/repair-workflow-step/route.ts), [auto-flip-pose/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/auto-flip-pose/route.ts), and [replace-image/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/replace-image/route.ts).
+- [background-images.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/background-images.ts), [get-url/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/backgrounds/get-url/route.ts), and [get-urls/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/backgrounds/get-urls/route.ts) now resolve fallback background asset keys from bundled `book_config` page/background slots with optional `bookId` / `formatId`, while still honoring the legacy Cloudflare mapping env for current Book 1 deployments.
+- [preview-canonicals.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/preview-canonicals.ts), [preview/generate/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/preview/generate/route.ts), and the bundled [v1.json](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/configs/book-mvp-simple-adventure/v1.json) config now resolve preview base/hair asset prefixes from book config instead of a literal Book 1 root, with a convention fallback when preview-specific config is absent.
+- [order-mapper.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/order-mapper.ts) now infers `project` and `assetPrefix` from existing manifest/asset references before falling back to the Book 1 namespace, and now looks up `4-manifest` via the resolved order root instead of a Book 1-only builder.
+- The next remaining contract gap is now centered in whether the debug-only manifest routes should be migrated onto the shared seam or deliberately left legacy, plus any future multi-book preview/background clients that still omit `bookId` / `formatId` hints.
+- That new path is intentionally additive and non-default because downstream readers are not yet dual-version capable.
 
-That is the smallest useful slice that moves the system toward Book 2 without committing to a risky big-bang rewrite.
+From the current state, the next concrete actions should be:
+
+1. Decide whether the debug-only manifest routes under [app/api/debug](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/debug) should also adopt the shared candidate-builder or remain intentionally legacy/debug surfaces.
+2. If D2C or future admin clients need multi-book preview/background behavior before W0 cutover, thread explicit `bookId` / `formatId` hints into those callers so they stop relying on Book 1 defaults at the request boundary.
+3. Only after those remaining runtime readers and writers are dual-version safe should W0 v3 expand beyond manual/admin opt-in.
+
+That is now the smallest useful slice that advances Book 2 without prematurely cutting production over to v3.
