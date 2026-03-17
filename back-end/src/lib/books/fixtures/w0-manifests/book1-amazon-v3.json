@@ -1,0 +1,358 @@
+{
+  "schema": "lhb.run-manifest@v3",
+  "manifestType": "w0",
+  "stage": "1-order-intake",
+  "createdAt": "2026-03-14T12:00:00.000Z",
+  "updatedAt": "2026-03-14T12:00:00.000Z",
+  "runId": "w0-FIXTURE-W0-AMAZON-001-fixture",
+  "order": {
+    "orderId": "FIXTURE-W0-AMAZON-001",
+    "rootOrderId": "111-2222222-3333333",
+    "amazonOrderId": "111-2222222-3333333",
+    "orderDbId": 77,
+    "platform": "amazon",
+    "workflow": "1",
+    "customerApprovalRequired": false
+  },
+  "book": {
+    "bookConfigRef": {
+      "schema": "lhb.book-config@v1",
+      "bookId": "book-mvp-simple-adventure",
+      "version": 1,
+      "formatId": "amazon"
+    },
+    "resolved": {
+      "expectedPageCount": 17,
+      "pageLabels": [
+        "p00",
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p06",
+        "p07",
+        "p08",
+        "p09",
+        "p10",
+        "p11",
+        "p12",
+        "p13",
+        "p14",
+        "p15",
+        "p16"
+      ],
+      "pagePlan": [
+        {
+          "index": 0,
+          "id": "title",
+          "label": "p00",
+          "type": "title",
+          "storyPageNumber": null,
+          "backgroundSlot": "titlePage",
+          "poseNumber": null,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 1,
+          "id": "blank_front_matter",
+          "label": "p01",
+          "type": "blank",
+          "storyPageNumber": null,
+          "backgroundSlot": null,
+          "poseNumber": null,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 2,
+          "id": "dedication",
+          "label": "p02",
+          "type": "dedication",
+          "storyPageNumber": null,
+          "backgroundSlot": "dedication",
+          "poseNumber": null,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 3,
+          "id": "story_01",
+          "label": "p03",
+          "type": "story",
+          "storyPageNumber": 1,
+          "backgroundSlot": "story_01",
+          "poseNumber": 1,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 4,
+          "id": "story_02",
+          "label": "p04",
+          "type": "story",
+          "storyPageNumber": 2,
+          "backgroundSlot": "story_02",
+          "poseNumber": 2,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 5,
+          "id": "story_03",
+          "label": "p05",
+          "type": "story",
+          "storyPageNumber": 3,
+          "backgroundSlot": "story_03",
+          "poseNumber": 3,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 6,
+          "id": "story_04",
+          "label": "p06",
+          "type": "story",
+          "storyPageNumber": 4,
+          "backgroundSlot": "story_04",
+          "poseNumber": 4,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 7,
+          "id": "story_05",
+          "label": "p07",
+          "type": "story",
+          "storyPageNumber": 5,
+          "backgroundSlot": "story_05",
+          "poseNumber": 5,
+          "overlaySlot": "animalTracks",
+          "required": true
+        },
+        {
+          "index": 8,
+          "id": "story_06",
+          "label": "p08",
+          "type": "story",
+          "storyPageNumber": 6,
+          "backgroundSlot": "story_06",
+          "poseNumber": 6,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 9,
+          "id": "story_07",
+          "label": "p09",
+          "type": "story",
+          "storyPageNumber": 7,
+          "backgroundSlot": "story_07",
+          "poseNumber": null,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 10,
+          "id": "story_08",
+          "label": "p10",
+          "type": "story",
+          "storyPageNumber": 8,
+          "backgroundSlot": "story_08",
+          "poseNumber": 7,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 11,
+          "id": "story_09",
+          "label": "p11",
+          "type": "story",
+          "storyPageNumber": 9,
+          "backgroundSlot": "story_09",
+          "poseNumber": 8,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 12,
+          "id": "story_10",
+          "label": "p12",
+          "type": "story",
+          "storyPageNumber": 10,
+          "backgroundSlot": "story_10",
+          "poseNumber": 9,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 13,
+          "id": "story_11",
+          "label": "p13",
+          "type": "story",
+          "storyPageNumber": 11,
+          "backgroundSlot": "story_11",
+          "poseNumber": 10,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 14,
+          "id": "story_12",
+          "label": "p14",
+          "type": "story",
+          "storyPageNumber": 12,
+          "backgroundSlot": "story_12",
+          "poseNumber": 11,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 15,
+          "id": "story_13",
+          "label": "p15",
+          "type": "story",
+          "storyPageNumber": 13,
+          "backgroundSlot": "story_13",
+          "poseNumber": null,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 16,
+          "id": "story_14",
+          "label": "p16",
+          "type": "story",
+          "storyPageNumber": 14,
+          "backgroundSlot": "story_14",
+          "poseNumber": 12,
+          "overlaySlot": null,
+          "required": true
+        }
+      ],
+      "trimIn": {
+        "w": 8.5,
+        "h": 8.5
+      },
+      "bleedIn": {
+        "w": 8.75,
+        "h": 8.75
+      },
+      "templates": {
+        "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+        "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+      },
+      "print": {
+        "provider": "lulu",
+        "podPackageId": "0850X0850FCPRESS080CW444MXX",
+        "color": "premium-color",
+        "stock": "80#-text",
+        "binding": "saddle-stitch",
+        "coverFinish": "matte",
+        "defaultQuantity": 1
+      },
+      "qaPolicy": {
+        "pose": {
+          "requiredPoseNumbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "perPoseExpectations": {
+            "1": {
+              "frontFacing": true,
+              "strictSymmetry": true
+            }
+          }
+        },
+        "backgroundRemoval": {
+          "faceDefectReviewEnabled": true,
+          "compositeQaEnabled": true
+        },
+        "finalPdf": {
+          "interior": {
+            "expectedPreviewLabelPattern": "p{index:02d}",
+            "minBytesPerPage": 30000
+          },
+          "cover": {
+            "expectedPageCount": 1
+          }
+        }
+      }
+    }
+  },
+  "shipping": {
+    "requestedTier": "expedited",
+    "resolvedProviderLevel": "EXPEDITED",
+    "address": {
+      "name": "Parent Example",
+      "city": "San Francisco",
+      "state_code": "CA",
+      "postcode": "94107",
+      "country_code": "US"
+    }
+  },
+  "input": {
+    "characterSpecs": {
+      "childName": "Cora",
+      "favoriteAnimal": "fox"
+    },
+    "bookSpecs": {
+      "title": "Cora and the Adventure Compass",
+      "format": "8.5x8.5_softcover",
+      "bookType": "adventure"
+    },
+    "orderDetails": {
+      "quantity": 2,
+      "shippingAddress": {
+        "name": "Parent Example",
+        "city": "San Francisco",
+        "state_code": "CA",
+        "postcode": "94107",
+        "country_code": "US"
+      }
+    },
+    "dedicationText": "Keep exploring"
+  },
+  "artifacts": {
+    "manifestKey": "book-mvp-simple-adventure/orders/FIXTURE-W0-AMAZON-001/manifests/1-manifest.json",
+    "orderPrefix": "book-mvp-simple-adventure/orders/FIXTURE-W0-AMAZON-001",
+    "characterPrefix": "book-mvp-simple-adventure/order-generated-assets/characters/fixturehash7890abcd"
+  },
+  "entries": [],
+  "summary": {
+    "expectedPageCount": 17,
+    "pageLabels": [
+      "p00",
+      "p01",
+      "p02",
+      "p03",
+      "p04",
+      "p05",
+      "p06",
+      "p07",
+      "p08",
+      "p09",
+      "p10",
+      "p11",
+      "p12",
+      "p13",
+      "p14",
+      "p15",
+      "p16"
+    ],
+    "interiorPdfFilename": "interior_FIXTURE-W0-AMAZON-001.pdf",
+    "coverPdfFilename": "cover_FIXTURE-W0-AMAZON-001.pdf"
+  },
+  "errors": []
+}

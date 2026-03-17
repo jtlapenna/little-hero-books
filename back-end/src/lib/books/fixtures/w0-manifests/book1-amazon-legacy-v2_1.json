@@ -1,0 +1,37 @@
+{
+  "schema": "lhb.run-manifest@v2.1",
+  "runStamp": "2026-03-14T12:00:00.000Z",
+  "amazonOrderId": "111-2222222-3333333",
+  "marketplaceId": "ATVPDKIKX0DER",
+  "order": {
+    "purchaseDate": "2026-03-14T12:00:00.000Z",
+    "buyer": {
+      "email": "parent@example.com",
+      "name": "Parent Example"
+    },
+    "dedication": {
+      "raw": "Keep exploring",
+      "text": "Keep exploring",
+      "htmlSafe": "Keep exploring"
+    },
+    "characterSpecs": {
+      "childName": "Cora",
+      "favoriteAnimal": "fox"
+    },
+    "bookSpecs": {
+      "title": "Cora and the Adventure Compass",
+      "format": "8.5x8.5_softcover",
+      "bookType": "adventure"
+    },
+    "orderDetails": {
+      "quantity": 2,
+      "shippingAddress": {
+        "name": "Parent Example",
+        "city": "San Francisco",
+        "state_code": "CA",
+        "postcode": "94107",
+        "country_code": "US"
+      }
+    }
+  }
+}
