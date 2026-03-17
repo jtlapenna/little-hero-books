@@ -1,3 +1,8 @@
+import {
+  buildGeneratedPoseAssetKey,
+  buildPoseReferenceAssetKey,
+} from '@/lib/order-paths';
+
 export type AutoFlipDecisionSource = 'deterministic' | 'gemini';
 
 export type AutoFlipManifestEntry = {
@@ -30,7 +35,16 @@ export type AutoFlipManifestEntry = {
 
 export type AutoFlipManifest2A = {
   characterHash?: string;
-  order?: { characterHash?: string; publicR2Url?: string };
+  order?: {
+    characterHash?: string;
+    publicR2Url?: string;
+    assetPrefix?: string;
+    project?: string;
+    oneManifestUrl?: string;
+    orderId?: string;
+  };
+  manifestUrl?: string;
+  oneManifestUrl?: string;
   entries?: AutoFlipManifestEntry[];
 };
 
@@ -81,15 +95,20 @@ export function canonicalizePoseKey(rawKey: string): string {
 }
 
 // Build the expected canonical 2A pose key when the manifest entry is sparse.
-export function buildCanonicalPoseKey(characterHash: string, poseNumber: number): string {
-  const poseNN = String(poseNumber).padStart(2, '0');
-  return `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/poses/pose${poseNN}.png`;
+export function buildCanonicalPoseKey(
+  characterHash: string,
+  poseNumber: number,
+  bookId?: string | null,
+): string {
+  return buildGeneratedPoseAssetKey(characterHash, poseNumber, bookId);
 }
 
 // Resolve the canonical public pose asset used for orientation comparison.
-export function buildPoseReferenceKey(poseNumber: number): string {
-  const poseNN = String(poseNumber).padStart(2, '0');
-  return `book-mvp-simple-adventure/characters/poses/pose${poseNN}.png`;
+export function buildPoseReferenceKey(
+  poseNumber: number,
+  bookId?: string | null,
+): string {
+  return buildPoseReferenceAssetKey(bookId, poseNumber);
 }
 
 // Reuse the same public URL fallback as the replacement route.

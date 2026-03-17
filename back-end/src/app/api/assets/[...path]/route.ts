@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { getObject } from '@/lib/r2-client';
+import { getBucketFromKey, isOrderAssetKey } from '@/lib/r2-utils';
 
 export const maxDuration = 25;
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 /**
  * Fetch from R2 and protect against truncated reads.
@@ -31,7 +36,10 @@ async function getObjectBufferWithRetry(bucket: string, key: string, attempts = 
       return { buffer, contentType, contentLength: Number.isFinite(expectedLen) ? expectedLen : actualLen };
     } catch (err) {
       lastError = err;
-      console.warn(`[GET /api/assets] R2 fetch/read failed (attempt ${i + 1}/${attempts}) key=${key}:`, (err as any)?.message || err);
+      console.warn(
+        `[GET /api/assets] R2 fetch/read failed (attempt ${i + 1}/${attempts}) key=${key}:`,
+        getErrorMessage(err),
+      );
     }
   }
 
@@ -41,7 +49,7 @@ async function getObjectBufferWithRetry(bucket: string, key: string, attempts = 
 /**
  * Handle CORS preflight requests
  */
-export async function OPTIONS(request: NextRequest) {
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
@@ -55,7 +63,7 @@ export async function OPTIONS(request: NextRequest) {
 
 /**
  * Proxy endpoint to serve R2 images
- * GET /api/assets/book-mvp-simple-adventure/order-generated-assets/characters/a3fa3c94b55bb566/pose01-walking-bg-removed.png
+ * GET /api/assets/{bookId}/order-generated-assets/characters/{characterHash}/pose01-walking-bg-removed.png
  * HEAD /api/assets/... (for checking if file exists)
  */
 export async function GET(
@@ -79,13 +87,12 @@ export async function GET(
     
     console.log(`[GET /api/assets] Fetching image: ${key}${cacheBuster ? ` (cache-bust: ${cacheBuster})` : ''}`);
     
-    // Determine which bucket to use based on path
-    // Orders bucket: book-mvp-simple-adventure/orders/...
+    // Determine which bucket to use based on path.
+    // Orders bucket: {bookId}/orders/...
     // Public bucket: everything else
-    const isOrderAsset = key.startsWith('book-mvp-simple-adventure/orders/');
-    const bucket = isOrderAsset ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
+    const bucket = getBucketFromKey(key);
     
-    console.log(`[GET /api/assets] Using bucket: ${bucket} for key: ${key}`);
+    console.log(`[GET /api/assets] Using bucket: ${bucket} for key: ${key} (isOrderAsset=${isOrderAssetKey(key)})`);
     
     // Fetch object from R2 (robust against truncated reads)
     let imageBuffer: ArrayBuffer;
@@ -96,13 +103,14 @@ export async function GET(
       imageBuffer = out.buffer;
       contentType = out.contentType;
       contentLength = out.contentLength;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Extract status code from error message if available (best-effort)
-      const statusMatch = error?.message?.match?.(/(\d{3})/);
+      const message = getErrorMessage(error);
+      const statusMatch = message.match(/(\d{3})/);
       const status = statusMatch ? parseInt(statusMatch[1]) : 404;
-      console.error(`[GET /api/assets] Failed to fetch image for ${key}:`, error?.message || error);
+      console.error(`[GET /api/assets] Failed to fetch image for ${key}:`, message);
       return NextResponse.json(
-        { error: `Failed to fetch image: ${error?.message || 'Not found'}` },
+        { error: `Failed to fetch image: ${message || 'Not found'}` },
         {
           status,
           headers: {
@@ -137,10 +145,11 @@ export async function GET(
     });
     
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
     console.error('[GET /api/assets] Error:', error);
     const errorResponse = NextResponse.json(
-      { error: error?.message || 'Failed to fetch image' },
+      { error: message || 'Failed to fetch image' },
       { 
         status: 500,
         headers: {
@@ -158,7 +167,7 @@ export async function GET(
  * Handle HEAD requests (for checking if file exists)
  */
 export async function HEAD(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
@@ -179,25 +188,25 @@ export async function HEAD(
     console.log(`[HEAD /api/assets] Checking image: ${key}`);
     
     // Determine which bucket to use based on path
-    const isOrderAsset = key.startsWith('book-mvp-simple-adventure/orders/');
-    const bucket = isOrderAsset ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
+    const bucket = getBucketFromKey(key);
     
-    console.log(`[HEAD /api/assets] Using bucket: ${bucket} for key: ${key}`);
+    console.log(`[HEAD /api/assets] Using bucket: ${bucket} for key: ${key} (isOrderAsset=${isOrderAssetKey(key)})`);
     
     // Fetch object from R2 (getObject throws on error, so catch it)
     let r2Response: Response;
     try {
       r2Response = await getObject(bucket, key);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // getObject throws on non-OK responses (404, 403, etc.)
-      console.error(`[HEAD /api/assets] getObject threw error for ${key}:`, error.message);
+      const message = getErrorMessage(error);
+      console.error(`[HEAD /api/assets] getObject threw error for ${key}:`, message);
       
       // Extract status code from error message if available
-      const statusMatch = error.message?.match(/(\d{3})/);
+      const statusMatch = message.match(/(\d{3})/);
       const status = statusMatch ? parseInt(statusMatch[1]) : 404;
       
       return NextResponse.json(
-        { error: `Failed to fetch image: ${error.message || 'Not found'}` },
+        { error: `Failed to fetch image: ${message || 'Not found'}` },
         { 
           status,
           headers: {
@@ -229,10 +238,11 @@ export async function HEAD(
         'Expires': '0',
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
     console.error('[HEAD /api/assets] Error:', error);
     return NextResponse.json(
-      { error: error?.message || 'Failed to check image' },
+      { error: message || 'Failed to check image' },
       { 
         status: 500,
         headers: {
@@ -266,4 +276,3 @@ function getContentTypeFromKey(key: string): string {
       return 'application/octet-stream';
   }
 }
-

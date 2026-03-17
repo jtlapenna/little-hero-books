@@ -20,6 +20,10 @@ import { getDisplayStatusForOrder, getStageBadgeStatus } from '@/lib/status-disp
 import { ManualReviewAlert } from '@/components/ui/manual-review-alert';
 import { SiblingGroupPanel } from '@/components/ui/sibling-group-panel';
 import { extractApiErrorMessage } from '@/lib/error-handler';
+import {
+  buildManifestApiUrl,
+  normalizeOrderPrefix,
+} from '@/lib/order-paths';
 
 const correctionReasonLabels: Record<string, string> = {
   name_typo: 'Name typo',
@@ -122,6 +126,13 @@ export default function OrderDetailPage() {
     rawResetToggle === undefined
       ? true
       : !['false', '0', 'off'].includes(String(rawResetToggle).toLowerCase());
+  const manifestOrderPrefix = order
+    ? normalizeOrderPrefix(
+        order.bookContext?.orderPrefix ?? order.assetPrefix,
+        order.orderId,
+        order.bookContext?.bookId ?? order.project,
+      )
+    : null;
 
   // Fetch order data from API
   const fetchOrder = async (orderId: string) => {
@@ -311,7 +322,7 @@ export default function OrderDetailPage() {
   // Calculate directly from manifests (source of truth) rather than Supabase
   useEffectReact(() => {
     const orderId = params.orderId as string;
-    if (!orderId) return;
+    if (!orderId || !manifestOrderPrefix) return;
     
       const updateFlagCounts = async () => {
         try {
@@ -321,7 +332,7 @@ export default function OrderDetailPage() {
           
           // Load 2a manifest for preBria flags
           try {
-            const manifest2aUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
+            const manifest2aUrl = buildManifestApiUrl(manifestOrderPrefix, '2a', Date.now());
             const res2a = await fetch(manifest2aUrl, { cache: 'no-store' });
             if (res2a.ok) {
               const manifest2a = await res2a.json();
@@ -334,10 +345,10 @@ export default function OrderDetailPage() {
           
           // Load 2b manifest for postBria flags (fallback to 2a if 2b doesn't exist)
           try {
-            let manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json?v=${Date.now()}`;
+            let manifest2bUrl = buildManifestApiUrl(manifestOrderPrefix, '2b', Date.now());
             let res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
             if (!res2b.ok && res2b.status === 404) {
-              manifest2bUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json?v=${Date.now()}`;
+              manifest2bUrl = buildManifestApiUrl(manifestOrderPrefix, '2a', Date.now());
               res2b = await fetch(manifest2bUrl, { cache: 'no-store' });
             }
             if (res2b.ok) {
@@ -351,7 +362,7 @@ export default function OrderDetailPage() {
           
           // Load 3 manifest for postPdf flags
           try {
-            const manifest3Url = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
+            const manifest3Url = buildManifestApiUrl(manifestOrderPrefix, '3', Date.now());
             const res3 = await fetch(manifest3Url, { cache: 'no-store' });
             if (res3.ok) {
               const manifest3 = await res3.json();
@@ -375,7 +386,7 @@ export default function OrderDetailPage() {
     // Only poll every 10 seconds to reduce load
     const interval = setInterval(updateFlagCounts, 10000);
       return () => clearInterval(interval);
-  }, [params.orderId]); // Only depend on orderId, not the entire order object
+  }, [params.orderId, manifestOrderPrefix]); // Only depend on order identity/root, not the entire order object
 
   if (loading) {
     return (
@@ -515,7 +526,12 @@ export default function OrderDetailPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ stage, status: nextStatus }),
+        body: JSON.stringify({
+          stage,
+          status: nextStatus,
+          bookId: order.bookContext?.bookId ?? order.project,
+          orderPrefix: manifestOrderPrefix,
+        }),
       });
 
       if (!response.ok) {

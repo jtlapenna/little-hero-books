@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { downloadManifest } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,7 +78,7 @@ export async function POST(
       for (let i = 0; i < 8; i++) {
         const { data, error } = await supabase
           .from('orders')
-          .update(dataToUpdate)
+          .update(dataToUpdate as never)
           .eq('id', orderRowId)
           .select('id');
 
@@ -102,70 +106,81 @@ export async function POST(
       );
     }
 
-    const amazonOrderId = (currentOrder as { amazon_order_id?: string }).amazon_order_id ?? orderId.trim();
-    // Download 2A manifest (source) — use amazon_order_id for R2 key
-    const manifest2aKey = buildManifestKey(amazonOrderId, '2a');
+    const perBookOrderId =
+      String((currentOrder as { orderId?: string; order_id?: string }).orderId ?? (currentOrder as { order_id?: string }).order_id ?? orderId).trim();
+    const orderHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder as Record<string, unknown>);
+    const manifest2aKeys = buildManifestKeyCandidates(perBookOrderId, '2a', orderHints);
+    let manifest2aKey = manifest2aKeys[0] ?? '';
     let manifest2a: any = null;
     let manifest2aModified = false;
-    try {
-      manifest2a = await downloadManifest(manifest2aKey);
-      
-      // Clear Bria status fields from 2A manifest entries
-      if (manifest2a && Array.isArray(manifest2a.entries)) {
-        manifest2a.entries.forEach((entry: any) => {
-          if (entry.briaStatusUrl || entry.briaRequestId) {
-            delete entry.briaStatusUrl;
-            delete entry.briaRequestId;
-            manifest2aModified = true;
-          }
-        });
+    for (const candidateKey of manifest2aKeys) {
+      try {
+        manifest2a = await downloadManifest(candidateKey);
+        manifest2aKey = candidateKey;
+
+        // Clear Bria status fields from 2A manifest entries
+        if (manifest2a && Array.isArray(manifest2a.entries)) {
+          manifest2a.entries.forEach((entry: any) => {
+            if (entry.briaStatusUrl || entry.briaRequestId) {
+              delete entry.briaStatusUrl;
+              delete entry.briaRequestId;
+              manifest2aModified = true;
+            }
+          });
+        }
+        break;
+      } catch (error: any) {
+        console.log(`[Regenerate 2B] 2A manifest not found: ${candidateKey}`);
       }
-    } catch (error: any) {
-      console.log(`[Regenerate 2B] 2A manifest not found: ${manifest2aKey}`);
     }
 
     // Download 2B manifest if it exists
-    const manifest2bKey = buildManifestKey(amazonOrderId, '2b');
+    const manifest2bKeys = buildManifestKeyCandidates(perBookOrderId, '2b', orderHints);
+    let manifest2bKey = manifest2bKeys[0] ?? '';
     let manifest2b: any = null;
     let manifest2bModified = false;
-    try {
-      manifest2b = await downloadManifest(manifest2bKey);
-      
-      // Clear status fields from 2B manifest entries
-      if (manifest2b && Array.isArray(manifest2b.entries)) {
-        manifest2b.entries.forEach((entry: any) => {
-          let entryModified = false;
-          if (entry.bgRemovedKey || entry.bgRemovedImageUrl) {
-            delete entry.bgRemovedKey;
-            delete entry.bgRemovedImageUrl;
-            entryModified = true;
-          }
-          if (entry.briaStatus || entry.briaRequestId || entry.briaStatusUrl) {
-            delete entry.briaStatus;
-            delete entry.briaRequestId;
-            delete entry.briaStatusUrl;
-            entryModified = true;
-          }
-          if (entry.sourceApprovedKey || entry.sourceReplacedAt || entry.sourceReplacementCount) {
-            delete entry.sourceApprovedKey;
-            delete entry.sourceReplacedAt;
-            delete entry.sourceReplacementCount;
-            entryModified = true;
-          }
-          // Clear review flags when regenerating (start fresh)
-          if (entry.needsReview !== undefined || entry.reviewReason || entry.isFlagged !== undefined) {
-            entry.needsReview = false;
-            entry.reviewReason = null;
-            entry.isFlagged = false;
-            entryModified = true;
-          }
-          if (entryModified) {
-            manifest2bModified = true;
-          }
-        });
+    for (const candidateKey of manifest2bKeys) {
+      try {
+        manifest2b = await downloadManifest(candidateKey);
+        manifest2bKey = candidateKey;
+
+        // Clear status fields from 2B manifest entries
+        if (manifest2b && Array.isArray(manifest2b.entries)) {
+          manifest2b.entries.forEach((entry: any) => {
+            let entryModified = false;
+            if (entry.bgRemovedKey || entry.bgRemovedImageUrl) {
+              delete entry.bgRemovedKey;
+              delete entry.bgRemovedImageUrl;
+              entryModified = true;
+            }
+            if (entry.briaStatus || entry.briaRequestId || entry.briaStatusUrl) {
+              delete entry.briaStatus;
+              delete entry.briaRequestId;
+              delete entry.briaStatusUrl;
+              entryModified = true;
+            }
+            if (entry.sourceApprovedKey || entry.sourceReplacedAt || entry.sourceReplacementCount) {
+              delete entry.sourceApprovedKey;
+              delete entry.sourceReplacedAt;
+              delete entry.sourceReplacementCount;
+              entryModified = true;
+            }
+            // Clear review flags when regenerating (start fresh)
+            if (entry.needsReview !== undefined || entry.reviewReason || entry.isFlagged !== undefined) {
+              entry.needsReview = false;
+              entry.reviewReason = null;
+              entry.isFlagged = false;
+              entryModified = true;
+            }
+            if (entryModified) {
+              manifest2bModified = true;
+            }
+          });
+        }
+        break;
+      } catch (error: any) {
+        console.log(`[Regenerate 2B] 2B manifest not found: ${candidateKey}`);
       }
-    } catch (error: any) {
-      console.log(`[Regenerate 2B] 2B manifest not found: ${manifest2bKey}`);
     }
 
     // Upload modified manifests if changes were made
@@ -258,7 +273,7 @@ export async function POST(
       );
     }
 
-    console.log(`[Regenerate 2B] Order ${amazonOrderId} queued for router. Router will pick it up on next cron run.`);
+    console.log(`[Regenerate 2B] Order ${perBookOrderId} queued for router. Router will pick it up on next cron run.`);
 
     return NextResponse.json({
       success: true,

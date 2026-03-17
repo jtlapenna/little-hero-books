@@ -9,7 +9,11 @@ import {
   mapSupabaseOrderToOrder,
   mapManifestToOrder,
 } from './order-mapper';
-import { buildManifestKey, downloadManifest } from './r2-service';
+import { downloadManifest } from './r2-service';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from './order-paths';
 
 const DEFAULT_REVIEW_STAGES = {
   preBria: {
@@ -131,7 +135,7 @@ export async function resetOrderToInitialState(orderId: string) {
     customer_approval_approved_at: null,
     revision_count: 0,
     status: OrderStatus.NEW,
-  });
+  } as any);
 
   const updatedOrder = await getOrderFromSupabase(orderId);
 
@@ -144,62 +148,62 @@ export async function resetOrderToInitialState(orderId: string) {
 
 async function hydrateOrderFromManifest(orderId: string) {
   const stages: Array<'3' | '2b' | '2a'> = ['3', '2b', '2a'];
+  const manifestHints = buildManifestKeyHintOptionsFromOrderLike(null);
 
   for (const stage of stages) {
-    try {
-      const manifestKey = buildManifestKey(orderId, stage);
-      const manifest = await downloadManifest(manifestKey);
+    for (const manifestKey of buildManifestKeyCandidates(orderId, stage, manifestHints)) {
+      try {
+        const manifest = await downloadManifest(manifestKey);
 
-      if (!manifest) {
-        continue;
+        if (!manifest) {
+          continue;
+        }
+
+        const manifestOrder = mapManifestToOrder(orderId, manifest);
+        const customerName = [manifestOrder.customer.firstName, manifestOrder.customer.lastName]
+          .filter(Boolean)
+          .join(' ')
+          .trim();
+
+        await createOrderInSupabase({
+          orderId: manifestOrder.orderId ?? orderId,
+          amazonOrderId: manifestOrder.amazonOrderId ?? orderId,
+          project: manifestOrder.project,
+          platform: manifestOrder.platform,
+          customerEmail: manifestOrder.customerEmail,
+          customerName: customerName || manifestOrder.customerEmail || 'Customer Pending',
+          characterHash: manifestOrder.characterHash,
+          characterSpecs: manifestOrder.characterSpecs,
+          bookSpecs: manifestOrder.bookSpecs,
+          orderDetails: manifestOrder.orderDetails,
+          assetPrefix: manifestOrder.assetPrefix,
+          templatePath: manifestOrder.templatePath,
+          reviewStages: DEFAULT_REVIEW_STAGES,
+          flags: DEFAULT_FLAGS,
+          hasFlags: false,
+          revisionCount: 0,
+          status: OrderStatus.NEW,
+        });
+
+        return await getOrderFromSupabase(orderId);
+      } catch (error: any) {
+        const message = String(error?.message || '').toLowerCase();
+        const isMissingManifest =
+          error?.status === 404 ||
+          message.includes('no such key') ||
+          message.includes('not found');
+
+        if (isMissingManifest) {
+          continue;
+        }
+
+        console.warn(
+          `[OrderReset] Failed to hydrate order ${orderId} from ${stage}-manifest`,
+          error
+        );
       }
-
-      const manifestOrder = mapManifestToOrder(orderId, manifest);
-      const customerName = [manifestOrder.customer.firstName, manifestOrder.customer.lastName]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-
-      await createOrderInSupabase({
-        orderId: manifestOrder.orderId ?? orderId,
-        amazonOrderId: manifestOrder.amazonOrderId ?? orderId,
-        project: manifestOrder.project,
-        platform: manifestOrder.platform,
-        customerEmail: manifestOrder.customerEmail,
-        customerName: customerName || manifestOrder.customerEmail || 'Customer Pending',
-        characterHash: manifestOrder.characterHash,
-        characterSpecs: manifestOrder.characterSpecs,
-        bookSpecs: manifestOrder.bookSpecs,
-        orderDetails: manifestOrder.orderDetails,
-        assetPrefix: manifestOrder.assetPrefix,
-        templatePath: manifestOrder.templatePath,
-        reviewStages: DEFAULT_REVIEW_STAGES,
-        flags: DEFAULT_FLAGS,
-        hasFlags: false,
-        revisionCount: 0,
-        status: OrderStatus.NEW,
-      });
-
-      return await getOrderFromSupabase(orderId);
-    } catch (error: any) {
-      const message = String(error?.message || '').toLowerCase();
-      const isMissingManifest =
-        error?.status === 404 ||
-        message.includes('no such key') ||
-        message.includes('not found');
-
-      if (isMissingManifest) {
-        continue;
-      }
-
-      console.warn(
-        `[OrderReset] Failed to hydrate order ${orderId} from ${stage}-manifest`,
-        error
-      );
     }
   }
 
   return null;
 }
-
-

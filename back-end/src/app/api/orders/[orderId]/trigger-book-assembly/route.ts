@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createValidationError, createNotFoundError } from '@/lib/error-handler';
-import { downloadManifest, buildManifestKey, getCharacterAssets } from '@/lib/r2-service';
+import { downloadManifest, getCharacterAssets } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import {
+  buildBgRemovedAssetMap,
+  read2BManifestWithPoseRequirements,
+  sync2BManifestEntries,
+} from '@/lib/books';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from '@/lib/order-paths';
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 /**
  * Queue order for 3 workflow (Book Assembly) via router
@@ -52,63 +65,60 @@ async function triggerBookAssembly(
     // This prevents W3 from missing characters when 2B images exist in R2 but the 2b-manifest.json
     // was never updated (common when assets are uploaded manually outside the workflow).
     try {
-      const manifest2bKey = buildManifestKey(orderId, '2b');
-      const manifest2b = await downloadManifest(manifest2bKey).catch(() => null);
+      const manifestHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder);
+      const manifest2bKeys = buildManifestKeyCandidates(orderId, '2b', manifestHints);
+      let manifest2bKey = manifest2bKeys[0] ?? '';
+      let manifest2b: unknown = null;
 
-      if (manifest2b && Array.isArray(manifest2b.entries)) {
-        const characterHash: string | null =
-          (manifest2b.characterHash as string | null) ||
-          (manifest2b.order?.characterHash as string | null) ||
-          (currentOrder.character_hash as string | null) ||
+      for (const candidateKey of manifest2bKeys) {
+        const candidateManifest = await downloadManifest(candidateKey).catch(() => null);
+        if (candidateManifest) {
+          manifest2bKey = candidateKey;
+          manifest2b = candidateManifest;
+          break;
+        }
+      }
+
+      if (manifest2b) {
+        const manifestSnapshot = await read2BManifestWithPoseRequirements({
+          manifest: manifest2b,
+          orderId,
+          loadManifest: downloadManifest,
+        }).catch(() => null);
+
+        const characterHash =
+          manifestSnapshot?.characterHash ??
+          (currentOrder.character_hash as string | null) ??
           null;
 
-        if (characterHash) {
-          // Build map poseNumber -> bg-removed key from R2 inventory
+        if (manifestSnapshot && characterHash) {
           const assets = await getCharacterAssets(characterHash).catch(() => []);
-          const bgRemovedByPose = new Map<number, string>();
-          for (const a of assets) {
-            if (a.assetType !== 'background-removed') continue;
-            const key = String(a.url || '').startsWith('/api/assets/')
-              ? String(a.url).replace(/^\/api\/assets\//, '')
-              : null;
-            if (!key) continue;
-            if (!Number.isFinite(Number(a.poseNumber))) continue;
-            bgRemovedByPose.set(Number(a.poseNumber), key);
-          }
-
-          const missingAfterSync: number[] = [];
-          let touched = false;
+          const bgRemovedByPose = buildBgRemovedAssetMap(assets);
           const nowIso = new Date().toISOString();
-
-          // Only enforce story poses 1..12 (pose00 is cover/base and is handled separately)
-          for (let poseNum = 1; poseNum <= 12; poseNum++) {
-            let entry = manifest2b.entries.find((e: any) => Number(e?.poseNumber) === poseNum);
-            if (!entry) continue;
-
-            const hasKey = typeof entry.bgRemovedKey === 'string' && entry.bgRemovedKey.length > 0;
-            if (hasKey) continue;
-
-            const foundKey = bgRemovedByPose.get(poseNum);
-            if (foundKey) {
-              entry.bgRemovedKey = foundKey;
-              entry.bgRemoved = true;
-              entry.bgRemovedStatus = entry.bgRemovedStatus || 'completed';
-              entry.processedAt = entry.processedAt || nowIso;
-              // URL fields are optional; frontend/W3 can derive via /api/assets
-              if (!entry.bgRemovedImageUrl) entry.bgRemovedImageUrl = null;
-              touched = true;
-            } else {
-              missingAfterSync.push(poseNum);
-            }
-          }
+          const {
+            missingPoseNumbers: missingAfterSync,
+            touched,
+          } = sync2BManifestEntries({
+            entryByPoseNumber: manifestSnapshot.entryByPoseNumber,
+            poseNumbers: manifestSnapshot.requiredPoseNumbers,
+            bgRemovedByPose,
+            nowIso,
+            trackMissingEntries: true,
+          });
 
           if (touched) {
-            manifest2b.updatedAt = nowIso;
-            manifest2b.runStamp = nowIso;
-            const updated2bManifestJson = JSON.stringify(manifest2b, null, 2);
-            await putObject(R2_ORDERS_BUCKET, manifest2bKey, updated2bManifestJson, 'application/json');
+            manifestSnapshot.manifest.updatedAt = nowIso;
+            manifestSnapshot.manifest.runStamp = nowIso;
+            const updated2bManifestJson = JSON.stringify(manifestSnapshot.manifest, null, 2);
+            await putObject(
+              R2_ORDERS_BUCKET,
+              manifest2bKey,
+              updated2bManifestJson,
+              'application/json',
+            );
             console.log(
-              `[trigger-book-assembly] ✅ Synced 2B manifest bgRemovedKey fields from R2 inventory (characterHash=${characterHash})`
+              `[trigger-book-assembly] Synced 2B manifest bgRemovedKey fields from R2 inventory ` +
+                `(characterHash=${characterHash}, requiredPoseSource=${manifestSnapshot.requiredPoseSource})`,
             );
           }
 
@@ -117,9 +127,11 @@ async function triggerBookAssembly(
               {
                 error: 'Cannot queue W3: missing background-removed poses in 2B manifest',
                 details:
-                  'Some poses are missing bgRemovedKey in 2b-manifest.json and no bg-removed asset was found in R2 inventory for those poseNumbers.',
+                  'Some required poses are missing bgRemovedKey in 2b-manifest.json and no bg-removed asset was found in R2 inventory for those poseNumbers.',
                 orderId,
                 missingPoseNumbers: missingAfterSync,
+                requiredPoseNumbers: manifestSnapshot.requiredPoseNumbers,
+                requiredPoseSource: manifestSnapshot.requiredPoseSource,
                 hint:
                   'Upload/replace the missing bg-removed PNGs in the Background Removal tab, or re-run 2B. You can also retry with { force: true } to queue W3 anyway.',
               },
@@ -128,15 +140,15 @@ async function triggerBookAssembly(
           }
         }
       }
-    } catch (e: any) {
+    } catch (error: unknown) {
       console.warn(
         `[trigger-book-assembly] Non-fatal: failed to sync 2B manifest from R2 inventory:`,
-        e?.message || e
+        getErrorMessage(error),
       );
       // Continue to queue W3; W3 has additional fallbacks, but we prefer not to block here.
     }
     
-    const updates: any = {
+    const updates: Record<string, unknown> = {
       next_workflow: '3',
       execution_status: 'ready_for_processing',
       queued_at: new Date().toISOString(),
@@ -159,16 +171,16 @@ async function triggerBookAssembly(
       next_workflow: '3',
       execution_status: 'ready_for_processing'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[POST /api/orders/[orderId]/trigger-book-assembly] Error queueing order:`, error);
     // If it's already a NextResponse (e.g., from createNotFoundError), re-throw it
     if (error instanceof NextResponse) {
       throw error;
     }
-    throw new Error(`Failed to queue order for book assembly workflow: ${error?.message || error}`);
+    throw new Error(
+      `Failed to queue order for book assembly workflow: ${getErrorMessage(error)}`,
+    );
   }
 }
 
 export const POST = withErrorHandling(triggerBookAssembly);
-
-

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Buffer } from 'buffer';
-import { getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { getObject } from '@/lib/r2-client';
+import { getBucketFromKey } from '@/lib/r2-utils';
 
 const MAX_HTML_LENGTH = 5_000_000; // ~5MB
 const MAX_ASSET_KEYS = 50;
@@ -113,11 +114,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isOrderAsset = (key: string) => key.startsWith('book-mvp-simple-adventure/orders/');
     const keyToDataUrl = new Map<string, string>();
 
     for (const key of keys) {
-      const bucket = isOrderAsset(key) ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
+      const bucket = getBucketFromKey(key);
       try {
         const { buffer, contentType } = await getObjectBufferWithRetry(bucket, key, 3);
         const base64 = Buffer.from(buffer).toString('base64');

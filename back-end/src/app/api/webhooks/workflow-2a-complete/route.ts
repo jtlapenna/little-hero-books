@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
-import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { downloadManifest } from '@/lib/r2-service';
 import { normalizeCharacterSpecs } from '@/lib/customization-utils';
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
 import { supabase } from '@/lib/supabase-client';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+  extractManifestKey,
+} from '@/lib/order-paths';
 
 const PayloadSchema = z.object({
   orderId: z.string().min(1),
@@ -21,6 +26,15 @@ type ExactOrderRow = {
   order_id?: string | null;
   root_order_id?: string | null;
   amazon_order_id?: string | null;
+  project?: string | null;
+  asset_prefix?: string | null;
+  one_manifest_url?: string | null;
+  manifest_2a_url?: string | null;
+  manifest_2b_url?: string | null;
+  manifest_3_url?: string | null;
+  final_book_url?: string | null;
+  final_cover_url?: string | null;
+  cover_image_url?: string | null;
 };
 
 type ManifestLike = {
@@ -39,17 +53,9 @@ type ManifestLike = {
   } | null;
 } & Record<string, unknown>;
 
-function normalizeManifestRef(value: string | null | undefined): string {
-  const trimmed = String(value ?? '').trim();
-  if (!trimmed) return '';
-  if (trimmed.includes('/api/manifests/')) {
-    return trimmed.split('/api/manifests/')[1] ?? '';
-  }
-  return trimmed.replace(/^https?:\/\/[^/]+\//i, '');
-}
-
 async function resolveExactOrderRow(orderId: string): Promise<ExactOrderRow> {
-  const exactSelect = 'id, orderId, root_order_id, amazon_order_id';
+  const exactSelect =
+    'id, orderId, order_id, root_order_id, amazon_order_id, project, asset_prefix, one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url, final_book_url, final_cover_url, cover_image_url';
   const byOrderId = await supabase
     .from('orders')
     .select(exactSelect)
@@ -99,11 +105,21 @@ export async function POST(request: NextRequest) {
     const json = await request.json();
     const payload = PayloadSchema.parse(json);
 
-    const expectedManifestKey = buildManifestKey(payload.orderId, '2a');
-    const payloadManifestKey = normalizeManifestRef(payload.manifestUrl);
-    if (payloadManifestKey && payloadManifestKey !== expectedManifestKey) {
+    const orderRow = await resolveExactOrderRow(payload.orderId);
+    const payloadManifestKey = extractManifestKey(payload.manifestUrl) ?? '';
+    const orderHints = buildManifestKeyHintOptionsFromOrderLike(orderRow);
+    const expectedManifestKeys = buildManifestKeyCandidates(payload.orderId, '2a', {
+      ...orderHints,
+      pathLikes: [payload.manifestUrl, ...(orderHints.pathLikes ?? [])],
+    });
+    const expectedManifestKey = payloadManifestKey || expectedManifestKeys[0];
+
+    if (!expectedManifestKey) {
+      throw new Error('workflow-2a-complete: unable to resolve expected manifest key');
+    }
+    if (payloadManifestKey && !expectedManifestKeys.includes(payloadManifestKey)) {
       throw new Error(
-        `workflow-2a-complete: manifestUrl does not match expected per-item manifest key (${payloadManifestKey} !== ${expectedManifestKey})`,
+        `workflow-2a-complete: manifestUrl does not match expected per-item manifest keys (${payloadManifestKey})`,
       );
     }
 
@@ -124,16 +140,17 @@ export async function POST(request: NextRequest) {
     const manifestCharacterHash = String(
       manifest?.characterHash ?? manifest?.order?.characterHash ?? '',
     ).trim();
-    const manifestBodyKey = normalizeManifestRef(
-      manifest?.manifestUrl ?? manifest?.originalManifestUrl ?? '',
-    );
+    const manifestBodyKey =
+      extractManifestKey(
+        String(manifest?.manifestUrl ?? manifest?.originalManifestUrl ?? ''),
+      ) ?? '';
 
     if (manifestTopOrderId !== payload.orderId || manifestNestedOrderId !== payload.orderId) {
       throw new Error('workflow-2a-complete: manifest body orderId does not match payload orderId');
     }
-    if (manifestBodyKey && manifestBodyKey !== expectedManifestKey) {
+    if (manifestBodyKey && !expectedManifestKeys.includes(manifestBodyKey)) {
       throw new Error(
-        `workflow-2a-complete: manifest body manifestUrl does not match expected key (${manifestBodyKey} !== ${expectedManifestKey})`,
+        `workflow-2a-complete: manifest body manifestUrl does not match expected keys (${manifestBodyKey})`,
       );
     }
     if (payload.amazonOrderId && manifestRootOrderId !== payload.amazonOrderId) {
@@ -143,7 +160,6 @@ export async function POST(request: NextRequest) {
       throw new Error('workflow-2a-complete: manifest characterHash does not match payload characterHash');
     }
 
-    const orderRow = await resolveExactOrderRow(payload.orderId);
     const rowPerBookOrderId = String(orderRow.orderId ?? orderRow.order_id ?? '').trim();
     const rowRootOrderId = String(orderRow.root_order_id ?? orderRow.amazon_order_id ?? '').trim();
 
@@ -166,7 +182,7 @@ export async function POST(request: NextRequest) {
         started_at: null,
         current_workflow: null,
         updated_at: updateNow,
-      })
+      } as never)
       .eq('id', orderRow.id)
       .select('id');
     if (updateRes.error) throw updateRes.error;

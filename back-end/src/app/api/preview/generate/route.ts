@@ -52,6 +52,16 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const character_specs = body.character_specs ?? body.characterSpecs ?? {};
+    const requestedBookId =
+      typeof body.bookId === 'string'
+        ? body.bookId
+        : typeof body.book_id === 'string'
+          ? body.book_id
+          : typeof character_specs?.bookId === 'string'
+            ? character_specs.bookId
+            : typeof character_specs?.book_id === 'string'
+              ? character_specs.book_id
+              : null;
     const specs = character_specs as CharacterSpecsInput;
     const forceRegenerate = body.forceRegenerate === true;
 
@@ -86,9 +96,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Resolve canonicals and asset keys
-    const resolved = resolvePreviewCanonicals(specs);
+    const resolved = resolvePreviewCanonicals(specs, {
+      bookId: requestedBookId,
+    });
     
     console.log('[Preview Generate] Resolved canonicals:', {
+      bookId: resolved.bookId,
       skinTone: specs.skinTone,
       skinToneCanonical: resolved.skinToneCanonical,
       baseRefKey: resolved.baseRefKey,
@@ -126,7 +139,7 @@ export async function POST(request: NextRequest) {
         const localPath = path.join(fallbackDir, hairFilename);
         try {
           const buf = await readFile(localPath);
-          hairBuf = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+          hairBuf = Uint8Array.from(buf).buffer;
         } catch (fallbackErr) {
           console.error('[Preview Generate] Hair ref R2 and fallback failed:', resolved.hairRefKey, localPath, e, fallbackErr);
           return NextResponse.json(

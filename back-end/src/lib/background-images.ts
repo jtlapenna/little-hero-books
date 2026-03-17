@@ -1,13 +1,20 @@
 /**
  * Background Images Configuration
- * 
- * Maps page numbers to Cloudflare Images IDs and URLs for optimized WebP delivery.
- * 
- * To populate: Run POST /api/backgrounds/upload-to-cloudflare endpoint, then
- * set the BACKGROUND_IMAGES_MAPPING environment variable with the mapping JSON.
- * 
- * Format: JSON string of { "0": { cloudflareImageId, cloudflareImageUrl, slug }, ... }
+ *
+ * Maps book/format/page identities to Cloudflare Images URLs for optimized delivery.
+ *
+ * Legacy env format is still supported:
+ * `{ "0": { cloudflareImageId, cloudflareImageUrl, slug } }`
+ *
+ * Preferred multi-book keys are:
+ * - `${bookId}:${formatId}:${pageLabel}`
+ * - `${bookId}:${formatId}:${pageNumber}`
+ * - `${pageLabel}`
+ * - `${pageNumber}`
  */
+
+import { getBookFormatConfig, loadBundledBookConfig } from '@/lib/books';
+import { buildAssetApiUrl, normalizeBookId } from '@/lib/order-paths';
 
 export interface BackgroundImageConfig {
   cloudflareImageId: string;
@@ -15,60 +22,108 @@ export interface BackgroundImageConfig {
   slug: string;
 }
 
-// Load mapping from environment variable (set after running upload endpoint)
-// Falls back to empty object if not configured
-let backgroundImagesMapping: Record<number, BackgroundImageConfig> = {};
+export interface BackgroundImageLookupOptions {
+  bookId?: string | null;
+  formatId?: string | null;
+}
+
+type BackgroundImageMapping = Record<string, BackgroundImageConfig>;
+
+let backgroundImagesMapping: BackgroundImageMapping = {};
 
 try {
   const mappingJson = process.env.BACKGROUND_IMAGES_MAPPING;
   if (mappingJson) {
-    backgroundImagesMapping = JSON.parse(mappingJson);
-    console.log('[Background Images] Loaded mapping from environment variable:', Object.keys(backgroundImagesMapping).length, 'images');
+    backgroundImagesMapping = JSON.parse(mappingJson) as BackgroundImageMapping;
+    console.log(
+      '[Background Images] Loaded mapping from environment variable:',
+      Object.keys(backgroundImagesMapping).length,
+      'images',
+    );
   }
 } catch (error) {
-  console.warn('[Background Images] Failed to parse BACKGROUND_IMAGES_MAPPING environment variable:', error);
+  console.warn(
+    '[Background Images] Failed to parse BACKGROUND_IMAGES_MAPPING environment variable:',
+    error,
+  );
 }
 
 export { backgroundImagesMapping };
 
-/**
- * Get Cloudflare Images URL for a background image by page number
- * Falls back to R2 URL if Cloudflare Images is not configured
- */
-export function getBackgroundImageUrl(pageNumber: number): string {
-  const config = backgroundImagesMapping[pageNumber];
-  
-  if (config?.cloudflareImageUrl) {
-    return config.cloudflareImageUrl;
+function resolvePageBackground(
+  pageNumber: number,
+  options: BackgroundImageLookupOptions = {},
+): {
+  bookId: string;
+  formatId: string;
+  pageLabel: string;
+  backgroundSlot: string;
+  backgroundKey: string;
+} | null {
+  try {
+    const bookId = normalizeBookId(options.bookId);
+    const config = loadBundledBookConfig({ bookId });
+    const format = getBookFormatConfig(config, options.formatId ?? undefined);
+    const pageConfig = format.interior.pageSequence[pageNumber];
+    const backgroundSlot = pageConfig?.backgroundSlot;
+
+    if (!pageConfig || !backgroundSlot) {
+      return null;
+    }
+
+    const backgroundKey = config.assets.backgrounds[backgroundSlot];
+    if (!backgroundKey) {
+      return null;
+    }
+
+    return {
+      bookId: config.bookId,
+      formatId: format.formatId,
+      pageLabel: pageConfig.label,
+      backgroundSlot,
+      backgroundKey,
+    };
+  } catch {
+    return null;
   }
-  
-  // Fallback to R2 URL
-  const sceneSlugs = [
-    'dedication',        // page00
-    'twilight-walk',    // page01
-    'night-forest',     // page02
-    'magic-doorway',    // page03
-    'courage-leap',     // page04
-    'morning-meadow',   // page05
-    'tall-forest',      // page06
-    'mountain-vista',   // page07
-    'picnic-surprise',  // page08
-    'beach-discovery',  // page09
-    'crystal-cave',     // page10
-    'giant-flowers',    // page11
-    'almost-there',     // page12
-    'animal-reveal',    // page13
-    'flying-home'       // page14
-  ];
-  
-  if (pageNumber === 0) {
-    return '/api/assets/book-mvp-simple-adventure/backgrounds/page00-dedication.png';
-  } else if (pageNumber >= 1 && pageNumber <= 14) {
-    const slug = sceneSlugs[pageNumber];
-    const padded = String(pageNumber).padStart(2, '0');
-    return `/api/assets/book-mvp-simple-adventure/backgrounds/page${padded}-${slug}.png`;
-  }
-  
-  return '';
 }
 
+function resolveMappedBackground(
+  pageNumber: number,
+  resolved: NonNullable<ReturnType<typeof resolvePageBackground>>,
+): BackgroundImageConfig | null {
+  const candidates = [
+    `${resolved.bookId}:${resolved.formatId}:${resolved.pageLabel}`,
+    `${resolved.bookId}:${resolved.formatId}:${pageNumber}`,
+    `${resolved.bookId}:${resolved.pageLabel}`,
+    `${resolved.bookId}:${pageNumber}`,
+    resolved.pageLabel,
+    String(pageNumber),
+  ];
+
+  for (const key of candidates) {
+    const config = backgroundImagesMapping[key];
+    if (config?.cloudflareImageUrl) {
+      return config;
+    }
+  }
+
+  return null;
+}
+
+export function getBackgroundImageUrl(
+  pageNumber: number,
+  options: BackgroundImageLookupOptions = {},
+): string {
+  const resolved = resolvePageBackground(pageNumber, options);
+  if (!resolved) {
+    return '';
+  }
+
+  const mapped = resolveMappedBackground(pageNumber, resolved);
+  if (mapped?.cloudflareImageUrl) {
+    return mapped.cloudflareImageUrl;
+  }
+
+  return buildAssetApiUrl(resolved.backgroundKey);
+}

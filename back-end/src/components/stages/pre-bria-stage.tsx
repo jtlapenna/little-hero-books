@@ -6,6 +6,13 @@ import { CheckCircle, Play, X, Info } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 import { extractApiErrorMessage } from '@/lib/error-handler';
+import {
+  buildAssetApiUrl,
+  buildManifestApiUrl,
+  buildPoseReferenceAssetKey,
+  normalizeBookId,
+  normalizeOrderPrefix,
+} from '@/lib/order-paths';
 
 interface PreBriaStageProps {
   orderId: string;
@@ -34,6 +41,17 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     if (/[?&]v=/.test(u)) return u.replace(/([?&])v=[^&]*/g, `$1v=${token}`);
     return `${u}${u.includes('?') ? '&' : '?'}v=${token}`;
   }
+
+  const orderPrefix = normalizeOrderPrefix(
+    order.bookContext?.orderPrefix ?? order.assetPrefix,
+    orderId,
+    order.bookContext?.bookId ?? order.project,
+  );
+  const referenceBookId = normalizeBookId(order.bookContext?.bookId ?? order.project);
+  const manifestContext = {
+    bookId: referenceBookId,
+    orderPrefix,
+  };
 
   // Initialize with empty state - will be populated from R2 data
   const [baseCharacter, setBaseCharacter] = useState({
@@ -88,8 +106,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
   useEffect(() => {
     const loadManifestFlags = async () => {
       try {
-        const manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`;
-        const manifestUrl = `/api/manifests/${manifestKey}?v=${Date.now()}`;
+        const manifestUrl = buildManifestApiUrl(orderPrefix, '2a', Date.now());
         
         const response = await fetch(manifestUrl, { cache: 'no-store' });
         if (!response.ok) {
@@ -130,14 +147,13 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
       const interval = setInterval(loadManifestFlags, 3000);
       return () => clearInterval(interval);
     }
-  }, [orderId]);
+  }, [orderId, orderPrefix]);
 
   // Load pending revisions from manifest
   useEffect(() => {
     const loadPendingRevisions = async () => {
       try {
-        const manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`;
-        const manifestUrl = `/api/manifests/${manifestKey}?v=${Date.now()}`;
+        const manifestUrl = buildManifestApiUrl(orderPrefix, '2a', Date.now());
         
         const response = await fetch(manifestUrl, { cache: 'no-store' });
         if (!response.ok) {
@@ -207,7 +223,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         clearInterval(refreshInterval);
       };
     }
-  }, [orderId]);
+  }, [orderId, orderPrefix]);
 
   // Two-step workflow state
   const [approveStageConfirmed, setApproveStageConfirmed] = useState(!!isApproved);
@@ -290,7 +306,9 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         
         // Build reference pose URL for comparison
         const paddedPoseNumber = String(poseNumber).padStart(2, '0');
-        const referencePoseUrl = `/api/assets/book-mvp-simple-adventure/characters/poses/pose${paddedPoseNumber}.png`;
+        const referencePoseUrl = buildAssetApiUrl(
+          buildPoseReferenceAssetKey(referenceBookId, poseNumber),
+        );
         
         // Check for pending revision
         const revisionKey = `pose${paddedPoseNumber}`;
@@ -726,7 +744,8 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
             },
             body: JSON.stringify({
               poseNumber,
-              stage: 'preBria'
+              stage: 'preBria',
+              ...manifestContext,
             })
           }).then(async response => {
             if (!response.ok) {
@@ -872,6 +891,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
           includePoseReference: data.includePoseReference,
           includePreviousOption: data.includePreviousOption,
           previousOptionR2Key: previousOptionR2Key,
+          ...manifestContext,
         }),
       });
 
@@ -943,7 +963,10 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         // Poll every 2-3 seconds (using 2500ms for 2.5 seconds)
         const pollInterval = setInterval(async () => {
           try {
-            const statusResponse = await fetch(`/api/orders/${orderId}/regenerate-pose/${result.jobId}`);
+            const statusQuery = new URLSearchParams(manifestContext);
+            const statusResponse = await fetch(
+              `/api/orders/${orderId}/regenerate-pose/${result.jobId}?${statusQuery.toString()}`,
+            );
             if (!statusResponse.ok) {
               console.error('[PreBriaStage] Polling error:', statusResponse.status);
               clearInterval(pollInterval);
@@ -1130,6 +1153,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         body: JSON.stringify({
           poseNumber,
           temporaryR2Key: currentPendingRevision.r2Key,
+          ...manifestContext,
         }),
       });
 

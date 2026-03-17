@@ -23,6 +23,7 @@
     "test:order-list-sibling": "tsx scripts/test-order-list-sibling-enrichment.ts",
     "test:order-list-indicators": "tsx scripts/test-order-list-indicators.ts",
     "test:statuses": "dotenv -e .env.local -- tsx scripts/test-status-constants.ts",
+    "test:book-kernel": "tsx scripts/test-book-kernel.ts",
     "test:preview-token": "dotenv -e .env.local -- tsx scripts/test-preview-token.ts",
     "check:tokens": "dotenv -e .env.local -- tsx scripts/check-preview-tokens.ts",
     "cleanup:orders": "dotenv -e .env.local -- tsx scripts/cleanup-old-orders.ts",

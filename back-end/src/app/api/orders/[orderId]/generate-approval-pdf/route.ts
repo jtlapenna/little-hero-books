@@ -14,11 +14,16 @@ import { buildApprovalPageHtml } from '@/lib/approval-page-html';
 import { getActivePreviewToken } from '@/lib/preview-tokens';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
 import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { buildOrderPrefix } from '@/lib/r2-utils';
 
 export const dynamic = 'force-dynamic';
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
@@ -55,16 +60,21 @@ export async function GET(
     const approvalUrl = `${customerSiteUrl}/approve/${previewToken.token}`;
 
     // Try to fetch the book PDF from R2
-    const pdfKey = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
-    let bookPdfBuffer: Buffer | null = null;
+    const assetPrefix =
+      typeof order.asset_prefix === 'string' ? order.asset_prefix.trim().replace(/\/+$/, '') : '';
+    const orderPrefix = assetPrefix || buildOrderPrefix(
+      orderId,
+      typeof order.project === 'string' ? order.project : null,
+    );
+    const pdfKey = `${orderPrefix}/complete_book_${orderId}.pdf`;
+    let bookPdfExists = false;
     
     try {
       const pdfResponse = await getObject(R2_ORDERS_BUCKET, pdfKey);
       if (pdfResponse.ok) {
-        const arrayBuffer = await pdfResponse.arrayBuffer();
-        bookPdfBuffer = Buffer.from(arrayBuffer);
+        bookPdfExists = true;
       }
-    } catch (error) {
+    } catch {
       console.warn(`[Generate Approval PDF] Book PDF not found at ${pdfKey}, creating standalone approval PDF`);
     }
 
@@ -80,6 +90,7 @@ export async function GET(
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
         'Content-Disposition': `inline; filename="approval-${orderId}.html"`,
+        'X-Book-Pdf-Found': bookPdfExists ? 'true' : 'false',
       },
     });
 
@@ -89,12 +100,11 @@ export async function GET(
     // 2. Print to PDF (Ctrl+P / Cmd+P)
     // 3. Or attach the HTML file directly (Amazon allows HTML attachments)
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Generate Approval PDF] Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to generate approval PDF' },
+      { error: getErrorMessage(error) || 'Failed to generate approval PDF' },
       { status: 500 }
     );
   }
 }
-

@@ -1,7 +1,14 @@
 import { OrderStatus, ReviewStageStatus } from '@/constants/statuses';
 import { Order, ReviewStage } from '@/types/order';
 import { calculateOrderStatus } from './status-service';
-import { downloadManifest, buildManifestKey } from './r2-service';
+import { downloadManifest } from './r2-service';
+import {
+  buildManifestKeyFromOrderPrefix,
+  extractBookIdFromOrderPathLike,
+  extractOrderPrefixFromPathLike,
+  normalizeBookId,
+  normalizeOrderPrefix,
+} from './order-paths';
 
 type SupabaseOrderRecord = Record<string, any>;
 
@@ -11,6 +18,18 @@ interface MapOptions {
    * Useful if the caller already computed the status.
    */
   includeStatus?: boolean;
+}
+
+function firstNonEmptyString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+    const trimmed = value.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+
+  return undefined;
 }
 
 export function parseSiblingItemNumber(orderId: string): number | undefined {
@@ -54,8 +73,23 @@ export async function mapSupabaseOrderToOrder(
   const characterSpecs = record.character_specs || {};
   const bookSpecs = record.book_specs || {};
   const orderDetailsRaw = record.order_details || {};
-
-  const defaultProject = record.project || 'book-mvp-simple-adventure';
+  const defaultProject = normalizeBookId(
+    firstNonEmptyString(
+      record.project,
+      extractBookIdFromOrderPathLike(record.asset_prefix),
+      extractBookIdFromOrderPathLike(record.one_manifest_url),
+      extractBookIdFromOrderPathLike(record.manifest_2a_url),
+      extractBookIdFromOrderPathLike(record.manifest_2b_url),
+      extractBookIdFromOrderPathLike(record.manifest_3_url),
+      extractBookIdFromOrderPathLike(record.final_book_url),
+      extractBookIdFromOrderPathLike(record.final_cover_url),
+    ),
+  );
+  const resolvedOrderPrefix = normalizeOrderPrefix(
+    typeof record.asset_prefix === 'string' ? record.asset_prefix : null,
+    orderId,
+    defaultProject,
+  );
   const defaultTemplatePath = record.template_path || 'templates';
 
   const childName =
@@ -117,8 +151,7 @@ export async function mapSupabaseOrderToOrder(
     characterSpecs,
     bookSpecs,
     orderDetails,
-    assetPrefix:
-      record.asset_prefix || `book-mvp-simple-adventure/orders/${orderId}/`,
+    assetPrefix: `${resolvedOrderPrefix}/`,
     reviewStages,
     customerApprovalStatus: record.customer_approval_status || undefined,
     customerApprovalRequestedAt: toIsoString(
@@ -177,7 +210,7 @@ export async function mapSupabaseOrderToOrder(
   // Fetch 4-manifest to get additional Lulu data (cost, estimated ship date, etc.)
   if (order.luluJobId) {
     try {
-      const manifest4Key = buildManifestKey(orderId, '4');
+      const manifest4Key = buildManifestKeyFromOrderPrefix(resolvedOrderPrefix, '4');
       const manifest4 = await downloadManifest(manifest4Key).catch(() => null);
       
       if (manifest4?.lulu) {
@@ -213,6 +246,32 @@ export function mapManifestToOrder(orderId: string, manifest: any): Order {
   const orderData = manifest?.order || {};
   const workflow = manifest?.workflow || {};
   const characterHash = manifest?.characterHash;
+  const resolvedOrderId = orderData.orderId || orderId;
+  const inferredProject = normalizeBookId(
+    firstNonEmptyString(
+      orderData.project,
+      manifest?.book?.bookConfigRef?.bookId,
+      extractBookIdFromOrderPathLike(manifest?.artifacts?.orderPrefix),
+      extractBookIdFromOrderPathLike(manifest?.artifacts?.manifestKey),
+      extractBookIdFromOrderPathLike(manifest?.manifestKey),
+      extractBookIdFromOrderPathLike(manifest?.oneManifestUrl),
+      extractBookIdFromOrderPathLike(manifest?.manifestUrl),
+      extractBookIdFromOrderPathLike(manifest?.artifacts?.interiorPdfR2Key),
+      extractBookIdFromOrderPathLike(manifest?.artifacts?.coverPdfR2Key),
+    ),
+  );
+  const resolvedOrderPrefix = normalizeOrderPrefix(
+    firstNonEmptyString(
+      orderData.assetPrefix,
+      manifest?.orderR2BaseKey,
+      manifest?.artifacts?.orderPrefix,
+      extractOrderPrefixFromPathLike(manifest?.artifacts?.manifestKey),
+      extractOrderPrefixFromPathLike(manifest?.manifestKey),
+      extractOrderPrefixFromPathLike(manifest?.oneManifestUrl),
+    ),
+    resolvedOrderId,
+    inferredProject,
+  );
 
   let status = OrderStatus.QUEUED_FOR_PROCESSING;
   if (workflow.currentStage === '2A-complete') {
@@ -289,10 +348,10 @@ export function mapManifestToOrder(orderId: string, manifest: any): Order {
   };
 
   return {
-    orderId: orderData.orderId || orderId,
+    orderId: resolvedOrderId,
     platform: 'amazon',
     amazonOrderId: orderData.amazonOrderId || orderId,
-    project: orderData.project || 'book-mvp-simple-adventure',
+    project: inferredProject,
     customer: {
       firstName,
       lastName,
@@ -318,7 +377,7 @@ export function mapManifestToOrder(orderId: string, manifest: any): Order {
       shippingAddress: orderData.shippingAddress || {},
       ...orderData.orderDetails,
     },
-    assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
+    assetPrefix: `${resolvedOrderPrefix}/`,
     reviewStages,
     customerApprovalStatus: undefined,
     customerApprovalRequestedAt: undefined,

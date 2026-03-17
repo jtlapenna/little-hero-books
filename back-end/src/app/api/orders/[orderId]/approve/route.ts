@@ -2,8 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { approveStage } from '@/lib/approval-store';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
-import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { downloadManifest } from '@/lib/r2-service';
+import { buildManifestKeyCandidates } from '@/lib/order-paths';
 import { getOrderFlagSummaryById } from '@/lib/review-state';
+
+async function downloadFirstManifest(
+  manifestKeys: string[],
+): Promise<any | null> {
+  for (const manifestKey of manifestKeys) {
+    try {
+      return await downloadManifest(manifestKey);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('404') && !message.includes('Not Found')) {
+        throw error;
+      }
+    }
+  }
+
+  return null;
+}
 
 async function approveOrderStage(
   request: NextRequest,
@@ -11,7 +29,7 @@ async function approveOrderStage(
 ) {
   const { orderId } = await params;
   const body = await request.json();
-  const { stage, status } = body;
+  const { stage, status, bookId, orderPrefix } = body;
 
   console.log(`API: Approving stage ${stage} for order ${orderId}, status: ${status}`);
 
@@ -34,24 +52,42 @@ async function approveOrderStage(
     try {
       if (stage === 'preBria') {
         // Check 2a manifest for preBria flags
-        const manifestKey = buildManifestKey(orderId, '2a');
-        const manifest = await downloadManifest(manifestKey).catch(() => null);
+        const manifest = await downloadFirstManifest(
+          buildManifestKeyCandidates(orderId, '2a', {
+            bookId: typeof bookId === 'string' ? bookId : null,
+            orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+          }),
+        );
         if (manifest?.entries) {
           flagCount = manifest.entries.filter((e: any) => e.isFlagged || e.needsReview).length;
         }
       } else if (stage === 'postBria') {
         // Check 2b manifest (fallback to 2a) for postBria flags
-        let manifest = await downloadManifest(buildManifestKey(orderId, '2b')).catch(() => null);
+        let manifest = await downloadFirstManifest(
+          buildManifestKeyCandidates(orderId, '2b', {
+            bookId: typeof bookId === 'string' ? bookId : null,
+            orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+          }),
+        );
         if (!manifest) {
-          manifest = await downloadManifest(buildManifestKey(orderId, '2a')).catch(() => null);
+          manifest = await downloadFirstManifest(
+            buildManifestKeyCandidates(orderId, '2a', {
+              bookId: typeof bookId === 'string' ? bookId : null,
+              orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+            }),
+          );
         }
         if (manifest?.entries) {
           flagCount = manifest.entries.filter((e: any) => e.isFlagged || e.needsReview).length;
         }
       } else if (stage === 'postPdf') {
         // Check 3 manifest for postPdf flags
-        const manifestKey = buildManifestKey(orderId, '3');
-        const manifest = await downloadManifest(manifestKey).catch(() => null);
+        const manifest = await downloadFirstManifest(
+          buildManifestKeyCandidates(orderId, '3', {
+            bookId: typeof bookId === 'string' ? bookId : null,
+            orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+          }),
+        );
         if (manifest?.pngGeneration?.pagesMetadata) {
           const pagesMetadata = manifest.pngGeneration.pagesMetadata;
           flagCount = Object.values(pagesMetadata).filter((meta: any) => meta.isFlagged || meta.needsReview).length;

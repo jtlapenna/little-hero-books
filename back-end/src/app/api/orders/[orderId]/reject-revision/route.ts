@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteObject, getObject, putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { buildManifestKey } from '@/lib/r2-service';
+import { buildManifestKeyCandidates } from '@/lib/order-paths';
 
 // Helper to parse JSON safely
 async function readJsonSafe<T = any>(res: Response): Promise<T> {
@@ -36,7 +36,7 @@ export async function POST(
 
     // Parse request body
     const body = await request.json();
-    const { poseNumber, temporaryR2Key } = body;
+    const { poseNumber, temporaryR2Key, bookId, orderPrefix } = body;
 
     // Validation
     if (typeof poseNumber !== 'number' || poseNumber < 0 || poseNumber > 12) {
@@ -54,21 +54,35 @@ export async function POST(
     }
 
     // Load manifest (2a-manifest.json)
-    const manifestKey = buildManifestKey(orderId, '2a');
-    console.log(`[Reject Revision API] Loading manifest: ${manifestKey}`);
+    const manifestKeyCandidates = buildManifestKeyCandidates(orderId, '2a', {
+      bookId: typeof bookId === 'string' ? bookId : null,
+      orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+      pathLikes: [temporaryR2Key],
+    });
+    console.log(
+      `[Reject Revision API] Loading manifest from candidates: ${manifestKeyCandidates.join(', ')}`,
+    );
 
-    let manifest: any;
-    try {
-      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-      manifest = await readJsonSafe<any>(manifestRes);
-    } catch (error: any) {
-      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
-        return NextResponse.json(
-          { error: 'Manifest not found. Workflow 2A may not have completed yet.' },
-          { status: 404 }
-        );
+    let manifestKey = manifestKeyCandidates[0];
+    let manifest: any = null;
+    for (const candidateKey of manifestKeyCandidates) {
+      manifestKey = candidateKey;
+      try {
+        const manifestRes = await getObject(R2_ORDERS_BUCKET, candidateKey);
+        manifest = await readJsonSafe<any>(manifestRes);
+        break;
+      } catch (error: any) {
+        if (!error.message?.includes('404') && !error.message?.includes('Not Found')) {
+          throw error;
+        }
       }
-      throw error;
+    }
+
+    if (!manifest) {
+      return NextResponse.json(
+        { error: 'Manifest not found. Workflow 2A may not have completed yet.' },
+        { status: 404 }
+      );
     }
 
     if (!manifest || !manifest.revisions || !manifest.revisions.pending) {
@@ -184,4 +198,3 @@ export async function POST(
     );
   }
 }
-

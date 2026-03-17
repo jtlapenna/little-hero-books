@@ -4,14 +4,19 @@ import { PNG } from 'pngjs';
 import { verifyBearerAuth } from '@/lib/auth';
 import { getObject, headObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getSignedUrlForObject } from '@/lib/r2-service';
+import { buildOrderPrefix } from '@/lib/r2-utils';
 
 type PdfType = 'interior' | 'cover';
 
 interface QaRequestBody {
   orderId: string;
-  pdfR2Key: string;
+  pdfR2Key: string | null;
+  pdfUrl: string | null;
   expectedPageCount: number;
   type?: PdfType;
+  orderPrefix: string;
+  pageLabels: string[];
+  previewImageUrls: string[];
 }
 
 interface PageResult {
@@ -59,7 +64,7 @@ interface PdfJsModule {
   GlobalWorkerOptions?: { workerSrc?: string };
   OPS?: Record<string, number>;
   getDocument: (options: {
-    data: Uint8Array;
+    data?: Uint8Array;
     url?: string;
     useWorkerFetch?: boolean;
     disableWorker?: boolean;
@@ -89,16 +94,38 @@ function getErrorMessage(error: unknown): string {
   return String(error);
 }
 
+function isAbsoluteUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}
+
+function toTrimmedStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+    .filter(Boolean);
+}
+
+function buildInteriorPageLabels(expectedPageCount: number): string[] {
+  return Array.from({ length: expectedPageCount }, (_, i) => 'p' + String(i).padStart(2, '0'));
+}
+
 function parseInput(body: unknown): { ok: true; data: QaRequestBody } | { ok: false; error: string } {
   if (!isRecord(body)) return { ok: false, error: 'Invalid JSON body' };
 
   const orderId = typeof body.orderId === 'string' ? body.orderId.trim() : '';
   const pdfR2Key = typeof body.pdfR2Key === 'string' ? body.pdfR2Key.trim() : '';
+  const pdfUrl = typeof body.pdfUrl === 'string' ? body.pdfUrl.trim() : '';
   const expectedPageCountRaw = Number(body.expectedPageCount);
   const typeRaw = typeof body.type === 'string' ? body.type : 'interior';
+  const orderPrefix = typeof body.orderPrefix === 'string' ? body.orderPrefix.trim().replace(/\/+$/, '') : '';
+  const pageLabels = toTrimmedStringArray(body.pageLabels);
+  const previewImageUrls = toTrimmedStringArray(body.previewImageUrls);
 
   if (!orderId) return { ok: false, error: 'orderId is required' };
-  if (!pdfR2Key) return { ok: false, error: 'pdfR2Key is required' };
+  if (!pdfR2Key && !pdfUrl) return { ok: false, error: 'pdfR2Key or pdfUrl is required' };
   if (!Number.isFinite(expectedPageCountRaw) || expectedPageCountRaw < 1 || expectedPageCountRaw > MAX_PAGES) {
     return { ok: false, error: `expectedPageCount must be between 1 and ${MAX_PAGES}` };
   }
@@ -106,13 +133,25 @@ function parseInput(body: unknown): { ok: true; data: QaRequestBody } | { ok: fa
     return { ok: false, error: 'type must be interior or cover' };
   }
 
+  const expectedPageCount = Math.floor(expectedPageCountRaw);
+  if (typeRaw === 'interior' && pageLabels.length > 0 && pageLabels.length !== expectedPageCount) {
+    return { ok: false, error: 'pageLabels must match expectedPageCount for interior PDFs' };
+  }
+  if (typeRaw === 'interior' && previewImageUrls.length > 0 && previewImageUrls.length !== expectedPageCount) {
+    return { ok: false, error: 'previewImageUrls must match expectedPageCount for interior PDFs' };
+  }
+
   return {
     ok: true,
     data: {
       orderId,
-      pdfR2Key,
-      expectedPageCount: Math.floor(expectedPageCountRaw),
+      pdfR2Key: pdfR2Key || null,
+      pdfUrl: pdfUrl || null,
+      expectedPageCount,
       type: typeRaw,
+      orderPrefix: orderPrefix || buildOrderPrefix(orderId),
+      pageLabels: pageLabels.length > 0 ? pageLabels : buildInteriorPageLabels(expectedPageCount),
+      previewImageUrls,
     },
   };
 }
@@ -348,13 +387,13 @@ class ServerDOMMatrix {
 
 function ensureDomMatrixPolyfill() {
   if (typeof (globalThis as { DOMMatrix?: unknown }).DOMMatrix === 'undefined') {
-    (globalThis as { DOMMatrix?: typeof ServerDOMMatrix }).DOMMatrix = ServerDOMMatrix;
+    (globalThis as unknown as { DOMMatrix?: typeof ServerDOMMatrix }).DOMMatrix = ServerDOMMatrix;
   }
 }
 
 function ensurePdfJsBrowserGlobals() {
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://admin.littleherolabs.com').replace(/\/+$/, '') + '/';
-  const globalScope = globalThis as {
+  const globalScope = globalThis as unknown as {
     window?: { location?: string };
     document?: { baseURI?: string };
     navigator?: { language?: string; platform?: string; userAgent?: string };
@@ -469,24 +508,29 @@ function countRegexMatches(text: string, re: RegExp): number {
   return m ? m.length : 0;
 }
 
-function buildInteriorPageNames(expectedPageCount: number): string[] {
-  return Array.from({ length: expectedPageCount }, (_, i) => 'p' + String(i).padStart(2, '0'));
-}
-
-function buildExpectedPreviewKey(orderId: string, type: PdfType, page: number, expectedPageCount: number): string {
-  if (type === 'cover') {
-    return `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover-spread.png`;
+function resolveExpectedPreviewRef(input: QaRequestBody, page: number): string {
+  if (input.type === 'cover') {
+    return input.previewImageUrls[0] || `${input.orderPrefix}/preview-images/cover-spread.png`;
   }
-  const pageNames = buildInteriorPageNames(expectedPageCount);
-  const pageName = pageNames[page - 1];
-  return `book-mvp-simple-adventure/orders/${orderId}/preview-images/${pageName}.png`;
+
+  const explicitPreviewUrl = input.previewImageUrls[page - 1];
+  if (explicitPreviewUrl) {
+    return explicitPreviewUrl;
+  }
+
+  const pageLabel = input.pageLabels[page - 1] || buildInteriorPageLabels(input.expectedPageCount)[page - 1];
+  return `${input.orderPrefix}/preview-images/${pageLabel}.png`;
 }
 
 async function inflatePdfStream(stream: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream !== 'undefined') {
     const ds = new DecompressionStream('deflate');
+    const compressedChunk = stream.buffer.slice(
+      stream.byteOffset,
+      stream.byteOffset + stream.byteLength,
+    ) as ArrayBuffer;
     const decompressed = await new Response(
-      new Blob([stream]).stream().pipeThrough(ds)
+      new Blob([compressedChunk]).stream().pipeThrough(ds)
     ).arrayBuffer();
     return new Uint8Array(decompressed);
   }
@@ -598,11 +642,11 @@ function computeSampleMeanAbsDiff(
   return count > 0 ? total / count : 0;
 }
 
-async function decodePreviewPngSample(key: string): Promise<{
+async function decodePreviewPngSample(ref: string): Promise<{
   sample: Uint8Array;
   whiteSpaceRatio: number | null;
 }> {
-  const response = await fetchOrdersBucketObject(key);
+  const response = await fetchBinaryObject(ref);
   const pngBuffer = Buffer.from(await response.arrayBuffer());
   const decoded = PNG.sync.read(pngBuffer, { skipRescale: true });
   const { width, height, data } = decoded;
@@ -630,6 +674,20 @@ async function decodePreviewPngSample(key: string): Promise<{
   };
 }
 
+async function fetchRemoteObject(url: string): Promise<Response> {
+  const response = await fetch(url, {
+    method: 'GET',
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text().catch(() => '');
+    throw new Error(`Remote fetch failed for ${url}: ${response.status} ${response.statusText} ${responseText}`);
+  }
+
+  return response;
+}
+
 async function fetchOrdersBucketObject(key: string): Promise<Response> {
   try {
     return await getObject(R2_ORDERS_BUCKET, key);
@@ -652,9 +710,67 @@ async function fetchOrdersBucketObject(key: string): Promise<Response> {
   }
 }
 
+async function fetchBinaryObject(ref: string): Promise<Response> {
+  const normalizedRef = String(ref || '').trim();
+  if (!normalizedRef) {
+    throw new Error('Missing object reference');
+  }
+
+  if (isAbsoluteUrl(normalizedRef)) {
+    return fetchRemoteObject(normalizedRef);
+  }
+
+  return fetchOrdersBucketObject(normalizedRef);
+}
+
+function toUint8ArrayView(value: unknown): Uint8Array | null {
+  if (value instanceof Uint8Array) {
+    return value;
+  }
+
+  if (value instanceof ArrayBuffer) {
+    return new Uint8Array(value);
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  }
+
+  if (Array.isArray(value) && value.every((entry) => typeof entry === 'number')) {
+    return Uint8Array.from(value);
+  }
+
+  return null;
+}
+
 async function getOrdersBucketContentLength(key: string): Promise<number | null> {
   try {
     const response = await headObject(R2_ORDERS_BUCKET, key);
+    const header = response.headers.get('content-length');
+    const size = header ? Number(header) : NaN;
+    return Number.isFinite(size) && size > 0 ? size : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getPdfContentLength(pdfR2Key: string | null, pdfUrl: string | null): Promise<number | null> {
+  if (pdfR2Key) {
+    return getOrdersBucketContentLength(pdfR2Key);
+  }
+
+  if (!pdfUrl || !isAbsoluteUrl(pdfUrl)) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(pdfUrl, {
+      method: 'HEAD',
+      cache: 'no-store',
+    });
+    if (!response.ok) {
+      return null;
+    }
     const header = response.headers.get('content-length');
     const size = header ? Number(header) : NaN;
     return Number.isFinite(size) && size > 0 ? size : null;
@@ -703,19 +819,28 @@ export async function POST(request: NextRequest) {
     const input = parseInput(await request.json().catch(() => null));
     if (!input.ok) return jsonFail(400, { reasonCode: 'invalid_input', reason: input.error });
 
-    const { orderId, pdfR2Key, expectedPageCount, type = 'interior' } = input.data;
+    const {
+      orderId,
+      pdfR2Key,
+      pdfUrl,
+      expectedPageCount,
+      type = 'interior',
+    } = input.data;
+    const pdfRef = pdfR2Key || pdfUrl || '';
 
-    const knownContentLength = await getOrdersBucketContentLength(pdfR2Key);
+    const knownContentLength = await getPdfContentLength(pdfR2Key, pdfUrl);
     const shouldUseRemotePdfJs =
-      knownContentLength !== null && knownContentLength >= LARGE_PDF_REMOTE_THRESHOLD_BYTES;
+      pdfR2Key !== null &&
+      knownContentLength !== null &&
+      knownContentLength >= LARGE_PDF_REMOTE_THRESHOLD_BYTES;
 
     let pdfArray: ArrayBuffer | null = null;
     let totalPdfBytes = knownContentLength || 0;
 
     if (!shouldUseRemotePdfJs) {
       try {
-        const r2Response = await fetchOrdersBucketObject(pdfR2Key);
-        pdfArray = await r2Response.arrayBuffer();
+        const pdfResponse = await fetchBinaryObject(pdfRef);
+        pdfArray = await pdfResponse.arrayBuffer();
         totalPdfBytes = pdfArray.byteLength;
       } catch (error: unknown) {
         const message = getErrorMessage(error);
@@ -725,8 +850,9 @@ export async function POST(request: NextRequest) {
           orderId,
           type,
           pdfR2Key,
+          pdfUrl,
           reasonCode: isNotFound ? 'pdf_not_found' : 'pdf_download_failed',
-          reason: isNotFound ? 'PDF not found in R2' : 'Failed to download PDF from R2',
+          reason: isNotFound ? 'PDF not found' : 'Failed to download PDF',
         });
       }
 
@@ -735,6 +861,7 @@ export async function POST(request: NextRequest) {
           orderId,
           type,
           pdfR2Key,
+          pdfUrl,
           reasonCode: 'pdf_empty',
           reason: 'Downloaded PDF has zero bytes',
         });
@@ -744,6 +871,7 @@ export async function POST(request: NextRequest) {
           orderId,
           type,
           pdfR2Key,
+          pdfUrl,
           totalPdfBytes,
           expectedPageCount,
           reasonCode: 'pdf_too_small',
@@ -779,11 +907,11 @@ export async function POST(request: NextRequest) {
           pdfWhiteSpaceRatio = await computeWhiteSpaceRatio(rawImage, image.width, image.height);
 
           try {
-            const previewKey = buildExpectedPreviewKey(orderId, type, image.page, expectedPageCount);
-            let preview = previewCache.get(previewKey);
+            const previewRef = resolveExpectedPreviewRef(input.data, image.page);
+            let preview = previewCache.get(previewRef);
             if (!preview) {
-              preview = await decodePreviewPngSample(previewKey);
-              previewCache.set(previewKey, preview);
+              preview = await decodePreviewPngSample(previewRef);
+              previewCache.set(previewRef, preview);
             }
 
             previewMeanAbsDiff = computeSampleMeanAbsDiff(sample, preview.sample);
@@ -843,6 +971,7 @@ export async function POST(request: NextRequest) {
             orderId,
             type,
             pdfR2Key,
+            pdfUrl,
             reasonCode: passed ? 'all_passed' : 'page_checks_failed',
             reason: passed ? 'all_passed' : `Failed pages: ${failedPages.join(', ')}`,
             pageCount: expectedPageCount,
@@ -873,7 +1002,12 @@ export async function POST(request: NextRequest) {
         });
         pdfDoc = await task.promise;
       } else {
-        const signedUrl = await getSignedUrlForObject(pdfR2Key, R2_ORDERS_BUCKET, 900);
+        const signedUrl = pdfUrl || (pdfR2Key
+          ? await getSignedUrlForObject(pdfR2Key, R2_ORDERS_BUCKET, 900)
+          : null);
+        if (!signedUrl) {
+          throw new Error('Missing PDF URL for remote PDF.js load');
+        }
         const task = pdfjs.getDocument({
           url: signedUrl,
           disableWorker: true,
@@ -887,9 +1021,10 @@ export async function POST(request: NextRequest) {
           orderId,
           type,
           pdfR2Key,
+          pdfUrl,
           totalPdfBytes,
           reasonCode: 'pdf_download_failed',
-          reason: `Failed to stream PDF from R2 for QA: ${getErrorMessage(error)}`,
+          reason: `Failed to stream PDF for QA: ${getErrorMessage(error)}`,
         });
       }
 
@@ -899,6 +1034,7 @@ export async function POST(request: NextRequest) {
           orderId,
           type,
           pdfR2Key,
+          pdfUrl,
           reasonCode: 'pdf_parse_error',
           reason: getErrorMessage(error) || 'Failed to parse PDF',
         });
@@ -910,6 +1046,7 @@ export async function POST(request: NextRequest) {
           orderId,
           type,
           pdfR2Key,
+          pdfUrl,
           pageCount,
           expectedPageCount,
           reasonCode: 'page_count_mismatch',
@@ -930,6 +1067,7 @@ export async function POST(request: NextRequest) {
           orderId,
           type,
           pdfR2Key,
+          pdfUrl,
           reasonCode: failedPages.length ? 'page_checks_failed' : 'all_passed',
           reason: failedPages.length ? `Failed pages: ${failedPages.join(', ')}` : 'all_passed',
           pageCount,
@@ -959,6 +1097,7 @@ export async function POST(request: NextRequest) {
         orderId,
         type,
         pdfR2Key,
+        pdfUrl,
         pageCount,
         expectedPageCount,
         reasonCode: 'page_count_mismatch',
@@ -1041,16 +1180,7 @@ export async function POST(request: NextRequest) {
         }
 
         const imageRecord = isRecord(imageObj) ? imageObj : null;
-        const rawData = imageRecord?.data;
-        const data: Uint8Array | null = rawData
-          ? new Uint8Array(
-              (rawData as ArrayLike<number> & { buffer?: ArrayBuffer }).buffer || (rawData as ArrayLike<number>),
-              (rawData as { byteOffset?: number }).byteOffset || 0,
-              (rawData as { byteLength?: number; length?: number }).byteLength ||
-                (rawData as { length?: number }).length ||
-                0
-            )
-          : null;
+        const data = toUint8ArrayView(imageRecord?.data);
         const width = Number((imageRecord?.width as number | undefined) || 0);
         const height = Number((imageRecord?.height as number | undefined) || 0);
         const bytes = data?.byteLength || 0;
@@ -1078,11 +1208,11 @@ export async function POST(request: NextRequest) {
 
       if (bestSample) {
         try {
-          const previewKey = buildExpectedPreviewKey(orderId, type, pageNum, expectedPageCount);
-          let preview = previewCache.get(previewKey);
+          const previewRef = resolveExpectedPreviewRef(input.data, pageNum);
+          let preview = previewCache.get(previewRef);
           if (!preview) {
-            preview = await decodePreviewPngSample(previewKey);
-            previewCache.set(previewKey, preview);
+            preview = await decodePreviewPngSample(previewRef);
+            previewCache.set(previewRef, preview);
           }
 
           previewMeanAbsDiff = computeSampleMeanAbsDiff(bestSample, preview.sample);
@@ -1155,6 +1285,7 @@ export async function POST(request: NextRequest) {
         orderId,
         type,
         pdfR2Key,
+        pdfUrl,
         reasonCode,
         reason,
         pageCount,

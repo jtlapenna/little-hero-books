@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { verifyBearerAuth } from '@/lib/auth';
-import { R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-config';
 import { getSignedUrlForObject } from '@/lib/r2-service';
+import { getBucketFromKey } from '@/lib/r2-utils';
 
 const MAX_HTML_LENGTH = 5_000_000; // ~5MB
 const MAX_ASSET_KEYS = 80;
 const DEFAULT_EXPIRES_IN_SECONDS = 6 * 60 * 60; // 6 hours
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -78,8 +82,8 @@ export async function POST(request: NextRequest) {
     // ---- Input validation ----
     const body = (await request.json().catch(() => ({}))) as unknown;
     const html =
-      body && typeof body === 'object' && 'html' in body && typeof (body as any).html === 'string'
-        ? ((body as any).html as string)
+      isRecord(body) && typeof body.html === 'string'
+        ? body.html
         : '';
 
     if (!html || html.length > MAX_HTML_LENGTH) {
@@ -90,8 +94,8 @@ export async function POST(request: NextRequest) {
     }
 
     const expiresInSecondsRaw =
-      body && typeof body === 'object' && 'expiresInSeconds' in body
-        ? Number((body as any).expiresInSeconds)
+      isRecord(body) && body.expiresInSeconds !== undefined
+        ? Number(body.expiresInSeconds)
         : DEFAULT_EXPIRES_IN_SECONDS;
 
     const expiresInSeconds = Number.isFinite(expiresInSecondsRaw)
@@ -116,11 +120,10 @@ export async function POST(request: NextRequest) {
     }
 
     // ---- Presign and rewrite ----
-    const isOrderAsset = (key: string) => key.startsWith('book-mvp-simple-adventure/orders/');
     const keyToSignedUrl = new Map<string, string>();
 
     for (const key of keys) {
-      const bucket = isOrderAsset(key) ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
+      const bucket = getBucketFromKey(key);
       const signedUrl = await getSignedUrlForObject(key, bucket, expiresInSeconds);
       keyToSignedUrl.set(key, signedUrl);
     }
@@ -149,4 +152,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

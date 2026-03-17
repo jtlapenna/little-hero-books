@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
-import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { downloadManifest } from '@/lib/r2-service';
 import { normalizeCharacterSpecs } from '@/lib/customization-utils';
 import { updateOrderStatus } from '@/lib/status-service';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
 import { determineNextWorkflow } from '@/lib/determine-next-workflow';
 import { ReviewStageStatus } from '@/constants/statuses';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+  extractManifestKey,
+} from '@/lib/order-paths';
 
 // Force dynamic rendering - this route should never be statically generated
 export const dynamic = 'force-dynamic';
@@ -40,14 +45,41 @@ export async function POST(request: NextRequest) {
     const json = await request.json();
     const payload = PayloadSchema.parse(json);
 
-    // Download manifest from R2
-    const manifest: any = await downloadManifest(buildManifestKey(payload.orderId, '2b'));
+    // Load current order state (preserve/merge review_stages)
+    const currentOrder = await getOrderFromSupabase(payload.orderId).catch(() => null);
+    const orderHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder);
+    const payloadManifestKey = extractManifestKey(payload.manifestUrl);
+    const manifestKeyCandidates = buildManifestKeyCandidates(payload.orderId, '2b', {
+      ...orderHints,
+      pathLikes: [payload.manifestUrl, ...(orderHints.pathLikes ?? [])],
+    });
+    const manifestKeys = [
+      payloadManifestKey,
+      ...manifestKeyCandidates,
+    ].filter((value, index, values): value is string => !!value && values.indexOf(value) === index);
+
+    if (payloadManifestKey && !manifestKeyCandidates.includes(payloadManifestKey)) {
+      throw new Error(
+        `workflow-2b-complete: manifestUrl does not match expected per-item manifest keys (${payloadManifestKey})`,
+      );
+    }
+
+    let manifest: any = null;
+    for (const manifestKey of manifestKeys) {
+      try {
+        manifest = await downloadManifest(manifestKey);
+        break;
+      } catch (error) {
+        if (manifestKey === manifestKeys[manifestKeys.length - 1]) {
+          throw error;
+        }
+      }
+    }
+
     if (manifest && manifest.characterSpecs) {
       manifest.characterSpecs = normalizeCharacterSpecs(manifest.characterSpecs);
     }
 
-    // Load current order state (preserve/merge review_stages)
-    const currentOrder = await getOrderFromSupabase(payload.orderId).catch(() => null);
     const existingStages = (currentOrder?.review_stages && typeof currentOrder.review_stages === 'object')
       ? currentOrder.review_stages
       : {};
@@ -97,5 +129,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error?.message || 'Internal Server Error' }, { status: 500 });
   }
 }
-
 

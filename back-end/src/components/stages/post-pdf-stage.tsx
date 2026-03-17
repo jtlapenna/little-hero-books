@@ -19,6 +19,10 @@ import { Order } from '@/types/order';
 import { extractApiErrorMessage } from '@/lib/error-handler';
 import { AssetGrid } from '@/components/assets/asset-grid';
 import { formatDate } from '@/lib/utils';
+import {
+  normalizeManifestPageLabel,
+  resolveReviewPageContext,
+} from '@/lib/books/review-page-plan';
 
 const PDFJS_VERSION = '5.4.394';
 let pdfjsLibSingleton: typeof import('pdfjs-dist') | null = null;
@@ -87,6 +91,9 @@ interface PostPdfStageProps {
 
 interface PageData {
   pageNumber: number;
+  pageLabel: string;
+  pageType?: string;
+  storyPageNumber?: number | null;
   previewImageUrl: string;
   cloudflareImageId?: string;
   r2Key?: string;
@@ -131,6 +138,7 @@ interface Asset {
 // Create spreads from pages, including cover pages if cover image is available
 function createSpreads(pages: PageData[], coverImageUrl?: string): SpreadData[] {
   const spreads: SpreadData[] = [];
+  const orderedPages = [...pages].sort((left, right) => left.pageNumber - right.pageNumber);
   
   // Add front cover spread (blank left, cover right half) if cover is available
   if (coverImageUrl) {
@@ -148,27 +156,22 @@ function createSpreads(pages: PageData[], coverImageUrl?: string): SpreadData[] 
     });
   }
   
-  // Find dedication page (page 0) and story pages (pages 1-15)
-  const dedicationPage = pages.find(p => p.pageNumber === 0);
-  const storyPages = pages.filter(p => p.pageNumber >= 1).sort((a, b) => a.pageNumber - b.pageNumber);
-  
-  // Add dedication spread (blank left, page00 right)
-  if (dedicationPage) {
+  if (orderedPages.length > 0) {
     spreads.push({
       spreadNumber: spreads.length,
       leftPage: undefined, // Blank inside cover
-      rightPage: dedicationPage,
+      rightPage: orderedPages[0],
       isCover: false,
       isBackCover: false
     });
   }
   
-  // Interior spreads: pair story pages (1-2, 3-4, 5-6, etc.)
-  for (let i = 0; i < storyPages.length; i += 2) {
+  // Interior spreads: after the first right-hand page, pair remaining pages sequentially.
+  for (let i = 1; i < orderedPages.length; i += 2) {
     spreads.push({
       spreadNumber: spreads.length,
-      leftPage: storyPages[i],
-      rightPage: storyPages[i + 1] || undefined, // Last spread might have only left page (page 15)
+      leftPage: orderedPages[i],
+      rightPage: orderedPages[i + 1] || undefined,
       isCover: false,
       isBackCover: false
     });
@@ -191,6 +194,16 @@ function createSpreads(pages: PageData[], coverImageUrl?: string): SpreadData[] 
   }
   
   return spreads;
+}
+
+function getPageTitle(page: PageData): string {
+  const pageType = String(page.pageType || '').toLowerCase();
+
+  if (pageType === 'title') return 'Title Page';
+  if (pageType === 'blank') return 'Blank Page';
+  if (pageType === 'dedication') return 'Dedication Page';
+  if (page.storyPageNumber) return `Story Page ${page.storyPageNumber}`;
+  return `Page ${page.pageLabel.toUpperCase()}`;
 }
 
 export function PostPdfStage({
@@ -272,8 +285,37 @@ export function PostPdfStage({
   // On first approval (revisionCount === 0), show "Send Proof" instead
   const showPrintAction = isApproved && customerRevisionUsed;
   const finalApprovalIsLoading = Boolean(finalApprovalLoading);
+  const reviewPageContext = resolveReviewPageContext({
+    bookId: order.bookContext?.bookId ?? order.project ?? 'book-mvp-simple-adventure',
+    formatId: order.bookContext?.formatId ?? null,
+    isAmazonOrder:
+      order.bookContext?.formatId === 'amazon' ||
+      order.platform === 'amazon' ||
+      Boolean(order.amazonOrderId),
+  });
+  const pagePlan =
+    order.bookContext?.pagePlan?.length ? order.bookContext.pagePlan : reviewPageContext.pagePlan;
+  const pagePlanByNumber = new Map(pagePlan.map((page) => [Number(page.index), page]));
+  const pagePlanByLabel = new Map(
+    pagePlan.map((page) => [normalizeManifestPageLabel(page.label) ?? page.label, page]),
+  );
+  const orderPrefix =
+    order.bookContext?.orderPrefix ||
+    `${reviewPageContext.bookId || order.project || 'book-mvp-simple-adventure'}/orders/${orderId}`;
+  const manifestContext = {
+    bookId: reviewPageContext.bookId || order.project || 'book-mvp-simple-adventure',
+    orderPrefix,
+  };
+  const resolvePageMeta = (pageNumber: number, pageLabel?: string | null) => {
+    const normalizedLabel = normalizeManifestPageLabel(pageLabel);
+    if (normalizedLabel && pagePlanByLabel.has(normalizedLabel)) {
+      return pagePlanByLabel.get(normalizedLabel) ?? null;
+    }
 
-  const pdfPath = `book-mvp-simple-adventure/orders/${orderId}/complete_book_${orderId}.pdf`;
+    return pagePlanByNumber.get(pageNumber) ?? null;
+  };
+
+  const pdfPath = `${orderPrefix}/complete_book_${orderId}.pdf`;
   const pdfUrl = `/api/pdf/${pdfPath}`;
 
   // Check if workflow 3 has completed
@@ -424,7 +466,7 @@ export function PostPdfStage({
 
       try {
         // Try 3-manifest first (has preview images with correct URLs)
-        const manifest3Key = `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;
+        const manifest3Key = `${orderPrefix}/manifests/3-manifest.json`;
         // Add cache-busting to ensure we get the latest manifest after image replacements
         const cacheBuster = `?v=${Date.now()}`;
         const manifest3Url = `/api/manifests/${manifest3Key}${cacheBuster}`; // Use relative URL with cache-busting
@@ -480,77 +522,45 @@ export function PostPdfStage({
               
               if (pagesObj && typeof pagesObj === 'object' && Object.keys(pagesObj).length > 0) {
                 console.log('[Pages] Building pagePreviewImages from pngGeneration.pages');
-                // Convert pages object (p01: "r2/key", p02: "r2/key", etc.) to array format
-                // IMPORTANT: Deduplicate page 0 entries (p00 and p00_dedication both map to pageNumber 0)
                 const allEntries = Object.entries(pagesObj).map(([key, r2Key]: [string, any]) => {
-                  // Parse page number from key: p00_dedication -> 0, p00 -> 0, p01 -> 1, p02 -> 2, etc.
-                  let pageNumber = 0;
-                  if (key === 'p00_dedication' || key === 'p00') {
-                    pageNumber = 0;
-                  } else if (key.startsWith('p')) {
-                    const numStr = key.substring(1);
-                    const num = parseInt(numStr, 10);
-                    if (!isNaN(num)) {
-                      pageNumber = num;
-                    }
-                  }
-                  
+                  const pageLabel = normalizeManifestPageLabel(key) || String(key).trim();
+                  const pageMeta =
+                    pagePlanByLabel.get(pageLabel) ||
+                    resolvePageMeta(Number.parseInt(pageLabel.replace(/^p/i, ''), 10), pageLabel);
+                  const parsedPageNumber = Number.parseInt(pageLabel.replace(/^p/i, ''), 10);
+                  const pageNumber =
+                    pageMeta?.index ??
+                    (Number.isFinite(parsedPageNumber) ? parsedPageNumber : 0);
+
                   return {
                     pageNumber,
-                    originalKey: key, // Keep track of original key for deduplication
+                    pageLabel,
+                    pageType: pageMeta?.type,
+                    storyPageNumber: pageMeta?.storyPageNumber ?? null,
+                    originalKey: key,
                     r2Key: typeof r2Key === 'string' ? r2Key : null,
-                    imageUrl: typeof r2Key === 'string' ? `/api/assets/${r2Key}` : null, // Construct URL immediately for R2 fallback
-                    filename: null
+                    imageUrl: typeof r2Key === 'string' ? `/api/assets/${r2Key}` : null,
+                    filename: null,
                   };
                 });
                 
-                // Deduplicate: for page 0, prefer p00_dedication over p00; for other pages, keep first occurrence
-                const pageMap = new Map<number, any>(); // Map pageNumber -> entry
-                
-                // Debug: Log all entries before deduplication
-                const page0Entries = allEntries.filter((e: any) => e.pageNumber === 0);
-                if (page0Entries.length > 1) {
-                  console.log('[Pages] ⚠️ Found multiple page 0 entries before deduplication:', page0Entries.map((e: any) => e.originalKey));
-                }
-                
-                // First pass: collect all entries, preferring p00_dedication for page 0
+                const pageMap = new Map<string, any>();
                 for (const img of allEntries) {
-                  // Filter out entries without r2Key (except page 0)
-                  if (img.pageNumber !== 0 && !img.r2Key) {
+                  if (!img.r2Key && !img.imageUrl) {
                     continue;
                   }
-                  
-                  const existing = pageMap.get(img.pageNumber);
-                  if (!existing) {
-                    // First time seeing this page number
-                    pageMap.set(img.pageNumber, img);
-                  } else if (img.pageNumber === 0) {
-                    // Special case for page 0: ALWAYS prefer p00_dedication over p00
-                    if (img.originalKey === 'p00_dedication') {
-                      // p00_dedication always wins, replace whatever is there
-                      pageMap.set(0, img);
-                      console.log('[Pages] ✅ Replaced page 0 entry with p00_dedication');
-                    } else if (img.originalKey === 'p00' && existing.originalKey !== 'p00_dedication') {
-                      // Only keep p00 if we don't already have p00_dedication
-                      // (This case shouldn't happen if p00_dedication exists, but handle it)
-                      console.log('[Pages] ⚠️ Keeping p00 (p00_dedication not found)');
-                    }
-                    // If existing is p00_dedication and this is p00, skip it (already have better one)
+
+                  const dedupeKey = img.pageLabel;
+                  const existing = pageMap.get(dedupeKey);
+                  if (
+                    !existing ||
+                    String(img.originalKey).endsWith('_dedication')
+                  ) {
+                    pageMap.set(dedupeKey, img);
                   }
-                  // For other pages, keep first occurrence (already in map)
                 }
                 
-                // Convert map back to array
                 previewImages = Array.from(pageMap.values());
-                
-                // Debug: Verify deduplication worked
-                const finalPage0Entries = previewImages.filter((e: any) => e.pageNumber === 0);
-                if (finalPage0Entries.length > 1) {
-                  console.error('[Pages] ❌ ERROR: Still have multiple page 0 entries after deduplication:', finalPage0Entries.map((e: any) => e.originalKey));
-                } else if (finalPage0Entries.length === 1) {
-                  console.log('[Pages] ✅ Page 0 deduplication successful, using:', finalPage0Entries[0].originalKey);
-                }
-                
                 console.log(`[Pages] Built ${previewImages.length} pages from pngGeneration.pages (after deduplication)`);
               }
             }
@@ -562,12 +572,25 @@ export function PostPdfStage({
                 || [];
               if (storyImages && storyImages.length > 0) {
                 console.log('[Pages] Building pagePreviewImages from pngGeneration.storyImages');
-                previewImages = storyImages.map((img: any) => ({
-                  pageNumber: img.pageNumber || 0,
-                  r2Key: img.r2Key || null,
-                  imageUrl: img.imageUrl || null,
-                  filename: img.filename || null
-                }));
+                previewImages = storyImages.map((img: any) => {
+                  const pageNumber = Number(img.pageNumber || 0);
+                  const pageMeta = resolvePageMeta(
+                    pageNumber,
+                    normalizeManifestPageLabel(img.pageLabel),
+                  );
+                  return {
+                    pageNumber,
+                    pageLabel:
+                      normalizeManifestPageLabel(img.pageLabel) ||
+                      pageMeta?.label ||
+                      `p${String(pageNumber).padStart(2, '0')}`,
+                    pageType: pageMeta?.type,
+                    storyPageNumber: pageMeta?.storyPageNumber ?? null,
+                    r2Key: img.r2Key || null,
+                    imageUrl: img.imageUrl || null,
+                    filename: img.filename || null,
+                  };
+                });
               }
             }
             
@@ -643,19 +666,26 @@ export function PostPdfStage({
                 .sort((a: any, b: any) => a.pageNumber - b.pageNumber)
                 .map((img: any) => {
                   const pageNum = Number(img.pageNumber || 0);
-                  const pageKey = pageNum === 0 ? 'p00_dedication' : (pageNum < 10 ? `p0${pageNum}` : `p${pageNum}`);
+                  const pageMeta = resolvePageMeta(
+                    pageNum,
+                    normalizeManifestPageLabel(img.pageLabel || img.originalKey || img.label),
+                  );
+                  const pageLabel =
+                    normalizeManifestPageLabel(img.pageLabel || img.originalKey || img.label) ||
+                    pageMeta?.label ||
+                    `p${String(pageNum).padStart(2, '0')}`;
+                  const cloudflareKeys =
+                    pageLabel === 'p00' ? ['p00', 'p00_dedication'] : [pageLabel];
                   
-                  // Get Cloudflare Images data from pagesWithCloudflare if not in pagePreviewImages
-                  // For page 0, check both p00_dedication and p00 keys
-                  const cfData = pageNum === 0 
-                    ? (pagesWithCloudflare['p00_dedication'] || pagesWithCloudflare['p00'] || null)
-                    : (pagesWithCloudflare[pageKey] || null);
+                  const cfData = cloudflareKeys
+                    .map((key) => pagesWithCloudflare[key] || null)
+                    .find(Boolean);
                   const cloudflareImageUrl = img.cloudflareImageUrl || cfData?.cloudflareImageUrl || null;
                   const cloudflareImageId = img.cloudflareImageId || cfData?.cloudflareImageId || null;
                   
                   // Debug: Log if Cloudflare data exists for this page
                   if (cfData) {
-                    console.log(`[Pages] Page ${img.pageNumber} (${pageKey}): Found Cloudflare data:`, {
+                    console.log(`[Pages] Page ${img.pageNumber} (${pageLabel}): Found Cloudflare data:`, {
                       hasId: !!cfData.cloudflareImageId,
                       hasUrl: !!cfData.cloudflareImageUrl,
                       url: cfData.cloudflareImageUrl?.substring(0, 60) + '...' || null
@@ -700,10 +730,7 @@ export function PostPdfStage({
                       imageUrl = withBust(`/api/assets/${r2KeyMatch[1]}`);
                       console.log(`[Pages] Page ${img.pageNumber}: Using extracted R2 key from imageUrl`);
                     } else {
-                      // Last resort: construct from page number using new format (p00.png, p01.png, etc.)
-                      const pageNum = img.pageNumber ?? 0;
-                      const filename = `p${String(pageNum).padStart(2, '0')}.png`;
-                      imageUrl = withBust(`/api/assets/book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`);
+                      imageUrl = withBust(`/api/assets/${orderPrefix}/preview-images/${pageLabel}.png`);
                       console.log(`[Pages] Page ${img.pageNumber}: Using constructed fallback URL`);
                     }
                   }
@@ -730,16 +757,15 @@ export function PostPdfStage({
                     if (r2KeyMatch) {
                       r2Key = r2KeyMatch[1];
                     } else {
-                      // Fallback: construct from page number
-                      // This handles Cloudflare Images URLs or other formats
-                      const pageNum = img.pageNumber ?? 0;
-                      const pageKey = pageNum === 0 ? 'p00' : (pageNum < 10 ? `p0${pageNum}` : `p${pageNum}`);
-                      r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${pageKey}.png`;
+                      r2Key = `${orderPrefix}/preview-images/${pageLabel}.png`;
                     }
                   }
                   
                   return {
-                    pageNumber: img.pageNumber,
+                    pageNumber: pageNum,
+                    pageLabel,
+                    pageType: pageMeta?.type,
+                    storyPageNumber: pageMeta?.storyPageNumber ?? null,
                     previewImageUrl: imageUrl,
                     cloudflareImageId: cloudflareImageId || undefined,
                     r2Key: r2Key || undefined
@@ -749,19 +775,27 @@ export function PostPdfStage({
               console.log('[Pages] ✓ Loaded preview images from 3-manifest:', pageData.length);
               console.log('[Pages] First page URL:', pageData[0]?.previewImageUrl);
               
-              // Ensure page 0 (dedication) is always included
-              const hasPage0 = pageData.some(p => p.pageNumber === 0);
-              if (!hasPage0) {
-                console.log('[Pages] Page 0 (dedication) missing from manifest, adding it');
-                const page0Filename = 'p00.png';
-                const page0R2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${page0Filename}`;
-                const page0Data: PageData = {
-                  pageNumber: 0,
-                  previewImageUrl: `/api/assets/${page0R2Key}`
-                };
-                // Insert at the beginning to maintain order
-                pageData = [page0Data, ...pageData];
-                console.log('[Pages] Added page 0 (dedication) to pageData');
+              const firstPlannedPage = pagePlan[0];
+              if (
+                firstPlannedPage &&
+                !pageData.some((page) => page.pageLabel === firstPlannedPage.label)
+              ) {
+                console.log(
+                  '[Pages] First planned page missing from manifest, adding fallback preview entry:',
+                  firstPlannedPage.label,
+                );
+                const fallbackR2Key = `${orderPrefix}/preview-images/${firstPlannedPage.label}.png`;
+                pageData = [
+                  {
+                    pageNumber: firstPlannedPage.index,
+                    pageLabel: firstPlannedPage.label,
+                    pageType: firstPlannedPage.type,
+                    storyPageNumber: firstPlannedPage.storyPageNumber,
+                    previewImageUrl: `/api/assets/${fallbackR2Key}`,
+                    r2Key: fallbackR2Key,
+                  },
+                  ...pageData,
+                ];
               }
             }
           }
@@ -775,20 +809,18 @@ export function PostPdfStage({
           console.warn('[Pages] ⚠️ No pagePreviewImages found in manifest, using fallback R2 path pattern');
           console.warn('[Pages] This means either: 1) Workflow 3 hasn\'t completed, or 2) Manifest structure is unexpected');
           setUsingFallbackUrls(true); // Mark that we're using fallback URLs (images not available yet)
-          // Images are stored at: book-mvp-simple-adventure/orders/{orderId}/preview-images/p{pageNumber}.png
-          // Format: p00.png (dedication), p01.png (page 1), p02.png (page 2), ..., p15.png (page 15)
-          // NOTE: Using NEW format (p01.png), NOT old format (page-01_preview.png)
-          pageData = Array.from({ length: 16 }, (_, i) => {
-            const pageNum = i; // 0-15 (0 is dedication, 1-15 are story pages)
-            const filename = `p${String(pageNum).padStart(2, '0')}.png`; // NEW format: p01.png
-            const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${filename}`;
+          pageData = pagePlan.map((page) => {
+            const r2Key = `${orderPrefix}/preview-images/${page.label}.png`;
             return {
-              pageNumber: pageNum,
-              previewImageUrl: `/api/assets/${r2Key}`, // Use relative URL
-              r2Key: r2Key // Include r2Key for replacement operations
+              pageNumber: page.index,
+              pageLabel: page.label,
+              pageType: page.type,
+              storyPageNumber: page.storyPageNumber,
+              previewImageUrl: `/api/assets/${r2Key}`,
+              r2Key,
             };
           });
-          console.log('[Pages] Fallback: Constructed', pageData.length, 'page URLs using format p00.png, p01.png, etc.');
+          console.log('[Pages] Fallback: Constructed', pageData.length, 'page URLs using the resolved page labels.');
         } else {
           // Images found in manifest - clear fallback flag
           setUsingFallbackUrls(false);
@@ -1050,10 +1082,9 @@ export function PostPdfStage({
           // BUT: Only use if it's NOT the dedication page URL
           if (!coverUrlFromManifest && (manifest3?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl)) {
             const legacyCoverUrl = manifest3.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
-            // Check if this URL matches the dedication page URL (which would be wrong)
-            const dedicationPageUrl = pageData.find(p => p.pageNumber === 0)?.previewImageUrl;
-            if (legacyCoverUrl && dedicationPageUrl && legacyCoverUrl === dedicationPageUrl) {
-              console.warn('[Cover] ⚠️ Legacy cover URL matches dedication page URL, skipping legacy fallback');
+            const firstInteriorPageUrl = pageData[0]?.previewImageUrl;
+            if (legacyCoverUrl && firstInteriorPageUrl && legacyCoverUrl === firstInteriorPageUrl) {
+              console.warn('[Cover] ⚠️ Legacy cover URL matches the first interior page URL, skipping legacy fallback');
             } else if (legacyCoverUrl) {
               coverUrlFromManifest = legacyCoverUrl;
               if (!coverImageUrl && coverUrlFromManifest) {
@@ -1072,7 +1103,7 @@ export function PostPdfStage({
               (typeof pngGen.coverSpreadImage === 'string' 
                 ? pngGen.coverSpreadImage 
                 : pngGen.coverSpreadImage?.r2Key) ||
-              `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover-spread.png`; // Direct R2 path fallback
+              `${orderPrefix}/preview-images/cover-spread.png`; // Direct R2 path fallback
             
             if (coverR2Key) {
               coverUrlFromManifest = `/api/assets/${coverR2Key}`;
@@ -1093,7 +1124,7 @@ export function PostPdfStage({
           setCoverImageLoading(true);
           try {
             // Fetch manifest again (fallback - should rarely happen)
-            const coverManifestUrl = `/api/manifests/book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json?v=${Date.now()}`;
+            const coverManifestUrl = `/api/manifests/${orderPrefix}/manifests/3-manifest.json?v=${Date.now()}`;
             const manifest3Res = await fetch(coverManifestUrl, {
               cache: 'no-store',
             });
@@ -1138,11 +1169,11 @@ export function PostPdfStage({
                     }
               } else {
                 // Check legacy locations, but skip if it matches dedication page
-                const dedicationPageUrl = pageData.find(p => p.pageNumber === 0)?.previewImageUrl;
+                const firstInteriorPageUrl = pageData[0]?.previewImageUrl;
                 const legacyCoverUrl = manifest3ForCover?.coverCloudflareImageUrl || pngGen.coverCloudflareImageUrl;
                 
-                if (legacyCoverUrl && dedicationPageUrl && legacyCoverUrl === dedicationPageUrl) {
-                  console.warn('[Cover] ⚠️ Legacy cover URL matches dedication page URL in fallback, skipping');
+                if (legacyCoverUrl && firstInteriorPageUrl && legacyCoverUrl === firstInteriorPageUrl) {
+                  console.warn('[Cover] ⚠️ Legacy cover URL matches the first interior page URL in fallback, skipping');
                 } else if (legacyCoverUrl) {
                   // Ensure URL has variant (add /public if missing)
                   let coverUrl = legacyCoverUrl;
@@ -1159,7 +1190,7 @@ export function PostPdfStage({
                   const coverR2Key = 
                     manifest3ForCover?.coverPngR2Key ||
                     (typeof pngGen.coverSpreadImage === 'string' ? pngGen.coverSpreadImage : pngGen.coverSpreadImage?.r2Key) ||
-                    `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover-spread.png`; // Direct R2 path fallback
+                    `${orderPrefix}/preview-images/cover-spread.png`; // Direct R2 path fallback
                   
                   if (coverR2Key) {
                     coverUrlFromManifest = `/api/assets/${coverR2Key}`;
@@ -1182,7 +1213,7 @@ export function PostPdfStage({
         // Final fallback: If still no cover found, use direct R2 path
         // This ensures we always have a cover URL even if manifest structure is unexpected
         if (!coverUrlFromManifest) {
-          const directR2Path = `book-mvp-simple-adventure/orders/${orderId}/preview-images/cover-spread.png`;
+          const directR2Path = `${orderPrefix}/preview-images/cover-spread.png`;
           coverUrlFromManifest = `/api/assets/${directR2Path}`;
           if (!coverImageUrl) {
             setCoverImageUrl(coverUrlFromManifest);
@@ -1201,9 +1232,9 @@ export function PostPdfStage({
         // Determine which cover URL to use (prefer coverUrlFromManifest from this load, then state, then legacy)
         const effectiveCoverUrl = coverUrlFromManifest || coverImageDataUrl || coverImageUrl || undefined;
         
-        // Check if cover URL matches dedication page URL (which would be wrong)
-        const dedicationPageUrl = pageData.find(p => p.pageNumber === 0)?.previewImageUrl;
-        const coverMatchesDedication = effectiveCoverUrl && dedicationPageUrl && effectiveCoverUrl === dedicationPageUrl;
+        // Check if cover URL matches the first interior page URL (which would be wrong)
+        const firstInteriorPageUrl = pageData[0]?.previewImageUrl;
+        const coverMatchesInterior = effectiveCoverUrl && firstInteriorPageUrl && effectiveCoverUrl === firstInteriorPageUrl;
         
         // Log full URLs (not truncated) to see if they're malformed
         console.log('[Pages] About to create spreads:', {
@@ -1212,8 +1243,8 @@ export function PostPdfStage({
           coverUrlFromManifest: coverUrlFromManifest || null,
           coverImageUrl: coverImageUrl || null,
           effectiveCoverUrl: effectiveCoverUrl || null,
-          dedicationPageUrl: dedicationPageUrl || null,
-          coverMatchesDedication: coverMatchesDedication,
+          firstInteriorPageUrl: firstInteriorPageUrl || null,
+          coverMatchesInterior: coverMatchesInterior,
           coverUrlLength: coverUrlFromManifest?.length || 0,
           effectiveCoverUrlLength: effectiveCoverUrl?.length || 0,
           firstPage: pageData[0] ? {
@@ -1223,8 +1254,8 @@ export function PostPdfStage({
           } : null
         });
         
-        if (coverMatchesDedication) {
-          console.error('[Pages] ❌ ERROR: Cover URL matches dedication page URL! This is wrong. Cover should be from cover-spread entry.');
+        if (coverMatchesInterior) {
+          console.error('[Pages] ❌ ERROR: Cover URL matches the first interior page URL. Cover should come from the cover-spread entry.');
         }
         
         // Always create spreads with current data (pages + cover)
@@ -1262,12 +1293,14 @@ export function PostPdfStage({
             // Also populate manuallyFlaggedRef to restore persisted flags
             Object.keys(pagesMetadata).forEach((pageKey) => {
               const metadata = pagesMetadata[pageKey];
+              const normalizedPageKey =
+                normalizeManifestPageLabel(pageKey) || String(pageKey);
               if (metadata?.isFlagged || metadata?.needsReview) {
-                flaggedPagesSet.add(pageKey);
+                flaggedPagesSet.add(normalizedPageKey);
                 // Populate manuallyFlaggedRef to restore flags that were persisted to manifest
                 // Only add if not already in manuallyUnflaggedRef (user explicitly unflagged it)
-                if (!manuallyUnflaggedRef.current.has(pageKey)) {
-                  manuallyFlaggedRef.current.add(pageKey);
+                if (!manuallyUnflaggedRef.current.has(normalizedPageKey)) {
+                  manuallyFlaggedRef.current.add(normalizedPageKey);
                 }
               }
             });
@@ -1669,7 +1702,7 @@ export function PostPdfStage({
   const transformPagesToAssets = useCallback((pagesData: PageData[], flaggedPages: Set<string> = new Set()): Asset[] => {
     return pagesData.map((page) => {
       const pageNum = page.pageNumber;
-      const assetId = `p${String(pageNum).padStart(2, '0')}`;
+      const assetId = page.pageLabel;
       // Check if user has manually unflagged or flagged this page - respect those decisions
       const isManuallyUnflagged = manuallyUnflaggedRef.current.has(assetId);
       const isManuallyFlagged = manuallyFlaggedRef.current.has(assetId);
@@ -1680,7 +1713,7 @@ export function PostPdfStage({
       
       return {
         id: assetId,
-        name: pageNum === 0 ? 'Page 0 (Dedication)' : `Page ${pageNum}`,
+        name: getPageTitle(page),
         url: page.previewImageUrl,
         isFlagged: shouldBeFlagged,
         hasTransparentBackground: false,
@@ -1717,9 +1750,8 @@ export function PostPdfStage({
       if (page.r2Key) {
         imageUrl = `/api/assets/${page.r2Key}`;
       } else {
-        // Fallback: construct R2 key from page number
-        const pageKey = `p${String(pageNumber).padStart(2, '0')}`;
-        const r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${pageKey}.png`;
+        const pageKey = page.pageLabel || `p${String(pageNumber).padStart(2, '0')}`;
+        const r2Key = `${orderPrefix}/preview-images/${pageKey}.png`;
         imageUrl = `/api/assets/${r2Key}`;
       }
 
@@ -1920,7 +1952,8 @@ export function PostPdfStage({
           },
           body: JSON.stringify({
             pageNumber,
-            stage: 'postPdf'
+            stage: 'postPdf',
+            ...manifestContext,
           })
         });
         

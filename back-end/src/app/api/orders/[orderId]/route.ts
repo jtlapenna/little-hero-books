@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCharacterAssets, downloadManifest, buildManifestKey } from '@/lib/r2-service';
-import { Order } from '@/types/order';
+import { getCharacterAssets, downloadManifest } from '@/lib/r2-service';
+import { Order, SharedImageInfo } from '@/types/order';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
 import { getOrderFromSupabase, listOrdersByAmazonRootId, supabase } from '@/lib/supabase-client';
 import { getArchivedOrderById } from '@/lib/order-lifecycle';
+import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
+import { getActivePreviewToken } from '@/lib/preview-tokens';
+import { attachSiblingOrderSummaries } from '@/lib/order-sibling-summary';
+import {
+  buildReviewPoseAssignments,
+  loadBundledBookConfig,
+  read2BManifestWithPoseRequirements,
+  resolveReviewPageContext,
+} from '@/lib/books';
+
 function isTableMissingError(error: any, tableName: string) {
   if (!error) return false;
   const message = String(error.message || '').toLowerCase();
@@ -16,9 +26,14 @@ function isTableMissingError(error: any, tableName: string) {
   );
 }
 
-import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
-import { getActivePreviewToken } from '@/lib/preview-tokens';
-import { attachSiblingOrderSummaries } from '@/lib/order-sibling-summary';
+function toTrimmedString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 
 async function getOrder(
@@ -92,10 +107,28 @@ async function getOrder(
   let manifest3: any = null;
   
   // Try to load all manifests in parallel
+  const manifestBookId =
+    toTrimmedString(supabaseOrderRecord?.project) || 'book-mvp-simple-adventure';
+  const manifestOrderPrefix = `${manifestBookId}/orders/${orderId}`;
   const manifestLoadPromises = [
-    { stage: '2a' as const, promise: downloadManifest(buildManifestKey(orderId, '2a')).catch(() => null) },
-    { stage: '2b' as const, promise: downloadManifest(buildManifestKey(orderId, '2b')).catch(() => null) },
-    { stage: '3' as const, promise: downloadManifest(buildManifestKey(orderId, '3')).catch(() => null) }
+    {
+      stage: '2a' as const,
+      promise: downloadManifest(`${manifestOrderPrefix}/manifests/2a-manifest.json`).catch(
+        () => null,
+      ),
+    },
+    {
+      stage: '2b' as const,
+      promise: downloadManifest(`${manifestOrderPrefix}/manifests/2b-manifest.json`).catch(
+        () => null,
+      ),
+    },
+    {
+      stage: '3' as const,
+      promise: downloadManifest(`${manifestOrderPrefix}/manifests/3-manifest.json`).catch(
+        () => null,
+      ),
+    },
   ];
   
   const manifestResults = await Promise.all(manifestLoadPromises.map(m => m.promise));
@@ -144,6 +177,26 @@ async function getOrder(
   } else {
     throw createNotFoundError(`Order ${orderId} not found`);
   }
+
+  const fallbackFormatId = toTrimmedString(order.bookSpecs?.formatId);
+  let reviewPageContext = resolveReviewPageContext({
+    bookId: toTrimmedString(order.project) ?? 'book-mvp-simple-adventure',
+    formatId: fallbackFormatId,
+    isAmazonOrder:
+      fallbackFormatId === 'amazon' ||
+      order.platform === 'amazon' ||
+      Boolean(order.amazonOrderId),
+  });
+
+  order.bookContext = {
+    bookId: reviewPageContext.bookId,
+    formatId: reviewPageContext.formatId,
+    orderPrefix: `${reviewPageContext.bookId || 'book-mvp-simple-adventure'}/orders/${order.orderId}`,
+    pagePlanSource: reviewPageContext.pagePlanSource,
+    expectedPageCount: reviewPageContext.expectedPageCount,
+    pageLabels: reviewPageContext.pageLabels,
+    pagePlan: reviewPageContext.pagePlan,
+  };
 
   if (order.rootOrderId && order.rootOrderId !== order.orderId) {
     try {
@@ -218,8 +271,8 @@ async function getOrder(
       { corrections, correctionsError }
     );
 
-    if (corrections && corrections.length > 0) {
-      const [row] = corrections;
+	    if (corrections && corrections.length > 0) {
+	      const [row] = corrections as Array<Record<string, any>>;
       let parsedReason: string | null = row.reason ?? row.issue_type ?? null;
       let parsedMessage: string | null = row.message ?? null;
       let parsedPayload: Record<string, unknown> | null = row.payload && typeof row.payload === 'object'
@@ -273,7 +326,7 @@ async function getOrder(
   
   // Get character assets if characterHash is available
   let characterAssets: any[] = [];
-  let sharedImageInfo: { isShared: boolean; sourceOrderIds: string[] } | null = null;
+  let sharedImageInfo: SharedImageInfo | null = null;
   
   if (order.characterHash) {
     try {
@@ -289,14 +342,15 @@ async function getOrder(
           .neq('orderId', order.orderId)
           .limit(10);
         
-        if (!hashCheckError && ordersWithSameHash && ordersWithSameHash.length > 0) {
-          const sourceOrderIds = ordersWithSameHash
+        const relatedOrders = (ordersWithSameHash || []) as Array<Record<string, any>>;
+        if (!hashCheckError && relatedOrders.length > 0) {
+          const sourceOrderIds = relatedOrders
             .map(o => o.orderId || o.order_id || o.amazon_order_id)
             .filter(Boolean) as string[];
           
           // Check if any source order has 2A or 2B manifest (for button visibility)
-          const hasSource2aManifest = ordersWithSameHash.some(o => o.manifest_2a_url);
-          const hasSource2bManifest = ordersWithSameHash.some(o => o.manifest_2b_url);
+          const hasSource2aManifest = relatedOrders.some(o => o.manifest_2a_url);
+          const hasSource2bManifest = relatedOrders.some(o => o.manifest_2b_url);
           
           sharedImageInfo = {
             isShared: true,
@@ -373,11 +427,76 @@ async function getOrder(
   // Post-PDF flags are saved to 3 manifest
   const preBriaManifest = manifest2a || manifest;
   const postBriaManifest = manifest2b || manifest2a || manifest;
+  const postBriaManifestSnapshot =
+    postBriaManifest && Array.isArray(postBriaManifest.entries)
+      ? await read2BManifestWithPoseRequirements({
+          manifest: postBriaManifest,
+          orderId,
+          loadManifest: downloadManifest,
+        }).catch(() => null)
+      : null;
+
+  reviewPageContext = resolveReviewPageContext({
+    snapshot: postBriaManifestSnapshot?.oneManifestSnapshot ?? null,
+    bookId: reviewPageContext.bookId,
+    formatId: reviewPageContext.formatId,
+    isAmazonOrder:
+      reviewPageContext.formatId === 'amazon' ||
+      order.platform === 'amazon' ||
+      Boolean(order.amazonOrderId),
+  });
+
+  order.bookContext = {
+    bookId: reviewPageContext.bookId,
+    formatId: reviewPageContext.formatId,
+    orderPrefix: `${reviewPageContext.bookId || 'book-mvp-simple-adventure'}/orders/${order.orderId}`,
+    pagePlanSource: reviewPageContext.pagePlanSource,
+    expectedPageCount: reviewPageContext.expectedPageCount,
+    pageLabels: reviewPageContext.pageLabels,
+    pagePlan: reviewPageContext.pagePlan,
+  };
+
+  const poseAssignmentByPoseNumber = new Map(
+    buildReviewPoseAssignments(reviewPageContext.pagePlan).map((assignment) => [
+      assignment.poseNumber,
+      assignment,
+    ]),
+  );
+  let backgroundAssetBySlot: Record<string, string> = {};
+
+  try {
+    const bundledBookConfig = loadBundledBookConfig({
+      bookId: reviewPageContext.bookId || 'book-mvp-simple-adventure',
+    });
+    backgroundAssetBySlot = bundledBookConfig.assets.backgrounds;
+  } catch {
+    backgroundAssetBySlot = {};
+  }
+
+  const buildPostBriaReviewFields = (poseNumber: number) => {
+    const assignment = poseAssignmentByPoseNumber.get(poseNumber);
+    const backgroundAssetKey =
+      assignment?.backgroundSlot && backgroundAssetBySlot[assignment.backgroundSlot]
+        ? backgroundAssetBySlot[assignment.backgroundSlot]
+        : null;
+
+    return {
+      comparisonImageUrl: backgroundAssetKey
+        ? `/api/assets/${backgroundAssetKey}`
+        : undefined,
+      comparisonLabel: backgroundAssetKey ? 'Page Background' : undefined,
+      pageNumber: assignment?.pageIndex,
+      pageLabel: assignment?.pageLabel,
+      pageType: assignment?.pageType,
+      storyPageNumber: assignment?.storyPageNumber,
+      backgroundSlot: assignment?.backgroundSlot,
+    };
+  };
   
   // Get manifest entries to determine expected poses and identify missing/exhausted ones
   // Use preBriaManifest for preBria poses, postBriaManifest for postBria
   const preBriaManifestEntries = preBriaManifest?.entries || [];
-  const postBriaManifestEntries = postBriaManifest?.entries || [];
+  const postBriaManifestEntries = postBriaManifestSnapshot?.entries || postBriaManifest?.entries || [];
   const manifestEntries = manifest?.entries || [];
   const expectedPoseCount = manifest?.poses?.total || manifestEntries.length || preBriaManifestEntries.length || postBriaManifestEntries.length || 13; // Default to 13 if not specified
   
@@ -488,6 +607,15 @@ async function getOrder(
   
   // Create map of existing post-Bria poses by poseNumber
   const existingPostBriaMap = new Map(existingPostBriaPoses.map(p => [p.poseNumber, p]));
+  const postBriaPoseNumbers = postBriaManifestSnapshot
+    ? Array.from(
+        new Set([
+          ...postBriaManifestSnapshot.availablePoseNumbers,
+          ...postBriaManifestSnapshot.requiredPoseNumbers,
+          ...existingPostBriaMap.keys(),
+        ]),
+      ).sort((left, right) => left - right)
+    : Array.from({ length: expectedPoseCount }, (_, index) => index);
   
   // Build complete list of post-Bria poses
   const postBriaPoses: any[] = [];
@@ -528,22 +656,35 @@ async function getOrder(
             needsReview: entry.needsReview || false,
             reviewReason: entry.reviewReason || null,
             attempts: entry.attempts || 0,
-            approved: entry.approved || false
+            approved: entry.approved || false,
+            ...buildPostBriaReviewFields(poseNum),
           });
         }
       }
     });
     
-    postBriaPoses.push(...Array.from(poseMap.values()).sort((a, b) => a.poseNumber - b.poseNumber));
+    postBriaPoses.push(
+      ...Array.from(poseMap.values())
+        .sort((a, b) => a.poseNumber - b.poseNumber)
+        .map((pose) => ({
+          ...pose,
+          ...buildPostBriaReviewFields(pose.poseNumber),
+        })),
+    );
   } else {
     // Workflow 2B has run - build complete list including placeholders for missing ones
     // If we have existing poses but no manifest entries, just use the existing poses (fallback)
     if (existingPostBriaPoses.length > 0 && postBriaManifestEntries.length === 0) {
-      postBriaPoses.push(...existingPostBriaPoses);
+      postBriaPoses.push(
+        ...existingPostBriaPoses.map((pose) => ({
+          ...pose,
+          ...buildPostBriaReviewFields(pose.poseNumber),
+        })),
+      );
     } else {
       // Normal flow: build complete list including placeholders
       // Use postBriaManifestEntries to get flags from the correct manifest (2b or 2a)
-      for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
+      for (const poseNum of postBriaPoseNumbers) {
         const existingPose = existingPostBriaMap.get(poseNum);
         const manifestEntry = postBriaManifestEntries.find((e: any) => e.poseNumber === poseNum);
         
@@ -555,8 +696,7 @@ async function getOrder(
           // This handles cases where the file was uploaded but manifest wasn't updated
           const needsReview = manifestEntry?.needsReview === true;
           const reviewReason = manifestEntry?.reviewReason || null;
-          // isFlagged should only be true if needsReview is true (explicit check to avoid stale flags)
-          const isFlagged = needsReview === true || (manifestEntry?.isFlagged === true && needsReview === true);
+          const isFlagged = needsReview;
           
           // Update URL with cache-busting: prioritize replacedAt/sourceReplacedAt (manual replacements) over processedAt
           let url = existingPose.url;
@@ -580,7 +720,8 @@ async function getOrder(
             isFlagged: isFlagged,
             status: manifestEntry?.status || existingPose.status,
             attempts: manifestEntry?.attempts ?? existingPose.attempts,
-            approved: manifestEntry?.approved ?? existingPose.approved
+            approved: manifestEntry?.approved ?? existingPose.approved,
+            ...buildPostBriaReviewFields(poseNum),
           });
         } else if (hasBgRemovedKey) {
           // Manifest says it should exist but file not found in R2 - this is unexpected
@@ -613,7 +754,8 @@ async function getOrder(
             needsReview: needsReview,
             reviewReason: reviewReason,
             attempts: manifestEntry?.attempts || 0,
-            approved: manifestEntry?.approved || false
+            approved: manifestEntry?.approved || false,
+            ...buildPostBriaReviewFields(poseNum),
           });
         } else {
           // Pose is missing - create placeholder
@@ -635,7 +777,8 @@ async function getOrder(
             needsReview: needsReview,
             reviewReason: reviewReason,
             attempts: manifestEntry?.attempts || 0,
-            approved: false
+            approved: false,
+            ...buildPostBriaReviewFields(poseNum),
           });
         }
       }
@@ -651,6 +794,7 @@ async function getOrder(
   order.r2Assets = {
     baseCharacter,
     poses: preBriaPoses,  // Pre-Bria tab: original images from poses/ directory
+    baseCharacterBgRemoved: null,
     posesBgRemoved: postBriaPoses,  // Post-Bria tab: background-removed images from parent dir
     all: characterAssets,
     characterHash: order.characterHash || '',

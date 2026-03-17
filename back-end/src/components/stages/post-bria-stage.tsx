@@ -6,7 +6,6 @@ import { CheckCircle, Play, Eye, RefreshCw, Info } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 import { extractApiErrorMessage } from '@/lib/error-handler';
-// Note: getBackgroundImageUrl is server-side only, so we'll fetch URLs via API
 
 interface PostBriaStageProps {
   orderId: string;
@@ -48,6 +47,11 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const [poses, setPoses] = useState<Array<{ id: string; name: string; url: string; isFlagged: boolean; hasTransparentBackground: boolean; isMissing?: boolean; status?: string; reviewReason?: string; attempts?: number; comparisonMode?: 'reference' | 'background' | null; comparisonImageUrl?: string; comparisonLabel?: string; poseNumber?: number; pageNumber?: number; onFlip?: () => void; isFlipping?: boolean }>>([]);
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
   const [flippingPoseId, setFlippingPoseId] = useState<string | null>(null);
+  const bookId = order?.bookContext?.bookId || order?.project || 'book-mvp-simple-adventure';
+  const orderPrefix =
+    order?.bookContext?.orderPrefix ||
+    `${bookId}/orders/${orderId}`;
+  const manifestContext = { bookId, orderPrefix };
 
   // Update state when R2 assets change - use ref to track previous key and prevent infinite loops
   const posesBgRemoved = order?.r2Assets?.posesBgRemoved || [];
@@ -70,7 +74,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     const loadManifestFlags = async () => {
       try {
         // Try 2b manifest first (for postBria flags)
-        let manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2b-manifest.json`;
+        let manifestKey = `${orderPrefix}/manifests/2b-manifest.json`;
         let manifestUrl = `/api/manifests/${manifestKey}?v=${Date.now()}`;
         
         let response = await fetch(manifestUrl, { cache: 'no-store' });
@@ -79,7 +83,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         if (!response.ok) {
           // Fallback to 2a manifest (for manually uploaded images)
           console.log('[PostBriaStage] 2b manifest not found, trying 2a manifest...');
-          manifestKey = `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`;
+          manifestKey = `${orderPrefix}/manifests/2a-manifest.json`;
           manifestUrl = `/api/manifests/${manifestKey}?v=${Date.now()}`;
           response = await fetch(manifestUrl, { cache: 'no-store' });
         }
@@ -120,10 +124,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     // Poll for flag changes every 3 seconds
     const interval = setInterval(loadManifestFlags, 3000);
     return () => clearInterval(interval);
-  }, [orderId]);
-  
-  // Cache for background URLs to avoid repeated API calls
-  const backgroundUrlCache = useRef<Record<number, string>>({});
+  }, [orderId, orderPrefix]);
   
   useEffect(() => {
     // Calculate stable key from actual data - include isFlagged and needsReview to detect flag changes
@@ -140,7 +141,9 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           urlTimestamp: urlTimestamp, // Include timestamp to detect URL changes
           isMissing: p.isMissing,
           isFlagged: p.isFlagged,
-          needsReview: p.needsReview
+          needsReview: p.needsReview,
+          pageNumber: p.pageNumber,
+          comparisonImageUrl: p.comparisonImageUrl,
         };
       })
     });
@@ -153,56 +156,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
     prevKeyRef.current = currentKey;
     
     if (posesBgRemoved.length > 0) {
-      // Map poses to page numbers first
-      const poseToFirstPage: Record<number, number> = {
-        0: 0,  1: 1,  2: 2,  3: 3,  4: 4,  5: 5,  6: 6,
-        7: 8,  8: 9,  9: 10, 10: 11, 11: 12, 12: 14
-      };
-      
-      // Collect all unique page numbers that need URLs
-      const pageNumbersNeeded = new Set<number>();
-      posesBgRemoved.forEach((pose) => {
-        const pageNumber = poseToFirstPage[pose.poseNumber ?? 0] ?? null;
-        if (pageNumber !== null && !backgroundUrlCache.current[pageNumber]) {
-          pageNumbersNeeded.add(pageNumber);
-        }
-      });
-      
-      // Fetch all background URLs in a single batch API call
-      const fetchBackgroundUrls = async (): Promise<void> => {
-        if (pageNumbersNeeded.size > 0) {
-          try {
-            const response = await fetch('/api/backgrounds/get-urls', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pageNumbers: Array.from(pageNumbersNeeded) }),
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              if (data.success && data.urls) {
-                // Cache all URLs
-                Object.entries(data.urls).forEach(([pageNum, url]) => {
-                  const pageNumber = parseInt(pageNum, 10);
-                  if (!isNaN(pageNumber)) {
-                    backgroundUrlCache.current[pageNumber] = url as string;
-                  }
-                });
-              }
-            }
-          } catch (error) {
-            console.warn('[PostBriaStage] Failed to fetch background URLs:', error);
-          }
-        }
-      };
-      
-      // Fetch URLs first, then map poses
-      // Note: Flags are now loaded directly from manifest in a separate useEffect, so we just use manuallyFlaggedRef here
-      fetchBackgroundUrls().then(() => {
-        const bust = getBustToken();
-        
-        // Now map poses with cached URLs
-        const mappedPoses = posesBgRemoved.map((pose) => {
+      const bust = getBustToken();
+      const mappedPoses = posesBgRemoved.map((pose) => {
         const poseNumber = pose.poseNumber ?? 0;
         const poseId = `pose${String(poseNumber).padStart(2, '0')}-bg-removed`;
         const isMissing = pose.isMissing || !pose.url;
@@ -214,12 +169,14 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         // Set isFlagged based on manual flags, manifest flags, needsReview, or isMissing
         // Priority: manually flagged > missing > manually unflagged > manifest flags
         const shouldBeFlagged = isManuallyFlagged || isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
-        
-        // Map pose to page number (first page that uses this pose)
-        const pageNumber = poseToFirstPage[poseNumber] ?? null;
-        
-          // Get background URL from cache
-          const backgroundUrl = pageNumber !== null ? (backgroundUrlCache.current[pageNumber] || null) : null;
+        const pageNumber =
+          typeof pose.pageNumber === 'number' && Number.isFinite(pose.pageNumber)
+            ? pose.pageNumber
+            : null;
+        const comparisonImageUrl =
+          typeof pose.comparisonImageUrl === 'string' && pose.comparisonImageUrl.trim().length > 0
+            ? withCacheBust(pose.comparisonImageUrl, bust)
+            : null;
         
         return {
           id: poseId,
@@ -232,19 +189,18 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           reviewReason: pose.reviewReason,
           attempts: pose.attempts,
           // Comparison mode data for Post-Bria
-          comparisonMode: backgroundUrl ? 'background' as const : null,
-          comparisonImageUrl: backgroundUrl ?? undefined,
-          comparisonLabel: 'Page Background',
+          comparisonMode: comparisonImageUrl ? 'background' as const : null,
+          comparisonImageUrl: comparisonImageUrl ?? undefined,
+          comparisonLabel: pose.comparisonLabel || 'Page Background',
           poseNumber: poseNumber,
           pageNumber: pageNumber ?? undefined,
           // Flip handler - pass the (cache-busted) URL directly to avoid stale closure issues
           onFlip: () => handleFlip(poseId, poseNumber, withCacheBust(pose.url || '', bust)),
           isFlipping: flippingPoseId === poseId
         };
-        });
-        
-        setPoses(mappedPoses);
       });
+
+      setPoses(mappedPoses);
     } else {
       // Reset poses if no R2 data
       setPoses([]);
@@ -673,7 +629,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           },
           body: JSON.stringify({
             poseNumber,
-            stage: 'postBria'
+            stage: 'postBria',
+            ...manifestContext,
           })
         }).then(async response => {
           if (!response.ok) {

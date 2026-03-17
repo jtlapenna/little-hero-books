@@ -1,15 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
-import { buildManifestKey } from '@/lib/r2-service';
+import {
+  buildBaseCharacterAssetKey,
+  buildManifestKeyCandidates,
+  buildPendingPoseRevisionKey,
+  buildPoseReferenceAssetKey,
+  resolveOrderPathContext,
+} from '@/lib/order-paths';
 
 // Helper to parse JSON safely
-async function readJsonSafe<T = any>(res: Response): Promise<T> {
+async function readJsonSafe<T = unknown>(res: Response): Promise<T> {
   const text = await res.text();
   try {
     return JSON.parse(text);
   } catch {
     throw new Error('Invalid JSON in manifest');
   }
+}
+
+function toTrimmedString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function toObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+interface ManifestRevisionRecord {
+  poseNumber?: number;
+  requestedAt?: string;
+  completedAt?: string;
+  r2Key?: string;
+  revisionPrompt?: string;
+  jobId?: string;
+  status?: string;
+  cloudflareImageId?: string | null;
+  cloudflareImageUrl?: string | null;
+  imageSelection?: {
+    includeBaseCharacter: boolean;
+    includePoseReference: boolean;
+    includePreviousOption: boolean;
+    previousOptionR2Key?: string | null;
+  };
+}
+
+interface ManifestRevisionState {
+  history: ManifestRevisionRecord[];
+  pending: Record<string, ManifestRevisionRecord>;
+}
+
+function ensureManifestRevisions(
+  manifest: Record<string, unknown>,
+): ManifestRevisionState {
+  const revisionRoot = toObject(manifest.revisions) ?? {};
+  const history = Array.isArray(revisionRoot.history)
+    ? revisionRoot.history.filter(
+        (value): value is ManifestRevisionRecord =>
+          !!value && typeof value === 'object' && !Array.isArray(value),
+      )
+    : [];
+  const pendingSource = toObject(revisionRoot.pending) ?? {};
+  const pending: Record<string, ManifestRevisionRecord> = {};
+
+  for (const [key, value] of Object.entries(pendingSource)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      pending[key] = value as ManifestRevisionRecord;
+    }
+  }
+
+  const revisions = { history, pending };
+  manifest.revisions = revisions;
+  return revisions;
 }
 
 /**
@@ -47,6 +110,8 @@ export async function POST(
       includePoseReference,
       includePreviousOption,
       previousOptionR2Key,
+      bookId,
+      orderPrefix,
     } = body;
 
     // Validation
@@ -86,65 +151,69 @@ export async function POST(
     // Format pose number for use throughout the function
     const poseNN = String(poseNumber).padStart(2, '0');
     const poseKey = `pose${poseNN}`;
-
     // Load manifest (2a-manifest.json)
-    const manifestKey = buildManifestKey(orderId, '2a');
-    console.log(`[Regenerate Pose API] Loading manifest: ${manifestKey}`);
+    const manifestKeyCandidates = buildManifestKeyCandidates(orderId, '2a', {
+      bookId: typeof bookId === 'string' ? bookId : null,
+      orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+      pathLikes: [
+        typeof previousOptionR2Key === 'string' ? previousOptionR2Key : null,
+      ],
+    });
+    console.log(`[Regenerate Pose API] Loading manifest from candidates: ${manifestKeyCandidates.join(', ')}`);
 
-    let manifest: any;
-    try {
-      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-      manifest = await readJsonSafe<any>(manifestRes);
-    } catch (error: any) {
-      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
-        return NextResponse.json(
-          { error: 'Manifest not found. Workflow 2A may not have completed yet.' },
-          { status: 404 }
-        );
+    let manifest: Record<string, unknown> | null = null;
+    let manifestKey = manifestKeyCandidates[0];
+    for (const candidateKey of manifestKeyCandidates) {
+      manifestKey = candidateKey;
+      try {
+        const manifestRes = await getObject(R2_ORDERS_BUCKET, candidateKey);
+        manifest = await readJsonSafe<Record<string, unknown>>(manifestRes);
+        break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes('404') && !message.includes('Not Found')) {
+          throw error;
+        }
       }
-      throw error;
+    }
+
+    if (!manifest) {
+      return NextResponse.json(
+        { error: 'Manifest not found. Workflow 2A may not have completed yet.' },
+        { status: 404 }
+      );
     }
 
     // Rate limiting: Check revisions in the last hour (both pending and history)
     const now = Date.now();
     const oneHourAgo = now - (60 * 60 * 1000);
-    
-    // Initialize revisions tracking if not present
-    if (!manifest.revisions) {
-      manifest.revisions = {};
-    }
-    if (!manifest.revisions.history) {
-      manifest.revisions.history = [];
-    }
-    if (!manifest.revisions.pending) {
-      manifest.revisions.pending = {};
-    }
+    const revisions = ensureManifestRevisions(manifest);
 
     // Helper to check if revision is within last hour
-    const isWithinLastHour = (rev: any) => {
+    const isWithinLastHour = (rev: ManifestRevisionRecord) => {
       const requestedAt = new Date(rev.requestedAt || rev.completedAt || 0).getTime();
       return requestedAt > oneHourAgo;
     };
 
     // Count revisions for this pose in the last hour (from history)
-    const poseRevisionsFromHistory = manifest.revisions.history.filter((rev: any) => {
+    const poseRevisionsFromHistory = revisions.history.filter((rev) => {
       if (rev.poseNumber !== poseNumber) return false;
       return isWithinLastHour(rev);
     }).length;
 
     // Count revisions for this pose in the last hour (from pending - exclude current pose if it exists)
-    const currentPendingRevision = manifest.revisions.pending[poseKey];
+    const currentPendingRevision = revisions.pending[poseKey];
     const poseRevisionsFromPending = currentPendingRevision && isWithinLastHour(currentPendingRevision) ? 1 : 0;
 
     const poseRevisionsInLastHour = poseRevisionsFromHistory + poseRevisionsFromPending;
 
     // Count total revisions for this order in the last hour (from history)
-    const orderRevisionsFromHistory = manifest.revisions.history.filter((rev: any) => {
+    const orderRevisionsFromHistory = revisions.history.filter((rev) => {
       return isWithinLastHour(rev);
     }).length;
 
     // Count total revisions for this order in the last hour (from pending)
-    const orderRevisionsFromPending = Object.values(manifest.revisions.pending).filter((rev: any) => {
+    const orderRevisionsFromPending = Object.values(revisions.pending).filter((rev) => {
       return isWithinLastHour(rev);
     }).length;
 
@@ -185,7 +254,6 @@ export async function POST(
 
     // Find the entry for this pose, or create it if missing (for missing/exhausted poses)
     let entry = manifest.entries.find((e: any) => e.poseNumber === poseNumber);
-    const isMissingPose = !entry || !entry.approvedKey;
     
     if (!entry) {
       console.log(`[Regenerate Pose API] Entry not found for pose ${poseNumber}, creating new entry for missing pose`);
@@ -205,7 +273,10 @@ export async function POST(
     }
 
     // Extract character hash and pose reference key
-    const characterHash = manifest.characterHash || manifest.order?.characterHash;
+    const order = toObject(manifest.order);
+    const characterHash =
+      toTrimmedString(manifest.characterHash) ??
+      toTrimmedString(order?.characterHash);
     if (!characterHash) {
       return NextResponse.json(
         { error: 'Character hash not found in manifest' },
@@ -213,11 +284,24 @@ export async function POST(
       );
     }
 
+    const { bookId: resolvedBookId, orderPrefix: resolvedOrderPrefix } =
+      resolveOrderPathContext(orderId, {
+        bookId: typeof bookId === 'string' ? bookId : null,
+        orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+        pathLikes: [
+          typeof previousOptionR2Key === 'string' ? previousOptionR2Key : null,
+          toTrimmedString(order?.assetPrefix),
+          toTrimmedString(order?.oneManifestUrl),
+          toTrimmedString(manifest.manifestUrl),
+          toTrimmedString(manifest.oneManifestUrl),
+        ],
+      });
+
     // Get pose reference key (static template)
-    const poseRefKey = `book-mvp-simple-adventure/characters/poses/pose${poseNN}.png`;
+    const poseRefKey = buildPoseReferenceAssetKey(resolvedBookId, poseNumber);
 
     // Get base character key
-    const baseCharacterKey = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/base-character.png`;
+    const baseCharacterKey = buildBaseCharacterAssetKey(characterHash, resolvedBookId);
 
     // Fetch images from R2 based on user selection
     const imagesToFetch: Array<{ key: string; bucket: string; type: 'base' | 'pose' | 'previous' }> = [];
@@ -280,7 +364,6 @@ export async function POST(
 
     // Build Gemini API request body
     // Determine style anchor source (base character OR previous option)
-    const hasStyleAnchor = hasBaseCharacter || hasPreviousOption;
     const styleAnchorSource = hasBaseCharacter ? 'BASE' : (hasPreviousOption ? 'PREVIOUS OPTION' : null);
     
     const systemInstruction = {
@@ -536,7 +619,7 @@ export async function POST(
     console.log(`[Regenerate Pose API] Extracted image from Gemini response: ${imageBuffer.length} bytes`);
 
     // Store temporarily in R2
-    const temporaryR2Key = `book-mvp-simple-adventure/orders/${orderId}/revisions/pending/pose${poseNN}-option.png`;
+    const temporaryR2Key = buildPendingPoseRevisionKey(resolvedOrderPrefix, poseNumber);
     
     console.log(`[Regenerate Pose API] Storing temporary image at: ${temporaryR2Key}`);
     await putObject(R2_ORDERS_BUCKET, temporaryR2Key, imageBuffer, mimeType);
@@ -602,17 +685,9 @@ export async function POST(
     // Generate jobId for async processing (UUID-like)
     const jobId = `${orderId}-pose${poseNN}-${Date.now()}`;
 
-    // Update manifest with revisions.pending structure
-    if (!manifest.revisions) {
-      manifest.revisions = {};
-    }
-    if (!manifest.revisions.pending) {
-      manifest.revisions.pending = {};
-    }
-
     const requestedAt = new Date().toISOString();
     const completedAt = new Date().toISOString();
-    manifest.revisions.pending[poseKey] = {
+    revisions.pending[poseKey] = {
       r2Key: temporaryR2Key,
       revisionPrompt: revisionPrompt.trim(),
       requestedAt,
@@ -664,4 +739,3 @@ export async function POST(
     );
   }
 }
-

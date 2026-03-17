@@ -1,5 +1,12 @@
 import { listObjects, getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET, R2_CHARACTERS_PREFIX } from './r2-client';
 import { AwsClient } from 'aws4fetch';
+import {
+  buildManifestKeyFromOrderPrefix,
+  buildOrderPrefix,
+  DEFAULT_BOOK_ID,
+  normalizeBookId,
+} from './order-paths';
+import type { ManifestStage } from './order-paths';
 
 export interface CharacterAsset {
   characterHash: string;
@@ -100,11 +107,11 @@ export async function listR2Objects(prefix?: string): Promise<any[]> {
 
 /**
  * List order IDs from the orders bucket by finding all order directories
- * Orders are stored at: book-mvp-simple-adventure/orders/{orderId}/
+ * Orders are stored at: {bookId}/orders/{orderId}/
  */
-export async function getAvailableOrderIds(): Promise<string[]> {
+export async function getAvailableOrderIds(bookId: string = DEFAULT_BOOK_ID): Promise<string[]> {
   try {
-    const PROJECT_NS = 'book-mvp-simple-adventure';
+    const PROJECT_NS = normalizeBookId(bookId);
     const prefix = `${PROJECT_NS}/orders/`;
     console.log('[R2] Listing order IDs from bucket:', R2_ORDERS_BUCKET, 'prefix:', prefix);
     
@@ -138,9 +145,16 @@ export async function getAvailableOrderIds(): Promise<string[]> {
 }
 
 // Build manifest key for order-centric storage
-export function buildManifestKey(orderId: string, stage: '2a' | '2b' | '3' | '4'): string {
-  const PROJECT_NS = 'book-mvp-simple-adventure';
-  return `${PROJECT_NS}/orders/${orderId}/manifests/${stage}-manifest.json`;
+export function buildManifestKey(
+  orderId: string,
+  stage: ManifestStage,
+  options: { bookId?: string | null; orderPrefix?: string | null } = {},
+): string {
+  const resolvedOrderPrefix =
+    typeof options.orderPrefix === 'string' && options.orderPrefix.trim()
+      ? options.orderPrefix.trim().replace(/\/+$/, '')
+      : buildOrderPrefix(orderId, options.bookId);
+  return buildManifestKeyFromOrderPrefix(resolvedOrderPrefix, stage);
 }
 
 export async function downloadManifest(key: string): Promise<any> {

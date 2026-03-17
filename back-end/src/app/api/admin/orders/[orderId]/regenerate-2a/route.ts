@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { downloadManifest } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,16 +107,21 @@ export async function POST(
       throw lastError ?? new Error('Failed to update order');
     };
 
-    const amazonOrderId = (currentOrder as { amazon_order_id?: string }).amazon_order_id ?? orderId.trim();
-    // Download 2A manifest if it exists (use amazon_order_id for R2 key)
-    const manifest2aKey = buildManifestKey(amazonOrderId, '2a');
+    const perBookOrderId =
+      String((currentOrder as { orderId?: string; order_id?: string }).orderId ?? (currentOrder as { order_id?: string }).order_id ?? orderId).trim();
+    const orderHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder as Record<string, unknown>);
+    const manifest2aKeys = buildManifestKeyCandidates(perBookOrderId, '2a', orderHints);
+    let manifest2aKey = manifest2aKeys[0] ?? '';
     let manifest2a: any = null;
     let manifest2aModified = false;
-    try {
-      manifest2a = await downloadManifest(manifest2aKey);
-    } catch (error: any) {
-      // Manifest might not exist yet - that's okay, we'll just trigger the workflow
-      console.log(`[Regenerate 2A] 2A manifest not found: ${manifest2aKey}`);
+    for (const candidateKey of manifest2aKeys) {
+      try {
+        manifest2a = await downloadManifest(candidateKey);
+        manifest2aKey = candidateKey;
+        break;
+      } catch (error: any) {
+        console.log(`[Regenerate 2A] 2A manifest not found: ${candidateKey}`);
+      }
     }
 
     // Clear status fields from 2A manifest entries if manifest exists
@@ -190,9 +199,9 @@ export async function POST(
     };
 
     await updateOrderRowResilientById(orderRowId, updateData);
-    console.log(`[Regenerate 2A] Successfully updated order ${amazonOrderId} (id=${orderRowId}) - next_workflow=2A, manifests rewound`);
+    console.log(`[Regenerate 2A] Successfully updated order ${perBookOrderId} (id=${orderRowId}) - next_workflow=2A, manifests rewound`);
 
-    console.log(`[Regenerate 2A] Order ${amazonOrderId} queued for router. Router will pick it up on next cron run.`);
+    console.log(`[Regenerate 2A] Order ${perBookOrderId} queued for router. Router will pick it up on next cron run.`);
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { buildManifestKey } from '@/lib/r2-service';
+import { buildManifestKeyCandidates } from '@/lib/order-paths';
 
 // Helper to parse JSON safely
 async function readJsonSafe<T = any>(res: Response): Promise<T> {
@@ -32,6 +32,9 @@ export async function GET(
 ) {
   try {
     const { orderId, jobId } = await params;
+    const { searchParams } = new URL(request.url);
+    const hintedBookId = searchParams.get('bookId');
+    const hintedOrderPrefix = searchParams.get('orderPrefix');
     console.log(`[Regenerate Pose Status API] Request for orderId: ${orderId}, jobId: ${jobId}`);
 
     if (!orderId || !jobId) {
@@ -42,21 +45,32 @@ export async function GET(
     }
 
     // Load manifest (2a-manifest.json)
-    const manifestKey = buildManifestKey(orderId, '2a');
-    console.log(`[Regenerate Pose Status API] Loading manifest: ${manifestKey}`);
+    const manifestKeyCandidates = buildManifestKeyCandidates(orderId, '2a', {
+      bookId: hintedBookId,
+      orderPrefix: hintedOrderPrefix,
+    });
+    console.log(
+      `[Regenerate Pose Status API] Loading manifest from candidates: ${manifestKeyCandidates.join(', ')}`,
+    );
 
-    let manifest: any;
-    try {
-      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-      manifest = await readJsonSafe<any>(manifestRes);
-    } catch (error: any) {
-      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
-        return NextResponse.json(
-          { error: 'Manifest not found' },
-          { status: 404 }
-        );
+    let manifest: any = null;
+    for (const manifestKey of manifestKeyCandidates) {
+      try {
+        const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
+        manifest = await readJsonSafe<any>(manifestRes);
+        break;
+      } catch (error: any) {
+        if (!error.message?.includes('404') && !error.message?.includes('Not Found')) {
+          throw error;
+        }
       }
-      throw error;
+    }
+
+    if (!manifest) {
+      return NextResponse.json(
+        { error: 'Manifest not found' },
+        { status: 404 }
+      );
     }
 
     // Check revisions.pending for the job
@@ -139,4 +153,3 @@ export async function GET(
     );
   }
 }
-

@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
-import { buildManifestKey, downloadManifest } from '@/lib/r2-service';
+import { downloadManifest } from '@/lib/r2-service';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyFromOrderPrefix,
+  buildManifestKeyHintOptionsFromOrderLike,
+  resolveOrderPathContext,
+} from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,13 +99,15 @@ export async function PATCH(
     // 4. Update Supabase
     const { error: updateError } = await supabase
       .from('orders')
-      .update(updateData)
+      .update(updateData as never)
       .eq('id', rowId);
     if (updateError) throw updateError;
 
     // 5. Rebuild 1-manifest in R2 with updated specs
-    const perBookId = (order as any).orderId ?? orderId;
-    const manifestKey = `book-mvp-simple-adventure/orders/${perBookId}/manifests/1-manifest.json`;
+    const perBookId = String((order as any).orderId ?? (order as any).order_id ?? orderId).trim();
+    const manifestHints = buildManifestKeyHintOptionsFromOrderLike(order as Record<string, unknown>);
+    const { bookId, orderPrefix } = resolveOrderPathContext(perBookId, manifestHints);
+    const manifestKey = buildManifestKeyFromOrderPrefix(orderPrefix, '1');
     let manifestRebuilt = false;
     try {
       const manifest = {
@@ -116,6 +124,7 @@ export async function PATCH(
           dedication: (order as any).dedication_text
             ? { raw: (order as any).dedication_text, text: (order as any).dedication_text, htmlSafe: (order as any).dedication_text }
             : null,
+          project: bookId,
           characterSpecs: merged,
           bookSpecs: (order as any).product_info?.bookSpecs ?? {
             title: 'Adventure Book',
@@ -139,10 +148,13 @@ export async function PATCH(
     let manifest2aCleared = false;
     if (regenerate) {
       try {
-        const amazonId = (order as any).amazon_order_id ?? perBookId;
-        const key2a = buildManifestKey(amazonId, '2a');
-        const m2a = await downloadManifest(key2a).catch(() => null);
-        if (m2a && Array.isArray(m2a.entries)) {
+        const key2aCandidates = buildManifestKeyCandidates(perBookId, '2a', manifestHints);
+        for (const key2a of key2aCandidates) {
+          const m2a = await downloadManifest(key2a).catch(() => null);
+          if (!m2a || !Array.isArray(m2a.entries)) {
+            continue;
+          }
+
           let modified = false;
           for (const entry of m2a.entries) {
             if (entry.briaStatusUrl || entry.briaRequestId || entry.bgRemovedKey || entry.bgRemovedImageUrl) {
@@ -163,6 +175,7 @@ export async function PATCH(
             await putObject(R2_ORDERS_BUCKET, key2a, JSON.stringify(m2a, null, 2), 'application/json');
             manifest2aCleared = true;
           }
+          break;
         }
       } catch (e: unknown) {
         console.error('[character-specs] Failed to clear 2A manifest:', e);

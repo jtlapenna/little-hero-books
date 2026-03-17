@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
-import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { downloadManifest } from '@/lib/r2-service';
 import { normalizeCharacterSpecs } from '@/lib/customization-utils';
-import { supabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+  extractManifestKey,
+} from '@/lib/order-paths';
 
 // Force dynamic rendering - this route should never be statically generated
 export const dynamic = 'force-dynamic';
@@ -36,12 +41,12 @@ export async function POST(request: NextRequest) {
         // Purpose: update by per-book identity (orderId), not amazon_order_id (which can be a group key).
         const attempt1 = await supabase
           .from('orders')
-          .update(dataToUpdate)
+          .update(dataToUpdate as never)
           .eq('orderId', orderId)
           .select('id');
         const { data, error } =
           attempt1.error?.code === '42703'
-            ? await supabase.from('orders').update(dataToUpdate).eq('order_id', orderId).select('id')
+            ? await supabase.from('orders').update(dataToUpdate as never).eq('order_id', orderId).select('id')
             : attempt1;
 
         if (!error) {
@@ -63,11 +68,39 @@ export async function POST(request: NextRequest) {
     const json = await request.json();
     const payload = PayloadSchema.parse(json);
 
-    // Download manifest from R2
-           const manifest: any = await downloadManifest(buildManifestKey(payload.orderId, '3'));
-           if (manifest && manifest.characterSpecs) {
-             manifest.characterSpecs = normalizeCharacterSpecs(manifest.characterSpecs);
-           }
+    const currentOrder = await getOrderFromSupabase(payload.orderId).catch(() => null);
+    const orderHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder);
+    const payloadManifestKey = extractManifestKey(payload.manifestUrl);
+    const manifestKeyCandidates = buildManifestKeyCandidates(payload.orderId, '3', {
+      ...orderHints,
+      pathLikes: [payload.manifestUrl, ...(orderHints.pathLikes ?? [])],
+    });
+    const manifestKeys = [
+      payloadManifestKey,
+      ...manifestKeyCandidates,
+    ].filter((value, index, values): value is string => !!value && values.indexOf(value) === index);
+
+    if (payloadManifestKey && !manifestKeyCandidates.includes(payloadManifestKey)) {
+      throw new Error(
+        `workflow-3-complete: manifestUrl does not match expected per-item manifest keys (${payloadManifestKey})`,
+      );
+    }
+
+    let manifest: any = null;
+    for (const manifestKey of manifestKeys) {
+      try {
+        manifest = await downloadManifest(manifestKey);
+        break;
+      } catch (error) {
+        if (manifestKey === manifestKeys[manifestKeys.length - 1]) {
+          throw error;
+        }
+      }
+    }
+
+    if (manifest && manifest.characterSpecs) {
+      manifest.characterSpecs = normalizeCharacterSpecs(manifest.characterSpecs);
+    }
 
     // Extract final book URL from manifest
     const finalBookUrl = manifest?.finalBookUrl || manifest?.bookUrl || manifest?.order?.finalBookUrl || null;
@@ -95,5 +128,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error?.message || 'Internal Server Error' }, { status: 500 });
   }
 }
-
-

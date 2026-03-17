@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { buildManifestKey } from '@/lib/r2-service';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 import { WorkflowStep } from '@/constants/statuses';
 import { determineNextWorkflow, type OrderProgress } from '@/lib/determine-next-workflow';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +22,7 @@ function isSameOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
-  return (
+  return !!(
     !origin ||
     origin.includes(siteUrl) ||
     referer?.includes(siteUrl) ||
@@ -28,11 +31,24 @@ function isSameOrigin(request: NextRequest): boolean {
   );
 }
 
-async function manifestExists(orderId: string, stage: '2a' | '2b' | '3'): Promise<boolean> {
+function toStringOrNull(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function toBooleanOrNull(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
+}
+
+async function manifestExists(manifestKeys: string[]): Promise<boolean> {
   // Purpose: existence check without pulling full object body.
-  const key = buildManifestKey(orderId, stage);
-  const resp = await headObject(R2_ORDERS_BUCKET, key);
-  return resp.ok;
+  for (const key of manifestKeys) {
+    const resp = await headObject(R2_ORDERS_BUCKET, key);
+    if (resp.ok) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function computeWorkflowStepFromManifests(found: { m3: boolean; m2b: boolean; m2a: boolean }): WorkflowStep | null {
@@ -57,11 +73,12 @@ export async function POST(
 
   const orderRow = await getOrderFromSupabase(orderId).catch(() => null);
   if (!orderRow) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+  const manifestHints = buildManifestKeyHintOptionsFromOrderLike(orderRow);
 
   const found = {
-    m3: await manifestExists(orderId, '3').catch(() => false),
-    m2b: await manifestExists(orderId, '2b').catch(() => false),
-    m2a: await manifestExists(orderId, '2a').catch(() => false),
+    m3: await manifestExists(buildManifestKeyCandidates(orderId, '3', manifestHints)).catch(() => false),
+    m2b: await manifestExists(buildManifestKeyCandidates(orderId, '2b', manifestHints)).catch(() => false),
+    m2a: await manifestExists(buildManifestKeyCandidates(orderId, '2a', manifestHints)).catch(() => false),
   };
 
   const nextStep = computeWorkflowStepFromManifests(found);
@@ -83,15 +100,15 @@ export async function POST(
   // Derive next_workflow so workflow/status/next-workflow columns display correctly (e.g. pending customer approval → '3')
   const row = orderRow as Record<string, unknown>;
   const next_workflow = determineNextWorkflow({
-    one_manifest_url: row.one_manifest_url ?? null,
-    manifest_2a_url: row.manifest_2a_url ?? null,
-    manifest_2b_url: row.manifest_2b_url ?? null,
-    manifest_3_url: found.m3 ? (row.manifest_3_url || 'repaired') : (row.manifest_3_url ?? null),
+    one_manifest_url: toStringOrNull(row.one_manifest_url),
+    manifest_2a_url: toStringOrNull(row.manifest_2a_url),
+    manifest_2b_url: toStringOrNull(row.manifest_2b_url),
+    manifest_3_url: found.m3 ? (toStringOrNull(row.manifest_3_url) || 'repaired') : toStringOrNull(row.manifest_3_url),
     workflow_step: nextStep,
     review_stages: (row.review_stages as OrderProgress['review_stages']) ?? null,
-    next_workflow: row.next_workflow ?? null,
-    customer_approval_required: row.customer_approval_required ?? null,
-    customer_approval_status: row.customer_approval_status ?? null,
+    next_workflow: toStringOrNull(row.next_workflow),
+    customer_approval_required: toBooleanOrNull(row.customer_approval_required),
+    customer_approval_status: toStringOrNull(row.customer_approval_status),
   });
 
   const updatePayload: Record<string, unknown> = {
@@ -105,7 +122,7 @@ export async function POST(
 
   const { data, error } = await supabase
     .from('orders')
-    .update(updatePayload)
+    .update(updatePayload as never)
     .eq('id', orderRowId)
     .select('id, workflow_step, next_workflow, execution_status');
 
@@ -127,4 +144,3 @@ export async function POST(
     updated: data?.[0] || null,
   });
 }
-

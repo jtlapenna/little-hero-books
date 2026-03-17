@@ -11,7 +11,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validatePreviewToken } from '@/lib/preview-tokens';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
 import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
-import { buildManifestKey, downloadManifest } from '@/lib/r2-service';
+import { downloadManifest } from '@/lib/r2-service';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from '@/lib/order-paths';
 import { Order } from '@/types/order';
 
 // Handle CORS preflight requests
@@ -102,18 +106,24 @@ export async function POST(request: NextRequest) {
 
     let manifestOrder: Order | null = null;
     const manifestStages: Array<'2b' | '2a' | '3'> = ['2b', '2a', '3'];
+    const manifestHints = buildManifestKeyHintOptionsFromOrderLike(supabaseRecord);
 
     for (const stage of manifestStages) {
-      try {
-        const key = buildManifestKey(orderId, stage);
-        const manifest = await downloadManifest(key);
-        manifestOrder = mapManifestToOrder(orderId, manifest);
+      for (const key of buildManifestKeyCandidates(orderId, stage, manifestHints)) {
+        try {
+          const manifest = await downloadManifest(key);
+          manifestOrder = mapManifestToOrder(orderId, manifest);
+          break;
+        } catch (error: any) {
+          console.log(
+            `[API] Preview token validation - manifest ${stage} not found for ${orderId} at ${key}:`,
+            error?.message || error
+          );
+        }
+      }
+
+      if (manifestOrder) {
         break;
-      } catch (error: any) {
-        console.log(
-          `[API] Preview token validation - manifest ${stage} not found for ${orderId}:`,
-          error?.message || error
-        );
       }
     }
 
@@ -181,4 +191,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

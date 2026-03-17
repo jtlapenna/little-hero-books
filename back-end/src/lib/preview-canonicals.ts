@@ -4,10 +4,9 @@
  * (Resolve Skin Tone & Base Path, Resolve Hairstyle Key & Asset Path).
  */
 
+import { loadBundledBookConfig } from '@/lib/books';
+import { DEFAULT_BOOK_ID, normalizeBookId } from '@/lib/order-paths';
 import { SKIN_TONE_HEX_MAP } from '@/types/customization';
-
-const ASSET_ROOT_BASES = 'book-mvp-simple-adventure/characters/bases';
-const ASSET_ROOT_HAIR = 'book-mvp-simple-adventure/characters/hairstyles';
 
 // Frontend skinTone (traitOptions) -> w2A skinToneCanonical
 const SKIN_MAP: Record<string, string> = {
@@ -72,6 +71,7 @@ const HAIR_COLOR_CHIP_SUFFIX: Record<string, string> = {
 const DEFAULT_HAIR_COLOR_CHIP = 'medium-brown';
 
 export interface PreviewResolved {
+  bookId: string;
   skinToneCanonical: string;
   skinToneHex: string | null;
   skinToneLabel: string | null;
@@ -96,6 +96,10 @@ export interface CharacterSpecsInput {
   hometown?: string;
   clothingStyle?: string;
   [key: string]: unknown;
+}
+
+export interface ResolvePreviewCanonicalsOptions {
+  bookId?: string | null;
 }
 
 /**
@@ -130,7 +134,24 @@ const BASE_FILENAME_DRESS: Record<string, string> = {
 /**
  * Resolve frontend character_specs to w2A canonicals and R2 keys for base + hair assets.
  */
-export function resolvePreviewCanonicals(specs: CharacterSpecsInput): PreviewResolved {
+export function resolvePreviewCanonicals(
+  specs: CharacterSpecsInput,
+  options: ResolvePreviewCanonicalsOptions = {},
+): PreviewResolved {
+  const requestedBookId = normalizeBookId(options.bookId ?? DEFAULT_BOOK_ID);
+  const bookConfig = (() => {
+    try {
+      return loadBundledBookConfig({ bookId: requestedBookId });
+    } catch {
+      return loadBundledBookConfig({ bookId: DEFAULT_BOOK_ID });
+    }
+  })();
+  const baseCharactersPrefix =
+    bookConfig.assets.preview?.baseCharactersPrefix ??
+    `${bookConfig.assets.assetRoot}/characters/bases`;
+  const hairstylesPrefix =
+    bookConfig.assets.preview?.hairstylesPrefix ??
+    `${bookConfig.assets.assetRoot}/characters/hairstyles`;
   const skinRaw = (specs.skinTone ?? 'medium').toString().toLowerCase().trim();
   const skinToneCanonical = SKIN_MAP[skinRaw] ?? 'skin-medium';
 
@@ -140,13 +161,13 @@ export function resolvePreviewCanonicals(specs: CharacterSpecsInput): PreviewRes
   // Select base image based on clothing type
   const filenameMap = clothingTypeCanonical === 'dress' ? BASE_FILENAME_DRESS : BASE_FILENAME_TEE_SHORTS;
   const baseFilename = filenameMap[skinToneCanonical] ?? filenameMap['skin-medium'];
-  const baseRefKey = `${ASSET_ROOT_BASES}/${baseFilename}`;
+  const baseRefKey = `${baseCharactersPrefix}/${baseFilename}`;
 
   const hairRaw = (specs.hairStyle ?? 'side-part').toString().toLowerCase().trim().replace(/\s+/g, '-');
   const hairStyleCanonical = HAIR_CANONICAL_SET.has(hairRaw) ? hairRaw : 'side-part';
   const colorRaw = (specs.hairColor ?? '').toString().toLowerCase().trim().replace(/\s+/g, '-');
   const hairColorSuffix = HAIR_COLOR_CHIP_SUFFIX[colorRaw] ?? DEFAULT_HAIR_COLOR_CHIP;
-  const hairRefKey = `${ASSET_ROOT_HAIR}/${hairStyleCanonical}-${hairColorSuffix}.jpg`;
+  const hairRefKey = `${hairstylesPrefix}/${hairStyleCanonical}-${hairColorSuffix}.jpg`;
 
   const favColorRaw = (specs.favoriteColor ?? 'blue').toString().toLowerCase().trim();
   const favoriteColorHex = FAVORITE_COLOR_HEX[favColorRaw] ?? null;
@@ -154,6 +175,7 @@ export function resolvePreviewCanonicals(specs: CharacterSpecsInput): PreviewRes
   const hairColorLabel = (specs.hairColor ?? 'unspecified').toString().trim() || 'unspecified';
 
   return {
+    bookId: bookConfig.bookId,
     skinToneCanonical,
     skinToneHex: SKIN_TONE_HEX_MAP[skinToneCanonical as keyof typeof SKIN_TONE_HEX_MAP]?.hex ?? null,
     skinToneLabel: SKIN_TONE_HEX_MAP[skinToneCanonical as keyof typeof SKIN_TONE_HEX_MAP]?.label ?? null,

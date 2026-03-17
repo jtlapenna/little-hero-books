@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAvailableCharacterHashes, getCharacterAssets, downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { getAvailableCharacterHashes, getAvailableOrderIds, getCharacterAssets, downloadManifest } from '@/lib/r2-service';
 import { Order } from '@/types/order';
 import { withErrorHandling, getRequestContext } from '@/lib/api-wrapper';
 import { createValidationError } from '@/lib/error-handler';
 import { OrderStatus, ReviewStageStatus } from '@/constants/statuses';
 import { listOrdersFromSupabase, upsertOrderByPerBookId } from '@/lib/supabase-client';
 import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+  resolveOrderPathContext,
+} from '@/lib/order-paths';
 import { cleanPhoneNumber } from '@/lib/phone-utils';
 
 function isChildBookRow(order: Order): boolean {
@@ -169,7 +174,7 @@ async function getOrders(request: NextRequest) {
           }
 
           try {
-            const manifestOrder = await buildOrderFromManifest(order.orderId);
+            const manifestOrder = await buildOrderFromManifest(order.orderId, order);
             return mergeOrderData(order, manifestOrder);
           } catch (error: any) {
             console.warn(
@@ -461,19 +466,33 @@ async function buildOrdersFromR2(): Promise<{
   };
 }
 
-async function buildOrderFromManifest(orderId: string): Promise<Order> {
+async function buildOrderFromManifest(
+  orderId: string,
+  orderLike?: unknown,
+): Promise<Order> {
   let manifest: any = null;
+  const manifestHints = buildManifestKeyHintOptionsFromOrderLike(orderLike);
 
   for (const stage of ['2a', '2b', '3'] as const) {
-    try {
-      const manifestKey = buildManifestKey(orderId, stage);
-      manifest = await downloadManifest(manifestKey);
-      console.log(`[GET /api/orders] (fallback) Loaded ${stage} manifest for order ${orderId}`);
-      break;
+    for (const manifestKey of buildManifestKeyCandidates(orderId, stage, manifestHints)) {
+      try {
+        manifest = await downloadManifest(manifestKey);
+        console.log(`[GET /api/orders] (fallback) Loaded ${stage} manifest for order ${orderId} from ${manifestKey}`);
+        break;
       } catch (error: any) {
-      console.log(`[GET /api/orders] (fallback) Failed to load ${stage} manifest for ${orderId}:`, error?.message || error);
+        console.log(
+          `[GET /api/orders] (fallback) Failed to load ${stage} manifest for ${orderId} from ${manifestKey}:`,
+          error?.message || error,
+        );
       }
     }
+
+    if (manifest) {
+      break;
+    }
+  }
+
+  const { bookId, orderPrefix } = resolveOrderPathContext(orderId, manifestHints);
 
   if (!manifest) {
     console.warn(`[GET /api/orders] (fallback) No manifest found for ${orderId}. Returning placeholder order.`);
@@ -481,7 +500,7 @@ async function buildOrderFromManifest(orderId: string): Promise<Order> {
       orderId,
       platform: 'amazon',
       amazonOrderId: orderId,
-      project: 'book-mvp-simple-adventure',
+      project: bookId,
       customer: {
         firstName: 'Unknown',
         lastName: 'Customer',
@@ -498,7 +517,7 @@ async function buildOrderFromManifest(orderId: string): Promise<Order> {
         pages: 16,
         format: '8.5x8.5_softcover',
       },
-      assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
+      assetPrefix: `${orderPrefix}/`,
       reviewStages: {
         preBria: { status: 'pending' },
         postBria: { status: 'pending' },

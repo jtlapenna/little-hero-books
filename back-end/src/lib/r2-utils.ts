@@ -1,4 +1,12 @@
 import { R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import {
+  buildOrderPrefix,
+  DEFAULT_BOOK_ID,
+  isOrderAssetKey,
+  normalizeBookId,
+} from '@/lib/order-paths';
+
+export { DEFAULT_BOOK_ID, normalizeBookId, buildOrderPrefix, isOrderAssetKey };
 
 /**
  * Extract R2 key from URL.
@@ -31,6 +39,5 @@ export function extractR2Key(url: string): string | null {
  * Determine R2 bucket from key path.
  */
 export function getBucketFromKey(key: string): string {
-  const isOrderAsset = key.startsWith('book-mvp-simple-adventure/orders/');
-  return isOrderAsset ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
+  return isOrderAssetKey(key) ? R2_ORDERS_BUCKET : R2_PUBLIC_BUCKET;
 }

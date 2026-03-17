@@ -1,10 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { downloadManifest, buildManifestKey, getCharacterAssets } from '@/lib/r2-service';
+import { downloadManifest, getCharacterAssets } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { determineNextWorkflow } from '@/lib/determine-next-workflow';
+import { determineNextWorkflow, type OrderProgress } from '@/lib/determine-next-workflow';
 import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
+import {
+  buildBgRemovedAssetMap,
+  read2BManifestWithPoseRequirements,
+  sync2BManifestEntries,
+  type TwoBManifestEntry,
+} from '@/lib/books';
+import { buildManifestKeyCandidates } from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
+
+type RepairOrderRow = OrderProgress & {
+  one_manifest_url?: string | null;
+  manifest_2a_url?: string | null;
+  manifest_3_url?: string | null;
+};
+
+type RepairManifestEntry = TwoBManifestEntry & {
+  approved?: unknown;
+  status?: unknown;
+  briaStatus?: unknown;
+  bgRemovedStatus?: unknown;
+  sourceApprovedKey?: unknown;
+};
 
 // PSEUDOCODE
 // - Read 2A manifest for order (source of poseNumbers + approvedKey).
@@ -21,16 +42,10 @@ function isSameOrigin(request: NextRequest): boolean {
   return (
     !origin ||
     origin.includes(siteUrl) ||
-    referer?.includes(siteUrl) ||
+    !!referer?.includes(siteUrl) ||
     origin.includes('littleherolabs.com') ||
-    referer?.includes('littleherolabs.com')
+    !!referer?.includes('littleherolabs.com')
   );
-}
-
-function poseNobgKey(characterHash: string, poseNumber: number): string {
-  // Purpose: Canonical R2 key for BRIA no-bg sprites.
-  const pn = String(poseNumber).padStart(2, '0');
-  return `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/characters_${characterHash}_pose${pn}_nobg.png`;
 }
 
 export async function POST(
@@ -47,8 +62,13 @@ export async function POST(
     return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
   }
 
+  const orderRow = (await getOrderFromSupabase(orderIdValue).catch(() => null)) as RepairOrderRow | null;
+
   // Purpose: Repair requires a valid 2A manifest to base off.
-  const manifest2aKey = buildManifestKey(orderIdValue, '2a');
+  const manifest2aKey =
+    buildManifestKeyCandidates(orderIdValue, '2a', {
+      pathLikes: [orderRow?.manifest_2a_url, orderRow?.one_manifest_url],
+    })[0];
   const m2a = await downloadManifest(manifest2aKey).catch(() => null);
   if (!m2a?.schema || !Array.isArray(m2a.entries) || !m2a.characterHash) {
     return NextResponse.json(
@@ -65,59 +85,83 @@ export async function POST(
   // Prefer R2 inventory keys when available so manifest matches what's actually in R2
   // (fixes Pose 11 "Image not found" when 2B wrote a different key or aggregation missed it)
   const assets = await getCharacterAssets(characterHash).catch(() => []);
-  const bgRemovedByPose = new Map<number, string>();
-  for (const a of assets) {
-    if (a.assetType !== 'background-removed') continue;
-    const url = String(a.url || '');
-    const key = url.startsWith('/api/assets/') ? url.replace(/^\/api\/assets\//, '') : null;
-    if (!key || !Number.isFinite(Number(a.poseNumber))) continue;
-    bgRemovedByPose.set(Number(a.poseNumber), key);
-  }
+  const bgRemovedByPose = buildBgRemovedAssetMap(assets);
+  const now = new Date().toISOString();
+  const manifestSnapshot = await read2BManifestWithPoseRequirements({
+    manifest: {
+      ...m2a,
+      stage: '2b',
+      runStamp: now,
+      createdAt: m2a.createdAt || now,
+      updatedAt: now,
+      generatedAt: now,
+      orderId: orderIdValue,
+      amazonOrderId: orderIdValue,
+      entries: m2a.entries.map((entry: TwoBManifestEntry) => ({
+        ...entry,
+        sourceApprovedKey: entry.sourceApprovedKey || entry.approvedKey || null,
+        bgRemovedImageUrl: entry.bgRemovedImageUrl ?? null,
+        bgRemovedPublicUrl: entry.bgRemovedPublicUrl ?? null,
+        processedAt: entry.processedAt ?? null,
+      })),
+    },
+    orderId: orderIdValue,
+    loadManifest: downloadManifest,
+  });
+  sync2BManifestEntries({
+    entryByPoseNumber: manifestSnapshot.entryByPoseNumber,
+    poseNumbers: [
+      ...new Set([
+        ...manifestSnapshot.availablePoseNumbers,
+        ...manifestSnapshot.requiredPoseNumbers,
+      ]),
+    ],
+    bgRemovedByPose,
+    nowIso: now,
+    trackMissingEntries: false,
+    ensureBgRemovedPublicUrlField: true,
+  });
 
-  const entries = m2a.entries.map((e: any) => {
-    const poseNumber = Number(e?.poseNumber);
-    if (!Number.isFinite(poseNumber)) return e;
-
-    const r2Key = bgRemovedByPose.get(poseNumber);
-    // Only set bgRemovedKey when we have an actual R2 asset (never invent keys that don't exist)
-    const hasBgRemoved = !!r2Key;
+  const entries: RepairManifestEntry[] = manifestSnapshot.entries.map((entry) => {
+    const hasBgRemoved =
+      typeof entry.bgRemovedKey === 'string' && entry.bgRemovedKey.trim().length > 0;
 
     return {
-      ...e,
-      briaStatus: hasBgRemoved ? 'completed' : (e.briaStatus ?? null),
+      ...entry,
+      briaStatus: hasBgRemoved ? 'completed' : (entry.briaStatus ?? null),
       bgRemoved: hasBgRemoved,
-      bgRemovedStatus: hasBgRemoved ? 'completed' : (e.bgRemovedStatus ?? null),
-      sourceApprovedKey: e.sourceApprovedKey || e.approvedKey || null,
-      bgRemovedKey: r2Key ?? e.bgRemovedKey ?? null,
-      bgRemovedImageUrl: hasBgRemoved ? (e.bgRemovedImageUrl || null) : (e.bgRemovedImageUrl ?? null),
-      processedAt: hasBgRemoved ? (e.processedAt || new Date().toISOString()) : (e.processedAt ?? null),
+      bgRemovedStatus: hasBgRemoved ? 'completed' : (entry.bgRemovedStatus ?? null),
+      sourceApprovedKey: entry.sourceApprovedKey || entry.approvedKey || null,
+      bgRemovedImageUrl: entry.bgRemovedImageUrl ?? null,
+      bgRemovedPublicUrl: entry.bgRemovedPublicUrl ?? null,
+      processedAt: hasBgRemoved ? (entry.processedAt || now) : (entry.processedAt ?? null),
     };
   });
 
-  // Require all story poses (1..12) to have bgRemovedKey before uploading (W3 must not use 2A fallback)
-  const storyPoseNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  const missingStoryPoses = storyPoseNumbers.filter((poseNum) => {
-    const entry = entries.find((e: any) => Number(e?.poseNumber) === poseNum);
+  // Require all helper-resolved poses to have bgRemovedKey before uploading (W3 must not use 2A fallback)
+  const missingRequiredPoses = manifestSnapshot.requiredPoseNumbers.filter((poseNum) => {
+    const entry = entries.find((candidate) => Number(candidate.poseNumber) === poseNum);
     return !entry || typeof entry.bgRemovedKey !== 'string' || !entry.bgRemovedKey.trim();
   });
-  if (missingStoryPoses.length > 0) {
+  if (missingRequiredPoses.length > 0) {
     return NextResponse.json(
       {
         error: 'Cannot repair: 2B manifest would be incomplete',
-        details: 'The following story poses have no bg-removed image in R2. Re-run workflow 2B to process all poses, then call repair again.',
-        missingStoryPoses,
+        details: 'The required poses for this book/format have no bg-removed image in R2. Re-run workflow 2B to process all required poses, then call repair again.',
+        missingRequiredPoses,
+        requiredPoseNumbers: manifestSnapshot.requiredPoseNumbers,
+        requiredPoseSource: manifestSnapshot.requiredPoseSource,
         r2PoseNumbers: Array.from(bgRemovedByPose.keys()).sort((a, b) => a - b),
       },
       { status: 400 }
     );
   }
 
-  const approvedCount = entries.filter((e: any) => e?.approved && e?.status === 'approved').length;
-  const terminalCount = entries.filter((e: any) => String(e?.briaStatus || '').toLowerCase() === 'completed').length;
+  const approvedCount = entries.filter((entry) => entry.approved === true && entry.status === 'approved').length;
+  const terminalCount = entries.filter((entry) => String(entry.briaStatus || '').toLowerCase() === 'completed').length;
 
-  const now = new Date().toISOString();
   const repaired = {
-    ...m2a,
+    ...manifestSnapshot.manifest,
     stage: '2b',
     runStamp: now,
     createdAt: m2a.createdAt || now,
@@ -143,7 +187,10 @@ export async function POST(
     generatedAt: now,
   };
 
-  const manifest2bKey = buildManifestKey(orderIdValue, '2b');
+  const manifest2bKey =
+    buildManifestKeyCandidates(orderIdValue, '2b', {
+      pathLikes: [orderRow?.manifest_2a_url, orderRow?.one_manifest_url],
+    })[0];
   const ok = await putObject(
     R2_ORDERS_BUCKET,
     manifest2bKey,
@@ -159,18 +206,16 @@ export async function POST(
   }
 
   // Purpose: Ensure router/W3 can progress using Supabase as source of truth.
-  const orderRow = await getOrderFromSupabase(orderIdValue).catch(() => null);
-
   const nextWorkflow = determineNextWorkflow({
-    one_manifest_url: (orderRow as any)?.one_manifest_url || null,
-    manifest_2a_url: (orderRow as any)?.manifest_2a_url || manifest2aKey,
+    one_manifest_url: orderRow?.one_manifest_url || null,
+    manifest_2a_url: orderRow?.manifest_2a_url || manifest2aKey,
     manifest_2b_url: manifest2bKey,
-    manifest_3_url: (orderRow as any)?.manifest_3_url || null,
-    workflow_step: (orderRow as any)?.workflow_step || null,
-    review_stages: ((orderRow as any)?.review_stages as any) || null,
-    next_workflow: (orderRow as any)?.next_workflow || null,
-    customer_approval_required: (orderRow as any)?.customer_approval_required ?? undefined,
-    customer_approval_status: (orderRow as any)?.customer_approval_status ?? undefined,
+    manifest_3_url: orderRow?.manifest_3_url || null,
+    workflow_step: orderRow?.workflow_step || null,
+    review_stages: orderRow?.review_stages || null,
+    next_workflow: orderRow?.next_workflow || null,
+    customer_approval_required: orderRow?.customer_approval_required ?? undefined,
+    customer_approval_status: orderRow?.customer_approval_status ?? undefined,
   });
 
   await updateOrderInSupabase(orderIdValue, {
@@ -191,8 +236,9 @@ export async function POST(
     orderId: orderIdValue,
     manifest2bKey,
     entriesUpdated: entries.length,
+    requiredPoseNumbers: manifestSnapshot.requiredPoseNumbers,
+    requiredPoseSource: manifestSnapshot.requiredPoseSource,
     r2PoseNumbers,
     message: 'Repaired 2B manifest uploaded; order re-queued for next workflow.',
   });
 }
-

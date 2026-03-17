@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { buildManifestKey } from '@/lib/r2-service';
+import { buildManifestKeyCandidates } from '@/lib/order-paths';
 import { setFlaggedCount, getOrderFlagSummaryById } from '@/lib/review-state';
 
 // Helper to parse JSON safely
@@ -11,6 +11,36 @@ async function readJsonSafe<T = any>(res: Response): Promise<T> {
   }
   const text = await res.text();
   try { return JSON.parse(text); } catch { throw new Error('Invalid JSON in manifest'); }
+}
+
+function isNotFoundMessage(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('404') || message.includes('Not Found');
+}
+
+async function loadManifestFromCandidates<T>(
+  candidateKeys: string[],
+): Promise<{ manifestKey: string; manifest: T | null }> {
+  let lastError: unknown = null;
+
+  for (const manifestKey of candidateKeys) {
+    try {
+      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
+      const manifest = await readJsonSafe<T>(manifestRes);
+      return { manifestKey, manifest };
+    } catch (error) {
+      lastError = error;
+      if (!isNotFoundMessage(error)) {
+        throw error;
+      }
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  return { manifestKey: candidateKeys[0] || '', manifest: null };
 }
 
 /**
@@ -37,7 +67,7 @@ export async function POST(
 
     // Parse JSON body
     const body = await request.json();
-    const { poseNumber, pageNumber, stage } = body;
+    const { poseNumber, pageNumber, stage, bookId, orderPrefix } = body;
 
     console.log('[Unflag API] Extracted values:', { poseNumber, pageNumber, stage });
 
@@ -87,15 +117,20 @@ export async function POST(
 
     // Handle postPdf stage (pages) separately
     if (stage === 'postPdf' && pageNumber !== undefined) {
-      const manifestKey = buildManifestKey(orderId, '3');
-      console.log(`[Unflag API] Loading 3-manifest: ${manifestKey}`);
-      
-      let manifest: any;
+      const manifestKeyCandidates = buildManifestKeyCandidates(orderId, '3', {
+        bookId: typeof bookId === 'string' ? bookId : null,
+        orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+      });
+      console.log(`[Unflag API] Loading 3-manifest from candidates: ${manifestKeyCandidates.join(', ')}`);
+
+      let manifestKey = manifestKeyCandidates[0];
+      let manifest: any = null;
       try {
-        const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-        manifest = await readJsonSafe<any>(manifestRes);
-      } catch (error: any) {
-        if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        const result = await loadManifestFromCandidates<any>(manifestKeyCandidates);
+        manifestKey = result.manifestKey;
+        manifest = result.manifest;
+      } catch (error: unknown) {
+        if (isNotFoundMessage(error)) {
           return NextResponse.json(
             { error: 'Manifest not found. Please ensure Workflow 3 has completed.' },
             { status: 404 }
@@ -184,27 +219,39 @@ export async function POST(
 
     // Determine which manifest to use
     const manifestType = stage === 'preBria' ? '2a' : '2b';
-    let manifestKey = buildManifestKey(orderId, manifestType);
+    let manifestKey = buildManifestKeyCandidates(orderId, manifestType, {
+      bookId: typeof bookId === 'string' ? bookId : null,
+      orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+    })[0] || '';
     
     // For Post-Bria, try 2b first, fallback to 2a if not found
     let manifest: any = null;
     if (stage === 'postBria') {
       try {
-        const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-        manifest = await readJsonSafe<any>(manifestRes);
+        const result = await loadManifestFromCandidates<any>(
+          buildManifestKeyCandidates(orderId, '2b', {
+            bookId: typeof bookId === 'string' ? bookId : null,
+            orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+          }),
+        );
+        manifestKey = result.manifestKey;
+        manifest = result.manifest;
         console.log(`[Unflag API] Loaded 2b manifest for Post-Bria unflag`);
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If 2b manifest doesn't exist, try 2a (for manually uploaded images)
-        if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        if (isNotFoundMessage(error)) {
           console.log(`[Unflag API] 2b manifest not found, trying 2a manifest...`);
-          const manifestKey2a = buildManifestKey(orderId, '2a');
           try {
-            const manifestRes2a = await getObject(R2_ORDERS_BUCKET, manifestKey2a);
-            manifest = await readJsonSafe<any>(manifestRes2a);
+            const result = await loadManifestFromCandidates<any>(
+              buildManifestKeyCandidates(orderId, '2a', {
+                bookId: typeof bookId === 'string' ? bookId : null,
+                orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+              }),
+            );
+            manifestKey = result.manifestKey;
+            manifest = result.manifest;
             console.log(`[Unflag API] Loaded 2a manifest for Post-Bria unflag (fallback)`);
-            // Use 2a manifest key for saving
-            manifestKey = manifestKey2a;
-          } catch (error2a: any) {
+          } catch (error2a: unknown) {
             return NextResponse.json(
               { error: 'Manifest not found' },
               { status: 404 }
@@ -217,11 +264,17 @@ export async function POST(
     } else {
       // Pre-Bria: use 2a manifest
       try {
-      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-      manifest = await readJsonSafe<any>(manifestRes);
-      console.log(`[Unflag API] Loaded 2a manifest for Pre-Bria unflag`);
-      } catch (error: any) {
-        if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        const result = await loadManifestFromCandidates<any>(
+          buildManifestKeyCandidates(orderId, '2a', {
+            bookId: typeof bookId === 'string' ? bookId : null,
+            orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
+          }),
+        );
+        manifestKey = result.manifestKey;
+        manifest = result.manifest;
+        console.log(`[Unflag API] Loaded 2a manifest for Pre-Bria unflag`);
+      } catch (error: unknown) {
+        if (isNotFoundMessage(error)) {
           return NextResponse.json(
             { error: 'Manifest not found. Please ensure Workflow 2A has completed.' },
             { status: 404 }
@@ -312,4 +365,3 @@ export async function POST(
     );
   }
 }
-

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { downloadManifest } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,7 +87,7 @@ export async function POST(
       for (let i = 0; i < 8; i++) {
         const { data, error } = await supabase
           .from('orders')
-          .update(dataToUpdate)
+          .update(dataToUpdate as never)
           .eq('id', id)
           .select('id');
         if (!error) {
@@ -100,32 +104,38 @@ export async function POST(
       throw lastError ?? new Error('Failed to update order');
     };
 
-    const amazonOrderId = (currentOrder as { amazon_order_id?: string }).amazon_order_id ?? orderId.trim();
-    // Download 3 manifest if it exists — use amazon_order_id for R2 key
-    const manifest3Key = buildManifestKey(amazonOrderId, '3');
+    const perBookOrderId =
+      String((currentOrder as { orderId?: string; order_id?: string }).orderId ?? (currentOrder as { order_id?: string }).order_id ?? orderId).trim();
+    const orderHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder as Record<string, unknown>);
+    const manifest3Keys = buildManifestKeyCandidates(perBookOrderId, '3', orderHints);
+    let manifest3Key = manifest3Keys[0] ?? '';
     let manifest3: any = null;
     let manifest3Modified = false;
-    try {
-      manifest3 = await downloadManifest(manifest3Key);
-      
-      // Clear final book/cover URLs from manifest
-      if (manifest3) {
-        if (manifest3.finalBookUrl || manifest3.finalCoverUrl || 
-            manifest3.bookUrl || manifest3.coverUrl ||
-            manifest3.order?.finalBookUrl || manifest3.order?.finalCoverUrl) {
-          delete manifest3.finalBookUrl;
-          delete manifest3.finalCoverUrl;
-          delete manifest3.bookUrl;
-          delete manifest3.coverUrl;
-          if (manifest3.order) {
-            delete manifest3.order.finalBookUrl;
-            delete manifest3.order.finalCoverUrl;
+    for (const candidateKey of manifest3Keys) {
+      try {
+        manifest3 = await downloadManifest(candidateKey);
+        manifest3Key = candidateKey;
+
+        // Clear final book/cover URLs from manifest
+        if (manifest3) {
+          if (manifest3.finalBookUrl || manifest3.finalCoverUrl ||
+              manifest3.bookUrl || manifest3.coverUrl ||
+              manifest3.order?.finalBookUrl || manifest3.order?.finalCoverUrl) {
+            delete manifest3.finalBookUrl;
+            delete manifest3.finalCoverUrl;
+            delete manifest3.bookUrl;
+            delete manifest3.coverUrl;
+            if (manifest3.order) {
+              delete manifest3.order.finalBookUrl;
+              delete manifest3.order.finalCoverUrl;
+            }
+            manifest3Modified = true;
           }
-          manifest3Modified = true;
         }
+        break;
+      } catch (error: any) {
+        console.log(`[Regenerate 3] 3 manifest not found: ${candidateKey}`);
       }
-    } catch (error: any) {
-      console.log(`[Regenerate 3] 3 manifest not found: ${manifest3Key}`);
     }
 
     // Upload modified manifest if changes were made
@@ -184,8 +194,8 @@ export async function POST(
     };
 
     await updateOrderRowResilientById(orderRowId, updateData);
-    console.log(`[Regenerate 3] ✅ Queued ${amazonOrderId} (id=${orderRowId}) for router at ${queuedAt}`);
-    console.log(`[Regenerate 3] Order ${amazonOrderId} queued for router. Router will pick it up on next cron run.`);
+    console.log(`[Regenerate 3] ✅ Queued ${perBookOrderId} (id=${orderRowId}) for router at ${queuedAt}`);
+    console.log(`[Regenerate 3] Order ${perBookOrderId} queued for router. Router will pick it up on next cron run.`);
 
     return NextResponse.json({
       success: true,

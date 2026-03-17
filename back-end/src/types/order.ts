@@ -6,6 +6,46 @@ export interface Customer {
 
 import { DisplayStatus, ReviewStageStatus } from '@/constants/statuses';
 import { OrderPhase } from '@/constants/phases';
+import type { BookPageType } from '@/lib/books/types';
+
+export interface OrderBookPagePlanEntry {
+  index: number;
+  id: string;
+  label: string;
+  type: BookPageType;
+  storyPageNumber: number | null;
+  backgroundSlot: string | null;
+  poseNumber: number | null;
+  overlaySlot: string | null;
+  required: boolean;
+}
+
+export interface OrderBookContext {
+  bookId?: string | null;
+  formatId?: string | null;
+  orderPrefix: string;
+  pagePlanSource: 'w0-v3' | 'legacy-default';
+  expectedPageCount: number;
+  pageLabels: string[];
+  pagePlan: OrderBookPagePlanEntry[];
+}
+
+export interface SharedImageInfo {
+  isShared: boolean;
+  sourceOrderIds: string[];
+  hasSource2aManifest?: boolean;
+  hasSource2bManifest?: boolean;
+}
+
+export interface OrderR2Assets {
+  characterHash: string;
+  baseCharacter: any;
+  poses: any[];
+  baseCharacterBgRemoved: any;
+  posesBgRemoved: any[];
+  all?: any[];
+  sharedImageInfo?: SharedImageInfo | null;
+}
 
 export interface ReviewStage {
   status: ReviewStageStatus | 'pending' | 'in-review' | 'approved' | 'rejected'; // Support both old and new values during transition
@@ -100,16 +140,11 @@ export interface Order {
     expiresAt?: string;
     usedAt?: string;
   };
+  bookContext?: OrderBookContext;
   webhooks: {
     onApprove: string;
   };
-  r2Assets?: {
-    characterHash: string;
-    baseCharacter: any;
-    poses: any[];
-    baseCharacterBgRemoved: any;
-    posesBgRemoved: any[];
-  };
+  r2Assets?: OrderR2Assets;
   latestCustomerCorrection?: CustomerCorrection | null;
   lastSkipReason?: string; // last_skip_reason from Supabase
   lastSkipAt?: string; // last_skip_at from Supabase

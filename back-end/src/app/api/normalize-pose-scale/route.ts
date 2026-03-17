@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject } from '@/lib/r2-client';
 import { extractR2Key, getBucketFromKey } from '@/lib/r2-utils';
+import {
+  buildPoseReferenceAssetKey,
+  extractBookIdFromPathLike,
+} from '@/lib/order-paths';
 import { decode, encode } from 'fast-png';
 
 export const maxDuration = 30;
@@ -14,7 +18,10 @@ const OFFSET_TOLERANCE = 0.03;   // 3 % of image height
 // Bounding-box helpers
 // -----------------------------------------------------------------
 
-type DecodedPng = { width: number; height: number; data: Uint8Array; channels: number; depth?: number };
+type DecodedPng = Pick<
+  ReturnType<typeof decode>,
+  'width' | 'height' | 'data' | 'channels' | 'depth'
+>;
 interface BBox { top: number; bottom: number; left: number; right: number; width: number; height: number; }
 
 function inferBackground(png: DecodedPng) {
@@ -180,7 +187,7 @@ function readRgba(png: DecodedPng, x: number, y: number): [number, number, numbe
  * treated as stray artifacts and excluded.
  */
 function opaqueBoundingBox(png: DecodedPng): BBox | null {
-  const { width, height, data } = png;
+  const { width, height } = png;
   const { isBg } = buildBgClassifier(png);
 
   // Per-row opaque pixel count (used to filter stray rows)
@@ -288,7 +295,12 @@ function normalizeImage(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { imageUrl, poseNumber, characterHash } = body;
+    const { imageUrl, poseNumber, characterHash, bookId } = body as {
+      imageUrl?: unknown;
+      poseNumber?: unknown;
+      characterHash?: unknown;
+      bookId?: unknown;
+    };
 
     if (!imageUrl || typeof imageUrl !== 'string') {
       return NextResponse.json({ success: false, error: 'Missing imageUrl' });
@@ -306,7 +318,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: `Cannot extract R2 key from imageUrl: ${imageUrl}` });
     }
 
-    const refKey = `book-mvp-simple-adventure/characters/poses/pose${poseNN}.png`;
+    const resolvedBookId =
+      (typeof bookId === 'string' && bookId.trim()) ||
+      extractBookIdFromPathLike(imageKey);
+    const refKey = buildPoseReferenceAssetKey(resolvedBookId, poseNumber);
     const imageBucket = getBucketFromKey(imageKey);
     const refBucket = getBucketFromKey(refKey);
 
@@ -319,9 +334,10 @@ export async function POST(request: NextRequest) {
         getObject(imageBucket, imageKey),
         getObject(refBucket, refKey),
       ]);
-    } catch (err: any) {
-      console.error(`${tag} R2 download failed:`, err?.message);
-      return NextResponse.json({ success: false, error: `R2 download failed: ${err?.message}` });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`${tag} R2 download failed:`, message);
+      return NextResponse.json({ success: false, error: `R2 download failed: ${message}` });
     }
 
     const imageBuf = Buffer.from(await imageResp.arrayBuffer());
@@ -333,9 +349,10 @@ export async function POST(request: NextRequest) {
     try {
       imagePng = decode(imageBuf);
       refPng = decode(refBuf);
-    } catch (err: any) {
-      console.error(`${tag} PNG parse failed:`, err?.message);
-      return NextResponse.json({ success: false, error: `PNG parse failed: ${err?.message}` });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`${tag} PNG parse failed:`, message);
+      return NextResponse.json({ success: false, error: `PNG parse failed: ${message}` });
     }
 
     // ── Compute bounding boxes ──
@@ -401,8 +418,9 @@ export async function POST(request: NextRequest) {
       message: 'Image scaled and repositioned to match reference',
       _debug: { genBox, refBox, scaleFactor, verticalOffset, imgDims: [imagePng.width, imagePng.height], refDims: [refPng.width, refPng.height] },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unexpected error';
     console.error('[NormScale] Unexpected error:', err);
-    return NextResponse.json({ success: false, error: err?.message || 'Unexpected error' });
+    return NextResponse.json({ success: false, error: message });
   }
 }

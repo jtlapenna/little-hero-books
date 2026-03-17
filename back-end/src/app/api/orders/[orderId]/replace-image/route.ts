@@ -1,13 +1,165 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, deleteObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
-import { buildManifestKey } from '@/lib/r2-service';
 import { clear2BEntryForReprocessing } from '@/lib/auto-flip-pose';
 import { PoseAutoFlipFormatError, transformPoseUploadBuffer } from '@/lib/pose-auto-flip';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+  buildBaseCharacterAssetKey,
+  buildBgRemovedPoseAssetKey,
+  buildGeneratedPoseAssetKey,
+  buildPreviewImageAssetKey,
+  extractBookIdFromPathLike,
+  extractOrderPrefixFromPathLike,
+  inferBookIdFromPathLikes,
+  normalizeBookId,
+  normalizeOrderPrefix,
+} from '@/lib/order-paths';
+import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 
 // Helper to parse JSON safely
 async function readJsonSafe<T = any>(res: Response): Promise<T> {
   const text = await res.text();
   try { return JSON.parse(text); } catch { throw new Error('Invalid JSON in manifest'); }
+}
+
+function isNotFoundMessage(message: string): boolean {
+  return message.includes('404') || message.includes('Not Found');
+}
+
+function toTrimmedString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function toObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function buildReplaceManifestHints(
+  currentOrder: Record<string, unknown> | null,
+  options: {
+    bookId?: string | null;
+    orderPrefix?: string | null;
+    pathLikes?: Array<string | null | undefined>;
+  } = {},
+) {
+  const baseHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder);
+  const pathLikes = [
+    ...(options.pathLikes ?? []),
+    ...(baseHints.pathLikes ?? []),
+  ].filter((value, index, values): value is string => !!value && values.indexOf(value) === index);
+
+  return {
+    bookId: options.bookId ?? baseHints.bookId ?? null,
+    orderPrefix: options.orderPrefix ?? baseHints.orderPrefix ?? null,
+    pathLikes,
+  };
+}
+
+async function loadManifestFromCandidates<T>(
+  manifestKeys: string[],
+): Promise<{ manifestKey: string; manifest: T }> {
+  let lastError: unknown = null;
+
+  for (const manifestKey of manifestKeys) {
+    try {
+      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
+      const manifest = await readJsonSafe<T>(manifestRes);
+      return { manifestKey, manifest };
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      if (!isNotFoundMessage(message)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError ?? new Error('Manifest not found');
+}
+
+function resolveManifestBookId(
+  manifest: Record<string, unknown>,
+  fallbackBookId?: string | null,
+): string {
+  const order = toObject(manifest.order);
+  const artifacts = toObject(manifest.artifacts);
+
+  return normalizeBookId(
+    toTrimmedString(order?.project) ??
+      extractBookIdFromPathLike(toTrimmedString(order?.assetPrefix)) ??
+      extractBookIdFromPathLike(toTrimmedString(order?.oneManifestUrl)) ??
+      extractBookIdFromPathLike(toTrimmedString(manifest.orderR2BaseKey)) ??
+      extractBookIdFromPathLike(toTrimmedString(artifacts?.orderPrefix)) ??
+      extractBookIdFromPathLike(toTrimmedString(artifacts?.manifestKey)) ??
+      extractBookIdFromPathLike(toTrimmedString(manifest.manifestUrl)) ??
+      extractBookIdFromPathLike(toTrimmedString(manifest.oneManifestUrl)) ??
+      fallbackBookId,
+  );
+}
+
+function resolveManifestOrderPrefix(
+  manifest: Record<string, unknown>,
+  orderId: string,
+  bookId: string,
+): string {
+  const order = toObject(manifest.order);
+  const artifacts = toObject(manifest.artifacts);
+
+  return normalizeOrderPrefix(
+    toTrimmedString(order?.assetPrefix) ??
+      toTrimmedString(manifest.orderR2BaseKey) ??
+      toTrimmedString(artifacts?.orderPrefix) ??
+      extractOrderPrefixFromPathLike(toTrimmedString(artifacts?.manifestKey)) ??
+      extractOrderPrefixFromPathLike(toTrimmedString(manifest.manifestUrl)) ??
+      extractOrderPrefixFromPathLike(toTrimmedString(manifest.oneManifestUrl)),
+    toTrimmedString(order?.orderId) ?? orderId,
+    bookId,
+  );
+}
+
+interface ManifestRevisionRecord {
+  poseNumber?: number;
+  r2Key?: string;
+  revisionPrompt?: string;
+  requestedAt?: string;
+  completedAt?: string;
+  status?: string;
+  replacedAt?: string;
+  jobId?: string;
+  cloudflareImageId?: string | null;
+  cloudflareImageUrl?: string | null;
+}
+
+interface ManifestRevisionState {
+  history: ManifestRevisionRecord[];
+  pending: Record<string, ManifestRevisionRecord>;
+}
+
+function ensureManifestRevisions(
+  manifest: Record<string, unknown>,
+): ManifestRevisionState {
+  const revisionRoot = toObject(manifest.revisions) ?? {};
+  const history = Array.isArray(revisionRoot.history)
+    ? revisionRoot.history.filter(
+        (value): value is ManifestRevisionRecord =>
+          !!value && typeof value === 'object' && !Array.isArray(value),
+      )
+    : [];
+  const pendingSource = toObject(revisionRoot.pending) ?? {};
+  const pending: Record<string, ManifestRevisionRecord> = {};
+
+  for (const [key, value] of Object.entries(pendingSource)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      pending[key] = value as ManifestRevisionRecord;
+    }
+  }
+
+  const revisions = { history, pending };
+  manifest.revisions = revisions;
+  return revisions;
 }
 
 /**
@@ -53,6 +205,18 @@ export async function POST(
     const storageKey = formData.get('storageKey')?.toString() || null;
     const replacedBy = formData.get('replacedBy')?.toString() || null; // Optional
     const isFlipped = formData.get('isFlipped')?.toString() === 'true'; // Indicates this is a flip operation
+    const currentOrder = (await getOrderFromSupabase(orderId).catch(() => null)) as
+      | Record<string, unknown>
+      | null;
+    const baseManifestHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder);
+    const hintedBookId =
+      inferBookIdFromPathLikes(storageKey, temporaryR2Key, requestedTemporaryR2Key) ??
+      baseManifestHints.bookId ??
+      null;
+    const manifestHints = buildReplaceManifestHints(currentOrder, {
+      bookId: hintedBookId,
+      pathLikes: [storageKey, temporaryR2Key, requestedTemporaryR2Key],
+    });
 
     console.log('[Replace Image API] Extracted values:', {
       poseNumberStr,
@@ -173,15 +337,19 @@ export async function POST(
     // Handle postPdf stage (pages) separately from preBria/postBria (poses)
     if (stage === 'postPdf' && pageNumber !== null) {
       // Load 3-manifest for pages
-      const manifestKey = buildManifestKey(orderId, '3');
+      let manifestKey = buildManifestKeyCandidates(orderId, '3', manifestHints)[0] ?? '';
       console.log(`[Replace Image] Loading 3-manifest: ${manifestKey}`);
       
-      let manifest: any;
+      let manifest: Record<string, unknown>;
       try {
-        const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-        manifest = await readJsonSafe<any>(manifestRes);
-      } catch (error: any) {
-        if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        const manifestResult = await loadManifestFromCandidates<Record<string, unknown>>(
+          buildManifestKeyCandidates(orderId, '3', manifestHints),
+        );
+        manifestKey = manifestResult.manifestKey;
+        manifest = manifestResult.manifest;
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (isNotFoundMessage(message)) {
           return NextResponse.json(
             { error: 'Manifest not found. Please ensure Workflow 3 has completed.' },
             { status: 404 }
@@ -194,23 +362,27 @@ export async function POST(
         );
       }
 
-      if (!manifest || !manifest.pngGeneration || !manifest.pngGeneration.pages) {
+      const pngGeneration = toObject(manifest.pngGeneration);
+      const pages = toObject(pngGeneration?.pages);
+      if (!pages) {
         return NextResponse.json(
           { error: 'Invalid manifest structure - missing pngGeneration.pages' },
           { status: 400 }
         );
       }
 
+      const resolvedBookId = resolveManifestBookId(manifest, hintedBookId);
+      const resolvedOrderPrefix = resolveManifestOrderPrefix(manifest, orderId, resolvedBookId);
+
       // Get page key (e.g., "p01", "p00")
       const pageKey = `p${String(pageNumber).padStart(2, '0')}`;
-      const pages = manifest.pngGeneration.pages;
       
       // Get R2 key for this page
-      let r2Key = pages[pageKey];
+      let r2Key = typeof pages[pageKey] === 'string' ? pages[pageKey] : null;
       
-      if (!r2Key || typeof r2Key !== 'string') {
+      if (!r2Key) {
         // Construct R2 key if not in manifest
-        r2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${pageKey}.png`;
+        r2Key = buildPreviewImageAssetKey(resolvedOrderPrefix, pageKey);
         console.log(`[Replace Image API] Page ${pageNumber} not found in manifest, constructing R2 key: ${r2Key}`);
         // Add to manifest
         pages[pageKey] = r2Key;
@@ -353,28 +525,38 @@ export async function POST(
       }
 
       // Update pagesMetadata with replacement history
-      if (!manifest.pngGeneration.pagesMetadata) {
-        manifest.pngGeneration.pagesMetadata = {};
+      if (pngGeneration && !pngGeneration.pagesMetadata) {
+        pngGeneration.pagesMetadata = {};
       }
       
-      const pageMetadata = manifest.pngGeneration.pagesMetadata[pageKey] || {};
+      const pageMetadata = toObject(pngGeneration?.pagesMetadata)?.[pageKey] as
+        | Record<string, unknown>
+        | undefined
+        | null;
       const replacedAt = new Date().toISOString();
-      const replacementCount = (pageMetadata.replacementCount || 0) + 1;
+      const replacementCount = Number(pageMetadata?.replacementCount || 0) + 1;
+      const replacementHistory = Array.isArray(pageMetadata?.replacementHistory)
+        ? pageMetadata.replacementHistory
+        : [];
       
       // Update metadata
-      manifest.pngGeneration.pagesMetadata[pageKey] = {
+      const pagesMetadata = toObject(pngGeneration?.pagesMetadata) ?? {};
+      pagesMetadata[pageKey] = {
         ...pageMetadata,
         replacedAt,
         replacementCount,
         replacedBy: replacedBy || null,
         replacementHistory: [
-          ...(pageMetadata.replacementHistory || []),
+          ...replacementHistory,
           {
             replacedAt,
             replacedBy: replacedBy || null,
           }
         ]
       };
+      if (pngGeneration) {
+        pngGeneration.pagesMetadata = pagesMetadata;
+      }
 
       // Update Cloudflare Images URLs in pagePreviewImages with new upload
       // If Cloudflare upload succeeded, update with new data; otherwise clear old data
@@ -406,22 +588,24 @@ export async function POST(
       };
 
       // Check multiple possible locations for pagePreviewImages
-      if (manifest.pagePreviewImages && Array.isArray(manifest.pagePreviewImages)) {
+      if (Array.isArray(manifest.pagePreviewImages)) {
         manifest.pagePreviewImages = updateCloudflareInPagePreview(manifest.pagePreviewImages);
         console.log(`[Replace Image API] Updated Cloudflare Images data in pagePreviewImages for page ${pageNumber}`);
       }
-      if (manifest.manifest?.pagePreviewImages && Array.isArray(manifest.manifest.pagePreviewImages)) {
-        manifest.manifest.pagePreviewImages = updateCloudflareInPagePreview(manifest.manifest.pagePreviewImages);
+      const nestedManifest = toObject(manifest.manifest);
+      if (nestedManifest && Array.isArray(nestedManifest.pagePreviewImages)) {
+        nestedManifest.pagePreviewImages = updateCloudflareInPagePreview(nestedManifest.pagePreviewImages);
         console.log(`[Replace Image API] Updated Cloudflare Images data in manifest.pagePreviewImages for page ${pageNumber}`);
       }
-      if (manifest.bookAssembly?.pagePreviewImages && Array.isArray(manifest.bookAssembly.pagePreviewImages)) {
-        manifest.bookAssembly.pagePreviewImages = updateCloudflareInPagePreview(manifest.bookAssembly.pagePreviewImages);
+      const bookAssembly = toObject(manifest.bookAssembly);
+      if (bookAssembly && Array.isArray(bookAssembly.pagePreviewImages)) {
+        bookAssembly.pagePreviewImages = updateCloudflareInPagePreview(bookAssembly.pagePreviewImages);
         console.log(`[Replace Image API] Updated Cloudflare Images data in bookAssembly.pagePreviewImages for page ${pageNumber}`);
       }
 
       // Update pagesWithCloudflare if it exists
-      if (manifest.pngGeneration?.pagesWithCloudflare && typeof manifest.pngGeneration.pagesWithCloudflare === 'object') {
-        const pagesWithCloudflare = manifest.pngGeneration.pagesWithCloudflare;
+      const pagesWithCloudflare = toObject(pngGeneration?.pagesWithCloudflare);
+      if (pagesWithCloudflare) {
         // Check both p00 and p00_dedication for page 0
         const keysToUpdate = pageNumber === 0 ? [pageKey, 'p00_dedication'] : [pageKey];
         keysToUpdate.forEach(key => {
@@ -440,6 +624,9 @@ export async function POST(
             }
           }
         });
+        if (pngGeneration) {
+          pngGeneration.pagesWithCloudflare = pagesWithCloudflare;
+        }
       }
 
       // Save updated manifest back to R2
@@ -454,7 +641,6 @@ export async function POST(
       // Update order's updated_at timestamp in Supabase to trigger cache refresh
       // This ensures the frontend gets new cache-busting parameters for image URLs
       try {
-        const { updateOrderInSupabase } = await import('@/lib/supabase-client');
         await updateOrderInSupabase(orderId, {
           updated_at: replacedAt, // Use the same timestamp as replacement
         });
@@ -486,25 +672,30 @@ export async function POST(
       
       // Get character hash from order or manifest
       let characterHash: string | null = null;
+      let resolvedBookId = hintedBookId;
       
       // Try to get from 2a manifest first
       try {
-        const manifest2aKey = buildManifestKey(orderId, '2a');
-        const manifest2aRes = await getObject(R2_ORDERS_BUCKET, manifest2aKey);
-        const manifest2a = await readJsonSafe<any>(manifest2aRes);
-        characterHash = manifest2a?.characterHash || manifest2a?.order?.characterHash || null;
-      } catch (error: any) {
-        console.warn('[Replace Image API] Could not load 2a manifest for characterHash:', error.message);
+        const manifest2aResult = await loadManifestFromCandidates<Record<string, unknown>>(
+          buildManifestKeyCandidates(orderId, '2a', manifestHints),
+        );
+        const manifest2a = manifest2aResult.manifest;
+        const manifest2aOrder = toObject(manifest2a.order);
+        characterHash =
+          toTrimmedString(manifest2a.characterHash) ??
+          toTrimmedString(manifest2aOrder?.characterHash) ??
+          null;
+        resolvedBookId = resolveManifestBookId(manifest2a, hintedBookId);
+      } catch (error: unknown) {
+        console.warn('[Replace Image API] Could not load 2a manifest for characterHash:', error instanceof Error ? error.message : String(error));
       }
       
       // Fallback: try to get from Supabase order
       if (!characterHash) {
         try {
-          const { getOrderFromSupabase } = await import('@/lib/supabase-client');
-          const order = (await getOrderFromSupabase(orderId).catch((): null => null)) as
-            | { character_hash?: string | null }
-            | null;
-          characterHash = order?.character_hash ?? null;
+          characterHash =
+            (currentOrder as { character_hash?: string | null } | null)?.character_hash ??
+            null;
         } catch (error: any) {
           console.warn('[Replace Image API] Could not load order from Supabase:', error.message);
         }
@@ -518,7 +709,7 @@ export async function POST(
       }
       
       // Construct R2 key for base character
-      const r2Key = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/base-character.png`;
+      const r2Key = buildBaseCharacterAssetKey(characterHash, resolvedBookId);
       const bucket = R2_PUBLIC_BUCKET;
       
       console.log(`[Replace Image API] Base character R2 key: ${r2Key}`);
@@ -563,7 +754,6 @@ export async function POST(
       // Update order's updated_at timestamp in Supabase to trigger cache refresh
       // This ensures the frontend gets new cache-busting parameters for image URLs
       try {
-        const { updateOrderInSupabase } = await import('@/lib/supabase-client');
         await updateOrderInSupabase(orderId, {
           updated_at: replacedAt, // Use the same timestamp as replacement
         });
@@ -585,18 +775,29 @@ export async function POST(
     }
 
     // Handle preBria/postBria stages (poses)
+    if (poseNumber === null) {
+      return NextResponse.json(
+        { error: `${stage} stage requires poseNumber` },
+        { status: 400 }
+      );
+    }
+
     // Determine which manifest to use
     const manifestType = stage === 'preBria' ? '2a' : '2b';
-    const manifestKey = buildManifestKey(orderId, manifestType);
+    let manifestKey = buildManifestKeyCandidates(orderId, manifestType, manifestHints)[0] ?? '';
     
     // Download current manifest
     console.log(`[Replace Image] Loading manifest: ${manifestKey}`);
-    let manifest: any;
+    let manifest: Record<string, unknown>;
     try {
-      const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
-      manifest = await readJsonSafe<any>(manifestRes);
-    } catch (error: any) {
-      const isMissingManifest = error?.message?.includes('404') || error?.message?.includes('Not Found');
+      const manifestResult = await loadManifestFromCandidates<Record<string, unknown>>(
+        buildManifestKeyCandidates(orderId, manifestType, manifestHints),
+      );
+      manifestKey = manifestResult.manifestKey;
+      manifest = manifestResult.manifest;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isMissingManifest = isNotFoundMessage(message);
       if (isMissingManifest && forceDirectFile && stage === 'preBria') {
         const storageKeyCharacterHash = storageKey?.match(/characters\/([a-f0-9]{8,64})\//i)?.[1] ?? null;
         console.error('[Replace Image API] Rejecting preBria publish because sibling 2A manifest is missing', {
@@ -629,13 +830,17 @@ export async function POST(
       );
     }
 
+    const manifestOrder = toObject(manifest.order);
+    const resolvedBookId = resolveManifestBookId(manifest, hintedBookId);
+    const resolvedOrderPrefix = resolveManifestOrderPrefix(manifest, orderId, resolvedBookId);
+
     if (stage === 'preBria') {
-      const manifestOrderId = String(manifest.order?.orderId ?? manifest.orderId ?? '').trim();
+      const manifestOrderId = String(manifestOrder?.orderId ?? manifest.orderId ?? '').trim();
       const manifestRootOrderId = String(
-        manifest.order?.rootOrderId ?? manifest.rootOrderId ?? manifest.order?.amazonOrderId ?? manifest.amazonOrderId ?? '',
+        manifestOrder?.rootOrderId ?? manifest.rootOrderId ?? manifestOrder?.amazonOrderId ?? manifest.amazonOrderId ?? '',
       ).trim();
       const manifestCharacterHash = String(
-        manifest.characterHash ?? manifest.order?.characterHash ?? '',
+        manifest.characterHash ?? manifestOrder?.characterHash ?? '',
       ).trim() || null;
       const manifestBodyKey = String(
         manifest.manifestUrl ?? manifest.originalManifestUrl ?? '',
@@ -700,8 +905,9 @@ export async function POST(
     
     if (isMissingPose) {
       // Construct the expected R2 key for missing poses
-      // Format: book-mvp-simple-adventure/order-generated-assets/characters/{characterHash}/poses/pose{NN}.png
-      const characterHash = manifest.characterHash || manifest.order?.characterHash;
+      const characterHash = String(
+        manifest.characterHash ?? manifestOrder?.characterHash ?? '',
+      ).trim();
       if (!characterHash) {
         return NextResponse.json(
           { error: 'Cannot upload missing pose: characterHash not found in manifest' },
@@ -709,14 +915,12 @@ export async function POST(
         );
       }
       
-      const poseNN = String(poseNumber).padStart(2, '0');
       if (stage === 'preBria') {
         // Pre-Bria: original image in poses/ directory
-        r2Key = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/poses/pose${poseNN}.png`;
+        r2Key = buildGeneratedPoseAssetKey(characterHash, poseNumber, resolvedBookId);
       } else {
         // Post-Bria: background-removed image in parent directory
-        // Format: characters/{hash}/characters_{hash}_pose{NN}_nobg.png
-        r2Key = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/characters_${characterHash}_pose${poseNN}_nobg.png`;
+        r2Key = buildBgRemovedPoseAssetKey(characterHash, poseNumber, resolvedBookId);
       }
       
       console.log(`[Replace Image API] Missing pose detected, constructing R2 key: ${r2Key}`);
@@ -754,7 +958,7 @@ export async function POST(
       // CRITICAL: Always update publicUrl to point to the new image
       // Use backend proxy endpoint if publicR2Url is not available (works with private buckets)
       // IMPORTANT: publicUrl must match approvedKey to ensure 2B workflow uses the correct image
-      const publicR2Url = manifest.order?.publicR2Url;
+      const publicR2Url = toTrimmedString(manifestOrder?.publicR2Url);
       const backendUrl = 'https://admin.littleherolabs.com';
       
       if (publicR2Url) {
@@ -798,7 +1002,7 @@ export async function POST(
       // Note: For postBria stage, we no longer set flipped/flippedAt flags
       // The flipped image overwrites the original, so no state tracking is needed
       // Update publicUrl if publicR2Url is available
-      const publicR2Url = manifest.order?.publicR2Url;
+      const publicR2Url = toTrimmedString(manifestOrder?.publicR2Url);
       if (publicR2Url) {
         entry.bgRemovedImageUrl = `${publicR2Url}/${originalKey}`;
         entry.bgRemovedPublicUrl = `${publicR2Url}/${originalKey}`;
@@ -849,7 +1053,7 @@ export async function POST(
     // (e.g., pose03_r1.png) that might exist - those are legitimate workflow artifacts.
 
     // Handle file upload: either from form data or copy from temporary location
-    let fileBuffer: ArrayBuffer;
+    let fileBuffer: ArrayBuffer | Uint8Array;
     let contentType: string;
 
     if (temporaryR2Key) {
@@ -905,10 +1109,7 @@ export async function POST(
             poseNumber,
             buffer: Buffer.from(fileBuffer),
           });
-      fileBuffer = transformedUpload.buffer.buffer.slice(
-        transformedUpload.buffer.byteOffset,
-        transformedUpload.buffer.byteOffset + transformedUpload.buffer.byteLength,
-      );
+      fileBuffer = transformedUpload.buffer;
 
       // Upload to final location
       console.log(`[Replace Image API] Uploading to final location: ${bucket}/${originalKey}`);
@@ -954,10 +1155,7 @@ export async function POST(
         poseNumber,
         buffer: Buffer.from(fileBuffer),
       });
-      fileBuffer = transformedUpload.buffer.buffer.slice(
-        transformedUpload.buffer.byteOffset,
-        transformedUpload.buffer.byteOffset + transformedUpload.buffer.byteLength,
-      );
+      fileBuffer = transformedUpload.buffer;
       if (transformedUpload.flipped) {
         console.log(`[Replace Image API] Auto-flipped pose ${poseNumber} before canonical upload`);
       }
@@ -1005,10 +1203,11 @@ export async function POST(
     });
 
     // If this was an accepted revision (temporaryR2Key provided), remove from pending revisions
-    if (temporaryR2Key && manifest.revisions && manifest.revisions.pending) {
+    const revisions = ensureManifestRevisions(manifest);
+    if (temporaryR2Key) {
       const poseNN = String(poseNumber).padStart(2, '0');
       const poseKey = `pose${poseNN}`;
-      const pendingRevision = manifest.revisions.pending[poseKey];
+      const pendingRevision = revisions.pending[poseKey];
       
       if (pendingRevision) {
         // Verify that the temporaryR2Key matches what's in the manifest
@@ -1018,10 +1217,7 @@ export async function POST(
         }
         
         // Move to history (optional - for tracking)
-        if (!manifest.revisions.history) {
-          manifest.revisions.history = [];
-        }
-        manifest.revisions.history.push({
+        revisions.history.push({
           poseNumber,
           revisionPrompt: pendingRevision.revisionPrompt,
           requestedAt: pendingRevision.requestedAt,
@@ -1065,7 +1261,7 @@ export async function POST(
         }
         
         // Remove from pending
-        delete manifest.revisions.pending[poseKey];
+        delete revisions.pending[poseKey];
         console.log(`[Replace Image API] Moved revision from pending to history for pose ${poseNumber}`);
       }
     }
@@ -1083,19 +1279,32 @@ export async function POST(
     // This forces 2B workflow to reprocess the pose with the new image
     if (stage === 'preBria') {
       try {
-        const manifest2bKey = buildManifestKey(orderId, '2b');
+        const manifest2bHints = buildReplaceManifestHints(currentOrder, {
+          bookId: resolvedBookId,
+          orderPrefix: resolvedOrderPrefix,
+          pathLikes: [manifestKey],
+        });
+        const manifest2bKeys = buildManifestKeyCandidates(orderId, '2b', manifest2bHints);
+        let manifest2bKey = manifest2bKeys[0] ?? '';
         let manifest2b: any = null;
         
-        try {
-          const manifest2bRes = await getObject(R2_ORDERS_BUCKET, manifest2bKey);
-          manifest2b = await readJsonSafe<any>(manifest2bRes);
-        } catch (error: any) {
-          // 2B manifest doesn't exist yet - that's fine, nothing to clear
-          if (error.message?.includes('404') || error.message?.includes('Not Found')) {
-            console.log(`[Replace Image API] 2B manifest doesn't exist yet for pose ${poseNumber} - nothing to clear`);
-          } else {
+        for (const candidateKey of manifest2bKeys) {
+          try {
+            const manifest2bRes = await getObject(R2_ORDERS_BUCKET, candidateKey);
+            manifest2b = await readJsonSafe<any>(manifest2bRes);
+            manifest2bKey = candidateKey;
+            break;
+          } catch (error: any) {
+            if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+              continue;
+            }
             console.warn(`[Replace Image API] Error loading 2B manifest (non-critical):`, error.message);
+            break;
           }
+        }
+
+        if (!manifest2b) {
+          console.log(`[Replace Image API] 2B manifest doesn't exist yet for pose ${poseNumber} - nothing to clear`);
         }
 
         if (manifest2b && manifest2b.entries && Array.isArray(manifest2b.entries)) {
@@ -1128,7 +1337,6 @@ export async function POST(
     // Update order's updated_at timestamp in Supabase to trigger cache refresh
     // This ensures the frontend gets new cache-busting parameters for image URLs
     try {
-      const { updateOrderInSupabase } = await import('@/lib/supabase-client');
       await updateOrderInSupabase(orderId, {
         updated_at: replacedAt, // Use the same timestamp as replacement
       });

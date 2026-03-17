@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decode, encode } from 'fast-png';
 import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
-import { buildManifestKey } from '@/lib/r2-service';
+import { getOrderFromSupabase } from '@/lib/supabase-client';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -11,7 +15,7 @@ function requireSameOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
-  return (
+  return !!(
     !origin ||
     (!!siteUrl && origin.includes(siteUrl)) ||
     (!!siteUrl && !!referer && referer.includes(siteUrl)) ||
@@ -153,7 +157,7 @@ function applyTransparencyFill(
     width: number;
     height: number;
     data: Uint8Array | Uint8ClampedArray;
-    channels: number;
+    channels?: number;
     depth?: number;
   },
   shapes: ShapeFill[],
@@ -251,9 +255,30 @@ export async function POST(
   const teethOptions: TeethOptions | null = fixTeeth ? (body.teeth ?? {}) : null;
 
   try {
+    const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
+    const manifestHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder);
+    const manifestKeys = buildManifestKeyCandidates(orderId, '2b', manifestHints);
+    let manifestKey = manifestKeys[0];
+    let manifestRes: Response | null = null;
+
+    for (const candidateKey of manifestKeys) {
+      try {
+        manifestRes = await getObject(R2_ORDERS_BUCKET, candidateKey);
+        manifestKey = candidateKey;
+        break;
+      } catch {
+        continue;
+      }
+    }
+
+    if (!manifestKey || !manifestRes) {
+      return NextResponse.json(
+        { error: 'Unable to resolve 2b manifest key for order' },
+        { status: 500 }
+      );
+    }
+
     // Load 2b manifest to get characterHash and bgRemovedKey
-    const manifestKey = buildManifestKey(orderId, '2b');
-    const manifestRes = await getObject(R2_ORDERS_BUCKET, manifestKey);
     const manifest = await readJsonSafe<{
       characterHash?: string;
       order?: { characterHash?: string };
@@ -297,7 +322,16 @@ export async function POST(
     const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
     const png = decode(imageBuffer);
     const shapes = buildFillShapes(png.width, png.height, eyesOptions, teethOptions);
-    const resultData = applyTransparencyFill(png, shapes);
+    const resultData = applyTransparencyFill(
+      png as {
+        width: number;
+        height: number;
+        data: Uint8Array | Uint8ClampedArray;
+        channels?: number;
+        depth?: number;
+      },
+      shapes,
+    );
     const resultBuffer = Buffer.from(
       encode({
         width: png.width,
@@ -314,7 +348,6 @@ export async function POST(
     if (entry && r2Key !== originalKey) {
       entry.bgRemovedKey = originalKey;
       entry.bgRemovedFilename = `pose${String(poseNumber).padStart(2, '0')}-nobg.png`;
-      const manifestKey = buildManifestKey(orderId, '2b');
       await putObject(
         R2_ORDERS_BUCKET,
         manifestKey,

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
-import { buildManifestKey } from '@/lib/r2-service';
 import { updateOrderInSupabase } from '@/lib/supabase-client';
+import {
+  buildManifestKeyCandidates,
+  extractBookIdFromPathLike,
+  type ManifestKeyHintOptions,
+  normalizeBookId,
+  normalizeOrderPrefix,
+} from '@/lib/order-paths';
 import {
   AUTO_FLIP_SUPPORTED_POSES,
   type AutoFlipDecisionSource,
@@ -77,50 +83,109 @@ async function loadFromKnownBuckets(key: string): Promise<{ buffer: Buffer; buck
 async function loadManifest2A(
   orderId: string,
   logContext: Record<string, unknown>,
+  options: ManifestKeyHintOptions = {},
 ): Promise<
   | { manifestKey: string; manifest: AutoFlipManifest2A | null }
   | { manifestKey: string; error: NextResponse }
 > {
-  const manifestKey = buildManifestKey(orderId, '2a');
-  try {
-    const manifestResponse = await getObject(R2_ORDERS_BUCKET, manifestKey);
-    const manifestText = await manifestResponse.text();
-    const manifest = parseJsonSafe<AutoFlipManifest2A>(manifestText);
-    return { manifestKey, manifest };
-  } catch (error) {
-    const message = safeErrorMessage(error);
-    console.error('[AutoFlipPoseAPI] manifest_load_failed', { ...logContext, manifestKey, message });
-    return {
-      manifestKey,
-      error: NextResponse.json(
-        { success: false, error: 'Failed to load 2a manifest' },
-        { status: isNotFoundError(message) ? 404 : 500 },
-      ),
-    };
-  }
-}
+  const manifestKeys = buildManifestKeyCandidates(orderId, '2a', options);
 
-async function invalidate2BManifest(orderId: string, poseNumber: number, logContext: Record<string, unknown>) {
-  try {
-    const manifest2bKey = buildManifestKey(orderId, '2b');
-    let manifest2b: { entries?: AutoFlipManifestEntry[] } | null = null;
+  let lastError: unknown = null;
+  let lastManifestKey = manifestKeys[0] ?? '';
 
+  for (const manifestKey of manifestKeys) {
+    lastManifestKey = manifestKey;
     try {
-      const manifest2bResponse = await getObject(R2_ORDERS_BUCKET, manifest2bKey);
-      const manifest2bText = await manifest2bResponse.text();
-      manifest2b = parseJsonSafe<{ entries?: AutoFlipManifestEntry[] }>(manifest2bText);
+      const manifestResponse = await getObject(R2_ORDERS_BUCKET, manifestKey);
+      const manifestText = await manifestResponse.text();
+      const manifest = parseJsonSafe<AutoFlipManifest2A>(manifestText);
+      return { manifestKey, manifest };
     } catch (error) {
+      lastError = error;
       const message = safeErrorMessage(error);
       if (!isNotFoundError(message)) {
-        console.warn('[AutoFlipPoseAPI] manifest_2b_load_failed', { ...logContext, manifest2bKey, message });
+        console.error('[AutoFlipPoseAPI] manifest_load_failed', { ...logContext, manifestKey, message });
+        return {
+          manifestKey,
+          error: NextResponse.json(
+            { success: false, error: 'Failed to load 2a manifest' },
+            { status: 500 },
+          ),
+        };
       }
+    }
+  }
+
+  const message = safeErrorMessage(lastError);
+  console.error('[AutoFlipPoseAPI] manifest_load_failed', { ...logContext, manifestKey: lastManifestKey, message });
+  return {
+    manifestKey: lastManifestKey,
+    error: NextResponse.json(
+      { success: false, error: 'Failed to load 2a manifest' },
+      { status: 404 },
+    ),
+  };
+}
+
+function toTrimmedString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function resolveManifestBookId(
+  manifest: AutoFlipManifest2A,
+  fallbackBookId?: string | null,
+): string {
+  return normalizeBookId(
+    toTrimmedString(manifest.order?.project) ??
+      extractBookIdFromPathLike(manifest.order?.assetPrefix) ??
+      extractBookIdFromPathLike(manifest.order?.oneManifestUrl) ??
+      extractBookIdFromPathLike(manifest.manifestUrl) ??
+      extractBookIdFromPathLike(manifest.oneManifestUrl) ??
+      fallbackBookId,
+  );
+}
+
+function resolveManifestOrderPrefix(
+  manifest: AutoFlipManifest2A,
+  orderId: string,
+  bookId: string,
+): string {
+  return normalizeOrderPrefix(
+    manifest.order?.assetPrefix,
+    toTrimmedString(manifest.order?.orderId) ?? orderId,
+    bookId,
+  );
+}
+
+async function invalidate2BManifest(
+  orderId: string,
+  poseNumber: number,
+  logContext: Record<string, unknown>,
+  options: ManifestKeyHintOptions = {},
+) {
+  try {
+    for (const manifest2bKey of buildManifestKeyCandidates(orderId, '2b', options)) {
+      let manifest2b: { entries?: AutoFlipManifestEntry[] } | null = null;
+
+      try {
+        const manifest2bResponse = await getObject(R2_ORDERS_BUCKET, manifest2bKey);
+        const manifest2bText = await manifest2bResponse.text();
+        manifest2b = parseJsonSafe<{ entries?: AutoFlipManifestEntry[] }>(manifest2bText);
+      } catch (error) {
+        const message = safeErrorMessage(error);
+        if (!isNotFoundError(message)) {
+          console.warn('[AutoFlipPoseAPI] manifest_2b_load_failed', { ...logContext, manifest2bKey, message });
+          return;
+        }
+        continue;
+      }
+
+      const entry2b = manifest2b?.entries?.find((item) => item.poseNumber === poseNumber);
+      if (!manifest2b || !entry2b) return;
+      clear2BEntryForReprocessing(entry2b);
+      await putObject(R2_ORDERS_BUCKET, manifest2bKey, JSON.stringify(manifest2b, null, 2), 'application/json');
       return;
     }
-
-    const entry2b = manifest2b?.entries?.find((item) => item.poseNumber === poseNumber);
-    if (!manifest2b || !entry2b) return;
-    clear2BEntryForReprocessing(entry2b);
-    await putObject(R2_ORDERS_BUCKET, manifest2bKey, JSON.stringify(manifest2b, null, 2), 'application/json');
   } catch (error) {
     console.warn('[AutoFlipPoseAPI] manifest_2b_invalidation_failed', {
       ...logContext,
@@ -253,6 +318,10 @@ export async function POST(
   console.log('[AutoFlipPoseAPI] request_validated', logContext);
 
   try {
+    const requestedBookId =
+      typeof generatedImageUrl === 'string'
+        ? extractBookIdFromPathLike(generatedImageUrl)
+        : null;
     if (!AUTO_FLIP_SUPPORTED_POSES.has(poseNumberValue)) {
       return jsonSuccess({
         checked: false,
@@ -264,7 +333,10 @@ export async function POST(
       });
     }
 
-    const manifestResult = await loadManifest2A(orderId, logContext);
+    const manifestResult = await loadManifest2A(orderId, logContext, {
+      bookId: requestedBookId,
+      pathLikes: [typeof generatedImageUrl === 'string' ? generatedImageUrl : null],
+    });
     if ('error' in manifestResult) return manifestResult.error;
     const { manifestKey, manifest } = manifestResult;
 
@@ -304,7 +376,9 @@ export async function POST(
       );
     }
 
-    const fallbackKey = buildCanonicalPoseKey(characterHash, poseNumberValue);
+    const resolvedBookId = resolveManifestBookId(manifest, requestedBookId);
+    const resolvedOrderPrefix = resolveManifestOrderPrefix(manifest, orderId, resolvedBookId);
+    const fallbackKey = buildCanonicalPoseKey(characterHash, poseNumberValue, resolvedBookId);
     const sourceKey = typeof entry.approvedKey === 'string' && entry.approvedKey ? entry.approvedKey : fallbackKey;
     const canonicalKey = canonicalizePoseKey(sourceKey);
     let sourceImage: Buffer | null = null;
@@ -356,7 +430,7 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Failed to load source image for flipping' }, { status: 500 });
     }
 
-    const poseRefKey = buildPoseReferenceKey(poseNumberValue);
+    const poseRefKey = buildPoseReferenceKey(poseNumberValue, resolvedBookId);
     const sourceFormat = detectImageFormat(sourceImage);
     const publicR2Url = manifest.order?.publicR2Url;
     const backendUrl = (process.env.BACKEND_URL || 'https://admin.littleherolabs.com').replace(/\/+$/, '');
@@ -419,7 +493,10 @@ export async function POST(
 
     await putObject(R2_ORDERS_BUCKET, manifestKey, JSON.stringify(manifest, null, 2), 'application/json');
 
-    await invalidate2BManifest(orderId, poseNumberValue, logContext);
+    await invalidate2BManifest(orderId, poseNumberValue, logContext, {
+      bookId: resolvedBookId,
+      orderPrefix: resolvedOrderPrefix,
+    });
 
     try {
       await updateOrderInSupabase(orderId, { updated_at: replacedAt });

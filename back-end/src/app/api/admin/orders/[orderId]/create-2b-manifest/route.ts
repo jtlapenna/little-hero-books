@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
-import { determineNextWorkflow } from '@/lib/determine-next-workflow';
+import { downloadManifest } from '@/lib/r2-service';
+import { normalizeW0Manifest, type NormalizedW0Manifest } from '@/lib/books';
+import { determineNextWorkflow, type OrderProgress } from '@/lib/determine-next-workflow';
 import { fetchOrderRowByAnyId, updateOrderRowByAnyId } from '@/lib/order-lookup';
+import {
+  buildManifestKeyCandidates,
+  extractManifestKey,
+} from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,29 +16,142 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 const backendUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://admin.littleherolabs.com';
 
+type JsonRecord = Record<string, unknown>;
+
+type Create2BOrderRow = JsonRecord & {
+  orderId?: string;
+  order_id?: string;
+  root_order_id?: string | null;
+  amazon_order_id?: string | null;
+  manifest_2a_url?: string | null;
+  manifest_2b_url?: string | null;
+  manifest_3_url?: string | null;
+  one_manifest_url?: string | null;
+  character_hash?: string | null;
+  character_specs?: JsonRecord;
+  product_info?: JsonRecord;
+  shipping_address?: JsonRecord;
+  purchase_date?: string | null;
+  created_at?: string | null;
+  customer_email?: string | null;
+  customer_name?: string | null;
+  dedication_text?: string | null;
+  workflow_step?: string | null;
+  review_stages?: OrderProgress['review_stages'];
+  next_workflow?: string | null;
+  customer_approval_required?: boolean | null;
+  customer_approval_status?: string | null;
+};
+
+type SourceOrderCandidate = {
+  amazon_order_id?: string | null;
+  orderId?: string | null;
+  manifest_2b_url?: string | null;
+  character_hash?: string | null;
+};
+
+type Existing2BManifest = JsonRecord & {
+  schema?: string;
+  order?: JsonRecord;
+  entries: JsonRecord[];
+  briaProcessing?: JsonRecord;
+  orderId?: string;
+  amazonOrderId?: string;
+  manifestUrl?: string | null;
+  originalManifestUrl?: string | null;
+};
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function toObject(value: unknown): JsonRecord | undefined {
+  if (isRecord(value)) {
+    return value;
+  }
+
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return isRecord(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function toStringValue(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function buildDedication(text: string | null) {
+  if (!text) {
+    return null;
+  }
+
+  return {
+    raw: text,
+    text,
+    htmlSafe: text,
+  };
+}
+
+function hasKeys(value: JsonRecord | undefined): value is JsonRecord {
+  return !!value && Object.keys(value).length > 0;
+}
+
+function pickFirstPopulatedRecord(
+  ...values: Array<JsonRecord | undefined>
+): JsonRecord | undefined {
+  return values.find(hasKeys);
+}
+
+function assert2BManifest(value: unknown): Existing2BManifest {
+  if (!isRecord(value) || !Array.isArray(value.entries)) {
+    throw new Error('Missing entries array');
+  }
+
+  return {
+    ...value,
+    entries: value.entries.filter(isRecord),
+  };
+}
+
 /**
  * POST /api/admin/orders/[orderId]/create-2b-manifest
- * 
+ *
  * Creates a 2B-manifest.json for a new order by copying image references from
  * another order with the same character_hash that already has a 2B manifest.
- * 
+ *
  * This allows reusing background-removed images without regenerating them.
- * 
+ *
  * Body: (none required, automatically finds source order with same character_hash)
- * 
+ *
  * Returns: { success: true, manifestKey: string, orderId: string, sourceOrderId: string }
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
-  // Allow same-origin requests (internal admin page) without auth
+  const { orderId } = await params;
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
-  const isSameOrigin = origin?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') || 
-                       referer?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') ||
-                       !origin;
-  
+  const isSameOrigin =
+    origin?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') ||
+    referer?.includes(process.env.NEXT_PUBLIC_SITE_URL || '') ||
+    !origin;
+
   if (!isSameOrigin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -41,77 +159,74 @@ export async function POST(
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.json(
       { error: 'Supabase credentials not configured' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
-  const newOrderId = params.orderId?.trim();
+  const newOrderId = orderId?.trim();
 
   if (!newOrderId) {
     return NextResponse.json(
       { error: 'Order ID is required' },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    // Fetch new order from Supabase
-    const { row: newOrder } = await fetchOrderRowByAnyId<any>(supabase as any, newOrderId, '*');
+    const { row: newOrder } = await fetchOrderRowByAnyId<Create2BOrderRow>(
+      supabase,
+      newOrderId,
+      '*',
+    );
     if (!newOrder) {
       return NextResponse.json(
         { error: 'Order not found' },
-        { status: 404 }
+        { status: 404 },
       );
     }
     const perBookOrderId = (newOrder.orderId ?? newOrder.order_id ?? newOrderId) as string;
 
-    // Check if order already has a 2B manifest (verify file actually exists in R2)
     if (newOrder.manifest_2b_url) {
-      // Verify the manifest file actually exists in R2
-      // Supabase might have a URL but the file could have been deleted
       try {
-        let manifestKey = newOrder.manifest_2b_url;
-        if (manifestKey.includes('/api/manifests/')) {
-          manifestKey = manifestKey.split('/api/manifests/')[1];
-        } else if (manifestKey.includes('manifests/2b-manifest.json')) {
-          // Already a key
+        const manifestKey = extractManifestKey(newOrder.manifest_2b_url);
+        if (!manifestKey) {
+          throw new Error('Invalid manifest_2b_url');
         }
-        
         const existingManifest = await downloadManifest(manifestKey);
         if (existingManifest) {
-          // File exists, order already has a valid 2B manifest
           return NextResponse.json(
-            { 
+            {
               error: 'Order already has a 2B manifest',
-              details: `Manifest URL: ${newOrder.manifest_2b_url}`
+              details: `Manifest URL: ${newOrder.manifest_2b_url}`,
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
-        // File doesn't exist, clear the URL from Supabase and continue
-        console.log(`[Create 2B Manifest] Supabase has manifest_2b_url but file doesn't exist, clearing URL and continuing`);
-        await updateOrderRowByAnyId(supabase as any, perBookOrderId, { manifest_2b_url: null });
-      } catch (error: any) {
-        // File doesn't exist (404 or other error), clear the URL from Supabase and continue
-        console.log(`[Create 2B Manifest] Manifest file not found in R2, clearing Supabase URL and continuing:`, error?.message);
-        await updateOrderRowByAnyId(supabase as any, perBookOrderId, { manifest_2b_url: null });
+        console.log(
+          `[Create 2B Manifest] Supabase has manifest_2b_url but file doesn't exist, clearing URL and continuing`,
+        );
+        await updateOrderRowByAnyId(supabase, perBookOrderId, { manifest_2b_url: null });
+      } catch (error: unknown) {
+        console.log(
+          `[Create 2B Manifest] Manifest file not found in R2, clearing Supabase URL and continuing:`,
+          getErrorMessage(error),
+        );
+        await updateOrderRowByAnyId(supabase, perBookOrderId, { manifest_2b_url: null });
       }
     }
 
-    // Validate required fields
     if (!newOrder.character_hash) {
       return NextResponse.json(
-        { 
+        {
           error: 'Order missing character_hash',
-          details: 'Cannot find source order without character_hash'
+          details: 'Cannot find source order without character_hash',
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Find another order with the same character_hash that has a 2B manifest
     const { data: sourceOrders, error: sourceError } = await supabase
       .from('orders')
       .select('amazon_order_id, orderId, manifest_2b_url, character_hash')
@@ -119,210 +234,259 @@ export async function POST(
       .not('manifest_2b_url', 'is', null)
       .limit(5);
 
-    const filtered = (sourceOrders ?? []).filter((o: any) => {
-      const id = String(o?.orderId ?? o?.amazon_order_id ?? '').trim();
+    const filtered = ((sourceOrders ?? []) as SourceOrderCandidate[]).filter((candidate) => {
+      const id = String(candidate.orderId ?? candidate.amazon_order_id ?? '').trim();
       return id && id !== perBookOrderId;
     });
     if (sourceError || filtered.length === 0) {
       return NextResponse.json(
-        { 
+        {
           error: 'No source order found',
-          details: `No other order with character_hash ${newOrder.character_hash} has a 2B manifest. Cannot reuse images.`
+          details: `No other order with character_hash ${newOrder.character_hash} has a 2B manifest. Cannot reuse images.`,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const sourceOrder = filtered[0];
-    const sourceOrderId = sourceOrder.amazon_order_id || sourceOrder.orderId;
+    const sourceOrderId = String(
+      sourceOrder.amazon_order_id ?? sourceOrder.orderId ?? '',
+    ).trim();
 
-    if (!sourceOrder.manifest_2b_url) {
+    if (!sourceOrder.manifest_2b_url || !sourceOrderId) {
       return NextResponse.json(
         { error: 'Source order manifest URL is missing' },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    // Extract manifest key from URL or construct it
-    let sourceManifestKey = sourceOrder.manifest_2b_url;
-    // If it's a full URL, extract the key part
-    if (sourceManifestKey.includes('/api/manifests/')) {
-      sourceManifestKey = sourceManifestKey.split('/api/manifests/')[1];
-    } else if (sourceManifestKey.includes('manifests/2b-manifest.json')) {
-      // Already a key
-    } else {
-      // Construct from order ID
-      sourceManifestKey = buildManifestKey(sourceOrderId, '2b');
+    const sourceManifestKey = extractManifestKey(sourceOrder.manifest_2b_url);
+    if (!sourceManifestKey) {
+      return NextResponse.json(
+        { error: 'Source order manifest URL is invalid' },
+        { status: 500 },
+      );
     }
 
-    console.log(`[Create 2B Manifest] Source order: ${sourceOrderId}, manifest key: ${sourceManifestKey}`);
+    console.log(
+      `[Create 2B Manifest] Source order: ${sourceOrderId}, manifest key: ${sourceManifestKey}`,
+    );
 
-    // Download source order's 2B manifest (for image references)
-    let sourceManifest: any;
+    let sourceManifest: Existing2BManifest;
     try {
-      sourceManifest = await downloadManifest(sourceManifestKey);
-      console.log(`[Create 2B Manifest] Downloaded source 2B manifest with ${sourceManifest?.entries?.length || 0} entries`);
-    } catch (error: any) {
+      sourceManifest = assert2BManifest(await downloadManifest(sourceManifestKey));
+      console.log(
+        `[Create 2B Manifest] Downloaded source 2B manifest with ${sourceManifest.entries.length} entries`,
+      );
+    } catch (error: unknown) {
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to download source 2B manifest',
-          details: error?.message || 'Manifest not found in R2'
+          details: getErrorMessage(error) || 'Manifest not found in R2',
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Validate source manifest structure
-    if (!sourceManifest || !sourceManifest.entries || !Array.isArray(sourceManifest.entries)) {
-      return NextResponse.json(
-        { error: 'Invalid source manifest structure', details: 'Missing entries array' },
-        { status: 500 }
-      );
-    }
-
-    // Download new order's 1-manifest (for order-specific information) - prefer this over Supabase
-    let oneManifest: any = null;
+    let oneManifestSnapshot: NormalizedW0Manifest | null = null;
     if (newOrder.one_manifest_url) {
       try {
-        let oneManifestKey = newOrder.one_manifest_url;
-        if (oneManifestKey.includes('/api/manifests/')) {
-          oneManifestKey = oneManifestKey.split('/api/manifests/')[1];
+        const oneManifestKey = extractManifestKey(newOrder.one_manifest_url);
+        if (!oneManifestKey) {
+          throw new Error('Invalid 1-manifest URL');
         }
-        oneManifest = await downloadManifest(oneManifestKey);
-        console.log(`[Create 2B Manifest] Downloaded 1-manifest for order-specific information`);
-      } catch (error: any) {
-        console.warn(`[Create 2B Manifest] Failed to download 1-manifest, will use Supabase data:`, error?.message);
-        // Continue without 1-manifest, will use Supabase data as fallback
+        const oneManifest = await downloadManifest(oneManifestKey);
+        console.log(
+          `[Create 2B Manifest] Downloaded 1-manifest for order-specific information`,
+        );
+        oneManifestSnapshot = normalizeW0Manifest(oneManifest, {
+          fallbackManifestKey: oneManifestKey,
+        });
+      } catch (error: unknown) {
+        console.warn(
+          `[Create 2B Manifest] Failed to download 1-manifest, will use Supabase data:`,
+          getErrorMessage(error),
+        );
       }
     }
 
-    // Build new manifest by copying image references but updating order-specific fields
-    // Use 1-manifest for order info (most accurate), fallback to Supabase, then source manifest
+    const productInfo = toObject(newOrder.product_info) ?? {};
+    const orderBookSpecs = toObject(productInfo.bookSpecs);
+    const orderShippingAddress = toObject(newOrder.shipping_address);
+    const sourceManifestOrder = toObject(sourceManifest.order) ?? {};
+    const sourceManifestOrderDetails = toObject(sourceManifestOrder.orderDetails);
+    const rootOrderId = String(
+      newOrder.root_order_id ??
+        oneManifestSnapshot?.rootOrderId ??
+        newOrder.amazon_order_id ??
+        perBookOrderId,
+    ).trim() || perBookOrderId;
+    const oneManifestUrl = String(
+      newOrder.one_manifest_url ?? oneManifestSnapshot?.manifestKey ?? '',
+    ).trim() || null;
+
     const now = new Date().toISOString();
     const newManifest = {
       ...sourceManifest,
       schema: sourceManifest.schema || 'lhb.run-manifest@v2.0',
       runStamp: now,
       characterHash: newOrder.character_hash,
-      generatedAt: now, // Update to current timestamp (was from source order)
+      generatedAt: now,
       order: {
-        ...sourceManifest.order,
-        // Override with order-specific information from 1-manifest (preferred) or Supabase
-        amazonOrderId: newOrderId,
-        purchaseDate: newOrder.purchase_date || newOrder.created_at || oneManifest?.order?.purchaseDate || sourceManifest.order?.purchaseDate || null,
+        ...sourceManifestOrder,
+        orderId: perBookOrderId,
+        rootOrderId,
+        amazonOrderId: rootOrderId,
+        oneManifestUrl,
+        purchaseDate:
+          toStringValue(newOrder.purchase_date) ??
+          toStringValue(newOrder.created_at) ??
+          oneManifestSnapshot?.purchaseDate ??
+          toStringValue(sourceManifestOrder.purchaseDate) ??
+          null,
         buyer: {
-          email: newOrder.customer_email || oneManifest?.order?.buyer?.email || sourceManifest.order?.buyer?.email || null,
-          name: newOrder.customer_name || oneManifest?.order?.buyer?.name || sourceManifest.order?.buyer?.name || null
+          email:
+            toStringValue(newOrder.customer_email) ??
+            oneManifestSnapshot?.buyer.email ??
+            toStringValue(toObject(sourceManifestOrder.buyer)?.email) ??
+            null,
+          name:
+            toStringValue(newOrder.customer_name) ??
+            oneManifestSnapshot?.buyer.name ??
+            toStringValue(toObject(sourceManifestOrder.buyer)?.name) ??
+            null,
         },
-        dedication: newOrder.dedication_text ? {
-          raw: newOrder.dedication_text,
-          text: newOrder.dedication_text,
-          htmlSafe: newOrder.dedication_text
-        } : (oneManifest?.order?.dedication || sourceManifest.order?.dedication || null),
-        characterSpecs: newOrder.character_specs || oneManifest?.order?.characterSpecs || sourceManifest.order?.characterSpecs || {},
-        bookSpecs: newOrder.product_info?.bookSpecs || oneManifest?.order?.bookSpecs || sourceManifest.order?.bookSpecs || {},
+        dedication:
+          buildDedication(toStringValue(newOrder.dedication_text)) ??
+          oneManifestSnapshot?.dedication ??
+          sourceManifestOrder.dedication ??
+          null,
+        characterSpecs:
+          pickFirstPopulatedRecord(
+            toObject(newOrder.character_specs),
+            oneManifestSnapshot?.characterSpecs,
+            toObject(sourceManifestOrder.characterSpecs),
+          ) ?? {},
+        bookSpecs:
+          pickFirstPopulatedRecord(
+            orderBookSpecs,
+            oneManifestSnapshot?.bookSpecs,
+            toObject(sourceManifestOrder.bookSpecs),
+          ) ?? {},
         orderDetails: {
-          ...sourceManifest.order?.orderDetails,
-          quantity: newOrder.product_info?.quantity || oneManifest?.order?.orderDetails?.quantity || sourceManifest.order?.orderDetails?.quantity || 1,
-          shippingAddress: newOrder.shipping_address || newOrder.product_info?.shippingAddress || oneManifest?.order?.orderDetails?.shippingAddress || sourceManifest.order?.orderDetails?.shippingAddress || {}
-        }
+          ...(sourceManifestOrderDetails ?? {}),
+          quantity:
+            productInfo.quantity ??
+            oneManifestSnapshot?.orderDetails.quantity ??
+            sourceManifestOrderDetails?.quantity ??
+            1,
+          shippingAddress:
+            pickFirstPopulatedRecord(
+              orderShippingAddress,
+              toObject(productInfo.shippingAddress),
+              oneManifestSnapshot?.shippingAddress,
+              toObject(sourceManifestOrderDetails?.shippingAddress),
+            ) ?? {},
+        },
       },
-      // Copy entries with image references (bgRemovedKey, bgRemovedImageUrl, etc.)
-      entries: sourceManifest.entries.map((entry: any) => ({
+      entries: sourceManifest.entries.map((entry) => ({
         ...entry,
-        // Keep all image references from source (bgRemovedKey, bgRemovedImageUrl, etc.)
-        // These point to the shared character hash directory, so they're valid for the new order
       })),
-      // Clear order-specific review queue (from source order)
-      reviewQueue: [], // Will be recalculated by workflow if needed
-      // Clear order-specific revision history (from source order)
+      reviewQueue: [],
       revisions: {
-        history: [], // Order-specific revision history should not be copied
-        pending: {}
+        history: [],
+        pending: {},
       },
-      // Update briaProcessing timestamps
-      briaProcessing: sourceManifest.briaProcessing ? {
-        ...sourceManifest.briaProcessing,
-        completedAt: now // Update to current timestamp
-      } : undefined,
-      // Update top-level orderId
-      orderId: newOrderId,
-      amazonOrderId: newOrderId,
-      // Update manifest URL references
-      manifestUrl: null, // Will be set after upload
-      originalManifestUrl: null, // Will be set after upload
+      briaProcessing: sourceManifest.briaProcessing
+        ? {
+            ...sourceManifest.briaProcessing,
+            completedAt: now,
+          }
+        : undefined,
+      orderId: perBookOrderId,
+      rootOrderId,
+      amazonOrderId: rootOrderId,
+      manifestUrl: null as string | null,
+      originalManifestUrl: null as string | null,
     };
 
-    // Build R2 key for new manifest
-    const newManifestKey = buildManifestKey(newOrderId, '2b');
+    const newManifestKey =
+      buildManifestKeyCandidates(perBookOrderId, '2b', {
+        pathLikes: [newOrder.one_manifest_url, oneManifestSnapshot?.manifestKey ?? null],
+      })[0];
+    if (!newManifestKey) {
+      throw new Error('Unable to resolve new 2B manifest key');
+    }
     const newManifestUrl = `${backendUrl}/api/manifests/${newManifestKey}`;
 
-    // Update manifest URLs in the manifest itself
     newManifest.manifestUrl = newManifestUrl;
     newManifest.originalManifestUrl = newManifestUrl;
 
-    // Upload to R2
     const manifestJson = JSON.stringify(newManifest, null, 2);
     try {
       const uploadResponse = await putObject(
         R2_ORDERS_BUCKET,
         newManifestKey,
         manifestJson,
-        'application/json'
+        'application/json',
       );
-      
+
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        throw new Error(`R2 upload failed: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorText}`);
+        throw new Error(
+          `R2 upload failed: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorText}`,
+        );
       }
-      
+
       console.log(`[Create 2B Manifest] Uploaded new manifest to: ${newManifestKey}`);
-      
-      // Verify the file was actually uploaded by trying to download it
+
       try {
         const verifyManifest = await downloadManifest(newManifestKey);
         if (!verifyManifest || !verifyManifest.orderId) {
           throw new Error('Uploaded manifest verification failed: manifest is invalid');
         }
         console.log(`[Create 2B Manifest] Verified manifest exists in R2: ${newManifestKey}`);
-      } catch (verifyError: any) {
-        console.error(`[Create 2B Manifest] ⚠️ WARNING: Manifest upload succeeded but verification failed:`, verifyError?.message);
-        // Don't fail the request, but log the warning - might be a timing issue
+      } catch (verifyError: unknown) {
+        console.error(
+          `[Create 2B Manifest] WARNING: Manifest upload succeeded but verification failed:`,
+          getErrorMessage(verifyError),
+        );
       }
-    } catch (uploadError: any) {
-      console.error(`[Create 2B Manifest] Failed to upload manifest to R2:`, uploadError?.message);
+    } catch (uploadError: unknown) {
+      console.error(
+        `[Create 2B Manifest] Failed to upload manifest to R2:`,
+        getErrorMessage(uploadError),
+      );
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to upload manifest to R2',
-          details: uploadError?.message || 'Upload failed',
-          manifestKey: newManifestKey
+          details: getErrorMessage(uploadError) || 'Upload failed',
+          manifestKey: newManifestKey,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    // Determine correct next_workflow based on order's actual progress
     const nextWorkflow = determineNextWorkflow({
       one_manifest_url: newOrder.one_manifest_url,
       manifest_2a_url: newOrder.manifest_2a_url,
-      manifest_2b_url: newManifestKey, // We just created this
+      manifest_2b_url: newManifestKey,
       manifest_3_url: newOrder.manifest_3_url,
       workflow_step: newOrder.workflow_step,
-      review_stages: newOrder.review_stages as any,
+      review_stages: newOrder.review_stages,
       next_workflow: newOrder.next_workflow,
-      customer_approval_required: (newOrder as any).customer_approval_required ?? undefined,
-      customer_approval_status: (newOrder as any).customer_approval_status ?? undefined,
+      customer_approval_required: newOrder.customer_approval_required ?? undefined,
+      customer_approval_status: newOrder.customer_approval_status ?? undefined,
     });
 
-    // Update Supabase with manifest URL and workflow step
     const updateNow = new Date().toISOString();
     try {
-      await updateOrderRowByAnyId(supabase as any, perBookOrderId, {
+      await updateOrderRowByAnyId(supabase, perBookOrderId, {
         manifest_2b_url: newManifestKey,
         workflow_step: 'bria_processing_complete',
-        execution_status: 'ready_for_processing', // Ready for next workflow (usually 3)
-        next_workflow: nextWorkflow, // Usually '3' for book assembly
-        queued_at: updateNow, // Set queued_at so router picks it up
+        execution_status: 'ready_for_processing',
+        next_workflow: nextWorkflow,
+        queued_at: updateNow,
         updated_at: updateNow,
       });
     } catch (updateError: unknown) {
@@ -334,20 +498,18 @@ export async function POST(
       manifestKey: newManifestKey,
       manifestUrl: newManifestUrl,
       orderId: perBookOrderId,
-      sourceOrderId: sourceOrderId,
+      sourceOrderId,
       entriesCount: newManifest.entries.length,
-      message: `2B manifest created successfully by reusing images from order ${sourceOrderId}`
+      message: `2B manifest created successfully by reusing images from order ${sourceOrderId}`,
     });
-
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Create 2B Manifest] Error:', error);
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to create 2B manifest',
-        details: error.message 
+        details: getErrorMessage(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

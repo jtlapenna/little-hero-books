@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildManifestKey, downloadManifest, getCharacterAssets } from '@/lib/r2-service';
+import { downloadManifest, getCharacterAssets } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { getOrderFromSupabase } from '@/lib/supabase-client';
+import {
+  buildBgRemovedAssetMap,
+  read2BManifestWithPoseRequirements,
+  sync2BManifestEntries,
+} from '@/lib/books';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from '@/lib/order-paths';
 
 /**
  * Sync/repair a 2B manifest using the current R2 inventory.
@@ -15,7 +25,8 @@ import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
  * Behavior:
  * - Loads `2b-manifest.json`
  * - Lists character assets from R2 (public bucket) for the manifest's characterHash
- * - Backfills missing `bgRemovedKey` for story poses 1..12 when a matching bg-removed asset exists
+ * - Backfills missing `bgRemovedKey` for the current manifest pose set, while using
+ *   W0 pose requirements when available
  * - Writes the manifest back to R2 if changes were made
  */
 export async function POST(
@@ -28,10 +39,22 @@ export async function POST(
     return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
   }
 
-  const manifest2bKey = buildManifestKey(orderId, '2b');
-  const manifest2b = await downloadManifest(manifest2bKey).catch(() => null);
+  const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
+  const manifestHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder);
+  const manifest2bKeys = buildManifestKeyCandidates(orderId, '2b', manifestHints);
+  let manifest2bKey = manifest2bKeys[0] ?? '';
+  let manifest2b: unknown = null;
 
-  if (!manifest2b || !Array.isArray(manifest2b.entries)) {
+  for (const candidateKey of manifest2bKeys) {
+    const candidateManifest = await downloadManifest(candidateKey).catch(() => null);
+    if (candidateManifest) {
+      manifest2bKey = candidateKey;
+      manifest2b = candidateManifest;
+      break;
+    }
+  }
+
+  if (!manifest2b) {
     return NextResponse.json(
       {
         error: '2B manifest not found or invalid',
@@ -41,10 +64,22 @@ export async function POST(
     );
   }
 
-  const characterHash: string | null =
-    (manifest2b.characterHash as string | null) ||
-    (manifest2b.order?.characterHash as string | null) ||
-    null;
+  const manifestSnapshot = await read2BManifestWithPoseRequirements({
+    manifest: manifest2b,
+    orderId,
+    loadManifest: downloadManifest,
+  }).catch(() => null);
+  if (!manifestSnapshot) {
+    return NextResponse.json(
+      {
+        error: '2B manifest not found or invalid',
+        details: `Could not parse ${manifest2bKey} or required fields were missing`,
+      },
+      { status: 404 }
+    );
+  }
+
+  const { characterHash } = manifestSnapshot;
 
   if (!characterHash) {
     return NextResponse.json(
@@ -53,54 +88,36 @@ export async function POST(
     );
   }
 
-  // Build poseNumber -> bg-removed key map from R2 inventory.
-  // Note: getCharacterAssets returns URLs like "/api/assets/<r2Key>".
   const assets = await getCharacterAssets(characterHash).catch(() => []);
-  const bgRemovedByPose = new Map<number, string>();
-  for (const a of assets) {
-    if (a.assetType !== 'background-removed') continue;
-    const url = String(a.url || '');
-    const key = url.startsWith('/api/assets/') ? url.replace(/^\/api\/assets\//, '') : null;
-    if (!key) continue;
-    const pn = Number(a.poseNumber);
-    if (!Number.isFinite(pn)) continue;
-    bgRemovedByPose.set(pn, key);
-  }
-
-  const updatedPoseNumbers: number[] = [];
-  const stillMissingPoseNumbers: number[] = [];
+  const bgRemovedByPose = buildBgRemovedAssetMap(assets);
   const nowIso = new Date().toISOString();
   const r2PoseNumbers = Array.from(bgRemovedByPose.keys()).sort((a, b) => a - b);
+  const poseNumbersToSync = Array.from(
+    new Set([
+      ...manifestSnapshot.availablePoseNumbers,
+      ...manifestSnapshot.requiredPoseNumbers,
+    ]),
+  ).sort((left, right) => left - right);
+  const {
+    updatedPoseNumbers,
+    missingPoseNumbers: stillMissingPoseNumbers,
+    touched,
+  } = sync2BManifestEntries({
+    entryByPoseNumber: manifestSnapshot.entryByPoseNumber,
+    poseNumbers: poseNumbersToSync,
+    bgRemovedByPose,
+    nowIso,
+    trackMissingEntries: false,
+    ensureBgRemovedPublicUrlField: true,
+  });
 
-  // Story poses 0..12 (pose 0 = cover/base; 1..12 = interior).
-  for (let poseNum = 0; poseNum <= 12; poseNum++) {
-    const entry = manifest2b.entries.find((e: any) => Number(e?.poseNumber) === poseNum);
-    if (!entry) continue;
-
-    const hasKey = typeof entry.bgRemovedKey === 'string' && entry.bgRemovedKey.length > 0;
-    if (hasKey) continue;
-
-    const foundKey = bgRemovedByPose.get(poseNum);
-    if (foundKey) {
-      entry.bgRemovedKey = foundKey;
-      entry.bgRemoved = true;
-      entry.bgRemovedStatus = entry.bgRemovedStatus || 'completed';
-      entry.processedAt = entry.processedAt || nowIso;
-      if (!('bgRemovedImageUrl' in entry)) entry.bgRemovedImageUrl = null;
-      if (!('bgRemovedPublicUrl' in entry)) entry.bgRemovedPublicUrl = null;
-      updatedPoseNumbers.push(poseNum);
-    } else {
-      stillMissingPoseNumbers.push(poseNum);
-    }
-  }
-
-  if (updatedPoseNumbers.length > 0) {
-    manifest2b.updatedAt = nowIso;
-    manifest2b.runStamp = nowIso;
+  if (touched) {
+    manifestSnapshot.manifest.updatedAt = nowIso;
+    manifestSnapshot.manifest.runStamp = nowIso;
     await putObject(
       R2_ORDERS_BUCKET,
       manifest2bKey,
-      JSON.stringify(manifest2b, null, 2),
+      JSON.stringify(manifestSnapshot.manifest, null, 2),
       'application/json'
     );
   }
@@ -110,6 +127,8 @@ export async function POST(
     orderId,
     manifest2bKey,
     characterHash,
+    requiredPoseNumbers: manifestSnapshot.requiredPoseNumbers,
+    requiredPoseSource: manifestSnapshot.requiredPoseSource,
     updatedPoseNumbers,
     stillMissingPoseNumbers,
     r2PoseNumbers,
@@ -121,4 +140,3 @@ export async function POST(
           : 'No changes needed; 2B manifest already had bgRemovedKey populated for these poses.',
   });
 }
-
