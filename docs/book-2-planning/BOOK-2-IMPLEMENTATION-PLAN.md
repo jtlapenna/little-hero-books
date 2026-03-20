@@ -3,7 +3,7 @@
 **Purpose:** define the concrete phased execution plan for making the pipeline Book-2-ready without forking Book 1 and Book 2 into permanently separate workflow trees.
 **Status:** In progress
 **Created:** 2026-03-14
-**Last Updated:** 2026-03-18
+**Last Updated:** 2026-03-19
 
 Companion docs:
 
@@ -20,7 +20,7 @@ Companion docs:
 
 ---
 
-## Current status snapshot (2026-03-18)
+## Current status snapshot (2026-03-19)
 
 ### Commit-backed milestones
 
@@ -54,8 +54,11 @@ The committed planning history for this work currently looks like:
   - review UI consumers using `bookContext` / manifest-derived page semantics
   - dynamic order-root handling in W2B, W3, and W4
   - generalized render/asset helpers for non-Book-1 order roots
-- The active repo-owned migration path is now using the sibling exports as the source of truth for workflow changes:
+- The sibling workflow folder remains the legacy/current n8n-centric master set for the normal live flow:
   - `docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/`
+- The active repo-centric migration track now uses the repo-centric folder as the canonical edit target:
+  - `docs/n8n-workflow-files/repo-centric/`
+- If a repo-centric workflow copy does not exist yet for a stage, derive it once from the sibling export and then continue active migration edits only in the repo-centric folder.
 - The sibling W0 export now calls repo-owned internal routes for canonical `1-manifest` build + order upsert.
 - The sibling W2A orchestrator now calls repo-owned internal routes for:
   - pose worklist resolution from the frozen page plan
@@ -302,7 +305,9 @@ Phase 0 deliverable docs:
 
 **Goal:** introduce typed repo code that owns book-specific decisions instead of leaving them embedded in n8n Code nodes or UI helpers.
 
-**Current status:** initial foundation committed in `f809c61`.
+**Current status:** foundation is committed and active for Book 1, but the abstraction surface is not finished.
+
+### Already done
 
 Current implementation includes:
 
@@ -314,42 +319,30 @@ Current implementation includes:
 - `back-end/src/lib/books/normalize-w0-manifest.ts`
 - `back-end/src/lib/books/read-2b-manifest.ts`
 - `back-end/src/lib/books/review-page-plan.ts`
+- published/bundled config runtime reads
+- initial order-root / manifest-key generalization across active runtime paths
 
-Important limitation:
+### Partially done
+
+Important current limitations:
 
 - only Book 1 is currently bundled as config input
 - only Book 1 is currently published/readable unless additional `book_configs` rows are published
+- several callers still rely on Book 1 fallback behavior instead of fully centralized helpers
+- the helper surface is still spread across book kernel files and route-local seams
 
-### Tasks
+### Remaining delta
 
-- Create a new backend module area, recommended under:
-  - `/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/`
-- Define types under:
-  - `/Users/jeff/Projects/little-hero-books/back-end/src/types/`
-- Implement:
-  - `BookConfig` type
-  - config loader
-  - config validator
-  - format selector
-  - page-plan resolver
-  - manifest builder
-  - manifest validator
-- Implement the config publication/runtime pattern:
-  - canonical config files in repo
-  - validation at publish time
-  - Supabase runtime snapshot write/read path
-  - explicit `bookId + version + formatId` lookup semantics
-- Add central path/key helpers for:
-  - order prefix
-  - character prefix
+- keep consolidating remaining route-local Book 1 fallbacks behind shared helpers
+- finish the central helper surface for:
+  - format resolution
   - manifest keys
-  - preview image keys
-  - cover/interior PDF keys
-- Implement asset taxonomy helpers for:
-  - named background slots
-  - named overlay slots
-  - pose asset roots
-  - generated order/character prefixes
+  - preview/PDF keys
+  - order/character prefixes
+  - named asset slot lookup
+- keep the published `book_config` read path and publish tooling as the primary runtime model
+- add the missing Book 2 config publication/read path once real Book 2 inputs exist
+- add targeted tests for config loading, format selection, page-plan resolution, and manifest v3 building
 
 ### Current files this should replace or de-hardcode over time
 
@@ -389,7 +382,9 @@ Important limitation:
 
 **Goal:** ensure contract and migration work can be tested locally before W0 and downstream cutovers begin.
 
-**Current status:** minimum Book 1 replay harness is now in place.
+**Current status:** the minimum Book 1 replay harness is in place and already covering the current W0-focused migration slice.
+
+### Already done
 
 Current harness:
 
@@ -410,24 +405,20 @@ What it already covers:
 - published-vs-bundled parity checks for the resolved Book 1 page plan
 - explicit `book.bookConfigRef.version` pinning in the replayed v3 manifests
 
-What is still missing for the original goal:
+### Partially done
+
+Current limitations:
+
+- the harness is still centered on W0/kernel assertions rather than a fuller downstream stage runner
+- schema validation for the minimum harness is not yet in CI
+
+### Remaining delta
 
 - a real Book 2 fixture
 - a real Book 2 config in the bundle set
 - a broader stage runner beyond the current kernel checks
-
-### Tasks
-
-- Build a minimum repo-local runner that can:
-  - load a Book 1 fixture
-  - load `book_config`
-  - resolve the page plan
-  - build and validate `1-manifest` v3
-- Add fixture cases for:
-  - Book 1 standard single-item
-  - Book 1 amazon single-item
-  - Book 1 sibling order
-- Add a compatibility check for mixed-manifest handling where needed.
+- extension into at least one downstream stage reader so replay work reduces live n8n dependence before broader cutover
+- compatibility checks for mixed-manifest handling where needed
 
 ### Deliverables
 
@@ -447,7 +438,7 @@ What is still missing for the original goal:
 
 **Goal:** make W0 the first shared kernel entry point.
 
-**Current status:** repo-side cutover seam is in place; live Book 1 import/testing is the next gate.
+**Current status:** repo-centric `W0` is already working in live `n8n`. Repo-centric `W2A` bootstrap/pose-plan nodes and the isolated builder path are also proven in live `n8n`; the only remaining simulated `W2A` failure is the final completion upsert against the fake test order row. The next real repo-centric migration step is `W2B`.
 
 Current working-tree implementation already includes:
 
@@ -456,33 +447,33 @@ Current working-tree implementation already includes:
 - [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w0/build-manifest/route.ts) for repo-owned W0 manifest building with `published-first` config loading
 - [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w0/upsert-order/route.ts) for repo-owned per-book `orders` upsert
 - the versioned main/sibling W0 exports at [w0-Order_Intake_Validation.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w0-Order_Intake_Validation.json) and [SIBLING - w0-Order_Intake_Validation.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING%20-%20w0-Order_Intake_Validation.json) now call those internal routes instead of building the manifest or patching Supabase inline
+- the repo-centric `W0` workflow path is already working live in `n8n`
 
-What is not done yet:
+### Remaining delta after the live `W0` proof point
 
-- importing the updated W0 exports into live n8n and proving the Book 1 path end to end
-- moving the remaining W0 normalization/dedication parsing/R2-upload orchestration behind repo-owned seams if we decide that extra thinning is worth it
+- deriving the initial repo-centric `W2B` copy and continuing the migration there
+- extending replay coverage into at least one downstream reader before broader cutover
+- deciding whether any remaining W0 normalization/dedication parsing/R2-upload orchestration is worth thinning further
 - actual Book 2 selection/onboarding path
 - final mixed-manifest production rollout across live workflow boundaries
 
-### Tasks
+### Already satisfied in the repo-centric slice
 
-- Update W0 to:
-  - determine `bookId`
-  - determine `formatId`
-  - load `book_config`
-  - resolve the page plan
-  - resolve print settings
-  - resolve QA policy
-  - write `lhb.run-manifest@v3`
-- Add mixed-manifest compatibility rules:
-  - define whether W0 writes both v2 and v3 temporarily, or only v3 with fallback readers
-  - identify every downstream reader that must tolerate both shapes during migration
-  - document rollback behavior if a downstream stage is not yet v3-ready
-- Keep the surrounding orchestration in n8n, but move the heavy logic into repo code if possible.
-- Preserve support for:
+- W0 now determines `bookId` / `formatId`, loads `book_config`, resolves the page plan plus policy data, and writes `lhb.run-manifest@v3` through repo-owned helpers/routes.
+- The surrounding orchestration still lives in `n8n`, while the heavier book-specific logic has moved into repo code.
+- The current proven Book 1-compatible slice preserves support for:
   - single-item orders
   - sibling orders
   - Amazon vs D2C formats
+
+### Remaining rollout tasks
+
+- Finish the mixed-manifest compatibility rules:
+  - define whether W0 writes both v2 and v3 temporarily, or only v3 with fallback readers
+  - identify every downstream reader that must tolerate both shapes during migration
+  - document rollback behavior if a downstream stage is not yet v3-ready
+- Keep extending replay and downstream reader coverage so later stages can rely on the frozen page plan before broader cutover.
+- Complete the actual Book 2 selection/onboarding path.
 
 ### Current implementations to use as source material
 
@@ -526,7 +517,9 @@ What is not done yet:
 
 Migration note:
 
-- ongoing n8n migration changes should now land in the sibling exports first, because those are the workflows intended to replace the older `finals` copies after validation
+- for the repo-centric migration track, ongoing edits should land in the repo-centric folder
+- if a repo-centric workflow copy does not exist yet for a stage, derive it from the sibling export once and then continue only in repo-centric
+- keep the sibling exports as the legacy/current n8n-centric master set for the normal live flow
 
 - [w2A-Orchestrator.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w2A-Orchestrator.json)
 - [w2A-SW0-Base_Character_Generation.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w2A-SW0-Base_Character_Generation.json)
@@ -754,7 +747,7 @@ Why this order:
 
 ## 7. Immediate next actions
 
-Progress update as of 2026-03-18:
+Progress update as of 2026-03-19:
 
 - Phase 0 planning/docs were completed in commit `12f098c`.
 - The repo-owned `back-end/src/lib/books/` kernel is now committed in `f809c61` for Book 1 `standard` and `amazon`.
@@ -807,9 +800,10 @@ Progress update as of 2026-03-18:
 
 From the current state, the next concrete actions should be:
 
-1. Start the repo-centric `W2B` migration using Book 1 as the dress rehearsal, since the repo-centric `W0` path is live and the repo-centric `W2A` builder path is now proven in live n8n.
-2. Keep `SW0/SW1/SW2/SW3` out of scope for the repo-centric test path unless a specific legacy bridge is unavoidable; the current goal is to move decision-making into repo routes, not to harden every legacy sibling subworkflow.
-3. Extend the replay harness from `1-manifest` creation into at least one downstream stage reader before broader W0 v3 cutover.
-4. Add the first real Book 2 authored config, Book 2 fixtures, and Book 2 asset mappings so the same replay path can validate non-Book-1 inputs once those values exist.
+1. Start the repo-centric `W2B` migration using Book 1 as the dress rehearsal, since the repo-centric `W0` path is live and the repo-centric `W2A` bootstrap/builder path is now proven in live n8n.
+2. Derive the first repo-centric `W2B` copy from the sibling `W2B` workflow if needed, then keep active migration edits only in the repo-centric folder instead of splitting them across both workflow trees.
+3. Keep `SW0/SW1/SW2/SW3` out of scope for the repo-centric test path unless a specific legacy bridge is unavoidable; the current goal is to move decision-making into repo routes, not to harden every legacy sibling subworkflow.
+4. Extend the replay harness from `1-manifest` creation into at least one downstream stage reader before broader W0 v3 cutover.
+5. Add the first real Book 2 authored config, Book 2 fixtures, and Book 2 asset mappings so the same replay path can validate non-Book-1 inputs once those values exist.
 
 That is now the smallest useful slice that advances Book 2 without prematurely cutting production over to v3.
