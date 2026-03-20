@@ -795,6 +795,10 @@ Progress update as of 2026-03-18:
   - `2a-manifest` bootstrap build/upload through [bootstrap-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w2a/bootstrap-manifest/route.ts)
   - final `2a-manifest` build/upload through [build-run-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w2a/build-run-manifest/route.ts)
 - Those W2A routes are backed by a shared repo helper at [w2a-manifest.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w2a-manifest.ts), and they have been smoke-tested directly with Book 1-compatible inputs against the live published-config path.
+- The repo-centric W2A export at [w2A-Orchestrator.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json) has now been exercised in live n8n against Book 1-compatible inputs:
+  - the bootstrap/pose-plan half reached the legacy `SW0` boundary successfully, proving the repo-owned W2A front-half seams are live
+  - the isolated `Simulate TEST-ORDER-016 -> Write Run Manifest1 -> Build + Upload 2A Manifest` branch now passes, proving the repo-owned W2A run-manifest builder/uploader path works in live n8n
+  - the final `Supabase — Upsert from 2A Manifest` simulation still fails only because the test branch uses a fake per-item order row (`TEST-ORDER-016-ITEM-001`) that does not exist in `orders`; that is a simulation limitation, not a W2A builder failure
   - [w0-manifest-builder.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w0-manifest-builder.ts)
 - Repo-owned W0 HTTP seams now exist at [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w0/build-manifest/route.ts) and [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w0/upsert-order/route.ts), and both the main and sibling W0 exports now call those routes with `published-first` config loading instead of building manifests or patching `orders` inline inside n8n.
 - The repo-owned W0 build + upsert route pair has been smoke-tested directly with a throwaway Amazon sibling-style order, including verification that `root_order_id`, `amazon_order_id`, and the canonical `1-manifest` key are preserved through the backend path.
@@ -803,9 +807,9 @@ Progress update as of 2026-03-18:
 
 From the current state, the next concrete actions should be:
 
-1. Import the updated main/sibling W0 exports into n8n and run Book 1 through the live path as the dress rehearsal for Book 2.
-2. Extend the replay harness from `1-manifest` creation into at least one downstream stage reader before broader W0 v3 cutover.
-3. Add the first real Book 2 authored config, Book 2 fixtures, and Book 2 asset mappings so the same replay path can validate non-Book-1 inputs once those values exist.
-4. Only after those readers and writers are validated against the published path should W0 v3 expand beyond manual/admin opt-in.
+1. Start the repo-centric `W2B` migration using Book 1 as the dress rehearsal, since the repo-centric `W0` path is live and the repo-centric `W2A` builder path is now proven in live n8n.
+2. Keep `SW0/SW1/SW2/SW3` out of scope for the repo-centric test path unless a specific legacy bridge is unavoidable; the current goal is to move decision-making into repo routes, not to harden every legacy sibling subworkflow.
+3. Extend the replay harness from `1-manifest` creation into at least one downstream stage reader before broader W0 v3 cutover.
+4. Add the first real Book 2 authored config, Book 2 fixtures, and Book 2 asset mappings so the same replay path can validate non-Book-1 inputs once those values exist.
 
 That is now the smallest useful slice that advances Book 2 without prematurely cutting production over to v3.
