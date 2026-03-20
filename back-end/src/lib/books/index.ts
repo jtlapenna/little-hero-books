@@ -8,3 +8,4 @@ export * from '@/lib/books/normalize-w0-manifest';
 export * from '@/lib/books/read-2b-manifest';
 export * from '@/lib/books/review-page-plan';
 export * from '@/lib/books/w2a-manifest';
+export * from '@/lib/books/w2b-worklist';

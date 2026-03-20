@@ -1,0 +1,686 @@
+{
+  "name": "REPO - w2B-main-orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-removal-repo",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "198b267e-9561-4fb0-8d4f-147b5b69c7bc",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        1312,
+        -2032
+      ],
+      "webhookId": "41599fba-eff6-48b2-bc4a-60e2c3acecf8"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"accepted\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "bb60da48-8b32-4f16-af6c-261cca44305a",
+      "name": "Respond to Webhook (Ack)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1536,
+        -2032
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://admin.littleherolabs.com/api/internal/w2b/build-worklist",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 90000
+        },
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{JSON.stringify($json.body && $json.body !== $json ? $json.body : $json)}}"
+      },
+      "id": "17f27d52-93fe-4933-bbf8-57d85a31eee0",
+      "name": "Normalize 2B Input",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        -2032
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Expand the repo-owned W2B worklist response into n8n items.\n */\nconst response = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || $json || {};\nconst summary = response.summary && typeof response.summary === 'object' ? response.summary : {};\nconst workItems = Array.isArray(response.workItems) ? response.workItems : [];\n\nif (!workItems.length) {\n  return [{\n    json: {\n      orderId: response.orderId || null,\n      amazonOrderId: response.amazonOrderId || null,\n      characterHash: response.characterHash || null,\n      scheduled: Number(summary.scheduled || 0),\n      reason: summary.reason || 'NO_APPROVED_POSES',\n      totalApproved: Number(summary.totalApproved || 0),\n      skippedByBriaStatus: Number(summary.skippedByBriaStatus || 0),\n      skippedBy2BManifest: Number(summary.skippedBy2BManifest || 0),\n      skippedTotal: Number(summary.skippedTotal || 0),\n    },\n  }];\n}\n\nconst scheduled = workItems.length;\nreturn workItems.map((item) => ({\n  json: {\n    ...item,\n    scheduled,\n  },\n}));"
+      },
+      "id": "ff23ae83-89c0-47d0-8218-262509bacdf6",
+      "name": "Build Worklist",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        -2032
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-scheduled-zero",
+              "leftValue": "={{ Number($json.scheduled || 0) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b944a3ef-12ba-4080-b166-3822685ae5c5",
+      "name": "If All Poses Skipped",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2560,
+        -2032
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $items('Normalize 2B Input')[0].json.backendUrl || 'https://admin.littleherolabs.com' }}/api/webhooks/workflow-2b-skipped",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { orderId: $json.orderId, rootOrderId: $items('Normalize 2B Input')[0].json.amazonOrderId,\n  amazonOrderId: $items('Normalize 2B Input')[0].json.amazonOrderId, characterHash: $json.characterHash, reason: $json.reason, totalApproved: $json.totalApproved, skippedByBriaStatus: $json.skippedByBriaStatus, skippedBy2BManifest: $json.skippedBy2BManifest, skippedTotal: $json.skippedTotal } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "01abd1e4-8a88-4300-b06f-1a66a5595aa1",
+      "name": "Notify Backend: All Poses Skipped",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2960,
+        -2144
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": "={{ $items('Normalize 2B Input')[0].json.batchSize || 1 }}",
+        "options": {}
+      },
+      "id": "3e9ac417-8927-44dc-8482-62b7861c4c3b",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2960,
+        -1904
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Final response payload (does not wait for workers).\n */\nlet ctx = {};\ntry { ctx = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\nconst summary = ctx.summary && typeof ctx.summary === 'object' ? ctx.summary : {};\nreturn [{ json: {\n  orderId: ctx.orderId || null,\n  amazonOrderId: ctx.amazonOrderId || null,\n  scheduled: Number(summary.scheduled || 0),\n  callbackUrl: ctx.callbackUrl || null,\n  batchSize: ctx.batchSize || 1,\n  backendUrl: ctx.backendUrl || 'https://admin.littleherolabs.com',\n  manifest2bKey: ctx.manifest2bKey || null,\n  characterHash: ctx.characterHash || null,\n} }];"
+      },
+      "id": "b712d24d-639e-4515-9d81-6c7b134fc9eb",
+      "name": "Final Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3296,
+        -2144
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.backendUrl || $items('Normalize 2B Input')[0].json.backendUrl || 'https://admin.littleherolabs.com' }}/api/webhooks/workflow-2b-complete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { orderId: $json.orderId || $items('Normalize 2B Input')[0].json.orderId, rootOrderId: $json.amazonOrderId || $items('Normalize 2B Input')[0].json.amazonOrderId,\n  amazonOrderId: $json.amazonOrderId || $items('Normalize 2B Input')[0].json.amazonOrderId, manifestUrl: $json.manifest2bKey || $items('Normalize 2B Input')[0].json.manifest2bKey || '', characterHash: $json.characterHash || $items('Normalize 2B Input')[0].json.characterHash, scheduledPoses: $json.scheduled || $items('Normalize 2B Input')[0].json.summary?.scheduled || 0, batchSize: $json.batchSize || $items('Normalize 2B Input')[0].json.batchSize || 1, timestamp: new Date().toISOString() } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "2429ab4b-4149-4808-b566-f375527d33b9",
+      "name": "Notify Backend: BRIA_READY",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3488,
+        -2144
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "OnVSfdkLlpiITkst",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/OnVSfdkLlpiITkst",
+          "cachedResultName": "SIBLING - S2B-SW1-single-pose"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        3264,
+        -1888
+      ],
+      "id": "3f7c4d90-48b7-4b59-a9f3-4e21d24c05c9",
+      "name": "Execute Workflow: s2B-sw"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Normalize Result - Extract and normalize sub-workflow output for aggregator.\n * Uses repo-provided manifest keys/URLs from the W2B worklist route.\n */\nconst j = $json || {};\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\nlet result = j.result || j;\n\nlet ctx = {};\ntry { ctx = $items('Normalize 2B Input', 0, $runIndex)?.[0]?.json || {}; } catch {}\n\nconst orderId = pick(result.orderId, j.orderId, ctx.orderId, null);\nconst amazonOrderId = pick(result.amazonOrderId, j.amazonOrderId, ctx.amazonOrderId, null);\nconst characterHash = pick(result.characterHash, j.characterHash, ctx.characterHash, null);\nconst poseNumberRaw = pick(result.poseNumber, j.poseNumber, null);\nconst poseNumber = (poseNumberRaw === 0 || poseNumberRaw === '0') ? 0 : Number(poseNumberRaw);\n\nif (!orderId) throw new Error('2B aggregator: orderId required');\nif (!characterHash) throw new Error('2B aggregator: characterHash required');\nif (!Number.isFinite(poseNumber)) throw new Error('2B aggregator: poseNumber required');\n\nconst backendUrl = pick(result.backendUrl, j.backendUrl, ctx.backendUrl, 'https://admin.littleherolabs.com');\nconst manifest2aUrl = pick(result.manifest2aUrl, j.manifest2aUrl, ctx.manifest2aUrl, null);\nconst manifest2bKey = pick(result.manifest2bKey, j.manifest2bKey, ctx.manifest2bKey, null);\nconst orderPrefix = pick(result.orderPrefix, j.orderPrefix, ctx.orderPrefix, null);\n\nif (!manifest2aUrl) throw new Error('2B aggregator: manifest2aUrl required');\nif (!manifest2bKey) throw new Error('2B aggregator: manifest2bKey required');\n\nconst normalizedResult = {\n  orderId,\n  amazonOrderId,\n  characterHash,\n  poseNumber,\n  manifest2aUrl,\n  manifest2bKey,\n  orderPrefix,\n  approvedKey: pick(result.approvedKey, null),\n  sourceReplacedAt: pick(result.sourceReplacedAt, null),\n  sourceReplacementCount: Number(pick(result.sourceReplacementCount, 0) || 0),\n  sourceUrl: pick(result.sourceUrl, null),\n  briaStatus: pick(result.briaStatus, 'error'),\n  briaRequestId: pick(result.briaRequestId, null),\n  briaStatusUrl: pick(result.briaStatusUrl, null),\n  briaCompletedAt: pick(result.briaCompletedAt, null),\n  briaErrorMessage: pick(result.briaErrorMessage, null),\n  bgRemovedKey: pick(result.bgRemovedKey, null),\n  bgRemovedContentType: pick(result.bgRemovedContentType, null),\n  bgRemovedSizeBytes: (result.bgRemovedSizeBytes === 0 ? 0 : (Number(result.bgRemovedSizeBytes) || null)),\n  bgRemovedImageUrl: pick(result.bgRemovedImageUrl, null),\n  qa: (result.qa && typeof result.qa === 'object') ? result.qa : null,\n  needsReview: !!pick(result.needsReview, false),\n  reviewReason: pick(result.reviewReason, null),\n};\n\nreturn [{ json: { backendUrl, manifest2aUrl, manifest2bKey, orderPrefix, amazonOrderId, result: normalizedResult } }];"
+      },
+      "id": "a4c7bba6-e182-4435-a70d-24a13a9903a1",
+      "name": "Normalize Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3488,
+        -1888
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.backendUrl + '/api/manifests/' + $json.manifest2bKey + '?v=' + Date.now() }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "11d79ace-75f0-43b7-a9ea-a16467d5510a",
+      "name": "Download 2B Manifest (if exists)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3920,
+        -1888
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.manifest2aUrl + ($json.manifest2aUrl.includes('?') ? '&' : '?') + 'v=' + Date.now() }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "a0306e8d-d252-42c5-a0ad-602936a1d2a6",
+      "name": "Download 2A Manifest (for merge)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3760,
+        -2016
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Merge the incoming pose result into 2B manifest (create if missing).\n * Uses repo-provided manifest keys/URLs before any fallback logic.\n */\nlet ctx = {};\ntry { ctx = $items('Normalize Result', 0, $runIndex)?.[0]?.json || {}; } catch {}\nconst incoming = ctx.result || {};\n\nconst orderId = incoming.orderId || ctx.orderId || null;\nif (!orderId) throw new Error('2B aggregator: missing orderId in Normalize Result');\n\nconst backendUrl = ctx.backendUrl || incoming.backendUrl || 'https://admin.littleherolabs.com';\nconst manifest2bMaybe = $items('Download 2B Manifest (if exists)', 0, $runIndex)?.[0]?.json || null;\nconst manifest2aHint = incoming.manifest2aUrl || ctx.manifest2aUrl || null;\n\nfunction asManifest(raw) {\n  if (!raw) return null;\n  if (raw.schema) return raw;\n  const text = typeof raw === 'string' ? raw : (raw.data || raw.body || null);\n  if (!text || typeof text !== 'string') return null;\n  try {\n    const parsed = JSON.parse(text);\n    return parsed && parsed.schema ? parsed : null;\n  } catch {\n    return null;\n  }\n}\n\nlet manifest2a = null;\ntry {\n  manifest2a = asManifest($items('Download 2A Manifest (for merge)', 0, $runIndex)?.[0]?.json);\n} catch {}\n\nif (!manifest2a && manifest2aHint) {\n  try {\n    const http = this.helpers.httpRequest;\n    const url = String(manifest2aHint) + (String(manifest2aHint).includes('?') ? '&' : '?') + 'v=' + Date.now();\n    const raw = await http({ method: 'GET', url, json: false, timeout: 90000 });\n    manifest2a = asManifest(raw);\n  } catch {}\n}\n\nif (!incoming || !incoming.characterHash || !Number.isFinite(Number(incoming.poseNumber))) {\n  throw new Error('2B aggregator: invalid Normalize Result payload');\n}\n\nif (!manifest2a || !manifest2a.schema) {\n  throw new Error('2B aggregator: missing 2A manifest or invalid schema (orderId=' + orderId + ', manifest2aUrl=' + manifest2aHint + ')');\n}\n\nlet manifest2b = (manifest2bMaybe && manifest2bMaybe.schema === 'lhb.run-manifest@v2.0') ? manifest2bMaybe : null;\nif (!manifest2b) {\n  manifest2b = JSON.parse(JSON.stringify(manifest2a));\n  manifest2b.stage = '2b';\n  manifest2b.createdAt = new Date().toISOString();\n  manifest2b.updatedAt = new Date().toISOString();\n  (manifest2b.entries || []).forEach(e => {\n    e.bgRemovedKey = null;\n    e.bgRemovedImageUrl = null;\n    e.briaStatus = null;\n    e.briaRequestId = null;\n    e.briaStatusUrl = null;\n    e.briaErrorMessage = null;\n    e.sourceApprovedKey = null;\n    e.sourceReplacedAt = null;\n    e.sourceReplacementCount = 0;\n    e.processedAt = null;\n    e.needsReview = false;\n    e.reviewReason = null;\n    e.isFlagged = false;\n  });\n}\n\nconst poseNumber = Number(incoming.poseNumber);\nconst entry = (manifest2b.entries || []).find(e => Number(e.poseNumber) === poseNumber);\nif (!entry) throw new Error('2B aggregator: pose ' + poseNumber + ' not found in manifest entries');\n\nentry.sourceApprovedKey = incoming.approvedKey || entry.approvedKey || null;\nentry.sourceReplacedAt = incoming.sourceReplacedAt || null;\nentry.sourceReplacementCount = Number(incoming.sourceReplacementCount || 0);\nentry.processedAt = new Date().toISOString();\nentry.briaStatus = incoming.briaStatus;\nentry.briaRequestId = incoming.briaRequestId || null;\nentry.briaStatusUrl = incoming.briaStatusUrl || null;\nentry.briaErrorMessage = incoming.briaErrorMessage || null;\nif (incoming.qa && typeof incoming.qa === 'object') {\n  entry.qa = { ...(entry.qa || {}), ...incoming.qa };\n}\n\nif (incoming.briaStatus === 'completed') {\n  entry.bgRemovedKey = incoming.bgRemovedKey || entry.bgRemovedKey;\n  entry.bgRemovedImageUrl = incoming.bgRemovedImageUrl || entry.bgRemovedImageUrl;\n  entry.bgRemovedStatus = 'completed';\n  entry.bgRemoved = true;\n  entry.needsReview = incoming.needsReview === true;\n  entry.reviewReason = incoming.needsReview === true ? (incoming.reviewReason || 'transparency_fail_or_low_conf') : null;\n  if (incoming.needsReview !== true) entry.isFlagged = false;\n} else {\n  entry.bgRemoved = false;\n  entry.bgRemovedStatus = incoming.briaStatus;\n  entry.needsReview = true;\n  entry.reviewReason = incoming.reviewReason || 'unknown';\n}\n\nmanifest2b.updatedAt = new Date().toISOString();\nconst approved2a = (manifest2a.entries || []).filter(e => e && e.approved && e.status === 'approved');\nconst approvedCount = approved2a.length;\nconst isTerminal = (s) => ['completed','failed','timeout','error'].includes(String(s||'').toLowerCase());\nconst approvedNums = new Set(approved2a.map(e => Number(e.poseNumber)));\nconst terminalApproved = (manifest2b.entries || []).filter(e => approvedNums.has(Number(e.poseNumber)) && isTerminal(e.briaStatus)).length;\nconst complete = (approvedCount > 0) && (terminalApproved === approvedCount);\nconst approvedEntries2b = (manifest2b.entries || []).filter(e => approvedNums.has(Number(e.poseNumber)));\nconst needsHumanReview = approvedEntries2b.some(e => e.needsReview === true || e.needs_review === true);\nconst allSucceeded = approvedEntries2b.every(e => String(e.briaStatus||'').toLowerCase() === 'completed');\nconst readyForBook = allSucceeded && !needsHumanReview;\nmanifest2b.summary = manifest2b.summary || {};\nmanifest2b.summary.approvedPoseCount = approvedCount;\nmanifest2b.summary.terminalPoseCount = terminalApproved;\nmanifest2b.summary.complete = complete;\nmanifest2b.summary.needsHumanReview = needsHumanReview;\nmanifest2b.summary.readyForBook = readyForBook;\n\nreturn [{ json: { manifest2b, complete, manifest2bKey: ctx.manifest2bKey, backendUrl: ctx.backendUrl || backendUrl, orderId: incoming.orderId, amazonOrderId: incoming.amazonOrderId || ctx.amazonOrderId || null, characterHash: incoming.characterHash } }];"
+      },
+      "id": "adce2f9a-597d-4b89-adf3-7eb5ffb77d0a",
+      "name": "Merge Result Into 2B Manifest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4176,
+        -1888
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Create binary for S3 upload (manifest JSON).\n */\nconst manifest = $json.manifest2b;\nconst s = JSON.stringify(manifest, null, 2);\nconst b64 = Buffer.from(s, 'utf8').toString('base64');\n\nreturn [{\n  json: { manifest2bKey: $json.manifest2bKey, complete: $json.complete, backendUrl: $json.backendUrl, orderId: $json.orderId, amazonOrderId: $json.amazonOrderId || null, characterHash: $json.characterHash, needsHumanReview: $json.manifest2b?.summary?.needsHumanReview || false },\n  binary: {\n    data: {\n      data: b64,\n      mimeType: 'application/json',\n      fileName: '2b-manifest.json'\n    }\n  }\n}];"
+      },
+      "id": "821926dd-1463-46f2-a449-525ba1bac8da",
+      "name": "Prep Manifest Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4416,
+        -1888
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "=little-hero-orders",
+        "fileName": "={{ $json.manifest2bKey }}",
+        "additionalFields": {}
+      },
+      "id": "a4ceabd7-1660-4f78-ab6b-1cd6afe518ef",
+      "name": "Upload 2B Manifest to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        4640,
+        -1888
+      ],
+      "credentials": {
+        "s3": {
+          "id": "Q3MqtUCVd9s0XdpU",
+          "name": "S3 Explain The Terms"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "4c22f3f7-107e-429b-bb5f-6d5d8512a149",
+              "leftValue": "={{ $json.complete || $items('Merge Result Into 2B Manifest')[0].json.complete || false }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "25e3e33c-ab7d-4705-9ebc-ab4c4f972347",
+      "name": "If Complete",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4832,
+        -1888
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.backendUrl || $items('Normalize 2B Input')[0].json.backendUrl || 'https://admin.littleherolabs.com' }}/api/webhooks/workflow-2b-complete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \n  orderId: $json.orderId || $items('Merge Result Into 2B Manifest')[0].json.orderId,\n  rootOrderId: $json.amazonOrderId || $items('Normalize 2B Input')[0].json.amazonOrderId,\n  amazonOrderId: $json.amazonOrderId || $items('Normalize 2B Input')[0].json.amazonOrderId,\n  manifestUrl: $json.manifest2bKey || $items('Merge Result Into 2B Manifest')[0].json.manifest2bKey,\n  characterHash: $json.characterHash || $items('Merge Result Into 2B Manifest')[0].json.characterHash,\n  needsReview: $json.needsHumanReview !== undefined ? $json.needsHumanReview : ($items('Merge Result Into 2B Manifest')[0].json.manifest2b?.summary?.needsHumanReview || false)\n} }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "7363c3b8-56f8-4e1f-86d4-301bbf7cffb1",
+      "name": "Notify Backend (2B Complete)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5072,
+        -1904
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "maxTries": 3,
+      "continueOnFail": true
+    }
+  ],
+  "pinData": {
+    "Webhook Trigger": [
+      {
+        "json": {
+          "headers": {
+            "host": "thepeakbeyond.app.n8n.cloud",
+            "user-agent": "axios/1.12.0",
+            "content-length": "138",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "4.182.88.118",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "DE",
+            "cf-ray": "9bda2ad804b3906d-FRA",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "idempotency-key": "112-7311035-1437035-2B",
+            "x-forwarded-for": "4.182.88.118, 172.70.247.136",
+            "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-n8pcb",
+            "x-is-trusted": "yes",
+            "x-real-ip": "4.182.88.118"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "orderId": "112-7311035-1437035",
+            "characterHash": "cc388d1f43eef3cc",
+            "orderDbId": 313,
+            "workflow": "2B",
+            "claimedAt": "2026-01-14T03:50:06.896"
+          },
+          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal-sibtest",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook (Ack)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook (Ack)": {
+      "main": [
+        [
+          {
+            "node": "Normalize 2B Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize 2B Input": {
+      "main": [
+        [
+          {
+            "node": "Build Worklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Worklist": {
+      "main": [
+        [
+          {
+            "node": "If All Poses Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If All Poses Skipped": {
+      "main": [
+        [
+          {
+            "node": "Notify Backend: All Poses Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Backend: All Poses Skipped": {
+      "main": [
+        [
+          {
+            "node": "Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Workflow: s2B-sw",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: s2B-sw": {
+      "main": [
+        [
+          {
+            "node": "Normalize Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Result": {
+      "main": [
+        [
+          {
+            "node": "Download 2B Manifest (if exists)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Download 2A Manifest (for merge)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download 2B Manifest (if exists)": {
+      "main": [
+        [
+          {
+            "node": "Merge Result Into 2B Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Result Into 2B Manifest": {
+      "main": [
+        [
+          {
+            "node": "Prep Manifest Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Manifest Binary": {
+      "main": [
+        [
+          {
+            "node": "Upload 2B Manifest to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload 2B Manifest to R2": {
+      "main": [
+        [
+          {
+            "node": "If Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Complete": {
+      "main": [
+        [
+          {
+            "node": "Notify Backend (2B Complete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Backend (2B Complete)": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "34654d2c-5fa0-4e7c-91cf-14280e9ff33c",
+  "meta": {
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "KIaUCcwWJamYxTS8",
+  "tags": []
+}
