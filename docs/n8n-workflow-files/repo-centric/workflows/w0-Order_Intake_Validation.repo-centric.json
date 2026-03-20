@@ -1,17 +1,17 @@
 {
-  "name": "AMAZON - 0 - Order Intake & Validation",
+  "name": "REPO - w0 - Order Intake & Validation",
   "nodes": [
     {
       "parameters": {
         "jsCode": "// Mock Order Generator for Testing - STANDARD ORDERS\n// Modify TEST_CONFIG values as needed for different test scenarios\n// Set SIBLING_MODE = true to test the sibling/multi-book path through W0\nconst SIBLING_MODE = false;\n\nconst TEST_CONFIG = {\n  orderId: \"NB3-STANDARD-05\",\n  childName: \"Luca\",\n  childAge: 5,\n  skinTone: \"skin-brown-light\",\n  hairColor: \"light-brown\",\n  hairStyle: \"curly-crop\",\n  pronouns: \"he/him\",\n  favoriteColor: \"black\",\n  animalGuide: \"t-rex\",\n  clothingStyle: \"\",\n  customerEmail: \"jeff.lapenna@gmail.com\",\n  shippingName: \"Jeff LaPenna\",\n  shippingAddress: \"12207 Sunset Ave.\",\n  shippingCity: \"Grass Valley\",\n  shippingState: \"CA\",\n  shippingZip: \"95945\",\n  shippingPhone: \"+1-678-478-3477\"\n};\n\n// Sibling variant: synthetic orderId with -item- suffix; amazonOrderId = root group ID shared by all siblings\n// Toggle SIBLING_MODE = true above to activate\nconst SIBLING_CONFIG = {\n  rootOrderId: \"NB3-STANDARD-05\",\n  itemSuffix: \"item-99999\",\n  childName: \"Maya\",\n  childAge: 4,\n  skinTone: \"skin-brown-light\",\n  hairColor: \"light-brown\",\n  hairStyle: \"braids\",\n  pronouns: \"she/her\",\n  favoriteColor: \"purple\",\n  animalGuide: \"butterfly\",\n  clothingStyle: \"dress\",\n  customerEmail: \"jeff.lapenna@gmail.com\",\n  shippingName: \"Jeff LaPenna\",\n  shippingAddress: \"12207 Sunset Ave.\",\n  shippingCity: \"Grass Valley\",\n  shippingState: \"CA\",\n  shippingZip: \"95945\",\n  shippingPhone: \"+1-678-478-3477\"\n};\n\nconst siblingOrderId = `${SIBLING_CONFIG.rootOrderId}-${SIBLING_CONFIG.itemSuffix}`;\nconst cfg = SIBLING_MODE ? SIBLING_CONFIG : TEST_CONFIG;\n\nconst mockOrder = SIBLING_MODE ? {\n  // Sibling shape: per-book synthetic orderId + separate amazonOrderId (root group ID)\n  orderId: siblingOrderId,\n  amazonOrderId: SIBLING_CONFIG.rootOrderId,\n  id: siblingOrderId,\n  orderDate: new Date().toISOString(),\n  purchaseDate: new Date().toISOString(),\n  createdAt: new Date().toISOString(),\n  status: \"queued_for_processing\",\n  customerEmail: cfg.customerEmail,\n  buyer: { email: cfg.customerEmail, name: cfg.shippingName },\n  characterSpecs: {\n    childName: cfg.childName,\n    age: cfg.childAge,\n    skinTone: cfg.skinTone,\n    hairColor: cfg.hairColor,\n    hairStyle: cfg.hairStyle,\n    pronouns: cfg.pronouns,\n    favoriteColor: cfg.favoriteColor,\n    animalGuide: cfg.animalGuide,\n    clothingStyle: cfg.clothingStyle\n  },\n  bookSpecs: {\n    title: `${cfg.childName} and the Adventure Compass`,\n    totalPages: 16,\n    format: \"8.5x8.5_softcover\",\n    bookType: \"adventure\"\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: cfg.shippingName,\n      address: cfg.shippingAddress,\n      city: cfg.shippingCity,\n      state: cfg.shippingState,\n      zip: cfg.shippingZip,\n      phone: cfg.shippingPhone,\n      phoneNumber: cfg.shippingPhone,\n      phone_number: cfg.shippingPhone,\n      country: \"US\"\n    }\n  },\n  dedication: \"Maya! This story is just for you. Love always!\",\n  items: [{\n    sku: \"LHB-8.5X8.5-SOFTCOVER\",\n    quantity: 1,\n    customizations: [\n      { name: \"dedication\", label: \"Dedication Message\", type: \"text\", value: \"Maya! This story is just for you. Love always!\" },\n      { name: \"childName\", label: \"Child's Name\", type: \"text\", value: cfg.childName }\n    ]\n  }],\n  lineItems: [{\n    customizationFields: [{ name: \"dedication\", text: \"Maya! This story is just for you. Love always!\" }]\n  }]\n} : {\n  orderId: TEST_CONFIG.orderId,\n  id: TEST_CONFIG.orderId,\n  orderDate: new Date().toISOString(),\n  purchaseDate: new Date().toISOString(),\n  createdAt: new Date().toISOString(),\n  status: \"queued_for_processing\",\n  customerEmail: TEST_CONFIG.customerEmail,\n  buyer: { email: TEST_CONFIG.customerEmail, name: TEST_CONFIG.shippingName },\n  characterSpecs: {\n    childName: TEST_CONFIG.childName,\n    age: TEST_CONFIG.childAge,\n    skinTone: TEST_CONFIG.skinTone,\n    hairColor: TEST_CONFIG.hairColor,\n    hairStyle: TEST_CONFIG.hairStyle,\n    pronouns: TEST_CONFIG.pronouns,\n    favoriteColor: TEST_CONFIG.favoriteColor,\n    animalGuide: TEST_CONFIG.animalGuide,\n    clothingStyle: TEST_CONFIG.clothingStyle\n  },\n  bookSpecs: {\n    title: `${TEST_CONFIG.childName} and the Adventure Compass`,\n    totalPages: 16,\n    format: \"8.5x8.5_softcover\",\n    bookType: \"adventure\"\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: TEST_CONFIG.shippingName,\n      address: TEST_CONFIG.shippingAddress,\n      city: TEST_CONFIG.shippingCity,\n      state: TEST_CONFIG.shippingState,\n      zip: TEST_CONFIG.shippingZip,\n      phone: TEST_CONFIG.shippingPhone,\n      phoneNumber: TEST_CONFIG.shippingPhone,\n      phone_number: TEST_CONFIG.shippingPhone,\n      country: \"US\"\n    }\n  },\n  dedication: \"Luca! We hope you enjoy this story about finding the brave, trustworthy voice inside of you.  Love always, your Dads!\",\n  items: [{\n    sku: \"LHB-8.5X8.5-SOFTCOVER\",\n    quantity: 1,\n    customizations: [\n      { name: \"dedication\", label: \"Dedication Message\", type: \"text\", value: \"This dedication is false.\" },\n      { name: \"childName\", label: \"Child's Name\", type: \"text\", value: TEST_CONFIG.childName }\n    ]\n  }],\n  lineItems: [{\n    customizationFields: [{ name: \"dedication\", text: \"Luca! We hope you enjoy this story about finding the brave, trustworthy voice inside of you.  Love always, your Dads!\" }]\n  }]\n};\n\nreturn [{ json: mockOrder }];"
       },
-      "id": "dff8fb83-9a98-4f84-a181-ecc01ec9cc0d",
+      "id": "7a808985-ff9b-41f1-b68c-2c03beac2c94",
       "name": "Mock Order (STANDARD Testing)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        608,
-        368
+        4192,
+        -384
       ],
       "notes": "STANDARD mock. Set SIBLING_MODE = true to test sibling/multi-book path. Disable for production."
     },
@@ -19,13 +19,13 @@
       "parameters": {
         "jsCode": "// Mock Order Generator for Testing - AMAZON ORDERS\n// Modify TEST_CONFIG values as needed for different test scenarios\n// Set SIBLING_MODE = true to test the Amazon sibling/multi-book path through W0\nconst SIBLING_MODE = false;\n\nconst TEST_CONFIG = {\n  orderId: \"NB3-AMAZON-01\",\n  childName: \"Jada\",\n  childAge: 5,\n  skinTone: \"skin-brown-deep\",\n  hairColor: \"dark-brown\",\n  hairStyle: \"puffy-ponytail\",\n  pronouns: \"she/her\",\n  favoriteColor: \"purple\",\n  animalGuide: \"unicorn\",\n  clothingStyle: \"dress\",\n  customerEmail: \"john.s.capogna@gmail.com\",\n  shippingName: \"John LaPenna\",\n  shippingAddress: \"12207 Sunset Ave.\",\n  shippingCity: \"Grass Valley\",\n  shippingState: \"CA\",\n  shippingZip: \"95945\",\n  shippingPhone: \"+1-678-478-3477\"\n};\n\n// Sibling variant: real Amazon ID pattern — orderId is synthetic (root-item-ASIN), amazonOrderId is root\n// Toggle SIBLING_MODE = true above to activate\nconst SIBLING_CONFIG = {\n  rootOrderId: \"114-7080737-5512234\",\n  itemSuffix: \"item-152767221930001\",\n  childName: \"Marcus\",\n  childAge: 6,\n  skinTone: \"skin-brown-deep\",\n  hairColor: \"dark-brown\",\n  hairStyle: \"short-flat-top\",\n  pronouns: \"he/him\",\n  favoriteColor: \"blue\",\n  animalGuide: \"lion\",\n  clothingStyle: \"tee-shorts\",\n  customerEmail: \"john.s.capogna@gmail.com\",\n  shippingName: \"John LaPenna\",\n  shippingAddress: \"12207 Sunset Ave.\",\n  shippingCity: \"Grass Valley\",\n  shippingState: \"CA\",\n  shippingZip: \"95945\",\n  shippingPhone: \"+1-678-478-3477\"\n};\n\nconst siblingOrderId = `${SIBLING_CONFIG.rootOrderId}-${SIBLING_CONFIG.itemSuffix}`;\nconst cfg = SIBLING_MODE ? SIBLING_CONFIG : TEST_CONFIG;\n\nconst mockOrder = SIBLING_MODE ? {\n  // Amazon sibling shape: per-book synthetic orderId + root amazonOrderId shared by all siblings\n  orderId: siblingOrderId,\n  amazonOrderId: SIBLING_CONFIG.rootOrderId,\n  id: siblingOrderId,\n  orderDate: new Date().toISOString(),\n  purchaseDate: new Date().toISOString(),\n  createdAt: new Date().toISOString(),\n  status: \"queued_for_processing\",\n  marketplaceId: \"ATVPDKIKX0DER\",\n  customerEmail: cfg.customerEmail,\n  buyer: { email: cfg.customerEmail, name: cfg.shippingName },\n  characterSpecs: {\n    childName: cfg.childName,\n    age: cfg.childAge,\n    skinTone: cfg.skinTone,\n    hairColor: cfg.hairColor,\n    hairStyle: cfg.hairStyle,\n    pronouns: cfg.pronouns,\n    favoriteColor: cfg.favoriteColor,\n    animalGuide: cfg.animalGuide,\n    clothingStyle: cfg.clothingStyle\n  },\n  bookSpecs: {\n    title: `${cfg.childName} and the Adventure Compass`,\n    totalPages: 17,\n    format: \"8.5x8.5_softcover\",\n    bookType: \"adventure\"\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: cfg.shippingName,\n      address: cfg.shippingAddress,\n      city: cfg.shippingCity,\n      state: cfg.shippingState,\n      zip: cfg.shippingZip,\n      phone: cfg.shippingPhone,\n      phoneNumber: cfg.shippingPhone,\n      phone_number: cfg.shippingPhone,\n      country: \"US\"\n    }\n  },\n  dedication: \"Marcus! You are brave and strong. We love you!\",\n  items: [{\n    sku: \"LHB-8.5X8.5-SOFTCOVER\",\n    quantity: 1,\n    customizations: [\n      { name: \"dedication\", label: \"Dedication Message\", type: \"text\", value: \"Marcus! You are brave and strong. We love you!\" },\n      { name: \"childName\", label: \"Child's Name\", type: \"text\", value: cfg.childName }\n    ]\n  }],\n  lineItems: [{\n    customizationFields: [{ name: \"dedication\", text: \"Marcus! You are brave and strong. We love you!\" }]\n  }]\n} : {\n  amazonOrderId: TEST_CONFIG.orderId,\n  orderId: TEST_CONFIG.orderId,\n  id: TEST_CONFIG.orderId,\n  orderDate: new Date().toISOString(),\n  purchaseDate: new Date().toISOString(),\n  createdAt: new Date().toISOString(),\n  status: \"queued_for_processing\",\n  marketplaceId: \"ATVPDKIKX0DER\",\n  customerEmail: TEST_CONFIG.customerEmail,\n  buyer: { email: TEST_CONFIG.customerEmail, name: TEST_CONFIG.shippingName },\n  characterSpecs: {\n    childName: TEST_CONFIG.childName,\n    age: TEST_CONFIG.childAge,\n    skinTone: TEST_CONFIG.skinTone,\n    hairColor: TEST_CONFIG.hairColor,\n    hairStyle: TEST_CONFIG.hairStyle,\n    pronouns: TEST_CONFIG.pronouns,\n    favoriteColor: TEST_CONFIG.favoriteColor,\n    animalGuide: TEST_CONFIG.animalGuide,\n    clothingStyle: TEST_CONFIG.clothingStyle\n  },\n  bookSpecs: {\n    title: `${TEST_CONFIG.childName} and the Adventure Compass`,\n    totalPages: 17,\n    format: \"8.5x8.5_softcover\",\n    bookType: \"adventure\"\n  },\n  orderDetails: {\n    quantity: 1,\n    shippingAddress: {\n      name: TEST_CONFIG.shippingName,\n      address: TEST_CONFIG.shippingAddress,\n      city: TEST_CONFIG.shippingCity,\n      state: TEST_CONFIG.shippingState,\n      zip: TEST_CONFIG.shippingZip,\n      phone: TEST_CONFIG.shippingPhone,\n      phoneNumber: TEST_CONFIG.shippingPhone,\n      phone_number: TEST_CONFIG.shippingPhone,\n      country: \"US\"\n    }\n  },\n  dedication: \"This is the real dedication field.\",\n  items: [{\n    sku: \"LHB-8.5X8.5-SOFTCOVER\",\n    quantity: 1,\n    customizations: [\n      { name: \"dedication\", label: \"Dedication Message\", type: \"text\", value: \"Luca! We hope you enjoy this story about finding the brave, trustworthy voice inside of you.  Love always, your Dads!\" },\n      { name: \"childName\", label: \"Child's Name\", type: \"text\", value: TEST_CONFIG.childName }\n    ]\n  }],\n  lineItems: [{\n    customizationFields: [{ name: \"dedication\", text: \"Luca! We hope you enjoy this story about finding the brave, trustworthy voice inside of you.  Love always, your Dads!\" }]\n  }]\n};\n\nreturn [{ json: mockOrder }];"
       },
-      "id": "1882df1c-aa65-4aa7-a483-04a0ee00ec5b",
+      "id": "725f3d03-6be2-4880-8643-0ffd3a2cbe7e",
       "name": "Mock Order (AMAZON Testing)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        608,
-        0
+        4192,
+        -752
       ],
       "notes": "AMAZON mock. Set SIBLING_MODE = true to test Amazon sibling/multi-book path. Disable for production."
     },
@@ -38,10 +38,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -128,
-        176
+        3456,
+        -576
       ],
-      "id": "baffba16-23d0-4457-9e12-43666e707011",
+      "id": "1dba7eb2-de9b-4cc3-9cbf-eab7f0c8b38b",
       "name": "Webhook",
       "webhookId": "80783083-859a-4a7d-a0ec-1c398bd166da"
     },
@@ -54,10 +54,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2352,
-        64
+        6032,
+        -688
       ],
-      "id": "a5bff985-7264-4bb2-9f6c-750c0cdd0447",
+      "id": "e841b00b-ffdb-4dc9-99c1-8cf01a8dca55",
       "name": "Merge"
     },
     {
@@ -67,13 +67,13 @@
         "fileName": "={{ $json.r2Key }}",
         "additionalFields": {}
       },
-      "id": "626cae2d-756b-4d43-a646-cd01315df177",
+      "id": "4f3a597b-3deb-4ebd-950e-8170a722abb4",
       "name": "Upload 1-manifest.json to R2",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        1872,
-        176
+        5664,
+        -576
       ],
       "credentials": {
         "s3": {
@@ -85,28 +85,28 @@
     },
     {
       "parameters": {
-        "jsCode": "// Create binary 'data' from JSON manifest (S3 node expects 'data' field)\n// Preserve the canonical manifest key and repo-built order upsert payload.\nconst input = $input.first().json || {};\nconst manifest = input.manifest;\nconst orderId = input.orderId || input.orderUpsert?.orderId || input.orderUpsert?.order_id || null;\nconst manifestKey = input.r2Key || input.manifestKey || input.orderUpsert?.one_manifest_url || input.manifest?.artifacts?.manifestKey || null;\n\nif (!manifest) {\n  throw new Error('Missing manifest from Build 1‑manifest.json');\n}\n\nif (!manifestKey) {\n  throw new Error('Missing manifest key from Build 1‑manifest.json');\n}\n\nconst data = Buffer.from(JSON.stringify(manifest), 'utf8');\n\nreturn [{\n  json: {\n    r2Key: manifestKey,\n    manifestKey,\n    orderId,\n    manifest,\n    orderUpsert: input.orderUpsert || null,\n    _config: input._config,\n  },\n  binary: {\n    data: {\n      data,\n      mimeType: 'application/json',\n      fileName: '1-manifest.json',\n    },\n  },\n}];"
+        "jsCode": "const raw = $input.first().json || {};\n\nfunction tryParseJsonString(value) {\n  if (typeof value !== 'string') return null;\n  const trimmed = value.trim();\n  if (!trimmed) return null;\n  try {\n    return JSON.parse(trimmed);\n  } catch {\n    return null;\n  }\n}\n\nfunction bufferLikeToObject(value) {\n  if (!value || typeof value !== 'object') return null;\n\n  if (value.type === 'Buffer' && Array.isArray(value.data)) {\n    try {\n      return JSON.parse(Buffer.from(value.data).toString('utf8'));\n    } catch {\n      return null;\n    }\n  }\n\n  return null;\n}\n\nfunction streamToObject(value) {\n  if (!value || typeof value !== 'object') return null;\n\n  const readable = value._readableState;\n  const buf = readable?.buffer;\n  if (!buf) return null;\n\n  const chunks = [];\n\n  if (Array.isArray(buf)) {\n    for (const entry of buf) {\n      const parsed =\n        bufferLikeToObject(entry?.data) ||\n        bufferLikeToObject(entry);\n      if (parsed) return parsed;\n\n      if (entry?.data?.type === 'Buffer' && Array.isArray(entry.data.data)) {\n        chunks.push(Buffer.from(entry.data.data));\n      } else if (entry?.type === 'Buffer' && Array.isArray(entry.data)) {\n        chunks.push(Buffer.from(entry.data));\n      }\n    }\n  }\n\n  if (chunks.length) {\n    try {\n      return JSON.parse(Buffer.concat(chunks).toString('utf8'));\n    } catch {}\n  }\n\n  return null;\n}\n\nfunction unwrap(value) {\n  if (!value) return null;\n\n  if (typeof value === 'string') {\n    return tryParseJsonString(value);\n  }\n\n  if (typeof value !== 'object') {\n    return null;\n  }\n\n  if (value.manifest) return value;\n\n  return (\n    unwrap(value.body) ||\n    unwrap(value.data) ||\n    bufferLikeToObject(value) ||\n    streamToObject(value)\n  );\n}\n\nconst input = unwrap(raw) || unwrap(raw.body) || raw;\n\nconst manifest = input.manifest || null;\nconst orderUpsert = input.orderUpsert || null;\n\nconst orderId =\n  input.orderId ||\n  orderUpsert?.orderId ||\n  orderUpsert?.order_id ||\n  null;\n\nconst manifestKey =\n  input.r2Key ||\n  input.manifestKey ||\n  orderUpsert?.one_manifest_url ||\n  manifest?.artifacts?.manifestKey ||\n  null;\n\nif (!manifest) {\n  throw new Error('Missing manifest from Build 1‑manifest.json');\n}\n\nif (!manifestKey) {\n  throw new Error('Missing manifest key from Build 1‑manifest.json');\n}\n\nconst data = Buffer.from(JSON.stringify(manifest), 'utf8');\n\nreturn [{\n  json: {\n    r2Key: manifestKey,\n    manifestKey,\n    orderId,\n    manifest,\n    orderUpsert,\n    _config: raw._config || null,\n  },\n  binary: {\n    data: {\n      data,\n      mimeType: 'application/json',\n      fileName: '1-manifest.json',\n    },\n  },\n}];\n"
       },
-      "id": "363d6525-389b-442b-b1e0-2efa054f65c7",
+      "id": "66cef75e-5935-4bb0-b2f3-da0d79d48447",
       "name": "Create Binary (manifest.json)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1648,
-        176
+        5440,
+        -576
       ]
     },
     {
       "parameters": {
         "jsCode": "// Build fallback (no upload): keep the canonical manifest payload from the repo-owned build step.\nconst input = $input.first().json || {};\nconst buildNode = $item(0).$node[\"Build 1‑manifest.json\"]?.json || {};\nconst manifest = input.manifest || buildNode.manifest;\nconst manifestKey = input.r2Key || input.manifestKey || input.orderUpsert?.one_manifest_url || buildNode.r2Key || buildNode.manifestKey || buildNode.orderUpsert?.one_manifest_url || manifest?.artifacts?.manifestKey || null;\n\nif (!manifestKey) {\n  throw new Error('Missing manifest key for W0 fallback path');\n}\n\nreturn [{\n  json: {\n    r2Key: manifestKey,\n    manifestKey,\n    orderId: input.orderId || input.orderUpsert?.orderId || input.orderUpsert?.order_id || buildNode.orderId || buildNode.orderUpsert?.orderId || buildNode.orderUpsert?.order_id || null,\n    manifest,\n    orderUpsert: input.orderUpsert || buildNode.orderUpsert || null,\n    _config: input._config || $item(0).$node[\"Normalize Payload\"]?.json?._config || {},\n  },\n}];"
       },
-      "id": "5f413916-4e25-4823-ad9e-888d92120a21",
+      "id": "59001b92-ebc4-4237-989a-f7855a361089",
       "name": "Fallback (Skip Upload)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2160,
-        416
+        6128,
+        -384
       ],
       "notes": "Use this path temporarily if signed PUT or S3 creds are not ready."
     },
@@ -114,51 +114,51 @@
       "parameters": {
         "jsCode": "\n// Extract & sanitize dedication from normalized shape\nconst norm = $input.first().json || {};\n\nfunction fromItem(it){\n  const fields = it.customizations || it.customizationFields || it.options || [];\n  for (const f of (fields||[])){\n    const name = (f.name||f.label||f.type||'').toLowerCase();\n    if (name.includes('dedication') || name.includes('message') || name.includes('note')){\n      const v = (f.value||f.text||f.stringValue||'')+'';\n      if (v.trim()) return v;\n    }\n  }\n  return null;\n}\n\n// Check multiple possible locations for dedication\nlet found = '';\nconst rawBody = norm._raw?.body || {};\n\n// 1. Check top-level in normalized object\nif (!found && norm.dedication) found = String(norm.dedication);\n\n// 2. Check _raw.body.dedication (direct field)\nif (!found && rawBody.dedication) found = String(rawBody.dedication);\nif (!found && rawBody.Dedication) found = String(rawBody.Dedication);\n\n// 3. Check characterSpecs variations in _raw.body\nif (!found && rawBody.characterSpecs?.dedication) found = String(rawBody.characterSpecs.dedication);\nif (!found && rawBody.character_specs?.dedication) found = String(rawBody.character_specs.dedication);\nif (!found && rawBody.CharacterSpecs?.dedication) found = String(rawBody.CharacterSpecs.dedication);\n\n// 4. Check normalized characterSpecs (if it exists after normalization)\nif (!found && norm.characterSpecs?.dedication) found = String(norm.characterSpecs.dedication);\n\n// 5. Check items array for customizations\nif (!found && Array.isArray(norm.items)) {\n  for (const li of norm.items){\n    const maybe = fromItem(li);\n    if (maybe){ found = maybe; break; }\n  }\n}\n\n// 6. Fallback: check _raw.dedication (old location)\nif (!found && norm._raw?.dedication) found = String(norm._raw.dedication);\n\n// sanitize\nconst MAX_CHARS = 500, MAX_LINES = 6;\nlet t = (found || '')\n  .replace(/[\\u0000-\\u0008\\u000B-\\u001F\\u007F]/g,'')\n  .replace(/\\r\\n?/g,'\\n').replace(/[ \\t]{2,}/g,' ');\nt = t.split('\\n').map(l => l.trimEnd()).join('\\n').trim();\nif (t.length > MAX_CHARS) t = t.slice(0, MAX_CHARS).trim();\nt = t.split('\\n').slice(0, MAX_LINES).join('\\n');\nconst esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n\nreturn [{\n  json: {\n    ...norm,\n    dedication: { raw: found || '', text: t, htmlSafe: esc(t) }\n  }\n}];\n"
       },
-      "id": "6ef7d835-a543-4750-9dff-760208cb1491",
+      "id": "a820f54b-00e0-47e8-8578-9b23ff4babe2",
       "name": "Extract & Validate Dedication",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1024,
-        48
+        4608,
+        -704
       ]
     },
     {
       "parameters": {
         "jsCode": "\n// Accepts many shapes (Amazon Custom / backend forwarder / mock)\n// Normalize core fields and optional specs. Dedication is handled in the next node.\n// Gets CONFIG from earlier node execution (CONFIG runs before Mock Order)\nconst raw = $input.first().json || {};\nconst config = $item(0).$node[\"CONFIG (PRODUCTION)\"]?.json || {};\n\nfunction safe(o){ return (o && typeof o === 'object') ? o : {}; }\nfunction coerceStr(v){ return (v==null) ? undefined : String(v); }\nfunction num(v){ const n = Number(v); return Number.isFinite(n) ? n : undefined; }\nfunction extractItems(r){ return Array.isArray(r.items) ? r.items : (Array.isArray(r.lineItems) ? r.lineItems : []); }\n// orderId (per-book synthetic ID) MUST take precedence over amazonOrderId (group root).\n// If amazonOrderId comes first, a sibling payload with both fields set would derive\n// orderId = root group ID, making isSiblingOrder = false and bypassing all sibling logic.\nfunction extractOrderId(r){ return r.orderId || r.id || r.amazonOrderId || 'UNKNOWN-ORDER'; }\n// Sibling orders have synthetic ID: <rootOrderId>-item-<itemId>. Derive root for group queries.\nfunction deriveRootOrderId(oid){\n  const m = String(oid || '').match(/^(.+)-item-[^-]+$/);\n  return m ? m[1] : oid;\n}\n\n// Map pronouns/gender to clothing style\nfunction mapClothingStyle(pronouns, explicitClothing) {\n  // If clothing style is explicitly provided, use it\n  if (explicitClothing && String(explicitClothing).trim()) {\n    return String(explicitClothing).trim();\n  }\n  \n  // Map from pronouns if no explicit clothing\n  if (!pronouns) return 'tee-shorts'; // default\n  \n  const p = String(pronouns).toLowerCase().trim();\n  \n  // girl or she/her → dress\n  if (p.includes('girl') || p.includes('she')) {\n    return 'dress';\n  }\n  \n  // boy, he/him, they/them → tee-shorts\n  if (p.includes('boy') || p.includes('he') || p.includes('they')) {\n    return 'tee-shorts';\n  }\n  \n  // default\n  return 'tee-shorts';\n}\n\nconst orderId = extractOrderId(raw);\nconst rootOrderId = deriveRootOrderId(orderId);\nconst isSiblingOrder = rootOrderId !== orderId;\nconst items = extractItems(raw);\n\n// Optional specs\nconst cs = safe(raw.characterSpecs);\nconst bs = safe(raw.bookSpecs);\nconst od = safe(raw.orderDetails);\nconst shipping = safe(od.shippingAddress);\n\nconst characterSpecs = {\n  childName: coerceStr(cs.childName),\n  skinTone: coerceStr(cs.skinTone),\n  hairColor: coerceStr(cs.hairColor),\n  hairStyle: coerceStr(cs.hairStyle),\n  age: num(cs.age),\n  pronouns: coerceStr(cs.pronouns),\n  favoriteColor: coerceStr(cs.favoriteColor),\n  animalGuide: coerceStr(cs.animalGuide),\n  clothingStyle: mapClothingStyle(cs.pronouns, cs.clothingStyle), // Map from pronouns if not provided\n  hometown: coerceStr(cs.hometown || cs.homeTown || cs.home_town),\n};\n\nconst bookSpecs = {\n  title: coerceStr(bs.title),\n  totalPages: num(bs.totalPages),\n  format: coerceStr(bs.format),\n  bookType: coerceStr(bs.bookType),\n};\n\n// D2C/checkout uses address_line1, postal_code; Amazon uses address, zip. Resolve both.\nconst addr = coerceStr(shipping.address || shipping.address_line1 || shipping.address_line_1 || shipping.addressLine1);\nconst zipVal = coerceStr(shipping.zip || shipping.postal_code || shipping.postalCode);\nconst orderDetails = {\n  quantity: num(od.quantity) || 1,\n  shippingAddress: {\n    name: coerceStr(shipping.name),\n    address: addr,\n    address_line_1: addr,\n    city: coerceStr(shipping.city),\n    state: coerceStr(shipping.state),\n    state_code: coerceStr(shipping.state_code || shipping.state),\n    zip: zipVal,\n    postal_code: zipVal,\n    phone: coerceStr(shipping.phone || shipping.phoneNumber || shipping.phone_number),\n    phone_number: coerceStr(shipping.phone_number || shipping.phone || shipping.phoneNumber),\n    country: coerceStr(shipping.country) || 'US',\n  }\n};\n\nreturn [{\n  json: {\n    _raw: raw,\n    _config: config, // Merge config into flow for downstream nodes\n    orderId,\n    amazonOrderId: raw.amazonOrderId || null,\n    marketplaceId: raw.marketplaceId || null,\n    rootOrderId,\n    isSiblingOrder,\n    // legacy fields for compatibility\n    buyer: raw.buyer || {},\n    purchaseDate: raw.purchaseDate || raw.createdAt || null,\n    // normalized fields\n    status: coerceStr(raw.status) || 'queued_for_processing',\n    orderDate: coerceStr(raw.orderDate) || new Date().toISOString(),\n    customerEmail: coerceStr(raw.customerEmail),\n    items,\n    characterSpecs,\n    bookSpecs,\n    orderDetails\n  }\n}];\n"
       },
-      "id": "2f0e09f3-7138-49cf-a206-7c33ba320e0f",
+      "id": "4c706fd7-d992-403c-a4ff-8bcca1a1b105",
       "name": "Normalize Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        832,
-        176
+        4416,
+        -576
       ]
     },
     {
       "parameters": {
         "jsCode": "// Central config (fill tokens/keys after import)\n// n8n webhook wraps POST data in .body — extract it so order fields are at top level\nconst input = $input.first().json || {};\nconst orderData = input.body || input;\nreturn [{ json: {\n  ...orderData,\n  supabase: {\n    url: \"https://mdnthwpcnphjnnblbvxk.supabase.co\",\n    serviceKey: \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs\"\n  },\n  r2: {\n    bucket: \"little-hero-orders\",\n    signedUrlEndpoint: \"https://admin.littleherolabs.com/api/r2/signed-url\",\n    apiToken: \"e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646\",\n    expiresIn: 600,\n    keyPrefix: \"book-mvp-simple-adventure/orders\",\n    useBackendSignedUpload: true\n  },\n  s3: {\n    endpoint: \"https://3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com\",\n    accessKeyId: \"b0a481f17d8641a232e0aae8a3efeb7a\",\n    secretAccessKey: \"745ade64f37a8def63e44ae9bfb2fb286c23a500b437c722461a33c7820d43cd\",\n    accountId: \"3daae940fcb6fc5b8bbd9bb8fcc62854\"\n  }\n} }];"
       },
-      "id": "994bedac-d9ac-4637-aa88-199bf30b5926",
+      "id": "ce4915eb-c99d-472e-a1a3-704f63dcb881",
       "name": "CONFIG (PRODUCTION)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        288,
-        176
+        3872,
+        -576
       ],
       "notes": "Fill Supabase serviceKey + BACKEND_API_TOKEN (for signed URL) and/or S3 credentials (for direct PUT)."
     },
     {
       "parameters": {},
-      "id": "361f3e54-2c48-4ebf-a9f4-d0d868d4278e",
+      "id": "40110ec8-0fb9-4c9d-b666-7c825eb6c4bc",
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -128,
-        416
+        3456,
+        -336
       ],
       "disabled": true
     },
@@ -181,7 +181,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"payload\": {{ JSON.stringify((() => {\n    const buildNode = $item(0).$node[\"Build 1‑manifest.json\"]?.json || {};\n    const manifestKey = $json.r2Key || $json.manifestKey || $json.orderUpsert?.one_manifest_url || buildNode.r2Key || buildNode.manifestKey || buildNode.orderUpsert?.one_manifest_url || null;\n    return {\n      ...$json,\n      r2Key: manifestKey,\n      manifestKey,\n      manifest: $json.manifest || buildNode.manifest,\n      orderUpsert: $json.orderUpsert || buildNode.orderUpsert,\n    };\n  })()) }}\n}",
+        "jsonBody": "={{$json.requestBody}}",
         "options": {
           "response": {
             "response": {
@@ -191,13 +191,13 @@
           "timeout": 90000
         }
       },
-      "id": "9e7a7995-177e-4fb1-8320-dec3c5266c44",
+      "id": "d1460a7e-2e06-4808-adeb-bab11389ecad",
       "name": "Supabase Upsert (orders)2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2656,
-        64
+        6704,
+        -688
       ],
       "notes": "Repo-owned per-book orders upsert. W0 still uploads the manifest to R2 directly."
     },
@@ -219,8 +219,9 @@
           ]
         },
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\n  \"payload\": {{ JSON.stringify((() => ({\n    ...$json,\n    schemaVersion: 'v3',\n    configSource: 'published-first',\n    bookId: 'book-mvp-simple-adventure'\n  }))()) }}\n}",
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{$json.requestBody}}",
         "options": {
           "response": {
             "response": {
@@ -230,23 +231,175 @@
           "timeout": 90000
         }
       },
-      "id": "4fb13c49-d6f0-4dd0-a168-46738722e64a",
+      "id": "eede4281-684d-4bae-9436-14b9ca8decef",
       "name": "Build 1‑manifest.json",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1440,
-        176
-      ]
-    }
-  ],
-  "pinData": {},
-  "connections": {
-    "Mock Order (STANDARD Testing)": {
-      "main": [
-        []
+        5232,
+        -576
       ]
     },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    requestBody: JSON.stringify({\n      payload: $json,\n      schemaVersion: 'v3',\n      configSource: 'published-first',\n      bookId: 'book-mvp-simple-adventure',\n    }),\n  },\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4816,
+        -704
+      ],
+      "id": "5f3823fb-9440-4e8c-ade4-26c0a9279316",
+      "name": "Prepare Build 1 Manifest Body"
+    },
+    {
+      "parameters": {
+        "jsCode": "const built = $item(0).$node[\"Create Binary (manifest.json)\"]?.json || {};\n\nconst manifestKey =\n  built.r2Key ||\n  built.manifestKey ||\n  built.orderUpsert?.one_manifest_url ||\n  null;\n\nconst orderId =\n  built.orderId ||\n  built.orderUpsert?.orderId ||\n  built.orderUpsert?.order_id ||\n  null;\n\nconst orderUpsert = {\n  ...(built.orderUpsert || {}),\n  orderId:\n    (built.orderUpsert && built.orderUpsert.orderId) ||\n    (built.orderUpsert && built.orderUpsert.order_id) ||\n    orderId,\n  one_manifest_url:\n    (built.orderUpsert && built.orderUpsert.one_manifest_url) ||\n    manifestKey,\n};\n\nreturn [{\n  json: {\n    requestBody: JSON.stringify({\n      payload: {\n        orderUpsert,\n        r2Key: manifestKey,\n        manifestKey,\n      },\n    }),\n  },\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6304,
+        -688
+      ],
+      "id": "c190bb07-2824-4517-a13f-327dead706dc",
+      "name": "Prepare w0 Upsert Node"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "thepeakbeyond.app.n8n.cloud",
+            "user-agent": "python-requests/2.32.3",
+            "content-length": "2051",
+            "accept": "*/*",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "98.56.162.34",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "US",
+            "cf-ray": "9df19e5f3b16e9e3-LAX",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "x-forwarded-for": "98.56.162.34, 172.70.207.162",
+            "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-3-78ddd45589-dkw6m",
+            "x-is-trusted": "yes",
+            "x-real-ip": "98.56.162.34"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "amazonOrderId": "TEST-REPO-W0DOC-1773977219719",
+            "orderId": "TEST-REPO-W0DOC-1773977219719",
+            "id": "TEST-REPO-W0DOC-1773977219719",
+            "orderDate": "2026-03-20T03:26:59.000Z",
+            "purchaseDate": "2026-03-20T03:26:59.000Z",
+            "status": "pending_w0",
+            "marketplaceId": "ATVPDKIKX0DER",
+            "customerEmail": "jeff+repo-smoke@example.com",
+            "buyer": {
+              "email": "jeff+repo-smoke@example.com",
+              "name": "Repo Smoke"
+            },
+            "shippingAddress": {
+              "name": "Repo Smoke",
+              "address": "12207 Sunset Ave.",
+              "city": "Grass Valley",
+              "state": "CA",
+              "zip": "95945",
+              "country": "US",
+              "phone": "+1-678-478-3477"
+            },
+            "characterSpecs": {
+              "childName": "Bea",
+              "age": 6,
+              "skinTone": "skin-brown-light",
+              "hairColor": "dark-brown",
+              "hairStyle": "curly-bob",
+              "pronouns": "she/her",
+              "favoriteColor": "blue",
+              "animalGuide": "otter",
+              "clothingStyle": "dress"
+            },
+            "character_specs": {
+              "childName": "Bea",
+              "age": 6,
+              "skinTone": "skin-brown-light",
+              "hairColor": "dark-brown",
+              "hairStyle": "curly-bob",
+              "pronouns": "she/her",
+              "favoriteColor": "blue",
+              "animalGuide": "otter",
+              "clothingStyle": "dress"
+            },
+            "CharacterSpecs": {
+              "childName": "Bea",
+              "age": 6,
+              "skinTone": "skin-brown-light",
+              "hairColor": "dark-brown",
+              "hairStyle": "curly-bob",
+              "pronouns": "she/her",
+              "favoriteColor": "blue",
+              "animalGuide": "otter",
+              "clothingStyle": "dress"
+            },
+            "bookSpecs": {
+              "title": "Bea and the Quiet Compass",
+              "totalPages": 17,
+              "format": "amazon-softcover",
+              "bookType": "adventure"
+            },
+            "book_specs": {
+              "title": "Bea and the Quiet Compass",
+              "totalPages": 17,
+              "format": "amazon-softcover",
+              "bookType": "adventure"
+            },
+            "orderDetails": {
+              "quantity": 1,
+              "shippingAddress": {
+                "name": "Repo Smoke",
+                "address": "12207 Sunset Ave.",
+                "city": "Grass Valley",
+                "state": "CA",
+                "zip": "95945",
+                "country": "US",
+                "phone": "+1-678-478-3477"
+              }
+            },
+            "dedication": "Book 1 repo smoke test order after deploy.",
+            "Dedication": "Book 1 repo smoke test order after deploy.",
+            "items": [
+              {
+                "sku": "LHB-8.5X8.5-SOFTCOVER",
+                "quantity": 1,
+                "customizations": [
+                  {
+                    "name": "dedication",
+                    "value": "Book 1 repo smoke test order after deploy."
+                  },
+                  {
+                    "name": "childName",
+                    "value": "Bea"
+                  }
+                ]
+              }
+            ]
+          },
+          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-repo",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
     "Upload 1-manifest.json to R2": {
       "main": [
         [
@@ -280,7 +433,7 @@
       "main": [
         [
           {
-            "node": "Supabase Upsert (orders)2",
+            "node": "Prepare w0 Upsert Node",
             "type": "main",
             "index": 0
           }
@@ -303,6 +456,11 @@
         [
           {
             "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Build 1 Manifest Body",
             "type": "main",
             "index": 0
           },
@@ -368,16 +526,38 @@
           }
         ]
       ]
+    },
+    "Prepare Build 1 Manifest Body": {
+      "main": [
+        [
+          {
+            "node": "Build 1‑manifest.json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare w0 Upsert Node": {
+      "main": [
+        [
+          {
+            "node": "Supabase Upsert (orders)2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "versionId": "1d5f7a54-f1a4-498b-b6f9-5ca4a64b82d2",
-  "meta": {
-    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
-  },
-  "id": "YQSPagHL7erShCt2",
+  "versionId": "bd89d9ad-8fd4-4ef9-a89b-5cfac9c5f64c",
+  "meta": null,
+  "id": "9E0oVs46bMoiyRIP",
   "tags": []
 }

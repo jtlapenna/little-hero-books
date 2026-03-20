@@ -339,8 +339,6 @@
           ]
         },
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\n  \"payload\": {{ JSON.stringify((() => ({\n    ...$json,\n    orderContext: $json.orderContext || {},\n    oneManifestUrl: $json.oneManifestUrl || $json.one_manifest_url || $json.orderContext?.oneManifestUrl || null\n  }))()) }}\n}",
         "options": {
           "response": {
             "response": {
@@ -348,7 +346,10 @@
             }
           },
           "timeout": 90000
-        }
+        },
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{$json.requestBody}}"
       },
       "id": "9d63bcdc-91c9-4ceb-bb44-ec0172b83959",
       "name": "Bootstrap 2A Manifest Stub",
@@ -768,8 +769,6 @@
           ]
         },
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\n  \"orderId\": {{$json.orderId || $json.manifest?.order?.orderId ? JSON.stringify($json.orderId || $json.manifest?.order?.orderId) : 'null'}},\n  \"manifestUrl\": {{$json.manifest?.manifestUrl || $json.manifestUrl || ('https://admin.littleherolabs.com/api/manifests/' + String($json.manifestKey || '').replace(/^\\/+/, '')) ? JSON.stringify($json.manifest?.manifestUrl || $json.manifestUrl || ('https://admin.littleherolabs.com/api/manifests/' + String($json.manifestKey || '').replace(/^\\/+/, ''))) : 'null'}},\n  \"characterHash\": {{$json.characterHash || $json.manifest?.characterHash ? JSON.stringify($json.characterHash || $json.manifest?.characterHash) : 'null'}},\n  \"amazonOrderId\": {{$json.rootOrderId || $json.amazonOrderId || $json.manifest?.order?.rootOrderId || $json.manifest?.order?.amazonOrderId ? JSON.stringify($json.rootOrderId || $json.amazonOrderId || $json.manifest?.order?.rootOrderId || $json.manifest?.order?.amazonOrderId) : 'null'}},\n  \"posesGenerated\": {{$json.manifest?.poses?.approved ?? $json.manifest?.poses?.total ?? 0}},\n  \"needsReview\": {{ !!($json.manifest?.summary?.needsHumanReview) }}\n}",
         "options": {
           "response": {
             "response": {
@@ -777,7 +776,10 @@
             }
           },
           "timeout": 90000
-        }
+        },
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{$json.requestBody}}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -851,8 +853,6 @@
           ]
         },
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\n  \"payload\": {{ JSON.stringify((() => ({\n    ...$json,\n    oneManifestUrl: $json.oneManifestUrl || $json.one_manifest_url || $json.orderContext?.oneManifestUrl || null,\n    includeZeroPose: true,\n    configSource: 'published-first'\n  }))()) }}\n}",
         "options": {
           "response": {
             "response": {
@@ -860,7 +860,10 @@
             }
           },
           "timeout": 90000
-        }
+        },
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{$json.requestBody}}"
       },
       "id": "8dff88aa-5e35-4caa-bb21-7a6b1e672c0d",
       "name": "Resolve Pose Worklist",
@@ -891,8 +894,6 @@
           ]
         },
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\n  \"payload\": {{ JSON.stringify($json) }}\n}",
         "options": {
           "response": {
             "response": {
@@ -900,7 +901,10 @@
             }
           },
           "timeout": 90000
-        }
+        },
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{$json.requestBody}}"
       },
       "id": "3280678b-7e4c-4653-9089-a99cc3a6211b",
       "name": "Build + Upload 2A Manifest",
@@ -912,6 +916,58 @@
       ],
       "notesInFlow": true,
       "notes": "Repo-owned 2A run-manifest builder/uploader. Uses the accumulated pose results gathered in n8n."
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = {\n  ...$json,\n  orderContext: $json.orderContext || {},\n  oneManifestUrl: $json.oneManifestUrl || $json.one_manifest_url || $json.orderContext?.oneManifestUrl || null,\n};\n\nreturn [{\n  json: {\n    ...$json,\n    requestBody: JSON.stringify({ payload }),\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2576,
+        784
+      ],
+      "id": "6b038de8-2a60-470f-a8bf-0fb927779201",
+      "name": "Prepare Bootstrap 2A Manifest Body"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = {\n  ...$json,\n  oneManifestUrl: $json.oneManifestUrl || $json.one_manifest_url || $json.orderContext?.oneManifestUrl || null,\n  includeZeroPose: true,\n  configSource: 'published-first',\n};\n\nreturn [{\n  json: {\n    ...$json,\n    requestBody: JSON.stringify({ payload }),\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1392,
+        784
+      ],
+      "id": "4f0fe0ff-44f2-497d-a157-8f8542bfdac4",
+      "name": "Prepare Resolve Pose Worklist Body"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    ...$json,\n    requestBody: JSON.stringify({ payload: $json }),\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2048,
+        2000
+      ],
+      "id": "dc4f2478-94a4-49f0-8b74-457f0df6a491",
+      "name": "Prepare Build 2A Manifest Body"
+    },
+    {
+      "parameters": {
+        "jsCode": "function tryParseJsonString(value) {\n  if (typeof value !== 'string') return null;\n  const trimmed = value.trim();\n  if (!trimmed) return null;\n  try {\n    return JSON.parse(trimmed);\n  } catch {\n    return null;\n  }\n}\n\nfunction bufferLikeToObject(value) {\n  if (!value || typeof value !== 'object') return null;\n  if (value.type === 'Buffer' && Array.isArray(value.data)) {\n    try {\n      return JSON.parse(Buffer.from(value.data).toString('utf8'));\n    } catch {\n      return null;\n    }\n  }\n  return null;\n}\n\nfunction streamToObject(value) {\n  if (!value || typeof value !== 'object') return null;\n  const readable = value._readableState;\n  const buf = readable?.buffer;\n  if (!buf) return null;\n  const chunks = [];\n  if (Array.isArray(buf)) {\n    for (const entry of buf) {\n      const parsed = bufferLikeToObject(entry?.data) || bufferLikeToObject(entry);\n      if (parsed) return parsed;\n      if (entry?.data?.type === 'Buffer' && Array.isArray(entry.data.data)) chunks.push(Buffer.from(entry.data.data));\n      else if (entry?.type === 'Buffer' && Array.isArray(entry.data)) chunks.push(Buffer.from(entry.data));\n    }\n  }\n  if (chunks.length) {\n    try {\n      return JSON.parse(Buffer.concat(chunks).toString('utf8'));\n    } catch {}\n  }\n  return null;\n}\n\nfunction unwrap(value) {\n  if (!value) return null;\n  if (typeof value === 'string') return tryParseJsonString(value);\n  if (typeof value !== 'object') return null;\n  if (value.manifest || value.manifestKey || value.manifestUrl) return value;\n  return unwrap(value.body) || unwrap(value.data) || bufferLikeToObject(value) || streamToObject(value);\n}\n\nconst input = unwrap($json) || unwrap($json?.body) || $json || {};\nconst orderId = input.orderId || input.manifest?.order?.orderId || null;\nconst manifestUrl = input.manifest?.manifestUrl || input.manifestUrl || (input.manifestKey ? `https://admin.littleherolabs.com/api/manifests/${String(input.manifestKey).replace(/^\\/+/, '')}` : null);\nconst characterHash = input.characterHash || input.manifest?.characterHash || null;\nconst amazonOrderId = input.rootOrderId || input.amazonOrderId || input.manifest?.order?.rootOrderId || input.manifest?.order?.amazonOrderId || null;\nconst posesGenerated = input.manifest?.poses?.approved ?? input.manifest?.poses?.total ?? 0;\nconst needsReview = !!(input.manifest?.summary?.needsHumanReview);\n\nreturn [{\n  json: {\n    ...input,\n    requestBody: JSON.stringify({\n      orderId,\n      manifestUrl,\n      characterHash,\n      amazonOrderId,\n      posesGenerated,\n      needsReview,\n    }),\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1536,
+        1984
+      ],
+      "id": "4bfc4d80-ce78-4900-9294-41f161249dc6",
+      "name": "Prepare 2A Completion Upsert Body"
     }
   ],
   "pinData": {
@@ -1165,7 +1221,7 @@
       "main": [
         [
           {
-            "node": "Bootstrap 2A Manifest Stub",
+            "node": "Prepare Bootstrap 2A Manifest Body",
             "type": "main",
             "index": 0
           }
@@ -1392,7 +1448,7 @@
       "main": [
         [
           {
-            "node": "Resolve Pose Worklist",
+            "node": "Prepare Resolve Pose Worklist Body",
             "type": "main",
             "index": 0
           }
@@ -1414,7 +1470,7 @@
       "main": [
         [
           {
-            "node": "Build + Upload 2A Manifest",
+            "node": "Prepare Build 2A Manifest Body",
             "type": "main",
             "index": 0
           }
@@ -1436,7 +1492,7 @@
       "main": [
         [
           {
-            "node": "Supabase — Upsert from 2A Manifest",
+            "node": "Prepare 2A Completion Upsert Body",
             "type": "main",
             "index": 0
           }
@@ -1458,7 +1514,7 @@
       "main": [
         [
           {
-            "node": "Supabase — Upsert from 2A Manifest",
+            "node": "Prepare 2A Completion Upsert Body",
             "type": "main",
             "index": 0
           }
@@ -1477,6 +1533,50 @@
       ]
     },
     "Build + Upload 2A Manifest": {
+      "main": [
+        [
+          {
+            "node": "Prepare 2A Completion Upsert Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Bootstrap 2A Manifest Body": {
+      "main": [
+        [
+          {
+            "node": "Bootstrap 2A Manifest Stub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Resolve Pose Worklist Body": {
+      "main": [
+        [
+          {
+            "node": "Resolve Pose Worklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Build 2A Manifest Body": {
+      "main": [
+        [
+          {
+            "node": "Build + Upload 2A Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare 2A Completion Upsert Body": {
       "main": [
         [
           {
