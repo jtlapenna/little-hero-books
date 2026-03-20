@@ -1,6 +1,11 @@
 import { loadBundledBookConfig } from '@/lib/books/load-book-config';
 import { resolvePagePlan } from '@/lib/books/resolve-page-plan';
 import {
+  loadRuntimeBookConfig,
+  type BookConfigRuntimeSource,
+} from '@/lib/books/runtime-book-config';
+import {
+  BookConfig,
   Platform,
   RunManifestInputSchema,
   RunManifestV3,
@@ -31,18 +36,21 @@ export interface BuildW0RunManifestInput {
   createdAt?: string;
 }
 
+export interface BuildW0RunManifestRuntimeInput extends BuildW0RunManifestInput {
+  configSource?: BookConfigRuntimeSource | null;
+}
+
 function replacePattern(pattern: string, orderId: string): string {
   return pattern.replaceAll('{orderId}', orderId);
 }
 
-export function buildW0RunManifest(input: BuildW0RunManifestInput): RunManifestV3 {
+export function buildW0RunManifestFromConfig(
+  config: BookConfig,
+  input: Omit<BuildW0RunManifestInput, 'bookId' | 'configVersion'>,
+): RunManifestV3 {
   const createdAt = input.createdAt ?? new Date().toISOString();
   const runId = input.runId ?? `w0-${input.orderId}-${Date.now()}`;
   const rootOrderId = input.rootOrderId ?? input.orderId;
-  const config = loadBundledBookConfig({
-    bookId: input.bookId,
-    version: input.configVersion,
-  });
   const resolved = resolvePagePlan(config, input.formatId);
   const formatId = input.formatId ?? config.defaultFormatId;
   const orderPrefix = config.assets.generated.orderPrefix.replaceAll('{orderId}', input.orderId);
@@ -137,3 +145,55 @@ export function buildW0RunManifest(input: BuildW0RunManifestInput): RunManifestV
   };
 }
 
+export function buildW0RunManifest(input: BuildW0RunManifestInput): RunManifestV3 {
+  const config = loadBundledBookConfig({
+    bookId: input.bookId,
+    version: input.configVersion,
+  });
+
+  return buildW0RunManifestFromConfig(config, {
+    orderId: input.orderId,
+    rootOrderId: input.rootOrderId,
+    amazonOrderId: input.amazonOrderId,
+    orderDbId: input.orderDbId,
+    platform: input.platform,
+    workflow: input.workflow,
+    customerApprovalRequired: input.customerApprovalRequired,
+    formatId: input.formatId,
+    characterHash: input.characterHash,
+    requestedShippingTier: input.requestedShippingTier,
+    resolvedProviderShippingLevel: input.resolvedProviderShippingLevel,
+    shippingAddress: input.shippingAddress,
+    input: input.input,
+    runId: input.runId,
+    createdAt: input.createdAt,
+  });
+}
+
+export async function buildW0RunManifestRuntime(
+  input: BuildW0RunManifestRuntimeInput,
+): Promise<RunManifestV3> {
+  const config = await loadRuntimeBookConfig({
+    bookId: input.bookId,
+    version: input.configVersion,
+    source: input.configSource,
+  });
+
+  return buildW0RunManifestFromConfig(config, {
+    orderId: input.orderId,
+    rootOrderId: input.rootOrderId,
+    amazonOrderId: input.amazonOrderId,
+    orderDbId: input.orderDbId,
+    platform: input.platform,
+    workflow: input.workflow,
+    customerApprovalRequired: input.customerApprovalRequired,
+    formatId: input.formatId,
+    characterHash: input.characterHash,
+    requestedShippingTier: input.requestedShippingTier,
+    resolvedProviderShippingLevel: input.resolvedProviderShippingLevel,
+    shippingAddress: input.shippingAddress,
+    input: input.input,
+    runId: input.runId,
+    createdAt: input.createdAt,
+  });
+}

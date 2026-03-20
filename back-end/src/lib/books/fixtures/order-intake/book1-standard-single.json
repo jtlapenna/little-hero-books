@@ -1,0 +1,49 @@
+{
+  "fixtureId": "book1-standard-single",
+  "orderId": "FIXTURE-BOOK1-STANDARD-001",
+  "options": {
+    "schemaVersion": "v3",
+    "bookId": "book-mvp-simple-adventure",
+    "formatId": "standard"
+  },
+  "expected": {
+    "bookId": "book-mvp-simple-adventure",
+    "formatId": "standard",
+    "expectedPageCount": 15,
+    "rootOrderId": "FIXTURE-BOOK1-STANDARD-001",
+    "amazonOrderId": null
+  },
+  "order": {
+    "id": 101,
+    "orderId": "FIXTURE-BOOK1-STANDARD-001",
+    "platform": "d2c",
+    "created_at": "2026-03-15T10:00:00.000Z",
+    "customer_email": "parent@example.com",
+    "customer_name": "Parent Example",
+    "dedication_text": "Keep listening to your heart",
+    "character_hash": "fixture-standard-hash",
+    "customer_approval_required": true,
+    "character_specs": {
+      "childName": "Ada",
+      "favoriteAnimal": "fox",
+      "favoriteColor": "green"
+    },
+    "product_info": {
+      "quantity": 1,
+      "shippingAddress": {
+        "name": "Parent Example",
+        "city": "Los Angeles",
+        "state_code": "CA",
+        "postcode": "90001",
+        "country_code": "US"
+      },
+      "bookSpecs": {
+        "bookId": "book-mvp-simple-adventure",
+        "title": "Ada and the Listening Light",
+        "format": "8.5x8.5_softcover",
+        "formatId": "standard",
+        "bookType": "adventure"
+      }
+    }
+  }
+}

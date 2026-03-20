@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listObjects, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET, R2_CHARACTERS_PREFIX, validateR2Config } from '@/lib/r2-client';
-import { getAvailableCharacterHashes, getAvailableOrderIds } from '@/lib/r2-service';
+import { buildManifestKey, getAvailableCharacterHashes, getAvailableOrderIds } from '@/lib/r2-service';
+import { buildCharacterAssetPrefix, normalizeBookId } from '@/lib/order-paths';
 
 export async function GET(request: NextRequest) {
+  const requestedBookId = normalizeBookId(request.nextUrl.searchParams.get('bookId'));
+  const testOrderId = request.nextUrl.searchParams.get('testOrderId')?.trim() || 'TEST-ORDER-006';
+  const orderPrefix = `${requestedBookId}/orders/`;
+  const characterPrefix = `${buildCharacterAssetPrefix('__debug__', requestedBookId).replace(/__debug__$/, '')}`;
   const configValidation = validateR2Config();
   
   const diagnostics: any = {
@@ -18,7 +23,9 @@ export async function GET(request: NextRequest) {
       hasSecretKey: !!process.env.R2_SECRET_ACCESS_KEY,
       publicBucket: R2_PUBLIC_BUCKET,
       ordersBucket: R2_ORDERS_BUCKET,
-      charactersPrefix: R2_CHARACTERS_PREFIX,
+      charactersPrefix: characterPrefix,
+      defaultCharactersPrefix: R2_CHARACTERS_PREFIX,
+      requestedBookId,
     },
     tests: {} as any,
   };
@@ -42,7 +49,7 @@ export async function GET(request: NextRequest) {
   // Test 2: List characters prefix
   try {
     const res2 = await listObjects(R2_PUBLIC_BUCKET, {
-      prefix: R2_CHARACTERS_PREFIX,
+      prefix: characterPrefix,
       delimiter: '/',
       maxKeys: 10,
     });
@@ -79,7 +86,7 @@ export async function GET(request: NextRequest) {
   // Test 4: List orders bucket
   try {
     const res3 = await listObjects(R2_ORDERS_BUCKET, {
-      prefix: 'book-mvp-simple-adventure/orders/',
+      prefix: orderPrefix,
       delimiter: '/',
       maxKeys: 10,
     });
@@ -99,19 +106,20 @@ export async function GET(request: NextRequest) {
 
   // Test 5: Try getAvailableOrderIds
   try {
-    const orderIds = await getAvailableOrderIds();
+    const orderIds = await getAvailableOrderIds(requestedBookId);
     diagnostics.tests.getOrderIds = {
       success: true,
       count: orderIds.length,
       orderIds: orderIds.slice(0, 10),
-      foundTEST_ORDER_006: orderIds.includes('TEST-ORDER-006'),
+      foundTestOrder: orderIds.includes(testOrderId),
+      testOrderId,
     };
     
-    // Test 6: Try to load manifest for TEST-ORDER-006 if it exists
-    if (orderIds.includes('TEST-ORDER-006')) {
+    // Test 6: Try to load manifest for the requested test order if it exists
+    if (orderIds.includes(testOrderId)) {
       try {
-        const { downloadManifest, buildManifestKey } = await import('@/lib/r2-service');
-        const manifestKey = buildManifestKey('TEST-ORDER-006', '2a');
+        const { downloadManifest } = await import('@/lib/r2-service');
+        const manifestKey = buildManifestKey(testOrderId, '2a', { bookId: requestedBookId });
         const manifest = await downloadManifest(manifestKey);
         diagnostics.tests.testOrderManifest = {
           success: true,
@@ -140,5 +148,3 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(diagnostics, { status: 200 });
 }
-
-

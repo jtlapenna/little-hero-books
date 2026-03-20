@@ -3,7 +3,7 @@
 **Purpose:** define the concrete phased execution plan for making the pipeline Book-2-ready without forking Book 1 and Book 2 into permanently separate workflow trees.
 **Status:** In progress
 **Created:** 2026-03-14
-**Last Updated:** 2026-03-17
+**Last Updated:** 2026-03-18
 
 Companion docs:
 
@@ -20,7 +20,7 @@ Companion docs:
 
 ---
 
-## Current status snapshot (2026-03-17)
+## Current status snapshot (2026-03-18)
 
 ### Commit-backed milestones
 
@@ -54,10 +54,21 @@ The committed planning history for this work currently looks like:
   - review UI consumers using `bookContext` / manifest-derived page semantics
   - dynamic order-root handling in W2B, W3, and W4
   - generalized render/asset helpers for non-Book-1 order roots
+- The active repo-owned migration path is now using the sibling exports as the source of truth for workflow changes:
+  - `docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/`
+- The sibling W0 export now calls repo-owned internal routes for canonical `1-manifest` build + order upsert.
+- The sibling W2A orchestrator now calls repo-owned internal routes for:
+  - pose worklist resolution from the frozen page plan
+  - `2a-manifest` bootstrap build + upload
+  - final `2a-manifest` build + upload
 - The kernel test harness currently passes via `npm run test:book-kernel`.
+- A first published-snapshot replay harness now exists at:
+  - `back-end/scripts/test-book-replay.ts`
+  - `back-end/src/lib/books/fixtures/order-intake/`
+- That replay harness now passes against the live published Book 1 snapshot via `npm run test:book-replay`.
 - The current bundled config set is still Book-1-only:
   - `back-end/src/lib/books/configs/book-mvp-simple-adventure/v1.json`
-- There is no actual Book 2 authored config, fixture set, or asset/config onboarding in the repo yet.
+- There is still no actual Book 2 authored config or asset/config onboarding in the repo yet.
 - Several runtime paths still carry Book 1 defaults or fallback assumptions, so full Book 2 onboarding is not ready yet.
 
 ### Practical status
@@ -307,7 +318,7 @@ Current implementation includes:
 Important limitation:
 
 - only Book 1 is currently bundled as config input
-- the publish/read path into Supabase is still planned rather than finished here
+- only Book 1 is currently published/readable unless additional `book_configs` rows are published
 
 ### Tasks
 
@@ -378,11 +389,15 @@ Important limitation:
 
 **Goal:** ensure contract and migration work can be tested locally before W0 and downstream cutovers begin.
 
-**Current status:** initial harness committed in `f809c61`.
+**Current status:** minimum Book 1 replay harness is now in place.
 
 Current harness:
 
 - `back-end/scripts/test-book-kernel.ts`
+- `back-end/scripts/test-book-replay.ts`
+- `back-end/src/lib/books/fixtures/order-intake/book1-standard-single.json`
+- `back-end/src/lib/books/fixtures/order-intake/book1-amazon-single.json`
+- `back-end/src/lib/books/fixtures/order-intake/book1-amazon-sibling.json`
 
 What it already covers:
 
@@ -391,6 +406,9 @@ What it already covers:
 - W0 manifest v3 building/validation
 - legacy/v3 normalization checks
 - workflow contract assertions for W3/W4
+- published `book_configs` replay for Book 1 standard, Amazon single-item, and Amazon sibling fixtures
+- published-vs-bundled parity checks for the resolved Book 1 page plan
+- explicit `book.bookConfigRef.version` pinning in the replayed v3 manifests
 
 What is still missing for the original goal:
 
@@ -413,9 +431,10 @@ What is still missing for the original goal:
 
 ### Deliverables
 
-- a minimum replay command for config -> page plan -> `1-manifest`
-- a small fixture set checked into the repo
-- schema validation in CI for the minimum harness
+- implemented: minimum replay command for config -> page plan -> `1-manifest`
+  - `npm run test:book-replay`
+- implemented: small Book 1 fixture set checked into the repo
+- pending: schema validation in CI for the minimum harness
 
 ### Exit criteria
 
@@ -428,16 +447,20 @@ What is still missing for the original goal:
 
 **Goal:** make W0 the first shared kernel entry point.
 
-**Current status:** started, but not fully cut over.
+**Current status:** repo-side cutover seam is in place; live Book 1 import/testing is the next gate.
 
 Current working-tree implementation already includes:
 
 - `back-end/src/lib/w0-manifest-builder.ts`
 - repo-side W0 v3 manifest generation through `buildW0RunManifest()`
+- [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w0/build-manifest/route.ts) for repo-owned W0 manifest building with `published-first` config loading
+- [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w0/upsert-order/route.ts) for repo-owned per-book `orders` upsert
+- the versioned main/sibling W0 exports at [w0-Order_Intake_Validation.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w0-Order_Intake_Validation.json) and [SIBLING - w0-Order_Intake_Validation.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING%20-%20w0-Order_Intake_Validation.json) now call those internal routes instead of building the manifest or patching Supabase inline
 
 What is not done yet:
 
-- full live W0 workflow cutover to repo-owned manifest generation
+- importing the updated W0 exports into live n8n and proving the Book 1 path end to end
+- moving the remaining W0 normalization/dedication parsing/R2-upload orchestration behind repo-owned seams if we decide that extra thinning is worth it
 - actual Book 2 selection/onboarding path
 - final mixed-manifest production rollout across live workflow boundaries
 
@@ -500,6 +523,10 @@ What is not done yet:
 - Standardize `2b-manifest` keys and reconciliation logic.
 
 ### Existing sources
+
+Migration note:
+
+- ongoing n8n migration changes should now land in the sibling exports first, because those are the workflows intended to replace the older `finals` copies after validation
 
 - [w2A-Orchestrator.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w2A-Orchestrator.json)
 - [w2A-SW0-Base_Character_Generation.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w2A-SW0-Base_Character_Generation.json)
@@ -727,7 +754,7 @@ Why this order:
 
 ## 7. Immediate next actions
 
-Progress update as of 2026-03-17:
+Progress update as of 2026-03-18:
 
 - Phase 0 planning/docs were completed in commit `12f098c`.
 - The repo-owned `back-end/src/lib/books/` kernel is now committed in `f809c61` for Book 1 `standard` and `amazon`.
@@ -757,13 +784,28 @@ Progress update as of 2026-03-17:
   - [orders-column-ownership-matrix.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_artifacts/orders-column-ownership-matrix.md)
   - [manifest-pointer-ownership-table.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_artifacts/manifest-pointer-ownership-table.md)
   - [49-sibling-orders-require-group-send-to-print.md](/Users/jeff/Projects/little-hero-books/docs/_ongoing-issues-list/_needs-review/49-sibling-orders-require-group-send-to-print.md)
-- The next remaining contract gap is now centered in whether the debug-only manifest routes should be migrated onto the shared seam or deliberately left legacy, plus any future multi-book preview/background clients that still omit `bookId` / `formatId` hints.
-- That new path is intentionally additive and non-default because downstream readers are not yet dual-version capable.
+- The remaining debug-only and request-boundary Book 1 assumptions are now also moved onto the shared seam in [runtime-book-config.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/runtime-book-config.ts), [publish-book-config.ts](/Users/jeff/Projects/little-hero-books/back-end/scripts/publish-book-config.ts), [r2/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/debug/r2/route.ts), [r2-diagnostic/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/debug/r2-diagnostic/route.ts), [orders-simple/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/debug/orders-simple/route.ts), [orders-test/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/debug/orders-test/route.ts), [r2-get/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/debug/r2-get/route.ts), [post-bria-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/post-bria-stage.tsx), [post-pdf-stage.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/stages/post-pdf-stage.tsx), [page.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/app/orders/[orderId]/page.tsx), and [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/route.ts).
+- Shared runtime readers can now prefer published `book_configs` snapshots and fall back safely to bundled configs when the published table or row is unavailable. That new path is intentionally additive because W0 still defaults to the bundled config path until the wider cutover/replay work is complete.
+- The live Supabase `book_configs` table now exists, Book 1 `book-mvp-simple-adventure@v1` has been published and marked active, and the published-mode runtime read path has been verified through [verify-book-config-publish.ts](/Users/jeff/Projects/little-hero-books/back-end/scripts/verify-book-config-publish.ts).
+- A new async W0 builder now exists for safe cutover work:
+  - [build-run-manifest.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/build-run-manifest.ts)
+- The sibling W0 export at [SIBLING - w0-Order_Intake_Validation.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING%20-%20w0-Order_Intake_Validation.json) is now wired to repo-owned internal routes for canonical manifest build and per-book order upsert.
+- The sibling W2A orchestrator at [SIBLING - w2A-Orchestrator.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING%20-%20w2A-Orchestrator.json) now keeps three Book-logic decisions in repo code instead of n8n:
+  - pose worklist resolution through [resolve-pose-worklist/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w2a/resolve-pose-worklist/route.ts)
+  - `2a-manifest` bootstrap build/upload through [bootstrap-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w2a/bootstrap-manifest/route.ts)
+  - final `2a-manifest` build/upload through [build-run-manifest/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w2a/build-run-manifest/route.ts)
+- Those W2A routes are backed by a shared repo helper at [w2a-manifest.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w2a-manifest.ts), and they have been smoke-tested directly with Book 1-compatible inputs against the live published-config path.
+  - [w0-manifest-builder.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w0-manifest-builder.ts)
+- Repo-owned W0 HTTP seams now exist at [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w0/build-manifest/route.ts) and [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w0/upsert-order/route.ts), and both the main and sibling W0 exports now call those routes with `published-first` config loading instead of building manifests or patching `orders` inline inside n8n.
+- The repo-owned W0 build + upsert route pair has been smoke-tested directly with a throwaway Amazon sibling-style order, including verification that `root_order_id`, `amazon_order_id`, and the canonical `1-manifest` key are preserved through the backend path.
+- The published replay harness now proves that Book 1 standard, Amazon single-item, and Amazon sibling fixtures can build validated `lhb.run-manifest@v3` manifests against the live published snapshot while preserving the same resolved page plan as the bundled config.
+- The admin recovery path can now opt into published-first config loading for v3 manifest rebuilds, so manual/recovery manifests stop depending on implicit bundled-latest behavior.
 
 From the current state, the next concrete actions should be:
 
-1. Decide whether the debug-only manifest routes under [app/api/debug](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/debug) should also adopt the shared candidate-builder or remain intentionally legacy/debug surfaces.
-2. If D2C or future admin clients need multi-book preview/background behavior before W0 cutover, thread explicit `bookId` / `formatId` hints into those callers so they stop relying on Book 1 defaults at the request boundary.
-3. Only after those remaining runtime readers and writers are dual-version safe should W0 v3 expand beyond manual/admin opt-in.
+1. Import the updated main/sibling W0 exports into n8n and run Book 1 through the live path as the dress rehearsal for Book 2.
+2. Extend the replay harness from `1-manifest` creation into at least one downstream stage reader before broader W0 v3 cutover.
+3. Add the first real Book 2 authored config, Book 2 fixtures, and Book 2 asset mappings so the same replay path can validate non-Book-1 inputs once those values exist.
+4. Only after those readers and writers are validated against the published path should W0 v3 expand beyond manual/admin opt-in.
 
 That is now the smallest useful slice that advances Book 2 without prematurely cutting production over to v3.

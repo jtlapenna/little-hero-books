@@ -19,6 +19,17 @@ export interface ReviewPoseAssignment {
   backgroundSlot: string | null;
 }
 
+export interface W2APoseWorkItem {
+  poseNumber: number;
+  currentPoseNumber: number;
+  index: number;
+  pageIndex: number | null;
+  pageLabel: string | null;
+  pageType: BookPageType | null;
+  storyPageNumber: number | null;
+  backgroundSlot: string | null;
+}
+
 function buildLegacyStoryPages(startIndex: number): BookPageConfig[] {
   const storyToPoseMap: Record<number, number | null> = {
     1: 1,
@@ -196,4 +207,41 @@ export function buildReviewPoseAssignments(
   return Array.from(assignmentByPose.values()).sort(
     (left, right) => left.poseNumber - right.poseNumber,
   );
+}
+
+export function buildW2APoseWorklist(
+  pagePlan: BookPageConfig[],
+  options: { includeZeroPose?: boolean } = {},
+): W2APoseWorkItem[] {
+  const includeZeroPose = options.includeZeroPose ?? true;
+  const assignments = buildReviewPoseAssignments(pagePlan);
+  const worklist: W2APoseWorkItem[] = [];
+
+  if (includeZeroPose && !assignments.some((assignment) => assignment.poseNumber === 0)) {
+    worklist.push({
+      poseNumber: 0,
+      currentPoseNumber: 0,
+      index: 0,
+      pageIndex: null,
+      pageLabel: null,
+      pageType: null,
+      storyPageNumber: null,
+      backgroundSlot: null,
+    });
+  }
+
+  for (const assignment of assignments) {
+    worklist.push({
+      poseNumber: assignment.poseNumber,
+      currentPoseNumber: assignment.poseNumber,
+      index: includeZeroPose ? assignment.poseNumber : worklist.length,
+      pageIndex: assignment.pageIndex,
+      pageLabel: assignment.pageLabel,
+      pageType: assignment.pageType,
+      storyPageNumber: assignment.storyPageNumber,
+      backgroundSlot: assignment.backgroundSlot,
+    });
+  }
+
+  return worklist;
 }

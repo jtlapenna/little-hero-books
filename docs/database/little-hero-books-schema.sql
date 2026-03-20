@@ -238,6 +238,26 @@ CREATE TABLE workflow_execution_logs (
 );
 
 -- =============================================
+-- BOOK CONFIG SNAPSHOTS TABLE
+-- =============================================
+CREATE TABLE book_configs (
+    id BIGSERIAL PRIMARY KEY,
+    book_id VARCHAR(120) NOT NULL,
+    version INTEGER NOT NULL CHECK (version > 0),
+    schema VARCHAR(80) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'archived')),
+    default_format_id VARCHAR(80) NOT NULL,
+    config_json JSONB NOT NULL,
+    checksum VARCHAR(64) NOT NULL,
+    published_at TIMESTAMP DEFAULT NOW(),
+    published_by VARCHAR(255),
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (book_id, version)
+);
+
+-- =============================================
 -- INDEXES FOR PERFORMANCE
 -- =============================================
 
@@ -280,6 +300,12 @@ CREATE INDEX idx_workflow_execution_logs_order_id ON workflow_execution_logs(ord
 CREATE INDEX idx_workflow_execution_logs_workflow_name ON workflow_execution_logs(workflow_name);
 CREATE INDEX idx_workflow_execution_logs_status ON workflow_execution_logs(status);
 
+-- Book config snapshot indexes
+CREATE INDEX idx_book_configs_status ON book_configs(status);
+CREATE INDEX idx_book_configs_published_at ON book_configs(published_at DESC);
+CREATE INDEX idx_book_configs_checksum ON book_configs(checksum);
+CREATE UNIQUE INDEX idx_book_configs_one_active_per_book ON book_configs(book_id) WHERE is_active = TRUE;
+
 -- =============================================
 -- TRIGGERS FOR AUTOMATIC UPDATES
 -- =============================================
@@ -300,6 +326,9 @@ CREATE TRIGGER update_character_generations_updated_at BEFORE UPDATE ON characte
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_failed_orders_updated_at BEFORE UPDATE ON failed_orders
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_book_configs_updated_at BEFORE UPDATE ON book_configs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =============================================

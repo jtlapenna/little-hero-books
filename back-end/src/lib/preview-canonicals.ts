@@ -5,6 +5,7 @@
  */
 
 import { loadBundledBookConfig } from '@/lib/books';
+import type { BookConfig } from '@/lib/books';
 import { DEFAULT_BOOK_ID, normalizeBookId } from '@/lib/order-paths';
 import { SKIN_TONE_HEX_MAP } from '@/types/customization';
 
@@ -134,18 +135,10 @@ const BASE_FILENAME_DRESS: Record<string, string> = {
 /**
  * Resolve frontend character_specs to w2A canonicals and R2 keys for base + hair assets.
  */
-export function resolvePreviewCanonicals(
+export function resolvePreviewCanonicalsForConfig(
   specs: CharacterSpecsInput,
-  options: ResolvePreviewCanonicalsOptions = {},
+  bookConfig: BookConfig,
 ): PreviewResolved {
-  const requestedBookId = normalizeBookId(options.bookId ?? DEFAULT_BOOK_ID);
-  const bookConfig = (() => {
-    try {
-      return loadBundledBookConfig({ bookId: requestedBookId });
-    } catch {
-      return loadBundledBookConfig({ bookId: DEFAULT_BOOK_ID });
-    }
-  })();
   const baseCharactersPrefix =
     bookConfig.assets.preview?.baseCharactersPrefix ??
     `${bookConfig.assets.assetRoot}/characters/bases`;
@@ -187,4 +180,13 @@ export function resolvePreviewCanonicals(
     hairColorLabel,
     shortsHex: SHORTS_HEX,
   };
+}
+
+export function resolvePreviewCanonicals(
+  specs: CharacterSpecsInput,
+  options: ResolvePreviewCanonicalsOptions = {},
+): PreviewResolved {
+  const requestedBookId = normalizeBookId(options.bookId ?? DEFAULT_BOOK_ID);
+  const bookConfig = loadBundledBookConfig({ bookId: requestedBookId });
+  return resolvePreviewCanonicalsForConfig(specs, bookConfig);
 }

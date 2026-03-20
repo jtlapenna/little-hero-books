@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Create binary 'data' from JSON manifest (S3 node expects 'data' field)\n// Pass through manifest, r2Key, orderId, and _config for downstream nodes\nconst input = $input.first().json || {};\nconst { manifest, orderId, _config } = input;\n\n// Fallback key if upstream ever omits r2Key\nconst r2Key = input.r2Key \n  || `book-mvp-simple-adventure/orders/${orderId}/manifests/1-manifest.json`;\n\nconst data = Buffer.from(JSON.stringify(manifest), 'utf8');\n\nreturn [{\n  json: { r2Key, orderId, manifest, _config }, // Pass through for Supabase node\n  binary: {\n    data: {\n      data,\n      mimeType: 'application/json',\n      fileName: '1-manifest.json'\n    }\n  }\n}];\n"
+        "jsCode": "// Create binary 'data' from JSON manifest (S3 node expects 'data' field)\n// Preserve the canonical manifest key and repo-built order upsert payload.\nconst input = $input.first().json || {};\nconst manifest = input.manifest;\nconst orderId = input.orderId || input.orderUpsert?.orderId || input.orderUpsert?.order_id || null;\nconst manifestKey = input.r2Key || input.manifestKey || input.orderUpsert?.one_manifest_url || input.manifest?.artifacts?.manifestKey || null;\n\nif (!manifest) {\n  throw new Error('Missing manifest from Build 1‑manifest.json');\n}\n\nif (!manifestKey) {\n  throw new Error('Missing manifest key from Build 1‑manifest.json');\n}\n\nconst data = Buffer.from(JSON.stringify(manifest), 'utf8');\n\nreturn [{\n  json: {\n    r2Key: manifestKey,\n    manifestKey,\n    orderId,\n    manifest,\n    orderUpsert: input.orderUpsert || null,\n    _config: input._config,\n  },\n  binary: {\n    data: {\n      data,\n      mimeType: 'application/json',\n      fileName: '1-manifest.json',\n    },\n  },\n}];"
       },
       "id": "363d6525-389b-442b-b1e0-2efa054f65c7",
       "name": "Create Binary (manifest.json)",
@@ -98,7 +98,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// Build fallback (no upload): get manifest/r2Key from Build node or input\nconst input = $input.first().json || {};\nconst buildNode = $item(0).$node[\"Build 1‑manifest.json\"]?.json;\nconst manifest = input.manifest || buildNode?.manifest;\nconst r2Key = input.r2Key || buildNode?.r2Key;\nconst _config = input._config || $item(0).$node[\"Normalize Payload\"]?.json?._config || {};\nreturn [{ json: { r2Key, manifest, _config } }];\n"
+        "jsCode": "// Build fallback (no upload): keep the canonical manifest payload from the repo-owned build step.\nconst input = $input.first().json || {};\nconst buildNode = $item(0).$node[\"Build 1‑manifest.json\"]?.json || {};\nconst manifest = input.manifest || buildNode.manifest;\nconst manifestKey = input.r2Key || input.manifestKey || input.orderUpsert?.one_manifest_url || buildNode.r2Key || buildNode.manifestKey || buildNode.orderUpsert?.one_manifest_url || manifest?.artifacts?.manifestKey || null;\n\nif (!manifestKey) {\n  throw new Error('Missing manifest key for W0 fallback path');\n}\n\nreturn [{\n  json: {\n    r2Key: manifestKey,\n    manifestKey,\n    orderId: input.orderId || input.orderUpsert?.orderId || input.orderUpsert?.order_id || buildNode.orderId || buildNode.orderUpsert?.orderId || buildNode.orderUpsert?.order_id || null,\n    manifest,\n    orderUpsert: input.orderUpsert || buildNode.orderUpsert || null,\n    _config: input._config || $item(0).$node[\"Normalize Payload\"]?.json?._config || {},\n  },\n}];"
       },
       "id": "5f413916-4e25-4823-ad9e-888d92120a21",
       "name": "Fallback (Skip Upload)",
@@ -164,26 +164,76 @@
     },
     {
       "parameters": {
-        "jsCode": "// Upsert into Supabase orders with ALL fields from manifest\n// Get config and current input (works from both R2 upload path and fallback path)\nconst input = $input.first().json || {};\nconst cfg = input._config || $item(0).$node[\"CONFIG (PRODUCTION)1\"]?.json || {};\n\n// Get manifest and r2Key - try current input first, then fallback to Build node\nconst buildNode = $item(0).$node[\"Build 1‑manifest.json\"]?.json;\nconst manifest = input.manifest || buildNode?.manifest;\nconst r2Key = input.r2Key || buildNode?.r2Key;\n\nconsole.log('=== SUPABASE UPSERT DEBUG ===');\nconsole.log('Input keys:', Object.keys(input));\nconsole.log('Manifest orderId:', manifest?.orderId);\nconsole.log('Manifest amazonOrderId:', manifest?.amazonOrderId);\nconsole.log('Has r2Key:', !!r2Key);\nconsole.log('Has config:', !!cfg.supabase);\n\nif (!manifest || !manifest.orderId) {\n  throw new Error('Missing manifest or orderId. Input: ' + JSON.stringify(Object.keys(input)) + ', Build: ' + JSON.stringify(buildNode ? Object.keys(buildNode) : 'null'));\n}\n\nif (!r2Key) {\n  throw new Error('Missing r2Key. Input: ' + JSON.stringify(Object.keys(input)) + ', Build: ' + JSON.stringify(buildNode ? Object.keys(buildNode) : 'null'));\n}\n\nif (!cfg.supabase || !cfg.supabase.url || !cfg.supabase.serviceKey) {\n  throw new Error('Missing Supabase config. Config keys: ' + JSON.stringify(Object.keys(cfg)));\n}\n\n// Generate character hash from characterSpecs if available\n// Only hash fields that affect character appearance in 2A/2B images\n// Excludes: childName (text only), age (cosmetic), pronouns (text only), animalGuide (separate asset)\nfunction generateCharacterHash(specs) {\n  if (!specs) return null;\n  \n  const crypto = require('crypto');\n  \n  // Only hash fields that determine visual character appearance\n  const characterHashSpec = {\n    clothingStyle:  specs.clothingStyle || 't-shirt and shorts',\n    favoriteColor:  specs.favoriteColor || 'blue',\n    hairColor:      specs.hairColor || 'brown',\n    hairStyle:      specs.hairStyle || 'short/straight',\n    skinTone:       specs.skinTone || 'medium'\n  };\n  \n  // Keys are already alphabetically ordered above for stable hashing\n  const hashString = JSON.stringify(characterHashSpec);\n  return crypto.createHash('sha256').update(hashString).digest('hex').substring(0, 16);\n}\n\nconst order = manifest.order || {};\nconst characterSpecs = order.characterSpecs || null;\nconst characterHash = characterSpecs ? generateCharacterHash(characterSpecs) : null;\n\nconsole.log('Generated character_hash:', characterHash);\n\n// Build complete body with all fields\n// Use orderId as primary identifier (works for all platforms)\nconst primaryOrderId = manifest.orderId || manifest.amazonOrderId;\nif (!primaryOrderId) {\n  throw new Error('Missing orderId in manifest. Manifest keys: ' + JSON.stringify(Object.keys(manifest || {})));\n}\n\n// Prepare body for Supabase\nconst body = {\n  orderId: primaryOrderId,        // Required: NOT NULL constraint (primary identifier)\n  execution_status: 'ready_for_processing',\n  next_workflow: '2A',                 // queue 2A first (character creation)\n  one_manifest_url: r2Key,             // store the KEY (durable)\n  dedication_text: order.dedication?.text || null,\n  // queued_at is NOT set here - router cron will set it when picking up the order\n  \n  // Add all missing fields from manifest\n  character_specs: characterSpecs,\n  character_hash: characterHash,\n  customer_email: order.buyer?.email || null,\n  customer_name: order.buyer?.name || null,\n  shipping_address: order.orderDetails?.shippingAddress || null,\n  product_info: order.orderDetails || null,\n  purchase_date: order.purchaseDate || null,\n  workflow_step: 'order_intake',\n  status: 'new',  // Status will be updated to 'queued_for_processing' when router cron picks it up\n  marketplace_id: manifest.marketplaceId || null,\n  book_specs: order.bookSpecs ?? null,\n  display_order_id: order.displayOrderId ?? order.display_order_id ?? null,\n  preview_hash: order.previewHash ?? order.preview_hash ?? null,\n  shipping_tier: order.shippingTier ?? order.shipping_tier ?? null,\n  thumbnail_url: order.thumbnailUrl ?? order.thumbnail_url ?? null\n};\n\n// Only include amazon_order_id if it exists\nif (manifest.amazonOrderId) {\n  body.amazon_order_id = manifest.amazonOrderId;\n}\n\nconsole.log('Upserting orderId:', body.orderId);\nconsole.log('Request body keys:', Object.keys(body));\nconsole.log('Request URL:', `${cfg.supabase.url}/rest/v1/orders`);\n\n// Try PATCH first (update if exists), then POST if not found\nconst headers = {\n  'apikey': cfg.supabase.serviceKey,\n  'Authorization': `Bearer ${cfg.supabase.serviceKey}`,\n  'Prefer': 'return=representation',\n  'Content-Type': 'application/json'\n};\n\ntry {\n  // First, try to PATCH (update existing record)\n  // Use orderId for lookup (works for all platforms)\n  const patchRes = await this.helpers.request({\n    method: 'PATCH',\n    uri: `${cfg.supabase.url}/rest/v1/orders?orderId=eq.${encodeURIComponent(body.orderId)}`,\n    headers: headers,\n    body: JSON.stringify(body)\n  });\n  \n  // Parse response if it's a string (Supabase sometimes returns JSON strings)\n  const patchParsed = typeof patchRes === 'string' ? JSON.parse(patchRes) : patchRes;\n  // Supabase REST API returns arrays - check if we got a result\n  const patchData = Array.isArray(patchParsed) ? patchParsed[0] : patchParsed;\n  if (patchData && typeof patchData === 'object' && Object.keys(patchData).length > 0) {\n    console.log('✅ Supabase PATCH successful (record updated)');\n    console.log('Updated record id:', patchData.id);\n    \n    // Merge Supabase response with original manifest data\n    return [{\n      json: {\n        ...input,           // Preserve original input\n        ...patchData,       // Include Supabase response\n        orderId: body.orderId,  // Ensure orderId is present\n        manifest: manifest, // Preserve manifest\n        r2Key: r2Key       // Preserve r2Key\n      }\n    }];\n  }\n  \n  // If no data returned, record doesn't exist - try POST\n  console.log('Record not found, trying POST insert...');\n  try {\n    const postRes = await this.helpers.request({\n      method: 'POST',\n      uri: `${cfg.supabase.url}/rest/v1/orders`,\n      headers: headers,\n      body: JSON.stringify(body)\n    });\n    \n    // Parse response if it's a string (Supabase sometimes returns JSON strings)\n    const postParsed = typeof postRes === 'string' ? JSON.parse(postRes) : postRes;\n    // Supabase REST API returns arrays - extract first element\n    const postData = Array.isArray(postParsed) ? postParsed[0] : postParsed;\n    \n    console.log('✅ Supabase POST successful (record inserted)');\n    console.log('Raw Supabase response:', JSON.stringify(postData));\n    console.log('Inserted record id:', postData.id);\n    console.log('Inserted orderId from body:', body.orderId);\n    console.log('Inserted orderId from response:', postData.orderId);\n    \n    if (!postData || typeof postData !== 'object') {\n      throw new Error('Invalid response from Supabase POST: ' + JSON.stringify(postRes));\n    }\n    \n    // Merge Supabase response with original manifest data\n    return [{\n      json: {\n        ...input,           // Preserve original input\n        ...postData,        // Include Supabase response\n        orderId: body.orderId,  // Ensure orderId is present\n        manifest: manifest, // Preserve manifest\n        r2Key: r2Key       // Preserve r2Key\n      }\n    }];\n  } catch (postError) {\n    console.error('❌ POST failed, error details:');\n    console.error('Error message:', postError.message);\n    if (postError.response) {\n      console.error('POST Response status:', postError.response.status);\n      console.error('POST Response data:', JSON.stringify(postError.response.data, null, 2));\n      console.error('POST Request body:', JSON.stringify(body, null, 2));\n    }\n    // Throw error with full details in message so it's visible even if console.error doesn't work\n    const errorMsg = postError.response \n      ? `POST failed (${postError.response.status}): ${JSON.stringify(postError.response.data)}`\n      : `POST failed: ${postError.message}`;\n    throw new Error(errorMsg);\n  }\n  \n} catch (error) {\n  console.error('❌ Supabase upsert error:', error.message);\n  if (error.response) {\n    console.error('Response status:', error.response.status);\n    console.error('Response headers:', JSON.stringify(error.response.headers, null, 2));\n    console.error('Response data:', JSON.stringify(error.response.data, null, 2));\n    console.error('Request body that failed:', JSON.stringify(body, null, 2));\n    throw new Error(`Supabase error (${error.response.status}): ${JSON.stringify(error.response.data)}`);\n  }\n  throw error;\n}"
+        "method": "POST",
+        "url": "https://admin.littleherolabs.com/api/internal/w0/upsert-order",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($item(0).$node[\"CONFIG (PRODUCTION)\"].json.r2?.apiToken || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const buildNode = $item(0).$node[\"Build 1‑manifest.json\"]?.json || {};\n  const manifestKey = $json.r2Key || $json.manifestKey || $json.orderUpsert?.one_manifest_url || buildNode.r2Key || buildNode.manifestKey || buildNode.orderUpsert?.one_manifest_url || null;\n  return {\n    ...$json,\n    r2Key: manifestKey,\n    manifestKey,\n    manifest: $json.manifest || buildNode.manifest,\n    orderUpsert: $json.orderUpsert || buildNode.orderUpsert,\n  };\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 90000
+        }
       },
       "id": "9e7a7995-177e-4fb1-8320-dec3c5266c44",
       "name": "Supabase Upsert (orders)2",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         2656,
         64
       ],
-      "notes": "Stores r2Key in one_manifest_url (key-only). W1.1 will fetch a signed URL at runtime."
+      "notes": "Repo-owned per-book orders upsert. W0 still uploads the manifest to R2 directly."
     },
     {
       "parameters": {
-        "jsCode": "\n// Build 1‑manifest.json with normalized fields\nconst j = $input.first().json;\nconst r2Key = `book-mvp-simple-adventure/orders/${j.orderId}/manifests/1-manifest.json`;\n\n// Extract marketplaceId from raw input or normalized fields\nconst marketplaceId = j._raw?.marketplaceId || j.marketplaceId || null;\n\n// Determine if this is an Amazon order (has marketplaceId or explicit amazonOrderId)\nconst isAmazonOrder = !!(marketplaceId || j._raw?.amazonOrderId || j.amazonOrderId);\nconst amazonOrderId = isAmazonOrder ? (j._raw?.amazonOrderId || j.amazonOrderId || j.orderId) : null;\n\nconst manifest = {\n  schema: \"lhb.run-manifest@v2.1\",\n  runStamp: new Date().toISOString(),\n  orderId: j.orderId,  // Primary identifier (required for all orders)\n  ...(isAmazonOrder && amazonOrderId ? { amazonOrderId } : {}),  // Only include if Amazon order\n  ...(marketplaceId ? { marketplaceId } : {}),  // Only include if present\n  order: {\n    purchaseDate: j.orderDate || j.purchaseDate || null,\n    buyer: { email: j.customerEmail, ...j.buyer },\n    dedication: j.dedication,\n    characterSpecs: j.characterSpecs,\n    bookSpecs: j.bookSpecs,\n    ...(j.displayOrderId != null || j.display_order_id != null ? { displayOrderId: j.displayOrderId ?? j.display_order_id } : {}),\n    ...(j.previewHash != null || j.preview_hash != null ? { previewHash: j.previewHash ?? j.preview_hash } : {}),\n    ...(j.shippingTier != null || j.shipping_tier != null ? { shippingTier: j.shippingTier ?? j.shipping_tier } : {}),\n    ...(j.thumbnailUrl != null || j.thumbnail_url != null ? { thumbnailUrl: j.thumbnailUrl ?? j.thumbnail_url } : {}),\n    orderDetails: {\n      ...j.orderDetails,\n      shippingAddress: {\n        ...j.orderDetails.shippingAddress,\n        phone: j.orderDetails.shippingAddress?.phone // Ensure phone is preserved in manifest\n      }\n    }\n  }\n};\n\nreturn [{ json: { manifest, r2Key, orderId: j.orderId } }];\n"
+        "method": "POST",
+        "url": "https://admin.littleherolabs.com/api/internal/w0/build-manifest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($item(0).$node[\"CONFIG (PRODUCTION)\"].json.r2?.apiToken || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => ({\n  ...$json,\n  schemaVersion: 'v3',\n  configSource: 'published-first',\n  bookId: 'book-mvp-simple-adventure'\n}))() }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 90000
+        }
       },
       "id": "4fb13c49-d6f0-4dd0-a168-46738722e64a",
       "name": "Build 1‑manifest.json",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         1440,
         176

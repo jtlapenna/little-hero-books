@@ -1,0 +1,1459 @@
+{
+  "name": "WORKING VERSION -  1.5 Health Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "health-monitor",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2544,
+        -64
+      ],
+      "id": "d40694d8-5eab-4a68-bbab-c06b04b489d1",
+      "name": "Webhook Trigger",
+      "webhookId": "5001d874-d92a-45af-8d72-d9b4aebcc7a4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract work items from webhook payload\n// Expected: {stuck: [], retries: [], orphaned: []}\nconst payload = $input.first().json.body || $input.first().json;\n\nconst stuck = Array.isArray(payload.stuck) ? payload.stuck : [];\nconst retries = Array.isArray(payload.retries) ? payload.retries : [];\nconst orphaned = Array.isArray(payload.orphaned) ? payload.orphaned : [];\n\nconst counts = {\n  stuck: stuck.length,\n  retries: retries.length,\n  orphaned: orphaned.length\n};\n\nconst totalWork = counts.stuck + counts.retries + counts.orphaned;\n\nconsole.log(`[Health Monitor] Received work items: ${counts.stuck} stuck, ${counts.retries} retries, ${counts.orphaned} orphaned (total: ${totalWork})`);\n\nif (totalWork === 0) {\n  console.log('[Health Monitor] No work items - workflow will stop (this is expected)');\n  return [];\n}\n\nreturn [{\n  json: {\n    stuck,\n    retries,\n    orphaned,\n    counts,\n    totalWork\n  }\n}];"
+      },
+      "id": "5641fdff-14a2-4a3b-a080-4145e5825abd",
+      "name": "Extract Work Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2352,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Route by work type - separate into parallel streams\nconst workData = $input.first().json;\nconst items = [];\n\n// Add stuck orders with _workType marker\nfor (const order of workData.stuck || []) {\n  items.push({\n    ...order,\n    _workType: 'stuck'\n  });\n}\n\n// Add retry orders with _workType marker\nfor (const order of workData.retries || []) {\n  items.push({\n    ...order,\n    _workType: 'retry'\n  });\n}\n\n// Add orphaned orders with _workType marker\nfor (const order of workData.orphaned || []) {\n  items.push({\n    ...order,\n    _workType: 'orphaned'\n  });\n}\n\nconsole.log(`[Health Monitor] Routed ${items.length} items: ${items.filter(i => i._workType === 'stuck').length} stuck, ${items.filter(i => i._workType === 'retry').length} retry, ${items.filter(i => i._workType === 'orphaned').length} orphaned`);\n\nreturn items.map(item => ({ json: item }));"
+      },
+      "id": "0896a0c7-cc27-4d3c-a88a-52f92ff3e240",
+      "name": "Route by Work Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2144,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "filter-stuck-001",
+              "leftValue": "={{ $json._workType }}",
+              "rightValue": "stuck",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "a27b904b-c6bd-4909-83ff-81efcc772aec",
+      "name": "Filter: Stuck Orders Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1792,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Config for stuck detection\nreturn [{ json: {\n  stuckThresholdMinutes: 30,\n  maxRetries: 3,\n  retryBackoffMultiplier: 2,\n  baseRetryDelayMinutes: 5\n} }];"
+      },
+      "id": "b7f14d54-57ca-4848-8470-1937638fdedc",
+      "name": "Stuck: Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2128,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate stuck orders from Vercel (double-check threshold)\nconst config = $('Stuck: Config').first().json;\nconst inputItems = $input.all();\nconst orders = [];\n\n// Flatten if needed\nfor (const item of inputItems) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    orders.push(data);\n  }\n}\n\nconst thresholdMs = config.stuckThresholdMinutes * 60 * 1000;\nconst now = Date.now();\nconst validatedOrders = [];\n\nfor (const order of orders) {\n  if (!order.started_at) {\n    console.log(`Order ${order.amazon_order_id}: No started_at - skipping`);\n    continue;\n  }\n  \n  const startedAt = new Date(order.started_at).getTime();\n  const runningMs = now - startedAt;\n  const runningMinutes = Math.floor(runningMs / 1000 / 60);\n  \n  if (runningMs > thresholdMs) {\n    validatedOrders.push({\n      ...order,\n      runningMinutes,\n      runningMs\n    });\n  }\n}\n\nconsole.log(`[Stuck Path] Validated ${validatedOrders.length} stuck order(s)`);\n\nif (validatedOrders.length === 0) {\n  return [];\n}\n\nreturn validatedOrders.map(order => ({ json: order }));"
+      },
+      "id": "8ea2c3fe-6bc0-4b36-a396-0565a3e70336",
+      "name": "Stuck: Detect Stuck Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1408,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Workflow ${$json.current_workflow} timed out after ${$json.runningMinutes} minutes`,\n  \"last_error_at\": new Date().toISOString()\n} }}",
+        "options": {}
+      },
+      "id": "eab968c0-7ff6-4719-b2aa-a06b87f219f6",
+      "name": "Stuck: Mark as Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1200,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/failed_orders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"order_id\": $json.id,\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Workflow ${$json.current_workflow} timed out after ${$json.runningMinutes} minutes`,\n  \"error_details\": {\n    \"workflow\": $json.current_workflow,\n    \"running_minutes\": $json.runningMinutes,\n    \"started_at\": $json.started_at\n  },\n  \"workflow_step\": $json.current_workflow,\n  \"retry_count\": $json.retry_count || 0,\n  \"max_retries\": 3,\n  \"retry_strategy\": \"exponential_backoff\"\n} }}",
+        "options": {}
+      },
+      "id": "d5eedab0-a28d-499f-ba39-024c2bf0411d",
+      "name": "Stuck: Log to Failed Orders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1008,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if order should be retried or requires manual review\nconst failedOrder = $input.first().json;\nconst config = $('Stuck: Config').first().json;\nconst retryCount = failedOrder.retry_count || 0;\nconst maxRetries = config.maxRetries;\n\nif (retryCount >= maxRetries) {\n  return [{\n    json: {\n      ...failedOrder,\n      action: 'require_manual_review',\n      reason: `Max retries (${maxRetries}) reached`\n    }\n  }];\n}\n\nconst delayMinutes = config.baseRetryDelayMinutes * Math.pow(config.retryBackoffMultiplier, retryCount);\nconst nextRetryAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();\n\nreturn [{\n  json: {\n    ...failedOrder,\n    action: 'schedule_retry',\n    nextRetryAt,\n    delayMinutes,\n    newRetryCount: retryCount + 1,\n    order_id: failedOrder.order_id\n  }\n}];"
+      },
+      "id": "ba7a1443-2d23-490e-a4d1-583a93e3b189",
+      "name": "Stuck: Decide Retry or Manual Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "stuck-check-action-001",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "require_manual_review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "4b6bb55d-9c1a-4c0e-8f97-f51d3e89aaa0",
+      "name": "Stuck: Check Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -608,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.order_id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"error_message\": `Max retries reached. ${$json.error_message || 'Workflow timeout'}`\n} }}",
+        "options": {}
+      },
+      "id": "b772dcd7-a092-41f8-84b6-f987fa7514d5",
+      "name": "Stuck: Mark for Manual Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -400,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log alert for manual review\nconst order = $input.first().json;\n\nconsole.error('[Stuck Path] 🚨 MANUAL REVIEW REQUIRED');\nconsole.error(`[Stuck Path] Order: ${order.amazon_order_id || order.orderId || 'unknown'}`);\nconsole.error(`[Stuck Path] Workflow: ${order.current_workflow || 'unknown'}`);\nconsole.error(`[Stuck Path] Error: ${order.error_message || 'Workflow timeout'}`);\nconsole.error(`[Stuck Path] Retry Count: ${order.retry_count || 0}`);\nconsole.error(`[Stuck Path] Running Minutes: ${order.runningMinutes || 'unknown'}`);\n\n// Preserve _workType marker for classification\nconst output = {\n  ...order,\n  _workType: 'stuck'\n};\n\n// TODO: Send to Slack/Email/Dashboard\n\nreturn [{ json: output }];"
+      },
+      "id": "d63c0a13-e326-415c-a3b0-ca6c5f020a48",
+      "name": "Stuck: Alert: Manual Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.order_id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error\",\n  \"retry_count\": $json.newRetryCount,\n  \"next_retry_at\": $json.nextRetryAt,\n  \"error_type\": \"workflow_timeout\",\n  \"error_message\": `Scheduled for retry after ${$json.delayMinutes} minutes (attempt ${$json.newRetryCount})`,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "options": {}
+      },
+      "id": "b6b31874-4ec2-4236-869a-17410b8bc72d",
+      "name": "Stuck: Schedule Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -400,
+        -368
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preserve _workType marker for Stuck: Schedule Retry\n// Supabase HTTP Request returns full order, but we need to add _workType marker\nconst supabaseResponse = $input.first().json;\nlet order = supabaseResponse;\n\n// Handle Supabase array response\nif (Array.isArray(order)) {\n  order = order[0] || {};\n}\n\n// Add _workType marker for classification\nconst output = {\n  ...order,\n  _workType: 'stuck'\n};\n\nreturn [{ json: output }];"
+      },
+      "id": "44257158-a60d-4a79-948b-482a7a5c5fd7",
+      "name": "Stuck: Preserve Marker",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        -368
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "filter-retry-001",
+              "leftValue": "={{ $json._workType }}",
+              "rightValue": "retry",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "fa70e6a2-1ecb-40ce-a1f6-b9ae6e3abd2b",
+      "name": "Filter: Retry Orders Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1808,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate & flatten retry orders from Vercel\n// Note: Vercel cron already filters for retry-ready orders, so we just need to flatten\nconst inputItems = $input.all();\nconst orders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    orders.push(data);\n  }\n}\n\nconsole.log(`[Retry Path] Received ${orders.length} order(s) from Vercel`);\n\n// Vercel cron already validated retry conditions:\n// - execution_status = 'error'\n// - next_retry_at <= NOW()\n// - retry_count < 3\n// So we can trust all incoming orders are retry-ready\n// Just do a basic sanity check\nconst validatedOrders = [];\n\nfor (const order of orders) {\n  // Basic validation - ensure we have required fields\n  if (order.amazon_order_id && order.id && (order.retry_count || 0) < 3) {\n    validatedOrders.push(order);\n    console.log(`[Retry Path] Validated order: ${order.amazon_order_id} (retry_count: ${order.retry_count || 0})`);\n  } else {\n    console.warn(`[Retry Path] Skipping invalid order:`, {\n      amazon_order_id: order.amazon_order_id,\n      id: order.id,\n      retry_count: order.retry_count\n    });\n  }\n}\n\nconsole.log(`[Retry Path] Validated ${validatedOrders.length} retry-ready order(s) out of ${orders.length} received`);\n\nif (validatedOrders.length === 0) {\n  console.warn(`[Retry Path] No valid retry orders - workflow will stop`);\n  return [];\n}\n\nreturn validatedOrders.map(order => ({ json: order }));"
+      },
+      "id": "71075dfd-4ad2-4382-9e18-b80b536254ae",
+      "name": "Retry: Validate & Flatten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1600,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"ready_for_processing\",\n  \"error_message\": null,\n  \"error_type\": null,\n  \"next_retry_at\": null,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "options": {}
+      },
+      "id": "a70f3af6-9b72-49e0-9d4b-b0a751865354",
+      "name": "Retry: Reset Status for Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1408,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare order for router\nconst order = $input.first().json;\n\nreturn [{\n  json: {\n    orderId: order.amazon_order_id,\n    characterHash: order.character_hash || null,\n    characterSpecs: order.character_specs,\n    orderDbId: order.id,\n    workflow: order.next_workflow || '2A',\n    isRetry: true,\n    retryCount: order.retry_count,\n    _workType: order._workType || 'retry' // Preserve for merge node\n  }\n}];"
+      },
+      "id": "8f0429e1-c6b8-47cf-b764-c0a98f43a515",
+      "name": "Retry: Prep for Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1200,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log retry attempt\nconst order = $input.first().json;\n\nconsole.log(`[Retry Path] 🔄 Retrying order ${order.orderId || order.amazon_order_id} (attempt ${(order.retryCount || 0) + 1})`);\nconsole.log(`[Retry Path] Workflow: ${order.workflow || order.next_workflow || '2A'}`);\nconsole.log(`[Retry Path] Order DB ID: ${order.orderDbId || order.id}`);\n\n// Preserve _workType marker for classification\nconst output = {\n  ...order,\n  _workType: order._workType || 'retry'\n};\n\nreturn [{ json: output }];"
+      },
+      "id": "de908b56-92e9-43f7-8065-33e147c287fc",
+      "name": "Retry: Log Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1008,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "filter-orphaned-001",
+              "leftValue": "={{ $json._workType }}",
+              "rightValue": "orphaned",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "afdd1509-1fb3-41ae-94de-eafd414b7cd2",
+      "name": "Filter: Orphaned Orders Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1808,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Classify orphaned orders and determine recovery action\nconst inputItems = $input.all();\nconst orders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    orders.push(...data);\n  } else if (data && typeof data === 'object') {\n    orders.push(data);\n  }\n}\n\nif (orders.length === 0) {\n  return [];\n}\n\nconst classified = orders.map(order => {\n  const reason = order.orphan_reason;\n  let action = null;\n  let priority = 'low';\n  \n  // First, check the orphan_reason to determine the primary action\n  switch (reason) {\n    case 'error_no_retry_scheduled':\n      if ((order.retry_count || 0) < 3) {\n        action = 'schedule_retry';\n        priority = 'high';\n      } else {\n        action = 'require_manual_review';\n        priority = 'medium';\n      }\n      break;\n    case 'error_max_retries_exceeded':\n      action = 'require_manual_review';\n      priority = 'high';\n      break;\n    case 'processing_stuck_over_hour':\n    case 'processing_no_timestamp':\n      action = 'reset_to_error_and_retry';\n      priority = 'high';\n      break;\n    case 'ready_not_picked_up':\n      // Orders ready but not picked up - check if they need manifest or just need router to pick them up\n      // If at workflow 4 and missing manifest, that's a real issue\n      // Otherwise, just reset to let router pick them up\n      if (order.next_workflow === '4' && !order.one_manifest_url) {\n        // At workflow 4 but missing manifest - this is a real problem\n        action = 'require_manual_review';\n        priority = 'high';\n      } else {\n        // Just needs router to pick it up - reset processing status\n        action = 'reset_processing';\n        priority = 'medium';\n      }\n      break;\n    case 'manual_review_pending':\n      // Already in manual review, just needs human attention\n      action = 'require_manual_review';\n      priority = 'medium';\n      break;\n    default:\n      // For unknown reasons, check if missing manifest is the issue\n      if (!order.one_manifest_url && order.next_workflow && ['3', '4'].includes(String(order.next_workflow))) {\n        action = 'create_manifest';\n        priority = 'high';\n      } else {\n        action = 'require_manual_review';\n        priority = 'low';\n      }\n  }\n  \n  return {\n    ...order,\n    action,\n    priority\n  };\n});\n\nreturn classified.map(order => ({ json: order }));"
+      },
+      "id": "6f019186-3e39-49c6-83c3-d40bc1438654",
+      "name": "Orphaned: Classify Orphans",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1600,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Route orders by action type\nconst orders = $input.all().map(item => item.json);\n\nconst scheduleRetry = [];\nconst manualReview = [];\nconst resetProcessing = [];\nconst createManifest = [];\n\nfor (const order of orders) {\n  if (order.action === 'create_manifest') {\n    createManifest.push(order);\n  } else if (order.action === 'schedule_retry') {\n    scheduleRetry.push(order);\n  } else if (order.action === 'require_manual_review') {\n    manualReview.push(order);\n  } else if (order.action === 'reset_to_error_and_retry' || order.action === 'reset_processing') {\n    resetProcessing.push(order);\n  } else {\n    // Unknown action - send to manual review\n    manualReview.push(order);\n  }\n}\n\nconsole.log(`[Orphaned Route] Routing ${orders.length} orders: ${createManifest.length} create_manifest, ${scheduleRetry.length} schedule_retry, ${manualReview.length} manual_review, ${resetProcessing.length} reset_processing`);\n\nreturn [\n  ...createManifest.map(o => ({ json: { ...o, _route: 'create_manifest' } })),\n  ...scheduleRetry.map(o => ({ json: { ...o, _route: 'schedule_retry' } })),\n  ...manualReview.map(o => ({ json: { ...o, _route: 'manual_review' } })),\n  ...resetProcessing.map(o => ({ json: { ...o, _route: 'reset_processing' } }))\n];"
+      },
+      "id": "6675e7c6-02dc-49a2-a61e-08b974eabbc2",
+      "name": "Orphaned: Route by Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1408,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-create-manifest",
+              "leftValue": "={{ $json._route }}",
+              "rightValue": "create_manifest",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "a90a57a1-7cc2-4702-afbc-55547ed4b5b1",
+      "name": "IF: Create Manifest Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1056,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://admin.littleherolabs.com/api/admin/orders/{{ $json.amazon_order_id }}/create-manifest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "continueOnFail": true
+        }
+      },
+      "id": "515d61c3-b93c-4fb9-88b1-bea5123dad74",
+      "name": "Orphaned: Recover: Create Manifest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -832,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle Create Manifest - classify successes and failures\n// This node receives ALL items from Create Manifest node (both success and error)\n// With continueOnFail: true, errors are included in main output with error property\nconst inputItems = $input.all();\nconst allOrders = [];\n\nfor (const item of inputItems) {\n  const data = item.json;\n  \n  // Check if this is an error response\n  // n8n marks failed items with item.error or data.errorMessage\n  if (item.error || (data.errorMessage || data.error)) {\n    console.error(`[Create Manifest Failure] Order ${data.amazon_order_id || data.id}: Create manifest failed`);\n    console.error(`  Error: ${data.errorMessage || data.error || 'Unknown error'}`);\n    \n    // Mark for manual review\n    allOrders.push({\n      ...data,\n      _route: 'manual_review',\n      recovery_failed: true,\n      recovery_error: data.errorMessage || data.error || 'Create manifest failed'\n    });\n  } else {\n    // Success - manifest was created\n    console.log(`[Create Manifest Success] Order ${data.amazon_order_id || data.id}: Manifest created successfully`);\n    allOrders.push(data);\n  }\n}\n\nconsole.log(`[Handle Create Manifest] Processed ${allOrders.length} order(s): ${allOrders.filter(o => o._route === 'manual_review').length} failures, ${allOrders.filter(o => !o._route).length} successes`);\n\n// Return all items - IF node will route based on _route property\nreturn allOrders.map(order => ({ json: order }));"
+      },
+      "id": "29a4181d-77c9-448e-a0b1-647ca76772a2",
+      "name": "Orphaned: Handle Create Manifest Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -608,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-create-manifest-failure",
+              "leftValue": "={{ $json._route }}",
+              "rightValue": "manual_review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "fb14021d-9e79-4472-af8d-67a576599d5f",
+      "name": "IF: Route Create Manifest Results",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preserve _workType marker for Orphaned: Create Manifest Success\n// This handles successful manifest creation (false output of IF node)\nconst order = $input.first().json;\n\n// Add _workType marker for classification\nconst output = {\n  ...order,\n  _workType: 'orphaned'\n};\n\nreturn [{ json: output }];"
+      },
+      "id": "195d61a3-e98c-4bf4-bd50-58cbc91f33f2",
+      "name": "Orphaned: Preserve Marker (Create Manifest Success)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-schedule-retry",
+              "leftValue": "={{ $json._route }}",
+              "rightValue": "schedule_retry",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "c2a0869d-1821-44c2-881e-2c2377ade162",
+      "name": "IF: Schedule Retry Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -848,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"ready_for_processing\",\n  \"error_message\": null,\n  \"error_type\": null,\n  \"retry_count\": ($json.retry_count || 0) + 1,\n  \"next_retry_at\": new Date(Date.now() + 5 * 60 * 1000).toISOString(),\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "options": {}
+      },
+      "id": "0b03d83d-9b1c-4977-8bb3-3cb203feca32",
+      "name": "Orphaned: Recover: Schedule Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -480,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preserve _workType marker for Orphaned: Schedule Retry\n// Supabase HTTP Request returns full order, but we need to add _workType marker\nconst supabaseResponse = $input.first().json;\nlet order = supabaseResponse;\n\n// Handle Supabase array response\nif (Array.isArray(order)) {\n  order = order[0] || {};\n}\n\n// Add _workType marker for classification\nconst output = {\n  ...order,\n  _workType: 'orphaned'\n};\n\nreturn [{ json: output }];"
+      },
+      "id": "8bfea2e1-c634-4a33-8b0e-e304182f4710",
+      "name": "Orphaned: Preserve Marker (Schedule Retry)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-manual-review",
+              "leftValue": "={{ $json._route }}",
+              "rightValue": "manual_review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "c3af0636-b8f6-4c30-bdbc-d0b068c27dde",
+      "name": "IF: Manual Review Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"error_requires_manual_review\",\n  \"requires_human_review\": true,\n  \"error_type\": $json.error_type || 'orphaned_order',\n  \"error_message\": `Orphaned order: ${$json.error_message || 'Max retries exceeded or stuck'}. Requires manual intervention.`\n} }}",
+        "options": {}
+      },
+      "id": "225e980e-73af-41e3-911b-811464554a5c",
+      "name": "Orphaned: Recover: Mark for Manual Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        160,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preserve _workType marker for Orphaned: Mark for Manual Review\n// Supabase HTTP Request returns full order, but we need to add _workType marker\nconst supabaseResponse = $input.first().json;\nlet order = supabaseResponse;\n\n// Handle Supabase array response\nif (Array.isArray(order)) {\n  order = order[0] || {};\n}\n\n// Add _workType marker for classification\nconst output = {\n  ...order,\n  _workType: 'orphaned'\n};\n\nreturn [{ json: output }];"
+      },
+      "id": "53fe55c7-42f4-4325-ae60-9e084ea58768",
+      "name": "Orphaned: Preserve Marker (Manual Review)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-reset-processing",
+              "leftValue": "={{ $json._route }}",
+              "rightValue": "reset_processing",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "eb5766e3-e293-4f9c-97f2-13f5d8f8e04b",
+      "name": "IF: Reset Processing Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -848,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.id) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"execution_status\": \"ready_for_processing\",\n  \"error_message\": null,\n  \"error_type\": null,\n  \"retry_count\": 0,\n  \"next_retry_at\": null,\n  \"current_workflow\": null,\n  \"started_at\": null\n} }}",
+        "options": {}
+      },
+      "id": "b47c85d8-66f0-4f5b-a14a-b6abb50e6a73",
+      "name": "Orphaned: Recover: Reset Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -464,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preserve _workType marker for Orphaned: Reset Processing\n// Supabase HTTP Request returns full order, but we need to add _workType marker\nconst supabaseResponse = $input.first().json;\nlet order = supabaseResponse;\n\n// Handle Supabase array response\nif (Array.isArray(order)) {\n  order = order[0] || {};\n}\n\n// Add _workType marker for classification\nconst output = {\n  ...order,\n  _workType: 'orphaned'\n};\n\nreturn [{ json: output }];"
+      },
+      "id": "d83f32df-8a93-4411-9256-5c56934fffcb",
+      "name": "Orphaned: Preserve Marker (Reset Processing)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Merge: All Paths Results\n// Collects items from all 7 connected parallel paths\n// Mode: runOnceForAllItems - waits for all connected inputs before executing\n// Uses $input.all() to collect from all connected inputs (not $items() which fails for unexecuted nodes)\n\nconst allItems = $input.all();\n\nconsole.log(`[Merge: All Paths Results] Collected ${allItems.length} item(s) from all connected inputs`);\nconsole.log(`[Merge: All Paths Results] Input count: ${$input.length || 0} input(s)`);\n\n// Process all items - handle Supabase array responses\nconst processedItems = [];\n\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  let data = item.json;\n  \n  // Supabase returns arrays with return=representation, extract first element if array\n  if (Array.isArray(data)) {\n    if (data.length > 0) {\n      data = data[0];\n    } else {\n      console.warn(`[Merge: All Paths Results] Skipping empty array at index ${i}`);\n      continue;\n    }\n  }\n  \n  // Handle error items from continueOnFail\n  if (item.error) {\n    console.warn(`[Merge: All Paths Results] Item ${i} has error:`, item.error.message || item.error);\n    // Try to extract order info from error context\n    const errorData = item.json || {};\n    if (errorData.amazon_order_id || errorData.id) {\n      data = errorData;\n    } else {\n      console.warn(`[Merge: All Paths Results] Skipping error item with no order identifier`);\n      continue;\n    }\n  }\n  \n  processedItems.push({\n    json: data,\n    binary: item.binary || {}\n  });\n}\n\nconsole.log(`[Merge: All Paths Results] Processed ${processedItems.length} item(s) after filtering`);\n\n// Return all processed items\nreturn processedItems;"
+      },
+      "id": "e0aee980-20ec-49fe-9354-710fe26d12d2",
+      "name": "Merge: All Paths Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Classify and summarize results from all paths\n// This node processes all items from the Merge node and classifies them by work type\nconst allItems = $input.all();\n\nconsole.log(`\\n[Classification Node] ========================================`);\nconsole.log(`[Classification Node] Processing ${allItems.length} item(s) from Merge node`);\nconsole.log(`[Classification Node] Timestamp: ${new Date().toISOString()}`);\n\n// Log raw input structure for debugging\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  console.log(`[Classification Node] Raw input ${i + 1}:`, {\n    hasError: !!item.error,\n    jsonType: Array.isArray(item.json) ? 'array' : typeof item.json,\n    jsonLength: Array.isArray(item.json) ? item.json.length : 'N/A',\n    jsonKeys: Array.isArray(item.json) ? 'array' : Object.keys(item.json || {}).slice(0, 10).join(', ')\n  });\n}\n\nconst stuckProcessed = [];\nconst retriesProcessed = [];\nconst orphanedProcessed = [];\nconst unclassified = [];\nconst processedOrderIds = new Set(); // Dedupe by order ID\n\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  let data = item.json;\n  \n  // Supabase returns arrays with return=representation, extract first element if array\n  // Also handle error items from continueOnFail\n  if (item.error) {\n    console.warn(`[Classification Node] Item ${i + 1} has error:`, item.error.message || item.error);\n    // Try to extract order info from error context\n    const errorData = item.json || {};\n    if (errorData.amazon_order_id || errorData.id) {\n      data = errorData;\n      console.log(`[Classification Node] Extracted order data from error item`);\n    } else {\n      console.warn(`[Classification Node] Skipping error item with no order identifier`);\n      continue;\n    }\n  } else if (Array.isArray(data)) {\n    if (data.length > 0) {\n      data = data[0];\n      console.log(`[Classification Node] Extracted first element from Supabase array response`);\n    } else {\n      console.warn(`[Classification Node] Received empty array, skipping`);\n      continue;\n    }\n  }\n  \n  const orderId = data.amazon_order_id || data.orderId || data.id || 'unknown';\n  \n  // Dedupe: skip if we've already processed this order\n  if (processedOrderIds.has(orderId)) {\n    console.log(`[Classification Node] Skipping duplicate order: ${orderId}`);\n    continue;\n  }\n  processedOrderIds.add(orderId);\n  \n  console.log(`\\n[Classification Node] Processing item ${i + 1}/${allItems.length}:`);\n  console.log(`  Order ID: ${orderId}`);\n  console.log(`  Has _workType: ${!!data._workType} (value: ${data._workType || 'none'})`);\n  console.log(`  Has isRetry: ${data.isRetry === true}`);\n  console.log(`  Has runningMinutes: ${data.runningMinutes !== undefined} (value: ${data.runningMinutes})`);\n  console.log(`  Has error_type: ${!!data.error_type} (value: ${data.error_type || 'none'})`);\n  console.log(`  Has orphan_reason: ${!!data.orphan_reason} (value: ${data.orphan_reason || 'none'})`);\n  console.log(`  Has action: ${!!data.action} (value: ${data.action || 'none'})`);\n  \n  let classified = false;\n  let classificationReason = '';\n  \n  // Identify work type by data characteristics\n  if (data._workType) {\n    // Explicit marker (from Prep for Router)\n    classificationReason = `Explicit _workType marker: ${data._workType}`;\n    if (data._workType === 'stuck') {\n      stuckProcessed.push(data);\n      classified = true;\n    } else if (data._workType === 'retry') {\n      retriesProcessed.push(data);\n      classified = true;\n    } else if (data._workType === 'orphaned') {\n      orphanedProcessed.push(data);\n      classified = true;\n    }\n  } else if (data.isRetry === true && data.orderId) {\n    // Retry path: Prep for Router output\n    classificationReason = 'Retry path: isRetry=true and orderId present';\n    retriesProcessed.push(data);\n    classified = true;\n  } else if (data.runningMinutes !== undefined || data.error_type === 'workflow_timeout') {\n    // Stuck path: has runningMinutes or workflow_timeout error\n    classificationReason = data.runningMinutes !== undefined \n      ? `Stuck path: runningMinutes=${data.runningMinutes}`\n      : `Stuck path: error_type=workflow_timeout`;\n    stuckProcessed.push(data);\n    classified = true;\n  } else if (data.orphan_reason || data.action) {\n    // Orphaned path: has orphan classification\n    classificationReason = data.orphan_reason \n      ? `Orphaned path: orphan_reason=${data.orphan_reason}`\n      : `Orphaned path: action=${data.action}`;\n    orphanedProcessed.push(data);\n    classified = true;\n  } else if (data.amazon_order_id) {\n    // Fallback: default to orphaned if we can't determine\n    classificationReason = 'Fallback: defaulting to orphaned (has amazon_order_id but no clear markers)';\n    orphanedProcessed.push(data);\n    classified = true;\n  } else {\n    classificationReason = 'UNCLASSIFIED: No identifying markers found';\n    unclassified.push({ orderId, data });\n  }\n  \n  console.log(`  Classification: ${classified ? '✅ CLASSIFIED' : '❌ UNCLASSIFIED'}`);\n  console.log(`  Reason: ${classificationReason}`);\n}\n\nconsole.log(`\\n[Classification Node] Classification Summary:`);\nconsole.log(`  Stuck: ${stuckProcessed.length} item(s)`);\nconsole.log(`  Retries: ${retriesProcessed.length} item(s)`);\nconsole.log(`  Orphaned: ${orphanedProcessed.length} item(s)`);\nconsole.log(`  Unclassified: ${unclassified.length} item(s)`);\n\nif (unclassified.length > 0) {\n  console.error(`\\n[Classification Node] ⚠️  WARNING: ${unclassified.length} unclassified item(s) found!`);\n  for (const unclass of unclassified) {\n    console.error(`  - Order ID: ${unclass.orderId}`);\n    console.error(`    Data keys: ${Object.keys(unclass.data).join(', ')}`);\n  }\n}\n\nconst summary = {\n  timestamp: new Date().toISOString(),\n  stuck: {\n    count: stuckProcessed.length,\n    orders: stuckProcessed.map(o => o.amazon_order_id || o.orderId).filter(Boolean)\n  },\n  retries: {\n    count: retriesProcessed.length,\n    orders: retriesProcessed.map(o => o.amazon_order_id || o.orderId).filter(Boolean)\n  },\n  orphaned: {\n    count: orphanedProcessed.length,\n    orders: orphanedProcessed.map(o => o.amazon_order_id).filter(Boolean)\n  },\n  unclassified: {\n    count: unclassified.length,\n    items: unclassified.map(u => u.orderId)\n  },\n  total: processedOrderIds.size\n};\n\nconsole.log(`\\n[Classification Node] Final Summary:`);\nconsole.log(JSON.stringify(summary, null, 2));\nconsole.log(`[Classification Node] ========================================\\n`);\n\nreturn [{ json: summary }];"
+      },
+      "id": "679cc20a-9dae-4a89-9cc7-71917ce42a64",
+      "name": "Classify and Summarize Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Alert: Health Monitor Summary\nconst summary = $input.first().json;\n\nconsole.log('\\n=== HEALTH MONITOR SUMMARY ===');\nconsole.log(`Timestamp: ${summary.timestamp}`);\nconsole.log(`\\nStuck Orders Processed: ${summary.stuck.count}`);\nif (summary.stuck.count > 0) {\n  console.log(`  Orders: ${summary.stuck.orders.join(', ')}`);\n}\nconsole.log(`\\nRetry Orders Processed: ${summary.retries.count}`);\nif (summary.retries.count > 0) {\n  console.log(`  Orders: ${summary.retries.orders.join(', ')}`);\n}\nconsole.log(`\\nOrphaned Orders Processed: ${summary.orphaned.count}`);\nif (summary.orphaned.count > 0) {\n  console.log(`  Orders: ${summary.orphaned.orders.join(', ')}`);\n}\nif (summary.unclassified && summary.unclassified.count > 0) {\n  console.error(`\\n⚠️  UNCLASSIFIED ITEMS: ${summary.unclassified.count}`);\n  console.error(`  Items: ${summary.unclassified.items.join(', ')}`);\n  console.error('  This indicates a potential issue with work type identification!');\n}\nconsole.log(`\\nTotal Items Processed: ${summary.total}`);\nconsole.log('==============================\\n');\n\n// TODO: Send to Slack/Email/Dashboard\n\nreturn [{ json: summary }];"
+      },
+      "id": "a750f211-8842-402e-8cef-c57cf7370688",
+      "name": "Alert: Health Monitor Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -48
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Work Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Work Items": {
+      "main": [
+        [
+          {
+            "node": "Stuck: Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route by Work Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Work Type": {
+      "main": [
+        [
+          {
+            "node": "Filter: Stuck Orders Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter: Retry Orders Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter: Orphaned Orders Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Stuck Orders Only": {
+      "main": [
+        [
+          {
+            "node": "Stuck: Detect Stuck Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stuck: Detect Stuck Orders": {
+      "main": [
+        [
+          {
+            "node": "Stuck: Mark as Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stuck: Mark as Error": {
+      "main": [
+        [
+          {
+            "node": "Stuck: Log to Failed Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stuck: Log to Failed Orders": {
+      "main": [
+        [
+          {
+            "node": "Stuck: Decide Retry or Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stuck: Decide Retry or Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Stuck: Check Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stuck: Check Action": {
+      "main": [
+        [
+          {
+            "node": "Stuck: Mark for Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stuck: Schedule Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stuck: Mark for Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Stuck: Alert: Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stuck: Alert: Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Merge: All Paths Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Retry Orders Only": {
+      "main": [
+        [
+          {
+            "node": "Retry: Validate & Flatten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry: Validate & Flatten": {
+      "main": [
+        [
+          {
+            "node": "Retry: Reset Status for Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry: Reset Status for Retry": {
+      "main": [
+        [
+          {
+            "node": "Retry: Prep for Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry: Prep for Router": {
+      "main": [
+        [
+          {
+            "node": "Retry: Log Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Orphaned Orders Only": {
+      "main": [
+        [
+          {
+            "node": "Orphaned: Classify Orphans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Classify Orphans": {
+      "main": [
+        [
+          {
+            "node": "Orphaned: Route by Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Route by Action": {
+      "main": [
+        [
+          {
+            "node": "IF: Create Manifest Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Schedule Retry Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Manual Review Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Reset Processing Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Create Manifest Only": {
+      "main": [
+        [
+          {
+            "node": "Orphaned: Recover: Create Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Recover: Create Manifest": {
+      "main": [
+        [
+          {
+            "node": "Orphaned: Handle Create Manifest Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Handle Create Manifest Failure": {
+      "main": [
+        [
+          {
+            "node": "IF: Route Create Manifest Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Route Create Manifest Results": {
+      "main": [
+        [
+          {
+            "node": "IF: Manual Review Only",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Orphaned: Preserve Marker (Create Manifest Success)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Preserve Marker (Create Manifest Success)": {
+      "main": [
+        [
+          {
+            "node": "Merge: All Paths Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Schedule Retry Only": {
+      "main": [
+        [
+          {
+            "node": "Orphaned: Recover: Schedule Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Manual Review Only": {
+      "main": [
+        [
+          {
+            "node": "Orphaned: Recover: Mark for Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Reset Processing Only": {
+      "main": [
+        [
+          {
+            "node": "Orphaned: Recover: Reset Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge: All Paths Results": {
+      "main": [
+        [
+          {
+            "node": "Classify and Summarize Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify and Summarize Results": {
+      "main": [
+        [
+          {
+            "node": "Alert: Health Monitor Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stuck: Schedule Retry": {
+      "main": [
+        [
+          {
+            "node": "Stuck: Preserve Marker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stuck: Preserve Marker": {
+      "main": [
+        [
+          {
+            "node": "Merge: All Paths Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry: Log Retry": {
+      "main": [
+        [
+          {
+            "node": "Merge: All Paths Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Recover: Schedule Retry": {
+      "main": [
+        [
+          {
+            "node": "Orphaned: Preserve Marker (Schedule Retry)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Preserve Marker (Schedule Retry)": {
+      "main": [
+        [
+          {
+            "node": "Merge: All Paths Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Recover: Reset Processing": {
+      "main": [
+        [
+          {
+            "node": "Orphaned: Preserve Marker (Reset Processing)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Preserve Marker (Reset Processing)": {
+      "main": [
+        [
+          {
+            "node": "Merge: All Paths Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Recover: Mark for Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Orphaned: Preserve Marker (Manual Review)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orphaned: Preserve Marker (Manual Review)": {
+      "main": [
+        [
+          {
+            "node": "Merge: All Paths Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d7b11529-c0b6-4da3-88ea-c1d5eaa82ff0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "Hsl7GR5EebBNXkbp",
+  "tags": []
+}

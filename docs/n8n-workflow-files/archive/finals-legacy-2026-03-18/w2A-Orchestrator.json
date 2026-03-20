@@ -1,0 +1,1386 @@
+{
+  "name": "w2A-Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Retry Builder (Prompt Tweaks) — v2.1 (EACH; preserves envelope)\n// Builds compact preface using pose + style + color + skin tone signals.\n// NOW: Preserves all upstream fields for SW1 compatibility.\n// - Uses retryAttempt/retryTag from upstream (Bump & Gate) when present; otherwise generates.\n// - Prefers numeric skinToneScore/Threshold; falls back to legacy reasons if needed.\n// - Output includes full envelope + retry-specific fields.\n\nconst j = $json || {};\nconst b = $binary || {};\n\n/* ---------------- helpers ---------------- */\nfunction asInt(v){ const n = Number(v); return Number.isFinite(n) ? Math.floor(n) : null; }\nfunction bool(v){ if (typeof v === 'boolean') return v; if (typeof v === 'number') return v !== 0; if (typeof v === 'string') return /^(true|yes|y|1)$/i.test(v.trim()); return false; }\nfunction byteLen(obj){ try { return Buffer.byteLength(typeof obj === 'string' ? obj : JSON.stringify(obj), 'utf8'); } catch { return -1; } }\nfunction pad2(n){ n = Number(n); return Number.isFinite(n) ? String(n).padStart(2,'0') : ''; }\nfunction num(v){ const n = Number(v); return Number.isFinite(n) ? n : null; }\n\n/* ---------------- retry meta ---------------- */\nconst retryAttempt = asInt(j.retryAttempt) ?? asInt(j.qaRetry) ?? asInt(j.retryTry) ?? 1;\nconst ensureTag = () => (Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 4)).toUpperCase();\nconst retryTag = (typeof j.retryTag === 'string' && j.retryTag.length > 0) ? j.retryTag : `${retryAttempt}-${ensureTag()}`;\n\n/* ---------------- derive identity ---------------- */\nfunction pickCharHash(){ return j.characterHash || j.characterSpecs?.hash || j.__meta?.characterHash || null; }\nfunction pickPoseNum(){ const n = Number(j.poseNumber ?? j.currentPoseNumber ?? j.__meta?.poseNumber); return Number.isFinite(n) ? n : null; }\nconst characterHash = pickCharHash();\nconst poseNumber = pickPoseNum();\n\n/* ---------------- collect QA signals ---------------- */\n// Pose hints (from earlier nodes)\nconst src = j.qaHints ?? j.qaVerdict ?? {};\nconst v = {\n  pose_score:            (typeof src.pose_score === 'number') ? src.pose_score : null,\n  single_subject:        bool(src.single_subject),\n  extra_limbs:           bool(src.extra_limbs),\n  bg_white:              bool(src.bg_white),\n  leakage_from_pose_ref: bool(src.leakage_from_pose_ref),\n  cropped:               bool(src.cropped)\n};\n\n// Style/Color metrics + thresholds\nconst styleQaScore  = (j.styleQaScore != null) ? Number(j.styleQaScore) : (j.qa?.style?.score?.style ?? null);\nconst colorQaScore  = (j.colorQaScore != null) ? Number(j.colorQaScore) : (j.qa?.style?.score?.color ?? null);\nconst styleThresh   = (j.styleQaThreshold != null) ? Number(j.styleQaThreshold) : (j.qa?.style?.threshold?.style ?? null);\nconst colorThresh   = (j.colorQaThreshold != null) ? Number(j.colorQaThreshold) : (j.qa?.style?.threshold?.color ?? null);\n\n// Skin tone numeric inputs (preferred)\nconst skinToneScore = (j.skinToneScore != null) ? Number(j.skinToneScore) : (j.qa?.style?.score?.skin_tone ?? null);\nconst skinToneThr   = (j.skinToneThreshold != null) ? Number(j.skinToneThreshold) : (j.qa?.style?.threshold?.skin_tone ?? null);\n\n// Reasons (legacy strings)\nconst reasons = Array.isArray(j.qaReasons) && j.qaReasons.length\n  ? j.qaReasons\n  : (Array.isArray(j.qa?.style?.reasons) ? j.qa.style.reasons : []);\nconst has = (key) => reasons.includes(key);\n\n// Derived flags\nconst styleLow    = Number.isFinite(styleQaScore) && Number.isFinite(styleThresh) && styleQaScore < styleThresh;\nconst colorLow    = Number.isFinite(colorQaScore) && Number.isFinite(colorThresh) && colorQaScore < colorThresh;\nconst skinToneLow = Number.isFinite(skinToneScore) && Number.isFinite(skinToneThr) && skinToneScore < skinToneThr;\n\n// Hair color mismatch (prefer boolean in qa.style; fallback to reason tag)\nconst hairMismatch = (j.qa?.style?.hair_color_match === false) || has('hair_color_mismatch') || has('hair_color_below_0.75');\n\n/* ---------------- build preface ---------------- */\nconst pre = [];\npre.push(`[RETRY #${retryAttempt} | tag:${retryTag}]`);\npre.push('Follow POSE LOCK (IMAGE P) over all other guidance. Use IMAGE A for appearance only.');\n\n// Pose corrections\nif (v.pose_score !== null && v.pose_score < 0.9) pre.push('CRITICAL: Match IMAGE P pose EXACTLY (limbs, contact, orientation).');\nif (v.extra_limbs || !v.single_subject) pre.push('STRICT: Exactly one character; exactly 2 arms, 2 legs, 2 shoes.');\nif (!v.bg_white) pre.push('BACKGROUND: Pure white (#FFFFFF), no shadows/gradients/textures.');\nif (v.cropped) pre.push('FRAMING: Full body visible; do not crop head/hands/feet.');\nif (v.leakage_from_pose_ref) pre.push('APPEARANCE: Ignore appearance in IMAGE P; appearance comes ONLY from IMAGE A.');\n\n// Style corrections\nif (styleLow || has('line_style_mismatch')) {\n  pre.push('STYLE: Match line weight and outline exactly as IMAGE A (flat 2D, no gradients/textures).');\n}\n\n// Color corrections (numeric preferred; legacy fallback)\nif (colorLow || has('palette_shift') || has('saturation_shift')) {\n  pre.push('COLOR: Use ONLY the palette from IMAGE A; do not introduce new hues.');\n  pre.push('COLOR: Match saturation to IMAGE A; avoid over/under-saturation and any filters.');\n}\n\n// Skin tone correction (numeric preferred; legacy fallback)\nif (skinToneLow || has('skin_tone_mismatch')) {\n  pre.push('APPEARANCE: Match skin tone to IMAGE A exactly (no darkening/lightening or hue shift).');\n}\n\n// Hair color correction\nif (hairMismatch) {\n  pre.push('APPEARANCE: Hair color must match IMAGE A (or IMAGE B if provided) exactly — no hue/value shift.');\n}\n\n// Validator note last (kept short)\nconst validatorNote = (typeof j.qaNotes === 'string' && j.qaNotes) ? j.qaNotes : undefined;\nif (validatorNote) pre.push(`Validator notes: ${String(validatorNote).slice(0,180)}`);\n\nconst posePromptPreface = pre.join('\\n') + '\\n\\n';\n\n/* ---------------- temperature/backoff ---------------- */\nconst baseTemp = (j.generationConfig && typeof j.generationConfig.temperature === 'number')\n  ? j.generationConfig.temperature\n  : (typeof j.temperature === 'number' ? j.temperature : 0.25);\nconst retryTemp = (typeof j.retryTemp === 'number') ? j.retryTemp : Math.max(0.10, Number(baseTemp) - 0.10);\n\n/* ---------------- normalize hair field names for SW1 ---------------- */\n// SW1 expects hairRefS3Key/hairRefPublicUrl, not hairKey/hairUrl\nconst hairRefS3Key = j.hairRefS3Key || j.hairKey || null;\nconst hairRefPublicUrl = j.hairRefPublicUrl || j.hairUrl || null;\n\n/* ---------------- output: preserve all + add retry fields ---------------- */\nconst outJson = {\n  ...j, // Preserve entire upstream envelope\n  \n  // Override/add retry-specific fields\n  characterHash,\n  poseNumber,\n  currentPoseNumber: poseNumber,\n  \n  posePromptPreface, // NEW: retry instructions\n  retryAttempt,      // Explicit retry counter\n  retryTag,          // Unique retry identifier\n  retryTemp,         // Adjusted temperature\n  \n  // Normalize hair fields for SW1\n  hairRefS3Key,\n  hairRefPublicUrl,\n  \n  // Preserve QA hints for debugging\n  qaHints: {\n    pose_score: v.pose_score,\n    single_subject: v.single_subject,\n    extra_limbs: v.extra_limbs,\n    bg_white: v.bg_white,\n    leakage_from_pose_ref: v.leakage_from_pose_ref,\n    cropped: v.cropped\n  },\n  \n  // Mirror metrics for downstream/debug (don't override if already present)\n  styleQaScore: j.styleQaScore ?? (Number.isFinite(styleQaScore) ? styleQaScore : undefined),\n  colorQaScore: j.colorQaScore ?? (Number.isFinite(colorQaScore) ? colorQaScore : undefined),\n  styleQaThreshold: j.styleQaThreshold ?? (Number.isFinite(styleThresh) ? styleThresh : undefined),\n  colorQaThreshold: j.colorQaThreshold ?? (Number.isFinite(colorThresh) ? colorThresh : undefined),\n  skinToneScore: j.skinToneScore ?? (Number.isFinite(skinToneScore) ? skinToneScore : undefined),\n  skinToneThreshold: j.skinToneThreshold ?? (Number.isFinite(skinToneThr) ? skinToneThr : undefined),\n  \n  qaReasons: j.qaReasons ?? (reasons.length ? reasons.slice(0,12) : undefined)\n};\n\n// Size logs (safe to remove later)\ntry {\n  console.log({\n    node: 'Retry Builder (Prompt Tweaks) v2.1',\n    itemIndex: (typeof $itemIndex === 'number') ? $itemIndex : null,\n    posePromptPreface_bytes: byteLen(posePromptPreface),\n    outJson_bytes: byteLen(outJson),\n    preserved_fields: Object.keys(outJson).length,\n    hairRefS3Key_present: !!hairRefS3Key,\n    hairRefPublicUrl_present: !!hairRefPublicUrl\n  });\n} catch {}\n\nreturn { json: outJson, binary: b, ...( $input?.item?.pairedItem ? { pairedItem: $input.item.pairedItem } : {} ) };"
+      },
+      "id": "4c1590c1-e7f7-4ba9-a270-77878c631fee",
+      "name": "Retry Builder (Prompt Tweaks)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Bump & Gate QA Retry — EACH (normalized + idempotent) — v1.1\n// Place this as the FIRST node on the retry branch.\n// Changes vs your version:\n// - Idempotency guard: avoids double-increment on resume/re-run of the same attempt.\n// - Stronger MAX_RETRIES parsing + `retriesRemaining` convenience field.\n// - Richer `retryTag` (still short) that can embed character/pose context; preserves a preexisting tag when staying in the same attempt.\n// - Extra telemetry in __meta.bumpGate.\n\nconst j = $json || {};\nconst b = $binary || {};\n\nfunction asInt(v){ const n = Number(v); return Number.isFinite(n) ? Math.floor(n) : null; }\n\nfunction makeTag(attempt){\n  const entropy = (Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 4)).toUpperCase();\n  const shortId = j.characterHash ? String(j.characterHash).slice(0,6).toUpperCase() : '';\n  const poseNN  = (typeof j.poseNumber === 'number') ? String(j.poseNumber).padStart(2,'0') : (j.poseNN ? String(j.poseNN).replace(/[^0-9]/g,'').padStart(2,'0') : '');\n  // Example: 1-AB12CD34-569C50-P01\n  return `${attempt}-${entropy}${shortId ? `-${shortId}` : ''}${poseNN ? `-P${poseNN}` : ''}`;\n}\n\nconst MAX_RETRIES = asInt(j.maxPoseRetries) ?? asInt(j.qaMaxTries) ?? 3;\n\n// Consider multiple sources to determine previous attempt\nconst prevCandidates = [\n  asInt(j.retryAttempt),\n  asInt(j.__meta?.qaRetry),\n  asInt(j.qaRetry),\n  asInt(j.retryTry),\n  (asInt(j.__meta?.bumpGate?.next) ? asInt(j.__meta?.bumpGate?.next) - 1 : null),\n].filter(v => Number.isFinite(v));\n\nconst prev = prevCandidates.length ? Math.max(...prevCandidates) : 0;\nconst plannedNext = asInt(j.__meta?.bumpGate?.next);\n\n// Default bump\nlet next = prev + 1;\n\n// Idempotency: if upstream shows we're already on this attempt (plannedNext === j.retryAttempt), don't bump again\nif (plannedNext && asInt(j.retryAttempt) === plannedNext) {\n  next = plannedNext; // stay on the same attempt\n}\n\nconst withinLimit = next <= MAX_RETRIES;\nconst retriesRemaining = Math.max(0, MAX_RETRIES - (next - 1));\n\n// Keep existing tag when we remain on the same attempt; otherwise generate new\nconst keepExistingTag = (asInt(j.retryAttempt) === next) && typeof j.retryTag === 'string' && j.retryTag.length > 0;\nconst retryTag = keepExistingTag ? j.retryTag : makeTag(next);\n\nreturn {\n  json: {\n    ...j,\n    // canonical\n    retryAttempt: next,\n    retryTag,\n    // compat\n    qaRetry: next,\n    maxPoseRetries: MAX_RETRIES,\n    // branch helpers\n    hasRetriesRemaining: withinLimit,\n    shouldRetry: withinLimit,\n    __shouldRetry: withinLimit, // legacy\n    isRetry: next > 0,\n    retriesRemaining,\n\n    __meta: {\n      ...(j.__meta || {}),\n      qaRetry: next,\n      qaMaxTries: MAX_RETRIES,\n      bumpGate: { prev, next, withinLimit, plannedNext, retriesRemaining }\n    },\n  },\n  binary: b,\n  pairedItem: $input?.item?.pairedItem ?? { item: ($itemIndex ?? 0) },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        224
+      ],
+      "id": "51459340-f019-42dc-a054-1f0b037aee45",
+      "name": "Bump retry counter"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// QA Handoff — Purge & Keep Keys (Initial → QA) — v2.3 (hair refs + stable poseNN + no empty-string traps)\n// Goal: drop ALL binaries, keep durable identifiers/URLs so QA+Retry can rehydrate.\n// Preserves retryAttempt/retryTag (normalized), QA signals, contract keys.\n// v2.3: \n//  - Preserve hairRefS3Key/hairRefPublicUrl and map them to hairKey/hairUrl if those aren’t present\n//  - Don’t mutate incoming poseNN; also expose poseNN_plain and poseNN_hyphen\n//  - Treat \"\" as empty for URL fallbacks (e.g., baseRefPublicUrl)\n//  - Default posesPublicBase to your canonical characters/poses root\n//  - Keep temperature/topK/topP from generationConfig when present\n//  - Sanitize paths and support weird \"publicR2Url (String):\" input key\n\nconst jIn  = $json || {};\nconst bIn  = $binary || {};\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\nconst ix    = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\n/* ---------------- helpers ---------------- */\nfunction clamp(n){ n = Number(n); return Number.isFinite(n) ? Math.max(1, Math.min(99, Math.floor(n))) : null; }\nfunction pad2(n){ n = Number(n); return Number.isFinite(n) ? String(n).padStart(2,'0') : null; }\nfunction parsePoseFromString(s){\n  if (!s) return null;\n  const m = String(s).match(/pose[_-]?(\\d{1,2})(?:\\.(?:png|jpe?g|webp))?$/i) || String(s).match(/(?:^|[^\\d])(\\d{1,2})(?:\\.(?:png|jpe?g|webp))?$/i);\n  return m ? clamp(m[1]) : null;\n}\nfunction asInt(v){ const n = Number(v); return Number.isFinite(n) ? Math.floor(n) : null; }\nfunction asBool(v){\n  if (v === true) return true;\n  if (v === false || v == null) return false;\n  if (typeof v === 'number') return v === 1;\n  if (typeof v === 'string'){\n    const s = v.trim().toLowerCase();\n    if (/^(true|1|yes|y|on)$/.test(s)) return true;\n    if (/^(false|0|no|n|off)$/.test(s)) return false;\n  }\n  return false;\n}\nfunction isNonEmpty(v){\n  if (v === null || v === undefined) return false;\n  if (typeof v === 'string') return v.trim().length > 0;\n  return true; // numbers/booleans/objects considered non-empty\n}\nfunction firstNonEmpty(){ for (let i=0;i<arguments.length;i++){ const v = arguments[i]; if (isNonEmpty(v)) return v; } return undefined; }\nfunction sanitizePath(s){ return String(s || '').replace(/\\/{2,}/g,'/').replace(/\\/+$/,''); }\n\n/* ---------------- identities ---------------- */\nconst orderId        = jIn.orderId ?? jIn.amazonOrderId ?? jIn.meta?.orderId ?? null;\nconst characterHash  = firstNonEmpty(jIn.characterHash, jIn.__meta?.deriveQaPass?.snapshot?.characterHash, null);\n\nlet poseNumber = clamp(\n  jIn.poseNumber ?? jIn.currentPoseNumber ??\n  jIn.__meta?.poseNumber ?? parsePoseFromString(jIn.poseRefName)\n);\n\n// Keep incoming poseNN if provided; also compute plain + hyphen variants for convenience\nconst poseNN_in      = (typeof jIn.poseNN === 'string' && jIn.poseNN.trim()) ? jIn.poseNN.trim() : null;\nconst poseNN_plain   = poseNumber ? `pose${pad2(poseNumber)}` : (poseNN_in ? poseNN_in.replace(/-/g,'') : null);\nconst poseNN_hyphen  = poseNumber ? `pose-${pad2(poseNumber)}` : (poseNN_in ? poseNN_in.replace(/^pose/,'pose-') : null);\nconst poseNN         = poseNN_in || poseNN_plain;\n\nconst poseKey  = jIn.poseKey ?? (orderId && characterHash && poseNN ? `${orderId}|${characterHash}|${poseNN}` : null);\n\n/* ---------------- retry meta (normalized) ---------------- */\nconst retryAttempt = asInt(jIn.retryAttempt) ?? asInt(jIn.qaRetry) ?? asInt(jIn.retryTry) ?? 0; // 0 before first retry\nconst retryTag     = firstNonEmpty(jIn.retryTag, null);\n\n/* ---------------- contract spaces & URLs ---------------- */\n// Some inputs arrived as `publicR2Url (String):` — support that too.\nconst publicR2UrlIn = firstNonEmpty(jIn.publicR2Url, jIn['publicR2Url (String):'], 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev');\nconst publicRoot    = sanitizePath(publicR2UrlIn);\n\nconst assetsRootIn  = firstNonEmpty(jIn.assetsRoot, 'book-mvp-simple-adventure/order-generated-assets');\nconst assetsRoot    = sanitizePath(assetsRootIn);\n\nconst templatePathIn = firstNonEmpty(jIn.templatePath, 'templates');\nconst tpl            = sanitizePath(templatePathIn);\n\n// Canonical default (matches your SW2): characters/poses under book-mvp...\nconst posesPublicBase = sanitizePath(firstNonEmpty(jIn.posesPublicBase, 'book-mvp-simple-adventure/characters/poses'));\n\n// compute/normalize durable keys (with strong fallbacks)\nconst baseCharacterKey = firstNonEmpty(\n  jIn.baseCharacterKey,\n  jIn.__meta?.baseUploadKey,\n  jIn.__meta?.storageKey,\n  (characterHash && assetsRoot ? `${assetsRoot}/characters/${characterHash}/base-character.png` : null)\n);\n\n// IMPORTANT: treat \"\" as empty; fall back to computed public URL when needed\nconst baseRefPublicUrl = firstNonEmpty(\n  jIn.baseRefPublicUrl,\n  jIn.baseCharacterUrl,\n  (baseCharacterKey ? `${publicRoot}/${baseCharacterKey}` : null)\n);\n\n// Keep provided poseRefKey/Url; otherwise compute using existing convention (no hyphen)\n// (We don’t force-switch naming conventions here to avoid breaking callers.)\nconst poseRefKey = firstNonEmpty(\n  jIn.poseRefKey,\n  (poseNumber ? `${posesPublicBase}/pose${pad2(poseNumber)}.png` : null)\n);\nconst poseRefPublicUrl = firstNonEmpty(\n  jIn.poseRefPublicUrl,\n  jIn.poseRefUrl,\n  (poseRefKey ? `${publicRoot}/${poseRefKey}` : null)\n);\n\n// Hair references: preserve both the \"ref\" fields and map to hairKey/hairUrl when explicit fields aren’t present\nconst hairRefS3Key     = firstNonEmpty(jIn.hairRefS3Key, jIn.hairS3Key, null);\nconst hairRefPublicUrl = firstNonEmpty(jIn.hairRefPublicUrl, jIn.hairPublicUrl, null);\n\nconst hairKey = firstNonEmpty(jIn.hairKey, hairRefS3Key, null);\nconst hairUrl = firstNonEmpty(jIn.hairUrl, hairRefPublicUrl, null);\n\n// parse hairPromptMeta to a real object\nlet hairPromptMeta = jIn.hairPromptMeta;\nif (typeof hairPromptMeta === 'string') {\n  try { hairPromptMeta = JSON.parse(hairPromptMeta); } catch { hairPromptMeta = {}; }\n}\nif (!hairPromptMeta || typeof hairPromptMeta !== 'object') hairPromptMeta = {};\n\n/* ---------------- generation config passthrough ---------------- */\nlet generationConfig;\nif (jIn.generationConfig && typeof jIn.generationConfig === 'object') {\n  const g = jIn.generationConfig;\n  generationConfig = {\n    imageConfig: g.imageConfig,\n    temperature: g.temperature,\n    // keep these if present; don’t invent defaults\n    ...(typeof g.topK === 'number' ? { topK: g.topK } : {}),\n    ...(typeof g.topP === 'number' ? { topP: g.topP } : {}),\n  };\n}\n\n/* ---------------- build lean handoff JSON ---------------- */\nconst keep = {\n  // routing / identity\n  orderId,\n  amazonOrderId: jIn.amazonOrderId ?? null,\n  correlationId: jIn.correlationId ?? null,\n  characterHash,\n  poseNumber: poseNumber ?? null,\n  currentPoseNumber: poseNumber ?? jIn.currentPoseNumber ?? null,\n  poseNN,                 // preserve input if provided\n  poseNN_plain,           // convenience (pose09)\n  poseNN_hyphen,          // convenience (pose-09)\n  poseIndex: jIn.poseIndex ?? null,\n  poseKey,\n  generatedFileName: jIn.generatedFileName ?? null,\n\n  // spaces\n  assetsRoot,\n  publicR2Url: publicRoot,\n  templatePath: tpl,\n  posesPublicBase,\n\n  // prompt state for Retry Builder\n  posePromptBlock: String(jIn.posePromptBlock || ''),\n  model: jIn.model || jIn.modelVersion || null,\n  generationConfig,\n\n  // hairstyle context that downstream prompt builders read\n  hairPromptMeta,\n  hairStyleCanonical: jIn.hairStyleCanonical ?? hairPromptMeta.styleKey ?? null,\n  clothingTypeCanonical: jIn.clothingTypeCanonical ?? hairPromptMeta.clothingTypeCanonical ?? null,\n\n  // QA signals (kept lean; may be empty on first pass)\n  qaThreshold: (Number.isFinite(Number(jIn.qaThreshold)) ? Number(jIn.qaThreshold) : 0.70),\n  styleQaThreshold: Number.isFinite(Number(jIn.styleQaThreshold)) ? Number(jIn.styleQaThreshold) : undefined,\n  colorQaThreshold: Number.isFinite(Number(jIn.colorQaThreshold)) ? Number(jIn.colorQaThreshold) : undefined,\n  skinToneThreshold: Number.isFinite(Number(jIn.skinToneThreshold)) ? Number(jIn.skinToneThreshold) : undefined,\n  qaReasons: Array.isArray(jIn.qaReasons) ? jIn.qaReasons.slice(0, 12) : null,\n  qaHints: jIn.qaHints || null,\n  qaNotes: (typeof jIn.qaNotes === 'string') ? jIn.qaNotes : undefined,\n  qaPass: asBool(jIn.qaPass ?? jIn.qaCombinedPass) || false,\n  qaScore: Number.isFinite(Number(jIn.qaScore)) ? Number(jIn.qaScore) : (jIn.qaVerdict?.pose_score ?? null),\n  qaPolicy: jIn.qaPolicy ?? jIn.qa?.combined?.policy ?? null,\n\n  // retry meta (normalized + legacy)\n  retryAttempt,\n  retryTag: retryTag ?? undefined,\n  qaRetry: retryAttempt,\n  maxPoseRetries: jIn.maxPoseRetries ?? jIn.qaMaxTries ?? 3,\n\n  // DURABLE keys/urls so downstream can rehydrate without carrying binaries\n  baseCharacterKey,\n  baseRefPublicUrl,                   // canonical\n  baseCharacterUrl: baseRefPublicUrl, // alias for older nodes\n\n  poseRefKey,\n  poseRefPublicUrl,                   // canonical\n  poseRefUrl: poseRefPublicUrl,       // alias\n  poseRefName: jIn.poseRefName ?? null,\n\n  // hair references (preserve both original ref fields and mapped convenience keys)\n  hairRefS3Key,\n  hairRefPublicUrl,\n  hairKey,\n  hairUrl,\n\n  // routing flags\n  __route: jIn.__route ?? (asBool(jIn.__testMode || jIn.testMode) ? 'TEST' : 'REAL'),\n  __testMode: asBool(jIn.__testMode || jIn.testMode || jIn.__meta?.__testMode || jIn.ctx?.__testMode || jIn.ctx?.testMode),\n  testMode:  asBool(jIn.__testMode || jIn.testMode || jIn.__meta?.__testMode || jIn.ctx?.__testMode || jIn.ctx?.testMode),\n\n  // breadcrumb\n  __meta: {\n    ...(jIn.__meta || {}),\n    qahandoff: { runIx, itemIndex: ix, stripped: true }\n  }\n};\n\n// Output: NO binaries.\nif (global.gc) { try { global.gc(); } catch {} }\nreturn { json: keep, binary: {} };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -976,
+        224
+      ],
+      "id": "295d3f81-9e4d-473d-9edd-27e8a42e2079",
+      "name": "QA Handoff — Purge & Keep Keys"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "poseNumber",
+              "type": "number",
+              "value": "={{ $json.workingPoseNumber ?? $json.poseNumber ?? $json.currentPoseNumber ?? $json.nextPoseNumber }}"
+            },
+            {
+              "id": "b2",
+              "name": "currentPoseNumber",
+              "type": "number",
+              "value": "={{ $json.workingPoseNumber ?? $json.poseNumber ?? $json.currentPoseNumber ?? $json.nextPoseNumber }}"
+            },
+            {
+              "id": "b3",
+              "name": "maxPoseRetries",
+              "type": "number",
+              "value": "={{ $json.maxPoseRetries ?? $json.maxRetries ?? 3 }}"
+            },
+            {
+              "id": "b5",
+              "name": "characterHash",
+              "type": "string",
+              "value": "={{ $json.characterHash ?? $json.ctx?.characterHash ?? $json.__meta?.characterHash }}"
+            },
+            {
+              "id": "11ce5469-c05f-4c8e-90dc-c88c11789d82",
+              "name": "retryAttempt",
+              "value": "={{ $json.retryAttempt ?? $json.qaRetry ?? 1 }}",
+              "type": "number"
+            },
+            {
+              "id": "eb9a801d-6550-48d3-acd8-40b66eb30276",
+              "name": "retryTag",
+              "value": "={{ $json.retryTag ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "75b0bd13-d492-4551-aa01-53e66c6dca35",
+              "name": "assetsRoot",
+              "value": "={{ $json.assetsRoot ?? 'book-mvp-simple-adventure/order-generated-assets' }}",
+              "type": "string"
+            },
+            {
+              "id": "4d3af971-0886-43fc-956d-014eab1a0f36",
+              "name": "publicR2Url",
+              "value": "={{ $json.publicR2Url ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "bb8f8768-ba1d-48e1-aab2-b5a6aea5d0be",
+              "name": "templatePath",
+              "value": "={{ $json.templatePath ?? 'templates' }}",
+              "type": "string"
+            },
+            {
+              "id": "b2ee6493-6179-456c-b3e1-b9410b849cda",
+              "name": "posesPublicBase",
+              "value": "={{ $json.posesPublicBase ?? (($json.templatePath ?? 'templates') + '/poses') }}",
+              "type": "string"
+            },
+            {
+              "id": "bf52bfc5-4db2-4bf7-a63c-8db667c6a87b",
+              "name": "baseCharacterKey",
+              "value": "={{ $json.baseCharacterKey ?? ($json.assetsRoot && $json.characterHash ? `${$json.assetsRoot}/characters/${$json.characterHash}/base-character.png` : '') }}",
+              "type": "string"
+            },
+            {
+              "id": "e65d55cc-da54-40a3-bea5-abaa2ab0cf0a",
+              "name": "baseRefPublicUrl",
+              "value": "={{ $json.baseRefPublicUrl ?? ($json.baseCharacterKey ? `${$json.publicR2Url}/${$json.baseCharacterKey}` : '') }}",
+              "type": "string"
+            },
+            {
+              "id": "a660818d-6bdc-4838-b9b5-a99d5154dcd9",
+              "name": "poseRefKey",
+              "value": "={{ $json.poseRefKey ?? ($json.poseNumber ? `${$json.posesPublicBase ?? (($json.templatePath ?? 'templates') + '/poses')}/pose-${String($json.poseNumber).padStart(2,'0')}.png` : '') }}",
+              "type": "string"
+            },
+            {
+              "id": "cb274e65-070d-4108-bb11-4d7e3339af8a",
+              "name": "poseRefPublicUrl",
+              "value": "={{ $json.poseRefPublicUrl ?? ($json.poseRefKey ? `${$json.publicR2Url}/${$json.poseRefKey}` : '') }}",
+              "type": "string"
+            },
+            {
+              "id": "dc96d786-023e-4a4f-a2ac-2b8e93c68354",
+              "name": "posePromptPreface",
+              "value": "={{ $json.posePromptPreface ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "00050dd2-086c-4f6c-a57a-5d52fad79d91",
+              "name": "hairPromptMeta",
+              "value": "={{ $json.hairPromptMeta ?? {} }}",
+              "type": "object"
+            },
+            {
+              "id": "9c34e84e-c0d8-4ac0-8bdb-23fb0b9e84d4",
+              "name": "hairStyleCanonical",
+              "value": "={{ $json.hairStyleCanonical ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "44b50e97-0fab-4a68-aa80-f2fde74f4c4d",
+              "name": "clothingTypeCanonical",
+              "value": "={{ $json.clothingTypeCanonical ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "b94c0065-d97b-4fa0-b76d-e1e6c8c9d4e0",
+              "name": "qaThreshold",
+              "value": "={{ $json.qaThreshold ?? 0.70 }}",
+              "type": "number"
+            },
+            {
+              "id": "31b77f44-e0e0-4d7d-9e0e-4e7077bb8b94",
+              "name": "styleQaThreshold",
+              "value": "={{ $json.styleQaThreshold ?? undefined }}",
+              "type": "number"
+            },
+            {
+              "id": "90d5c0a5-ec69-4f7e-a932-90ec08adb17b",
+              "name": "colorQaThreshold",
+              "value": "={{ $json.colorQaThreshold ?? undefined }}",
+              "type": "number"
+            },
+            {
+              "id": "1a2f3b4c-5d6e-7f8g-9h0i-1j2k3l4m5n6o",
+              "name": "skinToneThreshold",
+              "value": "={{ $json.skinToneThreshold ?? undefined }}",
+              "type": "number"
+            },
+            {
+              "id": "dd8a23ad-df73-44c3-8ba3-f3f72b8aa8c0",
+              "name": "__isRetry",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "790174bf-5989-4e89-8ede-b1753a497d91",
+              "name": "ctx.characterHash",
+              "value": "={{ $json.characterHash }}",
+              "type": "string"
+            },
+            {
+              "id": "2dc2030c-8451-417c-87f3-c7ea4a57c785",
+              "name": "hairRefS3Key",
+              "value": "={{ $json.hairRefS3Key ?? {} }}",
+              "type": "string"
+            },
+            {
+              "id": "e0128ad5-9c84-4c6e-bd4c-203968554d62",
+              "name": "hairRefPublicUrl",
+              "value": "={{ $json.hairRefPublicUrl ?? {} }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "dotNotation": true
+        }
+      },
+      "id": "d2ffb07b-1a4c-4e86-ae39-e17cd972c60c",
+      "name": "Return Retry Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -368,
+        224
+      ],
+      "notesInFlow": true,
+      "notes": "Returns envelope with updated retry fields for regeneration - FIXED: workingPoseNumber precedence, __isRetry flag, pose-${NN}.png format"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Entry Shim — Normalize Defaults + Pin Keys (EACH) — v1.1\n// Replaces env access; computes baseCharacterKey/baseRefPublicUrl/poseRefKey/poseRefPublicUrl\n// Parses hairPromptMeta if string; preserves clothing/hair canonicals.\n// FIX: Standardized to pose-${NN}.png (hyphenated)\n\nconst jIn = $json || {};\nconst bIn = $binary || {};\n\n// helpers\nconst pick = (...v) => v.find(x => x !== undefined && x !== null && x !== '');\nconst num = (v,d)=> Number.isFinite(+v) ? +v : d;\nconst pad2 = (n)=> String(n).padStart(2,'0');\n\n// test flag from JSON only\nconst isTest = !!(jIn.__testMode || jIn.testMode || jIn.__meta?.__testMode || jIn.ctx?.__testMode || jIn.ctx?.testMode);\n\n// carry/derive basics\nconst ctxIn = jIn.ctx || {};\nconst characterHash = pick(jIn.characterHash, ctxIn.characterHash, jIn.__meta?.characterHash, null);\n\nconst assetsRoot   = jIn.assetsRoot   || 'book-mvp-simple-adventure/order-generated-assets';\nconst publicR2Url  = jIn.publicR2Url  || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\nconst templatePath = jIn.templatePath || 'templates';\n\n// pose number (if present)\nconst poseNum = Number.isFinite(+jIn.poseNumber) ? +jIn.poseNumber\n               : Number.isFinite(+jIn.currentPoseNumber) ? +jIn.currentPoseNumber\n               : null;\n\n// pin keys\nconst baseCharacterKey = jIn.baseCharacterKey\n  || jIn.__meta?.baseUploadKey\n  || jIn.__meta?.storageKey\n  || (characterHash ? `${assetsRoot}/characters/${characterHash}/base-character.png` : null);\n\n// FIX: Standardize to pose-${NN}.png\nconst poseRefKey = jIn.poseRefKey\n  || (poseNum ? `${String(templatePath).replace(/\\/+$/,'')}/poses/pose-${pad2(poseNum)}.png` : null);\n\n// public URLs\nconst baseRefPublicUrl = baseCharacterKey ? `${publicR2Url}/${baseCharacterKey}` : jIn.baseRefPublicUrl;\nconst poseRefPublicUrl = poseRefKey ? `${publicR2Url}/${poseRefKey}` : jIn.poseRefPublicUrl;\n\n// hair meta (string or object)\nlet hairPromptMeta = jIn.hairPromptMeta;\nif (typeof hairPromptMeta === 'string') {\n  try { hairPromptMeta = JSON.parse(hairPromptMeta); } catch {}\n}\nconst hairStyleCanonical = jIn.hairStyleCanonical || hairPromptMeta?.styleKey || jIn.characterSpecs?.hairStyle || null;\nconst clothingTypeCanonical = jIn.clothingTypeCanonical || jIn.characterSpecs?.clothingStyle || null;\n\n// normalization for counts\nconst numPoses       = num(pick(jIn.totalPosesRequired, jIn.numPoses), 12);\nconst maxPoseRetries = num(pick(jIn.maxPoseRetries, jIn.maxRetries), 3);\n\n// build out json\nconst out = {\n  ...jIn,\n  ctx: { ...ctxIn, characterHash },\n  characterHash,\n  __testMode: isTest,\n  testMode: isTest,\n  __route: (jIn.__route || (isTest ? 'TEST' : 'REAL')),\n\n  assetsRoot,\n  publicR2Url,\n  templatePath,\n  numPoses,\n  maxRetries: maxPoseRetries,\n  maxPoseRetries,\n\n  // pinned keys + urls\n  baseCharacterKey,\n  baseRefPublicUrl,\n  poseRefKey,\n  poseRefPublicUrl,\n\n  // canonicals\n  hairPromptMeta,\n  hairStyleCanonical,\n  clothingTypeCanonical,\n};\n\nreturn { json: out, binary: bIn };"
+      },
+      "id": "d908e970-acae-481a-a61e-ac57e7ffc925",
+      "name": "Init / Validate Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "e1125228-d9ca-4fa0-a5fa-1bb2b5f46276",
+              "leftValue": "={{$json.qa?.combined?.pass === true}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "170da873-ebdb-4a36-b185-1f0e2c748d04",
+      "name": "IF: QA Combined Pass?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1248,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "85a398fd-7b54-403d-83ef-a0664d8c5ce0",
+              "leftValue": "={{!$json.hasRetriesRemaining}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": "={{ true }}"
+        }
+      },
+      "id": "d27aadcb-be4d-4331-a059-c9e4e19d4dac",
+      "name": "IF: Retries Exhausted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract Character Hash from w0 — EACH mode\n// Use the hash already calculated in w0, don't recalculate\n// IMPORTANT: In EACH mode, return a single object (not an array).\n\nconst j = { ...($json || {}) };\nconst b = $binary || {};\n\n// Extract hash from w0 (try multiple possible locations)\nconst characterHash = j.character_hash || j.characterHash || j.orderContext?.characterHash;\n\nif (!characterHash) {\n  throw new Error('Missing character_hash from w0. Order data: ' + JSON.stringify(Object.keys(j)));\n}\n\n// Preserve characterSpecs for downstream nodes\nconst cs = j.characterSpecs || j.character_specs || {};\n\n// Build output matching the expected structure\nconst out = {\n  ...j,\n  characterSpecs: cs,\n  characterHash,\n  characterPath: `characters/${characterHash}`,\n  templatePath: 'templates',\n};\n\nconsole.log('Using character hash from w0:', characterHash);\n\n// EACH mode => return a SINGLE object\nreturn {\n  json: out,\n  binary: b,\n  ...(($input && $input.item && $input.item.pairedItem) ? { pairedItem: $input.item.pairedItem } : {})\n};"
+      },
+      "id": "bcb6f3a9-6148-4fc9-86c6-b766d08361be",
+      "name": "Generate Character Hash1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "2a-start",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7e4084b4-fbe6-4cde-87e6-f30ef75a8c72",
+      "name": "Webhook (Router)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -2464,
+        -336
+      ],
+      "webhookId": "2a-start",
+      "notes": "Receives orders from W1.1 Router. Router sends: orderId, characterHash, characterSpecs, bookSpecs, orderDbId, workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize Router Payload — Maps router/webhook format to 2A expected format\n// Preserve per-book orderId separately from root/group amazonOrderId.\n\nconst routerData = $input.first().json || {};\nconst body = routerData.body || routerData;\nconst dbId = body.id || routerData.id || null;\n\nfunction pick(...vals) {\n  return vals.find(v => v !== undefined && v !== null && String(v).trim() !== '');\n}\n\nconst extractedOrderId = pick(\n  body.orderId,\n  body.order_id,\n  routerData.orderId,\n  routerData.order_id,\n  body.id,\n  routerData.id,\n  body.amazonOrderId,\n  body.amazon_order_id,\n  routerData.amazonOrderId,\n  routerData.amazon_order_id\n) || null;\n\nconst extractedAmazonOrderId = pick(\n  body.rootOrderId,\n  body.root_order_id,\n  routerData.rootOrderId,\n  routerData.root_order_id,\n  body.amazonOrderId,\n  body.amazon_order_id,\n  routerData.amazonOrderId,\n  routerData.amazon_order_id,\n  extractedOrderId\n) || null;\n\nconst extractedCharacterHash = pick(body.character_hash, body.characterHash, routerData.characterHash, null);\nconst extractedCharacterSpecs = body.character_specs || body.characterSpecs || routerData.characterSpecs || {};\nconst extractedBookSpecs = body.book_specs || body.bookSpecs || routerData.bookSpecs || {};\nconst extractedOrderDetails = body.order_details || body.product_info || body.orderDetails || routerData.orderDetails || {};\n\nconst normalized = {\n  ...routerData,\n  ...body,\n  amazonOrderId: extractedAmazonOrderId,\n  orderId: extractedOrderId,\n  characterHash: extractedCharacterHash,\n  characterSpecs: extractedCharacterSpecs,\n  bookSpecs: extractedBookSpecs,\n  orderDetails: extractedOrderDetails,\n  orderDbId: dbId,\n  workflow: routerData.workflow || body.next_workflow || '2A',\n  oneManifestUrl: body.one_manifest_url || routerData.oneManifestUrl || null,\n};\n\nconsole.log('=== ROUTER PAYLOAD NORMALIZED ===');\nconsole.log('Input body.root_order_id:', body.root_order_id);\nconsole.log('Input body.rootOrderId:', body.rootOrderId);\nconsole.log('Input body.amazon_order_id:', body.amazon_order_id);\nconsole.log('Input body.amazonOrderId:', body.amazonOrderId);\nconsole.log('Input body.orderId:', body.orderId);\nconsole.log('Extracted amazonOrderId:', extractedAmazonOrderId);\nconsole.log('Extracted orderId:', extractedOrderId);\nconsole.log('Final normalized.amazonOrderId:', normalized.amazonOrderId);\nconsole.log('Final normalized.orderId:', normalized.orderId);\nconsole.log('characterHash:', normalized.characterHash);\nconsole.log('orderDbId:', normalized.orderDbId);\nconsole.log('Has characterSpecs:', !!normalized.characterSpecs && Object.keys(normalized.characterSpecs).length > 0);\n\nreturn [{ json: normalized }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1568,
+        -160
+      ],
+      "id": "d42c8ae3-f6b0-4388-8936-11fbad16fad9",
+      "name": "Normalize Router Payload"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [],
+          "number": [],
+          "boolean": [],
+          "json": []
+        },
+        "options": {}
+      },
+      "id": "77f93743-e936-46a0-91ae-99f37a19ba12",
+      "name": "Start / Pass-through",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -160
+      ],
+      "notesInFlow": true,
+      "notes": "Pass-through start. Provide one item per pose or upstream item explosion.\nExpected fields per item:\n - characterSpecs (object)\n - hairPromptMeta (optional)\n - characterHash (string)\n - poseNumber (int 1..12) OR names we can parse to get poseNumber\n - binary.character OR json.characterBase64 (IMAGE A)\nOptional: binary.hair (IMAGE B), binary.skin (IMAGE C)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulate the upstream order so you can test the pose loop without regenerating the base character.\n// This mirrors production fields used by the prompt builder & QA.\n\n// ---------- SIM CONFIG ----------\nconst SIM = {\n  // Character + assets\n  characterHash: '1567edfe9a2e96c5',\n  totalPosesRequired: 2,                  // set 13 for full run\n  assetsRoot: 'book-mvp-simple-adventure',\n  orderAssetsPrefix: 'order-generated-assets',\n  baseCharacterFilename: 'base-character.png',\n  publicR2Url: 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev',\n  posesPublicBase: 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/little-hero-assets/book-mvp-simple-adventure/characters/poses/',\n  get characterPath() { return `characters/${this.characterHash}`; },\n\n  // Order/character knobs\n  customerEmail: 'jeff@example.com',\n\n  // These match what your prod prompt builder reads\n  characterSpecs: {\n    childName: 'Alex',\n    skinTone: 'medium',\n    hairColor: 'medium-brown',\n    hairStyle: 'straight-short',\n    age: 5,\n    pronouns: 'she/her',\n    favoriteColor: 'green',\n    animalGuide: 'tiger',\n    clothingStyle: 'dress',\n  },\n\n  bookSpecs: {\n    title: 'Alex and the Adventure Compass',\n    totalPages: 16,\n    format: '8.5x8.5_softcover',\n    bookType: 'animal-guide',\n  },\n\n  // Appearance locks used by your prompt nodes\n  // (Build Dynamic Pose Prompt looks for these)\n  hairStyleCanonical: 'straight-short',\n  hairPromptMeta: {\n    styleKey: 'straight-short',\n    color: 'medium-brown',\n    colorHex: '#B88751',                 // tweak as desired\n  },\n  skinToneId: 'medium',                  // optional palette id your builder may echo back\n  skinHexBase: '#C88C5A',                // optional anchor color\n  skinColorLock: '',                     // optional extra rule line\n\n  // QA / retry policy knobs (read by retry/IF nodes)\n  qaThreshold: 0.90,\n  maxPoseRetries: 2,\n};\n\n// ---------- EMIT ORDER ----------\nconst now = new Date().toISOString();\n\nconst order = {\n  amazonOrderId: 'SIM-ORDER-001',\n  status: 'ai_generation_in_progress',\n  orderDate: now,\n  customerEmail: SIM.customerEmail,\n\n  characterSpecs: SIM.characterSpecs,\n  bookSpecs: SIM.bookSpecs,\n  orderDetails: { quantity: 1 },\n\n  aiGenerationStartedAt: now,\n  posesGenerated: 0,\n  generationProgress: 0,\n\n  // critical derivations for downstream nodes\n  characterHash: SIM.characterHash,\n  characterPath: SIM.characterPath,\n  assetsRoot: SIM.assetsRoot,\n  orderAssetsPrefix: SIM.orderAssetsPrefix,\n  baseCharacterFilename: SIM.baseCharacterFilename,\n  publicR2Url: SIM.publicR2Url,\n\n  // pose loop config\n  totalPosesRequired: SIM.totalPosesRequired,\n  posesPublicBase: SIM.posesPublicBase,\n  templatePath: 'templates',\n\n  // appearance-lock fields (mirrors prod)\n  hairStyleCanonical: SIM.hairStyleCanonical,\n  hairPromptMeta: SIM.hairPromptMeta,\n  skinToneId: SIM.skinToneId,\n  skinHexBase: SIM.skinHexBase,\n  skinColorLock: SIM.skinColorLock,\n\n  // QA / retry policy\n  qaThreshold: SIM.qaThreshold,\n  maxPoseRetries: SIM.maxPoseRetries,\n};\n\nreturn [{ json: order }];\n"
+      },
+      "id": "393667aa-0a7d-4823-a67b-5be8efafe555",
+      "name": "Simulate Upstream (Seed Pose Loop)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        -416
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Expand to N Poses — v2.5 (JSON-only fan-out; staticData-aware; deterministic; pose00-aware)\n// Mode: Run Once for All Items (ALL)\n// Uses the first incoming item as the source and emits N JSON copies with pose fields.\n\nconst item = $input.first() || { json: {}, binary: {} };\nconst j = item.json || {};\n\nfunction good(x){\n  return typeof x === 'string'\n    ? x.trim() !== '' && x.trim().toLowerCase() !== 'unknown-order'\n    : x !== undefined && x !== null;\n}\nfunction pickNE(){ for (const a of arguments){ if (good(a)) return a; } return null; }\nfunction asBool(x, d=false){\n  if (x === true || x === 'true' || x === 1 || x === '1') return true;\n  if (x === false || x === 'false' || x === 0 || x === '0') return false;\n  return d;\n}\n\n$execution.customData = $execution.customData || {};\nconst execCtx = $execution.customData.orderContext || {};\nconst inCtx   = j.orderContext || {};\nconst sd      = $getWorkflowStaticData('global');\n\n// Resolve amazonOrderId with robust precedence\nconst incoming  = j.amazonOrderId || null;\nconst ctxId     = inCtx.amazonOrderId || null;\nconst execId    = execCtx.amazonOrderId || null;\nconst staticId  = sd?.lastAmazonOrderId || null;\nconst staticCtx = sd?.lastOrderContext?.amazonOrderId || null;\n// NOTE: `global` is not reliably shared across nodes; leave as lowest-priority fallback.\nconst globalId  = global?.currentAmazonOrderId || null;\n\nconst amazonOrderId = pickNE(\n  incoming,\n  ctxId,\n  execId,\n  staticId,\n  staticCtx,\n  globalId\n) || 'unknown-order';\n\n// Merge a durable order context with defaults for assets/public URL\nconst mergedCtx = {\n  ...execCtx,\n  ...inCtx,\n  amazonOrderId,\n  publicR2Url: inCtx.publicR2Url || execCtx.publicR2Url || sd?.lastOrderContext?.publicR2Url || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev',\n  assetsRoot : inCtx.assetsRoot  || execCtx.assetsRoot  || sd?.lastOrderContext?.assetsRoot  || 'book-mvp-simple-adventure/order-generated-assets',\n};\n\n// Persist for downstream reliability\n$execution.customData.orderContext = mergedCtx;\nif (good(amazonOrderId)) sd.lastAmazonOrderId = amazonOrderId;\nsd.lastOrderContext = mergedCtx;\n\n// Determine whether to include pose00 (defaults to true per project plan)\nconst allowZeroPose = asBool(\n  pickNE(j.__meta?.allowZeroPose, j.allowZeroPose, inCtx.allowZeroPose, execCtx.allowZeroPose, sd?.lastOrderContext?.allowZeroPose),\n  true // default ON: emit pose00 + the rest\n);\n\n// Determine pose count (N items to emit); default 13\nconst total =\n  Number.isFinite(+j.__meta?.totalPoses)     ? Math.max(1, Math.floor(+j.__meta.totalPoses)) :\n  Number.isFinite(+j.totalPosesRequired)     ? Math.max(1, Math.floor(+j.totalPosesRequired)) :\n  Number.isFinite(+j.totalPoses)             ? Math.max(1, Math.floor(+j.totalPoses)) :\n  Number.isFinite(+j.numPoses)               ? Math.max(1, Math.floor(+j.numPoses)) :\n  13;\n\nconst start = allowZeroPose ? 0 : 1;\nconsole.log(`🧩 Expand→${total} poses | start=${start} | using amazonOrderId=${amazonOrderId}`);\n\nconst base = {\n  ...j,\n  amazonOrderId,\n  orderId: j.orderId || amazonOrderId,\n  orderContext: mergedCtx,\n  assetsRoot : mergedCtx.assetsRoot,\n  publicR2Url: mergedCtx.publicR2Url,\n};\n\n// Fan-out JSON-only items; no binaries forwarded\nconst out = [];\nfor (let i = 0, n = start; i < total; i++, n++) {\n  out.push({\n    json: {\n      ...base,\n      poseNumber: n,                 // 0..12 if allowZeroPose=true; else 1..N\n      currentPoseNumber: n,\n      index: allowZeroPose ? n : (n - 1),   // zero-based index for compatibility\n      __meta: { ...(base.__meta || {}), poseNumber: n, totalPoses: total, allowZeroPose }\n    },\n    binary: {},            // ensure no binaries carried\n    pairedItem: { item: 0 }\n  });\n}\n\nreturn out;\n"
+      },
+      "id": "b2d467f3-6941-4b6d-8b1a-b9815eebc347",
+      "name": "Expand to N Poses",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        -160
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        1344
+      ],
+      "id": "2ba55b07-6ffe-439a-931f-87a282db59f4",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -2224,
+        192
+      ],
+      "id": "5d886c5b-6601-4511-9451-b2d6b8e6b669",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "JoHCxEPAASmch6m1",
+          "mode": "list",
+          "cachedResultName": "Little Hero Labs — PRIVATIZED -- SW0 - Base Character Generation"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -320,
+        -160
+      ],
+      "id": "ff95d6f9-36ab-4e1e-a066-c058c6127107",
+      "name": "Execute SW0 - Base Character Gen"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "kVlSZ0gu0DDewGsj",
+          "mode": "list",
+          "cachedResultName": "Little Hero Labs — WORKING VERSION -  SW1 - Pose Generation"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -1696,
+        208
+      ],
+      "id": "f21e20ba-d80b-464b-9580-b70f620c86ef",
+      "name": "Execute SW1 - Pose Generation"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "HMXLhoiMQvy8hhNV",
+          "mode": "list",
+          "cachedResultName": "Little Hero Labs — WORKING VERSION -  SW2 - Pose and Style QA"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -1472,
+        208
+      ],
+      "id": "a1f782af-624b-421a-8201-535b33123df4",
+      "name": "Execute SW2 - Pose and Style QA"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aghaFG3Aubtke7kd",
+          "mode": "list",
+          "cachedResultName": "Little Hero Labs — WORKING VERSION -  SW3 - Upload"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -944,
+        640
+      ],
+      "id": "9beb9429-cb25-4e70-a012-23d4b6cd3d13",
+      "name": "SW3 - Upload"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Write Run Manifest (2A-04) — v2.0.3 with GLOBAL ORDER ID SUPPORT\n// Single document with manifest + order context + summary + review queue\n// Sources results and order context, outputs enriched manifest\n// UPDATED: Uses global.currentAmazonOrderId as fallback for cross-context access\n\nconsole.log('=== Write Run Manifest v2.0.3 with GLOBAL SUPPORT ===');\n\n/* ---------------- helpers ---------------- */\nfunction toInt(v){ const n=Number(v); return Number.isFinite(n)?Math.floor(n):null; }\nfunction nonEmpty(v){ return v!==undefined && v!==null && String(v).trim()!=='' && String(v).toLowerCase()!=='undefined' && String(v).toLowerCase()!=='null'; }\nconst pickNE = (...vals)=> vals.find(nonEmpty);\nconst clamp = (n,lo,hi)=> Math.max(lo, Math.min(hi, n));\nconst HEX_OK = /^[a-f0-9]{12,64}$/i;\nconst STRICT_RE = /(?:^|\\/)characters\\/([a-f0-9]{12,64})(?:\\/|$)/i;\nconst LOOSE_RE1 = /characters[_\\-]([a-f0-9]{12,64})[_\\-]/i;\nconst LOOSE_RE2 = /characters[_\\-]([a-f0-9]{12,64})[_\\-]pose\\d{1,3}/i;\nfunction extractHashFromString(s){\n  if (!nonEmpty(s)) return null;\n  const str=String(s);\n  let m=str.match(STRICT_RE); if (m) return m[1];\n  m=str.match(LOOSE_RE2)||str.match(LOOSE_RE1);\n  return m?m[1]:null;\n}\nfunction sanitizePath(p){ return String(p||'').replace(/\\/{2,}/g,'/').replace(/^\\/+/,''); }\nfunction isoNow(){ return new Date().toISOString(); }\nfunction ensureIso(v){ try{ const d=new Date(v); if (!Number.isNaN(d.getTime())) return d.toISOString(); }catch{} return isoNow(); }\nfunction joinUrl(base, key) {\n  if (!base || !key) return null;\n  return `${String(base).replace(/\\/$/, '')}/${String(key).replace(/^\\/+/, '')}`;\n}\n\n// Scan a node across runs for all items (newest→older)\nfunction itemsAllRuns(nodeName, MAX_SCAN=40){\n  const out=[], seen=new Set();\n  try{\n    const latest = $items(nodeName);\n    if (Array.isArray(latest)) for (const it of latest){\n      const sig = it?.json?.__uuid || JSON.stringify(Object.keys(it?.binary||{}));\n      if (!seen.has(sig)){ seen.add(sig); out.push({ run:'latest', item: it }); }\n    }\n  }catch{}\n  try{\n    const last = $items(nodeName,0);\n    if (Array.isArray(last)) for (const it of last){\n      const sig = it?.json?.__uuid || JSON.stringify(Object.keys(it?.binary||{}));\n      if (!seen.has(sig)){ seen.add(sig); out.push({ run:'last', item: it }); }\n    }\n  }catch{}\n  for (let r=MAX_SCAN; r>=0; r--){\n    try{\n      const arr = $items(nodeName,0,r);\n      if (!Array.isArray(arr) || !arr.length) continue;\n      for (const it of arr){\n        const sig = JSON.stringify([r,it?.json?.__uuid,Object.keys(it?.binary||{})]);\n        if (!seen.has(sig)){ seen.add(sig); out.push({ run:r, item: it }); }\n      }\n    }catch{}\n  }\n  return out;\n}\n\n/* ---------------- gather accumulated results ---------------- */\nlet accumulatedResults = [];\nlet runId = null;\n\n/* Strategy 0: DIRECT INPUT */\ntry{\n  const incomingItems = (typeof $input?.all === 'function') ? $input.all() : [];\n  const fromItems = incomingItems.map(it => it?.json).filter(Boolean);\n  const fromJson  = Array.isArray($json) ? $json : (Object.keys($json||{}).length > 0 ? [$json] : []);\n  const combined  = [...fromItems, ...fromJson];\n  if (combined.length){\n    accumulatedResults = combined;\n    runId = pickNE($json?.runId, $json?.runStamp, $execution?.customData?.currentRunId, 'direct');\n    console.log(`Strategy 0: direct input provided ${accumulatedResults.length} results`);\n  }\n}catch(e){\n  console.warn('Strategy 0 error:', e?.message || e);\n}\n\n/* Strategy 1: currentRunId bucket */\nif (accumulatedResults.length === 0 && $execution.customData?.currentRunId){\n  runId = $execution.customData.currentRunId;\n  accumulatedResults = $execution.customData.poseResults?.[runId] || [];\n  console.log(`Strategy 1: currentRunId=\"${runId}\", found ${accumulatedResults.length}`);\n}\n\n/* Strategy 2: last bucket in poseResults */\nif (accumulatedResults.length === 0 && $execution.customData?.poseResults){\n  const allRunIds = Object.keys($execution.customData.poseResults);\n  console.log(`Strategy 2: poseResults buckets: ${allRunIds.length}`);\n  if (allRunIds.length){\n    runId = allRunIds[allRunIds.length-1];\n    accumulatedResults = $execution.customData.poseResults[runId] || [];\n    console.log(`Strategy 2: picked runId=\"${runId}\", found ${accumulatedResults.length}`);\n  }\n}\n\n/* Strategy 3: merge all buckets */\nif (accumulatedResults.length === 0 && $execution.customData?.poseResults){\n  const all = [];\n  for (const rid of Object.keys($execution.customData.poseResults)){\n    all.push(...($execution.customData.poseResults[rid] || []));\n  }\n  if (all.length){\n    accumulatedResults = all;\n    runId = 'merged';\n    console.log(`Strategy 3: merged all buckets, found ${accumulatedResults.length}`);\n  }\n}\n\n/* Strategy 4 (FALLBACK): scan upstream accumulator node outputs across runs */\nif (accumulatedResults.length === 0){\n  const ACCUM_NODE_NAMES = [\n    'Results Accumulator',\n    'Accumulator - Collect Pose Results',\n    'Accumulator — Collect Pose Results',\n    'Accumulator – Collect Pose Results',\n    'Collect Pose Results',\n    'Pose Results Accumulator',\n    'Accumulator - Collect Pose Results (2A)'\n  ];\n  for (const nm of ACCUM_NODE_NAMES){\n    const scan = itemsAllRuns(nm);\n    if (scan.length){\n      const pulled = scan.map(x => x.item?.json).filter(Boolean);\n      if (pulled.length){\n        accumulatedResults = pulled;\n        runId = runId || 'scanned';\n        console.log(`Strategy 4: scanned \"${nm}\" → ${pulled.length} items`);\n        break;\n      }\n    }\n  }\n}\n\nconsole.log(`Final gather → ${accumulatedResults.length} items, runId=\"${runId||'(none)'}\"`);\n\n/* If STILL nothing: emit a soft stub with binary so S3 node doesn't error */\nfunction emitStub(reason){\n  const runStamp = isoNow();\n  const manifest = {\n    schema: 'lhb.run-manifest@v2.0',\n    runStamp,\n    characterHash: 'unknown',\n    order: null,\n    poses: {\n      total: 0,\n      approved: 0,\n      exhausted: 0,\n      retried: 0,\n      failed: 0,\n      needingReview: 0\n    },\n    entries: [],\n    reviewQueue: [],\n    summary: {\n      percentComplete: 0,\n      readyForBook: false,\n      needsHumanReview: false\n    },\n    workflow: {\n      currentStage: '2A-complete',\n      nextWorkflow: 'unknown',\n      requiresHumanReview: false\n    },\n    generatedAt: runStamp,\n    _note: `EMPTY MANIFEST: ${reason}`\n  };\n  const manifestJson = JSON.stringify(manifest, null, 2);\n  \n  // Use fallback path structure for stub\n  const manifestKey = sanitizePath(`book-mvp-simple-adventure/orders/stub-${runStamp.replace(/[:.TZ-]/g,'')}/manifests/2a-manifest.json`);\n  \n  return [{\n    json: { manifestKey, manifest, characterHash: 'unknown', manifestReady: false },\n    binary: {\n      data: {\n        data: Buffer.from(manifestJson,'utf-8').toString('base64'),\n        mimeType: 'application/json',\n        fileName: '2a-manifest.json',\n        fileExtension: 'json'\n      }\n    }\n  }];\n}\n\nif (accumulatedResults.length === 0){\n  console.warn('No pose results found anywhere. Emitting stub manifest.');\n  return emitStub('no_pose_results_found');\n}\n\n/* ---------------- Extract order context (FLEXIBLE - tries multiple sources INCLUDING GLOBAL) ---------------- */\nconst first = accumulatedResults[0] || {};\n\n// Try multiple sources for order context object\nconst orderContext = \n  $execution?.customData?.orderContext     // A: Stored in execution customData\n  || $json?.orderContext                   // B: Passed directly as orderContext\n  || $json?.orderData                      // C: Passed as orderData\n  || $json?.order                          // D: Passed as order\n  || first.orderContext                    // E: In first pose result as orderContext\n  || first.orderData                       // F: In first pose result as orderData\n  || {};\n\nconsole.log('Order context source:', \n  $execution?.customData?.orderContext ? 'execution.customData' :\n  $json?.orderContext ? '$json.orderContext' :\n  $json?.orderData ? '$json.orderData' :\n  $json?.order ? '$json.order' :\n  first.orderContext ? 'first.orderContext' :\n  first.orderData ? 'first.orderData' :\n  'none (will use nulls)'\n);\n\n// ========== ENHANCED: Try GLOBAL as additional fallback ==========\nconst amazonOrderId = pickNE(\n  orderContext.amazonOrderId,\n  $json?.amazonOrderId,\n  first.amazonOrderId,\n  global.currentAmazonOrderId,  // ← NEW: Check global storage\n  null\n);\n\nconsole.log('amazonOrderId resolution:', {\n  'from orderContext': orderContext.amazonOrderId || '(none)',\n  'from $json': $json?.amazonOrderId || '(none)',\n  'from first result': first.amazonOrderId || '(none)',\n  'from global': global.currentAmazonOrderId || '(none)',\n  'FINAL VALUE': amazonOrderId || '(none)'\n});\n// ================================================================\n\nconst childName = pickNE(\n  orderContext.childName,\n  orderContext.characterSpecs?.childName,\n  $json?.childName,\n  $json?.characterSpecs?.childName,\n  first.childName,\n  first.characterSpecs?.childName,\n  null\n);\n\nconst characterSpecs = \n  orderContext.characterSpecs \n  || $json?.characterSpecs \n  || first.characterSpecs \n  || {};\n\nconst bookSpecs = \n  orderContext.bookSpecs \n  || $json?.bookSpecs \n  || first.bookSpecs \n  || {};\n\nconst orderDetails = \n  orderContext.orderDetails\n  || $json?.orderDetails\n  || first.orderDetails\n  || {};\n\n// Infrastructure fields\nconst runStamp = ensureIso(pickNE(first.runStamp, first.ctx?.runStamp, runId));\nconst assetsRoot = sanitizePath(pickNE(first.assetsRoot, 'book-mvp-simple-adventure/order-generated-assets'));\nconst publicR2Url = pickNE(\n  orderContext.publicR2Url,\n  $json?.publicR2Url,\n  first.publicR2Url,\n  'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev'\n);\n\n// characterHash (try direct; if missing, derive later from keys)\nlet characterHash = pickNE(\n  first.characterHash, \n  first.ctx?.characterHash, \n  orderContext.characterHash,\n  $json?.characterHash\n);\nconst haveHash = nonEmpty(characterHash) && HEX_OK.test(String(characterHash));\n\nconsole.log('Extracted order fields:', {\n  amazonOrderId: amazonOrderId || '(none)',\n  childName: childName || '(none)',\n  characterHash: characterHash || '(will derive from keys)',\n  hasCharacterSpecs: Object.keys(characterSpecs).length > 0,\n  hasBookSpecs: Object.keys(bookSpecs).length > 0\n});\n\n/* ---------------- reduce per-pose ---------------- */\nconst byPose = new Map();\n\nfor (const result of accumulatedResults){\n  const poseNumber = toInt(result.poseNumber ?? result.currentPoseNumber);\n  if (!poseNumber) continue;\n\n  const attempt   = toInt(result.retryAttempt) ?? 0;\n  const qaPass    = result.qaPass === true || result.qaCombinedPass === true || result.success === true;\n  const approvedKey = pickNE(result.approvedKey, result.uploadKey, result.storageKey, null);\n  const approvedFilename = approvedKey ? approvedKey.split('/').pop() : null;\n\n  const qaScore    = result.qaScore ?? result.qa?.pose?.score ?? null;\n  const styleScore = result.styleScore ?? result.qa?.style?.score?.style_cohesion ?? null;\n  const qaReasons  = Array.isArray(result.qaReasons)\n    ? result.qaReasons\n    : (Array.isArray(result.qa?.style?.reasons) ? result.qa.style.reasons : []);\n\n  const publicUrl = pickNE(result.publicUrl, null);\n  const correlationId = pickNE(result.correlationId, null);\n  const qaPoseNotes = result.qa?.pose?.notes || null;\n  const qaStyleNotes = result.qa?.style?.notes || null;\n\n  const maxRetries = toInt(pickNE(result.maxPoseRetries, result.maxRetries, 3)) ?? 3;\n  const needsReview = result.needsReview === true;\n  const reviewReason = result.reviewReason || null;\n\n  const prev = byPose.get(poseNumber) || {\n    poseNumber,\n    attempts: 0,\n    approvedKey: null,\n    approvedFilename: null,\n    anyPass: false,\n    exhausted: false,\n    qaScore: null,\n    styleScore: null,\n    qaReasons: [],\n    needsReview: false,\n    reviewReason: null,\n    maxRetries,\n    retryHistory: [],\n    publicUrl: null,\n    correlationId: null,\n    qaPoseNotes: null,\n    qaStyleNotes: null\n  };\n\n  if (attempt > prev.attempts) prev.attempts = attempt;\n\n  if (!qaPass && qaReasons.length) {\n    prev.qaReasons = [...new Set([...prev.qaReasons, ...qaReasons])];\n  }\n\n  if (attempt > 0){\n    prev.retryHistory.push({\n      attempt, passed: qaPass, qaScore, styleScore,\n      reasons: qaReasons.length ? qaReasons : null\n    });\n  }\n\n  prev.anyPass = prev.anyPass || qaPass;\n\n  if (qaPass && approvedKey){\n    prev.approvedKey = approvedKey;\n    prev.approvedFilename = approvedFilename;\n    if (publicUrl) prev.publicUrl = publicUrl;\n    if (correlationId) prev.correlationId = correlationId;\n  }\n\n  if (qaPoseNotes) prev.qaPoseNotes = qaPoseNotes;\n  if (qaStyleNotes) prev.qaStyleNotes = qaStyleNotes;\n\n  if (needsReview){ prev.needsReview = true; prev.reviewReason = reviewReason || prev.reviewReason; }\n  if (attempt >= prev.maxRetries) prev.exhausted = true;\n  if (qaScore !== null) prev.qaScore = qaScore;\n  if (styleScore !== null) prev.styleScore = styleScore;\n\n  byPose.set(poseNumber, prev);\n}\n\n/* ---------------- build entries ---------------- */\nconst poseNumbers = Array.from(byPose.keys()).sort((a,b)=>a-b);\nconst entries = [];\nlet approvedCount=0, exhaustedCount=0, retriedCount=0, needsReviewCount=0;\n\nfor (const pn of poseNumbers){\n  const p = byPose.get(pn);\n  let finalStatus = 'failed_qa';\n  if (p.approvedKey && p.anyPass){ finalStatus='approved'; approvedCount++; }\n  else if (p.anyPass){ finalStatus='passed_qa'; }\n\n  const isExhausted = p.exhausted && finalStatus !== 'approved';\n  if (isExhausted){ finalStatus='exhausted'; exhaustedCount++; }\n  \n  // Auto-flag exhausted poses for review\n  const needsReview = p.needsReview || isExhausted;\n  if (needsReview) needsReviewCount++;\n\n  if (p.attempts >= 1) retriedCount++;\n\n  const entry = {\n    poseNumber: p.poseNumber,\n    attempts: p.attempts,\n    status: finalStatus,\n    approved: finalStatus === 'approved',\n    approvedKey: p.approvedKey || null,\n    approvedFilename: p.approvedFilename || null,\n    publicUrl: p.publicUrl || joinUrl(publicR2Url, p.approvedKey),\n    correlationId: p.correlationId || null,\n    qaScore: p.qaScore,\n    styleScore: p.styleScore,\n    needsReview,\n    reviewReason: p.reviewReason || (isExhausted ? 'Exhausted retry attempts' : null)\n  };\n  \n  if (p.qaPoseNotes || p.qaStyleNotes){\n    entry.qaNotes = {};\n    if (p.qaPoseNotes) entry.qaNotes.pose = p.qaPoseNotes;\n    if (p.qaStyleNotes) entry.qaNotes.style = p.qaStyleNotes;\n  }\n  \n  if (p.attempts >= 1){\n    entry.retryHistory = p.retryHistory.length ? p.retryHistory : null;\n    entry.qaReasons = p.qaReasons.length ? p.qaReasons : null;\n  }\n\n  entries.push(entry);\n}\n\nconst totalPoses = poseNumbers.length;\n\n// derive hash from keys if still missing\nif (!haveHash){\n  for (const e of entries){\n    const hit = extractHashFromString(e.approvedKey);\n    if (hit){ characterHash = hit; break; }\n  }\n}\n\n/* ---------------- Build review queue ---------------- */\nconst reviewQueue = entries\n  .filter(e => e.needsReview)\n  .map(e => ({\n    poseNumber: e.poseNumber,\n    reason: e.reviewReason,\n    publicUrl: e.publicUrl,\n    qaScore: e.qaScore,\n    styleScore: e.styleScore,\n    attempts: e.attempts,\n    correlationId: e.correlationId\n  }));\n\n/* ---------------- Build comprehensive manifest ---------------- */\nconst percentComplete = totalPoses > 0 \n  ? Math.round((approvedCount / totalPoses) * 100) \n  : 0;\nconst readyForBook = approvedCount === totalPoses && totalPoses > 0;\nconst needsHumanReview = needsReviewCount > 0;\n\nconst manifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp,\n  characterHash: characterHash || 'unknown',\n  \n  // Order context (flexible extraction)\n  order: {\n    amazonOrderId: amazonOrderId,\n    childName: childName,\n    characterSpecs: characterSpecs,\n    bookSpecs: bookSpecs,\n    orderDetails: orderDetails,\n    publicR2Url,\n    r2BucketName: 'little-hero-assets'\n  },\n  \n  // Pose statistics\n  poses: {\n    total: totalPoses,\n    approved: approvedCount,\n    exhausted: exhaustedCount,\n    retried: retriedCount,\n    failed: Math.max(totalPoses - approvedCount - exhaustedCount, 0),\n    needingReview: needsReviewCount\n  },\n  \n  // All pose details\n  entries,\n  \n  // Review queue (subset of entries)\n  reviewQueue,\n  \n  // Summary for UI\n  summary: {\n    percentComplete,\n    readyForBook,\n    needsHumanReview\n  },\n  \n  // Workflow routing\n  workflow: {\n    currentStage: '2A-complete',\n    nextWorkflow: needsHumanReview ? '2B-retry' : 'book-generation',\n    requiresHumanReview: needsHumanReview\n  },\n  \n  generatedAt: isoNow()\n};\n\n/* ---------------- Generate manifest key with NEW STRUCTURE ---------------- */\n// NEW: Use orders bucket structure: book-mvp-simple-adventure/orders/{orderId}/manifests/2a-manifest.json\nlet manifestKey;\n\nif (amazonOrderId) {\n  // PREFERRED: Use order ID in path, simple filename\n  manifestKey = `book-mvp-simple-adventure/orders/${amazonOrderId}/manifests/2a-manifest.json`;\n  console.log(`✓ Using orderId-based path: ${manifestKey}`);\n} else if (characterHash && HEX_OK.test(String(characterHash))) {\n  // FALLBACK 1: Use character hash if no order ID\n  manifestKey = `book-mvp-simple-adventure/orders/character-${characterHash}/manifests/2a-manifest.json`;\n  console.warn(`⚠ No amazonOrderId, using characterHash fallback: ${manifestKey}`);\n} else {\n  // FALLBACK 2: Use timestamp if nothing else available\n  const timestamp = runStamp.replace(/[:.TZ-]/g, '');\n  manifestKey = `book-mvp-simple-adventure/orders/run-${timestamp}/manifests/2a-manifest.json`;\n  console.warn(`⚠ No amazonOrderId or characterHash, using timestamp fallback: ${manifestKey}`);\n}\n\nmanifestKey = sanitizePath(manifestKey);\n\n/* ---------------- Prepare binary output ---------------- */\nconst manifestJson = JSON.stringify(manifest, null, 2);\nconst binaryOut = {\n  data: {\n    data: Buffer.from(manifestJson,'utf-8').toString('base64'),\n    mimeType: 'application/json',\n    fileName: '2a-manifest.json',\n    fileExtension: 'json'\n  }\n};\n\nconsole.log({\n  node: 'Write Run Manifest v2.0.3',\n  runId: runId || '(none)',\n  bucket: 'little-hero-orders',\n  manifestKey,\n  characterHash: manifest.characterHash,\n  poses: manifest.poses,\n  summary: manifest.summary,\n  workflow: manifest.workflow,\n  orderContext: {\n    amazonOrderId: manifest.order.amazonOrderId || '(none)',\n    childName: manifest.order.childName || '(none)'\n  }\n});\n\n/* ---------------- Clean up storage ---------------- */\n// Clean up accumulator storage\nif ($execution.customData?.poseResults){\n  if (runId && runId !== 'merged' && $execution.customData.poseResults[runId]){\n    delete $execution.customData.poseResults[runId];\n    console.log('Cleaned up accumulator storage for runId:', runId);\n  } else if (runId === 'merged'){\n    $execution.customData.poseResults = {};\n    console.log('Cleaned up all accumulator storage (merged mode)');\n  }\n}\n\n// ========== CLEANUP: Delete global amazonOrderId ==========\nif (global.currentAmazonOrderId) {\n  console.log('🧹 Clearing global amazonOrderId:', global.currentAmazonOrderId);\n  delete global.currentAmazonOrderId;\n}\n// ==========================================================\n\nreturn [{\n  json: { \n    manifestKey,\n    manifest, \n    characterHash: manifest.characterHash,\n    amazonOrderId: amazonOrderId,\n    manifestReady: true,\n    uploadBucket: 'little-hero-orders'\n  },\n  binary: binaryOut\n}];"
+      },
+      "id": "888b60a9-184e-45ba-8835-cf0b00cc3bb0",
+      "name": "Write Run Manifest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1376,
+        880
+      ],
+      "notesInFlow": true,
+      "notes": "Writes run-manifest.json for ops visibility (2A-04) - FIXED: path sanitization, characterHash requirement"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "little-hero-orders",
+        "fileName": "={{$json.manifestKey}}",
+        "additionalFields": {}
+      },
+      "id": "3eb33205-460f-4224-b843-eb68dd863a46",
+      "name": "Upload Manifest to R2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        880
+      ],
+      "credentials": {
+        "s3": {
+          "id": "7tJOX9QjL1jqyEjf",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9333808f-784e-4079-abfe-23d33e645f10",
+              "name": "testMode",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d49bb182-f33e-4650-a7ea-210442ed9eb5",
+      "name": "TEST MODE TOGGLE1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2224,
+        -160
+      ],
+      "notes": "Set testMode to TRUE for mock API calls (free testing)\nSet to FALSE for real Gemini API calls (production)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Set Orchestrator Defaults (safe) — no $env/process usage\n\nconst j = $json || {};\nconst ctxIn = j.ctx || {};\n\n// test flag purely from JSON (no env!)\nconst isTest = !!(\n  j.__testMode ||\n  j.testMode   ||\n  j.__meta?.__testMode ||\n  j.ctx?.__testMode ||\n  j.ctx?.testMode\n);\n\n// sensible defaults (overrideable via incoming JSON)\nconst assetsRoot   = j.assetsRoot   || 'book-mvp-simple-adventure/order-generated-assets';\n// UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\nconst publicR2Url  = j.publicR2Url  || null;\nconst templatePath = j.templatePath || 'templates';\nconst numPoses     = Number.isFinite(+j.numPoses)      ? +j.numPoses      : 13;\nconst maxRetries   = Number.isFinite(+j.maxRetries)    ? +j.maxRetries    : 3;\nconst maxPoseRetries = Number.isFinite(+j.maxPoseRetries) ? +j.maxPoseRetries : 3;\n\n// pick or compute character hash if present upstream\nconst characterHash = j.characterHash || ctxIn.characterHash || j.__meta?.characterHash || null;\n\n// route helper\nconst route = isTest ? 'TEST' : 'REAL';\n\n// build result\nconst out = {\n  ...j,\n  ctx: { ...ctxIn, characterHash },\n  assetsRoot,\n  publicR2Url,\n  templatePath,\n  numPoses,\n  maxRetries,\n  maxPoseRetries,\n\n  // normalized flags + route\n  __testMode: isTest,\n  testMode: isTest,\n  __route: (j.__route ?? route),\n\n  // keep a copy in meta for nodes that only read meta\n  __meta: { ...(j.__meta || {}), __testMode: isTest },\n};\n\nreturn { json: out, binary: $binary };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -816,
+        -160
+      ],
+      "id": "581319fb-a784-452a-9dae-7e1a8d2af04a",
+      "name": "Set Environment Defaults (code)"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "console.log('MANIFEST PRE', {\n  currentRunId: $execution.customData?.currentRunId,\n  buckets: Object.fromEntries(Object.entries($execution.customData?.poseResults || {}).map(([k,v])=>[k,(v||[]).length])),\n});\n\n\nconst j = $json || {};\n\n// Mark as failed\nj.qaPass = false;\nj.success = false;\nj.qa = j.qa || {};\nj.qa.combined = { pass: false };\n\n// Track for backend\nj.needsReview = true;\nj.reviewReason = 'retries_exhausted';\nj.route = 'manual_review';\n\n// Ensure retryAttempt shows exhausted (at least 3)\nj.retryAttempt = Math.max(j.retryAttempt || 0, j.retry?.attempt || 0, 3);\n\nreturn { json: j, binary: {} };"
+      },
+      "id": "86d70036-f66a-4f5e-bfdd-e29850c59817",
+      "name": "Mark as Needs Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Capture Order Context — v2.5 (store to staticData + execData)\n// FIXED: Preserves valid incoming values, doesn't overwrite with 'unknown-order'\n\nconst orderData = $json || {};\n\nfunction good(x){\n  return typeof x === 'string'\n    ? x.trim() !== '' && x.trim().toLowerCase() !== 'unknown-order'\n    : x !== undefined && x !== null;\n}\n\n// Extract order IDs - preserve valid incoming values\nconst incomingAmazonOrderId = orderData.amazonOrderId;\nconst incomingOrderId = orderData.orderId;\nconst incomingCharacterHash = orderData.characterHash;\n\n// Build order context - use valid incoming values first\nconst orderContext = {\n  amazonOrderId: good(incomingAmazonOrderId) ? String(incomingAmazonOrderId).trim() : null,\n  orderId: good(incomingOrderId) ? String(incomingOrderId).trim() : (good(incomingAmazonOrderId) ? String(incomingAmazonOrderId).trim() : null),\n  characterHash: incomingCharacterHash || null,\n  childName: orderData.characterSpecs?.childName || null,\n  characterSpecs: orderData.characterSpecs || {},\n  bookSpecs: orderData.bookSpecs || {},\n  orderDetails: orderData.orderDetails || {},\n  // UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\n  publicR2Url: orderData.publicR2Url || null,\n  assetsRoot: orderData.assetsRoot || 'book-mvp-simple-adventure/order-generated-assets',\n};\n\n$execution.customData = $execution.customData || {};\n$execution.customData.orderContext = orderContext;\n\n// Store a durable fallback in workflow static data\nconst sd = $getWorkflowStaticData('global');\nsd.lastAmazonOrderId = orderContext.amazonOrderId || sd.lastAmazonOrderId || null;\nsd.lastOrderContext  = orderContext; // okay to overwrite during this run\n\n// (Optional) keep a run stamp for debugging\nsd.lastRunStamp = new Date().toISOString();\n\nconsole.log('=== ORDER CONTEXT CAPTURED ===');\nconsole.log('incoming amazonOrderId:', incomingAmazonOrderId || '(none)');\nconsole.log('incoming orderId:', incomingOrderId || '(none)');\nconsole.log('stored amazonOrderId:', orderContext.amazonOrderId || '(none)');\nconsole.log('stored orderId:', orderContext.orderId || '(none)');\n\n// Preserve valid incoming values - don't overwrite with 'unknown-order' if we have valid data\nconst outputAmazonOrderId = good(incomingAmazonOrderId) \n  ? incomingAmazonOrderId \n  : (orderContext.amazonOrderId || 'unknown-order');\n\nconst outputOrderId = good(incomingOrderId) \n  ? incomingOrderId \n  : (good(incomingAmazonOrderId) ? incomingAmazonOrderId : (orderContext.orderId || 'unknown-order'));\n\nreturn [{\n  json: {\n    ...orderData,\n    orderContext,\n    // Preserve valid incoming values, only use 'unknown-order' as last resort\n    amazonOrderId: outputAmazonOrderId,\n    orderId: outputOrderId,\n    characterHash: incomingCharacterHash || orderContext.characterHash || null,\n    assetsRoot: orderContext.assetsRoot,\n    publicR2Url: orderContext.publicR2Url,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1328,
+        -160
+      ],
+      "id": "7f4d7df6-e6e7-4013-b379-94ac4701060f",
+      "name": "Capture Order Context"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Set Environment Defaults — v2.3 (execData-first; robust precedence)\nconst input = $json || {};\n\nfunction good(x){\n  return typeof x === 'string'\n    ? x.trim() !== '' && x.trim().toLowerCase() !== 'unknown-order'\n    : x !== undefined && x !== null;\n}\n\nconst execCtxId = $execution.customData?.orderContext?.amazonOrderId || null;\nconst ctxId     = input.orderContext?.amazonOrderId || null;\nconst incoming  = input.amazonOrderId || null;\nconst globalId  = global.currentAmazonOrderId || null;\n\n// Precedence: incoming(non-unknown) → execCtx → ctxId → global → 'unknown-order'\nconst amazonOrderId =\n  (good(incoming) ? incoming :\n  (good(execCtxId) ? execCtxId :\n  (good(ctxId) ? ctxId :\n  (good(globalId) ? globalId : 'unknown-order'))));\n\n// Keep execution context authoritative (fill if missing)\nif (!$execution.customData) $execution.customData = {};\nif (!$execution.customData.orderContext) $execution.customData.orderContext = {};\nif (!$execution.customData.orderContext.amazonOrderId && good(amazonOrderId)) {\n  $execution.customData.orderContext.amazonOrderId = amazonOrderId;\n}\n\n// Optional: update global fallback if still empty\nif (!global.currentAmazonOrderId && good(amazonOrderId)) {\n  global.currentAmazonOrderId = amazonOrderId;\n}\n\nconsole.log('📊 Set Env Defaults');\nconsole.log('  incoming:', incoming);\nconsole.log('  execCtx :', execCtxId);\nconsole.log('  ctxId   :', ctxId);\nconsole.log('  global  :', globalId);\nconsole.log('  → using :', amazonOrderId);\n\nconst output = {\n  ...input,\n  amazonOrderId,\n  assetsRoot:  input.assetsRoot  || 'book-mvp-simple-adventure/order-generated-assets',\n  // UPDATE: Removed hardcoded publicR2Url fallback - use backend proxy or signed URLs for external access\n  publicR2Url: input.publicR2Url || null,\n  maxPoseRetries: Number.isFinite(+input.maxPoseRetries) ? +input.maxPoseRetries : 3,\n  // propagate orderContext forward\n  orderContext: {\n    ...(input.orderContext || {}),\n    amazonOrderId: amazonOrderId !== 'unknown-order' ? amazonOrderId : (input.orderContext?.amazonOrderId || null),\n  }\n};\n\nreturn { json: output };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1920,
+        208
+      ],
+      "id": "5583f773-97e3-46ac-ba26-f9eb39689c59",
+      "name": "Set Environment Defaults"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Results Accumulator — v3.4 (PRESERVES FULL orderContext; filename→index normalization; anomaly logging)\n\nconst result = $json || {};\n\nfunction good(x){\n  return typeof x === 'string'\n    ? x.trim() !== '' && x.trim().toLowerCase() !== 'unknown-order'\n    : x !== undefined && x !== null;\n}\n\n/* ======================== NEW: helpers for index normalization ======================== */\nfunction extractFilename(r){\n  const keyish =\n    r.approvedFilename ||\n    r.generatedFileName ||\n    (r.approvedKey || r.storageKey || r.uploadKey || r.publicUrl || '').split('/').pop() ||\n    '';\n  return String(keyish).toLowerCase();\n}\n\n// Detect a filename→index mismatch and correct poseNumber only when filename is definitive (poseNN[_rM].ext)\nfunction normalizePoseNumberFromFilename(r){\n  const name = extractFilename(r);\n  if (!name) return null;\n\n  // Accept: pose00.png, pose04_r1.png, pose12.webp, etc.\n  const m = name.match(/^pose(\\d{2})(?:_r\\d+)?\\.(?:png|webp|jpg|jpeg)$/i);\n  if (!m) return null;\n\n  const inferred = parseInt(m[1], 10);   // '00' -> 0, '04' -> 4, etc.\n  if (!Number.isFinite(inferred)) return null;\n\n  const before = r.poseNumber;\n  if (before !== inferred) {\n    // Record anomaly for forensics\n    $execution.customData.poseIndexAnomalies = $execution.customData.poseIndexAnomalies || [];\n    $execution.customData.poseIndexAnomalies.push({\n      when: new Date().toISOString(),\n      from: before, to: inferred, filename: name,\n      corr: r.correlationId || null,\n      sourceHint: r.sourceNode || r.stage || null\n    });\n\n    // Correct the number (no path/filename changes)\n    r.poseNumber = inferred;\n    if (r.currentPoseNumber !== undefined) r.currentPoseNumber = inferred;\n    if (r.index !== undefined) r.index = inferred; // keep aligned if your flow expects index==poseNumber\n\n    console.log('✓ Normalized poseNumber from filename', { filename: name, from: before, to: inferred });\n    return { from: before, to: inferred, filename: name };\n  }\n  return null;\n}\n/* ===================================================================================== */\n\n// CRITICAL FIX: Retrieve FULL orderContext from upstream nodes (not just amazonOrderId)\nfunction findOrderContextFromUpstream(){\n  // Priority: Capture Order Context > Generate Character Hash > other nodes\n  const CANDIDATES = [\n    'Capture Order Context',\n    'Generate Character Hash1',\n    'Generate Character Hash',\n    'Init / Validate Inputs',\n    'Set Environment Defaults (code)',\n    'Set Environment Defaults',\n    'Manual Trigger',\n    'Start / Pass-through'\n  ];\n  for (const name of CANDIDATES){\n    try {\n      const arr = $items(name);\n      if (Array.isArray(arr) && arr.length > 0) {\n        const item = arr[0];\n        const fullContext = item?.json?.orderContext || item?.json?.orderData || null;\n        if (fullContext && (good(fullContext.amazonOrderId) || fullContext.characterSpecs || fullContext.bookSpecs)) {\n          console.log(`✓ Found full orderContext from ${name}`);\n          return { source: name, context: fullContext };\n        }\n      }\n      const last = $items(name, 0);\n      if (Array.isArray(last) && last.length > 0) {\n        const item = last[0];\n        const fullContext = item?.json?.orderContext || item?.json?.orderData || null;\n        if (fullContext && (good(fullContext.amazonOrderId) || fullContext.characterSpecs || fullContext.bookSpecs)) {\n          console.log(`✓ Found full orderContext from ${name} (run 0)`);\n          return { source: name, context: fullContext };\n        }\n      }\n    } catch (e) {}\n  }\n  return { source: null, context: null };\n}\n\n$execution.customData = $execution.customData || {};\n$execution.customData.poseResults = $execution.customData.poseResults || {};\n\nconst sd = $getWorkflowStaticData('global');\n\n// CRITICAL: Retrieve full orderContext from execution customData (set by Capture Order Context)\nlet fullOrderContext = $execution.customData.orderContext || null;\n\n// If not in execution customData, try to get from upstream nodes\nif (!fullOrderContext || (!fullOrderContext.characterSpecs && !fullOrderContext.bookSpecs)) {\n  const upstream = findOrderContextFromUpstream();\n  if (upstream.context) {\n    fullOrderContext = upstream.context;\n    // Store it in execution customData for future use\n    $execution.customData.orderContext = fullOrderContext;\n    console.log(`✓ Stored full orderContext from ${upstream.source} into execution.customData`);\n  }\n}\n\n// Fallback: try staticData\nif ((!fullOrderContext || (!fullOrderContext.characterSpecs && !fullOrderContext.bookSpecs)) && sd?.lastOrderContext) {\n  fullOrderContext = sd.lastOrderContext;\n  $execution.customData.orderContext = fullOrderContext;\n  console.log(`✓ Retrieved full orderContext from staticData`);\n}\n\n// Gather amazonOrderId candidates\nconst incoming  = result.amazonOrderId || null;\nconst ctxId     = result.orderContext?.amazonOrderId || null;\nconst execCtxId = fullOrderContext?.amazonOrderId || null;\nconst staticId  = sd?.lastAmazonOrderId || null;\nconst staticCtx = sd?.lastOrderContext?.amazonOrderId || null;\nconst globalId  = (typeof global !== 'undefined' && global) ? global.currentAmazonOrderId : null;\n\nconst canonicalOrderId =\n  [incoming, ctxId, execCtxId, staticId, staticCtx, globalId].find(good) || 'unknown-order';\n\n// Diagnostics\nconsole.log('🧲 Accumulator ID resolve:', {\n  incoming, ctxId, execCtxId, staticId, staticCtx, globalId,\n  final: canonicalOrderId,\n  hasFullContext: !!(fullOrderContext && (fullOrderContext.characterSpecs || fullOrderContext.bookSpecs))\n});\n\n// Normalize result payload\nif (result.amazonOrderId !== canonicalOrderId) {\n  console.log('🔧 Accum amazonOrderId correction →', canonicalOrderId);\n  result.amazonOrderId = canonicalOrderId;\n}\n\n// CRITICAL FIX: Preserve FULL orderContext (not just amazonOrderId)\nif (typeof result.orderContext !== 'object' || result.orderContext === null) {\n  result.orderContext = {};\n}\n\n// Merge full orderContext into result.orderContext (preserve characterSpecs/bookSpecs)\nif (fullOrderContext) {\n  result.orderContext = {\n    ...fullOrderContext,  // Preserve ALL fields including characterSpecs/bookSpecs\n    amazonOrderId: canonicalOrderId  // Ensure amazonOrderId is correct\n  };\n  console.log('✓ Preserved full orderContext in result:', {\n    hasCharacterSpecs: !!(result.orderContext.characterSpecs && Object.keys(result.orderContext.characterSpecs).length > 0),\n    hasBookSpecs: !!(result.orderContext.bookSpecs && Object.keys(result.orderContext.bookSpecs).length > 0),\n    childName: result.orderContext.characterSpecs?.childName || '(none)'\n  });\n} else if (!good(result.orderContext.amazonOrderId)) {\n  // Only set amazonOrderId if we don't have full context\n  result.orderContext.amazonOrderId = canonicalOrderId;\n  console.warn('⚠️ No full orderContext found, only setting amazonOrderId');\n}\n\n// Keep exec + staticData in sync for downstream reliability\n// CRITICAL: Preserve FULL orderContext in execution customData\nif (fullOrderContext) {\n  $execution.customData.orderContext = {\n    ...fullOrderContext,\n    amazonOrderId: canonicalOrderId\n  };\n}\nif (good(canonicalOrderId)) sd.lastAmazonOrderId = canonicalOrderId;\nif (fullOrderContext) {\n  sd.lastOrderContext = {\n    ...fullOrderContext,\n    amazonOrderId: canonicalOrderId\n  };\n}\n\n// Ensure a stable runId for the whole execution\nif (!$execution.customData.currentRunId) {\n  const stamp = (result.runStamp || result.ctx?.runStamp || new Date().toISOString()).replace(/[:.TZ-]/g,'');\n  const hash  = (result.characterHash || result.ctx?.characterHash || 'nohash');\n  $execution.customData.currentRunId = `${hash}-${stamp}`;\n}\nconst runId = $execution.customData.currentRunId;\n\n/* ======================== NEW: normalize poseNumber before UUID ======================== */\nnormalizePoseNumberFromFilename(result);\n/* ====================================================================================== */\n\n// Add a unique signature to avoid scan de-dupe in manifest writer\nfunction makeUuid(r, ix){\n  const pose = String(r.poseNumber ?? ix + 1).padStart(2,'0');\n  const tail = (r.approvedKey || r.storageKey || r.generatedFileName || '').split('/').pop() || `pose${pose}.png`;\n  return `${r.characterHash||'unknown'}:${pose}:${tail}`;\n}\nif (!result.__uuid) {\n  result.__uuid = makeUuid(result, Number(result.poseNumber ?? 0) - 1);\n}\n\n// Push into accumulator\nif (!$execution.customData.poseResults[runId]) {\n  $execution.customData.poseResults[runId] = [];\n}\n$execution.customData.poseResults[runId].push(result);\n\n// Visibility\ntry {\n  const count = $execution.customData.poseResults[runId].length;\n  console.log('ACCUM OK', {\n    runId,\n    pose: result.poseNumber,\n    totalCollected: count,\n    amazonOrderId: result.amazonOrderId\n  });\n} catch {}\n\nreturn { json: result, binary: {} };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        640
+      ],
+      "id": "217a8d17-0843-4286-bc68-9f3defd6d142",
+      "name": "Results Accumulator"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Write Run Manifest (2A-04) — v2.0.6 (pose index canonicalization)\n// Single document with manifest + order context + summary + review queue\n// CHANGELOG v2.0.6:\n// - Canonicalize poseNumber from filename/key (poseNN) when it disagrees with provided poseNumber/currentPoseNumber\n// - Logs mismatches; stores them in manifest._debug.poseIndexFixes (non-breaking to schema)\n\nconsole.log('=== Write Run Manifest v2.0.6 (pose-index canonicalization) ===');\n\n/* ---------------- helpers ---------------- */\nfunction toInt(v){ const n = Number(v); return Number.isFinite(n) ? Math.floor(n) : null; }\nfunction nonEmpty(v){ return v!==undefined && v!==null && String(v).trim()!=='' && String(v).toLowerCase()!=='undefined' && String(v).toLowerCase()!=='null'; }\nconst pickNE = (...vals)=> vals.find(nonEmpty);\nconst clamp = (n,lo,hi)=> Math.max(lo, Math.min(hi, n));\nconst HEX_OK = /^[a-f0-9]{12,64}$/i;\nconst STRICT_RE = /(?:^|\\/)characters\\/([a-f0-9]{12,64})(?:\\/|$)/i;\nconst LOOSE_RE1 = /characters[_\\-]([a-f0-9]{12,64})[_\\-]/i;\nconst LOOSE_RE2 = /characters[_\\-]([a-f0-9]{12,64})[_\\-]pose\\d{1,3}/i;\nfunction extractHashFromString(s){\n  if (!nonEmpty(s)) return null;\n  const str=String(s);\n  let m=str.match(STRICT_RE); if (m) return m[1];\n  m=str.match(LOOSE_RE2)||str.match(LOOSE_RE1);\n  return m?m[1]:null;\n}\nfunction sanitizePath(p){ return String(p||'').replace(/\\/{2,}/g,'/').replace(/^\\/+/,''); }\nfunction isoNow(){ return new Date().toISOString(); }\nfunction ensureIso(v){ try{ const d=new Date(v); if (!Number.isNaN(d.getTime())) return d.toISOString(); }catch{} return isoNow(); }\nfunction joinUrl(base, key) {\n  if (!base || !key) return null;\n  return `${String(base).replace(/\\/$/, '')}/${String(key).replace(/^\\/+/, '')}`;\n}\n// NEW: extract poseNN from any string\nfunction extractPoseFromString(s){\n  if (!nonEmpty(s)) return null;\n  const m = String(s).match(/pose[_-]?(\\d{1,3})/i);\n  return m ? toInt(m[1]) : null;\n}\n\n// Scan a node across runs for all items (newest→older)\nfunction itemsAllRuns(nodeName, MAX_SCAN=40){\n  const out=[], seen=new Set();\n  try{\n    const latest = $items(nodeName);\n    if (Array.isArray(latest)) for (const it of latest){\n      const sig = it?.json?.__uuid || JSON.stringify(Object.keys(it?.binary||{}));\n      if (!seen.has(sig)){ seen.add(sig); out.push({ run:'latest', item: it }); }\n    }\n  }catch{}\n  try{\n    const last = $items(nodeName,0);\n    if (Array.isArray(last)) for (const it of last){\n      const sig = it?.json?.__uuid || JSON.stringify(Object.keys(it?.binary||{}));\n      if (!seen.has(sig)){ seen.add(sig); out.push({ run:'last', item: it }); }\n    }\n  }catch{}\n  for (let r=MAX_SCAN; r>=0; r--){\n    try{\n      const arr = $items(nodeName,0,r);\n      if (!Array.isArray(arr) || !arr.length) continue;\n      for (const it of arr){\n        const sig = JSON.stringify([r,it?.json?.__uuid,Object.keys(it?.binary||{})]);\n        if (!seen.has(sig)){ seen.add(sig); out.push({ run:r, item: it }); }\n      }\n    }catch{}\n  }\n  return out;\n}\n\n/* ---------------- gather accumulated results ---------------- */\nlet accumulatedResults = [];\nlet runId = null;\n\n/* Strategy 0: DIRECT INPUT */\ntry{\n  const incomingItems = (typeof $input?.all === 'function') ? $input.all() : [];\n  const fromItems = incomingItems.map(it => it?.json).filter(Boolean);\n  const fromJson  = Array.isArray($json) ? $json : (Object.keys($json||{}).length > 0 ? [$json] : []);\n  const combined  = [...fromItems, ...fromJson];\n  if (combined.length){\n    accumulatedResults = combined;\n    runId = pickNE($json?.runId, $json?.runStamp, $execution?.customData?.currentRunId, 'direct');\n    console.log(`Strategy 0: direct input provided ${accumulatedResults.length} results`);\n  }\n}catch(e){\n  console.warn('Strategy 0 error:', e?.message || e);\n}\n\n/* Strategy 1: currentRunId bucket */\nif (accumulatedResults.length === 0 && $execution.customData?.currentRunId){\n  runId = $execution.customData.currentRunId;\n  accumulatedResults = $execution.customData.poseResults?.[runId] || [];\n  console.log(`Strategy 1: currentRunId=\"${runId}\", found ${accumulatedResults.length}`);\n}\n\n/* Strategy 2: last bucket in poseResults */\nif (accumulatedResults.length === 0 && $execution.customData?.poseResults){\n  const allRunIds = Object.keys($execution.customData.poseResults);\n  console.log(`Strategy 2: poseResults buckets: ${allRunIds.length}`);\n  if (allRunIds.length){\n    runId = allRunIds[allRunIds.length-1];\n    accumulatedResults = $execution.customData.poseResults[runId] || [];\n    console.log(`Strategy 2: picked runId=\"${runId}\", found ${accumulatedResults.length}`);\n  }\n}\n\n/* Strategy 3: merge all buckets */\nif (accumulatedResults.length === 0 && $execution.customData?.poseResults){\n  const all = [];\n  for (const rid of Object.keys($execution.customData.poseResults)){\n    all.push(...($execution.customData.poseResults[rid] || []));\n  }\n  if (all.length){\n    accumulatedResults = all;\n    runId = 'merged';\n    console.log(`Strategy 3: merged all buckets, found ${accumulatedResults.length}`);\n  }\n}\n\n/* Strategy 4 (FALLBACK): scan upstream accumulator node outputs across runs */\nif (accumulatedResults.length === 0){\n  const ACCUM_NODE_NAMES = [\n    'Results Accumulator',\n    'Accumulator - Collect Pose Results',\n    'Accumulator — Collect Pose Results',\n    'Accumulator – Collect Pose Results',\n    'Collect Pose Results',\n    'Pose Results Accumulator',\n    'Accumulator - Collect Pose Results (2A)'\n  ];\n  for (const nm of ACCUM_NODE_NAMES){\n    const scan = itemsAllRuns(nm);\n    if (scan.length){\n      const pulled = scan.map(x => x.item?.json).filter(Boolean);\n      if (pulled.length){\n        accumulatedResults = pulled;\n        runId = runId || 'scanned';\n        console.log(`Strategy 4: scanned \"${nm}\" → ${pulled.length} items`);\n        break;\n      }\n    }\n  }\n}\n\nconsole.log('Final gather → %d items, runId=\"%s\"', accumulatedResults.length, runId || '(none)');\n\n/* If STILL nothing: emit a soft stub with binary so S3 node doesn't error */\nfunction emitStub(reason){\n  const runStamp = isoNow();\n  const manifest = {\n    schema: 'lhb.run-manifest@v2.0',\n    runStamp,\n    characterHash: 'unknown',\n    order: null,\n    poses: {\n      total: 0,\n      approved: 0,\n      exhausted: 0,\n      retried: 0,\n      failed: 0,\n      needingReview: 0\n    },\n    entries: [],\n    reviewQueue: [],\n    summary: {\n      percentComplete: 0,\n      readyForBook: false,\n      needsHumanReview: false\n    },\n    workflow: {\n      currentStage: '2A-complete',\n      nextWorkflow: 'unknown',\n      requiresHumanReview: false\n    },\n    generatedAt: runStamp,\n    _note: `EMPTY MANIFEST: ${reason}`\n  };\n  const manifestJson = JSON.stringify(manifest, null, 2);\n  const manifestKey = sanitizePath(`book-mvp-simple-adventure/orders/stub-${runStamp.replace(/[:.TZ-]/g,'')}/manifests/2a-manifest.json`);\n  return [{\n    json: { manifestKey, manifest, characterHash: 'unknown', manifestReady: false },\n    binary: {\n      data: {\n        data: Buffer.from(manifestJson,'utf-8').toString('base64'),\n        mimeType: 'application/json',\n        fileName: '2a-manifest.json',\n        fileExtension: 'json'\n      }\n    }\n  }];\n}\n\nif (accumulatedResults.length === 0){\n  console.warn('No pose results found anywhere. Emitting stub manifest.');\n  return emitStub('no_pose_results_found');\n}\n\n/* ---------------- Extract order context (FLEXIBLE - tries multiple sources INCLUDING GLOBAL) ---------------- */\nconst first = accumulatedResults[0] || {};\n\nconst orderContext = \n  $execution?.customData?.orderContext\n  || $json?.orderContext\n  || $json?.orderData\n  || $json?.order\n  || first.orderContext\n  || first.orderData\n  || {};\n\nconsole.log('Order context source:', \n  $execution?.customData?.orderContext ? 'execution.customData' :\n  $json?.orderContext ? '$json.orderContext' :\n  $json?.orderData ? '$json.orderData' :\n  $json?.order ? '$json.order' :\n  first.orderContext ? 'first.orderContext' :\n  first.orderData ? 'first.orderData' :\n  'none (will use nulls)'\n);\n\n// GLOBAL fallback for order id\nconst amazonOrderId = pickNE(\n  orderContext.amazonOrderId,\n  $json?.amazonOrderId,\n  first.amazonOrderId,\n  global.currentAmazonOrderId,\n  null\n);\n\nconsole.log('amazonOrderId resolution:', {\n  'from orderContext': orderContext.amazonOrderId || '(none)',\n  'from $json': $json?.amazonOrderId || '(none)',\n  'from first result': first.amazonOrderId || '(none)',\n  'from global': global.currentAmazonOrderId || '(none)',\n  'FINAL VALUE': amazonOrderId || '(none)'\n});\n\nconst childName = pickNE(\n  orderContext.childName,\n  orderContext.characterSpecs?.childName,\n  $json?.childName,\n  $json?.characterSpecs?.childName,\n  first.childName,\n  first.characterSpecs?.childName,\n  null\n);\n\nconst characterSpecs = \n  orderContext.characterSpecs \n  || $json?.characterSpecs \n  || first.characterSpecs \n  || {};\n\nconst bookSpecs = \n  orderContext.bookSpecs \n  || $json?.bookSpecs \n  || first.bookSpecs \n  || {};\n\nconst orderDetails = \n  orderContext.orderDetails\n  || $json?.orderDetails\n  || first.orderDetails\n  || {};\n\n// Infrastructure fields\nconst runStamp = ensureIso(pickNE(first.runStamp, first.ctx?.runStamp, runId));\nconst assetsRoot = sanitizePath(pickNE(first.assetsRoot, 'book-mvp-simple-adventure/order-generated-assets'));\nconst publicR2Url = pickNE(\n  orderContext.publicR2Url,\n  $json?.publicR2Url,\n  first.publicR2Url,\n  'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev'\n);\n\n// characterHash (try direct; if missing, derive later from keys)\nlet characterHash = pickNE(\n  first.characterHash, \n  first.ctx?.characterHash, \n  orderContext.characterHash,\n  $json?.characterHash\n);\nconst haveHash = nonEmpty(characterHash) && HEX_OK.test(String(characterHash));\n\nconsole.log('Extracted order fields:', {\n  amazonOrderId: amazonOrderId || '(none)',\n  childName: childName || '(none)',\n  characterHash: characterHash || '(will derive from keys)',\n  hasCharacterSpecs: Object.keys(characterSpecs).length > 0,\n  hasBookSpecs: Object.keys(bookSpecs).length > 0\n});\n\n/* ---------------- reduce per-pose ---------------- */\nconst byPose = new Map();\nconst poseIndexFixes = []; // NEW: record mismatches\n\nfor (const result of accumulatedResults){\n  // A) numeric pose fields\n  const numericPose = toInt(result.poseNumber ?? result.currentPoseNumber ?? result.pose_index ?? result.index);\n\n  // B) pose from key/filename (truthy if present)\n  const poseFromPath = extractPoseFromString(\n    result.approvedKey || result.uploadKey || result.storageKey || result.generatedFileName || result.publicUrl || result.__uuid || ''\n  );\n\n  // C) canonical pose: prefer filename/key if available; otherwise numeric\n  const poseNumber = (poseFromPath !== null && poseFromPath !== undefined) ? poseFromPath : numericPose;\n  if (poseNumber === null || poseNumber === undefined) continue;\n\n  // Log mismatch for diagnostics (doesn't change behavior beyond picking canonical)\n  if (numericPose !== null && poseFromPath !== null && numericPose !== poseFromPath){\n    poseIndexFixes.push({\n      inputNumeric: numericPose,\n      fromPath: poseFromPath,\n      used: poseNumber,\n      key: result.approvedKey || result.uploadKey || result.storageKey || result.generatedFileName || '(none)'\n    });\n  }\n\n  const attempt   = toInt(result.retryAttempt) ?? 0;\n  const qaPass    = result.qaPass === true || result.qaCombinedPass === true || result.success === true;\n  const approvedKey = pickNE(result.approvedKey, result.uploadKey, result.storageKey, null);\n  const approvedFilename = approvedKey ? approvedKey.split('/').pop() : (result.generatedFileName || null);\n\n  const qaScore    = result.qaScore ?? result.qa?.pose?.score ?? null;\n  const styleScore = result.styleScore ?? result.qa?.style?.score?.style_cohesion ?? null;\n  const qaReasons  = Array.isArray(result.qaReasons)\n    ? result.qaReasons\n    : (Array.isArray(result.qa?.style?.reasons) ? result.qa.style.reasons : []);\n\n  const publicUrl = pickNE(result.publicUrl, null);\n  const correlationId = pickNE(result.correlationId, null);\n  const qaPoseNotes = result.qa?.pose?.notes || null;\n  const qaStyleNotes = result.qa?.style?.notes || null;\n\n  const maxRetries = toInt(pickNE(result.maxPoseRetries, result.maxRetries, 3)) ?? 3;\n  const needsReview = result.needsReview === true;\n  const reviewReason = result.reviewReason || null;\n\n  const prev = byPose.get(poseNumber) || {\n    poseNumber,\n    attempts: 0,\n    approvedKey: null,\n    approvedFilename: null,\n    anyPass: false,\n    exhausted: false,\n    qaScore: null,\n    styleScore: null,\n    qaReasons: [],\n    needsReview: false,\n    reviewReason: null,\n    maxRetries,\n    retryHistory: [],\n    publicUrl: null,\n    correlationId: null,\n    qaPoseNotes: null,\n    qaStyleNotes: null\n  };\n\n  if (attempt > prev.attempts) prev.attempts = attempt;\n\n  if (!qaPass && qaReasons.length) {\n    prev.qaReasons = [...new Set([...prev.qaReasons, ...qaReasons])];\n  }\n\n  if (attempt > 0){\n    prev.retryHistory.push({\n      attempt, passed: qaPass, qaScore, styleScore,\n      reasons: qaReasons.length ? qaReasons : null\n    });\n  }\n\n  prev.anyPass = prev.anyPass || qaPass;\n\n  if (qaPass && (approvedKey || approvedFilename)){\n    if (approvedKey) prev.approvedKey = approvedKey;\n    if (approvedFilename) prev.approvedFilename = approvedFilename;\n    if (publicUrl) prev.publicUrl = publicUrl;\n    if (correlationId) prev.correlationId = correlationId;\n  }\n\n  if (qaPoseNotes) prev.qaPoseNotes = qaPoseNotes;\n  if (qaStyleNotes) prev.qaStyleNotes = qaStyleNotes;\n\n  if (needsReview){ prev.needsReview = true; prev.reviewReason = reviewReason || prev.reviewReason; }\n  if (attempt >= prev.maxRetries) prev.exhausted = true;\n  if (qaScore !== null) prev.qaScore = qaScore;\n  if (styleScore !== null) prev.styleScore = styleScore;\n\n  byPose.set(poseNumber, prev);\n}\n\n/* ---------------- build entries ---------------- */\nconst poseNumbers = Array.from(byPose.keys()).sort((a,b)=>a-b);\nconst entries = [];\nlet approvedCount=0, exhaustedCount=0, retriedCount=0, needsReviewCount=0;\n\nfor (const pn of poseNumbers){\n  const p = byPose.get(pn);\n  const approvedFilenameFinal = p.approvedFilename || (p.approvedKey ? p.approvedKey.split('/').pop() : null);\n  let approvedKeyFinal = p.approvedKey;\n\n  if (!approvedKeyFinal && approvedFilenameFinal && haveHash){\n    approvedKeyFinal = sanitizePath(`${assetsRoot}/characters/${characterHash}/poses/${approvedFilenameFinal}`);\n  }\n  const publicUrlFinal = p.publicUrl || (approvedKeyFinal ? joinUrl(publicR2Url, approvedKeyFinal) : null);\n\n  let finalStatus = 'failed_qa';\n  if (p.anyPass && approvedKeyFinal){ finalStatus='approved'; approvedCount++; }\n  else if (p.anyPass){ finalStatus='passed_qa'; }\n\n  const isExhausted = p.exhausted && finalStatus !== 'approved';\n  if (isExhausted){ finalStatus='exhausted'; exhaustedCount++; }\n  \n  const needsReview = p.needsReview || isExhausted;\n  if (needsReview) needsReviewCount++;\n\n  if (p.attempts >= 1) retriedCount++;\n\n  const entry = {\n    poseNumber: p.poseNumber,\n    attempts: p.attempts,\n    status: finalStatus,\n    approved: finalStatus === 'approved',\n    approvedKey: approvedKeyFinal || null,\n    approvedFilename: approvedFilenameFinal || null,\n    publicUrl: publicUrlFinal || null,\n    correlationId: p.correlationId || null,\n    qaScore: p.qaScore,\n    styleScore: p.styleScore,\n    needsReview,\n    reviewReason: p.reviewReason || (isExhausted ? 'Exhausted retry attempts' : null)\n  };\n  \n  if (p.qaPoseNotes || p.qaStyleNotes){\n    entry.qaNotes = {};\n    if (p.qaPoseNotes) entry.qaNotes.pose = p.qaPoseNotes;\n    if (p.qaStyleNotes) entry.qaNotes.style = p.qaStyleNotes;\n  }\n  \n  if (p.attempts >= 1){\n    entry.retryHistory = p.retryHistory.length ? p.retryHistory : null;\n    entry.qaReasons = p.qaReasons.length ? p.qaReasons : null;\n  }\n\n  entries.push(entry);\n}\n\nconst totalPoses = poseNumbers.length;\n\n// derive hash from keys if still missing\nif (!haveHash){\n  for (const e of entries){\n    const hit = extractHashFromString(e.approvedKey);\n    if (hit){ characterHash = hit; break; }\n  }\n}\n\n/* ---------------- Build review queue ---------------- */\nconst reviewQueue = entries\n  .filter(e => e.needsReview)\n  .map(e => ({\n    poseNumber: e.poseNumber,\n    reason: e.reviewReason,\n    publicUrl: e.publicUrl,\n    qaScore: e.qaScore,\n    styleScore: e.styleScore,\n    attempts: e.attempts,\n    correlationId: e.correlationId\n  }));\n\n/* ---------------- Build comprehensive manifest ---------------- */\nconst percentComplete = totalPoses > 0 \n  ? Math.round((approvedCount / totalPoses) * 100) \n  : 0;\nconst readyForBook = approvedCount === totalPoses && totalPoses > 0;\nconst needsHumanReview = needsReviewCount > 0;\n\nconst manifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  runStamp,\n  characterHash: characterHash || 'unknown',\n  order: {\n    amazonOrderId: amazonOrderId,\n    childName: childName,\n    characterSpecs: characterSpecs,\n    bookSpecs: bookSpecs,\n    orderDetails: orderDetails,\n    publicR2Url,\n    r2BucketName: 'little-hero-assets'\n  },\n  poses: {\n    total: totalPoses,\n    approved: approvedCount,\n    exhausted: exhaustedCount,\n    retried: retriedCount,\n    failed: Math.max(totalPoses - approvedCount - exhaustedCount, 0),\n    needingReview: needsReviewCount\n  },\n  entries,\n  reviewQueue,\n  summary: {\n    percentComplete,\n    readyForBook,\n    needsHumanReview\n  },\n  workflow: {\n    currentStage: '2A-complete',\n    nextWorkflow: needsHumanReview ? '2B-retry' : '2B',  // Changed from 'book-generation' to '2B'\n    requiresHumanReview: needsHumanReview\n  },\n  generatedAt: isoNow(),\n  _debug: {\n    poseIndexFixes // non-breaking: useful to audit mis-stamped inputs\n  }\n};\n\n/* ---------------- Generate manifest key with NEW STRUCTURE ---------------- */\nlet manifestKey;\nif (amazonOrderId) {\n  manifestKey = `book-mvp-simple-adventure/orders/${amazonOrderId}/manifests/2a-manifest.json`;\n  console.log(`✓ Using orderId-based path: ${manifestKey}`);\n} else if (characterHash && HEX_OK.test(String(characterHash))) {\n  manifestKey = `book-mvp-simple-adventure/orders/character-${characterHash}/manifests/2a-manifest.json`;\n  console.warn(`⚠ No amazonOrderId, using characterHash fallback: ${manifestKey}`);\n} else {\n  const timestamp = runStamp.replace(/[:.TZ-]/g, '');\n  manifestKey = `book-mvp-simple-adventure/orders/run-${timestamp}/manifests/2a-manifest.json`;\n  console.warn(`⚠ No amazonOrderId or characterHash, using timestamp fallback: ${manifestKey}`);\n}\nmanifestKey = sanitizePath(manifestKey);\n\n/* ---------------- Prepare binary output ---------------- */\nconst manifestJson = JSON.stringify(manifest, null, 2);\nconst binaryOut = {\n  data: {\n    data: Buffer.from(manifestJson,'utf-8').toString('base64'),\n    mimeType: 'application/json',\n    fileName: '2a-manifest.json',\n    fileExtension: 'json'\n  }\n};\n\nconsole.log({\n  node: 'Write Run Manifest v2.0.6',\n  runId: runId || '(none)',\n  bucket: 'little-hero-orders',\n  manifestKey,\n  characterHash: manifest.characterHash,\n  poses: manifest.poses,\n  summary: manifest.summary,\n  workflow: manifest.workflow,\n  orderContext: {\n    amazonOrderId: manifest.order.amazonOrderId || '(none)',\n    childName: manifest.order.childName || '(none)'\n  },\n  poseIndexFixes\n});\n\n/* ---------------- Clean up storage ---------------- */\nif ($execution.customData?.poseResults){\n  if (runId && runId !== 'merged' && $execution.customData.poseResults[runId]){\n    delete $execution.customData.poseResults[runId];\n    console.log('Cleaned up accumulator storage for runId:', runId);\n  } else if (runId === 'merged'){\n    $execution.customData.poseResults = {};\n    console.log('Cleaned up all accumulator storage (merged mode)');\n  }\n}\n\n// ========== CLEANUP: Delete global amazonOrderId ==========\nif (global.currentAmazonOrderId) {\n  console.log('🧹 Clearing global amazonOrderId:', global.currentAmazonOrderId);\n  delete global.currentAmazonOrderId;\n}\n// ==========================================================\n\nreturn [{\n  json: { \n    manifestKey,\n    manifest, \n    characterHash: manifest.characterHash,\n    amazonOrderId: amazonOrderId,\n    manifestReady: true,\n    uploadBucket: 'little-hero-orders'\n  },\n  binary: binaryOut\n}];\n"
+      },
+      "id": "ed6b08cb-4818-4a9a-a90c-8dc3234e183c",
+      "name": "Write Run Manifest1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1168,
+        1056
+      ],
+      "notesInFlow": true,
+      "notes": "Writes run-manifest.json for ops visibility (2A-04) - FIXED: path sanitization, characterHash requirement"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node — emit test items to the workflow\n// Usage: Place after Manual Trigger → paste → Execute\n// Output shape: [{ json: <your object> }, ...]\n\n// Your data:\nconst data = [\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 0,\n    \"currentPoseNumber\": 0,\n    \"retryAttempt\": 0,\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 1,\n    \"styleScore\": 1,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 1,\n        \"reasons\": [],\n        \"notes\": \"All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 1,\n          \"color\": 1,\n          \"skin_tone\": 1,\n          \"identity\": 1,\n          \"hair_color\": 1,\n          \"clothing\": 1,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose00.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose00.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose00.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose00.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose00.png\",\n    \"correlationId\": \"style-qa-1762491747909-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:00:pose00.png\"\n  },\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 0,\n    \"currentPoseNumber\": 0,\n    \"retryAttempt\": 2,\n    \"retryTag\": \"2-N505O4J7-99FC09-P01\",\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 1,\n    \"styleScore\": 1,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 1,\n        \"reasons\": [],\n        \"notes\": \"All aspects of the output image match the base image perfectly, skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 1,\n          \"color\": 1,\n          \"skin_tone\": 1,\n          \"identity\": 1,\n          \"hair_color\": 1,\n          \"clothing\": 1,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"All aspects of the output image match the base image perfectly, skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose01_r2.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose01_r2.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose01_r2.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose01.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose01_r2.png\",\n    \"correlationId\": \"style-qa-1762491838819-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:00:pose01_r2.png\"\n  },\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 2,\n    \"currentPoseNumber\": 2,\n    \"retryAttempt\": 2,\n    \"retryTag\": \"2-AV6H3ZM7-99FC09-P02\",\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 0.9,\n    \"styleScore\": 1,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 0.9,\n        \"reasons\": [],\n        \"notes\": \"All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 1,\n          \"color\": 1,\n          \"skin_tone\": 1,\n          \"identity\": 1,\n          \"hair_color\": 1,\n          \"clothing\": 1,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose02_r2.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose02_r2.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose02_r2.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose02.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose02_r2.png\",\n    \"correlationId\": \"style-qa-1762491948040-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:02:pose02_r2.png\"\n  },\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 3,\n    \"currentPoseNumber\": 3,\n    \"retryAttempt\": 0,\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 1,\n    \"styleScore\": 1,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 1,\n        \"reasons\": [],\n        \"notes\": \"All aspects match the base image perfectly, skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 1,\n          \"color\": 1,\n          \"skin_tone\": 1,\n          \"identity\": 1,\n          \"hair_color\": 1,\n          \"clothing\": 1,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"All aspects match the base image perfectly, skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose03.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose03.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose03.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose03.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose03.png\",\n    \"correlationId\": \"style-qa-1762491984088-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:03:pose03.png\"\n  },\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 4,\n    \"currentPoseNumber\": 4,\n    \"retryAttempt\": 0,\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 1,\n    \"styleScore\": 0.95,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 1,\n        \"reasons\": [],\n        \"notes\": \"The output is missing the character's shoes; skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 0.95,\n          \"color\": 0.85,\n          \"skin_tone\": 1,\n          \"identity\": 0.85,\n          \"hair_color\": 1,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"The output is missing the character's shoes; skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose04.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose04.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose04.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose04.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose04.png\",\n    \"correlationId\": \"style-qa-1762492023364-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:04:pose04.png\"\n  },\n  {\n    \"orderId\": \"\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"correlationId\": null,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 5,\n    \"currentPoseNumber\": 5,\n    \"poseNN\": \"pose05\",\n    \"poseNN_plain\": \"pose05\",\n    \"poseNN_hyphen\": \"pose-05\",\n    \"poseIndex\": null,\n    \"poseKey\": null,\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose05.png\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https:/pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"templatePath\": \"templates\",\n    \"posesPublicBase\": \"book-mvp-simple-adventure/characters/poses\",\n    \"posePromptBlock\": \"\",\n    \"model\": null,\n    \"hairPromptMeta\": {\n      \"styleKey\": \"side-part\",\n      \"referenceKey\": \"side-part\",\n      \"_resolver\": {\n        \"source\": \"resolve-hairstyle-key+asset-path\",\n        \"receivedStyleRaw\": \"bob\",\n        \"fallbackUsed\": true\n      },\n      \"colorLabel\": \"black\",\n      \"colorHex\": \"#2B2B2B\",\n      \"hairColorLock\": \"HAIR COLOR LOCK: Use #2B2B2B consistently across ALL generated images. Do not recolor, lighten/darken, or shift undertone.\",\n      \"clothingTypeCanonical\": \"dress\",\n      \"promptVersion\": \"v1.5-haircolor-lock+outfit-lock\",\n      \"allowedKeys\": [\n        \"ponytail\",\n        \"pigtails\",\n        \"straight-short\",\n        \"straight-medium\",\n        \"straight-long\",\n        \"curly-short\",\n        \"curly-medium\",\n        \"curly-long\",\n        \"afro\",\n        \"pom-poms\",\n        \"bun\",\n        \"locs\",\n        \"side-part\",\n        \"generic\"\n      ],\n      \"source\": \"dynamic-hairstyle-prompt-map\",\n      \"_debug\": {\n        \"receivedHairStyle\": \"side-part\",\n        \"receivedHairColor\": \"black\",\n        \"hairColorSource\": \"label\",\n        \"normalizedStyle\": \"side-part\",\n        \"matchedStyleKey\": \"side-part\",\n        \"clothingTypeRaw\": \"dress\",\n        \"hasHairRef\": true\n      }\n    },\n    \"hairStyleCanonical\": \"side-part\",\n    \"clothingTypeCanonical\": \"dress\",\n    \"qaThreshold\": 0.75,\n    \"styleQaThreshold\": 0.75,\n    \"colorQaThreshold\": 0.75,\n    \"qaReasons\": [\n      \"score_below_0.75\"\n    ],\n    \"qaHints\": {\n      \"pose_score\": 0.3,\n      \"single_subject\": true,\n      \"extra_limbs\": false,\n      \"bg_white\": true,\n      \"leakage_from_pose_ref\": false,\n      \"cropped\": false\n    },\n    \"qaNotes\": \"{\\n  \\\"pose_score\\\": 0.3,\\n  \\\"single_subject\\\": true,\\n  \\\"extra_limbs\\\": false,\\n  \\\"bg_white\\\": true,\\n  \\\"leakage_from_pose_ref\\\": false,\\n  \\\"cropped\\\": false,\\n  \\\"activity_ref\\\": \\\"walking\\\",\\n  \\\"a\",\n    \"qaPass\": false,\n    \"qaScore\": null,\n    \"qaPolicy\": \"pose_then_style\",\n    \"retryAttempt\": 4,\n    \"retryTag\": \"4-CEWRO897-99FC09-P05\",\n    \"qaRetry\": 4,\n    \"maxPoseRetries\": 3,\n    \"baseCharacterKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/base-character.png\",\n    \"baseRefPublicUrl\": \"https:/pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/base-character.png\",\n    \"baseCharacterUrl\": \"https:/pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/base-character.png\",\n    \"poseRefKey\": \"book-mvp-simple-adventure/characters/poses/pose05.png\",\n    \"poseRefPublicUrl\": \"https:/pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/characters/poses/pose05.png\",\n    \"poseRefUrl\": \"https:/pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/characters/poses/pose05.png\",\n    \"poseRefName\": null,\n    \"hairRefS3Key\": \"book-mvp-simple-adventure/characters/hairstyles/side-part.png\",\n    \"hairRefPublicUrl\": \"https:/pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/characters/hairstyles/side-part.png\",\n    \"hairKey\": \"book-mvp-simple-adventure/characters/hairstyles/side-part.png\",\n    \"hairUrl\": \"https:/pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/characters/hairstyles/side-part.png\",\n    \"__route\": \"REAL\",\n    \"__testMode\": false,\n    \"testMode\": false,\n    \"__meta\": {\n      \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose05_r3.png\",\n      \"deriveQaPass\": {\n        \"keptKeys\": [\n          \"amazonOrderId\",\n          \"correlationId\",\n          \"characterHash\",\n          \"generatedFileName\",\n          \"poseIndex\",\n          \"expectedPoseNumber\",\n          \"orderDate\",\n          \"qaPass\",\n          \"qaReasons\",\n          \"qaThreshold\",\n          \"qaScore\",\n          \"retryAttempt\",\n          \"retryTag\"\n        ],\n        \"snapshot\": {\n          \"amazonOrderId\": null,\n          \"correlationId\": null,\n          \"characterHash\": \"99fc097781e57ed7\",\n          \"generatedFileName\": \"characters_99fc097781e57ed7_pose05.png\",\n          \"poseIndex\": 4,\n          \"expectedPoseNumber\": 5,\n          \"orderDate\": null,\n          \"qaPass\": false,\n          \"qaReasons\": [\n            \"score_below_0.75\"\n          ],\n          \"qaThreshold\": 0.75,\n          \"qaScore\": 0.3,\n          \"poseNN\": \"pose05\",\n          \"poseKey\": null,\n          \"retryAttempt\": 3,\n          \"retryTag\": null\n        }\n      },\n      \"combineQa\": {\n        \"itemIndex\": 0,\n        \"policy\": \"pose_then_style\",\n        \"posePass\": false,\n        \"styleRan\": false,\n        \"stylePass\": false\n      },\n      \"qahandoff\": {\n        \"runIx\": 7,\n        \"itemIndex\": 0,\n        \"stripped\": true\n      },\n      \"qaRetry\": 4,\n      \"qaMaxTries\": 3,\n      \"bumpGate\": {\n        \"prev\": 3,\n        \"next\": 4,\n        \"withinLimit\": false,\n        \"plannedNext\": null,\n        \"retriesRemaining\": 0\n      }\n    },\n    \"hasRetriesRemaining\": false,\n    \"shouldRetry\": false,\n    \"__shouldRetry\": false,\n    \"isRetry\": true,\n    \"retriesRemaining\": 0,\n    \"posePromptPreface\": \"[RETRY #4 | tag:4-CEWRO897-99FC09-P05]\\nFollow POSE LOCK (IMAGE P) over all other guidance. Use IMAGE A for appearance only.\\nCRITICAL: Match IMAGE P pose EXACTLY (limbs, contact, orientation).\\nValidator notes: {\\n  \\\"pose_score\\\": 0.3,\\n  \\\"single_subject\\\": true,\\n  \\\"extra_limbs\\\": false,\\n  \\\"bg_white\\\": true,\\n  \\\"leakage_from_pose_ref\\\": false,\\n  \\\"cropped\\\": false,\\n  \\\"activity_ref\\\": \\\"walking\\\",\\n  \\\"a\\n\\n\",\n    \"retryTemp\": 0.15,\n    \"skinToneThreshold\": null,\n    \"__isRetry\": true,\n    \"ctx\": {\n      \"characterHash\": \"99fc097781e57ed7\"\n    },\n    \"success\": false,\n    \"qa\": {\n      \"combined\": {\n        \"pass\": false\n      }\n    },\n    \"needsReview\": true,\n    \"reviewReason\": \"retries_exhausted\",\n    \"route\": \"manual_review\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:05:characters_99fc097781e57ed7_pose05.png\"\n  },\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 6,\n    \"currentPoseNumber\": 6,\n    \"retryAttempt\": 0,\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 0.9,\n    \"styleScore\": 1,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 0.9,\n        \"reasons\": [],\n        \"notes\": \"No significant mismatches detected; skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 1,\n          \"color\": 1,\n          \"skin_tone\": 1,\n          \"identity\": 1,\n          \"hair_color\": 1,\n          \"clothing\": 1,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"No significant mismatches detected; skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose06.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose06.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose06.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose06.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose06.png\",\n    \"correlationId\": \"style-qa-1762492159094-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:06:pose06.png\"\n  },\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 7,\n    \"currentPoseNumber\": 7,\n    \"retryAttempt\": 0,\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 1,\n    \"styleScore\": 1,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 1,\n        \"reasons\": [],\n        \"notes\": \"The output perfectly matches the base image in all aspects, including texture, hair, and skin tone (skin ΔV≈0.0, ΔS≈0.0).\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 1,\n          \"color\": 1,\n          \"skin_tone\": 1,\n          \"identity\": 1,\n          \"hair_color\": 1,\n          \"clothing\": 1,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"The output perfectly matches the base image in all aspects, including texture, hair, and skin tone (skin ΔV≈0.0, ΔS≈0.0).\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose07.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose07.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose07.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose07.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose07.png\",\n    \"correlationId\": \"style-qa-1762492200513-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:07:pose07.png\"\n  },\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 8,\n    \"currentPoseNumber\": 8,\n    \"retryAttempt\": 0,\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 0.9,\n    \"styleScore\": 1,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 0.9,\n        \"reasons\": [],\n        \"notes\": \"All aspects match the base image, including hair length, style, silhouette, and skin tone (skin ΔV≈0.0, ΔS≈0.0).\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 1,\n          \"color\": 1,\n          \"skin_tone\": 1,\n          \"identity\": 1,\n          \"hair_color\": 1,\n          \"clothing\": 1,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"All aspects match the base image, including hair length, style, silhouette, and skin tone (skin ΔV≈0.0, ΔS≈0.0).\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose08.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose08.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose08.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose08.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose08.png\",\n    \"correlationId\": \"style-qa-1762492241511-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:08:pose08.png\"\n  },\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 9,\n    \"currentPoseNumber\": 9,\n    \"retryAttempt\": 1,\n    \"retryTag\": \"1-7Y6K2BYJ-99FC09-P09\",\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 1,\n    \"styleScore\": 1,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 1,\n        \"reasons\": [],\n        \"notes\": \"The output is an excellent match to the base image, with consistent identity, style, and color; skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 1,\n          \"color\": 1,\n          \"skin_tone\": 1,\n          \"identity\": 1,\n          \"hair_color\": 1,\n          \"clothing\": 1,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"The output is an excellent match to the base image, with consistent identity, style, and color; skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose09_r1.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose09_r1.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose09_r1.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose09.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose09_r1.png\",\n    \"correlationId\": \"style-qa-1762492279086-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:09:pose09_r1.png\"\n  },\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 10,\n    \"currentPoseNumber\": 10,\n    \"retryAttempt\": 0,\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 0.9,\n    \"styleScore\": 1,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 0.9,\n        \"reasons\": [],\n        \"notes\": \"All aspects match the base image perfectly, skin ΔV≈0.0, ΔS≈0.0\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 1,\n          \"color\": 1,\n          \"skin_tone\": 1,\n          \"identity\": 1,\n          \"hair_color\": 1,\n          \"clothing\": 1,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"All aspects match the base image perfectly, skin ΔV≈0.0, ΔS≈0.0\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose10.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose10.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose10.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose10.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose10.png\",\n    \"correlationId\": \"style-qa-1762492362170-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:10:pose10.png\"\n  },\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 11,\n    \"currentPoseNumber\": 11,\n    \"retryAttempt\": 1,\n    \"retryTag\": \"1-HA4X8Z7D-99FC09-P11\",\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 1,\n    \"styleScore\": 1,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 1,\n        \"reasons\": [],\n        \"notes\": \"All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 1,\n          \"color\": 1,\n          \"skin_tone\": 1,\n          \"identity\": 1,\n          \"hair_color\": 1,\n          \"clothing\": 1,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"All aspects match perfectly, skin ΔV≈0.0, ΔS≈0.0.\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose11_r1.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose11_r1.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose11_r1.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose11.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose11_r1.png\",\n    \"correlationId\": \"style-qa-1762492442480-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:11:pose11_r1.png\"\n  },\n  {\n    \"success\": true,\n    \"uploadSuccess\": true,\n    \"characterHash\": \"99fc097781e57ed7\",\n    \"poseNumber\": 12,\n    \"currentPoseNumber\": 12,\n    \"retryAttempt\": 0,\n    \"qaPass\": true,\n    \"qaCombinedPass\": true,\n    \"qaScore\": 1,\n    \"styleScore\": 1,\n    \"qaReasons\": [],\n    \"qa\": {\n      \"pose\": {\n        \"pass\": true,\n        \"threshold\": 0.75,\n        \"score\": 1,\n        \"reasons\": [],\n        \"notes\": \"All aspects match the base image, including hair rules and skin tone (skin ΔV≈1.0, ΔS≈1.0).\"\n      },\n      \"style\": {\n        \"pass\": true,\n        \"ran\": true,\n        \"threshold\": {\n          \"style\": 0.85,\n          \"color\": 0.75,\n          \"skin_tone\": 0.75,\n          \"identity\": 0.85,\n          \"hair_color\": 0.75,\n          \"clothing\": 0.75,\n          \"hair_cleanliness\": 0.75\n        },\n        \"score\": {\n          \"style_cohesion\": 1,\n          \"color\": 1,\n          \"skin_tone\": 0.98,\n          \"identity\": 1,\n          \"hair_color\": 1,\n          \"clothing\": 1,\n          \"hair_cleanliness\": 1\n        },\n        \"reasons\": [],\n        \"notes\": \"All aspects match the base image, including hair rules and skin tone (skin ΔV≈1.0, ΔS≈1.0).\"\n      },\n      \"combined\": {\n        \"pass\": true,\n        \"policy\": \"pose_then_style\",\n        \"notes\": [\n          \"All checks passed\"\n        ]\n      }\n    },\n    \"uploadKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose12.png\",\n    \"storageKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose12.png\",\n    \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose12.png\",\n    \"generatedFileName\": \"characters_99fc097781e57ed7_pose12.png\",\n    \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7/poses/pose12.png\",\n    \"correlationId\": \"style-qa-1762492485037-0\",\n    \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\",\n    \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n    \"characterPath\": \"book-mvp-simple-adventure/order-generated-assets/characters/99fc097781e57ed7\",\n    \"amazonOrderId\": \"TEST-ORDER-016\",\n    \"orderContext\": {\n      \"amazonOrderId\": \"TEST-ORDER-016\",\n      \"characterHash\": null,\n      \"childName\": \"Stephanie\",\n      \"characterSpecs\": {\n        \"childName\": \"Stephanie\",\n        \"skinTone\": \"tan\",\n        \"hairColor\": \"black\",\n        \"hairStyle\": \"bob\",\n        \"age\": 5,\n        \"pronouns\": \"he/him\",\n        \"favoriteColor\": \"purple\",\n        \"animalGuide\": \"cat\",\n        \"clothingStyle\": \"dress\"\n      },\n      \"bookSpecs\": {\n        \"title\": \"Alex and the Adventure Compass\",\n        \"totalPages\": 16,\n        \"format\": \"8.5x8.5_softcover\",\n        \"bookType\": \"animal-guide\"\n      },\n      \"orderDetails\": {\n        \"quantity\": 1,\n        \"shippingAddress\": {\n          \"name\": \"Test Customer\",\n          \"address\": \"123 Test Street\",\n          \"city\": \"Test City\",\n          \"state\": \"CA\",\n          \"zip\": \"90210\"\n        }\n      },\n      \"publicR2Url\": null,\n      \"assetsRoot\": \"book-mvp-simple-adventure/order-generated-assets\"\n    },\n    \"__uuid\": \"99fc097781e57ed7:12:pose12.png\"\n  }\n];\n\n// Emit as n8n items (one per entry)\nreturn data.map(o => ({ json: o }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1664,
+        1056
+      ],
+      "id": "80601543-3ee6-4588-88bb-db8be12ec928",
+      "name": "Simulate TEST-ORDER-016"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders?orderId=eq.{{$json.orderId}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "amazon_order_id",
+              "value": "={{ (() => { const id = $json.amazonOrderId || $json.manifest?.order?.amazonOrderId || $json.orderId || null; if (!id || id === 'unknown-order' || id === 'null' || id === 'undefined') { throw new Error('Invalid amazonOrderId: ' + JSON.stringify({ amazonOrderId: $json.amazonOrderId, manifestOrder: $json.manifest?.order?.amazonOrderId, orderId: $json.orderId })); } return id; })() }}"
+            },
+            {
+              "name": "character_hash",
+              "value": "={{ $json.characterHash || $json.manifest.characterHash }}"
+            },
+            {
+              "name": "manifest_2a_url",
+              "value": "={{ $json.manifest.order.publicR2Url + '/' + $json.manifestKey }}"
+            },
+            {
+              "name": "next_workflow",
+              "value": "={{ $json.manifest.workflow.nextWorkflow || '2B-retry' }}"
+            },
+            {
+              "name": "status",
+              "value": "={{ $json.manifest.summary.needsHumanReview ? 'pre_bria_pending' : 'pre_bria_ready' }}"
+            },
+            {
+              "name": "review_stages",
+              "value": "={{   {     preBria: {       status: $json.manifest.summary.needsHumanReview ? 'needs_review' : 'ready',       needsHumanReview: !!$json.manifest.summary.needsHumanReview,       posesTotal: $json.manifest.poses?.total,       posesApproved: $json.manifest.poses?.approved,       posesNeedingReview: $json.manifest.reviewQueue ? $json.manifest.reviewQueue.length : 0     }   } }}"
+            },
+            {
+              "name": "updated_at",
+              "value": "={{ new Date().toISOString() }}"
+            },
+            {
+              "name": "workflow_step",
+              "value": "={{ '2A-complete' }}"
+            },
+            {
+              "name": "requires_human_review",
+              "value": "={{ !!$json.manifest.summary.needsHumanReview }}"
+            },
+            {
+              "name": "orderId",
+              "value": "={{ $json.amazonOrderId || $json.manifest.order.amazonOrderId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -144,
+        1040
+      ],
+      "id": "21038676-c79e-4430-af7c-b812f448c897",
+      "name": "Supabase — Upsert from 2A Manifest"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -352,
+        1040
+      ],
+      "id": "f6ec8b79-d7c4-41f3-86ac-736eabc6b118",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"accepted\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -2224,
+        -336
+      ],
+      "id": "290b1e84-ee1e-4b33-a9aa-d77b6c6cd990",
+      "name": "Respond to Webhook (Ack)"
+    },
+    {
+      "parameters": {
+        "jsCode": "return[\n  {\n    \"success\": true,\n    \"manifestKey\": \"book-mvp-simple-adventure/orders/NB3-STANDARD-03/manifests/2a-manifest.json\",\n    \"manifest\": {\n      \"schema\": \"lhb.run-manifest@v2.0\",\n      \"runStamp\": \"2025-12-06T17:12:38.503Z\",\n      \"characterHash\": \"52f4a5bec52c777c\",\n      \"order\": {\n        \"amazonOrderId\": \"NB3-STANDARD-03\",\n        \"childName\": \"Luca\",\n        \"characterSpecs\": {\n          \"age\": 5,\n          \"pronouns\": \"he/him\",\n          \"skinTone\": \"skin-brown-dark\",\n          \"childName\": \"Luca\",\n          \"hairColor\": \"medium-brown\",\n          \"hairStyle\": \"small-puffy-ponytail\",\n          \"animalGuide\": \"unicorn\",\n          \"clothingStyle\": \"tee-shorts\",\n          \"favoriteColor\": \"red\"\n        },\n        \"bookSpecs\": {},\n        \"orderDetails\": {\n          \"quantity\": 1,\n          \"shippingAddress\": {\n            \"zip\": \"95945\",\n            \"city\": \"Grass Valley\",\n            \"name\": \"Jeff LaPenna\",\n            \"phone\": \"+1-678-478-3477\",\n            \"state\": \"CA\",\n            \"address\": \"12207 Sunset Ave.\"\n          }\n        },\n        \"publicR2Url\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev\",\n        \"r2BucketName\": \"little-hero-assets\"\n      },\n      \"poses\": {\n        \"total\": 13,\n        \"approved\": 13,\n        \"exhausted\": 0,\n        \"retried\": 1,\n        \"failed\": 0,\n        \"needingReview\": 0\n      },\n      \"entries\": [\n        {\n          \"poseNumber\": 0,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose00.png\",\n          \"approvedFilename\": \"pose00.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose00.png\",\n          \"correlationId\": \"style-qa-1765040277779-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.0, ΔS≈0.0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.0, ΔS≈0.0.\"\n          }\n        },\n        {\n          \"poseNumber\": 1,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose01.png\",\n          \"approvedFilename\": \"pose01.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose01.png\",\n          \"correlationId\": \"style-qa-1765040348746-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV=0, ΔS=0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV=0, ΔS=0.\"\n          }\n        },\n        {\n          \"poseNumber\": 2,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose02.png\",\n          \"approvedFilename\": \"pose02.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose02.png\",\n          \"correlationId\": \"style-qa-1765040415046-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.0, ΔS≈0.0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.0, ΔS≈0.0.\"\n          }\n        },\n        {\n          \"poseNumber\": 3,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose03.png\",\n          \"approvedFilename\": \"pose03.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose03.png\",\n          \"correlationId\": \"style-qa-1765040484150-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\"\n          }\n        },\n        {\n          \"poseNumber\": 4,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose04.png\",\n          \"approvedFilename\": \"pose04.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose04.png\",\n          \"correlationId\": \"style-qa-1765040543357-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\"\n          }\n        },\n        {\n          \"poseNumber\": 5,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose05.png\",\n          \"approvedFilename\": \"pose05.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose05.png\",\n          \"correlationId\": \"style-qa-1765040607436-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.5, ΔS≈1.5\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.5, ΔS≈1.5\"\n          }\n        },\n        {\n          \"poseNumber\": 6,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose06.png\",\n          \"approvedFilename\": \"pose06.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose06.png\",\n          \"correlationId\": \"style-qa-1765040672877-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0, ΔS≈0.\"\n          }\n        },\n        {\n          \"poseNumber\": 7,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose07.png\",\n          \"approvedFilename\": \"pose07.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose07.png\",\n          \"correlationId\": \"style-qa-1765040737191-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.8, ΔS≈1.2.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.8, ΔS≈1.2.\"\n          }\n        },\n        {\n          \"poseNumber\": 8,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose08.png\",\n          \"approvedFilename\": \"pose08.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose08.png\",\n          \"correlationId\": \"style-qa-1765040802334-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.5, ΔS≈1.5.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.5, ΔS≈1.5.\"\n          }\n        },\n        {\n          \"poseNumber\": 9,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose09.png\",\n          \"approvedFilename\": \"pose09.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose09.png\",\n          \"correlationId\": \"style-qa-1765040867351-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV≈0.8, ΔS≈1.2.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV≈0.8, ΔS≈1.2.\"\n          }\n        },\n        {\n          \"poseNumber\": 10,\n          \"attempts\": 1,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose10_r1.png\",\n          \"approvedFilename\": \"pose10_r1.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose10_r1.png\",\n          \"correlationId\": \"style-qa-1765041002489-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV=0.0, ΔS=0.0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV=0.0, ΔS=0.0.\"\n          },\n          \"retryHistory\": [\n            {\n              \"attempt\": 1,\n              \"passed\": true,\n              \"qaScore\": 1,\n              \"styleScore\": 1,\n              \"reasons\": null\n            }\n          ],\n          \"qaReasons\": null\n        },\n        {\n          \"poseNumber\": 11,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose11.png\",\n          \"approvedFilename\": \"pose11.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose11.png\",\n          \"correlationId\": \"style-qa-1765041063394-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV=0, ΔS=0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV=0, ΔS=0.\"\n          }\n        },\n        {\n          \"poseNumber\": 12,\n          \"attempts\": 0,\n          \"status\": \"approved\",\n          \"approved\": true,\n          \"approvedKey\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose12.png\",\n          \"approvedFilename\": \"pose12.png\",\n          \"publicUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose12.png\",\n          \"correlationId\": \"style-qa-1765041142010-0\",\n          \"qaScore\": 1,\n          \"styleScore\": 1,\n          \"needsReview\": false,\n          \"reviewReason\": null,\n          \"qaNotes\": {\n            \"pose\": \"Perfect match across all criteria; skin ΔV=0.0, ΔS=0.0.\",\n            \"style\": \"Perfect match across all criteria; skin ΔV=0.0, ΔS=0.0.\"\n          }\n        }\n      ],\n      \"reviewQueue\": [],\n      \"summary\": {\n        \"percentComplete\": 100,\n        \"readyForBook\": true,\n        \"needsHumanReview\": false\n      },\n      \"workflow\": {\n        \"currentStage\": \"2A-complete\",\n        \"nextWorkflow\": \"2B\",\n        \"requiresHumanReview\": false\n      },\n      \"generatedAt\": \"2025-12-06T17:12:38.504Z\",\n      \"_debug\": {\n        \"poseIndexFixes\": [\n          {\n            \"inputNumeric\": 0,\n            \"fromPath\": 1,\n            \"used\": 1,\n            \"key\": \"book-mvp-simple-adventure/order-generated-assets/characters/52f4a5bec52c777c/poses/pose01.png\"\n          }\n        ]\n      }\n    },\n    \"characterHash\": \"52f4a5bec52c777c\",\n    \"amazonOrderId\": \"NB3-STANDARD-03\",\n    \"manifestReady\": true,\n    \"uploadBucket\": \"little-hero-orders\"\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -512,
+        1344
+      ],
+      "id": "80090e0b-3332-4117-a306-d561b5dbc836",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {
+    "Webhook (Router)": [
+      {
+        "json": {
+          "headers": {
+            "host": "thepeakbeyond.app.n8n.cloud",
+            "user-agent": "axios/1.12.0",
+            "content-length": "2885",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "4.182.88.118",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "DE",
+            "cf-ray": "9a9d51021018dbcd-FRA",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "idempotency-key": "NB3-STANDARD-03-undefined",
+            "x-forwarded-for": "4.182.88.118, 172.71.144.173",
+            "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-vdndp",
+            "x-is-trusted": "yes",
+            "x-real-ip": "4.182.88.118"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "id": 255,
+            "amazon_order_id": null,
+            "processing_id": null,
+            "status": "queued_for_processing",
+            "workflow_step": "order_intake",
+            "next_workflow": "2A",
+            "order_status": null,
+            "purchase_date": "2025-12-06T08:32:39.323",
+            "order_total": null,
+            "currency": "USD",
+            "marketplace_id": null,
+            "customer_email": "jeff.lapenna@gmail.com",
+            "customer_name": "Jeff LaPenna",
+            "shipping_address": {
+              "zip": "95945",
+              "city": "Grass Valley",
+              "name": "Jeff LaPenna",
+              "phone": "+1-678-478-3477",
+              "state": "CA",
+              "address": "12207 Sunset Ave."
+            },
+            "character_specs": {
+              "age": 5,
+              "pronouns": "he/him",
+              "skinTone": "skin-brown-dark",
+              "childName": "Luca",
+              "hairColor": "medium-brown",
+              "hairStyle": "small-puffy-ponytail",
+              "animalGuide": "unicorn",
+              "clothingStyle": "tee-shorts",
+              "favoriteColor": "red"
+            },
+            "character_hash": "50504dce",
+            "product_info": {
+              "quantity": 1,
+              "shippingAddress": {
+                "zip": "95945",
+                "city": "Grass Valley",
+                "name": "Jeff LaPenna",
+                "phone": "+1-678-478-3477",
+                "state": "CA",
+                "address": "12207 Sunset Ave."
+              }
+            },
+            "priority": "normal",
+            "estimated_processing_time": null,
+            "created_at": "2025-12-06T07:55:25.285732",
+            "updated_at": "2025-12-06T16:56:24.487495",
+            "queued_at": "2025-12-06T16:56:23.858",
+            "validated_at": null,
+            "validation_errors": [],
+            "quality_score": null,
+            "requires_human_review": false,
+            "human_approved": null,
+            "human_reviewed_at": null,
+            "human_reviewer": null,
+            "final_book_url": null,
+            "cover_image_url": null,
+            "thumbnail_url": null,
+            "lulu_job_id": null,
+            "lulu_status": null,
+            "print_submitted_at": null,
+            "tracking_number": null,
+            "carrier": null,
+            "shipped_at": null,
+            "ai_generation_cost": 0,
+            "print_cost": 0,
+            "total_cost": 0,
+            "qa_notes": null,
+            "regeneration_attempt": 0,
+            "regeneration_instructions": null,
+            "quality_issues": [],
+            "previous_character_images": [],
+            "rejection_history": [],
+            "manifest_2a_url": null,
+            "manifest_2b_url": null,
+            "manifest_3_url": null,
+            "review_stages": {
+              "postPdf": {
+                "status": "pending",
+                "comments": null,
+                "reviewer": null,
+                "reviewedAt": null
+              },
+              "preBria": {
+                "status": "pending",
+                "comments": null,
+                "reviewer": null,
+                "reviewedAt": null
+              },
+              "postBria": {
+                "status": "pending",
+                "comments": null,
+                "reviewer": null,
+                "reviewedAt": null
+              }
+            },
+            "has_flags": false,
+            "flags": {
+              "total": 0,
+              "postPdf": 0,
+              "preBria": 0,
+              "postBria": 0
+            },
+            "customer_approval_status": null,
+            "customer_approval_required": false,
+            "customer_approval_requested_at": null,
+            "customer_approval_approved_at": null,
+            "delivered_at": null,
+            "revision_count": 0,
+            "orderId": "NB3-STANDARD-03",
+            "printFulfillmentStartedAt": null,
+            "printFulfillmentFinishedAt": null,
+            "printFulfillmentStatus": null,
+            "interiorPdfR2Key": null,
+            "coverPdfR2Key": null,
+            "amazonOrderId": null,
+            "execution_status": "processing",
+            "started_at": "2025-12-06T16:56:24.397",
+            "current_workflow": "2A",
+            "one_manifest_url": "book-mvp-simple-adventure/orders/NB3-STANDARD-03/manifests/1-manifest.json",
+            "dedication_text": "Luca! We hope you enjoy this story about finding the brave, trustworthy voice inside of you. Love always, your Dads!",
+            "one_manifest_key": null,
+            "error_message": null,
+            "error_type": null,
+            "retry_count": 0,
+            "max_retries": 3,
+            "last_error_at": null,
+            "next_retry_at": null
+          },
+          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/2a-start",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Retry Builder (Prompt Tweaks)": {
+      "main": [
+        [
+          {
+            "node": "Return Retry Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bump retry counter": {
+      "main": [
+        [
+          {
+            "node": "Retry Builder (Prompt Tweaks)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Handoff — Purge & Keep Keys": {
+      "main": [
+        [
+          {
+            "node": "Bump retry counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init / Validate Inputs": {
+      "main": [
+        [
+          {
+            "node": "Execute SW0 - Base Character Gen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: QA Combined Pass?": {
+      "main": [
+        [
+          {
+            "node": "SW3 - Upload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QA Handoff — Purge & Keep Keys",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Retries Exhausted?": {
+      "main": [
+        [
+          {
+            "node": "Mark as Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute SW1 - Pose Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Character Hash1": {
+      "main": [
+        [
+          {
+            "node": "Set Environment Defaults (code)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook (Router)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook (Ack)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Router Payload": {
+      "main": [
+        [
+          {
+            "node": "Capture Order Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Retry Context": {
+      "main": [
+        [
+          {
+            "node": "IF: Retries Exhausted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulate Upstream (Seed Pose Loop)": {
+      "main": [
+        [
+          {
+            "node": "Start / Pass-through",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Write Run Manifest1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Environment Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute SW0 - Base Character Gen": {
+      "main": [
+        [
+          {
+            "node": "Start / Pass-through",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute SW1 - Pose Generation": {
+      "main": [
+        [
+          {
+            "node": "Execute SW2 - Pose and Style QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute SW2 - Pose and Style QA": {
+      "main": [
+        [
+          {
+            "node": "IF: QA Combined Pass?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SW3 - Upload": {
+      "main": [
+        [
+          {
+            "node": "Results Accumulator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Run Manifest": {
+      "main": [
+        [
+          {
+            "node": "Upload Manifest to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Manifest to R2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEST MODE TOGGLE1": {
+      "main": [
+        [
+          {
+            "node": "Capture Order Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Environment Defaults (code)": {
+      "main": [
+        [
+          {
+            "node": "Init / Validate Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Needs Review": {
+      "main": [
+        [
+          {
+            "node": "Results Accumulator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Order Context": {
+      "main": [
+        [
+          {
+            "node": "Generate Character Hash1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Environment Defaults": {
+      "main": [
+        [
+          {
+            "node": "Execute SW1 - Pose Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Results Accumulator": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start / Pass-through": {
+      "main": [
+        [
+          {
+            "node": "Expand to N Poses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand to N Poses": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Run Manifest1": {
+      "main": [
+        [
+          {
+            "node": "Upload Manifest to R2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Simulate TEST-ORDER-016": {
+      "main": [
+        [
+          {
+            "node": "Write Run Manifest1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Supabase — Upsert from 2A Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook (Ack)": {
+      "main": [
+        [
+          {
+            "node": "Normalize Router Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Supabase — Upsert from 2A Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "07aba9f3-ba28-41ce-b448-1ca34a549f7b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
+  },
+  "id": "sJogOTPUevnHGEka",
+  "tags": []
+}

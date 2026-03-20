@@ -1,6 +1,9 @@
 import {
+  buildW2ABootstrapManifest,
   buildBgRemovedAssetMap,
   buildReviewPoseAssignments,
+  buildW2APoseWorklist,
+  buildW2ARunManifest,
   buildW0RunManifest,
   loadBundledBookConfig,
   normalizeW0Manifest,
@@ -13,7 +16,11 @@ import {
 } from '@/lib/books';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { buildOrderIntakeManifestFromOrder } from '@/lib/w0-manifest-builder';
+import {
+  buildOrderIntakeManifestFromOrder,
+  buildOrderIntakeManifestFromNormalizedInputRuntime,
+  buildW0OrderUpsertPayload,
+} from '@/lib/w0-manifest-builder';
 import legacyAmazonFixture from '@/lib/books/fixtures/w0-manifests/book1-amazon-legacy-v2_1.json';
 import v3AmazonFixture from '@/lib/books/fixtures/w0-manifests/book1-amazon-v3.json';
 import { R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
@@ -265,6 +272,101 @@ assert(
   'Normalized v3 manifest should expose required pose numbers',
 );
 
+const normalizedWorkflowInput = {
+  _raw: {
+    marketplaceId: 'ATVPDKIKX0DER',
+    amazonOrderId: '999-1111111-2222222',
+  },
+  orderId: 'TEST-W0-NORMALIZED-001',
+  orderDate: '2026-03-15T18:00:00.000Z',
+  customerEmail: 'normalized@example.com',
+  buyer: {
+    email: 'normalized@example.com',
+    name: 'Normalized Parent',
+  },
+  characterSpecs: {
+    childName: 'Drew',
+    favoriteAnimal: 'owl',
+    favoriteColor: 'green',
+    hairColor: 'brown',
+    hairStyle: 'short',
+    skinTone: 'medium',
+    clothingStyle: 'tee-shorts',
+  },
+  bookSpecs: {
+    title: 'Drew and the Quiet Trail',
+    formatId: 'amazon',
+    channel: 'amazon',
+    bookType: 'adventure',
+  },
+  orderDetails: {
+    quantity: 1,
+    shippingAddress: {
+      name: 'Normalized Parent',
+      city: 'San Diego',
+      state_code: 'CA',
+      postcode: '92101',
+      country_code: 'US',
+      phone: '555-0100',
+    },
+  },
+  dedication: {
+    text: 'Trust your inner guide',
+  },
+};
+
+const normalizedBuilt = await buildOrderIntakeManifestFromNormalizedInputRuntime(
+  normalizedWorkflowInput,
+  {
+    schemaVersion: 'v3',
+    configSource: 'bundled',
+  },
+);
+const normalizedBuiltManifest = normalizedBuilt.manifest as RunManifestV3;
+const normalizedUpsert = buildW0OrderUpsertPayload({
+  normalizedInput: normalizedWorkflowInput,
+  manifest: normalizedBuiltManifest,
+  manifestKey: normalizedBuilt.manifestKey,
+});
+
+assert(
+  normalizedBuilt.schemaVersion === 'v3',
+  'Normalized W0 builder should emit a v3 manifest',
+);
+assert(
+  normalizedBuiltManifest.book.bookConfigRef.version === 1,
+  'Normalized W0 builder should pin Book 1 v1 in the manifest',
+);
+assert(
+  normalizedBuiltManifest.book.bookConfigRef.formatId === 'amazon',
+  'Normalized W0 builder should preserve the normalized formatId',
+);
+assert(
+  normalizedBuiltManifest.order.amazonOrderId === '999-1111111-2222222',
+  'Normalized W0 builder should preserve amazonOrderId from normalized input',
+);
+assert(
+  normalizedBuilt.manifestKey ===
+    'book-mvp-simple-adventure/orders/TEST-W0-NORMALIZED-001/manifests/1-manifest.json',
+  'Normalized W0 builder should preserve the canonical manifest key',
+);
+assert(
+  normalizedUpsert.one_manifest_url === normalizedBuilt.manifestKey,
+  'Normalized W0 upsert payload should reuse the manifest key as one_manifest_url',
+);
+assert(
+  normalizedUpsert.root_order_id === '999-1111111-2222222',
+  'Normalized W0 upsert payload should preserve root_order_id for grouped-order routing',
+);
+assert(
+  normalizedUpsert.amazon_order_id === '999-1111111-2222222',
+  'Normalized W0 upsert payload should preserve amazon_order_id',
+);
+assert(
+  normalizedUpsert.character_hash === '4da80527ff68b0f6',
+  'Normalized W0 upsert payload should preserve the current visual character-hash algorithm',
+);
+
 const fixtureManifestKey =
   'book-mvp-simple-adventure/orders/FIXTURE-W0-AMAZON-001/manifests/1-manifest.json';
 const normalizedLegacyFixture = normalizeW0Manifest(legacyAmazonFixture, {
@@ -326,6 +428,9 @@ const reviewContextFromV3 = resolveReviewPageContext({
   isAmazonOrder: true,
 });
 const reviewAssignmentsFromV3 = buildReviewPoseAssignments(reviewContextFromV3.pagePlan);
+const w2aPoseWorklistFromV3 = buildW2APoseWorklist(reviewContextFromV3.pagePlan, {
+  includeZeroPose: true,
+});
 const pose1ReviewAssignment = reviewAssignmentsFromV3.find(
   (assignment) => assignment.poseNumber === 1,
 );
@@ -347,6 +452,126 @@ assert(
   pose12ReviewAssignment?.pageLabel === 'p16' &&
     pose12ReviewAssignment.storyPageNumber === 14,
   'Review pose assignments should preserve the final amazon story-page mapping',
+);
+assert(
+  w2aPoseWorklistFromV3.length === 13 &&
+    w2aPoseWorklistFromV3[0]?.poseNumber === 0 &&
+    w2aPoseWorklistFromV3[1]?.pageLabel === 'p03' &&
+    w2aPoseWorklistFromV3[12]?.pageLabel === 'p16',
+  'W2A pose worklist should include pose 0 and preserve the frozen amazon page-plan mapping',
+);
+
+const w2aBootstrapManifest = buildW2ABootstrapManifest({
+  orderId: 'FIXTURE-W0-AMAZON-001',
+  rootOrderId: '111-2222222-3333333',
+  amazonOrderId: '111-2222222-3333333',
+  bookId: 'book-mvp-simple-adventure',
+  characterHash: 'fixture-character-hash',
+  oneManifestUrl: `/api/manifests/${fixtureManifestKey}`,
+  characterSpecs: normalizedV3Fixture.characterSpecs,
+  bookSpecs: normalizedV3Fixture.bookSpecs,
+  orderDetails: normalizedV3Fixture.orderDetails,
+});
+
+assert(
+  w2aBootstrapManifest.manifestKey ===
+    'book-mvp-simple-adventure/orders/FIXTURE-W0-AMAZON-001/manifests/2a-manifest.json',
+  'W2A bootstrap manifest should resolve the canonical per-item 2A manifest key',
+);
+assert(
+  (w2aBootstrapManifest.manifest.order as Record<string, unknown>)?.orderId ===
+    'FIXTURE-W0-AMAZON-001',
+  'W2A bootstrap manifest should preserve the per-item orderId inside order context',
+);
+
+const w2aRunManifest = buildW2ARunManifest({
+  orderId: 'FIXTURE-W0-AMAZON-001',
+  rootOrderId: '111-2222222-3333333',
+  amazonOrderId: '111-2222222-3333333',
+  oneManifestUrl: `/api/manifests/${fixtureManifestKey}`,
+  bookId: 'book-mvp-simple-adventure',
+  publicR2Url: 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev',
+  assetsRoot: 'book-mvp-simple-adventure/order-generated-assets',
+  characterSpecs: normalizedV3Fixture.characterSpecs,
+  bookSpecs: normalizedV3Fixture.bookSpecs,
+  orderDetails: normalizedV3Fixture.orderDetails,
+  poseResults: [
+    {
+      poseNumber: 0,
+      characterHash: 'fixture-character-hash',
+      approvedKey:
+        'book-mvp-simple-adventure/order-generated-assets/characters/fixture-character-hash/poses/pose00.png',
+      publicUrl:
+        'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/fixture-character-hash/poses/pose00.png',
+      qaPass: true,
+      success: true,
+      qaScore: 1,
+      styleScore: 1,
+      correlationId: 'corr-pose-00',
+      orderContext: {
+        orderId: 'FIXTURE-W0-AMAZON-001',
+        rootOrderId: '111-2222222-3333333',
+        amazonOrderId: '111-2222222-3333333',
+        oneManifestUrl: `/api/manifests/${fixtureManifestKey}`,
+        childName: 'Bea',
+        characterSpecs: normalizedV3Fixture.characterSpecs,
+        bookSpecs: normalizedV3Fixture.bookSpecs,
+        orderDetails: normalizedV3Fixture.orderDetails,
+      },
+    },
+    {
+      poseNumber: 1,
+      characterHash: 'fixture-character-hash',
+      approvedKey:
+        'book-mvp-simple-adventure/order-generated-assets/characters/fixture-character-hash/poses/pose01.png',
+      publicUrl:
+        'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/book-mvp-simple-adventure/order-generated-assets/characters/fixture-character-hash/poses/pose01.png',
+      qaPass: true,
+      success: true,
+      qaScore: 0.97,
+      styleScore: 0.96,
+      correlationId: 'corr-pose-01',
+    },
+    {
+      poseNumber: 2,
+      characterHash: 'fixture-character-hash',
+      generatedFileName: 'pose02_r1.png',
+      retryAttempt: 1,
+      qaPass: false,
+      qaReasons: ['pose_mismatch'],
+      needsReview: true,
+      reviewReason: 'manual review required',
+      qa: {
+        pose: { notes: 'Pose mismatch' },
+        style: { notes: 'Style mismatch', score: { style_cohesion: 0.41 } },
+      },
+      maxPoseRetries: 3,
+    },
+  ],
+});
+
+const w2aRunManifestBody = w2aRunManifest.manifest as Record<string, unknown>;
+const w2aRunManifestSummary = w2aRunManifestBody.summary as Record<string, unknown>;
+const w2aRunManifestWorkflow = w2aRunManifestBody.workflow as Record<string, unknown>;
+const w2aRunManifestPoses = w2aRunManifestBody.poses as Record<string, unknown>;
+
+assert(
+  w2aRunManifest.manifestKey ===
+    'book-mvp-simple-adventure/orders/FIXTURE-W0-AMAZON-001/manifests/2a-manifest.json',
+  'W2A run manifest should resolve the canonical per-item 2A manifest key',
+);
+assert(
+  w2aRunManifestPoses.total === 3 &&
+    w2aRunManifestPoses.approved === 2 &&
+    w2aRunManifestPoses.retried === 1 &&
+    w2aRunManifestPoses.needingReview === 1,
+  'W2A run manifest should summarize pose outcomes from the reduced pose-result envelope',
+);
+assert(
+  w2aRunManifestSummary.readyForBook === false &&
+    w2aRunManifestSummary.needsHumanReview === true &&
+    w2aRunManifestWorkflow.nextWorkflow === '2B-retry',
+  'W2A run manifest should hold the order for 2B retry when any pose still needs review',
 );
 
 const legacyReviewContext = resolveReviewPageContext({

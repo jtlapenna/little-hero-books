@@ -10,10 +10,15 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFIX } from '@/lib/r2-client';
-import { resolvePreviewCanonicals, type CharacterSpecsInput } from '@/lib/preview-canonicals';
+import { loadRuntimeBookConfig } from '@/lib/books';
+import {
+  resolvePreviewCanonicalsForConfig,
+  type CharacterSpecsInput,
+} from '@/lib/preview-canonicals';
 import { buildPreviewGeminiRequest } from '@/lib/preview-gemini';
 import { calculatePreviewHash } from '@/lib/character-hash';
 import { resolveReusablePreviewAsset } from '@/lib/preview-cache';
+import { normalizeBookId } from '@/lib/order-paths';
 
 // CORS: allow D2C frontend (e.g. localhost:4321) to call this API
 const corsHeaders = {
@@ -96,9 +101,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Resolve canonicals and asset keys
-    const resolved = resolvePreviewCanonicals(specs, {
-      bookId: requestedBookId,
+    const bookConfig = await loadRuntimeBookConfig({
+      bookId: normalizeBookId(requestedBookId),
     });
+    const resolved = resolvePreviewCanonicalsForConfig(specs, bookConfig);
     
     console.log('[Preview Generate] Resolved canonicals:', {
       bookId: resolved.bookId,

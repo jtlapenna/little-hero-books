@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAvailableOrderIds, downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { normalizeBookId } from '@/lib/order-paths';
 
 /**
  * Simple endpoint to test order detection and loading
  * GET /api/debug/orders-simple
  */
 export async function GET(request: NextRequest) {
+  const bookId = normalizeBookId(request.nextUrl.searchParams.get('bookId'));
+  const testOrderId = request.nextUrl.searchParams.get('testOrderId')?.trim() || 'TEST-ORDER-006';
   const result: any = {
     timestamp: new Date().toISOString(),
+    bookId,
     step1_listOrderIds: null as any,
     step2_loadManifest: null as any,
     step3_ordersAPI: null as any,
@@ -15,12 +19,13 @@ export async function GET(request: NextRequest) {
 
   // Step 1: List order IDs
   try {
-    const orderIds = await getAvailableOrderIds();
+    const orderIds = await getAvailableOrderIds(bookId);
     result.step1_listOrderIds = {
       success: true,
       count: orderIds.length,
       orderIds: orderIds,
-      foundTEST_ORDER_006: orderIds.includes('TEST-ORDER-006'),
+      foundTestOrder: orderIds.includes(testOrderId),
+      testOrderId,
     };
   } catch (error: any) {
     result.step1_listOrderIds = {
@@ -32,9 +37,9 @@ export async function GET(request: NextRequest) {
   }
 
   // Step 2: Try to load manifest for TEST-ORDER-006
-  if (result.step1_listOrderIds.foundTEST_ORDER_006) {
+  if (result.step1_listOrderIds.foundTestOrder) {
     try {
-      const manifestKey = buildManifestKey('TEST-ORDER-006', '2a');
+      const manifestKey = buildManifestKey(testOrderId, '2a', { bookId });
       const manifest = await downloadManifest(manifestKey);
       result.step2_loadManifest = {
         success: true,
@@ -51,13 +56,13 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error?.message,
         code: error?.$metadata?.httpStatusCode,
-        triedKey: buildManifestKey('TEST-ORDER-006', '2a'),
+        triedKey: buildManifestKey(testOrderId, '2a', { bookId }),
       };
     }
   } else {
     result.step2_loadManifest = {
       skipped: true,
-      reason: 'TEST-ORDER-006 not found in order IDs list',
+      reason: `${testOrderId} not found in order IDs list`,
     };
   }
 
@@ -72,7 +77,7 @@ export async function GET(request: NextRequest) {
         let manifest: any = null;
         for (const stage of ['2a', '2b', '3'] as const) {
           try {
-            manifest = await downloadManifest(buildManifestKey(orderId, stage));
+            manifest = await downloadManifest(buildManifestKey(orderId, stage, { bookId }));
             break;
           } catch {
             continue;
@@ -106,4 +111,3 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(result, { status: 200 });
 }
-

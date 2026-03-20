@@ -1,0 +1,56 @@
+{
+  "fixtureId": "book1-amazon-single",
+  "orderId": "FIXTURE-BOOK1-AMAZON-001",
+  "options": {
+    "schemaVersion": "v3",
+    "bookId": "book-mvp-simple-adventure",
+    "formatId": "amazon"
+  },
+  "expected": {
+    "bookId": "book-mvp-simple-adventure",
+    "formatId": "amazon",
+    "expectedPageCount": 17,
+    "rootOrderId": "111-2222222-3333333",
+    "amazonOrderId": "111-2222222-3333333"
+  },
+  "order": {
+    "id": 102,
+    "orderId": "FIXTURE-BOOK1-AMAZON-001",
+    "root_order_id": "111-2222222-3333333",
+    "amazon_order_id": "111-2222222-3333333",
+    "marketplace_id": "ATVPDKIKX0DER",
+    "platform": "amazon",
+    "purchase_date": "2026-03-15T12:00:00.000Z",
+    "created_at": "2026-03-15T12:00:00.000Z",
+    "customer_email": "parent@example.com",
+    "customer_name": "Parent Example",
+    "dedication_text": "Adventure is waiting",
+    "character_hash": "fixture-amazon-hash",
+    "shipping_tier": "expedited",
+    "amazon_shipment_service_level": "EXPEDITED",
+    "customer_approval_required": false,
+    "character_specs": {
+      "childName": "Bea",
+      "favoriteAnimal": "otter",
+      "favoriteColor": "blue"
+    },
+    "product_info": {
+      "quantity": 1,
+      "shippingAddress": {
+        "name": "Parent Example",
+        "city": "Seattle",
+        "state_code": "WA",
+        "postcode": "98101",
+        "country_code": "US"
+      },
+      "bookSpecs": {
+        "bookId": "book-mvp-simple-adventure",
+        "title": "Bea and the Quiet Compass",
+        "format": "amazon-softcover",
+        "formatId": "amazon",
+        "channel": "amazon",
+        "bookType": "adventure"
+      }
+    }
+  }
+}

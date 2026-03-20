@@ -6,8 +6,10 @@ import { fetchOrderRowByAnyId, updateOrderRowByAnyId } from '@/lib/order-lookup'
 import {
   BuildOrderIntakeManifestOptions,
   buildOrderIntakeManifestFromOrder,
+  buildOrderIntakeManifestFromOrderRuntime,
   resolveW0ManifestSchemaVersion,
 } from '@/lib/w0-manifest-builder';
+import type { BookConfigRuntimeSource } from '@/lib/books/runtime-book-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +51,7 @@ function getErrorMessage(error: unknown): string {
  *   "schemaVersion": "v2.1" | "v3",
  *   "bookId": "book-mvp-simple-adventure",
  *   "configVersion": 1,
+ *   "configSource": "bundled" | "published" | "published-first",
  *   "formatId": "standard" | "amazon"
  * }
  * 
@@ -79,11 +82,20 @@ async function readManifestOptions(
     typeof body.configVersion === 'number' && Number.isInteger(body.configVersion)
       ? body.configVersion
       : undefined;
+  const configSourceCandidate =
+    typeof body.configSource === 'string' ? body.configSource.trim() : '';
+  const configSource: BookConfigRuntimeSource | undefined =
+    configSourceCandidate === 'bundled' ||
+    configSourceCandidate === 'published' ||
+    configSourceCandidate === 'published-first'
+      ? configSourceCandidate
+      : undefined;
 
   return {
     schemaVersion: resolveW0ManifestSchemaVersion(body.schemaVersion),
     bookId: typeof body.bookId === 'string' ? body.bookId.trim() || undefined : undefined,
     configVersion,
+    configSource,
     formatId: typeof body.formatId === 'string' ? body.formatId.trim() || undefined : undefined,
   };
 }
@@ -168,11 +180,23 @@ export async function POST(
     }
 
     const perBookOrderId = (order.orderId ?? order.order_id ?? orderId) as string;
-    const builtManifest = buildOrderIntakeManifestFromOrder(
-      order,
-      perBookOrderId,
-      manifestOptions,
-    );
+    const builtManifest =
+      manifestOptions.schemaVersion === 'v3' ||
+      manifestOptions.configSource !== undefined ||
+      manifestOptions.configVersion !== undefined
+        ? await buildOrderIntakeManifestFromOrderRuntime(
+            order,
+            perBookOrderId,
+            {
+              ...manifestOptions,
+              configSource: manifestOptions.configSource ?? 'published-first',
+            },
+          )
+        : buildOrderIntakeManifestFromOrder(
+            order,
+            perBookOrderId,
+            manifestOptions,
+          );
     const { manifest, manifestKey: r2Key } = builtManifest;
 
     // Upload to R2

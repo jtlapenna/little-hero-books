@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBackgroundImageUrl } from '@/lib/background-images';
-import { getBookFormatConfig, loadBundledBookConfig } from '@/lib/books';
+import { getBackgroundImageUrlForConfig } from '@/lib/background-images';
+import { getBookFormatConfig, loadRuntimeBookConfig } from '@/lib/books';
 import { normalizeBookId } from '@/lib/order-paths';
 
 /**
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const bookId = normalizeBookId(
       typeof body.bookId === 'string' ? body.bookId : null,
     );
-    const config = loadBundledBookConfig({ bookId });
+    const config = await loadRuntimeBookConfig({ bookId });
     const format = getBookFormatConfig(
       config,
       typeof body.formatId === 'string' ? body.formatId : undefined,
@@ -43,8 +43,7 @@ export async function POST(request: NextRequest) {
       }
       
       try {
-        const url = getBackgroundImageUrl(pageNumber, {
-          bookId,
+        const url = getBackgroundImageUrlForConfig(pageNumber, config, {
           formatId: format.formatId,
         });
         if (!url) {

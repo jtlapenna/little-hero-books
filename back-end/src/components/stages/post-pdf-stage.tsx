@@ -23,6 +23,7 @@ import {
   normalizeManifestPageLabel,
   resolveReviewPageContext,
 } from '@/lib/books/review-page-plan';
+import { DEFAULT_BOOK_ID, resolveOrderPathContext } from '@/lib/order-paths';
 
 const PDFJS_VERSION = '5.4.394';
 let pdfjsLibSingleton: typeof import('pdfjs-dist') | null = null;
@@ -286,7 +287,7 @@ export function PostPdfStage({
   const showPrintAction = isApproved && customerRevisionUsed;
   const finalApprovalIsLoading = Boolean(finalApprovalLoading);
   const reviewPageContext = resolveReviewPageContext({
-    bookId: order.bookContext?.bookId ?? order.project ?? 'book-mvp-simple-adventure',
+    bookId: order.bookContext?.bookId ?? order.project ?? DEFAULT_BOOK_ID,
     formatId: order.bookContext?.formatId ?? null,
     isAmazonOrder:
       order.bookContext?.formatId === 'amazon' ||
@@ -299,11 +300,24 @@ export function PostPdfStage({
   const pagePlanByLabel = new Map(
     pagePlan.map((page) => [normalizeManifestPageLabel(page.label) ?? page.label, page]),
   );
-  const orderPrefix =
-    order.bookContext?.orderPrefix ||
-    `${reviewPageContext.bookId || order.project || 'book-mvp-simple-adventure'}/orders/${orderId}`;
+  const orderPathContext = resolveOrderPathContext(orderId, {
+    bookId:
+      order.bookContext?.bookId ??
+      reviewPageContext.bookId ??
+      order.project ??
+      DEFAULT_BOOK_ID,
+    orderPrefix: order.bookContext?.orderPrefix ?? order.assetPrefix ?? null,
+    pathLikes: [
+      order.manifest2aUrl,
+      order.manifest2bUrl,
+      order.manifest3Url,
+      order.finalBookUrl,
+      order.finalCoverUrl,
+    ],
+  });
+  const orderPrefix = orderPathContext.orderPrefix;
   const manifestContext = {
-    bookId: reviewPageContext.bookId || order.project || 'book-mvp-simple-adventure',
+    bookId: orderPathContext.bookId,
     orderPrefix,
   };
   const resolvePageMeta = (pageNumber: number, pageLabel?: string | null) => {

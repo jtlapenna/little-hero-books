@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAvailableOrderIds, downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { listObjects, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { normalizeBookId } from '@/lib/order-paths';
 
 /**
  * Test endpoint to debug order detection issues
@@ -9,15 +10,17 @@ import { listObjects, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const specificOrderId = searchParams.get('orderId');
+  const bookId = normalizeBookId(searchParams.get('bookId'));
   
   const result: any = {
     timestamp: new Date().toISOString(),
+    bookId,
     tests: {}
   };
   
   // Test 1: List all order IDs
   try {
-    const orderIds = await getAvailableOrderIds();
+    const orderIds = await getAvailableOrderIds(bookId);
     result.tests.listOrderIds = {
       success: true,
       count: orderIds.length,
@@ -33,7 +36,7 @@ export async function GET(request: NextRequest) {
   
   // Test 2: List raw R2 objects for orders prefix
   try {
-    const prefix = 'book-mvp-simple-adventure/orders/';
+    const prefix = `${bookId}/orders/`;
     const res = await listObjects(R2_ORDERS_BUCKET, {
       prefix,
       delimiter: '/',
@@ -69,7 +72,7 @@ export async function GET(request: NextRequest) {
     
     for (const stage of ['2a', '2b', '3'] as const) {
       try {
-        const manifestKey = buildManifestKey(specificOrderId, stage);
+        const manifestKey = buildManifestKey(specificOrderId, stage, { bookId });
         const manifest = await downloadManifest(manifestKey);
         result.tests.loadSpecificOrder.attempts.push({
           stage,
@@ -85,7 +88,7 @@ export async function GET(request: NextRequest) {
       } catch (error: any) {
         result.tests.loadSpecificOrder.attempts.push({
           stage,
-          manifestKey: buildManifestKey(specificOrderId, stage),
+          manifestKey: buildManifestKey(specificOrderId, stage, { bookId }),
           success: false,
           error: error?.message
         });
@@ -95,4 +98,3 @@ export async function GET(request: NextRequest) {
   
   return NextResponse.json(result, { status: 200 });
 }
-

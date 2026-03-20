@@ -10,10 +10,11 @@ import { getActivePreviewToken } from '@/lib/preview-tokens';
 import { attachSiblingOrderSummaries } from '@/lib/order-sibling-summary';
 import {
   buildReviewPoseAssignments,
-  loadBundledBookConfig,
+  loadRuntimeBookConfig,
   read2BManifestWithPoseRequirements,
   resolveReviewPageContext,
 } from '@/lib/books';
+import { DEFAULT_BOOK_ID, resolveOrderPathContext } from '@/lib/order-paths';
 
 function isTableMissingError(error: any, tableName: string) {
   if (!error) return false;
@@ -107,9 +108,16 @@ async function getOrder(
   let manifest3: any = null;
   
   // Try to load all manifests in parallel
-  const manifestBookId =
-    toTrimmedString(supabaseOrderRecord?.project) || 'book-mvp-simple-adventure';
-  const manifestOrderPrefix = `${manifestBookId}/orders/${orderId}`;
+  const manifestPathContext = resolveOrderPathContext(orderId, {
+    bookId: toTrimmedString(supabaseOrderRecord?.project) ?? null,
+    orderPrefix:
+      toTrimmedString(supabaseOrderRecord?.asset_prefix) ??
+      toTrimmedString(supabaseOrderRecord?.one_manifest_url) ??
+      toTrimmedString(supabaseOrderRecord?.manifest_2a_url) ??
+      toTrimmedString(supabaseOrderRecord?.manifest_2b_url) ??
+      toTrimmedString(supabaseOrderRecord?.manifest_3_url),
+  });
+  const manifestOrderPrefix = manifestPathContext.orderPrefix;
   const manifestLoadPromises = [
     {
       stage: '2a' as const,
@@ -180,7 +188,7 @@ async function getOrder(
 
   const fallbackFormatId = toTrimmedString(order.bookSpecs?.formatId);
   let reviewPageContext = resolveReviewPageContext({
-    bookId: toTrimmedString(order.project) ?? 'book-mvp-simple-adventure',
+    bookId: toTrimmedString(order.project) ?? manifestPathContext.bookId ?? DEFAULT_BOOK_ID,
     formatId: fallbackFormatId,
     isAmazonOrder:
       fallbackFormatId === 'amazon' ||
@@ -191,7 +199,20 @@ async function getOrder(
   order.bookContext = {
     bookId: reviewPageContext.bookId,
     formatId: reviewPageContext.formatId,
-    orderPrefix: `${reviewPageContext.bookId || 'book-mvp-simple-adventure'}/orders/${order.orderId}`,
+    orderPrefix: resolveOrderPathContext(order.orderId, {
+      bookId: reviewPageContext.bookId ?? manifestPathContext.bookId,
+      orderPrefix:
+        order.bookContext?.orderPrefix ??
+        order.assetPrefix ??
+        manifestOrderPrefix,
+      pathLikes: [
+        order.manifest2aUrl,
+        order.manifest2bUrl,
+        order.manifest3Url,
+        order.finalBookUrl,
+        order.finalCoverUrl,
+      ],
+    }).orderPrefix,
     pagePlanSource: reviewPageContext.pagePlanSource,
     expectedPageCount: reviewPageContext.expectedPageCount,
     pageLabels: reviewPageContext.pageLabels,
@@ -465,8 +486,8 @@ async function getOrder(
   let backgroundAssetBySlot: Record<string, string> = {};
 
   try {
-    const bundledBookConfig = loadBundledBookConfig({
-      bookId: reviewPageContext.bookId || 'book-mvp-simple-adventure',
+    const bundledBookConfig = await loadRuntimeBookConfig({
+      bookId: reviewPageContext.bookId || manifestPathContext.bookId || DEFAULT_BOOK_ID,
     });
     backgroundAssetBySlot = bundledBookConfig.assets.backgrounds;
   } catch {

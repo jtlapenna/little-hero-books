@@ -21,8 +21,10 @@ import { ManualReviewAlert } from '@/components/ui/manual-review-alert';
 import { SiblingGroupPanel } from '@/components/ui/sibling-group-panel';
 import { extractApiErrorMessage } from '@/lib/error-handler';
 import {
+  buildCharacterAssetPrefix,
   buildManifestApiUrl,
   normalizeOrderPrefix,
+  resolveOrderPathContext,
 } from '@/lib/order-paths';
 
 const correctionReasonLabels: Record<string, string> = {
@@ -132,6 +134,19 @@ export default function OrderDetailPage() {
         order.orderId,
         order.bookContext?.bookId ?? order.project,
       )
+    : null;
+  const detailOrderPathContext = order
+    ? resolveOrderPathContext(order.orderId, {
+        bookId: order.bookContext?.bookId ?? order.project ?? null,
+        orderPrefix: order.bookContext?.orderPrefix ?? order.assetPrefix ?? null,
+        pathLikes: [
+          order.manifest2aUrl,
+          order.manifest2bUrl,
+          order.manifest3Url,
+          order.finalBookUrl,
+          order.finalCoverUrl,
+        ],
+      })
     : null;
 
   // Fetch order data from API
@@ -1663,7 +1678,12 @@ export default function OrderDetailPage() {
                     <div>
                       <span className="font-medium">Character Hash:</span>{' '}
                       <a
-                        href={`https://dash.cloudflare.com/3daae940fcb6fc5b8bbd9bb8fcc62854/r2/default/buckets/little-hero-assets?prefix=book-mvp-simple-adventure%2Forder-generated-assets%2Fcharacters%2F${order.characterHash}%2F`}
+                        href={`https://dash.cloudflare.com/3daae940fcb6fc5b8bbd9bb8fcc62854/r2/default/buckets/little-hero-assets?prefix=${encodeURIComponent(
+                          `${buildCharacterAssetPrefix(
+                            order.characterHash,
+                            detailOrderPathContext?.bookId ?? order.bookContext?.bookId ?? order.project,
+                          )}/`,
+                        )}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 hover:underline"
@@ -1675,7 +1695,9 @@ export default function OrderDetailPage() {
                   <div>
                     <span className="font-medium">Order Folder:</span>{' '}
                     <a
-                      href={`https://dash.cloudflare.com/3daae940fcb6fc5b8bbd9bb8fcc62854/r2/default/buckets/little-hero-orders?prefix=book-mvp-simple-adventure%2Forders%2F${encodeURIComponent(order.orderId)}%2F`}
+                      href={`https://dash.cloudflare.com/3daae940fcb6fc5b8bbd9bb8fcc62854/r2/default/buckets/little-hero-orders?prefix=${encodeURIComponent(
+                        `${detailOrderPathContext?.orderPrefix ?? manifestOrderPrefix ?? order.orderId}/`,
+                      )}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800 hover:underline"

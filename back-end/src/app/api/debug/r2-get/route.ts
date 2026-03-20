@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { downloadManifest, buildManifestKey } from '@/lib/r2-service';
+import { buildManifestKey } from '@/lib/r2-service';
 import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { normalizeBookId } from '@/lib/order-paths';
 
 // GET /api/debug/r2-get?orderId=...&stage=2a
 export async function GET(request: NextRequest) {
@@ -8,12 +9,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get('orderId') || '';
     const stageParam = (searchParams.get('stage') || '2a') as '2a' | '2b' | '3';
+    const bookId = normalizeBookId(searchParams.get('bookId'));
 
     if (!orderId) {
       return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
     }
 
-    const key = buildManifestKey(orderId, stageParam);
+    const key = buildManifestKey(orderId, stageParam, { bookId });
     // Try aws4fetch call
     try {
       const res = await getObject(R2_ORDERS_BUCKET, key);
@@ -24,6 +26,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ 
           ok: true, 
           bucket: R2_ORDERS_BUCKET, 
+          bookId,
           key, 
           hasBody: true,
           bodyLength: text.length,
@@ -33,6 +36,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           ok: false,
           bucket: R2_ORDERS_BUCKET,
+          bookId,
           key,
           error: `HTTP ${res.status}: ${res.statusText}`,
           status: res.status,
@@ -42,6 +46,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         ok: false,
         bucket: R2_ORDERS_BUCKET,
+        bookId,
         key,
         error: err?.message || 'GetObject failed',
         name: err?.name,
@@ -51,5 +56,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error?.message || 'Internal error' }, { status: 500 });
   }
 }
-
 

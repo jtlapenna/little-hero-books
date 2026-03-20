@@ -14,6 +14,7 @@
  */
 
 import { getBookFormatConfig, loadBundledBookConfig } from '@/lib/books';
+import type { BookConfig } from '@/lib/books';
 import { buildAssetApiUrl, normalizeBookId } from '@/lib/order-paths';
 
 export interface BackgroundImageConfig {
@@ -50,9 +51,10 @@ try {
 
 export { backgroundImagesMapping };
 
-function resolvePageBackground(
+export function resolvePageBackgroundForConfig(
   pageNumber: number,
-  options: BackgroundImageLookupOptions = {},
+  config: BookConfig,
+  options: Omit<BackgroundImageLookupOptions, 'bookId'> = {},
 ): {
   bookId: string;
   formatId: string;
@@ -60,37 +62,31 @@ function resolvePageBackground(
   backgroundSlot: string;
   backgroundKey: string;
 } | null {
-  try {
-    const bookId = normalizeBookId(options.bookId);
-    const config = loadBundledBookConfig({ bookId });
-    const format = getBookFormatConfig(config, options.formatId ?? undefined);
-    const pageConfig = format.interior.pageSequence[pageNumber];
-    const backgroundSlot = pageConfig?.backgroundSlot;
+  const format = getBookFormatConfig(config, options.formatId ?? undefined);
+  const pageConfig = format.interior.pageSequence[pageNumber];
+  const backgroundSlot = pageConfig?.backgroundSlot;
 
-    if (!pageConfig || !backgroundSlot) {
-      return null;
-    }
-
-    const backgroundKey = config.assets.backgrounds[backgroundSlot];
-    if (!backgroundKey) {
-      return null;
-    }
-
-    return {
-      bookId: config.bookId,
-      formatId: format.formatId,
-      pageLabel: pageConfig.label,
-      backgroundSlot,
-      backgroundKey,
-    };
-  } catch {
+  if (!pageConfig || !backgroundSlot) {
     return null;
   }
+
+  const backgroundKey = config.assets.backgrounds[backgroundSlot];
+  if (!backgroundKey) {
+    return null;
+  }
+
+  return {
+    bookId: config.bookId,
+    formatId: format.formatId,
+    pageLabel: pageConfig.label,
+    backgroundSlot,
+    backgroundKey,
+  };
 }
 
 function resolveMappedBackground(
   pageNumber: number,
-  resolved: NonNullable<ReturnType<typeof resolvePageBackground>>,
+  resolved: NonNullable<ReturnType<typeof resolvePageBackgroundForConfig>>,
 ): BackgroundImageConfig | null {
   const candidates = [
     `${resolved.bookId}:${resolved.formatId}:${resolved.pageLabel}`,
@@ -115,7 +111,19 @@ export function getBackgroundImageUrl(
   pageNumber: number,
   options: BackgroundImageLookupOptions = {},
 ): string {
-  const resolved = resolvePageBackground(pageNumber, options);
+  const bookId = normalizeBookId(options.bookId);
+  const config = loadBundledBookConfig({ bookId });
+  return getBackgroundImageUrlForConfig(pageNumber, config, {
+    formatId: options.formatId ?? undefined,
+  });
+}
+
+export function getBackgroundImageUrlForConfig(
+  pageNumber: number,
+  config: BookConfig,
+  options: Omit<BackgroundImageLookupOptions, 'bookId'> = {},
+): string {
+  const resolved = resolvePageBackgroundForConfig(pageNumber, config, options);
   if (!resolved) {
     return '';
   }
