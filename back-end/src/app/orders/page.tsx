@@ -6,10 +6,8 @@ import { OrdersTable } from '@/components/orders/orders-table';
 import { PhaseSummary } from '@/components/orders/phase-summary';
 import { PhaseBucket } from '@/components/orders/phase-bucket';
 import { Order, OrderListItem } from '@/types/order';
-import { getOrderListItems } from '@/lib/mock-data';
-import { getOrderFlagSummary } from '@/lib/review-state';
-import { OrderPhase, groupOrdersByPhase, PHASE_ORDER, ACTIVE_PHASE_ORDER } from '@/constants/phases';
-import { StatusBadge } from '@/components/ui/status-badge';
+import { OrderPhase, groupOrdersByPhase, ACTIVE_PHASE_ORDER } from '@/constants/phases';
+import { DisplayStatus } from '@/constants/statuses';
 import { DualStatusBadge } from '@/components/ui/dual-status-badge';
 import { SiblingCountBadge } from '@/components/ui/sibling-count-badge';
 import { formatDate } from '@/lib/utils';
@@ -25,10 +23,59 @@ export default function OrdersPage() {
   const [viewMode, setViewMode] = useState<'buckets' | 'table'>('table');
   const [showRecentlyDelivered, setShowRecentlyDelivered] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [archivedOrders, setArchivedOrders] = useState<OrderListItem[]>([]);
+  const [archivedLoaded, setArchivedLoaded] = useState(false);
+  const [archivedLoading, setArchivedLoading] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [archiving, setArchiving] = useState(false);
 
-  const fetchOrders = useCallback(async (isRefresh = false) => {
+  const mapOrderListItems = useCallback((data: Order[]): OrderListItem[] => {
+    const orderListItems: OrderListItem[] = data
+      .map((order) => {
+        try {
+          return buildOrderListItem(order);
+        } catch (error: unknown) {
+          console.error(`[Orders Page] Failed to build order list item for ${order.orderId}:`, error);
+          return {
+            orderId: order.orderId || 'unknown',
+            platform: order.platform || 'amazon',
+            rootOrderId: order.rootOrderId,
+            isSibling: order.isSibling,
+            itemNumber: order.itemNumber,
+            totalSiblings: order.totalSiblings,
+            firstName: order.customer?.firstName || 'Unknown',
+            lastName: order.customer?.lastName || '',
+            workflowStatus: DisplayStatus.ACTION_REQUIRED,
+            technicalStatus: DisplayStatus.ACTION_REQUIRED,
+            status: DisplayStatus.ACTION_REQUIRED,
+            rawStatus: order.status || 'unknown',
+            phase: OrderPhase.IN_QUEUE,
+            orderDate: order.orderDate || new Date().toISOString(),
+            characterHash: order.characterHash,
+            reviewStages: order.reviewStages,
+            customerApprovalStatus: order.customerApprovalStatus ?? null,
+            hasFlags: order.hasFlags ?? false,
+            flags: order.flags || {},
+            revisionCount: typeof order.revisionCount === 'number' ? order.revisionCount : 0,
+            errors: [DisplayStatus.ACTION_REQUIRED],
+            lifecycle_status: order.lifecycle_status || 'active',
+          };
+        }
+      })
+      .filter((item): item is OrderListItem => item !== null && item !== undefined);
+
+    const lifecycleCounts = orderListItems.reduce((acc, order) => {
+      const status = order.lifecycle_status || 'undefined';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    console.log(`[Orders Page] Loaded ${orderListItems.length} orders. Lifecycle distribution:`, lifecycleCounts);
+
+    return orderListItems;
+  }, []);
+
+  const fetchActiveOrders = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
       setRefreshing(true);
     } else {
@@ -36,70 +83,54 @@ export default function OrdersPage() {
     }
 
     try {
-      // Always include archived orders so they appear in the collapsed section
-      const response = await fetch('/api/orders?include_archived=true');
+      const response = await fetch('/api/orders');
       if (!response.ok) {
         throw new Error('Failed to fetch orders');
       }
       const data: Order[] = await response.json();
-      const orderListItems: OrderListItem[] = data
-        .map((order) => {
-          try {
-            return buildOrderListItem(order);
-          } catch (error: any) {
-            console.error(`[Orders Page] Failed to build order list item for ${order.orderId}:`, error);
-            // Return a minimal order list item so it still appears
-            return {
-              orderId: order.orderId || 'unknown',
-              platform: order.platform || 'amazon',
-              rootOrderId: order.rootOrderId,
-              isSibling: order.isSibling,
-              itemNumber: order.itemNumber,
-              totalSiblings: order.totalSiblings,
-              firstName: order.customer?.firstName || 'Unknown',
-              lastName: order.customer?.lastName || '',
-              workflowStatus: 'action_required' as any,
-              technicalStatus: 'action_required' as any,
-              status: 'action_required' as any,
-              rawStatus: order.status || 'unknown',
-              phase: 'in_queue' as any,
-              orderDate: order.orderDate || new Date().toISOString(),
-              characterHash: order.characterHash,
-              reviewStages: order.reviewStages,
-              customerApprovalStatus: order.customerApprovalStatus ?? null,
-              hasFlags: order.hasFlags ?? false,
-              flags: order.flags || {},
-              revisionCount: typeof order.revisionCount === 'number' ? order.revisionCount : 0,
-              errors: ['action_required' as any],
-              lifecycle_status: (order as any).lifecycle_status || 'active',
-            };
-          }
-        })
-        .filter((item): item is OrderListItem => item !== null && item !== undefined);
-      // Debug: Log lifecycle_status distribution
-      const lifecycleCounts = orderListItems.reduce((acc, o) => {
-        const status = o.lifecycle_status || 'undefined';
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-      console.log(`[Orders Page] Loaded ${orderListItems.length} orders. Lifecycle distribution:`, lifecycleCounts);
-      setOrders(orderListItems);
+      setOrders(mapOrderListItems(data));
     } catch (error) {
       console.error('Error fetching orders:', error);
-      // Don't fallback to mock data - show empty state instead
       setOrders([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [mapOrderListItems]);
+
+  const fetchArchivedOrders = useCallback(async () => {
+    setArchivedLoading(true);
+
+    try {
+      const response = await fetch('/api/orders?include_archived=true');
+      if (!response.ok) {
+        throw new Error('Failed to fetch archived orders');
+      }
+
+      const data: Order[] = await response.json();
+      const archivedOnly = mapOrderListItems(data).filter(
+        (order) => order.lifecycle_status === 'archived'
+      );
+
+      setArchivedOrders(archivedOnly);
+      setArchivedLoaded(true);
+    } catch (error) {
+      console.error('Error fetching archived orders:', error);
+      setArchivedOrders([]);
+    } finally {
+      setArchivedLoading(false);
+    }
+  }, [mapOrderListItems]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchActiveOrders();
+  }, [fetchActiveOrders]);
 
   const handleRefresh = () => {
-    fetchOrders(true);
+    fetchActiveOrders(true);
+    if (archivedLoaded) {
+      fetchArchivedOrders();
+    }
   };
 
   const handleOrderClick = (orderId: string) => {
@@ -108,19 +139,6 @@ export default function OrdersPage() {
 
   const handlePhaseClick = (phase: OrderPhase) => {
     setSelectedPhase(selectedPhase === phase ? null : phase);
-  };
-
-  // Toggle order selection for bulk actions
-  const handleOrderSelect = (orderId: string, selected: boolean) => {
-    setSelectedOrders((prev) => {
-      const newSet = new Set(prev);
-      if (selected) {
-        newSet.add(orderId);
-      } else {
-        newSet.delete(orderId);
-      }
-      return newSet;
-    });
   };
 
   // Archive selected orders
@@ -147,7 +165,7 @@ export default function OrdersPage() {
       
       // Clear selection and refresh
       setSelectedOrders(new Set());
-      fetchOrders(true);
+      handleRefresh();
     } catch (error) {
       console.error('Error archiving orders:', error);
       alert('Failed to archive orders. Please try again.');
@@ -170,7 +188,7 @@ export default function OrdersPage() {
       }
       
       console.log(`[Orders Page] Archived order ${orderId}`);
-      fetchOrders(true);
+      handleRefresh();
     } catch (error) {
       console.error('Error archiving order:', error);
       alert('Failed to archive order. Please try again.');
@@ -184,7 +202,7 @@ export default function OrdersPage() {
     (o) => o.lifecycle_status !== 'recently_delivered' && o.lifecycle_status !== 'archived'
   );
   const recentlyDeliveredOrders = ordersByPhase[OrderPhase.RECENTLY_DELIVERED] || [];
-  const archivedOrders = ordersByPhase[OrderPhase.ARCHIVED] || [];
+  const archivedPhaseOrders = archivedLoaded ? archivedOrders : [];
   
   const filteredOrders = selectedPhase ? ordersByPhase[selectedPhase] : activeOrders;
 
@@ -283,7 +301,7 @@ export default function OrdersPage() {
                   phase={phase}
                   orders={phaseOrders}
                   defaultExpanded={selectedPhase === phase || selectedPhase === null}
-                  renderOrder={(order, index) => (
+                  renderOrder={(order) => (
                     <div
                       key={order.orderId}
                       onClick={() => handleOrderClick(order.orderId)}
@@ -395,16 +413,23 @@ export default function OrdersPage() {
         )}
 
         {/* Archived Orders Section (collapsible) */}
-        {archivedOrders.length > 0 && (
-          <div className="mt-4">
+        <div className="mt-4">
             <button
-              onClick={() => setShowArchived(!showArchived)}
+              onClick={() => {
+                const next = !showArchived;
+                setShowArchived(next);
+                if (next && !archivedLoaded && !archivedLoading) {
+                  void fetchArchivedOrders();
+                }
+              }}
               className="w-full flex items-center justify-between px-4 py-3 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-colors"
             >
               <div className="flex items-center space-x-2">
                 <span className="text-lg">🗄️</span>
                 <span className="font-medium text-slate-600">Archived</span>
-                <span className="text-sm text-slate-500">({archivedOrders.length})</span>
+                {archivedLoaded && (
+                  <span className="text-sm text-slate-500">({archivedPhaseOrders.length})</span>
+                )}
               </div>
               {showArchived ? (
                 <ChevronUp className="h-5 w-5 text-slate-500" />
@@ -412,9 +437,19 @@ export default function OrdersPage() {
                 <ChevronDown className="h-5 w-5 text-slate-500" />
               )}
             </button>
-            {showArchived && (
+            {showArchived && archivedLoading && (
+              <div className="mt-2 bg-white rounded-lg border border-gray-200 px-6 py-4 text-sm text-gray-500">
+                Loading archived orders...
+              </div>
+            )}
+            {showArchived && archivedLoaded && archivedPhaseOrders.length === 0 && (
+              <div className="mt-2 bg-white rounded-lg border border-gray-200 px-6 py-4 text-sm text-gray-500">
+                No archived orders found.
+              </div>
+            )}
+            {showArchived && archivedLoaded && archivedPhaseOrders.length > 0 && (
               <div className="mt-2 bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
-                {archivedOrders.map((order) => (
+                {archivedPhaseOrders.map((order) => (
                   <div
                     key={order.orderId}
                     onClick={() => handleOrderClick(order.orderId)}
@@ -438,7 +473,6 @@ export default function OrdersPage() {
               </div>
             )}
           </div>
-        )}
       </div>
     </div>
   );
