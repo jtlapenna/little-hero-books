@@ -8,13 +8,28 @@ export const dynamic = 'force-dynamic';
 
 const PayloadSchema = z.object({
   orderId: z.string().min(1),
-  characterHash: z.string().min(1).optional(),
+  // Purpose: skipped-path bookkeeping does not require characterHash, and n8n may
+  // pass null when the no-work branch short-circuits before downstream enrichment.
+  characterHash: z.string().min(1).nullable().optional(),
   reason: z.string().min(1),
   totalApproved: z.number().int().min(0),
   skippedByBriaStatus: z.number().int().min(0),
   skippedBy2BManifest: z.number().int().min(0),
   skippedTotal: z.number().int().min(0),
 });
+
+function getErrorDetails(error: unknown): { message: string; details?: string } {
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      details: error.stack,
+    };
+  }
+
+  return {
+    message: 'Internal Server Error',
+  };
+}
 
 /**
  * POST /api/webhooks/workflow-2b-skipped
@@ -47,11 +62,12 @@ export async function POST(request: NextRequest) {
       orderId: payload.orderId, 
       message: 'Skip information recorded' 
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const normalizedError = getErrorDetails(error);
     console.error('[workflow-2b-skipped] Error:', error);
     return NextResponse.json({ 
-      error: error?.message || 'Internal Server Error',
-      details: error?.stack 
+      error: normalizedError.message,
+      details: normalizedError.details,
     }, { status: 500 });
   }
 }
