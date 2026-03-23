@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase-client';
 import { updateOrderStatus } from '@/lib/status-service';
 
 // Force dynamic rendering - this route should never be statically generated
 export const dynamic = 'force-dynamic';
 
 const PayloadSchema = z.object({
-  orderId: z.string().min(1),
+  orderId: z.string().min(1).nullable().optional(),
+  rootOrderId: z.string().min(1).nullable().optional(),
+  amazonOrderId: z.string().min(1).nullable().optional(),
   // Purpose: skipped-path bookkeeping does not require characterHash, and n8n may
   // pass null when the no-work branch short-circuits before downstream enrichment.
   characterHash: z.string().min(1).nullable().optional(),
@@ -31,6 +34,81 @@ function getErrorDetails(error: unknown): { message: string; details?: string } 
   };
 }
 
+type ExactOrderRow = {
+  id: number;
+  orderId?: string | null;
+  order_id?: string | null;
+  root_order_id?: string | null;
+  amazon_order_id?: string | null;
+};
+
+function trimToString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+async function listRowsByColumn(
+  column: 'root_order_id' | 'amazon_order_id',
+  value: string,
+): Promise<ExactOrderRow[]> {
+  const response = await supabase
+    .from('orders')
+    .select('id, orderId, order_id, root_order_id, amazon_order_id')
+    .eq(column, value)
+    .limit(50);
+
+  if (response.error?.code === '42703') {
+    return [];
+  }
+  if (response.error) {
+    throw response.error;
+  }
+
+  return (response.data ?? []) as ExactOrderRow[];
+}
+
+async function resolveSkippedOrderId(payload: z.infer<typeof PayloadSchema>): Promise<string> {
+  const exactOrderId = trimToString(payload.orderId);
+  if (exactOrderId) {
+    return exactOrderId;
+  }
+
+  const fallbackGroupId =
+    trimToString(payload.rootOrderId) ??
+    trimToString(payload.amazonOrderId);
+
+  if (!fallbackGroupId) {
+    throw new Error('workflow-2b-skipped: missing orderId and fallback root/amazon order id');
+  }
+
+  for (const column of ['root_order_id', 'amazon_order_id'] as const) {
+    const rows = await listRowsByColumn(column, fallbackGroupId);
+    if (rows.length === 0) {
+      continue;
+    }
+
+    const exactPerBookMatch = rows.find((row) => {
+      const perBookOrderId = trimToString(row.orderId) ?? trimToString(row.order_id);
+      return perBookOrderId === fallbackGroupId;
+    });
+    if (exactPerBookMatch) {
+      return trimToString(exactPerBookMatch.orderId) ?? trimToString(exactPerBookMatch.order_id) ?? fallbackGroupId;
+    }
+
+    if (rows.length === 1) {
+      return trimToString(rows[0]?.orderId) ?? trimToString(rows[0]?.order_id) ?? fallbackGroupId;
+    }
+  }
+
+  throw new Error(
+    `workflow-2b-skipped: fallback id ${fallbackGroupId} matched multiple rows; per-item orderId is required`,
+  );
+}
+
 /**
  * POST /api/webhooks/workflow-2b-skipped
  * 
@@ -44,9 +122,10 @@ export async function POST(request: NextRequest) {
   try {
     const json = await request.json();
     const payload = PayloadSchema.parse(json);
+    const resolvedOrderId = await resolveSkippedOrderId(payload);
 
     // Update Supabase order with skip information
-    await updateOrderStatus(payload.orderId, {
+    await updateOrderStatus(resolvedOrderId, {
       last_skip_reason: payload.reason,
       last_skip_at: new Date().toISOString(),
       last_skip_details: {
@@ -59,7 +138,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      orderId: payload.orderId, 
+      orderId: resolvedOrderId,
       message: 'Skip information recorded' 
     });
   } catch (error: unknown) {
