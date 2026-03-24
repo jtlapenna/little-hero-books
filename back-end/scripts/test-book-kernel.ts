@@ -31,6 +31,7 @@ import {
   buildBgRemovedPoseAssetKey,
   buildGeneratedPoseAssetKey,
   buildManifestApiUrl,
+  buildManifestKeyCandidates,
   buildManifestKeyFromOrderPrefix,
   buildPendingPoseRevisionKey,
   buildPoseReferenceAssetKey,
@@ -39,6 +40,7 @@ import {
   extractBookIdFromOrderPathLike,
   extractOrderPrefixFromPathLike,
   normalizeOrderPrefix,
+  resolveOrderPathContext,
 } from '@/lib/order-paths';
 
 function assert(condition: unknown, message: string): void {
@@ -753,6 +755,35 @@ assert(
   extractOrderPrefixFromPathLike('/api/manifests/book-two-demo/orders/ORDER-ROOT-001/manifests/2a-manifest.json') ===
     'book-two-demo/orders/ORDER-ROOT-001',
   'Order-prefix extractor should recover order roots from manifest URLs',
+);
+const manifestUrlHint =
+  'https://admin.littleherolabs.com/api/manifests/book-two-demo/orders/ORDER-ROOT-001/manifests/3-manifest.json';
+const resolvedFromManifestUrl = resolveOrderPathContext('ORDER-ROOT-001', {
+  orderPrefix: manifestUrlHint,
+});
+assert(
+  resolvedFromManifestUrl.orderPrefix === 'book-two-demo/orders/ORDER-ROOT-001',
+  'Order-path context should normalize manifest URLs passed as orderPrefix hints',
+);
+assert(
+  resolvedFromManifestUrl.bookId === 'book-two-demo',
+  'Order-path context should recover the bookId from manifest URL hints',
+);
+const manifest3CandidatesFromUrl = buildManifestKeyCandidates('ORDER-ROOT-001', '3', {
+  orderPrefix: manifestUrlHint,
+});
+assert(
+  manifest3CandidatesFromUrl[0] ===
+    'book-two-demo/orders/ORDER-ROOT-001/manifests/3-manifest.json',
+  'Manifest-key candidates should prefer the canonical order-root key when given a manifest URL hint',
+);
+assert(
+  manifest3CandidatesFromUrl.every(
+    (candidate) =>
+      candidate !==
+      'https://admin.littleherolabs.com/api/manifests/book-two-demo/orders/ORDER-ROOT-001/manifests/3-manifest.json/manifests/3-manifest.json',
+  ),
+  'Manifest-key candidates should not treat manifest URLs as literal order prefixes',
 );
 assert(
   extractBookIdFromOrderPathLike('book-two-demo/orders/ORDER-ROOT-001/preview-images/p00.png') ===

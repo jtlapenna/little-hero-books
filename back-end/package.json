@@ -26,6 +26,7 @@
     "test:book-kernel": "tsx scripts/test-book-kernel.ts",
     "test:book-replay": "dotenv -e .env.local -- tsx scripts/test-book-replay.ts --source published",
     "test:w2b-worklist": "tsx scripts/test-w2b-worklist.ts",
+    "test:w3-assembly-input": "tsx scripts/test-w3-assembly-input.ts",
     "test:preview-token": "dotenv -e .env.local -- tsx scripts/test-preview-token.ts",
     "check:tokens": "dotenv -e .env.local -- tsx scripts/check-preview-tokens.ts",
     "migrate:book-configs": "dotenv -e .env.local -- tsx scripts/apply-book-configs-migration.ts",

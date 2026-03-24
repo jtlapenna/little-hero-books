@@ -9,3 +9,4 @@ export * from '@/lib/books/read-2b-manifest';
 export * from '@/lib/books/review-page-plan';
 export * from '@/lib/books/w2a-manifest';
 export * from '@/lib/books/w2b-worklist';
+export * from '@/lib/books/w3-assembly-input';

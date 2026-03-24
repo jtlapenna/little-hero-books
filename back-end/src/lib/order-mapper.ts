@@ -476,6 +476,18 @@ export function mergeOrderData(primary: Order, fallback: Order | null): Order {
   if (!merged.finalCoverUrl && fallback.finalCoverUrl) {
     merged.finalCoverUrl = fallback.finalCoverUrl;
   }
+  if (!merged.oneManifestUrl && fallback.oneManifestUrl) {
+    merged.oneManifestUrl = fallback.oneManifestUrl;
+  }
+  if (!merged.manifest2aUrl && fallback.manifest2aUrl) {
+    merged.manifest2aUrl = fallback.manifest2aUrl;
+  }
+  if (!merged.manifest2bUrl && fallback.manifest2bUrl) {
+    merged.manifest2bUrl = fallback.manifest2bUrl;
+  }
+  if (!merged.manifest3Url && fallback.manifest3Url) {
+    merged.manifest3Url = fallback.manifest3Url;
+  }
 
   return merged;
 }

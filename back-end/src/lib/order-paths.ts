@@ -14,6 +14,15 @@ function trimToString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function normalizeOrderPrefixHint(value: string | null | undefined): string {
+  const trimmed = trimToString(value);
+  if (!trimmed) {
+    return '';
+  }
+
+  return extractOrderPrefixFromPathLike(trimmed) || trimmed;
+}
+
 function toRecord(value: unknown): OrderLikeRecord | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as OrderLikeRecord)
@@ -330,10 +339,13 @@ export function resolveOrderPathContext(
   options: ManifestKeyHintOptions = {},
 ): { bookId: string; orderPrefix: string } {
   const pathLikes = options.pathLikes ?? [];
+  const normalizedOrderPrefixHint = normalizeOrderPrefixHint(options.orderPrefix);
   const hintedOrderPrefix =
-    trimToString(options.orderPrefix) || inferOrderPrefixFromPathLikes(...pathLikes);
+    normalizedOrderPrefixHint || inferOrderPrefixFromPathLikes(...pathLikes);
   const hintedBookId =
-    trimToString(options.bookId) || inferBookIdFromPathLikes(...pathLikes);
+    trimToString(options.bookId) ||
+    extractBookIdFromOrderPathLike(normalizedOrderPrefixHint) ||
+    inferBookIdFromPathLikes(...pathLikes);
   const orderPrefix = normalizeOrderPrefix(
     hintedOrderPrefix,
     orderId,
@@ -354,19 +366,25 @@ export function buildManifestKeyCandidates(
   options: ManifestKeyHintOptions = {},
 ): string[] {
   const pathLikes = options.pathLikes ?? [];
+  const normalizedOrderPrefixHint = normalizeOrderPrefixHint(options.orderPrefix);
+  const inferredOrderPrefix = inferOrderPrefixFromPathLikes(...pathLikes);
+  const hintedBookId =
+    trimToString(options.bookId) ||
+    extractBookIdFromOrderPathLike(normalizedOrderPrefixHint) ||
+    inferBookIdFromPathLikes(...pathLikes);
   const candidates = [
-    trimToString(options.orderPrefix)
-      ? buildManifestKeyFromOrderPrefix(trimToString(options.orderPrefix), stage)
+    normalizedOrderPrefixHint
+      ? buildManifestKeyFromOrderPrefix(normalizedOrderPrefixHint, stage)
       : null,
-    inferOrderPrefixFromPathLikes(...pathLikes)
+    inferredOrderPrefix
       ? buildManifestKeyFromOrderPrefix(
-          inferOrderPrefixFromPathLikes(...pathLikes) as string,
+          inferredOrderPrefix,
           stage,
         )
       : null,
-    trimToString(options.bookId)
+    hintedBookId
       ? buildManifestKeyFromOrderPrefix(
-          buildOrderPrefix(orderId, trimToString(options.bookId)),
+          buildOrderPrefix(orderId, hintedBookId),
           stage,
         )
       : null,

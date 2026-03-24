@@ -2,11 +2,11 @@
 
 ## Current objective
 
-Continue moving Book 1 through the repo-centric thin-n8n path so the repo owns more of the book logic and `n8n` becomes mostly orchestration. The next target is the first repo-centric `W3` slice.
+Continue moving Book 1 through the repo-centric thin-n8n path so the repo owns more of the book logic and `n8n` becomes mostly orchestration. The first repo-centric `W3` slice is now proven, so the next target is choosing the next thin slice after `W3`.
 
 ## Exact pause point
 
-As of March 23, 2026:
+As of March 23, 2026 (with live proof executions landing on March 24, 2026 UTC):
 
 - repo-centric `W0` is working in live `n8n`
 - repo-centric `W2A` bootstrap/pose-plan nodes are working in live `n8n`
@@ -23,10 +23,24 @@ As of March 23, 2026:
   - merged and uploaded `2b-manifest.json`
   - completed the backend callback
 - the all-poses-skipped path is also now working after the skipped-branch/backend hardening pass
+- the first repo-centric `W3` seam is now committed in repo code and export form:
+  - [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/build-assembly-input/route.ts)
+  - [w3-assembly-input.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w3-assembly-input.ts)
+  - [test-w3-assembly-input.ts](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w3-assembly-input.ts)
+  - [w3-Book-Assembly.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json)
+- repo-centric `W3` is now proven live in `n8n` through workflow `D4rQ0zJG8JlKhZqq` (`REPO - w3-Book-Assembly`)
+- the decisive disposable proof points are executions `33061` and `33062`, which successfully:
+  - entered through `book-assembly-repo`
+  - consumed the repo-owned `/api/internal/w3/build-assembly-input` seam
+  - generated preview images and uploaded `3-manifest.json`
+  - completed the backend callback
+  - wrote `manifest_3_url` back to `orders`
+  - logged the correct per-book `orderId` and `pagesGenerated`
+- `GET /api/orders/[orderId]` now again returns `manifest3Url` for the new proof orders after the order-path hint normalization fix in [order-paths.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/order-paths.ts)
 - archived order review now shows the expected Post-Bria flagged count for the Book 1 proof order, and the backend UI has a fallback to render background-removed images even when archived orders surface them under the generic pose list
 - we are intentionally **not** spending time fixing legacy sibling subworkflows like `SW0/SW1/SW2/SW3` for this repo-centric track unless a specific bridge is proven necessary
 
-This means the repo-centric migration has cleared `W2B`. The next work is a thin-first `W3` seam plus minimal bridge fixes only if testing proves they are required.
+This means the repo-centric migration has cleared `W2B` and the first thin `W3` seam. The next work is choosing the next thin slice after `W3`, with replay/readback hardening and `W4` entry work as the leading options.
 
 ## What is already done
 
@@ -49,42 +63,53 @@ This means the repo-centric migration has cleared `W2B`. The next work is a thin
   - `/api/internal/w2a/bootstrap-manifest`
   - `/api/internal/w2a/build-run-manifest`
   - `/api/internal/w2b/build-worklist`
+  - `/api/internal/w3/build-assembly-input`
 - Live repo-centric workflows exist in n8n:
   - `REPO - w0 - Order Intake & Validation`
   - `REPO - w2A-Orchestrator`
   - `REPO - w2B-main-orchestrator`
+  - `REPO - w3-Book-Assembly`
 - The live repo-centric `W2A` workflow id is:
   - `HduzTWm0ekmrvwrn`
 - The live repo-centric `W2B` workflow id is:
   - `KhMxEgo57Deo1QWu`
+- The live repo-centric `W3` workflow id is:
+  - `D4rQ0zJG8JlKhZqq`
 - The repo-centric workflow exports live in:
   - [w0-Order_Intake_Validation.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w0-Order_Intake_Validation.repo-centric.json)
   - [w2A-Orchestrator.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json)
   - [w2B-main-orchestrator.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w2B-main-orchestrator.repo-centric.json)
+  - [w3-Book-Assembly.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json)
 - The sibling workflow folder was restored as the legacy/current n8n-centric master set for the normal live flow, and the repo-centric migration track now has its own canonical edit area in:
   - [repo-centric](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric)
 
 ## Immediate next steps
 
-1. Derive the first repo-centric `W3` main orchestrator from the sibling `W3` export once, check it into [repo-centric](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric), and keep the sibling/live `W3` path untouched.
-2. Add a repo-owned internal `W3` intake/helper seam that owns webhook normalization plus book/order/page/manifest-path resolution from `1-manifest` and `2b-manifest`.
-3. Keep the first `W3` slice thin: move page-plan and manifest decisions into repo code, but keep render/PDF/upload orchestration in `n8n`.
-4. Prove one Book 1 repo-centric `W3` run against the same order family used for `W2B`, then confirm the current downstream reader still consumes the output cleanly.
-5. Only patch legacy `W3` bridge nodes if testing proves a specific context or pass-through gap.
-6. After live proof, refresh the checked-in repo-centric `W3` export from the tested live workflow and add the workflow id plus evidence here.
+1. Before changing code or workflows, read these files in order:
+   - [handoff-2026-03-19-w2b-next.md](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/handoff-2026-03-19-w2b-next.md)
+   - [BOOK-2-IMPLEMENTATION-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-2-IMPLEMENTATION-PLAN.md)
+   - [REPO-CENTRIC-W3-THIN-FIRST-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/REPO-CENTRIC-W3-THIN-FIRST-PLAN.md)
+2. Treat repo-centric `W3` as proven and use the checked-in export plus workflow `D4rQ0zJG8JlKhZqq` as the new baseline.
+3. If you need proof evidence, start with executions `33061` and `33062`; inspect them through the n8n API, not only the UI.
+4. Prefer the next incremental slice after `W3`, with `W4` print-path entry and replay/readback hardening as the leading candidates.
+5. Extend local replay coverage into the proven `W3` reader/output path before widening the live cutover.
+6. Only patch legacy `W3` or `W4` bridge nodes if testing proves a specific context or pass-through gap.
 
 ## Best source-of-truth docs
 
 - [BOOK-2-IMPLEMENTATION-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-2-IMPLEMENTATION-PLAN.md)
+- [REPO-CENTRIC-W3-THIN-FIRST-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/REPO-CENTRIC-W3-THIN-FIRST-PLAN.md)
 - [w0-Order_Intake_Validation.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w0-Order_Intake_Validation.repo-centric.json)
 - [w2A-Orchestrator.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json)
 - [w2B-main-orchestrator.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w2B-main-orchestrator.repo-centric.json)
+- [w3-Book-Assembly.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json)
 
 ## Open blockers / waiting items
 
 - There is still no real Book 2 config or asset set, so Book 1 remains the only realistic dress rehearsal.
 - The repo-centric `W2A` completion-upsert simulation cannot pass with `TEST-ORDER-016-ITEM-001` because there is no matching `orders` row. That is expected and should not block `W2B`.
-- Repo-centric `W2B` is proven, but repo-centric `W3` does not exist yet as a committed live-tested copy.
+- The next migration slice after `W3` is not chosen yet.
+- Local replay coverage still stops short of fully exercising the new `W3` reader/output contract.
 - Archived orders can still expose background-removed images through `r2Assets.poses` instead of `posesBgRemoved`; the backend UI now compensates for that, but the API shape is still worth normalizing later.
 - A stale open editor tab in n8n can still execute an older local copy even after the server workflow has been updated. Reopen or hard refresh before trusting a live test.
 
@@ -94,8 +119,8 @@ This means the repo-centric migration has cleared `W2B`. The next work is a thin
 - Branch: `main`
 - Pull current `main`, then use the code-bearing anchors above for the W2B proof trail.
 - Remote state: pushed to `origin/main`
-- Worktree should be clean after this handoff commit is created
+- Worktree contains the repo-centric `W3` implementation plus supporting doc updates until the current commit is created
 
 ## Recommended opening prompt for the next chat
 
-Continue from the repo-centric `W2B` proof point and start the first thin repo-centric `W3` seam. Derive a repo-centric `W3` export from the sibling copy once, keep active edits only in the repo-centric folder, move webhook normalization plus book/order/page/manifest resolution into a repo-owned internal helper/route, and keep the rest of the first `W3` slice in `n8n` orchestration. Use Book 1 as the dress rehearsal, prove one live repo-centric `W3` run, and do not widen the slice unless testing proves a specific legacy bridge fix is required.
+Continue from the proven repo-centric `W3` baseline. Start by reading `/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/handoff-2026-03-19-w2b-next.md`, `/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-2-IMPLEMENTATION-PLAN.md`, and `/Users/jeff/Projects/little-hero-books/docs/book-2-planning/REPO-CENTRIC-W3-THIN-FIRST-PLAN.md`, then inspect workflow `D4rQ0zJG8JlKhZqq` and executions `33061` / `33062` via the n8n API. Treat repo-centric `W3` as proven, then choose the next thin migration slice after `W3`, with `W4` entry work and replay/readback hardening as the leading candidates.

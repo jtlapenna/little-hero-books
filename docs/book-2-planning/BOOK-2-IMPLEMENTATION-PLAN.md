@@ -15,6 +15,7 @@ Companion docs:
 - [ASSET-TAXONOMY-AND-PATHING-RULES.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/ASSET-TAXONOMY-AND-PATHING-RULES.md)
 - [BOOK-1-HARDCODED-AUDIT.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-1-HARDCODED-AUDIT.md)
 - [FIRST-REPO-OWNED-BOUNDARY.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/FIRST-REPO-OWNED-BOUNDARY.md)
+- [REPO-CENTRIC-W3-THIN-FIRST-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/REPO-CENTRIC-W3-THIN-FIRST-PLAN.md)
 - [PHASE-0-CHECKLIST.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/checklists/PHASE-0-CHECKLIST.md)
 - [book2-hybrid-move-from-n8n.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/book2-hybrid-move-from-n8n.md)
 
@@ -89,7 +90,18 @@ The committed planning history for this work currently looks like:
   - `back-end/src/lib/books/configs/book-mvp-simple-adventure/v1.json`
 - There is still no actual Book 2 authored config or asset/config onboarding in the repo yet.
 - Several runtime paths still carry Book 1 defaults or fallback assumptions, so full Book 2 onboarding is not ready yet.
-- The next active repo-centric migration target is `W3`, not additional `W2B` reshaping.
+- A first repo-centric `W3` seam is now committed under:
+  - [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/build-assembly-input/route.ts)
+  - [w3-assembly-input.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w3-assembly-input.ts)
+  - [test-w3-assembly-input.ts](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w3-assembly-input.ts)
+  - [w3-Book-Assembly.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json)
+- That `W3` slice now moves webhook normalization, book/order/page/manifest-path resolution, processed-image selection, and canonical `3-manifest.json` path derivation into repo code while keeping render, PDF, preview upload, and completion orchestration in `n8n`.
+- Repo-centric `W3` is now proven live in `n8n` through workflow `D4rQ0zJG8JlKhZqq` (`REPO - w3-Book-Assembly`).
+- The Book 1 disposable proof points are executions `33061` and `33062`, which successfully consumed the repo-owned seam, generated preview assets, uploaded `3-manifest.json`, completed the backend callback, and wrote `manifest_3_url` back to `orders`.
+- The final cleanup pass is also now proven:
+  - `Log Assembly Results` now preserves the per-book `orderId` and correct `pagesGenerated`
+  - `GET /api/orders/[orderId]` now returns `manifest3Url` again after the order-path hint normalization fix
+- The next active repo-centric migration target is no longer initial `W3` implementation; it is choosing the next thin slice after the proven `W3` seam, with `W4` and replay/readback hardening as the leading candidates.
 
 ### Practical status
 
@@ -455,7 +467,7 @@ Current limitations:
 
 **Goal:** make W0 the first shared kernel entry point.
 
-**Current status:** repo-centric `W0` is already working in live `n8n`. Repo-centric `W2A` bootstrap/pose-plan nodes and the isolated builder path are also proven in live `n8n`; the only remaining simulated `W2A` failure is the final completion upsert against the fake test order row. Repo-centric `W2B` is now also proven live in `n8n`, so the next real repo-centric migration step is `W3`.
+**Current status:** repo-centric `W0`, `W2A`, `W2B`, and the first thin repo-centric `W3` slice are now proven in live `n8n`. Repo-centric `W3` is live on workflow `D4rQ0zJG8JlKhZqq` (`REPO - w3-Book-Assembly`), with disposable proof executions `33061` and `33062` confirming the repo-owned `/api/internal/w3/build-assembly-input` seam, preview generation, `3-manifest.json` upload, backend callback, corrected `Log Assembly Results`, and corrected `manifest3Url` readback through `GET /api/orders/[orderId]`.
 
 Current working-tree implementation already includes:
 
@@ -466,13 +478,12 @@ Current working-tree implementation already includes:
 - the versioned main/sibling W0 exports at [w0-Order_Intake_Validation.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w0-Order_Intake_Validation.json) and [SIBLING - w0-Order_Intake_Validation.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING%20-%20w0-Order_Intake_Validation.json) now call those internal routes instead of building the manifest or patching Supabase inline
 - the repo-centric `W0` workflow path is already working live in `n8n`
 
-### Remaining delta after the live `W0` and `W2B` proof points
+### Remaining delta after the live `W0`, `W2B`, and `W3` proof points
 
-- deriving and proving the first repo-centric `W3` copy with Book 1 while keeping the sibling/live path untouched
-- moving the first `W3` input/page/manifest-resolution seam into repo code without widening the slice prematurely
-- verifying that the repo-centric `W3` output still feeds the current downstream reader cleanly
+- choosing and implementing the next thin repo-centric slice after `W3`
+- extending replay coverage into the newly-proven `W3` reader/output path
 - extending replay coverage into at least one downstream reader before broader cutover
-- deciding whether any remaining W0/W2B orchestration is worth thinning further after `W3` is proven
+- deciding whether the next highest-value move is `W4` print-path thinning or additional readback/contract hardening around the completed `W3` path
 - actual Book 2 selection/onboarding path
 - final mixed-manifest production rollout across live workflow boundaries
 
@@ -585,6 +596,16 @@ Migration note:
 ## Phase 5: W3 conversion to page-plan-driven assembly
 
 **Goal:** make assembly fully consume the frozen `pagePlan`.
+
+### Current status
+
+- The first thin repo-centric `W3` slice is now proven live in `n8n`.
+- Repo code now owns `W3` webhook/input normalization, `1-manifest` + `2b-manifest` lookup, page-plan resolution, processed-image selection, and canonical `3-manifest` path derivation through [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/build-assembly-input/route.ts) and [w3-assembly-input.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w3-assembly-input.ts).
+- `n8n` still owns the first-pass render, PDF, preview upload, `3-manifest` upload, and Supabase completion orchestration.
+- Live proof now exists on workflow `D4rQ0zJG8JlKhZqq` (`REPO - w3-Book-Assembly`) with executions `33061` and `33062`.
+- The post-proof cleanup is also verified:
+  - `Log Assembly Results` now preserves the real per-book `orderId` and correct `pagesGenerated`
+  - [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/orders/[orderId]/route.ts) now returns `manifest3Url` again after the order-path hint normalization fix in [order-paths.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/order-paths.ts)
 
 ### Tasks
 
@@ -826,12 +847,10 @@ Progress update as of 2026-03-19:
 
 From the current state, the next concrete actions should be:
 
-1. Derive the first repo-centric `W3` main orchestrator from the sibling `W3` export and keep ongoing edits only in the repo-centric folder.
-2. Add a repo-owned `W3` intake/helper seam that owns webhook normalization plus book/order/page/manifest resolution from `1-manifest` and `2b-manifest`.
-3. Keep the first repo-centric `W3` slice thin: preserve render/PDF/upload orchestration in `n8n` and move only the book/path/page decision logic into repo code.
-4. Prove one Book 1 repo-centric `W3` live run, then verify the produced output still feeds the current downstream reader cleanly.
-5. Keep legacy `W3` subflows out of scope unless live testing proves a specific bridge gap.
-6. Extend the replay harness from `1-manifest` creation into at least one downstream stage reader before broader W0/W3 cutover.
-7. Add the first real Book 2 authored config, Book 2 fixtures, and Book 2 asset mappings so the same replay path can validate non-Book-1 inputs once those values exist.
+1. Decide the next thin repo-centric slice after the proven `W3` seam, with `W4` print-path entry and replay/readback hardening as the highest-value candidates.
+2. Add replay coverage for the proven `W3` contracts so preview outputs and `3-manifest` reads can be validated locally without another live `n8n` run.
+3. Verify whether the `W3` completion callback should backfill any additional order columns beyond `manifest_3_url`, `workflow_step`, and status bookkeeping.
+4. Keep legacy `W3` subflows out of scope unless a specific bridge gap appears in future proofs.
+5. Add the first real Book 2 authored config, Book 2 fixtures, and Book 2 asset mappings so the same replay path can validate non-Book-1 inputs once those values exist.
 
-That is now the smallest useful slice that advances Book 2 without prematurely widening the repo-centric migration or cutting production over to v3.
+That is now the smallest useful slice that advances Book 2 after the repo-centric `W3` proof without prematurely widening the migration or cutting production over to v3.
