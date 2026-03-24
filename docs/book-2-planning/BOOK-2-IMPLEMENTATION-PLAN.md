@@ -3,7 +3,7 @@
 **Purpose:** define the concrete phased execution plan for making the pipeline Book-2-ready without forking Book 1 and Book 2 into permanently separate workflow trees.
 **Status:** In progress
 **Created:** 2026-03-14
-**Last Updated:** 2026-03-19
+**Last Updated:** 2026-03-23
 
 Companion docs:
 
@@ -20,7 +20,7 @@ Companion docs:
 
 ---
 
-## Current status snapshot (2026-03-19)
+## Current status snapshot (2026-03-23)
 
 ### Commit-backed milestones
 
@@ -76,7 +76,10 @@ The committed planning history for this work currently looks like:
   - skip detection from existing `2b-manifest` entries
   - `force=true` scheduling
   - normalized route response shape through `npm run test:w2b-worklist`
-- Live `n8n` import/publish plus Book 1 dress-rehearsal proof for repo-centric `W2B` are still pending.
+- Repo-centric `W2B` is now proven live in `n8n` against Book 1 through workflow `KhMxEgo57Deo1QWu` (`REPO - w2B-main-orchestrator`).
+- The end-to-end Book 1 proof point is execution `32970`, which successfully built the repo-owned worklist, ran `s2B-sw`, merged and uploaded `2b-manifest.json`, and completed the backend callback.
+- The rerun/all-poses-skipped path is also now working after the repo-centric skipped-branch and backend webhook hardening pass.
+- Archived order review now shows the expected Post-Bria flagged count for the proof order, and the review UI has a fallback path for archived background-removed images that arrive under the generic pose list.
 - The kernel test harness currently passes via `npm run test:book-kernel`.
 - A first published-snapshot replay harness now exists at:
   - `back-end/scripts/test-book-replay.ts`
@@ -86,6 +89,7 @@ The committed planning history for this work currently looks like:
   - `back-end/src/lib/books/configs/book-mvp-simple-adventure/v1.json`
 - There is still no actual Book 2 authored config or asset/config onboarding in the repo yet.
 - Several runtime paths still carry Book 1 defaults or fallback assumptions, so full Book 2 onboarding is not ready yet.
+- The next active repo-centric migration target is `W3`, not additional `W2B` reshaping.
 
 ### Practical status
 
@@ -451,7 +455,7 @@ Current limitations:
 
 **Goal:** make W0 the first shared kernel entry point.
 
-**Current status:** repo-centric `W0` is already working in live `n8n`. Repo-centric `W2A` bootstrap/pose-plan nodes and the isolated builder path are also proven in live `n8n`; the only remaining simulated `W2A` failure is the final completion upsert against the fake test order row. The next real repo-centric migration step is `W2B`.
+**Current status:** repo-centric `W0` is already working in live `n8n`. Repo-centric `W2A` bootstrap/pose-plan nodes and the isolated builder path are also proven in live `n8n`; the only remaining simulated `W2A` failure is the final completion upsert against the fake test order row. Repo-centric `W2B` is now also proven live in `n8n`, so the next real repo-centric migration step is `W3`.
 
 Current working-tree implementation already includes:
 
@@ -462,13 +466,13 @@ Current working-tree implementation already includes:
 - the versioned main/sibling W0 exports at [w0-Order_Intake_Validation.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/finals/w0-Order_Intake_Validation.json) and [SIBLING - w0-Order_Intake_Validation.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING%20-%20w0-Order_Intake_Validation.json) now call those internal routes instead of building the manifest or patching Supabase inline
 - the repo-centric `W0` workflow path is already working live in `n8n`
 
-### Remaining delta after the live `W0` proof point
+### Remaining delta after the live `W0` and `W2B` proof points
 
-- importing/publishing the committed repo-centric `W2B` copy and proving it live with Book 1
-- rerun validation for the all-poses-skipped path against an existing `2b-manifest.json`
-- verifying that the repo-centric `2b-manifest.json` output still feeds the current `W3` and `W4` readers cleanly
+- deriving and proving the first repo-centric `W3` copy with Book 1 while keeping the sibling/live path untouched
+- moving the first `W3` input/page/manifest-resolution seam into repo code without widening the slice prematurely
+- verifying that the repo-centric `W3` output still feeds the current downstream reader cleanly
 - extending replay coverage into at least one downstream reader before broader cutover
-- deciding whether any remaining W0 normalization/dedication parsing/R2-upload orchestration is worth thinning further
+- deciding whether any remaining W0/W2B orchestration is worth thinning further after `W3` is proven
 - actual Book 2 selection/onboarding path
 - final mixed-manifest production rollout across live workflow boundaries
 
@@ -527,6 +531,13 @@ Current working-tree implementation already includes:
 - Keep the existing working composite-image QA path, but make the stage driven by manifest inputs.
 - Ensure background-removal outputs and QA map to page-plan-derived pose/page relationships.
 - Standardize `2b-manifest` keys and reconciliation logic.
+
+### Current W2B status
+
+- The first repo-centric `W2B` slice is now proven live in `n8n`.
+- Repo code now owns `W2B` input normalization, manifest-path resolution, and worklist/skip decisions through [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w2b/build-worklist/route.ts) and [w2b-worklist.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w2b-worklist.ts).
+- `n8n` still owns the first-pass `SW1` fan-out, `2b-manifest` merge, upload, and completion notification steps.
+- Remaining `W2B` work is optional cleanup/hardening, not the current migration blocker.
 
 ### Existing sources
 
@@ -815,10 +826,12 @@ Progress update as of 2026-03-19:
 
 From the current state, the next concrete actions should be:
 
-1. Import/publish the committed repo-centric `W2B` export in live `n8n` and keep the normal sibling/live path untouched.
-2. Run one Book 1 repo-centric `W2B` live test and one rerun/all-skipped test, then verify the per-order `2b-manifest.json` output still feeds the current `W3` and `W4` readers.
-3. Keep `SW0/SW1/SW2/SW3` out of scope for the repo-centric test path unless a specific legacy bridge is unavoidable; the current goal is still to move decision-making into repo routes, not to harden every legacy sibling subworkflow.
-4. Extend the replay harness from `1-manifest` creation into at least one downstream stage reader before broader W0 v3 cutover.
-5. Add the first real Book 2 authored config, Book 2 fixtures, and Book 2 asset mappings so the same replay path can validate non-Book-1 inputs once those values exist.
+1. Derive the first repo-centric `W3` main orchestrator from the sibling `W3` export and keep ongoing edits only in the repo-centric folder.
+2. Add a repo-owned `W3` intake/helper seam that owns webhook normalization plus book/order/page/manifest resolution from `1-manifest` and `2b-manifest`.
+3. Keep the first repo-centric `W3` slice thin: preserve render/PDF/upload orchestration in `n8n` and move only the book/path/page decision logic into repo code.
+4. Prove one Book 1 repo-centric `W3` live run, then verify the produced output still feeds the current downstream reader cleanly.
+5. Keep legacy `W3` subflows out of scope unless live testing proves a specific bridge gap.
+6. Extend the replay harness from `1-manifest` creation into at least one downstream stage reader before broader W0/W3 cutover.
+7. Add the first real Book 2 authored config, Book 2 fixtures, and Book 2 asset mappings so the same replay path can validate non-Book-1 inputs once those values exist.
 
-That is now the smallest useful slice that advances Book 2 without prematurely cutting production over to v3.
+That is now the smallest useful slice that advances Book 2 without prematurely widening the repo-centric migration or cutting production over to v3.

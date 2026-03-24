@@ -17,6 +17,53 @@ interface PostBriaStageProps {
   onRefresh?: () => void;
 }
 
+type PostBriaAssetLike = Record<string, unknown> & {
+  assetType?: unknown;
+  url?: unknown;
+  poseNumber?: unknown;
+};
+
+function isBackgroundRemovedAsset(asset: PostBriaAssetLike): boolean {
+  const assetType = typeof asset?.assetType === 'string' ? asset.assetType.toLowerCase() : '';
+  const url = typeof asset?.url === 'string' ? asset.url : '';
+
+  return (
+    assetType === 'background-removed' ||
+    /(?:_|-)nobg\.(?:png|webp)(?:\?|$)/i.test(url)
+  );
+}
+
+function getPostBriaPoseAssets(r2Assets: Order['r2Assets'] | undefined): PostBriaAssetLike[] {
+  if (Array.isArray(r2Assets?.posesBgRemoved) && r2Assets.posesBgRemoved.length > 0) {
+    return r2Assets.posesBgRemoved as PostBriaAssetLike[];
+  }
+
+  const fallbackAssets = Array.isArray(r2Assets?.poses)
+    ? r2Assets.poses.filter(isBackgroundRemovedAsset)
+    : [];
+
+  if (fallbackAssets.length === 0) {
+    return [];
+  }
+
+  const dedupedAssets = new Map<string, PostBriaAssetLike>();
+
+  for (let index = 0; index < fallbackAssets.length; index += 1) {
+    const asset = fallbackAssets[index];
+    const key =
+      typeof asset?.poseNumber === 'number'
+        ? `pose:${asset.poseNumber}`
+        : `url:${asset?.url ?? index}`;
+    const current = dedupedAssets.get(key);
+
+    if (!current || (!current.url && asset?.url)) {
+      dedupedAssets.set(key, asset);
+    }
+  }
+
+  return Array.from(dedupedAssets.values());
+}
+
 export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiateWorkflow, onRefresh }: PostBriaStageProps) {
   const [showBlackBackground, setShowBlackBackground] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -64,7 +111,8 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const manifestContext = { bookId, orderPrefix };
 
   // Update state when R2 assets change - use ref to track previous key and prevent infinite loops
-  const posesBgRemoved = order?.r2Assets?.posesBgRemoved || [];
+  // Archived orders can still surface background-removed images under r2Assets.poses.
+  const posesBgRemoved = getPostBriaPoseAssets(order?.r2Assets);
   const prevKeyRef = useRef<string>('');
   // Track poses that the user has manually unflagged (persist across re-renders)
   const manuallyUnflaggedRef = useRef<Set<string>>(new Set());
@@ -242,7 +290,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
             throw new Error('Failed to fetch order data');
           }
           const orderData = await orderResponse.json();
-          const apiPose = orderData.r2Assets?.posesBgRemoved?.find((p: any) => p.poseNumber === poseNumber);
+          const apiPose = getPostBriaPoseAssets(orderData.r2Assets).find((p: any) => p.poseNumber === poseNumber);
           if (!apiPose || !apiPose.url) {
             alert(`Image URL is missing for pose ${poseNumber}. The image may not have been generated yet.`);
             setFlippingPoseId(null);
@@ -274,7 +322,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
           throw new Error('Failed to fetch order data');
         }
         const orderData = await orderResponse.json();
-        const originalPose = orderData.r2Assets?.posesBgRemoved?.find((p: any) => p.poseNumber === poseNumber);
+        const originalPose = getPostBriaPoseAssets(orderData.r2Assets).find((p: any) => p.poseNumber === poseNumber);
         if (!originalPose || !originalPose.url) {
           throw new Error('Original image URL not found in order data');
         }
