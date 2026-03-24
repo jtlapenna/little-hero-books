@@ -68,6 +68,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const [showBlackBackground, setShowBlackBackground] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [approveStageConfirmed, setApproveStageConfirmed] = useState(!!isApproved);
+  const [serverFlaggedPoseIds, setServerFlaggedPoseIds] = useState<string[]>([]);
 
   // keep local confirm state in sync if parent updates
   useEffect(() => {
@@ -123,6 +124,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   useEffect(() => {
     manuallyUnflaggedRef.current.clear();
     manuallyFlaggedRef.current.clear();
+    setServerFlaggedPoseIds([]);
   }, [orderId]);
 
   // Load manifest directly to read flags (source of truth)
@@ -154,24 +156,28 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         manifest = await response.json();
         const entries = manifest?.entries || [];
         
-        // Clear and repopulate manuallyFlaggedRef from manifest (source of truth)
-        manuallyFlaggedRef.current.clear();
-        
+        const nextServerFlaggedPoseIds: string[] = [];
+
         entries.forEach((entry: any) => {
           const poseNumber = entry.poseNumber ?? 0;
           const poseId = `pose${String(poseNumber).padStart(2, '0')}-bg-removed`;
           
-          // If entry is flagged in manifest, add to manuallyFlaggedRef
+          // Track server-side flags from the manifest. Local flag/unflag actions remain in the refs.
           if (entry.isFlagged || entry.needsReview) {
-            // Only add if not explicitly unflagged by user
-            if (!manuallyUnflaggedRef.current.has(poseId)) {
-              manuallyFlaggedRef.current.add(poseId);
-              console.log(`[PostBriaStage] Restored flag for ${poseId} from manifest (isFlagged=${entry.isFlagged}, needsReview=${entry.needsReview})`);
-            }
+            nextServerFlaggedPoseIds.push(poseId);
+            console.log(`[PostBriaStage] Restored flag for ${poseId} from manifest (isFlagged=${entry.isFlagged}, needsReview=${entry.needsReview})`);
           }
         });
+
+        nextServerFlaggedPoseIds.sort();
+        setServerFlaggedPoseIds(prev => {
+          if (prev.length === nextServerFlaggedPoseIds.length && prev.every((value, index) => value === nextServerFlaggedPoseIds[index])) {
+            return prev;
+          }
+          return nextServerFlaggedPoseIds;
+        });
         
-        console.log(`[PostBriaStage] Loaded flags from manifest: ${manuallyFlaggedRef.current.size} flagged items:`, Array.from(manuallyFlaggedRef.current));
+        console.log(`[PostBriaStage] Loaded flags from manifest: ${nextServerFlaggedPoseIds.length} flagged items:`, nextServerFlaggedPoseIds);
       } catch (error) {
         console.error('[PostBriaStage] Error loading manifest flags:', error);
       }
@@ -187,9 +193,11 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   useEffect(() => {
     // Calculate stable key from actual data - include isFlagged and needsReview to detect flag changes
     // Also include a timestamp from the URL's cache-busting parameter to detect replacements
+    const serverFlaggedPoseIdSet = new Set(serverFlaggedPoseIds);
     const currentKey = JSON.stringify({
       updatedAt: order?.updatedAt || '',
       bustToken: getBustToken(),
+      serverFlaggedPoseIds,
       poses: posesBgRemoved.map(p => {
         // Extract cache-busting timestamp from URL if present
         const urlTimestamp = p.url?.match(/[?&]v=(\d+)/)?.[1] || '';
@@ -226,7 +234,10 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
         
         // Set isFlagged based on manual flags, manifest flags, needsReview, or isMissing
         // Priority: manually flagged > missing > manually unflagged > manifest flags
-        const shouldBeFlagged = isManuallyFlagged || isMissing || (!isManuallyUnflagged && (pose.isFlagged || pose.needsReview));
+        const shouldBeFlagged =
+          isManuallyFlagged ||
+          isMissing ||
+          (!isManuallyUnflagged && (serverFlaggedPoseIdSet.has(poseId) || pose.isFlagged || pose.needsReview));
         const pageNumber =
           typeof pose.pageNumber === 'number' && Number.isFinite(pose.pageNumber)
             ? pose.pageNumber
@@ -263,7 +274,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
       // Reset poses if no R2 data
       setPoses([]);
     }
-  }, [posesBgRemoved, orderId, flippingPoseId, bustCounter]);
+  }, [posesBgRemoved, orderId, flippingPoseId, bustCounter, order?.updatedAt, serverFlaggedPoseIds]);
 
   const handleFlip = async (assetId: string, poseNumber: number, imageUrlParam?: string) => {
     console.log('[PostBriaStage] handleFlip called with assetId:', assetId, 'poseNumber:', poseNumber, 'imageUrlParam:', imageUrlParam);
