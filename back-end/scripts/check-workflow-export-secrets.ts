@@ -25,13 +25,26 @@ function gitOutput(repoRoot: string, args: string[]): string[] {
 function parseArgs(argv: string[]) {
   const options = {
     all: false,
+    diffBase: null as string | null,
+    diffHead: null as string | null,
     stagedOnly: false,
     fileArgs: [] as string[],
   };
 
-  for (const arg of argv) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
     if (arg === "--all") {
       options.all = true;
+      continue;
+    }
+    if (arg === "--diff-base") {
+      options.diffBase = argv[index + 1] ?? null;
+      index += 1;
+      continue;
+    }
+    if (arg === "--diff-head") {
+      options.diffHead = argv[index + 1] ?? null;
+      index += 1;
       continue;
     }
     if (arg === "--staged") {
@@ -53,6 +66,19 @@ function collectCandidatePaths(repoRoot: string, argv: string[]): string[] {
 
   if (options.all) {
     return gitOutput(repoRoot, ["ls-files", "--", "docs/n8n-workflow-files"])
+      .map((filePath) => path.resolve(repoRoot, filePath))
+      .filter(isWorkflowExportPath);
+  }
+
+  if (options.diffBase && options.diffHead) {
+    return gitOutput(repoRoot, [
+      "diff",
+      "--name-only",
+      options.diffBase,
+      options.diffHead,
+      "--",
+      "docs/n8n-workflow-files",
+    ])
       .map((filePath) => path.resolve(repoRoot, filePath))
       .filter(isWorkflowExportPath);
   }
