@@ -5,6 +5,7 @@ import {
   appendWorkflowJobEvent,
   deadLetterWorkflowJob,
   finishWorkflowJobAttempt,
+  getWorkflowJobAttemptById,
   getWorkflowJobById,
   getWorkflowJobByIdempotencyKey,
   markWorkflowJobFailed,
@@ -51,10 +52,21 @@ const PayloadSchema = z.object({
   context: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
+const TERMINAL_JOB_STATUSES = new Set(['succeeded', 'failed', 'dead_lettered', 'canceled']);
+const TERMINAL_ATTEMPT_STATUSES = new Set(['succeeded', 'failed', 'canceled']);
+
 function toJsonRecord(value: unknown): JsonRecord {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as JsonRecord)
     : {};
+}
+
+function isTerminalJobStatus(status: unknown): boolean {
+  return typeof status === 'string' && TERMINAL_JOB_STATUSES.has(status);
+}
+
+function isTerminalAttemptStatus(status: unknown): boolean {
+  return typeof status === 'string' && TERMINAL_ATTEMPT_STATUSES.has(status);
 }
 
 function getErrorMessage(error: unknown): string {
@@ -65,6 +77,7 @@ type WorkflowJobEventDependencies = {
   appendWorkflowJobEvent: typeof appendWorkflowJobEvent;
   deadLetterWorkflowJob: typeof deadLetterWorkflowJob;
   finishWorkflowJobAttempt: typeof finishWorkflowJobAttempt;
+  getWorkflowJobAttemptById: typeof getWorkflowJobAttemptById;
   getWorkflowJobById: typeof getWorkflowJobById;
   getWorkflowJobByIdempotencyKey: typeof getWorkflowJobByIdempotencyKey;
   markWorkflowJobFailed: typeof markWorkflowJobFailed;
@@ -79,6 +92,7 @@ const defaultDependencies: WorkflowJobEventDependencies = {
   appendWorkflowJobEvent,
   deadLetterWorkflowJob,
   finishWorkflowJobAttempt,
+  getWorkflowJobAttemptById,
   getWorkflowJobById,
   getWorkflowJobByIdempotencyKey,
   markWorkflowJobFailed,
@@ -116,6 +130,10 @@ export async function recordWorkflowJobEventResponse(
 ): Promise<JsonRecord> {
   const payload = PayloadSchema.parse(rawBody);
   const job = await resolveJob(payload, dependencies);
+  const attempt =
+    typeof payload.attemptId === 'number'
+      ? await dependencies.getWorkflowJobAttemptById(payload.attemptId)
+      : null;
   const eventPayload: JsonRecord = {
     ...(payload.payload ?? {}),
   };
@@ -130,8 +148,18 @@ export async function recordWorkflowJobEventResponse(
     eventPayload.externalStatusUrl = payload.externalStatusUrl;
   }
 
+  const ignoreAttemptStatusRegression =
+    !!attempt &&
+    !!payload.attemptStatus &&
+    !isTerminalAttemptStatus(payload.attemptStatus) &&
+    (!!attempt.ended_at || isTerminalAttemptStatus(attempt.status));
+
   if (payload.attemptId && payload.attemptStatus) {
-    if (['succeeded', 'failed', 'canceled'].includes(payload.attemptStatus)) {
+    if (ignoreAttemptStatusRegression) {
+      // Late poll ticks can arrive after a terminal completion path has already
+      // ended the attempt. Preserve the terminal attempt state instead of
+      // regressing it back to polling/running.
+    } else if (['succeeded', 'failed', 'canceled'].includes(payload.attemptStatus)) {
       await dependencies.finishWorkflowJobAttempt({
         attemptId: payload.attemptId,
         status: payload.attemptStatus,
@@ -156,7 +184,14 @@ export async function recordWorkflowJobEventResponse(
   }
 
   let updatedJob = job;
-  if (payload.jobStatus === 'running') {
+  const ignoreJobStatusRegression =
+    !!payload.jobStatus &&
+    !isTerminalJobStatus(payload.jobStatus) &&
+    isTerminalJobStatus(job.status);
+  if (ignoreJobStatusRegression) {
+    // Preserve terminal job state when late non-terminal workflow log events
+    // arrive after completion.
+  } else if (payload.jobStatus === 'running') {
     updatedJob =
       (await dependencies.markWorkflowJobRunning(job.id, {
         externalProvider: payload.externalProvider,

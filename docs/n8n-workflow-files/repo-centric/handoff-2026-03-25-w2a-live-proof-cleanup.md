@@ -1,5 +1,111 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — on March 26, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest: the shared workflow-job event logger no longer regresses terminal `W3` attempts back to `polling`, and that fix is now deployed + proven live. I patched backend route [`/api/internal/workflow-jobs/log-event`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/workflow-jobs/log-event/route.ts) so late non-terminal `poll-tick` / status-log events are ignored once a job or attempt is already terminal, and I locked that behavior into [`test-workflow-jobs.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-workflow-jobs.ts).
+>
+> What changed in repo/backend:
+>
+> - the log-event route now loads the current attempt row when `attemptId` is provided
+> - if an attempt already has `ended_at` or already has terminal status, later non-terminal `attemptStatus` updates are ignored instead of rewriting it back to `polling`
+> - if a job is already terminal, later non-terminal `jobStatus` updates are ignored too
+> - a new regression test covers the exact late-`poll-tick` case that previously left `workflow_job_attempts.id = 103` ended but still marked `polling`
+>
+> Fresh artifacts from this pass:
+>
+> - backend deploy revision [9079c930.little-hero-labs-admin.pages.dev](https://9079c930.little-hero-labs-admin.pages.dev)
+>
+> Live validation from this pass:
+>
+> - repo verification passed with `npm --prefix back-end run test:workflow-jobs`
+> - both preview and production returned the expected auth-protected `401` for `/api/internal/workflow-jobs/log-event` after deploy
+> - I repaired the previously bad historical row `workflow_job_attempts.id = 103` to `status = succeeded` and appended audit event `attempt-status-reconciled` on `workflow_jobs.id = 141`
+> - a fresh direct disposable replay against `book-assembly-repo` with `claimedAt = 2026-03-27T04:38:54Z` created durable stage job `workflow_jobs.id = 142`
+> - an earlier hanging curl from the same proof accidentally also created `workflow_jobs.id = 143` with `claimedAt = 2026-03-27T04:37:52Z`; both runs completed cleanly and left no active `W3` jobs
+> - the important regression proof is job `142`: `workflow_job_attempts.id = 104` ended with `status = succeeded`, `ended_at = 2026-03-27T04:43:42.860Z`, and terminal event `completed` `1580`
+> - order `W3-WFJ-PROOF-20260326195258-safe-v3` again finalized cleanly to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
+>
+> Practical meaning: the old inconsistency is fixed. Late workflow log traffic can no longer take a finished `W3` attempt or job and push it back to `polling`, so durable `workflow_jobs` state now stays trustworthy after completion.
+>
+> Update — on March 26, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest: the remaining `W3` assembly-entry glue is now thin and proven live too. I removed the workflow-side static-data dedupe and HTTP response-normalization shim so the live `w3-Book-Assembly` entry path now relies on the repo-owned backend route [`/api/internal/w3/build-assembly-input`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/build-assembly-input/route.ts) for durable job claiming, idempotency, and normalized assembly input.
+>
+> What changed in the live/exported workflow:
+>
+> - `Idempotency Check` is now a pass-through adapter
+> - `Extract Manifest URL (3)` is now a thin code-node adapter that calls `/api/internal/w3/build-assembly-input`
+> - `Build Assembly Input From Manifest` is now a pass-through adapter because the repo route already returns normalized JSON
+>
+> Fresh artifacts from this pass:
+>
+> - [w3-Book-Assembly.live.before-assembly-entry-route-thinning-2026-03-27T04-15-13.043Z.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-26/w3-Book-Assembly.live.before-assembly-entry-route-thinning-2026-03-27T04-15-13.043Z.json)
+> - [w3-Book-Assembly.live.after-assembly-entry-route-thinning-2026-03-27T04-15-13.043Z.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-26/w3-Book-Assembly.live.after-assembly-entry-route-thinning-2026-03-27T04-15-13.043Z.json)
+>
+> Live validation from this pass:
+>
+> - repo verification passed with `npm --prefix back-end run test:w2-workflow-contracts` and `npm --prefix back-end run test:w3-assembly-input`
+> - a fresh direct disposable replay against `book-assembly-repo` with `claimedAt = 2026-03-27T04:19:12Z` created durable stage job `workflow_jobs.id = 141`
+> - `workflow_jobs.id = 141` reached `succeeded`
+> - the event stream ended with terminal `completed` event `1414`
+> - the order row again finalized cleanly to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
+> - order `status` remained `pending_assembly_review`, confirming the thinner entry path preserved the existing repo-owned `W3` lifecycle behavior
+> - one overlapping proof rerun from an earlier helper also created `workflow_jobs.id = 140`; once `141` had succeeded, I explicitly canceled `140` as redundant so the order returned to zero active `W3` jobs
+>
+> Practical meaning: `W3` no longer depends on workflow-local dedupe state or n8n HTTP Request response parsing at the entry seam. The repo-owned `build-assembly-input` route is now the source of truth for claim/idempotency and the workflow only fans that response into the remaining preview / publish stages.
+>
+> Update — on March 26, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest: the remaining `W3` manifest-storage tail is now repo-owned and proven live. I moved the `3-manifest` upload plus order-row/review-stage persistence out of workflow JSON and into backend route [`/api/internal/w3/publish-manifest`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/publish-manifest/route.ts), backed by repo worker [`w3-manifest-publish.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workers/w3-manifest-publish.ts). The live `w3-Book-Assembly` export now treats these legacy tail nodes as thin pass-throughs:
+>
+> - `Prep Manifest Upload (3)` calls `/api/internal/w3/publish-manifest`
+> - `Upload 3 Manifest to R2` is now a pass-through adapter
+> - `Fetch and Merge Review Stages (3)` is now a pass-through adapter
+> - `Supabase Upsert 3` is now a pass-through adapter
+>
+> Fresh artifacts from this pass:
+>
+> - backend deploy revision [51306134.little-hero-labs-admin.pages.dev](https://51306134.little-hero-labs-admin.pages.dev)
+> - [w3-Book-Assembly.live.before-manifest-publish-route-extraction-2026-03-27T03-39-58.401Z.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-26/w3-Book-Assembly.live.before-manifest-publish-route-extraction-2026-03-27T03-39-58.401Z.json)
+> - [w3-Book-Assembly.live.after-manifest-publish-route-extraction-2026-03-27T03-39-58.401Z.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-26/w3-Book-Assembly.live.after-manifest-publish-route-extraction-2026-03-27T03-39-58.401Z.json)
+>
+> Live validation from this pass:
+>
+> - both preview deploy and production returned the expected auth-protected `401` for `/api/internal/w3/publish-manifest`
+> - a fresh router-driven disposable rerun on order `W3-WFJ-PROOF-20260326195258-safe-v3` reached durable stage job `workflow_jobs.id = 139`
+> - attempt `101` reached `succeeded`
+> - the event stream ended with terminal `completed` event `1244`
+> - the order row finalized cleanly again to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
+> - the order status is back to `pending_assembly_review`, which confirms the repo-owned manifest-publish path also persisted the post-`W3` review state correctly
+>
+> Practical meaning: `W3` preview planning, provider submit/poll, preview artifact materialization, manifest assembly, manifest upload, order review-state persistence, and durable stage completion are all now repo-owned and proven together on the live backend/router path.
+>
+> Update — on March 26, 2026 in Los Angeles time latest-latest-latest-latest-latest: the next `W3` extraction slice is now proven live too. I moved page/cover preview artifact materialization out of workflow JSON and into the production backend route [`/api/internal/w3/materialize-preview-artifact`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/materialize-preview-artifact/route.ts), backed by repo worker [`w3-preview-artifacts.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workers/w3-preview-artifacts.ts). That route now owns the PDFMonkey PNG download, R2 upload, and best-effort Cloudflare Images publish for both page previews and the cover spread, while the live `w3-Book-Assembly` workflow only calls the route through thin adapter nodes.
+>
+> Fresh artifacts from this pass:
+>
+> - backend deploy revision [96d5e0b2.little-hero-labs-admin.pages.dev](https://96d5e0b2.little-hero-labs-admin.pages.dev)
+> - [w3-Book-Assembly.live.before-preview-artifact-materialization-extraction-2026-03-27T03-17-23.230Z.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-26/w3-Book-Assembly.live.before-preview-artifact-materialization-extraction-2026-03-27T03-17-23.230Z.json)
+> - [w3-Book-Assembly.live.after-preview-artifact-materialization-extraction-2026-03-27T03-19-13.522Z.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-26/w3-Book-Assembly.live.after-preview-artifact-materialization-extraction-2026-03-27T03-19-13.522Z.json)
+>
+> Live proof outcome from this rerun:
+>
+> - the production backend served the new route correctly after deploy, returning the expected auth-protected `401` when probed without a bearer token
+> - a fresh router-driven disposable rerun on order `W3-WFJ-PROOF-20260326195258-safe-v3` reached durable stage job `workflow_jobs.id = 138`
+> - attempt `100` reached `succeeded`
+> - the event stream ended with terminal `completed` event `1162`
+> - the order row finalized cleanly again to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
+> - the final persisted `3-manifest` URL is `https://admin.littleherolabs.com/api/manifests/book-mvp-simple-adventure/orders/SIB-E2E-2026-02-28-A-item-002-r2/manifests/3-manifest.json`
+>
+> Practical meaning: `W3` preview planning, preview document submission, preview artifact materialization, manifest assembly, and stage completion are all now repo-owned and proven together on the live backend/router path.
+>
+> Update — on March 26, 2026 in Los Angeles time latest-latest-latest-latest: after the new `w3-Book-Assembly` export was re-imported live, I verified that the production backend initially did **not** have the three new repo-owned `W3` routes yet. `POST` probes to `/api/internal/w3/prepare-assembly-run`, `/api/internal/w3/collect-preview-images`, and `/api/internal/w3/mark-previews-ready` were returning `404` on `https://admin.littleherolabs.com`, even though the freshly built Pages revision already served them. I rebuilt and redeployed the backend to Pages revision [fefdc390.little-hero-labs-admin.pages.dev](https://fefdc390.little-hero-labs-admin.pages.dev), rechecked those three routes until production returned the expected auth-protected `401` responses, then reran the same disposable router-driven `W3` proof order through the live backend router.
+>
+> Live proof outcome from this imported-live follow-up:
+>
+> - backend `GET /api/cron/router` returned `200` and reported `ordersProcessed = 1` for order `W3-WFJ-PROOF-20260326195258-safe-v3`
+> - the new triggered `W3` stage job `workflow_jobs.id = 137` reached `succeeded`
+> - attempt `99` reached `succeeded`
+> - the event stream ended with terminal `completed` event `1076`
+> - the order row finalized cleanly again to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
+> - the imported live workflow exercised the newly deployed repo-owned routes all the way through page previews, cover preview, manifest callback, and stage completion without manual intervention
+>
+> Practical meaning: the currently imported live `W3` workflow and the currently deployed production backend are now proven together, not just separately.
+>
 > Update — on March 26, 2026 latest-latest-latest: the router-driven `W3` follow-up is now closed too. I hardened the sibling `W1.1` queue-manager path so `Workflow 3` reruns no longer depend on `one_manifest_url` being present on the order row and no longer point at the stale legacy `book-assembly-sibtest` webhook. The current live path now does all three of these correctly:
 >
 > - backend [`cron/router`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/cron/router/route.ts) forwards `one_manifest_key`, `manifest_2b_url`, and `manifest_3_url` into the sibling `W1.1` workflow payload instead of assuming `one_manifest_url` is enough

@@ -395,6 +395,7 @@ async function testWorkflowJobEventRoute() {
       context: { poseNumber: 7, passthrough: true },
     },
     {
+      getWorkflowJobAttemptById: async () => null,
       getWorkflowJobById: async (id: number) => (id === 7 ? baseJob : null),
       getWorkflowJobByIdempotencyKey: async () => null,
       finishWorkflowJobAttempt: async (input) => {
@@ -436,6 +437,129 @@ async function testWorkflowJobEventRoute() {
   assert(
     calls.some((entry) => entry.fn === 'appendWorkflowJobEvent'),
     'workflow job event route should append an event row',
+  );
+}
+
+async function testWorkflowJobEventRouteIgnoresLatePollRegression() {
+  const calls: Array<{ fn: string; payload: unknown }> = [];
+  const terminalJob: WorkflowJobRecord = {
+    id: 141,
+    job_type: 'w3-book-assembly',
+    stage: '3',
+    order_row_id: 874,
+    order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    root_order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    amazon_order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    book_id: 'book-mvp-simple-adventure',
+    logical_key: 'assembly:2026-03-27T04:19:12Z',
+    idempotency_key: 'wf:3:w3-book-assembly:W3-WFJ-PROOF-20260326195258-safe-v3:assembly:2026-03-27T04:19:12Z:stub',
+    status: 'succeeded',
+    lease_owner: null,
+    lease_expires_at: null,
+    attempt_count: 1,
+    max_attempts: 5,
+    next_retry_at: null,
+    external_provider: 'pdfmonkey',
+    external_request_id: 'pdf-141',
+    external_status_url: 'https://api.pdfmonkey.io/api/v1/documents/pdf-141',
+    input_snapshot: {},
+    normalized_input_snapshot: {},
+    result_snapshot: {},
+    last_error: null,
+    queued_at: '2026-03-27T04:19:13.000Z',
+    claimed_at: '2026-03-27T04:19:14.000Z',
+    started_at: '2026-03-27T04:19:14.000Z',
+    polling_at: '2026-03-27T04:23:37.000Z',
+    completed_at: '2026-03-27T04:23:45.000Z',
+    failed_at: null,
+    dead_lettered_at: null,
+    canceled_at: null,
+    created_at: '2026-03-27T04:19:13.000Z',
+    updated_at: '2026-03-27T04:23:45.000Z',
+  };
+
+  const response = await recordWorkflowJobEventResponse(
+    {
+      jobId: 141,
+      attemptId: 103,
+      eventType: 'poll-tick',
+      jobStatus: 'polling',
+      attemptStatus: 'polling',
+      externalProvider: 'pdfmonkey',
+      externalRequestId: 'pdf-141',
+      externalStatusUrl: 'https://api.pdfmonkey.io/api/v1/documents/pdf-141',
+      payload: {
+        orderId: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+        documentKind: 'cover-preview',
+        pdfMonkeyStatus: 'success',
+      },
+    },
+    {
+      getWorkflowJobAttemptById: async (id: number) =>
+        id === 103
+          ? {
+              id: 103,
+              job_id: 141,
+              attempt: 1,
+              status: 'succeeded',
+              worker_kind: 'n8n',
+              lease_owner: 'api:internal/w3/build-assembly-input',
+              started_at: '2026-03-27T04:19:14.304Z',
+              ended_at: '2026-03-27T04:21:50.677Z',
+              duration_ms: 156373,
+              error_message: null,
+              error_details: null,
+              provider_request_id: 'pdf-141',
+              provider_status_url: 'https://api.pdfmonkey.io/api/v1/documents/pdf-141',
+              created_at: '2026-03-27T04:19:14.388Z',
+              updated_at: '2026-03-27T04:21:50.677Z',
+            }
+          : null,
+      getWorkflowJobById: async (id: number) => (id === 141 ? terminalJob : null),
+      getWorkflowJobByIdempotencyKey: async () => null,
+      finishWorkflowJobAttempt: async (input) => {
+        calls.push({ fn: 'finishWorkflowJobAttempt', payload: input });
+        return null;
+      },
+      updateWorkflowJobAttempt: async (inputId, patch) => {
+        calls.push({ fn: 'updateWorkflowJobAttempt', payload: { inputId, patch } });
+        return null;
+      },
+      markWorkflowJobRunning: async (_jobId, input) => {
+        calls.push({ fn: 'markWorkflowJobRunning', payload: input });
+        return terminalJob;
+      },
+      markWorkflowJobPolling: async (_jobId, input) => {
+        calls.push({ fn: 'markWorkflowJobPolling', payload: input });
+        return terminalJob;
+      },
+      markWorkflowJobSucceeded: async () => terminalJob,
+      markWorkflowJobFailed: async () => null,
+      scheduleWorkflowJobRetry: async () => null,
+      deadLetterWorkflowJob: async () => null,
+      appendWorkflowJobEvent: async (input) => {
+        calls.push({ fn: 'appendWorkflowJobEvent', payload: input });
+        return null;
+      },
+    },
+  );
+
+  assertEqual(
+    response.currentStatus,
+    'succeeded',
+    'workflow job event route should preserve terminal job status when late poll ticks arrive',
+  );
+  assert(
+    !calls.some((entry) => entry.fn === 'updateWorkflowJobAttempt'),
+    'workflow job event route should not regress a terminal attempt back to polling',
+  );
+  assert(
+    !calls.some((entry) => entry.fn === 'markWorkflowJobPolling'),
+    'workflow job event route should not regress a terminal job back to polling',
+  );
+  assert(
+    calls.some((entry) => entry.fn === 'appendWorkflowJobEvent'),
+    'workflow job event route should still append the late event for traceability',
   );
 }
 
@@ -754,6 +878,7 @@ async function main() {
   testReplayAndEventShape();
   await testW2AReplayReusePath();
   await testWorkflowJobEventRoute();
+  await testWorkflowJobEventRouteIgnoresLatePollRegression();
   await testW3AssemblyJobLifecycle();
   await testW3AssemblyCompletion();
   console.log('test-workflow-jobs: ok');

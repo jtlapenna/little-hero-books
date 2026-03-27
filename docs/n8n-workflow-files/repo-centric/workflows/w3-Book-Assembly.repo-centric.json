@@ -150,36 +150,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders?on_conflict=orderId",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Prefer",
-              "value": "resolution=merge-duplicates,return=representation"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n  (() => {\n    const perBookId = $json.orderId || $json.manifest?.order?.orderId;\n    const rootGroupId = $json.rootOrderId || $json.root_order_id || $json.amazonOrderId || $json.manifest?.order?.rootOrderId || $json.manifest?.order?.amazonOrderId || $json.product_info?._root_order_id;\n    if (!perBookId) throw new Error('orderId (per-book) is required');\n\n    // Use merged review_stages from Fetch and Merge Review Stages (3) node\n    const reviewStages = $json.mergedReviewStages || {\n      postPdf: { status: 'in-review' },\n    };\n\n    const manifestKey = $json.manifestKey || `book-mvp-simple-adventure/orders/${perBookId}/manifests/3-manifest.json`;\n    const backendUrl = $json.backendUrl || 'https://admin.littleherolabs.com';\n    const manifestUrl = $json.manifestUrl || `${backendUrl}/api/manifests/${manifestKey}`;\n\n    return {\n      orderId: perBookId,\n      root_order_id: rootGroupId || perBookId,\n      amazon_order_id: rootGroupId || perBookId,\n\n      // 3 manifest URL\n      manifest_3_url: manifestUrl,\n\n      // Overall status for post-Pdf stage (matches OrderStatus enum)\n      // Review is ALWAYS needed after W3, so always set to pending_assembly_review\n      status: 'pending_assembly_review',\n\n      // Review stages with merged data (preserves preBria and postBria)\n      review_stages: reviewStages,\n\n      // Always set next_workflow to '4' after W3 completes\n      // Review happens in UI, then approval triggers workflow 4 (not via router)\n      next_workflow: '4',\n\n      // W3 is done — mark execution finished so health monitor doesn't flag as stuck\n      execution_status: 'done',\n      started_at: null,\n      current_workflow: null,\n\n      workflow_step: 'book_assembly_completed',\n      updated_at: new Date().toISOString(),\n    };\n  })()\n}}",
-        "options": {}
+        "language": "javaScript",
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all();"
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         7856,
         2080
@@ -204,9 +180,9 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Fetch and Merge Review Stages (3)\n * Fetches current order from Supabase and merges existing review_stages\n * with new postPdf data to preserve preBria and postBria stages.\n * \n * ISSUE: Supabase's resolution=merge-duplicates does NOT deep-merge JSONB.\n * It replaces the entire review_stages object, losing preBria and postBria.\n * \n * SOLUTION: Fetch existing review_stages, merge manually, then upsert.\n */\n// S3 upload node drops JSON data, so fetch from previous node (Prep Manifest Upload)\nlet input = {};\nlet prepData = {};\n\ntry {\n  // Try to get data from Prep Manifest Upload node (previous node)\n  const prepItems = $items('Prep Manifest Upload (3)', 0, $runIndex);\n  if (Array.isArray(prepItems) && prepItems.length > 0) {\n    prepData = prepItems[0].json || {};\n  } else if (prepItems?.json) {\n    prepData = prepItems.json;\n  }\n} catch (error) {\n  console.warn('⚠️ Could not fetch from Prep Manifest Upload node:', error.message);\n}\n\n// Also check current input (S3 node might have some data)\nconst currentInput = $input.first().json || {};\n\n// Merge: prefer prepData, fallback to currentInput\ninput = { ...currentInput, ...prepData };\n\n// Per-book orderId (sibling support): prefer orderId column for query\nconst perBookId = input.orderId || input.manifest?.order?.orderId || null;\nconst fallbackId = input.amazonOrderId || input.manifest?.order?.amazonOrderId || null;\n\n// If still not found, try to extract from manifestKey\nlet extractedOrderId = null;\nif (!perBookId && !fallbackId && input.manifestKey) {\n  const manifestKeyStr = String(input.manifestKey).trim();\n  const match = manifestKeyStr.match(/orders\\/([^\\/]+)\\//);\n  if (match && match[1]) {\n    extractedOrderId = match[1];\n    console.log(`✓ Extracted orderId from manifestKey: ${extractedOrderId}`);\n  }\n}\n\nconst queryColumn = perBookId ? 'orderId' : 'amazon_order_id';\nconst queryId = perBookId || fallbackId || extractedOrderId;\n\nif (!queryId) {\n  throw new Error('orderId/amazonOrderId is required. Checked: input.orderId, input.amazonOrderId, input.manifest.order, input.manifestKey. Available keys: ' + JSON.stringify(Object.keys(input || {})));\n}\n\n// Supabase config\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\n// Fetch current order from Supabase (query by orderId when per-book, else amazon_order_id)\nlet existingReviewStages = {};\n\ntry {\n  const fetchResponse = await this.helpers.request({\n    method: 'GET',\n    uri: `${supabaseUrl}/rest/v1/orders?${queryColumn}=eq.${encodeURIComponent(queryId)}&select=review_stages`,\n    headers: {\n      'apikey': supabaseKey,\n      'Authorization': `Bearer ${supabaseKey}`,\n      'Content-Type': 'application/json',\n      'Prefer': 'return=representation'\n    },\n    json: true\n  });\n  \n  // Supabase REST API returns an array\n  const orders = Array.isArray(fetchResponse) ? fetchResponse : (fetchResponse ? [fetchResponse] : []);\n  \n  if (orders.length > 0) {\n    let reviewStages = orders[0].review_stages;\n    \n    // Handle case where review_stages might be a JSON string (PostgreSQL JSONB)\n    if (typeof reviewStages === 'string') {\n      try {\n        reviewStages = JSON.parse(reviewStages);\n      } catch (parseError) {\n        console.warn('⚠️ Failed to parse review_stages JSON string:', parseError.message);\n        reviewStages = null;\n      }\n    }\n    \n    // Only use if it's a valid object (not null, not empty string)\n    if (reviewStages && typeof reviewStages === 'object' && Object.keys(reviewStages).length > 0) {\n      existingReviewStages = reviewStages;\n      console.log('✓ Fetched existing review_stages:', JSON.stringify(existingReviewStages, null, 2));\n      console.log('✓ Has preBria?', !!existingReviewStages.preBria);\n      console.log('✓ Has postBria?', !!existingReviewStages.postBria);\n      console.log('✓ Has postPdf?', !!existingReviewStages.postPdf);\n    } else {\n      console.log('⚠️ review_stages is null or empty, starting fresh');\n    }\n  } else {\n    console.log('⚠️ No order found in Supabase for:', queryColumn, queryId);\n  }\n} catch (error) {\n  console.error('❌ Failed to fetch existing review_stages:', error.message);\n  console.error('Error details:', JSON.stringify(error, null, 2));\n  // Continue with empty review_stages - better than losing data\n}\n\n// Build new postPdf data\n// NOTE: Review is ALWAYS needed after W3, so status is always 'in-review'\n// needsHumanReview is not set (no auto-flagging in W3)\nconst newPostPdf = {\n  status: 'in-review',  // ALWAYS 'in-review' (review always needed after W3)\n  // needsHumanReview: false,  // Optional - not set since no auto-flagging in W3\n};\n\n// Merge: preserve existing preBria and postBria, update postPdf\nconst mergedReviewStages = {\n  ...existingReviewStages,  // Preserve preBria, postBria, and any other stages\n  postPdf: newPostPdf       // Update/overwrite postPdf\n};\n\nconsole.log('✓ Merged review_stages:', JSON.stringify(mergedReviewStages, null, 2));\nconsole.log('✓ Merged has preBria?', !!mergedReviewStages.preBria);\nconsole.log('✓ Merged has postBria?', !!mergedReviewStages.postBria);\nconsole.log('✓ Merged has postPdf?', !!mergedReviewStages.postPdf);\n\n// Construct manifest URL from manifestKey (use per-book orderId for path)\n// manifestKey format: book-mvp-simple-adventure/orders/{orderId}/manifests/3-manifest.json\nconst manifestKey = input.manifestKey || `book-mvp-simple-adventure/orders/${perBookId || queryId}/manifests/3-manifest.json`;\nconst backendUrl = input.backendUrl || 'https://admin.littleherolabs.com';\nconst manifestUrl = `${backendUrl}/api/manifests/${manifestKey}`;\n\n// Pass through all input data + merged review_stages + manifestUrl\n// Preserve all fields from prepData (manifest, orderId, etc.)\nreturn [{\n  json: {\n    ...prepData,  // Preserve all data from Prep Manifest Upload\n    ...input,     // Merge with current input\n    // Add merged review_stages for Supabase upsert\n    mergedReviewStages,\n    // Add manifest URL for Supabase\n    manifestUrl,\n    manifestKey,\n    orderId: perBookId || queryId,\n    amazonOrderId: fallbackId || perBookId || queryId\n  }\n}];",
+        "language": "javaScript",
         "mode": "runOnceForAllItems",
-        "language": "javaScript"
+        "jsCode": "return $input.all();"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -219,53 +195,22 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.cloudflare.com/client/v4/accounts/3daae940fcb6fc5b8bbd9bb8fcc62854/images/v1",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer OLxshKrOtebw2EUQjEXz-TE0gPhC3JOIffGmBj7R"
-            }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "multipart-form-data",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "parameterType": "formBinaryData",
-              "name": "file",
-              "inputDataFieldName": "=data"
-            },
-            {
-              "name": "metadata",
-              "value": "={{ JSON.stringify({\n  orderId: $json.orderId || $json.amazonOrderId || 'UNKNOWN',\n  pageNumber: -1,                 // mark as cover spread\n  pageType: 'cover-spread'        // explicit flag so downstream can treat it specially\n}) }}"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          }
-        }
+        "language": "javaScript",
+        "jsCode": "return $input.all();",
+        "mode": "runOnceForAllItems"
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         5200,
         2528
       ],
       "id": "0e92406f-2918-4c29-bef6-c50bc5a563c1",
-      "name": "Upload Preview Image to Cloudflare Images",
-      "onError": "continueRegularOutput"
+      "name": "Upload Preview Image to Cloudflare Images"
     },
     {
       "parameters": {
-        "jsCode": "// Store Cloudflare Images ID\n// Combines page data from R2 upload with Cloudflare Images response\n// Outputs: pageNumber, pageType, r2Key, cloudflareImageId, cloudflareImageUrl, orderId, imageUrl, ...\n\nconst cloudflareResponse = $input.all();\n\n// Get the original page data from upstream nodes\n// Prefer the node that carried R2 keys, then fall back gracefully.\nlet pageData = [];\ntry {\n  pageData = $items('Carry Page Keys Forward1').all();\n} catch (e) {\n  try {\n    pageData = $items('Upload Cover Preview Image to R2 (3A)1').all();\n  } catch (e2) {\n    console.warn('[Store CF] Could not find upstream nodes, using input data');\n    const allItems = $input.all();\n    pageData = allItems.map(item => item.json || item);\n  }\n}\n\nconst results = [];\nconst accountHash = 'JE-pa9WKaCMtKxy6dQQG7A';\n\nfor (let i = 0; i < pageData.length; i++) {\n  const page = pageData[i] || {};\n  const cloudflare = cloudflareResponse[i];\n\n  let cloudflareImageId = null;\n  let cloudflareImageUrl = null;\n\n  // Meta from Cloudflare (most reliable)\n  let meta = {};\n  if (cloudflare && cloudflare.json && cloudflare.json.result && cloudflare.json.result.meta) {\n    meta = cloudflare.json.result.meta || {};\n  }\n\n  let pageNumberFromMetadata =\n    meta.pageNumber !== undefined ? meta.pageNumber :\n    meta.pageNum !== undefined ? meta.pageNum :\n    null;\n\n  let pageTypeFromMetadata =\n    meta.pageType || meta.type || null;\n\n  let orderIdFromMetadata =\n    meta.orderId || meta.amazonOrderId || null;\n\n  if (cloudflare && cloudflare.json) {\n    console.log(\n      `[Cloudflare Images] Item ${i + 1} response:`,\n      JSON.stringify(cloudflare.json, null, 2)\n    );\n\n    const res = cloudflare.json.result;\n\n    if (res) {\n      // Single image\n      if (res.id) {\n        cloudflareImageId = res.id;\n      }\n      // Batch-style: result.images[0]\n      else if (Array.isArray(res.images) && res.images[0] && res.images[0].id) {\n        cloudflareImageId = res.images[0].id;\n      }\n    }\n\n    if (cloudflareImageId && accountHash) {\n      cloudflareImageUrl = `https://imagedelivery.net/${accountHash}/${cloudflareImageId}/public`;\n    }\n\n    if (cloudflare.json.errors && cloudflare.json.errors.length > 0) {\n      console.error(`[Cloudflare Images] Item ${i + 1} errors:`, cloudflare.json.errors);\n    }\n\n    if (cloudflare.json.success === false) {\n      console.warn(`[Cloudflare Images] Item ${i + 1} upload failed:`, cloudflare.json);\n    }\n  } else if (cloudflare && cloudflare.error) {\n    console.error(\n      `[Cloudflare Images] Item ${i + 1} HTTP error:`,\n      cloudflare.error.message || cloudflare.error\n    );\n  } else {\n    console.warn(`[Cloudflare Images] Item ${i + 1} has no response data`);\n  }\n\n  // Strip reserved keys like \"error\"\n  const { error, ...pageDataWithoutError } = page;\n\n  // --- Resolve pageNumber (covers + interiors) ---\n\n  let finalPageNumber;\n\n  if (pageNumberFromMetadata !== null && pageNumberFromMetadata !== undefined) {\n    // Allow numeric pageNumber, including -1 for cover\n    const n = Number(pageNumberFromMetadata);\n    finalPageNumber = Number.isNaN(n) ? pageNumberFromMetadata : n;\n  } else if (page.pageNumber !== undefined || page.pageNum !== undefined) {\n    const n = Number(page.pageNumber ?? page.pageNum);\n    finalPageNumber = Number.isNaN(n) ? 0 : n;\n  } else if (pageTypeFromMetadata === 'cover-spread' || page.isCover) {\n    // Explicit cover fallback\n    finalPageNumber = -1;\n  } else {\n    // Last resort: index\n    finalPageNumber = i;\n  }\n\n  // --- Resolve orderId ---\n  const finalOrderId =\n    orderIdFromMetadata ||\n    page.orderId ||\n    page.amazonOrderId ||\n    null;\n\n  // --- Resolve pageType (for clarity) ---\n  const finalPageType =\n    pageTypeFromMetadata ||\n    page.pageType ||\n    (finalPageNumber === -1 ? 'cover-spread' : 'interior');\n\n  // --- Resolve r2Key ---\n  const r2Key =\n    page.pageImageR2Key ||\n    page.r2Key ||\n    page.coverImageR2Key || // cover spread key support\n    page.key ||\n    page.fileName ||\n    null;\n\n  results.push({\n    pageNumber: finalPageNumber,\n    pageType: finalPageType,\n    r2Key,\n    cloudflareImageId,\n    cloudflareImageUrl,\n    orderId: finalOrderId,\n    imageUrl: page.imageUrl || null,\n    ...pageDataWithoutError\n  });\n}\n\nconsole.log(\n  `[Cloudflare Images] Processed ${results.length} items, ${\n    results.filter(r => r.cloudflareImageId).length\n  } with Cloudflare IDs`\n);\n\nreturn results;\n",
+        "jsCode": "return $input.all();",
         "mode": "runOnceForAllItems",
         "language": "javaScript"
       },
@@ -281,7 +226,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Keep the binary AND reattach keys needed later\nconst base = $items('Set Cover PNG Filenames/Keys')?.[0]?.json || {};\nreturn [{\n  json: {\n    ...$json,\n    orderId: base.orderId,\n    coverPdfR2Key: base.coverPdfR2Key,\n    coverPdfFilename: base.coverPdfFilename,\n  },\n  // <-- THIS preserves the downloaded file\n  binary: $binary\n}];\n",
+        "jsCode": "return $input.all();",
         "mode": "runOnceForAllItems",
         "language": "javaScript"
       },
@@ -339,50 +284,31 @@
     },
     {
       "parameters": {
-        "operation": "upload",
-        "bucketName": "little-hero-orders",
-        "fileName": "={{ $json.coverPngR2Key }}",
-        "additionalFields": {}
+        "language": "javaScript",
+        "jsCode": "return $input.all();",
+        "mode": "runOnceForAllItems"
       },
       "id": "727e3422-b6e6-40ef-adbc-d03eeda1acf2",
       "name": "Upload Cover Preview Image to R2 (3A)1",
-      "type": "n8n-nodes-base.s3",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         5200,
         2288
       ],
       "notesInFlow": true,
-      "credentials": {
-        "s3": {
-          "id": "7tJOX9QjL1jqyEjf",
-          "name": "S3 account"
-        }
-      },
       "notes": "3A cover branch placeholder. Implement real logic with credentials and correct fields."
     },
     {
       "parameters": {
-        "url": "={{ $json.coverPngDownloadUrl }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "format",
-              "value": "png"
-            },
-            {
-              "name": "Accept",
-              "value": "image/png"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/materialize-preview-artifact',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n    documentKind: 'cover-preview',\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
+        "mode": "runOnceForEachItem",
+        "language": "javaScript"
       },
       "id": "458aee6b-7757-4161-826f-399d6d2c1a47",
       "name": "Download Cover Image (3A)1",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         4784,
         2288
@@ -459,53 +385,22 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.cloudflare.com/client/v4/accounts/3daae940fcb6fc5b8bbd9bb8fcc62854/images/v1",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer OLxshKrOtebw2EUQjEXz-TE0gPhC3JOIffGmBj7R"
-            }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "multipart-form-data",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "parameterType": "formBinaryData",
-              "name": "file",
-              "inputDataFieldName": "=data"
-            },
-            {
-              "name": "metadata",
-              "value": "={{ JSON.stringify({ orderId: $json.orderId || $json.amazonOrderId || 'UNKNOWN', pageNumber: $json.pageNumber || $json.pageNum || 0 }) }}"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          }
-        }
+        "language": "javaScript",
+        "jsCode": "return $input.all();",
+        "mode": "runOnceForAllItems"
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         5184,
         1488
       ],
       "id": "7979007a-1d49-46c1-b097-4339d5d0d54f",
-      "name": "Upload Preview Image to Cloudflare Images1",
-      "onError": "continueRegularOutput"
+      "name": "Upload Preview Image to Cloudflare Images1"
     },
     {
       "parameters": {
-        "jsCode": "// Store Cloudflare Images ID\n// Combines current child-order page data with Cloudflare Images responses.\n// Outputs: pageNumber, pageType, r2Key, cloudflareImageId, cloudflareImageUrl, orderId, imageUrl, ...\n\nfunction safeNodeFirst(name) {\n  try {\n    return $items(name, 0, $runIndex)?.[0]?.json || {};\n  } catch {\n    return {};\n  }\n}\n\nfunction safeNodeAll(name, runIndex = $runIndex) {\n  try {\n    return ($items(name, 0, runIndex) || []).map(item => item?.json || item || {});\n  } catch {\n    return [];\n  }\n}\n\nfunction safeNodeAllRuns(name, maxRuns = 12) {\n  const items = [];\n  const seen = new Set();\n  const runIndices = [];\n\n  if (Number.isInteger($runIndex) && $runIndex >= 0) {\n    runIndices.push($runIndex);\n  }\n\n  for (let i = 0; i < maxRuns; i++) {\n    if (!runIndices.includes(i)) {\n      runIndices.push(i);\n    }\n  }\n\n  for (const runIndex of runIndices) {\n    for (const entry of safeNodeAll(name, runIndex)) {\n      const key = JSON.stringify([\n        normalizeId(entry.orderId) || normalizeId(entry.amazonOrderId) || normalizeId(entry.rootOrderId),\n        Number(entry.pageNumber ?? extractPageNumber(entry.pageImageFilename || entry.pageImageR2Key || entry.r2Key || entry.fileName || '')),\n        entry.pageImageR2Key || entry.r2Key || entry.fileName || entry.result?.id || entry.result?.filename || '',\n      ]);\n\n      if (seen.has(key)) {\n        continue;\n      }\n      seen.add(key);\n      items.push(entry);\n    }\n  }\n\n  return items;\n}\n\nfunction normalizeId(value) {\n  return value == null ? '' : String(value).trim();\n}\n\nfunction normalizeRootOrderId(value) {\n  const id = normalizeId(value);\n  return id ? id.replace(/-item-\\d+$/, '') : '';\n}\n\nfunction extractPageNumber(value) {\n  const match = /p(\\d+)\\.png$/i.exec(String(value || ''));\n  return match ? Number(match[1]) : null;\n}\n\nfunction extractOrderIdFromKey(value) {\n  const match = /orders\\/([^\\/]+)\\//.exec(String(value || ''));\n  return match ? normalizeId(match[1]) : '';\n}\n\nfunction collectOrderIds(items) {\n  const ids = new Set();\n\n  for (const item of items) {\n    const data = item?.json || item || {};\n    const meta = data.result?.meta || {};\n    const candidates = [\n      data.orderId,\n      meta.orderId,\n      data.childOrderId,\n      data.amazonOrderId,\n      data.rootOrderId,\n      data.pageImageR2Key,\n      data.r2Key,\n      data.manifestKey,\n    ];\n\n    for (const candidate of candidates) {\n      const id = normalizeId(candidate);\n      if (id && !String(candidate).includes('/')) {\n        ids.add(id);\n      }\n    }\n\n    const keyOrderId =\n      extractOrderIdFromKey(data.pageImageR2Key) ||\n      extractOrderIdFromKey(data.r2Key) ||\n      extractOrderIdFromKey(data.manifestKey);\n    if (keyOrderId) {\n      ids.add(keyOrderId);\n    }\n  }\n\n  return [...ids];\n}\n\nfunction sortPages(items) {\n  return [...items].sort((a, b) => Number(a.pageNumber || 0) - Number(b.pageNumber || 0));\n}\n\nconst ready = safeNodeFirst('Get Order Ready for Assembly');\nconst build = safeNodeFirst('Build Assembly Input From Manifest');\nconst inputItems = ($input.all() || []).map(item => item?.json || item || {});\nconst inputOrderIds = collectOrderIds(inputItems);\n\nconst currentOrderId =\n  normalizeId(ready.orderId) ||\n  normalizeId(build.orderId) ||\n  normalizeId($input.first()?.json?.orderId) ||\n  (inputOrderIds.length === 1 ? inputOrderIds[0] : '') ||\n  '';\nconst currentAmazonOrderId =\n  normalizeId(ready.amazonOrderId) ||\n  normalizeId(build.amazonOrderId) ||\n  normalizeId($input.first()?.json?.amazonOrderId) ||\n  normalizeId($input.first()?.json?.rootOrderId) ||\n  normalizeId(ready.rootOrderId) ||\n  normalizeId(build.rootOrderId) ||\n  normalizeRootOrderId(currentOrderId) ||\n  currentOrderId;\nconst currentRootOrderId =\n  normalizeId(ready.rootOrderId) ||\n  normalizeId(build.rootOrderId) ||\n  normalizeId($input.first()?.json?.rootOrderId) ||\n  normalizeRootOrderId(currentAmazonOrderId) ||\n  currentAmazonOrderId;\n\nif (!currentOrderId) {\n  throw new Error(\n    `Store Cloudflare Images ID1 could not resolve current child orderId. Input orderIds: ${inputOrderIds.join(', ') || 'none'}`\n  );\n}\n\nconst accountHash = 'JE-pa9WKaCMtKxy6dQQG7A';\nconst cloudflareResponse = inputItems.filter(data => {\n  const meta = data.result?.meta || {};\n  const responseOrderId =\n    normalizeId(meta.orderId) ||\n    normalizeId(data.orderId) ||\n    normalizeId(data.childOrderId) ||\n    extractOrderIdFromKey(data.pageImageR2Key) ||\n    extractOrderIdFromKey(data.r2Key) ||\n    '';\n  return !responseOrderId || responseOrderId === currentOrderId;\n});\n\nlet pageData = safeNodeAll('Carry Page Keys Forward (PNG)').filter(page => {\n  const pageOrderId =\n    normalizeId(page.orderId) ||\n    normalizeId(page.childOrderId) ||\n    extractOrderIdFromKey(page.pageImageR2Key) ||\n    extractOrderIdFromKey(page.r2Key) ||\n    normalizeId(page.amazonOrderId);\n  return pageOrderId === currentOrderId;\n});\n\nif (!pageData.length) {\n  pageData = safeNodeAllRuns('Carry Page Keys Forward (PNG)').filter(page => {\n    const pageOrderId =\n      normalizeId(page.orderId) ||\n      normalizeId(page.childOrderId) ||\n      extractOrderIdFromKey(page.pageImageR2Key) ||\n      extractOrderIdFromKey(page.r2Key) ||\n      normalizeId(page.amazonOrderId);\n    return pageOrderId === currentOrderId;\n  });\n}\n\nif (!pageData.length) {\n  pageData = safeNodeAllRuns('Upload Page Preview Image to R2').filter(page => {\n    const pageOrderId =\n      normalizeId(page.orderId) ||\n      normalizeId(page.childOrderId) ||\n      extractOrderIdFromKey(page.pageImageR2Key) ||\n      extractOrderIdFromKey(page.r2Key) ||\n      normalizeId(page.amazonOrderId);\n    return pageOrderId === currentOrderId;\n  });\n}\n\nif (!pageData.length) {\n  console.warn('[Store Cloudflare Images ID1] Rebuilding page data from Cloudflare response metadata');\n  pageData = cloudflareResponse\n    .map((data, index) => {\n      const meta = data.result?.meta || {};\n      const pageNumber = Number(meta.pageNumber ?? data.pageNumber);\n      const fileName = data.result?.filename || data.filename || `p${String(index).padStart(2, '0')}.png`;\n      if (!Number.isFinite(pageNumber)) {\n        return null;\n      }\n      return {\n        orderId: currentOrderId,\n        amazonOrderId: currentAmazonOrderId,\n        rootOrderId: currentRootOrderId,\n        pageNumber,\n        pageType: 'interior',\n        pageImageFilename: fileName,\n        pageImageR2Key: `book-mvp-simple-adventure/orders/${currentOrderId}/preview-images/${fileName}`,\n        r2Key: `book-mvp-simple-adventure/orders/${currentOrderId}/preview-images/${fileName}`,\n        imageUrl: null,\n      };\n    })\n    .filter(Boolean);\n}\n\npageData = sortPages(pageData);\n\nconst responsesByPage = new Map();\nfor (const data of cloudflareResponse) {\n  const meta = data.result?.meta || {};\n\n  let pageNumber = Number(meta.pageNumber ?? data.pageNumber);\n  if (!Number.isFinite(pageNumber)) {\n    pageNumber = extractPageNumber(data.result?.filename || data.filename || data.pageImageFilename || '');\n  }\n  if (!Number.isFinite(pageNumber)) {\n    continue;\n  }\n\n  let cloudflareImageId =\n    data.cloudflareImageId ||\n    data.result?.id ||\n    (Array.isArray(data.result?.images) ? data.result.images[0]?.id : null) ||\n    null;\n  let cloudflareImageUrl = data.cloudflareImageUrl || null;\n\n  if (!cloudflareImageUrl && cloudflareImageId) {\n    cloudflareImageUrl = `https://imagedelivery.net/${accountHash}/${cloudflareImageId}/public`;\n  }\n  if (!cloudflareImageUrl && Array.isArray(data.result?.variants) && data.result.variants.length > 0) {\n    cloudflareImageUrl = data.result.variants[0] || data.result.variants[1] || null;\n  }\n\n  responsesByPage.set(pageNumber, {\n    cloudflareImageId,\n    cloudflareImageUrl,\n  });\n}\n\nconst results = pageData.map((page, index) => {\n  const pageNumber = Number.isFinite(Number(page.pageNumber))\n    ? Number(page.pageNumber)\n    : extractPageNumber(page.pageImageFilename || page.r2Key || '') ?? index;\n  const cfData = responsesByPage.get(pageNumber) || {};\n  const { error, ...pageDataWithoutError } = page || {};\n\n  return {\n    pageNumber,\n    pageType: page.pageType || 'interior',\n    r2Key: page.pageImageR2Key || page.r2Key || page.fileName || null,\n    cloudflareImageId: cfData.cloudflareImageId || null,\n    cloudflareImageUrl: cfData.cloudflareImageUrl || null,\n    orderId: currentOrderId,\n    amazonOrderId: currentAmazonOrderId,\n    rootOrderId: currentRootOrderId,\n    imageUrl: page.imageUrl || null,\n    ...pageDataWithoutError,\n  };\n});\n\nconsole.log(\n  `[Cloudflare Images] Processed ${results.length} page items for ${currentOrderId}, ${results.filter(r => r.cloudflareImageId).length} with Cloudflare IDs`\n);\n\nreturn results;",
+        "jsCode": "return $input.all();",
         "mode": "runOnceForAllItems",
         "language": "javaScript"
       },
@@ -521,7 +416,7 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Carry Page Keys Forward (PNG) — rebuild stable page metadata after file download\n * Recover filename/pageNumber/order identity from the current PDFMonkey document metadata,\n * then rebuild the exact sibling-safe preview-image key.\n */\nconst items = $input.all();\n\nfunction parseJson(value) {\n  if (!value || typeof value !== 'string') return null;\n  try {\n    return JSON.parse(value);\n  } catch {\n    return null;\n  }\n}\n\nfunction filenameToPageNumber(fileName) {\n  const match = /p(\\d+)\\.png$/i.exec(String(fileName || ''));\n  return match ? Number(match[1]) : null;\n}\n\nreturn items.map((item, index) => {\n  const current = item.json || {};\n  const binKey = Object.keys(item.binary || {})[0] || 'data';\n  const binMeta = item.binary?.[binKey] || {};\n\n  const document = current.document || {};\n  const documentMeta = parseJson(document.meta) || {};\n  const documentPayload = parseJson(document.payload) || {};\n\n  const orderId =\n    current.orderId ||\n    documentMeta.orderId ||\n    documentPayload.order_id ||\n    'ORDER';\n  const amazonOrderId =\n    current.amazonOrderId ||\n    documentMeta.amazonOrderId ||\n    documentPayload.amazon_order_id ||\n    orderId;\n  const rootOrderId =\n    current.rootOrderId ||\n    documentMeta.rootOrderId ||\n    documentPayload.root_order_id ||\n    amazonOrderId;\n\n  const metaFileName = documentMeta._filename || null;\n  const pageNumberFromPayload = Number.isFinite(Number(documentPayload.page_number))\n    ? Number(documentPayload.page_number)\n    : null;\n  const pageNumberFromFilename = filenameToPageNumber(binMeta.fileName || current.pageImageFilename || metaFileName);\n  const pageNumber =\n    Number.isFinite(Number(current.pageNumber)) ? Number(current.pageNumber) :\n    pageNumberFromPayload !== null ? pageNumberFromPayload :\n    pageNumberFromFilename !== null ? pageNumberFromFilename :\n    index;\n\n  const fallbackName = `p${String(pageNumber).padStart(2, '0')}.png`;\n  const fileName =\n    current.pageImageFilename ||\n    metaFileName ||\n    binMeta.fileName ||\n    fallbackName;\n\n  let pageImageR2Key =\n    current.pageImageR2Key ||\n    documentMeta.pageImageR2Key ||\n    documentPayload.page_image_r2_key ||\n    '';\n  if (!pageImageR2Key) {\n    pageImageR2Key = `book-mvp-simple-adventure/orders/${orderId}/preview-images/${fileName}`;\n  } else {\n    const dir = pageImageR2Key.split('/').slice(0, -1).join('/');\n    pageImageR2Key = `${dir}/${fileName}`;\n  }\n\n  return {\n    json: {\n      ...current,\n      orderId,\n      amazonOrderId,\n      rootOrderId,\n      pageNumber,\n      pageImageFilename: fileName,\n      pageImageR2Key\n    },\n    binary: item.binary\n  };\n});\n",
+        "jsCode": "return $input.all();",
         "mode": "runOnceForAllItems",
         "language": "javaScript"
       },
@@ -662,58 +557,44 @@
     },
     {
       "parameters": {
-        "operation": "upload",
-        "bucketName": "little-hero-orders",
-        "fileName": "={{ $json.pageImageR2Key }}",
-        "additionalFields": {}
+        "language": "javaScript",
+        "jsCode": "return $input.all();",
+        "mode": "runOnceForAllItems"
       },
       "id": "fd972a91-b0a7-41d0-b670-2b454cea6f39",
       "name": "Upload Page Preview Image to R2",
-      "type": "n8n-nodes-base.s3",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         5184,
         1680
       ],
       "executeOnce": false,
       "retryOnFail": true,
-      "waitBetweenTries": 3000,
-      "credentials": {
-        "s3": {
-          "id": "7tJOX9QjL1jqyEjf",
-          "name": "S3 account"
-        }
-      }
+      "waitBetweenTries": 3000
     },
     {
       "parameters": {
-        "operation": "upload",
-        "bucketName": "={{ $json.manifestBucket }}",
-        "fileName": "={{ $json.manifestKey }}",
-        "additionalFields": {}
+        "language": "javaScript",
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all();"
       },
       "id": "90b6700d-aa9f-49e8-96cd-04ecf30e212a",
       "name": "Upload 3 Manifest to R2",
-      "type": "n8n-nodes-base.s3",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         7392,
         2080
       ],
       "retryOnFail": true,
-      "waitBetweenTries": 3000,
-      "credentials": {
-        "s3": {
-          "id": "7tJOX9QjL1jqyEjf",
-          "name": "S3 account"
-        }
-      }
+      "waitBetweenTries": 3000
     },
     {
       "parameters": {
         "language": "javaScript",
-        "jsCode": "/**\n * Prepare 3-manifest upload for R2.\n * Keeps the canonical filename while resolving the order root dynamically.\n */\nconst data = $input.first().json || {};\nconst manifest = data.manifest;\nconst orderId = data.orderId || data.amazonOrderId || null;\nconst bookId = data.bookId || data.manifest?.bookId || 'book-mvp-simple-adventure';\nconst orderR2BaseKey = data.orderR2BaseKey || `${bookId}/orders/${orderId}`;\n\nif (!manifest || !manifest.schema) {\n  throw new Error('Manifest is missing or invalid in Prep Manifest Upload (3)');\n}\n\nif (!orderId) {\n  throw new Error('orderId is required for Prep Manifest Upload (3)');\n}\n\nconst manifestKey = `${orderR2BaseKey}/manifests/3-manifest.json`;\n\nconsole.log(`Preparing to upload 3-manifest to: ${manifestKey}`);\n\nconst manifestJSON = JSON.stringify(manifest, null, 2);\nconst buffer = Buffer.from(manifestJSON, 'utf-8');\n\nreturn [{\n  json: {\n    ...data,\n    manifestKey,\n    manifestBucket: 'little-hero-orders',\n  },\n  binary: {\n    data: {\n      data: buffer.toString('base64'),\n      mimeType: 'application/json',\n      fileName: '3-manifest.json',\n      fileExtension: 'json',\n    },\n  },\n}];\n",
-        "mode": "runOnceForAllItems"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const current = $input.first()?.json || {};\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/publish-manifest',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...current,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];"
       },
       "id": "ad31b114-5fe5-4302-bb6c-be3bfdc17211",
       "name": "Prep Manifest Upload (3)",
@@ -758,25 +639,14 @@
     },
     {
       "parameters": {
-        "url": "={{ $json.pageImageDownloadUrl || $items('Poll PDFMonkey Image until ready', 0, $itemIndex)[0].json.pageImageDownloadUrl }}",
-        "options": {
-          "batching": {
-            "batch": {
-              "batchSize": 1
-            }
-          },
-          "response": {
-            "response": {
-              "responseFormat": "file"
-            }
-          },
-          "timeout": 90000
-        }
+        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/materialize-preview-artifact',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n    documentKind: 'page-preview',\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
+        "mode": "runOnceForEachItem",
+        "language": "javaScript"
       },
       "id": "6a3d7e49-561b-4785-8f74-b8998294c5cb",
       "name": "Download Page Image from PDFMonkey",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         4800,
         1680
@@ -840,9 +710,9 @@
     },
     {
       "parameters": {
-        "jsCode": "// Idempotency Check - Prevent Duplicate Executions\n// Checks if this orderId was recently processed (within last 30 seconds)\n// Uses workflow static data to track recent executions\n\nconst input = $input.first().json || {};\nconst orderId = input.orderId || input.amazonOrderId || null;\n\nif (!orderId) {\n  // If no orderId, we can't check for duplicates, but we should still proceed\n  // (might be a test run or edge case)\n  console.warn('⚠️ No orderId found for idempotency check - proceeding anyway');\n  return [{ json: input }];\n}\n\nconst staticData = this.getWorkflowStaticData('global');\nconst recentExecutions = staticData.recentExecutions || {};\nconst now = Date.now();\nconst thirtySecondsAgo = now - 30000;\n\n// Check if this order was recently executed\nif (recentExecutions[orderId] && recentExecutions[orderId] > thirtySecondsAgo) {\n  const secondsAgo = Math.round((now - recentExecutions[orderId]) / 1000);\n  console.log(`⚠️ Duplicate execution detected for orderId: ${orderId} (executed ${secondsAgo}s ago) - skipping`);\n  return []; // Empty output stops execution\n}\n\n// Record this execution\nrecentExecutions[orderId] = now;\n\n// Clean up old entries (older than 5 minutes)\nconst fiveMinutesAgo = now - 300000;\nObject.keys(recentExecutions).forEach(key => {\n  if (recentExecutions[key] < fiveMinutesAgo) {\n    delete recentExecutions[key];\n  }\n});\n\nstaticData.recentExecutions = recentExecutions;\n\nconsole.log(`✅ Idempotency check passed for orderId: ${orderId}`);\n\n// Pass through original input\nreturn [{ json: input }];",
-        "mode": "runOnceForAllItems",
-        "language": "javaScript"
+        "language": "javaScript",
+        "jsCode": "// Durable W3 idempotency now lives in /api/internal/w3/build-assembly-input.\nreturn $input.all();",
+        "mode": "runOnceForAllItems"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -938,7 +808,7 @@
     {
       "parameters": {
         "language": "javaScript",
-        "jsCode": "/**\n * Normalize the repo-owned W3 assembly input response from the internal HTTP call.\n * n8n Cloud can surface the HTTP node output as a stream-like object even when\n * the request node is configured for JSON output.\n */\nfunction asObject(value) {\n  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};\n}\n\nfunction toBufferLike(value) {\n  if (!value) return null;\n  if (Buffer.isBuffer(value)) return value;\n  if (typeof value === 'string') return Buffer.from(value, 'utf8');\n  if (Array.isArray(value)) return Buffer.from(value);\n\n  const record = asObject(value);\n  if (record.type === 'Buffer' && Array.isArray(record.data)) return Buffer.from(record.data);\n  if (Array.isArray(record.data)) return Buffer.from(record.data);\n  return null;\n}\n\nfunction extractStreamText(value) {\n  const source = asObject(value);\n  const directOutBuffer = toBufferLike(source._outBuffer);\n  const outOffset = typeof source._outOffset === 'number' ? source._outOffset : null;\n  if (directOutBuffer && directOutBuffer.length > 0) {\n    const end = outOffset !== null && outOffset >= 0\n      ? Math.min(outOffset, directOutBuffer.length)\n      : directOutBuffer.length;\n    const text = directOutBuffer.subarray(0, end).toString('utf8');\n    if (text) return text;\n  }\n\n  const readableState = asObject(source._readableState);\n  const chunks = [];\n  const pushChunk = (chunk) => {\n    const buffer = toBufferLike(chunk);\n    if (buffer && buffer.length > 0) chunks.push(buffer);\n  };\n\n  const bufferState = readableState.buffer;\n  if (Array.isArray(bufferState)) {\n    for (const entry of bufferState) {\n      const record = asObject(entry);\n      pushChunk(entry);\n      pushChunk(record.data);\n      pushChunk(record.chunk);\n    }\n  } else {\n    const bufferList = asObject(bufferState);\n    let current = bufferList.head || null;\n    let guard = 0;\n    while (current && guard < 10000) {\n      const record = asObject(current);\n      pushChunk(record.data);\n      pushChunk(record.chunk);\n      current = record.next || null;\n      guard += 1;\n    }\n  }\n\n  if (!chunks.length) return null;\n  return Buffer.concat(chunks).toString('utf8');\n}\n\nfunction parseJsonPrefix(text) {\n  if (typeof text !== 'string') return null;\n\n  const start = text.search(/[\\[{]/);\n  if (start === -1) return null;\n\n  const stack = [];\n  let inString = false;\n  let escape = false;\n\n  for (let index = start; index < text.length; index += 1) {\n    const char = text[index];\n\n    if (inString) {\n      if (escape) {\n        escape = false;\n      } else if (char === '\\\\') {\n        escape = true;\n      } else if (char === '\"') {\n        inString = false;\n      }\n      continue;\n    }\n\n    if (char === '\"') {\n      inString = true;\n      continue;\n    }\n\n    if (char === '{' || char === '[') {\n      stack.push(char);\n      continue;\n    }\n\n    if (char === '}' || char === ']') {\n      const expected = char === '}' ? '{' : '[';\n      if (!stack.length || stack[stack.length - 1] !== expected) return null;\n      stack.pop();\n      if (!stack.length) {\n        try {\n          return JSON.parse(text.slice(start, index + 1));\n        } catch {\n          return null;\n        }\n      }\n    }\n  }\n\n  return null;\n}\n\nfunction parseMaybeJson(value) {\n  if (typeof value === 'string') {\n    try {\n      return JSON.parse(value);\n    } catch {\n      return parseJsonPrefix(value) ?? value;\n    }\n  }\n\n  const streamText = extractStreamText(value);\n  if (typeof streamText === 'string') {\n    try {\n      return JSON.parse(streamText);\n    } catch {\n      return parseJsonPrefix(streamText) ?? value;\n    }\n  }\n\n  return value;\n}\n\nfunction unwrapResponse(value) {\n  const parsed = parseMaybeJson(value);\n  const obj = asObject(parsed);\n  if (obj.success === true || obj.orderId || obj.characterHash || Array.isArray(obj.processedImages)) {\n    return obj;\n  }\n\n  for (const candidate of [obj.body, obj.data, obj.response, obj.result]) {\n    const nested = asObject(parseMaybeJson(candidate));\n    if (nested.success === true || nested.orderId || nested.characterHash || Array.isArray(nested.processedImages)) {\n      return nested;\n    }\n  }\n\n  return obj;\n}\n\nlet payload = unwrapResponse($json || {});\nif (!Object.keys(payload).length) {\n  try {\n    payload = unwrapResponse($items('Extract Manifest URL (3)', 0, $runIndex)?.[0]?.json || {});\n  } catch {}\n}\n\nif (!payload || typeof payload !== 'object' || Array.isArray(payload)) {\n  throw new Error('Could not parse W3 assembly input response');\n}\n\nif (payload.error && !payload.orderId && !payload.characterHash) {\n  throw new Error(payload.details || payload.error);\n}\n\nreturn [{ json: payload }];\n",
+        "jsCode": "// The repo route already returns normalized W3 assembly input.\nreturn $input.all();",
         "mode": "runOnceForAllItems"
       },
       "id": "9e6ce64d-8da2-4aae-bc85-9b6a5e48b6e2",
@@ -967,38 +837,14 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/internal/w3/build-assembly-input",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          },
-          "timeout": 90000
-        },
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{JSON.stringify($json.body && $json.body !== $json ? $json.body : $json)}}"
+        "language": "javaScript",
+        "jsCode": "const input = $input.first()?.json || {};\nconst payload = input.body ?? input;\nconst backendUrl = String(payload.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/build-assembly-input',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: payload,\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];",
+        "mode": "runOnceForAllItems"
       },
       "id": "1e571512-0fb2-4ac8-88a1-7a11df68ad06",
       "name": "Extract Manifest URL (3)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1760,
         2112

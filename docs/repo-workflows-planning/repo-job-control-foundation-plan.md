@@ -305,6 +305,47 @@ As of the March 25, 2026 cleanup state in Los Angeles time:
   - `workflow_jobs.id = 136` and attempt `98` both `succeeded`
   - the event stream ended with terminal `completed` event `992`
   - order row again finalized to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
+- a latest March 26 imported-live rerun confirms the currently imported cloud `W3` graph and the currently deployed production backend together:
+  - production backend initially returned `404` for `/api/internal/w3/prepare-assembly-run`, `/api/internal/w3/collect-preview-images`, and `/api/internal/w3/mark-previews-ready`, which showed the live workflow import had outrun the backend deploy
+  - Pages revision [`fefdc390.little-hero-labs-admin.pages.dev`](https://fefdc390.little-hero-labs-admin.pages.dev) fixed that by deploying the new repo-owned `W3` routes to production
+  - a fresh backend-router trigger then processed order `W3-WFJ-PROOF-20260326195258-safe-v3`
+  - `workflow_jobs.id = 137` and attempt `99` both `succeeded`
+  - the event stream ended with terminal `completed` event `1076`
+  - order row again finalized to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
+- a latest-latest March 26 router-driven disposable rerun confirms the extracted preview-artifact materialization path too:
+  - repo worker [`w3-preview-artifacts.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workers/w3-preview-artifacts.ts) and backend route [`route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/materialize-preview-artifact/route.ts) now own the PDFMonkey PNG download, R2 upload, and best-effort Cloudflare Images publish for both page previews and the cover spread
+  - Pages revision [`96d5e0b2.little-hero-labs-admin.pages.dev`](https://96d5e0b2.little-hero-labs-admin.pages.dev) deployed that new route to production
+  - the live `w3-Book-Assembly` graph was updated with thin code-node adapters calling `/api/internal/w3/materialize-preview-artifact` for page and cover artifacts
+  - a fresh backend-router trigger then processed order `W3-WFJ-PROOF-20260326195258-safe-v3`
+  - `workflow_jobs.id = 138` and attempt `100` both `succeeded`
+  - the event stream ended with terminal `completed` event `1162`
+  - order row again finalized to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
+- a latest-latest-latest March 26 router-driven disposable rerun confirms the extracted manifest-publish tail too:
+  - repo worker [`w3-manifest-publish.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workers/w3-manifest-publish.ts) and backend route [`route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/publish-manifest/route.ts) now own the `3-manifest` upload plus post-`W3` order-row / review-stage persistence
+  - Pages revision [`51306134.little-hero-labs-admin.pages.dev`](https://51306134.little-hero-labs-admin.pages.dev) deployed that new route to production
+  - the live `w3-Book-Assembly` graph was updated so `Prep Manifest Upload (3)` calls `/api/internal/w3/publish-manifest` and the legacy `Upload 3 Manifest to R2`, `Fetch and Merge Review Stages (3)`, and `Supabase Upsert 3` nodes are now thin pass-through adapters
+  - a fresh backend-router trigger then processed order `W3-WFJ-PROOF-20260326195258-safe-v3`
+  - `workflow_jobs.id = 139` and attempt `101` both `succeeded`
+  - the event stream ended with terminal `completed` event `1244`
+  - order row again finalized to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
+  - order `status` also returned to `pending_assembly_review`, which proves the repo-owned publish-manifest path persisted the post-`W3` review state correctly
+- a latest-latest-latest-latest March 26 direct disposable replay confirms the remaining `W3` assembly-entry glue is thin too:
+  - the live `w3-Book-Assembly` graph was updated so `Idempotency Check` is now a pass-through adapter, `Extract Manifest URL (3)` is now a thin code-node adapter calling [`/api/internal/w3/build-assembly-input`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/build-assembly-input/route.ts), and `Build Assembly Input From Manifest` is now a pass-through adapter
+  - repo verification passed with `npm --prefix back-end run test:w2-workflow-contracts` and `npm --prefix back-end run test:w3-assembly-input`
+  - a fresh direct replay against `book-assembly-repo` with `claimedAt = 2026-03-27T04:19:12Z` processed order `W3-WFJ-PROOF-20260326195258-safe-v3`
+  - `workflow_jobs.id = 141` reached `succeeded`
+  - the event stream ended with terminal `completed` event `1414`
+  - order row again finalized to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
+  - an overlapping earlier proof helper had also created redundant `workflow_jobs.id = 140`; after `141` succeeded, `140` was explicitly marked `canceled` so the order returned to zero active `W3` jobs
+- a latest-latest-latest-latest-latest March 26 backend deploy + direct disposable replay confirms the shared workflow-job event logger now preserves terminal W3 attempt state:
+  - backend route [`/api/internal/workflow-jobs/log-event`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/workflow-jobs/log-event/route.ts) now ignores late non-terminal `attemptStatus` / `jobStatus` regressions when the current attempt or job is already terminal
+  - repo verification passed with `npm --prefix back-end run test:workflow-jobs`
+  - Pages revision [`9079c930.little-hero-labs-admin.pages.dev`](https://9079c930.little-hero-labs-admin.pages.dev) deployed that logger fix to production
+  - the previously bad historical row `workflow_job_attempts.id = 103` was repaired to `status = succeeded` and audit-marked with event `attempt-status-reconciled` on `workflow_jobs.id = 141`
+  - a fresh direct replay against `book-assembly-repo` with `claimedAt = 2026-03-27T04:38:54Z` processed order `W3-WFJ-PROOF-20260326195258-safe-v3` into `workflow_jobs.id = 142`
+  - an accidental overlapping replay from an earlier hanging curl also completed as `workflow_jobs.id = 143`, but both jobs finished cleanly and the order returned to zero active `W3` jobs
+  - the regression proof is `workflow_job_attempts.id = 104`: it finished with `status = succeeded` and `ended_at = 2026-03-27T04:43:42.860Z` while `workflow_jobs.id = 142` ended `succeeded` with terminal `completed` event `1580`
+  - order row again finalized to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
 - a separate router-config bug surfaced during the same proof and is now fixed:
   - backend `cron/router` had been falling back to stale webhook path `w1-1-router` when `N8N_ROUTER_WEBHOOK_URL` was unset
   - [`route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/cron/router/route.ts) now falls back to active live `W1.1` webhook path `w1-1-router-sibtest`

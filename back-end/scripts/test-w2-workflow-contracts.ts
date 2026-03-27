@@ -652,6 +652,19 @@ async function main(): Promise<void> {
   const w3GetReadyConnections = JSON.stringify(
     w3Workflow.connections?.["Get Order Ready for Assembly"] ?? {},
   );
+  const w3IdempotencyCode = getCode(w3Workflow, "Idempotency Check");
+  const w3ExtractAssemblyInputNode = getNode(
+    w3Workflow,
+    "Extract Manifest URL (3)",
+  );
+  const w3ExtractAssemblyInputCode = getCode(
+    w3Workflow,
+    "Extract Manifest URL (3)",
+  );
+  const w3BuildAssemblyInputCode = getCode(
+    w3Workflow,
+    "Build Assembly Input From Manifest",
+  );
   const w3GetReadyCode = getCode(w3Workflow, "Get Order Ready for Assembly");
   const w3PreviewPlanCode = getCode(w3Workflow, "Load Canonical Assets");
   const w3PreviewPlanConnections = JSON.stringify(
@@ -687,6 +700,46 @@ async function main(): Promise<void> {
     "Generate Page Image with PDFMonkey",
   );
   const w3PagePollCode = getCode(w3Workflow, "Poll PDFMonkey Image until ready");
+  const w3DownloadPageImageNode = getNode(
+    w3Workflow,
+    "Download Page Image from PDFMonkey",
+  );
+  const w3DownloadPageImageCode = getCode(
+    w3Workflow,
+    "Download Page Image from PDFMonkey",
+  );
+  const w3CarryPageKeysNode = getNode(
+    w3Workflow,
+    "Carry Page Keys Forward (PNG)",
+  );
+  const w3CarryPageKeysCode = getCode(
+    w3Workflow,
+    "Carry Page Keys Forward (PNG)",
+  );
+  const w3UploadPagePreviewNode = getNode(
+    w3Workflow,
+    "Upload Page Preview Image to R2",
+  );
+  const w3UploadPagePreviewCode = getCode(
+    w3Workflow,
+    "Upload Page Preview Image to R2",
+  );
+  const w3UploadPageCloudflareNode = getNode(
+    w3Workflow,
+    "Upload Preview Image to Cloudflare Images1",
+  );
+  const w3UploadPageCloudflareCode = getCode(
+    w3Workflow,
+    "Upload Preview Image to Cloudflare Images1",
+  );
+  const w3StorePageCloudflareNode = getNode(
+    w3Workflow,
+    "Store Cloudflare Images ID1",
+  );
+  const w3StorePageCloudflareCode = getCode(
+    w3Workflow,
+    "Store Cloudflare Images ID1",
+  );
   const w3GenerateCoverNode = getNode(
     w3Workflow,
     "Generate Cover Image with PDFMonkey (3A)1",
@@ -696,8 +749,56 @@ async function main(): Promise<void> {
     "Generate Cover Image with PDFMonkey (3A)1",
   );
   const w3CoverPollCode = getCode(w3Workflow, "Poll Cover Image (3A)1");
+  const w3DownloadCoverNode = getNode(
+    w3Workflow,
+    "Download Cover Image (3A)1",
+  );
+  const w3DownloadCoverCode = getCode(
+    w3Workflow,
+    "Download Cover Image (3A)1",
+  );
+  const w3CarryCoverNode = getNode(
+    w3Workflow,
+    "Carry Cover Keys Forward1",
+  );
+  const w3CarryCoverCode = getCode(
+    w3Workflow,
+    "Carry Cover Keys Forward1",
+  );
+  const w3UploadCoverNode = getNode(
+    w3Workflow,
+    "Upload Cover Preview Image to R2 (3A)1",
+  );
+  const w3UploadCoverCode = getCode(
+    w3Workflow,
+    "Upload Cover Preview Image to R2 (3A)1",
+  );
+  const w3UploadCoverCloudflareNode = getNode(
+    w3Workflow,
+    "Upload Preview Image to Cloudflare Images",
+  );
+  const w3UploadCoverCloudflareCode = getCode(
+    w3Workflow,
+    "Upload Preview Image to Cloudflare Images",
+  );
+  const w3StoreCoverCloudflareNode = getNode(
+    w3Workflow,
+    "Store Cloudflare Images ID",
+  );
+  const w3StoreCoverCloudflareCode = getCode(
+    w3Workflow,
+    "Store Cloudflare Images ID",
+  );
   const w3CollectPreviewsCode = getCode(w3Workflow, "Collect Page Preview Images");
   const w3BuildManifestCode = getCode(w3Workflow, "Build 3A Manifest");
+  const w3PublishManifestNode = getNode(w3Workflow, "Prep Manifest Upload (3)");
+  const w3PublishManifestCode = getCode(w3Workflow, "Prep Manifest Upload (3)");
+  const w3UploadManifestNode = getNode(w3Workflow, "Upload 3 Manifest to R2");
+  const w3UploadManifestCode = getCode(w3Workflow, "Upload 3 Manifest to R2");
+  const w3MergeReviewStagesNode = getNode(w3Workflow, "Fetch and Merge Review Stages (3)");
+  const w3MergeReviewStagesCode = getCode(w3Workflow, "Fetch and Merge Review Stages (3)");
+  const w3SupabaseUpsertNode = getNode(w3Workflow, "Supabase Upsert 3");
+  const w3SupabaseUpsertCode = getCode(w3Workflow, "Supabase Upsert 3");
   const w3MarkReadyCode = getCode(w3Workflow, "Mark Previews Ready (3A status)");
   const w3CompleteCode = getCode(w3Workflow, "Complete Workflow Job (3)");
   const siblingW11PrepW3Code = getCode(
@@ -719,6 +820,25 @@ async function main(): Promise<void> {
     w3Workflow.connections?.["Complete Workflow Job (3)"] ?? {},
   );
 
+  assert(
+    w3IdempotencyCode.includes("return $input.all();") &&
+      !w3IdempotencyCode.includes("getWorkflowStaticData") &&
+      w3ExtractAssemblyInputNode.type === "n8n-nodes-base.code" &&
+      w3ExtractAssemblyInputCode.includes("this.helpers.httpRequest") &&
+      w3ExtractAssemblyInputCode.includes("/api/internal/w3/build-assembly-input") &&
+      w3ExtractAssemblyInputCode.includes("const payload = input.body ?? input") &&
+      w3ExtractAssemblyInputCode.includes("body: payload") &&
+      w3ExtractAssemblyInputCode.includes("json: true") &&
+      w3ExtractAssemblyInputCode.includes(
+        "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646",
+      ) &&
+      w3BuildAssemblyInputCode.includes("return $input.all();") &&
+      !w3BuildAssemblyInputCode.includes("parseJsonPrefix") &&
+      !w3BuildAssemblyInputCode.includes(
+        "Could not parse W3 assembly input response",
+      ),
+    "Repo-centric W3 should rely on the repo-owned build-assembly-input route for durable job idempotency and normalized assembly payloads, leaving the workflow entry nodes as thin adapters",
+  );
   assert(
     w3GetReadyConnections.includes('"node":"Load Canonical Assets"') &&
       !w3GetReadyConnections.includes('"node":"Normalize Inputs (3A Phase 1)1"') &&
@@ -801,6 +921,36 @@ async function main(): Promise<void> {
     "Repo-centric W3 cover poll node should now be a pass-through because provider submit/poll logging moved into the repo-owned render-preview endpoint",
   );
   assert(
+    w3DownloadPageImageNode.type === "n8n-nodes-base.code" &&
+      w3DownloadPageImageCode.includes("this.helpers.httpRequest") &&
+      w3DownloadPageImageCode.includes("/api/internal/w3/materialize-preview-artifact") &&
+      w3DownloadPageImageCode.includes("documentKind: 'page-preview'") &&
+      w3CarryPageKeysNode.type === "n8n-nodes-base.code" &&
+      w3CarryPageKeysCode.includes("return $input.all();") &&
+      w3UploadPagePreviewNode.type === "n8n-nodes-base.code" &&
+      w3UploadPagePreviewCode.includes("return $input.all();") &&
+      w3UploadPageCloudflareNode.type === "n8n-nodes-base.code" &&
+      w3UploadPageCloudflareCode.includes("return $input.all();") &&
+      w3StorePageCloudflareNode.type === "n8n-nodes-base.code" &&
+      w3StorePageCloudflareCode.includes("return $input.all();"),
+    "Repo-centric W3 page preview artifact download and upload should now be repo-owned behind the materialize-preview-artifact route, with the legacy transport nodes reduced to thin pass-through adapters",
+  );
+  assert(
+    w3DownloadCoverNode.type === "n8n-nodes-base.code" &&
+      w3DownloadCoverCode.includes("this.helpers.httpRequest") &&
+      w3DownloadCoverCode.includes("/api/internal/w3/materialize-preview-artifact") &&
+      w3DownloadCoverCode.includes("documentKind: 'cover-preview'") &&
+      w3CarryCoverNode.type === "n8n-nodes-base.code" &&
+      w3CarryCoverCode.includes("return $input.all();") &&
+      w3UploadCoverNode.type === "n8n-nodes-base.code" &&
+      w3UploadCoverCode.includes("return $input.all();") &&
+      w3UploadCoverCloudflareNode.type === "n8n-nodes-base.code" &&
+      w3UploadCoverCloudflareCode.includes("return $input.all();") &&
+      w3StoreCoverCloudflareNode.type === "n8n-nodes-base.code" &&
+      w3StoreCoverCloudflareCode.includes("return $input.all();"),
+    "Repo-centric W3 cover preview artifact download and upload should now be repo-owned behind the materialize-preview-artifact route, with the legacy transport nodes reduced to thin pass-through adapters",
+  );
+  assert(
     w3CollectPreviewsCode.includes("this.helpers.httpRequest") &&
       w3CollectPreviewsCode.includes("/api/internal/w3/collect-preview-images") &&
       w3CollectPreviewsCode.includes("previewItems = safeNodeItems('Generate Page Preview Images')") &&
@@ -823,6 +973,24 @@ async function main(): Promise<void> {
     "Repo-centric W3 manifest assembly should be repo-owned behind the build-manifest route, with the workflow passing the collected preview artifacts plus the original preview-plan context",
   );
   assert(
+    w3PublishManifestNode.type === "n8n-nodes-base.code" &&
+      w3PublishManifestCode.includes("this.helpers.httpRequest") &&
+      w3PublishManifestCode.includes("/api/internal/w3/publish-manifest") &&
+      w3PublishManifestCode.includes("...current") &&
+      w3PublishManifestCode.includes("json: true") &&
+      w3UploadManifestNode.type === "n8n-nodes-base.code" &&
+      w3UploadManifestCode.includes("return $input.all();") &&
+      w3MergeReviewStagesNode.type === "n8n-nodes-base.code" &&
+      w3MergeReviewStagesCode.includes("return $input.all();") &&
+      w3SupabaseUpsertNode.type === "n8n-nodes-base.code" &&
+      w3SupabaseUpsertCode.includes("return $input.all();") &&
+      !w3PublishManifestCode.includes("Buffer.from(") &&
+      !w3PublishManifestCode.includes("manifests/3-manifest.json") &&
+      !w3MergeReviewStagesCode.includes("supabase.co/rest/v1/orders") &&
+      !w3SupabaseUpsertCode.includes("resolution=merge-duplicates"),
+    "Repo-centric W3 manifest publish and order persistence should now be repo-owned behind the publish-manifest route, with the legacy R2 and Supabase nodes reduced to thin pass-through adapters",
+  );
+  assert(
     w3MarkReadyCode.includes("this.helpers.httpRequest") &&
       w3MarkReadyCode.includes("/api/internal/w3/mark-previews-ready") &&
       w3MarkReadyCode.includes("const collected = safeNodeFirst('Collect Page Preview Images')") &&
@@ -843,7 +1011,7 @@ async function main(): Promise<void> {
       w3CompleteCode.includes("workflowJobCompletion") &&
       w3SupabaseConnections.includes('"node":"Complete Workflow Job (3)"') &&
       w3CompleteConnections.includes('"node":"Mark Previews Ready (3A status)"'),
-    "Repo-centric W3 finalization should accept persisted manifest fields after the Supabase upsert and call the backend workflow-3-complete webhook so workflow_jobs are marked complete before downstream status logging",
+    "Repo-centric W3 finalization should accept persisted manifest fields after the repo-owned publish-manifest route and call the backend workflow-3-complete webhook so workflow_jobs are marked complete before downstream status logging",
   );
   assert(
     siblingW11PrepW3Code.includes("const oneManifestKey = firstNonEmpty") &&
