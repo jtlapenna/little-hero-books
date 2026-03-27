@@ -19,7 +19,7 @@ import { verifyBearerAuth } from '@/lib/auth';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
 import { updateOrderStatus } from '@/lib/status-service';
 import { recordWorkflowJobEventResponse } from '@/app/api/internal/workflow-jobs/log-event/route';
-import { completeW4PrintJobForOrder } from '@/lib/workflow-jobs';
+import { completeW4PrintJobForOrder, completeW4SiblingJobForGroup } from '@/lib/workflow-jobs';
 import { getActivePreviewToken, getPreviewTokenForOrderLink } from '@/lib/preview-tokens';
 import {
   sendAmazonPrintSubmittedMessage,
@@ -33,6 +33,7 @@ const WorkflowMetadataSchema = z.object({
   workflowJobId: z.number().int().positive().nullable().optional(),
   workflowJobIdempotencyKey: z.string().trim().min(1).nullable().optional(),
   workflowAttemptId: z.number().int().positive().nullable().optional(),
+  rootGroupId: z.string().trim().min(1).nullable().optional(),
   submitMode: z.enum(['sandbox', 'skip', 'production']).or(z.string().trim().min(1)).nullable().optional(),
   __skipLulu: z.boolean().optional(),
   guard: z.record(z.string(), z.unknown()).nullable().optional(),
@@ -66,6 +67,7 @@ type PrintSubmittedDependencies = {
   sendD2CPrintSubmittedEmail: typeof sendD2CPrintSubmittedEmail;
   recordWorkflowJobEvent: typeof recordWorkflowJobEventResponse;
   completeW4PrintJobForOrder: typeof completeW4PrintJobForOrder;
+  completeW4SiblingJobForGroup: typeof completeW4SiblingJobForGroup;
 };
 
 const defaultDependencies: PrintSubmittedDependencies = {
@@ -77,6 +79,7 @@ const defaultDependencies: PrintSubmittedDependencies = {
   sendD2CPrintSubmittedEmail,
   recordWorkflowJobEvent: recordWorkflowJobEventResponse,
   completeW4PrintJobForOrder,
+  completeW4SiblingJobForGroup,
 };
 
 type PrintSubmittedOrder = {
@@ -147,6 +150,18 @@ function isNonProductionSubmit(payload: PrintSubmittedPayload): boolean {
   return ['sandbox', 'test_mode', 'existing_job'].includes(guardReason ?? '');
 }
 
+function payloadRootGroupId(payload: PrintSubmittedPayload): string | null {
+  return toTrimmedString(payload.rootGroupId);
+}
+
+function shouldUseSiblingCompletionFallback(payload: PrintSubmittedPayload): boolean {
+  return !payload.workflowJobId &&
+    !toTrimmedString(payload.workflowJobIdempotencyKey) &&
+    'orderIds' in payload &&
+    payload.orderIds.length > 1 &&
+    Boolean(payloadRootGroupId(payload));
+}
+
 async function markW4PrintJobSubmitted(
   orderId: string,
   payload: PrintSubmittedPayload,
@@ -200,6 +215,19 @@ async function markW4PrintJobSubmitted(
     return;
   }
 
+  if (shouldUseSiblingCompletionFallback(payload)) {
+    await dependencies.completeW4SiblingJobForGroup({
+      rootGroupId: payloadRootGroupId(payload) ?? orderId,
+      orderIds: 'orderIds' in payload ? payload.orderIds : [orderId],
+      submitMode,
+      manifestUrl,
+      manifestKey,
+      luluJobId,
+      luluStatus,
+    });
+    return;
+  }
+
   await dependencies.completeW4PrintJobForOrder({
     orderId,
     submitMode,
@@ -230,6 +258,8 @@ export async function handlePrintSubmitted(
   const hasSharedWorkflowMetadata = Boolean(
     payload.workflowJobId || toTrimmedString(payload.workflowJobIdempotencyKey),
   );
+  const usesSiblingFallback = shouldUseSiblingCompletionFallback(payload);
+  const markWorkflowOnce = hasSharedWorkflowMetadata || usesSiblingFallback;
   const results: PrintSubmittedResult[] = [];
   const customerSiteUrl =
     (process.env.CUSTOMER_SITE_URL ?? '').replace(/\/+$/, '') ||
@@ -245,10 +275,10 @@ export async function handlePrintSubmitted(
       continue;
     }
 
-    if (!hasSharedWorkflowMetadata || !sharedWorkflowMarked) {
+    if (!markWorkflowOnce || !sharedWorkflowMarked) {
       try {
         await markW4PrintJobSubmitted(orderId, payload, nonProduction, dependencies);
-        if (hasSharedWorkflowMetadata) {
+        if (markWorkflowOnce) {
           sharedWorkflowMarked = true;
         }
       } catch (workflowJobError) {

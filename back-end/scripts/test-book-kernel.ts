@@ -1730,13 +1730,15 @@ assert(
 assert(
   repoCentricW41AggregateNotifyNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW41AggregateNotifyNode.parameters).includes('workflowJobId') &&
+    JSON.stringify(repoCentricW41AggregateNotifyNode.parameters).includes('rootGroupId') &&
     JSON.stringify(repoCentricW41AggregateNotifyNode.parameters).includes('submitMode') &&
     repoCentricW41NotifyNode?.type === 'n8n-nodes-base.httpRequest' &&
     JSON.stringify(repoCentricW41NotifyNode.parameters).includes('/api/webhooks/print-submitted') &&
+    JSON.stringify(repoCentricW41NotifyNode.parameters).includes('rootGroupId') &&
     JSON.stringify(repoCentricW41NotifyNode.parameters).includes('workflowJobId') &&
     JSON.stringify(repoCentricW41NotifyNode.parameters).includes('submitMode') &&
     repoCentricW41AggregateNotifyConnections.includes('"node":"Notify: Sent to Print"'),
-  'Repo-centric W4.1 completion path should carry shared workflow-job metadata into print-submitted instead of relying on direct Supabase lifecycle writes',
+  'Repo-centric W4.1 completion path should carry rootGroupId plus shared workflow-job metadata into print-submitted instead of relying on direct Supabase lifecycle writes',
 );
 assert(
   repoCentricW41InteriorPassThroughNode?.type === 'n8n-nodes-base.code' &&

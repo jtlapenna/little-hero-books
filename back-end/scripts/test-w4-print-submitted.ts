@@ -77,6 +77,10 @@ async function testSandboxCompletionStaysNonProduction(): Promise<void> {
         calls.push({ fn: 'completeW4PrintJobForOrder' });
         return { job: null, attempt: null };
       },
+      completeW4SiblingJobForGroup: async () => {
+        calls.push({ fn: 'completeW4SiblingJobForGroup' });
+        return { job: null, attempt: null };
+      },
     },
   );
 
@@ -169,6 +173,10 @@ async function testProductionD2CCompletionStillNotifies(): Promise<void> {
           calls.push({ fn: 'completeW4PrintJobForOrder' });
           return { job: null, attempt: null };
         },
+        completeW4SiblingJobForGroup: async () => {
+          calls.push({ fn: 'completeW4SiblingJobForGroup' });
+          return { job: null, attempt: null };
+        },
       },
     );
 
@@ -255,6 +263,10 @@ async function testSandboxSiblingCompletionMarksSharedWorkflowOnce(): Promise<vo
         calls.push({ fn: 'completeW4PrintJobForOrder' });
         return { job: null, attempt: null };
       },
+      completeW4SiblingJobForGroup: async () => {
+        calls.push({ fn: 'completeW4SiblingJobForGroup' });
+        return { job: null, attempt: null };
+      },
     },
   );
 
@@ -277,10 +289,83 @@ async function testSandboxSiblingCompletionMarksSharedWorkflowOnce(): Promise<vo
   );
 }
 
+async function testSiblingFallbackCompletesSharedGroupOnceWithoutWorkflowMetadata(): Promise<void> {
+  const calls: Array<{ fn: string; payload?: JsonRecord }> = [];
+
+  const response = await handlePrintSubmitted(
+    {
+      rootGroupId: 'W4-SIBLING-PROOF-012',
+      orderIds: ['W4-SIBLING-PROOF-012-item-1', 'W4-SIBLING-PROOF-012-item-2'],
+      submitMode: 'sandbox',
+      luluJobId: 'sandbox-sibling-job-012',
+      luluStatus: 'CREATED',
+    },
+    {
+      getOrder: async (orderId) => ({
+        orderId,
+        platform: 'd2c',
+        customer_email: 'parent@example.com',
+      }),
+      updateOrderStatus: async () => {
+        calls.push({ fn: 'updateOrderStatus' });
+        return null;
+      },
+      getActivePreviewToken: async () => null,
+      getPreviewTokenForOrderLink: async () => null,
+      sendAmazonPrintSubmittedMessage: async () => {
+        calls.push({ fn: 'sendAmazonPrintSubmittedMessage' });
+        return { success: true };
+      },
+      sendD2CPrintSubmittedEmail: async () => {
+        calls.push({ fn: 'sendD2CPrintSubmittedEmail' });
+        return { success: true };
+      },
+      recordWorkflowJobEvent: async () => {
+        calls.push({ fn: 'recordWorkflowJobEvent' });
+        return {
+          success: true,
+          jobId: 0,
+          attemptId: null,
+          currentStatus: 'succeeded',
+        };
+      },
+      completeW4PrintJobForOrder: async () => {
+        calls.push({ fn: 'completeW4PrintJobForOrder' });
+        return { job: null, attempt: null };
+      },
+      completeW4SiblingJobForGroup: async (payload) => {
+        calls.push({ fn: 'completeW4SiblingJobForGroup', payload: payload as unknown as JsonRecord });
+        return { job: null, attempt: null };
+      },
+    },
+  );
+
+  assert(response.ok === true && response.status === 200, 'Expected sibling fallback handling to succeed');
+  assertEqual(
+    calls.filter((entry) => entry.fn === 'completeW4SiblingJobForGroup').length,
+    1,
+    'Expected sibling fallback handling to mark the shared W4.1 job complete only once',
+  );
+  assert(
+    !calls.some((entry) => entry.fn === 'completeW4PrintJobForOrder') &&
+      !calls.some((entry) => entry.fn === 'recordWorkflowJobEvent'),
+    'Expected sibling fallback handling to avoid the single-order completion path when rootGroupId is available',
+  );
+  const siblingCompletionPayload =
+    calls.find((entry) => entry.fn === 'completeW4SiblingJobForGroup')?.payload ?? null;
+  assert(
+    siblingCompletionPayload?.rootGroupId === 'W4-SIBLING-PROOF-012' &&
+      Array.isArray(siblingCompletionPayload.orderIds) &&
+      siblingCompletionPayload.orderIds.length === 2,
+    'Expected sibling fallback handling to carry rootGroupId and grouped orderIds into the shared completion helper',
+  );
+}
+
 async function main(): Promise<void> {
   await testSandboxCompletionStaysNonProduction();
   await testProductionD2CCompletionStillNotifies();
   await testSandboxSiblingCompletionMarksSharedWorkflowOnce();
+  await testSiblingFallbackCompletesSharedGroupOnceWithoutWorkflowMetadata();
   console.log('W4 print-submitted tests passed');
 }
 

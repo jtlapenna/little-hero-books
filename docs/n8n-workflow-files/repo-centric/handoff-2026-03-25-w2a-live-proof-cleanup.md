@@ -1,5 +1,31 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — on March 27, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: a safe operator-facing `W4.1` sibling recovery surface now exists in the admin app, and it is intentionally constrained to the sandbox-only sibling path.
+>
+> What changed in repo/backend:
+>
+> - new recovery helper [w41-recovery.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w41-recovery.ts) now inspects stage-`4.1` `workflow_jobs`, summarizes recent sibling-group recovery candidates, and refuses replay when any sibling row already shows real Lulu submission state (`lulu_job_id`, `lulu_status`, or `print_submitted_at`)
+> - new admin API [w41-recovery/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w41-recovery/route.ts) exposes recent candidate listing, per-group inspection, and a single replay action that posts only to live webhook `w4-1-sibling-aggregation-repo`
+> - new admin page [page.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w41-recovery/page.tsx) gives operators a read-first `W4.1` console with one-click replay only when the sibling group is sandbox-safe
+> - admin nav and home now link to the new surface via [navigation.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/components/ui/navigation.tsx) and [page.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/app/page.tsx)
+> - webhook [print-submitted/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/print-submitted/route.ts) is now hardened for grouped `W4.1` callbacks too: if shared workflow metadata is absent but `rootGroupId` + `orderIds` are present, it completes the shared sibling job once through [`completeW4SiblingJobForGroup(...)`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-jobs/w4-sibling-jobs.ts)
+> - repo export [w4.1-Sibling-Aggregation.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4.1-Sibling-Aggregation.repo-centric.json) now carries `rootGroupId` into the `print-submitted` callback payload so the grouped completion fallback is available even if workflow-job ids are missing
+>
+> Safety contract for this console:
+>
+> - replay is allowed only when the latest sibling-group `W4.1` job failed or dead-lettered before any real Lulu submission state appeared on any sibling order
+> - replay posts a forced fresh run through `w4-1-sibling-aggregation-repo` with the fetched sibling order rows and `backendUrl = https://admin.littleherolabs.com`
+> - the imported repo-centric `W4.1` graph remains sandbox-only on that extracted path, so this console cannot create a billable production Lulu job through its replay route
+> - this pass did not trigger a live `W4.1` replay; verification stayed local/build-only and therefore created no Lulu sandbox or production job
+>
+> Verification from this pass:
+>
+> - repo checks passed: `test:w41-recovery`, `test:w4-print-submitted`, `test:workflow-jobs`, plus targeted `eslint`
+> - full Cloudflare Pages build passed and included `/admin/w41-recovery` and `/api/admin/w41-recovery`
+> - repo contract check passed: `test:book-kernel` now locks the `rootGroupId` callback contract in the repo-centric `W4.1` workflow export
+> - backend deploy revisions [07bd770d.little-hero-labs-admin.pages.dev](https://07bd770d.little-hero-labs-admin.pages.dev) and [f3be4c88.little-hero-labs-admin.pages.dev](https://f3be4c88.little-hero-labs-admin.pages.dev)
+> - token-auth smoke reads against both the latest preview deploy and [admin.littleherolabs.com](https://admin.littleherolabs.com) returned `success: true` with zero current `W4.1` recovery candidates
+>
 > Update — on March 27, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: a safe operator-facing `W4` recovery surface now exists in the admin app, and it is intentionally constrained to the sandbox-only single-order `W4` path.
 >
 > What changed in repo/backend:

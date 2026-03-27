@@ -44,6 +44,7 @@
     "test:w3-manifest-publish": "tsx scripts/test-w3-manifest-publish.ts",
     "test:w4-print-input": "tsx scripts/test-w4-print-input.ts",
     "test:w4-recovery": "tsx scripts/test-w4-recovery.ts",
+    "test:w41-recovery": "tsx scripts/test-w41-recovery.ts",
     "test:w4-submit-input": "tsx scripts/test-w4-submit-input.ts",
     "test:w4-print-worker": "tsx scripts/test-w4-print-worker.ts",
     "test:w4-print-submitted": "tsx scripts/test-w4-print-submitted.ts",

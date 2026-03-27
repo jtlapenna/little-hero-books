@@ -17,6 +17,7 @@ export function Navigation() {
     { name: 'Workflow Jobs', href: '/admin/workflow-jobs', icon: Workflow },
     { name: 'W2A Recovery', href: '/admin/w2a-recovery', icon: LifeBuoy },
     { name: 'W4 Recovery', href: '/admin/w4-recovery', icon: ShieldCheck },
+    { name: 'W4.1 Recovery', href: '/admin/w41-recovery', icon: Users },
   ];
 
   return (

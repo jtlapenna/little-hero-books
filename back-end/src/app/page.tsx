@@ -35,6 +35,17 @@ interface W4RecoveryResponse {
   summary?: W4RecoverySummary;
 }
 
+interface W41RecoverySummary {
+  candidateCount: number;
+  replayReady: number;
+  inspectOnly: number;
+  activeMonitor: number;
+}
+
+interface W41RecoveryResponse {
+  summary?: W41RecoverySummary;
+}
+
 interface WorkflowJobsSummary {
   activeCount: number;
   retryWaitingCount: number;
@@ -50,16 +61,24 @@ export default function HomePage() {
   const [errorSummary, setErrorSummary] = useState<ErrorSummary | null>(null);
   const [w2aRecoverySummary, setW2ARecoverySummary] = useState<W2ARecoverySummary | null>(null);
   const [w4RecoverySummary, setW4RecoverySummary] = useState<W4RecoverySummary | null>(null);
+  const [w41RecoverySummary, setW41RecoverySummary] = useState<W41RecoverySummary | null>(null);
   const [workflowJobsSummary, setWorkflowJobsSummary] = useState<WorkflowJobsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchErrorSummary = async () => {
       try {
-        const [attentionResponse, w2aRecoveryResponse, w4RecoveryResponse, workflowJobsResponse] = await Promise.all([
+        const [
+          attentionResponse,
+          w2aRecoveryResponse,
+          w4RecoveryResponse,
+          w41RecoveryResponse,
+          workflowJobsResponse,
+        ] = await Promise.all([
           fetch('/api/admin/orders-needing-attention'),
           fetch('/api/admin/w2a-recovery?hours=72&limit=10'),
           fetch('/api/admin/w4-recovery?hours=72&limit=10'),
+          fetch('/api/admin/w41-recovery?hours=72&limit=10'),
           fetch('/api/admin/workflow-jobs?hours=72&limit=12'),
         ]);
 
@@ -89,6 +108,11 @@ export default function HomePage() {
           setW4RecoverySummary(recoveryData.summary || null);
         }
 
+        if (w41RecoveryResponse.ok) {
+          const recoveryData = (await w41RecoveryResponse.json()) as W41RecoveryResponse;
+          setW41RecoverySummary(recoveryData.summary || null);
+        }
+
         if (workflowJobsResponse.ok) {
           const workflowJobsData = (await workflowJobsResponse.json()) as WorkflowJobsResponse;
           setWorkflowJobsSummary(workflowJobsData.summary || null);
@@ -98,6 +122,7 @@ export default function HomePage() {
           !attentionResponse.ok &&
           !w2aRecoveryResponse.ok &&
           !w4RecoveryResponse.ok &&
+          !w41RecoveryResponse.ok &&
           !workflowJobsResponse.ok
         ) {
           return;
@@ -199,6 +224,30 @@ export default function HomePage() {
                   </div>
                 </div>
                 <ArrowRight className="h-5 w-5 text-emerald-700" />
+              </div>
+            </Link>
+          </div>
+        )}
+
+        {!loading && w41RecoverySummary && w41RecoverySummary.candidateCount > 0 && (
+          <div className="mb-8 max-w-4xl mx-auto">
+            <Link
+              href="/admin/w41-recovery"
+              className="block bg-sky-50 border-2 border-sky-200 rounded-lg p-4 hover:bg-sky-100 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Users className="h-6 w-6 text-sky-700 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-sky-950">
+                      {w41RecoverySummary.candidateCount} W4.1 Recovery Candidate{w41RecoverySummary.candidateCount !== 1 ? 's' : ''}
+                    </h3>
+                    <p className="text-sm text-sky-800 mt-1">
+                      replay ready: {w41RecoverySummary.replayReady} • inspect only: {w41RecoverySummary.inspectOnly} • active monitor: {w41RecoverySummary.activeMonitor}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-sky-700" />
               </div>
             </Link>
           </div>

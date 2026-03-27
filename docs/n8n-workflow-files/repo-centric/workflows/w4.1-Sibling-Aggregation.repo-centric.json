@@ -411,7 +411,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all().map((item) => item.json || {});\nconst orderIds = items.map((item) => item.orderId).filter(Boolean);\nconst first = items[0] || {};\nreturn [{\n  json: {\n    orderIds,\n    CONFIG: first.CONFIG || {},\n    workflowJobId: first.workflowJobId ?? null,\n    workflowJobIdempotencyKey: first.workflowJobIdempotencyKey || null,\n    workflowAttemptId: first.workflowAttemptId ?? null,\n    submitMode: first.submitMode || null,\n    luluJobId: first.luluJobId || null,\n    luluStatus: first.luluStatus || null,\n  }\n}];"
+        "jsCode": "const items = $input.all().map((item) => item.json || {});\nconst orderIds = items.map((item) => item.orderId).filter(Boolean);\nconst first = items[0] || {};\nreturn [{\n  json: {\n    orderIds,\n    rootGroupId: first.rootGroupId || first.rootOrderId || null,\n    CONFIG: first.CONFIG || {},\n    workflowJobId: first.workflowJobId ?? null,\n    workflowJobIdempotencyKey: first.workflowJobIdempotencyKey || null,\n    workflowAttemptId: first.workflowAttemptId ?? null,\n    submitMode: first.submitMode || null,\n    luluJobId: first.luluJobId || null,\n    luluStatus: first.luluStatus || null,\n  }\n}];"
       },
       "id": "f2d442ac-cc8d-429f-9945-f42e7071f4d8",
       "name": "Aggregate for Notify",
@@ -441,7 +441,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ orderIds: $json.orderIds, workflowJobId: $json.workflowJobId, workflowJobIdempotencyKey: $json.workflowJobIdempotencyKey, workflowAttemptId: $json.workflowAttemptId, submitMode: $json.submitMode, luluJobId: $json.luluJobId, luluStatus: $json.luluStatus }) }}",
+        "jsonBody": "={{ JSON.stringify({ rootGroupId: $json.rootGroupId, orderIds: $json.orderIds, workflowJobId: $json.workflowJobId, workflowJobIdempotencyKey: $json.workflowJobIdempotencyKey, workflowAttemptId: $json.workflowAttemptId, submitMode: $json.submitMode, luluJobId: $json.luluJobId, luluStatus: $json.luluStatus }) }}",
         "options": {}
       },
       "id": "1c6f3922-5596-49b8-95b3-cccda5c57259",
