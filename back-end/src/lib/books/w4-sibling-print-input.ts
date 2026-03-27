@@ -3,6 +3,7 @@ import type { LoadManifestForW4, LoadOrderForW4 } from '@/lib/books/w4-print-inp
 import { getBucketFromKey } from '@/lib/r2-utils';
 
 type JsonRecord = Record<string, unknown>;
+const SANDBOX_LULU_API_BASE = 'https://api.sandbox.lulu.com';
 
 export type SignObjectUrlForW4Sibling = (
   key: string,
@@ -41,6 +42,8 @@ export interface BuildW4SiblingSubmitInputResult {
   siblingCount: number;
   orderIds: string[];
   siblings: BuildW4SiblingSubmitItem[];
+  submitMode: 'sandbox' | 'skip';
+  luluApiBase: string;
   luluPayload: JsonRecord;
   shippingAddress: JsonRecord;
   shippingLevelRequested: string | null;
@@ -50,11 +53,15 @@ export interface BuildW4SiblingSubmitInputResult {
   amazon_shipment_service_level: string | null;
   __skipLulu: boolean;
   guard: {
-    reason: 'test_mode' | 'existing_job' | 'proceed';
+    reason: 'test_mode' | 'existing_job' | 'sandbox';
     details?: string;
   };
   luluJobId: string | null;
   luluStatus: string | null;
+  workflowJobId: number | null;
+  workflowJobIdempotencyKey: string | null;
+  workflowAttemptId: number | null;
+  workflowJobStatus: string | null;
   CONFIG: JsonRecord;
 }
 
@@ -145,13 +152,6 @@ function pickFirstNonEmpty<T>(...values: T[]): T | null {
   }
 
   return null;
-}
-
-function dedupeStrings(values: Array<string | null | undefined>): string[] {
-  return values.filter(
-    (value, index, allValues): value is string =>
-      Boolean(value) && allValues.indexOf(value) === index,
-  );
 }
 
 function cloneRecord(value: JsonRecord): JsonRecord {
@@ -490,6 +490,36 @@ function deriveAmazonShippingLevel(sibling: JsonRecord): string | null {
   );
 }
 
+function withSandboxConfig(input: JsonRecord): JsonRecord {
+  const currentConfig = toRecord(input.CONFIG);
+  const currentLulu = toRecord(currentConfig.lulu);
+  return {
+    ...currentConfig,
+    lulu: {
+      ...currentLulu,
+      apiBase: SANDBOX_LULU_API_BASE,
+    },
+  };
+}
+
+function toWorkflowJobId(value: unknown): number | null {
+  return toInteger(value);
+}
+
+function resolveWorkflowFieldsFromSibling(sibling: JsonRecord): {
+  workflowJobId: number | null;
+  workflowJobIdempotencyKey: string | null;
+  workflowAttemptId: number | null;
+  workflowJobStatus: string | null;
+} {
+  return {
+    workflowJobId: toWorkflowJobId(sibling.workflowJobId),
+    workflowJobIdempotencyKey: toTrimmedString(sibling.workflowJobIdempotencyKey),
+    workflowAttemptId: toWorkflowJobId(sibling.workflowAttemptId),
+    workflowJobStatus: toTrimmedString(sibling.workflowJobStatus),
+  };
+}
+
 function validateSiblingGroupSize(orderIds: string[]): void {
   if (orderIds.length < 2) {
     throw new Error(
@@ -589,6 +619,10 @@ function parseSiblingSubmitInput(input: JsonRecord | unknown[]): {
   rootGroupId: string;
   rootOrderId: string;
   siblings: BuildW4SiblingPrintItem[];
+  workflowJobId: number | null;
+  workflowJobIdempotencyKey: string | null;
+  workflowAttemptId: number | null;
+  workflowJobStatus: string | null;
 } {
   const envelope = Array.isArray(input) ? {} : toRecord(input);
   const nested = toRecord(envelope.body);
@@ -655,6 +689,7 @@ function parseSiblingSubmitInput(input: JsonRecord | unknown[]): {
     rootGroupId,
     rootOrderId,
     siblings: sortedSiblings,
+    ...resolveWorkflowFieldsFromSibling(firstSibling),
   };
 }
 
@@ -826,6 +861,7 @@ export async function buildW4SiblingSubmitInput(
 ): Promise<BuildW4SiblingSubmitInputResult> {
   const parsed = parseSiblingSubmitInput(input);
   validateSiblingGroupSize(parsed.siblings.map((sibling) => sibling.orderId));
+  const CONFIG = withSandboxConfig(parsed.config);
 
   const signedUrlExpiresIn = options.signedUrlExpiresIn ?? 21600;
   const siblings: BuildW4SiblingSubmitItem[] = await Promise.all(
@@ -933,6 +969,8 @@ export async function buildW4SiblingSubmitInput(
       siblingCount: siblings.length,
       orderIds: siblings.map((sibling) => sibling.orderId),
       siblings,
+      submitMode: 'skip',
+      luluApiBase: SANDBOX_LULU_API_BASE,
       luluPayload,
       shippingAddress,
       shippingLevelRequested: requestedShippingLevel,
@@ -947,7 +985,11 @@ export async function buildW4SiblingSubmitInput(
       },
       luluJobId: existingSubmission.luluJobId,
       luluStatus: existingSubmission.luluStatus ?? 'SUBMITTED',
-      CONFIG: parsed.config,
+      workflowJobId: parsed.workflowJobId,
+      workflowJobIdempotencyKey: parsed.workflowJobIdempotencyKey,
+      workflowAttemptId: parsed.workflowAttemptId,
+      workflowJobStatus: parsed.workflowJobStatus,
+      CONFIG,
     };
   }
 
@@ -958,6 +1000,8 @@ export async function buildW4SiblingSubmitInput(
       siblingCount: siblings.length,
       orderIds: siblings.map((sibling) => sibling.orderId),
       siblings,
+      submitMode: 'skip',
+      luluApiBase: SANDBOX_LULU_API_BASE,
       luluPayload,
       shippingAddress,
       shippingLevelRequested: requestedShippingLevel,
@@ -971,7 +1015,11 @@ export async function buildW4SiblingSubmitInput(
       },
       luluJobId: `TEST-${parsed.rootGroupId}`,
       luluStatus: 'TEST_MODE',
-      CONFIG: parsed.config,
+      workflowJobId: parsed.workflowJobId,
+      workflowJobIdempotencyKey: parsed.workflowJobIdempotencyKey,
+      workflowAttemptId: parsed.workflowAttemptId,
+      workflowJobStatus: parsed.workflowJobStatus,
+      CONFIG,
     };
   }
 
@@ -981,6 +1029,8 @@ export async function buildW4SiblingSubmitInput(
     siblingCount: siblings.length,
     orderIds: siblings.map((sibling) => sibling.orderId),
     siblings,
+    submitMode: 'sandbox',
+    luluApiBase: SANDBOX_LULU_API_BASE,
     luluPayload,
     shippingAddress,
     shippingLevelRequested: requestedShippingLevel,
@@ -990,10 +1040,14 @@ export async function buildW4SiblingSubmitInput(
     amazon_shipment_service_level: amazonShippingLevel,
     __skipLulu: false,
     guard: {
-      reason: 'proceed',
+      reason: 'sandbox',
     },
     luluJobId: null,
     luluStatus: null,
-    CONFIG: parsed.config,
+    workflowJobId: parsed.workflowJobId,
+    workflowJobIdempotencyKey: parsed.workflowJobIdempotencyKey,
+    workflowAttemptId: parsed.workflowAttemptId,
+    workflowJobStatus: parsed.workflowJobStatus,
+    CONFIG,
   };
 }

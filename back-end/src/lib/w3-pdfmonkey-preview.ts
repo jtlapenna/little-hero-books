@@ -76,6 +76,7 @@ export interface W3RenderPreviewDocumentOptions {
   recordWorkflowEvent?: (body: JsonRecord) => Promise<JsonRecord>;
   maxPollAttempts?: number;
   pollIntervalMs?: number;
+  maxPollRequestErrors?: number;
 }
 
 const PDFMONKEY_DOCUMENTS_API = 'https://api.pdfmonkey.io/api/v1/documents';
@@ -405,6 +406,7 @@ export async function renderW3PreviewDocument(
   const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   const maxPollAttempts = Math.max(1, options.maxPollAttempts ?? 30);
   const pollIntervalMs = Math.max(0, options.pollIntervalMs ?? 1800);
+  const maxPollRequestErrors = Math.max(0, options.maxPollRequestErrors ?? 3);
   const workflowJobId = typeof input.workflowJobId === 'number' ? input.workflowJobId : null;
   const workflowJobIdempotencyKey = toTrimmedString(input.workflowJobIdempotencyKey);
   const workflowAttemptId = typeof input.workflowAttemptId === 'number' ? input.workflowAttemptId : null;
@@ -441,6 +443,7 @@ export async function renderW3PreviewDocument(
     toTrimmedString(createdDocument.download_url) ??
     toTrimmedString(createdDocument.file_url);
   let attempts = 0;
+  let consecutivePollRequestErrors = 0;
 
   const baseContext = buildContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
     pageNumber: createPayload.pageNumber,
@@ -502,9 +505,23 @@ export async function renderW3PreviewDocument(
         break;
       }
 
-      const polled = await requestPdfMonkey(fetchImpl, pdfMonkeyApiKey, statusUrl, {
-        method: 'GET',
-      });
+      let polled: JsonRecord;
+      try {
+        polled = await requestPdfMonkey(fetchImpl, pdfMonkeyApiKey, statusUrl, {
+          method: 'GET',
+        });
+        consecutivePollRequestErrors = 0;
+      } catch (error) {
+        consecutivePollRequestErrors += 1;
+        if (consecutivePollRequestErrors > maxPollRequestErrors) {
+          throw new Error(
+            `PDFMonkey ${documentKind} poll request failed after ${consecutivePollRequestErrors} consecutive transport errors: ${getErrorMessage(error)}`,
+          );
+        }
+        await sleep(pollIntervalMs);
+        continue;
+      }
+
       currentDocument = toDocumentRecord(polled.data ?? polled.document ?? polled);
       status = toTrimmedString(currentDocument.status) ?? status;
       downloadUrl =

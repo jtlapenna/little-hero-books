@@ -7,6 +7,10 @@ import {
   type BuildW4SiblingPrintInputResult,
   type BuildW4SiblingPrintInputOptions,
 } from '@/lib/books';
+import {
+  claimAndStartW4SiblingJob,
+  type W4SiblingWorkflowFields,
+} from '@/lib/workflow-jobs';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,19 +40,69 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function pickClaimedAt(body: JsonRecord | unknown[]): string | null {
+  if (Array.isArray(body)) {
+    return null;
+  }
+
+  if (typeof body.claimedAt === 'string') {
+    return body.claimedAt;
+  }
+
+  const nestedBody = body.body;
+  if (
+    nestedBody &&
+    typeof nestedBody === 'object' &&
+    !Array.isArray(nestedBody) &&
+    typeof (nestedBody as JsonRecord).claimedAt === 'string'
+  ) {
+    return (nestedBody as JsonRecord).claimedAt as string;
+  }
+
+  return null;
+}
+
 export async function buildW4SiblingPrintInputResponse(
   body: JsonRecord | unknown[],
-  options: Partial<BuildW4SiblingPrintInputOptions> = {},
-): Promise<BuildW4SiblingPrintInputResult & { success: true }> {
+  options: Partial<BuildW4SiblingPrintInputOptions> & {
+    instrumentSiblingJob?: (
+      payload: BuildW4SiblingPrintInputResult,
+      rawBody: JsonRecord | unknown[],
+    ) => Promise<W4SiblingWorkflowFields>;
+  } = {},
+): Promise<BuildW4SiblingPrintInputResult & W4SiblingWorkflowFields & { success: true }> {
   const result = await buildW4SiblingPrintInput(body, {
     loadManifest: options.loadManifest ?? downloadManifest,
     loadOrder: options.loadOrder ?? getOrderFromSupabase,
     defaultBackendUrl: options.defaultBackendUrl,
   });
 
+  const firstSibling = result.siblings[0];
+  if (!firstSibling) {
+    throw new Error('W4.1 sibling print input produced no sibling items');
+  }
+
+  const workflowFields =
+    options.instrumentSiblingJob
+      ? await options.instrumentSiblingJob(result, body)
+      : await claimAndStartW4SiblingJob({
+        rootGroupId: result.rootGroupId,
+        rootOrderId: result.rootOrderId,
+        amazonOrderId: result.rootOrderId,
+        bookId: firstSibling.bookId,
+        orderIds: result.orderIds,
+        siblingCount: result.siblingCount,
+        claimedAt: pickClaimedAt(body),
+      });
+
   return {
     success: true,
     ...result,
+    ...workflowFields,
+    siblings: result.siblings.map((sibling) => ({
+      ...sibling,
+      ...workflowFields,
+    })),
   };
 }
 

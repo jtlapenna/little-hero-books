@@ -353,7 +353,7 @@ As of the March 25, 2026 cleanup state in Los Angeles time:
   - two near-simultaneous direct POSTs to live webhook `book-assembly-repo` with `claimedAt = 2026-03-27T05:14:10Z` and `2026-03-27T05:14:11Z` created `workflow_jobs.id = 146` and `147`
   - only `146` became active; `147` was canceled immediately with no claim and no attempt row
   - winner `146` logged `duplicate-trigger-skipped` naming skipped job `147`, and loser `147` logged `duplicate-trigger-superseded`
-  - the winning replay later hit a separate `pageNumber = 7` `provider-failed` path and ended `failed`, but the overlap proof itself is still positive: there was only one active `W3` job at a time and the order returned to zero active `W3` jobs without another duplicate runner
+  - the winning replay later hit a separate `pageNumber = 7` `provider-failed` path and ended `failed`, but that forced-replay issue was subsequently fixed by the March 27 preview-poll hardening below; the overlap proof itself remains positive because there was only one active `W3` job at a time and the order returned to zero active `W3` jobs without another duplicate runner
   - the order row stayed at `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4` / `status = pending_assembly_review`
 - a latest-latest-latest-latest-latest-latest-latest March 26 backend deploy + live completed-order replay proof confirms the repo-owned `W3` entry route now short-circuits already-complete orders by default:
   - [`build-assembly-input/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/build-assembly-input/route.ts) now looks up the current order row after normalizing input and returns `workflowSkipped = true` with reason `w3-order-already-complete` when the order is already complete
@@ -363,6 +363,15 @@ As of the March 25, 2026 cleanup state in Los Angeles time:
   - production `/api/internal/w3/build-assembly-input` now returns `workflowSkipped = true` and null workflow-job ids for completed proof order `W3-WFJ-PROOF-20260326195258-safe-v3`
   - a fresh live POST to webhook `book-assembly-repo` with `claimedAt = 2026-03-27T05:24:10Z` created no new `workflow_jobs` rows; the latest `W3` job ids for that order remained `147`, `146`, and `145`
   - active `W3` job count for that proof order stayed at `0`
+- a latest-latest-latest-latest-latest-latest-latest-latest March 27 backend deploy + forced live replay confirms the repo-owned `W3` preview poller now absorbs transient PDFMonkey poll-request failures instead of failing the run at page `7`:
+  - repo helper [`w3-pdfmonkey-preview.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w3-pdfmonkey-preview.ts) now retries up to three consecutive poll-request transport errors before surfacing a hard preview failure
+  - repo verification passed with `npm --prefix back-end run test:w3-preview-render`, and [`test-w3-preview-render.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w3-preview-render.ts) now covers the exact first-poll-fails / later-poll-succeeds recovery path
+  - Pages revision [`7b6affc5.little-hero-labs-admin.pages.dev`](https://7b6affc5.little-hero-labs-admin.pages.dev) deployed the fix to production
+  - production `/api/internal/w3/render-preview-document` again returned the expected auth-protected `401` after deploy
+  - a forced live replay through webhook `book-assembly-repo` with `claimedAt = 2026-03-27T07:04:00Z` processed order `W3-WFJ-PROOF-20260326195258-safe-v3` into `workflow_jobs.id = 148`
+  - the old failure point did not recur: page `7` recorded `provider-submitted` plus `poll-tick` events `1865` through `1869`, ending with `pdfMonkeyStatus = success` instead of `provider-failed`
+  - the same forced replay continued through the remaining page previews, cover preview, manifest publish, and completion callback without manual intervention
+  - `workflow_jobs.id = 148` and `workflow_job_attempts.id = 109` both finished `succeeded`, the event stream ended with terminal `completed` event `1914`, and the order row remained `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4` / `status = pending_assembly_review`
 - a separate router-config bug surfaced during the same proof and is now fixed:
   - backend `cron/router` had been falling back to stale webhook path `w1-1-router` when `N8N_ROUTER_WEBHOOK_URL` was unset
   - [`route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/cron/router/route.ts) now falls back to active live `W1.1` webhook path `w1-1-router-sibtest`
@@ -425,9 +434,16 @@ Current status:
   - disposable live rerun `34291` confirmed that the extracted preview transport path itself works live end to end, and the stale failed proof attempts were closed so the order now shows `activeCount = 0`
   - disposable live rerun `34304` confirmed that the extracted preview-planning + manifest-assembly path itself also works live end to end
   - router-driven disposable rerun `34315` confirmed that the real backend-router -> sibling `W1.1` -> repo-`W3` path now also works live end to end after the W1.1 manifest-context and webhook-path follow-up fixes
+- single-order `W4` sandbox-only extraction is now also proven live on the current imported repo-centric workflow:
+  - stage `4` now has durable job type `w4-print-fulfillment` and repo-owned pre-submit routes for render, PDF materialization, QA, manifest publish, and submit-input build
+  - the extracted `W4` proof path is sandbox-only by contract: [`build-submit-input/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w4/build-submit-input/route.ts) emits only `submitMode = "sandbox"` or `submitMode = "skip"` and pins `CONFIG.lulu.apiBase` to `https://api.sandbox.lulu.com`
+  - webhook [`print-submitted/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/print-submitted/route.ts) now records sandbox completion into `workflow_jobs` without setting `print_submitted_at`, without setting `execution_status = done`, and without sending customer notifications
+  - live disposable rerun `34451` proved the end-to-end extracted sandbox path after two backend hardening fixes (`print-submitted` structured-status acceptance and submit-input sandbox phone fallback)
+  - `workflow_jobs.id = 154` and attempt `115` both finished `succeeded`, with terminal `completed` event `1972`
+  - the proof order stayed non-production: `lulu_job_id = null`, `print_submitted_at = null`, `workflow_step = book_assembly_completed`, `execution_status = done`, `status = pending_assembly_review`
 - the next decision is no longer whether `W2A` / `W2B` instrumentation works; it is whether to:
   - investigate why `HduzTWm0ekmrvwrn` was found inactive unexpectedly on March 25, 2026 and had to be reactivated, and/or
-  - move the remaining `W3` orchestration out of workflow JSON and behind repo workers
+  - finish the remaining `W4` / `W4.1` repo-worker extraction and operator tooling while keeping Lulu production cutover explicitly out of scope
 
 ## Phase B: Move W2A and W2B per-item execution behind repo workers
 
@@ -457,6 +473,19 @@ After W2A/W2B worker semantics are proven:
 ## Phase D: Evaluate W4 / W4.1 orchestration extraction
 
 Do not move paid-print submission out of `n8n` until the backend job-control path is already trusted on lower-risk stages.
+
+Current status:
+
+- the single-order `W4` sandbox-only proof path is now trusted enough to continue extraction work:
+  - durable job control exists
+  - repo-owned render / materialize / QA / manifest / submit-input seams are live
+  - live execution `34451` ended `success` with `workflow_jobs.id = 154` / attempt `115` both `succeeded`
+  - the proof stayed sandbox-only and did not create a production Lulu submission or customer-facing lifecycle change
+  - operator-facing W4 recovery now exists at [`/admin/w4-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-recovery/page.tsx), backed by [`/api/admin/w4-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-recovery/route.ts) and [`w4-recovery.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-recovery.ts)
+  - that recovery surface is intentionally fail-closed for paid-print safety: it only replays through live webhook `w4-pdf-print-repo`, refuses any order with `lulu_job_id` / `lulu_status` / `print_submitted_at`, and relies on the extracted sandbox-only W4 submit path
+- the next `W4` work should stay explicitly non-billable:
+  - extend the same repo-worker shape to `W4.1`
+  - design a separate, later production-Lulu cutover plan with hard guardrails instead of blending it into the sandbox proof path
 
 ---
 

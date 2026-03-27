@@ -385,10 +385,29 @@ async function main(): Promise<void> {
   const wrappedResponse = await buildW4SiblingPrintInputResponse(baseState.wrappedInput, {
     loadManifest: baseState.loadManifest,
     loadOrder: baseState.loadOrder,
+    instrumentSiblingJob: async () => ({
+      workflowJobId: 4401,
+      workflowJobIdempotencyKey: 'wf:4.1:w4-sibling-aggregation:111-2222222-9999999:sibling-aggregation:test',
+      workflowJobStatus: 'running',
+      workflowAttemptId: 5401,
+      workflowAttempt: 1,
+      workflowClaimed: true,
+      workflowSkipped: false,
+      workflowSkipReason: null,
+    }),
   });
   assert(
     wrappedResponse.success === true &&
-      wrappedResponse.siblings[0].manifest3Url.includes('/api/manifests/'),
+      wrappedResponse.siblings[0].manifest3Url.includes('/api/manifests/') &&
+      wrappedResponse.workflowJobId === 4401 &&
+      wrappedResponse.workflowAttemptId === 5401 &&
+      wrappedResponse.siblings.every(
+        (sibling) =>
+          sibling.workflowJobId === 4401 &&
+          sibling.workflowAttemptId === 5401 &&
+          sibling.workflowJobIdempotencyKey ===
+            'wf:4.1:w4-sibling-aggregation:111-2222222-9999999:sibling-aggregation:test',
+      ),
     'Expected the W4.1 print-input route helper to return a successful wrapped response',
   );
 
@@ -460,6 +479,8 @@ async function main(): Promise<void> {
   assert(
     testModeSubmit.__skipLulu === true &&
       testModeSubmit.guard.reason === 'test_mode' &&
+      testModeSubmit.submitMode === 'skip' &&
+      testModeSubmit.luluApiBase === 'https://api.sandbox.lulu.com' &&
       testModeSubmit.luluJobId === `TEST-${baseState.rootOrderId}` &&
       testModeSubmit.luluStatus === 'TEST_MODE',
     'Expected W4.1 submit input to short-circuit safely in test mode',
@@ -526,6 +547,7 @@ async function main(): Promise<void> {
   assert(
     existingJobSubmit.__skipLulu === true &&
       existingJobSubmit.guard.reason === 'existing_job' &&
+      existingJobSubmit.submitMode === 'skip' &&
       existingJobSubmit.luluJobId === 'job-existing-123' &&
       existingJobSubmit.luluStatus === 'CREATED',
     'Expected W4.1 submit input to bypass Lulu submission when any sibling already has a Lulu job',
@@ -533,7 +555,14 @@ async function main(): Promise<void> {
 
   const proceedSubmit = await buildW4SiblingSubmitInputResponse(
     {
-      siblings: routerStyle.siblings,
+      siblings: routerStyle.siblings.map((sibling) => ({
+        ...sibling,
+        workflowJobId: 4402,
+        workflowJobIdempotencyKey:
+          'wf:4.1:w4-sibling-aggregation:111-2222222-9999999:sibling-aggregation:test-2',
+        workflowAttemptId: 5402,
+        workflowJobStatus: 'running',
+      })),
       CONFIG: buildConfig(false),
     },
     {
@@ -544,8 +573,15 @@ async function main(): Promise<void> {
   assert(
     proceedSubmit.success === true &&
       proceedSubmit.__skipLulu === false &&
-      proceedSubmit.guard.reason === 'proceed',
-    'Expected the W4.1 submit-input route helper to return a successful non-skip response when no guard is triggered',
+      proceedSubmit.guard.reason === 'sandbox' &&
+      proceedSubmit.submitMode === 'sandbox' &&
+      proceedSubmit.luluApiBase === 'https://api.sandbox.lulu.com' &&
+      proceedSubmit.workflowJobId === 4402 &&
+      proceedSubmit.workflowAttemptId === 5402 &&
+      proceedSubmit.workflowJobIdempotencyKey ===
+        'wf:4.1:w4-sibling-aggregation:111-2222222-9999999:sibling-aggregation:test-2' &&
+      proceedSubmit.CONFIG?.lulu?.apiBase === 'https://api.sandbox.lulu.com',
+    'Expected the W4.1 submit-input route helper to return a sandbox-only response with sibling workflow metadata when no guard is triggered',
   );
   assert(
     signedKeys.filter((value) => value.includes('little-hero-orders')).length >= 4,

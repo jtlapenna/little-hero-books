@@ -16,3 +16,4 @@ export * from '@/lib/books/w3-preview-plan';
 export * from '@/lib/books/w3-manifest';
 export * from '@/lib/books/w4-print-input';
 export * from '@/lib/books/w4-sibling-print-input';
+export * from '@/lib/books/w4-submit-input';

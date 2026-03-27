@@ -2,6 +2,8 @@
 
 import {
   claimAndStartW3AssemblyJob,
+  claimAndStartW4PrintJob,
+  claimAndStartW4SiblingJob,
   buildW2APoseWorkflowReplay,
   buildWorkflowJobEventInsertRow,
   buildWorkflowJobIdempotencyKey,
@@ -12,6 +14,8 @@ import {
   canClaimWorkflowJob,
   claimAndStartW2APoseJob,
   completeW3AssemblyJobForOrder,
+  completeW4PrintJobForOrder,
+  completeW4SiblingJobForGroup,
   computeWorkflowJobNextRetryAt,
   computeWorkflowJobRetryDelayMs,
   hasWorkflowJobLeaseExpired,
@@ -1182,6 +1186,857 @@ async function testW3AssemblyCompletion() {
   );
 }
 
+async function testW4PrintJobLifecycle() {
+  const queuedEvents: Array<{ eventType: string; payload?: unknown }> = [];
+  let enqueuedLogicalKey: string | null = null;
+
+  const started = await claimAndStartW4PrintJob(
+    {
+      orderId: 'W4-SANDBOX-PROOF-001',
+      rootOrderId: 'W4-SANDBOX-PROOF-001',
+      amazonOrderId: null,
+      bookId: 'book-mvp-simple-adventure',
+      characterHash: 'fixture-book1-w4-hash',
+      manifest3Key: 'book/orders/W4-SANDBOX-PROOF-001/manifests/3-manifest.json',
+      manifest4Key: 'book/orders/W4-SANDBOX-PROOF-001/manifests/4-manifest.json',
+      claimedAt: '2026-03-27T09:20:00.000Z',
+    },
+    {},
+    {
+      enqueueWorkflowJob: async (input) => {
+        enqueuedLogicalKey = String(input.logicalKey);
+        return {
+          id: 501,
+          job_type: 'w4-print-fulfillment',
+          stage: '4',
+          order_row_id: null,
+          order_id: 'W4-SANDBOX-PROOF-001',
+          root_order_id: 'W4-SANDBOX-PROOF-001',
+          amazon_order_id: null,
+          book_id: 'book-mvp-simple-adventure',
+          logical_key: String(input.logicalKey),
+          idempotency_key: String(input.idempotencyKey),
+          status: 'queued',
+          lease_owner: null,
+          lease_expires_at: null,
+          attempt_count: 0,
+          max_attempts: 5,
+          next_retry_at: null,
+          external_provider: 'pdfmonkey',
+          external_request_id: null,
+          external_status_url: null,
+          input_snapshot: {},
+          normalized_input_snapshot: {},
+          result_snapshot: {},
+          last_error: null,
+          queued_at: '2026-03-27T09:20:00.000Z',
+          claimed_at: null,
+          started_at: null,
+          polling_at: null,
+          completed_at: null,
+          failed_at: null,
+          dead_lettered_at: null,
+          canceled_at: null,
+          created_at: '2026-03-27T09:20:00.000Z',
+          updated_at: '2026-03-27T09:20:00.000Z',
+        } as WorkflowJobRecord;
+      },
+      getWorkflowJobById: async () => null,
+      getWorkflowJobByIdempotencyKey: async () => null,
+      listWorkflowJobsForOrder: async () => [],
+      claimWorkflowJob: async () =>
+        ({
+          id: 501,
+          job_type: 'w4-print-fulfillment',
+          stage: '4',
+          order_row_id: null,
+          order_id: 'W4-SANDBOX-PROOF-001',
+          root_order_id: 'W4-SANDBOX-PROOF-001',
+          amazon_order_id: null,
+          book_id: 'book-mvp-simple-adventure',
+          logical_key: enqueuedLogicalKey || 'print',
+          idempotency_key: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-001:print:stub',
+          status: 'claimed',
+          lease_owner: 'api:internal/w4/build-print-input',
+          lease_expires_at: '2026-03-27T09:21:00.000Z',
+          attempt_count: 0,
+          max_attempts: 5,
+          next_retry_at: null,
+          external_provider: 'pdfmonkey',
+          external_request_id: null,
+          external_status_url: null,
+          input_snapshot: {},
+          normalized_input_snapshot: {},
+          result_snapshot: {},
+          last_error: null,
+          queued_at: '2026-03-27T09:20:00.000Z',
+          claimed_at: '2026-03-27T09:20:01.000Z',
+          started_at: null,
+          polling_at: null,
+          completed_at: null,
+          failed_at: null,
+          dead_lettered_at: null,
+          canceled_at: null,
+          created_at: '2026-03-27T09:20:00.000Z',
+          updated_at: '2026-03-27T09:20:01.000Z',
+        }) as WorkflowJobRecord,
+      incrementWorkflowJobAttemptCount: async () =>
+        ({
+          attempt_count: 1,
+        }) as WorkflowJobRecord,
+      createWorkflowJobAttempt: async () =>
+        ({
+          id: 1501,
+          job_id: 501,
+          attempt: 1,
+          status: 'running',
+          worker_kind: 'n8n',
+          lease_owner: 'api:internal/w4/build-print-input',
+          started_at: '2026-03-27T09:20:01.000Z',
+          ended_at: null,
+          duration_ms: null,
+          error_message: null,
+          error_details: null,
+          provider_request_id: null,
+          provider_status_url: null,
+          created_at: '2026-03-27T09:20:01.000Z',
+          updated_at: '2026-03-27T09:20:01.000Z',
+        }) as WorkflowJobAttemptRecord,
+      getLatestWorkflowJobAttemptForJob: async () => null,
+      finishWorkflowJobAttempt: async () => null,
+      markWorkflowJobRunning: async () =>
+        ({
+          id: 501,
+          job_type: 'w4-print-fulfillment',
+          stage: '4',
+          order_row_id: null,
+          order_id: 'W4-SANDBOX-PROOF-001',
+          root_order_id: 'W4-SANDBOX-PROOF-001',
+          amazon_order_id: null,
+          book_id: 'book-mvp-simple-adventure',
+          logical_key: enqueuedLogicalKey || 'print',
+          idempotency_key: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-001:print:stub',
+          status: 'running',
+          lease_owner: 'api:internal/w4/build-print-input',
+          lease_expires_at: '2026-03-27T09:21:00.000Z',
+          attempt_count: 1,
+          max_attempts: 5,
+          next_retry_at: null,
+          external_provider: 'pdfmonkey',
+          external_request_id: null,
+          external_status_url: null,
+          input_snapshot: {},
+          normalized_input_snapshot: {},
+          result_snapshot: {},
+          last_error: null,
+          queued_at: '2026-03-27T09:20:00.000Z',
+          claimed_at: '2026-03-27T09:20:01.000Z',
+          started_at: '2026-03-27T09:20:02.000Z',
+          polling_at: null,
+          completed_at: null,
+          failed_at: null,
+          dead_lettered_at: null,
+          canceled_at: null,
+          created_at: '2026-03-27T09:20:00.000Z',
+          updated_at: '2026-03-27T09:20:02.000Z',
+        }) as WorkflowJobRecord,
+      markWorkflowJobSucceeded: async () => null,
+      cancelWorkflowJob: async () => null,
+      appendWorkflowJobEvent: async (input) => {
+        queuedEvents.push({ eventType: input.eventType, payload: input.payload });
+        return null;
+      },
+    },
+  );
+
+  assertEqual(started.workflowClaimed, true, 'W4 job start should claim the per-order print job');
+  assertEqual(started.workflowJobStatus, 'running', 'W4 job start should mark the job running');
+  assertEqual(started.workflowAttemptId, 1501, 'W4 job start should create an attempt record');
+  assert(
+    String(enqueuedLogicalKey).includes('2026-03-27T09:20:00'),
+    'W4 logical key should include claimedAt so forced reruns do not collapse into one job identity',
+  );
+  assert(
+    queuedEvents.some((event) => event.eventType === 'queued') &&
+      queuedEvents.some((event) => event.eventType === 'claimed') &&
+      queuedEvents.some((event) => event.eventType === 'started'),
+    'W4 job start should emit queued, claimed, and started events',
+  );
+}
+
+async function testW4SiblingJobLifecycle() {
+  const queuedEvents: Array<{ eventType: string; payload?: unknown }> = [];
+  let enqueuedLogicalKey: string | null = null;
+
+  const started = await claimAndStartW4SiblingJob(
+    {
+      rootGroupId: 'W4-SIBLING-PROOF-001',
+      rootOrderId: 'W4-SIBLING-PROOF-001',
+      amazonOrderId: 'W4-SIBLING-PROOF-001',
+      bookId: 'book-mvp-simple-adventure',
+      orderIds: ['W4-SIBLING-PROOF-001-item-1', 'W4-SIBLING-PROOF-001-item-2'],
+      siblingCount: 2,
+      claimedAt: '2026-03-27T10:20:00.000Z',
+    },
+    {},
+    {
+      enqueueWorkflowJob: async (input) => {
+        enqueuedLogicalKey = String(input.logicalKey);
+        return {
+          id: 601,
+          job_type: 'w4-sibling-aggregation',
+          stage: '4.1',
+          order_row_id: null,
+          order_id: 'W4-SIBLING-PROOF-001',
+          root_order_id: 'W4-SIBLING-PROOF-001',
+          amazon_order_id: 'W4-SIBLING-PROOF-001',
+          book_id: 'book-mvp-simple-adventure',
+          logical_key: String(input.logicalKey),
+          idempotency_key: String(input.idempotencyKey),
+          status: 'queued',
+          lease_owner: null,
+          lease_expires_at: null,
+          attempt_count: 0,
+          max_attempts: 5,
+          next_retry_at: null,
+          external_provider: 'pdfmonkey',
+          external_request_id: null,
+          external_status_url: null,
+          input_snapshot: {},
+          normalized_input_snapshot: {},
+          result_snapshot: {},
+          last_error: null,
+          queued_at: '2026-03-27T10:20:00.000Z',
+          claimed_at: null,
+          started_at: null,
+          polling_at: null,
+          completed_at: null,
+          failed_at: null,
+          dead_lettered_at: null,
+          canceled_at: null,
+          created_at: '2026-03-27T10:20:00.000Z',
+          updated_at: '2026-03-27T10:20:00.000Z',
+        } as WorkflowJobRecord;
+      },
+      getWorkflowJobById: async () => null,
+      getWorkflowJobByIdempotencyKey: async () => null,
+      listWorkflowJobsForOrder: async () => [],
+      claimWorkflowJob: async () =>
+        ({
+          id: 601,
+          job_type: 'w4-sibling-aggregation',
+          stage: '4.1',
+          order_row_id: null,
+          order_id: 'W4-SIBLING-PROOF-001',
+          root_order_id: 'W4-SIBLING-PROOF-001',
+          amazon_order_id: 'W4-SIBLING-PROOF-001',
+          book_id: 'book-mvp-simple-adventure',
+          logical_key: enqueuedLogicalKey || 'sibling-aggregation',
+          idempotency_key: 'wf:4.1:w4-sibling-aggregation:W4-SIBLING-PROOF-001:sibling-aggregation:stub',
+          status: 'claimed',
+          lease_owner: 'api:internal/w4/build-sibling-print-input',
+          lease_expires_at: '2026-03-27T10:21:00.000Z',
+          attempt_count: 0,
+          max_attempts: 5,
+          next_retry_at: null,
+          external_provider: 'pdfmonkey',
+          external_request_id: null,
+          external_status_url: null,
+          input_snapshot: {},
+          normalized_input_snapshot: {},
+          result_snapshot: {},
+          last_error: null,
+          queued_at: '2026-03-27T10:20:00.000Z',
+          claimed_at: '2026-03-27T10:20:01.000Z',
+          started_at: null,
+          polling_at: null,
+          completed_at: null,
+          failed_at: null,
+          dead_lettered_at: null,
+          canceled_at: null,
+          created_at: '2026-03-27T10:20:00.000Z',
+          updated_at: '2026-03-27T10:20:01.000Z',
+        }) as WorkflowJobRecord,
+      incrementWorkflowJobAttemptCount: async () =>
+        ({
+          attempt_count: 1,
+        }) as WorkflowJobRecord,
+      createWorkflowJobAttempt: async () =>
+        ({
+          id: 1601,
+          job_id: 601,
+          attempt: 1,
+          status: 'running',
+          worker_kind: 'n8n',
+          lease_owner: 'api:internal/w4/build-sibling-print-input',
+          started_at: '2026-03-27T10:20:01.000Z',
+          ended_at: null,
+          duration_ms: null,
+          error_message: null,
+          error_details: null,
+          provider_request_id: null,
+          provider_status_url: null,
+          created_at: '2026-03-27T10:20:01.000Z',
+          updated_at: '2026-03-27T10:20:01.000Z',
+        }) as WorkflowJobAttemptRecord,
+      getLatestWorkflowJobAttemptForJob: async () => null,
+      finishWorkflowJobAttempt: async () => null,
+      markWorkflowJobRunning: async () =>
+        ({
+          id: 601,
+          job_type: 'w4-sibling-aggregation',
+          stage: '4.1',
+          order_row_id: null,
+          order_id: 'W4-SIBLING-PROOF-001',
+          root_order_id: 'W4-SIBLING-PROOF-001',
+          amazon_order_id: 'W4-SIBLING-PROOF-001',
+          book_id: 'book-mvp-simple-adventure',
+          logical_key: enqueuedLogicalKey || 'sibling-aggregation',
+          idempotency_key: 'wf:4.1:w4-sibling-aggregation:W4-SIBLING-PROOF-001:sibling-aggregation:stub',
+          status: 'running',
+          lease_owner: 'api:internal/w4/build-sibling-print-input',
+          lease_expires_at: '2026-03-27T10:21:00.000Z',
+          attempt_count: 1,
+          max_attempts: 5,
+          next_retry_at: null,
+          external_provider: 'pdfmonkey',
+          external_request_id: null,
+          external_status_url: null,
+          input_snapshot: {},
+          normalized_input_snapshot: {},
+          result_snapshot: {},
+          last_error: null,
+          queued_at: '2026-03-27T10:20:00.000Z',
+          claimed_at: '2026-03-27T10:20:01.000Z',
+          started_at: '2026-03-27T10:20:02.000Z',
+          polling_at: null,
+          completed_at: null,
+          failed_at: null,
+          dead_lettered_at: null,
+          canceled_at: null,
+          created_at: '2026-03-27T10:20:00.000Z',
+          updated_at: '2026-03-27T10:20:02.000Z',
+        }) as WorkflowJobRecord,
+      markWorkflowJobSucceeded: async () => null,
+      cancelWorkflowJob: async () => null,
+      appendWorkflowJobEvent: async (input) => {
+        queuedEvents.push({ eventType: input.eventType, payload: input.payload });
+        return null;
+      },
+    },
+  );
+
+  assertEqual(started.workflowClaimed, true, 'W4.1 job start should claim the sibling aggregation job');
+  assertEqual(started.workflowJobStatus, 'running', 'W4.1 job start should mark the group job running');
+  assertEqual(started.workflowAttemptId, 1601, 'W4.1 job start should create a group attempt record');
+  assert(
+    String(enqueuedLogicalKey).includes('2026-03-27T10:20:00'),
+    'W4.1 logical key should include claimedAt so forced sibling reruns do not collapse into one job identity',
+  );
+  assert(
+    queuedEvents.some((event) => event.eventType === 'queued') &&
+      queuedEvents.some((event) => event.eventType === 'claimed') &&
+      queuedEvents.some((event) => event.eventType === 'started'),
+    'W4.1 job start should emit queued, claimed, and started events',
+  );
+}
+
+async function testW4PrintJobSkipsWhenAnotherActiveJobExists() {
+  const calls: Array<{ fn: string; payload: unknown }> = [];
+  const activeJob: WorkflowJobRecord = {
+    id: 7777,
+    job_type: 'w4-print-fulfillment',
+    stage: '4',
+    order_row_id: 874,
+    order_id: 'W4-SANDBOX-PROOF-001',
+    root_order_id: 'W4-SANDBOX-PROOF-001',
+    amazon_order_id: null,
+    book_id: 'book-mvp-simple-adventure',
+    logical_key: 'print:2026-03-27T09:25:00Z',
+    idempotency_key: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-001:print:active',
+    status: 'polling',
+    lease_owner: 'api:internal/w4/build-print-input',
+    lease_expires_at: '2026-03-27T09:30:00.000Z',
+    attempt_count: 1,
+    max_attempts: 5,
+    next_retry_at: null,
+    external_provider: 'pdfmonkey',
+    external_request_id: 'pdf-7777',
+    external_status_url: 'https://api.pdfmonkey.io/api/v1/documents/pdf-7777',
+    input_snapshot: {},
+    normalized_input_snapshot: {},
+    result_snapshot: {},
+    last_error: null,
+    queued_at: '2026-03-27T09:25:00.000Z',
+    claimed_at: '2026-03-27T09:25:01.000Z',
+    started_at: '2026-03-27T09:25:02.000Z',
+    polling_at: '2026-03-27T09:25:03.000Z',
+    completed_at: null,
+    failed_at: null,
+    dead_lettered_at: null,
+    canceled_at: null,
+    created_at: '2026-03-27T09:25:00.000Z',
+    updated_at: '2026-03-27T09:25:03.000Z',
+  };
+
+  const started = await claimAndStartW4PrintJob(
+    {
+      orderId: 'W4-SANDBOX-PROOF-001',
+      rootOrderId: 'W4-SANDBOX-PROOF-001',
+      amazonOrderId: null,
+      bookId: 'book-mvp-simple-adventure',
+      characterHash: 'fixture-book1-w4-hash',
+      manifest3Key: 'book/orders/W4-SANDBOX-PROOF-001/manifests/3-manifest.json',
+      claimedAt: '2026-03-27T09:25:20.000Z',
+    },
+    {},
+    {
+      enqueueWorkflowJob: async () => {
+        throw new Error('should not enqueue a duplicate W4 job while another is active');
+      },
+      getWorkflowJobById: async () => null,
+      getWorkflowJobByIdempotencyKey: async () => null,
+      listWorkflowJobsForOrder: async () => [activeJob],
+      claimWorkflowJob: async () => null,
+      incrementWorkflowJobAttemptCount: async () => null,
+      createWorkflowJobAttempt: async () => null,
+      getLatestWorkflowJobAttemptForJob: async (jobId: number) =>
+        jobId === 7777
+          ? ({
+              id: 2004,
+              job_id: 7777,
+              attempt: 1,
+              status: 'polling',
+              worker_kind: 'n8n',
+              lease_owner: 'api:internal/w4/build-print-input',
+              started_at: '2026-03-27T09:25:02.000Z',
+              ended_at: null,
+              duration_ms: null,
+              error_message: null,
+              error_details: null,
+              provider_request_id: 'pdf-7777',
+              provider_status_url: 'https://api.pdfmonkey.io/api/v1/documents/pdf-7777',
+              created_at: '2026-03-27T09:25:02.000Z',
+              updated_at: '2026-03-27T09:25:03.000Z',
+            } as WorkflowJobAttemptRecord)
+          : null,
+      finishWorkflowJobAttempt: async () => null,
+      markWorkflowJobRunning: async () => null,
+      markWorkflowJobSucceeded: async () => null,
+      cancelWorkflowJob: async () => null,
+      appendWorkflowJobEvent: async (input) => {
+        calls.push({ fn: 'appendWorkflowJobEvent', payload: input });
+        return null;
+      },
+    },
+  );
+
+  assertEqual(started.workflowJobId, 7777, 'W4 duplicate guard should point duplicate callers at the active print job');
+  assertEqual(started.workflowAttemptId, 2004, 'W4 duplicate guard should surface the active attempt');
+  assertEqual(started.workflowClaimed, false, 'W4 duplicate guard should not claim a second print job');
+  assertEqual(started.workflowSkipped, true, 'W4 duplicate guard should mark the duplicate trigger skipped');
+  assertEqual(
+    started.workflowSkipReason,
+    'active-w4-print-job-exists',
+    'W4 duplicate guard should explain the duplicate skip reason',
+  );
+  assert(
+    calls.some(
+      (entry) =>
+        entry.fn === 'appendWorkflowJobEvent' &&
+        (entry.payload as { eventType?: string }).eventType === 'duplicate-trigger-skipped',
+    ),
+    'W4 duplicate guard should append a duplicate-trigger-skipped event to the winning active job',
+  );
+}
+
+async function testW4PrintJobCancelsLaterOverlapAfterEnqueue() {
+  const calls: Array<{ fn: string; payload: unknown }> = [];
+  let listCallCount = 0;
+
+  const earlierJob: WorkflowJobRecord = {
+    id: 8800,
+    job_type: 'w4-print-fulfillment',
+    stage: '4',
+    order_row_id: 874,
+    order_id: 'W4-SANDBOX-PROOF-001',
+    root_order_id: 'W4-SANDBOX-PROOF-001',
+    amazon_order_id: null,
+    book_id: 'book-mvp-simple-adventure',
+    logical_key: 'print:2026-03-27T09:30:00Z',
+    idempotency_key: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-001:print:older',
+    status: 'running',
+    lease_owner: 'api:internal/w4/build-print-input',
+    lease_expires_at: '2026-03-27T09:31:00.000Z',
+    attempt_count: 1,
+    max_attempts: 5,
+    next_retry_at: null,
+    external_provider: 'pdfmonkey',
+    external_request_id: 'pdf-8800',
+    external_status_url: 'https://api.pdfmonkey.io/api/v1/documents/pdf-8800',
+    input_snapshot: {},
+    normalized_input_snapshot: {},
+    result_snapshot: {},
+    last_error: null,
+    queued_at: '2026-03-27T09:30:00.000Z',
+    claimed_at: '2026-03-27T09:30:01.000Z',
+    started_at: '2026-03-27T09:30:02.000Z',
+    polling_at: null,
+    completed_at: null,
+    failed_at: null,
+    dead_lettered_at: null,
+    canceled_at: null,
+    created_at: '2026-03-27T09:30:00.000Z',
+    updated_at: '2026-03-27T09:30:02.000Z',
+  };
+
+  const duplicateJob: WorkflowJobRecord = {
+    ...earlierJob,
+    id: 8801,
+    logical_key: 'print:2026-03-27T09:30:01Z',
+    idempotency_key: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-001:print:newer',
+    status: 'queued',
+    lease_owner: null,
+    lease_expires_at: null,
+    attempt_count: 0,
+    external_request_id: null,
+    external_status_url: null,
+    claimed_at: null,
+    started_at: null,
+    created_at: '2026-03-27T09:30:01.000Z',
+    updated_at: '2026-03-27T09:30:01.000Z',
+  };
+
+  const started = await claimAndStartW4PrintJob(
+    {
+      orderId: 'W4-SANDBOX-PROOF-001',
+      rootOrderId: 'W4-SANDBOX-PROOF-001',
+      amazonOrderId: null,
+      bookId: 'book-mvp-simple-adventure',
+      characterHash: 'fixture-book1-w4-hash',
+      manifest3Key: 'book/orders/W4-SANDBOX-PROOF-001/manifests/3-manifest.json',
+      claimedAt: '2026-03-27T09:30:01.000Z',
+    },
+    {},
+    {
+      enqueueWorkflowJob: async () => duplicateJob,
+      getWorkflowJobById: async (jobId: number) => (jobId === 8800 ? earlierJob : duplicateJob),
+      getWorkflowJobByIdempotencyKey: async () => null,
+      listWorkflowJobsForOrder: async () => {
+        listCallCount += 1;
+        return listCallCount === 1 ? [] : [duplicateJob, earlierJob];
+      },
+      claimWorkflowJob: async () => {
+        throw new Error('should not claim the later duplicate once an earlier active W4 job is visible');
+      },
+      incrementWorkflowJobAttemptCount: async () => null,
+      createWorkflowJobAttempt: async () => null,
+      getLatestWorkflowJobAttemptForJob: async (jobId: number) =>
+        jobId === 8800
+          ? ({
+              id: 2005,
+              job_id: 8800,
+              attempt: 1,
+              status: 'running',
+              worker_kind: 'n8n',
+              lease_owner: 'api:internal/w4/build-print-input',
+              started_at: '2026-03-27T09:30:02.000Z',
+              ended_at: null,
+              duration_ms: null,
+              error_message: null,
+              error_details: null,
+              provider_request_id: 'pdf-8800',
+              provider_status_url: 'https://api.pdfmonkey.io/api/v1/documents/pdf-8800',
+              created_at: '2026-03-27T09:30:02.000Z',
+              updated_at: '2026-03-27T09:30:02.000Z',
+            } as WorkflowJobAttemptRecord)
+          : null,
+      finishWorkflowJobAttempt: async () => null,
+      markWorkflowJobRunning: async () => null,
+      markWorkflowJobSucceeded: async () => null,
+      cancelWorkflowJob: async (jobId: number, reason: string) => {
+        calls.push({ fn: 'cancelWorkflowJob', payload: { jobId, reason } });
+        return {
+          ...duplicateJob,
+          status: 'canceled',
+          canceled_at: '2026-03-27T09:30:01.500Z',
+          updated_at: '2026-03-27T09:30:01.500Z',
+        } as WorkflowJobRecord;
+      },
+      appendWorkflowJobEvent: async (input) => {
+        calls.push({ fn: 'appendWorkflowJobEvent', payload: input });
+        return null;
+      },
+    },
+  );
+
+  assertEqual(started.workflowJobId, 8800, 'W4 overlap guard should redirect the later duplicate to the earlier active job');
+  assertEqual(started.workflowAttemptId, 2005, 'W4 overlap guard should surface the winning active attempt');
+  assertEqual(started.workflowSkipped, true, 'W4 overlap guard should mark the later duplicate skipped');
+  assertEqual(
+    started.workflowSkipReason,
+    'active-w4-print-job-exists',
+    'W4 overlap guard should explain the duplicate skip reason',
+  );
+  assert(
+    calls.some(
+      (entry) =>
+        entry.fn === 'cancelWorkflowJob' &&
+        (entry.payload as { jobId?: number }).jobId === 8801,
+    ),
+    'W4 overlap guard should cancel the later duplicate job row before provider work starts',
+  );
+}
+
+async function testW4PrintCompletion() {
+  const calls: Array<{ fn: string; payload: unknown }> = [];
+  const olderJob: WorkflowJobRecord = {
+    id: 9010,
+    job_type: 'w4-print-fulfillment',
+    stage: '4',
+    order_row_id: null,
+    order_id: 'W4-SANDBOX-PROOF-001',
+    root_order_id: 'W4-SANDBOX-PROOF-001',
+    amazon_order_id: null,
+    book_id: 'book-mvp-simple-adventure',
+    logical_key: 'print:2026-03-26T09:00:00.000Z',
+    idempotency_key: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-001:print:old',
+    status: 'succeeded',
+    lease_owner: null,
+    lease_expires_at: null,
+    attempt_count: 1,
+    max_attempts: 5,
+    next_retry_at: null,
+    external_provider: 'pdfmonkey',
+    external_request_id: null,
+    external_status_url: null,
+    input_snapshot: {},
+    normalized_input_snapshot: {},
+    result_snapshot: {},
+    last_error: null,
+    queued_at: '2026-03-26T09:00:00.000Z',
+    claimed_at: '2026-03-26T09:00:01.000Z',
+    started_at: '2026-03-26T09:00:02.000Z',
+    polling_at: null,
+    completed_at: '2026-03-26T09:10:00.000Z',
+    failed_at: null,
+    dead_lettered_at: null,
+    canceled_at: null,
+    created_at: '2026-03-26T09:00:00.000Z',
+    updated_at: '2026-03-26T09:10:00.000Z',
+  };
+  const activeJob: WorkflowJobRecord = {
+    ...olderJob,
+    id: 9011,
+    logical_key: 'print:2026-03-27T09:34:00.000Z',
+    idempotency_key: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-001:print:new',
+    status: 'running',
+    lease_owner: 'api:internal/w4/build-print-input',
+    lease_expires_at: '2026-03-27T09:40:00.000Z',
+    completed_at: null,
+    created_at: '2026-03-27T09:34:00.000Z',
+    updated_at: '2026-03-27T09:34:10.000Z',
+  };
+
+  const completion = await completeW4PrintJobForOrder(
+    {
+      orderId: 'W4-SANDBOX-PROOF-001',
+      submitMode: 'sandbox',
+      manifestUrl: 'https://admin.littleherolabs.com/api/manifests/book/orders/W4-SANDBOX-PROOF-001/manifests/4-manifest.json',
+      manifestKey: 'book/orders/W4-SANDBOX-PROOF-001/manifests/4-manifest.json',
+      luluJobId: 'sandbox-job-001',
+      luluStatus: 'CREATED',
+    },
+    {
+      enqueueWorkflowJob: async () => null,
+      getWorkflowJobById: async () => null,
+      getWorkflowJobByIdempotencyKey: async () => null,
+      listWorkflowJobsForOrder: async () => [olderJob, activeJob],
+      claimWorkflowJob: async () => null,
+      incrementWorkflowJobAttemptCount: async () => null,
+      createWorkflowJobAttempt: async () => null,
+      getLatestWorkflowJobAttemptForJob: async (jobId: number) =>
+        jobId === 9011
+          ? ({
+              id: 2901,
+              job_id: 9011,
+              attempt: 1,
+              status: 'running',
+              worker_kind: 'n8n',
+              lease_owner: 'api:internal/w4/build-print-input',
+              started_at: '2026-03-27T09:34:01.000Z',
+              ended_at: null,
+              duration_ms: null,
+              error_message: null,
+              error_details: null,
+              provider_request_id: null,
+              provider_status_url: null,
+              created_at: '2026-03-27T09:34:01.000Z',
+              updated_at: '2026-03-27T09:34:01.000Z',
+            } as WorkflowJobAttemptRecord)
+          : null,
+      finishWorkflowJobAttempt: async (input) => {
+        calls.push({ fn: 'finishWorkflowJobAttempt', payload: input });
+        return null;
+      },
+      markWorkflowJobRunning: async () => null,
+      markWorkflowJobSucceeded: async (jobId, input) => {
+        calls.push({ fn: 'markWorkflowJobSucceeded', payload: { jobId, input } });
+        return {
+          ...activeJob,
+          status: 'succeeded',
+          completed_at: '2026-03-27T09:35:00.000Z',
+          result_snapshot: input.resultSnapshot ?? {},
+        } as WorkflowJobRecord;
+      },
+      cancelWorkflowJob: async () => null,
+      appendWorkflowJobEvent: async (input) => {
+        calls.push({ fn: 'appendWorkflowJobEvent', payload: input });
+        return null;
+      },
+    },
+  );
+
+  assertEqual(completion.job?.id ?? null, 9011, 'W4 completion should resolve the latest active print job');
+  assertEqual(completion.attempt?.id ?? null, 2901, 'W4 completion should reuse the latest open attempt');
+  assert(
+    calls.some((entry) => entry.fn === 'finishWorkflowJobAttempt'),
+    'W4 completion should finish the open attempt before marking the job succeeded',
+  );
+  assert(
+    calls.some(
+      (entry) =>
+        entry.fn === 'markWorkflowJobSucceeded' &&
+        (entry.payload as { jobId: number }).jobId === 9011,
+    ),
+    'W4 completion should mark the latest active print job succeeded',
+  );
+  assert(
+    calls.some((entry) => entry.fn === 'appendWorkflowJobEvent'),
+    'W4 completion should append a completed event',
+  );
+}
+
+async function testW4SiblingCompletion() {
+  const calls: Array<{ fn: string; payload: unknown }> = [];
+  const activeJob: WorkflowJobRecord = {
+    id: 9101,
+    job_type: 'w4-sibling-aggregation',
+    stage: '4.1',
+    order_row_id: null,
+    order_id: 'W4-SIBLING-PROOF-001',
+    root_order_id: 'W4-SIBLING-PROOF-001',
+    amazon_order_id: 'W4-SIBLING-PROOF-001',
+    book_id: 'book-mvp-simple-adventure',
+    logical_key: 'sibling-aggregation:2026-03-27T10:34:00.000Z',
+    idempotency_key: 'wf:4.1:w4-sibling-aggregation:W4-SIBLING-PROOF-001:sibling-aggregation:new',
+    status: 'running',
+    lease_owner: 'api:internal/w4/build-sibling-print-input',
+    lease_expires_at: '2026-03-27T10:40:00.000Z',
+    attempt_count: 1,
+    max_attempts: 5,
+    next_retry_at: null,
+    external_provider: 'pdfmonkey',
+    external_request_id: null,
+    external_status_url: null,
+    input_snapshot: {},
+    normalized_input_snapshot: {},
+    result_snapshot: {},
+    last_error: null,
+    queued_at: '2026-03-27T10:34:00.000Z',
+    claimed_at: '2026-03-27T10:34:01.000Z',
+    started_at: '2026-03-27T10:34:02.000Z',
+    polling_at: null,
+    completed_at: null,
+    failed_at: null,
+    dead_lettered_at: null,
+    canceled_at: null,
+    created_at: '2026-03-27T10:34:00.000Z',
+    updated_at: '2026-03-27T10:34:10.000Z',
+  };
+
+  const completion = await completeW4SiblingJobForGroup(
+    {
+      rootGroupId: 'W4-SIBLING-PROOF-001',
+      orderIds: ['W4-SIBLING-PROOF-001-item-1', 'W4-SIBLING-PROOF-001-item-2'],
+      submitMode: 'sandbox',
+      manifestUrl: 'https://admin.littleherolabs.com/api/manifests/book/orders/W4-SIBLING-PROOF-001/manifests/4-manifest.json',
+      manifestKey: 'book/orders/W4-SIBLING-PROOF-001/manifests/4-manifest.json',
+      luluJobId: 'sandbox-sibling-job-001',
+      luluStatus: 'CREATED',
+    },
+    {
+      enqueueWorkflowJob: async () => null,
+      getWorkflowJobById: async () => null,
+      getWorkflowJobByIdempotencyKey: async () => null,
+      listWorkflowJobsForOrder: async () => [activeJob],
+      claimWorkflowJob: async () => null,
+      incrementWorkflowJobAttemptCount: async () => null,
+      createWorkflowJobAttempt: async () => null,
+      getLatestWorkflowJobAttemptForJob: async () =>
+        ({
+          id: 3901,
+          job_id: 9101,
+          attempt: 1,
+          status: 'running',
+          worker_kind: 'n8n',
+          lease_owner: 'api:internal/w4/build-sibling-print-input',
+          started_at: '2026-03-27T10:34:01.000Z',
+          ended_at: null,
+          duration_ms: null,
+          error_message: null,
+          error_details: null,
+          provider_request_id: null,
+          provider_status_url: null,
+          created_at: '2026-03-27T10:34:01.000Z',
+          updated_at: '2026-03-27T10:34:01.000Z',
+        }) as WorkflowJobAttemptRecord,
+      finishWorkflowJobAttempt: async (input) => {
+        calls.push({ fn: 'finishWorkflowJobAttempt', payload: input });
+        return null;
+      },
+      markWorkflowJobRunning: async () => null,
+      markWorkflowJobSucceeded: async (jobId, input) => {
+        calls.push({ fn: 'markWorkflowJobSucceeded', payload: { jobId, input } });
+        return {
+          ...activeJob,
+          status: 'succeeded',
+          completed_at: '2026-03-27T10:35:00.000Z',
+          result_snapshot: input.resultSnapshot ?? {},
+        } as WorkflowJobRecord;
+      },
+      cancelWorkflowJob: async () => null,
+      appendWorkflowJobEvent: async (input) => {
+        calls.push({ fn: 'appendWorkflowJobEvent', payload: input });
+        return null;
+      },
+    },
+  );
+
+  assertEqual(completion.job?.id ?? null, 9101, 'W4.1 completion should resolve the active sibling job');
+  assertEqual(completion.attempt?.id ?? null, 3901, 'W4.1 completion should reuse the open sibling attempt');
+  assert(
+    calls.some((entry) => entry.fn === 'finishWorkflowJobAttempt'),
+    'W4.1 completion should finish the open sibling attempt before marking the job succeeded',
+  );
+  assert(
+    calls.some(
+      (entry) =>
+        entry.fn === 'markWorkflowJobSucceeded' &&
+        (entry.payload as { jobId: number }).jobId === 9101,
+    ),
+    'W4.1 completion should mark the active sibling job succeeded',
+  );
+  assert(
+    calls.some(
+      (entry) =>
+        entry.fn === 'appendWorkflowJobEvent' &&
+        (entry.payload as { eventType?: string }).eventType === 'completed',
+    ),
+    'W4.1 completion should append a completed event',
+  );
+}
+
 async function main() {
   testIdempotencyKeyStability();
   testUpsertRowNormalization();
@@ -1195,6 +2050,12 @@ async function main() {
   await testW3AssemblyJobSkipsWhenAnotherActiveJobExists();
   await testW3AssemblyJobCancelsLaterOverlapAfterEnqueue();
   await testW3AssemblyCompletion();
+  await testW4PrintJobLifecycle();
+  await testW4SiblingJobLifecycle();
+  await testW4PrintJobSkipsWhenAnotherActiveJobExists();
+  await testW4PrintJobCancelsLaterOverlapAfterEnqueue();
+  await testW4PrintCompletion();
+  await testW4SiblingCompletion();
   console.log('test-workflow-jobs: ok');
 }
 

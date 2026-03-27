@@ -9,3 +9,5 @@ export * from "./repository";
 export * from "./w2a-pose-jobs";
 export * from "./w2b-pose-jobs";
 export * from "./w3-assembly-jobs";
+export * from "./w4-print-jobs";
+export * from "./w4-sibling-jobs";

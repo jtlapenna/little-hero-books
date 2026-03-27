@@ -263,9 +263,99 @@ async function testCoverPreviewFailureLogging(): Promise<void> {
   );
 }
 
+async function testPagePreviewToleratesTransientFirstPollFailure(): Promise<void> {
+  const workflowEvents: JsonRecord[] = [];
+  let getCalls = 0;
+
+  const result = await renderW3PreviewDocument(
+    {
+      documentKind: 'page-preview',
+      orderId: 'W3-PREVIEW-ORDER-003',
+      amazonOrderId: 'W3-PREVIEW-ORDER-003',
+      rootOrderId: 'W3-PREVIEW-ORDER-ROOT-003',
+      workflowJobId: 323,
+      workflowJobIdempotencyKey: 'wf:3:w3-assembly:W3-PREVIEW-ORDER-003:default:test',
+      workflowAttemptId: 656,
+      pageNumber: 7,
+      pageHtml: '<div class="book-page" id="page-07">Preview content</div>',
+      page_css: '.book-page { color: black; }',
+      pageImageFilename: 'p07.png',
+      pageImageR2Key:
+        'book-mvp-simple-adventure/orders/W3-PREVIEW-ORDER-003/preview-images/p07.png',
+      orderR2BaseKey: 'book-mvp-simple-adventure/orders/W3-PREVIEW-ORDER-003',
+      bookId: 'book-mvp-simple-adventure',
+      useImgBackgrounds: true,
+      pdfMonkeyImageTemplateId: 'template-page-preview',
+    },
+    {
+      defaultBackendUrl: 'https://preview-admin.example',
+      pdfMonkeyApiKey: 'stub-pdfmonkey-key',
+      sleep: async () => undefined,
+      recordWorkflowEvent: createWorkflowEventRecorder(workflowEvents),
+      fetchImpl: async (input, init) => {
+        const url = resolveUrl(input);
+        const method = String(init?.method ?? 'GET').toUpperCase();
+
+        if (method === 'POST' && url === 'https://api.pdfmonkey.io/api/v1/documents') {
+          return jsonResponse({
+            data: {
+              id: 'pdf-page-789',
+              status: 'pending',
+            },
+          });
+        }
+
+        if (method === 'GET' && url === 'https://api.pdfmonkey.io/api/v1/documents/pdf-page-789') {
+          getCalls += 1;
+
+          if (getCalls === 1) {
+            return jsonResponse({ error: 'document not ready yet' }, 404);
+          }
+
+          if (getCalls === 2) {
+            return jsonResponse({
+              data: {
+                id: 'pdf-page-789',
+                status: 'pending',
+              },
+            });
+          }
+
+          return jsonResponse({
+            data: {
+              id: 'pdf-page-789',
+              status: 'success',
+              download_url: 'https://cdn.example.test/previews/p07.png',
+            },
+          });
+        }
+
+        throw new Error(`Unexpected fetch call: ${method} ${url}`);
+      },
+    },
+  );
+
+  assert(
+    result.documentKind === 'page-preview' &&
+      result.pageNumber === 7 &&
+      result.pageImageDownloadUrl === 'https://cdn.example.test/previews/p07.png',
+    'Expected transient first-poll failures to recover and still produce the page-preview artifact',
+  );
+  assert(
+    result.pdfMonkeyPollAttempts === 2 && getCalls === 3,
+    'Expected transient poll transport failures to retry internally without inflating successful poll attempts',
+  );
+  assert(
+    workflowEvents.map((event) => event.eventType).join(',') ===
+      'provider-submitted,poll-tick,poll-tick',
+    'Expected transient poll transport failures to recover without logging provider-failed',
+  );
+}
+
 async function main(): Promise<void> {
   await testPagePreviewRouteSuccess();
   await testCoverPreviewFailureLogging();
+  await testPagePreviewToleratesTransientFirstPollFailure();
   console.log('W3 preview render tests passed');
 }
 

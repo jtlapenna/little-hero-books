@@ -263,14 +263,60 @@ async function main(): Promise<void> {
     {
       loadManifest: amazonLoadManifest,
       loadOrder: amazonLoadOrder,
+      lookupOrderRow: async () => null,
+      instrumentPrintJob: async () => ({
+        workflowJobId: 401,
+        workflowJobIdempotencyKey:
+          'wf:4:w4-print-fulfillment:TEST-W4-ITEM-001:print:2026-03-27T09:00:00.000Z:test',
+        workflowJobStatus: 'running',
+        workflowAttemptId: 901,
+        workflowAttempt: 1,
+        workflowClaimed: true,
+        workflowSkipped: false,
+        workflowSkipReason: null,
+      }),
     },
   );
 
   assert(
     wrappedAmazonResponse.success === true &&
       wrappedAmazonResponse.CONFIG?.defaults?.shippingLevel === 'STANDARD' &&
-      wrappedAmazonResponse.manifest4Url.endsWith(wrappedAmazonResponse.manifest4Key),
-    'Expected W4 route helper wrapper to preserve CONFIG and return a normalized success payload',
+      wrappedAmazonResponse.manifest4Url.endsWith(wrappedAmazonResponse.manifest4Key) &&
+      wrappedAmazonResponse.workflowJobId === 401 &&
+      wrappedAmazonResponse.workflowAttemptId === 901 &&
+      wrappedAmazonResponse.workflowSkipped === false,
+    'Expected W4 route helper wrapper to preserve CONFIG and attach the durable workflow-job identity',
+  );
+
+  const skippedAmazonResponse = await buildW4PrintInputResponse(
+    {
+      orderId: siblingOrderId,
+      rootOrderId: amazonOrderId,
+      amazonOrderId,
+      manifest3Key: siblingThreeManifestKey,
+      backendUrl,
+    },
+    {
+      loadManifest: amazonLoadManifest,
+      loadOrder: amazonLoadOrder,
+      lookupOrderRow: async () => ({
+        orderId: siblingOrderId,
+        workflow_step: 'print_fulfillment',
+        execution_status: 'done',
+        status: 'pending_print',
+        lulu_job_id: 'sandbox-job-123',
+      }),
+      instrumentPrintJob: async () => {
+        throw new Error('should not instrument W4 job when replay guard skips a completed print stage');
+      },
+    },
+  );
+
+  assert(
+    skippedAmazonResponse.workflowJobId === null &&
+      skippedAmazonResponse.workflowSkipped === true &&
+      skippedAmazonResponse.workflowSkipReason === 'w4-order-already-submitted',
+    'Expected W4 route helper wrapper to skip already-submitted orders before claiming a new workflow job',
   );
 
   const standardOrderId = 'TEST-W4-STANDARD-001';
@@ -577,7 +623,8 @@ async function main(): Promise<void> {
           'applied a test-mode shipping phone fallback for disposable W4 proofs',
           'failed clearly when the 3-manifest was missing',
           'failed clearly when the first required preview page was missing',
-          'route helper wrapper preserved CONFIG passthrough',
+          'route helper wrapper preserved CONFIG passthrough and durable workflow-job metadata',
+          'route helper wrapper skipped already-submitted W4 orders without claiming a new job',
         ],
       },
       null,

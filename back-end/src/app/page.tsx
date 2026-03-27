@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Users, Settings, AlertTriangle, BarChart3, LifeBuoy, Workflow } from 'lucide-react';
+import { ArrowRight, BookOpen, Users, Settings, AlertTriangle, BarChart3, LifeBuoy, ShieldCheck, Workflow } from 'lucide-react';
 
 interface ErrorSummary {
   total: number;
@@ -24,6 +24,17 @@ interface W2ARecoveryResponse {
   summary?: W2ARecoverySummary;
 }
 
+interface W4RecoverySummary {
+  candidateCount: number;
+  replayReady: number;
+  inspectOnly: number;
+  activeMonitor: number;
+}
+
+interface W4RecoveryResponse {
+  summary?: W4RecoverySummary;
+}
+
 interface WorkflowJobsSummary {
   activeCount: number;
   retryWaitingCount: number;
@@ -38,15 +49,17 @@ interface WorkflowJobsResponse {
 export default function HomePage() {
   const [errorSummary, setErrorSummary] = useState<ErrorSummary | null>(null);
   const [w2aRecoverySummary, setW2ARecoverySummary] = useState<W2ARecoverySummary | null>(null);
+  const [w4RecoverySummary, setW4RecoverySummary] = useState<W4RecoverySummary | null>(null);
   const [workflowJobsSummary, setWorkflowJobsSummary] = useState<WorkflowJobsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchErrorSummary = async () => {
       try {
-        const [attentionResponse, recoveryResponse, workflowJobsResponse] = await Promise.all([
+        const [attentionResponse, w2aRecoveryResponse, w4RecoveryResponse, workflowJobsResponse] = await Promise.all([
           fetch('/api/admin/orders-needing-attention'),
           fetch('/api/admin/w2a-recovery?hours=72&limit=10'),
+          fetch('/api/admin/w4-recovery?hours=72&limit=10'),
           fetch('/api/admin/workflow-jobs?hours=72&limit=12'),
         ]);
 
@@ -66,9 +79,14 @@ export default function HomePage() {
           });
         }
 
-        if (recoveryResponse.ok) {
-          const recoveryData = (await recoveryResponse.json()) as W2ARecoveryResponse;
+        if (w2aRecoveryResponse.ok) {
+          const recoveryData = (await w2aRecoveryResponse.json()) as W2ARecoveryResponse;
           setW2ARecoverySummary(recoveryData.summary || null);
+        }
+
+        if (w4RecoveryResponse.ok) {
+          const recoveryData = (await w4RecoveryResponse.json()) as W4RecoveryResponse;
+          setW4RecoverySummary(recoveryData.summary || null);
         }
 
         if (workflowJobsResponse.ok) {
@@ -76,7 +94,12 @@ export default function HomePage() {
           setWorkflowJobsSummary(workflowJobsData.summary || null);
         }
 
-        if (!attentionResponse.ok && !recoveryResponse.ok && !workflowJobsResponse.ok) {
+        if (
+          !attentionResponse.ok &&
+          !w2aRecoveryResponse.ok &&
+          !w4RecoveryResponse.ok &&
+          !workflowJobsResponse.ok
+        ) {
           return;
         }
       } catch (error) {
@@ -152,6 +175,30 @@ export default function HomePage() {
                   </div>
                 </div>
                 <ArrowRight className="h-5 w-5 text-amber-700" />
+              </div>
+            </Link>
+          </div>
+        )}
+
+        {!loading && w4RecoverySummary && w4RecoverySummary.candidateCount > 0 && (
+          <div className="mb-8 max-w-4xl mx-auto">
+            <Link
+              href="/admin/w4-recovery"
+              className="block bg-emerald-50 border-2 border-emerald-200 rounded-lg p-4 hover:bg-emerald-100 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <ShieldCheck className="h-6 w-6 text-emerald-700 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-emerald-950">
+                      {w4RecoverySummary.candidateCount} W4 Recovery Candidate{w4RecoverySummary.candidateCount !== 1 ? 's' : ''}
+                    </h3>
+                    <p className="text-sm text-emerald-800 mt-1">
+                      replay ready: {w4RecoverySummary.replayReady} • inspect only: {w4RecoverySummary.inspectOnly} • active monitor: {w4RecoverySummary.activeMonitor}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-emerald-700" />
               </div>
             </Link>
           </div>

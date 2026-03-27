@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Normalize shipping_level to Lulu enum. Constrain Amazon to MAIL/EXPEDITED.\nconst j = $input.first().json || {};\nfunction toLuluLevel(raw){\n  const s = String(raw || '').trim().toUpperCase();\n  if (!s) return null;\n  const map = { MAIL:'MAIL', STANDARD:'MAIL', ECONOMY:'MAIL', PRIORITY_MAIL:'PRIORITY_MAIL', PRIORITY:'PRIORITY_MAIL', GROUND:'GROUND', GROUND_HD:'GROUND_HD', GROUND_HOME:'GROUND_HD', GROUND_BUS:'GROUND_BUS', GROUND_BUSINESS:'GROUND_BUS', EXPEDITED:'EXPEDITED', EXPRESS:'EXPRESS', OVERNIGHT:'EXPRESS', NEXT_DAY:'EXPRESS', NEXTDAY:'EXPRESS' };\n  return map[s] || null;\n}\nconst amazonSignal = [j.order?.ShipmentServiceLevelCategory,j.order?.ShipServiceLevel,j.ShipmentServiceLevelCategory,j.ShipServiceLevel,j.amazon_shipment_service_level,j.manifest?.order?.ShipmentServiceLevelCategory,j.manifest?.order?.ShipServiceLevel].find(Boolean);\nconst requested = j.luluPayload?.shipping_level || j.printOptions?.shippingLevel || j.CONFIG?.defaults?.shippingLevel || j.shipping_tier || j.shippingTier;\nconst candidate = toLuluLevel(requested) || 'MAIL';\nconst amazonText = String(amazonSignal || '').toUpperCase();\nconst amazonMapped = !amazonSignal ? null : ((amazonText.includes('EXPEDITED') || amazonText.includes('2-DAY') || amazonText.includes('2DAY') || amazonText.includes('PRIORITY') || amazonText.includes('OVERNIGHT') || amazonText.includes('EXPRESS')) ? 'EXPEDITED' : 'MAIL');\nconst shipping_level = amazonMapped || candidate;\nreturn [{ json: { ...j, luluPayload: { ...(j.luluPayload || {}), shipping_level }, shippingLevelRequested: requested || null, shippingLevelSent: shipping_level, amazon_shipment_service_level: amazonSignal || null } }];"
+        "jsCode": "return $input.all();"
       },
       "id": "6fa7f6df-3c89-4f61-a33f-779688f23a01",
       "name": "Normalize Shipping Level (Lulu Enum)",
@@ -46,7 +46,7 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Normalize the repo-owned W4 print-input response from the internal HTTP call.\n * n8n Cloud can surface the HTTP node output as a stream-like object even when\n * the request node is configured for JSON output.\n */\nfunction asObject(value) {\n  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};\n}\n\nfunction toBufferLike(value) {\n  if (!value) return null;\n  if (Buffer.isBuffer(value)) return value;\n  if (typeof value === 'string') return Buffer.from(value, 'utf8');\n  if (Array.isArray(value)) return Buffer.from(value);\n\n  const record = asObject(value);\n  if (record.type === 'Buffer' && Array.isArray(record.data)) return Buffer.from(record.data);\n  if (Array.isArray(record.data)) return Buffer.from(record.data);\n  return null;\n}\n\nfunction extractStreamText(value) {\n  const source = asObject(value);\n  const directOutBuffer = toBufferLike(source._outBuffer);\n  const outOffset = typeof source._outOffset === 'number' ? source._outOffset : null;\n  if (directOutBuffer && directOutBuffer.length > 0) {\n    const end = outOffset !== null && outOffset >= 0\n      ? Math.min(outOffset, directOutBuffer.length)\n      : directOutBuffer.length;\n    const text = directOutBuffer.subarray(0, end).toString('utf8');\n    if (text) return text;\n  }\n\n  const readableState = asObject(source._readableState);\n  const chunks = [];\n  const pushChunk = (chunk) => {\n    const buffer = toBufferLike(chunk);\n    if (buffer && buffer.length > 0) chunks.push(buffer);\n  };\n\n  const bufferState = readableState.buffer;\n  if (Array.isArray(bufferState)) {\n    for (const entry of bufferState) {\n      const record = asObject(entry);\n      pushChunk(entry);\n      pushChunk(record.data);\n      pushChunk(record.chunk);\n    }\n  } else {\n    const bufferList = asObject(bufferState);\n    let current = bufferList.head || null;\n    let guard = 0;\n    while (current && guard < 10000) {\n      const record = asObject(current);\n      pushChunk(record.data);\n      pushChunk(record.chunk);\n      current = record.next || null;\n      guard += 1;\n    }\n  }\n\n  if (!chunks.length) return null;\n  return Buffer.concat(chunks).toString('utf8');\n}\n\nfunction parseJsonPrefix(text) {\n  if (typeof text !== 'string') return null;\n\n  const start = text.search(/[\\[{]/);\n  if (start === -1) return null;\n\n  const stack = [];\n  let inString = false;\n  let escape = false;\n\n  for (let index = start; index < text.length; index += 1) {\n    const char = text[index];\n\n    if (inString) {\n      if (escape) {\n        escape = false;\n      } else if (char === '\\\\') {\n        escape = true;\n      } else if (char === '\"') {\n        inString = false;\n      }\n      continue;\n    }\n\n    if (char === '\"') {\n      inString = true;\n      continue;\n    }\n\n    if (char === '{' || char === '[') {\n      stack.push(char);\n      continue;\n    }\n\n    if (char === '}' || char === ']') {\n      const expected = char === '}' ? '{' : '[';\n      if (!stack.length || stack[stack.length - 1] !== expected) return null;\n      stack.pop();\n      if (!stack.length) {\n        try {\n          return JSON.parse(text.slice(start, index + 1));\n        } catch {\n          return null;\n        }\n      }\n    }\n  }\n\n  return null;\n}\n\nfunction parseMaybeJson(value) {\n  if (typeof value === 'string') {\n    try {\n      return JSON.parse(value);\n    } catch {\n      return parseJsonPrefix(value) ?? value;\n    }\n  }\n\n  const streamText = extractStreamText(value);\n  if (typeof streamText === 'string') {\n    try {\n      return JSON.parse(streamText);\n    } catch {\n      return parseJsonPrefix(streamText) ?? value;\n    }\n  }\n\n  return value;\n}\n\nfunction unwrapResponse(value) {\n  const parsed = parseMaybeJson(value);\n  const obj = asObject(parsed);\n  if (obj.success === true || obj.orderId || Array.isArray(obj.pageImageUrls)) {\n    return obj;\n  }\n\n  for (const candidate of [obj.body, obj.data, obj.response, obj.result]) {\n    const nested = asObject(parseMaybeJson(candidate));\n    if (nested.success === true || nested.orderId || Array.isArray(nested.pageImageUrls)) {\n      return nested;\n    }\n  }\n\n  return obj;\n}\n\nconst payload = unwrapResponse($json || {});\nif (!payload || typeof payload !== 'object' || Array.isArray(payload)) {\n  throw new Error('Could not parse W4 print input response');\n}\n\nif (payload.error && !payload.orderId && !Array.isArray(payload.pageImageUrls)) {\n  throw new Error(payload.details || payload.error);\n}\n\nreturn [{ json: payload }];"
+        "jsCode": "/**\n * Normalize the repo-owned W4 print-input response from the internal HTTP call.\n * n8n Cloud can surface the HTTP node output as a stream-like object even when\n * the request node is configured for JSON output.\n */\nfunction asObject(value) {\n  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};\n}\n\nfunction toBufferLike(value) {\n  if (!value) return null;\n  if (Buffer.isBuffer(value)) return value;\n  if (typeof value === 'string') return Buffer.from(value, 'utf8');\n  if (Array.isArray(value)) return Buffer.from(value);\n\n  const record = asObject(value);\n  if (record.type === 'Buffer' && Array.isArray(record.data)) return Buffer.from(record.data);\n  if (Array.isArray(record.data)) return Buffer.from(record.data);\n  return null;\n}\n\nfunction extractStreamText(value) {\n  const source = asObject(value);\n  const directOutBuffer = toBufferLike(source._outBuffer);\n  const outOffset = typeof source._outOffset === 'number' ? source._outOffset : null;\n  if (directOutBuffer && directOutBuffer.length > 0) {\n    const end = outOffset !== null && outOffset >= 0\n      ? Math.min(outOffset, directOutBuffer.length)\n      : directOutBuffer.length;\n    const text = directOutBuffer.subarray(0, end).toString('utf8');\n    if (text) return text;\n  }\n\n  const readableState = asObject(source._readableState);\n  const chunks = [];\n  const pushChunk = (chunk) => {\n    const buffer = toBufferLike(chunk);\n    if (buffer && buffer.length > 0) chunks.push(buffer);\n  };\n\n  const bufferState = readableState.buffer;\n  if (Array.isArray(bufferState)) {\n    for (const entry of bufferState) {\n      const record = asObject(entry);\n      pushChunk(entry);\n      pushChunk(record.data);\n      pushChunk(record.chunk);\n    }\n  } else {\n    const bufferList = asObject(bufferState);\n    let current = bufferList.head || null;\n    let guard = 0;\n    while (current && guard < 10000) {\n      const record = asObject(current);\n      pushChunk(record.data);\n      pushChunk(record.chunk);\n      current = record.next || null;\n      guard += 1;\n    }\n  }\n\n  if (!chunks.length) return null;\n  return Buffer.concat(chunks).toString('utf8');\n}\n\nfunction parseJsonPrefix(text) {\n  if (typeof text !== 'string') return null;\n\n  const start = text.search(/[\\[{]/);\n  if (start === -1) return null;\n\n  const stack = [];\n  let inString = false;\n  let escape = false;\n\n  for (let index = start; index < text.length; index += 1) {\n    const char = text[index];\n\n    if (inString) {\n      if (escape) {\n        escape = false;\n      } else if (char === '\\\\') {\n        escape = true;\n      } else if (char === '\"') {\n        inString = false;\n      }\n      continue;\n    }\n\n    if (char === '\"') {\n      inString = true;\n      continue;\n    }\n\n    if (char === '{' || char === '[') {\n      stack.push(char);\n      continue;\n    }\n\n    if (char === '}' || char === ']') {\n      const expected = char === '}' ? '{' : '[';\n      if (!stack.length || stack[stack.length - 1] !== expected) return null;\n      stack.pop();\n      if (!stack.length) {\n        try {\n          return JSON.parse(text.slice(start, index + 1));\n        } catch {\n          return null;\n        }\n      }\n    }\n  }\n\n  return null;\n}\n\nfunction parseMaybeJson(value) {\n  if (typeof value === 'string') {\n    try {\n      return JSON.parse(value);\n    } catch {\n      return parseJsonPrefix(value) ?? value;\n    }\n  }\n\n  const streamText = extractStreamText(value);\n  if (typeof streamText === 'string') {\n    try {\n      return JSON.parse(streamText);\n    } catch {\n      return parseJsonPrefix(streamText) ?? value;\n    }\n  }\n\n  return value;\n}\n\nfunction unwrapResponse(value) {\n  const parsed = parseMaybeJson(value);\n  const obj = asObject(parsed);\n  if (obj.success === true || obj.orderId || Array.isArray(obj.pageImageUrls)) {\n    return obj;\n  }\n\n  for (const candidate of [obj.body, obj.data, obj.response, obj.result]) {\n    const nested = asObject(parseMaybeJson(candidate));\n    if (nested.success === true || nested.orderId || Array.isArray(nested.pageImageUrls)) {\n      return nested;\n    }\n  }\n\n  return obj;\n}\n\nconst payload = unwrapResponse($json || {});\nif (!payload || typeof payload !== 'object' || Array.isArray(payload)) {\n  throw new Error('Could not parse W4 print input response');\n}\n\nif (payload.error && !payload.orderId && !Array.isArray(payload.pageImageUrls)) {\n  throw new Error(payload.details || payload.error);\n}\n\nif (payload.workflowSkipped === true) {\n  return [];\n}\n\nreturn [{ json: payload }];"
       },
       "id": "d8caee0d-fb1e-468e-bdfa-3d2b58fa8ea4",
       "name": "Validate & Normalize W4 Input",
@@ -183,7 +183,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build Lulu Print Job Payload — STRICT NO-PROXY VERSION\nconst j=$input.first().json||{}; const cfg=j.CONFIG||{}; const dflt=cfg.defaults||{};\n\n\n// Normalize shipping address to Lulu format\nfunction normalizeShippingAddress(addr) {\n  if (!addr || typeof addr !== 'object') return null;\n  \n  // Extract street address (may include directional prefix)\n  let street1 = addr.street1 || addr.address || addr.address1 || addr.street || '';\n  \n  // Normalize street suffixes (Street -> St, Avenue -> Ave, etc.)\n  const suffixMap = {\n    'street': 'St', 'st': 'St', 'Street': 'St', 'STREET': 'St',\n    'avenue': 'Ave', 'ave': 'Ave', 'Avenue': 'Ave', 'AVENUE': 'Ave',\n    'road': 'Rd', 'rd': 'Rd', 'Road': 'Rd', 'ROAD': 'Rd',\n    'drive': 'Dr', 'dr': 'Dr', 'Drive': 'Dr', 'DRIVE': 'Dr',\n    'lane': 'Ln', 'ln': 'Ln', 'Lane': 'Ln', 'LANE': 'Ln',\n    'boulevard': 'Blvd', 'blvd': 'Blvd', 'Boulevard': 'Blvd', 'BOULEVARD': 'Blvd',\n    'court': 'Ct', 'ct': 'Ct', 'Court': 'Ct', 'COURT': 'Ct',\n    'circle': 'Cir', 'cir': 'Cir', 'Circle': 'Cir', 'CIRCLE': 'Cir',\n    'place': 'Pl', 'pl': 'Pl', 'Place': 'Pl', 'PLACE': 'Pl'\n  };\n  \n  // Replace common street suffixes (simple replacements)\n  street1 = street1\n    .replace(/\bStreet\b/gi, 'St')\n    .replace(/\bAvenue\b/gi, 'Ave')\n    .replace(/\bRoad\b/gi, 'Rd')\n    .replace(/\bDrive\b/gi, 'Dr')\n    .replace(/\bLane\b/gi, 'Ln')\n    .replace(/\bBoulevard\b/gi, 'Blvd')\n    .replace(/\bCourt\b/gi, 'Ct')\n    .replace(/\bCircle\b/gi, 'Cir')\n    .replace(/\bPlace\b/gi, 'Pl');\n  \n  // Map common field names to Lulu format\n  const normalized = {\n    name: addr.name || addr.shippingName || '',\n    street1: street1.trim(),\n    street2: addr.street2 || addr.address2 || '',\n    city: addr.city || '',\n    state_code: addr.state_code || addr.state || addr.stateCode || '',\n    postcode: addr.postcode || addr.zip || addr.postalCode || addr.zipcode || '',\n    country_code: addr.country_code || addr.country || addr.countryCode || 'US',\n    phone_number: addr.phone_number || addr.phone || addr.phoneNumber || '',\n    email: addr.email || ''\n  };\n  \n  // Ensure state_code is uppercase 2-letter code\n  if (normalized.state_code && normalized.state_code.length > 2) {\n    const stateMap = {\n      'oregon': 'OR', 'california': 'CA', 'texas': 'TX', 'new york': 'NY',\n      'florida': 'FL', 'illinois': 'IL', 'pennsylvania': 'PA', 'ohio': 'OH'\n    };\n    const stateLower = normalized.state_code.toLowerCase();\n    normalized.state_code = stateMap[stateLower] || normalized.state_code.substring(0, 2).toUpperCase();\n  } else if (normalized.state_code) {\n    normalized.state_code = normalized.state_code.toUpperCase();\n  }\n  \n  // Ensure country_code is uppercase 2-letter code\n  if (normalized.country_code) {\n    normalized.country_code = normalized.country_code.toUpperCase().substring(0, 2);\n  }\n  \n  return normalized;\n}\n\n\n// Map Amazon shipping service levels to Lulu shipping levels\nfunction mapAmazonShippingToLulu(amazonShipping) {\n  if (!amazonShipping) return null;\n  \n  const shipping = String(amazonShipping).toUpperCase();\n  \n  // Amazon ShipmentServiceLevelCategory values: Standard, Expedited, Priority, Overnight\n  // Amazon ShipServiceLevel examples: \"Std US D2D Dom\", \"Expedited\", \"Priority\", \"Overnight\"\n  \n  // Priority/Overnight (1 day) -> Lulu EXPRESS\n  if (shipping.includes('OVERNIGHT') || shipping.includes('PRIORITY') || shipping.includes('EXPRESS')) {\n    return 'EXPRESS';\n  }\n  \n  // Expedited (2 day) -> Lulu EXPEDITED\n  if (shipping.includes('EXPEDITED') || shipping.includes('2-DAY') || shipping.includes('2DAY')) {\n    return 'EXPEDITED';\n  }\n  \n  // Standard (3-5 days) -> Try GROUND first, fallback to PRIORITY_MAIL\n  if (shipping.includes('STANDARD') || shipping.includes('STD') || shipping.includes('GROUND')) {\n    // Try GROUND first (trackable, better than MAIL)\n    // If GROUND fails, workflow can fallback to PRIORITY_MAIL\n    return 'GROUND';\n  }\n  \n  // Default: MAIL (cheapest, but untraceable - use PRIORITY_MAIL if tracking needed)\n  return 'MAIL';\n}\n\nfunction mapD2CTierToLulu(tier){\n  const t = String(tier || '').trim().toLowerCase();\n  if (!t) return null;\n  const map = {\n    mail: 'MAIL',\n    ground_home: 'GROUND',\n    priority_mail: 'PRIORITY_MAIL',\n    expedited: 'EXPEDITED',\n    express: 'EXPRESS'\n  };\n  return map[t] || null;\n}\n\nfunction normalizeShip(level, amazonShipping, d2cTier){\n  // Purpose: Amazon mapping takes precedence when present.\n  if (amazonShipping) {\n    const mapped = mapAmazonShippingToLulu(amazonShipping);\n    if (mapped) return { shipping_level: mapped, reason: 'amazon' };\n  }\n\n  // Purpose: D2C tier maps directly to Lulu shipping_level.\n  const d2cMapped = mapD2CTierToLulu(d2cTier);\n  if (d2cMapped) return { shipping_level: d2cMapped, reason: 'd2c_tier' };\n  if (d2cTier) return { shipping_level: 'MAIL', reason: 'fallback_unknown' };\n\n  // Otherwise, use the provided level or default.\n  const raw = String(level || '').toUpperCase();\n  if (raw === 'STANDARD') return { shipping_level: 'MAIL', reason: 'fallback_default' };\n  if (raw === 'GROUND') return { shipping_level: 'GROUND', reason: 'fallback_default' };\n  const ok = new Set(['MAIL','PRIORITY_MAIL','GROUND','EXPEDITED','EXPRESS']);\n  return { shipping_level: ok.has(raw) ? raw : 'MAIL', reason: 'fallback_default' };\n}\n\nconst qty=Number(j.printOptions?.quantity??dflt.quantity??1);\n// Extract Amazon shipping service level from order data (W1.1 passes ShipmentServiceLevelCategory/ShipServiceLevel from DB amazon_shipment_service_level)\nconst amazonShipping = \n  j.order?.ShipmentServiceLevelCategory ||\n  j.order?.ShipServiceLevel ||\n  j.ShipmentServiceLevelCategory ||\n  j.ShipServiceLevel ||\n  j.amazon_shipment_service_level ||\n  j.manifest?.order?.ShipmentServiceLevelCategory ||\n  j.manifest?.order?.ShipServiceLevel ||\n  null;\n\nconst d2cTier = j.shipping_tier || j.shippingTier || null;\nconst ship = normalizeShip(\n  j.printOptions?.shippingLevel ?? dflt.shippingLevel,\n  amazonShipping,\n  d2cTier\n);\n\nconst shipping_level = ship.shipping_level;\nconst shipping_tier_resolved = shipping_level;\nconst shipping_tier_resolved_reason = ship.reason;\n\nconst interiorSourceUrl=j.interiorSourceUrl||j.interiorSignedUrl||null;\nconst coverSourceUrl   =j.coverSourceUrl   ||j.coverSignedUrl   ||null;\n\nfunction isProxy(u){ return /admin\\.littleherolabs\\.com\\/api\\/assets/i.test(String(u||'')); }\nif(!interiorSourceUrl||!coverSourceUrl||isProxy(interiorSourceUrl)||isProxy(coverSourceUrl)){\n  throw new Error('Build Lulu Print Job Payload: direct R2 URLs required (no proxy)');\n}\n\nconst podPackageId=j.printOptions?.podPackageId??dflt.podPackageId;\nif(!podPackageId){ throw new Error('Build Lulu Print Job Payload: podPackageId is required'); }\n\nconst shipping_address_raw=j.shippingAddress||j.shipping_address||{};\nconst shipping_address=normalizeShippingAddress(shipping_address_raw)||shipping_address_raw;\nif(!shipping_address?.phone_number){\n  throw new Error('Build Lulu Print Job Payload: shipping_address.phone_number is required');\n}\n\nconst productConfig={\n  trim_size:`${dflt.trimIn?.w}x${dflt.trimIn?.h}`,\n  interior_color:j.printOptions?.color??dflt.print?.color,\n  interior_paper:j.printOptions?.stock??dflt.print?.stock,\n  binding:j.printOptions?.binding??dflt.print?.binding,\n  cover_finish:j.printOptions?.coverFinish??dflt.print?.coverFinish\n};\n\nconst payload={\n  shipping_level,\n  contact_email:j.customer?.email||'orders@littleherolabs.com',\n  shipping_address,\n  line_items:[{\n    title:j.title||'Little Hero Book',\n    quantity:qty,\n    printable_normalization:{\n      interior:{ source_url:interiorSourceUrl, printable_id:j.interiorPrintableId||null },\n      cover:{    source_url:coverSourceUrl,    printable_id:j.coverPrintableId||null },\n      pod_package_id:podPackageId\n    },\n    print_options:productConfig\n  }]\n};\n\nreturn[{json:{...j,shipping_tier_input:d2cTier,shipping_tier_resolved,shipping_tier_resolved_reason,luluPayload:payload}}];"
+        "jsCode": "const current = $input.first()?.json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w4/build-submit-input',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: current,\n  json: true,\n  timeout: 90000,\n});\nconst normalized = response && typeof response === 'object' && !Array.isArray(response) ? response : { response };\nreturn [{\n  json: {\n    ...current,\n    ...(normalized && typeof normalized === 'object' && !Array.isArray(normalized) ? normalized : { response: normalized }),\n  },\n  binary: b,\n  pairedItem: { item: itemIx },\n}];"
       },
       "id": "28c1248c-4309-4efb-8d80-99454dd93402",
       "name": "Build Lulu Print Job Payload",
@@ -209,38 +209,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders?on_conflict=orderId",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
-            },
-            {
-              "name": "Prefer",
-              "value": "resolution=merge-duplicates,return=representation"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ (() => {\n  const j = $json || {};\n  // Check upstream nodes for Lulu data\n  const processLuluResp = $node[\"Process Lulu Response\"]?.json || {};\n  const buildSupabase = $node[\"Build Supabase Update\"]?.json || {};\n  const buildPayload = $node[\"Build Lulu Print Job Payload\"]?.json || {};\n  \n  // Merge data with priority: current node > Process Lulu Response > Build Supabase Update > Build Payload\n  const merged = {\n    ...buildPayload,\n    ...buildSupabase,\n    ...processLuluResp,\n    ...j\n  };\n  \n  const patch = merged.supabasePatch || {};\n  const perBookId = merged.orderId;\n  const rootGroupId = merged.rootOrderId || merged.root_order_id || merged.amazonOrderId || merged.amazon_order_id || merged.product_info?._root_order_id || perBookId;\n  if (!perBookId) throw new Error('orderId (per-book) is required');\n  \n  // Truncate lulu_job_id if it's too long (max 50 chars)\n  let luluJobId = patch.lulu_job_id || merged.luluJobId || merged.id || null;\n  // Convert to string if it's a number (Lulu returns numeric IDs)\n  if (luluJobId !== null && typeof luluJobId === 'number') {\n    luluJobId = String(luluJobId);\n  }\n  if (luluJobId && typeof luluJobId === 'string' && luluJobId.length > 50) {\n    luluJobId = luluJobId.substring(0, 50);\n  }\n  \n  // Build manifest URL from manifestKey (available after upload)\n  const manifestKey = merged.manifestKey || `book-mvp-simple-adventure/orders/${perBookId}/manifests/4-manifest.json`;\n  const backendUrl = merged.backendUrl || 'https://admin.littleherolabs.com';\n  const manifestUrl = merged.manifestUrl || `${backendUrl}/api/manifests/${manifestKey}`;\n\n  // Purpose: audit which shipping level W4 resolved/used for Lulu.\n  const shippingTier = merged.shipping_tier || merged.shippingTier || null;\n  const shippingTierResolved = merged.shipping_tier_resolved || merged.shippingTierResolved || null;\n  const shippingTierResolvedReason = merged.shipping_tier_resolved_reason || merged.shippingTierResolvedReason || null;\n  \n  return {\n    orderId: perBookId,\n    amazon_order_id: rootGroupId,\n\n    // Purpose: persist tier + audit resolved Lulu shipping level (D2C only).\n    ...(shippingTier ? { shipping_tier: shippingTier } : {}),\n    ...(shippingTierResolved ? { shipping_tier_resolved: shippingTierResolved } : {}),\n    ...(shippingTierResolvedReason ? { shipping_tier_resolved_reason: shippingTierResolvedReason } : {}),\n    ...(merged.amazon_shipment_service_level ? { amazon_shipment_service_level: merged.amazon_shipment_service_level } : {}),\n\n    // Lulu print job tracking (these columns exist)\n    lulu_job_id: luluJobId,\n    lulu_status: (() => {\n      const status = patch.lulu_status || merged.luluStatus || 'SUBMITTED';\n      // If status is an object (from Lulu API), extract the name field\n      if (status && typeof status === 'object' && status.name) {\n        return status.name;\n      }\n      return typeof status === 'string' ? status : 'SUBMITTED';\n    })(),\n    // Update workflow_step to indicate print fulfillment is in progress\n    workflow_step: 'print_fulfillment',\n    // Update status field directly (since workflow updates DB directly, status isn't auto-recalculated)\n    // If lulu_status exists, status should be 'pending_print' (or 'pending_customer_approval' if customer approval required)\n    status: (() => {\n      const customerApprovalRequired = merged.customer_approval_required || false;\n      const customerApprovalStatus = merged.customer_approval_status || 'pending';\n      // If customer approval is required and still pending, return pending_customer_approval\n      if (customerApprovalRequired && customerApprovalStatus === 'pending') {\n        return 'pending_customer_approval';\n      }\n      // Otherwise, since lulu_status exists, return pending_print\n      return 'pending_print';\n    })(),\n    // Mark postPdf review stage as approved (so status calculation works correctly)\n    review_stages: {\n      ...(merged.review_stages || {}),\n      postPdf: {\n        ...(merged.review_stages?.postPdf || {}),\n        status: 'approved',\n        reviewedAt: new Date().toISOString(),\n        reviewer: 'system'\n      }\n    },\n    print_submitted_at: new Date().toISOString(),\n    // Always update timestamp\n    updated_at: new Date().toISOString()\n    // Note: print_fulfillment_status column doesn't exist - use workflow_step or status instead\n    // Note: manifest_4_url column doesn't exist - add via migration if needed\n  };\n})() }}",
-        "options": {}
+        "jsCode": "return $input.all();"
       },
       "id": "991c132e-dccb-4f88-a5b2-d77b459a684d",
       "name": "Supabase: mark submitted",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         12512,
         -400
@@ -248,30 +222,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/webhooks/print-submitted",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ orderId: $json.orderId || $json.amazon_order_id }) }}",
-        "options": {}
+        "jsCode": "const current = $input.first()?.json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/webhooks/print-submitted',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    orderId: current.orderId || current.amazon_order_id,\n    workflowJobId: current.workflowJobId || null,\n    workflowAttemptId: current.workflowAttemptId || null,\n    workflowJobIdempotencyKey: current.workflowJobIdempotencyKey || null,\n    submitMode: current.submitMode || null,\n    __skipLulu: current.__skipLulu || false,\n    guard: current.guard || null,\n    luluJobId: current.luluJobId || current.id || null,\n    luluStatus: current.luluStatus || current.status || null,\n    manifestUrl: current.manifestUrl || null,\n    manifestKey: current.manifestKey || null,\n  },\n  json: true,\n  timeout: 90000,\n});\nconst normalized = response && typeof response === 'object' && !Array.isArray(response) ? response : { response };\nreturn [{ json: normalized, binary: b, pairedItem: { item: itemIx } }];"
       },
       "id": "814a81df-fbf2-44de-b87b-11004dec0aef",
       "name": "Notify: Sent to Print",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         12752,
         -400
@@ -279,7 +235,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const j = $input.first().json || {};\nconst manifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  stage: '4-print-fulfillment',\n  createdAt: new Date().toISOString(),\n  orderId: j.orderId,\n  artifacts: {\n    interiorPdfR2Key: j.pdfR2Key || j.bookPdfUrl,\n    coverPdfR2Key: j.coverPdfR2Key,\n    coverPdfUrl: j.coverPdfUrl || null\n  },\n  lulu: {\n    jobId: j.luluJobId,\n    status: j.luluStatus,\n    cost: j.luluCost,\n    estimatedShipDate: j.estimatedShipDate\n  }\n};\nconst orderPrefix = j.orderPrefix || j.orderR2BaseKey || `book-mvp-simple-adventure/orders/${j.orderId}`;\nconst key = `${orderPrefix}/manifests/4-manifest.json`;\nconst fileName = key.split('/').pop() || '4-manifest.json';\nconst body = JSON.stringify(manifest, null, 2);\nconst data = Buffer.from(body, 'utf8').toString('base64');\nreturn [{\n  json: { ...j, manifestKey: key, _manifest: manifest },\n  binary: {\n    data: {\n      data,\n      mimeType: 'application/json',\n      fileName\n    }\n  }\n}];\n"
+        "jsCode": "const current = $input.first()?.json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w4/publish-print-manifest',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: { ...current, manifestStatus: 'submitted' },\n  json: true,\n  timeout: 90000,\n});\nconst normalized = response && typeof response === 'object' && !Array.isArray(response) ? response : { response };\nreturn [{\n  json: {\n    ...current,\n    ...(normalized && typeof normalized === 'object' && !Array.isArray(normalized) ? normalized : { response: normalized }),\n  },\n  binary: b,\n  pairedItem: { item: itemIx },\n}];"
       },
       "id": "730cd84b-d407-44b9-b1d2-5f7e4669df7f",
       "name": "Build 4-Manifest JSON",
@@ -292,16 +248,12 @@
     },
     {
       "parameters": {
-        "operation": "upload",
-        "bucketName": "little-hero-orders",
-        "fileName": "={{ $json.manifestKey }}",
-        "binaryData": true,
-        "additionalFields": {}
+        "jsCode": "return $input.all();"
       },
       "id": "a3c98337-07d2-466b-be68-81d38aa54e41",
       "name": "Upload 4-Manifest to R2",
-      "type": "n8n-nodes-base.s3",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         12272,
         -400
@@ -398,82 +350,29 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://api.sandbox.lulu.com/auth/realms/glasstree/protocol/openid-connect/token",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Accept",
-              "value": "application/json"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/x-www-form-urlencoded"
-            },
-            {
-              "name": "Authorization",
-              "value": "Basic MDgxMjI3ZjAtYjlhZC00NTRmLTg3Y2QtZGI0YjI2NGMyODZiOktoR3hGTE51UlZ3M013bGlkVG14a3ZHYUg4RTJPUzNF"
-            }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "form-urlencoded",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "grant_type",
-              "value": "=client_credentials"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 30000
-        }
+        "jsCode": "const j = $input.first().json || {};\nif (j.__skipLulu) {\n  return [{ json: { ...j, luluTokenStatusCode: 0, retryCountToken: 0 } }];\n}\nconst http = this.helpers.httpRequest;\nconst url = 'https://api.sandbox.lulu.com/auth/realms/glasstree/protocol/openid-connect/token';\nconst resp = await http({\n  method: 'POST',\n  url,\n  headers: {\n    Accept: 'application/json',\n    'Content-Type': 'application/x-www-form-urlencoded',\n    Authorization: 'Basic MDgxMjI3ZjAtYjlhZC00NTRmLTg3Y2QtZGI0YjI2NGMyODZiOktoR3hGTE51UlZ3M013bGlkVG14a3ZHYUg4RTJPUzNF',\n  },\n  body: 'grant_type=client_credentials',\n  json: true,\n  ignoreHttpStatusErrors: true,\n  timeout: 30000,\n});\nconst statusCode = Number(resp?.statusCode || resp?.status || 200);\nconst payload = resp?.body !== undefined ? resp.body : resp;\nif (statusCode >= 400) {\n  throw new Error('Sandbox Lulu token request failed (status=' + statusCode + ')');\n}\nconst access = payload?.access_token || payload?.token || payload?.data?.access_token;\nif (!access) {\n  throw new Error('Sandbox Lulu token response missing access_token');\n}\nreturn [{\n  json: {\n    ...j,\n    luluAccessToken: access,\n    luluTokenType: 'Bearer',\n    luluTokenExpiresIn: payload?.expires_in || payload?.data?.expires_in || null,\n    luluTokenIssuedAt: new Date().toISOString(),\n    luluTokenStatusCode: statusCode,\n    retryCountToken: 1,\n  },\n}];"
       },
       "id": "38293a9b-12b7-4306-8214-8552dacf43b2",
       "name": "Lulu SANDBOX: Get Token",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         9088,
         -1216
-      ],
-      "disabled": true
+      ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://api.sandbox.lulu.com/print-jobs/",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "={{'Bearer ' + $node[\"Extract Lulu Access Token (PRODUCTION)\"].json.luluAccessToken}}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json.luluPayload || $node[\"Build Lulu Print Job Payload\"].json.luluPayload }}",
-        "options": {
-          "timeout": 60000
-        }
+        "jsCode": "const j = $input.first().json || {};\nif (j.__skipLulu) {\n  return [{\n    json: {\n      ...j,\n      luluSubmitStatusCode: 0,\n      retryCountSubmit: 0,\n      luluSubmitResponse: {\n        synthetic: true,\n        reason: j.guard?.reason || 'skip',\n      },\n    },\n  }];\n}\nconst token = j.luluAccessToken;\nif (!token) throw new Error('Missing sandbox Lulu access token before submit');\nconst payload = j.luluPayload;\nif (!payload) throw new Error('Missing luluPayload before sandbox submit');\nconst http = this.helpers.httpRequest;\nconst resp = await http({\n  method: 'POST',\n  url: 'https://api.sandbox.lulu.com/print-jobs/',\n  headers: {\n    'Content-Type': 'application/json',\n    Authorization: 'Bearer ' + token,\n  },\n  body: payload,\n  json: true,\n  ignoreHttpStatusErrors: true,\n  timeout: 60000,\n});\nconst statusCode = Number(resp?.statusCode || resp?.status || 200);\nconst body = resp?.body !== undefined ? resp.body : resp;\nif (statusCode >= 400) {\n  throw new Error('Sandbox Lulu submit failed (status=' + statusCode + ', body=' + JSON.stringify(body).slice(0, 280) + ')');\n}\nconst jobId = body?.id || body?.job_id || body?.data?.id || j.luluJobId || null;\nconst status = body?.status || body?.data?.status || j.luluStatus || 'CREATED';\nconst cost = body?.cost || body?.data?.cost || j.luluCost || null;\nconst eta = body?.estimated_ship_date || body?.data?.estimated_ship_date || j.estimatedShipDate || null;\nreturn [{\n  json: {\n    ...j,\n    id: jobId,\n    status,\n    luluJobId: jobId,\n    luluStatus: status,\n    luluCost: cost,\n    estimatedShipDate: eta,\n    luluSubmitStatusCode: statusCode,\n    retryCountSubmit: 1,\n    luluSubmitResponse: body,\n  },\n}];"
       },
       "id": "79a5f0c2-d20c-4f29-bb37-b51f28b82a55",
       "name": "Submit Lulu Print Job (SANDBOX - BEARER)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         9808,
         -1008
-      ],
-      "disabled": true
+      ]
     },
     {
       "parameters": {
@@ -518,7 +417,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\n\nconst item = $input.first()?.json || {};\nconst cfg = item.CONFIG || {};\nconst renderer = cfg.renderer || {};\nconst http = this.helpers.httpRequest;\nconst ordersBucket = cfg.r2?.bucket || 'little-hero-orders';\nconst publicBucket = cfg.r2?.publicBucket || 'little-hero-assets';\nconst endpointHost = cfg.r2?.endpointHost || '';\nconst region = cfg.r2?.region || 'auto';\nconst accessKeyId = cfg.r2?.accessKeyId || '';\nconst secretAccessKey = cfg.r2?.secretAccessKey || '';\nconst backendToken = cfg.backendApiToken || '';\nconst backendUrl = String(cfg.defaults?.trimIn?.assetBase || 'https://admin.littleherolabs.com/api/assets/').replace(/\\/api\\/assets\\/?$/, '');\nconst orderId = item.orderId || item.amazonOrderId || item.amazon_order_id || '';\nconst expectedPageCount = Number(item.expectedPageCount);\nconst pageImageUrls = Array.isArray(item.pageImageUrls) ? item.pageImageUrls : [];\nconst pageLabels = Array.isArray(item.pageLabels) && item.pageLabels.length === pageImageUrls.length\n  ? item.pageLabels.map((value) => String(value))\n  : Array.from({ length: pageImageUrls.length }, (_, index) => 'p' + String(index).padStart(2, '0'));\nconst coverPreviewUrl = typeof item.coverPreviewUrl === 'string' ? item.coverPreviewUrl.trim() : '';\nconst interiorRef = item.pdfR2Key || item.interiorPdfR2Key || item.interiorSignedUrl || item.pdfUrl || item.pdfDownloadUrl || '';\nconst coverRef = item.coverPdfR2Key || item.coverSignedUrl || item.coverPdfUrl || item.coverPdfDownloadUrl || '';\n\nif (!orderId) throw new Error('[Prepare Renderer QA Inputs] Missing orderId');\nif (!renderer.apiBase) throw new Error('[Prepare Renderer QA Inputs] Missing CONFIG.renderer.apiBase');\nif (!endpointHost || !accessKeyId || !secretAccessKey) throw new Error('[Prepare Renderer QA Inputs] R2 config incomplete');\nif (!backendToken) throw new Error('[Prepare Renderer QA Inputs] Missing CONFIG.backendApiToken');\nif (!interiorRef || !coverRef) throw new Error('[Prepare Renderer QA Inputs] Missing interior/cover PDF refs');\nif (!Number.isFinite(expectedPageCount) || expectedPageCount < 1) throw new Error('[Prepare Renderer QA Inputs] Invalid expectedPageCount');\nif (pageImageUrls.length !== expectedPageCount) throw new Error('[Prepare Renderer QA Inputs] pageImageUrls length mismatch');\nif (pageLabels.length !== expectedPageCount) throw new Error('[Prepare Renderer QA Inputs] pageLabels length mismatch');\nif (!coverPreviewUrl) throw new Error('[Prepare Renderer QA Inputs] Missing coverPreviewUrl');\n\nfunction isUrl(value) { return typeof value === 'string' && /^https?:\\/\\//i.test(value); }\nconst now = new Date();\nconst amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\\..+/, '') + 'Z';\nconst date = amzDate.slice(0, 8);\nconst service = 's3';\n\nfunction hmac(key, data) {\n  return crypto.createHmac('sha256', key).update(data).digest();\n}\n\nfunction sha256Hex(data) {\n  return crypto.createHash('sha256').update(data).digest('hex');\n}\n\nfunction toHex(buffer) {\n  return buffer.toString('hex');\n}\n\nfunction buildQuery(params) {\n  return Object.entries(params)\n    .map(([key, value]) => encodeURIComponent(key) + '=' + encodeURIComponent(String(value)))\n    .join('&');\n}\n\nfunction presignKey(key, expires) {\n  const objectKey = encodeURIComponent(String(key).replace(/^\\/+/, '')).replace(/%2F/g, '/');\n  const canonicalUri = '/' + ordersBucket + '/' + objectKey;\n  const credentialScope = date + '/' + region + '/' + service + '/aws4_request';\n  const credential = accessKeyId + '/' + credentialScope;\n  const signedHeaders = 'host';\n  const queryParams = {\n    'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',\n    'X-Amz-Credential': credential,\n    'X-Amz-Date': amzDate,\n    'X-Amz-Expires': String(expires),\n    'X-Amz-SignedHeaders': signedHeaders,\n  };\n  const canonicalQueryString = buildQuery(queryParams);\n  const canonicalHeaders = 'host:' + endpointHost + '\\n';\n  const payloadHash = 'UNSIGNED-PAYLOAD';\n  const canonicalRequest = [\n    'GET',\n    canonicalUri,\n    canonicalQueryString,\n    canonicalHeaders,\n    signedHeaders,\n    payloadHash,\n  ].join('\\n');\n  const stringToSign = [\n    'AWS4-HMAC-SHA256',\n    amzDate,\n    credentialScope,\n    sha256Hex(canonicalRequest),\n  ].join('\\n');\n  const kDate = hmac(Buffer.from('AWS4' + secretAccessKey, 'utf8'), date);\n  const kRegion = hmac(kDate, region);\n  const kService = hmac(kRegion, service);\n  const kSigning = hmac(kService, 'aws4_request');\n  const signature = toHex(hmac(kSigning, stringToSign));\n  return 'https://' + endpointHost + '/' + ordersBucket + '/' + objectKey + '?' + canonicalQueryString + '&X-Amz-Signature=' + signature;\n}\n\nfunction cleanPath(value) {\n  return String(value || '').trim().split('#')[0].split('?')[0].replace(/^\\/+/, '');\n}\n\nfunction extractAssetKey(ref) {\n  if (!ref) return '';\n  const raw = String(ref).trim();\n  if (!raw) return '';\n  if (!isUrl(raw)) return cleanPath(raw);\n  if (raw.includes('/api/assets/')) {\n    return cleanPath(raw.split('/api/assets/')[1] || '');\n  }\n  const hostMatch = raw.match(/^https?:\\/\\/([^/]+)/i);\n  const hostname = hostMatch ? hostMatch[1] : '';\n  const pathname = cleanPath(raw.replace(/^https?:\\/\\/[^/]+/i, ''));\n  if (pathname.startsWith(ordersBucket + '/')) return pathname.slice(ordersBucket.length + 1);\n  if (pathname.startsWith(publicBucket + '/')) return pathname.slice(publicBucket.length + 1);\n  if (/cloudflarestorage\\.com$/i.test(hostname)) return pathname;\n  return '';\n}\n\nfunction bucketForKey(key) {\n  return key.startsWith('book-mvp-simple-adventure/orders/') ? ordersBucket : publicBucket;\n}\n\nasync function signPreviewRef(ref) {\n  const key = extractAssetKey(ref);\n  if (!key) {\n    if (isUrl(ref)) return String(ref).trim();\n    throw new Error('[Prepare Renderer QA Inputs] Could not derive preview key from ref: ' + String(ref));\n  }\n  const bucketName = bucketForKey(key);\n  const query = buildQuery({ key, bucket: bucketName, expiresIn: '21600' });\n  const response = await http({\n    method: 'GET',\n    url: backendUrl + '/api/r2/signed-url?' + query,\n    headers: { Authorization: 'Bearer ' + backendToken },\n    json: true,\n    ignoreHttpStatusErrors: true,\n    returnFullResponse: true,\n    timeout: 30000,\n  });\n  const statusCode = Number(response?.statusCode || response?.status || 200);\n  const payload = response?.body !== undefined ? response.body : response;\n  if (statusCode >= 400 || !payload || typeof payload !== 'object' || !payload.url) {\n    throw new Error('[Prepare Renderer QA Inputs] Failed to sign preview URL (status=' + statusCode + ', ref=' + ref + ')');\n  }\n  return payload.url;\n}\n\nconst interiorSignedUrl = isUrl(interiorRef) ? String(interiorRef).trim() : presignKey(interiorRef, 21600);\nconst coverSignedUrl = isUrl(coverRef) ? String(coverRef).trim() : presignKey(coverRef, 21600);\nconst interiorPreviewImageUrls = [];\nfor (const ref of pageImageUrls) {\n  interiorPreviewImageUrls.push(await signPreviewRef(ref));\n}\nconst coverPreviewImageUrls = [await signPreviewRef(coverPreviewUrl)];\n\nreturn [{ json: { ...item, interiorSignedUrl, coverSignedUrl, interiorPreviewImageUrls, coverPreviewImageUrls, pageLabels } }];"
+        "jsCode": "const current = $input.first()?.json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w4/run-print-qa',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: current,\n  json: true,\n  timeout: 90000,\n});\nconst normalized = response && typeof response === 'object' && !Array.isArray(response) ? response : { response };\nreturn [{\n  json: {\n    ...current,\n    ...(normalized && typeof normalized === 'object' && !Array.isArray(normalized) ? normalized : { response: normalized }),\n  },\n  binary: b,\n  pairedItem: { item: itemIx },\n}];"
       },
       "id": "b4bdf32a-babb-40c4-8d08-137ff89ee239",
       "name": "Prepare Renderer QA Inputs",
@@ -557,32 +456,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{$node[\"Validate & Normalize W4 Input\"].json.CONFIG.lulu.apiBase || $json.CONFIG.lulu.apiBase || \"https://api.lulu.com\"}}/validate-interior/",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "={{'Bearer ' + ($node[\"Extract Lulu Access Token (PRODUCTION)\"].json.luluAccessToken || $node[\"Extract Lulu Access Token (SANDBOX)\"].json.luluAccessToken)}}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"source_url\": $node[\"Decide Lulu Source URLs (NO PROXY)\"].json.interiorSourceUrl,\n  \"pod_package_id\": $json.CONFIG.defaults.podPackageId || \"0850X0850FCPRESS080CW444MXX\"\n} }}",
-        "options": {
-          "timeout": 30000
-        }
+        "jsCode": "const j = $input.first().json || {};\nif (j.__skipLulu) {\n  return [{ json: { ...j, interiorValidationSkipped: true } }];\n}\nconst token = j.luluAccessToken;\nif (!token) throw new Error('Missing sandbox Lulu access token before interior validation');\nconst apiBase = String(j.luluApiBase || j.CONFIG?.lulu?.apiBase || 'https://api.sandbox.lulu.com').replace(/\\/$/, '');\nconst podPackageId = j.CONFIG?.defaults?.podPackageId || '0850X0850FCPRESS080CW444MXX';\nconst sourceUrl = j.interiorSignedUrl || j.interiorSourceUrl;\nif (!sourceUrl) throw new Error('Missing interior source_url before interior validation');\nconst http = this.helpers.httpRequest;\nconst resp = await http({\n  method: 'POST',\n  url: apiBase + '/validate-interior/',\n  headers: {\n    'Content-Type': 'application/json',\n    Authorization: 'Bearer ' + token,\n  },\n  body: {\n    source_url: sourceUrl,\n    pod_package_id: podPackageId,\n  },\n  json: true,\n  ignoreHttpStatusErrors: true,\n  timeout: 30000,\n});\nconst statusCode = Number(resp?.statusCode || resp?.status || 200);\nconst payload = resp?.body !== undefined ? resp.body : resp;\nif (statusCode >= 400) {\n  throw new Error('Sandbox Lulu interior validation failed (status=' + statusCode + ', body=' + JSON.stringify(payload).slice(0, 280) + ')');\n}\nreturn [{ json: { ...j, interiorValidation: payload, luluInteriorValidateStatusCode: statusCode } }];"
       },
       "id": "1e30b0d8-9da5-469c-aa44-071ecea5c6ae",
       "name": "Validate Interior (PRODUCTION)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         11728,
         -816
@@ -590,32 +469,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{$node[\"Validate & Normalize W4 Input\"].json.CONFIG.lulu.apiBase || $json.CONFIG.lulu.apiBase || \"https://api.lulu.com\"}}/validate-cover/",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "={{'Bearer ' + ($node[\"Extract Lulu Access Token (PRODUCTION)\"].json.luluAccessToken || $node[\"Extract Lulu Access Token (SANDBOX)\"].json.luluAccessToken)}}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"source_url\": $node[\"Decide Lulu Source URLs (NO PROXY)\"].json.coverSourceUrl,\n  \"pod_package_id\": $node[\"Validate & Normalize W4 Input\"].json.CONFIG.defaults.podPackageId || $json.CONFIG.defaults.podPackageId || \"0850X0850FCPRESS080CW444MXX\",\n  \"interior_page_count\": $node[\"Validate & Normalize W4 Input\"].json.expectedPageCount || 15\n} }}",
-        "options": {
-          "timeout": 30000
-        }
+        "jsCode": "const j = $input.first().json || {};\nif (j.__skipLulu) {\n  return [{ json: { ...j, coverValidationSkipped: true } }];\n}\nconst token = j.luluAccessToken;\nif (!token) throw new Error('Missing sandbox Lulu access token before cover validation');\nconst apiBase = String(j.luluApiBase || j.CONFIG?.lulu?.apiBase || 'https://api.sandbox.lulu.com').replace(/\\/$/, '');\nconst podPackageId = j.CONFIG?.defaults?.podPackageId || '0850X0850FCPRESS080CW444MXX';\nconst sourceUrl = j.coverSignedUrl || j.coverSourceUrl;\nif (!sourceUrl) throw new Error('Missing cover source_url before cover validation');\nconst interiorPageCount = Number(j.expectedPageCount || 15);\nconst http = this.helpers.httpRequest;\nconst resp = await http({\n  method: 'POST',\n  url: apiBase + '/validate-cover/',\n  headers: {\n    'Content-Type': 'application/json',\n    Authorization: 'Bearer ' + token,\n  },\n  body: {\n    source_url: sourceUrl,\n    pod_package_id: podPackageId,\n    interior_page_count: interiorPageCount,\n  },\n  json: true,\n  ignoreHttpStatusErrors: true,\n  timeout: 30000,\n});\nconst statusCode = Number(resp?.statusCode || resp?.status || 200);\nconst payload = resp?.body !== undefined ? resp.body : resp;\nif (statusCode >= 400) {\n  throw new Error('Sandbox Lulu cover validation failed (status=' + statusCode + ', body=' + JSON.stringify(payload).slice(0, 280) + ')');\n}\nreturn [{ json: { ...j, coverValidation: payload, luluCoverValidateStatusCode: statusCode } }];"
       },
       "id": "b0ccdde5-628b-4089-a450-99c2c913a2ec",
       "name": "Validate Cover (PRODUCTION)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         11920,
         -816
@@ -623,7 +482,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build conditional Supabase update patch\nconst j = $input.first().json || {};\nconst reason = j.guard?.reason || (j.__skipLulu ? 'skipped' : null);\nlet patch = {};\nif (j.__skipLulu) {\n  patch.printFulfillmentStatus = reason || 'skipped';\n  // Do NOT set lulu_job_id / lulu_status when skipping\n} else {\n  patch.printFulfillmentStatus = 'submitted';\n  patch.lulu_job_id = j.luluJobId || j.id || null;\n  patch.lulu_status = j.luluStatus || j.status || 'SUBMITTED';\n}\nreturn [{ json: { ...j, supabasePatch: patch } }];"
+        "jsCode": "const j = $input.first().json || {};\nconst submitMode = String(j.submitMode || '').trim().toLowerCase();\nconst nonProduction = !!submitMode && submitMode !== 'production';\nlet patch = {};\nif (!nonProduction && !j.__skipLulu) {\n  patch = {\n    lulu_job_id: j.luluJobId || j.id || null,\n    lulu_status: j.luluStatus || j.status || 'SUBMITTED',\n  };\n}\nreturn [{ json: { ...j, supabasePatch: patch } }];"
       },
       "id": "40ca06ad-effe-47a7-99f7-85961af63a62",
       "name": "Build Supabase Update",
@@ -660,7 +519,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build normalized error context for W4 failures.\n// This node runs from the Error Trigger.\n\nconst execData = $json.execution || {};\nconst err = execData.error || $json.error || {};\nconst runData = execData.data?.resultData?.runData || execData.data?.runData || {};\nconst lastNode = execData.lastNodeExecuted;\n\n// Helper: search runData for first item containing any of the given fields\nfunction findField(fieldNames) {\n  const names = Array.isArray(fieldNames) ? fieldNames : [fieldNames];\n  for (const [nodeName, runs] of Object.entries(runData || {})) {\n    if (!Array.isArray(runs)) continue;\n    for (const run of runs) {\n      const items = run.data?.main?.[0] || [];\n      for (const item of items) {\n        const j = item.json || {};\n        for (const name of names) {\n          if (j[name] !== undefined && j[name] !== null && String(j[name]).trim() !== '') {\n            return j[name];\n          }\n        }\n      }\n    }\n  }\n  return undefined;\n}\n\nfunction extractOrderPrefix(value) {\n  if (!value) return undefined;\n  const raw = String(value).trim().split('?')[0];\n  const marker = '/manifests/';\n  if (raw.includes('/api/manifests/')) {\n    const key = raw.split('/api/manifests/')[1].replace(/^\\/+/, '');\n    const index = key.indexOf(marker);\n    return index > 0 ? key.slice(0, index) : undefined;\n  }\n  const clean = raw.replace(/^\\/+/, '');\n  const index = clean.indexOf(marker);\n  return index > 0 ? clean.slice(0, index) : undefined;\n}\n\n// Try to recover orderId/amazonOrderId from any node output\nlet orderId =\n  findField(['orderId']) ||\n  findField(['amazonOrderId', 'AmazonOrderId', 'amazon_order_id']) ||\n  'unknown-order';\nconst orderPrefix =\n  findField(['orderPrefix', 'orderR2BaseKey']) ||\n  extractOrderPrefix(findField(['manifest3Key', 'manifestKey'])) ||\n  `book-mvp-simple-adventure/orders/${orderId}`;\n\n// Try to recover CONFIG from any node output\nfunction findConfig() {\n  for (const [nodeName, runs] of Object.entries(runData || {})) {\n    for (const run of runs || []) {\n      const items = run.data?.main?.[0] || [];\n      for (const item of items) {\n        const j = item.json || {};\n        if (j.CONFIG) return j.CONFIG;\n      }\n    }\n  }\n  return undefined;\n}\n\nconst CONFIG = findConfig() || {};\n\n// Determine phase & message from error object\nconst phase =\n  err.node?.name ||\n  err.node?.type ||\n  lastNode ||\n  err.description ||\n  'unknown';\n\nconst rawMessage =\n  err.message ||\n  err.stack ||\n  err.description ||\n  'Unknown error';\n\nconst safeMessage = String(rawMessage).slice(0, 800);\n\n// Derive Supabase config for error path (fallback to hardcoded sandbox values if CONFIG missing)\nconst supabaseProjectUrl =\n  (CONFIG.supabase && CONFIG.supabase.projectUrl) ||\n  'https://mdnthwpcnphjnnblbvxk.supabase.co';\n\nconst supabaseServiceRoleKey =\n  (CONFIG.supabase && CONFIG.supabase.serviceRoleKey) ||\n  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\n// Flag whether we have a usable orderId for Supabase updates\nconst hasValidOrderId = !!orderId && orderId !== 'unknown-order';\n\n// Extract shipping tier audit fields from any upstream node output (if available)\nconst shippingTier = findField(['shipping_tier', 'shippingTier']) || null;\nconst shippingTierResolved = findField(['shipping_tier_resolved', 'shippingTierResolved']) || null;\nconst shippingTierResolvedReason = findField(['shipping_tier_resolved_reason', 'shippingTierResolvedReason']) || null;\n\n// Supabase patch only meaningful when we have a real orderId\nconst supabasePatch = hasValidOrderId\n  ? {\n      printFulfillmentStatus: 'error',\n      printFulfillmentErrorPhase: phase,\n      printFulfillmentErrorMessage: safeMessage,\n      ...(shippingTier ? { shipping_tier: shippingTier } : {}),\n      ...(shippingTierResolved ? { shipping_tier_resolved: shippingTierResolved } : {}),\n      ...(shippingTierResolvedReason ? { shipping_tier_resolved_reason: shippingTierResolvedReason } : {}),\n    }\n  : {};\n\n// Build error manifest (we still record even if orderId is unknown)\nconst errorManifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  stage: '4-print-fulfillment',\n  createdAt: new Date().toISOString(),\n  orderId,\n  status: 'error',\n  errorPhase: phase,\n  errorMessage: safeMessage,\n};\n\n// Only set manifestKey when orderId is meaningful\nconst manifestKey = hasValidOrderId\n  ? `${orderPrefix}/manifests/4-manifest.json`\n  : `book-mvp-simple-adventure/orders/unknown-order/manifests/4-manifest.json`;\n\nreturn [\n  {\n    json: {\n      orderId,\n      hasValidOrderId,\n      CONFIG,\n      orderPrefix,\n      supabaseProjectUrl,\n      supabaseServiceRoleKey,\n      supabasePatch,\n      _error: err,\n      _errorManifest: errorManifest,\n      manifestKey,\n    },\n  },\n];"
+        "jsCode": "// Build normalized error context for W4 failures.\n// This node runs from the Error Trigger.\n\nconst execData = $json.execution || {};\nconst err = execData.error || $json.error || {};\nconst runData = execData.data?.resultData?.runData || execData.data?.runData || {};\nconst lastNode = execData.lastNodeExecuted;\n\n// Helper: search runData for first item containing any of the given fields\nfunction findField(fieldNames) {\n  const names = Array.isArray(fieldNames) ? fieldNames : [fieldNames];\n  for (const [nodeName, runs] of Object.entries(runData || {})) {\n    if (!Array.isArray(runs)) continue;\n    for (const run of runs) {\n      const items = run.data?.main?.[0] || [];\n      for (const item of items) {\n        const j = item.json || {};\n        for (const name of names) {\n          if (j[name] !== undefined && j[name] !== null && String(j[name]).trim() !== '') {\n            return j[name];\n          }\n        }\n      }\n    }\n  }\n  return undefined;\n}\n\nfunction extractOrderPrefix(value) {\n  if (!value) return undefined;\n  const raw = String(value).trim().split('?')[0];\n  const marker = '/manifests/';\n  if (raw.includes('/api/manifests/')) {\n    const key = raw.split('/api/manifests/')[1].replace(/^\\/+/, '');\n    const index = key.indexOf(marker);\n    return index > 0 ? key.slice(0, index) : undefined;\n  }\n  const clean = raw.replace(/^\\/+/, '');\n  const index = clean.indexOf(marker);\n  return index > 0 ? clean.slice(0, index) : undefined;\n}\n\n// Try to recover orderId/amazonOrderId from any node output\nlet orderId =\n  findField(['orderId']) ||\n  findField(['amazonOrderId', 'AmazonOrderId', 'amazon_order_id']) ||\n  'unknown-order';\nconst orderPrefix =\n  findField(['orderPrefix', 'orderR2BaseKey']) ||\n  extractOrderPrefix(findField(['manifest3Key', 'manifestKey'])) ||\n  `book-mvp-simple-adventure/orders/${orderId}`;\n\n// Try to recover CONFIG from any node output\nfunction findConfig() {\n  for (const [nodeName, runs] of Object.entries(runData || {})) {\n    for (const run of runs || []) {\n      const items = run.data?.main?.[0] || [];\n      for (const item of items) {\n        const j = item.json || {};\n        if (j.CONFIG) return j.CONFIG;\n      }\n    }\n  }\n  return undefined;\n}\n\nconst CONFIG = findConfig() || {};\nconst backendUrl = findField(['backendUrl']) || null;\nconst workflowJobId = findField(['workflowJobId']) || null;\nconst workflowAttemptId = findField(['workflowAttemptId']) || null;\nconst workflowJobIdempotencyKey = findField(['workflowJobIdempotencyKey']) || null;\n\n// Determine phase & message from error object\nconst phase =\n  err.node?.name ||\n  err.node?.type ||\n  lastNode ||\n  err.description ||\n  'unknown';\n\nconst rawMessage =\n  err.message ||\n  err.stack ||\n  err.description ||\n  'Unknown error';\n\nconst safeMessage = String(rawMessage).slice(0, 800);\n\n// Derive Supabase config for error path (fallback to hardcoded sandbox values if CONFIG missing)\nconst supabaseProjectUrl =\n  (CONFIG.supabase && CONFIG.supabase.projectUrl) ||\n  'https://mdnthwpcnphjnnblbvxk.supabase.co';\n\nconst supabaseServiceRoleKey =\n  (CONFIG.supabase && CONFIG.supabase.serviceRoleKey) ||\n  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\n// Flag whether we have a usable orderId for Supabase updates\nconst hasValidOrderId = !!orderId && orderId !== 'unknown-order';\n\n// Extract shipping tier audit fields from any upstream node output (if available)\nconst shippingTier = findField(['shipping_tier', 'shippingTier']) || null;\nconst shippingTierResolved = findField(['shipping_tier_resolved', 'shippingTierResolved']) || null;\nconst shippingTierResolvedReason = findField(['shipping_tier_resolved_reason', 'shippingTierResolvedReason']) || null;\n\n// Supabase patch only meaningful when we have a real orderId\nconst supabasePatch = hasValidOrderId\n  ? {\n      printFulfillmentStatus: 'error',\n      printFulfillmentErrorPhase: phase,\n      printFulfillmentErrorMessage: safeMessage,\n      ...(shippingTier ? { shipping_tier: shippingTier } : {}),\n      ...(shippingTierResolved ? { shipping_tier_resolved: shippingTierResolved } : {}),\n      ...(shippingTierResolvedReason ? { shipping_tier_resolved_reason: shippingTierResolvedReason } : {}),\n    }\n  : {};\n\n// Build error manifest (we still record even if orderId is unknown)\nconst errorManifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  stage: '4-print-fulfillment',\n  createdAt: new Date().toISOString(),\n  orderId,\n  status: 'error',\n  errorPhase: phase,\n  errorMessage: safeMessage,\n};\n\n// Only set manifestKey when orderId is meaningful\nconst manifestKey = hasValidOrderId\n  ? `${orderPrefix}/manifests/4-manifest.json`\n  : `book-mvp-simple-adventure/orders/unknown-order/manifests/4-manifest.json`;\n\nreturn [\n  {\n    json: {\n      orderId,\n      hasValidOrderId,\n      CONFIG,\n      backendUrl,\n      workflowJobId,\n      workflowAttemptId,\n      workflowJobIdempotencyKey,\n      orderPrefix,\n      supabaseProjectUrl,\n      supabaseServiceRoleKey,\n      supabasePatch,\n      _error: err,\n      _errorManifest: errorManifest,\n      manifestKey,\n    },\n  },\n];"
       },
       "id": "2a86a447-86f6-4d4e-88f1-af434eaef521",
       "name": "Build Error Context",
@@ -708,7 +567,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const j = $input.first().json || {};\nconst manifestKey = j.manifestKey;\nconst errorManifest = j._errorManifest || {};\nif (!manifestKey) {\n  throw new Error('Missing manifestKey in error context');\n}\nconst fileName = manifestKey.split('/').pop() || '4-qa-fail-manifest.json';\nconst body = JSON.stringify(errorManifest, null, 2);\nconst data = Buffer.from(body, 'utf8').toString('base64');\nreturn [\n  {\n    json: {\n      ...j,\n      manifestKey,\n      _manifest: errorManifest\n    },\n    binary: {\n      data: {\n        data,\n        mimeType: 'application/json',\n        fileName\n      }\n    }\n  }\n];"
+        "jsCode": "const current = $input.first()?.json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w4/publish-print-manifest',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: { ...current, manifestStatus: 'error' },\n  json: true,\n  timeout: 90000,\n});\nconst normalized = response && typeof response === 'object' && !Array.isArray(response) ? response : { response };\nreturn [{\n  json: {\n    ...current,\n    ...(normalized && typeof normalized === 'object' && !Array.isArray(normalized) ? normalized : { response: normalized }),\n  },\n  binary: b,\n  pairedItem: { item: itemIx },\n}];"
       },
       "id": "94a3d8c3-134f-43e3-9c6a-718237694fd1",
       "name": "Build 4-Manifest JSON (Error)",
@@ -721,16 +580,12 @@
     },
     {
       "parameters": {
-        "operation": "upload",
-        "bucketName": "little-hero-orders",
-        "fileName": "={{ $json.manifestKey }}",
-        "binaryData": true,
-        "additionalFields": {}
+        "jsCode": "return $input.all();"
       },
       "id": "30f91357-b4c1-4a0c-87f9-a7c30128721d",
       "name": "Upload 4-Manifest (Error) to R2",
-      "type": "n8n-nodes-base.s3",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         11952,
         -1328
@@ -768,7 +623,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build cover_html for PDFMonkey (self-contained + diagnostics)\n// Emits: cover_html, coverPdfFilename, coverDebug{coverRef,coverUrl,assetBase}\n\nconst j = $input.first().json || {};\nconst cfg = j.CONFIG || {};\nconst defaults = cfg.defaults || {};\nconst assetBase = (defaults?.trimIn?.assetBase || '').replace(/\\/+$/, '');\nconst runStamp = j.runStamp || new Date().toISOString();\nconst orderId = j.orderId || j.amazonOrderId || 'unknown';\nconst orderPrefix = j.orderPrefix || j.orderR2BaseKey || `book-mvp-simple-adventure/orders/${orderId}`;\n\nfunction isUrl(s){ return typeof s === 'string' && /^https?:\\/\\//i.test(s); }\nfunction toAssetUrl(path){\n  if (!path) return undefined;\n  if (isUrl(path)) return path;\n  const clean = String(path).replace(/^\\/+/, '');\n  if (!assetBase) return undefined;\n  return `${assetBase}/${clean}`;\n}\n\nlet coverRef =\n  j.coverImageUrl ||\n  (Array.isArray(j.coverImageUrls) && j.coverImageUrls[0]) ||\n  j.coverPngR2Key ||\n  j.pngGeneration?.coverSpreadImage ||\n  `${orderPrefix}/preview-images/cover-spread.png`;\n\nconst coverUrlBase = toAssetUrl(coverRef);\nconst coverUrl = coverUrlBase\n  ? `${coverUrlBase}${coverUrlBase.includes('?') ? '&' : '?'}v=${encodeURIComponent(runStamp)}`\n  : null;\n\nif (!coverUrl) throw new Error('Missing cover image URL/ref');\n\nconst css = `\n  <style>\n    @page { size: 17.25in 8.75in; margin: 0; }\n    html, body { margin:0; padding:0; }\n    .page { width:17.25in; height:8.75in; page-break-after: always; break-after: page; overflow:hidden; position:relative; }\n    .bg { width:100%; height:100%; display:block; object-fit:cover; }\n    .dbg { position:absolute; z-index:2; top:10px; left:12px; padding:6px 10px; font:700 16px/1.1 system-ui; color:#111; background:#FFD700; border-radius:6px }\n  </style>\n`;\n\nconst debugBadge = defaults?.debug ? `<div class=\"dbg\">HELLO COVER</div>` : '';\nconst html = `<section class=\"page\">${debugBadge}<img class=\"bg\" src=\"${coverUrl}\" alt=\"\" width=\"5203\" height=\"2625\" /></section>`;\n\nreturn [{\n  json: {\n    ...j,\n    cover_html: `${css}\\n${html}`,\n    coverPdfFilename: j.coverPdfFilename || `cover_${orderId}.pdf`,\n    coverDebug: { coverRef, coverUrl, assetBase }\n  }\n}];\n"
+        "jsCode": "return $input.all();"
       },
       "id": "37be1c74-a1f9-4151-b4e9-a292d33492de",
       "name": "Build Cover HTML",
@@ -781,7 +636,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Presign Cover Assets: replace /api/assets/ proxy URLs with signed R2 URLs\n// so PDFMonkey fetches directly from Cloudflare R2 edge (no Vercel proxy).\nconst item = $input.first()?.json || {};\nconst coverHtml = item.cover_html;\nif (!coverHtml || typeof coverHtml !== 'string') {\n  throw new Error('[Presign Cover Assets] Missing cover_html');\n}\nconst backendUrl = (item.CONFIG?.defaults?.trimIn?.assetBase || 'https://admin.littleherolabs.com/api/assets/').replace(/\\/api\\/assets\\/?$/, '');\nconst url = `${backendUrl}/api/render/presign-page-assets`;\nconst http = this.helpers.httpRequest;\nconst token = item.CONFIG?.backendApiToken || '';\nconst headers = token ? { Authorization: `Bearer ${token}` } : {};\nfunction sleep(ms) { return new Promise(r => setTimeout(r, ms)); }\nfunction jitter(max = 200) { return Math.floor(Math.random() * max); }\nlet lastErr = null;\nfor (let attempt = 1; attempt <= 3; attempt++) {\n  try {\n    const res = await http({ method: 'POST', url, headers, body: { html: coverHtml, expiresInSeconds: 21600 }, json: true, timeout: 30000 });\n    if (res?.html && typeof res.html === 'string') {\n      return [{ json: { ...item, cover_html: res.html } }];\n    }\n    throw new Error('Presign endpoint returned no html');\n  } catch (e) {\n    lastErr = e;\n    if (attempt < 3) await sleep(300 + attempt * 300 + jitter());\n  }\n}\nconst orderId = item.orderId || item.amazonOrderId || 'UNKNOWN';\nthrow new Error(`[Presign Cover Assets] Failed after 3 attempts (orderId=${orderId}): ${lastErr?.message || lastErr}`);\n"
+        "jsCode": "return $input.all();"
       },
       "id": "a2b3c4d5-e6f7-4a89-0b1c-2d3e4f5a6b7c",
       "name": "Presign Cover Assets",
@@ -796,7 +651,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare cover document payload for PDFMonkey\n// PDFMonkey template must render:  {{ cover_html | raw }}\n\nconst d = $input.first().json || {};\n\nconst DEFAULT_COVER_TEMPLATE_ID = 'D52F14C8-BBC3-4058-929F-195DFC707E75';\nconst tpl = d.CONFIG?.pdfMonkey?.coverTemplateId || DEFAULT_COVER_TEMPLATE_ID;\n\nif (!tpl) throw new Error('Missing PDFMonkey coverTemplateId for W4 cover.');\n\nlet coverHtml = d.cover_html || d.coverHtml || null;\nif (!coverHtml) {\n  // Visible fallback so a totally blank PDF can’t happen silently\n  coverHtml = `<section class=\"page\">\n    <div style=\"position:absolute;z-index:2;top:10px;left:12px;padding:8px 12px;\n      font:700 18px/1.2 system-ui;color:#111;background:#FFD700;border-radius:8px\">\n      MISSING cover_html — check merge/path into Prepare Cover\n    </div>\n  </section>`;\n}\n\nconst filename = d.coverPdfFilename || `cover_${d.orderId || d.amazonOrderId || 'unknown'}.pdf`;\n\nreturn [{\n  json: {\n    ...d,\n    coverDocument: {\n      document_template_id: tpl,\n      status: 'pending',\n      meta: { _filename: filename },\n      payload: { cover_html: coverHtml }\n    }\n  }\n}];\n"
+        "jsCode": "return $input.all();"
       },
       "id": "c39d7294-3505-4d3e-a620-1c20c8ba1822",
       "name": "Prepare Cover PDFMonkey Data",
@@ -809,32 +664,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.pdfmonkey.io/api/v1/documents",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "={{'Bearer ' + $json.CONFIG.pdfMonkey.token}}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json.coverDocument }}",
-        "options": {
-          "timeout": 30000
-        }
+        "jsCode": "const current = $input.first()?.json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w4/render-print-document',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: { ...current, documentKind: 'cover-pdf' },\n  json: true,\n  timeout: 90000,\n});\nconst normalized = response && typeof response === 'object' && !Array.isArray(response) ? response : { response };\nreturn [{\n  json: {\n    ...current,\n    ...(normalized && typeof normalized === 'object' && !Array.isArray(normalized) ? normalized : { response: normalized }),\n  },\n  binary: b,\n  pairedItem: { item: itemIx },\n}];"
       },
       "id": "7a4d6fad-40b7-4017-b475-1e8db1e9368a",
       "name": "Generate Cover PDF with PDFMonkey",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         7232,
         -112
@@ -842,7 +677,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Merge the PDFMonkey cover response with preserved workflow context\nconst httpResp = $input.first().json || {};\nlet ctx = {};\ntry { ctx = ($items('Build Cover HTML', 0, $runIndex)?.[0]?.json) || {}; } catch {}\nif (!ctx.orderId && !ctx.amazonOrderId) {\n  try { ctx = ($items('Validate & Normalize W4 Input', 0, $runIndex)?.[0]?.json) || ctx; } catch {}\n}\n\nconst docObj = httpResp.document || httpResp.data || httpResp;\nreturn [{\n  json: {\n    ...ctx,\n    coverDocument: docObj\n  }\n}];"
+        "jsCode": "return $input.all();"
       },
       "id": "6be5bf22-833a-4839-99c5-2a8f5e54f82b",
       "name": "Reattach Cover Context (PDFM)",
@@ -855,12 +690,12 @@
     },
     {
       "parameters": {
-        "amount": 25
+        "jsCode": "return $input.all();"
       },
       "id": "3db4f8eb-e3ad-4be3-86d2-ad1134503cf2",
       "name": "Wait (Cover PDF)",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         7808,
         -112
@@ -869,7 +704,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Poll PDFMonkey until the cover PDF document is processed\n// Expects input from: Wait → Reattach Cover Context (PDFM)\n\nconst ctxIn = $input.first()?.json || {};\n\nconst src =\n  ctxIn.coverDocument ||\n  ctxIn.document ||\n  ctxIn.data ||\n  ctxIn;\n\nconst docId =\n  src.id ||\n  src.document?.id ||\n  src.data?.id ||\n  ctxIn.pdfMonkeyCoverDocumentId ||\n  null;\n\nif (!docId) throw new Error('PDFMonkey cover create response missing id (cannot poll)');\n\nconst token = ctxIn.CONFIG?.pdfMonkey?.token || '2zpxHdmsse2ECXgVVtVR';\nif (!token) throw new Error('Missing PDFMonkey token (CONFIG.pdfMonkey.token)');\n\nconst http = this.helpers.httpRequest;\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst AUTH_HEADER = { Authorization: `Bearer ${token}` };\n\nlet status =\n  src.status ||\n  src.document?.status ||\n  src.data?.status ||\n  'queued';\n\nlet downloadUrl =\n  src.download_url ||\n  src.file_url ||\n  src.document?.download_url ||\n  src.data?.download_url ||\n  null;\n\nlet failureCause =\n  src.failure_cause ||\n  src.document?.failure_cause ||\n  src.data?.failure_cause ||\n  null;\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nconst maxAttempts = 40;\nfor (let attempts = 0; attempts < maxAttempts; attempts++) {\n  if (status === 'success' && downloadUrl) break;\n\n  let resp;\n  try {\n    resp = await http({ method: 'GET', url: `${apiBase}${docId}`, json: true, headers: AUTH_HEADER });\n  } catch {\n    await sleep(1500 + Math.floor(Math.random()*800));\n    continue;\n  }\n\n  const d = resp?.document || resp?.data || resp || {};\n  status = d.status || status;\n  downloadUrl = d.download_url || d.file_url || downloadUrl;\n  failureCause = d.failure_cause || failureCause;\n\n  if (status === 'error' || status === 'failure') {\n    const logs = Array.isArray(d.generation_logs) ? d.generation_logs : [];\n    throw new Error(`PDFMonkey reported error for cover PDF: ${failureCause || status} | logs: ${JSON.stringify(logs).slice(0,2000)}`);\n  }\n\n  if (status === 'success' && downloadUrl) break;\n\n  const delay = 1200 + Math.min((attempts+1)*150, 3800) + Math.floor(Math.random()*400);\n  await sleep(delay);\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey cover PDF not ready after polling (status=${status})`);\n}\n\nreturn [{\n  json: {\n    ...ctxIn,\n    pdfMonkeyCoverDocumentId: docId,\n    coverPdfDownloadUrl: downloadUrl,\n    coverPdfStatus: status\n  }\n}];\n"
+        "jsCode": "return $input.all();"
       },
       "id": "026a1ead-2d80-46f8-92f3-551fe3a9db49",
       "name": "Poll Cover PDFMonkey until ready",
@@ -882,20 +717,12 @@
     },
     {
       "parameters": {
-        "url": "={{$json.coverPdfDownloadUrl}}",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "file"
-            }
-          },
-          "timeout": 30000
-        }
+        "jsCode": "const current = $input.first()?.json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w4/materialize-print-pdf',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: { ...current, documentKind: 'cover-pdf' },\n  json: true,\n  timeout: 90000,\n});\nconst normalized = response && typeof response === 'object' && !Array.isArray(response) ? response : { response };\nreturn [{\n  json: {\n    ...current,\n    ...(normalized && typeof normalized === 'object' && !Array.isArray(normalized) ? normalized : { response: normalized }),\n  },\n  binary: b,\n  pairedItem: { item: itemIx },\n}];"
       },
       "id": "ef11a228-1eb6-40cf-81c0-55e846b2a00b",
       "name": "Download Cover PDF from PDFMonkey",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         8240,
         -112
@@ -903,15 +730,12 @@
     },
     {
       "parameters": {
-        "operation": "upload",
-        "bucketName": "little-hero-orders",
-        "fileName": "={{ $json.coverPdfR2Key }}",
-        "additionalFields": {}
+        "jsCode": "return $input.all();"
       },
       "id": "dfd98d4b-8446-49c4-85ef-d162afe736d3",
       "name": "Upload Cover PDF to R2",
-      "type": "n8n-nodes-base.s3",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         8384,
         -112
@@ -925,7 +749,7 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Prepare Cover PDF Metadata for Merge\n */\nfunction latest(node) {\n  try { return ($items(node, 0, $runIndex)?.[0]?.json) || null; } catch { return null; }\n}\n\nconst s3Out = $input.first()?.json || {};\n\nconst ctx =\n  latest('Poll Cover PDFMonkey until ready') ||\n  latest('Reattach Cover Context (PDFM)') ||\n  latest('Build Cover HTML') ||\n  latest('Validate & Normalize W4 Input') ||\n  s3Out ||\n  {};\n\nconst orderId = ctx.orderId || ctx.amazonOrderId || null;\nconst pdfFilename = ctx.coverPdfFilename || (orderId ? `cover_${orderId}.pdf` : null);\nconst pdfR2Key = ctx.coverPdfR2Key || (orderId && pdfFilename\n  ? `book-mvp-simple-adventure/orders/${orderId}/${pdfFilename}`\n  : null);\n\nif (!orderId || !pdfFilename || !pdfR2Key) {\n  throw new Error(`Missing required cover PDF metadata: orderId=${orderId}, coverPdfFilename=${pdfFilename}, coverPdfR2Key=${pdfR2Key}`);\n}\n\nreturn [{\n  json: {\n    ...ctx,\n    ...s3Out,\n    coverPdfComplete: true,\n    coverPdfUploadedAt: new Date().toISOString()\n  }\n}];"
+        "jsCode": "return $input.all();"
       },
       "id": "270688fa-53fc-4519-9fd3-8be72a976ba2",
       "name": "Prepare Cover PDF Metadata for Merge",
@@ -938,7 +762,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build pages_html for PDFMonkey at 8.75×8.75 in (bleed) from pageImageUrls\nconst j = $input.first().json || {};\nconst pages = Array.isArray(j.pageImageUrls) ? j.pageImageUrls : [];\nif (pages.length === 0) throw new Error('No pageImageUrls to build pages_html');\n\nconst css = `\n  <style>\n    @page { size: 8.75in 8.75in; margin: 0; }\n    html, body { margin:0; padding:0; }\n    .page { width:8.75in; height:8.75in; page-break-after: always; }\n    .bg { width:100%; height:100%; object-fit: cover; display:block; }\n  </style>\n`;\n\nconst pagesHtml = pages.map(url => {\n  return `<section class=\"page\"><img class=\"bg\" src=\"${url}\" alt=\"\" /></section>`;\n}).join('\\n');\n\n// Preserve upstream context and attach pages_html at top-level\nconst ctx = $input.first().json || {};\nreturn [{\n  json: {\n    ...ctx,\n    pages_html: `${css}\\n${pagesHtml}`\n  }\n}];"
+        "jsCode": "return $input.all();"
       },
       "id": "416c12c3-e15d-4225-b6b0-865e86d2a3ac",
       "name": "Build Pages HTML (8.75in)1",
@@ -951,7 +775,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Presign Interior Assets: replace /api/assets/ proxy URLs with signed R2 URLs\n// so PDFMonkey fetches directly from Cloudflare R2 edge (no Vercel proxy).\nconst item = $input.first()?.json || {};\nconst pagesHtml = item.pages_html;\nif (!pagesHtml || typeof pagesHtml !== 'string') {\n  throw new Error('[Presign Interior Assets] Missing pages_html');\n}\nconst backendUrl = (item.CONFIG?.defaults?.trimIn?.assetBase || 'https://admin.littleherolabs.com/api/assets/').replace(/\\/api\\/assets\\/?$/, '');\nconst url = `${backendUrl}/api/render/presign-page-assets`;\nconst http = this.helpers.httpRequest;\nconst token = item.CONFIG?.backendApiToken || '';\nconst headers = token ? { Authorization: `Bearer ${token}` } : {};\nfunction sleep(ms) { return new Promise(r => setTimeout(r, ms)); }\nfunction jitter(max = 200) { return Math.floor(Math.random() * max); }\nlet lastErr = null;\nfor (let attempt = 1; attempt <= 3; attempt++) {\n  try {\n    const res = await http({ method: 'POST', url, headers, body: { html: pagesHtml, expiresInSeconds: 21600 }, json: true, timeout: 30000 });\n    if (res?.html && typeof res.html === 'string') {\n      return [{ json: { ...item, pages_html: res.html } }];\n    }\n    throw new Error('Presign endpoint returned no html');\n  } catch (e) {\n    lastErr = e;\n    if (attempt < 3) await sleep(300 + attempt * 300 + jitter());\n  }\n}\nconst orderId = item.orderId || item.amazonOrderId || 'UNKNOWN';\nthrow new Error(`[Presign Interior Assets] Failed after 3 attempts (orderId=${orderId}): ${lastErr?.message || lastErr}`);\n"
+        "jsCode": "return $input.all();"
       },
       "id": "f1a2b3c4-d5e6-4f78-9a0b-1c2d3e4f5a6b",
       "name": "Presign Interior Assets",
@@ -966,7 +790,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst tpl = d.CONFIG?.pdfMonkey?.templateId;\nif (!tpl || tpl === 'REPLACE_WITH_PDFMONKEY_TEMPLATE_ID') {\n  throw new Error('Missing PDFMonkey templateId in Config (W4). Please set CONFIG.pdfMonkey.templateId');\n}\nreturn [{\n  json: {\n    ...d,\n    document: {\n      document_template_id: tpl,\n      status: 'pending',\n      meta: { _filename: d.pdfFilename },\n      payload: { pages_html: d.pages_html }\n    }\n  }\n}];\n"
+        "jsCode": "return $input.all();"
       },
       "id": "b63f0bad-c9d7-4930-8f2c-dd6e37e64511",
       "name": "Prepare PDFMonkey Data1",
@@ -979,32 +803,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.pdfmonkey.io/api/v1/documents",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "={{'Bearer ' + $json.CONFIG.pdfMonkey.token}}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json.document }}",
-        "options": {
-          "timeout": 30000
-        }
+        "jsCode": "const current = $input.first()?.json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w4/render-print-document',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: { ...current, documentKind: 'interior-pdf' },\n  json: true,\n  timeout: 90000,\n});\nconst normalized = response && typeof response === 'object' && !Array.isArray(response) ? response : { response };\nreturn [{\n  json: {\n    ...current,\n    ...(normalized && typeof normalized === 'object' && !Array.isArray(normalized) ? normalized : { response: normalized }),\n  },\n  binary: b,\n  pairedItem: { item: itemIx },\n}];"
       },
       "id": "7418c859-c9f8-4d1d-a99d-50fe9cc51c7a",
       "name": "Generate PDF with PDFMonkey1",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         7232,
         -752
@@ -1012,12 +816,12 @@
     },
     {
       "parameters": {
-        "amount": 25
+        "jsCode": "return $input.all();"
       },
       "id": "4e3efc4f-c80d-4787-9edb-417c008bdf51",
       "name": "Wait1",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         7648,
         -752
@@ -1026,7 +830,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const createResp = $input.first().json;\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc.id || doc.data?.id;\nif (!docId) throw new Error('PDFMonkey create response missing id');\n\nconst http = this.helpers.httpRequest;\nconst token = $json.CONFIG?.pdfMonkey?.token; if (!token) { throw new Error('Missing PDFMonkey token in CONFIG'); }\nconst AUTH_HEADER = { Authorization: `Bearer ${token}` };\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nwhile (attempts < 20) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method:'GET', url:`https://api.pdfmonkey.io/api/v1/documents/${docId}`, json:true, headers: AUTH_HEADER });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++; const delay = Math.min(6000, 2000 * (1 + attempts/3)); await sleep(delay);\n}\nif (status !== 'success' || !downloadUrl) throw new Error(`PDF not ready (status=${status})`);\n\nconst orderId = $json.orderId;\nconst pdfFilename = $json.pdfFilename || `interior_${orderId}.pdf`;\nconst pdfR2Key = `book-mvp-simple-adventure/orders/${orderId}/${pdfFilename}`;\nreturn [{ json: { ...$json, pdfMonkeyDocumentId: docId, pdfDownloadUrl: downloadUrl, pdfR2Key } }];\n"
+        "jsCode": "return $input.all();"
       },
       "id": "2dec2b4d-9acf-4a4b-b24b-fbafeb4f0f39",
       "name": "Poll PDFMonkey until ready1",
@@ -1039,20 +843,12 @@
     },
     {
       "parameters": {
-        "url": "={{$json.pdfDownloadUrl}}",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "file"
-            }
-          },
-          "timeout": 30000
-        }
+        "jsCode": "const current = $input.first()?.json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w4/materialize-print-pdf',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: { ...current, documentKind: 'interior-pdf' },\n  json: true,\n  timeout: 90000,\n});\nconst normalized = response && typeof response === 'object' && !Array.isArray(response) ? response : { response };\nreturn [{\n  json: {\n    ...current,\n    ...(normalized && typeof normalized === 'object' && !Array.isArray(normalized) ? normalized : { response: normalized }),\n  },\n  binary: b,\n  pairedItem: { item: itemIx },\n}];"
       },
       "id": "eb2ec18d-37d2-456d-88d5-1107a4322024",
       "name": "Download PDF from PDFMonkey1",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         8064,
         -752
@@ -1060,15 +856,12 @@
     },
     {
       "parameters": {
-        "operation": "upload",
-        "bucketName": "little-hero-orders",
-        "fileName": "={{ $json.pdfR2Key }}",
-        "additionalFields": {}
+        "jsCode": "return $input.all();"
       },
       "id": "edf6cf5f-3f06-4df9-8db8-c28cbf8ce387",
       "name": "Upload PDF to R",
-      "type": "n8n-nodes-base.s3",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         8368,
         -752
@@ -1082,7 +875,7 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Prepare PDF Metadata for Merge — resilient to S3 node dropping context\n */\nfunction latest(node) {\n  try { return ($items(node, 0, $runIndex)?.[0]?.json) || null; } catch { return null; }\n}\n\nconst s3Out = $input.first()?.json || {};\n\n// Reattach context from earlier nodes (first hit wins)\nconst ctx =\n  latest('Poll PDFMonkey until ready') ||\n  latest('Reattach Context (PDFM)') ||\n  latest('Build Pages HTML (8.75in)') ||\n  latest('Validate & Normalize W4 Input') ||\n  s3Out || {};\n\nconst orderId     = ctx.orderId || null;\nconst pdfFilename = ctx.pdfFilename || (orderId ? `interior_${orderId}.pdf` : null);\nconst pdfR2Key    = ctx.pdfR2Key || (orderId && pdfFilename\n                    ? `book-mvp-simple-adventure/orders/${orderId}/${pdfFilename}`\n                    : null);\n\nif (!orderId || !pdfFilename || !pdfR2Key) {\n  throw new Error(`Missing required PDF metadata: orderId=${orderId}, pdfFilename=${pdfFilename}, pdfR2Key=${pdfR2Key}`);\n}\n\nreturn [{\n  json: {\n    ...ctx,           // full upstream context (orderId, pdfR2Key, etc.)\n    ...s3Out,         // anything S3 returned\n    pdfComplete: true,\n    pdfUploadedAt: new Date().toISOString()\n  }\n}];\n"
+        "jsCode": "return $input.all();"
       },
       "id": "dd105b9f-0bfb-4603-bfb5-55586fa4be04",
       "name": "Prepare PDF Metadata for Merge1",
@@ -1111,38 +904,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{String($json.CONFIG?.renderer?.apiBase || '').replace(/\\/$/, '') + '/qa-pdf'}}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "={{'Bearer ' + String($json.CONFIG?.renderer?.internalToken || '').trim()}}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { orderId: $json.orderId || $json.amazonOrderId || $json.amazon_order_id, type: 'interior', pdfUrl: $json.interiorSignedUrl || '', expectedPageCount: Number($json.expectedPageCount), previewImageUrls: Array.isArray($json.interiorPreviewImageUrls) ? $json.interiorPreviewImageUrls : [], pageLabels: Array.isArray($json.pageLabels) ? $json.pageLabels : [] } }}",
-        "options": {
-          "response": {
-            "response": {
-              "fullResponse": true,
-              "neverError": true
-            }
-          },
-          "timeout": 65000
-        }
+        "jsCode": "return $input.all();"
       },
       "id": "6b2f6f06-8642-4eb0-bcbe-36051e2db0ee",
       "name": "QA Check Interior PDF",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         9440,
         -672
@@ -1153,38 +920,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{String($json.CONFIG?.renderer?.apiBase || '').replace(/\\/$/, '') + '/qa-pdf'}}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "={{'Bearer ' + String($json.CONFIG?.renderer?.internalToken || '').trim()}}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { orderId: $json.orderId || $json.amazonOrderId || $json.amazon_order_id, type: 'cover', pdfUrl: $json.coverSignedUrl || '', expectedPageCount: 1, previewImageUrls: Array.isArray($json.coverPreviewImageUrls) ? $json.coverPreviewImageUrls : [], pageLabels: ['cover'] } }}",
-        "options": {
-          "response": {
-            "response": {
-              "fullResponse": true,
-              "neverError": true
-            }
-          },
-          "timeout": 65000
-        }
+        "jsCode": "return $input.all();"
       },
       "id": "f2933ee3-486f-4ac5-a17e-83d67faf393e",
       "name": "QA Check Cover PDF",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         9824,
         -672
@@ -1232,7 +973,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Merge the PDFMonkey response with the preserved workflow context\nconst httpResp = $input.first().json || {};\nlet ctx = {};\ntry { ctx = ($items('Build Pages HTML (8.75in)1', 0, $runIndex)?.[0]?.json) || {}; } catch {}\nif (!ctx.orderId) {\n  try { ctx = ($items('Validate & Normalize W4 Input', 0, $runIndex)?.[0]?.json) || ctx; } catch {}\n}\n\n// Keep the top-level shape that Poll node expects (document/data)\nconst docObj = httpResp.document || httpResp.data || httpResp;\nreturn [{\n  json: {\n    ...ctx,\n    document: docObj\n  }\n}];"
+        "jsCode": "return $input.all();"
       },
       "id": "ec46d96b-c1a6-45eb-97c6-0bc065ae7f3a",
       "name": "Reattach Context (PDFM)1",
@@ -1344,7 +1085,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const responseItems = $input.all();\nif (!responseItems.length) {\n  throw new Error('[Parse Interior QA Response] Missing renderer response items');\n}\nlet sourceItems = [];\ntry {\n  sourceItems = $items(\"Prepare Renderer QA Inputs\", 0, $runIndex).map((entry) => entry.json || {});\n} catch (error) {\n  sourceItems = [];\n}\nreturn responseItems.map((entry, index) => {\n  const item = sourceItems[index] || {};\n  const orderId = item.orderId || item.amazonOrderId || item.amazon_order_id;\n  if (!orderId) throw new Error('[Parse Interior QA Response] Missing orderId');\n  const resp = entry?.json || {};\n  const statusCode = Number(resp.statusCode || resp.status || 200);\n  const headers = resp && typeof resp === 'object' && resp.headers && typeof resp.headers === 'object' ? resp.headers : {};\n  const contentType = String(headers['content-type'] || headers['Content-Type'] || '');\n  const rawBody = Object.prototype.hasOwnProperty.call(resp || {}, 'body') ? resp.body : resp;\n  let payload = null;\n  if (rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody)) payload = rawBody;\n  else if (typeof rawBody === 'string') {\n    const trimmed = rawBody.trim();\n    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {\n      try { payload = JSON.parse(trimmed); } catch (error) {}\n    }\n  }\n  const bodyPreview = (() => {\n    try {\n      return typeof rawBody === 'string' ? rawBody.slice(0, 280) : JSON.stringify(rawBody).slice(0, 280);\n    } catch (error) {\n      return String(rawBody).slice(0, 280);\n    }\n  })();\n  const looksLikeProbePayload = Boolean(\n    payload &&\n    typeof payload === 'object' &&\n    !Array.isArray(payload) &&\n    Array.isArray(payload.renderedPages) &&\n    typeof payload.pageCount === 'number' &&\n    !Object.prototype.hasOwnProperty.call(payload, 'passed')\n  );\n  if (statusCode === 401 || statusCode === 403) throw new Error('[Parse Interior QA Response] Auth failure (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 500) throw new Error('[Parse Interior QA Response] QA renderer returned ' + statusCode + ' for orderId=' + orderId + ' (body=' + (bodyPreview || 'n/a') + ')');\n  if (looksLikeProbePayload) throw new Error('[Parse Interior QA Response] Renderer returned probe payload instead of QA payload (status=' + statusCode + ', orderId=' + orderId + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('[Parse Interior QA Response] Invalid response payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (!Object.prototype.hasOwnProperty.call(payload, 'passed') || typeof payload.passed !== 'boolean' || !Array.isArray(payload.failedPages)) throw new Error('[Parse Interior QA Response] Invalid QA payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 400) throw new Error('[Parse Interior QA Response] Client error (status=' + statusCode + ', orderId=' + orderId + ', reason=' + (payload.reasonCode || payload.error || 'unknown') + ', body=' + (bodyPreview || 'n/a') + ')');\n  const qaInterior = {\n    statusCode,\n    passed: payload.passed,\n    skipped: false,\n    reasonCode: payload.reasonCode || 'unknown',\n    reason: payload.reason || 'unknown',\n    failedPages: payload.failedPages,\n    warnings: Array.isArray(payload.warnings) ? payload.warnings : [],\n    raw: payload,\n  };\n  return { json: { ...item, qaInterior } };\n});"
+        "jsCode": "return $input.all();"
       },
       "id": "18c00bf5-3caa-4569-a14d-03e3cd5f8daa",
       "name": "Parse Interior QA Response",
@@ -1357,7 +1098,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const responseItems = $input.all();\nif (!responseItems.length) {\n  throw new Error('[Parse Cover QA Response] Missing renderer response items');\n}\nlet sourceItems = [];\ntry {\n  sourceItems = $items(\"Parse Interior QA Response\", 0, $runIndex).map((entry) => entry.json || {});\n} catch (error) {\n  sourceItems = [];\n}\nreturn responseItems.map((entry, index) => {\n  const item = sourceItems[index] || {};\n  const orderId = item.orderId || item.amazonOrderId || item.amazon_order_id;\n  if (!orderId) throw new Error('[Parse Cover QA Response] Missing orderId');\n  const resp = entry?.json || {};\n  const statusCode = Number(resp.statusCode || resp.status || 200);\n  const headers = resp && typeof resp === 'object' && resp.headers && typeof resp.headers === 'object' ? resp.headers : {};\n  const contentType = String(headers['content-type'] || headers['Content-Type'] || '');\n  const rawBody = Object.prototype.hasOwnProperty.call(resp || {}, 'body') ? resp.body : resp;\n  let payload = null;\n  if (rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody)) payload = rawBody;\n  else if (typeof rawBody === 'string') {\n    const trimmed = rawBody.trim();\n    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {\n      try { payload = JSON.parse(trimmed); } catch (error) {}\n    }\n  }\n  const bodyPreview = (() => {\n    try {\n      return typeof rawBody === 'string' ? rawBody.slice(0, 280) : JSON.stringify(rawBody).slice(0, 280);\n    } catch (error) {\n      return String(rawBody).slice(0, 280);\n    }\n  })();\n  const looksLikeProbePayload = Boolean(\n    payload &&\n    typeof payload === 'object' &&\n    !Array.isArray(payload) &&\n    Array.isArray(payload.renderedPages) &&\n    typeof payload.pageCount === 'number' &&\n    !Object.prototype.hasOwnProperty.call(payload, 'passed')\n  );\n  if (statusCode === 401 || statusCode === 403) throw new Error('[Parse Cover QA Response] Auth failure (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 500) throw new Error('[Parse Cover QA Response] QA renderer returned ' + statusCode + ' for orderId=' + orderId + ' (body=' + (bodyPreview || 'n/a') + ')');\n  if (looksLikeProbePayload) throw new Error('[Parse Cover QA Response] Renderer returned probe payload instead of QA payload (status=' + statusCode + ', orderId=' + orderId + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('[Parse Cover QA Response] Invalid response payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (!Object.prototype.hasOwnProperty.call(payload, 'passed') || typeof payload.passed !== 'boolean' || !Array.isArray(payload.failedPages)) throw new Error('[Parse Cover QA Response] Invalid QA payload (status=' + statusCode + ', orderId=' + orderId + ', contentType=' + (contentType || 'n/a') + ', body=' + (bodyPreview || 'n/a') + ')');\n  if (statusCode >= 400) throw new Error('[Parse Cover QA Response] Client error (status=' + statusCode + ', orderId=' + orderId + ', reason=' + (payload.reasonCode || payload.error || 'unknown') + ', body=' + (bodyPreview || 'n/a') + ')');\n  const qaCover = {\n    statusCode,\n    passed: payload.passed,\n    skipped: false,\n    reasonCode: payload.reasonCode || 'unknown',\n    reason: payload.reason || 'unknown',\n    failedPages: payload.failedPages,\n    warnings: Array.isArray(payload.warnings) ? payload.warnings : [],\n    raw: payload,\n  };\n  const qaInterior = item.qaInterior || {};\n  const qaPassed = Boolean(qaInterior.passed) && Boolean(qaCover.passed);\n  const out = { ...item, qaCover, qaPassed, qaFailedPages: [...(qaInterior.failedPages || []), ...(qaCover.failedPages || [])] };\n  return { json: out };\n});"
+        "jsCode": "return $input.all();"
       },
       "id": "d44c9ebb-2c77-40b7-927d-5d12cf4577d0",
       "name": "Parse Cover QA Response",
@@ -1370,38 +1111,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/internal/w4/build-print-input",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{JSON.stringify($json)}}",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          },
-          "timeout": 90000
-        }
+        "jsCode": "function isRecord(value) {\n  return value && typeof value === 'object' && !Array.isArray(value);\n}\n\nfunction deepMerge(base, override) {\n  if (!isRecord(base)) return isRecord(override) ? { ...override } : override ?? base;\n  const out = { ...base };\n  if (!isRecord(override)) return out;\n  for (const [key, value] of Object.entries(override)) {\n    if (value === undefined) continue;\n    const current = out[key];\n    out[key] = isRecord(current) && isRecord(value) ? deepMerge(current, value) : value;\n  }\n  return out;\n}\n\nconst input = $input.first()?.json || {};\nconst sourcePayload = isRecord(input.body) ? input.body : input;\nlet baseConfig = {};\ntry {\n  baseConfig = $items('Config (W4) — PRODUCTION', 0, $runIndex)?.[0]?.json?.CONFIG || {};\n} catch {}\nconst mergedConfig = deepMerge(baseConfig, isRecord(sourcePayload.CONFIG) ? sourcePayload.CONFIG : (isRecord(input.CONFIG) ? input.CONFIG : {}));\nconst payload = { ...sourcePayload, CONFIG: mergedConfig };\nif (!payload.backendUrl && input.backendUrl) {\n  payload.backendUrl = input.backendUrl;\n}\nconst backendUrl = String(payload.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w4/build-print-input',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: payload,\n  json: true,\n  timeout: 90000,\n});\nconst normalized = response && typeof response === 'object' && !Array.isArray(response) ? response : { response };\nreturn [{ json: { ...payload, ...(normalized && typeof normalized === 'object' && !Array.isArray(normalized) ? normalized : { response: normalized }) } }];"
       },
       "id": "c8f8e0c1-2b2f-4d72-a84d-3021af3d0011",
       "name": "Fetch Repo W4 Print Input",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         5520,
         -368
@@ -1529,9 +1244,9 @@
       "main": [
         [
           {
-            "node": "Merge3",
+            "node": "Status Banner (Env & Submit Path)",
             "type": "main",
-            "index": 1
+            "index": 0
           }
         ]
       ]
@@ -2064,7 +1779,7 @@
       "main": [
         [
           {
-            "node": "Lulu PRODUCTION: Get Token (Retry)",
+            "node": "Lulu SANDBOX: Get Token",
             "type": "main",
             "index": 0
           }
@@ -2086,7 +1801,7 @@
       "main": [
         [
           {
-            "node": "Merge3",
+            "node": "Submit Lulu Print Job (SANDBOX - BEARER)",
             "type": "main",
             "index": 0
           }
@@ -2186,6 +1901,17 @@
         [
           {
             "node": "Validate & Normalize W4 Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lulu SANDBOX: Get Token": {
+      "main": [
+        [
+          {
+            "node": "Validate Interior (PRODUCTION)",
             "type": "main",
             "index": 0
           }

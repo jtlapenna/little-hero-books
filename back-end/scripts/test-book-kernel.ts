@@ -1121,6 +1121,24 @@ const repoCentricW4ValidateNode = repoCentricW4Workflow.nodes?.find(
 const repoCentricW4BuildManifestNode = repoCentricW4Workflow.nodes?.find(
   (candidate) => candidate.name === 'Build 4-Manifest JSON',
 );
+const repoCentricW4RenderInteriorNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Generate PDF with PDFMonkey1',
+);
+const repoCentricW4RenderCoverNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Generate Cover PDF with PDFMonkey',
+);
+const repoCentricW4MaterializeInteriorNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Download PDF from PDFMonkey1',
+);
+const repoCentricW4MaterializeCoverNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Download Cover PDF from PDFMonkey',
+);
+const repoCentricW4QaNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Prepare Renderer QA Inputs',
+);
+const repoCentricW4BuildSubmitNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Build Lulu Print Job Payload',
+);
 const repoCentricW4UploadManifestNode = repoCentricW4Workflow.nodes?.find(
   (candidate) => candidate.name === 'Upload 4-Manifest to R2',
 );
@@ -1133,8 +1151,56 @@ const repoCentricW4UploadErrorManifestNode = repoCentricW4Workflow.nodes?.find(
 const repoCentricW4WebhookNode = repoCentricW4Workflow.nodes?.find(
   (candidate) => candidate.name === 'Webhook (W4 Intake)',
 );
-const repoCentricW4SubmitNode = repoCentricW4Workflow.nodes?.find(
+const repoCentricW4SandboxTokenNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Lulu SANDBOX: Get Token',
+);
+const repoCentricW4SandboxSubmitNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Submit Lulu Print Job (SANDBOX - BEARER)',
+);
+const repoCentricW4NotifyNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Notify: Sent to Print',
+);
+const repoCentricW4SupabaseMarkSubmittedNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Supabase: mark submitted',
+);
+const repoCentricW4NormalizeShippingNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Normalize Shipping Level (Lulu Enum)',
+);
+const repoCentricW4ValidateInteriorNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Validate Interior (PRODUCTION)',
+);
+const repoCentricW4ValidateCoverNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Validate Cover (PRODUCTION)',
+);
+const repoCentricW4PrepareSubmitConnections = JSON.stringify(
+  repoCentricW4Workflow.connections?.['Normalize Shipping Level (Lulu Enum)'] ?? {},
+);
+const repoCentricW4SandboxTokenConnections = JSON.stringify(
+  repoCentricW4Workflow.connections?.['Lulu SANDBOX: Get Token'] ?? {},
+);
+const repoCentricW4ValidateInteriorConnections = JSON.stringify(
+  repoCentricW4Workflow.connections?.['Validate Interior (PRODUCTION)'] ?? {},
+);
+const repoCentricW4ValidateCoverConnections = JSON.stringify(
+  repoCentricW4Workflow.connections?.['Validate Cover (PRODUCTION)'] ?? {},
+);
+const repoCentricW4SandboxSubmitConnections = JSON.stringify(
+  repoCentricW4Workflow.connections?.['Submit Lulu Print Job (SANDBOX - BEARER)'] ?? {},
+);
+const repoCentricW4BuildManifestConnections = JSON.stringify(
+  repoCentricW4Workflow.connections?.['Build 4-Manifest JSON'] ?? {},
+);
+const repoCentricW4BuildErrorManifestConnections = JSON.stringify(
+  repoCentricW4Workflow.connections?.['Build 4-Manifest JSON (Error)'] ?? {},
+);
+const repoCentricW4NotifyConnections = JSON.stringify(
+  repoCentricW4Workflow.connections?.['Notify: Sent to Print'] ?? {},
+);
+const repoCentricW4LegacySubmitNode = repoCentricW4Workflow.nodes?.find(
   (candidate) => candidate.name === 'Submit Lulu Print Job (PRODUCTION - BEARER, Retry)',
+);
+const repoCentricW4LegacyTokenNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Lulu PRODUCTION: Get Token (Retry)',
 );
 const w4ValidateCoverConnections = JSON.stringify(
   w4Workflow.connections?.['Validate Cover (PRODUCTION)'] ?? {},
@@ -1142,15 +1208,6 @@ const w4ValidateCoverConnections = JSON.stringify(
 const w4Merge3Connections = JSON.stringify(w4Workflow.connections?.Merge3 ?? {});
 const w4SubmitConnections = JSON.stringify(
   w4Workflow.connections?.['Submit Lulu Print Job (PRODUCTION - BEARER, Retry)'] ?? {},
-);
-const repoCentricW4ValidateCoverConnections = JSON.stringify(
-  repoCentricW4Workflow.connections?.['Validate Cover (PRODUCTION)'] ?? {},
-);
-const repoCentricW4Merge3Connections = JSON.stringify(
-  repoCentricW4Workflow.connections?.Merge3 ?? {},
-);
-const repoCentricW4SubmitConnections = JSON.stringify(
-  repoCentricW4Workflow.connections?.['Submit Lulu Print Job (PRODUCTION - BEARER, Retry)'] ?? {},
 );
 const repoCentricW41Workflow = JSON.parse(
   readFileSync(repoCentricW41WorkflowPath, 'utf8'),
@@ -1172,24 +1229,38 @@ const repoCentricW41FetchNode = repoCentricW41Workflow.nodes?.find(
 const repoCentricW41ValidateNode = repoCentricW41Workflow.nodes?.find(
   (candidate) => candidate.name === 'Validate & Normalize Per Sibling',
 );
-const repoCentricW41PollPdfCode = getWorkflowNodeCode(
-  repoCentricW41WorkflowPath,
-  'Poll PDFMonkey until ready',
+const repoCentricW41RenderInteriorNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Generate Interior PDF',
 );
-const repoCentricW41ReattachCoverContextCode = getWorkflowNodeCode(
-  repoCentricW41WorkflowPath,
-  'Reattach Cover Context (PDFM)',
+const repoCentricW41MaterializeInteriorNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Download Interior PDF',
 );
-const repoCentricW41ReattachInteriorContextCode = getWorkflowNodeCode(
-  repoCentricW41WorkflowPath,
-  'Reattach Interior Context (Post Download)',
+const repoCentricW41RenderCoverNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Generate Cover PDF',
 );
-const repoCentricW41ReattachQaContextCode = getWorkflowNodeCode(
-  repoCentricW41WorkflowPath,
-  'Reattach QA Context (Post Cover Upload)',
+const repoCentricW41MaterializeCoverNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Download Cover PDF',
+);
+const repoCentricW41QaNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Guard QA Inputs',
+);
+const repoCentricW41InteriorPassThroughNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Build Pages HTML (8.75in)',
+);
+const repoCentricW41CoverPassThroughNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Build Cover HTML',
+);
+const repoCentricW41QaPassThroughNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Prepare Renderer QA Inputs',
+);
+const repoCentricW41UploadCoverNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Upload Cover PDF to R2',
 );
 const repoCentricW41AggregateNode = repoCentricW41Workflow.nodes?.find(
   (candidate) => candidate.name === 'Aggregate + Signed URLs + Build Lulu Payload',
+);
+const repoCentricW41TokenNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Lulu: Get Token',
 );
 const repoCentricW41NormalizeNode = repoCentricW41Workflow.nodes?.find(
   (candidate) => candidate.name === 'Normalize Shipping Level (Lulu Enum)',
@@ -1199,6 +1270,18 @@ const repoCentricW41ValidateGuardNode = repoCentricW41Workflow.nodes?.find(
 );
 const repoCentricW41SubmitNode = repoCentricW41Workflow.nodes?.find(
   (candidate) => candidate.name === 'Submit Lulu Print Job',
+);
+const repoCentricW41SplitSupabaseNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Split for Supabase PATCH',
+);
+const repoCentricW41SupabasePatchNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Supabase: PATCH N rows',
+);
+const repoCentricW41AggregateNotifyNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Aggregate for Notify',
+);
+const repoCentricW41NotifyNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Notify: Sent to Print',
 );
 const repoCentricW41BuildManifestNode = repoCentricW41Workflow.nodes?.find(
   (candidate) => candidate.name === 'Build 4-Manifest JSON',
@@ -1223,6 +1306,12 @@ const repoCentricW41ValidateConnections = JSON.stringify(
 );
 const repoCentricW41ValidateGuardConnections = JSON.stringify(
   repoCentricW41Workflow.connections?.['Validate PDFs + Guard Lulu'] ?? {},
+);
+const repoCentricW41SplitSupabaseConnections = JSON.stringify(
+  repoCentricW41Workflow.connections?.['Split for Supabase PATCH'] ?? {},
+);
+const repoCentricW41AggregateNotifyConnections = JSON.stringify(
+  repoCentricW41Workflow.connections?.['Aggregate for Notify'] ?? {},
 );
 
 assert(
@@ -1350,37 +1439,132 @@ assert(
   'Repo-centric W4 workflow should use the repo-specific webhook path',
 );
 assert(
-  repoCentricW4FetchNode?.type === 'n8n-nodes-base.httpRequest' &&
-    JSON.stringify(repoCentricW4FetchNode.parameters).includes('/api/internal/w4/build-print-input'),
+  repoCentricW4FetchNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4FetchNode.parameters).includes('/api/internal/w4/build-print-input') &&
+    JSON.stringify(repoCentricW4FetchNode.parameters).includes('payload.backendUrl') &&
+    JSON.stringify(repoCentricW4FetchNode.parameters).includes('this.helpers.httpRequest'),
   'Repo-centric W4 workflow should call the repo-owned W4 print-input route',
 );
 assert(
   repoCentricW4ValidateNode?.type === 'n8n-nodes-base.code' &&
-    JSON.stringify(repoCentricW4ValidateNode.parameters).includes('Could not parse W4 print input response'),
-  'Repo-centric W4 workflow should unwrap the repo-owned W4 print-input response before downstream nodes',
+    JSON.stringify(repoCentricW4ValidateNode.parameters).includes('Could not parse W4 print input response') &&
+    JSON.stringify(repoCentricW4ValidateNode.parameters).includes('payload.workflowSkipped === true'),
+  'Repo-centric W4 workflow should unwrap the repo-owned W4 print-input response and short-circuit skipped W4 orders before downstream nodes',
 );
 assert(
-  JSON.stringify(repoCentricW4BuildManifestNode?.parameters).includes(
-    "Buffer.from(body, 'utf8').toString('base64')",
-  ) &&
-    repoCentricW4UploadManifestNode?.parameters?.binaryData === true,
-  'Repo-centric W4 manifest upload should serialize manifest JSON into binary data before the R2 upload node runs',
-);
-assert(
-  JSON.stringify(repoCentricW4BuildErrorManifestNode?.parameters).includes(
-    "Buffer.from(body, 'utf8').toString('base64')",
-  ) &&
-    repoCentricW4UploadErrorManifestNode?.parameters?.binaryData === true,
-  'Repo-centric W4 error-manifest upload should serialize error manifest JSON into binary data before the R2 upload node runs',
-);
-assert(
-  JSON.stringify(repoCentricW4SubmitNode?.parameters).includes('if (j.__skipLulu)') &&
-    repoCentricW4ValidateCoverConnections.includes('"node":"Merge3"') &&
-    repoCentricW4Merge3Connections.includes(
-      '"node":"Submit Lulu Print Job (PRODUCTION - BEARER, Retry)"',
+  repoCentricW4RenderInteriorNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4RenderInteriorNode.parameters).includes(
+      '/api/internal/w4/render-print-document',
     ) &&
-    repoCentricW4SubmitConnections.includes('"node":"Status Banner (Env & Submit Path)"'),
-  'Repo-centric W4 Lulu submit path should gate production submission behind the guard merge and short-circuit when __skipLulu is set',
+    JSON.stringify(repoCentricW4RenderInteriorNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4RenderInteriorNode.parameters).includes('this.helpers.httpRequest') &&
+    JSON.stringify(repoCentricW4RenderInteriorNode.parameters).includes('documentKind'),
+  'Repo-centric W4 workflow should route interior PDF rendering through the repo-owned render-print-document route',
+);
+assert(
+  repoCentricW4RenderCoverNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4RenderCoverNode.parameters).includes(
+      '/api/internal/w4/render-print-document',
+    ) &&
+    JSON.stringify(repoCentricW4RenderCoverNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4RenderCoverNode.parameters).includes('this.helpers.httpRequest') &&
+    JSON.stringify(repoCentricW4RenderCoverNode.parameters).includes('cover-pdf'),
+  'Repo-centric W4 workflow should route cover PDF rendering through the repo-owned render-print-document route',
+);
+assert(
+  repoCentricW4MaterializeInteriorNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4MaterializeInteriorNode.parameters).includes(
+      '/api/internal/w4/materialize-print-pdf',
+    ) &&
+    JSON.stringify(repoCentricW4MaterializeInteriorNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4MaterializeInteriorNode.parameters).includes('this.helpers.httpRequest') &&
+    repoCentricW4MaterializeCoverNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes(
+      '/api/internal/w4/materialize-print-pdf',
+    ) &&
+    JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes('this.helpers.httpRequest'),
+  'Repo-centric W4 workflow should route both interior and cover PDF materialization through the repo-owned materialize-print-pdf route',
+);
+assert(
+  repoCentricW4QaNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4QaNode.parameters).includes('/api/internal/w4/run-print-qa') &&
+    JSON.stringify(repoCentricW4QaNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4QaNode.parameters).includes('this.helpers.httpRequest'),
+  'Repo-centric W4 workflow should run print QA through the repo-owned run-print-qa route',
+);
+assert(
+  repoCentricW4BuildSubmitNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4BuildSubmitNode.parameters).includes(
+      '/api/internal/w4/build-submit-input',
+    ) &&
+    JSON.stringify(repoCentricW4BuildSubmitNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4BuildSubmitNode.parameters).includes('this.helpers.httpRequest'),
+  'Repo-centric W4 workflow should build Lulu submit input through the repo-owned build-submit-input route',
+);
+assert(
+  repoCentricW4BuildManifestNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4BuildManifestNode.parameters).includes(
+      '/api/internal/w4/publish-print-manifest',
+    ) &&
+    JSON.stringify(repoCentricW4BuildManifestNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4BuildManifestNode.parameters).includes('this.helpers.httpRequest') &&
+    repoCentricW4BuildManifestConnections.includes('"node":"Upload 4-Manifest to R2"') &&
+    repoCentricW4UploadManifestNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4UploadManifestNode.parameters).includes('return $input.all();'),
+  'Repo-centric W4 success manifest path should publish through the repo-owned publish-print-manifest route and keep the downstream upload node as a pass-through adapter',
+);
+assert(
+  repoCentricW4BuildErrorManifestNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes(
+      '/api/internal/w4/publish-print-manifest',
+    ) &&
+    JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes('this.helpers.httpRequest') &&
+    repoCentricW4BuildErrorManifestConnections.includes('"node":"Upload 4-Manifest (Error) to R2"') &&
+    repoCentricW4UploadErrorManifestNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4UploadErrorManifestNode.parameters).includes('return $input.all();'),
+  'Repo-centric W4 error-manifest path should publish through the repo-owned publish-print-manifest route and keep the downstream upload node as a pass-through adapter',
+);
+assert(
+  repoCentricW4NormalizeShippingNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4NormalizeShippingNode.parameters).includes('return $input.all();') &&
+    repoCentricW4PrepareSubmitConnections.includes('"node":"Lulu SANDBOX: Get Token"') &&
+    repoCentricW4SandboxTokenNode?.type === 'n8n-nodes-base.code' &&
+    repoCentricW4SandboxTokenNode?.disabled !== true &&
+    JSON.stringify(repoCentricW4SandboxTokenNode.parameters).includes('api.sandbox.lulu.com') &&
+    repoCentricW4SandboxTokenConnections.includes('"node":"Validate Interior (PRODUCTION)"') &&
+    repoCentricW4ValidateInteriorNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4ValidateInteriorNode.parameters).includes('validate-interior') &&
+    repoCentricW4ValidateInteriorConnections.includes('"node":"Validate Cover (PRODUCTION)"') &&
+    repoCentricW4ValidateCoverNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4ValidateCoverNode.parameters).includes('validate-cover') &&
+    repoCentricW4ValidateCoverConnections.includes('"node":"Submit Lulu Print Job (SANDBOX - BEARER)"') &&
+    repoCentricW4SandboxSubmitNode?.type === 'n8n-nodes-base.code' &&
+    repoCentricW4SandboxSubmitNode?.disabled !== true &&
+    JSON.stringify(repoCentricW4SandboxSubmitNode.parameters).includes('if (j.__skipLulu)') &&
+    JSON.stringify(repoCentricW4SandboxSubmitNode.parameters).includes('https://api.sandbox.lulu.com/print-jobs/') &&
+    repoCentricW4SandboxSubmitConnections.includes('"node":"Status Banner (Env & Submit Path)"'),
+  'Repo-centric W4 Lulu submit path should stay sandbox-only, short-circuit __skipLulu runs, and keep the production Lulu nodes off the active route',
+);
+assert(
+  repoCentricW4LegacyTokenNode &&
+    repoCentricW4LegacySubmitNode &&
+    !repoCentricW4PrepareSubmitConnections.includes('"node":"Lulu PRODUCTION: Get Token (Retry)"') &&
+    !repoCentricW4ValidateCoverConnections.includes('"node":"Merge3"'),
+  'Repo-centric W4 should leave the legacy production Lulu nodes present but unreachable from the active extracted path',
+);
+assert(
+  repoCentricW4SupabaseMarkSubmittedNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4SupabaseMarkSubmittedNode.parameters).includes('return $input.all();') &&
+    repoCentricW4NotifyNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4NotifyNode.parameters).includes('/api/webhooks/print-submitted') &&
+    JSON.stringify(repoCentricW4NotifyNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4NotifyNode.parameters).includes('this.helpers.httpRequest') &&
+    JSON.stringify(repoCentricW4NotifyNode.parameters).includes('workflowJobId') &&
+    JSON.stringify(repoCentricW4NotifyNode.parameters).includes('submitMode') &&
+    repoCentricW4NotifyConnections === '{}',
+  'Repo-centric W4 completion path should carry workflow-job metadata into print-submitted and avoid the old direct Supabase mark-submitted side effect',
 );
 assert(
   repoCentricW41Workflow.name === 'REPO - w4.1-Sibling-Aggregation',
@@ -1409,8 +1593,10 @@ assert(
     JSON.stringify(repoCentricW41ValidateNode.parameters).includes(
       'Could not parse W4.1 sibling print input response',
     ) &&
-    JSON.stringify(repoCentricW41ValidateNode.parameters).includes('payload.siblings'),
-  'Repo-centric W4.1 workflow should unwrap the repo-owned sibling print-input response into per-sibling items',
+    JSON.stringify(repoCentricW41ValidateNode.parameters).includes('payload.siblings') &&
+    JSON.stringify(repoCentricW41ValidateNode.parameters).includes('payload.workflowJobId') &&
+    JSON.stringify(repoCentricW41ValidateNode.parameters).includes('workflowJobIdempotencyKey'),
+  'Repo-centric W4.1 workflow should unwrap the repo-owned sibling print-input response into per-sibling items and propagate shared workflow-job metadata',
 );
 assert(
   repoCentricW41AggregateNode?.type === 'n8n-nodes-base.code' &&
@@ -1421,6 +1607,12 @@ assert(
   'Repo-centric W4.1 workflow should call the repo-owned sibling submit-input route after per-sibling PDF work completes',
 );
 assert(
+  repoCentricW41TokenNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41TokenNode.parameters).includes('https://api.sandbox.lulu.com') &&
+    JSON.stringify(repoCentricW41TokenNode.parameters).includes('if (j.__skipLulu)'),
+  'Repo-centric W4.1 token path should stay sandbox-only and short-circuit skipped sibling groups',
+);
+assert(
   normalizeWorkflowCodeSnapshot(
     JSON.stringify(repoCentricW41NormalizeNode?.parameters?.jsCode ?? ''),
   ).includes('return [{ json: { ...($input.first().json || {}) } }];'),
@@ -1428,34 +1620,97 @@ assert(
 );
 assert(
   JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('if (j.__skipLulu)') &&
+    JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('https://api.sandbox.lulu.com') &&
     !JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('lulu_job_id=not.is.null') &&
     !JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('cfg.supabase?.projectUrl'),
-  'Repo-centric W4.1 validation node should validate sibling PDFs only and should not re-implement the duplicate-submit guard in n8n',
+  'Repo-centric W4.1 validation node should validate sibling PDFs only against Lulu sandbox and should not re-implement the duplicate-submit guard in n8n',
 );
 assert(
   JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('if (j.__skipLulu)') &&
     JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('luluSubmitStatusCode: 0') &&
+    JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('https://api.sandbox.lulu.com') &&
     repoCentricW41ValidateGuardConnections.includes('"node":"Submit Lulu Print Job"'),
-  'Repo-centric W4.1 submit path should short-circuit cleanly when the repo-owned guard marks the group as skipped',
+  'Repo-centric W4.1 submit path should stay sandbox-only and short-circuit cleanly when the repo-owned guard marks the group as skipped',
 );
 assert(
-  JSON.stringify(repoCentricW41BuildManifestNode?.parameters).includes(
-    "Buffer.from(body, 'utf8').toString('base64')",
-  ) &&
-    !JSON.stringify(repoCentricW41BuildManifestNode?.parameters).includes('return [{') &&
-    JSON.stringify(repoCentricW41BuildManifestNode?.parameters).includes('j.manifest4Key') &&
-    repoCentricW41UploadManifestNode?.parameters?.binaryData === true,
-  'Repo-centric W4.1 manifest upload should serialize each per-sibling 4-manifest into binary data on the canonical child-order key and return a single item in runOnceForEachItem mode',
+  repoCentricW41RenderInteriorNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41RenderInteriorNode.parameters).includes(
+      '/api/internal/w4/render-print-document',
+    ) &&
+    JSON.stringify(repoCentricW41RenderInteriorNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
+    JSON.stringify(repoCentricW41RenderInteriorNode.parameters).includes('interior-pdf') &&
+    repoCentricW41RenderCoverNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41RenderCoverNode.parameters).includes(
+      '/api/internal/w4/render-print-document',
+    ) &&
+    JSON.stringify(repoCentricW41RenderCoverNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
+    JSON.stringify(repoCentricW41RenderCoverNode.parameters).includes('cover-pdf'),
+  'Repo-centric W4.1 workflow should route per-sibling interior and cover rendering through the repo-owned render-print-document route',
+);
+assert(
+  repoCentricW41MaterializeInteriorNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41MaterializeInteriorNode.parameters).includes(
+      '/api/internal/w4/materialize-print-pdf',
+    ) &&
+    JSON.stringify(repoCentricW41MaterializeInteriorNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
+    JSON.stringify(repoCentricW41MaterializeInteriorNode.parameters).includes('interior-pdf') &&
+    repoCentricW41MaterializeCoverNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41MaterializeCoverNode.parameters).includes(
+      '/api/internal/w4/materialize-print-pdf',
+    ) &&
+    JSON.stringify(repoCentricW41MaterializeCoverNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
+    JSON.stringify(repoCentricW41MaterializeCoverNode.parameters).includes('cover-pdf'),
+  'Repo-centric W4.1 workflow should route per-sibling PDF materialization through the repo-owned materialize-print-pdf route',
+);
+assert(
+  repoCentricW41QaNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41QaNode.parameters).includes('/api/internal/w4/run-print-qa') &&
+    JSON.stringify(repoCentricW41QaNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
+    repoCentricW41QaPassThroughNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41QaPassThroughNode.parameters).includes('item?.json || {}'),
+  'Repo-centric W4.1 workflow should route sibling QA through the repo-owned run-print-qa route and keep the surrounding QA-prep node as a pass-through adapter',
+);
+assert(
+  repoCentricW41BuildManifestNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41BuildManifestNode.parameters).includes(
+      '/api/internal/w4/publish-print-manifest',
+    ) &&
+    JSON.stringify(repoCentricW41BuildManifestNode.parameters).includes(
+      "manifestStatus: 'submitted'",
+    ) &&
+    JSON.stringify(repoCentricW41BuildManifestNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
+    repoCentricW41UploadManifestNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41UploadManifestNode.parameters).includes('item?.binary'),
+  'Repo-centric W4.1 success-manifest path should publish through the repo-owned publish-print-manifest route and keep the downstream upload node as a pass-through adapter',
 );
 assert(
   JSON.stringify(repoCentricW41QaFailedNode?.parameters).includes('orderPrefix') &&
     JSON.stringify(repoCentricW41QaFailedNode?.parameters).includes('4-qa-fail-manifest.json') &&
-    JSON.stringify(repoCentricW41BuildErrorManifestNode?.parameters).includes(
-      "Buffer.from(body, 'utf8').toString('base64')",
+    repoCentricW41BuildErrorManifestNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41BuildErrorManifestNode.parameters).includes(
+      '/api/internal/w4/publish-print-manifest',
     ) &&
-    !JSON.stringify(repoCentricW41BuildErrorManifestNode?.parameters).includes('return [{') &&
-    repoCentricW41UploadErrorManifestNode?.parameters?.binaryData === true,
-  'Repo-centric W4.1 QA failure handling should persist binary-safe error manifests under each child order root and return a single item in runOnceForEachItem mode',
+    JSON.stringify(repoCentricW41BuildErrorManifestNode.parameters).includes(
+      "manifestStatus: 'error'",
+    ) &&
+    JSON.stringify(repoCentricW41BuildErrorManifestNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
+    repoCentricW41UploadErrorManifestNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41UploadErrorManifestNode.parameters).includes('item?.binary'),
+  'Repo-centric W4.1 QA failure handling should publish error manifests through the repo-owned publish-print-manifest route and keep the downstream upload node as a pass-through adapter',
 );
 assert(
   repoCentricW41FetchConnections.includes('"node":"Respond to Webhook (Ack)"') &&
@@ -1465,15 +1720,32 @@ assert(
   'Repo-centric W4.1 intake should acknowledge after the repo call and fan back out to per-sibling start-marking plus HTML generation',
 );
 assert(
-  repoCentricW41PollPdfCode.includes('$itemIndex') &&
-    !repoCentricW41PollPdfCode.includes('?.[0]?.json') &&
-    repoCentricW41ReattachCoverContextCode.includes('$itemIndex') &&
-    !repoCentricW41ReattachCoverContextCode.includes('?.[0]?.json') &&
-    repoCentricW41ReattachInteriorContextCode.includes('$itemIndex') &&
-    !repoCentricW41ReattachInteriorContextCode.includes('?.[0]?.json') &&
-    repoCentricW41ReattachQaContextCode.includes('$itemIndex') &&
-    !repoCentricW41ReattachQaContextCode.includes('?.[0]?.json'),
-  'Repo-centric W4.1 per-sibling PDF and QA reattachment nodes should preserve the current item context instead of collapsing every branch onto sibling 0',
+  repoCentricW41SplitSupabaseNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41SplitSupabaseNode.parameters).includes('return $input.all();') &&
+    repoCentricW41SupabasePatchNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41SupabasePatchNode.parameters).includes('return $input.all();') &&
+    repoCentricW41SplitSupabaseConnections.includes('"node":"Build 4-Manifest JSON"'),
+  'Repo-centric W4.1 should keep the old Supabase mark-submitted path as pass-through adapters instead of direct lifecycle writes',
+);
+assert(
+  repoCentricW41AggregateNotifyNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41AggregateNotifyNode.parameters).includes('workflowJobId') &&
+    JSON.stringify(repoCentricW41AggregateNotifyNode.parameters).includes('submitMode') &&
+    repoCentricW41NotifyNode?.type === 'n8n-nodes-base.httpRequest' &&
+    JSON.stringify(repoCentricW41NotifyNode.parameters).includes('/api/webhooks/print-submitted') &&
+    JSON.stringify(repoCentricW41NotifyNode.parameters).includes('workflowJobId') &&
+    JSON.stringify(repoCentricW41NotifyNode.parameters).includes('submitMode') &&
+    repoCentricW41AggregateNotifyConnections.includes('"node":"Notify: Sent to Print"'),
+  'Repo-centric W4.1 completion path should carry shared workflow-job metadata into print-submitted instead of relying on direct Supabase lifecycle writes',
+);
+assert(
+  repoCentricW41InteriorPassThroughNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41InteriorPassThroughNode.parameters).includes('item?.json || {}') &&
+    repoCentricW41CoverPassThroughNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41CoverPassThroughNode.parameters).includes('item?.json || {}') &&
+    repoCentricW41UploadCoverNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41UploadCoverNode.parameters).includes('item?.binary'),
+  'Repo-centric W4.1 HTML and upload helper nodes should be thin pass-through adapters once the repo-owned worker routes handle render and materialization',
 );
 assert(
   siblingW41PollPdfCode.includes('$itemIndex') &&
