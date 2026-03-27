@@ -1,0 +1,741 @@
+{
+  "fixtureId": "book2-standard-example",
+  "backendUrl": "https://admin.littleherolabs.com",
+  "input": {
+    "orderId": "FIXTURE-BOOK2-W3-001",
+    "bookId": "book-2-example",
+    "formatId": "standard",
+    "orderPrefix": "book-2-example/orders/FIXTURE-BOOK2-W3-001",
+    "oneManifestUrl": "https://admin.littleherolabs.com/api/manifests/book-2-example/orders/FIXTURE-BOOK2-W3-001/manifests/1-manifest.json",
+    "manifest2bUrl": "https://admin.littleherolabs.com/api/manifests/book-2-example/orders/FIXTURE-BOOK2-W3-001/manifests/2b-manifest.json",
+    "backendUrl": "https://admin.littleherolabs.com"
+  },
+  "manifests": {
+    "oneKey": "book-2-example/orders/FIXTURE-BOOK2-W3-001/manifests/1-manifest.json",
+    "one": {
+      "schema": "lhb.run-manifest@v3",
+      "manifestType": "w0",
+      "stage": "1-order-intake",
+      "createdAt": "2026-03-23T23:58:00.000Z",
+      "updatedAt": "2026-03-23T23:58:00.000Z",
+      "runId": "w0-fixture-book2-w3",
+      "order": {
+        "orderId": "FIXTURE-BOOK2-W3-001",
+        "rootOrderId": "FIXTURE-BOOK2-W3-001",
+        "amazonOrderId": null,
+        "orderDbId": null,
+        "platform": "d2c",
+        "workflow": "1",
+        "customerApprovalRequired": false
+      },
+      "book": {
+        "bookConfigRef": {
+          "schema": "lhb.book-config@v1",
+          "bookId": "book-2-example",
+          "version": 1,
+          "formatId": "standard"
+        },
+        "resolved": {
+          "expectedPageCount": 15,
+          "pageLabels": [
+            "p00",
+            "p01",
+            "p02",
+            "p03",
+            "p04",
+            "p05",
+            "p06",
+            "p07",
+            "p08",
+            "p09",
+            "p10",
+            "p11",
+            "p12",
+            "p13",
+            "p14"
+          ],
+          "pagePlan": [
+            {
+              "index": 0,
+              "id": "dedication",
+              "label": "p00",
+              "type": "dedication",
+              "storyPageNumber": null,
+              "backgroundSlot": "dedication",
+              "poseNumber": null,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 1,
+              "id": "story_01",
+              "label": "p01",
+              "type": "story",
+              "storyPageNumber": 1,
+              "backgroundSlot": "story_01",
+              "poseNumber": 1,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 2,
+              "id": "story_02",
+              "label": "p02",
+              "type": "story",
+              "storyPageNumber": 2,
+              "backgroundSlot": "story_02",
+              "poseNumber": 2,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 3,
+              "id": "story_03",
+              "label": "p03",
+              "type": "story",
+              "storyPageNumber": 3,
+              "backgroundSlot": "story_03",
+              "poseNumber": 3,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 4,
+              "id": "story_04",
+              "label": "p04",
+              "type": "story",
+              "storyPageNumber": 4,
+              "backgroundSlot": "story_04",
+              "poseNumber": 4,
+              "overlaySlot": "starTrail",
+              "required": true
+            },
+            {
+              "index": 5,
+              "id": "story_05",
+              "label": "p05",
+              "type": "story",
+              "storyPageNumber": 5,
+              "backgroundSlot": "story_05",
+              "poseNumber": null,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 6,
+              "id": "story_06",
+              "label": "p06",
+              "type": "story",
+              "storyPageNumber": 6,
+              "backgroundSlot": "story_06",
+              "poseNumber": 5,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 7,
+              "id": "story_07",
+              "label": "p07",
+              "type": "story",
+              "storyPageNumber": 7,
+              "backgroundSlot": "story_07",
+              "poseNumber": 6,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 8,
+              "id": "story_08",
+              "label": "p08",
+              "type": "story",
+              "storyPageNumber": 8,
+              "backgroundSlot": "story_08",
+              "poseNumber": 7,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 9,
+              "id": "story_09",
+              "label": "p09",
+              "type": "story",
+              "storyPageNumber": 9,
+              "backgroundSlot": "story_09",
+              "poseNumber": null,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 10,
+              "id": "story_10",
+              "label": "p10",
+              "type": "story",
+              "storyPageNumber": 10,
+              "backgroundSlot": "story_10",
+              "poseNumber": 8,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 11,
+              "id": "story_11",
+              "label": "p11",
+              "type": "story",
+              "storyPageNumber": 11,
+              "backgroundSlot": "story_11",
+              "poseNumber": 9,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 12,
+              "id": "story_12",
+              "label": "p12",
+              "type": "story",
+              "storyPageNumber": 12,
+              "backgroundSlot": "story_12",
+              "poseNumber": 10,
+              "overlaySlot": "glowMap",
+              "required": true
+            },
+            {
+              "index": 13,
+              "id": "story_13",
+              "label": "p13",
+              "type": "story",
+              "storyPageNumber": 13,
+              "backgroundSlot": "story_13",
+              "poseNumber": null,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 14,
+              "id": "story_14",
+              "label": "p14",
+              "type": "story",
+              "storyPageNumber": 14,
+              "backgroundSlot": "story_14",
+              "poseNumber": null,
+              "overlaySlot": null,
+              "required": true
+            }
+          ],
+          "trimIn": {
+            "w": 8.5,
+            "h": 8.5
+          },
+          "bleedIn": {
+            "w": 8.75,
+            "h": 8.75
+          },
+          "templates": {
+            "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+            "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+          },
+          "print": {
+            "provider": "lulu",
+            "podPackageId": "0850X0850FCPRESS080CW444MXX",
+            "color": "premium-color",
+            "stock": "80#-text",
+            "binding": "saddle-stitch",
+            "coverFinish": "matte",
+            "defaultQuantity": 1
+          },
+          "qaPolicy": {
+            "pose": {
+              "requiredPoseNumbers": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10
+              ],
+              "perPoseExpectations": {
+                "1": {
+                  "frontFacing": true,
+                  "strictSymmetry": false
+                }
+              }
+            },
+            "backgroundRemoval": {
+              "faceDefectReviewEnabled": true,
+              "compositeQaEnabled": true
+            },
+            "finalPdf": {
+              "interior": {
+                "expectedPreviewLabelPattern": "p{index:02d}",
+                "minBytesPerPage": 30000
+              },
+              "cover": {
+                "expectedPageCount": 1
+              }
+            }
+          }
+        }
+      },
+      "shipping": {
+        "requestedTier": null,
+        "resolvedProviderLevel": null,
+        "address": {}
+      },
+      "input": {
+        "characterSpecs": {
+          "childName": "Nova",
+          "favoriteColor": "silver",
+          "hairColor": "black"
+        },
+        "bookSpecs": {
+          "title": "Nova and the Starlight Rescue",
+          "bookType": "starlight-rescue",
+          "formatId": "standard"
+        },
+        "orderDetails": {
+          "quantity": 1
+        },
+        "dedicationText": "For Nova"
+      },
+      "artifacts": {
+        "manifestKey": "book-2-example/orders/FIXTURE-BOOK2-W3-001/manifests/1-manifest.json",
+        "orderPrefix": "book-2-example/orders/FIXTURE-BOOK2-W3-001",
+        "characterPrefix": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash"
+      },
+      "entries": [],
+      "summary": {
+        "expectedPageCount": 15,
+        "pageLabels": [
+          "p00",
+          "p01",
+          "p02",
+          "p03",
+          "p04",
+          "p05",
+          "p06",
+          "p07",
+          "p08",
+          "p09",
+          "p10",
+          "p11",
+          "p12",
+          "p13",
+          "p14"
+        ],
+        "interiorPdfFilename": "interior_FIXTURE-BOOK2-W3-001.pdf",
+        "coverPdfFilename": "cover_FIXTURE-BOOK2-W3-001.pdf"
+      },
+      "errors": []
+    },
+    "twoBKey": "book-2-example/orders/FIXTURE-BOOK2-W3-001/manifests/2b-manifest.json",
+    "twoB": {
+      "schema": "lhb.run-manifest@v2.0",
+      "stage": "2b-bg-removal",
+      "orderId": "FIXTURE-BOOK2-W3-001",
+      "rootOrderId": "FIXTURE-BOOK2-W3-001",
+      "amazonOrderId": null,
+      "characterHash": "fixture-book2-w3-hash",
+      "bookId": "book-2-example",
+      "formatId": "standard",
+      "order": {
+        "orderId": "FIXTURE-BOOK2-W3-001",
+        "rootOrderId": "FIXTURE-BOOK2-W3-001",
+        "amazonOrderId": null,
+        "oneManifestUrl": "https://admin.littleherolabs.com/api/manifests/book-2-example/orders/FIXTURE-BOOK2-W3-001/manifests/1-manifest.json",
+        "characterHash": "fixture-book2-w3-hash",
+        "bookSpecs": {
+          "title": "Nova and the Starlight Rescue",
+          "bookType": "starlight-rescue",
+          "formatId": "standard"
+        }
+      },
+      "entries": [
+        {
+          "poseNumber": 1,
+          "approvedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/poses/pose01.png",
+          "bgRemovedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/characters_fixture-book2-w3-hash_pose01_nobg.png",
+          "bgRemovedStatus": "completed",
+          "briaStatus": "completed",
+          "flipped": false,
+          "flippedAt": null
+        },
+        {
+          "poseNumber": 2,
+          "approvedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/poses/pose02.png",
+          "bgRemovedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/characters_fixture-book2-w3-hash_pose02_nobg.png",
+          "bgRemovedStatus": "completed",
+          "briaStatus": "completed",
+          "flipped": false,
+          "flippedAt": null
+        },
+        {
+          "poseNumber": 3,
+          "approvedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/poses/pose03.png",
+          "briaStatus": "not_bg_removed",
+          "flipped": false,
+          "flippedAt": null
+        },
+        {
+          "poseNumber": 4,
+          "approvedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/poses/pose04.png",
+          "bgRemovedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/characters_fixture-book2-w3-hash_pose04_nobg.png",
+          "bgRemovedStatus": "completed",
+          "briaStatus": "completed",
+          "flipped": false,
+          "flippedAt": null
+        },
+        {
+          "poseNumber": 5,
+          "approvedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/poses/pose05.png",
+          "bgRemovedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/characters_fixture-book2-w3-hash_pose05_nobg.png",
+          "bgRemovedStatus": "completed",
+          "briaStatus": "completed",
+          "flipped": false,
+          "flippedAt": null
+        },
+        {
+          "poseNumber": 6,
+          "approvedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/poses/pose06.png",
+          "briaStatus": "not_bg_removed",
+          "flipped": false,
+          "flippedAt": null
+        },
+        {
+          "poseNumber": 7,
+          "approvedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/poses/pose07.png",
+          "bgRemovedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/characters_fixture-book2-w3-hash_pose07_nobg.png",
+          "bgRemovedStatus": "completed",
+          "briaStatus": "completed",
+          "flipped": false,
+          "flippedAt": null
+        },
+        {
+          "poseNumber": 8,
+          "approvedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/poses/pose08.png",
+          "bgRemovedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/characters_fixture-book2-w3-hash_pose08_nobg.png",
+          "bgRemovedStatus": "completed",
+          "briaStatus": "completed",
+          "flipped": false,
+          "flippedAt": null
+        },
+        {
+          "poseNumber": 9,
+          "approvedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/poses/pose09.png",
+          "briaStatus": "not_bg_removed",
+          "flipped": false,
+          "flippedAt": null
+        },
+        {
+          "poseNumber": 10,
+          "approvedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/poses/pose10.png",
+          "bgRemovedKey": "book-2-example/order-generated-assets/characters/fixture-book2-w3-hash/characters_fixture-book2-w3-hash_pose10_nobg.png",
+          "bgRemovedStatus": "completed",
+          "briaStatus": "completed",
+          "flipped": false,
+          "flippedAt": null
+        }
+      ],
+      "generatedAt": "2026-03-23T23:59:00.000Z"
+    },
+    "threeKey": "book-2-example/orders/FIXTURE-BOOK2-W3-001/manifests/3-manifest.json",
+    "three": {
+      "schema": "lhb.run-manifest@v2.0",
+      "stage": "3-book-assembly",
+      "orderId": "FIXTURE-BOOK2-W3-001",
+      "rootOrderId": "FIXTURE-BOOK2-W3-001",
+      "amazonOrderId": null,
+      "characterHash": "fixture-book2-w3-hash",
+      "bookId": "book-2-example",
+      "formatId": "standard",
+      "orderR2BaseKey": "book-2-example/orders/FIXTURE-BOOK2-W3-001",
+      "pageLabels": [
+        "p00",
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p06",
+        "p07",
+        "p08",
+        "p09",
+        "p10",
+        "p11",
+        "p12",
+        "p13",
+        "p14"
+      ],
+      "pagePlan": [
+        {
+          "index": 0,
+          "id": "dedication",
+          "label": "p00",
+          "type": "dedication",
+          "storyPageNumber": null,
+          "backgroundSlot": "dedication",
+          "poseNumber": null,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 1,
+          "id": "story_01",
+          "label": "p01",
+          "type": "story",
+          "storyPageNumber": 1,
+          "backgroundSlot": "story_01",
+          "poseNumber": 1,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 2,
+          "id": "story_02",
+          "label": "p02",
+          "type": "story",
+          "storyPageNumber": 2,
+          "backgroundSlot": "story_02",
+          "poseNumber": 2,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 3,
+          "id": "story_03",
+          "label": "p03",
+          "type": "story",
+          "storyPageNumber": 3,
+          "backgroundSlot": "story_03",
+          "poseNumber": 3,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 4,
+          "id": "story_04",
+          "label": "p04",
+          "type": "story",
+          "storyPageNumber": 4,
+          "backgroundSlot": "story_04",
+          "poseNumber": 4,
+          "overlaySlot": "starTrail",
+          "required": true
+        },
+        {
+          "index": 5,
+          "id": "story_05",
+          "label": "p05",
+          "type": "story",
+          "storyPageNumber": 5,
+          "backgroundSlot": "story_05",
+          "poseNumber": null,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 6,
+          "id": "story_06",
+          "label": "p06",
+          "type": "story",
+          "storyPageNumber": 6,
+          "backgroundSlot": "story_06",
+          "poseNumber": 5,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 7,
+          "id": "story_07",
+          "label": "p07",
+          "type": "story",
+          "storyPageNumber": 7,
+          "backgroundSlot": "story_07",
+          "poseNumber": 6,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 8,
+          "id": "story_08",
+          "label": "p08",
+          "type": "story",
+          "storyPageNumber": 8,
+          "backgroundSlot": "story_08",
+          "poseNumber": 7,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 9,
+          "id": "story_09",
+          "label": "p09",
+          "type": "story",
+          "storyPageNumber": 9,
+          "backgroundSlot": "story_09",
+          "poseNumber": null,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 10,
+          "id": "story_10",
+          "label": "p10",
+          "type": "story",
+          "storyPageNumber": 10,
+          "backgroundSlot": "story_10",
+          "poseNumber": 8,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 11,
+          "id": "story_11",
+          "label": "p11",
+          "type": "story",
+          "storyPageNumber": 11,
+          "backgroundSlot": "story_11",
+          "poseNumber": 9,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 12,
+          "id": "story_12",
+          "label": "p12",
+          "type": "story",
+          "storyPageNumber": 12,
+          "backgroundSlot": "story_12",
+          "poseNumber": 10,
+          "overlaySlot": "glowMap",
+          "required": true
+        },
+        {
+          "index": 13,
+          "id": "story_13",
+          "label": "p13",
+          "type": "story",
+          "storyPageNumber": 13,
+          "backgroundSlot": "story_13",
+          "poseNumber": null,
+          "overlaySlot": null,
+          "required": true
+        },
+        {
+          "index": 14,
+          "id": "story_14",
+          "label": "p14",
+          "type": "story",
+          "storyPageNumber": 14,
+          "backgroundSlot": "story_14",
+          "poseNumber": null,
+          "overlaySlot": null,
+          "required": true
+        }
+      ],
+      "pages": {
+        "p00": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p00.png",
+        "p01": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p01.png",
+        "p02": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p02.png",
+        "p03": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p03.png",
+        "p04": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p04.png",
+        "p05": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p05.png",
+        "p06": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p06.png",
+        "p07": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p07.png",
+        "p08": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p08.png",
+        "p09": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p09.png",
+        "p10": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p10.png",
+        "p11": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p11.png",
+        "p12": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p12.png",
+        "p13": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p13.png",
+        "p14": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p14.png",
+        "p00_dedication": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p00.png"
+      },
+      "pngGeneration": {
+        "pages": {
+          "p00": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p00.png",
+          "p01": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p01.png",
+          "p02": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p02.png",
+          "p03": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p03.png",
+          "p04": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p04.png",
+          "p05": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p05.png",
+          "p06": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p06.png",
+          "p07": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p07.png",
+          "p08": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p08.png",
+          "p09": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p09.png",
+          "p10": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p10.png",
+          "p11": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p11.png",
+          "p12": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p12.png",
+          "p13": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p13.png",
+          "p14": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p14.png",
+          "p00_dedication": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p00.png"
+        },
+        "coverSpreadImage": "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/cover-spread.png"
+      },
+      "summary": {
+        "percentComplete": 100,
+        "readyForBook": true,
+        "needsHumanReview": false
+      }
+    }
+  },
+  "expected": {
+    "orderId": "FIXTURE-BOOK2-W3-001",
+    "rootOrderId": "FIXTURE-BOOK2-W3-001",
+    "amazonOrderId": null,
+    "bookId": "book-2-example",
+    "formatId": "standard",
+    "orderPrefix": "book-2-example/orders/FIXTURE-BOOK2-W3-001",
+    "manifest3Key": "book-2-example/orders/FIXTURE-BOOK2-W3-001/manifests/3-manifest.json",
+    "manifest3Url": "https://admin.littleherolabs.com/api/manifests/book-2-example/orders/FIXTURE-BOOK2-W3-001/manifests/3-manifest.json",
+    "pageLabels": [
+      "p00",
+      "p01",
+      "p02",
+      "p03",
+      "p04",
+      "p05",
+      "p06",
+      "p07",
+      "p08",
+      "p09",
+      "p10",
+      "p11",
+      "p12",
+      "p13",
+      "p14"
+    ],
+    "pagesGenerated": 15,
+    "previewImageKeys": [
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p00.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p01.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p02.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p03.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p04.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p05.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p06.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p07.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p08.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p09.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p10.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p11.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p12.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p13.png",
+      "book-2-example/orders/FIXTURE-BOOK2-W3-001/preview-images/p14.png"
+    ],
+    "requiredPoseNumbers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ]
+  }
+}

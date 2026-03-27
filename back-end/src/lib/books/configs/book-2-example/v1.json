@@ -1,0 +1,191 @@
+{
+  "schema": "lhb.book-config@v1",
+  "bookId": "book-2-example",
+  "slug": "starlight-rescue",
+  "displayName": "Starlight Rescue",
+  "status": "draft",
+  "version": 1,
+  "defaultFormatId": "standard",
+  "formats": {
+    "standard": {
+      "formatId": "standard",
+      "channels": ["d2c"],
+      "trimIn": { "w": 8.5, "h": 8.5 },
+      "bleedIn": { "w": 8.75, "h": 8.75 },
+      "interior": {
+        "expectedPageCount": 15,
+        "pageSequence": [
+          { "index": 0, "id": "dedication", "label": "p00", "type": "dedication", "storyPageNumber": null, "backgroundSlot": "dedication", "poseNumber": null, "overlaySlot": null, "required": true },
+          { "index": 1, "id": "story_01", "label": "p01", "type": "story", "storyPageNumber": 1, "backgroundSlot": "story_01", "poseNumber": 1, "overlaySlot": null, "required": true },
+          { "index": 2, "id": "story_02", "label": "p02", "type": "story", "storyPageNumber": 2, "backgroundSlot": "story_02", "poseNumber": 2, "overlaySlot": null, "required": true },
+          { "index": 3, "id": "story_03", "label": "p03", "type": "story", "storyPageNumber": 3, "backgroundSlot": "story_03", "poseNumber": 3, "overlaySlot": null, "required": true },
+          { "index": 4, "id": "story_04", "label": "p04", "type": "story", "storyPageNumber": 4, "backgroundSlot": "story_04", "poseNumber": 4, "overlaySlot": "starTrail", "required": true },
+          { "index": 5, "id": "story_05", "label": "p05", "type": "story", "storyPageNumber": 5, "backgroundSlot": "story_05", "poseNumber": null, "overlaySlot": null, "required": true },
+          { "index": 6, "id": "story_06", "label": "p06", "type": "story", "storyPageNumber": 6, "backgroundSlot": "story_06", "poseNumber": 5, "overlaySlot": null, "required": true },
+          { "index": 7, "id": "story_07", "label": "p07", "type": "story", "storyPageNumber": 7, "backgroundSlot": "story_07", "poseNumber": 6, "overlaySlot": null, "required": true },
+          { "index": 8, "id": "story_08", "label": "p08", "type": "story", "storyPageNumber": 8, "backgroundSlot": "story_08", "poseNumber": 7, "overlaySlot": null, "required": true },
+          { "index": 9, "id": "story_09", "label": "p09", "type": "story", "storyPageNumber": 9, "backgroundSlot": "story_09", "poseNumber": null, "overlaySlot": null, "required": true },
+          { "index": 10, "id": "story_10", "label": "p10", "type": "story", "storyPageNumber": 10, "backgroundSlot": "story_10", "poseNumber": 8, "overlaySlot": null, "required": true },
+          { "index": 11, "id": "story_11", "label": "p11", "type": "story", "storyPageNumber": 11, "backgroundSlot": "story_11", "poseNumber": 9, "overlaySlot": null, "required": true },
+          { "index": 12, "id": "story_12", "label": "p12", "type": "story", "storyPageNumber": 12, "backgroundSlot": "story_12", "poseNumber": 10, "overlaySlot": "glowMap", "required": true },
+          { "index": 13, "id": "story_13", "label": "p13", "type": "story", "storyPageNumber": 13, "backgroundSlot": "story_13", "poseNumber": null, "overlaySlot": null, "required": true },
+          { "index": 14, "id": "story_14", "label": "p14", "type": "story", "storyPageNumber": 14, "backgroundSlot": "story_14", "poseNumber": null, "overlaySlot": null, "required": true }
+        ]
+      },
+      "cover": {
+        "spreadSizeIn": { "w": 17.25, "h": 8.75 }
+      },
+      "templates": {
+        "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+        "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+      },
+      "print": {
+        "provider": "lulu",
+        "podPackageId": "0850X0850FCPRESS080CW444MXX",
+        "color": "premium-color",
+        "stock": "80#-text",
+        "binding": "saddle-stitch",
+        "coverFinish": "matte",
+        "defaultQuantity": 1
+      }
+    },
+    "amazon": {
+      "formatId": "amazon",
+      "channels": ["amazon"],
+      "trimIn": { "w": 8.5, "h": 8.5 },
+      "bleedIn": { "w": 8.75, "h": 8.75 },
+      "interior": {
+        "expectedPageCount": 17,
+        "pageSequence": [
+          { "index": 0, "id": "title", "label": "p00", "type": "title", "storyPageNumber": null, "backgroundSlot": "titlePage", "poseNumber": null, "overlaySlot": null, "required": true },
+          { "index": 1, "id": "blank_front_matter", "label": "p01", "type": "blank", "storyPageNumber": null, "backgroundSlot": null, "poseNumber": null, "overlaySlot": null, "required": true },
+          { "index": 2, "id": "dedication", "label": "p02", "type": "dedication", "storyPageNumber": null, "backgroundSlot": "dedication", "poseNumber": null, "overlaySlot": null, "required": true },
+          { "index": 3, "id": "story_01", "label": "p03", "type": "story", "storyPageNumber": 1, "backgroundSlot": "story_01", "poseNumber": 1, "overlaySlot": null, "required": true },
+          { "index": 4, "id": "story_02", "label": "p04", "type": "story", "storyPageNumber": 2, "backgroundSlot": "story_02", "poseNumber": 2, "overlaySlot": null, "required": true },
+          { "index": 5, "id": "story_03", "label": "p05", "type": "story", "storyPageNumber": 3, "backgroundSlot": "story_03", "poseNumber": 3, "overlaySlot": null, "required": true },
+          { "index": 6, "id": "story_04", "label": "p06", "type": "story", "storyPageNumber": 4, "backgroundSlot": "story_04", "poseNumber": 4, "overlaySlot": "starTrail", "required": true },
+          { "index": 7, "id": "story_05", "label": "p07", "type": "story", "storyPageNumber": 5, "backgroundSlot": "story_05", "poseNumber": null, "overlaySlot": null, "required": true },
+          { "index": 8, "id": "story_06", "label": "p08", "type": "story", "storyPageNumber": 6, "backgroundSlot": "story_06", "poseNumber": 5, "overlaySlot": null, "required": true },
+          { "index": 9, "id": "story_07", "label": "p09", "type": "story", "storyPageNumber": 7, "backgroundSlot": "story_07", "poseNumber": 6, "overlaySlot": null, "required": true },
+          { "index": 10, "id": "story_08", "label": "p10", "type": "story", "storyPageNumber": 8, "backgroundSlot": "story_08", "poseNumber": 7, "overlaySlot": null, "required": true },
+          { "index": 11, "id": "story_09", "label": "p11", "type": "story", "storyPageNumber": 9, "backgroundSlot": "story_09", "poseNumber": null, "overlaySlot": null, "required": true },
+          { "index": 12, "id": "story_10", "label": "p12", "type": "story", "storyPageNumber": 10, "backgroundSlot": "story_10", "poseNumber": 8, "overlaySlot": null, "required": true },
+          { "index": 13, "id": "story_11", "label": "p13", "type": "story", "storyPageNumber": 11, "backgroundSlot": "story_11", "poseNumber": 9, "overlaySlot": null, "required": true },
+          { "index": 14, "id": "story_12", "label": "p14", "type": "story", "storyPageNumber": 12, "backgroundSlot": "story_12", "poseNumber": 10, "overlaySlot": "glowMap", "required": true },
+          { "index": 15, "id": "story_13", "label": "p15", "type": "story", "storyPageNumber": 13, "backgroundSlot": "story_13", "poseNumber": null, "overlaySlot": null, "required": true },
+          { "index": 16, "id": "story_14", "label": "p16", "type": "story", "storyPageNumber": 14, "backgroundSlot": "story_14", "poseNumber": null, "overlaySlot": null, "required": true }
+        ]
+      },
+      "cover": {
+        "spreadSizeIn": { "w": 17.25, "h": 8.75 }
+      },
+      "templates": {
+        "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+        "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+      },
+      "print": {
+        "provider": "lulu",
+        "podPackageId": "0850X0850FCPRESS080CW444MXX",
+        "color": "premium-color",
+        "stock": "80#-text",
+        "binding": "saddle-stitch",
+        "coverFinish": "matte",
+        "defaultQuantity": 1
+      }
+    }
+  },
+  "assets": {
+    "assetRoot": "book-2-example",
+    "fonts": {
+      "primary": "book-2-example/fonts/CustomBook2.ttf"
+    },
+    "backgrounds": {
+      "dedication": "book-2-example/backgrounds/page00-dedication.jpg",
+      "titlePage": "book-2-example/backgrounds/page00-title-page.png",
+      "covers": "book-2-example/backgrounds/page00-covers.jpg",
+      "coversAmazon": "book-2-example/backgrounds/page00-covers-barcode.jpg",
+      "story_01": "book-2-example/backgrounds/page01-starlight-beacon.jpg",
+      "story_02": "book-2-example/backgrounds/page02-skybridge-map.jpg",
+      "story_03": "book-2-example/backgrounds/page03-comet-train.jpg",
+      "story_04": "book-2-example/backgrounds/page04-moon-garden.jpg",
+      "story_05": "book-2-example/backgrounds/page05-observatory.jpg",
+      "story_06": "book-2-example/backgrounds/page06-friendship-dock.jpg",
+      "story_07": "book-2-example/backgrounds/page07-river-of-lights.jpg",
+      "story_08": "book-2-example/backgrounds/page08-cloud-steps.jpg",
+      "story_09": "book-2-example/backgrounds/page09-star-market.jpg",
+      "story_10": "book-2-example/backgrounds/page10-echo-canyon.jpg",
+      "story_11": "book-2-example/backgrounds/page11-signal-tower.jpg",
+      "story_12": "book-2-example/backgrounds/page12-hidden-constellation.jpg",
+      "story_13": "book-2-example/backgrounds/page13-rescue-landing.jpg",
+      "story_14": "book-2-example/backgrounds/page14-homecoming.jpg"
+    },
+    "preview": {
+      "baseCharactersPrefix": "book-2-example/characters/bases",
+      "hairstylesPrefix": "book-2-example/characters/hairstyles"
+    },
+    "overlays": {
+      "starTrail": "book-2-example/overlays/star-trail/page04-star-trail.png",
+      "glowMap": "book-2-example/overlays/glow-map/page12-glow-map.png"
+    },
+    "poses": {
+      "basePath": "book-2-example/characters/poses",
+      "skinToneVariantPaths": {
+        "medium-dark": "book-2-example/characters/poses/skin-deep",
+        "deep": "book-2-example/characters/poses/skin-deep"
+      }
+    },
+    "generated": {
+      "characterBasePrefix": "book-2-example/order-generated-assets/characters/{characterHash}",
+      "orderPrefix": "book-2-example/orders/{orderId}"
+    }
+  },
+  "rendering": {
+    "preview": {
+      "interiorPx": { "w": 2625, "h": 2625 },
+      "coverPx": { "w": 5203, "h": 2625 }
+    },
+    "pdf": {
+      "interiorFilenamePattern": "interior_{orderId}.pdf",
+      "coverFilenamePattern": "cover_{orderId}.pdf"
+    },
+    "html": {
+      "useImageBackgrounds": true
+    }
+  },
+  "qa": {
+    "pose": {
+      "requiredPoseNumbers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "perPoseExpectations": {
+        "1": {
+          "frontFacing": true,
+          "strictSymmetry": false
+        }
+      }
+    },
+    "backgroundRemoval": {
+      "faceDefectReviewEnabled": true,
+      "compositeQaEnabled": true
+    },
+    "finalPdf": {
+      "interior": {
+        "expectedPreviewLabelPattern": "p{index:02d}",
+        "minBytesPerPage": 30000
+      },
+      "cover": {
+        "expectedPageCount": 1
+      }
+    }
+  },
+  "logistics": {},
+  "contentModel": {
+    "storyPageCount": 14,
+    "supportsDedication": true,
+    "supportsAnimalCompanion": false,
+    "supportsCoverBarcodeVariant": true,
+    "characterSlots": 1
+  },
+  "notes": {
+    "phase0Status": "First non-Book-1 bundled config used to prove the shared replay and repo-stage path locally.",
+    "operationalReadiness": "Draft fixture-only onboarding until real Book 2 assets and published snapshots exist."
+  }
+}

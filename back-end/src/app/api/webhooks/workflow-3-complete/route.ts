@@ -4,6 +4,7 @@ import { verifyBearerAuth } from '@/lib/auth';
 import { downloadManifest } from '@/lib/r2-service';
 import { normalizeCharacterSpecs } from '@/lib/customization-utils';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+import { completeW3AssemblyJobForOrder } from '@/lib/workflow-jobs';
 import {
   buildManifestKeyCandidates,
   buildManifestKeyHintOptionsFromOrderLike,
@@ -27,15 +28,16 @@ export async function POST(request: NextRequest) {
      * Resilient update: some environments don't have `final_cover_url` (they may use `cover_image_url`).
      * Attempt update, and if PostgREST says a column doesn't exist (PGRST204/42703), drop it and retry.
      */
-    const parseMissingColumn = (err: any): string | null => {
-      const details = String(err?.details || err?.message || '');
+    const parseMissingColumn = (err: unknown): string | null => {
+      const record = err && typeof err === 'object' ? (err as Record<string, unknown>) : {};
+      const details = String(record.details || record.message || '');
       const m = details.match(/Could not find the '([^']+)' column/i) || details.match(/'([^']+)'\s+column/i);
       return m?.[1] ? String(m[1]) : null;
     };
 
     const updateOrderRowResilient = async (orderId: string, updateData: Record<string, unknown>) => {
       const dataToUpdate: Record<string, unknown> = { ...updateData };
-      let lastError: any = null;
+      let lastError: unknown = null;
 
       for (let i = 0; i < 6; i++) {
         // Purpose: update by per-book identity (orderId), not amazon_order_id (which can be a group key).
@@ -86,7 +88,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let manifest: any = null;
+    let manifest: Record<string, unknown> | null = null;
     for (const manifestKey of manifestKeys) {
       try {
         manifest = await downloadManifest(manifestKey);
@@ -123,8 +125,47 @@ export async function POST(request: NextRequest) {
       updated_at: nowIso,
     });
 
+    try {
+      const manifestPages = Array.isArray(manifest?.pagePreviewImages)
+        ? manifest.pagePreviewImages.length
+        : Array.isArray(manifest?.pages)
+          ? manifest.pages.length
+          : Array.isArray(manifest?.interiorPages)
+            ? manifest.interiorPages.length
+            : null;
+      const manifestExpectedPages =
+        typeof manifest?.totalPagesRequired === 'number' && Number.isFinite(manifest.totalPagesRequired)
+          ? manifest.totalPagesRequired
+          : typeof manifest?.pagesGenerated === 'number' && Number.isFinite(manifest.pagesGenerated)
+            ? manifest.pagesGenerated
+            : manifestPages;
+      const manifestAssemblyProgress =
+        typeof manifest?.assemblyProgress === 'number' && Number.isFinite(manifest.assemblyProgress)
+          ? manifest.assemblyProgress
+          : manifestPages && manifestExpectedPages
+            ? Math.round((manifestPages / manifestExpectedPages) * 100) / 100
+            : null;
+
+      await completeW3AssemblyJobForOrder({
+        orderId: payload.orderId,
+        manifestUrl: payload.manifestUrl,
+        manifestKey: payloadManifestKey,
+        finalBookUrl,
+        finalCoverUrl,
+        pagesGenerated: manifestPages,
+        totalPagesRequired: manifestExpectedPages,
+        assemblyProgress: manifestAssemblyProgress,
+      });
+    } catch (workflowJobError) {
+      console.warn(
+        `[workflow-3-complete] Non-fatal: failed to mark W3 workflow job complete for ${payload.orderId}:`,
+        workflowJobError,
+      );
+    }
+
     return NextResponse.json({ success: true, orderId: payload.orderId, stage: '3', manifestLoaded: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Internal Server Error' }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal Server Error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

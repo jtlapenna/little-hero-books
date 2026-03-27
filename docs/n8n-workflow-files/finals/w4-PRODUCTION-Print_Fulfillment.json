@@ -279,7 +279,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const j = $input.first().json || {};\nconst manifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  stage: '4-print-fulfillment',\n  createdAt: new Date().toISOString(),\n  orderId: j.orderId,\n  artifacts: {\n    interiorPdfR2Key: j.pdfR2Key || j.bookPdfUrl,\n    coverPdfR2Key: j.coverPdfR2Key,\n    coverPdfUrl: j.coverPdfUrl || null\n  },\n  lulu: {\n    jobId: j.luluJobId,\n    status: j.luluStatus,\n    cost: j.luluCost,\n    estimatedShipDate: j.estimatedShipDate\n  }\n};\nconst orderPrefix = j.orderPrefix || j.orderR2BaseKey || `book-mvp-simple-adventure/orders/${j.orderId}`;\nconst key = `${orderPrefix}/manifests/4-manifest.json`;\nreturn [{ json: { ...j, manifestKey: key, _manifest: manifest } }];\n"
+        "jsCode": "const j = $input.first().json || {};\nconst manifest = {\n  schema: 'lhb.run-manifest@v2.0',\n  stage: '4-print-fulfillment',\n  createdAt: new Date().toISOString(),\n  orderId: j.orderId,\n  artifacts: {\n    interiorPdfR2Key: j.pdfR2Key || j.bookPdfUrl,\n    coverPdfR2Key: j.coverPdfR2Key,\n    coverPdfUrl: j.coverPdfUrl || null\n  },\n  lulu: {\n    jobId: j.luluJobId,\n    status: j.luluStatus,\n    cost: j.luluCost,\n    estimatedShipDate: j.estimatedShipDate\n  }\n};\nconst orderPrefix = j.orderPrefix || j.orderR2BaseKey || `book-mvp-simple-adventure/orders/${j.orderId}`;\nconst key = `${orderPrefix}/manifests/4-manifest.json`;\nconst fileName = key.split('/').pop() || '4-manifest.json';\nconst body = JSON.stringify(manifest, null, 2);\nconst data = Buffer.from(body, 'utf8').toString('base64');\nreturn [{\n  json: { ...j, manifestKey: key, _manifest: manifest },\n  binary: {\n    data: {\n      data,\n      mimeType: 'application/json',\n      fileName\n    }\n  }\n}];\n"
       },
       "id": "730cd84b-d407-44b9-b1d2-5f7e4669df7f",
       "name": "Build 4-Manifest JSON",
@@ -295,7 +295,7 @@
         "operation": "upload",
         "bucketName": "little-hero-orders",
         "fileName": "={{ $json.manifestKey }}",
-        "binaryData": false,
+        "binaryData": true,
         "additionalFields": {}
       },
       "id": "a3c98337-07d2-466b-be68-81d38aa54e41",
@@ -708,7 +708,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const j = $input.first().json || {};\nconst manifestKey = j.manifestKey;\nconst errorManifest = j._errorManifest || {};\nif (!manifestKey) {\n  throw new Error('Missing manifestKey in error context');\n}\nreturn [\n  {\n    json: {\n      ...j,\n      manifestKey,\n      _manifest: errorManifest\n    }\n  }\n];"
+        "jsCode": "const j = $input.first().json || {};\nconst manifestKey = j.manifestKey;\nconst errorManifest = j._errorManifest || {};\nif (!manifestKey) {\n  throw new Error('Missing manifestKey in error context');\n}\nconst fileName = manifestKey.split('/').pop() || '4-qa-fail-manifest.json';\nconst body = JSON.stringify(errorManifest, null, 2);\nconst data = Buffer.from(body, 'utf8').toString('base64');\nreturn [\n  {\n    json: {\n      ...j,\n      manifestKey,\n      _manifest: errorManifest\n    },\n    binary: {\n      data: {\n        data,\n        mimeType: 'application/json',\n        fileName\n      }\n    }\n  }\n];"
       },
       "id": "94a3d8c3-134f-43e3-9c6a-718237694fd1",
       "name": "Build 4-Manifest JSON (Error)",
@@ -724,7 +724,7 @@
         "operation": "upload",
         "bucketName": "little-hero-orders",
         "fileName": "={{ $json.manifestKey }}",
-        "binaryData": false,
+        "binaryData": true,
         "additionalFields": {}
       },
       "id": "30f91357-b4c1-4a0c-87f9-a7c30128721d",
@@ -1327,7 +1327,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Submit Lulu Print Job (PRODUCTION - BEARER, Retry) — 3 attempts on 429/5xx; surface 4xx with context\nconst http = this.helpers.httpRequest;\nconst j = $input.first().json || {};\n\nfunction fromNode(name){\n  try { return ($items(name, 0, $runIndex)?.[0]?.json) || {}; } catch { return {}; }\n}\nconst token = fromNode('Extract Lulu Access Token (PRODUCTION)')?.luluAccessToken\n           || fromNode('Extract Lulu Access Token (SANDBOX)')?.luluAccessToken;\nif (!token) throw new Error('Missing Bearer token from Extract Lulu Access Token (PRODUCTION/SANDBOX)');\n\nconst payload = fromNode('Build Lulu Print Job Payload')?.luluPayload || j.luluPayload;\nif (!payload) throw new Error('Missing luluPayload from Build Lulu Print Job Payload');\n\nconst interior = fromNode('Decide Lulu Source URLs (NO PROXY)')?.interiorSourceUrl || j.interiorSourceUrl;\nconst cover    = fromNode('Decide Lulu Source URLs (NO PROXY)')?.coverSourceUrl    || j.coverSourceUrl;\n\nconst apiBase = (j.CONFIG?.lulu?.apiBase || 'https://api.lulu.com').replace(/\\/$/, '');\nconst url = `${apiBase}/print-jobs/`;\nconst headers = {\n  'Content-Type': 'application/json',\n  Authorization: `Bearer ${token}`\n};\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nlet lastErr = null;\nlet statusCode = null;\nlet attempts = 0;\nfor (attempts = 1; attempts <= 3; attempts++){\n  try {\n    const resp = await http({\n      method: 'POST',\n      url,\n      headers,\n      body: payload,\n      json: true,\n      ignoreHttpStatusErrors: true\n    });\n    statusCode = Number(resp?.statusCode || resp?.status || 200);\n    if (statusCode >= 500 || statusCode === 429){\n      lastErr = new Error(`Submit retryable error (status=${statusCode})`);\n      if (attempts < 3) await sleep(1000 * Math.pow(2, attempts-1));\n      continue;\n    }\n    if (statusCode >= 400){\n      const details = typeof resp === 'object' ? JSON.stringify(resp) : String(resp);\n      throw new Error(`Submit 4xx error (status=${statusCode}) — Check source URLs: interior=${interior} cover=${cover} — Body=${details}`);\n    }\n    // success\n    const body = resp;\n    const id = body?.id || body?.data?.id || body?.job_id;\n    const status = body?.status || body?.data?.status || 'CREATED';\n    return [{\n      json: {\n        ...j,\n        id, status,\n        luluSubmitStatusCode: statusCode,\n        retryCountSubmit: attempts,\n        luluSubmitResponse: body\n      }\n    }];\n  } catch (e) {\n    lastErr = e;\n    if (attempts < 3) await sleep(1000 * Math.pow(2, attempts-1));\n  }\n}\nthrow new Error(`Submit failed after retries: ${lastErr?.message||lastErr}`);"
+        "jsCode": "// Submit Lulu Print Job (PRODUCTION - BEARER, Retry) — 3 attempts on 429/5xx; surface 4xx with context\nconst http = this.helpers.httpRequest;\nconst j = $input.first().json || {};\nif (j.__skipLulu) {\n  return [{\n    json: {\n      ...j,\n      luluSubmitStatusCode: 0,\n      retryCountSubmit: 0,\n      luluSubmitResponse: {\n        synthetic: true,\n        reason: j.guard?.reason || 'skip',\n      },\n    },\n  }];\n}\n\nfunction fromNode(name){\n  try { return ($items(name, 0, $runIndex)?.[0]?.json) || {}; } catch { return {}; }\n}\nconst token = fromNode('Extract Lulu Access Token (PRODUCTION)')?.luluAccessToken\n           || fromNode('Extract Lulu Access Token (SANDBOX)')?.luluAccessToken;\nif (!token) throw new Error('Missing Bearer token from Extract Lulu Access Token (PRODUCTION/SANDBOX)');\n\nconst payload = fromNode('Build Lulu Print Job Payload')?.luluPayload || j.luluPayload;\nif (!payload) throw new Error('Missing luluPayload from Build Lulu Print Job Payload');\n\nconst interior = fromNode('Decide Lulu Source URLs (NO PROXY)')?.interiorSourceUrl || j.interiorSourceUrl;\nconst cover    = fromNode('Decide Lulu Source URLs (NO PROXY)')?.coverSourceUrl    || j.coverSourceUrl;\n\nconst apiBase = (j.CONFIG?.lulu?.apiBase || 'https://api.lulu.com').replace(/\\/$/, '');\nconst url = `${apiBase}/print-jobs/`;\nconst headers = {\n  'Content-Type': 'application/json',\n  Authorization: `Bearer ${token}`\n};\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nlet lastErr = null;\nlet statusCode = null;\nlet attempts = 0;\nfor (attempts = 1; attempts <= 3; attempts++){\n  try {\n    const resp = await http({\n      method: 'POST',\n      url,\n      headers,\n      body: payload,\n      json: true,\n      ignoreHttpStatusErrors: true\n    });\n    statusCode = Number(resp?.statusCode || resp?.status || 200);\n    if (statusCode >= 500 || statusCode === 429){\n      lastErr = new Error(`Submit retryable error (status=${statusCode})`);\n      if (attempts < 3) await sleep(1000 * Math.pow(2, attempts-1));\n      continue;\n    }\n    if (statusCode >= 400){\n      const details = typeof resp === 'object' ? JSON.stringify(resp) : String(resp);\n      throw new Error(`Submit 4xx error (status=${statusCode}) — Check source URLs: interior=${interior} cover=${cover} — Body=${details}`);\n    }\n    // success\n    const body = resp;\n    const id = body?.id || body?.data?.id || body?.job_id;\n    const status = body?.status || body?.data?.status || 'CREATED';\n    return [{\n      json: {\n        ...j,\n        id, status,\n        luluSubmitStatusCode: statusCode,\n        retryCountSubmit: attempts,\n        luluSubmitResponse: body\n      }\n    }];\n  } catch (e) {\n    lastErr = e;\n    if (attempts < 3) await sleep(1000 * Math.pow(2, attempts-1));\n  }\n}\nthrow new Error(`Submit failed after retries: ${lastErr?.message||lastErr}`);"
       },
       "id": "8de4576d-dd10-44f6-9dc1-c95564446df3",
       "name": "Submit Lulu Print Job (PRODUCTION - BEARER, Retry)",
@@ -1524,7 +1524,7 @@
       "main": [
         [
           {
-            "node": "Status Banner (Env & Submit Path)",
+            "node": "Submit Lulu Print Job (PRODUCTION - BEARER, Retry)",
             "type": "main",
             "index": 0
           }
@@ -2049,7 +2049,7 @@
       "main": [
         [
           {
-            "node": "Submit Lulu Print Job (PRODUCTION - BEARER, Retry)",
+            "node": "Merge3",
             "type": "main",
             "index": 0
           }
@@ -2082,7 +2082,7 @@
       "main": [
         [
           {
-            "node": "Merge3",
+            "node": "Status Banner (Env & Submit Path)",
             "type": "main",
             "index": 0
           }

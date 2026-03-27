@@ -3,7 +3,7 @@
 **Purpose:** define the concrete phased execution plan for making the pipeline Book-2-ready without forking Book 1 and Book 2 into permanently separate workflow trees.
 **Status:** In progress
 **Created:** 2026-03-14
-**Last Updated:** 2026-03-23
+**Last Updated:** 2026-03-24
 
 Companion docs:
 
@@ -16,12 +16,14 @@ Companion docs:
 - [BOOK-1-HARDCODED-AUDIT.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/BOOK-1-HARDCODED-AUDIT.md)
 - [FIRST-REPO-OWNED-BOUNDARY.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/FIRST-REPO-OWNED-BOUNDARY.md)
 - [REPO-CENTRIC-W3-THIN-FIRST-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/REPO-CENTRIC-W3-THIN-FIRST-PLAN.md)
+- [REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md)
 - [PHASE-0-CHECKLIST.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/checklists/PHASE-0-CHECKLIST.md)
 - [book2-hybrid-move-from-n8n.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/book2-hybrid-move-from-n8n.md)
+- [repo-job-control-foundation-plan.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/repo-job-control-foundation-plan.md)
 
 ---
 
-## Current status snapshot (2026-03-23)
+## Current status snapshot (2026-03-24)
 
 ### Commit-backed milestones
 
@@ -89,6 +91,11 @@ The committed planning history for this work currently looks like:
 - The current bundled config set is still Book-1-only:
   - `back-end/src/lib/books/configs/book-mvp-simple-adventure/v1.json`
 - There is still no actual Book 2 authored config or asset/config onboarding in the repo yet.
+- The first Book 2 fixture/config onboarding now exists locally in repo code:
+  - bundled config scaffold under `back-end/src/lib/books/configs/book-2-example/`
+  - Book 2 W0 replay fixture coverage
+  - Book 2 W4 print-input helper coverage
+  - Book 2 W4.1 sibling print-input helper coverage
 - Several runtime paths still carry Book 1 defaults or fallback assumptions, so full Book 2 onboarding is not ready yet.
 - A first repo-centric `W3` seam is now committed under:
   - [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/build-assembly-input/route.ts)
@@ -101,7 +108,29 @@ The committed planning history for this work currently looks like:
 - The final cleanup pass is also now proven:
   - `Log Assembly Results` now preserves the per-book `orderId` and correct `pagesGenerated`
   - `GET /api/orders/[orderId]` now returns `manifest3Url` again after the order-path hint normalization fix
-- The next active repo-centric migration target is no longer initial `W3` implementation; it is choosing the next thin slice after the proven `W3` seam, with `W4` and replay/readback hardening as the leading candidates.
+- Replay/readback hardening is now in place for `W3`, and repo-centric `W4` is now live-proven on Book 1.
+- The critical W4 safety fix is also proven live: execution `33149` on workflow `m4qIN9PCgifUcYih` (`REPO - w4-PRODUCTION-Print_Fulfillment`) shows `Submit Lulu Print Job (PRODUCTION - BEARER, Retry)` short-circuiting with a synthetic `TEST_MODE` response (`luluSubmitStatusCode: 0`) instead of creating a real Lulu submission.
+- Repo-centric `W4.1` sibling aggregation is now also proven live on Book 1 through workflow `boWA0mB20qYK2g4x` (`REPO - w4.1-Sibling-Aggregation`).
+- The decisive safe proof point is execution `33181`, which:
+  - preserved both sibling `orderId`s all the way through PDFMonkey polling, post-download reattachment, QA reattachment, and final Supabase patch
+  - carried direct-webhook `CONFIG.defaults.testMode=true` and `backendUrl=https://admin.littleherolabs.com` through the repo-owned sibling seams
+  - short-circuited Lulu submission with `__skipLulu=true`, `guard.reason=existing_job`, and synthetic `TEST_MODE` identifiers only
+  - wrote `4-manifest.json`, interior PDF, and cover PDF under each child order root, including the previously failing `441-0324-161613-item-2`
+- The W4.1 proof also surfaced and fixed the sibling-context-collapse bug in both tracked W4.1 exports: per-sibling PDF/QA reattachment nodes now use the current item index instead of always reattaching sibling `0`.
+- With `W3`, `W4`, and `W4.1` now live-proven on the repo-centric Book 1 path, the next highest-value slice is first real Book 2 config + fixture onboarding, not another Book 1 print migration.
+- The immediate Book 2 gap is no longer “start local scaffolding”; it is “turn the new local Book 2 scaffolding into a fuller end-to-end proof without regressing the proven Book 1 print path.”
+- Because there is still no real Book 2 asset set, the highest-value migration work is no longer live Book 2 proof. It is expanding repo ownership of `W2A` / `W2B` and defining the backend job-control foundation required for a broader move away from `n8n`.
+- The current strategic next-step docs are now:
+  - [repo-job-control-foundation-plan.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/repo-job-control-foundation-plan.md)
+  - [REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md)
+- The first concrete `W2A` / `W2B` expansion slice is now implemented locally in repo code:
+  - [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w2a/build-pose-input/route.ts)
+  - [w2a-pose-input.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w2a-pose-input.ts)
+  - [route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w2b/build-pose-input/route.ts)
+  - [w2b-pose-input.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w2b-pose-input.ts)
+  - [test-w2a-pose-input.ts](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w2a-pose-input.ts)
+  - [test-w2b-pose-input.ts](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w2b-pose-input.ts)
+- That new slice is currently local-only and not yet wired into live repo-centric `n8n` workflow copies.
 
 ### Practical status
 
@@ -112,6 +141,7 @@ The real state today is:
 1. the contracts and migration direction are defined
 2. the shared kernel and first runtime-adoption slice are now committed in repo code
 3. the system still needs the remaining de-hardcoding work plus an actual Book 2 config before Book 2 can ride the shared path
+4. replacing most of `n8n` safely now depends on backend job-control primitives, not just more route helpers
 
 ---
 
@@ -137,6 +167,7 @@ Operational planning assumptions for implementation:
 - the system will need a **mixed-manifest period** where current `lhb.run-manifest@v2.0` readers and new `lhb.run-manifest@v3` readers can coexist safely
 - asset taxonomy should be treated as a first-class implementation deliverable, not just a planning concept
 - replay tooling should arrive early enough to support migration work, not only final validation
+- the backend needs queueing, claim/idempotency, retries, polling, dead-letter/replay, and run visibility before most long-running execution should move out of `n8n`
 
 ---
 
@@ -530,18 +561,26 @@ Current working-tree implementation already includes:
 
 **Goal:** make pose generation and background removal consume the frozen page plan rather than embedded Book 1 rules.
 
+**Current status:** partially complete. Thin repo-owned seams already cover pose-worklist resolution, `2a-manifest` bootstrap/build, and `W2B` worklist/skip logic. The next expansion target is the per-pose deterministic prep that still lives in large `n8n` Code nodes.
+
+Detailed expansion plan:
+
+- [REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md)
+
 ### W2A tasks
 
 - Refactor pose requirements to derive from `pagePlan.poseNumber`.
 - Ensure pose QA consumes book-level QA policy from the manifest.
 - Keep pose-specific prompt behavior as manifest/config-driven data where possible.
 - Ensure 2A manifest entries carry `pageLabels` based on the frozen page plan.
+- Move per-pose identity normalization, prompt building, asset-key derivation, and upload-key derivation into repo code before moving Gemini submit/poll.
 
 ### W2B tasks
 
 - Keep the existing working composite-image QA path, but make the stage driven by manifest inputs.
 - Ensure background-removal outputs and QA map to page-plan-derived pose/page relationships.
 - Standardize `2b-manifest` keys and reconciliation logic.
+- Move single-pose source-url derivation, Bria payload construction, QA background selection, and background-removed upload-key derivation into repo code before moving Bria submit/poll.
 
 ### Current W2B status
 
@@ -585,11 +624,47 @@ Migration note:
 - `2a-manifest` and `2b-manifest` v3-compatible stage outputs
 - clear mapping from poses to page labels
 - Book 1 still working through the shared path
+- repo-owned per-pose prep helpers and internal routes for `W2A` and `W2B`
+- repo-centric subworkflow copies for the first `W2A-SW1` and `W2B-sw1` seam calls
 
 ### Exit criteria
 
 - W2A no longer needs a hidden Book 1 page/pose map
 - W2B can operate from the manifest without assuming fixed Book 1 filenames or pose-to-page rules
+- the remaining `n8n` logic in `W2A` / `W2B` is mostly provider submit/poll/upload orchestration rather than business-logic code nodes
+
+---
+
+## Phase 4.5: Backend workflow-control foundation
+
+**Goal:** add the backend-side control-plane primitives needed before most long-running orchestration can safely leave `n8n`.
+
+Detailed plan:
+
+- [repo-job-control-foundation-plan.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/repo-job-control-foundation-plan.md)
+
+### Tasks
+
+- define backend-owned job/run types and status transitions
+- add durable job, attempt, and event records
+- add idempotent enqueue + claim semantics
+- add retry scheduling and dead-letter semantics
+- add poll-state persistence for external providers
+- add replay tooling and run visibility
+
+### Deliverables
+
+- durable job records
+- attempt/event tracking
+- claim/retry helpers in repo code
+- replayable input snapshots
+- minimally queryable run visibility
+
+### Exit criteria
+
+- the backend can safely own long-running stage execution without relying on request-handler lifetime
+- a failed external-provider step can be replayed without reopening an `n8n` execution
+- operators can inspect current state and last error outside `n8n`
 
 ---
 

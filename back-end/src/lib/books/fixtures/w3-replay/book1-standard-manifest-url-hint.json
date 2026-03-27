@@ -1,0 +1,516 @@
+{
+  "fixtureId": "book1-standard-manifest-url-hint",
+  "backendUrl": "https://admin.littleherolabs.com",
+  "input": {
+    "orderId": "TEST-W3-REPLAY-SYNTH-001",
+    "rootOrderId": "TEST-W3-REPLAY-SYNTH-001",
+    "amazonOrderId": null,
+    "oneManifestUrl": "https://admin.littleherolabs.com/api/manifests/book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SOURCE-001/manifests/1-manifest.json",
+    "manifest2bUrl": "https://admin.littleherolabs.com/api/manifests/book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SOURCE-001/manifests/2b-manifest.json",
+    "backendUrl": "https://admin.littleherolabs.com"
+  },
+  "manifests": {
+    "oneKey": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SOURCE-001/manifests/1-manifest.json",
+    "one": {
+      "schema": "lhb.run-manifest@v3",
+      "manifestType": "w0",
+      "stage": "1-order-intake",
+      "createdAt": "2026-03-24T06:47:52.309Z",
+      "updatedAt": "2026-03-24T06:47:52.309Z",
+      "runId": "w0-TEST-W3-REPLAY-SYNTH-001-1774334872309",
+      "order": {
+        "orderId": "TEST-W3-REPLAY-SYNTH-001",
+        "rootOrderId": "TEST-W3-REPLAY-SYNTH-001",
+        "amazonOrderId": null,
+        "orderDbId": null,
+        "platform": "d2c",
+        "workflow": "1",
+        "customerApprovalRequired": false
+      },
+      "book": {
+        "bookConfigRef": {
+          "schema": "lhb.book-config@v1",
+          "bookId": "book-mvp-simple-adventure",
+          "version": 1,
+          "formatId": "standard"
+        },
+        "resolved": {
+          "expectedPageCount": 15,
+          "pageLabels": [
+            "p00",
+            "p01",
+            "p02",
+            "p03",
+            "p04",
+            "p05",
+            "p06",
+            "p07",
+            "p08",
+            "p09",
+            "p10",
+            "p11",
+            "p12",
+            "p13",
+            "p14"
+          ],
+          "pagePlan": [
+            {
+              "index": 0,
+              "id": "dedication",
+              "label": "p00",
+              "type": "dedication",
+              "storyPageNumber": null,
+              "backgroundSlot": "dedication",
+              "poseNumber": null,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 1,
+              "id": "story_01",
+              "label": "p01",
+              "type": "story",
+              "storyPageNumber": 1,
+              "backgroundSlot": "story_01",
+              "poseNumber": 1,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 2,
+              "id": "story_02",
+              "label": "p02",
+              "type": "story",
+              "storyPageNumber": 2,
+              "backgroundSlot": "story_02",
+              "poseNumber": 2,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 3,
+              "id": "story_03",
+              "label": "p03",
+              "type": "story",
+              "storyPageNumber": 3,
+              "backgroundSlot": "story_03",
+              "poseNumber": 3,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 4,
+              "id": "story_04",
+              "label": "p04",
+              "type": "story",
+              "storyPageNumber": 4,
+              "backgroundSlot": "story_04",
+              "poseNumber": 4,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 5,
+              "id": "story_05",
+              "label": "p05",
+              "type": "story",
+              "storyPageNumber": 5,
+              "backgroundSlot": "story_05",
+              "poseNumber": 5,
+              "overlaySlot": "animalTracks",
+              "required": true
+            },
+            {
+              "index": 6,
+              "id": "story_06",
+              "label": "p06",
+              "type": "story",
+              "storyPageNumber": 6,
+              "backgroundSlot": "story_06",
+              "poseNumber": 6,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 7,
+              "id": "story_07",
+              "label": "p07",
+              "type": "story",
+              "storyPageNumber": 7,
+              "backgroundSlot": "story_07",
+              "poseNumber": null,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 8,
+              "id": "story_08",
+              "label": "p08",
+              "type": "story",
+              "storyPageNumber": 8,
+              "backgroundSlot": "story_08",
+              "poseNumber": 7,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 9,
+              "id": "story_09",
+              "label": "p09",
+              "type": "story",
+              "storyPageNumber": 9,
+              "backgroundSlot": "story_09",
+              "poseNumber": 8,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 10,
+              "id": "story_10",
+              "label": "p10",
+              "type": "story",
+              "storyPageNumber": 10,
+              "backgroundSlot": "story_10",
+              "poseNumber": 9,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 11,
+              "id": "story_11",
+              "label": "p11",
+              "type": "story",
+              "storyPageNumber": 11,
+              "backgroundSlot": "story_11",
+              "poseNumber": 10,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 12,
+              "id": "story_12",
+              "label": "p12",
+              "type": "story",
+              "storyPageNumber": 12,
+              "backgroundSlot": "story_12",
+              "poseNumber": 11,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 13,
+              "id": "story_13",
+              "label": "p13",
+              "type": "story",
+              "storyPageNumber": 13,
+              "backgroundSlot": "story_13",
+              "poseNumber": null,
+              "overlaySlot": null,
+              "required": true
+            },
+            {
+              "index": 14,
+              "id": "story_14",
+              "label": "p14",
+              "type": "story",
+              "storyPageNumber": 14,
+              "backgroundSlot": "story_14",
+              "poseNumber": 12,
+              "overlaySlot": null,
+              "required": true
+            }
+          ],
+          "trimIn": {
+            "w": 8.5,
+            "h": 8.5
+          },
+          "bleedIn": {
+            "w": 8.75,
+            "h": 8.75
+          },
+          "templates": {
+            "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+            "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+          },
+          "print": {
+            "provider": "lulu",
+            "podPackageId": "0850X0850FCPRESS080CW444MXX",
+            "color": "premium-color",
+            "stock": "80#-text",
+            "binding": "saddle-stitch",
+            "coverFinish": "matte",
+            "defaultQuantity": 1
+          },
+          "qaPolicy": {
+            "pose": {
+              "requiredPoseNumbers": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12
+              ],
+              "perPoseExpectations": {
+                "1": {
+                  "frontFacing": true,
+                  "strictSymmetry": true
+                }
+              }
+            },
+            "backgroundRemoval": {
+              "faceDefectReviewEnabled": true,
+              "compositeQaEnabled": true
+            },
+            "finalPdf": {
+              "interior": {
+                "expectedPreviewLabelPattern": "p{index:02d}",
+                "minBytesPerPage": 30000
+              },
+              "cover": {
+                "expectedPageCount": 1
+              }
+            }
+          }
+        }
+      },
+      "shipping": {
+        "requestedTier": null,
+        "resolvedProviderLevel": null,
+        "address": {}
+      },
+      "input": {
+        "characterSpecs": {
+          "childName": "Bea"
+        },
+        "bookSpecs": {
+          "title": "Bea and the Quiet Trail"
+        },
+        "orderDetails": {
+          "quantity": 1
+        },
+        "dedicationText": "For Bea"
+      },
+      "artifacts": {
+        "manifestKey": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/manifests/1-manifest.json",
+        "orderPrefix": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001",
+        "characterPrefix": "book-mvp-simple-adventure/order-generated-assets/characters/replaychar7890ab"
+      },
+      "entries": [],
+      "summary": {
+        "expectedPageCount": 15,
+        "pageLabels": [
+          "p00",
+          "p01",
+          "p02",
+          "p03",
+          "p04",
+          "p05",
+          "p06",
+          "p07",
+          "p08",
+          "p09",
+          "p10",
+          "p11",
+          "p12",
+          "p13",
+          "p14"
+        ],
+        "interiorPdfFilename": "interior_TEST-W3-REPLAY-SYNTH-001.pdf",
+        "coverPdfFilename": "cover_TEST-W3-REPLAY-SYNTH-001.pdf"
+      },
+      "errors": []
+    },
+    "twoBKey": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SOURCE-001/manifests/2b-manifest.json",
+    "twoB": {
+      "schema": "lhb.run-manifest@v2.0",
+      "stage": "2b",
+      "characterHash": "replaychar7890ab",
+      "order": {
+        "orderId": "TEST-W3-REPLAY-SOURCE-001",
+        "rootOrderId": "TEST-W3-REPLAY-SOURCE-001",
+        "amazonOrderId": null,
+        "characterHash": "replaychar7890ab",
+        "characterSpecs": {
+          "childName": "Fixture Child"
+        },
+        "bookSpecs": {
+          "title": "Fixture Book"
+        },
+        "orderDetails": {
+          "quantity": 1
+        }
+      },
+      "entries": [
+        {
+          "poseNumber": 1,
+          "bgRemovedKey": "book-mvp-simple-adventure/order-generated-assets/characters/replaychar7890ab/characters_replaychar7890ab_pose01_nobg.png",
+          "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/replaychar7890ab/poses/pose01.png",
+          "briaStatus": "completed"
+        },
+        {
+          "poseNumber": 2,
+          "approvedKey": "book-mvp-simple-adventure/order-generated-assets/characters/replaychar7890ab/poses/pose02.png",
+          "briaStatus": "pending"
+        }
+      ]
+    },
+    "threeKey": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/manifests/3-manifest.json",
+    "three": {
+      "schema": "lhb.run-manifest@v2.0",
+      "stage": "3-book-assembly",
+      "orderId": "TEST-W3-REPLAY-SYNTH-001",
+      "rootOrderId": "TEST-W3-REPLAY-SYNTH-001",
+      "amazonOrderId": null,
+      "characterHash": "replaychar7890ab",
+      "bookId": "book-mvp-simple-adventure",
+      "formatId": "standard",
+      "generatedAt": "2026-03-23T23:11:21.000Z",
+      "runStamp": "2026-03-23T23:11:21.000Z",
+      "orderR2BaseKey": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001",
+      "pageLabels": [
+        "p00",
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p06",
+        "p07",
+        "p08",
+        "p09",
+        "p10",
+        "p11",
+        "p12",
+        "p13",
+        "p14"
+      ],
+      "pagePlan": [],
+      "pages": {
+        "p00": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p00.png",
+        "p00_dedication": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p00.png",
+        "p01": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p01.png",
+        "p02": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p02.png",
+        "p03": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p03.png",
+        "p04": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p04.png",
+        "p05": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p05.png",
+        "p06": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p06.png",
+        "p07": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p07.png",
+        "p08": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p08.png",
+        "p09": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p09.png",
+        "p10": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p10.png",
+        "p11": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p11.png",
+        "p12": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p12.png",
+        "p13": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p13.png",
+        "p14": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p14.png"
+      },
+      "pngGeneration": {
+        "pages": {
+          "p00": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p00.png",
+          "p00_dedication": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p00.png",
+          "p01": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p01.png",
+          "p02": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p02.png",
+          "p03": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p03.png",
+          "p04": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p04.png",
+          "p05": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p05.png",
+          "p06": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p06.png",
+          "p07": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p07.png",
+          "p08": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p08.png",
+          "p09": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p09.png",
+          "p10": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p10.png",
+          "p11": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p11.png",
+          "p12": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p12.png",
+          "p13": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p13.png",
+          "p14": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p14.png"
+        },
+        "pagesWithCloudflare": {},
+        "coverSpreadImage": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/cover-spread.png"
+      },
+      "pdfGeneration": {
+        "coverPdf": null
+      },
+      "summary": {
+        "percentComplete": 100,
+        "readyForBook": true,
+        "needsHumanReview": true
+      }
+    }
+  },
+  "expected": {
+    "orderId": "TEST-W3-REPLAY-SYNTH-001",
+    "rootOrderId": "TEST-W3-REPLAY-SYNTH-001",
+    "amazonOrderId": null,
+    "bookId": "book-mvp-simple-adventure",
+    "formatId": "standard",
+    "orderPrefix": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001",
+    "manifest3Key": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/manifests/3-manifest.json",
+    "manifest3Url": "https://admin.littleherolabs.com/api/manifests/book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/manifests/3-manifest.json",
+    "pageLabels": [
+      "p00",
+      "p01",
+      "p02",
+      "p03",
+      "p04",
+      "p05",
+      "p06",
+      "p07",
+      "p08",
+      "p09",
+      "p10",
+      "p11",
+      "p12",
+      "p13",
+      "p14"
+    ],
+    "pagesGenerated": 15,
+    "previewImageKeys": [
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p00.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p01.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p02.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p03.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p04.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p05.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p06.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p07.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p08.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p09.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p10.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p11.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p12.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p13.png",
+      "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/preview-images/p14.png"
+    ]
+  },
+  "readback": {
+    "orderRecord": {
+      "id": 5002,
+      "orderId": "TEST-W3-REPLAY-SYNTH-001",
+      "order_id": "TEST-W3-REPLAY-SYNTH-001",
+      "amazon_order_id": null,
+      "root_order_id": "TEST-W3-REPLAY-SYNTH-001",
+      "manifest_3_url": "https://admin.littleherolabs.com/api/manifests/book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/manifests/3-manifest.json",
+      "status": "pending_assembly_review",
+      "project": "book-mvp-simple-adventure",
+      "shipping_address": {},
+      "order_details": {
+        "quantity": 1
+      },
+      "book_specs": {
+        "formatId": "standard"
+      },
+      "asset_prefix": "https://admin.littleherolabs.com/api/manifests/book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/manifests/3-manifest.json"
+    },
+    "expected": {
+      "orderPrefix": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001",
+      "assetPrefix": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/",
+      "manifest3Url": "https://admin.littleherolabs.com/api/manifests/book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/manifests/3-manifest.json",
+      "manifest3Key": "book-mvp-simple-adventure/orders/TEST-W3-REPLAY-SYNTH-001/manifests/3-manifest.json"
+    }
+  }
+}

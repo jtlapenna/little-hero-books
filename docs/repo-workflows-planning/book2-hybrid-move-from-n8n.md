@@ -2,6 +2,11 @@
 
 Create **book-anonymous workflows** (config-driven from Supabase, variable page counts/assets) while gradually moving the “book logic” out of n8n and into the repository so it is easier to **version, test, and iterate** (including with Cursor agents).
 
+Companion docs:
+
+- [repo-job-control-foundation-plan.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/repo-job-control-foundation-plan.md)
+- [REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md)
+
 ## Summary recommendation
 
 - **Keep n8n thin** as an orchestrator (webhooks, routing, claiming/idempotency, scheduling, operational monitoring).
@@ -28,6 +33,26 @@ If you remove n8n entirely, you must replace:
 - **Quick manual intervention** (patch a node, rerun a failed execution)
 
 This is why a hybrid approach is usually the right bridge step.
+
+## What a backend replacement actually needs
+
+The main trap here is to move long-running work into ordinary backend request handlers before the backend has the control-plane features that `n8n` already supplies.
+
+If the goal is to replace most of `n8n`, the backend must first grow equivalents for:
+
+- queueing
+- idempotent claims
+- retries with attempt tracking
+- external polling state
+- dead-letter handling
+- replay tooling
+- run visibility
+
+Without that, moving most of `W2A`, `W2B`, or `W3` execution into repo handlers would make the system worse, not better.
+
+That foundation is now the prerequisite for a broader repo-centric cutover:
+
+- [repo-job-control-foundation-plan.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/repo-job-control-foundation-plan.md)
 
 ## Complexity estimate (order of magnitude)
 
@@ -84,6 +109,17 @@ These contain heavy logic that benefits most from typing + tests:
   - `SIBLING - w3-Book-Assembly.json`
   - This has substantial HTML/PDFMonkey + asset URL work that’s much safer in a typed codebase.
 
+### Immediate next migration focus
+
+Before attempting a larger orchestration cutover, the best next implementation target is to expand repo-owned heavy logic in:
+
+- `W2A` pose-generation prep
+- `W2B` single-pose background-removal prep
+
+That specific plan now lives here:
+
+- [REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md)
+
 ## Book-anonymous design constraints to enforce
 
 - **Config contract**: A single “book configuration” document in Supabase that drives:
@@ -121,6 +157,8 @@ These contain heavy logic that benefits most from typing + tests:
   - 2B background removal fan-out + aggregation
   - 3 assembly/PDF generation
 - Keep n8n as the intake/router, but let the repo handle concurrency/retries per job type.
+
+This is now the explicit bridge condition before “mostly in repo” becomes a safe operational target, not just a code-organization preference.
 
 ### Phase 3: Move orchestration out of n8n (optional later)
 
@@ -161,4 +199,3 @@ routerTick():
 - Book 2 forces the “book-anonymous” abstraction anyway; doing it in TS makes it easier to enforce.
 - You can keep delivery risk low by keeping n8n as orchestrator while moving the fragile/heavy logic into the repo.
 - You immediately gain Cursor-agent iteration speed via tests + local runners.
-

@@ -270,10 +270,26 @@ async function main(): Promise<void> {
 
   const routeResponse = await buildW2BWorklistResponse(baseInput, {
     loadManifest,
+    instrumentWorkItems: async (result) => ({
+      ...result,
+      workItems: result.workItems.map((item, index) => ({
+        ...item,
+        workflowJobId: 100 + index,
+        workflowJobIdempotencyKey: `wf:2b:w2b-single-pose:${item.orderId}:pose-${String(item.poseNumber).padStart(2, '0')}:stub`,
+        workflowJobStatus: 'queued',
+        workflowAttemptId: null,
+        workflowAttempt: null,
+        workflowClaimed: false,
+      })),
+    }),
   });
 
   assert(routeResponse.success === true, 'Expected route helper response success flag');
   assert(routeResponse.summary.scheduled === 2, 'Expected route helper to preserve worklist summary');
+  assert(
+    routeResponse.workItems.every((item) => typeof item.workflowJobId === 'number'),
+    'Expected route helper wrapper to preserve instrumented workflow job ids',
+  );
 
   const resolved = resolveOrderPathContext(orderId, {
     pathLikes: [baseInput.originalManifestUrl],
@@ -292,6 +308,7 @@ async function main(): Promise<void> {
           'scheduled all poses with force=true',
           'returned NO_APPROVED_POSES summary',
           'route helper wrapper returned normalized success payload',
+          'route helper wrapper preserved workflow job instrumentation fields',
         ],
       },
       null,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyBearerAuth } from '@/lib/auth';
 import { downloadManifest } from '@/lib/r2-service';
+import { attachWorkflowJobsToW2BWorkItems } from '@/lib/workflow-jobs';
 import {
   buildW2BWorklist,
   type BuildW2BWorklistResult,
@@ -29,15 +30,37 @@ function getErrorMessage(error: unknown): string {
 
 export async function buildW2BWorklistResponse(
   body: JsonRecord,
-  options: { loadManifest?: LoadManifestForW2B } = {},
+  options: {
+    loadManifest?: LoadManifestForW2B;
+    defaultBackendUrl?: string;
+    instrumentWorkItems?: (
+      result: BuildW2BWorklistResult,
+    ) => Promise<BuildW2BWorklistResult>;
+  } = {},
 ): Promise<BuildW2BWorklistResult & { success: true }> {
   const result = await buildW2BWorklist(body, {
     loadManifest: options.loadManifest ?? downloadManifest,
+    defaultBackendUrl: options.defaultBackendUrl,
   });
+  const instrumented =
+    options.instrumentWorkItems
+      ? await options.instrumentWorkItems(result)
+      : result.workItems.length
+        ? {
+            ...result,
+            workItems: await attachWorkflowJobsToW2BWorkItems({
+              orderId: result.orderId,
+              rootOrderId: result.rootOrderId,
+              amazonOrderId: result.amazonOrderId,
+              bookId: result.bookId,
+              workItems: result.workItems,
+            }),
+          }
+        : result;
 
   return {
     success: true,
-    ...result,
+    ...instrumented,
   };
 }
 
@@ -78,7 +101,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await buildW2BWorklistResponse(body);
+    const response = await buildW2BWorklistResponse(body, {
+      defaultBackendUrl: request.nextUrl.origin,
+    });
     return NextResponse.json(response);
   } catch (error: unknown) {
     console.error('[Internal W2B Build Worklist] Error:', error);

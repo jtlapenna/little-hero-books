@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyBearerAuth } from '@/lib/auth';
 import { downloadManifest } from '@/lib/r2-service';
 import {
+  claimAndStartW3AssemblyJob,
+  type W3AssemblyWorkflowFields,
+} from '@/lib/workflow-jobs';
+import {
   buildW3AssemblyInput,
   type BuildW3AssemblyInputResult,
   type LoadManifestForW3,
@@ -29,15 +33,39 @@ function getErrorMessage(error: unknown): string {
 
 export async function buildW3AssemblyInputResponse(
   body: JsonRecord,
-  options: { loadManifest?: LoadManifestForW3 } = {},
-): Promise<BuildW3AssemblyInputResult & { success: true }> {
+  options: {
+    loadManifest?: LoadManifestForW3;
+    defaultBackendUrl?: string;
+    instrumentAssemblyJob?: (
+      payload: BuildW3AssemblyInputResult,
+      rawBody: JsonRecord,
+    ) => Promise<W3AssemblyWorkflowFields>;
+  } = {},
+): Promise<BuildW3AssemblyInputResult & W3AssemblyWorkflowFields & { success: true }> {
   const result = await buildW3AssemblyInput(body, {
     loadManifest: options.loadManifest ?? downloadManifest,
+    defaultBackendUrl: options.defaultBackendUrl,
   });
+  const workflowFields =
+    options.instrumentAssemblyJob
+      ? await options.instrumentAssemblyJob(result, body)
+      : await claimAndStartW3AssemblyJob({
+        ...result,
+        claimedAt:
+          typeof body.claimedAt === 'string'
+            ? body.claimedAt
+            : typeof body.body === 'object' &&
+                body.body !== null &&
+                !Array.isArray(body.body) &&
+                typeof (body.body as JsonRecord).claimedAt === 'string'
+              ? ((body.body as JsonRecord).claimedAt as string)
+              : null,
+      });
 
   return {
     success: true,
     ...result,
+    ...workflowFields,
   };
 }
 
@@ -78,7 +106,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await buildW3AssemblyInputResponse(body);
+    const response = await buildW3AssemblyInputResponse(body, {
+      defaultBackendUrl: request.nextUrl.origin,
+    });
     return NextResponse.json(response);
   } catch (error: unknown) {
     console.error('[Internal W3 Build Assembly Input] Error:', error);

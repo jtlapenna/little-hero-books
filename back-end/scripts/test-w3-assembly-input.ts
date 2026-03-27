@@ -331,12 +331,22 @@ async function main(): Promise<void> {
     },
     {
       loadManifest: siblingLoadManifest,
+      instrumentAssemblyJob: async () => ({
+        workflowJobId: 301,
+        workflowJobIdempotencyKey: 'wf:3:w3-book-assembly:test-order:assembly:test',
+        workflowJobStatus: 'running',
+        workflowAttemptId: 901,
+        workflowAttempt: 1,
+        workflowClaimed: true,
+      }),
     },
   );
 
   assert(
     wrappedResponse.success === true &&
-      wrappedResponse.manifest3Url.endsWith(wrappedResponse.manifest3Key),
+      wrappedResponse.manifest3Url.endsWith(wrappedResponse.manifest3Key) &&
+      wrappedResponse.workflowJobId === 301 &&
+      wrappedResponse.workflowClaimed === true,
     'Expected route helper wrapper to return a normalized success payload',
   );
 

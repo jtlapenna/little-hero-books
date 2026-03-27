@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Users, Home, Activity, AlertTriangle } from 'lucide-react';
+import { BookOpen, Users, Home, Activity, AlertTriangle, LifeBuoy, Workflow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function Navigation() {
@@ -14,6 +14,8 @@ export function Navigation() {
     { name: 'Review', href: '/review', icon: Users },
     { name: 'Monitoring', href: '/monitoring', icon: Activity },
     { name: 'Orders Needing Attention', href: '/admin/orders-needing-attention', icon: AlertTriangle },
+    { name: 'Workflow Jobs', href: '/admin/workflow-jobs', icon: Workflow },
+    { name: 'W2A Recovery', href: '/admin/w2a-recovery', icon: LifeBuoy },
   ];
 
   return (
@@ -63,4 +65,3 @@ export function Navigation() {
     </nav>
   );
 }
-

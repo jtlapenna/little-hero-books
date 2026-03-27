@@ -183,7 +183,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Reattach context + Poll PDFMonkey until ready\nconst httpResp=$input.item.json||{};\nlet ctx={}; try{ctx=($items('Build Pages HTML (8.75in)',0,$runIndex)?.[0]?.json)||{};}catch{}\nif(!ctx.orderId)try{ctx=($items('Validate & Normalize Per Sibling',0,$runIndex)?.[0]?.json)||ctx;}catch{}\nconst doc=httpResp.document||httpResp.data||httpResp;\nconst docId=doc.id||doc.data?.id; if(!docId)throw new Error('PDFMonkey missing id');\nconst token=ctx.CONFIG?.pdfMonkey?.token; if(!token)throw new Error('Missing token');\nconst http=this.helpers.httpRequest; const AUTH={Authorization:`Bearer ${token}`};\nlet status=doc.status||'queued'; let downloadUrl=doc.download_url||null;\nasync function sleep(ms){return new Promise(r=>setTimeout(r,ms));}\nfor(let a=0;a<40;a++){\n  if(status==='success'&&downloadUrl)break;\n  try{const r=await http({method:'GET',url:`https://api.pdfmonkey.io/api/v1/documents/${docId}`,json:true,headers:AUTH});\n  const d=r?.document||r?.data||r; status=d?.status||status; downloadUrl=d?.download_url||d?.file_url||downloadUrl;\n  if(status==='error'||status==='failure')throw new Error('PDFMonkey error: '+(d?.failure_cause||status));}\n  catch(e){if(e.message.includes('PDFMonkey error'))throw e; await sleep(1500); continue;}\n  await sleep(1200+Math.min(a*150,3800));\n}\nif(status!=='success'||!downloadUrl)throw new Error('PDF not ready');\nreturn{json:{...ctx,pdfMonkeyDocumentId:docId,pdfDownloadUrl:downloadUrl,pdfR2Key:ctx.pdfR2Key}};"
+        "jsCode": "// Reattach context + Poll PDFMonkey until ready\nconst httpResp=$input.item.json||{};\nconst itemIx=(typeof $itemIndex==='number')?$itemIndex:0;\nfunction latest(node){ try { return ($items(node,0,$runIndex)?.[itemIx]?.json)||null; } catch { return null; } }\nconst ctx=latest('Build Pages HTML (8.75in)')||latest('Validate & Normalize Per Sibling')||{};\nconst doc=httpResp.document||httpResp.data||httpResp;\nconst docId=doc.id||doc.data?.id; if(!docId)throw new Error('PDFMonkey missing id');\nconst token=ctx.CONFIG?.pdfMonkey?.token; if(!token)throw new Error('Missing token');\nconst http=this.helpers.httpRequest; const AUTH={Authorization:`Bearer ${token}`};\nlet status=doc.status||'queued'; let downloadUrl=doc.download_url||null;\nasync function sleep(ms){return new Promise(r=>setTimeout(r,ms));}\nfor(let a=0;a<40;a++){\n  if(status==='success'&&downloadUrl)break;\n  try{const r=await http({method:'GET',url:`https://api.pdfmonkey.io/api/v1/documents/${docId}`,json:true,headers:AUTH});\n  const d=r?.document||r?.data||r; status=d?.status||status; downloadUrl=d?.download_url||d?.file_url||downloadUrl;\n  if(status==='error'||status==='failure')throw new Error('PDFMonkey error: '+(d?.failure_cause||status));}\n  catch(e){if(e.message.includes('PDFMonkey error'))throw e; await sleep(1500); continue;}\n  await sleep(1200+Math.min(a*150,3800));\n}\nif(status!=='success'||!downloadUrl)throw new Error('PDF not ready');\nreturn{json:{...ctx,pdfMonkeyDocumentId:docId,pdfDownloadUrl:downloadUrl,pdfR2Key:ctx.pdfR2Key}};"
       },
       "id": "47a0ab5e-ae5e-404f-add6-15226ed8536d",
       "name": "Poll PDFMonkey until ready",
@@ -317,7 +317,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Reattach Cover Context — merge PDFMonkey response with Build Cover HTML context (preserves coverPdfR2Key, orderId)\nconst httpResp=$input.item.json||{};\nlet ctx={};\ntry{ctx=($items('Build Cover HTML',0,$runIndex)?.[0]?.json)||{};}catch{}\nif(!ctx.orderId&&!ctx.rootOrderId&&!ctx.root_order_id&&!ctx.amazonOrderId){try{ctx=($items('Validate & Normalize Per Sibling',0,$runIndex)?.[0]?.json)||ctx;}catch{}}\nconst docObj=httpResp.document||httpResp.data||httpResp;\nreturn{json:{...ctx,coverDocument:docObj}};"
+        "jsCode": "// Reattach Cover Context — merge PDFMonkey response with Build Cover HTML context (preserves coverPdfR2Key, orderId)\nconst httpResp=$input.item.json||{};\nconst itemIx=(typeof $itemIndex==='number')?$itemIndex:0;\nfunction latest(node){ try { return ($items(node,0,$runIndex)?.[itemIx]?.json)||null; } catch { return null; } }\nconst ctx=latest('Build Cover HTML')||latest('Validate & Normalize Per Sibling')||{};\nconst docObj=httpResp.document||httpResp.data||httpResp;\nreturn{json:{...ctx,coverDocument:docObj}};"
       },
       "id": "8ab49d10-b215-4e79-b0fe-1c241005c300",
       "name": "Reattach Cover Context (PDFM)",
@@ -844,7 +844,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Reattach context after interior file download to preserve json + binary for R2 upload.\nconst item = $input.item;\nconst out = item?.json || {};\nfunction latest(node){ try { return ($items(node, 0, $runIndex)?.[0]?.json) || null; } catch { return null; } }\nconst ctx = latest('Poll PDFMonkey until ready') || latest('Validate & Normalize Per Sibling') || {};\nreturn { json: { ...ctx, ...out }, binary: item?.binary };"
+        "jsCode": "// Reattach context after interior file download to preserve json + binary for R2 upload.\nconst item = $input.item;\nconst out = item?.json || {};\nconst itemIx = (typeof $itemIndex === 'number') ? $itemIndex : 0;\nfunction latest(node){ try { return ($items(node, 0, $runIndex)?.[itemIx]?.json) || null; } catch { return null; } }\nconst ctx = latest('Poll PDFMonkey until ready') || latest('Validate & Normalize Per Sibling') || {};\nreturn { json: { ...ctx, ...out }, binary: item?.binary };"
       },
       "id": "e3d9e9f2-8c43-4ba0-8955-9f703fe32338",
       "name": "Reattach Interior Context (Post Download)",
@@ -858,7 +858,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Reattach canonical context after cover upload/PATCH side-effects before QA.\nconst out = $input.item.json || {};\nfunction latest(node){ try { return ($items(node, 0, $runIndex)?.[0]?.json) || null; } catch { return null; } }\nconst ctx = latest('Poll Cover PDFMonkey until ready') || latest('Reattach Cover Context (PDFM)') || latest('Validate & Normalize Per Sibling') || {};\nreturn { json: { ...ctx, ...out } };"
+        "jsCode": "// Reattach canonical context after cover upload/PATCH side-effects before QA.\nconst out = $input.item.json || {};\nconst itemIx = (typeof $itemIndex === 'number') ? $itemIndex : 0;\nfunction latest(node){ try { return ($items(node, 0, $runIndex)?.[itemIx]?.json) || null; } catch { return null; } }\nconst ctx = latest('Poll Cover PDFMonkey until ready') || latest('Reattach Cover Context (PDFM)') || latest('Validate & Normalize Per Sibling') || {};\nreturn { json: { ...ctx, ...out } };"
       },
       "id": "54a4a025-e3f2-4a4c-abf6-e7bb203c4582",
       "name": "Reattach QA Context (Post Cover Upload)",

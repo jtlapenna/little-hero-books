@@ -87,15 +87,30 @@ function normalizeWorkflowCodeSnapshot(code: string): string {
 
 async function main(): Promise<void> {
 const config = loadBundledBookConfig({ bookId: 'book-mvp-simple-adventure' });
+const bookTwoConfig = loadBundledBookConfig({ bookId: 'book-2-example' });
 assert(config.version === 1, 'Expected bundled Book 1 config version 1');
+assert(bookTwoConfig.version === 1, 'Expected bundled Book 2 config version 1');
 
 const standardPlan = resolvePagePlan(config, 'standard');
 const amazonPlan = resolvePagePlan(config, 'amazon');
+const bookTwoStandardPlan = resolvePagePlan(bookTwoConfig, 'standard');
+const bookTwoAmazonPlan = resolvePagePlan(bookTwoConfig, 'amazon');
 
 assert(standardPlan.expectedPageCount === 15, 'Standard plan should have 15 pages');
 assert(amazonPlan.expectedPageCount === 17, 'Amazon plan should have 17 pages');
 assert(standardPlan.pagePlan[0]?.label === 'p00', 'Standard plan should begin at p00');
 assert(amazonPlan.pagePlan[16]?.label === 'p16', 'Amazon plan should end at p16');
+assert(bookTwoStandardPlan.expectedPageCount === 15, 'Book 2 standard plan should have 15 pages');
+assert(bookTwoAmazonPlan.expectedPageCount === 17, 'Book 2 amazon plan should have 17 pages');
+assert(
+  bookTwoStandardPlan.pagePlan[4]?.overlaySlot === 'starTrail' &&
+    bookTwoStandardPlan.pagePlan[12]?.overlaySlot === 'glowMap',
+  'Book 2 page plan should preserve its distinct overlay mapping',
+);
+assert(
+  bookTwoStandardPlan.qaPolicy.pose.requiredPoseNumbers.length === 10,
+  'Book 2 page plan should preserve its distinct required pose count',
+);
 
 const standardManifest = validateRunManifest(
   buildW0RunManifest({
@@ -128,6 +143,21 @@ const amazonManifest = validateRunManifest(
     },
   }),
 );
+const bookTwoStandardManifest = validateRunManifest(
+  buildW0RunManifest({
+    orderId: 'TEST-BOOK2-KERNEL-001',
+    platform: 'd2c',
+    bookId: bookTwoConfig.bookId,
+    formatId: 'standard',
+    characterHash: 'booktwohash1234',
+    input: {
+      characterSpecs: { childName: 'Nova' },
+      bookSpecs: { bookType: 'starlight-rescue' },
+      orderDetails: { quantity: 1 },
+      dedicationText: 'For Nova',
+    },
+  }),
+);
 
 assert(
   standardManifest.artifacts.manifestKey ===
@@ -135,8 +165,18 @@ assert(
   'Unexpected standard manifest key',
 );
 assert(
+  bookTwoStandardManifest.artifacts.manifestKey ===
+    'book-2-example/orders/TEST-BOOK2-KERNEL-001/manifests/1-manifest.json',
+  'Book 2 manifest should use the canonical Book 2 order root',
+);
+assert(
   amazonManifest.book.resolved.expectedPageCount === 17,
   'Amazon manifest should carry a 17-page resolved plan',
+);
+assert(
+  bookTwoStandardManifest.book.bookConfigRef.bookId === 'book-2-example' &&
+    bookTwoStandardManifest.book.resolved.qaPolicy.pose.requiredPoseNumbers.length === 10,
+  'Book 2 manifest should pin the Book 2 config and preserve Book 2 QA policy',
 );
 
 const recoveryOrder = {
@@ -979,6 +1019,10 @@ const siblingWorkflowPath = path.resolve(
   process.cwd(),
   '../docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w3-Book-Assembly.json',
 );
+const siblingW41WorkflowPath = path.resolve(
+  process.cwd(),
+  '../docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w4.1-Sibling-Aggregation.json',
+);
 const extractW3InputCode = getWorkflowNodeCode(workflowPath, 'Extract Manifest URL (3)');
 const buildW3InputCode = getWorkflowNodeCode(workflowPath, 'Build Assembly Input From Manifest');
 const renderAmazonHtmlCode = getWorkflowNodeCode(workflowPath, 'Generate Complete HTML (Amazon)');
@@ -1001,15 +1045,185 @@ const siblingStandardCoverHtmlCode = getWorkflowNodeCode(
   siblingWorkflowPath,
   'Generate Cover HTML (STANDARD)',
 );
+const siblingW41PollPdfCode = getWorkflowNodeCode(
+  siblingW41WorkflowPath,
+  'Poll PDFMonkey until ready',
+);
+const siblingW41ReattachCoverContextCode = getWorkflowNodeCode(
+  siblingW41WorkflowPath,
+  'Reattach Cover Context (PDFM)',
+);
+const siblingW41ReattachInteriorContextCode = getWorkflowNodeCode(
+  siblingW41WorkflowPath,
+  'Reattach Interior Context (Post Download)',
+);
+const siblingW41ReattachQaContextCode = getWorkflowNodeCode(
+  siblingW41WorkflowPath,
+  'Reattach QA Context (Post Cover Upload)',
+);
 const w4WorkflowPath = path.resolve(
   process.cwd(),
   '../docs/n8n-workflow-files/finals/w4-PRODUCTION-Print_Fulfillment.json',
+);
+const repoCentricW4WorkflowPath = path.resolve(
+  process.cwd(),
+  '../docs/n8n-workflow-files/repo-centric/workflows/w4-PRODUCTION-Print_Fulfillment.repo-centric.json',
+);
+const repoCentricW41WorkflowPath = path.resolve(
+  process.cwd(),
+  '../docs/n8n-workflow-files/repo-centric/workflows/w4.1-Sibling-Aggregation.repo-centric.json',
 );
 const validateW4InputCode = getWorkflowNodeCode(w4WorkflowPath, 'Validate & Normalize W4 Input');
 const build4ManifestCode = getWorkflowNodeCode(w4WorkflowPath, 'Build 4-Manifest JSON');
 const build4ErrorContextCode = getWorkflowNodeCode(w4WorkflowPath, 'Build Error Context');
 const buildCoverHtmlCode = getWorkflowNodeCode(w4WorkflowPath, 'Build Cover HTML');
 const qaFailedCode = getWorkflowNodeCode(w4WorkflowPath, 'QA Failed Error Handler');
+const w4Workflow = JSON.parse(readFileSync(w4WorkflowPath, 'utf8')) as {
+  nodes?: Array<{
+    name?: string;
+    parameters?: Record<string, unknown>;
+    type?: string;
+  }>;
+  connections?: Record<string, unknown>;
+};
+const w4BuildManifestNode = w4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Build 4-Manifest JSON',
+);
+const w4UploadManifestNode = w4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Upload 4-Manifest to R2',
+);
+const w4BuildErrorManifestNode = w4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Build 4-Manifest JSON (Error)',
+);
+const w4UploadErrorManifestNode = w4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Upload 4-Manifest (Error) to R2',
+);
+const w4SubmitNode = w4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Submit Lulu Print Job (PRODUCTION - BEARER, Retry)',
+);
+const repoCentricW4Workflow = JSON.parse(
+  readFileSync(repoCentricW4WorkflowPath, 'utf8'),
+) as {
+  name?: string;
+  nodes?: Array<{
+    name?: string;
+    parameters?: Record<string, unknown>;
+    type?: string;
+  }>;
+  connections?: Record<string, unknown>;
+};
+const repoCentricW4FetchNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Fetch Repo W4 Print Input',
+);
+const repoCentricW4ValidateNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Validate & Normalize W4 Input',
+);
+const repoCentricW4BuildManifestNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Build 4-Manifest JSON',
+);
+const repoCentricW4UploadManifestNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Upload 4-Manifest to R2',
+);
+const repoCentricW4BuildErrorManifestNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Build 4-Manifest JSON (Error)',
+);
+const repoCentricW4UploadErrorManifestNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Upload 4-Manifest (Error) to R2',
+);
+const repoCentricW4WebhookNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Webhook (W4 Intake)',
+);
+const repoCentricW4SubmitNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Submit Lulu Print Job (PRODUCTION - BEARER, Retry)',
+);
+const w4ValidateCoverConnections = JSON.stringify(
+  w4Workflow.connections?.['Validate Cover (PRODUCTION)'] ?? {},
+);
+const w4Merge3Connections = JSON.stringify(w4Workflow.connections?.Merge3 ?? {});
+const w4SubmitConnections = JSON.stringify(
+  w4Workflow.connections?.['Submit Lulu Print Job (PRODUCTION - BEARER, Retry)'] ?? {},
+);
+const repoCentricW4ValidateCoverConnections = JSON.stringify(
+  repoCentricW4Workflow.connections?.['Validate Cover (PRODUCTION)'] ?? {},
+);
+const repoCentricW4Merge3Connections = JSON.stringify(
+  repoCentricW4Workflow.connections?.Merge3 ?? {},
+);
+const repoCentricW4SubmitConnections = JSON.stringify(
+  repoCentricW4Workflow.connections?.['Submit Lulu Print Job (PRODUCTION - BEARER, Retry)'] ?? {},
+);
+const repoCentricW41Workflow = JSON.parse(
+  readFileSync(repoCentricW41WorkflowPath, 'utf8'),
+) as {
+  name?: string;
+  nodes?: Array<{
+    name?: string;
+    parameters?: Record<string, unknown>;
+    type?: string;
+  }>;
+  connections?: Record<string, unknown>;
+};
+const repoCentricW41WebhookNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Webhook (W4.1 Intake)',
+);
+const repoCentricW41FetchNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Fetch Repo W4.1 Sibling Print Input',
+);
+const repoCentricW41ValidateNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Validate & Normalize Per Sibling',
+);
+const repoCentricW41PollPdfCode = getWorkflowNodeCode(
+  repoCentricW41WorkflowPath,
+  'Poll PDFMonkey until ready',
+);
+const repoCentricW41ReattachCoverContextCode = getWorkflowNodeCode(
+  repoCentricW41WorkflowPath,
+  'Reattach Cover Context (PDFM)',
+);
+const repoCentricW41ReattachInteriorContextCode = getWorkflowNodeCode(
+  repoCentricW41WorkflowPath,
+  'Reattach Interior Context (Post Download)',
+);
+const repoCentricW41ReattachQaContextCode = getWorkflowNodeCode(
+  repoCentricW41WorkflowPath,
+  'Reattach QA Context (Post Cover Upload)',
+);
+const repoCentricW41AggregateNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Aggregate + Signed URLs + Build Lulu Payload',
+);
+const repoCentricW41NormalizeNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Normalize Shipping Level (Lulu Enum)',
+);
+const repoCentricW41ValidateGuardNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Validate PDFs + Guard Lulu',
+);
+const repoCentricW41SubmitNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Submit Lulu Print Job',
+);
+const repoCentricW41BuildManifestNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Build 4-Manifest JSON',
+);
+const repoCentricW41UploadManifestNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Upload 4-Manifest to R2',
+);
+const repoCentricW41QaFailedNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'QA Failed Error Handler (W4.1)',
+);
+const repoCentricW41BuildErrorManifestNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Build Error Manifest',
+);
+const repoCentricW41UploadErrorManifestNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Upload Error Manifest to R2',
+);
+const repoCentricW41FetchConnections = JSON.stringify(
+  repoCentricW41Workflow.connections?.['Fetch Repo W4.1 Sibling Print Input'] ?? {},
+);
+const repoCentricW41ValidateConnections = JSON.stringify(
+  repoCentricW41Workflow.connections?.['Validate & Normalize Per Sibling'] ?? {},
+);
+const repoCentricW41ValidateGuardConnections = JSON.stringify(
+  repoCentricW41Workflow.connections?.['Validate PDFs + Guard Lulu'] ?? {},
+);
 
 assert(
   extractW3InputCode.includes('oneManifestKey') &&
@@ -1106,6 +1320,172 @@ assert(
     qaFailedCode.includes('4-qa-fail-manifest.json'),
   'W4 QA failure handling should persist manifests on the resolved order root',
 );
+assert(
+  JSON.stringify(w4BuildManifestNode?.parameters).includes(
+    "Buffer.from(body, 'utf8').toString('base64')",
+  ) &&
+    w4UploadManifestNode?.parameters?.binaryData === true,
+  'Source W4 manifest upload should serialize manifest JSON into binary data before the R2 upload node runs',
+);
+assert(
+  JSON.stringify(w4BuildErrorManifestNode?.parameters).includes(
+    "Buffer.from(body, 'utf8').toString('base64')",
+  ) &&
+    w4UploadErrorManifestNode?.parameters?.binaryData === true,
+  'Source W4 error-manifest upload should serialize error manifest JSON into binary data before the R2 upload node runs',
+);
+assert(
+  JSON.stringify(w4SubmitNode?.parameters).includes('if (j.__skipLulu)') &&
+    w4ValidateCoverConnections.includes('"node":"Merge3"') &&
+    w4Merge3Connections.includes('"node":"Submit Lulu Print Job (PRODUCTION - BEARER, Retry)"') &&
+    w4SubmitConnections.includes('"node":"Status Banner (Env & Submit Path)"'),
+  'Source W4 Lulu submit path should gate production submission behind the guard merge and short-circuit when __skipLulu is set',
+);
+assert(
+  repoCentricW4Workflow.name === 'REPO - w4-PRODUCTION-Print_Fulfillment',
+  'Repo-centric W4 workflow should carry the repo-centric workflow name',
+);
+assert(
+  repoCentricW4WebhookNode?.parameters?.path === 'w4-pdf-print-repo',
+  'Repo-centric W4 workflow should use the repo-specific webhook path',
+);
+assert(
+  repoCentricW4FetchNode?.type === 'n8n-nodes-base.httpRequest' &&
+    JSON.stringify(repoCentricW4FetchNode.parameters).includes('/api/internal/w4/build-print-input'),
+  'Repo-centric W4 workflow should call the repo-owned W4 print-input route',
+);
+assert(
+  repoCentricW4ValidateNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4ValidateNode.parameters).includes('Could not parse W4 print input response'),
+  'Repo-centric W4 workflow should unwrap the repo-owned W4 print-input response before downstream nodes',
+);
+assert(
+  JSON.stringify(repoCentricW4BuildManifestNode?.parameters).includes(
+    "Buffer.from(body, 'utf8').toString('base64')",
+  ) &&
+    repoCentricW4UploadManifestNode?.parameters?.binaryData === true,
+  'Repo-centric W4 manifest upload should serialize manifest JSON into binary data before the R2 upload node runs',
+);
+assert(
+  JSON.stringify(repoCentricW4BuildErrorManifestNode?.parameters).includes(
+    "Buffer.from(body, 'utf8').toString('base64')",
+  ) &&
+    repoCentricW4UploadErrorManifestNode?.parameters?.binaryData === true,
+  'Repo-centric W4 error-manifest upload should serialize error manifest JSON into binary data before the R2 upload node runs',
+);
+assert(
+  JSON.stringify(repoCentricW4SubmitNode?.parameters).includes('if (j.__skipLulu)') &&
+    repoCentricW4ValidateCoverConnections.includes('"node":"Merge3"') &&
+    repoCentricW4Merge3Connections.includes(
+      '"node":"Submit Lulu Print Job (PRODUCTION - BEARER, Retry)"',
+    ) &&
+    repoCentricW4SubmitConnections.includes('"node":"Status Banner (Env & Submit Path)"'),
+  'Repo-centric W4 Lulu submit path should gate production submission behind the guard merge and short-circuit when __skipLulu is set',
+);
+assert(
+  repoCentricW41Workflow.name === 'REPO - w4.1-Sibling-Aggregation',
+  'Repo-centric W4.1 workflow should carry the repo-centric workflow name',
+);
+assert(
+  repoCentricW41WebhookNode?.parameters?.path === 'w4-1-sibling-aggregation-repo',
+  'Repo-centric W4.1 workflow should use the repo-specific webhook path',
+);
+assert(
+  repoCentricW41FetchNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41FetchNode.parameters).includes(
+      '/api/internal/w4/build-sibling-print-input',
+    ) &&
+    JSON.stringify(repoCentricW41FetchNode.parameters).includes('mergeConfig(') &&
+    JSON.stringify(repoCentricW41FetchNode.parameters).includes(
+      "toRecord(root.body).CONFIG",
+    ) &&
+    JSON.stringify(repoCentricW41FetchNode.parameters).includes(
+      "'https://admin.littleherolabs.com'",
+    ),
+  'Repo-centric W4.1 workflow should call the repo-owned sibling print-input route while merging inbound CONFIG overrides and pinning the production backendUrl',
+);
+assert(
+  repoCentricW41ValidateNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41ValidateNode.parameters).includes(
+      'Could not parse W4.1 sibling print input response',
+    ) &&
+    JSON.stringify(repoCentricW41ValidateNode.parameters).includes('payload.siblings'),
+  'Repo-centric W4.1 workflow should unwrap the repo-owned sibling print-input response into per-sibling items',
+);
+assert(
+  repoCentricW41AggregateNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41AggregateNode.parameters).includes(
+      '/api/internal/w4/build-sibling-submit-input',
+    ) &&
+    JSON.stringify(repoCentricW41AggregateNode.parameters).includes('rootGroupId'),
+  'Repo-centric W4.1 workflow should call the repo-owned sibling submit-input route after per-sibling PDF work completes',
+);
+assert(
+  normalizeWorkflowCodeSnapshot(
+    JSON.stringify(repoCentricW41NormalizeNode?.parameters?.jsCode ?? ''),
+  ).includes('return [{ json: { ...($input.first().json || {}) } }];'),
+  'Repo-centric W4.1 shipping normalization node should be a pass-through because the repo now owns shipping-level resolution',
+);
+assert(
+  JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('if (j.__skipLulu)') &&
+    !JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('lulu_job_id=not.is.null') &&
+    !JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('cfg.supabase?.projectUrl'),
+  'Repo-centric W4.1 validation node should validate sibling PDFs only and should not re-implement the duplicate-submit guard in n8n',
+);
+assert(
+  JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('if (j.__skipLulu)') &&
+    JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('luluSubmitStatusCode: 0') &&
+    repoCentricW41ValidateGuardConnections.includes('"node":"Submit Lulu Print Job"'),
+  'Repo-centric W4.1 submit path should short-circuit cleanly when the repo-owned guard marks the group as skipped',
+);
+assert(
+  JSON.stringify(repoCentricW41BuildManifestNode?.parameters).includes(
+    "Buffer.from(body, 'utf8').toString('base64')",
+  ) &&
+    !JSON.stringify(repoCentricW41BuildManifestNode?.parameters).includes('return [{') &&
+    JSON.stringify(repoCentricW41BuildManifestNode?.parameters).includes('j.manifest4Key') &&
+    repoCentricW41UploadManifestNode?.parameters?.binaryData === true,
+  'Repo-centric W4.1 manifest upload should serialize each per-sibling 4-manifest into binary data on the canonical child-order key and return a single item in runOnceForEachItem mode',
+);
+assert(
+  JSON.stringify(repoCentricW41QaFailedNode?.parameters).includes('orderPrefix') &&
+    JSON.stringify(repoCentricW41QaFailedNode?.parameters).includes('4-qa-fail-manifest.json') &&
+    JSON.stringify(repoCentricW41BuildErrorManifestNode?.parameters).includes(
+      "Buffer.from(body, 'utf8').toString('base64')",
+    ) &&
+    !JSON.stringify(repoCentricW41BuildErrorManifestNode?.parameters).includes('return [{') &&
+    repoCentricW41UploadErrorManifestNode?.parameters?.binaryData === true,
+  'Repo-centric W4.1 QA failure handling should persist binary-safe error manifests under each child order root and return a single item in runOnceForEachItem mode',
+);
+assert(
+  repoCentricW41FetchConnections.includes('"node":"Respond to Webhook (Ack)"') &&
+    repoCentricW41FetchConnections.includes('"node":"Validate & Normalize Per Sibling"') &&
+    repoCentricW41ValidateConnections.includes('"node":"Supabase: mark start (N rows)"') &&
+    repoCentricW41ValidateConnections.includes('"node":"Build Pages HTML (8.75in)"'),
+  'Repo-centric W4.1 intake should acknowledge after the repo call and fan back out to per-sibling start-marking plus HTML generation',
+);
+assert(
+  repoCentricW41PollPdfCode.includes('$itemIndex') &&
+    !repoCentricW41PollPdfCode.includes('?.[0]?.json') &&
+    repoCentricW41ReattachCoverContextCode.includes('$itemIndex') &&
+    !repoCentricW41ReattachCoverContextCode.includes('?.[0]?.json') &&
+    repoCentricW41ReattachInteriorContextCode.includes('$itemIndex') &&
+    !repoCentricW41ReattachInteriorContextCode.includes('?.[0]?.json') &&
+    repoCentricW41ReattachQaContextCode.includes('$itemIndex') &&
+    !repoCentricW41ReattachQaContextCode.includes('?.[0]?.json'),
+  'Repo-centric W4.1 per-sibling PDF and QA reattachment nodes should preserve the current item context instead of collapsing every branch onto sibling 0',
+);
+assert(
+  siblingW41PollPdfCode.includes('$itemIndex') &&
+    !siblingW41PollPdfCode.includes('?.[0]?.json') &&
+    siblingW41ReattachCoverContextCode.includes('$itemIndex') &&
+    !siblingW41ReattachCoverContextCode.includes('?.[0]?.json') &&
+    siblingW41ReattachInteriorContextCode.includes('$itemIndex') &&
+    !siblingW41ReattachInteriorContextCode.includes('?.[0]?.json') &&
+    siblingW41ReattachQaContextCode.includes('$itemIndex') &&
+    !siblingW41ReattachQaContextCode.includes('?.[0]?.json'),
+  'Sibling-source W4.1 per-sibling PDF and QA reattachment nodes should preserve the current item context instead of collapsing every branch onto sibling 0',
+);
 
 console.log(
   JSON.stringify(
@@ -1123,6 +1503,8 @@ console.log(
       requiredPoseSource: twoBManifestSnapshot.requiredPoseSource,
       w3WorkflowChecked: true,
       w4WorkflowChecked: true,
+      repoCentricW4WorkflowChecked: true,
+      repoCentricW41WorkflowChecked: true,
     },
     null,
     2,

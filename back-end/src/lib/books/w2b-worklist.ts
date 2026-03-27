@@ -15,7 +15,10 @@ export type LoadManifestForW2B = (manifestKey: string) => Promise<unknown | null
 
 export interface W2BWorklistItem {
   orderId: string;
+  rootOrderId: string | null;
   amazonOrderId: string | null;
+  bookId: string;
+  orderPrefix: string;
   characterHash: string;
   poseNumber: number;
   approvedKey: string | null;
@@ -26,6 +29,12 @@ export interface W2BWorklistItem {
   backendUrl: string;
   callbackUrl: string;
   force: boolean;
+  workflowJobId?: number | null;
+  workflowJobIdempotencyKey?: string | null;
+  workflowJobStatus?: string | null;
+  workflowAttemptId?: number | null;
+  workflowAttempt?: number | null;
+  workflowClaimed?: boolean;
 }
 
 export interface W2BWorklistSummary {
@@ -387,7 +396,10 @@ export async function buildW2BWorklist(
 
     workItems.push({
       orderId,
+      rootOrderId,
       amazonOrderId,
+      bookId,
+      orderPrefix,
       characterHash,
       poseNumber,
       approvedKey: toTrimmedString(entry.approvedKey),

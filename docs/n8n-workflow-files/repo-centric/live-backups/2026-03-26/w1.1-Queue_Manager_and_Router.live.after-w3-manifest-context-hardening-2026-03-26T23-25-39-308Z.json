@@ -1,0 +1,2110 @@
+{
+  "updatedAt": "2026-03-26T23:25:40.186Z",
+  "createdAt": "2026-02-24T01:21:46.752Z",
+  "id": "TDwc85g03FqPf9D6",
+  "name": "WORKING VERSION - LHB 1.1 - Queue Manager and Router",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ (() => {\n  const ownId = String($json.orderDbId ?? '').trim();\n  if ($json._route !== 'sibling') {\n    return `eq.${ownId}`;\n  }\n  const claimIds = Array.isArray($json.claimOrderDbIds)\n    ? [...new Set($json.claimOrderDbIds.map((value) => String(value).trim()).filter(Boolean))]\n    : [];\n  if (!claimIds.length && ownId) claimIds.push(ownId);\n  if (!claimIds.length) throw new Error('Missing claimOrderDbIds/orderDbId for sibling claim');\n  return `in.(${claimIds.join(',')})`;\n})() }}"
+            },
+            {
+              "name": "execution_status",
+              "value": "eq.ready_for_processing"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": $json.claimStartedAt || new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+        "options": {}
+      },
+      "id": "b16cee24-f25c-445d-9102-40a08a11a1d1",
+      "name": "Mark as Processing (4)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3648,
+        -896
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clean phone number function (strips extensions)\nfunction cleanPhoneNumber(phone) {\n  if (!phone) return null;\n  let cleaned = String(phone).trim();\n  // Remove extension patterns: \"ext. 02924\", \"ext 02924\", \"extension 02924\", \"x 02924\", etc.\n  cleaned = cleaned.replace(/\\s*(ext|extension|x)[\\s:\\.]*\\d+/gi, '');\n  cleaned = cleaned.trim();\n  return cleaned || null;\n}\n\n// Normalize shipping address - handles multiple formats and field name variations\nfunction normalizeShippingAddress(rawShipping) {\n  if (!rawShipping) return null;\n  \n  // Step 1: Parse JSON string if needed\n  let shipping = rawShipping;\n  if (typeof rawShipping === 'string') {\n    try {\n      shipping = JSON.parse(rawShipping);\n    } catch (e) {\n      console.warn('Failed to parse shipping_address JSON string:', e.message);\n      return null;\n    }\n  }\n  \n  // Step 2: Ensure it's an object\n  if (typeof shipping !== 'object' || Array.isArray(shipping) || shipping === null) {\n    return null;\n  }\n  \n  // Step 3: Normalize field names - map legacy to expected format\n  // Keep both formats for backward compatibility\n  const normalized = { ...shipping };\n  \n  // Normalize address field\n  if (normalized.address && !normalized.address_line_1) {\n    normalized.address_line_1 = normalized.address;\n  } else if (normalized.address_line_1 && !normalized.address) {\n    normalized.address = normalized.address_line_1; // Keep legacy for compatibility\n  }\n  \n  // Normalize state field\n  if (normalized.state && !normalized.state_code) {\n    normalized.state_code = normalized.state;\n  } else if (normalized.state_code && !normalized.state) {\n    normalized.state = normalized.state_code; // Keep legacy for compatibility\n  }\n  \n  // Normalize zip/postal_code field\n  if (normalized.zip && !normalized.postal_code) {\n    normalized.postal_code = normalized.zip;\n  } else if (normalized.postal_code && !normalized.zip) {\n    normalized.zip = normalized.postal_code; // Keep legacy for compatibility\n  }\n  \n  // Normalize address_line_2 (if present)\n  if (normalized.address2 && !normalized.address_line_2) {\n    normalized.address_line_2 = normalized.address2;\n  } else if (normalized.address_line_2 && !normalized.address2) {\n    normalized.address2 = normalized.address_line_2; // Keep legacy for compatibility\n  }\n  \n  // Ensure name field exists (may be called recipient_name or name)\n  if (normalized.recipient_name && !normalized.name) {\n    normalized.name = normalized.recipient_name;\n  }\n  \n  // D2C uses address_line1 (no underscore before 1)\n  if (normalized.address_line1 && !normalized.address_line_1) {\n    normalized.address_line_1 = normalized.address_line1;\n  } else if (normalized.address_line_1 && !normalized.address_line1) {\n    normalized.address_line1 = normalized.address_line_1;\n  }\n  if (normalized.address_line2 && !normalized.address_line_2) {\n    normalized.address_line_2 = normalized.address_line2;\n  } else if (normalized.address_line_2 && !normalized.address_line2) {\n    normalized.address_line2 = normalized.address_line_2;\n  }\n  \n  return normalized;\n}\n\n// Derive shared root order ID by stripping -item-* suffix\nfunction deriveRootOrderId(id) {\n  if (!id) return id;\n  const match = String(id).match(/^(.+?)-item-/);\n  return match ? match[1] : id;\n}\n\n// Process Workflow 4 orders\nconst routing = $input.first().json;\nconst orders4 = routing.workflow4 || [];\nif (orders4.length === 0) {\n  console.log('No orders for Workflow 4');\n  return [];\n}\nconsole.log(`=== PROCESSING ${orders4.length} ORDERS FOR WORKFLOW 4 ===`);\nconst prefix = 'book-mvp-simple-adventure/orders';\n\n// Build minimal payload - W4 will fetch 3-manifest itself\nreturn orders4.map(order => {\n  const orderId = order.orderId || order.order_id || order.root_order_id || order.amazon_order_id;\n  const rawShipping = order.shipping_address;\n  let shippingAddress = normalizeShippingAddress(rawShipping);\n  // Final fallback: ensure address_line_1 exists (D2C uses address_line1)\n  if (shippingAddress && !shippingAddress.address_line_1) {\n    shippingAddress.address_line_1 = shippingAddress.address_line1 || shippingAddress.address || '';\n  }\n  const rawPhone = shippingAddress?.phone_number || shippingAddress?.phone;\n  const cleanedPhone = cleanPhoneNumber(rawPhone);\n  const phone_number = cleanedPhone || '+1-678-478-3477';\n  if (shippingAddress) {\n    shippingAddress.phone_number = phone_number;\n    if (!shippingAddress.phone) shippingAddress.phone = phone_number;\n  }\n  const rootOrderId = order.root_order_id || deriveRootOrderId(order.amazon_order_id || order.amazonOrderId || orderId);\n  return {\n    json: {\n      orderId,\n      rootOrderId,\n    amazonOrderId: order.amazon_order_id,\n      characterHash: order.character_hash,\n      orderDbId: order.id,\n      workflow: '4',\n      shipping_address: shippingAddress,\n      manifest3Key: `${prefix}/${orderId}/manifests/3-manifest.json`,\n      oneManifestKey: order.one_manifest_url || `${prefix}/${orderId}/manifests/1-manifest.json`,\n      // Amazon shipping tier so W4 can set Lulu shipping_level (EXPRESS/EXPEDITED/GROUND/MAIL)\n      ShipmentServiceLevelCategory: order.amazon_shipment_service_level || null,\n      ShipServiceLevel: order.amazon_shipment_service_level || null,\n      shipping_tier: order.shipping_tier || null\n    }\n  };\n});"
+      },
+      "id": "0d1d6a8a-5448-4e16-a068-2ddc86e1b862",
+      "name": "Prep Workflow 4 Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        -880
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4-pdf-print-sibtest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.orderId + '-' + $json.workflow }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "c47f04bc-8ec6-4c2e-8177-4702f24ec6b0",
+      "name": "Trigger Workflow ",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4288,
+        -800
+      ],
+      "notes": "Update webhook URL in environment or here"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly-sibtest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.orderId + '-' + $json.workflow }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "85987d33-e611-4257-b061-8ea90dfbb718",
+      "name": "Trigger Workflow 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3728,
+        -1120
+      ],
+      "notes": "Update webhook URL in environment or here"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal-sibtest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.orderId + '-' + $json.workflow }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "9e2f189c-4051-4bc3-9ba1-7945a3f91c5f",
+      "name": "Trigger 2B Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3488,
+        -1408
+      ],
+      "notes": "Update webhook URL in environment or here"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/2a-start-repo",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.orderId + '-' + $json.workflow }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "e504e363-b5c1-4cff-ba7b-1ca1d884f197",
+      "name": "Trigger 2A Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3200,
+        -1600
+      ],
+      "notes": "Update webhook URL in environment or here"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge Prep Data with Supabase Response (3)\n// Preserve one output per claimed order.\n\nconst inputRows = [];\nfor (const item of $input.all()) {\n  const v = item.json;\n  if (Array.isArray(v)) {\n    for (const row of v) {\n      if (row && typeof row === 'object' && Object.keys(row).length > 0) inputRows.push(row);\n    }\n    continue;\n  }\n  if (v && typeof v === 'object' && Object.keys(v).length > 0) inputRows.push(v);\n}\n\nif (inputRows.length === 0) {\n  return [];\n}\n\nconst prepItems = $items('Prep Workflow 3 Orders', 0, $runIndex).map(item => item.json || {});\nconst prepByDbId = new Map(prepItems.map(p => [String(p.orderDbId), p]));\nconst usedPrepIds = new Set();\nconst output = [];\n\nfor (const row of inputRows) {\n  const rowDbId = row.id != null ? String(row.id) : '';\n  let prep = rowDbId ? prepByDbId.get(rowDbId) : null;\n\n  if (!prep && row.orderId) {\n    prep = prepItems.find(p => p.orderId === row.orderId) || null;\n  }\n\n  if (!prep && row.amazon_order_id) {\n    prep = prepItems.find(p => p.orderId === row.amazon_order_id || p.amazonOrderId === row.amazon_order_id) || null;\n  }\n\n  if (!prep) {\n    prep = prepItems.find(p => !usedPrepIds.has(String(p.orderDbId))) || null;\n  }\n\n  if (!prep) {\n    continue;\n  }\n\n  usedPrepIds.add(String(prep.orderDbId));\n  output.push({\n    json: {\n      ...prep,\n      ...row,\n      orderId: prep.orderId || row.orderId || row.amazon_order_id || row.amazonOrderId,\n      amazonOrderId: prep.amazonOrderId || row.amazon_order_id || row.amazonOrderId || null,\n      oneManifestKey: prep.oneManifestKey,\n      dedicationText: prep.dedicationText || null,\n      characterHash: prep.characterHash || row.character_hash || row.characterHash,\n      workflow: prep.workflow || row.current_workflow || '3',\n      orderDbId: row.id || prep.orderDbId,\n      claimedAt: row.started_at || null,\n    },\n  });\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3264,
+        -1120
+      ],
+      "id": "5d24011a-07f4-4159-8398-61212b57715c",
+      "name": "Merge Prep Data with Supabase Response (3)"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.orderDbId) }}"
+            },
+            {
+              "name": "execution_status",
+              "value": "eq.ready_for_processing"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+        "options": {}
+      },
+      "id": "25b57307-c365-455c-8f52-2e2a7aba89c8",
+      "name": "Mark as Processing (3)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3008,
+        -1120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.orderDbId) }}"
+            },
+            {
+              "name": "execution_status",
+              "value": "eq.ready_for_processing"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+        "options": {}
+      },
+      "id": "1343c64f-ad52-41b5-8a7d-22fedf835577",
+      "name": "Mark as Processing (2B)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2976,
+        -1408
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.orderDbId) }}"
+            },
+            {
+              "name": "execution_status",
+              "value": "eq.ready_for_processing"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+        "options": {}
+      },
+      "id": "69539693-4f1a-479c-b75b-2eaf61b2700a",
+      "name": "Mark as Processing (2A)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2976,
+        -1600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process Workflow 3 orders\nconst routing = $input.first().json;\nconst orders3 = routing.workflow3 || [];\n\nif (orders3.length === 0) {\n  console.log('No orders for Workflow 3');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders3.length} ORDERS FOR WORKFLOW 3 ===`);\n\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nfunction firstNonEmpty(...values) {\n  for (const value of values) {\n    if (value === undefined || value === null) continue;\n    if (typeof value === 'string') {\n      const trimmed = value.trim();\n      if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') return trimmed;\n      continue;\n    }\n    return value;\n  }\n  return null;\n}\n\nfunction normalizePathLike(value) {\n  const raw = firstNonEmpty(value);\n  if (!raw || typeof raw !== 'string') return null;\n  const withoutHash = raw.split('#')[0] || '';\n  const withoutQuery = withoutHash.split('?')[0] || '';\n  if (withoutQuery.includes('/api/manifests/')) {\n    return withoutQuery.split('/api/manifests/')[1]?.replace(/^\\/+/, '') || null;\n  }\n  if (withoutQuery.includes('/api/assets/')) {\n    return withoutQuery.split('/api/assets/')[1]?.replace(/^\\/+/, '') || null;\n  }\n  return withoutQuery.replace(/^\\/+/, '') || null;\n}\n\nfunction extractOrderPrefix(...values) {\n  for (const value of values) {\n    const normalized = normalizePathLike(value);\n    if (!normalized) continue;\n\n    const manifestIndex = normalized.indexOf('/manifests/');\n    if (manifestIndex > 0) {\n      return normalized.slice(0, manifestIndex);\n    }\n\n    const ordersMatch = normalized.match(/^([^/]+\\/orders\\/[^/]+)/);\n    if (ordersMatch?.[1]) {\n      return ordersMatch[1];\n    }\n  }\n\n  return null;\n}\n\nconst processed = [];\nconst skipped = [];\n\nfor (const order of orders3) {\n  const orderId = firstNonEmpty(order.orderId, order.order_id);\n  if (!orderId) {\n    console.error(`[Prep W3] Order DB id=${order.id} has no per-book orderId; skipping`);\n    skipped.push('(no per-book ID)');\n    continue;\n  }\n\n  const rootOrderId = firstNonEmpty(\n    order.root_order_id,\n    order.rootOrderId,\n    order.amazon_order_id,\n    order.amazonOrderId,\n    orderId,\n  );\n  const amazonOrderId = firstNonEmpty(order.amazon_order_id, order.amazonOrderId, rootOrderId);\n  const oneManifestUrl = firstNonEmpty(order.one_manifest_url, order.oneManifestUrl);\n  const oneManifestKey = firstNonEmpty(order.one_manifest_key, order.oneManifestKey, oneManifestUrl);\n  const manifest2bUrl = firstNonEmpty(order.manifest_2b_url, order.manifest2bUrl);\n  const manifest3Url = firstNonEmpty(order.manifest_3_url, order.manifest3Url);\n  const assetPrefix = firstNonEmpty(order.asset_prefix, order.assetPrefix);\n  const orderPrefix = extractOrderPrefix(manifest3Url, manifest2bUrl, oneManifestUrl, oneManifestKey, assetPrefix);\n  const bookId = orderPrefix ? orderPrefix.split('/orders/')[0] || null : null;\n\n  if (!oneManifestKey && !manifest2bUrl && !manifest3Url && !assetPrefix && !orderPrefix) {\n    console.warn(`\\u26a0\\ufe0f Order ${orderId} missing W3 manifest context - marking as error`);\n\n    try {\n      await fetch(`${supabaseUrl}/rest/v1/orders?id=eq.${order.id}`, {\n        method: 'PATCH',\n        headers: {\n          apikey: supabaseKey,\n          Authorization: `Bearer ${supabaseKey}`,\n          'Content-Type': 'application/json',\n          Prefer: 'return=representation',\n        },\n        body: JSON.stringify({\n          execution_status: 'error',\n          error_type: 'missing_manifest_context',\n          error_message: 'Missing required W3 manifest context (1/2B/3 manifest pointer or order asset prefix)',\n          updated_at: new Date().toISOString(),\n        }),\n      });\n    } catch (error) {\n      console.error(`Failed to mark order ${orderId} as error:`, error);\n    }\n\n    skipped.push(orderId);\n    continue;\n  }\n\n  processed.push({\n    json: {\n      orderId,\n      rootOrderId,\n      amazonOrderId,\n      orderPrefix: orderPrefix || undefined,\n      bookId: bookId || undefined,\n      oneManifestUrl: oneManifestUrl || undefined,\n      oneManifestKey: oneManifestKey || undefined,\n      manifest2bUrl: manifest2bUrl || undefined,\n      manifest3Url: manifest3Url || undefined,\n      assetPrefix: assetPrefix || undefined,\n      characterHash: firstNonEmpty(order.character_hash, order.characterHash),\n      orderDbId: order.id,\n      workflow: '3',\n      dedicationText: order.dedication_text || null,\n    },\n  });\n}\n\nif (skipped.length > 0) {\n  console.log(`\\u26a0\\ufe0f Skipped ${skipped.length} orders due to missing W3 manifest context: ${skipped.join(', ')}`);\n}\n\nconsole.log(`\\u2705 Processed ${processed.length} orders for Workflow 3`);\n\nreturn processed;\n"
+      },
+      "id": "b4a5a5a6-82a7-4903-8acb-24c56e0f42e7",
+      "name": "Prep Workflow 3 Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2768,
+        -1120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Process 2B orders\nconst routing = $input.first().json;\nconst orders2B = routing.workflow2B || [];\n\nif (orders2B.length === 0) {\n  console.log('No orders for 2B');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2B.length} ORDERS FOR 2B ===`);\n\n// Keep payload minimal; W2B will pull any needed URLs or keys itself\nreturn orders2B\n  .filter(order => {\n    if (!order.orderId && !order.order_id) {\n      console.error(`[Prep 2B] Order DB id=${order.id} missing per-book orderId; skipping`);\n      return false;\n    }\n    return true;\n  })\n  .map(order => ({\n  json: {\n    orderId: order.orderId || order.order_id,\n    rootOrderId: order.root_order_id || order.amazon_order_id || order.amazonOrderId || order.orderId || order.order_id,\n    amazonOrderId: order.amazon_order_id,\n    characterHash: order.character_hash,\n    orderDbId: order.id,\n    workflow: '2B'\n  }\n}));\n"
+      },
+      "id": "7c6214a4-57b0-442a-9ee7-f8b3ad2468a2",
+      "name": "Prep 2B Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2768,
+        -1408
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process 2A orders\n// If character_specs is null, fetch from manifest\nconst routing = $input.first().json;\nconst orders2A = routing.workflow2A || [];\n\nif (orders2A.length === 0) {\n  console.log('No orders for 2A');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2A.length} ORDERS FOR 2A ===`);\n\nfunction firstNonEmpty(...vals) {\n  return vals.find((v) => v !== undefined && v !== null && String(v).trim() !== '');\n}\n\n// Process each order\nconst processed = [];\nfor (const order of orders2A) {\n  const perItemOrderId = firstNonEmpty(order.orderId, order.order_id, order.amazon_order_id, order.amazonOrderId);\n  const rootOrderId = firstNonEmpty(order.root_order_id, order.rootOrderId, order.amazon_order_id, order.amazonOrderId, perItemOrderId);\n\n  if (!perItemOrderId) {\n    console.warn('⚠️ Skipping 2A order with no per-item orderId', {\n      id: order.id,\n      root_order_id: order.root_order_id,\n      amazon_order_id: order.amazon_order_id,\n    });\n    continue;\n  }\n\n  let characterSpecs = order.character_specs;\n  let bookSpecs = order.book_specs;\n  let characterHash = order.character_hash;\n  \n  // If character_specs is null but we have a manifest URL, fetch it\n  if (!characterSpecs && order.one_manifest_url) {\n    try {\n      const manifestKey = order.one_manifest_url;\n      const publicR2Url = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n      const manifestUrl = `${publicR2Url}/${manifestKey}`;\n      \n      console.log(`Fetching manifest from: ${manifestUrl}`);\n      \n      const response = await fetch(manifestUrl);\n      if (response.ok) {\n        const manifest = await response.json();\n        \n        // Extract character specs and book specs from manifest\n        if (manifest.order) {\n          characterSpecs = manifest.order.characterSpecs || null;\n          bookSpecs = manifest.order.bookSpecs || null;\n          \n          // Generate character hash if we have character specs but no hash\n          if (characterSpecs && !characterHash && characterSpecs.childName) {\n            const hashInput = `${characterSpecs.childName}-${characterSpecs.skinTone}-${characterSpecs.hairColor}-${characterSpecs.hairStyle}`;\n            let hash = 0;\n            for (let i = 0; i < hashInput.length; i++) {\n              const char = hashInput.charCodeAt(i);\n              hash = ((hash << 5) - hash) + char;\n              hash = hash & hash;\n            }\n            characterHash = Math.abs(hash).toString(16).slice(0, 8);\n            console.log(`Generated character hash: ${characterHash}`);\n          }\n          \n          console.log(`✅ Extracted character specs from manifest for order ${perItemOrderId}`);\n        } else {\n          console.warn(`⚠️ Manifest missing 'order' field for ${perItemOrderId}`);\n        }\n      } else {\n        console.warn(`⚠️ Failed to fetch manifest (${response.status}) for ${perItemOrderId}`);\n      }\n    } catch (error) {\n      console.error(`❌ Error fetching manifest for ${perItemOrderId}:`, error.message);\n    }\n  }\n  \n  processed.push({\n    json: {\n      orderId: perItemOrderId,\n      rootOrderId: rootOrderId,\n      amazonOrderId: rootOrderId,\n      characterHash: characterHash,\n      characterSpecs: characterSpecs,\n      bookSpecs: bookSpecs,\n      orderDbId: order.id,\n      workflow: '2A',\n      oneManifestUrl: order.one_manifest_url || null\n    }\n  });\n}\n\nreturn processed;"
+      },
+      "id": "68818ca2-410f-45d6-8773-4fff0ce938cf",
+      "name": "Prep 2A Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2768,
+        -1600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reset capacity counter when we have capacity\nif ($execution.customData) {\n  $execution.customData.capacityFullCycles = 0;\n}\n\n// Route order to correct workflow based on next_workflow field\nconst orders = $input.all();\n\nif (!orders || orders.length === 0) {\n  console.log('No orders to route');\n  return [];\n}\n\nconst routed = {\n  workflow2A: [],\n  workflow2B: [],\n  workflow3: [],\n  workflow4: [],\n  workflow4Aggregate: []\n};\n\nfor (const item of orders) {\n  const order = item.json;\n  const nextWorkflow = order.next_workflow;\n  console.log(`Order ${order.orderId || order.order_id || '(no per-book ID)'}: Route to ${nextWorkflow}`);\n  if (nextWorkflow === '2A') routed.workflow2A.push(order);\n  else if (nextWorkflow === '2B') routed.workflow2B.push(order);\n  else if (nextWorkflow === '3') routed.workflow3.push(order);\n  else if (nextWorkflow === '4-aggregate') routed.workflow4Aggregate.push(order);\n  else if (nextWorkflow === '4') routed.workflow4.push(order);\n  else console.warn(`Unknown workflow: ${nextWorkflow} for order ${order.orderId || order.order_id || '(no per-book ID)'}`);\n}\n\nconsole.log(`Routing summary: 2A=${routed.workflow2A.length} 2B=${routed.workflow2B.length} 3=${routed.workflow3.length} 4=${routed.workflow4.length} 4-aggregate=${routed.workflow4Aggregate.length}`);\n\nreturn [{ json: routed }];"
+      },
+      "id": "2550014d-d90b-4414-b91e-1d9623b0f068",
+      "name": "Route Orders by Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        -1408
+      ],
+      "notes": "Separates orders by workflow type"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract orders from Vercel Cron webhook payload\n// n8n webhook structure: { body: { orders: [...] }, headers: {...}, params: {...}, query: {...} }\n// Vercel sends: { orders: [...] } in the body\n// This node extracts the orders array from body and passes through\nconst webhookData = $input.first().json || {};\n\n// Check body.orders first (n8n webhook structure), then fallback to top-level orders\nconst orders = webhookData.body?.orders || webhookData.orders || [];\n\nconsole.log('=== ROUTER WEBHOOK TRIGGERED ===');\nconsole.log('Webhook data keys:', Object.keys(webhookData));\nconsole.log('Has body:', !!webhookData.body);\nconsole.log('Body keys:', webhookData.body ? Object.keys(webhookData.body) : 'N/A');\nconsole.log(`Received ${orders.length} orders from Vercel Cron`);\n\nif (orders.length === 0) {\n  console.log('No orders in webhook payload - workflow will stop');\n  console.log('Webhook data structure:', JSON.stringify(webhookData, null, 2).substring(0, 500));\n  return [];\n}\n\n// Return orders as individual items for routing\nreturn orders.map(order => ({ json: order }));"
+      },
+      "id": "d52b57e7-248b-4341-820d-a758b4993a73",
+      "name": "Extract Orders from Webhook",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        -1408
+      ],
+      "notes": "Extracts orders array from Vercel Cron webhook payload. Vercel already checked capacity and filtered orders."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "w1-1-router-sibtest",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "36635bd4-081f-49fb-b2a8-8147f199e2d4",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        1616,
+        -1408
+      ],
+      "webhookId": "w1-1-router-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "var input = $input.all();\nvar claimed = [];\nvar i;\n\nfor (i = 0; i < input.length; i++) {\n  var v = input[i].json;\n  if (Array.isArray(v)) {\n    var j;\n    for (j = 0; j < v.length; j++) {\n      if (v[j] && typeof v[j] === 'object' && Object.keys(v[j]).length > 0) claimed.push(v[j]);\n    }\n  } else if (v && typeof v === 'object' && Object.keys(v).length > 0) {\n    claimed.push(v);\n  }\n}\n\nif (claimed.length === 0) return [];\n\nvar prepRows = $items('Prep 2B Orders', 0, $runIndex);\nvar prep = [];\nfor (i = 0; i < prepRows.length; i++) prep.push(prepRows[i].json || {});\n\nvar out = [];\nfor (i = 0; i < claimed.length; i++) {\n  var c = claimed[i];\n  var match = null;\n  var k;\n\n  for (k = 0; k < prep.length; k++) {\n    var p = prep[k];\n    if (String(p.orderDbId) === String(c.id || '')) { match = p; break; }\n    if (!match && c.orderId && p.orderId === c.orderId) { match = p; break; }\n    if (!match && c.amazon_order_id && (p.orderId === c.amazon_order_id || p.amazonOrderId === c.amazon_order_id)) { match = p; break; }\n  }\n\n  if (!match) continue;\n\n  out.push({\n    json: {\n      orderId: match.orderId,\n      rootOrderId: match.rootOrderId,\n      amazonOrderId: match.amazonOrderId,\n      characterHash: match.characterHash,\n      orderDbId: c.id || match.orderDbId,\n      workflow: match.workflow,\n      claimedAt: c.started_at || null\n    }\n  });\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        -1408
+      ],
+      "id": "8e9c4080-dc24-4188-b9fc-a993cabc2081",
+      "name": "Verify Order Claimed (2B)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verify Order Claimed (3)\n// Keep one output per claimed order.\n\nconst rows = [];\nfor (const item of $input.all()) {\n  const v = item.json;\n  if (Array.isArray(v)) {\n    for (const row of v) {\n      if (row && typeof row === 'object' && Object.keys(row).length > 0) rows.push(row);\n    }\n    continue;\n  }\n  if (v && typeof v === 'object' && Object.keys(v).length > 0) rows.push(v);\n}\n\nconst output = [];\nfor (const row of rows) {\n  if (!row.id && !row.orderDbId) {\n    continue;\n  }\n\n  output.push({\n    json: {\n      orderId: row.orderId || row.amazon_order_id || row.amazonOrderId,\n      amazonOrderId: row.amazonOrderId || row.amazon_order_id || null,\n      oneManifestKey: row.oneManifestKey,\n      characterHash: row.characterHash || row.character_hash,\n      orderDbId: row.id || row.orderDbId,\n      workflow: row.workflow || '3',\n      dedicationText: row.dedicationText || row.dedication_text || null,\n      claimedAt: row.started_at || row.claimedAt || null,\n    },\n  });\n}\n\nif (output.length === 0) {\n  console.log('No claimed 3-orders to trigger');\n  return [];\n}\n\nconsole.log(`Claimed ${output.length} order(s) for 3`);\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3504,
+        -1120
+      ],
+      "id": "d024253f-d00b-4eb1-8d27-7a0e5148f1b6",
+      "name": "Verify Order Claimed (3)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verify Order Claimed (4)\n// Verify claim state from Supabase directly so empty PATCH bodies do not drop the route.\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    if (typeof v === 'string') {\n      const s = v.trim();\n      if (s !== '') return s;\n    } else {\n      return v;\n    }\n  }\n  return null;\n}\n\nfunction timestampKey(value) {\n  const raw = String(value || '').trim();\n  if (!raw) return '';\n  const withZone = /(?:Z|[+-]\\d{2}:\\d{2})$/i.test(raw) ? raw : `${raw}Z`;\n  const parsed = Date.parse(withZone);\n  if (Number.isFinite(parsed)) return String(parsed);\n  return raw.replace(/Z$/i, '').replace(/[+-]00:00$/i, '');\n}\n\nconst prepItems = $items('Get Signed URL (1‑manifest)-W4', 0, $runIndex).map(item => item.json || {});\nif (!prepItems.length) {\n  console.log('No prep items for 4-claim verification');\n  return [];\n}\n\nconst expectedIds = [...new Set(\n  prepItems\n    .map((prep) => prep.orderDbId)\n    .filter((value) => value !== undefined && value !== null && String(value).trim() !== '')\n    .map((value) => String(value).trim())\n)];\n\nif (!expectedIds.length) {\n  console.log('No orderDbIds available for 4-claim verification');\n  return [];\n}\n\nconst rows = await this.helpers.request({\n  method: 'GET',\n  uri: `${supabaseUrl}/rest/v1/orders`,\n  qs: {\n    id: `in.(${expectedIds.join(',')})`,\n    select: 'id,orderId,root_order_id,amazon_order_id,execution_status,current_workflow,started_at,next_workflow'\n  },\n  headers: {\n    apikey: supabaseKey,\n    Authorization: `Bearer ${supabaseKey}`,\n  },\n  json: true,\n});\n\nconst rowById = new Map((Array.isArray(rows) ? rows : []).map((row) => [String(row.id), row]));\nconst output = [];\nconst siblingGroups = new Map();\n\nfor (const prep of prepItems) {\n  const dbId = prep.orderDbId != null ? String(prep.orderDbId).trim() : '';\n  if (!dbId) continue;\n  const row = rowById.get(dbId);\n  const expectedStartedAt = String(prep.claimStartedAt || '').trim();\n  const matches = !!row\n    && String(row.execution_status || '').trim() === 'processing'\n    && String(row.current_workflow || '').trim() === '4'\n    && (!expectedStartedAt || timestampKey(row.started_at) === timestampKey(expectedStartedAt));\n\n  if (prep._route === 'sibling') {\n    const rootId = firstNonEmpty(prep.claimRootOrderId, prep.rootOrderId, prep.amazonOrderId, prep.orderId);\n    if (rootId) {\n      if (!siblingGroups.has(rootId)) {\n        siblingGroups.set(rootId, {\n          expectedIds: new Set(),\n          matchedIds: new Set(),\n          expectedStartedAt,\n        });\n      }\n      const bucket = siblingGroups.get(rootId);\n      const claimIds = Array.isArray(prep.claimOrderDbIds)\n        ? prep.claimOrderDbIds.map((value) => String(value).trim()).filter(Boolean)\n        : [dbId];\n      for (const id of claimIds) bucket.expectedIds.add(id);\n      if (matches) bucket.matchedIds.add(dbId);\n    }\n  }\n\n  if (!matches) {\n    continue;\n  }\n\n  output.push({\n    json: {\n      ...prep,\n      claimedAt: row.started_at || prep.claimStartedAt || null,\n      oneManifestUrl: prep.oneManifestUrl || prep.oneManifestKey || null,\n    },\n  });\n}\n\nfor (const [rootId, meta] of siblingGroups.entries()) {\n  const expectedCount = meta.expectedIds.size;\n  const matchedCount = meta.matchedIds.size;\n  if (expectedCount >= 2 && matchedCount !== expectedCount) {\n    throw new Error(`[Verify Order Claimed (4)] Partial sibling claim for ${rootId}: expected ${expectedCount}, matched ${matchedCount}, started_at=${meta.expectedStartedAt || 'n/a'}`);\n  }\n}\n\nif (output.length === 0) {\n  console.log('No verified claimed orders for 4');\n  return [];\n}\n\nconsole.log(`Claimed ${output.length} order(s) for 4`);\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3856,
+        -896
+      ],
+      "id": "cc8470c9-b845-460b-a84e-9c7a85c7d508",
+      "name": "Verify Order Claimed (4)"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Resolve usable 1-manifest URLs for W4.\nconst backendBase = 'https://admin.littleherolabs.com';\nconst endpoint = `${backendBase}/api/r2/signed-url`;\nconst token = 'e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646';\nconst ttl = 600;\n\nfunction trimKey(value) {\n  return String(value || '').replace(/^\\/+/, '').split('?')[0].split('#')[0];\n}\n\nfunction normalizeManifestReference(value) {\n  const raw = value == null ? '' : String(value).trim();\n  if (!raw) return { raw: '', key: '', directUrl: null };\n\n  if (raw.startsWith('/api/manifests/')) {\n    return { raw, key: trimKey(raw.split('/api/manifests/')[1] || ''), directUrl: `${backendBase}${raw}` };\n  }\n  if (raw.startsWith('/api/assets/')) {\n    return { raw, key: trimKey(raw.split('/api/assets/')[1] || ''), directUrl: `${backendBase}${raw}` };\n  }\n  if (raw.includes('/api/manifests/')) {\n    return { raw, key: trimKey(raw.split('/api/manifests/')[1] || ''), directUrl: raw };\n  }\n  if (raw.includes('/api/assets/')) {\n    return { raw, key: trimKey(raw.split('/api/assets/')[1] || ''), directUrl: raw };\n  }\n  if (/^https?:\\/\\//i.test(raw)) {\n    try {\n      const url = new URL(raw);\n      return { raw, key: trimKey(url.pathname), directUrl: raw };\n    } catch {\n      return { raw, key: '', directUrl: raw };\n    }\n  }\n\n  return { raw, key: trimKey(raw), directUrl: null };\n}\n\nif (!token || token.trim() === '') {\n  throw new Error('BACKEND_API_TOKEN not configured. Token is required for authentication.');\n}\n\nconst inputItems = $input.all().map(item => item.json || {});\nconst output = [];\n\nfor (const item of inputItems) {\n  if (!item.oneManifestKey) {\n    throw new Error('Missing oneManifestKey');\n  }\n\n  const ref = normalizeManifestReference(item.oneManifestKey);\n  if (!ref.key && !ref.directUrl) {\n    throw new Error(`Could not normalize oneManifestKey: ${item.oneManifestKey}`);\n  }\n\n  if (ref.directUrl) {\n    output.push({\n      json: {\n        ...item,\n        oneManifestKey: ref.key || item.oneManifestKey,\n        oneManifestUrl: ref.directUrl,\n      },\n    });\n    continue;\n  }\n\n  try {\n    const res = await this.helpers.request({\n      method: 'GET',\n      uri: endpoint,\n      qs: { key: ref.key, bucket: 'little-hero-orders', expiresIn: ttl },\n      headers: {\n        Authorization: `Bearer ${token}`,\n        'Content-Type': 'application/json',\n      },\n      json: true,\n    });\n\n    const oneManifestUrl = res.url || res.data?.url || res.json?.url || res.result?.url;\n    if (!oneManifestUrl) {\n      throw new Error('Signed URL endpoint did not return a URL');\n    }\n\n    output.push({\n      json: {\n        ...item,\n        oneManifestKey: ref.key,\n        oneManifestUrl,\n      },\n    });\n  } catch (error) {\n    const status = error.response?.status || error.status || 'unknown';\n    const details = error.response?.data ? JSON.stringify(error.response.data) : error.message;\n\n    if (status === 401) {\n      throw new Error('Authentication failed (401). Check BACKEND_API_TOKEN alignment between n8n and backend.');\n    }\n\n    throw new Error(`Get Signed URL (1-manifest)-W4 failed for key=${ref.key} (raw=${ref.raw}) status=${status}: ${details}`);\n  }\n}\n\nreturn output;\n"
+      },
+      "id": "44a7409a-aad7-4ee2-9cb6-f1c0032bdc90",
+      "name": "Get Signed URL (1‑manifest)-W4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3408,
+        -896
+      ],
+      "notes": "NOTE: n8n Cloud doesn't allow env var access in Code nodes, so using hardcoded defaults"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "9059cd95-cddd-43a8-b0d8-f30e13cf9dca",
+              "leftValue": "={{ $json.shipping_address.name }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "4623bef4-f053-42d3-ba3c-02673487cb5e",
+              "leftValue": "={{ $json.shipping_address.state_code }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "7b244624-c4dd-4b40-acca-979494fed689",
+              "leftValue": "={{ $json.shipping_address.address_line_1 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "411fc024-8077-45d6-88b5-4da686867113",
+              "leftValue": "={{ $json.shipping_address.city }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "6a7c46a4-945b-4f68-bcf6-2dc67bcca040",
+              "leftValue": "={{ $json.shipping_address.postal_code }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ec9e3286-7bdb-424d-81c6-b479c8b80933",
+      "name": "Validate Shipping for w4",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        -880
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ 'eq.' + String($json.orderDbId) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"error_type\": \"missing_shipping\", \"error_message\": \"Missing shipping_address for w4 path in w1.1\", \"updated_at\": new Date().toISOString() } }}",
+        "options": {}
+      },
+      "id": "2b33f5a2-b830-4acd-ade0-2faed0f4c590",
+      "name": "Flag Missing Shipping (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3408,
+        -704
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://admin.littleherolabs.com/api/internal/orders/{{$json.orderId}}/flags/missing-shipping",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"source\": \"w1.1\", \"workflow\": \"w1.1->w4 shipping validation\", \"reason\": \"Missing shipping_address for w4 path\", \"severity\": \"warning\", \"run_id\": $runId, \"timestamp\": new Date().toISOString(), \"orderDbId\": $json.orderDbId, \"orderId\": $json.orderId } }}",
+        "options": {}
+      },
+      "id": "da944f4c-507a-49c4-ad96-bd7ea8df875d",
+      "name": "Flag Missing Shipping (Backend)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3648,
+        -704
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json || {};\nconsole.log('Skipping w4 for order due to missing shipping_address in w1.1', {\n  orderId: item.orderId,\n  orderDbId: item.orderDbId,\n});\n\nreturn [{\n  json: {\n    ...item,\n    shippingValidation: {\n      status: 'missing',\n      workflow: 'w1.1->w4',\n      timestamp: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "8200c8bb-16cf-4bd8-832b-71a17781e1be",
+      "name": "Log Skipped W4 Order",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3856,
+        -704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Classify W4 orders: 'single' -> w4, complete sibling groups -> w4.1.\n// If only part of a sibling group is present in the cron batch, hydrate the missing ready siblings from Supabase.\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\nconst prefix = 'book-mvp-simple-adventure/orders';\n\nfunction deriveRoot(id) {\n  if (!id) return id;\n  const m = String(id).match(/^(.+?)-item-/);\n  return m ? m[1] : id;\n}\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    const s = typeof v === 'string' ? v.trim() : v;\n    if (s !== '') return s;\n  }\n  return null;\n}\n\nfunction cleanPhoneNumber(phone) {\n  if (!phone) return null;\n  let cleaned = String(phone).trim();\n  cleaned = cleaned.replace(/\\s*(ext|extension|x)[\\s:\\.]*\\d+/gi, '');\n  cleaned = cleaned.trim();\n  return cleaned || null;\n}\n\nfunction normalizeShippingAddress(rawShipping) {\n  if (!rawShipping) return null;\n  let shipping = rawShipping;\n  if (typeof rawShipping === 'string') {\n    try {\n      shipping = JSON.parse(rawShipping);\n    } catch (e) {\n      console.warn('Failed to parse shipping_address JSON string:', e.message);\n      return null;\n    }\n  }\n  if (typeof shipping !== 'object' || Array.isArray(shipping) || shipping === null) {\n    return null;\n  }\n\n  const normalized = { ...shipping };\n  if (normalized.address && !normalized.address_line_1) normalized.address_line_1 = normalized.address;\n  else if (normalized.address_line_1 && !normalized.address) normalized.address = normalized.address_line_1;\n\n  if (normalized.state && !normalized.state_code) normalized.state_code = normalized.state;\n  else if (normalized.state_code && !normalized.state) normalized.state = normalized.state_code;\n\n  if (normalized.zip && !normalized.postal_code) normalized.postal_code = normalized.zip;\n  else if (normalized.postal_code && !normalized.zip) normalized.zip = normalized.postal_code;\n\n  if (normalized.address2 && !normalized.address_line_2) normalized.address_line_2 = normalized.address2;\n  else if (normalized.address_line_2 && !normalized.address2) normalized.address2 = normalized.address_line_2;\n\n  if (normalized.recipient_name && !normalized.name) normalized.name = normalized.recipient_name;\n\n  if (normalized.address_line1 && !normalized.address_line_1) normalized.address_line_1 = normalized.address_line1;\n  else if (normalized.address_line_1 && !normalized.address_line1) normalized.address_line1 = normalized.address_line_1;\n\n  if (normalized.address_line2 && !normalized.address_line_2) normalized.address_line_2 = normalized.address_line2;\n  else if (normalized.address_line_2 && !normalized.address_line2) normalized.address_line2 = normalized.address_line_2;\n\n  if (!normalized.address_line_1) {\n    normalized.address_line_1 = normalized.address_line1 || normalized.address || '';\n  }\n\n  const rawPhone = normalized.phone_number || normalized.phone;\n  const cleanedPhone = cleanPhoneNumber(rawPhone);\n  const phone_number = cleanedPhone || '+1-678-478-3477';\n  normalized.phone_number = phone_number;\n  if (!normalized.phone) normalized.phone = phone_number;\n\n  return normalized;\n}\n\nfunction buildPreparedItem(row, rootHint = null) {\n  const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId);\n  if (!orderId) return null;\n\n  const rootOrderId = firstNonEmpty(\n    row.rootOrderId,\n    row.root_order_id,\n    deriveRoot(row.amazon_order_id || row.amazonOrderId || orderId),\n    rootHint,\n    deriveRoot(orderId),\n    orderId,\n  );\n  const amazonOrderId = firstNonEmpty(\n    row.amazonOrderId,\n    row.amazon_order_id,\n    row.rootOrderId,\n    row.root_order_id,\n    rootOrderId,\n  );\n\n  return {\n    json: {\n      orderId,\n      rootOrderId,\n      amazonOrderId,\n      characterHash: firstNonEmpty(row.characterHash, row.character_hash),\n      orderDbId: row.orderDbId != null ? row.orderDbId : row.id,\n      workflow: '4',\n      shipping_address: normalizeShippingAddress(row.shipping_address),\n      manifest3Key: firstNonEmpty(row.manifest3Key, row.three_manifest_url, row.manifest3Url, `${prefix}/${orderId}/manifests/3-manifest.json`),\n      oneManifestKey: firstNonEmpty(row.oneManifestKey, row.one_manifest_url, row.oneManifestUrl, `${prefix}/${orderId}/manifests/1-manifest.json`),\n      ShipmentServiceLevelCategory: firstNonEmpty(row.ShipmentServiceLevelCategory, row.amazon_shipment_service_level),\n      ShipServiceLevel: firstNonEmpty(row.ShipServiceLevel, row.amazon_shipment_service_level),\n      shipping_tier: firstNonEmpty(row.shipping_tier, row.shippingTier),\n    },\n  };\n}\n\nfunction parseItemNumber(orderId) {\n  const m = String(orderId || '').match(/-item-(\\d+)$/);\n  return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER;\n}\n\nfunction attachSiblingClaimMetadata(items, rootId) {\n  const claimOrderDbIds = [...new Set(\n    items\n      .map((item) => item?.json?.orderDbId)\n      .filter((value) => value !== undefined && value !== null && String(value).trim() !== '')\n      .map((value) => String(value).trim())\n  )];\n  const claimGroupSize = claimOrderDbIds.length;\n  const claimStartedAt = new Date().toISOString();\n\n  for (const item of items) {\n    item.json._route = 'sibling';\n    item.json.claimOrderDbIds = claimOrderDbIds;\n    item.json.claimGroupSize = claimGroupSize;\n    item.json.claimRootOrderId = rootId;\n    item.json.claimStartedAt = claimStartedAt;\n  }\n\n  return items;\n}\n\nasync function fetchSiblingRows(rootId) {\n  return await this.helpers.request({\n    method: 'GET',\n    uri: `${supabaseUrl}/rest/v1/orders`,\n    qs: {\n      root_order_id: `eq.${rootId}`,\n      select: 'id,orderId,root_order_id,amazon_order_id,character_hash,shipping_address,one_manifest_url,amazon_shipment_service_level,shipping_tier,execution_status,next_workflow'\n    },\n    headers: {\n      apikey: supabaseKey,\n      Authorization: `Bearer ${supabaseKey}`,\n    },\n    json: true,\n  });\n}\n\nconst items = $input.all();\nif (!items || items.length === 0) return [];\n\nconst groups = new Map();\nfor (const item of items) {\n  const prepared = buildPreparedItem(item.json || {});\n  if (!prepared) continue;\n  const rootId = firstNonEmpty(prepared.json.rootOrderId, deriveRoot(prepared.json.orderId), prepared.json.orderId);\n  if (!groups.has(rootId)) groups.set(rootId, []);\n  groups.get(rootId).push(prepared);\n}\n\nconst output = [];\nlet heldGroups = 0;\n\nfor (const [rootId, group] of groups) {\n  const preparedByOrderId = new Map();\n  for (const item of group) {\n    preparedByOrderId.set(item.json.orderId, item);\n  }\n\n  let siblingRows = null;\n  try {\n    siblingRows = await fetchSiblingRows.call(this, rootId);\n  } catch (e) {\n    console.warn(`Supabase sibling lookup failed for ${rootId}: ${e.message}`);\n  }\n\n  if (Array.isArray(siblingRows) && siblingRows.length > 0) {\n    const childRows = siblingRows.filter(row => {\n      const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId);\n      return orderId && orderId !== rootId;\n    });\n\n    if (childRows.length > 1) {\n      const readyRows = childRows.filter(row => {\n        const executionStatus = String(row.execution_status || '').trim();\n        const nextWorkflow = String(row.next_workflow || '').trim();\n        return executionStatus === 'ready_for_processing' && (nextWorkflow === '4' || nextWorkflow === '4-aggregate');\n      });\n\n      if (readyRows.length === childRows.length) {\n        for (const row of readyRows) {\n          const built = buildPreparedItem(row, rootId);\n          if (!built) continue;\n          const existing = preparedByOrderId.get(built.json.orderId);\n          preparedByOrderId.set(built.json.orderId, existing ? { json: { ...built.json, ...existing.json } } : built);\n        }\n\n        const completeGroup = [...preparedByOrderId.values()].sort((a, b) => parseItemNumber(a.json.orderId) - parseItemNumber(b.json.orderId));\n        if (completeGroup.length === childRows.length) {\n          const claimReadyGroup = attachSiblingClaimMetadata(completeGroup, rootId);\n          for (const item of claimReadyGroup) {\n            output.push(item);\n          }\n          console.log(`Sibling group ${rootId}: hydrated ${claimReadyGroup.length}/${childRows.length} ready items -> w4.1`);\n          continue;\n        }\n\n        heldGroups += 1;\n        console.log(`HOLD order ${group[0].json.orderId} (rootId=${rootId}): expected ${childRows.length} siblings, hydrated ${completeGroup.length}`);\n        continue;\n      }\n\n      const blocked = childRows\n        .map(row => {\n          const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId) || '(unknown)';\n          const executionStatus = String(row.execution_status || 'null');\n          const nextWorkflow = String(row.next_workflow || 'null');\n          return `${orderId}[status=${executionStatus},next=${nextWorkflow}]`;\n        })\n        .join(', ');\n      heldGroups += 1;\n      console.log(`HOLD order ${group[0].json.orderId} (rootId=${rootId}): sibling group incomplete/not ready -> ${blocked}`);\n      continue;\n    }\n  }\n\n  if (preparedByOrderId.size >= 2) {\n    const completeGroup = [...preparedByOrderId.values()].sort((a, b) => parseItemNumber(a.json.orderId) - parseItemNumber(b.json.orderId));\n    const claimReadyGroup = attachSiblingClaimMetadata(completeGroup, rootId);\n    for (const item of claimReadyGroup) {\n      output.push(item);\n    }\n    console.log(`Sibling group ${rootId}: ${claimReadyGroup.length} batch items -> w4.1`);\n    continue;\n  }\n\n  const single = [...preparedByOrderId.values()][0];\n  if (!single) continue;\n  single.json._route = 'single';\n  single.json.claimStartedAt = new Date().toISOString();\n  output.push(single);\n  console.log(`Single order ${single.json.orderId} (rootId=${rootId}) -> w4`);\n}\n\nconsole.log(`Classify result: ${output.length} forwarded, ${heldGroups} sibling group(s) held`);\nreturn output;"
+      },
+      "id": "ea760945-6021-4997-a26e-b10eb2466ca6",
+      "name": "Classify W4 Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2944,
+        -880
+      ],
+      "notes": "Hydrates missing ready siblings from Supabase and only routes complete sibling groups to w4.1."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "sibling-route-check",
+              "leftValue": "={{ $json._route }}",
+              "rightValue": "sibling",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "daff39ce-66eb-4258-8e99-b3530074a013",
+      "name": "IF Sibling Route",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4064,
+        -896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Bundle sibling-tagged items into strict { siblingGroup: [...] } payloads for w4.1.\nconst items = $input.all();\nif (!items || items.length === 0) return [];\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    if (typeof v === 'string') {\n      const s = v.trim();\n      if (s !== '') return s;\n    } else {\n      return v;\n    }\n  }\n}\n\nfunction deriveRoot(id) {\n  if (!id) return id;\n  const m = String(id).match(/^(.+?)-item-/);\n  return m ? m[1] : id;\n}\n\nconst groups = new Map();\nfor (const item of items) {\n  const j = item.json || {};\n  const orderId = firstNonEmpty(j.orderId, j.order_id, j.amazon_order_id, j.amazonOrderId);\n  if (!orderId) continue;\n\n  // Always group by shared root, never by item-specific rootOrderId.\n  const rootId = firstNonEmpty(deriveRoot(orderId), deriveRoot(j.amazon_order_id), deriveRoot(j.amazonOrderId), j.rootOrderId, j.root_order_id, orderId);\n  if (!groups.has(rootId)) groups.set(rootId, []);\n\n  const manifest3Key = firstNonEmpty(\n    j.manifest3Key,\n    j.three_manifest_url,\n    j.manifest3Url,\n    j.manifestUrl,\n    `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`\n  );\n  const oneManifestUrl = firstNonEmpty(j.oneManifestUrl, j.one_manifest_url, j.oneManifestKey);\n\n  groups.get(rootId).push({\n    ...j,\n    orderId,\n    rootOrderId: firstNonEmpty(deriveRoot(orderId), j.rootOrderId, j.root_order_id, rootId),\n    manifest3Key,\n    one_manifest_url: oneManifestUrl || null\n  });\n}\n\nconst output = [];\nfor (const [rootId, siblings] of groups) {\n  output.push({ json: { siblingGroup: siblings } });\n  console.log(`Bundled ${siblings.length} siblings for rootId=${rootId}`);\n}\n\nreturn output;"
+      },
+      "id": "c7fb54c7-4d58-416a-876f-8661aff0179f",
+      "name": "Bundle Sibling Group",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4288,
+        -944
+      ],
+      "notes": "Aggregates sibling items by rootOrderId into { siblingGroup: [...] } for w4.1 webhook."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4.1-sibling-aggregate-sibtest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.siblingGroup[0].rootOrderId + '-4.1' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "65b9eff6-c2a6-43a2-9fa3-5b166e67da53",
+      "name": "Trigger Workflow 4.1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4448,
+        -944
+      ],
+      "notes": "POSTs bundled sibling group to w4.1 aggregation webhook"
+    }
+  ],
+  "connections": {
+    "Prep Workflow 4 Orders": {
+      "main": [
+        [
+          {
+            "node": "Classify W4 Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify W4 Orders": {
+      "main": [
+        [
+          {
+            "node": "Validate Shipping for w4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Processing (4)": {
+      "main": [
+        [
+          {
+            "node": "Verify Order Claimed (4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Prep Data with Supabase Response (3)": {
+      "main": [
+        [
+          {
+            "node": "Verify Order Claimed (3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Processing (3)": {
+      "main": [
+        [
+          {
+            "node": "Merge Prep Data with Supabase Response (3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Processing (2B)": {
+      "main": [
+        [
+          {
+            "node": "Verify Order Claimed (2B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Processing (2A)": {
+      "main": [
+        [
+          {
+            "node": "Trigger 2A Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Workflow 3 Orders": {
+      "main": [
+        [
+          {
+            "node": "Mark as Processing (3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep 2B Orders": {
+      "main": [
+        [
+          {
+            "node": "Mark as Processing (2B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep 2A Orders": {
+      "main": [
+        [
+          {
+            "node": "Mark as Processing (2A)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Orders by Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prep Workflow 4 Orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prep Workflow 3 Orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prep 2B Orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prep 2A Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Orders from Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route Orders by Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Orders from Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Order Claimed (2B)": {
+      "main": [
+        [
+          {
+            "node": "Trigger 2B Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Order Claimed (3)": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Signed URL (1‑manifest)-W4": {
+      "main": [
+        [
+          {
+            "node": "Mark as Processing (4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Order Claimed (4)": {
+      "main": [
+        [
+          {
+            "node": "IF Sibling Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Sibling Route": {
+      "main": [
+        [
+          {
+            "node": "Bundle Sibling Group",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Trigger Workflow ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bundle Sibling Group": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow 4.1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Shipping for w4": {
+      "main": [
+        [
+          {
+            "node": "Get Signed URL (1‑manifest)-W4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flag Missing Shipping (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag Missing Shipping (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Flag Missing Shipping (Backend)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag Missing Shipping (Backend)": {
+      "main": [
+        [
+          {
+            "node": "Log Skipped W4 Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "ad5160b2-82ad-4dee-a21e-349b1e6cbf9b",
+  "activeVersionId": "ad5160b2-82ad-4dee-a21e-349b1e6cbf9b",
+  "versionCounter": 90,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-02-24T01:21:46.754Z",
+      "createdAt": "2026-02-24T01:21:46.754Z",
+      "role": "workflow:owner",
+      "workflowId": "TDwc85g03FqPf9D6",
+      "projectId": "XUIOUT8WIYeNqYJq",
+      "project": {
+        "updatedAt": "2025-03-20T21:38:23.440Z",
+        "createdAt": "2025-03-20T21:38:21.375Z",
+        "id": "XUIOUT8WIYeNqYJq",
+        "name": "Jeff LaPenna <jeff@thepeakbeyond.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-03-20T21:38:21.375Z",
+            "createdAt": "2025-03-20T21:38:21.375Z",
+            "userId": "90518003-245d-4cdc-a231-5ef38186bbce",
+            "projectId": "XUIOUT8WIYeNqYJq",
+            "user": {
+              "updatedAt": "2026-03-26T16:53:43.000Z",
+              "createdAt": "2025-03-20T21:38:19.908Z",
+              "id": "90518003-245d-4cdc-a231-5ef38186bbce",
+              "email": "jeff@thepeakbeyond.com",
+              "firstName": "Jeff",
+              "lastName": "LaPenna",
+              "personalizationAnswers": null,
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "GaJL6LMUZ5KKcrix",
+                "userActivatedAt": 1742849953648,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1766939443671
+                },
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-03-26",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-26T23:25:40.188Z",
+    "createdAt": "2026-03-26T23:25:40.188Z",
+    "versionId": "ad5160b2-82ad-4dee-a21e-349b1e6cbf9b",
+    "workflowId": "TDwc85g03FqPf9D6",
+    "nodes": [
+      {
+        "parameters": {
+          "method": "PATCH",
+          "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "id",
+                "value": "={{ (() => {\n  const ownId = String($json.orderDbId ?? '').trim();\n  if ($json._route !== 'sibling') {\n    return `eq.${ownId}`;\n  }\n  const claimIds = Array.isArray($json.claimOrderDbIds)\n    ? [...new Set($json.claimOrderDbIds.map((value) => String(value).trim()).filter(Boolean))]\n    : [];\n  if (!claimIds.length && ownId) claimIds.push(ownId);\n  if (!claimIds.length) throw new Error('Missing claimOrderDbIds/orderDbId for sibling claim');\n  return `in.(${claimIds.join(',')})`;\n})() }}"
+              },
+              {
+                "name": "execution_status",
+                "value": "eq.ready_for_processing"
+              }
+            ]
+          },
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Prefer",
+                "value": "return=representation"
+              },
+              {
+                "name": "apikey",
+                "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": $json.claimStartedAt || new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+          "options": {}
+        },
+        "id": "b16cee24-f25c-445d-9102-40a08a11a1d1",
+        "name": "Mark as Processing (4)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          3648,
+          -896
+        ],
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "jsCode": "// Clean phone number function (strips extensions)\nfunction cleanPhoneNumber(phone) {\n  if (!phone) return null;\n  let cleaned = String(phone).trim();\n  // Remove extension patterns: \"ext. 02924\", \"ext 02924\", \"extension 02924\", \"x 02924\", etc.\n  cleaned = cleaned.replace(/\\s*(ext|extension|x)[\\s:\\.]*\\d+/gi, '');\n  cleaned = cleaned.trim();\n  return cleaned || null;\n}\n\n// Normalize shipping address - handles multiple formats and field name variations\nfunction normalizeShippingAddress(rawShipping) {\n  if (!rawShipping) return null;\n  \n  // Step 1: Parse JSON string if needed\n  let shipping = rawShipping;\n  if (typeof rawShipping === 'string') {\n    try {\n      shipping = JSON.parse(rawShipping);\n    } catch (e) {\n      console.warn('Failed to parse shipping_address JSON string:', e.message);\n      return null;\n    }\n  }\n  \n  // Step 2: Ensure it's an object\n  if (typeof shipping !== 'object' || Array.isArray(shipping) || shipping === null) {\n    return null;\n  }\n  \n  // Step 3: Normalize field names - map legacy to expected format\n  // Keep both formats for backward compatibility\n  const normalized = { ...shipping };\n  \n  // Normalize address field\n  if (normalized.address && !normalized.address_line_1) {\n    normalized.address_line_1 = normalized.address;\n  } else if (normalized.address_line_1 && !normalized.address) {\n    normalized.address = normalized.address_line_1; // Keep legacy for compatibility\n  }\n  \n  // Normalize state field\n  if (normalized.state && !normalized.state_code) {\n    normalized.state_code = normalized.state;\n  } else if (normalized.state_code && !normalized.state) {\n    normalized.state = normalized.state_code; // Keep legacy for compatibility\n  }\n  \n  // Normalize zip/postal_code field\n  if (normalized.zip && !normalized.postal_code) {\n    normalized.postal_code = normalized.zip;\n  } else if (normalized.postal_code && !normalized.zip) {\n    normalized.zip = normalized.postal_code; // Keep legacy for compatibility\n  }\n  \n  // Normalize address_line_2 (if present)\n  if (normalized.address2 && !normalized.address_line_2) {\n    normalized.address_line_2 = normalized.address2;\n  } else if (normalized.address_line_2 && !normalized.address2) {\n    normalized.address2 = normalized.address_line_2; // Keep legacy for compatibility\n  }\n  \n  // Ensure name field exists (may be called recipient_name or name)\n  if (normalized.recipient_name && !normalized.name) {\n    normalized.name = normalized.recipient_name;\n  }\n  \n  // D2C uses address_line1 (no underscore before 1)\n  if (normalized.address_line1 && !normalized.address_line_1) {\n    normalized.address_line_1 = normalized.address_line1;\n  } else if (normalized.address_line_1 && !normalized.address_line1) {\n    normalized.address_line1 = normalized.address_line_1;\n  }\n  if (normalized.address_line2 && !normalized.address_line_2) {\n    normalized.address_line_2 = normalized.address_line2;\n  } else if (normalized.address_line_2 && !normalized.address_line2) {\n    normalized.address_line2 = normalized.address_line_2;\n  }\n  \n  return normalized;\n}\n\n// Derive shared root order ID by stripping -item-* suffix\nfunction deriveRootOrderId(id) {\n  if (!id) return id;\n  const match = String(id).match(/^(.+?)-item-/);\n  return match ? match[1] : id;\n}\n\n// Process Workflow 4 orders\nconst routing = $input.first().json;\nconst orders4 = routing.workflow4 || [];\nif (orders4.length === 0) {\n  console.log('No orders for Workflow 4');\n  return [];\n}\nconsole.log(`=== PROCESSING ${orders4.length} ORDERS FOR WORKFLOW 4 ===`);\nconst prefix = 'book-mvp-simple-adventure/orders';\n\n// Build minimal payload - W4 will fetch 3-manifest itself\nreturn orders4.map(order => {\n  const orderId = order.orderId || order.order_id || order.root_order_id || order.amazon_order_id;\n  const rawShipping = order.shipping_address;\n  let shippingAddress = normalizeShippingAddress(rawShipping);\n  // Final fallback: ensure address_line_1 exists (D2C uses address_line1)\n  if (shippingAddress && !shippingAddress.address_line_1) {\n    shippingAddress.address_line_1 = shippingAddress.address_line1 || shippingAddress.address || '';\n  }\n  const rawPhone = shippingAddress?.phone_number || shippingAddress?.phone;\n  const cleanedPhone = cleanPhoneNumber(rawPhone);\n  const phone_number = cleanedPhone || '+1-678-478-3477';\n  if (shippingAddress) {\n    shippingAddress.phone_number = phone_number;\n    if (!shippingAddress.phone) shippingAddress.phone = phone_number;\n  }\n  const rootOrderId = order.root_order_id || deriveRootOrderId(order.amazon_order_id || order.amazonOrderId || orderId);\n  return {\n    json: {\n      orderId,\n      rootOrderId,\n    amazonOrderId: order.amazon_order_id,\n      characterHash: order.character_hash,\n      orderDbId: order.id,\n      workflow: '4',\n      shipping_address: shippingAddress,\n      manifest3Key: `${prefix}/${orderId}/manifests/3-manifest.json`,\n      oneManifestKey: order.one_manifest_url || `${prefix}/${orderId}/manifests/1-manifest.json`,\n      // Amazon shipping tier so W4 can set Lulu shipping_level (EXPRESS/EXPEDITED/GROUND/MAIL)\n      ShipmentServiceLevelCategory: order.amazon_shipment_service_level || null,\n      ShipServiceLevel: order.amazon_shipment_service_level || null,\n      shipping_tier: order.shipping_tier || null\n    }\n  };\n});"
+        },
+        "id": "0d1d6a8a-5448-4e16-a068-2ddc86e1b862",
+        "name": "Prep Workflow 4 Orders",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2752,
+          -880
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4-pdf-print-sibtest",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Idempotency-Key",
+                "value": "={{ $json.orderId + '-' + $json.workflow }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{$json}}",
+          "options": {}
+        },
+        "id": "c47f04bc-8ec6-4c2e-8177-4702f24ec6b0",
+        "name": "Trigger Workflow ",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          4288,
+          -800
+        ],
+        "notes": "Update webhook URL in environment or here"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly-sibtest",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Idempotency-Key",
+                "value": "={{ $json.orderId + '-' + $json.workflow }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{$json}}",
+          "options": {}
+        },
+        "id": "85987d33-e611-4257-b061-8ea90dfbb718",
+        "name": "Trigger Workflow 3",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          3728,
+          -1120
+        ],
+        "notes": "Update webhook URL in environment or here"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal-sibtest",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Idempotency-Key",
+                "value": "={{ $json.orderId + '-' + $json.workflow }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{$json}}",
+          "options": {}
+        },
+        "id": "9e2f189c-4051-4bc3-9ba1-7945a3f91c5f",
+        "name": "Trigger 2B Workflow",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          3488,
+          -1408
+        ],
+        "notes": "Update webhook URL in environment or here"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://thepeakbeyond.app.n8n.cloud/webhook/2a-start-repo",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Idempotency-Key",
+                "value": "={{ $json.orderId + '-' + $json.workflow }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{$json}}",
+          "options": {}
+        },
+        "id": "e504e363-b5c1-4cff-ba7b-1ca1d884f197",
+        "name": "Trigger 2A Workflow",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          3200,
+          -1600
+        ],
+        "notes": "Update webhook URL in environment or here"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Merge Prep Data with Supabase Response (3)\n// Preserve one output per claimed order.\n\nconst inputRows = [];\nfor (const item of $input.all()) {\n  const v = item.json;\n  if (Array.isArray(v)) {\n    for (const row of v) {\n      if (row && typeof row === 'object' && Object.keys(row).length > 0) inputRows.push(row);\n    }\n    continue;\n  }\n  if (v && typeof v === 'object' && Object.keys(v).length > 0) inputRows.push(v);\n}\n\nif (inputRows.length === 0) {\n  return [];\n}\n\nconst prepItems = $items('Prep Workflow 3 Orders', 0, $runIndex).map(item => item.json || {});\nconst prepByDbId = new Map(prepItems.map(p => [String(p.orderDbId), p]));\nconst usedPrepIds = new Set();\nconst output = [];\n\nfor (const row of inputRows) {\n  const rowDbId = row.id != null ? String(row.id) : '';\n  let prep = rowDbId ? prepByDbId.get(rowDbId) : null;\n\n  if (!prep && row.orderId) {\n    prep = prepItems.find(p => p.orderId === row.orderId) || null;\n  }\n\n  if (!prep && row.amazon_order_id) {\n    prep = prepItems.find(p => p.orderId === row.amazon_order_id || p.amazonOrderId === row.amazon_order_id) || null;\n  }\n\n  if (!prep) {\n    prep = prepItems.find(p => !usedPrepIds.has(String(p.orderDbId))) || null;\n  }\n\n  if (!prep) {\n    continue;\n  }\n\n  usedPrepIds.add(String(prep.orderDbId));\n  output.push({\n    json: {\n      ...prep,\n      ...row,\n      orderId: prep.orderId || row.orderId || row.amazon_order_id || row.amazonOrderId,\n      amazonOrderId: prep.amazonOrderId || row.amazon_order_id || row.amazonOrderId || null,\n      oneManifestKey: prep.oneManifestKey,\n      dedicationText: prep.dedicationText || null,\n      characterHash: prep.characterHash || row.character_hash || row.characterHash,\n      workflow: prep.workflow || row.current_workflow || '3',\n      orderDbId: row.id || prep.orderDbId,\n      claimedAt: row.started_at || null,\n    },\n  });\n}\n\nreturn output;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3264,
+          -1120
+        ],
+        "id": "5d24011a-07f4-4159-8398-61212b57715c",
+        "name": "Merge Prep Data with Supabase Response (3)"
+      },
+      {
+        "parameters": {
+          "method": "PATCH",
+          "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "id",
+                "value": "={{ 'eq.' + String($json.orderDbId) }}"
+              },
+              {
+                "name": "execution_status",
+                "value": "eq.ready_for_processing"
+              }
+            ]
+          },
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Prefer",
+                "value": "return=representation"
+              },
+              {
+                "name": "apikey",
+                "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+          "options": {}
+        },
+        "id": "25b57307-c365-455c-8f52-2e2a7aba89c8",
+        "name": "Mark as Processing (3)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          3008,
+          -1120
+        ]
+      },
+      {
+        "parameters": {
+          "method": "PATCH",
+          "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "id",
+                "value": "={{ 'eq.' + String($json.orderDbId) }}"
+              },
+              {
+                "name": "execution_status",
+                "value": "eq.ready_for_processing"
+              }
+            ]
+          },
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Prefer",
+                "value": "return=representation"
+              },
+              {
+                "name": "apikey",
+                "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+          "options": {}
+        },
+        "id": "1343c64f-ad52-41b5-8a7d-22fedf835577",
+        "name": "Mark as Processing (2B)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2976,
+          -1408
+        ]
+      },
+      {
+        "parameters": {
+          "method": "PATCH",
+          "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "id",
+                "value": "={{ 'eq.' + String($json.orderDbId) }}"
+              },
+              {
+                "name": "execution_status",
+                "value": "eq.ready_for_processing"
+              }
+            ]
+          },
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Prefer",
+                "value": "return=representation"
+              },
+              {
+                "name": "apikey",
+                "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { \"execution_status\": \"processing\", \"started_at\": new Date().toISOString(), \"current_workflow\": $json.workflow } }}",
+          "options": {}
+        },
+        "id": "69539693-4f1a-479c-b75b-2eaf61b2700a",
+        "name": "Mark as Processing (2A)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2976,
+          -1600
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Process Workflow 3 orders\nconst routing = $input.first().json;\nconst orders3 = routing.workflow3 || [];\n\nif (orders3.length === 0) {\n  console.log('No orders for Workflow 3');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders3.length} ORDERS FOR WORKFLOW 3 ===`);\n\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nfunction firstNonEmpty(...values) {\n  for (const value of values) {\n    if (value === undefined || value === null) continue;\n    if (typeof value === 'string') {\n      const trimmed = value.trim();\n      if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') return trimmed;\n      continue;\n    }\n    return value;\n  }\n  return null;\n}\n\nfunction normalizePathLike(value) {\n  const raw = firstNonEmpty(value);\n  if (!raw || typeof raw !== 'string') return null;\n  const withoutHash = raw.split('#')[0] || '';\n  const withoutQuery = withoutHash.split('?')[0] || '';\n  if (withoutQuery.includes('/api/manifests/')) {\n    return withoutQuery.split('/api/manifests/')[1]?.replace(/^\\/+/, '') || null;\n  }\n  if (withoutQuery.includes('/api/assets/')) {\n    return withoutQuery.split('/api/assets/')[1]?.replace(/^\\/+/, '') || null;\n  }\n  return withoutQuery.replace(/^\\/+/, '') || null;\n}\n\nfunction extractOrderPrefix(...values) {\n  for (const value of values) {\n    const normalized = normalizePathLike(value);\n    if (!normalized) continue;\n\n    const manifestIndex = normalized.indexOf('/manifests/');\n    if (manifestIndex > 0) {\n      return normalized.slice(0, manifestIndex);\n    }\n\n    const ordersMatch = normalized.match(/^([^/]+\\/orders\\/[^/]+)/);\n    if (ordersMatch?.[1]) {\n      return ordersMatch[1];\n    }\n  }\n\n  return null;\n}\n\nconst processed = [];\nconst skipped = [];\n\nfor (const order of orders3) {\n  const orderId = firstNonEmpty(order.orderId, order.order_id);\n  if (!orderId) {\n    console.error(`[Prep W3] Order DB id=${order.id} has no per-book orderId; skipping`);\n    skipped.push('(no per-book ID)');\n    continue;\n  }\n\n  const rootOrderId = firstNonEmpty(\n    order.root_order_id,\n    order.rootOrderId,\n    order.amazon_order_id,\n    order.amazonOrderId,\n    orderId,\n  );\n  const amazonOrderId = firstNonEmpty(order.amazon_order_id, order.amazonOrderId, rootOrderId);\n  const oneManifestUrl = firstNonEmpty(order.one_manifest_url, order.oneManifestUrl);\n  const oneManifestKey = firstNonEmpty(order.one_manifest_key, order.oneManifestKey, oneManifestUrl);\n  const manifest2bUrl = firstNonEmpty(order.manifest_2b_url, order.manifest2bUrl);\n  const manifest3Url = firstNonEmpty(order.manifest_3_url, order.manifest3Url);\n  const assetPrefix = firstNonEmpty(order.asset_prefix, order.assetPrefix);\n  const orderPrefix = extractOrderPrefix(manifest3Url, manifest2bUrl, oneManifestUrl, oneManifestKey, assetPrefix);\n  const bookId = orderPrefix ? orderPrefix.split('/orders/')[0] || null : null;\n\n  if (!oneManifestKey && !manifest2bUrl && !manifest3Url && !assetPrefix && !orderPrefix) {\n    console.warn(`\\u26a0\\ufe0f Order ${orderId} missing W3 manifest context - marking as error`);\n\n    try {\n      await fetch(`${supabaseUrl}/rest/v1/orders?id=eq.${order.id}`, {\n        method: 'PATCH',\n        headers: {\n          apikey: supabaseKey,\n          Authorization: `Bearer ${supabaseKey}`,\n          'Content-Type': 'application/json',\n          Prefer: 'return=representation',\n        },\n        body: JSON.stringify({\n          execution_status: 'error',\n          error_type: 'missing_manifest_context',\n          error_message: 'Missing required W3 manifest context (1/2B/3 manifest pointer or order asset prefix)',\n          updated_at: new Date().toISOString(),\n        }),\n      });\n    } catch (error) {\n      console.error(`Failed to mark order ${orderId} as error:`, error);\n    }\n\n    skipped.push(orderId);\n    continue;\n  }\n\n  processed.push({\n    json: {\n      orderId,\n      rootOrderId,\n      amazonOrderId,\n      orderPrefix: orderPrefix || undefined,\n      bookId: bookId || undefined,\n      oneManifestUrl: oneManifestUrl || undefined,\n      oneManifestKey: oneManifestKey || undefined,\n      manifest2bUrl: manifest2bUrl || undefined,\n      manifest3Url: manifest3Url || undefined,\n      assetPrefix: assetPrefix || undefined,\n      characterHash: firstNonEmpty(order.character_hash, order.characterHash),\n      orderDbId: order.id,\n      workflow: '3',\n      dedicationText: order.dedication_text || null,\n    },\n  });\n}\n\nif (skipped.length > 0) {\n  console.log(`\\u26a0\\ufe0f Skipped ${skipped.length} orders due to missing W3 manifest context: ${skipped.join(', ')}`);\n}\n\nconsole.log(`\\u2705 Processed ${processed.length} orders for Workflow 3`);\n\nreturn processed;\n"
+        },
+        "id": "b4a5a5a6-82a7-4903-8acb-24c56e0f42e7",
+        "name": "Prep Workflow 3 Orders",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2768,
+          -1120
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "\n// Process 2B orders\nconst routing = $input.first().json;\nconst orders2B = routing.workflow2B || [];\n\nif (orders2B.length === 0) {\n  console.log('No orders for 2B');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2B.length} ORDERS FOR 2B ===`);\n\n// Keep payload minimal; W2B will pull any needed URLs or keys itself\nreturn orders2B\n  .filter(order => {\n    if (!order.orderId && !order.order_id) {\n      console.error(`[Prep 2B] Order DB id=${order.id} missing per-book orderId; skipping`);\n      return false;\n    }\n    return true;\n  })\n  .map(order => ({\n  json: {\n    orderId: order.orderId || order.order_id,\n    rootOrderId: order.root_order_id || order.amazon_order_id || order.amazonOrderId || order.orderId || order.order_id,\n    amazonOrderId: order.amazon_order_id,\n    characterHash: order.character_hash,\n    orderDbId: order.id,\n    workflow: '2B'\n  }\n}));\n"
+        },
+        "id": "7c6214a4-57b0-442a-9ee7-f8b3ad2468a2",
+        "name": "Prep 2B Orders",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2768,
+          -1408
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Process 2A orders\n// If character_specs is null, fetch from manifest\nconst routing = $input.first().json;\nconst orders2A = routing.workflow2A || [];\n\nif (orders2A.length === 0) {\n  console.log('No orders for 2A');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders2A.length} ORDERS FOR 2A ===`);\n\nfunction firstNonEmpty(...vals) {\n  return vals.find((v) => v !== undefined && v !== null && String(v).trim() !== '');\n}\n\n// Process each order\nconst processed = [];\nfor (const order of orders2A) {\n  const perItemOrderId = firstNonEmpty(order.orderId, order.order_id, order.amazon_order_id, order.amazonOrderId);\n  const rootOrderId = firstNonEmpty(order.root_order_id, order.rootOrderId, order.amazon_order_id, order.amazonOrderId, perItemOrderId);\n\n  if (!perItemOrderId) {\n    console.warn('⚠️ Skipping 2A order with no per-item orderId', {\n      id: order.id,\n      root_order_id: order.root_order_id,\n      amazon_order_id: order.amazon_order_id,\n    });\n    continue;\n  }\n\n  let characterSpecs = order.character_specs;\n  let bookSpecs = order.book_specs;\n  let characterHash = order.character_hash;\n  \n  // If character_specs is null but we have a manifest URL, fetch it\n  if (!characterSpecs && order.one_manifest_url) {\n    try {\n      const manifestKey = order.one_manifest_url;\n      const publicR2Url = 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';\n      const manifestUrl = `${publicR2Url}/${manifestKey}`;\n      \n      console.log(`Fetching manifest from: ${manifestUrl}`);\n      \n      const response = await fetch(manifestUrl);\n      if (response.ok) {\n        const manifest = await response.json();\n        \n        // Extract character specs and book specs from manifest\n        if (manifest.order) {\n          characterSpecs = manifest.order.characterSpecs || null;\n          bookSpecs = manifest.order.bookSpecs || null;\n          \n          // Generate character hash if we have character specs but no hash\n          if (characterSpecs && !characterHash && characterSpecs.childName) {\n            const hashInput = `${characterSpecs.childName}-${characterSpecs.skinTone}-${characterSpecs.hairColor}-${characterSpecs.hairStyle}`;\n            let hash = 0;\n            for (let i = 0; i < hashInput.length; i++) {\n              const char = hashInput.charCodeAt(i);\n              hash = ((hash << 5) - hash) + char;\n              hash = hash & hash;\n            }\n            characterHash = Math.abs(hash).toString(16).slice(0, 8);\n            console.log(`Generated character hash: ${characterHash}`);\n          }\n          \n          console.log(`✅ Extracted character specs from manifest for order ${perItemOrderId}`);\n        } else {\n          console.warn(`⚠️ Manifest missing 'order' field for ${perItemOrderId}`);\n        }\n      } else {\n        console.warn(`⚠️ Failed to fetch manifest (${response.status}) for ${perItemOrderId}`);\n      }\n    } catch (error) {\n      console.error(`❌ Error fetching manifest for ${perItemOrderId}:`, error.message);\n    }\n  }\n  \n  processed.push({\n    json: {\n      orderId: perItemOrderId,\n      rootOrderId: rootOrderId,\n      amazonOrderId: rootOrderId,\n      characterHash: characterHash,\n      characterSpecs: characterSpecs,\n      bookSpecs: bookSpecs,\n      orderDbId: order.id,\n      workflow: '2A',\n      oneManifestUrl: order.one_manifest_url || null\n    }\n  });\n}\n\nreturn processed;"
+        },
+        "id": "68818ca2-410f-45d6-8773-4fff0ce938cf",
+        "name": "Prep 2A Orders",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2768,
+          -1600
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Reset capacity counter when we have capacity\nif ($execution.customData) {\n  $execution.customData.capacityFullCycles = 0;\n}\n\n// Route order to correct workflow based on next_workflow field\nconst orders = $input.all();\n\nif (!orders || orders.length === 0) {\n  console.log('No orders to route');\n  return [];\n}\n\nconst routed = {\n  workflow2A: [],\n  workflow2B: [],\n  workflow3: [],\n  workflow4: [],\n  workflow4Aggregate: []\n};\n\nfor (const item of orders) {\n  const order = item.json;\n  const nextWorkflow = order.next_workflow;\n  console.log(`Order ${order.orderId || order.order_id || '(no per-book ID)'}: Route to ${nextWorkflow}`);\n  if (nextWorkflow === '2A') routed.workflow2A.push(order);\n  else if (nextWorkflow === '2B') routed.workflow2B.push(order);\n  else if (nextWorkflow === '3') routed.workflow3.push(order);\n  else if (nextWorkflow === '4-aggregate') routed.workflow4Aggregate.push(order);\n  else if (nextWorkflow === '4') routed.workflow4.push(order);\n  else console.warn(`Unknown workflow: ${nextWorkflow} for order ${order.orderId || order.order_id || '(no per-book ID)'}`);\n}\n\nconsole.log(`Routing summary: 2A=${routed.workflow2A.length} 2B=${routed.workflow2B.length} 3=${routed.workflow3.length} 4=${routed.workflow4.length} 4-aggregate=${routed.workflow4Aggregate.length}`);\n\nreturn [{ json: routed }];"
+        },
+        "id": "2550014d-d90b-4414-b91e-1d9623b0f068",
+        "name": "Route Orders by Workflow",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2016,
+          -1408
+        ],
+        "notes": "Separates orders by workflow type"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Extract orders from Vercel Cron webhook payload\n// n8n webhook structure: { body: { orders: [...] }, headers: {...}, params: {...}, query: {...} }\n// Vercel sends: { orders: [...] } in the body\n// This node extracts the orders array from body and passes through\nconst webhookData = $input.first().json || {};\n\n// Check body.orders first (n8n webhook structure), then fallback to top-level orders\nconst orders = webhookData.body?.orders || webhookData.orders || [];\n\nconsole.log('=== ROUTER WEBHOOK TRIGGERED ===');\nconsole.log('Webhook data keys:', Object.keys(webhookData));\nconsole.log('Has body:', !!webhookData.body);\nconsole.log('Body keys:', webhookData.body ? Object.keys(webhookData.body) : 'N/A');\nconsole.log(`Received ${orders.length} orders from Vercel Cron`);\n\nif (orders.length === 0) {\n  console.log('No orders in webhook payload - workflow will stop');\n  console.log('Webhook data structure:', JSON.stringify(webhookData, null, 2).substring(0, 500));\n  return [];\n}\n\n// Return orders as individual items for routing\nreturn orders.map(order => ({ json: order }));"
+        },
+        "id": "d52b57e7-248b-4341-820d-a758b4993a73",
+        "name": "Extract Orders from Webhook",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1824,
+          -1408
+        ],
+        "notes": "Extracts orders array from Vercel Cron webhook payload. Vercel already checked capacity and filtered orders."
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "w1-1-router-sibtest",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "36635bd4-081f-49fb-b2a8-8147f199e2d4",
+        "name": "Webhook Trigger",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1.1,
+        "position": [
+          1616,
+          -1408
+        ],
+        "webhookId": "w1-1-router-webhook"
+      },
+      {
+        "parameters": {
+          "jsCode": "var input = $input.all();\nvar claimed = [];\nvar i;\n\nfor (i = 0; i < input.length; i++) {\n  var v = input[i].json;\n  if (Array.isArray(v)) {\n    var j;\n    for (j = 0; j < v.length; j++) {\n      if (v[j] && typeof v[j] === 'object' && Object.keys(v[j]).length > 0) claimed.push(v[j]);\n    }\n  } else if (v && typeof v === 'object' && Object.keys(v).length > 0) {\n    claimed.push(v);\n  }\n}\n\nif (claimed.length === 0) return [];\n\nvar prepRows = $items('Prep 2B Orders', 0, $runIndex);\nvar prep = [];\nfor (i = 0; i < prepRows.length; i++) prep.push(prepRows[i].json || {});\n\nvar out = [];\nfor (i = 0; i < claimed.length; i++) {\n  var c = claimed[i];\n  var match = null;\n  var k;\n\n  for (k = 0; k < prep.length; k++) {\n    var p = prep[k];\n    if (String(p.orderDbId) === String(c.id || '')) { match = p; break; }\n    if (!match && c.orderId && p.orderId === c.orderId) { match = p; break; }\n    if (!match && c.amazon_order_id && (p.orderId === c.amazon_order_id || p.amazonOrderId === c.amazon_order_id)) { match = p; break; }\n  }\n\n  if (!match) continue;\n\n  out.push({\n    json: {\n      orderId: match.orderId,\n      rootOrderId: match.rootOrderId,\n      amazonOrderId: match.amazonOrderId,\n      characterHash: match.characterHash,\n      orderDbId: c.id || match.orderDbId,\n      workflow: match.workflow,\n      claimedAt: c.started_at || null\n    }\n  });\n}\n\nreturn out;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3200,
+          -1408
+        ],
+        "id": "8e9c4080-dc24-4188-b9fc-a993cabc2081",
+        "name": "Verify Order Claimed (2B)"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Verify Order Claimed (3)\n// Keep one output per claimed order.\n\nconst rows = [];\nfor (const item of $input.all()) {\n  const v = item.json;\n  if (Array.isArray(v)) {\n    for (const row of v) {\n      if (row && typeof row === 'object' && Object.keys(row).length > 0) rows.push(row);\n    }\n    continue;\n  }\n  if (v && typeof v === 'object' && Object.keys(v).length > 0) rows.push(v);\n}\n\nconst output = [];\nfor (const row of rows) {\n  if (!row.id && !row.orderDbId) {\n    continue;\n  }\n\n  output.push({\n    json: {\n      orderId: row.orderId || row.amazon_order_id || row.amazonOrderId,\n      amazonOrderId: row.amazonOrderId || row.amazon_order_id || null,\n      oneManifestKey: row.oneManifestKey,\n      characterHash: row.characterHash || row.character_hash,\n      orderDbId: row.id || row.orderDbId,\n      workflow: row.workflow || '3',\n      dedicationText: row.dedicationText || row.dedication_text || null,\n      claimedAt: row.started_at || row.claimedAt || null,\n    },\n  });\n}\n\nif (output.length === 0) {\n  console.log('No claimed 3-orders to trigger');\n  return [];\n}\n\nconsole.log(`Claimed ${output.length} order(s) for 3`);\nreturn output;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3504,
+          -1120
+        ],
+        "id": "d024253f-d00b-4eb1-8d27-7a0e5148f1b6",
+        "name": "Verify Order Claimed (3)"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Verify Order Claimed (4)\n// Verify claim state from Supabase directly so empty PATCH bodies do not drop the route.\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    if (typeof v === 'string') {\n      const s = v.trim();\n      if (s !== '') return s;\n    } else {\n      return v;\n    }\n  }\n  return null;\n}\n\nfunction timestampKey(value) {\n  const raw = String(value || '').trim();\n  if (!raw) return '';\n  const withZone = /(?:Z|[+-]\\d{2}:\\d{2})$/i.test(raw) ? raw : `${raw}Z`;\n  const parsed = Date.parse(withZone);\n  if (Number.isFinite(parsed)) return String(parsed);\n  return raw.replace(/Z$/i, '').replace(/[+-]00:00$/i, '');\n}\n\nconst prepItems = $items('Get Signed URL (1‑manifest)-W4', 0, $runIndex).map(item => item.json || {});\nif (!prepItems.length) {\n  console.log('No prep items for 4-claim verification');\n  return [];\n}\n\nconst expectedIds = [...new Set(\n  prepItems\n    .map((prep) => prep.orderDbId)\n    .filter((value) => value !== undefined && value !== null && String(value).trim() !== '')\n    .map((value) => String(value).trim())\n)];\n\nif (!expectedIds.length) {\n  console.log('No orderDbIds available for 4-claim verification');\n  return [];\n}\n\nconst rows = await this.helpers.request({\n  method: 'GET',\n  uri: `${supabaseUrl}/rest/v1/orders`,\n  qs: {\n    id: `in.(${expectedIds.join(',')})`,\n    select: 'id,orderId,root_order_id,amazon_order_id,execution_status,current_workflow,started_at,next_workflow'\n  },\n  headers: {\n    apikey: supabaseKey,\n    Authorization: `Bearer ${supabaseKey}`,\n  },\n  json: true,\n});\n\nconst rowById = new Map((Array.isArray(rows) ? rows : []).map((row) => [String(row.id), row]));\nconst output = [];\nconst siblingGroups = new Map();\n\nfor (const prep of prepItems) {\n  const dbId = prep.orderDbId != null ? String(prep.orderDbId).trim() : '';\n  if (!dbId) continue;\n  const row = rowById.get(dbId);\n  const expectedStartedAt = String(prep.claimStartedAt || '').trim();\n  const matches = !!row\n    && String(row.execution_status || '').trim() === 'processing'\n    && String(row.current_workflow || '').trim() === '4'\n    && (!expectedStartedAt || timestampKey(row.started_at) === timestampKey(expectedStartedAt));\n\n  if (prep._route === 'sibling') {\n    const rootId = firstNonEmpty(prep.claimRootOrderId, prep.rootOrderId, prep.amazonOrderId, prep.orderId);\n    if (rootId) {\n      if (!siblingGroups.has(rootId)) {\n        siblingGroups.set(rootId, {\n          expectedIds: new Set(),\n          matchedIds: new Set(),\n          expectedStartedAt,\n        });\n      }\n      const bucket = siblingGroups.get(rootId);\n      const claimIds = Array.isArray(prep.claimOrderDbIds)\n        ? prep.claimOrderDbIds.map((value) => String(value).trim()).filter(Boolean)\n        : [dbId];\n      for (const id of claimIds) bucket.expectedIds.add(id);\n      if (matches) bucket.matchedIds.add(dbId);\n    }\n  }\n\n  if (!matches) {\n    continue;\n  }\n\n  output.push({\n    json: {\n      ...prep,\n      claimedAt: row.started_at || prep.claimStartedAt || null,\n      oneManifestUrl: prep.oneManifestUrl || prep.oneManifestKey || null,\n    },\n  });\n}\n\nfor (const [rootId, meta] of siblingGroups.entries()) {\n  const expectedCount = meta.expectedIds.size;\n  const matchedCount = meta.matchedIds.size;\n  if (expectedCount >= 2 && matchedCount !== expectedCount) {\n    throw new Error(`[Verify Order Claimed (4)] Partial sibling claim for ${rootId}: expected ${expectedCount}, matched ${matchedCount}, started_at=${meta.expectedStartedAt || 'n/a'}`);\n  }\n}\n\nif (output.length === 0) {\n  console.log('No verified claimed orders for 4');\n  return [];\n}\n\nconsole.log(`Claimed ${output.length} order(s) for 4`);\nreturn output;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3856,
+          -896
+        ],
+        "id": "cc8470c9-b845-460b-a84e-9c7a85c7d508",
+        "name": "Verify Order Claimed (4)"
+      },
+      {
+        "parameters": {
+          "jsCode": "\n// Resolve usable 1-manifest URLs for W4.\nconst backendBase = 'https://admin.littleherolabs.com';\nconst endpoint = `${backendBase}/api/r2/signed-url`;\nconst token = 'e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646';\nconst ttl = 600;\n\nfunction trimKey(value) {\n  return String(value || '').replace(/^\\/+/, '').split('?')[0].split('#')[0];\n}\n\nfunction normalizeManifestReference(value) {\n  const raw = value == null ? '' : String(value).trim();\n  if (!raw) return { raw: '', key: '', directUrl: null };\n\n  if (raw.startsWith('/api/manifests/')) {\n    return { raw, key: trimKey(raw.split('/api/manifests/')[1] || ''), directUrl: `${backendBase}${raw}` };\n  }\n  if (raw.startsWith('/api/assets/')) {\n    return { raw, key: trimKey(raw.split('/api/assets/')[1] || ''), directUrl: `${backendBase}${raw}` };\n  }\n  if (raw.includes('/api/manifests/')) {\n    return { raw, key: trimKey(raw.split('/api/manifests/')[1] || ''), directUrl: raw };\n  }\n  if (raw.includes('/api/assets/')) {\n    return { raw, key: trimKey(raw.split('/api/assets/')[1] || ''), directUrl: raw };\n  }\n  if (/^https?:\\/\\//i.test(raw)) {\n    try {\n      const url = new URL(raw);\n      return { raw, key: trimKey(url.pathname), directUrl: raw };\n    } catch {\n      return { raw, key: '', directUrl: raw };\n    }\n  }\n\n  return { raw, key: trimKey(raw), directUrl: null };\n}\n\nif (!token || token.trim() === '') {\n  throw new Error('BACKEND_API_TOKEN not configured. Token is required for authentication.');\n}\n\nconst inputItems = $input.all().map(item => item.json || {});\nconst output = [];\n\nfor (const item of inputItems) {\n  if (!item.oneManifestKey) {\n    throw new Error('Missing oneManifestKey');\n  }\n\n  const ref = normalizeManifestReference(item.oneManifestKey);\n  if (!ref.key && !ref.directUrl) {\n    throw new Error(`Could not normalize oneManifestKey: ${item.oneManifestKey}`);\n  }\n\n  if (ref.directUrl) {\n    output.push({\n      json: {\n        ...item,\n        oneManifestKey: ref.key || item.oneManifestKey,\n        oneManifestUrl: ref.directUrl,\n      },\n    });\n    continue;\n  }\n\n  try {\n    const res = await this.helpers.request({\n      method: 'GET',\n      uri: endpoint,\n      qs: { key: ref.key, bucket: 'little-hero-orders', expiresIn: ttl },\n      headers: {\n        Authorization: `Bearer ${token}`,\n        'Content-Type': 'application/json',\n      },\n      json: true,\n    });\n\n    const oneManifestUrl = res.url || res.data?.url || res.json?.url || res.result?.url;\n    if (!oneManifestUrl) {\n      throw new Error('Signed URL endpoint did not return a URL');\n    }\n\n    output.push({\n      json: {\n        ...item,\n        oneManifestKey: ref.key,\n        oneManifestUrl,\n      },\n    });\n  } catch (error) {\n    const status = error.response?.status || error.status || 'unknown';\n    const details = error.response?.data ? JSON.stringify(error.response.data) : error.message;\n\n    if (status === 401) {\n      throw new Error('Authentication failed (401). Check BACKEND_API_TOKEN alignment between n8n and backend.');\n    }\n\n    throw new Error(`Get Signed URL (1-manifest)-W4 failed for key=${ref.key} (raw=${ref.raw}) status=${status}: ${details}`);\n  }\n}\n\nreturn output;\n"
+        },
+        "id": "44a7409a-aad7-4ee2-9cb6-f1c0032bdc90",
+        "name": "Get Signed URL (1‑manifest)-W4",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3408,
+          -896
+        ],
+        "notes": "NOTE: n8n Cloud doesn't allow env var access in Code nodes, so using hardcoded defaults"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 1
+            },
+            "conditions": [
+              {
+                "id": "9059cd95-cddd-43a8-b0d8-f30e13cf9dca",
+                "leftValue": "={{ $json.shipping_address.name }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEmpty",
+                  "singleValue": true
+                }
+              },
+              {
+                "id": "4623bef4-f053-42d3-ba3c-02673487cb5e",
+                "leftValue": "={{ $json.shipping_address.state_code }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEmpty",
+                  "singleValue": true
+                }
+              },
+              {
+                "id": "7b244624-c4dd-4b40-acca-979494fed689",
+                "leftValue": "={{ $json.shipping_address.address_line_1 }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEmpty",
+                  "singleValue": true
+                }
+              },
+              {
+                "id": "411fc024-8077-45d6-88b5-4da686867113",
+                "leftValue": "={{ $json.shipping_address.city }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEmpty",
+                  "singleValue": true
+                }
+              },
+              {
+                "id": "6a7c46a4-945b-4f68-bcf6-2dc67bcca040",
+                "leftValue": "={{ $json.shipping_address.postal_code }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEmpty",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "ec9e3286-7bdb-424d-81c6-b479c8b80933",
+        "name": "Validate Shipping for w4",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          3136,
+          -880
+        ]
+      },
+      {
+        "parameters": {
+          "method": "PATCH",
+          "url": "https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "id",
+                "value": "={{ 'eq.' + String($json.orderDbId) }}"
+              }
+            ]
+          },
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Prefer",
+                "value": "return=representation"
+              },
+              {
+                "name": "apikey",
+                "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { \"error_type\": \"missing_shipping\", \"error_message\": \"Missing shipping_address for w4 path in w1.1\", \"updated_at\": new Date().toISOString() } }}",
+          "options": {}
+        },
+        "id": "2b33f5a2-b830-4acd-ade0-2faed0f4c590",
+        "name": "Flag Missing Shipping (Supabase)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          3408,
+          -704
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://admin.littleherolabs.com/api/internal/orders/{{$json.orderId}}/flags/missing-shipping",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { \"source\": \"w1.1\", \"workflow\": \"w1.1->w4 shipping validation\", \"reason\": \"Missing shipping_address for w4 path\", \"severity\": \"warning\", \"run_id\": $runId, \"timestamp\": new Date().toISOString(), \"orderDbId\": $json.orderDbId, \"orderId\": $json.orderId } }}",
+          "options": {}
+        },
+        "id": "da944f4c-507a-49c4-ad96-bd7ea8df875d",
+        "name": "Flag Missing Shipping (Backend)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          3648,
+          -704
+        ],
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json || {};\nconsole.log('Skipping w4 for order due to missing shipping_address in w1.1', {\n  orderId: item.orderId,\n  orderDbId: item.orderDbId,\n});\n\nreturn [{\n  json: {\n    ...item,\n    shippingValidation: {\n      status: 'missing',\n      workflow: 'w1.1->w4',\n      timestamp: new Date().toISOString()\n    }\n  }\n}];"
+        },
+        "id": "8200c8bb-16cf-4bd8-832b-71a17781e1be",
+        "name": "Log Skipped W4 Order",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3856,
+          -704
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Classify W4 orders: 'single' -> w4, complete sibling groups -> w4.1.\n// If only part of a sibling group is present in the cron batch, hydrate the missing ready siblings from Supabase.\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\nconst prefix = 'book-mvp-simple-adventure/orders';\n\nfunction deriveRoot(id) {\n  if (!id) return id;\n  const m = String(id).match(/^(.+?)-item-/);\n  return m ? m[1] : id;\n}\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    const s = typeof v === 'string' ? v.trim() : v;\n    if (s !== '') return s;\n  }\n  return null;\n}\n\nfunction cleanPhoneNumber(phone) {\n  if (!phone) return null;\n  let cleaned = String(phone).trim();\n  cleaned = cleaned.replace(/\\s*(ext|extension|x)[\\s:\\.]*\\d+/gi, '');\n  cleaned = cleaned.trim();\n  return cleaned || null;\n}\n\nfunction normalizeShippingAddress(rawShipping) {\n  if (!rawShipping) return null;\n  let shipping = rawShipping;\n  if (typeof rawShipping === 'string') {\n    try {\n      shipping = JSON.parse(rawShipping);\n    } catch (e) {\n      console.warn('Failed to parse shipping_address JSON string:', e.message);\n      return null;\n    }\n  }\n  if (typeof shipping !== 'object' || Array.isArray(shipping) || shipping === null) {\n    return null;\n  }\n\n  const normalized = { ...shipping };\n  if (normalized.address && !normalized.address_line_1) normalized.address_line_1 = normalized.address;\n  else if (normalized.address_line_1 && !normalized.address) normalized.address = normalized.address_line_1;\n\n  if (normalized.state && !normalized.state_code) normalized.state_code = normalized.state;\n  else if (normalized.state_code && !normalized.state) normalized.state = normalized.state_code;\n\n  if (normalized.zip && !normalized.postal_code) normalized.postal_code = normalized.zip;\n  else if (normalized.postal_code && !normalized.zip) normalized.zip = normalized.postal_code;\n\n  if (normalized.address2 && !normalized.address_line_2) normalized.address_line_2 = normalized.address2;\n  else if (normalized.address_line_2 && !normalized.address2) normalized.address2 = normalized.address_line_2;\n\n  if (normalized.recipient_name && !normalized.name) normalized.name = normalized.recipient_name;\n\n  if (normalized.address_line1 && !normalized.address_line_1) normalized.address_line_1 = normalized.address_line1;\n  else if (normalized.address_line_1 && !normalized.address_line1) normalized.address_line1 = normalized.address_line_1;\n\n  if (normalized.address_line2 && !normalized.address_line_2) normalized.address_line_2 = normalized.address_line2;\n  else if (normalized.address_line_2 && !normalized.address_line2) normalized.address_line2 = normalized.address_line_2;\n\n  if (!normalized.address_line_1) {\n    normalized.address_line_1 = normalized.address_line1 || normalized.address || '';\n  }\n\n  const rawPhone = normalized.phone_number || normalized.phone;\n  const cleanedPhone = cleanPhoneNumber(rawPhone);\n  const phone_number = cleanedPhone || '+1-678-478-3477';\n  normalized.phone_number = phone_number;\n  if (!normalized.phone) normalized.phone = phone_number;\n\n  return normalized;\n}\n\nfunction buildPreparedItem(row, rootHint = null) {\n  const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId);\n  if (!orderId) return null;\n\n  const rootOrderId = firstNonEmpty(\n    row.rootOrderId,\n    row.root_order_id,\n    deriveRoot(row.amazon_order_id || row.amazonOrderId || orderId),\n    rootHint,\n    deriveRoot(orderId),\n    orderId,\n  );\n  const amazonOrderId = firstNonEmpty(\n    row.amazonOrderId,\n    row.amazon_order_id,\n    row.rootOrderId,\n    row.root_order_id,\n    rootOrderId,\n  );\n\n  return {\n    json: {\n      orderId,\n      rootOrderId,\n      amazonOrderId,\n      characterHash: firstNonEmpty(row.characterHash, row.character_hash),\n      orderDbId: row.orderDbId != null ? row.orderDbId : row.id,\n      workflow: '4',\n      shipping_address: normalizeShippingAddress(row.shipping_address),\n      manifest3Key: firstNonEmpty(row.manifest3Key, row.three_manifest_url, row.manifest3Url, `${prefix}/${orderId}/manifests/3-manifest.json`),\n      oneManifestKey: firstNonEmpty(row.oneManifestKey, row.one_manifest_url, row.oneManifestUrl, `${prefix}/${orderId}/manifests/1-manifest.json`),\n      ShipmentServiceLevelCategory: firstNonEmpty(row.ShipmentServiceLevelCategory, row.amazon_shipment_service_level),\n      ShipServiceLevel: firstNonEmpty(row.ShipServiceLevel, row.amazon_shipment_service_level),\n      shipping_tier: firstNonEmpty(row.shipping_tier, row.shippingTier),\n    },\n  };\n}\n\nfunction parseItemNumber(orderId) {\n  const m = String(orderId || '').match(/-item-(\\d+)$/);\n  return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER;\n}\n\nfunction attachSiblingClaimMetadata(items, rootId) {\n  const claimOrderDbIds = [...new Set(\n    items\n      .map((item) => item?.json?.orderDbId)\n      .filter((value) => value !== undefined && value !== null && String(value).trim() !== '')\n      .map((value) => String(value).trim())\n  )];\n  const claimGroupSize = claimOrderDbIds.length;\n  const claimStartedAt = new Date().toISOString();\n\n  for (const item of items) {\n    item.json._route = 'sibling';\n    item.json.claimOrderDbIds = claimOrderDbIds;\n    item.json.claimGroupSize = claimGroupSize;\n    item.json.claimRootOrderId = rootId;\n    item.json.claimStartedAt = claimStartedAt;\n  }\n\n  return items;\n}\n\nasync function fetchSiblingRows(rootId) {\n  return await this.helpers.request({\n    method: 'GET',\n    uri: `${supabaseUrl}/rest/v1/orders`,\n    qs: {\n      root_order_id: `eq.${rootId}`,\n      select: 'id,orderId,root_order_id,amazon_order_id,character_hash,shipping_address,one_manifest_url,amazon_shipment_service_level,shipping_tier,execution_status,next_workflow'\n    },\n    headers: {\n      apikey: supabaseKey,\n      Authorization: `Bearer ${supabaseKey}`,\n    },\n    json: true,\n  });\n}\n\nconst items = $input.all();\nif (!items || items.length === 0) return [];\n\nconst groups = new Map();\nfor (const item of items) {\n  const prepared = buildPreparedItem(item.json || {});\n  if (!prepared) continue;\n  const rootId = firstNonEmpty(prepared.json.rootOrderId, deriveRoot(prepared.json.orderId), prepared.json.orderId);\n  if (!groups.has(rootId)) groups.set(rootId, []);\n  groups.get(rootId).push(prepared);\n}\n\nconst output = [];\nlet heldGroups = 0;\n\nfor (const [rootId, group] of groups) {\n  const preparedByOrderId = new Map();\n  for (const item of group) {\n    preparedByOrderId.set(item.json.orderId, item);\n  }\n\n  let siblingRows = null;\n  try {\n    siblingRows = await fetchSiblingRows.call(this, rootId);\n  } catch (e) {\n    console.warn(`Supabase sibling lookup failed for ${rootId}: ${e.message}`);\n  }\n\n  if (Array.isArray(siblingRows) && siblingRows.length > 0) {\n    const childRows = siblingRows.filter(row => {\n      const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId);\n      return orderId && orderId !== rootId;\n    });\n\n    if (childRows.length > 1) {\n      const readyRows = childRows.filter(row => {\n        const executionStatus = String(row.execution_status || '').trim();\n        const nextWorkflow = String(row.next_workflow || '').trim();\n        return executionStatus === 'ready_for_processing' && (nextWorkflow === '4' || nextWorkflow === '4-aggregate');\n      });\n\n      if (readyRows.length === childRows.length) {\n        for (const row of readyRows) {\n          const built = buildPreparedItem(row, rootId);\n          if (!built) continue;\n          const existing = preparedByOrderId.get(built.json.orderId);\n          preparedByOrderId.set(built.json.orderId, existing ? { json: { ...built.json, ...existing.json } } : built);\n        }\n\n        const completeGroup = [...preparedByOrderId.values()].sort((a, b) => parseItemNumber(a.json.orderId) - parseItemNumber(b.json.orderId));\n        if (completeGroup.length === childRows.length) {\n          const claimReadyGroup = attachSiblingClaimMetadata(completeGroup, rootId);\n          for (const item of claimReadyGroup) {\n            output.push(item);\n          }\n          console.log(`Sibling group ${rootId}: hydrated ${claimReadyGroup.length}/${childRows.length} ready items -> w4.1`);\n          continue;\n        }\n\n        heldGroups += 1;\n        console.log(`HOLD order ${group[0].json.orderId} (rootId=${rootId}): expected ${childRows.length} siblings, hydrated ${completeGroup.length}`);\n        continue;\n      }\n\n      const blocked = childRows\n        .map(row => {\n          const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId) || '(unknown)';\n          const executionStatus = String(row.execution_status || 'null');\n          const nextWorkflow = String(row.next_workflow || 'null');\n          return `${orderId}[status=${executionStatus},next=${nextWorkflow}]`;\n        })\n        .join(', ');\n      heldGroups += 1;\n      console.log(`HOLD order ${group[0].json.orderId} (rootId=${rootId}): sibling group incomplete/not ready -> ${blocked}`);\n      continue;\n    }\n  }\n\n  if (preparedByOrderId.size >= 2) {\n    const completeGroup = [...preparedByOrderId.values()].sort((a, b) => parseItemNumber(a.json.orderId) - parseItemNumber(b.json.orderId));\n    const claimReadyGroup = attachSiblingClaimMetadata(completeGroup, rootId);\n    for (const item of claimReadyGroup) {\n      output.push(item);\n    }\n    console.log(`Sibling group ${rootId}: ${claimReadyGroup.length} batch items -> w4.1`);\n    continue;\n  }\n\n  const single = [...preparedByOrderId.values()][0];\n  if (!single) continue;\n  single.json._route = 'single';\n  single.json.claimStartedAt = new Date().toISOString();\n  output.push(single);\n  console.log(`Single order ${single.json.orderId} (rootId=${rootId}) -> w4`);\n}\n\nconsole.log(`Classify result: ${output.length} forwarded, ${heldGroups} sibling group(s) held`);\nreturn output;"
+        },
+        "id": "ea760945-6021-4997-a26e-b10eb2466ca6",
+        "name": "Classify W4 Orders",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2944,
+          -880
+        ],
+        "notes": "Hydrates missing ready siblings from Supabase and only routes complete sibling groups to w4.1."
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 1
+            },
+            "conditions": [
+              {
+                "id": "sibling-route-check",
+                "leftValue": "={{ $json._route }}",
+                "rightValue": "sibling",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "daff39ce-66eb-4258-8e99-b3530074a013",
+        "name": "IF Sibling Route",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          4064,
+          -896
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Bundle sibling-tagged items into strict { siblingGroup: [...] } payloads for w4.1.\nconst items = $input.all();\nif (!items || items.length === 0) return [];\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    if (typeof v === 'string') {\n      const s = v.trim();\n      if (s !== '') return s;\n    } else {\n      return v;\n    }\n  }\n}\n\nfunction deriveRoot(id) {\n  if (!id) return id;\n  const m = String(id).match(/^(.+?)-item-/);\n  return m ? m[1] : id;\n}\n\nconst groups = new Map();\nfor (const item of items) {\n  const j = item.json || {};\n  const orderId = firstNonEmpty(j.orderId, j.order_id, j.amazon_order_id, j.amazonOrderId);\n  if (!orderId) continue;\n\n  // Always group by shared root, never by item-specific rootOrderId.\n  const rootId = firstNonEmpty(deriveRoot(orderId), deriveRoot(j.amazon_order_id), deriveRoot(j.amazonOrderId), j.rootOrderId, j.root_order_id, orderId);\n  if (!groups.has(rootId)) groups.set(rootId, []);\n\n  const manifest3Key = firstNonEmpty(\n    j.manifest3Key,\n    j.three_manifest_url,\n    j.manifest3Url,\n    j.manifestUrl,\n    `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`\n  );\n  const oneManifestUrl = firstNonEmpty(j.oneManifestUrl, j.one_manifest_url, j.oneManifestKey);\n\n  groups.get(rootId).push({\n    ...j,\n    orderId,\n    rootOrderId: firstNonEmpty(deriveRoot(orderId), j.rootOrderId, j.root_order_id, rootId),\n    manifest3Key,\n    one_manifest_url: oneManifestUrl || null\n  });\n}\n\nconst output = [];\nfor (const [rootId, siblings] of groups) {\n  output.push({ json: { siblingGroup: siblings } });\n  console.log(`Bundled ${siblings.length} siblings for rootId=${rootId}`);\n}\n\nreturn output;"
+        },
+        "id": "c7fb54c7-4d58-416a-876f-8661aff0179f",
+        "name": "Bundle Sibling Group",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          4288,
+          -944
+        ],
+        "notes": "Aggregates sibling items by rootOrderId into { siblingGroup: [...] } for w4.1 webhook."
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4.1-sibling-aggregate-sibtest",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Idempotency-Key",
+                "value": "={{ $json.siblingGroup[0].rootOrderId + '-4.1' }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{$json}}",
+          "options": {}
+        },
+        "id": "65b9eff6-c2a6-43a2-9fa3-5b166e67da53",
+        "name": "Trigger Workflow 4.1",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          4448,
+          -944
+        ],
+        "notes": "POSTs bundled sibling group to w4.1 aggregation webhook"
+      }
+    ],
+    "connections": {
+      "Prep Workflow 4 Orders": {
+        "main": [
+          [
+            {
+              "node": "Classify W4 Orders",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Classify W4 Orders": {
+        "main": [
+          [
+            {
+              "node": "Validate Shipping for w4",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mark as Processing (4)": {
+        "main": [
+          [
+            {
+              "node": "Verify Order Claimed (4)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge Prep Data with Supabase Response (3)": {
+        "main": [
+          [
+            {
+              "node": "Verify Order Claimed (3)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mark as Processing (3)": {
+        "main": [
+          [
+            {
+              "node": "Merge Prep Data with Supabase Response (3)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mark as Processing (2B)": {
+        "main": [
+          [
+            {
+              "node": "Verify Order Claimed (2B)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mark as Processing (2A)": {
+        "main": [
+          [
+            {
+              "node": "Trigger 2A Workflow",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prep Workflow 3 Orders": {
+        "main": [
+          [
+            {
+              "node": "Mark as Processing (3)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prep 2B Orders": {
+        "main": [
+          [
+            {
+              "node": "Mark as Processing (2B)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prep 2A Orders": {
+        "main": [
+          [
+            {
+              "node": "Mark as Processing (2A)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Route Orders by Workflow": {
+        "main": [
+          [
+            {
+              "node": "Prep Workflow 4 Orders",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Prep Workflow 3 Orders",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Prep 2B Orders",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Prep 2A Orders",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract Orders from Webhook": {
+        "main": [
+          [
+            {
+              "node": "Route Orders by Workflow",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook Trigger": {
+        "main": [
+          [
+            {
+              "node": "Extract Orders from Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Verify Order Claimed (2B)": {
+        "main": [
+          [
+            {
+              "node": "Trigger 2B Workflow",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Verify Order Claimed (3)": {
+        "main": [
+          [
+            {
+              "node": "Trigger Workflow 3",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Signed URL (1‑manifest)-W4": {
+        "main": [
+          [
+            {
+              "node": "Mark as Processing (4)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Verify Order Claimed (4)": {
+        "main": [
+          [
+            {
+              "node": "IF Sibling Route",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF Sibling Route": {
+        "main": [
+          [
+            {
+              "node": "Bundle Sibling Group",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Trigger Workflow ",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Bundle Sibling Group": {
+        "main": [
+          [
+            {
+              "node": "Trigger Workflow 4.1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validate Shipping for w4": {
+        "main": [
+          [
+            {
+              "node": "Get Signed URL (1‑manifest)-W4",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Flag Missing Shipping (Supabase)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Flag Missing Shipping (Supabase)": {
+        "main": [
+          [
+            {
+              "node": "Flag Missing Shipping (Backend)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Flag Missing Shipping (Backend)": {
+        "main": [
+          [
+            {
+              "node": "Log Skipped W4 Order",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Jeff LaPenna",
+    "name": null,
+    "description": null
+  }
+}

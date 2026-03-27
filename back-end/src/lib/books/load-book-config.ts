@@ -1,7 +1,11 @@
 import bookMvpSimpleAdventureV1Json from './configs/book-mvp-simple-adventure/v1.json';
+import book2ExampleV1Json from './configs/book-2-example/v1.json';
 import { BookConfig, BookConfigSchema, BookFormatConfig } from '@/lib/books/types';
 
-const BUNDLED_BOOK_CONFIGS = [bookMvpSimpleAdventureV1Json] as const;
+const BUNDLED_BOOK_CONFIGS = [
+  bookMvpSimpleAdventureV1Json,
+  book2ExampleV1Json,
+] as const;
 
 type BundledConfigMap = Map<string, Map<number, BookConfig>>;
 
@@ -67,4 +71,3 @@ export function getBookFormatConfig(config: BookConfig, formatId?: string): Book
 
   return format;
 }
-

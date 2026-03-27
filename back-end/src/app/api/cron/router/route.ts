@@ -13,7 +13,8 @@ export const dynamic = 'force-dynamic';
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 const cronSecret = process.env.CRON_SECRET;
-const n8nWebhookUrl = process.env.N8N_ROUTER_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/w1-1-router';
+const defaultN8nRouterWebhookUrl = 'https://thepeakbeyond.app.n8n.cloud/webhook/w1-1-router-sibtest';
+const n8nWebhookUrl = process.env.N8N_ROUTER_WEBHOOK_URL || defaultN8nRouterWebhookUrl;
 const maxConcurrent = 5; // Match W1.1 router maxConcurrent
 
 // Amazon orders processing - import the processing function
@@ -69,12 +70,12 @@ export async function GET(request: NextRequest) {
   if (isDirectWorkflowUrl) {
     console.error('[Cron Router] N8N_ROUTER_WEBHOOK_URL must be the W1.1 router webhook, not a workflow URL', {
       configured: n8nWebhookUrl.replace(/\/[^/]+$/, '/...'),
-      hint: 'Set N8N_ROUTER_WEBHOOK_URL to your n8n W1.1 router webhook (e.g. .../webhook/w1-1-router), not book-assembly or other workflow URLs.',
+      hint: 'Set N8N_ROUTER_WEBHOOK_URL to your n8n W1.1 router webhook (e.g. .../webhook/w1-1-router-sibtest), not book-assembly or other workflow URLs.',
     });
     return NextResponse.json(
       {
         error: 'Router webhook misconfiguration',
-        message: 'N8N_ROUTER_WEBHOOK_URL must point to the W1.1 router webhook (e.g. .../webhook/w1-1-router), not to a workflow (book-assembly, bg-removal, etc.). Orders must go through the router.',
+        message: 'N8N_ROUTER_WEBHOOK_URL must point to the W1.1 router webhook (e.g. .../webhook/w1-1-router-sibtest), not to a workflow (book-assembly, bg-removal, etc.). Orders must go through the router.',
       },
       { status: 500 }
     );
@@ -459,7 +460,7 @@ export async function GET(request: NextRequest) {
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,root_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,character_specs,execution_status,current_workflow,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier')
+      .select('id,"orderId",amazon_order_id,root_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,one_manifest_key,manifest_2b_url,manifest_3_url,character_specs,execution_status,current_workflow,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier')
       .eq('execution_status', 'ready_for_processing')
       .not('next_workflow', 'is', null)
       .is('started_at', null)

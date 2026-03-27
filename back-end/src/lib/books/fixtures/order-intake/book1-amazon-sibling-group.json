@@ -1,0 +1,98 @@
+{
+  "fixtureId": "book1-amazon-sibling-group",
+  "rootOrderId": "111-2222222-9999999",
+  "expected": {
+    "bookId": "book-mvp-simple-adventure",
+    "formatId": "amazon",
+    "expectedPageCount": 17,
+    "rootOrderId": "111-2222222-9999999",
+    "amazonOrderId": "111-2222222-9999999",
+    "siblingCount": 2
+  },
+  "siblingGroup": [
+    {
+      "id": 103,
+      "orderId": "FIXTURE-BOOK1-AMAZON-SIB-001",
+      "root_order_id": "111-2222222-9999999",
+      "amazon_order_id": "111-2222222-9999999",
+      "marketplace_id": "ATVPDKIKX0DER",
+      "platform": "amazon",
+      "purchase_date": "2026-03-16T08:30:00.000Z",
+      "created_at": "2026-03-16T08:30:00.000Z",
+      "customer_email": "sibling-parent@example.com",
+      "customer_name": "Sibling Parent",
+      "dedication_text": "For two brave adventurers",
+      "character_hash": "fixture-sibling-hash-1",
+      "shipping_tier": "standard",
+      "amazon_shipment_service_level": "STANDARD",
+      "customer_approval_required": false,
+      "character_specs": {
+        "childName": "Cora",
+        "favoriteAnimal": "bear",
+        "favoriteColor": "purple"
+      },
+      "product_info": {
+        "quantity": 1,
+        "shippingAddress": {
+          "name": "Sibling Parent",
+          "address": "123 Main Street",
+          "city": "Portland",
+          "state": "OR",
+          "zip": "97204",
+          "country": "US",
+          "phone": "+1-503-555-0101"
+        },
+        "bookSpecs": {
+          "bookId": "book-mvp-simple-adventure",
+          "title": "Cora and the Inner Path",
+          "format": "amazon-softcover",
+          "formatId": "amazon",
+          "channel": "amazon",
+          "bookType": "adventure"
+        }
+      }
+    },
+    {
+      "id": 104,
+      "orderId": "FIXTURE-BOOK1-AMAZON-SIB-002",
+      "root_order_id": "111-2222222-9999999",
+      "amazon_order_id": "111-2222222-9999999",
+      "marketplace_id": "ATVPDKIKX0DER",
+      "platform": "amazon",
+      "purchase_date": "2026-03-16T08:30:00.000Z",
+      "created_at": "2026-03-16T08:30:00.000Z",
+      "customer_email": "sibling-parent@example.com",
+      "customer_name": "Sibling Parent",
+      "dedication_text": "For two brave adventurers",
+      "character_hash": "fixture-sibling-hash-2",
+      "shipping_tier": "standard",
+      "amazon_shipment_service_level": "STANDARD",
+      "customer_approval_required": false,
+      "character_specs": {
+        "childName": "Milo",
+        "favoriteAnimal": "fox",
+        "favoriteColor": "green"
+      },
+      "product_info": {
+        "quantity": 1,
+        "shippingAddress": {
+          "name": "Sibling Parent",
+          "address": "123 Main Street",
+          "city": "Portland",
+          "state": "OR",
+          "zip": "97204",
+          "country": "US",
+          "phone": "+1-503-555-0101"
+        },
+        "bookSpecs": {
+          "bookId": "book-mvp-simple-adventure",
+          "title": "Milo and the Inner Path",
+          "format": "amazon-softcover",
+          "formatId": "amazon",
+          "channel": "amazon",
+          "bookType": "adventure"
+        }
+      }
+    }
+  ]
+}
