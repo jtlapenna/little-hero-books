@@ -153,3 +153,6 @@ amazon/amazon-request-text.txt
 amazon/amazon-response.txt
 amazon/amazon-response-text.txt
 .vercel
+
+# Live n8n cloud exports often contain embedded credentials and signed URLs
+docs/n8n-workflow-files/repo-centric/live-backups/**/*.json
