@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyBearerAuth } from '@/lib/auth';
+import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
 import { downloadManifest } from '@/lib/r2-service';
+import { supabase } from '@/lib/supabase-client';
 import {
+  buildSkippedW3AssemblyWorkflowFields,
   claimAndStartW3AssemblyJob,
   type W3AssemblyWorkflowFields,
 } from '@/lib/workflow-jobs';
@@ -14,6 +17,16 @@ import {
 export const dynamic = 'force-dynamic';
 
 type JsonRecord = Record<string, unknown>;
+type W3ReplayGuardOrderRow = {
+  id?: number | null;
+  orderId?: string | null;
+  order_id?: string | null;
+  workflow_step?: string | null;
+  execution_status?: string | null;
+  status?: string | null;
+  manifest_3_url?: string | null;
+  next_workflow?: string | number | null;
+};
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -31,11 +44,86 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function toTrimmedString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function toBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  return ['1', 'true', 'yes', 'y', 'on'].includes(value.trim().toLowerCase());
+}
+
+function pickBodyValue(body: JsonRecord, key: string): unknown {
+  if (key in body) {
+    return body[key];
+  }
+
+  const nested = body.body;
+  if (isRecord(nested) && key in nested) {
+    return nested[key];
+  }
+
+  const orderContext = body.orderContext;
+  if (isRecord(orderContext) && key in orderContext) {
+    return orderContext[key];
+  }
+
+  return undefined;
+}
+
+function shouldSkipCompletedW3Replay(
+  orderRow: W3ReplayGuardOrderRow | null,
+  forceReplay: boolean,
+): boolean {
+  if (!orderRow || forceReplay) {
+    return false;
+  }
+
+  const workflowStep = toTrimmedString(orderRow.workflow_step);
+  const executionStatus = toTrimmedString(orderRow.execution_status);
+  const status = toTrimmedString(orderRow.status);
+  const manifest3Url = toTrimmedString(orderRow.manifest_3_url);
+
+  return Boolean(
+    manifest3Url ||
+      workflowStep === 'book_assembly_completed' ||
+      (executionStatus === 'done' && status === 'pending_assembly_review'),
+  );
+}
+
+async function lookupReplayGuardOrderRow(
+  orderId: string,
+): Promise<W3ReplayGuardOrderRow | null> {
+  const lookup = await fetchOrderRowByAnyId<W3ReplayGuardOrderRow>(
+    supabase,
+    orderId,
+    'id, orderId, order_id, workflow_step, execution_status, status, manifest_3_url, next_workflow',
+  );
+  return lookup.row ?? null;
+}
+
 export async function buildW3AssemblyInputResponse(
   body: JsonRecord,
   options: {
     loadManifest?: LoadManifestForW3;
     defaultBackendUrl?: string;
+    lookupOrderRow?: (orderId: string, rawBody: JsonRecord) => Promise<W3ReplayGuardOrderRow | null>;
     instrumentAssemblyJob?: (
       payload: BuildW3AssemblyInputResult,
       rawBody: JsonRecord,
@@ -46,6 +134,17 @@ export async function buildW3AssemblyInputResponse(
     loadManifest: options.loadManifest ?? downloadManifest,
     defaultBackendUrl: options.defaultBackendUrl,
   });
+  const forceReplay = toBoolean(pickBodyValue(body, 'force'));
+  const orderRow = options.lookupOrderRow
+    ? await options.lookupOrderRow(result.orderId, body)
+    : await lookupReplayGuardOrderRow(result.orderId);
+  if (shouldSkipCompletedW3Replay(orderRow, forceReplay)) {
+    return {
+      success: true,
+      ...result,
+      ...buildSkippedW3AssemblyWorkflowFields('w3-order-already-complete'),
+    };
+  }
   const workflowFields =
     options.instrumentAssemblyJob
       ? await options.instrumentAssemblyJob(result, body)

@@ -24,8 +24,8 @@ const DEFAULT_W3_WORKER_KIND = 'n8n';
 type JsonRecord = Record<string, unknown>;
 
 export interface W3AssemblyWorkflowFields {
-  workflowJobId: number;
-  workflowJobIdempotencyKey: string;
+  workflowJobId: number | null;
+  workflowJobIdempotencyKey: string | null;
   workflowJobStatus: string;
   workflowAttemptId: number | null;
   workflowAttempt: number | null;
@@ -165,6 +165,22 @@ function buildWorkflowFields(
     workflowClaimed,
     workflowSkipped,
     workflowSkipReason,
+  };
+}
+
+export function buildSkippedW3AssemblyWorkflowFields(
+  skipReason: string,
+  status = 'skipped',
+): W3AssemblyWorkflowFields {
+  return {
+    workflowJobId: null,
+    workflowJobIdempotencyKey: null,
+    workflowJobStatus: status,
+    workflowAttemptId: null,
+    workflowAttempt: null,
+    workflowClaimed: false,
+    workflowSkipped: true,
+    workflowSkipReason: skipReason,
   };
 }
 

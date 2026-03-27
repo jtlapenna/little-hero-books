@@ -1,5 +1,28 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — on March 26, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: completed `W3` orders now short-circuit at the repo-owned entry route unless the caller explicitly forces a replay. I patched [`build-assembly-input/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/build-assembly-input/route.ts) so after it resolves normalized `W3` assembly input, it looks up the current order row and, when the order is already at `book_assembly_completed` / has `manifest_3_url` / is `done` + `pending_assembly_review`, returns `workflowSkipped = true` with reason `w3-order-already-complete` instead of creating a new `workflow_job`. `force: true` still bypasses that short-circuit.
+>
+> What changed in repo/backend:
+>
+> - [`W3AssemblyWorkflowFields`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-jobs/w3-assembly-jobs.ts) now allows null job ids for intentional short-circuit responses
+> - repo helper [`buildSkippedW3AssemblyWorkflowFields(...)`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-jobs/w3-assembly-jobs.ts) provides the normalized skipped response shape
+> - [`build-assembly-input/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/build-assembly-input/route.ts) now looks up the order row and skips already-complete `W3` orders unless `force: true`
+> - [`test-w3-assembly-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w3-assembly-input.ts) now covers both the completed-order short-circuit and the `force: true` override
+>
+> Fresh artifacts from this pass:
+>
+> - backend deploy revision [2e6df527.little-hero-labs-admin.pages.dev](https://2e6df527.little-hero-labs-admin.pages.dev)
+>
+> Live validation from this pass:
+>
+> - repo verification passed with `npm --prefix back-end run test:w3-assembly-input` and `npm --prefix back-end run test:workflow-jobs`
+> - targeted lint passed for `scripts/test-w3-assembly-input.ts`, `src/app/api/internal/w3/build-assembly-input/route.ts`, and `src/lib/workflow-jobs/w3-assembly-jobs.ts`
+> - production internal route `/api/internal/w3/build-assembly-input` now returns `workflowSkipped = true`, `workflowSkipReason = "w3-order-already-complete"`, and null workflow-job ids for already-complete order `W3-WFJ-PROOF-20260326195258-safe-v3`
+> - an end-to-end live POST to webhook `book-assembly-repo` with `claimedAt = 2026-03-27T05:24:10Z` created **no** new `workflow_jobs` rows; the latest `W3` jobs for the order remained `147` / `146` / `145`
+> - active `W3` job count for that proof order remained `0`
+>
+> Practical meaning: direct or accidental W3 reruns against an already-complete order no longer re-enter preview generation by default. That removes the replay failure class exposed by `workflow_jobs.id = 146` while preserving an explicit forced replay escape hatch for future operator tooling.
+>
 > Update — on March 26, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest: the `W3` overlap guard is now hardened at the backend claim layer and proven live. The earlier workflow-side `workflowSkipped` check was not enough under real concurrency; two near-simultaneous direct `book-assembly-repo` calls could still race past the pre-read and create duplicate active `workflow_jobs`. I patched repo helper [`w3-assembly-jobs.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-jobs/w3-assembly-jobs.ts) so `claimAndStartW3AssemblyJob(...)` now re-checks for the canonical earliest active `W3` job after enqueue and again after claim, then cancels the losing duplicate row before provider work starts.
 >
 > What changed in repo/backend:

@@ -355,6 +355,14 @@ As of the March 25, 2026 cleanup state in Los Angeles time:
   - winner `146` logged `duplicate-trigger-skipped` naming skipped job `147`, and loser `147` logged `duplicate-trigger-superseded`
   - the winning replay later hit a separate `pageNumber = 7` `provider-failed` path and ended `failed`, but the overlap proof itself is still positive: there was only one active `W3` job at a time and the order returned to zero active `W3` jobs without another duplicate runner
   - the order row stayed at `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4` / `status = pending_assembly_review`
+- a latest-latest-latest-latest-latest-latest-latest March 26 backend deploy + live completed-order replay proof confirms the repo-owned `W3` entry route now short-circuits already-complete orders by default:
+  - [`build-assembly-input/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/build-assembly-input/route.ts) now looks up the current order row after normalizing input and returns `workflowSkipped = true` with reason `w3-order-already-complete` when the order is already complete
+  - explicit `force: true` still bypasses that short-circuit, so later operator tooling can intentionally replay `W3`
+  - repo verification passed with `npm --prefix back-end run test:w3-assembly-input`, `npm --prefix back-end run test:workflow-jobs`, and targeted lint on the touched route / test / workflow-job helper files
+  - Pages revision [`2e6df527.little-hero-labs-admin.pages.dev`](https://2e6df527.little-hero-labs-admin.pages.dev) deployed the fix to production
+  - production `/api/internal/w3/build-assembly-input` now returns `workflowSkipped = true` and null workflow-job ids for completed proof order `W3-WFJ-PROOF-20260326195258-safe-v3`
+  - a fresh live POST to webhook `book-assembly-repo` with `claimedAt = 2026-03-27T05:24:10Z` created no new `workflow_jobs` rows; the latest `W3` job ids for that order remained `147`, `146`, and `145`
+  - active `W3` job count for that proof order stayed at `0`
 - a separate router-config bug surfaced during the same proof and is now fixed:
   - backend `cron/router` had been falling back to stale webhook path `w1-1-router` when `N8N_ROUTER_WEBHOOK_URL` was unset
   - [`route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/cron/router/route.ts) now falls back to active live `W1.1` webhook path `w1-1-router-sibtest`

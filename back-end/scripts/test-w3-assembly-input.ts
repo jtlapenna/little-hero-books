@@ -331,6 +331,7 @@ async function main(): Promise<void> {
     },
     {
       loadManifest: siblingLoadManifest,
+      lookupOrderRow: async () => null,
       instrumentAssemblyJob: async () => ({
         workflowJobId: 301,
         workflowJobIdempotencyKey: 'wf:3:w3-book-assembly:test-order:assembly:test',
@@ -352,6 +353,92 @@ async function main(): Promise<void> {
     'Expected route helper wrapper to return a normalized success payload',
   );
 
+  let skippedInstrumented = false;
+  const skippedResponse = await buildW3AssemblyInputResponse(
+    {
+      body: {
+        orderId: siblingOrderId,
+        rootOrderId: amazonOrderId,
+        amazonOrderId,
+        orderPrefix: siblingOrderPrefix,
+        backendUrl,
+      },
+    },
+    {
+      loadManifest: siblingLoadManifest,
+      lookupOrderRow: async () => ({
+        id: 874,
+        orderId: siblingOrderId,
+        workflow_step: 'book_assembly_completed',
+        execution_status: 'done',
+        status: 'pending_assembly_review',
+        manifest_3_url: `${backendUrl}/api/manifests/${buildManifestKeyFromOrderPrefix(siblingOrderPrefix, '3')}`,
+      }),
+      instrumentAssemblyJob: async () => {
+        skippedInstrumented = true;
+        throw new Error('Completed W3 orders should short-circuit before workflow job instrumentation');
+      },
+    },
+  );
+
+  assert(
+    skippedResponse.success === true &&
+      skippedResponse.workflowSkipped === true &&
+      skippedResponse.workflowSkipReason === 'w3-order-already-complete' &&
+      skippedResponse.workflowJobId === null &&
+      skippedResponse.workflowClaimed === false,
+    'Expected completed W3 orders to short-circuit with workflowSkipped instead of creating a new job',
+  );
+  assert(
+    skippedInstrumented === false,
+    'Expected completed W3 short-circuit to bypass job instrumentation entirely',
+  );
+
+  let forcedInstrumented = false;
+  const forcedReplayResponse = await buildW3AssemblyInputResponse(
+    {
+      body: {
+        orderId: siblingOrderId,
+        rootOrderId: amazonOrderId,
+        amazonOrderId,
+        orderPrefix: siblingOrderPrefix,
+        backendUrl,
+        force: true,
+      },
+    },
+    {
+      loadManifest: siblingLoadManifest,
+      lookupOrderRow: async () => ({
+        id: 874,
+        orderId: siblingOrderId,
+        workflow_step: 'book_assembly_completed',
+        execution_status: 'done',
+        status: 'pending_assembly_review',
+        manifest_3_url: `${backendUrl}/api/manifests/${buildManifestKeyFromOrderPrefix(siblingOrderPrefix, '3')}`,
+      }),
+      instrumentAssemblyJob: async () => {
+        forcedInstrumented = true;
+        return {
+          workflowJobId: 302,
+          workflowJobIdempotencyKey: 'wf:3:w3-book-assembly:test-order:assembly:force',
+          workflowJobStatus: 'running',
+          workflowAttemptId: 902,
+          workflowAttempt: 1,
+          workflowClaimed: true,
+          workflowSkipped: false,
+          workflowSkipReason: null,
+        };
+      },
+    },
+  );
+
+  assert(
+    forcedReplayResponse.workflowSkipped === false &&
+      forcedReplayResponse.workflowJobId === 302 &&
+      forcedInstrumented === true,
+    'Expected explicit force=true to bypass the completed-order short-circuit and continue with W3 instrumentation',
+  );
+
   console.log(
     JSON.stringify(
       {
@@ -365,6 +452,7 @@ async function main(): Promise<void> {
           'kept synthetic output roots when manifest URLs pointed at source-order inputs',
           'handled nested body payloads and standard-format orders',
           'route helper wrapper returned normalized success payload',
+          'completed W3 orders short-circuit unless force=true is set',
         ],
       },
       null,
