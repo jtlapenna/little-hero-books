@@ -1,5 +1,31 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — on March 26, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest: the `W3` overlap guard is now hardened at the backend claim layer and proven live. The earlier workflow-side `workflowSkipped` check was not enough under real concurrency; two near-simultaneous direct `book-assembly-repo` calls could still race past the pre-read and create duplicate active `workflow_jobs`. I patched repo helper [`w3-assembly-jobs.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-jobs/w3-assembly-jobs.ts) so `claimAndStartW3AssemblyJob(...)` now re-checks for the canonical earliest active `W3` job after enqueue and again after claim, then cancels the losing duplicate row before provider work starts.
+>
+> What changed in repo/backend:
+>
+> - `claimAndStartW3AssemblyJob(...)` now picks a canonical active `W3` job by earliest create time / lowest id
+> - if a newer duplicate row exists after enqueue or after claim, that newer row is marked with event `duplicate-trigger-superseded`, canceled immediately, and the caller is redirected to the winning job
+> - the winning job gets append-only trace event `duplicate-trigger-skipped`
+> - a new regression test covers the exact race where a later duplicate becomes visible only after enqueue
+>
+> Fresh artifacts from this pass:
+>
+> - backend deploy revision [f5deb17d.little-hero-labs-admin.pages.dev](https://f5deb17d.little-hero-labs-admin.pages.dev)
+>
+> Live validation from this pass:
+>
+> - repo verification passed with `npm --prefix back-end run test:workflow-jobs`
+> - targeted lint passed for `scripts/test-workflow-jobs.ts` and `src/lib/workflow-jobs/w3-assembly-jobs.ts`
+> - production returned the expected auth-protected `401` for `/api/internal/w3/build-assembly-input` after deploy
+> - two near-simultaneous direct POSTs to live webhook `book-assembly-repo` with `claimedAt = 2026-03-27T05:14:10Z` and `2026-03-27T05:14:11Z` created `workflow_jobs.id = 146` and `147`
+> - the important overlap result is that only `146` became active; `147` was canceled immediately with no claim and no attempt row
+> - job `147` recorded `duplicate-trigger-superseded`, while winner `146` recorded `duplicate-trigger-skipped` naming skipped job `147`
+> - after that overlap proof there were zero active `W3` jobs for the order again because `146` later reached a separate terminal `failed` state and `147` was already `canceled`
+> - order `W3-WFJ-PROOF-20260326195258-safe-v3` remained at `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4` / `status = pending_assembly_review`
+>
+> Important nuance: the overlap bug is fixed, but the winning replay `workflow_jobs.id = 146` later failed independently at `pageNumber = 7` with a provider-side `pdfMonkeyStatus = pending` / `provider-failed` path. That later failure is separate from duplicate-run protection and should be treated as the next `W3` operational issue if we keep hardening direct replay behavior.
+>
 > Update — on March 26, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest: the shared workflow-job event logger no longer regresses terminal `W3` attempts back to `polling`, and that fix is now deployed + proven live. I patched backend route [`/api/internal/workflow-jobs/log-event`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/workflow-jobs/log-event/route.ts) so late non-terminal `poll-tick` / status-log events are ignored once a job or attempt is already terminal, and I locked that behavior into [`test-workflow-jobs.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-workflow-jobs.ts).
 >
 > What changed in repo/backend:

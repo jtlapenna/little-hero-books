@@ -346,6 +346,15 @@ As of the March 25, 2026 cleanup state in Los Angeles time:
   - an accidental overlapping replay from an earlier hanging curl also completed as `workflow_jobs.id = 143`, but both jobs finished cleanly and the order returned to zero active `W3` jobs
   - the regression proof is `workflow_job_attempts.id = 104`: it finished with `status = succeeded` and `ended_at = 2026-03-27T04:43:42.860Z` while `workflow_jobs.id = 142` ended `succeeded` with terminal `completed` event `1580`
   - order row again finalized to `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4`
+- a latest-latest-latest-latest-latest-latest March 26 backend deploy + live overlap proof confirms the `W3` duplicate-run guard now cancels the losing rerun instead of letting two active jobs proceed:
+  - repo helper [`w3-assembly-jobs.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-jobs/w3-assembly-jobs.ts) now re-checks for the canonical earliest active `W3` job after enqueue and after claim
+  - if a later duplicate row is visible, it is immediately audit-marked `duplicate-trigger-superseded`, canceled, and the caller is redirected to the winner, which receives append-only event `duplicate-trigger-skipped`
+  - repo verification again passed with `npm --prefix back-end run test:workflow-jobs`, and Pages revision [`f5deb17d.little-hero-labs-admin.pages.dev`](https://f5deb17d.little-hero-labs-admin.pages.dev) deployed the fix to production
+  - two near-simultaneous direct POSTs to live webhook `book-assembly-repo` with `claimedAt = 2026-03-27T05:14:10Z` and `2026-03-27T05:14:11Z` created `workflow_jobs.id = 146` and `147`
+  - only `146` became active; `147` was canceled immediately with no claim and no attempt row
+  - winner `146` logged `duplicate-trigger-skipped` naming skipped job `147`, and loser `147` logged `duplicate-trigger-superseded`
+  - the winning replay later hit a separate `pageNumber = 7` `provider-failed` path and ended `failed`, but the overlap proof itself is still positive: there was only one active `W3` job at a time and the order returned to zero active `W3` jobs without another duplicate runner
+  - the order row stayed at `workflow_step = book_assembly_completed` / `execution_status = done` / `next_workflow = 4` / `status = pending_assembly_review`
 - a separate router-config bug surfaced during the same proof and is now fixed:
   - backend `cron/router` had been falling back to stale webhook path `w1-1-router` when `N8N_ROUTER_WEBHOOK_URL` was unset
   - [`route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/cron/router/route.ts) now falls back to active live `W1.1` webhook path `w1-1-router-sibtest`

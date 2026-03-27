@@ -20,7 +20,7 @@ import {
   summarizeWorkflowJobError,
 } from '@/lib/workflow-jobs';
 import { recordWorkflowJobEventResponse } from '@/app/api/internal/workflow-jobs/log-event/route';
-import type { WorkflowJobRecord } from '@/lib/workflow-jobs';
+import type { WorkflowJobAttemptRecord, WorkflowJobRecord } from '@/lib/workflow-jobs';
 
 function assert(condition: unknown, message: string): void {
   if (!condition) {
@@ -718,6 +718,7 @@ async function testW3AssemblyJobLifecycle() {
           updated_at: '2026-03-26T18:32:47.000Z',
         }) as WorkflowJobRecord,
       markWorkflowJobSucceeded: async () => null,
+      cancelWorkflowJob: async () => null,
       appendWorkflowJobEvent: async (input) => {
         queuedEvents.push({ eventType: input.eventType, payload: input.payload });
         return null;
@@ -737,6 +738,316 @@ async function testW3AssemblyJobLifecycle() {
       queuedEvents.some((event) => event.eventType === 'claimed') &&
       queuedEvents.some((event) => event.eventType === 'started'),
     'W3 job start should emit queued, claimed, and started events',
+  );
+  assertEqual(started.workflowSkipped, false, 'W3 job start should not mark the fresh claim as skipped');
+  assertEqual(started.workflowSkipReason, null, 'W3 job start should not report a skip reason');
+}
+
+async function testW3AssemblyJobSkipsWhenAnotherActiveJobExists() {
+  const calls: Array<{ fn: string; payload: unknown }> = [];
+  const activeJob: WorkflowJobRecord = {
+    id: 777,
+    job_type: 'w3-book-assembly',
+    stage: '3',
+    order_row_id: 874,
+    order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    root_order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    amazon_order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    book_id: 'book-mvp-simple-adventure',
+    logical_key: 'assembly:2026-03-27T04:38:54Z',
+    idempotency_key:
+      'wf:3:w3-book-assembly:W3-WFJ-PROOF-20260326195258-safe-v3:assembly:2026-03-27T04:38:54Z:active',
+    status: 'polling',
+    lease_owner: 'api:internal/w3/build-assembly-input',
+    lease_expires_at: '2026-03-27T04:45:00.000Z',
+    attempt_count: 1,
+    max_attempts: 5,
+    next_retry_at: null,
+    external_provider: 'pdfmonkey',
+    external_request_id: 'pdf-777',
+    external_status_url: 'https://api.pdfmonkey.io/api/v1/documents/pdf-777',
+    input_snapshot: {},
+    normalized_input_snapshot: {},
+    result_snapshot: {},
+    last_error: null,
+    queued_at: '2026-03-27T04:38:55.000Z',
+    claimed_at: '2026-03-27T04:38:56.000Z',
+    started_at: '2026-03-27T04:38:56.000Z',
+    polling_at: '2026-03-27T04:39:00.000Z',
+    completed_at: null,
+    failed_at: null,
+    dead_lettered_at: null,
+    canceled_at: null,
+    created_at: '2026-03-27T04:38:55.000Z',
+    updated_at: '2026-03-27T04:39:00.000Z',
+  };
+
+  const started = await claimAndStartW3AssemblyJob(
+    {
+      orderId: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+      rootOrderId: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+      amazonOrderId: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+      bookId: 'book-mvp-simple-adventure',
+      characterHash: 'fixture-book1-w3-hash',
+      manifest2bKey:
+        'book/orders/W3-WFJ-PROOF-20260326195258-safe-v3/manifests/2b-manifest.json',
+      manifest3Key:
+        'book/orders/W3-WFJ-PROOF-20260326195258-safe-v3/manifests/3-manifest.json',
+      claimedAt: '2026-03-27T04:39:12.000Z',
+    },
+    {},
+    {
+      enqueueWorkflowJob: async () => {
+        throw new Error('should not enqueue a duplicate W3 job while another is active');
+      },
+      getWorkflowJobById: async () => null,
+      getWorkflowJobByIdempotencyKey: async () => null,
+      listWorkflowJobsForOrder: async () => [activeJob],
+      claimWorkflowJob: async () => null,
+      incrementWorkflowJobAttemptCount: async () => null,
+      createWorkflowJobAttempt: async () => null,
+      getLatestWorkflowJobAttemptForJob: async (jobId: number) =>
+        jobId === 777
+          ? ({
+              id: 1004,
+              job_id: 777,
+              attempt: 1,
+              status: 'polling',
+              worker_kind: 'n8n',
+              lease_owner: 'api:internal/w3/build-assembly-input',
+              started_at: '2026-03-27T04:38:56.000Z',
+              ended_at: null,
+              duration_ms: null,
+              error_message: null,
+              error_details: null,
+              provider_request_id: 'pdf-777',
+              provider_status_url: 'https://api.pdfmonkey.io/api/v1/documents/pdf-777',
+              created_at: '2026-03-27T04:38:56.000Z',
+              updated_at: '2026-03-27T04:39:00.000Z',
+            } as WorkflowJobAttemptRecord)
+          : null,
+      finishWorkflowJobAttempt: async () => null,
+      markWorkflowJobRunning: async () => null,
+      markWorkflowJobSucceeded: async () => null,
+      cancelWorkflowJob: async () => null,
+      appendWorkflowJobEvent: async (input) => {
+        calls.push({ fn: 'appendWorkflowJobEvent', payload: input });
+        return null;
+      },
+    },
+  );
+
+  assertEqual(
+    started.workflowJobId,
+    777,
+    'W3 duplicate guard should point duplicate callers at the already-active assembly job',
+  );
+  assertEqual(
+    started.workflowAttemptId,
+    1004,
+    'W3 duplicate guard should surface the latest active attempt for the already-running job',
+  );
+  assertEqual(started.workflowClaimed, false, 'W3 duplicate guard should not claim a second job');
+  assertEqual(started.workflowSkipped, true, 'W3 duplicate guard should mark the duplicate trigger skipped');
+  assertEqual(
+    started.workflowSkipReason,
+    'active-w3-assembly-job-exists',
+    'W3 duplicate guard should explain why the duplicate trigger was skipped',
+  );
+  assert(
+    calls.some(
+      (entry) =>
+        entry.fn === 'appendWorkflowJobEvent' &&
+        (entry.payload as { eventType?: string }).eventType === 'duplicate-trigger-skipped',
+    ),
+    'W3 duplicate guard should append a duplicate-trigger-skipped event to the active job',
+  );
+}
+
+async function testW3AssemblyJobCancelsLaterOverlapAfterEnqueue() {
+  const calls: Array<{ fn: string; payload: unknown }> = [];
+  let listCallCount = 0;
+
+  const earlierJob: WorkflowJobRecord = {
+    id: 880,
+    job_type: 'w3-book-assembly',
+    stage: '3',
+    order_row_id: 874,
+    order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    root_order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    amazon_order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    book_id: 'book-mvp-simple-adventure',
+    logical_key: 'assembly:2026-03-27T05:01:30Z',
+    idempotency_key:
+      'wf:3:w3-book-assembly:W3-WFJ-PROOF-20260326195258-safe-v3:assembly:2026-03-27T05:01:30Z:older',
+    status: 'running',
+    lease_owner: 'api:internal/w3/build-assembly-input',
+    lease_expires_at: '2026-03-27T05:06:00.000Z',
+    attempt_count: 1,
+    max_attempts: 5,
+    next_retry_at: null,
+    external_provider: 'pdfmonkey',
+    external_request_id: 'pdf-880',
+    external_status_url: 'https://api.pdfmonkey.io/api/v1/documents/pdf-880',
+    input_snapshot: {},
+    normalized_input_snapshot: {},
+    result_snapshot: {},
+    last_error: null,
+    queued_at: '2026-03-27T05:01:11.000Z',
+    claimed_at: '2026-03-27T05:01:12.000Z',
+    started_at: '2026-03-27T05:01:13.000Z',
+    polling_at: null,
+    completed_at: null,
+    failed_at: null,
+    dead_lettered_at: null,
+    canceled_at: null,
+    created_at: '2026-03-27T05:01:11.000Z',
+    updated_at: '2026-03-27T05:01:13.000Z',
+  };
+
+  const duplicateJob: WorkflowJobRecord = {
+    id: 881,
+    job_type: 'w3-book-assembly',
+    stage: '3',
+    order_row_id: 874,
+    order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    root_order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    amazon_order_id: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+    book_id: 'book-mvp-simple-adventure',
+    logical_key: 'assembly:2026-03-27T05:01:31Z',
+    idempotency_key:
+      'wf:3:w3-book-assembly:W3-WFJ-PROOF-20260326195258-safe-v3:assembly:2026-03-27T05:01:31Z:newer',
+    status: 'queued',
+    lease_owner: null,
+    lease_expires_at: null,
+    attempt_count: 0,
+    max_attempts: 5,
+    next_retry_at: null,
+    external_provider: 'pdfmonkey',
+    external_request_id: null,
+    external_status_url: null,
+    input_snapshot: {},
+    normalized_input_snapshot: {},
+    result_snapshot: {},
+    last_error: null,
+    queued_at: '2026-03-27T05:01:12.000Z',
+    claimed_at: null,
+    started_at: null,
+    polling_at: null,
+    completed_at: null,
+    failed_at: null,
+    dead_lettered_at: null,
+    canceled_at: null,
+    created_at: '2026-03-27T05:01:12.000Z',
+    updated_at: '2026-03-27T05:01:12.000Z',
+  };
+
+  const started = await claimAndStartW3AssemblyJob(
+    {
+      orderId: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+      rootOrderId: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+      amazonOrderId: 'W3-WFJ-PROOF-20260326195258-safe-v3',
+      bookId: 'book-mvp-simple-adventure',
+      characterHash: 'fixture-book1-w3-hash',
+      manifest2bKey:
+        'book/orders/W3-WFJ-PROOF-20260326195258-safe-v3/manifests/2b-manifest.json',
+      manifest3Key:
+        'book/orders/W3-WFJ-PROOF-20260326195258-safe-v3/manifests/3-manifest.json',
+      claimedAt: '2026-03-27T05:01:31.000Z',
+    },
+    {},
+    {
+      enqueueWorkflowJob: async () => duplicateJob,
+      getWorkflowJobById: async (jobId: number) => (jobId === 880 ? earlierJob : duplicateJob),
+      getWorkflowJobByIdempotencyKey: async () => null,
+      listWorkflowJobsForOrder: async () => {
+        listCallCount += 1;
+        return listCallCount === 1 ? [] : [duplicateJob, earlierJob];
+      },
+      claimWorkflowJob: async () => {
+        throw new Error('should not claim the later duplicate once an earlier active job is visible');
+      },
+      incrementWorkflowJobAttemptCount: async () => null,
+      createWorkflowJobAttempt: async () => null,
+      getLatestWorkflowJobAttemptForJob: async (jobId: number) =>
+        jobId === 880
+          ? ({
+              id: 1005,
+              job_id: 880,
+              attempt: 1,
+              status: 'running',
+              worker_kind: 'n8n',
+              lease_owner: 'api:internal/w3/build-assembly-input',
+              started_at: '2026-03-27T05:01:13.000Z',
+              ended_at: null,
+              duration_ms: null,
+              error_message: null,
+              error_details: null,
+              provider_request_id: 'pdf-880',
+              provider_status_url: 'https://api.pdfmonkey.io/api/v1/documents/pdf-880',
+              created_at: '2026-03-27T05:01:13.000Z',
+              updated_at: '2026-03-27T05:01:13.000Z',
+            } as WorkflowJobAttemptRecord)
+          : null,
+      finishWorkflowJobAttempt: async () => null,
+      markWorkflowJobRunning: async () => null,
+      markWorkflowJobSucceeded: async () => null,
+      cancelWorkflowJob: async (jobId: number, reason: string) => {
+        calls.push({ fn: 'cancelWorkflowJob', payload: { jobId, reason } });
+        return {
+          ...duplicateJob,
+          status: 'canceled',
+          canceled_at: '2026-03-27T05:01:12.500Z',
+          updated_at: '2026-03-27T05:01:12.500Z',
+        } as WorkflowJobRecord;
+      },
+      appendWorkflowJobEvent: async (input) => {
+        calls.push({ fn: 'appendWorkflowJobEvent', payload: input });
+        return null;
+      },
+    },
+  );
+
+  assertEqual(
+    started.workflowJobId,
+    880,
+    'W3 overlap guard should redirect the later duplicate to the earlier active job',
+  );
+  assertEqual(started.workflowAttemptId, 1005, 'W3 overlap guard should surface the winning active attempt');
+  assertEqual(started.workflowClaimed, false, 'W3 overlap guard should not claim the later duplicate');
+  assertEqual(started.workflowSkipped, true, 'W3 overlap guard should mark the later duplicate skipped');
+  assertEqual(
+    started.workflowSkipReason,
+    'active-w3-assembly-job-exists',
+    'W3 overlap guard should explain the duplicate skip reason',
+  );
+  assert(
+    calls.some(
+      (entry) =>
+        entry.fn === 'cancelWorkflowJob' &&
+        (entry.payload as { jobId?: number }).jobId === 881,
+    ),
+    'W3 overlap guard should cancel the later duplicate job row before provider work starts',
+  );
+  assert(
+    calls.some(
+      (entry) =>
+        entry.fn === 'appendWorkflowJobEvent' &&
+        (entry.payload as { eventType?: string; jobId?: number }).eventType ===
+          'duplicate-trigger-superseded' &&
+        (entry.payload as { eventType?: string; jobId?: number }).jobId === 881,
+    ),
+    'W3 overlap guard should mark the later duplicate row as superseded',
+  );
+  assert(
+    calls.some(
+      (entry) =>
+        entry.fn === 'appendWorkflowJobEvent' &&
+        (entry.payload as { eventType?: string; jobId?: number }).eventType ===
+          'duplicate-trigger-skipped' &&
+        (entry.payload as { eventType?: string; jobId?: number }).jobId === 880,
+    ),
+    'W3 overlap guard should log the skip on the winning active job for traceability',
   );
 }
 
@@ -843,6 +1154,7 @@ async function testW3AssemblyCompletion() {
           result_snapshot: input.resultSnapshot ?? {},
         } as WorkflowJobRecord;
       },
+      cancelWorkflowJob: async () => null,
       appendWorkflowJobEvent: async (input) => {
         calls.push({ fn: 'appendWorkflowJobEvent', payload: input });
         return null;
@@ -880,6 +1192,8 @@ async function main() {
   await testWorkflowJobEventRoute();
   await testWorkflowJobEventRouteIgnoresLatePollRegression();
   await testW3AssemblyJobLifecycle();
+  await testW3AssemblyJobSkipsWhenAnotherActiveJobExists();
+  await testW3AssemblyJobCancelsLaterOverlapAfterEnqueue();
   await testW3AssemblyCompletion();
   console.log('test-workflow-jobs: ok');
 }

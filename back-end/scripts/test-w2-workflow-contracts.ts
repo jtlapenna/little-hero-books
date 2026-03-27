@@ -829,6 +829,9 @@ async function main(): Promise<void> {
       w3ExtractAssemblyInputCode.includes("const payload = input.body ?? input") &&
       w3ExtractAssemblyInputCode.includes("body: payload") &&
       w3ExtractAssemblyInputCode.includes("json: true") &&
+      w3ExtractAssemblyInputCode.includes("const normalized = response") &&
+      w3ExtractAssemblyInputCode.includes("normalized.workflowSkipped === true") &&
+      w3ExtractAssemblyInputCode.includes("return [];") &&
       w3ExtractAssemblyInputCode.includes(
         "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646",
       ) &&

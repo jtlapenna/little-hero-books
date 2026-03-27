@@ -838,7 +838,7 @@
     {
       "parameters": {
         "language": "javaScript",
-        "jsCode": "const input = $input.first()?.json || {};\nconst payload = input.body ?? input;\nconst backendUrl = String(payload.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/build-assembly-input',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: payload,\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];",
+        "jsCode": "const input = $input.first()?.json || {};\nconst payload = input.body ?? input;\nconst backendUrl = String(payload.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/build-assembly-input',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: payload,\n  json: true,\n  timeout: 90000,\n});\n\nconst normalized = response && typeof response === 'object' && !Array.isArray(response)\n  ? response\n  : { response };\n\nif (normalized.workflowSkipped === true) {\n  return [];\n}\n\nreturn [{ json: normalized }];",
         "mode": "runOnceForAllItems"
       },
       "id": "1e571512-0fb2-4ac8-88a1-7a11df68ad06",

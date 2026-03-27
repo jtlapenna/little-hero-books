@@ -338,6 +338,8 @@ async function main(): Promise<void> {
         workflowAttemptId: 901,
         workflowAttempt: 1,
         workflowClaimed: true,
+        workflowSkipped: false,
+        workflowSkipReason: null,
       }),
     },
   );

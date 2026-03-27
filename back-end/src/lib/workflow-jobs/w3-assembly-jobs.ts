@@ -1,5 +1,6 @@
 import {
   appendWorkflowJobEvent,
+  cancelWorkflowJob,
   claimWorkflowJob,
   createWorkflowJobAttempt,
   enqueueWorkflowJob,
@@ -29,6 +30,8 @@ export interface W3AssemblyWorkflowFields {
   workflowAttemptId: number | null;
   workflowAttempt: number | null;
   workflowClaimed: boolean;
+  workflowSkipped: boolean;
+  workflowSkipReason: string | null;
 }
 
 export interface W3AssemblyJobInput {
@@ -88,6 +91,7 @@ export interface W3AssemblyJobRepository {
   markWorkflowJobRunning: typeof markWorkflowJobRunning;
   markWorkflowJobSucceeded: typeof markWorkflowJobSucceeded;
   appendWorkflowJobEvent: typeof appendWorkflowJobEvent;
+  cancelWorkflowJob: typeof cancelWorkflowJob;
 }
 
 const defaultRepository: W3AssemblyJobRepository = {
@@ -103,6 +107,7 @@ const defaultRepository: W3AssemblyJobRepository = {
   markWorkflowJobRunning,
   markWorkflowJobSucceeded,
   appendWorkflowJobEvent,
+  cancelWorkflowJob,
 };
 
 function toTrimmedString(value: unknown): string | null {
@@ -148,6 +153,8 @@ function buildWorkflowFields(
   job: WorkflowJobRecord,
   attempt: WorkflowJobAttemptRecord | null,
   workflowClaimed: boolean,
+  workflowSkipped = false,
+  workflowSkipReason: string | null = null,
 ): W3AssemblyWorkflowFields {
   return {
     workflowJobId: job.id,
@@ -156,6 +163,8 @@ function buildWorkflowFields(
     workflowAttemptId: attempt?.id ?? null,
     workflowAttempt: attempt?.attempt ?? null,
     workflowClaimed,
+    workflowSkipped,
+    workflowSkipReason,
   };
 }
 
@@ -259,6 +268,17 @@ function compareLatest(left: WorkflowJobRecord, right: WorkflowJobRecord): numbe
   return (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0);
 }
 
+function compareEarliest(left: WorkflowJobRecord, right: WorkflowJobRecord): number {
+  const leftTime = Date.parse(left.created_at || left.queued_at || left.updated_at || '');
+  const rightTime = Date.parse(right.created_at || right.queued_at || right.updated_at || '');
+  const leftValue = Number.isFinite(leftTime) ? leftTime : 0;
+  const rightValue = Number.isFinite(rightTime) ? rightTime : 0;
+  if (leftValue !== rightValue) {
+    return leftValue - rightValue;
+  }
+  return left.id - right.id;
+}
+
 function pickLatestActiveW3AssemblyJob(jobs: WorkflowJobRecord[]): WorkflowJobRecord | null {
   const relevant = jobs.filter(
     (job) =>
@@ -274,12 +294,147 @@ function pickLatestActiveW3AssemblyJob(jobs: WorkflowJobRecord[]): WorkflowJobRe
   return [...relevant].sort(compareLatest)[0] ?? null;
 }
 
+function isActiveW3AssemblyStatus(status: string | null | undefined): boolean {
+  return ['queued', 'claimed', 'running', 'polling', 'retry_waiting'].includes(status ?? '');
+}
+
+function isTerminalW3AssemblyStatus(status: string | null | undefined): boolean {
+  return ['succeeded', 'failed', 'dead_lettered', 'canceled'].includes(status ?? '');
+}
+
+function pickCanonicalActiveW3AssemblyJob(jobs: WorkflowJobRecord[]): WorkflowJobRecord | null {
+  const relevant = jobs.filter(
+    (job) =>
+      job.job_type === W3_ASSEMBLY_JOB_TYPE &&
+      job.stage === W3_STAGE &&
+      isActiveW3AssemblyStatus(job.status),
+  );
+
+  if (!relevant.length) {
+    return null;
+  }
+
+  return [...relevant].sort(compareEarliest)[0] ?? null;
+}
+
+async function skipDuplicateW3AssemblyJob(
+  currentJob: WorkflowJobRecord,
+  winnerJob: WorkflowJobRecord,
+  input: W3AssemblyJobInput,
+  requestedIdentity: ReturnType<typeof buildW3AssemblyJobIdentity>,
+  requestedIdempotencyKey: string,
+  repository: W3AssemblyJobRepository,
+): Promise<W3AssemblyWorkflowFields> {
+  if (currentJob.id !== winnerJob.id && !isTerminalW3AssemblyStatus(currentJob.status)) {
+    await repository.appendWorkflowJobEvent({
+      jobId: currentJob.id,
+      eventType: 'duplicate-trigger-superseded',
+      payload: {
+        orderId: input.orderId,
+        requestedLogicalKey: requestedIdentity.logicalKey,
+        requestedIdempotencyKey,
+        winnerJobId: winnerJob.id,
+        skipReason: 'active-w3-assembly-job-exists',
+      },
+    });
+    await repository.cancelWorkflowJob(
+      currentJob.id,
+      `Superseded by active W3 assembly job ${winnerJob.id}`,
+    );
+  }
+
+  const winnerAttempt = await repository.getLatestWorkflowJobAttemptForJob(winnerJob.id);
+  await repository.appendWorkflowJobEvent({
+    jobId: winnerJob.id,
+    attemptId: winnerAttempt?.id ?? null,
+    eventType: 'duplicate-trigger-skipped',
+    payload: {
+      orderId: input.orderId,
+      requestedLogicalKey: requestedIdentity.logicalKey,
+      requestedIdempotencyKey,
+      skippedJobId: currentJob.id,
+      skipReason: 'active-w3-assembly-job-exists',
+    },
+  });
+
+  const currentWinner = (await repository.getWorkflowJobById(winnerJob.id)) ?? winnerJob;
+  const currentWinnerAttempt =
+    winnerAttempt ??
+    (await repository.getLatestWorkflowJobAttemptForJob(currentWinner.id));
+  return buildWorkflowFields(
+    currentWinner,
+    currentWinnerAttempt,
+    false,
+    true,
+    'active-w3-assembly-job-exists',
+  );
+}
+
 export async function claimAndStartW3AssemblyJob(
   input: W3AssemblyJobInput,
   options: ClaimW3AssemblyJobOptions = {},
   repository: W3AssemblyJobRepository = defaultRepository,
 ): Promise<W3AssemblyWorkflowFields> {
+  const explicitJobId = typeof input.workflowJobId === 'number' ? input.workflowJobId : null;
+  const requestedIdentity = buildW3AssemblyJobIdentity(input);
+  const requestedIdempotencyKey =
+    toTrimmedString(input.workflowJobIdempotencyKey) ??
+    buildWorkflowJobIdempotencyKey(requestedIdentity);
+
+  if (!explicitJobId) {
+    const existingJobs = await repository.listWorkflowJobsForOrder(input.orderId);
+    const activeSiblingJob =
+      [...existingJobs]
+        .filter(
+          (job) =>
+            job.job_type === W3_ASSEMBLY_JOB_TYPE &&
+            job.stage === W3_STAGE &&
+            isActiveW3AssemblyStatus(job.status) &&
+            job.idempotency_key !== requestedIdempotencyKey,
+        )
+        .sort(compareLatest)[0] ?? null;
+
+    if (activeSiblingJob) {
+      const activeAttempt = await repository.getLatestWorkflowJobAttemptForJob(activeSiblingJob.id);
+      await repository.appendWorkflowJobEvent({
+        jobId: activeSiblingJob.id,
+        attemptId: activeAttempt?.id ?? null,
+        eventType: 'duplicate-trigger-skipped',
+        payload: {
+          orderId: input.orderId,
+          requestedLogicalKey: requestedIdentity.logicalKey,
+          requestedIdempotencyKey,
+          skipReason: 'active-w3-assembly-job-exists',
+        },
+      });
+
+      return buildWorkflowFields(
+        activeSiblingJob,
+        activeAttempt,
+        false,
+        true,
+        'active-w3-assembly-job-exists',
+      );
+    }
+  }
+
   const job = await resolveJobForW3Assembly(input, repository);
+
+  if (!explicitJobId) {
+    const existingJobs = await repository.listWorkflowJobsForOrder(input.orderId);
+    const canonicalActiveJob = pickCanonicalActiveW3AssemblyJob(existingJobs);
+    if (canonicalActiveJob && canonicalActiveJob.id !== job.id) {
+      return skipDuplicateW3AssemblyJob(
+        job,
+        canonicalActiveJob,
+        input,
+        requestedIdentity,
+        requestedIdempotencyKey,
+        repository,
+      );
+    }
+  }
+
   const leaseOwner = options.leaseOwner ?? DEFAULT_W3_LEASE_OWNER;
   const workerKind = options.workerKind ?? DEFAULT_W3_WORKER_KIND;
 
@@ -295,12 +450,33 @@ export async function claimAndStartW3AssemblyJob(
       payload: {
         leaseOwner,
         orderId: input.orderId,
-        logicalKey: buildW3AssemblyJobIdentity(input).logicalKey,
+        logicalKey: requestedIdentity.logicalKey,
       },
     });
 
     const current = (await repository.getWorkflowJobById(job.id)) ?? job;
-    return buildWorkflowFields(current, null, false);
+    const currentAttempt = await repository.getLatestWorkflowJobAttemptForJob(current.id);
+    const skipReason = isActiveW3AssemblyStatus(current.status)
+      ? 'w3-assembly-job-already-active'
+      : isTerminalW3AssemblyStatus(current.status)
+        ? 'w3-assembly-job-already-finished'
+        : 'w3-assembly-job-claim-conflict';
+    return buildWorkflowFields(current, currentAttempt, false, true, skipReason);
+  }
+
+  if (!explicitJobId) {
+    const existingJobs = await repository.listWorkflowJobsForOrder(input.orderId);
+    const canonicalActiveJob = pickCanonicalActiveW3AssemblyJob(existingJobs);
+    if (canonicalActiveJob && canonicalActiveJob.id !== claimedJob.id) {
+      return skipDuplicateW3AssemblyJob(
+        claimedJob,
+        canonicalActiveJob,
+        input,
+        requestedIdentity,
+        requestedIdempotencyKey,
+        repository,
+      );
+    }
   }
 
   await repository.appendWorkflowJobEvent({
@@ -339,7 +515,7 @@ export async function claimAndStartW3AssemblyJob(
     },
   });
 
-  return buildWorkflowFields(running ?? claimedJob, attempt, true);
+  return buildWorkflowFields(running ?? claimedJob, attempt, true, false, null);
 }
 
 export async function completeW3AssemblyJobForOrder(
