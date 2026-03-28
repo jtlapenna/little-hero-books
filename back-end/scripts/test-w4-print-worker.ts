@@ -368,6 +368,76 @@ async function testQaPassAndFailPaths(): Promise<void> {
   );
 }
 
+async function testQaRouteFallsBackToEnvRendererToken(): Promise<void> {
+  const previousRendererToken = process.env.RENDERER_INTERNAL_TOKEN;
+  const previousRendererApiBase = process.env.RENDERER_API_BASE;
+  process.env.RENDERER_INTERNAL_TOKEN = 'env-renderer-token';
+  delete process.env.RENDERER_API_BASE;
+
+  try {
+    const result = await runW4PrintQaResponse(
+      {
+        orderId: 'W4-SANDBOX-PROOF-004B',
+        workflowJobId: 5041,
+        workflowAttemptId: 6041,
+        workflowJobIdempotencyKey: 'wf:4.1:w4-sibling-aggregation:W4-SANDBOX-PROOF-004B:print:test',
+        CONFIG: {
+          renderer: {
+            apiBase: 'https://renderer.example',
+          },
+        },
+        expectedPageCount: 1,
+        pageLabels: ['p00'],
+        pageImageUrls: ['book/orders/W4-SANDBOX-PROOF-004B/preview-images/p00.png'],
+        coverPreviewUrl: 'book/orders/W4-SANDBOX-PROOF-004B/preview-images/cover-spread.png',
+        pdfR2Key: 'book/orders/W4-SANDBOX-PROOF-004B/interior.pdf',
+        coverPdfR2Key: 'book/orders/W4-SANDBOX-PROOF-004B/cover.pdf',
+      },
+      {
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+        recordWorkflowEvent: createWorkflowEventRecorder([]),
+        fetchImpl: async (input, init) => {
+          const url = resolveUrl(input);
+          const method = String(init?.method ?? 'GET').toUpperCase();
+          const authHeader = String(
+            (init?.headers as Record<string, string> | undefined)?.Authorization ?? '',
+          );
+          if (method !== 'POST' || url !== 'https://renderer.example/qa-pdf') {
+            throw new Error(`Unexpected QA env fallback call: ${method} ${url}`);
+          }
+          assert(
+            authHeader === 'Bearer env-renderer-token',
+            'Expected W4 QA route to fall back to RENDERER_INTERNAL_TOKEN when the payload omits renderer.internalToken',
+          );
+          return jsonResponse({
+            passed: true,
+            failedPages: [],
+            warnings: [],
+            reasonCode: 'env-fallback-ok',
+          });
+        },
+      },
+    );
+
+    assert(
+      result.success === true && result.qaPassed === true,
+      'Expected W4 QA route env fallback path to complete successfully',
+    );
+  } finally {
+    if (previousRendererToken === undefined) {
+      delete process.env.RENDERER_INTERNAL_TOKEN;
+    } else {
+      process.env.RENDERER_INTERNAL_TOKEN = previousRendererToken;
+    }
+
+    if (previousRendererApiBase === undefined) {
+      delete process.env.RENDERER_API_BASE;
+    } else {
+      process.env.RENDERER_API_BASE = previousRendererApiBase;
+    }
+  }
+}
+
 async function testQaProbePayloadRejection(): Promise<void> {
   try {
     await runW4PrintQa(
@@ -498,6 +568,7 @@ async function main(): Promise<void> {
   await testCoverRenderDirectRecovery();
   await testMaterializePrintPdfRoute();
   await testQaPassAndFailPaths();
+  await testQaRouteFallsBackToEnvRendererToken();
   await testQaProbePayloadRejection();
   await testManifestPublishSuccessAndError();
   console.log('W4 print worker tests passed');

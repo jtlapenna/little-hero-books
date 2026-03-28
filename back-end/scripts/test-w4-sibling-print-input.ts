@@ -132,6 +132,11 @@ function createThreeManifest(options: {
 
 function buildConfig(testMode: boolean): JsonRecord {
   return {
+    backendApiToken: 'test-backend-token',
+    lulu: {
+      basicAuth: 'Basic test-lulu-auth',
+      apiBase: 'https://api.lulu.com',
+    },
     defaults: {
       testMode,
       testPhoneNumber: '+1-555-555-5555',
@@ -576,6 +581,8 @@ async function main(): Promise<void> {
       proceedSubmit.guard.reason === 'sandbox' &&
       proceedSubmit.submitMode === 'sandbox' &&
       proceedSubmit.luluApiBase === 'https://api.sandbox.lulu.com' &&
+      proceedSubmit.CONFIG?.backendApiToken === 'test-backend-token' &&
+      (proceedSubmit.CONFIG?.lulu as JsonRecord | undefined)?.basicAuth === 'Basic test-lulu-auth' &&
       proceedSubmit.workflowJobId === 4402 &&
       proceedSubmit.workflowAttemptId === 5402 &&
       proceedSubmit.workflowJobIdempotencyKey ===

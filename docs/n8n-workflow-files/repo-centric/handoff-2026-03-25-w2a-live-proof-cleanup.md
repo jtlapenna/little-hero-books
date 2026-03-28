@@ -1,5 +1,39 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — on March 28, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the imported repo-centric `W4.1` sandbox path is now proven live from the admin recovery surface, and the proof completed without creating a billable Lulu job.
+>
+> What changed in repo/backend:
+>
+> - repo helper [w4-sibling-print-input.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-sibling-print-input.ts) now preserves the full inbound `CONFIG` when forcing sandbox mode, instead of accidentally dropping `backendApiToken` and other repo-owned config fields after sibling submit shaping
+> - admin replay API [w41-recovery/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w41-recovery/route.ts) now resolves replay `adminBaseUrl` from the incoming request origin instead of defaulting to `http://localhost:3001`
+> - repo QA route [run-print-qa/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w4/run-print-qa/route.ts) now falls back to server env for renderer token/base when imported `W4.1` payloads omit `renderer.internalToken`
+> - admin recovery helper [w41-recovery.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w41-recovery.ts) now treats legacy synthetic sandbox markers like `TEST-*` / `TEST_MODE` as non-production so they do not block a safe replay recommendation
+>
+> Live proof sequence from this pass:
+>
+> - first imported disposable proof job `155` exposed the QA-route renderer-token gap and was explicitly marked `failed`
+> - second replay job `156` exposed the admin replay `backendUrl = http://localhost:3001` bug and was explicitly marked `failed`
+> - third replay job `157` got through QA and Lulu sandbox submit, then exposed the post-submit manifest publish gap where `Build 4-Manifest JSON` no longer had `CONFIG.backendApiToken`; it was explicitly marked `failed`
+> - after the submit-input config fix was deployed, a fresh admin-triggered replay created `workflow_jobs.id = 158`
+> - `workflow_jobs.id = 158` finished `succeeded`, `workflow_job_attempts.id = 119` finished `succeeded`, and the event stream ended with terminal `completed`
+> - the shared admin views were used first for inspection: [`/admin/w41-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w41-recovery/page.tsx) and [`/admin/workflow-jobs`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/workflow-jobs/page.tsx) showed the run move from `polling` to `completed` without needing n8n-first debugging on the successful proof
+>
+> Safety result from the live proof:
+>
+> - the proof remained sandbox-only and non-billable
+> - the terminal workflow-job event for `158` records `submitMode = "skip"`, `nonProduction = true`, `externalProvider = "lulu-sandbox"`, `luluJobId = "TEST-441-0324-161613"`, and `luluStatus = "TEST_MODE"`
+> - after completion, the sibling group no longer appears in `/admin/w41-recovery` candidate listings, which is the expected operator signal for a clean sandbox proof
+>
+> Verification from this pass:
+>
+> - repo checks passed: `test:w4-sibling-print-input`, `test:w41-recovery`, plus targeted `eslint`
+> - backend deploy revision [3c4a040b.little-hero-labs-admin.pages.dev](https://3c4a040b.little-hero-labs-admin.pages.dev)
+> - production admin views now show historical failed proof jobs `155` / `156` / `157` plus clean successful sandbox proof `158`
+>
+> Practical meaning: `W4.1` is no longer just “sandbox-safe in theory.” The imported repo-centric sibling workflow now has a clean disposable sandbox proof, operator-facing recovery, and shared workflow-job visibility. The next planning item should be a separate production-Lulu cutover plan with explicit paid-job guardrails, not more ad hoc sandbox drift.
+>
+> - that planning artifact now exists at [w4-production-lulu-cutover-plan.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/w4-production-lulu-cutover-plan.md)
+>
 > Update — on March 27, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: a safe operator-facing `W4.1` sibling recovery surface now exists in the admin app, and it is intentionally constrained to the sandbox-only sibling path.
 >
 > What changed in repo/backend:

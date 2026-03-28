@@ -42,6 +42,10 @@ function buildSummary(
   };
 }
 
+export function resolveReplayAdminBaseUrl(url: string): string {
+  return new URL(url).origin;
+}
+
 export async function GET(request: NextRequest) {
   const adminAuth = requireAdminAuth(request);
   if (!adminAuth.ok) {
@@ -107,6 +111,7 @@ export async function POST(request: NextRequest) {
     });
 
     const actionResult = await replayW41RecoveryGroup(payload.orderId, {
+      adminBaseUrl: resolveReplayAdminBaseUrl(request.url),
       waitSeconds: payload.waitSeconds ?? 8,
     });
 

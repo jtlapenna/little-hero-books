@@ -28,6 +28,17 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function firstNonEmptyEnv(...names: string[]): string | undefined {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
 export async function runW4PrintQaResponse(
   body: W4RunPrintQaInput,
   options: W4WorkerOptions = {},
@@ -37,6 +48,12 @@ export async function runW4PrintQaResponse(
     ...(await runW4PrintQa(body, {
       ...options,
       recordWorkflowEvent: options.recordWorkflowEvent ?? recordWorkflowJobEventResponse,
+      rendererApiBase:
+        options.rendererApiBase ??
+        firstNonEmptyEnv('RENDERER_API_BASE', 'RENDERER_BASE_URL'),
+      rendererInternalToken:
+        options.rendererInternalToken ??
+        firstNonEmptyEnv('RENDERER_INTERNAL_TOKEN', 'RENDERER_API_TOKEN'),
     })),
   };
 }

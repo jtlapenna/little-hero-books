@@ -4,8 +4,10 @@ import type { WorkflowJobRecord } from '@/lib/workflow-jobs';
 import {
   buildW41RecoveryCandidate,
   buildW41RecoveryReplayPayload,
+  W41_RECOVERY_ORDER_SELECT_FIELDS,
   type W41RecoveryOrderRow,
 } from '@/lib/w41-recovery';
+import { resolveReplayAdminBaseUrl } from '@/app/api/admin/w41-recovery/route';
 
 function assert(condition: unknown, message: string): void {
   if (!condition) {
@@ -156,6 +158,28 @@ async function testRealLuluSignalBlocksReplayRecommendation(): Promise<void> {
   );
 }
 
+async function testSandboxTestMarkersDoNotBlockReplayRecommendation(): Promise<void> {
+  const candidate = buildW41RecoveryCandidate(
+    'W41-SIBLING-PROOF-501',
+    createGroupRows({
+      lulu_job_id: 'TEST-W41-SIBLING-PROOF-501',
+      lulu_status: 'TEST_MODE',
+      print_submitted_at: '2026-03-27T13:06:00.000Z',
+    }),
+    [createJob('failed')],
+    {
+      staleMinutes: 30,
+    },
+  );
+
+  assert(
+    candidate.recommendedAction === 'replay' &&
+      candidate.hasRealSubmission === false &&
+      candidate.recommendedReason === 'latest_w41_job_failed_before_lulu_submission',
+    'Expected legacy TEST_MODE sandbox markers to stay replay-safe for W4.1 proof groups',
+  );
+}
+
 async function testIncompleteGroupRequiresInspection(): Promise<void> {
   const candidate = buildW41RecoveryCandidate(
     'W41-SIBLING-PROOF-501',
@@ -193,11 +217,35 @@ async function testReplayPayloadStaysSandboxSafe(): Promise<void> {
   );
 }
 
+async function testRecoveryOrderSelectMatchesLiveOrdersSchema(): Promise<void> {
+  assert(
+    W41_RECOVERY_ORDER_SELECT_FIELDS.includes('orderId') &&
+      W41_RECOVERY_ORDER_SELECT_FIELDS.includes('root_order_id') &&
+      W41_RECOVERY_ORDER_SELECT_FIELDS.includes('amazon_order_id'),
+    'Expected W4.1 recovery selects to include the live order id fields used to rebuild sibling groups',
+  );
+  assert(
+    !W41_RECOVERY_ORDER_SELECT_FIELDS.includes('order_id' as never),
+    'Expected W4.1 recovery selects to avoid the nonexistent orders.order_id column',
+  );
+}
+
+async function testReplayAdminBaseUrlUsesRequestOrigin(): Promise<void> {
+  assert(
+    resolveReplayAdminBaseUrl('https://admin.littleherolabs.com/api/admin/w41-recovery') ===
+      'https://admin.littleherolabs.com',
+    'Expected W4.1 admin replay actions to forward the live admin origin instead of a local default backend URL',
+  );
+}
+
 async function main(): Promise<void> {
   await testFailedSandboxGroupIsReplayReady();
   await testRealLuluSignalBlocksReplayRecommendation();
+  await testSandboxTestMarkersDoNotBlockReplayRecommendation();
   await testIncompleteGroupRequiresInspection();
   await testReplayPayloadStaysSandboxSafe();
+  await testRecoveryOrderSelectMatchesLiveOrdersSchema();
+  await testReplayAdminBaseUrlUsesRequestOrigin();
   console.log('W4.1 recovery tests passed');
 }
 

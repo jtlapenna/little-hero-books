@@ -127,6 +127,26 @@ export type W41ReplayActionResult = {
   } | null;
 };
 
+export const W41_RECOVERY_ORDER_SELECT_FIELDS = [
+  'id',
+  'orderId',
+  'root_order_id',
+  'amazon_order_id',
+  'workflow_step',
+  'execution_status',
+  'current_workflow',
+  'started_at',
+  'updated_at',
+  'status',
+  'next_workflow',
+  'lulu_job_id',
+  'lulu_status',
+  'print_submitted_at',
+  'error_message',
+] as const;
+
+export const W41_RECOVERY_ORDER_SELECT = W41_RECOVERY_ORDER_SELECT_FIELDS.join(', ');
+
 const DEFAULT_N8N_BASE = 'https://thepeakbeyond.app.n8n.cloud';
 const DEFAULT_ADMIN_BASE = 'https://admin.littleherolabs.com';
 const W41_WORKFLOW_ID = 'boWA0mB20qYK2g4x';
@@ -341,14 +361,29 @@ function choosePrimaryGroupRow(rootGroupId: string, rows: W41RecoveryOrderRow[])
   })[0] ?? null;
 }
 
+function isSyntheticSandboxSubmission(row: W41RecoveryOrderRow): boolean {
+  const luluJobId = toTrimmedString(row.lulu_job_id)?.toUpperCase() ?? null;
+  const luluStatus = toTrimmedString(row.lulu_status)?.toUpperCase() ?? null;
+
+  return Boolean(
+    (luluJobId && luluJobId.startsWith('TEST-')) ||
+      luluStatus === 'TEST_MODE' ||
+      luluStatus === 'SANDBOX',
+  );
+}
+
 function hasRealSubmissionSignal(rows: W41RecoveryOrderRow[]): boolean {
-  return rows.some((row) =>
-    Boolean(
+  return rows.some((row) => {
+    if (isSyntheticSandboxSubmission(row)) {
+      return false;
+    }
+
+    return Boolean(
       toTrimmedString(row.lulu_job_id) ||
         toTrimmedString(row.lulu_status) ||
         toTrimmedString(row.print_submitted_at),
-    ),
-  );
+    );
+  });
 }
 
 async function listExecutions(
@@ -469,9 +504,12 @@ async function fetchOrderRowsByRootGroupIds(
 
   const stillMissing = uniqueRootIds.filter((groupId) => !rowsByGroup.has(groupId));
   if (stillMissing.length > 0) {
-    const bySnake = await supabase.from('orders').select(select).in('order_id', stillMissing);
-    if (!bySnake.error) {
-      pushRows((bySnake.data ?? []) as W41RecoveryOrderRow[]);
+    const byAmazon = await supabase
+      .from('orders')
+      .select(select)
+      .in('amazon_order_id', stillMissing);
+    if (!byAmazon.error) {
+      pushRows((byAmazon.data ?? []) as W41RecoveryOrderRow[]);
     }
   }
 
@@ -629,9 +667,10 @@ export async function listRecentW41RecoveryCandidates(options: {
     jobsByGroupId.set(rootGroupId, existing);
   }
 
-  const select =
-    'id, orderId, order_id, root_order_id, amazon_order_id, workflow_step, execution_status, current_workflow, started_at, updated_at, status, next_workflow, lulu_job_id, lulu_status, print_submitted_at, error_message';
-  const rowsByGroup = await fetchOrderRowsByRootGroupIds([...jobsByGroupId.keys()], select);
+  const rowsByGroup = await fetchOrderRowsByRootGroupIds(
+    [...jobsByGroupId.keys()],
+    W41_RECOVERY_ORDER_SELECT,
+  );
 
   const summaries = [...rowsByGroup.entries()]
     .map(([rootGroupId, groupRows]) =>
@@ -668,9 +707,11 @@ export async function inspectW41RecoveryGroup(
     includeWorkflowStatus?: boolean;
   } = {},
 ): Promise<W41RecoveryInspection> {
-  const select =
-    'id, orderId, order_id, root_order_id, amazon_order_id, workflow_step, execution_status, current_workflow, started_at, updated_at, status, next_workflow, lulu_job_id, lulu_status, print_submitted_at, error_message';
-  const lookup = await fetchOrderRowByAnyId<W41RecoveryOrderRow>(supabase, rawOrderId, select);
+  const lookup = await fetchOrderRowByAnyId<W41RecoveryOrderRow>(
+    supabase,
+    rawOrderId,
+    W41_RECOVERY_ORDER_SELECT,
+  );
   if (!lookup.row) {
     throw new Error(`W4.1 recovery: sibling group not found for ${rawOrderId}`);
   }
@@ -680,7 +721,10 @@ export async function inspectW41RecoveryGroup(
     throw new Error(`W4.1 recovery: resolved row has no rootGroupId for ${rawOrderId}`);
   }
 
-  const rowsByGroup = await fetchOrderRowsByRootGroupIds([rootGroupId], select);
+  const rowsByGroup = await fetchOrderRowsByRootGroupIds(
+    [rootGroupId],
+    W41_RECOVERY_ORDER_SELECT,
+  );
   const groupRows = rowsByGroup.get(rootGroupId) ?? [lookup.row];
   const jobs = await fetchStage41Jobs(rootGroupId);
   const candidate = buildCandidateSummary(rootGroupId, groupRows, jobs, {

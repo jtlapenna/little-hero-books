@@ -491,7 +491,10 @@ function deriveAmazonShippingLevel(sibling: JsonRecord): string | null {
 }
 
 function withSandboxConfig(input: JsonRecord): JsonRecord {
-  const currentConfig = toRecord(input.CONFIG);
+  const currentConfig =
+    Object.keys(toRecord(input.CONFIG)).length > 0
+      ? toRecord(input.CONFIG)
+      : toRecord(input);
   const currentLulu = toRecord(currentConfig.lulu);
   return {
     ...currentConfig,
