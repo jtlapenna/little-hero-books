@@ -216,6 +216,7 @@ async function testMaterializePrintPdfRoute(): Promise<void> {
       pdfR2Key: 'book/orders/W4-SANDBOX-PROOF-003/interior_W4-SANDBOX-PROOF-003.pdf',
     },
     {
+      headObjectImpl: async () => new Response(null, { status: 404 }),
       fetchImpl: async (input) => {
         const url = resolveUrl(input);
         if (url !== 'https://cdn.example/interior-materialize.pdf') {
@@ -250,6 +251,63 @@ async function testMaterializePrintPdfRoute(): Promise<void> {
       putCalls[0]?.bucket === 'little-hero-orders' &&
       putCalls[0]?.contentType === 'application/pdf',
     'Expected W4 materialize route to upload the downloaded PDF into the orders bucket',
+  );
+}
+
+async function testMaterializePrintPdfRouteReusesExistingObject(): Promise<void> {
+  let fetchCalled = false;
+  let putCalled = false;
+  const workflowEvents: JsonRecord[] = [];
+
+  const result = await materializeW4PrintPdfResponse(
+    {
+      documentKind: 'interior-pdf',
+      orderId: 'W4-SANDBOX-PROOF-003B',
+      workflowJobId: 5031,
+      workflowAttemptId: 6031,
+      workflowJobIdempotencyKey: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-003B:print:test',
+      pdfDownloadUrl: 'https://cdn.example/interior-materialize.pdf',
+      pdfR2Key: 'book/orders/W4-SANDBOX-PROOF-003B/interior_W4-SANDBOX-PROOF-003B.pdf',
+    },
+    {
+      headObjectImpl: async () =>
+        new Response(null, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Length': '42',
+          },
+        }),
+      fetchImpl: async () => {
+        fetchCalled = true;
+        throw new Error('Expected existing-object reuse to avoid downloading the PDF again');
+      },
+      putObjectImpl: async () => {
+        putCalled = true;
+        throw new Error('Expected existing-object reuse to avoid uploading the PDF again');
+      },
+      recordWorkflowEvent: createWorkflowEventRecorder(workflowEvents),
+    },
+  );
+
+  assert(
+    result.success === true &&
+      result.reusedExisting === true &&
+      result.byteSize === 42 &&
+      result.pdfUrl ===
+        'https://admin.littleherolabs.com/api/assets/book/orders/W4-SANDBOX-PROOF-003B/interior_W4-SANDBOX-PROOF-003B.pdf',
+    'Expected W4 materialize route to reuse an already-materialized PDF object when the canonical key already exists',
+  );
+  assert(
+    fetchCalled === false && putCalled === false,
+    'Expected W4 materialize route to skip both download and upload when the target PDF is already present in R2',
+  );
+  assert(
+    workflowEvents.length === 1 &&
+      workflowEvents[0]?.eventType === 'artifact-materialized' &&
+      workflowEvents[0]?.payload &&
+      (workflowEvents[0].payload as JsonRecord).reusedExisting === true,
+    'Expected W4 materialize route to record a reused-existing artifact event when it short-circuits to an existing R2 object',
   );
 }
 
@@ -584,6 +642,7 @@ async function main(): Promise<void> {
   await testInteriorRenderRouteWithTransientPollError();
   await testCoverRenderDirectRecovery();
   await testMaterializePrintPdfRoute();
+  await testMaterializePrintPdfRouteReusesExistingObject();
   await testQaPassAndFailPaths();
   await testQaRouteFallsBackToEnvRendererToken();
   await testQaProbePayloadRejection();

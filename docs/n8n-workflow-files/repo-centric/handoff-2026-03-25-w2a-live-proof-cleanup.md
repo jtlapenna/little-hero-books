@@ -32,6 +32,32 @@
 >
 > Practical meaning: the repo now blocks the exact failure mode that created Lulu job `2806186`. The next paid pilot still needs two deliberate conditions: a full valid print interior and an explicit shipping-address override using Lulu's recommended address (`123 SW Main St, Portland, OR 97204, US`) instead of the rejected order's raw stored address.
 
+> Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: corrected single-order `W4` production dry-run proof is now working end to end on a full-book disposable candidate, after fixing the repo-owned materialization seam exposed by the first corrected replay attempt.
+>
+> What changed in repo/backend:
+>
+> - repo worker [`w4-print-worker.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workers/w4-print-worker.ts) now `HEAD`s the target R2 object first and reuses the existing interior/cover PDF when it is already present, instead of forcing another download/upload cycle through the backend
+> - route [`materialize-print-pdf/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w4/materialize-print-pdf/route.ts) now always wires workflow-job event recording through [`recordWorkflowJobEventResponse(...)`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/workflow-jobs/log-event/route.ts), so a materialization failure cannot leave a `W4` job stuck in `polling`
+> - focused regression coverage in [`test-w4-print-worker.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w4-print-worker.ts) now proves existing R2 PDFs short-circuit cleanly without a second provider download/upload
+>
+> What changed in live/runtime state:
+>
+> - disposable candidate `441-0329202-9000002` proved the next real gap: it failed because its copied order prefix was missing preview images, so QA hit a preview fetch `404`
+> - a cleaner disposable candidate `441-0329202-9000003` was then created from real full-book source order `111-6724117-8781030`, with the full order asset subtree copied into the new order prefix
+> - `/api/admin/w4-production` now reports that corrected candidate as production-ready for dry-run shaping, with `productionGuard.allowed = true`, `productionGuard.reason = "production_ready"`, and `guard.reason = "production_dry_run"`
+> - stale first-corrected job `workflow_jobs.id = 162` / attempt `123` was manually reconciled to `failed` after the backend fix, preventing admin recovery from misclassifying it as still active
+>
+> Live proof outcome:
+>
+> - corrected production dry-run webhook replay on live path `w4-pdf-print-repo` created top-level live execution `34798`
+> - admin workflow monitor shows `workflow_jobs.id = 163` / `job_type = w4-print-fulfillment` / `stage = 4` / `status = succeeded`
+> - `workflow_job_attempts.id = 124` finished `succeeded`
+> - terminal event `2140` is `completed` with payload `submitMode = "skip"`, `luluStatus = "DRY_RUN"`, `nonProduction = true`, and `externalProvider = "lulu-sandbox"`
+> - recovery view [`/admin/w4-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-recovery/page.tsx) now reports `recommendedAction = "none"` and `safeToReplay = false` for `441-0329202-9000003`
+> - the order row stayed non-production: `lulu_job_id = null`, `print_submitted_at = null`, `luluStatus = "DRY_RUN"`, and `status = pending_print`
+>
+> Practical meaning: the live imported single-order `W4` path is now proven again on a corrected full-book candidate after the rejected paid pilot, and the remaining work before any second paid pilot is no longer dry-run plumbing. It is operator approval, secret rotation, and deciding whether to re-open production submit at all.
+
 > Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the first real paid single-order `W4` pilot reached Lulu production, exposed a post-submit persistence bug, and is now reconciled.
 >
 > What changed in repo/backend:

@@ -460,6 +460,12 @@ Current status:
     - repo helper [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now blocks that exact payload before submit with `productionGuard.reason = "page_count_invalid"` and details like `page_count_below_min:2<4`
     - preview deploy [`1ed8923a.little-hero-labs-admin.pages.dev`](https://1ed8923a.little-hero-labs-admin.pages.dev) now returns `submitMode = "skip"` for the exact paid-pilot payload when replayed as a production dry-run, proving the repo-side guard is active before Lulu
     - the same submit builder now supports an explicit recommended-address override (`shippingAddressRecommended` / `shippingAddressOverride`) so the next paid pilot can use Lulu's suggested address instead of the rejected order's raw stored address
+    - disposable candidate `441-0329202-9000002` then proved the next corrected dry-run gap: its copied order prefix was missing preview images, so QA failed on preview fetch `404`
+    - repo worker [`w4-print-worker.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workers/w4-print-worker.ts) now reuses an already-materialized target PDF in R2 via `HEAD` instead of forcing another download/upload cycle, and route [`materialize-print-pdf/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w4/materialize-print-pdf/route.ts) now always records workflow-job events so that seam cannot leave a job stuck in `polling`
+    - a corrected full-book candidate `441-0329202-9000003` was then created from source order `111-6724117-8781030`, including the full asset subtree
+    - corrected dry-run replay on the imported live workflow finished cleanly as execution `34798`
+    - that replay created `workflow_jobs.id = 163` / attempt `124`, both `succeeded`, with terminal event `2140` `completed`
+    - the corrected dry-run remained non-billable by contract: `submitMode = "skip"`, `luluStatus = "DRY_RUN"`, `externalProvider = "lulu-sandbox"`, `lulu_job_id = null`, and `print_submitted_at = null`
 - the next decision is no longer whether `W2A` / `W2B` instrumentation works; it is whether to:
   - investigate why `HduzTWm0ekmrvwrn` was found inactive unexpectedly on March 25, 2026 and had to be reactivated, and/or
   - finish the remaining `W4` / `W4.1` repo-worker extraction and operator tooling while keeping Lulu production cutover explicitly out of scope

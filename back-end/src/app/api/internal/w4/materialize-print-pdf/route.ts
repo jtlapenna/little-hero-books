@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyBearerAuth } from '@/lib/auth';
+import { recordWorkflowJobEventResponse } from '@/app/api/internal/workflow-jobs/log-event/route';
 import {
   materializeW4PrintPdf,
   type W4MaterializePrintPdfInput,
@@ -33,7 +34,10 @@ export async function materializeW4PrintPdfResponse(
 ): Promise<W4MaterializePrintPdfResult & { success: true }> {
   return {
     success: true,
-    ...(await materializeW4PrintPdf(body, options)),
+    ...(await materializeW4PrintPdf(body, {
+      ...options,
+      recordWorkflowEvent: options.recordWorkflowEvent ?? recordWorkflowJobEventResponse,
+    })),
   };
 }
 
@@ -63,7 +67,9 @@ export async function POST(request: NextRequest) {
 
   try {
     return NextResponse.json(
-      await materializeW4PrintPdfResponse(body as W4MaterializePrintPdfInput),
+      await materializeW4PrintPdfResponse(body as W4MaterializePrintPdfInput, {
+        defaultBackendUrl: request.nextUrl.origin,
+      }),
     );
   } catch (error: unknown) {
     console.error('[Internal W4 Materialize Print PDF] Error:', error);

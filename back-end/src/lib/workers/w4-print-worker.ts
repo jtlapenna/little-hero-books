@@ -1,4 +1,4 @@
-import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { headObject, putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getSignedUrlForObject } from '@/lib/r2-service';
 import { getBucketFromKey, extractR2Key } from '@/lib/r2-utils';
 import { updateOrderInSupabase } from '@/lib/supabase-client';
@@ -117,6 +117,7 @@ export interface W4WorkerOptions {
   maxPollAttempts?: number;
   pollIntervalMs?: number;
   maxPollRequestErrors?: number;
+  headObjectImpl?: typeof headObject;
   putObjectImpl?: typeof putObject;
   signObjectUrl?: typeof getSignedUrlForObject;
   updateOrderImpl?: typeof updateOrderInSupabase;
@@ -155,6 +156,7 @@ export interface W4MaterializePrintPdfResult extends JsonRecord {
   byteSize: number;
   contentType: string;
   uploadedAt: string;
+  reusedExisting?: boolean;
   pdfR2Key?: string | null;
   coverPdfR2Key?: string | null;
   pdfUrl?: string | null;
@@ -947,6 +949,7 @@ export async function materializeW4PrintPdf(
   options: W4WorkerOptions = {},
 ): Promise<W4MaterializePrintPdfResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
+  const headObjectImpl = options.headObjectImpl ?? headObject;
   const putObjectImpl = options.putObjectImpl ?? putObject;
   const recordWorkflowEvent = options.recordWorkflowEvent ?? (async () => ({}));
   const documentKind = input.documentKind === 'cover-pdf' ? 'cover-pdf' : 'interior-pdf';
@@ -983,6 +986,9 @@ export async function materializeW4PrintPdf(
     throw new Error(`W4 ${documentKind} materialization requires downloadUrl and r2Key`);
   }
 
+  const uploadBucket = getBucketFromKey(r2Key);
+  const publicUrl = `${backendUrl}/api/assets/${r2Key}`;
+
   const logEvent = async (body: JsonRecord): Promise<W4WorkflowEventResult | null> => {
     if (!workflowJobId && !workflowJobIdempotencyKey) {
       return null;
@@ -1000,6 +1006,51 @@ export async function materializeW4PrintPdf(
   };
 
   try {
+    const existingObject = await headObjectImpl(uploadBucket, r2Key);
+    if (existingObject.ok) {
+      const contentType = existingObject.headers.get('content-type') || 'application/pdf';
+      const byteSize = Number.parseInt(existingObject.headers.get('content-length') || '0', 10);
+      const uploadedAt = new Date().toISOString();
+      const materialized = await logEvent({
+        eventType: 'artifact-materialized',
+        payload: {
+          orderId,
+          documentKind,
+          r2Key,
+          byteSize: Number.isFinite(byteSize) ? byteSize : 0,
+          reusedExisting: true,
+        },
+        context: buildPrintContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
+          documentKind,
+          r2Key,
+          byteSize: Number.isFinite(byteSize) ? byteSize : 0,
+          reusedExisting: true,
+        }),
+      });
+
+      return {
+        ...input,
+        documentKind,
+        orderId,
+        amazonOrderId,
+        rootOrderId,
+        backendUrl,
+        uploadBucket,
+        r2Key,
+        byteSize: Number.isFinite(byteSize) ? byteSize : 0,
+        contentType,
+        uploadedAt,
+        reusedExisting: true,
+        workflowLogEvent: {
+          materialized,
+        },
+        pdfR2Key: documentKind === 'interior-pdf' ? r2Key : toTrimmedString(input.pdfR2Key),
+        coverPdfR2Key: documentKind === 'cover-pdf' ? r2Key : toTrimmedString(input.coverPdfR2Key),
+        pdfUrl: documentKind === 'interior-pdf' ? publicUrl : null,
+        coverPdfUrl: documentKind === 'cover-pdf' ? publicUrl : null,
+      };
+    }
+
     const response = await fetchImpl(downloadUrl);
     if (!response.ok) {
       throw new Error(`Download failed (${response.status})`);
@@ -1007,7 +1058,7 @@ export async function materializeW4PrintPdf(
 
     const contentType = response.headers.get('content-type') || 'application/pdf';
     const bytes = new Uint8Array(await response.arrayBuffer());
-    await putObjectImpl(R2_ORDERS_BUCKET, r2Key, bytes, contentType);
+    await putObjectImpl(uploadBucket, r2Key, bytes, contentType);
 
     const uploadedAt = new Date().toISOString();
     const materialized = await logEvent({
@@ -1025,7 +1076,6 @@ export async function materializeW4PrintPdf(
       }),
     });
 
-    const publicUrl = `${backendUrl}/api/assets/${r2Key}`;
     return {
       ...input,
       documentKind,
@@ -1033,7 +1083,7 @@ export async function materializeW4PrintPdf(
       amazonOrderId,
       rootOrderId,
       backendUrl,
-      uploadBucket: R2_ORDERS_BUCKET,
+      uploadBucket,
       r2Key,
       byteSize: bytes.byteLength,
       contentType,

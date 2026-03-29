@@ -39,6 +39,13 @@
   - repo helper [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now blocks that failure mode before submit with `productionGuard.reason = "page_count_invalid"`
   - preview deploy [`1ed8923a.little-hero-labs-admin.pages.dev`](https://1ed8923a.little-hero-labs-admin.pages.dev) now returns `submitMode = "skip"` / `guard.reason = "production_blocked"` / `productionGuard.reason = "page_count_invalid"` when the exact paid-pilot payload is replayed as a production dry-run
   - the same submit builder now accepts an explicit recommended-address override (`shippingAddressRecommended` / `shippingAddressOverride`) so the next paid pilot can use Lulu's suggested `123 SW Main St, Portland, OR 97204, US` address without mutating the historical rejected order
+- Latest March 29, 2026 corrected dry-run checkpoint:
+  - disposable candidate `441-0329202-9000002` exposed the next live gap after the page-count fix: its copied order prefix was missing preview images, so QA failed on preview fetch `404`
+  - repo worker [`w4-print-worker.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workers/w4-print-worker.ts) now reuses an existing target PDF in R2 via `HEAD`, and route [`materialize-print-pdf/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w4/materialize-print-pdf/route.ts) now always records workflow-job events so that seam cannot strand a job in `polling`
+  - corrected candidate `441-0329202-9000003` was created from full-book source order `111-6724117-8781030`, including the full asset subtree
+  - corrected live production dry-run replay then finished cleanly as execution `34798`
+  - that replay completed `workflow_jobs.id = 163` / attempt `124` with terminal event `2140` `completed`
+  - the corrected dry-run stayed non-billable: `submitMode = "skip"`, `luluStatus = "DRY_RUN"`, `externalProvider = "lulu-sandbox"`, and the order row still has `lulu_job_id = null` / `print_submitted_at = null`
 - The live imported single-order `W4` workflow is now proven for production dry-run, but a real paid pilot still needs explicit operator approval plus the env gate.
 - The real paid-pilot seam is now also proven through Lulu acceptance, but the next paid pilot should still wait for the deferred secret rotation and an explicit operator approval action.
 - The repo export is now hardened for that later cutover:
