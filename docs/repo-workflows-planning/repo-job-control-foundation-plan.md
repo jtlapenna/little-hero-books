@@ -447,7 +447,14 @@ Current status:
   - the proof order stayed non-production: `lulu_job_id = null`, `print_submitted_at = null`, `workflow_step = book_assembly_completed`, `execution_status = done`, `status = pending_assembly_review`
   - March 29, 2026 production-cutover checkpoint:
     - focused repo QA now covers production gate disabled, explicit dry-run validation, proof-order rejection, strict production shipping validation, and positive production contract shaping when the env gate is enabled
-    - Supabase currently has zero non-proof single-order `W4` rows in a clean ready-to-print / no-Lulu-submission state, so there is no sane paid pilot candidate yet
+    - backend deploy revision [`98c9bc2b.little-hero-labs-admin.pages.dev`](https://98c9bc2b.little-hero-labs-admin.pages.dev) now corrects the paid-pilot classifier so old `W4.1` sandbox sibling proof rows no longer show up as single-order `W4` paid candidates
+    - token-auth smoke reads on both the preview deploy and `admin.littleherolabs.com` now return `candidateCount = 0` / `preflightReady = 0` / `inspectOnly = 0` for `/api/admin/w4-production?hours=336&limit=10`
+    - explicit inspection of old sandbox sibling proof row `441-0324-161613-item-2` now resolves to `proofLike = true`, `hasRealSubmission = false`, `recommendedAction = "none"`, and `safeForProductionPilot = false`, which confirms the remaining blocker is lack of a real candidate rather than preflight noise
+    - after that classifier fix, a disposable non-proof pilot row `441-0329202-9000001` was created from the sandbox-safe address fixture, given a real copied `3-manifest`, and verified as `safeForProductionPilot = true` in `/api/admin/w4-production`
+    - the imported live `W4` workflow initially still failed at `Fetch Repo W4 Print Input` with `401` because the imported `Config (W4) — PRODUCTION` node contained repo-redacted secrets; the live n8n state was rehydrated from local env values and backed up under `docs/n8n-workflow-files/repo-centric/live-backups/2026-03-29/`
+    - forced production dry-run webhook proof on March 29, 2026 then succeeded end to end as live execution `34780`
+    - that dry-run created `workflow_jobs.id = 159` / attempt `120`, both `succeeded`, and terminal event `2063` `completed`
+    - the dry-run remained non-billable by contract: event payload `submitMode = "skip"`, `luluStatus = "DRY_RUN"`, `externalProvider = "lulu-sandbox"`, and the order row still has `lulu_job_id = null` / `print_submitted_at = null`
 - the next decision is no longer whether `W2A` / `W2B` instrumentation works; it is whether to:
   - investigate why `HduzTWm0ekmrvwrn` was found inactive unexpectedly on March 25, 2026 and had to be reactivated, and/or
   - finish the remaining `W4` / `W4.1` repo-worker extraction and operator tooling while keeping Lulu production cutover explicitly out of scope

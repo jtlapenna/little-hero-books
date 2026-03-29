@@ -1,5 +1,44 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: single-order `W4` production dry-run proof is now working end to end on the imported live workflow, using a disposable non-proof pilot order and staying non-billable.
+>
+> What changed in live/runtime state:
+>
+> - created disposable single-order pilot row `441-0329202-9000001` in Supabase from the old sandbox-safe shipping fixture, with `workflow_step = book_assembly_completed`, `execution_status = done`, `status = pending_print`, `next_workflow = 4`, and no existing Lulu submission markers
+> - copied the matching `3-manifest` into the new order prefix so paid-pilot preflight could resolve a real `manifest_3_url` under `book-mvp-simple-adventure/orders/441-0329202-9000001/manifests/3-manifest.json`
+> - verified `/api/admin/w4-production` now treats that new row as a valid dry-run candidate with `safeForProductionPilot = true`, `productionGuard.allowed = true`, `productionGuard.reason = "production_ready"`, and `guard.reason = "production_dry_run"`
+> - found the imported live workflow failing at `Fetch Repo W4 Print Input` with `401` because the imported `Config (W4) — PRODUCTION` node still contained repo-redacted secrets
+> - rehydrated only the live n8n workflow state (not the repo export) from local env-backed values, with before/after backups saved under [live-backups/2026-03-29](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-29)
+>
+> Live proof outcome:
+>
+> - forced production dry-run webhook call to live path `w4-pdf-print-repo` was accepted at `2026-03-29T18:41:10.040Z`
+> - top-level live execution `34780` finished `success`
+> - admin workflow monitor shows `workflow_jobs.id = 159` / `job_type = w4-print-fulfillment` / `stage = 4` / `status = succeeded`
+> - `workflow_job_attempts.id = 120` finished `succeeded`
+> - terminal event `2063` is `completed` with payload `submitMode = "skip"`, `luluStatus = "DRY_RUN"`, `nonProduction = true`, and `externalProvider = "lulu-sandbox"`
+> - recovery view [`/admin/w4-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-recovery/page.tsx) now reports `recommendedAction = "none"` / `latest_w4_job_succeeded`
+> - the order row stayed non-production: `lulu_job_id = null`, `print_submitted_at = null`, `status = pending_print`
+>
+> Practical meaning: imported single-order `W4` is now proven on the real live workflow in production-dry-run mode, and the remaining step before any paid Lulu pilot is an explicit operator approval / env-gated production submit, not more dry-run plumbing.
+>
+> Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the imported single-order `W4` workflow is now paired with a corrected paid-pilot preflight classifier, and the live admin surface confirms there are currently zero real paid-print candidates.
+>
+> What changed in repo/backend:
+>
+> - repo helper [w4-production-preflight.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-preflight.ts) now treats sandbox sibling proof markers like `TEST-*` and `TEST_MODE` as explicitly non-production instead of counting them as real Lulu submission state
+> - the same helper now classifies sibling item rows as proof-like for paid-pilot filtering, so old `W4.1` sandbox proofs no longer appear as single-order `W4` production candidates
+> - focused regression coverage in [test-w4-production-preflight.ts](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w4-production-preflight.ts) now locks that exact `W4.1` false-positive case
+>
+> Verification from this pass:
+>
+> - repo checks passed: `test:w4-production-preflight` and targeted `eslint`
+> - backend deploy revision [98c9bc2b.little-hero-labs-admin.pages.dev](https://98c9bc2b.little-hero-labs-admin.pages.dev)
+> - token-auth smoke reads against both that preview deploy and [admin.littleherolabs.com](https://admin.littleherolabs.com) now return `candidateCount = 0`, `preflightReady = 0`, and `inspectOnly = 0` for `/api/admin/w4-production?hours=336&limit=10`
+> - explicit inspection of sandbox sibling proof order `441-0324-161613-item-2` now returns `proofLike = true`, `hasRealSubmission = false`, `recommendedAction = "none"`, and `safeForProductionPilot = false`
+>
+> Practical meaning: imported single-order `W4` is live and production-preflight inspection is now trustworthy, but there is still no sane real paid pilot candidate. The next production-Lulu move remains: wait for one real single-order `W4` candidate, inspect it in `/admin/w4-production`, run a dry-run only, and only then consider a manually approved paid pilot.
+>
 > Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the read-only single-order `W4` paid-print preflight surface now exists, and the repo export is hardened so the legacy production Lulu nodes fail closed unless `submitMode = "production"`.
 >
 > What changed in repo/backend:

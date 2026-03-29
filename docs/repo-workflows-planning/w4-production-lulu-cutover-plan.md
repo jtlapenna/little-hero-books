@@ -19,8 +19,13 @@
   - paid submit still fails closed unless `ENABLE_LULU_PRODUCTION_SUBMIT=true`
   - production dry-run validation is now possible without sending a Lulu job
   - proof/test/disposable ids and incomplete shipping addresses are rejected before submit shaping
-- March 29, 2026 checkpoint: there are currently zero non-proof orders in Supabase sitting in a clean single-order `W4` ready-to-print state with no existing Lulu submission, so there is no sane paid pilot candidate yet.
-- The live imported single-order `W4` workflow export is also still wired around the sandbox branch by default, so a real paid pilot needs an explicit workflow/export cutover step after the repo-side gate.
+- March 29, 2026 checkpoint:
+  - there were initially zero real candidates, so a disposable non-proof pilot row `441-0329202-9000001` was created from the sandbox-safe shipping fixture
+  - the imported live `W4` workflow had to be rehydrated in n8n because the repo-safe export still carried redacted config placeholders at runtime
+  - after that rehydrate, a forced production dry-run on the live imported workflow succeeded end to end as execution `34780`
+  - the dry-run created `workflow_jobs.id = 159` / attempt `120`, both `succeeded`, and terminal event `2063` `completed`
+  - the dry-run stayed non-billable: `submitMode = "skip"`, `luluStatus = "DRY_RUN"`, `externalProvider = "lulu-sandbox"`, and the order row still has `lulu_job_id = null` / `print_submitted_at = null`
+- The live imported single-order `W4` workflow is now proven for production dry-run, but a real paid pilot still needs explicit operator approval plus the env gate.
 - The repo export is now hardened for that later cutover:
   - internal route-adapter nodes no longer embed a literal backend bearer token; they read `CONFIG.backendApiToken`
   - the legacy `Lulu PRODUCTION` token + submit nodes now fail closed unless `submitMode = "production"` and `__skipLulu` is false

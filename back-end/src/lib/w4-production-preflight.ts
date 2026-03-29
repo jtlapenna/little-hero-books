@@ -7,6 +7,7 @@ type JsonRecord = Record<string, unknown>;
 
 const DEFAULT_ADMIN_BASE = 'https://admin.littleherolabs.com';
 const PROOF_ORDER_PATTERN = /(proof|sandbox|disposable|wfj-proof|^test(?:[-_]|$)|[-_]test(?:[-_]|$))/i;
+const NON_PRODUCTION_LULU_STATUS_PATTERN = /^(TEST_MODE|SANDBOX(?:[_-].+)?)$/i;
 
 export type W4ProductionAction = 'preflight' | 'inspect' | 'none';
 
@@ -184,7 +185,36 @@ function isProofLikeOrderRow(orderRow: W4ProductionOrderRow): boolean {
   return PROOF_ORDER_PATTERN.test(markers);
 }
 
+function hasSandboxSubmissionMarker(orderRow: W4ProductionOrderRow): boolean {
+  const luluJobId = toTrimmedString(orderRow.lulu_job_id);
+  const luluStatus = toTrimmedString(orderRow.lulu_status);
+
+  return Boolean(
+    (luluJobId && /^TEST[-_]/i.test(luluJobId)) ||
+      (luluStatus && NON_PRODUCTION_LULU_STATUS_PATTERN.test(luluStatus)),
+  );
+}
+
+function isSiblingItemOrder(orderRow: W4ProductionOrderRow): boolean {
+  const orderId = cleanOrderId(orderRow);
+  const rootOrderId = cleanRootOrderId(orderRow);
+  const amazonOrderId = cleanAmazonOrderId(orderRow);
+
+  if (!orderId) {
+    return false;
+  }
+
+  return Boolean(
+    (rootOrderId && orderId !== rootOrderId) ||
+      (amazonOrderId && orderId !== amazonOrderId),
+  );
+}
+
 function hasRealSubmission(orderRow: W4ProductionOrderRow): boolean {
+  if (hasSandboxSubmissionMarker(orderRow)) {
+    return false;
+  }
+
   return Boolean(
     toTrimmedString(orderRow.lulu_job_id) ||
       toTrimmedString(orderRow.lulu_status) ||
@@ -194,7 +224,10 @@ function hasRealSubmission(orderRow: W4ProductionOrderRow): boolean {
 
 function buildCandidateSummary(orderRow: W4ProductionOrderRow): W4ProductionCandidate {
   const orderId = cleanOrderId(orderRow) ?? 'unknown';
-  const proofLike = isProofLikeOrderRow(orderRow);
+  const proofLike =
+    isProofLikeOrderRow(orderRow) ||
+    hasSandboxSubmissionMarker(orderRow) ||
+    isSiblingItemOrder(orderRow);
   const realSubmission = hasRealSubmission(orderRow);
   const approvalRequired = toBoolean(orderRow.customer_approval_required);
   const approvalStatus = toTrimmedString(orderRow.customer_approval_status);

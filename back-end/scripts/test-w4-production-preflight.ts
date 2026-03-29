@@ -21,8 +21,8 @@ function createOrderRow(overrides: Partial<W4ProductionOrderRow> = {}): W4Produc
     id: 601,
     orderId: 'REAL-W4-CANDIDATE-601',
     order_id: 'REAL-W4-CANDIDATE-601',
-    root_order_id: '111-2222222-3333333',
-    amazon_order_id: '111-2222222-3333333',
+    root_order_id: 'REAL-W4-CANDIDATE-601',
+    amazon_order_id: 'REAL-W4-CANDIDATE-601',
     workflow_step: 'print_fulfillment',
     execution_status: 'pending',
     current_workflow: '4',
@@ -52,8 +52,8 @@ function createOrderRow(overrides: Partial<W4ProductionOrderRow> = {}): W4Produc
 function createPrintInput(overrides: Partial<BuildW4PrintInputResult> = {}): BuildW4PrintInputResult {
   return {
     orderId: 'REAL-W4-CANDIDATE-601',
-    amazonOrderId: '111-2222222-3333333',
-    rootOrderId: '111-2222222-3333333',
+    amazonOrderId: 'REAL-W4-CANDIDATE-601',
+    rootOrderId: 'REAL-W4-CANDIDATE-601',
     characterHash: 'char-hash',
     bookId: 'book-mvp-simple-adventure',
     formatId: 'standard',
@@ -125,8 +125,8 @@ function createSubmitInput(
 ): BuildW4SubmitInputResult {
   return {
     orderId: 'REAL-W4-CANDIDATE-601',
-    amazonOrderId: '111-2222222-3333333',
-    rootOrderId: '111-2222222-3333333',
+    amazonOrderId: 'REAL-W4-CANDIDATE-601',
+    rootOrderId: 'REAL-W4-CANDIDATE-601',
     backendUrl: 'https://admin.littleherolabs.com',
     submitMode: 'skip',
     luluApiBase: 'https://api.lulu.com',
@@ -185,6 +185,27 @@ async function testProofLikeOrdersAreExcluded(): Promise<void> {
     candidate.recommendedAction === 'none' &&
       candidate.recommendedReason === 'proof_or_non_production_order',
     'Expected proof-like W4 orders to be excluded from paid-pilot candidates',
+  );
+}
+
+async function testSiblingSandboxProofOrdersAreExcluded(): Promise<void> {
+  const candidate = buildW4ProductionCandidate(
+    createOrderRow({
+      orderId: '441-0324-161613-item-2',
+      order_id: '441-0324-161613-item-2',
+      root_order_id: '441-0324-161613',
+      amazon_order_id: '441-0324-161613',
+      lulu_job_id: 'TEST-441-0324-161613',
+      lulu_status: 'TEST_MODE',
+      print_submitted_at: '2026-03-24T23:35:27.173Z',
+    }),
+  );
+
+  assert(
+    candidate.recommendedAction === 'none' &&
+      candidate.proofLike === true &&
+      candidate.hasRealSubmission === false,
+    'Expected sibling sandbox proof rows to stay out of the paid W4 candidate list',
   );
 }
 
@@ -259,6 +280,7 @@ async function testSelectFieldsAndRouteHelper(): Promise<void> {
 async function main(): Promise<void> {
   await testCandidatePreflightRecommendation();
   await testProofLikeOrdersAreExcluded();
+  await testSiblingSandboxProofOrdersAreExcluded();
   await testBuildPreflightRedactsSignedUrls();
   await testInspectRowUsesDryRunDependencies();
   await testInspectRowCarriesPreflightErrors();
