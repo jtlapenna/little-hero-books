@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Users, Settings, AlertTriangle, BarChart3, LifeBuoy, ShieldCheck, Workflow } from 'lucide-react';
+import { ArrowRight, BookOpen, Users, Settings, AlertTriangle, BarChart3, LifeBuoy, ShieldAlert, ShieldCheck, Workflow } from 'lucide-react';
 
 interface ErrorSummary {
   total: number;
@@ -35,6 +35,16 @@ interface W4RecoveryResponse {
   summary?: W4RecoverySummary;
 }
 
+interface W4ProductionSummary {
+  candidateCount: number;
+  preflightReady: number;
+  inspectOnly: number;
+}
+
+interface W4ProductionResponse {
+  summary?: W4ProductionSummary;
+}
+
 interface W41RecoverySummary {
   candidateCount: number;
   replayReady: number;
@@ -60,6 +70,7 @@ interface WorkflowJobsResponse {
 export default function HomePage() {
   const [errorSummary, setErrorSummary] = useState<ErrorSummary | null>(null);
   const [w2aRecoverySummary, setW2ARecoverySummary] = useState<W2ARecoverySummary | null>(null);
+  const [w4ProductionSummary, setW4ProductionSummary] = useState<W4ProductionSummary | null>(null);
   const [w4RecoverySummary, setW4RecoverySummary] = useState<W4RecoverySummary | null>(null);
   const [w41RecoverySummary, setW41RecoverySummary] = useState<W41RecoverySummary | null>(null);
   const [workflowJobsSummary, setWorkflowJobsSummary] = useState<WorkflowJobsSummary | null>(null);
@@ -71,12 +82,14 @@ export default function HomePage() {
         const [
           attentionResponse,
           w2aRecoveryResponse,
+          w4ProductionResponse,
           w4RecoveryResponse,
           w41RecoveryResponse,
           workflowJobsResponse,
         ] = await Promise.all([
           fetch('/api/admin/orders-needing-attention'),
           fetch('/api/admin/w2a-recovery?hours=72&limit=10'),
+          fetch('/api/admin/w4-production?hours=336&limit=10'),
           fetch('/api/admin/w4-recovery?hours=72&limit=10'),
           fetch('/api/admin/w41-recovery?hours=72&limit=10'),
           fetch('/api/admin/workflow-jobs?hours=72&limit=12'),
@@ -103,6 +116,11 @@ export default function HomePage() {
           setW2ARecoverySummary(recoveryData.summary || null);
         }
 
+        if (w4ProductionResponse.ok) {
+          const productionData = (await w4ProductionResponse.json()) as W4ProductionResponse;
+          setW4ProductionSummary(productionData.summary || null);
+        }
+
         if (w4RecoveryResponse.ok) {
           const recoveryData = (await w4RecoveryResponse.json()) as W4RecoveryResponse;
           setW4RecoverySummary(recoveryData.summary || null);
@@ -121,6 +139,7 @@ export default function HomePage() {
         if (
           !attentionResponse.ok &&
           !w2aRecoveryResponse.ok &&
+          !w4ProductionResponse.ok &&
           !w4RecoveryResponse.ok &&
           !w41RecoveryResponse.ok &&
           !workflowJobsResponse.ok
@@ -200,6 +219,30 @@ export default function HomePage() {
                   </div>
                 </div>
                 <ArrowRight className="h-5 w-5 text-amber-700" />
+              </div>
+            </Link>
+          </div>
+        )}
+
+        {!loading && w4ProductionSummary && w4ProductionSummary.candidateCount > 0 && (
+          <div className="mb-8 max-w-4xl mx-auto">
+            <Link
+              href="/admin/w4-production"
+              className="block bg-rose-50 border-2 border-rose-200 rounded-lg p-4 hover:bg-rose-100 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <ShieldAlert className="h-6 w-6 text-rose-700 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-rose-950">
+                      {w4ProductionSummary.candidateCount} W4 Paid Print Candidate{w4ProductionSummary.candidateCount !== 1 ? 's' : ''}
+                    </h3>
+                    <p className="text-sm text-rose-800 mt-1">
+                      preflight ready: {w4ProductionSummary.preflightReady} • inspect first: {w4ProductionSummary.inspectOnly}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-rose-700" />
               </div>
             </Link>
           </div>

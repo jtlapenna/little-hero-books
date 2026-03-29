@@ -436,11 +436,18 @@ Current status:
   - router-driven disposable rerun `34315` confirmed that the real backend-router -> sibling `W1.1` -> repo-`W3` path now also works live end to end after the W1.1 manifest-context and webhook-path follow-up fixes
 - single-order `W4` sandbox-only extraction is now also proven live on the current imported repo-centric workflow:
   - stage `4` now has durable job type `w4-print-fulfillment` and repo-owned pre-submit routes for render, PDF materialization, QA, manifest publish, and submit-input build
-  - the extracted `W4` proof path is sandbox-only by contract: [`build-submit-input/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w4/build-submit-input/route.ts) emits only `submitMode = "sandbox"` or `submitMode = "skip"` and pins `CONFIG.lulu.apiBase` to `https://api.sandbox.lulu.com`
+  - the currently imported live `W4` proof path is still sandbox-only by contract, but the repo submit builder is no longer hardcoded sandbox-only:
+    - [`build-submit-input/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w4/build-submit-input/route.ts) and [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now support guarded `submitMode = "production"` and `production_dry_run` responses behind explicit `allowProductionLulu: true`
+    - paid submit still fails closed unless env gate `ENABLE_LULU_PRODUCTION_SUBMIT=true` is enabled
+    - proof/test/disposable ids and invalid production shipping addresses are rejected before submit shaping
+    - the imported workflow export itself is still wired around the sandbox branch, so the repo gate is ahead of the live workflow cutover
   - webhook [`print-submitted/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/print-submitted/route.ts) now records sandbox completion into `workflow_jobs` without setting `print_submitted_at`, without setting `execution_status = done`, and without sending customer notifications
   - live disposable rerun `34451` proved the end-to-end extracted sandbox path after two backend hardening fixes (`print-submitted` structured-status acceptance and submit-input sandbox phone fallback)
   - `workflow_jobs.id = 154` and attempt `115` both finished `succeeded`, with terminal `completed` event `1972`
   - the proof order stayed non-production: `lulu_job_id = null`, `print_submitted_at = null`, `workflow_step = book_assembly_completed`, `execution_status = done`, `status = pending_assembly_review`
+  - March 29, 2026 production-cutover checkpoint:
+    - focused repo QA now covers production gate disabled, explicit dry-run validation, proof-order rejection, strict production shipping validation, and positive production contract shaping when the env gate is enabled
+    - Supabase currently has zero non-proof single-order `W4` rows in a clean ready-to-print / no-Lulu-submission state, so there is no sane paid pilot candidate yet
 - the next decision is no longer whether `W2A` / `W2B` instrumentation works; it is whether to:
   - investigate why `HduzTWm0ekmrvwrn` was found inactive unexpectedly on March 25, 2026 and had to be reactivated, and/or
   - finish the remaining `W4` / `W4.1` repo-worker extraction and operator tooling while keeping Lulu production cutover explicitly out of scope
@@ -481,8 +488,15 @@ Current status:
   - repo-owned render / materialize / QA / manifest / submit-input seams are live
   - live execution `34451` ended `success` with `workflow_jobs.id = 154` / attempt `115` both `succeeded`
   - the proof stayed sandbox-only and did not create a production Lulu submission or customer-facing lifecycle change
+  - a separate read-only paid-pilot console now exists at [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx), backed by [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) and repo helper [`w4-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-preflight.ts)
+  - that console never submits to Lulu; it only dry-runs repo-owned `W4` print + submit shaping with redacted URL signing and exposes whether a real paid pilot is blocked by approval, shipping, env gates, proof-order markers, or existing submission state
+  - backend deploy revision [`152bbb34.little-hero-labs-admin.pages.dev`](https://152bbb34.little-hero-labs-admin.pages.dev) now serves that page/API, and token-auth smoke reads succeeded on both the preview deploy and `admin.littleherolabs.com`
   - operator-facing W4 recovery now exists at [`/admin/w4-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-recovery/page.tsx), backed by [`/api/admin/w4-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-recovery/route.ts) and [`w4-recovery.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-recovery.ts)
   - that recovery surface is intentionally fail-closed for paid-print safety: it only replays through live webhook `w4-pdf-print-repo`, refuses any order with `lulu_job_id` / `lulu_status` / `print_submitted_at`, and relies on the extracted sandbox-only W4 submit path
+  - the repo export [`w4-PRODUCTION-Print_Fulfillment.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4-PRODUCTION-Print_Fulfillment.repo-centric.json) is now safer for the future paid cutover:
+    - internal route-adapter nodes now read `CONFIG.backendApiToken` instead of embedding a literal backend bearer token
+    - the legacy `Lulu PRODUCTION` token + submit nodes now fail closed unless `submitMode = "production"` and `__skipLulu` is false
+  - secret scan coverage now explicitly detects hardcoded `Authorization: 'Bearer …'` workflow-export headers via [`workflow-export-secrets.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-export-secrets.ts)
 - `W4.1` now has the first operator-facing sibling recovery surface and a clean sandbox-only live proof:
   - admin page [`/admin/w41-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w41-recovery/page.tsx) is backed by [`/api/admin/w41-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w41-recovery/route.ts) and repo helper [`w41-recovery.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w41-recovery.ts)
   - it inspects stage-`4.1` durable jobs by sibling root group, blocks replay when any sibling already has real Lulu submission state, and replays only through live webhook `w4-1-sibling-aggregation-repo`

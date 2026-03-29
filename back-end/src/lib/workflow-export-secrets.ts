@@ -20,6 +20,11 @@ const CONTENT_RULES: ContentRule[] = [
     pattern: /Basic [A-Za-z0-9+/=]{20,}/g,
   },
   {
+    id: "hardcoded-bearer-auth",
+    message: "Found a hardcoded Bearer token in workflow export content.",
+    pattern: /Authorization:\s*['"]Bearer (?!REDACTED_)[A-Za-z0-9._-]{20,}['"]/g,
+  },
+  {
     id: "presigned-url-signature",
     message: "Found a presigned URL signature in workflow export content.",
     pattern: /X-Amz-Signature=/g,

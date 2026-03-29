@@ -12,7 +12,19 @@
 - Single-order `W4` sandbox-only repo extraction is proven live.
 - `W4.1` sandbox-only sibling recovery and disposable proof are now proven live too.
 - Admin recovery exists for `W4` and `W4.1`, but both are intentionally fail-closed and sandbox-only today.
+- A separate read-only paid-pilot console now exists at [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx), backed by [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) and repo helper [`w4-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-preflight.ts).
 - Production Lulu nodes still exist in `n8n`, but the extracted proof paths do not use them.
+- Phase 1 repo-side gating is now implemented in [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts):
+  - default behavior stays sandbox-only unless `allowProductionLulu: true` is present
+  - paid submit still fails closed unless `ENABLE_LULU_PRODUCTION_SUBMIT=true`
+  - production dry-run validation is now possible without sending a Lulu job
+  - proof/test/disposable ids and incomplete shipping addresses are rejected before submit shaping
+- March 29, 2026 checkpoint: there are currently zero non-proof orders in Supabase sitting in a clean single-order `W4` ready-to-print state with no existing Lulu submission, so there is no sane paid pilot candidate yet.
+- The live imported single-order `W4` workflow export is also still wired around the sandbox branch by default, so a real paid pilot needs an explicit workflow/export cutover step after the repo-side gate.
+- The repo export is now hardened for that later cutover:
+  - internal route-adapter nodes no longer embed a literal backend bearer token; they read `CONFIG.backendApiToken`
+  - the legacy `Lulu PRODUCTION` token + submit nodes now fail closed unless `submitMode = "production"` and `__skipLulu` is false
+  - workflow-export secret scanning now explicitly catches hardcoded `Authorization: 'Bearer …'` headers
 
 ## Non-negotiable safety rules
 
@@ -76,6 +88,7 @@
 - Add explicit proof-order detection so `TEST-*`, disposable proof ids, and sandbox markers are rejected for paid submit.
 - Add audit logging for production approval and submit intent.
 - Add a production preflight endpoint or admin action that validates an order without submitting it.
+- That preflight surface now exists, so the remaining operator work is approval/audit, not basic readiness inspection.
 
 ### Admin/operator tooling
 
@@ -124,8 +137,7 @@
 
 ## Recommended next implementation order
 
-1. Add repo-side production gating and dry-run validation for single-order `W4`.
-2. Add a separate operator approval surface for paid submit.
-3. Lock workflow/export contracts so sandbox responses cannot reach production nodes.
-4. Run a production dry-run validation pass with no submit.
-5. Only then schedule a single manually approved paid-order pilot.
+1. Add a separate operator approval surface for paid submit.
+2. Lock workflow/export contracts so sandbox responses cannot reach production nodes and `submitMode = "production"` is the only path that can reach paid Lulu nodes.
+3. Run a production dry-run validation pass with no submit against one explicitly approved single-order `W4` candidate.
+4. Only then schedule a single manually approved paid-order pilot.

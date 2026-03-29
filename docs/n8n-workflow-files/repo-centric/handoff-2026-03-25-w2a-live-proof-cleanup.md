@@ -1,5 +1,47 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the read-only single-order `W4` paid-print preflight surface now exists, and the repo export is hardened so the legacy production Lulu nodes fail closed unless `submitMode = "production"`.
+>
+> What changed in repo/backend:
+>
+> - new repo helper [w4-production-preflight.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-preflight.ts) now builds redacted paid-pilot readiness summaries without issuing signed URLs or hitting Lulu
+> - new admin API [w4-production/route.ts](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) exposes recent candidate listing plus per-order dry-run inspection
+> - new admin page [page.tsx](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx) gives operators a read-only `W4` paid-pilot console separate from sandbox recovery
+> - admin nav / home now surface that view without mixing it into sandbox replay tooling
+> - repo workflow export [w4-PRODUCTION-Print_Fulfillment.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4-PRODUCTION-Print_Fulfillment.repo-centric.json) no longer embeds a literal backend bearer token in route-adapter nodes; those adapters now read `CONFIG.backendApiToken`
+> - the same repo export now hard-fails the legacy `Lulu PRODUCTION` token + submit nodes unless `submitMode = "production"` and `__skipLulu` is false
+> - secret scanner [workflow-export-secrets.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-export-secrets.ts) now detects hardcoded `Authorization: 'Bearer …'` headers in workflow exports, closing the gap that let the W4 literal token slip through
+>
+> Verification from this pass:
+>
+> - repo checks passed: `test:w4-production-preflight`, `test:w4-submit-input`, `test:book-kernel`, `test:workflow-export-secrets`, and targeted `eslint`
+> - direct scan passed: `check:workflow-export-secrets` against [w4-PRODUCTION-Print_Fulfillment.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4-PRODUCTION-Print_Fulfillment.repo-centric.json)
+> - build passed: `pages:build` now includes [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx) and [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts)
+> - backend deploy revision [152bbb34.little-hero-labs-admin.pages.dev](https://152bbb34.little-hero-labs-admin.pages.dev)
+> - token-auth smoke reads against both the preview deploy and [admin.littleherolabs.com](https://admin.littleherolabs.com) returned `200` for `/api/admin/w4-production`
+> - inspected-order smoke read for `441-0324-161613-item-2` returned `inspectedOrder`, `safeForProductionPilot = false`, and `preflight = null`, which is the expected response because that order already carries sandbox `TEST_MODE` submission markers
+>
+> Practical meaning: operators can now inspect whether a real single-order `W4` paid pilot is ready without submitting anything, and the workflow export is safer for the later cutover because the paid Lulu nodes now fail closed instead of being merely disconnected by convention.
+>
+> Update — on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: single-order `W4` now has repo-side production gating and dry-run validation, but a real paid pilot is still intentionally blocked by operations, not by missing repo logic.
+>
+> What changed in repo/backend:
+>
+> - repo helper [w4-submit-input.ts](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now supports explicit guarded production shaping for single-order `W4`
+> - the default path is still sandbox-only; production requires request intent `allowProductionLulu: true`
+> - actual paid submit still fails closed unless env gate `ENABLE_LULU_PRODUCTION_SUBMIT=true` is enabled
+> - explicit production dry-run validation is now possible without sending a Lulu job
+> - proof/test/disposable ids and invalid production shipping addresses are rejected before submit shaping
+> - [env.example](/Users/jeff/Projects/little-hero-books/back-end/env.example) now documents the new gate
+>
+> Verification from this pass:
+>
+> - repo checks passed: `test:w4-submit-input`, `test:w4-print-submitted`, `test:book-kernel`, and targeted `eslint`
+> - focused query against Supabase found zero non-proof single-order `W4` rows currently sitting in a clean ready-to-print state with no existing Lulu submission, so there is no sane paid pilot candidate yet
+> - the imported live `W4` workflow export is also still centered on the sandbox branch, so a real paid pilot still needs an explicit workflow/export cutover step after operator approval exists
+>
+> Practical meaning: the repo-side production gate is ready, but the next production-Lulu step is not “pick any order and fire it.” It is: add the separate approval surface, wire the live `W4` export so only `submitMode = "production"` can reach paid Lulu nodes, and wait for one explicitly approved single-order candidate.
+
 > Update — on March 28, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the imported repo-centric `W4.1` sandbox path is now proven live from the admin recovery surface, and the proof completed without creating a billable Lulu job.
 >
 > What changed in repo/backend:

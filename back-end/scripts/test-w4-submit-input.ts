@@ -10,11 +10,11 @@ function assert(condition: unknown, message: string): void {
   }
 }
 
-function createBaseInput(): JsonRecord {
+function createBaseInput(orderId = 'W4-SANDBOX-PROOF-001'): JsonRecord {
   return {
-    orderId: 'W4-SANDBOX-PROOF-001',
+    orderId,
     amazonOrderId: null,
-    rootOrderId: 'W4-SANDBOX-PROOF-001',
+    rootOrderId: orderId,
     backendUrl: 'https://admin.littleherolabs.com',
     title: 'Ada and the Quiet Trail',
     customer: {
@@ -31,8 +31,8 @@ function createBaseInput(): JsonRecord {
       phone_number: '+1-206-555-0100',
       email: 'parent@example.com',
     },
-    pdfR2Key: 'book-mvp-simple-adventure/orders/W4-SANDBOX-PROOF-001/interior_W4-SANDBOX-PROOF-001.pdf',
-    coverPdfR2Key: 'book-mvp-simple-adventure/orders/W4-SANDBOX-PROOF-001/cover_W4-SANDBOX-PROOF-001.pdf',
+    pdfR2Key: `book-mvp-simple-adventure/orders/${orderId}/interior_${orderId}.pdf`,
+    coverPdfR2Key: `book-mvp-simple-adventure/orders/${orderId}/cover_${orderId}.pdf`,
     CONFIG: {
       defaults: {
         quantity: 1,
@@ -48,6 +48,31 @@ function createBaseInput(): JsonRecord {
           coverFinish: 'matte',
         },
       },
+    },
+  };
+}
+
+function createReadyProductionOrder(orderId: string): JsonRecord {
+  return {
+    orderId,
+    root_order_id: orderId,
+    workflow_step: 'print_fulfillment',
+    execution_status: 'processing',
+    status: 'pending_print',
+    next_workflow: '4',
+    customer_approval_required: true,
+    customer_approval_status: 'approved',
+    lulu_job_id: null,
+    lulu_status: null,
+    print_submitted_at: null,
+    shipping_address: {
+      name: 'Parent Example',
+      address_line_1: '123 Main Street',
+      city: 'Seattle',
+      state_code: 'WA',
+      postcode: '98101',
+      country_code: 'US',
+      phone_number: '+1-206-555-0100',
     },
   };
 }
@@ -76,7 +101,8 @@ async function testSandboxSubmitShape(): Promise<void> {
     response.success === true &&
       response.submitMode === 'sandbox' &&
       response.__skipLulu === false &&
-      response.guard.reason === 'sandbox',
+      response.guard.reason === 'sandbox' &&
+      response.productionGuard.reason === 'production_not_requested',
     'Expected W4 submit-input route to produce a sandbox-only submit contract by default',
   );
   assert(
@@ -97,6 +123,191 @@ async function testSandboxSubmitShape(): Promise<void> {
       signCalls[1]?.bucket === 'little-hero-orders',
     'Expected W4 submit-input route to sign both interior and cover PDFs from the orders bucket',
   );
+}
+
+async function testProductionRequestStaysBlockedWithoutEnvGate(): Promise<void> {
+  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+
+  try {
+    delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    const orderId = 'REAL-W4-PILOT-001';
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'skip' &&
+        response.__skipLulu === true &&
+        response.guard.reason === 'production_blocked' &&
+        response.productionGuard.reason === 'env_disabled' &&
+        response.productionGuard.allowed === false &&
+        response.luluApiBase === 'https://api.lulu.com',
+      'Expected explicit W4 production requests to fail closed until the production env gate is enabled',
+    );
+  } finally {
+    if (originalEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
+    }
+  }
+}
+
+async function testProductionDryRunValidatesWithoutSubmit(): Promise<void> {
+  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+
+  try {
+    delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    const orderId = 'REAL-W4-PILOT-002';
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+        productionDryRun: true,
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'skip' &&
+        response.__skipLulu === true &&
+        response.guard.reason === 'production_dry_run' &&
+        response.productionGuard.allowed === true &&
+        response.productionGuard.dryRun === true &&
+        response.luluStatus === 'DRY_RUN' &&
+        response.luluApiBase === 'https://api.lulu.com',
+      'Expected explicit W4 production dry-runs to validate payloads without sending any Lulu submit',
+    );
+  } finally {
+    if (originalEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
+    }
+  }
+}
+
+async function testProductionRejectsProofOrders(): Promise<void> {
+  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+
+  try {
+    process.env.ENABLE_LULU_PRODUCTION_SUBMIT = 'true';
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput('W4-PROD-PROOF-010'),
+        allowProductionLulu: true,
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder('W4-PROD-PROOF-010'),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'skip' &&
+        response.guard.reason === 'production_blocked' &&
+        response.productionGuard.reason === 'proof_order' &&
+        response.productionGuard.allowed === false,
+      'Expected proof-marked W4 orders to be rejected before any production Lulu submit can happen',
+    );
+  } finally {
+    if (originalEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
+    }
+  }
+}
+
+async function testProductionSubmitShapeWhenGateEnabled(): Promise<void> {
+  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+
+  try {
+    process.env.ENABLE_LULU_PRODUCTION_SUBMIT = 'true';
+    const orderId = 'REAL-W4-PILOT-003';
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'production' &&
+        response.__skipLulu === false &&
+        response.guard.reason === 'production' &&
+        response.productionGuard.allowed === true &&
+        response.productionGuard.reason === 'production_ready' &&
+        response.luluApiBase === 'https://api.lulu.com' &&
+        ((response.CONFIG.lulu as JsonRecord)?.apiBase === 'https://api.lulu.com'),
+      'Expected explicit W4 production requests to emit a real production submit contract only when every repo-side guard passes',
+    );
+  } finally {
+    if (originalEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
+    }
+  }
+}
+
+async function testProductionRequiresRealShippingPhone(): Promise<void> {
+  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+  const baseInput = createBaseInput('REAL-W4-PILOT-004');
+  const shippingAddress = { ...(baseInput.shippingAddress as JsonRecord) };
+  delete shippingAddress.phone_number;
+  delete shippingAddress.phone;
+  delete shippingAddress.phoneNumber;
+
+  try {
+    process.env.ENABLE_LULU_PRODUCTION_SUBMIT = 'true';
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...baseInput,
+        shippingAddress,
+        allowProductionLulu: true,
+      },
+      {
+        loadOrder: async () => ({
+          ...createReadyProductionOrder('REAL-W4-PILOT-004'),
+          shipping_address: {
+            ...(createReadyProductionOrder('REAL-W4-PILOT-004').shipping_address as JsonRecord),
+            phone_number: null,
+          },
+        }),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'skip' &&
+        response.guard.reason === 'production_blocked' &&
+        response.productionGuard.reason === 'shipping_address_invalid' &&
+        Array.isArray(response.productionGuard.missingShippingFields) &&
+        response.productionGuard.missingShippingFields.includes('phone_number'),
+      'Expected W4 production submit shaping to fail closed instead of inventing a fallback phone number',
+    );
+  } finally {
+    if (originalEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
+    }
+  }
 }
 
 async function testExistingJobSkipsLulu(): Promise<void> {
@@ -187,6 +398,11 @@ async function main(): Promise<void> {
   await testExistingJobSkipsLulu();
   await testTestModeSkipsLulu();
   await testSandboxFallbackPhonePreventsProofFailure();
+  await testProductionRequestStaysBlockedWithoutEnvGate();
+  await testProductionDryRunValidatesWithoutSubmit();
+  await testProductionRejectsProofOrders();
+  await testProductionSubmitShapeWhenGateEnabled();
+  await testProductionRequiresRealShippingPhone();
   console.log('W4 submit input tests passed');
 }
 

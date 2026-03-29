@@ -59,6 +59,18 @@ function testPlainSecretFinding() {
   );
 }
 
+function testHardcodedBearerFinding() {
+  const findings = scanWorkflowExportText(
+    "/repo/docs/n8n-workflow-files/repo-centric/workflows/example.json",
+    "headers: { Authorization: 'Bearer abcdefghijklmnopqrstuvwxyz123456', 'Content-Type': 'application/json' }",
+  );
+
+  assert(
+    findings.some((finding) => finding.ruleId === "hardcoded-bearer-auth"),
+    "hardcoded Bearer tokens in code-node headers should be detected",
+  );
+}
+
 function testEscapedSecretFinding() {
   const findings = scanWorkflowExportText(
     "/repo/docs/n8n-workflow-files/repo-centric/workflows/example.json",
@@ -101,6 +113,7 @@ function main() {
   testPathClassification();
   testLiveBackupFinding();
   testPlainSecretFinding();
+  testHardcodedBearerFinding();
   testEscapedSecretFinding();
   testRedactedContentPasses();
   testPresignedUrlFinding();

@@ -1442,6 +1442,9 @@ assert(
   repoCentricW4FetchNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW4FetchNode.parameters).includes('/api/internal/w4/build-print-input') &&
     JSON.stringify(repoCentricW4FetchNode.parameters).includes('payload.backendUrl') &&
+    JSON.stringify(repoCentricW4FetchNode.parameters).includes(
+      'payload.CONFIG?.backendApiToken',
+    ) &&
     JSON.stringify(repoCentricW4FetchNode.parameters).includes('this.helpers.httpRequest'),
   'Repo-centric W4 workflow should call the repo-owned W4 print-input route',
 );
@@ -1457,6 +1460,9 @@ assert(
       '/api/internal/w4/render-print-document',
     ) &&
     JSON.stringify(repoCentricW4RenderInteriorNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4RenderInteriorNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
     JSON.stringify(repoCentricW4RenderInteriorNode.parameters).includes('this.helpers.httpRequest') &&
     JSON.stringify(repoCentricW4RenderInteriorNode.parameters).includes('documentKind'),
   'Repo-centric W4 workflow should route interior PDF rendering through the repo-owned render-print-document route',
@@ -1467,6 +1473,9 @@ assert(
       '/api/internal/w4/render-print-document',
     ) &&
     JSON.stringify(repoCentricW4RenderCoverNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4RenderCoverNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
     JSON.stringify(repoCentricW4RenderCoverNode.parameters).includes('this.helpers.httpRequest') &&
     JSON.stringify(repoCentricW4RenderCoverNode.parameters).includes('cover-pdf'),
   'Repo-centric W4 workflow should route cover PDF rendering through the repo-owned render-print-document route',
@@ -1477,12 +1486,18 @@ assert(
       '/api/internal/w4/materialize-print-pdf',
     ) &&
     JSON.stringify(repoCentricW4MaterializeInteriorNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4MaterializeInteriorNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
     JSON.stringify(repoCentricW4MaterializeInteriorNode.parameters).includes('this.helpers.httpRequest') &&
     repoCentricW4MaterializeCoverNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes(
       '/api/internal/w4/materialize-print-pdf',
     ) &&
     JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
     JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes('this.helpers.httpRequest'),
   'Repo-centric W4 workflow should route both interior and cover PDF materialization through the repo-owned materialize-print-pdf route',
 );
@@ -1490,6 +1505,7 @@ assert(
   repoCentricW4QaNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW4QaNode.parameters).includes('/api/internal/w4/run-print-qa') &&
     JSON.stringify(repoCentricW4QaNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4QaNode.parameters).includes('current.CONFIG?.backendApiToken') &&
     JSON.stringify(repoCentricW4QaNode.parameters).includes('this.helpers.httpRequest'),
   'Repo-centric W4 workflow should run print QA through the repo-owned run-print-qa route',
 );
@@ -1499,6 +1515,9 @@ assert(
       '/api/internal/w4/build-submit-input',
     ) &&
     JSON.stringify(repoCentricW4BuildSubmitNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4BuildSubmitNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
     JSON.stringify(repoCentricW4BuildSubmitNode.parameters).includes('this.helpers.httpRequest'),
   'Repo-centric W4 workflow should build Lulu submit input through the repo-owned build-submit-input route',
 );
@@ -1508,6 +1527,9 @@ assert(
       '/api/internal/w4/publish-print-manifest',
     ) &&
     JSON.stringify(repoCentricW4BuildManifestNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4BuildManifestNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
     JSON.stringify(repoCentricW4BuildManifestNode.parameters).includes('this.helpers.httpRequest') &&
     repoCentricW4BuildManifestConnections.includes('"node":"Upload 4-Manifest to R2"') &&
     repoCentricW4UploadManifestNode?.type === 'n8n-nodes-base.code' &&
@@ -1520,6 +1542,9 @@ assert(
       '/api/internal/w4/publish-print-manifest',
     ) &&
     JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
     JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes('this.helpers.httpRequest') &&
     repoCentricW4BuildErrorManifestConnections.includes('"node":"Upload 4-Manifest (Error) to R2"') &&
     repoCentricW4UploadErrorManifestNode?.type === 'n8n-nodes-base.code' &&
@@ -1551,8 +1576,12 @@ assert(
   repoCentricW4LegacyTokenNode &&
     repoCentricW4LegacySubmitNode &&
     !repoCentricW4PrepareSubmitConnections.includes('"node":"Lulu PRODUCTION: Get Token (Retry)"') &&
-    !repoCentricW4ValidateCoverConnections.includes('"node":"Merge3"'),
-  'Repo-centric W4 should leave the legacy production Lulu nodes present but unreachable from the active extracted path',
+    !repoCentricW4ValidateCoverConnections.includes('"node":"Merge3"') &&
+    JSON.stringify(repoCentricW4LegacyTokenNode.parameters).includes("submitMode !== 'production'") &&
+    JSON.stringify(repoCentricW4LegacyTokenNode.parameters).includes('__skipLulu=true') &&
+    JSON.stringify(repoCentricW4LegacySubmitNode.parameters).includes("submitMode !== 'production'") &&
+    JSON.stringify(repoCentricW4LegacySubmitNode.parameters).includes('__skipLulu=true'),
+  'Repo-centric W4 should leave the legacy production Lulu nodes present but unreachable from the active extracted path, and they must fail closed unless submitMode=production',
 );
 assert(
   repoCentricW4SupabaseMarkSubmittedNode?.type === 'n8n-nodes-base.code' &&
@@ -1560,6 +1589,9 @@ assert(
     repoCentricW4NotifyNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW4NotifyNode.parameters).includes('/api/webhooks/print-submitted') &&
     JSON.stringify(repoCentricW4NotifyNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4NotifyNode.parameters).includes(
+      'current.CONFIG?.backendApiToken',
+    ) &&
     JSON.stringify(repoCentricW4NotifyNode.parameters).includes('this.helpers.httpRequest') &&
     JSON.stringify(repoCentricW4NotifyNode.parameters).includes('workflowJobId') &&
     JSON.stringify(repoCentricW4NotifyNode.parameters).includes('submitMode') &&
