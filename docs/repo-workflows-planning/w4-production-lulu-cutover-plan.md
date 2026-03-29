@@ -25,7 +25,22 @@
   - after that rehydrate, a forced production dry-run on the live imported workflow succeeded end to end as execution `34780`
   - the dry-run created `workflow_jobs.id = 159` / attempt `120`, both `succeeded`, and terminal event `2063` `completed`
   - the dry-run stayed non-billable: `submitMode = "skip"`, `luluStatus = "DRY_RUN"`, `externalProvider = "lulu-sandbox"`, and the order row still has `lulu_job_id = null` / `print_submitted_at = null`
+- Later on March 29, 2026 first paid-pilot checkpoint:
+  - a real production pilot was run on the same disposable non-proof order after explicitly enabling the env gate and setting `allowProductionLulu: true`
+  - live execution `34782` reached real Lulu submit and created `lulu_job_id = 2806186`
+  - the run then failed after submit at `Build 4-Manifest JSON` because the active response path forwarded a structured Lulu status object and the repo manifest-publish step tried to persist that object into `orders.lulu_status`
+  - repo helper [`w4-print-worker.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workers/w4-print-worker.ts), webhook [`print-submitted/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/print-submitted/route.ts), and export [`w4-PRODUCTION-Print_Fulfillment.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4-PRODUCTION-Print_Fulfillment.repo-centric.json) now normalize structured Lulu status objects before persistence
+  - backend deploy revision [`d42fc14d.little-hero-labs-admin.pages.dev`](https://d42fc14d.little-hero-labs-admin.pages.dev) and the live workflow patch carry that fix
+  - cleanup re-ran only the repo-owned manifest publish step, persisted `lulu_job_id = 2806186` / `lulu_status = "CREATED"`, and explicitly completed `workflow_jobs.id = 160` / attempt `121` without invoking `print-submitted`
+  - a fresh admin Lulu refresh then showed the real job had already moved to `REJECTED`, so the order is now `status = action_required`, `error_type = lulu_rejected`, `error_message = "One or more line-items were rejected."`, and `print_submitted_at = null`
+- Latest March 29, 2026 rejection-root-cause checkpoint:
+  - live Supabase inspection confirmed that the exact paid-pilot payload for `workflow_jobs.id = 160` already carried `expectedPageCount = 2`, `pageLabels = ["p00", "p01"]`, and interior key `book-mvp-simple-adventure/orders/441-0329202-9000001/interior_441-0329202-9000001.pdf`
+  - that matches Lulu's rejection for job `2806186`: the selected saddle-stitch package expected `4` to `48` interior pages, so the paid pilot submitted the wrong/truncated print interior rather than a full print-ready book
+  - repo helper [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now blocks that failure mode before submit with `productionGuard.reason = "page_count_invalid"`
+  - preview deploy [`1ed8923a.little-hero-labs-admin.pages.dev`](https://1ed8923a.little-hero-labs-admin.pages.dev) now returns `submitMode = "skip"` / `guard.reason = "production_blocked"` / `productionGuard.reason = "page_count_invalid"` when the exact paid-pilot payload is replayed as a production dry-run
+  - the same submit builder now accepts an explicit recommended-address override (`shippingAddressRecommended` / `shippingAddressOverride`) so the next paid pilot can use Lulu's suggested `123 SW Main St, Portland, OR 97204, US` address without mutating the historical rejected order
 - The live imported single-order `W4` workflow is now proven for production dry-run, but a real paid pilot still needs explicit operator approval plus the env gate.
+- The real paid-pilot seam is now also proven through Lulu acceptance, but the next paid pilot should still wait for the deferred secret rotation and an explicit operator approval action.
 - The repo export is now hardened for that later cutover:
   - internal route-adapter nodes no longer embed a literal backend bearer token; they read `CONFIG.backendApiToken`
   - the legacy `Lulu PRODUCTION` token + submit nodes now fail closed unless `submitMode = "production"` and `__skipLulu` is false
@@ -56,7 +71,9 @@
   - order is not a proof/disposable/test order
   - no existing real Lulu submission signal
   - shipping address passes strict validation
-  - payment/order readiness checks pass
+- payment/order readiness checks pass
+- production page count matches the selected Lulu product range before submit shaping
+- any Lulu-recommended shipping-address correction is explicitly supplied to the repo submit builder for the approved pilot
 
 ### Phase 2: Separate operator approval path
 

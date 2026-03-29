@@ -1,5 +1,63 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the rejected real paid `W4` pilot now has a confirmed root cause, and repo-side production shaping blocks that exact bad payload before Lulu.
+>
+> What was confirmed from live data:
+>
+> - the first paid pilot used order `441-0329202-9000001`, durable stage job `workflow_jobs.id = 160`, and real Lulu production job `2806186`
+> - the exact interior PDF sent to print was `book-mvp-simple-adventure/orders/441-0329202-9000001/interior_441-0329202-9000001.pdf`
+> - the durable job input snapshot for that same paid pilot already recorded `expectedPageCount = 2`, `pageLabels = ["p00", "p01"]`, and `pageImageCount = 2`
+> - that matches Lulu's rejection exactly: the selected saddle-stitch package accepted only `4` to `48` pages, so this was a real truncated-interior / wrong-print-file bug, not a Lulu-side mystery
+>
+> What changed in repo/backend:
+>
+> - repo helper [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now performs a repo-side production page-count guard before any production submit contract can be emitted
+> - the new production block reason is `productionGuard.reason = "page_count_invalid"` with details like `page_count_below_min:2<4`
+> - the same helper now honors an explicit recommended-address override (`shippingAddressRecommended` / `shippingAddressOverride`) so the next paid pilot can carry Lulu's recommended address without mutating the historical rejected order
+> - focused regression coverage now lives in [`test-w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w4-submit-input.ts)
+>
+> Verification from this pass:
+>
+> - backend deploy revision [1ed8923a.little-hero-labs-admin.pages.dev](https://1ed8923a.little-hero-labs-admin.pages.dev)
+> - focused repo checks passed: `test:w4-submit-input`, `test:w4-production-preflight`, and targeted `eslint`
+> - direct preview dry-run against `/api/internal/w4/build-submit-input` using the exact paid-pilot job `160` payload now returns:
+>   - `submitMode = "skip"`
+>   - `__skipLulu = true`
+>   - `guard.reason = "production_blocked"`
+>   - `productionGuard.reason = "page_count_invalid"`
+>   - `productionGuard.expectedPageCount = 2`
+>   - `productionGuard.minAllowedPages = 4`
+>   - `productionGuard.maxAllowedPages = 48`
+> - no new Lulu production job was created during this verification
+>
+> Practical meaning: the repo now blocks the exact failure mode that created Lulu job `2806186`. The next paid pilot still needs two deliberate conditions: a full valid print interior and an explicit shipping-address override using Lulu's recommended address (`123 SW Main St, Portland, OR 97204, US`) instead of the rejected order's raw stored address.
+
+> Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the first real paid single-order `W4` pilot reached Lulu production, exposed a post-submit persistence bug, and is now reconciled.
+>
+> What changed in repo/backend:
+>
+> - repo helper [`w4-print-worker.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workers/w4-print-worker.ts) now normalizes structured Lulu status objects before manifest persistence, preserves the raw status detail inside the success `4-manifest`, and normalizes `supabasePatch.lulu_status` to a string before updating the order row
+> - webhook [`print-submitted/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/print-submitted/route.ts) now also persists `lulu_job_id` + normalized `lulu_status` on real production callbacks so a later manifest-publish hiccup cannot leave the order blind
+> - repo export [`w4-PRODUCTION-Print_Fulfillment.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4-PRODUCTION-Print_Fulfillment.repo-centric.json) now normalizes structured Lulu response status objects inside active node `Process Lulu Response` before downstream manifest persistence
+> - regressions are now locked in [`test-w4-print-worker.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w4-print-worker.ts), [`test-w4-print-submitted.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w4-print-submitted.ts), and [`test-book-kernel.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-book-kernel.ts)
+>
+> Fresh artifacts from this pass:
+>
+> - backend deploy revision [d42fc14d.little-hero-labs-admin.pages.dev](https://d42fc14d.little-hero-labs-admin.pages.dev)
+> - live workflow backup after the status-normalization patch: [w4-PRODUCTION-Print_Fulfillment.live.after-lulu-status-normalize-2026-03-29T19-09-09.578Z.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-29/w4-PRODUCTION-Print_Fulfillment.live.after-lulu-status-normalize-2026-03-29T19-09-09.578Z.json)
+>
+> Live paid-pilot sequence from this pass:
+>
+> - real paid pilot webhook to live `w4-pdf-print-repo` was accepted with `allowProductionLulu = true`, creating live n8n execution `34782`
+> - Lulu accepted the production submit and returned real `lulu_job_id = 2806186`
+> - the run then failed after submit at node `Build 4-Manifest JSON` because the live path tried to persist a structured Lulu status object into `orders.lulu_status`
+> - the env gate `ENABLE_LULU_PRODUCTION_SUBMIT` was turned back off immediately after the pilot so no later run could submit production jobs accidentally
+> - after the repo/backend fix, the live production route [`/api/internal/w4/publish-print-manifest`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w4/publish-print-manifest/route.ts) was re-run safely against the same order and same Lulu response shape; it returned `200`, persisted `lulu_job_id = 2806186`, and wrote `lulu_status = "CREATED"` to the order row
+> - durable stage job `workflow_jobs.id = 160` and attempt `121` were then explicitly completed through the internal workflow-job event API without calling `print-submitted`, so no customer-facing notification path ran during cleanup
+> - a fresh admin refresh against Lulu then showed that job `2806186` is already `REJECTED`; the order is now `status = action_required`, `error_type = lulu_rejected`, `error_message = "One or more line-items were rejected."`, with `print_submitted_at = null`
+>
+> Practical meaning: the first real paid `W4` pilot proved the production submit seam all the way through Lulu acceptance, and the only repo bug it exposed was the structured-status persistence gap after submit. That gap is now fixed. The pilot did create a real Lulu job, but Lulu already moved it to `REJECTED`, so the current blocker is not hidden billing risk; it is deciding whether to do another paid pilot after explicit operator approval and after the deferred secret rotation work.
+>
 > Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: single-order `W4` production dry-run proof is now working end to end on the imported live workflow, using a disposable non-proof pilot order and staying non-billable.
 >
 > What changed in live/runtime state:

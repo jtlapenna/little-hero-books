@@ -59,12 +59,19 @@ export interface BuildW4SubmitInputResult extends JsonRecord {
       | 'customer_approval_pending'
       | 'order_not_ready'
       | 'shipping_address_invalid'
+      | 'page_count_invalid'
       | 'existing_job'
       | 'test_mode';
     checkedAt: string;
     envEnabled: boolean;
     dryRun: boolean;
     missingShippingFields?: string[];
+    details?: string;
+    expectedPageCount?: number | null;
+    minAllowedPages?: number | null;
+    maxAllowedPages?: number | null;
+    requiredMultipleOf?: number | null;
+    constraintSource?: string | null;
   };
   luluJobId: string | null;
   luluStatus: string | null;
@@ -237,6 +244,25 @@ function normalizeShippingAddress(addressLike: unknown): JsonRecord {
   }
 
   return normalized;
+}
+
+function resolveShippingAddressInput(
+  input: JsonRecord,
+  loadedOrderRecord: JsonRecord,
+): unknown {
+  return pickFirstNonEmpty(
+    input.shippingAddressOverride,
+    input.shipping_address_override,
+    input.shippingAddressRecommended,
+    input.shipping_address_recommended,
+    input.shippingAddress,
+    input.shipping_address,
+    toRecord(input.orderDetails).shippingAddress,
+    toRecord(input.orderDetails).shipping_address,
+    toRecord(input.order).shippingAddress,
+    toRecord(input.order).shipping_address,
+    loadedOrderRecord.shipping_address,
+  );
 }
 
 function ensureSandboxShippingPhone(
@@ -481,7 +507,135 @@ type ProductionGuardEvaluation = {
   envEnabled: boolean;
   dryRun: boolean;
   missingShippingFields?: string[];
+  details?: string;
+  expectedPageCount?: number | null;
+  minAllowedPages?: number | null;
+  maxAllowedPages?: number | null;
+  requiredMultipleOf?: number | null;
+  constraintSource?: string | null;
 };
+
+type ProductionPageCountGuard = {
+  valid: boolean;
+  details?: string;
+  expectedPageCount: number | null;
+  minAllowedPages: number | null;
+  maxAllowedPages: number | null;
+  requiredMultipleOf: number | null;
+  constraintSource: string | null;
+};
+
+function resolveExpectedInteriorPageCount(input: JsonRecord): number | null {
+  const explicit = toInteger(input.expectedPageCount);
+  if (explicit !== null) {
+    return explicit;
+  }
+
+  if (Array.isArray(input.pageLabels) && input.pageLabels.length > 0) {
+    return input.pageLabels.length;
+  }
+
+  if (Array.isArray(input.pageImageUrls) && input.pageImageUrls.length > 0) {
+    return input.pageImageUrls.length;
+  }
+
+  return null;
+}
+
+function resolveProductionPageConstraint(params: {
+  podPackageId: string | null;
+  binding: string | null;
+}): {
+  minAllowedPages: number | null;
+  maxAllowedPages: number | null;
+  requiredMultipleOf: number | null;
+  constraintSource: string | null;
+} {
+  const binding = String(params.binding || '').trim().toLowerCase();
+  const podPackageId = String(params.podPackageId || '').trim().toUpperCase();
+
+  if (binding === 'saddle-stitch') {
+    return {
+      minAllowedPages: 4,
+      maxAllowedPages: 48,
+      requiredMultipleOf: null,
+      constraintSource: 'binding:saddle-stitch',
+    };
+  }
+
+  if (podPackageId === '0850X0850FCPRESS080CW444MXX') {
+    return {
+      minAllowedPages: 4,
+      maxAllowedPages: 48,
+      requiredMultipleOf: null,
+      constraintSource: 'pod_package:0850X0850FCPRESS080CW444MXX',
+    };
+  }
+
+  return {
+    minAllowedPages: null,
+    maxAllowedPages: null,
+    requiredMultipleOf: null,
+    constraintSource: null,
+  };
+}
+
+function evaluateProductionPageCountGuard(params: {
+  expectedPageCount: number | null;
+  podPackageId: string | null;
+  binding: string | null;
+}): ProductionPageCountGuard {
+  const constraint = resolveProductionPageConstraint({
+    podPackageId: params.podPackageId,
+    binding: params.binding,
+  });
+
+  if (params.expectedPageCount === null) {
+    return {
+      valid: false,
+      details: 'missing_expected_page_count',
+      expectedPageCount: null,
+      ...constraint,
+    };
+  }
+
+  if (constraint.minAllowedPages !== null && params.expectedPageCount < constraint.minAllowedPages) {
+    return {
+      valid: false,
+      details: `page_count_below_min:${params.expectedPageCount}<${constraint.minAllowedPages}`,
+      expectedPageCount: params.expectedPageCount,
+      ...constraint,
+    };
+  }
+
+  if (constraint.maxAllowedPages !== null && params.expectedPageCount > constraint.maxAllowedPages) {
+    return {
+      valid: false,
+      details: `page_count_above_max:${params.expectedPageCount}>${constraint.maxAllowedPages}`,
+      expectedPageCount: params.expectedPageCount,
+      ...constraint,
+    };
+  }
+
+  if (
+    constraint.requiredMultipleOf !== null &&
+    params.expectedPageCount % constraint.requiredMultipleOf !== 0
+  ) {
+    return {
+      valid: false,
+      details: `page_count_multiple_mismatch:${params.expectedPageCount}%${constraint.requiredMultipleOf}!=0`,
+      expectedPageCount: params.expectedPageCount,
+      ...constraint,
+    };
+  }
+
+  return {
+    valid: true,
+    expectedPageCount: params.expectedPageCount,
+    details: undefined,
+    ...constraint,
+  };
+}
 
 function evaluateProductionGuard(params: {
   input: JsonRecord;
@@ -714,15 +868,7 @@ export async function buildW4SubmitInput(
   });
 
   const normalizedShippingAddress = normalizeShippingAddress(
-    pickFirstNonEmpty(
-      input.shippingAddress,
-      input.shipping_address,
-      toRecord(input.orderDetails).shippingAddress,
-      toRecord(input.orderDetails).shipping_address,
-      toRecord(input.order).shippingAddress,
-      toRecord(input.order).shipping_address,
-      loadedOrderRecord.shipping_address,
-    ),
+    resolveShippingAddressInput(input, loadedOrderRecord),
   );
 
   const quantity =
@@ -785,6 +931,37 @@ export async function buildW4SubmitInput(
     existingSubmission,
     defaults,
   });
+  const productionPageCountGuard = productionGuard.requested
+    ? evaluateProductionPageCountGuard({
+        expectedPageCount: resolveExpectedInteriorPageCount(input),
+        podPackageId,
+        binding: productConfig.binding,
+      })
+    : null;
+  const effectiveProductionGuard: ProductionGuardEvaluation =
+    productionGuard.requested && productionGuard.allowed && productionPageCountGuard && !productionPageCountGuard.valid
+      ? {
+          ...productionGuard,
+          allowed: false,
+          reason: 'page_count_invalid',
+          details: productionPageCountGuard.details,
+          expectedPageCount: productionPageCountGuard.expectedPageCount,
+          minAllowedPages: productionPageCountGuard.minAllowedPages,
+          maxAllowedPages: productionPageCountGuard.maxAllowedPages,
+          requiredMultipleOf: productionPageCountGuard.requiredMultipleOf,
+          constraintSource: productionPageCountGuard.constraintSource,
+        }
+      : productionPageCountGuard
+        ? {
+            ...productionGuard,
+            details: productionPageCountGuard.details,
+            expectedPageCount: productionPageCountGuard.expectedPageCount,
+            minAllowedPages: productionPageCountGuard.minAllowedPages,
+            maxAllowedPages: productionPageCountGuard.maxAllowedPages,
+            requiredMultipleOf: productionPageCountGuard.requiredMultipleOf,
+            constraintSource: productionPageCountGuard.constraintSource,
+          }
+        : productionGuard;
 
   if (existingSubmission) {
     return {
@@ -817,7 +994,7 @@ export async function buildW4SubmitInput(
         reason: 'existing_job',
         details: existingSubmission.details,
       },
-      productionGuard,
+      productionGuard: effectiveProductionGuard,
       luluJobId: existingSubmission.luluJobId,
       luluStatus: existingSubmission.luluStatus ?? 'SUBMITTED',
       CONFIG: sandboxConfig,
@@ -854,18 +1031,18 @@ export async function buildW4SubmitInput(
       guard: {
         reason: 'test_mode',
       },
-      productionGuard,
+      productionGuard: effectiveProductionGuard,
       luluJobId: `TEST-${orderId}`,
       luluStatus: 'TEST_MODE',
       CONFIG: sandboxConfig,
     };
   }
 
-  if (productionGuard.requested) {
+  if (effectiveProductionGuard.requested) {
     const productionApiBase = getProductionLuluApiBase(input);
     const productionConfig = withLuluApiBase(input, productionApiBase);
 
-    if (!productionGuard.allowed) {
+    if (!effectiveProductionGuard.allowed) {
       return {
         ...input,
         orderId,
@@ -892,16 +1069,19 @@ export async function buildW4SubmitInput(
         __skipLulu: true,
         guard: {
           reason: 'production_blocked',
-          details: productionGuard.reason,
+          details:
+            effectiveProductionGuard.reason === 'page_count_invalid'
+              ? effectiveProductionGuard.details ?? effectiveProductionGuard.reason
+              : effectiveProductionGuard.reason,
         },
-        productionGuard,
+        productionGuard: effectiveProductionGuard,
         luluJobId: null,
         luluStatus: null,
         CONFIG: productionConfig,
       };
     }
 
-    if (productionGuard.dryRun) {
+    if (effectiveProductionGuard.dryRun) {
       return {
         ...input,
         orderId,
@@ -930,7 +1110,7 @@ export async function buildW4SubmitInput(
           reason: 'production_dry_run',
           details: 'validated_without_submit',
         },
-        productionGuard,
+        productionGuard: effectiveProductionGuard,
         luluJobId: null,
         luluStatus: 'DRY_RUN',
         CONFIG: productionConfig,
@@ -938,7 +1118,7 @@ export async function buildW4SubmitInput(
     }
   }
 
-  if (productionGuard.requested && productionGuard.allowed) {
+  if (effectiveProductionGuard.requested && effectiveProductionGuard.allowed) {
     const productionApiBase = getProductionLuluApiBase(input);
     const productionConfig = withLuluApiBase(input, productionApiBase);
 
@@ -969,7 +1149,7 @@ export async function buildW4SubmitInput(
       guard: {
         reason: 'production',
       },
-      productionGuard,
+      productionGuard: effectiveProductionGuard,
       luluJobId: null,
       luluStatus: null,
       CONFIG: productionConfig,
@@ -1005,7 +1185,7 @@ export async function buildW4SubmitInput(
     guard: {
       reason: 'sandbox',
     },
-    productionGuard,
+    productionGuard: effectiveProductionGuard,
     luluJobId: null,
     luluStatus: null,
     CONFIG: sandboxConfig,

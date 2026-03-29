@@ -593,6 +593,8 @@ function resolveManifestKey(input: PublishW4PrintManifestInput, orderId: string,
 }
 
 function buildSuccessManifest(input: PublishW4PrintManifestInput, orderId: string): JsonRecord {
+  const { status: luluStatus, detail: luluStatusDetail } = normalizeLuluStatusValue(input.luluStatus);
+
   return {
     schema: 'lhb.run-manifest@v2.0',
     stage: '4-print-fulfillment',
@@ -606,11 +608,58 @@ function buildSuccessManifest(input: PublishW4PrintManifestInput, orderId: strin
     },
     lulu: {
       jobId: input.luluJobId ?? null,
-      status: input.luluStatus ?? null,
+      status: luluStatus,
+      statusDetail: luluStatusDetail,
       cost: input.luluCost ?? null,
       estimatedShipDate: input.estimatedShipDate ?? null,
     },
   };
+}
+
+function normalizeLuluStatusValue(value: unknown): { status: string | null; detail: JsonRecord | null } {
+  const direct = toTrimmedString(value);
+  if (direct) {
+    return { status: direct, detail: null };
+  }
+
+  const detail = value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as JsonRecord)
+    : null;
+  if (!detail) {
+    return { status: null, detail: null };
+  }
+
+  const status =
+    firstString(detail.name, detail.status, detail.state) ??
+    null;
+
+  return { status, detail };
+}
+
+function normalizeManifestSupabasePatch(
+  patchLike: JsonRecord,
+  input: PublishW4PrintManifestInput,
+): JsonRecord {
+  const patch = { ...patchLike };
+  const luluJobId = toTrimmedString(input.luluJobId);
+  const { status: luluStatus } = normalizeLuluStatusValue(
+    patch.lulu_status ?? patch.luluStatus ?? input.luluStatus,
+  );
+
+  if (luluJobId && (patch.lulu_job_id === undefined || patch.lulu_job_id === null || patch.lulu_job_id === '')) {
+    patch.lulu_job_id = luluJobId;
+  }
+  if (luluStatus) {
+    patch.lulu_status = luluStatus;
+  } else if (patch.lulu_status && typeof patch.lulu_status === 'object') {
+    delete patch.lulu_status;
+  }
+
+  if (patch.luluStatus !== undefined) {
+    delete patch.luluStatus;
+  }
+
+  return patch;
 }
 
 function buildErrorManifest(input: PublishW4PrintManifestInput, orderId: string): JsonRecord {
@@ -1274,7 +1323,7 @@ export async function publishW4PrintManifest(
   );
 
   let orderUpdateApplied = false;
-  const supabasePatch = toJsonRecord(input.supabasePatch);
+  const supabasePatch = normalizeManifestSupabasePatch(toJsonRecord(input.supabasePatch), input);
   if (Object.keys(supabasePatch).length > 0) {
     const result = await updateOrderImpl(orderId, supabasePatch);
     orderUpdateApplied = Boolean(result);

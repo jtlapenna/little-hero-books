@@ -1142,6 +1142,9 @@ const repoCentricW4BuildSubmitNode = repoCentricW4Workflow.nodes?.find(
 const repoCentricW4UploadManifestNode = repoCentricW4Workflow.nodes?.find(
   (candidate) => candidate.name === 'Upload 4-Manifest to R2',
 );
+const repoCentricW4ProcessLuluResponseNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Process Lulu Response',
+);
 const repoCentricW4BuildErrorManifestNode = repoCentricW4Workflow.nodes?.find(
   (candidate) => candidate.name === 'Build 4-Manifest JSON (Error)',
 );
@@ -1557,7 +1560,8 @@ assert(
     repoCentricW4PrepareSubmitConnections.includes('"node":"Lulu SANDBOX: Get Token"') &&
     repoCentricW4SandboxTokenNode?.type === 'n8n-nodes-base.code' &&
     repoCentricW4SandboxTokenNode?.disabled !== true &&
-    JSON.stringify(repoCentricW4SandboxTokenNode.parameters).includes('api.sandbox.lulu.com') &&
+    JSON.stringify(repoCentricW4SandboxTokenNode.parameters).includes('j.luluApiBase') &&
+    JSON.stringify(repoCentricW4SandboxTokenNode.parameters).includes("apiBase + '/auth/realms/glasstree/protocol/openid-connect/token'") &&
     repoCentricW4SandboxTokenConnections.includes('"node":"Validate Interior (PRODUCTION)"') &&
     repoCentricW4ValidateInteriorNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW4ValidateInteriorNode.parameters).includes('validate-interior') &&
@@ -1568,9 +1572,10 @@ assert(
     repoCentricW4SandboxSubmitNode?.type === 'n8n-nodes-base.code' &&
     repoCentricW4SandboxSubmitNode?.disabled !== true &&
     JSON.stringify(repoCentricW4SandboxSubmitNode.parameters).includes('if (j.__skipLulu)') &&
-    JSON.stringify(repoCentricW4SandboxSubmitNode.parameters).includes('https://api.sandbox.lulu.com/print-jobs/') &&
+    JSON.stringify(repoCentricW4SandboxSubmitNode.parameters).includes('j.luluApiBase') &&
+    JSON.stringify(repoCentricW4SandboxSubmitNode.parameters).includes("apiBase + '/print-jobs/'") &&
     repoCentricW4SandboxSubmitConnections.includes('"node":"Status Banner (Env & Submit Path)"'),
-  'Repo-centric W4 Lulu submit path should stay sandbox-only, short-circuit __skipLulu runs, and keep the production Lulu nodes off the active route',
+  'Repo-centric W4 active Lulu submit path should short-circuit __skipLulu runs and honor the repo-owned submit input luluApiBase for sandbox or production execution',
 );
 assert(
   repoCentricW4LegacyTokenNode &&
@@ -1581,7 +1586,14 @@ assert(
     JSON.stringify(repoCentricW4LegacyTokenNode.parameters).includes('__skipLulu=true') &&
     JSON.stringify(repoCentricW4LegacySubmitNode.parameters).includes("submitMode !== 'production'") &&
     JSON.stringify(repoCentricW4LegacySubmitNode.parameters).includes('__skipLulu=true'),
-  'Repo-centric W4 should leave the legacy production Lulu nodes present but unreachable from the active extracted path, and they must fail closed unless submitMode=production',
+  'Repo-centric W4 should leave the legacy production Lulu nodes present but unreachable from the active extracted path, and they must still fail closed unless submitMode=production',
+);
+assert(
+  repoCentricW4ProcessLuluResponseNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4ProcessLuluResponseNode.parameters).includes('const rawStatus =') &&
+    JSON.stringify(repoCentricW4ProcessLuluResponseNode.parameters).includes('statusDetail?.name || statusDetail?.status || statusDetail?.state') &&
+    JSON.stringify(repoCentricW4ProcessLuluResponseNode.parameters).includes('luluStatusDetail: statusDetail'),
+  'Repo-centric W4 should normalize structured Lulu status objects in the active response path before downstream manifest persistence',
 );
 assert(
   repoCentricW4SupabaseMarkSubmittedNode?.type === 'n8n-nodes-base.code' &&

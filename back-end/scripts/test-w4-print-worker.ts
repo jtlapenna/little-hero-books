@@ -495,9 +495,16 @@ async function testManifestPublishSuccessAndError(): Promise<void> {
       coverPdfR2Key: 'book/orders/W4-SANDBOX-PROOF-007/cover.pdf',
       submitMode: 'sandbox',
       luluJobId: 'sandbox-job-007',
-      luluStatus: 'CREATED',
+      luluStatus: {
+        name: 'CREATED',
+        message: 'Print-job is currently being validated',
+      },
       supabasePatch: {
         status: 'pending_print',
+        lulu_status: {
+          name: 'CREATED',
+          message: 'Print-job is currently being validated',
+        },
       },
     },
     {
@@ -520,10 +527,20 @@ async function testManifestPublishSuccessAndError(): Promise<void> {
     'Expected W4 manifest publish route to persist the canonical success manifest URL',
   );
   assert(
+    typeof (successResult.manifest.lulu as JsonRecord | undefined)?.status === 'string' &&
+      (successResult.manifest.lulu as JsonRecord).status === 'CREATED' &&
+      typeof (successResult.manifest.lulu as JsonRecord).statusDetail === 'object',
+    'Expected W4 success manifest publish to normalize structured Lulu status objects while preserving the original detail payload',
+  );
+  assert(
     successUpload?.bucket === 'little-hero-orders' &&
       successUpload.key === 'book/orders/W4-SANDBOX-PROOF-007/manifests/4-manifest.json' &&
       successPatch?.orderId === 'W4-SANDBOX-PROOF-007',
     'Expected W4 manifest publish route to upload the manifest and apply the requested order patch',
+  );
+  assert(
+    successPatch?.updates.lulu_status === 'CREATED',
+    'Expected W4 manifest publish route to normalize structured Lulu status objects before persisting them to Supabase',
   );
   assert(
     successEvents.map((event) => event.eventType).join(',') === 'manifest-published',

@@ -267,6 +267,8 @@ export async function handlePrintSubmitted(
       ? 'https://littleherolabs.com'
       : 'http://localhost:4321');
   let sharedWorkflowMarked = false;
+  const luluJobId = toTrimmedString(payload.luluJobId);
+  const { status: luluStatus } = normalizeLuluStatus(payload.luluStatus);
 
   for (const orderId of orderIds) {
     const order = await dependencies.getOrder(orderId).catch(() => null) as PrintSubmittedOrder | null;
@@ -312,6 +314,8 @@ export async function handlePrintSubmitted(
       print_submitted_at: nowIso,
       started_at: null,
       current_workflow: null,
+      ...(luluJobId ? { lulu_job_id: luluJobId } : {}),
+      ...(luluStatus ? { lulu_status: luluStatus } : {}),
     }).catch((err) => {
       console.error('[print-submitted] Failed to update order status:', err?.message ?? err);
     });

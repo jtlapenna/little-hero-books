@@ -194,6 +194,12 @@ async function testProductionD2CCompletionStillNotifies(): Promise<void> {
         !calls.some((entry) => entry.fn === 'sendAmazonPrintSubmittedMessage'),
       'Expected production D2C print-submitted handling to update lifecycle state, notify by email, and complete the workflow job',
     );
+    const lifecycleUpdate = calls.find((entry) => entry.fn === 'updateOrderStatus')?.payload ?? null;
+    assert(
+      lifecycleUpdate?.lulu_job_id === 'prod-job-010' &&
+        lifecycleUpdate?.lulu_status === 'SUBMITTED',
+      'Expected production print-submitted handling to persist Lulu job identity and status alongside the lifecycle update',
+    );
   } finally {
     if (originalNotificationsFlag === undefined) {
       delete process.env.AMAZON_PRINT_SUBMITTED_NOTIFICATIONS_ENABLED;

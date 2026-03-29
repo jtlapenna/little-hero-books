@@ -17,6 +17,7 @@ function createBaseInput(orderId = 'W4-SANDBOX-PROOF-001'): JsonRecord {
     rootOrderId: orderId,
     backendUrl: 'https://admin.littleherolabs.com',
     title: 'Ada and the Quiet Trail',
+    expectedPageCount: 17,
     customer: {
       email: 'parent@example.com',
       name: 'Parent Example',
@@ -310,6 +311,91 @@ async function testProductionRequiresRealShippingPhone(): Promise<void> {
   }
 }
 
+async function testProductionBlocksInvalidInteriorPageCount(): Promise<void> {
+  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+
+  try {
+    process.env.ENABLE_LULU_PRODUCTION_SUBMIT = 'true';
+    const orderId = 'REAL-W4-PILOT-005';
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        expectedPageCount: 2,
+        pageLabels: ['p00', 'p01'],
+        allowProductionLulu: true,
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'skip' &&
+        response.__skipLulu === true &&
+        response.guard.reason === 'production_blocked' &&
+        response.productionGuard.reason === 'page_count_invalid' &&
+        response.productionGuard.expectedPageCount === 2 &&
+        response.productionGuard.minAllowedPages === 4 &&
+        response.productionGuard.maxAllowedPages === 48 &&
+        response.productionGuard.requiredMultipleOf === null,
+      'Expected W4 production submit shaping to fail closed when the interior page count is outside the Lulu product range',
+    );
+  } finally {
+    if (originalEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
+    }
+  }
+}
+
+async function testProductionHonorsRecommendedAddressOverride(): Promise<void> {
+  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+
+  try {
+    process.env.ENABLE_LULU_PRODUCTION_SUBMIT = 'true';
+    const orderId = 'REAL-W4-PILOT-006';
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+        shippingAddressRecommended: {
+          name: 'Sibling Parent',
+          address_line_1: '123 SW Main Street',
+          city: 'Portland',
+          state_code: 'OR',
+          postcode: '97204',
+          country_code: 'US',
+          phone_number: '+1-503-555-0101',
+        },
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    const shippingAddress = response.shippingAddress as JsonRecord;
+    const luluShipping = response.luluPayload.shipping_address as JsonRecord;
+
+    assert(
+      response.submitMode === 'production' &&
+        shippingAddress.street1 === '123 SW Main St' &&
+        luluShipping.street1 === '123 SW Main St' &&
+        shippingAddress.city === 'Portland' &&
+        shippingAddress.state_code === 'OR',
+      'Expected W4 production submit shaping to honor an explicit recommended-address override for the next paid pilot',
+    );
+  } finally {
+    if (originalEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
+    }
+  }
+}
+
 async function testExistingJobSkipsLulu(): Promise<void> {
   const response = await buildW4SubmitInputResponse(createBaseInput(), {
     loadOrder: async () => ({
@@ -403,6 +489,8 @@ async function main(): Promise<void> {
   await testProductionRejectsProofOrders();
   await testProductionSubmitShapeWhenGateEnabled();
   await testProductionRequiresRealShippingPhone();
+  await testProductionBlocksInvalidInteriorPageCount();
+  await testProductionHonorsRecommendedAddressOverride();
   console.log('W4 submit input tests passed');
 }
 
